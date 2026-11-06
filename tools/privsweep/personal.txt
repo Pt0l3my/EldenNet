@@ -1,0 +1,6 @@
+# Salted SHA-256 hashes of words that are the owner's own (privsweep, d414): a hash, never the word.
+# A word is listed here only when it is long and particular enough that its hash doesn't give it
+# away; anything short or guessable goes in the untracked ~/.config/privsweep/private.txt or in
+# $PRIVSWEEP_PRIVATE instead. Add one: python3 tools/privsweep/privsweep.py hash < FILE
+salt b92ee7bc8f5c6cba6b0694116bcf1ca9
+sha256 e78a9a08e55f96bd2539c2b6232e15735fd2f1d37708a81de95112881a86779b
