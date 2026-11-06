@@ -203,7 +203,7 @@ The two dotted edges were added here and adopted into DESIGN §2.2 by the review
 |---|---|---|
 | `en-proto` | Every message that crosses a thread or the adapter boundary. All are `serde` types | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, `trait GameBackend`, `struct GameThread`, `PROTO_VERSION` |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur::new(RuleSet, Registry)`, `Augur::step(&CoreInput, Mono, &dyn AugurCtx, &mut EventBatch)`, `trait EventSource`, `RuleSet::load(&[RuleFile], &dyn PredicateCompiler) -> Result<RuleSet, Vec<RuleError>>`, `Event`, `EventKind` |
-| `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts, sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport`, `world::derive(&FlagState, &WorldFacts, &WorldContent) -> WorldView`, `world::known(PersonaId, &FlagState, &WorldFacts, &WorldView, &WorldSeen, &ContentPack) -> KnownSet` |
+| `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts, sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport`, `world::derive(&FlagState, &WorldFacts, &WorldContent) -> WorldView`, `world::known(PersonaId, &FlagState, &WorldFacts, &WorldView, &WorldSeen, &ContentPack) -> KnownSet`, `world::cue(PersonaId, StageId, &KnownSet, &Locked, &WorldSeen, &WorldCued, &PersonaFacts, &RenderedJournal, &ContentPack, Pt) -> Option<Cue>` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; `&Locked` is this turn's `Locked(P)`, `R_locked` included, MEM §7.2, used to remove candidates whose short meets it) |
 | `en-store` | SQLite files, migrations, the request loop, backups | `Store::spawn(StoreCfg) -> StoreHandle`, `StoreHandle::{send(DbRequest) -> Result<(), Full>, results() -> Receiver<DbResult>}` |
 | `en-llm` | The OpenAI-compatible client, SSE parser, slots, health, local probes, warm-up | `Llm::spawn(ProvidersCfg) -> LlmHandle`, `LlmHandle::{submit(LlmRequest) -> Result<(), Full>, cancel(RequestId), events() -> Receiver<LlmEvent>}`, `probe_local() -> Vec<LocalEndpoint>` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `gate(&ImageView, &Builds) -> Result<BuildProfile, GateError>`, `discover(&dyn SysLayer, &BuildProfile) -> Result<Discovery, DiscoveryReport>`, `install_task(Discovery, TaskWiring) -> Result<TaskToken, GalError>`, `struct ErBackend: GameBackend`, `trait SysLayer` (§6.4) |
@@ -519,7 +519,7 @@ The page is written by us and lives only in our repository and release zip. It n
 3. **Do not also use the EldenNet launcher for the same session.** If both load it, the second copy stays idle.
 4. **Co-op:** EldenNet goes dormant in any multiplayer or Seamless Co-op session and wakes 5 s after you are alone again.
 5. **Saves and online play:** your profile's own save and online settings are yours to manage. EldenNet never writes your save, and it enforces its own offline check whatever the profile says. Back up first with `eldennet-launcher.exe --backup-only`.
-6. **If something fails,** EldenNet shows a banner with the reason. Send the bug-report bundle from the F11 view.
+6. **If something fails,** EldenNet shows a banner with the reason. Send the bug-report bundle from the settings panel (F10, Diagnostics).
 
 ---
 
@@ -1134,7 +1134,7 @@ pub struct Observations {
 | `in_combat` | bool | player | §8.7 |
 | `idle_due` | bool | chr | Set by the Timer at the actor's 30 s phase |
 
-World stages and tracks are not signals in v1: `world()` and `knows()` are refused in Augur and bark `requires` (MEM §12.10, W1). They are derived in bus step 1 (§8.9) and read by the conversation, memory and debug-view subscribers.
+World stages and tracks are not signals in v1: `world()` and `knows()` are refused in Augur and bark `requires` (MEM §12.10, W1). They are derived in bus step 1 (§8.9) and read by the conversation, memory and debug-view subscribers. The reaction cue that lets a persona raise news unasked (O28, MEM §12.13) is not an Augur rule either: the conversation subscriber computes it from what Augur, the flag watcher, the world view and the journal have already recorded.
 
 ### 8.4 Detector semantics
 
@@ -1247,7 +1247,8 @@ pub enum EventKind {
     CalloutSent { target: ActorRef }, CalloutReplied { target: ActorRef, from_seed: bool },  // T: nothing is remembered
     ConversationStarted { persona: PersonaId, conv: ConvId },    // T
     ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16,
-                        known: Option<Vec<(ItemId, Certainty)>> },   // ≤ 24 (item, certainty) of the known set at the end; paths are not stored (MEM §12.7); None without a flag frame
+                        known: Option<Vec<(ItemId, Certainty)>>,   // ≤ 24 (item, certainty) of the known set at the end; paths are not stored (MEM §12.7); None without a flag frame
+                        cued: Option<ItemId> },   // the item a reaction cue offered on a committed reply (MEM §12.13)
     // lifecycle (P for PlaythroughReady and journey changes, T otherwise)
     DataReady, PlaythroughReady { key: PlaythroughKey }, LoadingStarted, LoadingEnded, TitleReached,
     JourneyChanged { ng_lvl: u8 }, GateChanged { active: bool }, GroupTripped { group: Group }, LadderChanged { to: Level },
@@ -1709,26 +1710,27 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 backstop (`MH_RemoveHook`, a bare `eject(`, `use hudhook::*`, `hudhook!`); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
 | `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), and `lead` entries in release layouts |
+| `eval` | Linux: `en-tools eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
 | `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
 | `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
 | `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled; any hudhook feature but `dx12` (DESIGN O25) |
 | `build-release` | Two independent runners: `cargo xwin build --release --locked`, pinned toolchain and xwin SDK, `SOURCE_DATE_EPOCH`, `--remap-path-prefix`, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
-| `sign` | Release tags only | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
+| `sign` | Every tester build from v0.1, and release tags | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
 
 ### 12.2 Test types
 
 | Type | Crates | Examples |
 |---|---|---|
-| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation and `known(P)` truth tables (MEM §12.11) |
+| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation, `known(P)` truth tables, and the reaction-cue table and journey (MEM §12.11 T2, T12, T13) |
 | Property (`proptest`) | `en-augur`, `en-core` | §8.12; sanitizer (never panics, never shows markup or a trailer, respects caps) |
 | Golden replay | `en-tools` | 3 recorded routes; 10 identical replays (C12) |
-| Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis |
-| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; spoiler renders at 6 flag states; block-5b renders at the 8 fixture states plus `ashen`, and since-line renders for 3 state transitions (MEM §12.11 T4) |
-| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen` after trim and NG+ |
+| Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis, memory (`wren_and_kale`, MEM §2.8), knowledge (`star_falls`, MEM §12.11) and identity (`veiled`, NPC §2.7) |
+| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; spoiler renders at 6 flag states; block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4) |
+| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt` and `world_cued` after trim and NG+ |
 | Conformance | `en-core` | A trailer never displays; with `actions` off no non-read command; one row per decision (DESIGN §13) |
 | `FakeSys` | `en-gal` | Discovery over synthetic images; statics moving, nulls, vtable swaps, faults → breakers |
 | Backpressure | `en-core`, `en-augur` | §8.12 |
-| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus spoiler and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3; C14 counts toward a pass only as O29 decides). A persona ships only with a passing report |
+| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus spoiler and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
 | In game | Dev builds | S0-A–S0-E, smoke route, 30 h soak (C1), 20 forced fail-closed launches with `--features probe` fault injection (unknown build, missing pattern, forced read faults) |
 
 ### 12.3 `en-tools` subcommands
@@ -1749,7 +1751,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `kb-draft` | Offline KB skeletons from the author's own export, every `text` left empty; `--check` flags ≥ 6-word overlaps with the export (MEM §5.6) | `--persona`, `--export`, `--check` |
 | `flag-verify <recording>` | Align flag edges with S6 marks and write evidence records (MEM §6.3) | `--script tests/s6/<topic>.toml` |
 
-### 12.4 Compatibility matrix (v0.6, DESIGN §16.2)
+### 12.4 Compatibility matrix (rows from v0.1, the full matrix at v0.6; DESIGN §16.3)
 
 | Axis | Values |
 |---|---|
@@ -1760,9 +1762,11 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | Display | SDR, HDR |
 | Expected | Known builds: L4 with all groups OK and no input leak. Unknown: L1 with zero task registrations and zero reads (C2). ERSC session: Dormant within one snapshot (C4). Double load: one active copy |
 
+Each increment runs the rows its own features touch, with that increment's expectations: from v0.1 the builds (the unknown one included), the load paths (double load included), ERSC through the player's me3, Reforged, Proton, the Steam overlay, another DInput-hooking overlay (the present hook, S0-E), SDR and HDR; from v0.2 the input-leak axis; from v0.4 labels × HDR. The full matrix certifies v0.6.
+
 ### 12.5 Patch drill
 
-Before v0.6 the team rehearses §6.10 using **JP as the "new" build**:
+At v0.1's exit (or v0.2's, if the JP layout is not ready by then), and again before v0.6, the team rehearses §6.10 using **JP as the "new" build**:
 1. Remove the `2.7.2.1-jp` rows and layout.
 2. Run `probe-exe`, then the in-game probe, the self-tests and the smoke route.
 3. Ship a data-only `gal/` to testers.
@@ -1799,8 +1803,8 @@ eldennet/
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml
   gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
-  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), db/}  recordings/*.ensnap.zst (redacted)
-              golden/{*.events.jsonl, CHANGES.md}  s6/*.toml  knowledge/expect.toml
+  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), personas/ (test_veiled, test_stake), db/}  recordings/*.ensnap.zst (redacted)
+              golden/{*.events.jsonl, CHANGES.md}  s6/*.toml  knowledge/{expect,cues}.toml
   tools/      privsweep/  workplan/
   dist/       README-install.md  using-a-loader.md  ai-disclosure.md
   docs/

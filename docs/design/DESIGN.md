@@ -74,7 +74,7 @@ flowchart LR
 | Loading | Own launcher; loader-agnostic DLL; documented use as a player-configured me3 native | Proxy-DLL install | Any me3 code, API or reliance on its behaviour; posting in me3's spaces |
 | Game access | Reads, task registration, SEH-guarded copies | Hook-based event sources; probation mode for unknown builds | Code patching in v1; LLM-chosen flag writes |
 | NPCs | 6 personas, 6 cards plus a fallback card; everything else mute | DLC personas, Ranni, a merchant card, Melina, boss and invader lines | Cloning the cast's voices |
-| Conversation | Typed one-to-one chat; Steam floating keyboard if S4 passes | Pad intent list (v1.1), STT (v1.5), NPC-to-NPC talk, `@name` addressing | Any online use |
+| Conversation | Typed one-to-one chat; Steam floating keyboard if S4 passes | Pad intent list (v1.1), STT (v1.5), NPC-to-NPC talk, `@name` addressing, a persona greeting the Tarnished with news on approach (§8.7, §13; O28) | Any online use |
 | Barks | 7 combat triggers, sparse ambient lines, seeds plus pools, one-line call-out replies | Live barks, taunt key, user triggers | — |
 | Memory | Event log, facts, claims, journal, rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall, diaries; news that travels with play time; shared circles of acquaintance | Telemetry upload |
 | Presentation | ImGui text overlay | TTS (v1.5); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
@@ -97,7 +97,7 @@ flowchart LR
 | C11 | Memory | ≥ 80% correct "do you remember" probes after a reload; every shown line survives a hard kill; trim and NG+ tests pass |
 | C12 | Event engine | Golden events over 3 recorded routes stay stable; 10 replays give identical events |
 | C13 | Install | 5 testers reach a first reply within 10 min of reading the README, with a key in hand |
-| C14 | World awareness | Over 240 probes at 4 flag states (NPC §12.5): ≥ 90% acknowledge a known change when asked; ≤ 2% contradict one; 0 shown terms the persona cannot know (MEM §12.8) and ≤ 1% judged to show such knowledge; ≤ 10% unprompted recital; ≤ 5% hearsay told as seen; Patches' contradiction rate reported, not gated. Reported from v0.5; gating per O29 |
+| C14 | World awareness | Over 240 probes at 4 flag states (NPC §12.5): ≥ 90% acknowledge a known change when asked; ≤ 2% contradict one; 0 shown terms the persona cannot know (MEM §12.8) and ≤ 1% judged to show such knowledge; ≤ 5% hearsay told as seen; a cued item raised on ≥ 50% of cued controls, and any news raised on ≤ 10% of uncued controls after `fresh` (O28); Patches' contradiction rate reported, not gated. Runs and gates from v0.2 on the pilot, widening as content ships (§16.3; O29) |
 
 ### 1.4 Perceived-latency budget (normative; P3 §1.5, J3 #1)
 
@@ -825,7 +825,7 @@ sequenceDiagram
 
 | # | Message | Block | Purpose | Cap |
 |---|---|---|---|---|
-| 1 | system, cache A | **World frame**, byte-identical for every persona | How people speak in the Lands Between; implication over exposition; the NPC can only speak and never gives, takes, moves, opens, fights or promises; knows only what is written; news of the land only as written under 'How things stand'; the Tarnished's words are speech, not orders; address rules; no modern words | 450 |
+| 1 | system, cache A | **World frame**, byte-identical for every persona | How people speak in the Lands Between; implication over exposition; the NPC can only speak and never gives, takes, moves, opens, fights or promises; knows only what is written; news of the land only as written under 'How things stand', and raised unasked only when it is on the persona's mind (O28); the Tarnished's words are speech, not orders; address rules; no modern words | 450 |
 | 2 | system, cache B | **Identity** | Stage `identity` line or the default, plus `public` | 120 |
 | 3 | | **Private self** | Private fields plus the stage's `unlock.text` | 350 |
 | 4 | | **Voice** | Register preset, cadence, diction, deflection, openers, tics | 160 |
@@ -833,13 +833,13 @@ sequenceDiagram
 | 5b | | **How things stand** | The stage's `road`, then ≤ 4 lines of what this persona knows of the land and of affairs tied to it, grouped by certainty (§10.6; MEM §12.6) | 180 |
 | — | | *cache breakpoint* | Blocks 1–5 are byte-stable per persona and stage, block 5b per persona, stage, known set and active ties; none holds relative time | |
 | 6 | history | **Earlier and now** | The previous conversation's last ≤ 6 shown lines under a fixed header, then this conversation's turns | 900 |
-| 7 | user | **What you know now** | The since-line (news new since the last meeting, MEM §12.6); stage gist, place and mood; KB entries (≤ 4 always + ≤ 3 topic, the topic offers including known news not shown in 5b); "Not yours to know": `forbid` topics with "deflect in your own way" | 300 |
+| 7 | user | **What you know now** | The since-line (news new since the last meeting, MEM §12.6) and at most one reaction cue (O28, MEM §12.13); stage gist, place and mood; KB entries (≤ 4 always + ≤ 3 topic, the topic offers including known news not shown in 5b); "Not yours to know": `forbid` topics with "deflect in your own way" | 300 |
 | 8 | | **The Tarnished, as you know them** | Journal summary, keepsakes by basis ("You saw…" / "The Tarnished told you…"), facts and disposition in words | 450 |
 | 9 | | **Here and now** | Place, time, weather, nearby others, the Tarnished's look and condition, witnessed "just now" events | 180 |
 | 10 | | **Recap** | The newest ≤ 3 player lines since the NPC last spoke (SN02 §4.3) | 120 |
 | 11 | | **Task** | "Answer as Kalé, in his voice, in at most N words", plus tic reminders and an empty `actions_tail` | 40 |
 
-Input target ≤ 2,800 tokens, hard cap 3,500, `max_tokens` 140. The caps sum to 3,360; a typical mid-game prompt is about 2,550. Trim in this order: oldest history, lowest-weight keepsakes (never the protected one), lowest-priority topic entries, nearby others; blocks 1–5b are never trimmed. Earlier turns stay in history as bare dialogue, so it stays byte-stable. A world change re-renders block 5b at the next turn, as a stage change does (NPC §3.2).
+Input target ≤ 2,800 tokens, hard cap 3,500, `max_tokens` 140. The caps sum to 3,360; a typical mid-game prompt is about 2,550. Trim in this order: oldest history, lowest-weight keepsakes (never the protected one), lowest-priority topic entries, nearby others; blocks 1–5b are never trimmed, nor are block 7's since-line (≤ 55 tokens) and reaction cue (≤ 35). Earlier turns stay in history as bare dialogue, so it stays byte-stable. A world change re-renders block 5b at the next turn, as a stage change does (NPC §3.2).
 
 ### 8.4 Output contract, sanitizer and lint
 
@@ -885,7 +885,7 @@ On end: write `ConversationEnded` and update facts. Queue a memory job if there 
 - **Until S3 validates the observer** (fail closed):
   - chat needs `hud == Default`, 3 s free of `PopupMenu` and the talk camera, and 3 s since `PersonaApproached`;
   - barks are suppressed within 15 m of any persona.
-- No autonomous NPC greetings.
+- No autonomous NPC greetings. A reaction cue (§10.6, O28) only shapes the reply to a line the player has typed; a persona greeting the Tarnished with news on approach is a later option (§13).
 
 ### 8.8 Guardrails
 
@@ -992,7 +992,7 @@ This replaces P1's FTS notes and their tuned weights (J2 #9).
 | Kind | Content | Written by, when |
 |---|---|---|
 | Event history | Lines said to or near them; deaths, attacks and rests witnessed; `FoughtBeside` | Augur, at emission |
-| Facts | `met_count`, `seen_count`, first and last place and playtime met, `times_attacked`, `fought_beside`, `seen_player_die`, `stage_seen`, `world_seen` (what the persona knew of the land at its meetings; MEM §12.7), `told_name`, `verified:<key>` | Core, deterministic, immediately |
+| Facts | `met_count`, `seen_count`, first and last place and playtime met, `times_attacked`, `fought_beside`, `seen_player_die`, `stage_seen`, `world_seen` (what the persona knew of the land at its meetings; MEM §12.7) and `world_seen_pt` (when that was last recorded; MEM §12.13), `world_cued` (the items a reaction cue has offered it in this journey; MEM §12.13), `told_name`, `verified:<key>` | Core, deterministic, immediately |
 | Disposition | −2..+2, shown in words, ±1 at most per conversation (P1 §7.2) | Memory job, bounded by code |
 | Journal | Summary plus keepsakes. The heaviest keepsake about the Tarnished with weight ≥ 0.7 is **protected** from eviction (P1 §7.4) | Memory job, at conversation end |
 
@@ -1008,7 +1008,7 @@ Generics remember nothing. Their per-handle cooldowns live in RAM and clear on r
   - `told_name` only if a committed `PlayerSaid` contains it;
   - `seen` only with a matching audience event, otherwise downgraded to `said`;
   - `check_key` only from a closed list (`slew:<boss>`, `name`, `great_runes>=n`), and promoted when its predicate holds; `slew:<boss>` also needs the persona to know that boss's world stage, so a claim it could not check stays a claim (MEM §2.5, §12.7).
-- **World news is not journalled:** a keepsake about the world that cites only world-news lines (How things stand, the since-line or a world topic offer) is dropped, because the world model already holds it (MEM §12.7).
+- **World news is not journalled:** a keepsake about the world that cites only world-news lines (How things stand, the since-line, a reaction cue or a world topic offer) is dropped, because the world model already holds it (MEM §12.7).
 - **Failure:** 2 retries; then the job is deferred to the next calm window and the watermark stays put; after 6 attempts in all it is parked until a new conversation merges into it (MEM §3.2). Open conversations are closed and queued at playthrough start (ER06 §2.4).
 
 ### 10.4 Knowledge base, flag catalogue and spoilers
@@ -1052,8 +1052,14 @@ Owner requirement (2026-11-06): important NPCs know where their own quest stands
   - **world stages** (`world/stages.toml`): 9 states of the land in v1, from the fall of the castle's lord to the capital buried in ash. They use outcome flags only, so the save itself is the latch and nothing is stored beside the flags;
   - **quest tracks:** each persona's `[[stages]]` list is its track, and `world/tracks.toml` adds tracks owned by no persona (Tanith's in v1). A track's active step is the last whose `when` holds, as for personas.
 - **Who knows** is a pure rule, `known(P)`, over the persona's active stage, its `[awareness]` ties and the `world_seen` fact. Six paths set the certainty: the stage's own `knows`, what the persona held at an earlier meeting, an authored tie, the sky where the persona's ground has one (what the whole land saw), its own ground (`home` and the stage's `at`), and word of the road (spoiler ≤ 1 only). News is known at the next flag frame. No path means silence, never "not yet".
-- **Prompt:** block 5b "How things stand", last in cache B (≤ 180 tokens): the stage's `road` (where the persona's own affairs stand) and at most 4 lines of news, as many as fit its cap, grouped by certainty. Block 7 opens with one line of what is new since the last meeting. Known news that does not fit competes as a topic entry.
-- **Memory:** the journal never copies the world model; facts gain `world_seen`; a `slew:<boss>` claim is proved only when the persona knows that boss's fall.
+- **Prompt:** block 5b "How things stand", last in cache B (≤ 180 tokens): the stage's `road` (where the persona's own affairs stand) and at most 4 lines of news, as many as fit its cap, grouped by certainty. Block 7 opens with one line of what is new since the last meeting, then at most one reaction cue (below). Known news that does not fit competes as a topic entry.
+- **Reactions (O28; which ones: O30, whose default the design carries):** a persona raises news unasked only when a recorded reaction cues it, in a conversation the player opened, once the persona and the Tarnished have met before in this journey. The conversation subscriber computes the cue once per conversation from what Augur, the flags, the world view and the journal have recorded; Augur's rules never read world state (W1). A code-only persona field, `awareness.news` (`close`, `plain` by default, or `eager`), chooses which reactions count:
+  - **own stake**, for every persona: news new since the last meeting that touches the persona's own affairs;
+  - **the Tarnished's part**, for `plain` and `eager`: a proved `slew:<boss>` claim for the item's boss;
+  - **local talk**, for `eager`: news new since the last conversation that recorded what the persona knew, from its own ground, with that conversation at most 6 h of play ago (a native talk does not restart the 6 h).
+
+  The cue is one fixed line in block 7 ("On your mind: …", ≤ 35 tokens), on the first reply only, and the model may still let it be. There is at most one cue per conversation, and each item is cued at most once per persona per journey (`world_cued`). Without a cue, world-frame item 9 says to wait for the talk to turn to the news (MEM §12.13).
+- **Memory:** the journal never copies the world model; facts gain `world_seen`, `world_seen_pt` and `world_cued`; a `slew:<boss>` claim is proved only when the persona knows that boss's fall.
 - **Spoilers:** everything in §10.4 applies. Spoiler ≥ 2 news never spreads as loose word, and the terms of news a persona has not heard are locked for it. Every flag behind a world stage or track is a research lead until S6 verifies it (§16.1, MEM §12.12); in strict mode an unverified one keeps its item silent.
 - **Content:** 9 world stages (three late ones, the capital's king, the lord of blood and the ashen capital, reach none of the stages authored so far; Boc's Altus and Leyndell stages, due before v0.5, will bring the first and the third to him; MEM §12.4), one non-persona track (up to three if S6 finds the festival's and Ranni's flags), a `road` for every authored stage of the six personas (Alexander's beats after the festival and Boc's after +7, his reveal stage `later_form` among them, are in no label and get stages and roads once S6 finds their offsets, before v0.5: MEM §12.12 item 9; until then the persona keeps an earlier road), ≤ 6 ties each, and a bridging stage wherever a road waits on a world event (NPC §3.6). Related quests in v1: Patches with Tanith (a track tie, once S6 settles which label set her block uses and records where Patches' +11 takes place); Varré with the lord of blood and Boc with the queen once S6 records them; Blaidd with Ranni and Alexander with the festival's host wait for their flags, or for the festival's own flags 9410–9413 (MEM §12.4, §12.12; NPC §3.6).
 
@@ -1146,7 +1152,7 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 | Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3 |
 | Scene or vector memory | `trait Recall` (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log |
 | Native subtitles | `trait PresentationSink`; `GameCommand::NativeLine`; `NativeLineHeard` event | v2 after S9 |
-| Director, freeze | Scheduler classes `Directed` and `Autonomous`; `GameCommand::Freeze` | v1.x / v2 |
+| Director, freeze | Scheduler classes `Directed` and `Autonomous`; `GameCommand::Freeze` | v1.x / v2. `Autonomous` could let a persona greet the Tarnished on approach and raise news then (O28's later option; it would lift §8.7's rule and needs S3's observer) |
 | Out-of-process core, other backends | `trait CoreTransport`; `GameBackend` | If crash data justifies a sidecar |
 
 Conformance tests check three things: a trailer never displays; with `actions` off, no non-read command is ever emitted; every decision writes exactly one row.
@@ -1160,14 +1166,28 @@ Conformance tests check three things: a trailer never displays; with `actions` o
   - `proptest` sanitizer fuzzing;
   - DB tests: every migration, trim at 3 cut points, crash mid-reply, NG+, slot reuse.
 - **Replay** (§6.8): `en-tools replay --llm recorded|mock|live`. `en-tools mockllm` serves scripted delays, 429s, `<think>` leaks and trailers.
-- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b at a fixed known set and active ties), spoiler renders at 6 flag states, block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`, since-line renders for 3 state transitions (MEM §12.11 T4), and hand-written who-knows-what truth tables (MEM §12.11).
+- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b at a fixed known set and active ties), spoiler renders at 6 flag states, block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`, since-line renders for 3 state transitions and reaction-cue renders (MEM §12.11 T4), and hand-written who-knows-what truth tables and reaction-cue tables (MEM §12.11 T2, T12, T13).
 - **Lint:** schemas, caps, predicates, aliases, effect adjectives, banned words, gender-neutral cards, anti-priming.
-- **Eval:** 50 scripted turns per persona at 2–3 stages, plus spoiler and memory probes, scored against C9–C11, and the world-awareness set against C14 (NPC §12.5; C14 counts toward a pass only as O29 decides). **A persona ships only with a passing report.**
+- **Eval:** 50 scripted turns per persona at 2–3 stages, plus spoiler and memory probes, scored against C9–C11, and the world-awareness set against C14 (NPC §12.5); every set runs and gates on the schedule below (O29). **A persona ships only with a passing report.**
 - **In game:**
-  - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, the world view (each world stage with its flags' raw bits and verification) and each persona's known set with its paths, latency traces, unknown characters;
+  - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, the world view (each world stage with its flags' raw bits and verification) and each persona's known set with its paths, its `awareness.news`, its `world_cued` and the reaction cue that would fire now, or the first condition that fails (MEM §12.13), latency traces, unknown characters;
   - rotating `tracing` logs;
-  - a "copy bug report" bundle without secrets or chat text.
+  - a "copy bug report" bundle without secrets or chat text, which a deterministic scan test checks from v0.6, when the settings panel ships it (NPC §10.6).
 - **CI:** `cargo-xwin`, the clippy deny-list, the `ffi_guard` grep, content validation, the `cargo deny` licence allowlist and `[bans]` list, the licence-file text scan (§4.7), and signed, reproducible releases (ER06 risks). ARCH §12.1 lists every stage.
+- **Schedule (O29).** The owner's rule: "test everything asap that makes sense".
+  - Every check runs from the first increment in which the thing it checks exists, on whatever content exists then. A criterion whose content ships later runs and gates on the part that exists, and widens as content ships.
+  - **Deterministic checks** gate from that increment: lints, unit, property, DB and conformance tests, truth tables, goldens, scenarios and self-tests. So do **measurements that need no judge**: timings, counters, hand-marked accuracy and a stopwatch.
+  - **Zero-tolerance measures** gate at once, because they need no calibration: 0 crashes, banner mode on an unknown build, 0 requests while gated, 0 unclean strings shown, 0 lines from the silent, 0 locked or ken-locked terms shown, 0 banned words, 0 hard promises, 0 contract breaks, 0 safety hard hits and 0 amnesia lines.
+  - **Judge-scored rates** gate from the increment that ships their feature, once the judge check below has passed in that same increment. A failed judge check blocks the exit as a failed rate does, so no increment ships a feature that is neither gated nor measured.
+  - **A rate run on fewer personas than its target** keeps its denominator by running each probe at several seeds (Kalé's 40 awareness probes × 6 seeds = 240 replies).
+  - **Costly human or hardware runs** (the 30 h soak, the full compatibility matrix, X2's raters) run in each increment on what that increment adds, and the full sweep certifies the release candidate.
+  - Targets are unchanged. §16.3 applies the rule to every criterion, test family and spike.
+- **Judge check (O29).**
+  - **When.** Before a judged rate first gates, and again whenever the judge's model, its rubric or settings, the truth-table format or the cue strings change.
+  - **The set.** Every reply of one sample (one seed) of the probes that increment adds is labelled by hand. To them are added at least 10 failure replies of our own writing per judged metric. That is about 90 labels at v0.2, roughly 1.5–2 h of work; about 1 h at v0.3; about 2 h at v0.5.
+  - **Pass.** For each metric, the judge agrees with the hand labels on ≥ 95% of the set and catches ≥ 90% of the labelled failures.
+  - **Pinning.** The judge's model, rubric and settings are pinned in the eval configuration, apart from the player's `models.toml`.
+  - **Every gated run** keeps the 10% human sample (NPC §12.5). More than 5% disagreement fails the run until the judge is checked again.
 
 The patch procedure is in §4.6.
 
@@ -1207,29 +1227,212 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | **S0-B Task without dearxan** | Does the task tick for 2 h with no code-restoration trouble? | 0 faults; p99 ≤ 0.5 ms | v0.1 |
 | **S0-C Launcher and offline** | No-EAC start on Windows and Proton; the `SteamAppId` variant; the session gate solo and in ERSC (via the player's me3); is a FromSoftware connection impossible? | Gate false in every session; no online menu | v0.1 |
 | **S0-D Guarded reads** | Forced faults beside ERSC, the Steam overlay and a VEH-installing crash reporter | 20/20 caught; breakers trip | v0.1 |
-| **S0-E Hook coexistence** | Hooks installed once, in both load orders, beside another DInput overlay | Both mods work; no leak | v0.2 |
+| **S0-E Hook coexistence** | Hooks installed once, in both load orders, beside another DInput overlay | Both mods work; no leak | v0.1 (the present hook, in both load orders, beside another overlay); v0.2 (the input hooks) |
 | S1 Perception | List coverage; is `distance` squared; share of `entity == 0`; invader class; which `chr_type` values populate `player_chr_set` (NPC summons, NPC invaders; §3.4); cost | ≤ 0.4 ms p99; Kalé and 3 soldier families resolve | v0.1 |
-| S2 Text | FMG table reads on 1.17.2; where the game holds its active text language; whether the install carries English text (O26) | 100 IDs match the player's export; the language is read, or the wizard's confirmation fallback is used | v0.2 |
-| S3 Talk observer | Talk fields during menus, greetings and boss lines | ≥ 95% precision over 30 events, else stay fail-closed | v0.2 |
+| S2 Text | FMG table reads on 1.17.2; where the game holds its active text language; whether the install carries English text (O26) | 100 IDs match the player's export; the language is read, or the wizard's confirmation fallback is used | v0.1 (the `text` group ships there) |
+| S3 Talk observer | Talk fields during menus, greetings and boss lines | ≥ 95% precision over 30 events, else stay fail-closed | v0.2; it runs on v0.1 recordings |
 | S4 Input | Leaks, held keys, camera drift, a free hotkey, Steam floating keyboard, Proton | No movement while typing for 60 s | v0.2 |
-| S6 Flags | Flags 9000 and 100, boss flags, 180–187, `ng_lvl`, then each persona's block. For world awareness (MEM §12.12): 310 against 9130, 118 against 300–302, 9116 as the start of the ash, which label set Tanith's block 3100 uses and its offsets, each block's stage semantics (exclusive or cumulative) and what the general's fall clears in the game (TGA writes Alexander's +8 and Blaidd's +13 false, a hint only), one NG+ transition that sets `ng` for every alias (the pilot's covers 9101), the stage offsets of Ranni's block 3740 and of the festival host's block 3360, or the festival flags 9410–9413 in their place (MEM §12.12 item 10), and played-observation records for `played` ties (Varré's lord, Boc's path; MEM §12.12 item 8). All are research leads (310's meaning and the ash reading of 9116 are LIKELY; 310's reading, 301, 9116 and the newer persona offsets are recorded in ER07 §2–§4, and ER07 §6 lists what S6 must settle; MEM §12.4 gives each label) | Every alias used is verified, or dropped; every alias in a world stage or track has `ng = reset` | v0.2 (pilot), v0.5 (all) |
-| S7 Combat | Engagement accuracy at 3 camps | ≥ 90% within 1 s; ≤ 5% false | v0.4 exit (fixes J2 #8) |
+| S6 Flags | Flags 9000 and 100, boss flags, 180–187, `ng_lvl`, then each persona's block. For world awareness (MEM §12.12): 310 against 9130, 118 against 300–302, 9116 as the start of the ash, which label set Tanith's block 3100 uses and its offsets, each block's stage semantics (exclusive or cumulative) and what the general's fall clears in the game (TGA writes Alexander's +8 and Blaidd's +13 false, a hint only), one NG+ transition that sets `ng` for every alias (the pilot's covers 9101), the stage offsets of Ranni's block 3740 and of the festival host's block 3360, or the festival flags 9410–9413 in their place (MEM §12.12 item 10), and played-observation records for `played` ties (Varré's lord, Boc's path; MEM §12.12 item 8). All are research leads (310's meaning and the ash reading of 9116 are LIKELY; 310's reading, 301, 9116 and the newer persona offsets are recorded in ER07 §2–§4, and ER07 §6 lists what S6 must settle; MEM §12.4 gives each label) | Every alias used is verified, or dropped; every alias in a world stage or track has `ng = reset` | v0.1 (core: 9000, 100, boss flags, 180–187, `ng_lvl`), v0.2 (pilot; MEM §12.12 items 1–5 run then too), v0.5 (all) |
+| S7 Combat | Engagement accuracy at 3 camps | ≥ 90% within 1 s; ≤ 5% false | v0.1 (fixes J2 #8) |
 | X1 Voice in a bottle (offline, week 1) | Do candidate models hold the registers and caps with this prompt? | C10 met by one budget cloud model and one 4B local model | v0.2 defaults |
 | X2 Bark taste test | Pools against seeds | Pools ≥ 50% preferred; 0 amnesia | v0.4 |
-| X3 Latency in situ | TTFT and first page in game | C5 met, or the defaults change | v0.6 |
+| X3 Latency in situ | TTFT and first page in game | C5 met, or the defaults change | v0.2; again at v0.6 on the matrix |
 | Later | S5 freeze, S9 native talk, H1–H3 hook sources, save redirect | — | v1.x |
 
 ### 16.2 Increments (each shippable to testers)
 
 | Version | Contents | Exit criteria |
 |---|---|---|
-| **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, groups, L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view, recording, replay. No LLM | Golden events over 3 routes; C2; 0 crashes in 10 h |
-| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)` and block 5b with Kalé's `road` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified) | C5 and C7 on the pilot; no input leaks; block-5b goldens for Kalé at `fresh` and `after_godrick` |
-| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge | C11; trim test green; world trim and NG+ tests green (MEM §12.11) |
-| **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools | C6 at 3 camps; S7; X2 |
-| **v0.5 Veil** | Verified catalogue, stages, KB, lexicon, identity-pack check, 5 more personas, eval in CI; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, lints W1–W12, 8 fixture states, truth tables, the awareness eval | C9 and C10 on 6 personas; C14 reported |
-| **v0.6 Threshold** | Wizard, settings, call-out, sparse ambient, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build | C1–C4 on the matrix; C13; X3 |
-| **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release | C1–C13 green; C14 per O29 |
+| **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, the ten read groups, L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view, recording, replay. No LLM | C12 (golden events over 3 routes); C2; C1 (0 crashes in 10 h, and the 20 forced fail-closed launches); C3 for the task, overlay and FPS; C4's dormancy; S2, S6's core flags, S7 and S0-E's present-hook half; the read-group self-tests; the v0.1 matrix rows (ARCH §12.4); the patch drill, if the JP layout is ready; every CI stage but `eval` (from v0.2) gating; signed tester builds (§16.3) |
+| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)`, block 5b with Kalé's `road`, and the world part of `Locked(P)` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `en-tools eval` and its CI stage; the 8 fixture states and Kalé's truth tables | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T6, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks (§16.3) |
+| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (O28, MEM §12.13; Kalé `eager`) | C11; trim test green; world trim, NG+ and cue tests green (MEM §12.11: T3, T4's since-line goldens and Kalé's cue goldens, T7, T8, T10, T11's cue-clause fixtures, T12, T13); C14's since-line, claim and cue probes on Kalé; `wren_and_kale.scn` and Kalé's steps of `star_falls.scn` (§16.3) |
+| **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools | C6 at 3 camps; X2; C3's render feed; C7 and C8 for barks; the card checklist and bark scenarios (§16.3) |
+| **v0.5 Veil** | Verified catalogue, stages, KB, the full lexicon (`public`, `reveals`, the KB's terms), 5 more personas with their `awareness.news` (O30); all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, their truth tables and awareness probes | C9, C10 and C14 on 6 personas; T2, T4, T6, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; release lint on all shipped content; all of S6; the whole `star_falls.scn`; Boc's `veiled` case; the identity-pack check for every persona (§16.3) |
+| **v0.6 Threshold** | Wizard, settings, call-out, sparse ambient, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build | C1–C4 on the full matrix; C13 on the wizard path; X3 on the matrix; the patch drill again; C7 and C8 for the call-out and ambient lines; `ambient_walk.scn` (§16.3) |
+| **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release | C1–C14 green on the release candidate, with C1's 30 h soak on 3 machines |
+
+### 16.3 Test schedule (O29)
+
+Each check runs and gates from the first increment in which the thing it checks ships, on the content that exists then (§14, Schedule). "Was" is the schedule before O29; §16.2's exit column is the roll-up. Targets are unchanged.
+
+**Criteria**
+
+| Check | Subject ships | Was | Runs and gates from | Why not earlier, or note |
+|---|---|---|---|---|
+| C1 Crash safety | v0.1 | 10 h at v0.1; the matrix at v0.6; 30 h at v1.0 | v0.1: 0 crashes in 10 h and the 20 forced fail-closed launches. Each later increment runs ≥ 10 h over its new features, spread over the three machine kinds. The 30 h × 3 soak gates v1.0 | The 30 h soak certifies the build that ships; its hours and machines accumulate from v0.1 |
+| C2 Unknown build | v0.1 | v0.1 | v0.1, and the unknown-build row in every increment's matrix rows | Already earliest |
+| C3 Game-thread cost | Task, overlay, FPS: v0.1. Render feed: v0.4 | S0-B before v0.1; gated at v0.6 | v0.1 for the task, overlay and FPS, re-measured every increment; v0.4 for the render feed; the full matrix at v0.6 | The render feed ships with labels; the 32-character route is chosen at v0.1 |
+| C4 Multiplayer | Dormancy: v0.1. Requests: v0.2 | S0-C; gated at v0.6 | v0.1 for dormancy. v0.2 for 0 requests (scenario and counter), widened to `bark_live` and `bark_pool` at v0.4 and to the call-out at v0.6. The full matrix at v0.6 | Zero-tolerance |
+| C5 Dialogue latency | v0.2 | v0.2 | v0.2, with X3; again on the matrix at v0.6 | Already earliest |
+| C6 Barks | v0.4 | v0.4 | v0.4; `ambient_walk.scn` at v0.6 | Barks ship in v0.4 |
+| C7 Output hygiene | Dialogue: v0.2. Seeds and pools: v0.4. Call-out: v0.6 | v0.2 | v0.2, and each new speech path from the increment it ships in | Already earliest |
+| C8 Silence | Chat: v0.2. Barks: v0.4. Call-out and ambient: v0.6 | Only v1.0's "C1–C13 green" | v0.2 for chat; v0.4 for barks; v0.6 for the call-out and ambient lines | Zero-tolerance; it had no increment gate |
+| C9 Spoilers | v0.2: the hard lint with the world part of `Locked(P)`. KB terms: v0.5 | v0.5 | v0.2: all 600 turns on Kalé at the 6 states. From v0.5 the 600 are shared by the six personas, with KB probes | Zero-tolerance; the fixture states are test data |
+| C10 Voice | X1 in week 1; in game v0.2 | v0.5 | v0.2 on Kalé and the Lantern-Keeper through the voice set; each persona from the increment it ships in | The other five ship in v0.5 |
+| C11 Memory | v0.3 | v0.3 | v0.3. The probes are scored by the rubric judge, with the persona's journal as the key and a key-term pre-screen beside it; the judge is checked at v0.3 | Survival needs the store |
+| C12 Event engine | v0.1 | v0.1 | v0.1. The goldens grow with each rule set (flag edges for the world view at v0.2, bark rules at v0.4), each change with its `CHANGES.md` entry | Already earliest |
+| C13 Install | Config-file path: v0.2. Wizard: v0.6 | v0.6 | v0.2 on the README and the config-file path; again at v0.6 on the wizard path | Same target; testers install v0.2 anyway |
+| C14 World awareness | v0.2: Kalé, block 5b, `known()`, item 9. v0.3: the since-line, claims, the cue. v0.5: six personas | Reported from v0.5; gating left to O29 | v0.2 on Kalé (40 probes × 6 seeds = 240 replies): 0 ken-locked terms at once; the judged rates after the v0.2 judge check. v0.3 adds the since-line, claim and cue probes, with the judge checked again. v0.5 runs 240 probes over six personas, Patches' contradiction rate reported | Each part moves at the pace its content ships |
+
+**C14 by part** (NPC §12.5)
+
+| Part | Target | Scored by | Ships | Runs and gates from |
+|---|---|---|---|---|
+| Awareness when asked | ≥ 90% of probes the truth table marks known | Judge with the truth table | v0.2 | v0.2, after the judge check |
+| Contradiction | ≤ 2%; Patches reported | Judge | v0.2 | v0.2; Patches from v0.5 |
+| Ken-locked term shown | 0 | Lexicon (`K_locked(P)`) | v0.2 | v0.2, at once |
+| Judged impossible knowledge | ≤ 1% | Judge | v0.2 | v0.2, after the judge check |
+| Certainty drift | ≤ 5% | Judge | v0.2 | v0.2, after the judge check |
+| Uncued raise | ≤ 10% of uncued controls after `fresh` | Judge, with the lexical pre-screen beside it | v0.2 (item 9) | v0.2 without a since-line; from v0.3 also with one |
+| Cued raise | ≥ 50%; above 90% reported | Judge, with the cue read from the rendered prompt | v0.3 | v0.3, after the v0.3 judge check |
+| Wrong-item raise | Reported | Judge | v0.3 | v0.3 |
+| Since-line and claim probes | Under awareness and contradiction | T4 and T10, plus the judge | v0.3 | v0.3 |
+| Bridging stages, Tanith's track tie, the other five personas | All targets | Judge | v0.5 | v0.5 |
+
+**Per-persona eval report** (NPC §12.1)
+
+| Set or metric | Ships | Was | Runs and gates from |
+|---|---|---|---|
+| Voice, 50 turns at 2–3 stages | v0.2 | v0.5 | v0.2 on Kalé; KB topic probes from v0.5 |
+| Spoiler, 600 turns at 6 states | v0.2 | v0.5 | v0.2, all on Kalé |
+| Memory probes | v0.3 | v0.3 | v0.3, scored as C11 |
+| Injection, 30 per persona (0 contract breaks) | v0.2 | v0.5 | v0.2, at once |
+| Safety, 20 per persona and level (0 hard hits) | v0.2 (`safety.level` in `settings.toml`, ARCH §11.5; both levels' lint lists, NPC §8.3; the F10 panel offers the choice from v0.6) | v0.5 | v0.2 for `faithful` and `gentle`, at once |
+| World awareness | v0.2 | Reported from v0.5 | As C14 |
+| Lint metrics: locked terms 0, within the word cap ≥ 98%, banned words 0, archaic ≤ 2%, hard promises 0, the wider list ≤ 1%, unknown proper nouns ≤ 5%, deflections ≤ 10%, "…" pages ≤ 1%, contract breaks 0 | v0.2 | v0.5 | v0.2 |
+| "What's my name?" before an introduction must deflect | v0.2 | — | v0.2; the `told_name` half at v0.3 |
+| X1 | Week 1 | Week 1 | Unchanged |
+
+**Lints**
+
+| Lint | Subject ships | Was | Runs and gates from | Note |
+|---|---|---|---|---|
+| Schemas, `deny_unknown_fields`, caps at load | v0.1 (`gal/`, Augur rules); v0.2 (personas, the world file); v0.4 (cards, barks) | CI, no increment named | Each file family from the increment it ships in | — |
+| Predicates and aliases | v0.1 (Augur `requires`); v0.2 (persona `when`) | The same | v0.1; v0.2 | — |
+| Effect adjectives (warn); banned words in content | v0.2 | The same | v0.2 | — |
+| Gender-neutral cards; seed rules 1–9 | v0.4 | v0.4 | v0.4 | Cards ship in v0.4 |
+| Anti-priming at the 8 fixture states | v0.2 | v0.5 by implication | v0.2 for Kalé; each persona as it ships | The fixtures are test data |
+| Lexicon lint | v0.2 (world-item lexicons); v0.5 (`public.toml`, `reveals.toml`, the KB) | v0.5 | v0.2 on the lexicons that exist; in full at v0.5 | — |
+| Reveal lints, offline and `identity_lag` | v0.2 (identity resolution; fixture `test_veiled`) | Unscheduled | v0.2 on the fixture; v0.5 on Boc | Boc's rows need S1 and S6 |
+| MEM W1–W7, W9 and W12 | v0.2 | v0.5 | v0.2 | All their subjects ship in v0.2 |
+| W8 Ties | v0.2 (persona ties); v0.5 (track ties) | v0.5 | v0.2; track ties at v0.5 | Tanith's track ships in v0.5 |
+| W10 Awaits | Code v0.2; content v0.5 | v0.5 | v0.2 (its failing fixture); real cases at v0.5 | — |
+| W11 KB | v0.5 | v0.5 | v0.5 | The KB ships in v0.5 |
+| W5 and W7 cue clauses (O28) | v0.3 | — | v0.3 | The cue ships in v0.3 |
+| Block budgets: block 5b ≤ 180, frame ≤ 450 | v0.2 | 5b at v0.5 | v0.2 | — |
+| Block 7: since-line ≤ 55, cue ≤ 35, together ≤ 90 | v0.3 | — | v0.3 | — |
+| Release mode (`--strict`) | v0.2 | v1.0 builds only | v0.2 on the content each tester build turns on, world-stage and track aliases owed to S6 excepted (W3's `unknown` check included); all shipped content at v0.5 | Unverified leads stay present but silent by design until S6 ends |
+| Clippy deny lists, `unsafe` attributes, `greps` | v0.1 | From the start | v0.1, gating every merge | Already earliest |
+| `kb-draft --check` (≥ 6-word overlap with the author's own export) | v0.5 (KB); v0.2 (roads and world text) | With KB authoring | v0.5 for the KB, and from v0.2 over roads, world lines, `heard`, shorts and tie lines | Local only: CI holds no game text |
+
+**Test types**
+
+| Type | Ships | Was | Runs and gates from |
+|---|---|---|---|
+| Unit: detectors, identity, layout validation, pattern grammar, predicates, param and FMG parsing on synthetic bytes | v0.1 | CI | v0.1 |
+| Unit: splitter, budgets | v0.2 | CI | v0.2 |
+| Unit: scheduler with a simulated clock | v0.4 | CI | v0.4 |
+| Unit: world derivation and `known(P)` truth tables | v0.2 | v0.5 | v0.2 |
+| Unit: the reaction-cue table and journey (MEM §12.11 T12, T13) | v0.3 | — | v0.3 |
+| Property: Augur hysteresis, debounce, merge, gaps, ordering, determinism | v0.1 | v0.1 | v0.1 |
+| Property: sanitizer | v0.2 | v0.2 | v0.2 |
+| Property: MEM §9.6's random cuts; the T3 fold | v0.3 | v0.3 | v0.3 |
+| Golden replay | v0.1 | v0.1 | v0.1 |
+| Scenario: gate hysteresis | v0.1 | v0.1 | v0.1 |
+| Scenario: gating, interrupts | v0.2 | v0.2 | v0.2 |
+| Scenario: barks | v0.4 (`ambient_walk`: v0.6) | v0.4 | v0.4; v0.6 |
+| Prompt snapshots: per persona × stage × scene; blocks 1–5 and 5b byte-stable | v0.2 | v0.2 | v0.2 |
+| Prompt snapshots: spoiler renders at 6 states; block 5b at 8 states plus `ashen` | v0.2 | v0.5 (5b at 2 states in v0.2) | v0.2 for Kalé |
+| Prompt snapshots: since-line renders for 3 transitions; cue renders | v0.3; v0.5 (Blaidd's and Alexander's cue renders) | In no exit | v0.3; Blaidd's and Alexander's cue renders at v0.5 |
+| DB: migrations, trims, crash mid-reply, NG+, slot reuse, `world_seen`, `world_seen_pt` and `world_cued` after trim and NG+ | v0.3 | v0.3 | v0.3 |
+| Conformance: a trailer never displays | v0.2 | The same | v0.2 |
+| Conformance: with `actions` off, no non-read command | v0.1 | The same | v0.1 |
+| Conformance: one row per decision | v0.3 | The same | v0.3 |
+| `FakeSys` | v0.1 | v0.1 | v0.1 |
+| Backpressure: FIFO overflow, 50% snapshot loss | v0.1 | v0.1 | v0.1 |
+| Backpressure: speech reserve | v0.2 | v0.2 | v0.2 |
+| Backpressure: stalled store | v0.3 | v0.3 | v0.3 |
+| Backpressure: net saturation | v0.4 | v0.4 | v0.4 |
+| Bug-report bundle holds no key, address or chat text | v0.6, with the settings panel's "Copy bug report" (NPC §10.6) | Untested | v0.6: a deterministic scan test |
+
+**World-awareness tests** (MEM §12.11)
+
+| Test | Ships | Was | Runs and gates from | Why not earlier |
+|---|---|---|---|---|
+| T1 Determinism | v0.2 | v0.2 | v0.2 | — |
+| T2 Truth tables | v0.2 | v0.5 | v0.2, Kalé at all 8 states; each persona at v0.5 | The others ship in v0.5 |
+| T3 Fold | v0.3 | v0.3 | v0.3, with `world_cued` and `world_seen_pt` | `world_seen` ships in v0.3 |
+| T4 Render: block 5b | v0.2 | 2 states at v0.2, the rest at v0.5 | v0.2, Kalé at 8 states plus `ashen` | — |
+| T4 Render: since-line and cue | v0.3; v0.5 (Blaidd's and Alexander's cue goldens) | In no exit | v0.3: the since-line goldens and Kalé's two cue goldens; Blaidd's and Alexander's cue goldens at v0.5 | Their content is v0.5 |
+| T5 Byte stability | v0.2 | v0.2 | v0.2 | — |
+| T6 Lexicon | v0.2 (Kalé); v0.5 (Boc, Patches) | In no exit | v0.2 for Kalé; v0.5 for Boc and Patches | — |
+| T7 Rollback | v0.3 | v0.3 | v0.3 | — |
+| T8 NG+ | v0.3 | v0.3 | v0.3 | Journeys come with the store |
+| T9 Strict | v0.2 (the star half); v0.5 (Blaidd) | In no exit | v0.2 at once for the star half; v0.5 for Blaidd | Blaidd's content is v0.5 |
+| T10 Claims | v0.3 | v0.3 | v0.3 | Claims ship in v0.3 |
+| T11 Lints | v0.2 | v0.5 | v0.2; the W5 and W7 cue-clause fixtures at v0.3; W11's fixture at v0.5 | — |
+| T12 Cue table | v0.3 | — | v0.3 on Kalé and the CI fixture persona `test_stake`; each persona at v0.5 | — |
+| T13 Cue journey | v0.3 | — | v0.3; each persona at v0.5 | — |
+| Fixture states (8 plus `ashen`) | Test data | v0.5 | Written at v0.2 | — |
+
+The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
+
+**Self-tests and runtime checks**
+
+| Check | Ships | Was | Runs and gates from |
+|---|---|---|---|
+| Read-group self-tests, phases A and B, ten groups | v0.1 | v0.1 | v0.1 (FakeSys and S0-D) |
+| Per-tick plausibility; breakers | v0.1 | v0.1 | v0.1 |
+| Flag descriptor-map validation (core aliases; the 10% Missing rule) | v0.1 | v0.1, with the core flags verified only by S6 at v0.2 | v0.1, with S6's core flags verified before v0.1's exit |
+| Identity-pack check | v0.2 (Kalé's rows) | v0.5 | v0.2: unit tests over synthetic params and the check at runtime for the pilot; every persona at v0.5 |
+| `en-tools selftest` and the silent self-test (wizard steps 4a–4e) | v0.2 (the LLM client); 4d at v0.3 | With the wizard at v0.6 | v0.2: 4a, 4b, 4c, 4e, the silent self-test and the verdict-words unit test; 4d at v0.3; wizard steps 1–3 and 5 at v0.6 |
+| Runtime `identity_lag` | v0.2 | — | With `veiled.scn` |
+
+**Spikes** (§16.1)
+
+| Spike | Was: blocks | Now | Why |
+|---|---|---|---|
+| S0-A to S0-D | v0.1 | Unchanged | Already earliest |
+| S0-E Hook coexistence | v0.2 | Split: the present hook (both load orders, beside another overlay) blocks v0.1; the input hooks block v0.2 | The present hook ships in v0.1 (banner, debug view); the input hooks in v0.2 |
+| S1 Perception | v0.1 | Unchanged | — |
+| S2 Text | v0.2 | v0.1 | The `text` read group and its self-test ship in v0.1 |
+| S3 Talk observer | v0.2 | Runs on v0.1 recordings; blocks v0.2 | Its first consumer is chat's fail-closed rule; a miss leaves the observer fail-closed |
+| S4 Input | v0.2 | Unchanged | Already earliest |
+| S6, core (100, 9000, 180–187, `ng_lvl`, the boss flags) | v0.2 | v0.1 | v0.1's flags self-test and the goldens' flag edges rest on them |
+| S6, pilot (Kalé's block, 9101 and the NG+ recording) | v0.2 | Unchanged | — |
+| S6, world items 1–5 (MEM §12.12) | v0.5 | Run with the pilot's S6 at v0.2 (about 5–6 tester-hours); each alias verified there goes live as a data-only change; S6 still blocks v0.5 | Unverified items are silent by design, so nothing unsafe waits on them |
+| S6, per-persona items 6–10 | v0.5 | Before each persona's authoring starts; at the latest v0.5 | No offset is authored ahead of S6 |
+| S7 Combat | v0.4 exit | v0.1, on hand-marked camps | The engagement state machine ships in v0.1, and chat's safe-context rule reads it from v0.2 |
+| X1 | Week 1, setting v0.2's defaults | Unchanged | — |
+| X2 | v0.4 | Unchanged | Pools ship in v0.4 |
+| X3 Latency in situ | v0.6 | v0.2; again at v0.6 on the matrix | C5 gates at v0.2, and X3 is its in-game measurement |
+| Later (S5, S9, H1–H3, save redirect) | v1.x | Unchanged | — |
+
+**Scenarios, routes and sweeps**
+
+| Item | Ships | Was | Runs and gates from |
+|---|---|---|---|
+| `wren_and_kale.scn` (MEM §2.8) | v0.3 | By implication | v0.3, named in v0.3's exit |
+| `star_falls.scn` (MEM §12.11) | v0.3 (Kalé's steps, step E2 included); v0.5 (Blaidd's) | In no exit | Kalé's steps at v0.3; the whole scenario at v0.5 |
+| `veiled.scn` (NPC §2.7) | v0.2 (fixture `test_veiled`) | In no exit | v0.2 on the fixture; Boc's content case at v0.5 |
+| Bark scenarios (NPC §9.6) | v0.4 (`ambient_walk`: v0.6) | v0.4 | v0.4; v0.6 |
+| ARCH §8.12's example scenario | Event lines v0.1; bark lines v0.4 | — | v0.1; v0.4 |
+| Smoke route (§4.6) | Events v0.1; the chat with Kalé v0.2 | Inside the patch drill | v0.1 on events; v0.2 with the chat |
+| Patch drill, JP as the new build (ARCH §12.5) | v0.1, once the JP layout exists | Before v0.6 | First at v0.1's exit, or v0.2's if the JP layout comes later; again before v0.6 |
+| Compatibility matrix (ARCH §12.4) | Rows from v0.1 | v0.6 | From v0.1 on the rows ARCH §12.4 lists for v0.1 (every build, the unknown one included; every load path, double load included; ERSC through the player's me3, Reforged, Proton, the Steam overlay and another DInput-hooking overlay for the present hook; SDR and HDR for the banner and debug view); the input-leak axis from v0.2; labels × HDR from v0.4; the full matrix certifies v0.6 |
+| Release checklist (NPC §12.4) | Kalé v0.2; cards v0.4; the other five v0.5 | v0.5 and v1.0 by implication | Per persona and card at the increment that first ships it to testers |
+
+**Harness and CI** (ARCH §12.1, §12.3)
+
+| Item | Ships | Was | Runs and gates from |
+|---|---|---|---|
+| `en-tools eval` | v0.2 | "Eval in CI" at v0.5 | v0.2: on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The memory set from v0.3 |
+| CI `eval` stage | — | Missing | Added at v0.2, with those triggers; the provider key is a CI secret |
+| `replay`, `golden check` and `update`, `probe-exe`, `fmg-import`, `flag-verify` | v0.1 | `fmg-import` and `flag-verify` at v0.2 | v0.1 (`fmg-import` for S2, `flag-verify` for S6's core flags) |
+| `mockllm`, `render-prompt`, `identity-fill`, `selftest` | v0.2 | `selftest` at v0.6; `identity-fill` at v0.5 | v0.2 |
+| `bake-pools` | v0.4 | v0.4 | v0.4 |
+| CI stages `fmt` to `build-release`, except `eval` | v0.1 | Implicit | v0.1, gating every merge |
+| `sign` | v0.1 | Release tags only | Every tester build from v0.1 (minisign); Authenticode when a certificate exists |
 
 ---
 
@@ -1255,7 +1458,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | K16 | GPU contention on local setups | M / M | Background jobs at rest; cloud suggested under 12 GB |
 | K17 | A modded-offline save taken online | L / H | Backups; warnings; EldenNet never writes the save |
 | K18 | A flag means something other than its lead (310 not the star; 9116 not the ash) | M / M | Strict mode hides the line until S6 verifies it; conjunction guards (`star_fallen` needs `general_fallen`); data-only fixes (MEM §12.4) |
-| K19 | NPCs recite the news like a fact sheet | M / M | ≤ 4 news lines; the world-frame rule; topic mode for the rest; C14's recital metric; O28 |
+| K19 | NPCs recite the news like a fact sheet | M / M | ≤ 4 news lines; world-frame item 9 (wait for the talk to turn to the news); topic mode for the rest; reaction cues only, one per conversation and once per item (O28, O30); C14's cued and uncued raise rates |
 | K20 | A persona's road contradicts the news (still waiting for a fight that is over) | M / M | `awaits` with a bridging stage (lint W10); stale-safe wording; C14's contradiction probes |
 
 ---
@@ -1306,12 +1509,14 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Content size | 6 personas, 6 cards + fallback | 8/12; 12+1/12 | Solo developer; S6 per persona | J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
 | Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1 |
+| Unprompted news | A reaction cue computed by the conversation subscriber: three reactions (own stake, the Tarnished's part, local talk) chosen by the persona's `awareness.news` (O30's recommended default; O30 is Open); one cue line in block 7, on the first reply only; at most one per conversation, and each item once per persona per journey; the model decides | News only when asked; a cue for every new item; a seeded roll; Augur rules over world state; a separate rule file of reactions; freshness dated from flag edges; greetings on approach (later) | Owner decision (O28): a reaction, never every time; which reactions count is O30, still Open. Every reaction reads an exact record; W1 keeps world state out of Augur; one line on one reply keeps the cost and the bulletin risk low; nothing has to date a world change | O28, O30; MEM §12.13 |
+| Test schedule | Every check runs from the increment its subject ships in; deterministic, measured and zero-tolerance checks gate there; judged rates gate there once the judge check passes; costly sweeps cover each increment's additions and certify the release candidate | C14 reported only; gated from v0.5; reported at v0.5 and gated at v1.0 (the earlier recommendation) | Owner decision (O29): "test everything asap that makes sense"; no increment ships a feature that is neither gated nor measured | O29; §14, §16.3 |
 
 ---
 
 ## 19. Decisions for the project owner
 
-**Status: O1–O27 decided by the owner on 2026-11-06; O28 and O29 are Open.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). O26 and O27 followed later that day, as recommended. A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it. O28 and O29 (quest and world awareness, §10.6) were added later on 2026-11-06 and are **Open**.
+**Status: O1–O29 decided by the owner on 2026-11-06; O30 is Open.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). O26 and O27 followed later that day, as recommended. A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it. O28 and O29 (quest and world awareness, §10.6) were added later on 2026-11-06 and decided the same day; O30 followed from O28 and is **Open**.
 
 | # | Decision | Options | Owner's decision (2026-11-06 unless dated), or recommended default while **Open** |
 |---|---|---|---|
@@ -1342,5 +1547,6 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | O25 | Overlay library | hudhook, pinned / a newer hudhook / another hook library / our own DX12 hooks | **hudhook, pinned at exactly 0.9.3** (`=0.9.3`). It is plain MIT, its bundled MinHook is BSD-2, and neither carries an AI clause (checked 2026-11-06). *Rules that follow from the pin (verification pass, 2026-11-06):* only its `dx12` feature is built (`default-features = false`), so its other renderers and its process injector (`inject`) never enter our DLL. `en-overlay` takes `imgui` (0.12) only through the re-export `hudhook::imgui`, MinHook only through hudhook's own FFI module `hudhook::mh`, and `windows` at hudhook's version (0.62), so it adds no copy of its own. hudhook's eject path is never called, because it uninitialises the shared MinHook (R12). `THIRD_PARTY.md` reproduces the notice of every licence file found in a linked dependency's source, among them hudhook's MIT, the BSD-2 notices of MinHook and HDE (`vendor/minhook/LICENSE.txt`) and Dear ImGui's MIT (inside `imgui-sys`); the `licence-files` CI stage fails without them (ARCH §12.1). Any change of version needs the owner's approval and a fresh read of its licence files (ARCH §12.1) |
 | O26 | Game text in another language | (a) treat a non-English text language as if the `text` group were off; (b) also read English names from the install's own English text, if S2 finds it there; (c) follow the game's language | **Decided (2026-11-06): (a) in v1, (b) in v1.1 if S2 confirms it.** Under (a) the capability matrix applies (§4.4: persona fallback names, card `label_fallback`), so no NPC, card or place name in a prompt comes from non-English text, and the wizard says that English game text gives the full experience. Every option needs S2 to find where the game holds its active text language, and (b) also needs it to find whether the install carries English text; if S2 finds no language field, the wizard asks the player to confirm that the game text is English, and EldenNet otherwise runs as if `text` were off. The S2 row in §16.1 carries that scope. A player's name in a non-Latin script never reaches a prompt or the overlay: `PlayerSaid` is `SafeText` (ARCH R13), whose whitelist keeps Latin letters only (NPC §8.2 step 6), and MEM §3.6 step 2 applies the same whitelist to `told_name`, so such a player stays unnamed to every persona, as before an introduction (O18) |
 | O27 | Pattern derivation log | None / a short note per pattern | **Decided (2026-11-06): a short note per pattern** (what was searched for, in which build, the evidence file), reviewed with each `gal/` change. It is the record behind O4's clean-room rule, which CI cannot fully check because `provenance` is self-declared (ARCH §6.3) |
-| O28 | Do personas raise new world news unprompted? | (a) only when the talk turns to it; (b) once, in the first conversation after the news reaches them, if they have met the Tarnished before in this journey (the cue rides on the since-line), and only for news that touches their own affairs (a stage's `knows`, or a tie with its own certainty); (c) whenever it is new to them | **Open. Recommended: (b).** It shows that the NPC noticed, as the owner asked, without turning every greeting into a news bulletin. It costs one short cue on the since-line (MEM §12.6); (a) drops the cue, (c) adds it to every new item. Revisit after C14's recital metric |
-| O29 | Does C14 (world awareness) gate releases? | (a) report only; (b) gate from v0.5; (c) report in v0.5, gate at v1.0 | **Open. Recommended: (c).** The judge rubric gets one increment to settle before it can block a release, while C9 already gates the hard spoiler side and the lints and truth tables gate the deterministic side |
+| O28 | Do personas raise new world news unprompted? | (a) only when the talk turns to it; (b) once, in the first conversation after the news reaches them, if they have met the Tarnished before in this journey (the cue rides on the since-line), and only for news that touches their own affairs (a stage's `knows`, or a tie with its own certainty); (c) whenever it is new to them | **Decided by the owner (2026-11-06): yes, but only when a reaction prompts it, never every time.** The owner's words: "yes, but it shouldn't be 100% of the time, rather a reaction that prompts it. Do we have an event reaction system? When should the NPC bring up news unprompted?" The event reaction system is Augur (§6). W1 keeps world state out of its rules, so the conversation subscriber computes the reaction from what Augur, the flags, the world view and the journal have recorded, with no new event kind, thread or LLM call (MEM §12.13). A persona raises news unasked only in a conversation the player opened, once it and the Tarnished have met before in this journey, and only when a recorded reaction fires (which reactions: O30). Then one cue line in block 7 tells it that the item is on its mind, for the first reply only, and the model may still let it be. There is at most one cue per conversation, and each item is cued at most once per persona per journey. Uncued, world-frame item 9 says to wait for the talk to turn to the news. Greeting the Tarnished with news on approach stays out of v1 (§8.7) as a later option (§1.2, §13). C14 measures both sides: a cued item raised on ≥ 50% of cued controls, and any news on ≤ 10% of uncued controls after `fresh` |
+| O29 | Does C14 (world awareness) gate releases? | (a) report only; (b) gate from v0.5; (c) report in v0.5, gate at v1.0 | **Decided by the owner (2026-11-06): C14 gates, and every check runs as soon as it makes sense.** The owner's words: "yes we should test everything asap that makes sense." The rule is in §14 (Schedule, Judge check), and §16.3 applies it to every criterion, test family and spike. Deterministic, measured and zero-tolerance checks gate from the increment their subject ships in; judged rates gate there too, once the judge check passes in that increment. C14 runs on Kalé from v0.2 (its ken-locked side at once, its judged rates after the v0.2 judge check), adds the since-line, claim and cue probes at v0.3, and runs on all six personas from v0.5. Targets are unchanged |
+| O30 | Which reactions let a persona raise news unprompted? | (a) own stake only: news new since the last meeting that touches the persona's own affairs (its stage `knows` it, or an active tie with its own certainty covers it); (b) three reactions, chosen per persona by a code-only field `awareness.news = close \| plain \| eager` (default `plain`): own stake for every persona; the Tarnished's part (the persona holds a proved `slew:<boss>` claim for the item's boss) for `plain` and `eager`; local talk (news new since the last conversation that recorded what the persona knew, from its own ground, with that conversation at most 6 h of play ago) for `eager` only; (c) as (b) without the field: all three for every persona; (d) as (b), plus reactions that need a record v1 does not keep: the Tarnished asked after the item at an earlier meeting (a new fact), a fight at the persona's side against the item's boss (once boss bars map to catalogue aliases), keepsakes matched to an item by their words | **Open. Recommended: (b),** with Kalé and Alexander `eager`, Boc `close`, and Blaidd, Varré, Patches and the Lantern-Keeper `plain`; the design carries (b) meanwhile, as O30's default (MEM §12.13). Each reaction rests on an exact record (`own_affairs`, `verified:slew:<boss>`, `world_seen`, `world_seen_pt`), so nothing is invented, and the field lets a news-hungry merchant speak up while a frightened mender keeps quiet, at no prompt cost. (a) never cues the pilot, whose ties carry no certainty, so C14 could not measure a cued raise on a shipped persona before v0.5 (at v0.3 only the CI persona `test_stake` would exercise it, in its cue table, T12); (c) gives the timid a gossip's voice; (d) waits for records v1 does not keep. (a) and (c) change only the selection function and the persona files. Revisit after the first cued-raise report |
