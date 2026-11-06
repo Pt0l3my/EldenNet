@@ -46,11 +46,11 @@ Unresolved characters are **not perceivable**. They never appear in a prompt's "
 
 | `persona_id` | Talk code (metadata) | `npc_params` leads | Entity leads | Flag block lead | Register | Notes |
 |---|---|---|---|---|---|---|
-| `kale` | 800 | `32000000` (ER04 §1) | `11000705` (ERR-mined, ER05 §6.3; its map prefix does not fit the Church of Elleh, so it is not used until S1) | 4700 (lead, ER07 §4; S6) | colloquial | **Pilot, v0.2** (§3.4) |
+| `kale` | 800 | `32000000` (ER04 §1) | `11000705` (ERR-mined, ER05 §6.3; its map prefix does not fit the Church of Elleh, so it is not used until S1) | 4700 (lead, ER07 §4.2; S6) | colloquial | **Pilot, v0.2** (§3.4) |
 | `varre` | 301 | `523010000` | `1042360700` (ERR-mined) | 3180 | formal | ER04 §5: 0% archaic |
 | `patches` | 309 | `523090000`, boss form TBD | `31000701` (ERR-mined) | 3680 | colloquial | `honesty = liar` |
 | `blaidd` | 216 | `20100000` | — | 3600 | colloquial | Late "gone mad" stage is `chat = "refuse"` |
-| `alexander` | 220 | `44909000` | — | 3660 (lead, ER07 §4; S6) | colloquial | Sits in the silent living-jar family. Allowed by a persona speech entry |
+| `alexander` | 220 | `44909000` | — | 3660 (lead, ER07 §4.7; S6) | colloquial | Sits in the silent living-jar family. Allowed by a persona speech entry |
 | `boc` | 223 | `41109000`; `523420000` (code 342, LIKELY a later form, ER04 §1) | `11050730` (ERR-mined) | 3940 | colloquial | The v1 content case for reveal handling (§2.7) |
 | `lantern_keeper` | — | none (`test_only`) | — | — | formal | Self-test and eval only (§3.5) |
 
@@ -137,7 +137,7 @@ schema = 1
 id = "kale"                               # slug, unique, never reused (§2.4)
 file = "personas/kale.toml"
 talk_code = 800                           # metadata only; never used to resolve (ER04 §1)
-flag_block = { alias = "kale", base = 0, verified = false }    # base unknown: S6; lead 4700 (ER07 §4; S6)
+flag_block = { alias = "kale", base = 4700, verified = false } # lead from both datasets (ER07 §4.2); S6 verifies it
 npc_params = [
   { param = 32000000, form = "default", expect_name_id = 0, verified = false },   # ER04 §1; S1
 ]
@@ -373,10 +373,10 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 - **The active stage** is the *last* stage in file order whose `when` holds. Stage 1 is the base stage, and lint requires its `when` to be `"true"`.
 - **Inheritance:** a stage without `road`, `at`, `hears` or `knows` takes the previous stage's value in file order; `awaits`, `heard` and `short` never inherit.
 - **Tracks:** the stage list is the persona's quest track (MEM §12.2). `stage(t, s)` may also name a non-persona track of `world/tracks.toml`.
-- **Bridging stages:** a stage whose road waits on a world event declares `awaits = "w:<id>"` and is followed by a stage whose `when` is its own `when` `&& world('<id>')` (W10), so the road never outlives the event.
+- **Bridging stages:** a stage whose road waits on a world event declares `awaits = "w:<id>"` and is followed by a stage whose `when` holds whenever its own `when` and `world('<id>')` hold, usually its own `when` `&& world('<id>')`; where the event may clear the waiting stage's flag, a later stage must still hold (W10; Alexander in §3.6), so the road never outlives the event.
 - **Predicates** use the grammar and three-valued semantics in memory-and-knowledge.md: `flag()`, `stage()`, `boss()`, `world()`, `runes >= n`, `region()`, `journey >= n`, with `&&`, `||` and `!`. A predicate that depends on an unverified flag evaluates to *Unknown*. Personas apply DESIGN §10.4's strict rule like this:
-  - a stage whose `when` is Unknown is **inactive** if it unlocks anything (`unlock`, `identity`, or a more permissive `chat`);
-  - it is **active** if it only restricts (`chat = refuse | mute` with no unlock).
+  - a stage whose `when` is Unknown is **inactive** unless it only restricts: in particular it is inactive if it unlocks or shows anything of its own (`unlock`, `identity`, a more permissive `chat`, or its own `gist`, `where`, `mood`, `road`, `at`, `hears`, `knows`, `heard` or `short`);
+  - it is **active** only if it only restricts (`chat = refuse | mute`, with none of those fields of its own).
 
   So an unverified flag can hide content but never reveal it. The consequence is intended: S6 must verify a restrictive alias, or the alias is dropped (DESIGN §16.1).
 - **`chat`:**
@@ -488,7 +488,7 @@ topics = ["kb.limgrave.east_woods_howl", "kb.limgrave.castle_on_the_cliffs", "kb
 
 [awareness]                         # MEM §12.2; news reaches him by sky, ground and road (MEM §12.5)
 home = ["limgrave"]
-skip = ["kale.asleep: purpose unknown (+17, lead, ER07 §4)"]
+skip = ["kale.asleep: purpose unknown (+17, FACT label, ER07 §4.2)"]
 
 [[awareness.tie]]                   # his own line for the falling star; the certainty comes from the sky
 item    = "w:star_fallen"
@@ -514,7 +514,7 @@ forbid = ["why the merchant caravans scattered"]
 
 [[stages]]
 id = "howl_told"
-when = "flag('kale.howl_told')"     # placeholder alias, UNVERIFIED (S6): the vanilla talk about the howl
+when = "flag('kale.howl_told')"     # placeholder alias, UNVERIFIED (S6): the vanilla talk about the howl; candidates in ER07 §4.2
 where = "inside the ruined church by the grassland road, beside his pack"
 mood = "easygoing, curious how that went"
 gist = "In an earlier talk the Tarnished asked about a howling in the misty woods to the east, and you passed on what is said of the wolf-headed swordsman there."
@@ -523,7 +523,7 @@ forbid = ["why the merchant caravans scattered"]
 
 Design notes:
 - The **base gist makes no claim about familiarity**. Our own facts (`met_count`, block 8) carry that, so the persona stays correct while `kale.howl_told` is still Unknown.
-- The `howl_told` gist is illustrative. After S6 it is rewritten, in our words, from the curated label of that flag and the player's own export.
+- The `howl_told` gist is illustrative. After S6 it is rewritten, in our words, from that flag's catalogue `note` and the author's own export.
 - Kalé has no hostile or dead stage, because live state covers both (§3.2).
 - `forbid` names a topic, not the secret, and it passes the anti-priming lint.
 - The castle's fall is no longer a KB entry: it is the world stage `castle_fallen`, which Kalé hears by Near (MEM §12.5); his tie gives it his own line.
@@ -591,24 +591,24 @@ It has no rows (`test_only`). It drives the wizard's self-test line (§7.7), the
 
 ### 3.6 Roads and awareness for the v1.0 personas (original; illustrative until S6)
 
-A persona's **own quest** is its active stage. Block 5b tells it as the stage's `road` (where its own affairs stand), beside the `gist` (what has passed with the Tarnished, block 7) and `unlock.text` (the private self, block 3). **Related quests** reach a persona only three ways: a world stage, which carries most relations in v1 (the bosses whose fall ends or moves a questline); a tie to a track (Patches to Tanith; Blaidd to Ranni later); or its own stage's `knows`. A persona never reads another persona's `gist`, `road` or private fields, and another track renders only through its `heard` line. A `road`, a tie line and a `heard` line state only (a) what the item's own flags show, (b) what the persona's own stage shows, paraphrased from vanilla in our own words (the `gist` rule: name only real vanilla acts), or (c) lore in a played-observation record (`basis = "played"` with `evidence`). Every road below is **illustrative** until S6, like Kalé's `howl_told` gist, and is rewritten afterwards from the curated label and the author's own export. Offsets are leads in each persona's block. Blaidd's +6 to +12 and Patches' +5 to +12 follow ER04 §4.4's stage lists (FACT labels); every other offset, and the places, are leads from the 2026-11-06 dataset pass (ER07 §4), LIKELY, owed to S6. GK is general game knowledge (MEM §12.4). S6 verifies each before content relies on it, and an unverified one leaves the earlier road in place (MEM §12.8). The schema is MEM §12.2, the rule MEM §12.5 and the rendering MEM §12.6; the lints are W4 (coverage), W7 (wording), W8 (ties) and W10 (awaits). `skip` lists not shown here are completed after S6 (W4).
+A persona's **own quest** is its active stage. Block 5b tells it as the stage's `road` (where its own affairs stand), beside the `gist` (what has passed with the Tarnished, block 7) and `unlock.text` (the private self, block 3). **Related quests** reach a persona only three ways: a world stage, which carries most relations in v1 (the bosses whose fall ends or moves a questline); a tie to a track (Patches to Tanith; Blaidd to Ranni later); or its own stage's `knows`. A persona never reads another persona's `gist`, `road` or private fields, and another track renders only through its `heard` line. A `road`, a tie line and a `heard` line state only (a) what the item's own flags show, (b) what the persona's own stage shows, paraphrased from vanilla in our own words (the `gist` rule: name only real vanilla acts), or (c) lore in a played-observation record (`basis = "played"` with `evidence`). Every road below is **illustrative** until S6, like Kalé's `howl_told` gist, and is rewritten afterwards, in our words, from the catalogue `note` (the label is looked up through `src`, never stored) and the author's own export. Offsets are leads in each persona's block. Blaidd's +6 to +12 and Patches' +5 to +12 follow ER04 §4.4's stage lists (FACT labels; what a label does not name, such as whom Blaidd serves at +7, is GK: ER07 §4.5); every other offset, and the places, are leads from the 2026-11-06 dataset pass with the labels ER07 §4.2–§4.7 gives (Blaidd's places after +5 are GK, as his heading says), owed to S6 (what the game does with any of them is LIKELY at best until S6 sees the flag change, ER07 §1), and a few are only SPECULATION (Patches' +14, which flag drives Varré's +11, and where his +12 and +13 take place). GK is general game knowledge (MEM §12.4). S6 verifies each before content relies on it, and an unverified one leaves the earlier road in place (MEM §12.8). The schema is MEM §12.2, the rule MEM §12.5 and the rendering MEM §12.6; the lints are W4 (coverage), W7 (wording), W8 (ties) and W10 (awaits). `skip` lists not shown here are completed after S6 (W4).
 
-**Kalé** is in §3.4 (block 4700, lead, ER07 §4; his conversation flags sit in the First Step band). He relates to Blaidd only through the howl topic, because no record says he follows Blaidd's road, and the merchants' fate stays a `forbid` topic (spoiler 3, never an item). **The Lantern-Keeper** (§3.5) has one stage and no ties.
+**Kalé** is in §3.4 (block 4700, lead, ER07 §4.2; his conversation flags sit in the First Step band). He relates to Blaidd only through the howl topic, because no record says he follows Blaidd's road, and the merchants' fate stays a `forbid` topic (spoiler 3, never an item). **The Lantern-Keeper** (§3.5) has one stage and no ties.
 
-**Blaidd** (block 3600; offsets +6 to +12 are FACT labels, ER04 §4.4). The owner's example: his road waits on the red general's fall, a bridging stage covers the gap before +10 rises, and his stages' `knows` carry the general and the star.
+**Blaidd** (block 3600; offsets +6 to +12 are FACT labels, ER04 §4.4. The labels name neither the places nor his lady: +5's Mistwood is LIKELY, that +7 is Ranni's service is GK, and which ruin +8 searches is not settled (ER07 §4.5); his `at` for +7 and +10 (`liurnia`) and for +9 (`caelid`) is GK, since no label or TGA entry places him after +5 (the +9 label says he waits to join the festival, not where), so all three are owed to S6 and open nothing that the inherited `limgrave` would not; the block has no +18/+19 system rows). The owner's example: his road waits on the red general's fall, a bridging stage covers the gap before +10 rises, and his stages' `knows` carry the general and the star.
 
 ```toml
 # personas/blaidd.toml, awareness and stages only (where, mood, gist and forbid omitted; §3.1)
 [awareness]
 home = []
-skip = ["blaidd.at_grace: purpose unknown (+13, lead, ER07 §4, LIKELY)"]
+skip = ["blaidd.at_grace: purpose unknown (+13, LIKELY, ER07 §4.5; TGA's Radahn group writes it false, a hint only)"]
 
 [[awareness.tie]]
 item = "w:general_fallen"                 # prominence: his own road waits on it
 
 [[awareness.tie]]
 item    = "w:star_fallen"
-when    = "stage('blaidd', 'after_star')"
+when    = "stage('blaidd', 'after_star') && !stage('blaidd', 'imprisoned')"   # right whether block 3600 is exclusive or cumulative (MEM §12.12 item 6)
 spoiler = 2
 lexicon = []
 line    = "The star has come down at last, and with it your lady's errand can move."
@@ -633,7 +633,7 @@ road = "You serve your lady in the lake country and wait on the task she will se
 [[stages]]
 id = "searching"
 when = "flag('blaidd.searching')"         # +8
-road = "Your lady has sent you to search old ruins for a way below the earth, and you mean to find it."
+road = "Your lady has sent you to search an old ruin, and you mean to see it done."
 
 [[stages]]
 id = "awaiting_festival"
@@ -642,7 +642,7 @@ at = "caelid"
 awaits = "w:general_fallen"
 road = "You wait in the east for the festival of combat, where warriors may face the red general. Your lady's plan cannot move until he falls."
 
-[[stages]]                                # bridging stage (W10): the general is dead, +10 not yet set
+[[stages]]                                # bridging stage (W10): the general is dead, +10 not yet set; TGA's Radahn group writes +13 false, not +9 (a hint only; ER07 §2.4)
 id = "general_fallen"
 when = "flag('blaidd.festival_wait') && world('general_fallen')"
 knows = ["w:general_fallen"]
@@ -667,9 +667,9 @@ when = "flag('blaidd.mad')"               # +12
 chat = "refuse"
 ```
 
-Ranni (block 3740) has no stage rows in the research (ER07 §4 has her block header only). Until her persona exists, Blaidd's stages say "your lady" without naming her. If S6 finds her block's offsets (MEM §12.12 item 10), a track `ranni` in `world/tracks.toml` gets `heard` lines and Blaidd gains a tie `q:ranni` in v1; until then the tie is deferred, and it comes with her persona at the latest.
+Ranni (block 3740) has no stage rows in the research (ER07 §4.8 has her block header only). Until her persona exists, Blaidd's stages say "your lady" without naming her. If S6 finds her block's offsets (MEM §12.12 item 10), a track `ranni` in `world/tracks.toml` gets `heard` lines and Blaidd gains a tie `q:ranni` in v1; until then the tie is deferred, and it comes with her persona at the latest.
 
-**Varré** (block 3180; offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = ["limgrave"]`.
+**Varré** (block 3180; offsets and places are leads (ER07 §4.3), LIKELY, owed to S6; which flag drives +11 is SPECULATION, and so is the place of +12 and +13, where nothing supports Mohgwyn Palace beyond a GK guess). `home = ["limgrave"]`.
 
 | Stage | `when` (offset) | `at` | `road` (illustrative) |
 |---|---|---|---|
@@ -689,37 +689,40 @@ Ties:
 - `w:castle_fallen`, prominence only: the castle is where his road turned.
 - `w:blood_lord_fallen`, `certainty = "rumour"`, `basis = "played"` (that his lord is the lord of blood is in ER04 §2.2; which of his stages shows it is owed to S6), `evidence = []`, so it is inert until a record exists (W8); `spoiler = 2`, `lexicon = []`, line: "Among the faithful runs a dreadful whisper: the lord of blood has been struck down in his own palace."
 
-**Patches** (block 3680; +5 to +12 are FACT labels (ER04 §4.4), and +13, +14 and +17 are leads (ER07 §4), LIKELY, owed to S6; a liar). `home = []`.
+**Patches** (block 3680; +5 to +12 are FACT labels (ER04 §4.4), +13 and +17 are FACT labels and +14 is SPECULATION (ER07 §4.4), all owed to S6; a liar). `home = []`.
 
 | Stage | `when` (offset) | `at` | `road` (illustrative) |
 |---|---|---|---|
-| `cave` | `true` | `limgrave` | You keep to a damp cave by the river, where a fine-looking chest has a way of drawing in fools. |
+| `cave` | `true` | `depths` | You keep to a damp cave by the river, where a fine-looking chest has a way of drawing in fools. |
 | `lake` | `flag('patches.lake')` (+7) | `liurnia` | You've set up shop on a quiet isle in the lake country, selling odds and ends and keeping your head down. |
-| `cliff_kick` | `flag('patches.cliff_kick') \|\| flag('patches.after_kick')` (+8 or +13) | `gelmir` | You've found your way to the volcano, where a careless step near a cliff edge is nobody's fault but the walker's. |
+| `cliff_kick` | `flag('patches.cliff_kick') \|\| flag('patches.after_kick')` (+8 or +13) | `volcano_manor` | You've found your way to the volcano, where a careless step near a cliff edge is nobody's fault but the walker's. |
 | `manor_reunion` | `flag('patches.manor_reunion')` (+9) | `volcano_manor` | You're lying low among the manor's strange company, with an eye on who might be worth fleecing. |
 | `manor_gift` | `flag('patches.manor_gift')` (+10) | — | You've settled in at the manor, and you've handed the Tarnished a little gift to carry to the lady of the house. |
 | `highwayman` | `flag('patches.highwayman')` (+11) | owed to S6 | You're back on the road with a blade and a smile, relieving travellers of whatever they can't hold onto. |
-| `last_shop` | `flag('patches.last_shop')` (+12) | — | You've settled down to plain trading at last, or so you'd have anyone believe. |
+| `last_shop` | `flag('patches.last_shop')` (+12) | `limgrave` (TGA's filing of +12, LIKELY at best; ER07 §4.4) | You've settled down to plain trading at last, or so you'd have anyone believe. |
 
-Ties (in full in MEM §12.2): `q:tanith` from `hosting`, `certainty = "fact"`, and `w:manor_lord_fallen`, `certainty = "fact"`, with his own line; both have `when = "(stage('patches', 'manor_reunion') || stage('patches', 'manor_gift')) && !stage('patches', 'highwayman') && !stage('patches', 'last_shop')"`. Both ties hold only while he is at the manor, whether S6 finds block 3680 exclusive or cumulative (MEM §12.12 item 6); after he leaves, only Kept carries what he held there. An unverified +11 or +12 makes the `when` U, so the ties are inactive: restrictive, and safe. At the manor he has no sky (§9.5), so the falling star and the burning tree reach him only by Kept or, for the star, word of the road (MEM §12.5); until S6 gives `highwayman` its `at`, that stage inherits `volcano_manor` and stays as shut. `skip`: +14 (a gesture, not a step) and +17 (a live state: not present). `honesty = liar` is unchanged: block 5b says what he holds, not what he tells.
+Ties (in full in MEM §12.2): `q:tanith` from `hosting`, `certainty = "fact"`, and `w:manor_lord_fallen`, `certainty = "fact"`, with his own line; both have `when = "(stage('patches', 'manor_reunion') || stage('patches', 'manor_gift')) && !stage('patches', 'highwayman') && !stage('patches', 'last_shop')"`. Both ties hold only while he is at the manor, whether S6 finds block 3680 exclusive or cumulative (MEM §12.12 item 6); after he leaves the manor's regions, only Kept carries what he held there. An unverified +11 or +12 makes the `when` U, so the ties are inactive: restrictive, and safe. At the manor he has no sky (§9.5), so the falling star and the burning tree reach him only by Kept or, for the star, word of the road (MEM §12.5). +8's label puts the cliff kick at the manor too, and +13 follows it there (ER07 §4.4, §5), so `cliff_kick` is at `volcano_manor`; whether that spot is under open sky is owed to S6, and until then the stage stays shut, which only restricts. Until S6 records where +11 takes place, `highwayman` would inherit `volcano_manor`, which shuts its Sky path but would open the manor lord's fall by Near (`near = fact`, MEM §12.4). So S6 marks +11 verified only together with its place (MEM §12.12 item 9); until then its `when` stays U, the stage stays inactive and the earlier road stays (§3.2; MEM §12.8). Both ties read `!stage('patches', 'highwayman')`, so they also stay inactive until then: his tie to Tanith and his manor line go live only once S6 has recorded +11 with its place. `last_shop` sets its own `at` for the same reason. `skip`: +6 (the base stage `cave` already tells it) and +17 (a live state: placed nowhere). +14 is SPECULATION (TGA guesses a gesture, ER07 §4.4), so it is used or skipped only once S6 verifies it (W4). `honesty = liar` is unchanged: block 5b says what he holds, not what he tells.
 
-**Alexander** (block 3660; the block, its offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = []`.
+**Alexander** (block 3660; the block, its offsets and places are leads (ER07 §4.7), LIKELY, owed to S6; that he starts stuck in the ground is GK). `home = []`.
 
 | Stage | `when` (offset) | `at` | Other | `road` (illustrative) |
 |---|---|---|---|---|
 | `stuck` | `true` | `limgrave` | — | You are stuck fast in the ground by the road and can only wait for someone strong enough to pull you free. |
 | `tunnel` | `flag('alexander.tunnel')` (+6) | `caelid` (LIKELY) | — | Freed at last, you have set off east in search of battles worthy of a warrior of your kind. |
 | `festival` | `flag('alexander.festival')` (+8) | — | `awaits = "w:general_fallen"` | You have come to the festival at the red castle to test yourself against the general, as warriors from every road have done. |
+| `after_fall` | `flag('alexander.tunnel') && world('general_fallen')` (bridging stage, W10) | — | — | The talk in the east is that the battle at the red castle is over, and you are already seeking a trial worthy of a warrior of your kind. |
 | `after_festival` | `flag('alexander.festival') && world('general_fallen')` (bridging stage, W10) | — | `knows = ["w:general_fallen"]` | The battle against the general is over and you came through it whole. A warrior could not ask for a finer trial. |
 
-Tie: `w:general_fallen`, prominence only. His later beats (a hot spring on the mountain, a last duel near Farum Azula) are GK and get no stage until S6. His related quest is the festival's: a tie to its host's track waits for S6 to find that block's offsets (MEM §12.12 item 10).
+TGA's Radahn group writes +8 false when it marks the general dead (ER07 §2.4, §4.7). That is a TGA reset and only a hint of what the game does, but the stages do not rest on +8 alone. `after_fall` holds on +6 with the general's fall and claims nothing about the battle, because +6 does not show that he went to the festival; the fall reaches him as Near rumour. `after_festival`, later in file order, holds on +8 with the fall and carries the `knows`. If S6 finds block 3660 exclusive, his first offset after the festival (ER07 §6 item 6) joins `after_festival`'s `when` (MEM §12.12 item 6); until then, after the fall he may fall back to an earlier road, as for his later beats. `general_fallen`'s `clears` lists +8, so W10 checks this.
 
-**Boc** (block 3940; offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = ["limgrave"]`.
+Tie: `w:general_fallen`, prominence only. His later beats (a hot spring on the mountain, a last duel near Farum Azula) are GK and get no stage until S6. His related quest is the festival's: a tie to its host's track waits for S6 to find that block's offsets, or to show that the festival flags 9410–9413 mark it (MEM §12.12 item 10; ER07 §6 item 14).
+
+**Boc** (block 3940; offsets and places are leads (ER07 §4.6), LIKELY, owed to S6; his beats after +7 are in no label). `home = ["limgrave"]`.
 
 | Stage | `when` (offset) | `at` | `road` (illustrative) |
 |---|---|---|---|
 | `hiding` | `true` | `limgrave` | You hide in the brush by the road, frightened of every passer-by, and wishing you were something finer than you are. |
-| `collapsed` | `flag('boc.collapsed')` (+6) | — | You lie hurt in a cave by the sea after a beating you did nothing to deserve. |
+| `collapsed` | `flag('boc.collapsed')` (+6) | `depths` | You lie hurt in a cave by the sea after a beating you did nothing to deserve. |
 | `attendant` | `flag('boc.attendant')` (+7) | `liurnia` | You've set up near the cliffs above the lake, mending and altering clothes for the Tarnished, who saved you. |
 
 Tie: `w:queen_fallen`, `certainty = "rumour"`, `basis = "played"` (his hope of a new form through the queen is GK; NpcParam 523420000 is LIKELY his later form, ER04 §1), `evidence = []`. It is inert, and it is dropped at release if no record exists (W8). His `later_form` stage, the reveal stage of `personas.toml` (§2.1, §2.7), waits for S1 and S6 and gets its `road` when it is authored. +3 means dead *or* concluded (ER05 §7), so no line may say that he died (W7).
@@ -744,12 +747,12 @@ You know: The star has come down at last, and with it your lady's errand can mov
 You have heard: The lord of the castle on the cliffs is dead, and his garrison has lost its head.
 ```
 
-*Patches, `manor_gift` (≈ 175 tokens, within the 180 cap, so all four lines fit):*
+*Patches, `manor_gift` (≈ 165 tokens, within the 180 cap, so all four lines fit):*
 
 ```text
 How things stand, as far as you know:
 Your own road: You've settled in at the manor, and you've handed the Tarnished a little gift to carry to the lady of the house.
-You know: The talk in the manor is that the master of the house has met his end inside his own mountain. The lady of the manor has shut herself away with her dead lord and lets no one near.
+You know: The talk in the manor is that the master of the house has met his end inside his own mountain. The lady of the manor has shut herself away with her dead lord.
 You have heard: The queen who kept to the great library by the lake has been brought low in her own hall. The lord of the castle on the cliffs is dead, and his garrison has lost its head.
 ```
 
@@ -761,7 +764,7 @@ Blaidd at `after_star`, last met at `awaiting_festival` with only the castle's f
 
 > Since you last spoke with the Tarnished, you have learned of a star come down out of the sky and the fall of the red general. This touches your own affairs.
 
-**Worked check** (`after_radahn`: Godrick, Radahn and the star; MEM §12.5 gives the paths):
+**Worked check** (`after_radahn`: Godrick, Radahn and the star; `world_seen` empty, as in the truth tables; MEM §12.5 gives the paths):
 
 | Persona (stage) | `castle_fallen` | `general_fallen` | `star_fallen` |
 |---|---|---|---|
@@ -769,7 +772,7 @@ Blaidd at `after_star`, last met at `awaiting_festival` with only the castle's f
 | Varré (`after_rune`) | rumour, Near | rumour, Word | fact, Sky |
 | Patches (`lake`, Liurnia) | rumour, Word | rumour, Word | fact, Sky |
 | Blaidd (`after_star`) | rumour, Word | fact, Own | fact, Own |
-| Alexander (`after_festival`) | rumour, Word | fact, Own | fact, Sky |
+| Alexander (`after_fall`) | rumour, Word | rumour, Near | fact, Sky |
 | Boc (`attendant`) | rumour, Near (home) | rumour, Word | fact, Sky |
 | Blaidd (`imprisoned`, never met) | none | fact, Own (inherited `knows`) | fact, Own |
 
@@ -1260,7 +1263,7 @@ JSON schema output where supported, otherwise the first JSON array in the text. 
 
 ### 7.6 Memory job
 
-The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md). This document supplies three inputs: the persona brief (`brief` mode, plus `public.summary` and `honesty`), the committed lines only, and `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the dialogue prompts showed (DESIGN §10.3). `shown_context` also lists the block-5b items and since-line items by id (MEM §12.7).
+The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md). This document supplies three inputs: the persona brief (`brief` mode, plus `public.summary` and `honesty`), the committed lines only, and `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the dialogue prompts showed (DESIGN §10.3). `shown_context` also lists the block-5b items, since-line items and world topic offers of block 7 by id, not by text (MEM §5.5, §12.7).
 
 ### 7.7 Self-test line (`selftest`, DESIGN §11.5)
 

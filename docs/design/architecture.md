@@ -1247,7 +1247,7 @@ pub enum EventKind {
     CalloutSent { target: ActorRef }, CalloutReplied { target: ActorRef, from_seed: bool },  // T: nothing is remembered
     ConversationStarted { persona: PersonaId, conv: ConvId },    // T
     ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16,
-                        known: Option<KnownSet> },   // ≤ 24 (item, certainty) at the end (MEM §12.7); None without a flag frame
+                        known: Option<Vec<(ItemId, Certainty)>> },   // ≤ 24 (item, certainty) of the known set at the end; paths are not stored (MEM §12.7); None without a flag frame
     // lifecycle (P for PlaythroughReady and journey changes, T otherwise)
     DataReady, PlaythroughReady { key: PlaythroughKey }, LoadingStarted, LoadingEnded, TitleReached,
     JourneyChanged { ng_lvl: u8 }, GateChanged { active: bool }, GroupTripped { group: Group }, LadderChanged { to: Level },
@@ -1737,7 +1737,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 |---|---|---|
 | `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend` | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` |
 | `golden check\|update` | Compare or rewrite `tests/golden` | `--route <name>` |
-| `eval` | Scripted persona turns and probes against a provider | `--persona`, `--stages`, `--report out.md` |
+| `eval` | Scripted persona turns and probes against a provider | `--persona`, `--stages`, `--preset <cloud\|local12>`, `--set awareness` (C14, NPC §12.5), `--report out.md` |
 | `lint` | Content and `gal/` validation; `--licence-files` (§12.1) | `--strict` (release rules) |
 | `render-prompt` | Print the exact prompt for a persona, stage and scene fixture | `--slot`, `--fixture` |
 | `probe-exe <eldenring.exe>` | Offline fingerprint, patterns, FD4 idiom and RTTI check against `gal/` | `--against gal/`, `--json` |
