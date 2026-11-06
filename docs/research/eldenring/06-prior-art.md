@@ -7,7 +7,7 @@
 
 > **Fact-check pass (2026-11-06, adversarial).** Every flagged claim was re-checked against upstream sources. `git ls-remote` showed the Mantella, HerikaServer and SkyrimNet clones still match upstream HEAD. New sources were found on GitHub (see the Verification log at the end). These corrections change the design: CHIM's default bark cooldown is **30 s, not 90 s**. llama.cpp's default port is now **9931**. Pocket TTS `serve` is **not** OpenAI-compatible. SkyrimNet now sells its own **paid inference (Fateless)**. EldenEncouragement's source is public. And there is **an in-process Elden Ring LLM bridge** (game-assistant / Attack on Elden Ring), so the old claim that "all ER AI companions are out-of-process" is wrong. The checker had the same network limits as the author, plus an exhausted web-search budget: nexusmods.com, openrouter.ai, developer.nvidia.com and blog.player2.game could not be opened. Claims that depend on those sites stay LIKELY or Unverified.
 
-**Local clones read (all under `/home/user/_untrusted/ext/` or `/home/user/_untrusted/gh/`):**
+**Local clones read (shallow read-only clones of the public repositories):**
 
 | Prefix | Repository | Commit / date |
 |---|---|---|
@@ -183,7 +183,7 @@ Searches (Nov 2026): GitHub repository search for `elden ring llm/chatgpt/gpt/tt
 | **Chat with Melina** (Nexus 1587/5983; `LRA/`) | Summon Melina at a Site of Grace and pick chat topics | **No LLM.** Edits ESD talk scripts `t000001000`/`t000003000` and adds text ids 70000000+ that replay original lines | Uses vanilla audio. It passes the player's menu choice through **5 event flags used as scratch state**, which are reset when the chat ends. Closing the game mid-chat can leave them set, and "your game save's progress may be weird" | FACT (README). Lesson: never use real event flags as scratch storage |
 | RAG lore bots (`Gr33nOps/EldenLore-RAG`, `CanerCakal/elden-oracle`, `J0hnBloodborne/EldenRAG` with local Qwen 2.5, `dsuther12/GideonGPT-RAG`) | Out-of-game lore Q&A | Web or desktop apps | Cloud (Groq) or on-device | FACT (GitHub search metadata, 2025–2026) |
 | `joshua-hew/MaleniaGPT` (2024), character.ai "Melina" (Steam thread), `minkofg/pixel-melina` (2026, Electron + node-llama-cpp desktop pet) | Persona chatbots | Out-of-game | Cloud / local | FACT (GitHub search) / LIKELY |
-| `alidhl/dialogue-generator` (2024) | LSTM trained on an Elden Ring dialogue CSV, with a Gradio UI | Out-of-game toy | — | FACT (`/home/user/_untrusted/ext/dialogue-generator/README.md`) |
+| `alidhl/dialogue-generator` (2024) | LSTM trained on an Elden Ring dialogue CSV, with a Gradio UI | Out-of-game toy | — | FACT (`alidhl/dialogue-generator` README) |
 | `magichear/GPT-SoVITS-EldenRing` (2024) | Apparent voice-clone experiment of the cast | — | GPT-SoVITS | FACT (repo exists; README is only a title) |
 | "Elden Ring Dublado por IA" (itch.io, yelore) and ERPT-BR (`lorepamplona/ERPT-BR`) | PT-BR dubbing projects. ERPT-BR 0.9.7 rebuilds Wwise banks for 1.17.1 (BuildID 25080141) | Offline bank patching | The itch.io page says "por IA". We could not confirm ERPT-BR's voice source | LIKELY / FACT (README) |
 | Hakko AI, Questie | Commercial screen-watching voice companions that list Elden Ring | Screen capture + overlay | Cloud | LIKELY |

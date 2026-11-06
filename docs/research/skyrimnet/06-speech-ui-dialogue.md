@@ -8,13 +8,13 @@
 
 | Abbrev | Root |
 |---|---|
-| `REL/` | `/home/user/_untrusted/skyrimnet/skyrimnet-beta30-rc2/` |
+| `REL/` | SkyrimNet beta30-rc2 release archive (root) |
 | `DATA/` | `REL/SKSE/Plugins/SkyrimNet/` |
 | `LIB/` | `DATA/library/skyrimnet.base/` |
 | `SRC/` | `REL/Source/Scripts/` |
 | `PUI/` | `REL/PrismaUI/views/SkyrimNet/` |
-| `DEV/` | `/home/user/_untrusted/devkit/skyrimnet-devkit-beta30-rc2/` |
-| `GH/` | `/home/user/_untrusted/gh/SkyrimNet-GamePlugin/` |
+| `DEV/` | SkyrimNet beta30-rc2 developer kit (root) |
+| `GH/` | clone of github.com/MinLL/SkyrimNet-GamePlugin (root) |
 | `ESP/` | `GH/spriggit/SkyrimNet/` |
 | `#NNN` | Public issue or PR at `https://github.com/MinLL/SkyrimNet-GamePlugin/issues/NNN` |
 
