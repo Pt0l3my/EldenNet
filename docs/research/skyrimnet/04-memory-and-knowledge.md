@@ -156,7 +156,7 @@ erDiagram
 | Phase | Migrations | What changed, and the lesson |
 |---|---|---|
 | **Foundations** | 0001 | Event log with three actor columns and two clocks. Telemetry tables. A pre-vector `memories` table existed outside these files; 0002 drops its indexes on actor, type, emotion, game_time and importance. |
-| **Vector memory** | 0002–0004 | The old memory system was removed and replaced by `memories` plus a separate `memory_embeddings` BLOB table (0003). Per-actor generation tracking on events (0004). INFERENCE: the legacy prompts `LIB/prompts/memory/memory_builder`, `memory_ranker`, `evaluate_memory_relevance` and `components/memory_access` belong to the old design. They use `summary`/`details`/`short|mid|long` fields that no current column holds. The current bio submodule reads `memory.memory.content`. |
+| **Vector memory** | 0002–0004 | The old memory system was removed and replaced by `memories` plus a separate `memory_embeddings` BLOB table (0003). Per-actor generation tracking on events (0004). INFERENCE: the legacy prompts `LIB/prompts/memory/memory_builder`, `memory_ranker`, `evaluate_memory_relevance` and `components/memory_access` belong to the old design. They use `summary`/`details`/`short\|mid\|long` fields that no current column holds. The current bio submodule reads `memory.memory.content`. |
 | **Identity and diaries** | 0005, 0006 | UUID ↔ FormID map (0005); diaries (0006). |
 | **Clocks** | 0008 | Pause-aware `playtime` on events. The comment says segmentation "can fall back to local_time when missing". INFERENCE: in-game time jumps (sleep, wait, fast travel at a 20x timescale), so episodes are grouped by real active play time. |
 | **World knowledge** | 0013, 0015–0018 | Knowledge entries go into `memories` with `actor_uuid = 0`, a template condition and always-inject (0013). NPC groups (0015). A BIGINT fix (0016): the DB layer (SOCI) maps `INTEGER` to 32-bit and silently truncated 64-bit UUIDs. Packs (0017). Dedupe key (0018). |
@@ -738,7 +738,7 @@ person in two records) and must be curated as data.
 
 | SkyrimNet concept | Skyrim/SKSE feature it leans on |
 |---|---|
-| UUID from name + masked FormID; `mod_file + local_form_id` | Plugin-relative FormIDs (`Plugin.esp|0xLocalID`); load-order index in the top byte (ESL: 12-bit IDs) |
+| UUID from name + masked FormID; `mod_file + local_form_id` | Plugin-relative FormIDs (`Plugin.esp\|0xLocalID`); load-order index in the top byte (ESL: 12-bit IDs) |
 | Successions (Ulfric, Cicero, Erik) | Quests that swap one actor record for another (disable old ref, enable new) |
 | Playthrough ID and UUID mappings in the co-save | SKSE co-save serialization alongside each `.ess` |
 | Timeline revert on `game_time` | A monotonic in-game calendar (timescale 20; sleep and wait advance it) |
