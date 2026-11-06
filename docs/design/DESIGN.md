@@ -1,11 +1,11 @@
 # EldenNet v1: master design
 
 > **Status:** the single source of truth for EldenNet v1, 2026-11-06. It supersedes the proposals and the judges' scorecards in [process/](process/) wherever they disagree. **Target:** ELDEN RING PC/Steam, App 1.17.2, exe 2.7.2.0 (WW) and 2.7.2.1 (JP), offline only.
-> **Built from:** [P1 lean monolith](process/P1-lean-monolith.md) as the base, with grafts from [P2](process/P2-split-brain.md) and [P3](process/P3-experience-first.md) picked by the judges ([J1](process/J1-stability-feasibility.md), [J2](process/J2-minimalism-delivery.md), [J3](process/J3-experience-ai-quality.md)). It also applies the **owner decisions of 2026-11-06** (recorded in CLAUDE.md): no me3, no fromsoftware-rs, our own event engine. All three proposals assumed me3 (loader, `start_online`, `disable_arxan`, `savefile`) and a vendored fromsoftware-rs (J1 §4.1, J2 §2). Every such assumption is replaced in §3–§4.
+> **Built from:** [P1 lean monolith](process/P1-lean-monolith.md) as the base, with grafts from [P2](process/P2-split-brain.md) and [P3](process/P3-experience-first.md) picked by the judges ([J1](process/J1-stability-feasibility.md), [J2](process/J2-minimalism-delivery.md), [J3](process/J3-experience-ai-quality.md)). It also applies the **owner decisions of 2026-11-06** (recorded in CLAUDE.md): no me3, no fromsoftware-rs, our own event engine; and later that day, every recommended default in §19 accepted and hudhook pinned at exactly 0.9.3 (O25). All three proposals assumed me3 (loader, `start_online`, `disable_arxan`, `savefile`) and a vendored fromsoftware-rs (J1 §4.1, J2 §2). Every such assumption is replaced in §3–§4.
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J2 G9` point into the process records. LIKELY and SPECULATION keep the research's evidence labels. **RE-needed** facts are settled by the spikes in §16 before code depends on them.
 > **Licence hygiene:** we use SkyrimNet's ideas and published numbers only, never its text or code (SN00 §7). All example content is original. No FromSoftware text or assets ship; game text is read at runtime from the player's install.
 > **Detail documents:** [architecture.md](architecture.md) expands §2–§6, §11, §14 and §15. [npcs-and-dialogue.md](npcs-and-dialogue.md) expands §7–§9 and §12. [memory-and-knowledge.md](memory-and-knowledge.md) expands §10. The adversarial review, with what it changed and what is still open, is [process/review.md](process/review.md).
-> **How to read it:** §0 is the whole design on one page and §1 the scope and success criteria. Then read the section for your area: start-up and safety §2–§3, game access §4–§5, the event engine §6, NPCs and speech §7–§9, memory §10, LLM and presentation §11–§12. §16 is the delivery plan and §19 lists what the owner still has to decide. Where a detail document and this one disagree, this one wins.
+> **How to read it:** §0 is the whole design on one page and §1 the scope and success criteria. Then read the section for your area: start-up and safety §2–§3, game access §4–§5, the event engine §6, NPCs and speech §7–§9, memory §10, LLM and presentation §11–§12. §16 is the delivery plan and §19 records the owner's decisions and any question still open. Where a detail document and this one disagree, this one wins.
 
 ---
 
@@ -1265,21 +1265,22 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Saves | No redirection; launcher backups | Redirect hook; file swap | Fewest hooks; no writes | J1 #27 |
 | Offline | Own gate incl. set count; anti-cheat check; no online-property write | me3 `start_online` | Owner decision | ER05 §3; J1 #26 |
 | Title-screen gate | Clean at the title with lobby `None`, no anti-cheat and `session` healthy; network for the wizard and silent self-test only | Gate false at the title (no wizard self-test) | No multiplayer session exists before a world loads; speech stays dormant | ARCH §5.1; review |
+| Sheltered context | The Roundtable (SpEffect 9621) and resting at a grace (flag 9000, once S6 verifies it) waive the two hostile-distance checks, never the boss and combat checks; nearest-persona reach 8 m | No waiver; waive every check | Chat in safe places without weakening the combat and boss checks | §8.1; NPC §5.4; review |
 | Self-test placement | Image checks before registration; game-object tests on the first ticks; failure → inert task | All tests before registration | R1 forbids game-object reads outside the task | ARCH §3.2; review |
 | Text | Hook-free FMG table walk | `GetMessage` call or hook | Reforged hooks it; no calls | ER01 §8.3 |
 | LLM | One OpenAI-compatible client, 5 slots | Several SDKs | Industry convergence | ER06 §5.2 |
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |
 | Content size | 6 personas, 6 cards + fallback | 8/12; 12+1/12 | Solo developer; S6 per persona | J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
-| Overlay library | hudhook pinned at exactly 0.9.3, with its `imgui` and MinHook re-exports | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1 |
+| Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1 |
 
 ---
 
 ## 19. Decisions for the project owner
 
-**Status: all decided by the owner on 2026-11-06.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it.
+**Status: O1–O25 decided by the owner on 2026-11-06; O26 and O27 are Open.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it.
 
-| # | Decision | Options | Decision (owner, 2026-11-06) |
+| # | Decision | Options | Owner's decision (2026-11-06 unless dated), or recommended default while **Open** |
 |---|---|---|---|
 | O1 | Project name | Keep "EldenNet" / rename before the first public build | **Keep for development; pick the public name before the v0.6 public test.** It must not trade on SkyrimNet's name (SN00 §7) or lean on FromSoftware marks. The `en-` crate prefix keeps a rename cheap |
 | O2 | Process model | Monolith / split brain | **Monolith.** Revisit only if crash dumps show abort-class faults in core code |
@@ -1296,7 +1297,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | O13 | Call-out replies | On / off / defer | **On, in v0.6** |
 | O14 | Ambient barks | Off / sparse / normal | **Sparse** |
 | O15 | Archetype cards | Which 6 | **Godrick Soldier, Vulgar Militia, Kaiden Sellsword, Raya Lucaria Soldier, Leyndell Soldier, Demi-Human,** plus the fallback |
-| O16 | Language | English / follow the game | **English only** |
+| O16 | Language | English / follow the game | **English only.** Prompts, lines, lint lists and memories are English. Names come from the game's own text tables (§4.5); a game whose text language is not English is O26 |
 | O17 | Content safety | Faithful / gentle | **Faithful** |
 | O18 | Player's name | Never / after introduction / always | **After introduction, per persona** |
 | O19 | Melina, bosses, invaders | Silent / special | **Silent in v1** |
@@ -1305,4 +1306,6 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | O22 | Distribution | GitHub / Nexus / both | **GitHub as the canonical signed source; Nexus mirror with an AI disclosure** |
 | O23 | Generated bark pools in v1.0 | Seeds only / seeds + pools | **Seeds + pools, gated by X2** (pools stay off by default if X2 fails). Pools serve variety, not stability. If v0.4 runs late, ship seeds only and move pools to v1.1; requirement 3 is met by seeds alone |
 | O24 | Floating bark labels in v1.0 | Feed only / feed + labels | **Feed + labels**, labels only once the `camera` group passes. Labels are the one feature that reads game memory every frame (the render feed). If S1 or the soak shows any cost or fault there, ship the feed only |
-| O25 | Overlay library | hudhook, pinned / a newer hudhook / another hook library / our own DX12 hooks | **hudhook, pinned at exactly 0.9.3** (`=0.9.3`). It is plain MIT, its bundled MinHook is BSD-2, and neither carries an AI clause (checked 2026-11-06). `en-overlay` takes `imgui` (0.12) and MinHook through hudhook's re-exports (`hudhook::imgui`, `hudhook::mh`), so the process links one copy of each. Any change of version needs the owner's approval and a fresh read of its licence files (ARCH §12.1) |
+| O25 | Overlay library | hudhook, pinned / a newer hudhook / another hook library / our own DX12 hooks | **hudhook, pinned at exactly 0.9.3** (`=0.9.3`). It is plain MIT, its bundled MinHook is BSD-2, and neither carries an AI clause (checked 2026-11-06). Only its `dx12` feature is built (`default-features = false`), so its other renderers and its process injector (`inject`) never enter our DLL. `en-overlay` takes `imgui` (0.12) only through the re-export `hudhook::imgui`, MinHook only through hudhook's own FFI module `hudhook::mh`, and `windows` at hudhook's version (0.62), so it adds no copy of its own. hudhook's eject path is never called, because it uninitialises the shared MinHook (R12). `THIRD_PARTY.md` reproduces hudhook's MIT notice and the BSD-2 notices of MinHook and HDE (`vendor/minhook/LICENSE.txt`); the release build fails without them. Any change of version needs the owner's approval and a fresh read of its licence files (ARCH §12.1) |
+| O26 | Game text in another language | (a) treat a non-English text language as if the `text` group were off; (b) also read English names from the install's own English text, if S2 finds it there; (c) follow the game's language | **Open. Recommended: (a) in v1, (b) in v1.1 if S2 confirms it.** Under (a) the capability matrix applies (§4.4: persona fallback names, card `label_fallback`), so a prompt never mixes languages, and the wizard says that English game text gives the full experience. S2 also finds how to read the active text language |
+| O27 | Pattern derivation log | None / a short note per pattern | **Open. Recommended: a short note per pattern** (what was searched for, in which build, the evidence file), reviewed with each `gal/` change. It is the record behind O4's clean-room rule, which CI cannot fully check because `provenance` is self-declared (ARCH §6.3) |

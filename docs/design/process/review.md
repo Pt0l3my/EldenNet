@@ -110,7 +110,7 @@ Each document now opens with a short "How to read it" after its status block: DE
 | 12 | ARCH | `BossFightEnded` Left timing | **Adopted** (DESIGN §6.5) |
 | 13 | ARCH | Camera and cone targeting | **Adopted** (DESIGN §4.4) |
 | 14 | ARCH | `GameThread` constructor | **Adopted** (DESIGN §2.3) |
-| 15 | NPC | Resting chat vs the pre-S3 rule | **Adopted**, with "sheltered" defined. The combat check is never waived (DESIGN §8.1, NPC §5.4) |
+| 15 | NPC | Resting chat vs the pre-S3 rule | **Adopted**, with "sheltered" defined. The combat check is never waived (DESIGN §8.1, NPC §5.4). The owner accepted it on 2026-11-06 |
 | 16 | NPC | Pad chord leaks | **Adopted** the masking; S4 decides (DESIGN §8.1) |
 | 17 | NPC | `expect_name_id` per row | **Adopted** (DESIGN §7.2) |
 | 18 | NPC | Queue vs cut-off | **Adopted** (DESIGN §8.2) |
@@ -143,17 +143,17 @@ Each document now opens with a short "How to read it" after its status block: DE
 
 5. **Play-time width.** ARCH reads `play_time` as a `u32` of milliseconds, which wraps or caps at about 1,193 hours. Rollback is decided by play time (MEM §9.1). MEM should state what a jump of more than 1,000 hours backwards means (a cap or wrap, not a rollback) once S6 shows how the game behaves.
 6. **The `ReadProcessMemory` fallback (S0-D).** If vectored handlers force the copy primitive onto `ReadProcessMemory` (about 1 µs per copy), the 512-copy budget alone reaches about 0.5 ms. The snapshot's 0.4 ms p99 would then need fewer copies per character or the 2 Hz throttle. Measure in S0-D.
-7. **hudhook's MinHook.** R12 assumes that the DInput and XInput detours can go through the MinHook copy that hudhook bundles. **Partly settled (2026-11-06):** hudhook 0.9.3's source has a public `mh` module (`MhHook::new`, `queue_enable`, and the `MH_*` calls including `MH_ApplyQueued`), and the owner pinned that version (DESIGN O25). The first v0.1 build still confirms that our detours work through it.
+7. **hudhook's MinHook.** R12 assumes that the DInput and XInput detours can go through the MinHook copy that hudhook bundles. **Partly settled (2026-11-06):** hudhook 0.9.3's source has a public `mh` module (`MhHook::new`, `queue_enable`, and the `MH_*` calls including `MH_ApplyQueued`), and the owner pinned that version (DESIGN O25). The first v0.1 build still confirms that our detours work through it. Two rules follow from its source: `Hudhook::builder()` calls `MH_Initialize` itself (and panics if MinHook cannot allocate), so our detours are created after it, inside the init thread's unwind guard; and hudhook's eject path (`hudhook::eject`, `unapply`) calls `MH_Uninitialize`, which removes every hook in the shared MinHook, ours included, so it must never run (the R12 grep in ARCH §10.1).
 8. **Kalé's data.** His flag block is unknown (`base = 0`), and `kale.howl_told` has `id = 0`. The pilot therefore runs with its base stage only until S6 finds them. That is fine for v0.2, but the eval's 2–3 stages per persona cannot be met for Kalé until then.
-9. **Clean-room discipline for patterns** (ARCH §6.3) is a process rule that CI cannot fully check, because the provenance field is self-declared. The owner may want a short derivation log per pattern, reviewed with each `gal/` change.
+9. **Clean-room discipline for patterns** (ARCH §6.3) is a process rule that CI cannot fully check, because the provenance field is self-declared. Asked as DESIGN O27 (Open), recommending a short derivation note per pattern, reviewed with each `gal/` change.
 
 ### 4.3 For the owner
 
-10. **New decisions:** O23 (bark pools) and O24 (floating labels), both with a cut path. **Settled:** O3 presents the three options; the owner then decided (c), own GAL (2026-11-06), and DESIGN §19 records it as decided.
+10. **Decided (2026-11-06):** O23 (bark pools) and O24 (floating labels), as recommended, each with its cut path; and O3, (c) own GAL. DESIGN §19 records all three.
 11. **Adopted by the review:** the title-screen gate clause (§3 item 1) and the sheltered-context definition (§3 item 15).
-
-**Owner's answer (2026-11-06):** every recommended default in DESIGN §19 is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C.
 12. **Proton** has no supported launch path of our own until S0-C passes. Until then it works only through a loader the player already uses.
+
+**Owner's answer (2026-11-06):** every recommended default in DESIGN §19 is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C. A verification pass after that answer raised two new questions, now Open in DESIGN §19: O26 (a game whose text language is not English) and O27 (a derivation note per pattern, item 9).
 
 ### 4.4 Not done here
 

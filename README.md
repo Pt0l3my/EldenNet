@@ -20,7 +20,7 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 ## Design
 
 - [docs/design/DESIGN.md](docs/design/DESIGN.md): the master design. §0 is the design on one page, and §19
-  lists the decisions still open.
+  records the owner's decisions and any question still open.
 - [docs/design/architecture.md](docs/design/architecture.md), [npcs-and-dialogue.md](docs/design/npcs-and-dialogue.md)
   and [memory-and-knowledge.md](docs/design/memory-and-knowledge.md): the detail documents.
 - [docs/research/](docs/research/README.md): the research the design rests on.

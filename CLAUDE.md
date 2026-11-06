@@ -65,7 +65,8 @@ lines; there are no NPC actions beyond dialogue.
 - **Design defaults accepted.** Every recommended default in DESIGN.md §19 (O1–O24) is decided, and so are the
   two rules the review adopted (the title-screen gate clause and the sheltered-context definition).
 - **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
-  2026-11-06). Use `imgui` and MinHook only through its re-exports. Change the version only with the owner's
+  2026-11-06). Build it with the `dx12` feature only. Use `imgui` only through `hudhook::imgui` and MinHook
+  only through `hudhook::mh`, and never call its eject path. Change the version only with the owner's
   approval, after re-reading its licence files.
 
 ## Working rules
