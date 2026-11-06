@@ -348,7 +348,7 @@ The store answers `LoadJobInput{job}` with the evidence for `(watermark, upto]`,
 | Part | Content | Cap |
 |---|---|---|
 | Persona brief | `brief` mode, `public.summary`, `honesty` (NPC §7.6) | 150 |
-| Stage and world | the active stage `gist` and `road`, `stage_seen` at the last job, and the `short` of each item new in this conversation's `known` against `world_seen` before it (≤ 3, with its certainty word; §12.7) | 120 |
+| Stage and world | the active stage `gist` and `road`, `stage_seen` at the last job, and the `short` of each item new in this conversation's `known` against `world_seen` before it (≤ 3, with its certainty word; §12.7) | 250 |
 | Current journal | summary, keepsakes with id, basis, weight, about and a "keep" mark on the protected one; disposition in words and number; `told_name` | 450 |
 | Talk `L1…` | committed `PlayerSaid`/`NpcSaid` of this persona's conversations, in order, each `pt`-ordered | 60 lines; oldest dropped first, with a line saying so |
 | Notes `N1…` | pending notes (§2.6) | 10 |
@@ -654,7 +654,7 @@ schema = 1
 
 [[block]]                              # a persona or track flag block (ER04 §4.4, §7)
 alias = "boc"                          # = personas.toml flag_block.alias
-base = 3940                            # 20-aligned in 3100–4259; 0 = unknown
+base = 3940                            # 20-aligned in 3100–4259, or 4700 (Kalé's 20-flag block in the merchant states 4700–4819, ER07 §4.2); 0 = unknown
 src = ["eventparam:EFID_common"]
 verified = false
 
@@ -685,7 +685,7 @@ note = "Boc gone from the world, by death or by quest end."
 
 [[flag]]
 alias = "kale.howl_told"
-id = 0                                 # unresolved: S6 searches the m60_42_36 conversation bands (ER01 §9)
+id = 0                                 # unresolved: S6 searches the m60_42_36 conversation bands (ER01 §9); best candidates 1042369328 / 1042369329 (ER07 §4.2, LIKELY; ER07 §6 item 15)
 kind = "outcome"
 ng = "unknown"
 src = []
@@ -745,8 +745,8 @@ Every consumer declares a **mode**: `Unlock` accepts only `T`; `Restrict` applie
 | Consumer | Mode | `U` means |
 |---|---|---|
 | KB `requires` | Unlock | entry hidden |
-| Stage `when` with `unlock`, `identity` or a more permissive `chat` | Unlock | stage inactive (NPC §3.2) |
-| Stage `when` that only restricts (`refuse`, `mute`, no unlock) | Restrict | stage active |
+| Stage `when`, unless the stage only restricts (it has `unlock`, `identity`, a more permissive `chat`, or its own `gist`, `where`, `mood`, `road`, `at`, `hears`, `knows`, `heard` or `short`) | Unlock | stage inactive (NPC §3.2) |
+| Stage `when` that only restricts (`refuse`, `mute`; none of those fields of its own) | Restrict | stage active |
 | World-stage `when`, track-step `when` (§12.3) | Unlock | does not hold; nothing renders |
 | Tie `when` | Unlock | tie inactive |
 | `knows()` in KB `requires` | Unlock | entry hidden |
@@ -808,7 +808,7 @@ fn eval(n: &Node, fs: &FlagState, w: &WorldFacts) -> Tri {
 - Until the first frame of a playthrough arrives, every flag is `U`: everything gated stays hidden.
 - Results are memoised per (`gen`, region, journey, content version).
 - `stage(t, s)` means "persona or track t has reached stage s": the value of that stage's `when`, independent of which stage is active.
-- `world(x)` reads the `WorldView` of the same generation (§12.3) and keeps all three values: T when x holds, U when x's `when` is U or x fails §7.4 only because a flag atom is unverified or invalid, F otherwise. `knows(x)` is U when x is U; otherwise it is T when the rendered persona's `known(P)` set of the same flag generation holds x (§12.5), else F, and it is memoised with that set. So `!world(x)` and `!knows(x)` stay U on unverified data and never unlock (§6.4).
+- `world(x)` reads the `WorldView` of the same generation (§12.3) and keeps all three values: T when x holds, U when x's `when` is U or x fails §7.4 only because a flag atom is unverified or invalid, F otherwise. `knows(x)` is U when x is U; otherwise it is T when the rendered persona's `known(P)` set of the same flag generation holds x (§12.5), else F, and it is memoised with that set. So `!world(x)` stays U on unverified data and never unlocks (§6.4). `knows(x)` reads F, not U, when x holds but the path that would carry it rests on unverified data (a tie whose `when` is U, or a stage left inactive by strict mode), so `knows()` is refused under `!` (§6.5, W11).
 
 ---
 
@@ -1143,7 +1143,7 @@ A journal version written after the cut in wall time, but whose evidence all lie
 - `JourneyChanged{ng_lvl}` (or a journey mismatch at open): the conversation ends, the K store is cleared, and an epoch with `reason = 'journey'` begins. `meta.current_journey` = `ng_lvl + 1`.
 - New-journey facts, journals, progress and jobs start empty. Earlier journeys stay in the file, read-only, and are never injected: `visible_to` filters by journey (§1.3), and every query takes the journey as a parameter (DESIGN §10.5; O20).
 - `remember_past_journeys` is a reserved persona field. Lint requires it to be `false` in v1.
-- NG+ resets quest flags, so stages, world stages and the KB re-gate on their own (ER04 §4.3); `world_seen` is per journey and starts empty; flags with `ng = keep` never gate world stages or tracks (§12.9).
+- NG+ resets quest flags, so stages, world stages and the KB re-gate on their own (ER04 §4.3; SPECULATION, §12.12 item 5); `world_seen` is per journey and starts empty; flags with `ng = keep` never gate world stages or tracks (§12.9).
 - Play time keeps rising across NG+, so a rollback across the journey boundary is handled by §9.2 unchanged.
 
 ### 9.5 Forgetting (F10 → Memory; NPC §10.6)
@@ -1173,7 +1173,7 @@ Each cut runs through the silent path (Δ ≤ 5 min) and the **Forget** path (Δ
 - **crash mid-reply** with a hard kill at random page boundaries: every acknowledged page survives, nothing unacknowledged appears (C11);
 - **property tests:** for random cuts, no current-epoch row has `pt > cut`; no audience row is orphaned; the watermark equals the current version's `upto`; facts equal `fold(events)`;
 - **forget:** after "Forget this NPC", no query for P returns rows in `j`, and another persona's overheard rows are intact.
-- **world:** the trims of §12.11 T7 (around Radahn's fall and the star) and T3's fold property.
+- **world:** the trims of §12.11 T7 (around Radahn's fall and the star) and §12.11 T3's fold property.
 
 ---
 
@@ -1247,7 +1247,7 @@ These follow DESIGN.md. Items 1–5 are possible conflicts and are reported to t
 
 Two layers keep it exact and spoiler-safe:
 1. **What holds** is derived from the verified flag frame in the pure core on every flag generation (§12.3). It has two parts: **world stages**, states of the land built on outcome flags only, and **quest tracks**, whose active step follows the persona stage rule (NPC §3.2).
-2. **Who knows** is a pure rule, `known(P)`, over persona P's content, its active stage, the world view and P's `world_seen` fact (§12.5). It decides what P knows and how surely.
+2. **Who knows** is a pure rule, `known(P)`, over persona P's content, its active stage, the flag state its ties' `when`s read, the world view and P's `world_seen` fact (§12.5). It decides what P knows and how surely.
 
 The result reaches the dialogue prompt as block 5b "How things stand" and as a since-line at the top of block 7 (§12.6). It reaches memory as the `world_seen` fact and as part of the job input (§12.7).
 
@@ -1268,7 +1268,7 @@ The result reaches the dialogue prompt as block 5b "How things stand" and as a s
 | File | Status | Holds | v1 size |
 |---|---|---|---|
 | `world/stages.toml` | new | `[[world_stage]]` | 9 entries (§12.4) |
-| `world/tracks.toml` | new | `[[track]]` with `[[track.step]]`, for questlines owned by no persona | 1 track (Tanith), 2 steps |
+| `world/tracks.toml` | new | `[[track]]` with `[[track.step]]`, for questlines owned by no persona | 1 track (Tanith), 2 steps; up to 3 tracks if S6 finds the festival's and Ranni's flags (§12.12 item 10) |
 | `personas/<id>.toml` | extended | `[awareness]` (`home`, `[[awareness.tie]]`, `skip`); stage fields `road`, `at`, `hears`, `knows`, `awaits`, `heard`, `short` | 6 personas and the Lantern-Keeper |
 | `flags/catalog.toml` | extended | about 12 new aliases; the `tanith` `[[block]]`; the field `ng` (§6.1) | — |
 | `prompts/dialogue/05b_world.j2` | new | the fixed scaffolding of block 5b (headers only; the lines come from data) | — |
@@ -1291,6 +1291,7 @@ near       = "rumour"                   # certainty for personas whose hearing c
 rank       = 60                         # 0..100, order among news lines; higher first
 spoiler    = 1
 supersedes = []                         # item ids whose line this one makes redundant
+clears     = ["alexander.festival", "blaidd.at_grace"]   # lint only (W10): flags the event may clear; TGA's Radahn group writes +8 and +13 false, a hint only (ER07 §2.4); S6 records what the game does
 short      = "the fall of the red general"   # ≤ 8 words: since-line and memory-job tag
 line       = "The red general who held the eastern wastes has fallen at last."   # ≤ 25 words, ≤ 160 chars
 topics     = ["general", "radahn", "red", "festival", "redmane", "caelid"]     # block-7 topic offers (§12.6)
@@ -1314,6 +1315,7 @@ note    = "Meteor after the general's fall. Where it lands is GK and stays out o
 - `when` uses outcome flags and `world()` of other stages only: no `!`, `stage()`, `region()`, `journey` or `knows()` (W1). So the save itself is the latch (§12.3).
 - `reach = everywhere` reaches, as fact, every persona whose current region (its stage's `at`) has a sky (the Sky column of `regions.toml`, NPC §9.5); a persona under a roof or below ground has no Sky path, and its own `knows`, a tie, what it already held and, at spoiler ≤ 1, word of the road cover the rest (§12.5); `reach = region` needs `regions` (RegionKeys of `regions.toml`, NPC §9.5); `reach = linked` reaches a persona only through its own stage `knows`, a tie, or what it already held (§12.5).
 - `near` is `fact | rumour`, default `rumour`.
+- `clears` (optional) lists persona or track flag aliases that the event may clear, from the research or S6's recording (§12.12 item 6). It is read only by W10 and never at runtime.
 - `line` and `short` are impersonal (no "you"), use words, not numbers, and are our own wording. `lexicon` lists the proper nouns the line and the short introduce (§7.2). `note` is developer-facing and never rendered (§7.6).
 - Ids are unique across world stages, tracks and personas, so `world(x)` and `stage(t, s)` never collide.
 
@@ -1325,12 +1327,12 @@ schema = 1
 
 [[track]]
 id    = "tanith"
-block = "tanith"                        # catalogue [[block]], base 3100 (ER04 §4.4)
-note  = "The lady of the volcano manor. Offsets owed to S6."
+block = "tanith"                        # catalogue [[block]], base 3100 (ER04 §4.4); the block has two label sets (ER07 §6 item 16)
+note  = "The lady of the volcano manor. Offsets, and which label set the game reads, owed to S6."
 
 [[track.step]]
 id      = "hosting"
-when    = "flag('tanith.hosting')"       # first stage of block 3100 (offset owed to S6)
+when    = "flag('tanith.hosting')"       # +5 or +6 in her own talk file (ER04 §4.4); offset owed to S6
 spoiler = 1
 short   = "the manor's lady taking in guests"
 heard   = "The lady of the manor on the volcano takes in wanderers who will do her house's bloody work."
@@ -1338,10 +1340,10 @@ lexicon = ["Tanith"]
 
 [[track.step]]
 id      = "vigil"
-when    = "flag('tanith.devouring')"     # 3109 lead (ER04 §4.4, TGA): label FACT, meaning LIKELY
+when    = "flag('tanith.devouring')"     # 3109 lead, +9 in her own talk file (ER04 §4.4; ER07 §5): label FACT, meaning LIKELY
 spoiler = 3
 short   = "the lady's vigil beside her dead lord"
-heard   = "The lady of the manor has shut herself away with her dead lord and lets no one near."
+heard   = "The lady of the manor has shut herself away with her dead lord."
 lexicon = ["Tanith"]
 ```
 
@@ -1352,7 +1354,7 @@ A track has no base step: if no step holds, it has no active step and renders no
 ```toml
 [awareness]
 home = []                                  # ≤ 3 RegionKeys where this persona has long lived
-skip = ["patches.crouch: a gesture, not a step (+14, lead, ER07 §4)"]   # verified block offsets deliberately unused (W4)
+skip = ["patches.chest_trap: told by the base stage cave (+6, FACT label, ER07 §4.4)", "patches.nowhere: a live state, not a step (+17, FACT label, ER07 §4.4)"]   # verified block offsets deliberately unused (W4); +14 is SPECULATION and waits for S6
 
 [[awareness.tie]]                          # ≤ 6 per persona
 item      = "q:tanith"                     # a whole track, or a world stage "w:<id>"
@@ -1392,7 +1394,7 @@ road  = "You're lying low among the manor's strange company, with an eye on who 
 
 Inheritance runs in file order: a stage that omits `road`, `at`, `hears` or `knows` takes the previous stage's value (NPC §3.2).
 
-**`[awareness]`:** `home` (≤ 3 RegionKeys), `skip` (verified offsets ≥ +5 of the persona's block that no stage uses, each with a reason, W4) and ≤ 6 ties, of which ≤ 3 carry their own `line`.
+**`[awareness]`:** `home` (≤ 3 RegionKeys), `skip` (verified offsets ≥ +6 of the persona's block that no stage uses, each with a reason, W4; the base stage stands for the initial +5) and ≤ 6 ties, of which ≤ 3 carry their own `line`.
 
 **Tie fields:**
 
@@ -1439,19 +1441,19 @@ pub struct Known { pub item: ItemId, pub certainty: Certainty, pub path: Path, p
 
 ### 12.4 The v1 world stages and track
 
-Nine world stages. Six reuse boss aliases already in S6's scope (9101, 9104, 9112, 9118, 9122, 9130); the extra S6 work is 310, 118 (with 300 and 301), and 9116 (§12.12). Every ID below is a research lead with the evidence label shown, and stays `verified = false` until S6 verifies it. Leads from the 2026-11-06 dataset pass are recorded in ER07. **GK:** general game knowledge recorded in ER07 §5, LIKELY, owed to S6.
+Nine world stages. Six reuse boss aliases already in S6's scope (9101, 9104, 9112, 9118, 9122, 9130); the extra S6 work is 310, 118 (with 300–302), and 9116 (§12.12). Every ID below is a research lead with the evidence label shown, and stays `verified = false` until S6 verifies it. Leads from the 2026-11-06 dataset pass are recorded in ER07. **GK:** general game knowledge recorded in ER07 §5, LIKELY, owed to S6; until then it may hide content but never unlock it (ER07 §6 item 12).
 
 | id | `when` (aliases) | Flag lead | Evidence | Reach (regions; near) | Spoiler | Rank |
 |---|---|---|---|---|---|---|
 | `castle_fallen` | `boss('godrick')` | 9101 | FACT label (ER05 §7) | region (`stormveil`, `stormhill`, `limgrave`; rumour) | 1 | 40 |
 | `queen_fallen` | `boss('rennala')` | 9118 | FACT label (ER05 §7) | region (`raya_lucaria`, `liurnia`; rumour) | 1 | 45 |
 | `general_fallen` | `boss('radahn')` | 9130 | FACT label (ER05 §7) | region (`caelid`, `dragonbarrow`; rumour) | 1 | 60 |
-| `star_fallen` | `flag('story.star_fell') && world('general_fallen')` | 310 | FACT label (ER05 §5); meaning LIKELY (TGA's Radahn group sets 310 beside 9130; ER07 §2) | everywhere | 1 | 80 |
+| `star_fallen` | `flag('story.star_fell') && world('general_fallen')` | 310 | FACT label (ER05 §5; ER07 §2.3); meaning LIKELY (TGA's Radahn group sets 310 beside 9130; ER07 §2.4) | everywhere | 1 | 80 |
 | `manor_lord_fallen` | `boss('rykard')` | 9122 | FACT label, TGA agrees (ER05 §7) | region (`volcano_manor`, `gelmir`; **fact**) | 2 | 50 |
 | `capital_king_fallen` | `boss('morgott')` | 9104 | FACT label (ER05 §7) | region (`leyndell`, `altus`; rumour) | 2 | 55 |
 | `blood_lord_fallen` | `boss('mohg_lord')` | 9112 | FACT label (ER05 §7) | linked | 2 | 50 |
-| `erdtree_burned` | `flag('story.erdtree_burned')` | 118 (300/301 cross-check) | 118 and 300: FACT labels (ER05 §5, §7); 301: lead (ER07 §2) | everywhere | 2 | 90 |
-| `capital_ashen` | `boss('maliketh') && world('erdtree_burned')` | 9116 | lead (ER07 §3), LIKELY, owed to S6; that Maliketh's death brings the ash is LIKELY (ER04 §4.4; ER07 §3) | region (`leyndell`, `altus`; fact); `supersedes = ["w:erdtree_burned"]` | 3 | 95 |
+| `erdtree_burned` | `flag('story.erdtree_burned')` | 118 (300–302 cross-check) | 118 and 300: FACT labels (ER05 §5, §7); 301 and 302: FACT labels, 302's use SPECULATION (ER07 §2.3); their order and persistence are owed to S6 | everywhere | 2 | 90 |
+| `capital_ashen` | `boss('maliketh') && world('erdtree_burned')` | 9116 | lead (ER07 §3), LIKELY, owed to S6; that Maliketh's death brings the ash is LIKELY (ER04 §4.4; ER07 §2.5) | region (`leyndell`, `altus`; fact); `supersedes = ["w:erdtree_burned"]` | 3 | 95 |
 
 Common lines, shorts and lexicons (our own words):
 
@@ -1464,23 +1466,25 @@ Common lines, shorts and lexicons (our own words):
 | `manor_lord_fallen` | "The lord who ruled the manor from inside the burning mountain has been slain." | the death of the manor's lord | Rykard |
 | `capital_king_fallen` | "The king who held the royal capital against all comers has been cut down in his own city." | the fall of the capital's king | Morgott |
 | `blood_lord_fallen` | "The lord of blood has been struck down in his hidden palace." | the blood lord struck down | Mohg |
-| `erdtree_burned` | "The great tree has burned. Its golden light is gone from the sky over every road." | the burning of the great tree | — |
-| `capital_ashen` | "The great tree has burned to its roots, and the royal capital lies buried under grey ash." | the royal capital buried in ash | — |
+| `erdtree_burned` | "The great tree has gone up in flames." | the burning of the great tree | — |
+| `capital_ashen` | "The great tree has burned, and the royal capital lies buried under grey ash." | the royal capital buried in ash | — |
 
-**The Tanith track** (`world/tracks.toml`, §12.2): block 3100 (ER04 §4.4); `hosting` (spoiler 1, offset owed to S6) and `vigil` (3109, label FACT, meaning LIKELY, spoiler 3). It is owned by no persona; in v1 only Patches ties to it (NPC §3.6).
+In the stages authored so far, no persona's `home` or stage `at` lies in `leyndell` or `altus`, and Varré's tie to the lord of blood is inert until S6 records it (NPC §3.6). So `capital_king_fallen`, `blood_lord_fallen` and `capital_ashen` are known to no persona yet: the first two only lock their terms (Morgott, Mohg; §12.8), and `capital_ashen`, which has no lexicon, has no effect. That changes once Boc's Altus and Leyndell stages are authored (§12.12 item 9, before v0.5): at a stage whose `at` is `altus` or `leyndell`, the capital's king (rumour) and the ashen capital (fact) reach him by Near.
+
+**The Tanith track** (`world/tracks.toml`, §12.2): block 3100 (ER04 §4.4); `hosting` (+5 or +6 in her own talk file, spoiler 1, offset owed to S6) and `vigil` (3109, +9 in her own talk file, label FACT, meaning LIKELY, spoiler 3). The block carries a second label set from another talk file with different stages at +5 to +7 (ER04 §4.4), so which set the game reads is owed to S6 (§12.12 item 7; ER07 §6 item 16), and both steps stay silent until then. It is owned by no persona; in v1 only Patches ties to it (NPC §3.6).
 
 **Not world stages, by design:**
 - the Great Rune count: it belongs to the Tarnished (DESIGN §5.5), and the `great_runes>=n` claim keeps it (§2.5);
 - places reached (104/105, 130–140): they gate stages, not news;
 - the Frenzied Flame (108, 116), the endings (20–22, 120) and the NG+ counters (50–58);
 - the DLC (330, 76800); 311 and 312 (possibly cut); the lake-tower inversion (320/370), which waits for Ranni;
-- the festival of combat (Jerren's block 3360): its flags are unresolved (`id = 0`), so it gets no track until S6 finds its stage offsets (§12.12 item 10), and until then Blaidd's and Alexander's own stages carry it.
+- the festival of combat (Jerren's block 3360, header only, with no stage rows in either dataset: ER07 §4.9): its aliases stay unresolved (`id = 0`), so it gets no track until S6 finds its stage offsets or shows that the festival flags 9410–9413 mark it (§12.12 item 10; ER07 §2.4, §6 item 14), and until then Blaidd's and Alexander's own stages carry it.
 
 **If 310 is not the star.** If S6 shows that 310 does not mark the fallen star, `star_fallen` becomes `world('general_fallen')` alone, and only once S6 has recorded the crater in the same run that verifies 9130 (§12.12 item 1). Until S6 settles it, an unverified 310 is U, so `star_fallen` stays silent (§12.8).
 
 ### 12.5 Who knows what
 
-`known(P)` is a pure function of P's content, P's active stage `s` (with its inherited fields), the `WorldView` and P's `world_seen` fact. It runs only over items that hold. **Absence is silence:** an item that is F or U, or known by no path, yields nothing, never "not yet".
+`known(P)` is a pure function of P's content, P's active stage `s` (with its inherited fields), the flag state and world facts that its ties' `when`s read, the `WorldView` and P's `world_seen` fact. It runs only over items that hold. **Absence is silence:** an item that is F or U, or known by no path, yields nothing, never "not yet".
 
 ```text
 known(P, X) -> Option<(Certainty, Path)>:          # X holds (§12.3); otherwise None
@@ -1489,7 +1493,7 @@ known(P, X) -> Option<(Certainty, Path)>:          # X holds (§12.3); otherwise
   if X ∈ s.knows:                                   paths += (fact, Own)
   if (X, c) ∈ P.world_seen:                         paths += (c, Kept)        # nothing is forgotten
   if H = all:
-     for t in P.ties with t.item covers X, t.certainty set, active(t):  paths += (t.certainty, Tie)
+     for t in P.ties with t.item covers X, t.certainty set, active(t, X):  paths += (t.certainty, Tie)
   if X is a world stage:
      if X.reach = everywhere:
         if H ∈ {all, sky} and sky(s.at):            paths += (fact, Sky)
@@ -1501,12 +1505,12 @@ known(P, X) -> Option<(Certainty, Path)>:          # X holds (§12.3); otherwise
 
 hearing(P, s) = P.awareness.home ∪ { s.at }
 sky(r)        = the Sky column of regions.toml for RegionKey r (NPC §9.5); s.at is the inherited `at`
-active(t)     = eval(t.when, Unlock) = T  and  (t.basis = flag  or  t.evidence ≠ [])
+active(t, X)  = eval(t.when, Unlock) = T  and  (max(t.spoiler, X.spoiler) ≤ 1  or  every flag atom of t.when, expanded through stage() and world(), is verified and valid (§7.4))  and  (t.basis = flag  or  t.evidence ≠ [])   # an absent t.spoiler counts as 0
 t.item covers X: t.item = X, or t.item = q:<track> and X = q:<track>.<active step> at or after t.from
-own_affairs(P, X) = X ∈ s.knows, or an active tie with a certainty covers X
+own_affairs(P, X) = X ∈ s.knows, or a tie with a certainty and active(t, X) covers X
 ```
 
-`known(P)` returns at most 24 items. With 9 world stages and one non-persona track in v1 it never reaches that cap.
+`known(P)` returns at most 24 items. With 9 world stages and at most three non-persona tracks in v1 it never reaches that cap.
 
 | Path | Example | Certainty |
 |---|---|---|
@@ -1525,7 +1529,7 @@ own_affairs(P, X) = X ∈ s.knows, or an active tie with a certainty covers X
 - **The Tarnished's word is another channel** (block 8 claims) and never makes `known()` true.
 - **Generic NPCs** know nothing of this in v1 (§12.1).
 
-**Worked check** (`after_radahn`: Godrick, Radahn and the star; stages as in the fixture):
+**Worked check** (`after_radahn`: Godrick, Radahn and the star; stages as in the fixture; `world_seen` empty, as in the truth tables, §12.11):
 
 | Persona (stage) | `castle_fallen` | `general_fallen` | `star_fallen` |
 |---|---|---|---|
@@ -1533,7 +1537,7 @@ own_affairs(P, X) = X ∈ s.knows, or an active tie with a certainty covers X
 | Varré (`after_rune`) | rumour, Near | rumour, Word | fact, Sky |
 | Patches (`lake`, Liurnia) | rumour, Word | rumour, Word | fact, Sky |
 | Blaidd (`after_star`) | rumour, Word | fact, Own | fact, Own |
-| Alexander (`after_festival`) | rumour, Word | fact, Own | fact, Sky |
+| Alexander (`after_fall`) | rumour, Word | rumour, Near | fact, Sky |
 | Boc (`attendant`) | rumour, Near (home) | rumour, Word | fact, Sky |
 | Blaidd (`imprisoned`, never met) | none | fact, Own (inherited `knows`) | fact, Own |
 
@@ -1541,7 +1545,7 @@ Every persona above stands under the sky at this state. The Sky path needs one: 
 
 ### 12.6 Rendering: block 5b, the since-line, topic offers
 
-**Block 5b "How things stand"** is the last block of the cache-B system message, after block 5 and before the breakpoint (NPC §7.3). Its cap is 180 tokens, and it is never trimmed. It is a pure function of (persona, active stage, known set, active ties, content version). The cache-B invariant becomes: blocks 1–5 are byte-stable per persona and stage, block 5b per persona, stage, known set and active ties, and none holds relative time. `world_gen` changes about 15–25 times in a playthrough. Each change costs one cache miss for block 5b only, because automatic prefix caches keep blocks 1–5; where a provider takes explicit breakpoints, one more is set after block 5.
+**Block 5b "How things stand"** is the last block of the cache-B system message, after block 5 and before the breakpoint (NPC §7.3). Its cap is 180 tokens, and it is never trimmed. It is a pure function of (persona, active stage, known set, active ties, content version). The cache-B invariant becomes: blocks 1–5 are byte-stable per persona and stage, block 5b per persona, stage, known set and active ties, and none holds relative time. `world_gen` changes up to about 40 times in a playthrough: at the 9 world stages, the track steps (Tanith's 2 in v1, more if S6 adds the festival's and Ranni's tracks) and up to about 29 persona stage changes. A world-stage or track change costs at most one cache miss, for block 5b only and only for the personas whose known set or active ties it changes, because automatic prefix caches keep blocks 1–5. A persona's own stage change can change its blocks 2–5 as well, and so already starts a new cached prefix (NPC §3.2). Where a provider takes explicit breakpoints, one more is set after block 5.
 
 **Content** (template `prompts/dialogue/05b_world.j2`; the strings are ours and fixed; NPC §7.3 has the skeleton):
 
@@ -1554,7 +1558,7 @@ You believe: {{ belief lines }}
 ```
 
 - **Selection:** the known set, minus items superseded by a known item (`supersedes`); sorted by (`own_affairs` first, then tied, then `rank` descending, then id), where a track step, which has no `rank`, counts as 0; take up to 4 lines while the block stays ≤ 180 tokens, and a line that does not fit competes as a topic entry in block 7 (below); then group by certainty, keeping that order inside each group. Empty groups are omitted.
-- **Line text:** the active tie's `line` if P has one for the item, else the world stage's `line`, else the active step's `heard`.
+- **Line text:** the `line` of P's tie for the item if `active(t, X)` (§12.5), else the world stage's `line`, else the active step's `heard`.
 - **Topic offers:** known items not shown in block 5b that have `topics` join block 7's topic selection (§5.4) inside its shared cap of 3. They are scored like KB topics, with `rank` as priority, and render under the same certainty labels (§5.5). So a question about the queen of the academy finds its line even when other items fill block 5b.
 
 **Block 1** (cache A, the world frame) gains item 9, and its cap rises from 350 to 450 tokens, because the nine items as NPC §3.3 words them come to about 450. It tells the model to speak of the news as it is held (as known, as hearsay or as its own belief), never as something seen, and that no word has reached the persona of great events not written there.
@@ -1577,7 +1581,7 @@ Under O28's recommended default (DESIGN §19), if any named item has `own_affair
 | 5b How things stand | new | 180 |
 | 7 What you know now | "flag facts in words" becomes the since-line (≤ 55); world facts leave the KB `always` slots | 350 → 300 |
 
-The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and block 1 grows by 100), under the 3,500 hard cap; the 2,800 target is unchanged. A typical mid-game prompt is about 2,550 tokens, with block 5b at 120–175. The trim order is unchanged, and blocks 1–5b are never trimmed.
+The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and block 1 grows by 100), under the 3,500 hard cap; the 2,800 target is unchanged. A typical mid-game prompt is about 2,550 tokens, with block 5b at 120–165. The trim order is unchanged, and blocks 1–5b are never trimmed.
 
 **KB caps.** World stages are not KB entries and take no `always` slot (§5.1). Kalé's former `kb.limgrave.castle_fallen` is the world stage `castle_fallen`, which leaves him 3 `always` keys (NPC §3.4). A KB entry that depends on a world event uses `knows('<id>')`, so its detail appears only to a persona who has the news; `world()` is not allowed in KB `requires` (W11).
 
@@ -1592,7 +1596,7 @@ The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and 
 - Validation (§3.6 step 6): a keepsake with `about = world` whose refs cite only such world `C` lines is dropped as "kept by the world model", and counted. Keepsakes about what was *said* (the Tarnished's claims, the NPC's own words) remain.
 - The memory prompt carries rule 7 (§3.4): "How things stand in the land is kept for {{ name }} elsewhere. Do not write keepsakes that only repeat it; keep what was said about it."
 
-**Job input** (§3.3): the Stage part becomes **Stage and world**, with its cap raised from 80 to 120: the active `gist` and `road`, `stage_seen` at the last job, and the `short` of each item in this conversation's `known` payload that was absent from `world_seen` before it (≤ 3), each with its certainty word.
+**Job input** (§3.3): the Stage part becomes **Stage and world**, with its cap raised from 80 to 250 (at the field caps: `gist` ≈ 107, `road` ≈ 54, three shorts with their certainty words ≈ 55, and the part's fixed text with the runtime name ≈ 25–30): the active `gist` and `road`, `stage_seen` at the last job, and the `short` of each item in this conversation's `known` payload that was absent from `world_seen` before it (≤ 3), each with its certainty word.
 
 **Claims against known news** (§2.5): `slew:<boss>` is promoted only when `boss('<boss>')` is T **and** P knows the world stage whose `boss = "<boss>"`. A boss with no world stage never promotes: the claim stays the Tarnished's word, because no record lets the persona check it. `name` and `great_runes>=n` are unchanged: the Great Rune is the Tarnished's own state, which vanilla NPCs react to. In §2.8 step D nothing changes: Kalé knows `castle_fallen` by Near at the flag edge, so k2 is promoted then. Any certainty is deliberately enough (DESIGN §18): the promoted group says only that the Tarnished's word fits what the persona holds; the persona weighs hearsay by its own character; the no-doer rule (§12.5) governs world lines, not the Tarnished's own claims; and a stricter rule would rewrite the verified §2.8 worked example for no gain in v1.
 
@@ -1600,7 +1604,7 @@ The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and 
 
 | Change | Where |
 |---|---|
-| `ConversationEnded` gains `known: Option<KnownSet>` (≤ 24 `[item, certainty]` pairs, the set at the end of the conversation; ≤ 900 bytes, inside the event's 2,048-byte payload cap) | ARCH §8.6, §1.1, §8.7 |
+| `ConversationEnded` gains `known: Option<Vec<(ItemId, Certainty)>>` (the known set's items and certainties at the end of the conversation, ≤ 24 pairs; paths are not stored; ≤ 900 bytes, inside the event's 2,048-byte payload cap) | §1.1, §8.7; ARCH §8.6 |
 | The F11 debug view gains a **World** tab: each world stage with its flags' raw bits, verification and `ng`; each persona's known set with its paths | DESIGN §14 |
 | Barks and Augur rules may not use `world()` or `knows()` in v1 (a v1.x seam) | §12.10, W1 |
 
@@ -1623,7 +1627,7 @@ Because who knows is decided at render time, not frozen when an event is emitted
    `G_locked` is evaluated per persona for KB entries that use `knows()`. There is no echo release: a ken-locked term that the player says stays locked for that persona, as spoiler-locked terms already do, and the sanitizer's regeneration note leads the model to answer without the name (NPC §8.4).
 4. **Runtime names** and 5. **the developer-label firewall:** unchanged (§7.6). Item ids, `when`, `note` and catalogue aliases never reach a prompt.
 
-**Strict mode** (§7.7). An unverified alias is U, so nothing built on it holds, and no spoiler-2 or spoiler-3 item can render on one (§7.4). `world()`, `knows()` and `stage()` propagate U (§6.6). An unverified later step leaves an earlier road in place: stale, but never a leak, and the wording rules below keep it from asserting the negative.
+**Strict mode** (§7.7). An unverified alias is U, so nothing built on it holds, and no spoiler-2 or spoiler-3 item can render on one (§7.4). `world()` and `stage()` propagate U, and `knows(x)` is U when x is U (§6.6); because `knows()` reads F while a tie's `when` is U, it never stands under `!` (W11). An unverified later step leaves an earlier road in place: stale, but never a leak, and the wording rules below keep it from asserting the negative.
 
 **Anti-priming** (§7.5): `road` joins the field list at every fixture state where its stage is active; item lines, `heard` lines and tie lines are checked at every fixture state where they render.
 
@@ -1633,14 +1637,14 @@ Because who knows is decided at render time, not frozen when an event is emitted
 
 - **Rollback:** the save restores the flags, so the next frame derives the right view. The trim (§9.2) deletes later `ConversationEnded` rows, and the `npc_facts` refold recomputes `world_seen` from the meetings that remain. Nothing else needs undoing.
 - **Flags set while EldenNet was not running** need nothing: the view is read from the frame, not built from edges.
-- **NG+:** `JourneyChanged` starts a new partition (§9.4). `world_seen` is per journey and starts empty. The game resets quest flags, so the view falls back to the base stages. Earlier journeys are never injected (O20).
+- **NG+:** `JourneyChanged` starts a new partition (§9.4). `world_seen` is per journey and starts empty. The game is expected to reset quest flags (ER04 §4.3, SPECULATION until S6's NG+ recording sets `ng`, §12.12 item 5), so the view falls back to the base stages; W3 keeps any alias not marked `ng = reset` out of world stages and tracks. Earlier journeys are never injected (O20).
 - **Journey scope:** flags that survive NG+ (`ng = keep`: the endings 20–22, the journey counters 50–58, and any that S6 marks) are barred from world-stage and track `when` (W3), so a new journey never starts out "knowing" the last one's world.
 - **Forgetting** (§9.5): "Forget this NPC" deletes P's facts and its `ConversationEnded` rows, so `world_seen` is empty after the refold. Block 5b is unaffected, because it is derived from the flags; with no `ConversationEnded` meeting left, no since-line appears.
 - **Content update:** a newly authored or newly verified item that already holds appears in the next since-line. This is accepted: the line says only that the persona has learned of it since.
 
 ### 12.10 Lints
 
-**Per persona:** `[awareness]` (`home`, `skip`, ≤ 6 ties, of which ≤ 3 carry their own lines); per stage, `road` (required on the base stage; inherits), `at` (base; inherits), `hears` where not `all`, `knows` where a stage implies news, `awaits` plus a bridging stage where a road waits on news, and `heard` with `short` only where another persona ties the track. **Once:** `world/stages.toml` (9 entries) and `world/tracks.toml` (Tanith, 2 steps).
+**Per persona:** `[awareness]` (`home`, `skip`, ≤ 6 ties, of which ≤ 3 carry their own lines); per stage, `road` (required on the base stage; inherits), `at` (base; inherits), `hears` where not `all`, `knows` where a stage implies news, `awaits` plus a bridging stage where a road waits on news, and `heard` with `short` only where another persona ties the track. **Once:** `world/stages.toml` (9 entries) and `world/tracks.toml` (Tanith, 2 steps; plus the festival's and Ranni's tracks if S6 finds them, §12.12 item 10).
 
 **Lints** (CI, `en-tools lint`):
 
@@ -1649,13 +1653,13 @@ Because who knows is decided at render time, not frozen when an event is emitted
 | W1 Compile | World-stage `when`: outcome flags and `world()` of other stages only; no `!`, `stage()`, `region()`, `journey` or `knows()`; acyclic. Track-step `when` as for persona stages, plus `world()`. `knows()` only in KB `requires`, never under `!` (W11). `world()` and `knows()` refused in card, bark and Augur `requires`. `stage()` names a persona or a track. Depth ≤ 4. Ids unique across world stages, tracks and personas |
 | W2 Spoiler | Item `spoiler` ≥ the highest flag spoiler in its `when` (through `world()`); tie `spoiler` ≥ its item's; `line` needs `spoiler` and `lexicon` |
 | W3 NG+ | Every flag in a world-stage or track `when` has `ng = reset`; `keep` is an error; release lint rejects `unknown` |
-| W4 Coverage | Every verified offset ≥ +5 of a persona's block appears in some stage `when` or in `awareness.skip` with a reason |
+| W4 Coverage | Every verified offset ≥ +6 of a persona's block (+5 is the base stage's own flag, and the base stage's `when` is `true`, NPC §3.2) appears in some stage `when` or in `awareness.skip` with a reason |
 | W5 Caps | Field caps (§12.2); world stages ≤ 32 (the `holds` and `unknown` bit arrays); tracks ≤ 16 (persona tracks plus `world/tracks.toml`, the `active` vector); block 5b ≤ 180 tokens for every persona × stage × fixture state, and with every tie active |
 | W6 Lexicon | Every capitalised non-initial word of a line, `heard`, `short` or tie line is in its lexicon, `lexicon/public.toml` or a reveal term; a `short` uses only its item's lexicon; the forbid rule of §12.8 |
 | W7 Wording | Item lines, `heard` and shorts are impersonal (no "you"); no witness verbs ("saw", "watched", "witnessed") and no doer ("the Tarnished", "by your hand") in any news line; the stale-safe list (§12.8); the banned words (NPC §3.3: "quest", "boss" …); no numbers |
 | W8 Ties | `item` exists; never P's own track; track ties need `certainty` and may not carry `line`; `from` is a step of that track; a `played` tie without evidence is inert, and release lint rejects inert ties (add the evidence or drop the tie) |
 | W9 Stage fields | The base stage has `road` and `at`; `at` is a RegionKey; `knows` names world stages; at each fixture state where a stage is active, each item it `knows` holds (warning) |
-| W10 Awaits | A stage with `awaits = x` is followed in file order by a stage whose `when` holds whenever its own `when` and `world(x)` hold, checked at every fixture state with `x` toggled |
+| W10 Awaits | A stage with `awaits = x` is followed in file order by a stage whose `when` holds whenever its own `when` and `world(x)` hold, checked at every fixture state with `x` toggled. At the fixture state that records `x`'s event (`after_radahn` for `general_fallen`, §12.11), W10 also turns `x` off and sets the flags in `x`'s `clears` T; where that makes the awaiting stage active, the fixture state itself must have a stage later in file order than the awaiting stage active. So a bridging stage never rests on a flag the event may clear (Alexander's +8, which TGA's Radahn group writes false, a hint only; S6 records what the game does, §12.12 item 6; NPC §3.6) |
 | W11 KB | No KB `always` entry whose `requires` uses only a world stage's flags (it belongs in `world/stages.toml`); no `world()` in KB `requires` (use `knows()`); `knows()` never under `!`, because an item that holds is still unknown to P while a tie's `when` is U, and `!knows()` would then unlock |
 | W12 Prominence | A warning when a persona knows more than 6 items at a fixture state (the fact-sheet risk) |
 
@@ -1663,18 +1667,19 @@ Because who knows is decided at render time, not frozen when an event is emitted
 
 | Item | Count | Words |
 |---|---|---|
-| `road` lines | ≈ 34 stages | ≈ 800 |
-| Bridging stages (included above) | 2 | — |
+| `road` lines | ≈ 35 stages | ≈ 800 |
+| Bridging stages (included above) | 3 | — |
 | Tie lines | ≈ 6 | ≈ 130 |
 | World file | 9 × (line + short + topics) | ≈ 260 |
 | Tanith track | 2 steps | ≈ 45 |
+| Conditional tracks (the festival, Ranni) | steps as S6 finds them | ≈ 22 per step |
 | Truth tables | 6 personas × 8 states | — (≈ 3 h) |
 
 About 1,250 words of original prose: about 9–11 hours of writing and review, plus 3 hours of truth tables.
 
 ### 12.11 Tests
 
-**Fixture states** (§7.8). The six shared states plus `after_radahn` (Godrick, Radahn and the star; runes ≥ 2; Blaidd at +10, Alexander at +8) and `after_rykard` (Godrick, Rennala and Rykard; runes ≥ 3; Patches at +10, with +11 and +12 F; both Tanith steps' flags T), all verified. `erdtree_burned` puts Varré at +12 (`maze_fight`), so the truth tables cover a persona with no sky over it (§12.5). An awareness-only state, `ashen` (all nine world stages), serves the block-5b goldens. C9 stays at its decided 6 states and 600 turns; the goldens run at 8 states, plus `ashen` for block 5b.
+**Fixture states** (§7.8). The six shared states plus `after_radahn` (Godrick, Radahn and the star; runes ≥ 2; Blaidd at +10; Alexander at +6 with +8 F, as TGA's Radahn group would leave him (a hint only, ER07 §2.4), until S6 records the real state, so at `after_fall`) and `after_rykard` (Godrick, Rennala and Rykard; runes ≥ 3; Patches at +10, with +11 and +12 F; both Tanith steps' flags T), all verified. `erdtree_burned` puts Varré at +12 (`maze_fight`), so the truth tables cover a persona with no sky over it (§12.5). An awareness-only state, `ashen` (all nine world stages), serves the block-5b goldens. C9 stays at its decided 6 states and 600 turns; the goldens run at 8 states, plus `ashen` for block 5b.
 
 **Unit and golden tests** (CI, no LLM):
 
@@ -1684,11 +1689,11 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 | T2 Truth tables | `known(P)` equals `tests/knowledge/expect.toml` exactly (item → `certainty:path` or `none`) for every persona × fixture state |
 | T3 Fold | `world_seen` folded live equals the recompute after a trim (a property test over random cuts) |
 | T4 Render | `insta` goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned) |
-| T5 Byte stability | Blocks 1–5 are unchanged by any world change; block 5b changes exactly when the known set, an active tie or the stage changes |
+| T5 Byte stability | Blocks 1–5 are unchanged by any world change; block 5b changes only when the stage, an active tie or the known set's (item, certainty) pairs change, and is byte-identical otherwise |
 | T6 Lexicon | `Locked(P)` goldens: "Radahn" locked for Boc at `fresh` and allowed at `after_radahn`; "Rykard" locked for Kalé at `after_rykard` (ken-lock) and allowed for Patches |
 | T7 Rollback | Trims at 3 cut points (before Radahn; between Radahn's fall and the star; after both) leave the view and `world_seen` matching the restored flags |
 | T8 NG+ | After `JourneyChanged`, block 5b shows the base road only and `world_seen` is empty |
-| T9 Strict | With 310 unverified, `star_fallen` never holds; with 9130 verified, Blaidd's bridging stage is active and `after_star` is not |
+| T9 Strict | With 310 unverified, `star_fallen` never holds and `knows('star_fallen')` is U; with 9130 and Blaidd's +9 verified T, his +10 unverified and his later offsets verified F, Blaidd's bridging stage is active and `after_star` is not |
 | T10 Claims | `slew:radahn` told to Kalé is promoted at `after_radahn`; `slew:rykard` told to Kalé at `after_rykard` stays a claim; `slew:margit` (no world stage) never promotes |
 | T11 Lints | W1–W12 each have a failing fixture file |
 
@@ -1722,16 +1727,16 @@ The world-awareness eval (criterion C14, DESIGN §1.3) is in NPC §12.5.
 ### 12.12 S6 additions
 
 Added to spike S6 (§6.3; DESIGN §16.1). Each item verifies a lead before content relies on it:
-1. **310:** its rise time against 9130 and TGA's cutscene group (9414–9417; ER07 §2); `then_stays`; whether 311 and 312 ever rise. If 310 is not the star, `star_fallen` becomes `world('general_fallen')` only after S6 records the crater in the same run that verifies 9130 (§12.4).
-2. **118, 300 and 301** (ER05 §5; 301 in ER07 §2): their order and persistence through the Forge sequence (110–112, 9131). 118 is primary unless S6 shows otherwise.
-3. **9116** (ER07 §3): whether Maliketh's death starts the ash; a wide watch over 300–399 during the change.
+1. **310** (ER07 §2.4; §6 item 2): its rise time against 9130 and TGA's cutscene flags 9414–9417 (in TGA only, not in the eventparam dump, so LIKELY at best); `then_stays`; whether 311 and 312 ever rise. If 310 is not the star, `star_fallen` becomes `world('general_fallen')` only after S6 records the crater in the same run that verifies 9130 (§12.4).
+2. **118 and 300–302** (ER05 §5; ER07 §2.3, §2.5; §6 item 3): their order and persistence through the Forge sequence (110–112, 9131). 118 is primary unless S6 shows otherwise.
+3. **9116** (ER07 §3, §2.5; §6 item 3): whether Maliketh's death starts the ash; a wide watch over 300–399 during the change.
 4. **Boss flags** 9104, 9112, 9118, 9122 and 9130: `then_stays` (already in scope).
 5. **NG+ transition:** one recording across the start of an NG+ sets `ng` for every watched alias. The pilot's S6 already makes it, for 9101's `ng = reset` (v0.2).
-6. **Stage semantics** (exclusive or cumulative) for each block of the six personas: it settles `when` authoring and the bridging stages.
-7. **Tanith's block 3100:** the offsets of `hosting` and `vigil` (3109).
+6. **Stage semantics** (exclusive or cumulative) for each block of the six personas (ER07 §6 item 7): it settles `when` authoring and the bridging stages. The same recordings list what each world event clears, for `clears` (§12.2): TGA's Radahn group writes Alexander's +8 and Blaidd's +13 false, a hint only (ER07 §2.4). If block 3660 proves exclusive, S6 also finds Alexander's first offset after the festival (ER07 §6 item 6) for his bridging stage (NPC §3.6).
+7. **Tanith's block 3100:** which of its two label sets the game reads, then the offsets of `hosting` and `vigil` (3109) (ER04 §4.4; ER07 §6 item 16).
 8. **Played-observation records** for `played` ties and for any lore a line states: Varré's lord and Boc's path.
-9. **Kalé 4700 and Alexander 3660:** confirm the new block leads (ER07 §4; already in each persona's S6 scope; NPC §1.2), and the offsets that ER07 §4 gives for Varré, Boc, Alexander, Kalé and Patches (+13, +14, +17).
-10. **Ranni's block 3740 and the festival's host (Jerren, block 3360):** find their stage offsets (ER07 §4 has Ranni's block header only), so that Blaidd's related tie to Ranni and Alexander's to the festival can go live in v1, each through a track in `world/tracks.toml` (§12.2). Until S6 finds them, both ties stay deferred (§12.4, NPC §3.6), and no offset is authored ahead of it.
+9. **Kalé 4700 and Alexander 3660:** confirm the new block leads (ER07 §4.2, §4.7; §6 item 8; already in each persona's S6 scope; NPC §1.2), and the offsets that ER07 §4 gives for Varré, Boc, Alexander, Kalé and Patches (+13 and +17; +14 is SPECULATION), with the unlabelled ones (ER07 §6 items 1 and 6). Also: which flag drives Varré's +11 (181, 191 or 9101, SPECULATION) and where his +12 and +13 take place (SPECULATION; ER07 §4.3); and whether 1042369328 or 1042369329 is Kalé's `howl_told` (ER07 §4.2; §6 item 15). S6 also records where Patches' +11 (`highwayman`) and +12 (`last_shop`, TGA's filing LIKELY at best) take place, for their `at`, with +11 marked verified only together with its place (until then Patches' manor ties, whose `when` reads +11, stay inactive; NPC §3.6); and Blaidd's places after +5 (GK; NPC §3.6). Among the unlabelled ones, S6 finds the offsets of Alexander's beats after the festival (the hot spring, the last duel) and of Boc's Altus, Leyndell and rebirth beats (ER07 §6 item 6), so that each gets a stage and a `road` before v0.5 (NPC §3.6). These stages are required and do not go to `skip`. Until they exist, the persona keeps a road that names an old place, or, if S6 finds block 3660 or 3940 exclusive, falls back to its base road.
+10. **Ranni's block 3740 and the festival's host (Jerren, block 3360):** find their stage offsets (ER07 §4.8 and §4.9 have both blocks' headers only; §6 items 13 and 14), or, for the festival, check first whether its own flags 9410–9413 mark preparation, festival, aftermath and end (ER07 §2.4), so that Blaidd's related tie to Ranni and Alexander's to the festival can go live in v1, each through a track in `world/tracks.toml` (§12.2). Until S6 finds them, both ties stay deferred (§12.4, NPC §3.6), and no offset is authored ahead of it.
 
 About 12 extra aliases and one late-game route over a tester's checkpoint saves (Radahn, Rykard, Morgott, the Forge, Maliketh, the start of an NG+): roughly 5–6 tester-hours, not counting item 10. The watch list grows from about 700 to about 740 IDs.
 
@@ -1741,6 +1746,6 @@ About 12 extra aliases and one late-game route over a tester's checkpoint saves 
 |---|---|---|
 | v0.2 First words (pilot, RAM only) | `derive`, `known()` (Own, Tie, Sky, Near, Word), block 5b, block 1 item 9, Kalé's `road` and ties, `world/stages.toml` with `castle_fallen` live (9101 and its `ng = reset`, from the NG+ recording, are in the pilot's S6) and the rest present but silent until verified | Kalé's goldens at `fresh` and `after_godrick`; T1, T5 |
 | v0.3 Remembrance | the `known` payload, `world_seen` (Kept), the since-line, the tail-header variant, the memory job's world input and drop rule, claim proof by knowledge | T3, T7, T8, T10; C11 unchanged |
-| v0.5 Veil | all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, with their ties, if S6 item 10 has found their offsets), ties and roads for the six, bridging stages, W1–W12, the 8 fixture states, truth tables, the C14 eval | C9 and C10 on 6 personas; C14 reported |
+| v0.5 Veil | all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, with their ties, if S6 item 10 has found their flags), ties and roads for the six, bridging stages, W1–W12, the 8 fixture states, truth tables, the C14 eval | C9 and C10 on 6 personas; C14 reported |
 | v1.0 | — | C14 per O29 |
 | Later | Ranni's persona, and her track and ties if S6 did not find them for v1; shared circles of acquaintance; news that travels with play time; DLC stages; `world()` in bark `requires` | — |
