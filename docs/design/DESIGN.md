@@ -44,7 +44,7 @@ flowchart LR
 6. **Two tiers:** *personas* for questline NPCs and named services, *archetype cards* for generic humanoids. Anything unresolved is mute (§7).
 7. **Conversation:** a hotkey and a talk hint, safe-context gating with no world freeze, input blocking with hard release rules, a cache-ordered original prompt, paced pages, and commit only once a line is shown (§8).
 8. **Barks:** authored seed lines give a floor that needs no network, and background pools extend them. A scheduler expires barks after 2–3 s. The bottom feed comes first, then floating labels. Live generation is used only for call-out replies (§9).
-9. **Memory:** an event log with audiences, game facts, claims, and a per-NPC journal (≤ 120-word summary plus ≤ 8 keepsakes), sent whole. No retrieval in v1 (§10).
+9. **Memory:** an event log with audiences, game facts, claims, and a per-NPC journal (≤ 120-word summary plus ≤ 8 keepsakes), sent whole. No retrieval in v1. Important NPCs also know where their own road stands, the affairs tied to them and the state of the land, derived from verified flags on every flag frame and told in a cached "How things stand" block (§10, §10.6).
 10. **Spoiler control in five layers, gated by event flags.** An unverified flag can hide content but never unlock it (§10.4).
 11. **Persistence:** one SQLite file per playthrough, keyed by SteamID, slot and character fingerprint, partitioned by journey. Playtime is the rollback clock. The `.sl2` is never touched, and the launcher keeps save backups (§3.6, §10.5).
 12. **One OpenAI-compatible streaming client** with 5 job slots, each with budgets, timeouts and fallbacks. Cloud and local presets are data (§11).
@@ -76,7 +76,7 @@ flowchart LR
 | NPCs | 6 personas, 6 cards plus a fallback card; everything else mute | DLC personas, Ranni, a merchant card, Melina, boss and invader lines | Cloning the cast's voices |
 | Conversation | Typed one-to-one chat; Steam floating keyboard if S4 passes | Pad intent list (v1.1), STT (v1.5), NPC-to-NPC talk, `@name` addressing | Any online use |
 | Barks | 7 combat triggers, sparse ambient lines, seeds plus pools, one-line call-out replies | Live barks, taunt key, user triggers | — |
-| Memory | Event log, facts, claims, journal, rollback, NG+ partition | Scene memories, FTS or vector recall, diaries | Telemetry upload |
+| Memory | Event log, facts, claims, journal, rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall, diaries; news that travels with play time; shared circles of acquaintance | Telemetry upload |
 | Presentation | ImGui text overlay | TTS (v1.5); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
 | ML | Out of process, over HTTP | Bundled out-of-process TTS binaries | LLM, TTS or STT inside the game process |
 
@@ -97,6 +97,7 @@ flowchart LR
 | C11 | Memory | ≥ 80% correct "do you remember" probes after a reload; every shown line survives a hard kill; trim and NG+ tests pass |
 | C12 | Event engine | Golden events over 3 recorded routes stay stable; 10 replays give identical events |
 | C13 | Install | 5 testers reach a first reply within 10 min of reading the README, with a key in hand |
+| C14 | World awareness | Over 240 probes at 4 flag states (NPC §12.5): ≥ 90% acknowledge a known change when asked; ≤ 2% contradict one; 0 shown terms the persona cannot know (MEM §12.8) and ≤ 1% judged to show such knowledge; ≤ 10% unprompted recital; ≤ 5% hearsay told as seen; Patches' contradiction rate reported, not gated. Reported from v0.5; gating per O29 |
 
 ### 1.4 Perceived-latency budget (normative; P3 §1.5, J3 #1)
 
@@ -417,7 +418,7 @@ The swap point is `GameBackend` (§2.3). Inside `en-gal`, a narrower `SysLayer` 
 | Item | Rate | Cap | Game-thread p99 |
 |---|---|---|---|
 | `WorldSnapshot` | every 250 ms of accumulated time | walk ≤ 48 vector entries; keep ≤ 32 characters within 40 m, nearest first | ≤ 0.4 ms |
-| Flag frame | every 4th snapshot (1 Hz; 0.5 Hz while throttled) | ≤ 2,048 IDs (v1 ≈ 700) | ≤ 0.1 ms |
+| Flag frame | every 4th snapshot (1 Hz; 0.5 Hz while throttled) | ≤ 2,048 IDs (v1 ≈ 740, with the world-awareness aliases of §10.6) | ≤ 0.1 ms |
 | Render feed | every frame while labels show | camera + ≤ 8 handles | ≤ 0.03 ms |
 | Text and params | on demand | 16 FMG + 32 rows per tick | included |
 
@@ -626,7 +627,7 @@ struct Event {
 | Source | Rate | Game thread | Core |
 |---|---|---|---|
 | SnapshotDiff | 4 Hz | ≤ 0.4 ms p99 | ≤ 2 ms per snapshot |
-| FlagWatch | every 4th snapshot: 1 Hz (0.5 Hz while throttled), ≈ 700 IDs | ≤ 0.1 ms | ≤ 0.2 ms |
+| FlagWatch | every 4th snapshot: 1 Hz (0.5 Hz while throttled), ≈ 740 IDs | ≤ 0.1 ms | ≤ 0.2 ms |
 | Timer, Pipeline, Lifecycle | 1 Hz / per event | — | negligible |
 | Hook sources | per call | reserved | reserved |
 
@@ -683,9 +684,10 @@ Personas are prose in named fields; code owns the order, headers, state and pers
 | `private` | `background`, `personality`, `goals[]`, `relationships[]`, `honesty` (`truthful \| guarded \| liar` plus one sentence) |
 | `voice` | `cadence`, `diction`, `deflection`, `openers[]` (≤ 1 per reply), owned `tics[] {text, max_per_conversation}`, written in our own words and never a FromSoftware coinage (J2 #14) |
 | Knowledge | `knowledge.{always[], topics[]}`, `deflections[]` (3–5 authored lines) |
-| `[[stages]]` | `id`, `when`, `identity?`, `where`, `mood`, `gist` (our own paraphrase of what has passed in vanilla), `unlock{text, kb[]}`, `forbid[]` (topics, never secrets), `chat = allowed \| refuse \| mute` |
+| `[awareness]` | `home[]` (RegionKeys), `[[tie]]` (≤ 6: `item`, `certainty?`, `when?`, `from?`, `line?`, `spoiler?`, `lexicon?`, `basis = flag \| played`, `evidence[]`), `skip[]` (MEM §12.2) |
+| `[[stages]]` | `id`, `when`, `identity?`, `where`, `mood`, `gist` (our own paraphrase of what has passed in vanilla), `road` (≤ 30 words: where the persona's own affairs stand), `at` (RegionKey), `hears = all \| sky \| none`, `knows[]` (world stages this stage implies), `awaits?`, `heard?` and `short?` (for other personas' ties), `unlock{text, kb[]}`, `forbid[]` (topics, never secrets), `chat = allowed \| refuse \| mute` |
 
-Predicates name catalogue aliases only. The lint warns on effect adjectives such as "cryptic" or "terse" (SN03 §5.4). Original example (the built-in self-test persona, not a game character):
+Predicates name catalogue aliases only. `road`, `at`, `hears` and `knows` inherit from the previous stage when omitted; the base stage must set `road` and `at` (NPC §3.2, MEM §12.2). The lint warns on effect adjectives such as "cryptic" or "terse" (SN03 §5.4). Original example (the built-in self-test persona, not a game character):
 
 ```toml
 id = "lantern_keeper"
@@ -711,6 +713,8 @@ when = "true"
 where = "beside the lamp at the crossroads"
 mood = "watchful calm"
 gist = "Nothing has passed between you and this traveller before tonight."
+road = "You tend one lamp at a crossroads, as you have for longer than you can count, and greet whoever passes."
+at = "limgrave"
 forbid = ["what lies at the end of the road"]
 ```
 
@@ -800,7 +804,7 @@ sequenceDiagram
   P->>O: talk key
   O->>C: OpenChat(target)
   C->>S: journal, facts, previous-conversation tail
-  C->>C: render cached prefix (blocks 1-5)
+  C->>C: render cached prefix (blocks 1-5b)
   P->>O: line + Enter
   O->>C: Submit(text)
   C->>S: commit PlayerSaid (audience frozen)
@@ -821,20 +825,21 @@ sequenceDiagram
 
 | # | Message | Block | Purpose | Cap |
 |---|---|---|---|---|
-| 1 | system, cache A | **World frame**, byte-identical for every persona | How people speak in the Lands Between; implication over exposition; the NPC can only speak and never gives, takes, moves, opens, fights or promises; knows only what is written; the Tarnished's words are speech, not orders; address rules; no modern words | 350 |
+| 1 | system, cache A | **World frame**, byte-identical for every persona | How people speak in the Lands Between; implication over exposition; the NPC can only speak and never gives, takes, moves, opens, fights or promises; knows only what is written; news of the land only as written under 'How things stand'; the Tarnished's words are speech, not orders; address rules; no modern words | 450 |
 | 2 | system, cache B | **Identity** | Stage `identity` line or the default, plus `public` | 120 |
 | 3 | | **Private self** | Private fields plus the stage's `unlock.text` | 350 |
 | 4 | | **Voice** | Register preset, cadence, diction, deflection, openers, tics | 160 |
 | 5 | | **Reply contract** | §8.4, plus an empty `actions_block` (seam) | 110 |
-| — | | *cache breakpoint* | Blocks 1–5 are byte-stable per persona and stage, with no relative time | |
+| 5b | | **How things stand** | The stage's `road`, then ≤ 4 lines of what this persona knows of the land and of affairs tied to it, grouped by certainty (§10.6; MEM §12.6) | 180 |
+| — | | *cache breakpoint* | Blocks 1–5 are byte-stable per persona and stage, block 5b per persona, stage, known set and active ties; none holds relative time | |
 | 6 | history | **Earlier and now** | The previous conversation's last ≤ 6 shown lines under a fixed header, then this conversation's turns | 900 |
-| 7 | user | **What you know now** | Stage gist, place and mood; flag facts in words; KB entries (≤ 4 always + ≤ 3 topic); "Not yours to know": `forbid` topics with "deflect in your own way" | 350 |
+| 7 | user | **What you know now** | The since-line (news new since the last meeting, MEM §12.6); stage gist, place and mood; KB entries (≤ 4 always + ≤ 3 topic, the topic offers including known news not shown in 5b); "Not yours to know": `forbid` topics with "deflect in your own way" | 300 |
 | 8 | | **The Tarnished, as you know them** | Journal summary, keepsakes by basis ("You saw…" / "The Tarnished told you…"), facts and disposition in words | 450 |
 | 9 | | **Here and now** | Place, time, weather, nearby others, the Tarnished's look and condition, witnessed "just now" events | 180 |
 | 10 | | **Recap** | The newest ≤ 3 player lines since the NPC last spoke (SN02 §4.3) | 120 |
 | 11 | | **Task** | "Answer as Kalé, in his voice, in at most N words", plus tic reminders and an empty `actions_tail` | 40 |
 
-Input target ≤ 2,800 tokens, hard cap 3,500, `max_tokens` 140. Trim in this order: oldest history, lowest-weight keepsakes (never the protected one), lowest-priority topic entries, nearby others. Earlier turns stay in history as bare dialogue, so it stays byte-stable.
+Input target ≤ 2,800 tokens, hard cap 3,500, `max_tokens` 140. The caps sum to 3,360; a typical mid-game prompt is about 2,550. Trim in this order: oldest history, lowest-weight keepsakes (never the protected one), lowest-priority topic entries, nearby others; blocks 1–5b are never trimmed. Earlier turns stay in history as bare dialogue, so it stays byte-stable. A world change re-renders block 5b at the next turn, as a stage change does (NPC §3.2).
 
 ### 8.4 Output contract, sanitizer and lint
 
@@ -987,7 +992,7 @@ This replaces P1's FTS notes and their tuned weights (J2 #9).
 | Kind | Content | Written by, when |
 |---|---|---|
 | Event history | Lines said to or near them; deaths, attacks and rests witnessed; `FoughtBeside` | Augur, at emission |
-| Facts | `met_count`, `seen_count`, first and last place and playtime met, `times_attacked`, `fought_beside`, `seen_player_die`, `stage_seen`, `told_name`, `verified:<key>` | Core, deterministic, immediately |
+| Facts | `met_count`, `seen_count`, first and last place and playtime met, `times_attacked`, `fought_beside`, `seen_player_die`, `stage_seen`, `world_seen` (what the persona knew of the land at its meetings; MEM §12.7), `told_name`, `verified:<key>` | Core, deterministic, immediately |
 | Disposition | −2..+2, shown in words, ±1 at most per conversation (P1 §7.2) | Memory job, bounded by code |
 | Journal | Summary plus keepsakes. The heaviest keepsake about the Tarnished with weight ≥ 0.7 is **protected** from eviction (P1 §7.4) | Memory job, at conversation end |
 
@@ -996,20 +1001,21 @@ Generics remember nothing. Their per-handle cooldowns live in RAM and clear on r
 ### 10.3 The memory job
 
 - **Runs** when calm: on cloud after 10 s without combat; on local at the next rest or after 45 s calm.
-- **Input:** persona brief, current journal, committed lines, the "just now" and knowledge lines that its prompts showed, pending notes from events (no extra call), and the stage gist.
+- **Input:** persona brief, current journal, committed lines, the "just now", knowledge and "How things stand" lines that its prompts showed, pending notes from events (no extra call), and the stage gist and `road` with the news new to the persona since its last meeting (MEM §12.7).
 - **Output** (JSON schema where supported, else a strict parse): `{summary, keep[ids], keepsakes[{id|null, text, basis: said|seen, weight, about, refs[], check_key|null}], told_name|null, disposition_delta: -1|0|1}`. `keep` lists unchanged keepsakes by id, so they cost an id rather than a copy and the reply fits the slot's 500 `max_tokens`. `refs` cite numbered evidence lines, which is how code checks `seen`. At most 3 new keepsakes per job (MEM §3.4–§3.5).
 - **Code validation:**
   - caps and the spoiler check;
   - `told_name` only if a committed `PlayerSaid` contains it;
   - `seen` only with a matching audience event, otherwise downgraded to `said`;
-  - `check_key` only from a closed list (`slew:<boss>`, `name`, `great_runes>=n`), and promoted when its predicate holds.
+  - `check_key` only from a closed list (`slew:<boss>`, `name`, `great_runes>=n`), and promoted when its predicate holds; `slew:<boss>` also needs the persona to know that boss's world stage, so a claim it could not check stays a claim (MEM §2.5, §12.7).
+- **World news is not journalled:** a keepsake about the world that cites only world-news lines (How things stand, the since-line or a world topic offer) is dropped, because the world model already holds it (MEM §12.7).
 - **Failure:** 2 retries; then the job is deferred to the next calm window and the watermark stays put; after 6 attempts in all it is parked until a new conversation merges into it (MEM §3.2). Open conversations are closed and queued at playthrough start (ER06 §2.4).
 
 ### 10.4 Knowledge base, flag catalogue and spoilers
 
-- **Catalogue** (`flags/catalog.toml`): `alias → {id | block + offset, kind (outcome | state), src[], verified, spoiler 0..3, note}`. Everything else uses aliases. FromSoftware's developer flag labels are FromSoftware text, so they are **never stored in the repo**: the catalogue keeps only our own English `note` and a `src` pointer to where the label can be looked up (ER04 §7, MEM §6.1). Aliases and notes never reach a prompt.
-- **KB entry:** `{key, text ≤ 300 chars, requires, who, mode (always | topic), topics[], certainty (fact | rumour | belief), priority, spoiler, lexicon[]}`. Per turn: ≤ 4 `always` + ≤ 3 `topic` entries, by keyword match on the last 3 player lines and the NPC's last line. For one `key`, the highest-priority passing entry wins, so persona overrides replace rumours (SN04 §9.1).
-- **Predicates:** `flag()`, `stage()`, `boss()`, `runes >= n`, `region()`, `journey >= n`, with `&&`, `||`, `!`.
+- **Catalogue** (`flags/catalog.toml`): `alias → {id | block + offset, kind (outcome | state), ng (reset | keep | unknown), src[], verified, spoiler 0..3, note}`. Everything else uses aliases. FromSoftware's developer flag labels are FromSoftware text, so they are **never stored in the repo**: the catalogue keeps only our own English `note` and a `src` pointer to where the label can be looked up (ER04 §7, MEM §6.1). Aliases and notes never reach a prompt.
+- **KB entry:** `{key, text ≤ 300 chars, requires, ephemeral, who, region, mode (always | topic), topics[], certainty (fact | rumour | belief), priority, spoiler, lexicon[]}`. Per turn: ≤ 4 `always` + ≤ 3 `topic` entries, by keyword match on the last 3 player lines and the NPC's last line. For one `key`, the highest-priority passing entry wins, so persona overrides replace rumours (SN04 §9.1). World stages are not KB entries and take no `always` slot (§10.6).
+- **Predicates:** `flag()`, `stage()` (a persona or a non-persona track), `boss()`, `world()` (a world stage holds), `knows()` (the persona knows a world stage; KB `requires` only), `runes >= n`, `region()`, `journey >= n`, with `&&`, `||`, `!`.
 - **Five layers** (P3 §7.6):
   1. structure: the public/private split, stage unlocks, KB `requires`;
   2. `forbid` topics;
@@ -1019,6 +1025,7 @@ Generics remember nothing. Their per-handle cooldowns live in RAM and clear on r
 - **Hardening:**
   - `spoiler ≥ 2` content unlocks only when every flag in its predicate is verified (P2 §7.4);
   - the lexicon is generated from locked entries plus a reveal list, so it cannot drift from the content;
+  - world-stage lines, track `heard` lines and tie lines carry `lexicon[]` like KB entries, and the terms of news that holds but that a persona does not know are locked for that persona (ken-lock, MEM §12.8);
   - **anti-priming lint:** no `forbid` entry may contain a locked term (J3 #21).
 - **Unverified flags gate only restrictively.** v1 ships strict mode only.
 
@@ -1036,6 +1043,21 @@ Generics remember nothing. Their per-handle cooldowns live in RAM and clear on r
   - the trim path has an automated test (#825).
 - **NG+:** journey = `ng_lvl + 1`. Earlier journeys are read-only and never injected.
 - **Player control:** "Forget this NPC" and "Forget this journey".
+
+### 10.6 Quest and world awareness
+
+Owner requirement (2026-11-06): important NPCs know where their own quest stands, the quests related to it, and the stage the world is in, such as the star having fallen since Radahn's death. Two layers keep this exact and spoiler-safe (MEM §12):
+
+- **What holds** is derived from the verified flag frame on every flag generation, in the pure core (`knowledge::world`). It has two parts:
+  - **world stages** (`world/stages.toml`): 9 states of the land in v1, from the fall of the castle's lord to the capital buried in ash. They use outcome flags only, so the save itself is the latch and nothing is stored beside the flags;
+  - **quest tracks:** each persona's `[[stages]]` list is its track, and `world/tracks.toml` adds tracks owned by no persona (Tanith's in v1). A track's active step is the last whose `when` holds, as for personas.
+- **Who knows** is a pure rule, `known(P)`, over the persona's active stage, its `[awareness]` ties and the `world_seen` fact. Six paths set the certainty: the stage's own `knows`, what the persona held at an earlier meeting, an authored tie, the sky where the persona's ground has one (what the whole land saw), its own ground (`home` and the stage's `at`), and word of the road (spoiler ≤ 1 only). News is known at the next flag frame. No path means silence, never "not yet".
+- **Prompt:** block 5b "How things stand", last in cache B (≤ 180 tokens): the stage's `road` (where the persona's own affairs stand) and at most 4 lines of news, as many as fit its cap, grouped by certainty. Block 7 opens with one line of what is new since the last meeting. Known news that does not fit competes as a topic entry.
+- **Memory:** the journal never copies the world model; facts gain `world_seen`; a `slew:<boss>` claim is proved only when the persona knows that boss's fall.
+- **Spoilers:** everything in §10.4 applies. Spoiler ≥ 2 news never spreads as loose word, and the terms of news a persona has not heard are locked for it. Every flag behind a world stage or track is a research lead until S6 verifies it (§16.1, MEM §12.12); in strict mode an unverified one keeps its item silent.
+- **Content:** 9 world stages, one non-persona track, a `road` for every stage of the six personas, ≤ 6 ties each, and a bridging stage wherever a road waits on a world event (NPC §3.6). Related quests in v1: Patches with Tanith (a track tie); Varré with the lord of blood and Boc with the queen once S6 records them; Blaidd with Ranni and Alexander with the festival's host wait for their flags (MEM §12.4, §12.12; NPC §3.6).
+
+No new event, table or thread. Generic NPCs are unaffected in v1.
 
 ---
 
@@ -1138,11 +1160,11 @@ Conformance tests check three things: a trailer never displays; with `actions` o
   - `proptest` sanitizer fuzzing;
   - DB tests: every migration, trim at 3 cut points, crash mid-reply, NG+, slot reuse.
 - **Replay** (§6.8): `en-tools replay --llm recorded|mock|live`. `en-tools mockllm` serves scripted delays, 429s, `<think>` leaks and trailers.
-- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5, and spoiler renders at 6 flag states.
+- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b at a fixed known set and active ties), spoiler renders at 6 flag states, block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`, since-line renders for 3 state transitions (MEM §12.11 T4), and hand-written who-knows-what truth tables (MEM §12.11).
 - **Lint:** schemas, caps, predicates, aliases, effect adjectives, banned words, gender-neutral cards, anti-priming.
-- **Eval:** 50 scripted turns per persona at 2–3 stages, plus spoiler and memory probes, scored against C9–C11. **A persona ships only with a passing report.**
+- **Eval:** 50 scripted turns per persona at 2–3 stages, plus spoiler and memory probes, scored against C9–C11, and the world-awareness set against C14 (NPC §12.5; C14 counts toward a pass only as O29 decides). **A persona ships only with a passing report.**
 - **In game:**
-  - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, latency traces, unknown characters;
+  - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, the world view (each world stage with its flags' raw bits and verification) and each persona's known set with its paths, latency traces, unknown characters;
   - rotating `tracing` logs;
   - a "copy bug report" bundle without secrets or chat text.
 - **CI:** `cargo-xwin`, the clippy deny-list, the `ffi_guard` grep, content validation, the `cargo deny` licence allowlist and `[bans]` list, the licence-file text scan (§4.7), and signed, reproducible releases (ER06 risks). ARCH §12.1 lists every stage.
@@ -1159,11 +1181,11 @@ eldennet/
   crates/  en-proto/ en-augur/ en-core/ en-store/ en-llm/ en-gal/ en-overlay/ eldennet/ en-launcher/ en-tools/
   content/eldenring/
     prompts/{dialogue,callout,memory,pool}/NN_*.j2  registers/*.md  personas/  archetypes/
-    identity/{personas,archetypes,speech,humanoid_models}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
+    identity/{personas,archetypes,speech,humanoid_models}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml  world/{stages,tracks}.toml
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml  augur/*.toml
     teams.toml  regions.toml  models.toml
   gal/      builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
-  tests/    scenarios/ fixtures/ recordings/ (redacted, §6.8) golden/ s6/
+  tests/    scenarios/ fixtures/ recordings/ (redacted, §6.8) golden/ s6/ knowledge/
   tools/    privsweep/ workplan/
   dist/     README-install.md  using-a-loader.md  ai-disclosure.md
   docs/     research/  design/{DESIGN.md, architecture.md, npcs-and-dialogue.md, memory-and-knowledge.md, spikes/, process/}
@@ -1190,7 +1212,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | S2 Text | FMG table reads on 1.17.2; where the game holds its active text language; whether the install carries English text (O26) | 100 IDs match the player's export; the language is read, or the wizard's confirmation fallback is used | v0.2 |
 | S3 Talk observer | Talk fields during menus, greetings and boss lines | ≥ 95% precision over 30 events, else stay fail-closed | v0.2 |
 | S4 Input | Leaks, held keys, camera drift, a free hotkey, Steam floating keyboard, Proton | No movement while typing for 60 s | v0.2 |
-| S6 Flags | Flags 9000 and 100, boss flags, 180–187, `ng_lvl`, then each persona's block | Every alias used is verified, or dropped | v0.2 (pilot), v0.5 (all) |
+| S6 Flags | Flags 9000 and 100, boss flags, 180–187, `ng_lvl`, then each persona's block. For world awareness (MEM §12.12): 310 against 9130, 118 against 300/301, 9116 as the start of the ash, Tanith's block 3100, each block's stage semantics (exclusive or cumulative), one NG+ transition that sets `ng` for every alias (the pilot's covers 9101), the stage offsets of Ranni's block 3740 and of the festival host's block 3360 (MEM §12.12 item 10), and played-observation records for `played` ties (Varré's lord, Boc's path; MEM §12.12 item 8). All are research leads (310's meaning and the ash reading of 9116 are LIKELY; 310's reading, 301, 9116 and the newer persona offsets are recorded in ER07 §2–§4; MEM §12.4 gives each label) | Every alias used is verified, or dropped; every alias in a world stage or track has `ng = reset` | v0.2 (pilot), v0.5 (all) |
 | S7 Combat | Engagement accuracy at 3 camps | ≥ 90% within 1 s; ≤ 5% false | v0.4 exit (fixes J2 #8) |
 | X1 Voice in a bottle (offline, week 1) | Do candidate models hold the registers and caps with this prompt? | C10 met by one budget cloud model and one 4B local model | v0.2 defaults |
 | X2 Bark taste test | Pools against seeds | Pools ≥ 50% preferred; 0 amnesia | v0.4 |
@@ -1202,12 +1224,12 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Version | Contents | Exit criteria |
 |---|---|---|
 | **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, groups, L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view, recording, replay. No LLM | Golden events over 3 routes; C2; 0 crashes in 10 h |
-| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only** | C5 and C7 on the pilot; no input leaks |
-| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery | C11; trim test green |
+| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)` and block 5b with Kalé's `road` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified) | C5 and C7 on the pilot; no input leaks; block-5b goldens for Kalé at `fresh` and `after_godrick` |
+| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge | C11; trim test green; world trim and NG+ tests green (MEM §12.11) |
 | **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools | C6 at 3 camps; S7; X2 |
-| **v0.5 Veil** | Verified catalogue, stages, KB, lexicon, identity-pack check, 5 more personas, eval in CI | C9 and C10 on 6 personas |
+| **v0.5 Veil** | Verified catalogue, stages, KB, lexicon, identity-pack check, 5 more personas, eval in CI; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their offsets), ties, roads and bridging stages for 6 personas, lints W1–W12, 8 fixture states, truth tables, the awareness eval | C9 and C10 on 6 personas; C14 reported |
 | **v0.6 Threshold** | Wizard, settings, call-out, sparse ambient, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build | C1–C4 on the matrix; C13; X3 |
-| **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release | C1–C13 green |
+| **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release | C1–C13 green; C14 per O29 |
 
 ---
 
@@ -1232,6 +1254,9 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | K15 | Memory pollution | M / L | Claims stay claims; bounded disposition |
 | K16 | GPU contention on local setups | M / M | Background jobs at rest; cloud suggested under 12 GB |
 | K17 | A modded-offline save taken online | L / H | Backups; warnings; EldenNet never writes the save |
+| K18 | A flag means something other than its lead (310 not the star; 9116 not the ash) | M / M | Strict mode hides the line until S6 verifies it; conjunction guards (`star_fallen` needs `general_fallen`); data-only fixes (MEM §12.4) |
+| K19 | NPCs recite the news like a fact sheet | M / M | ≤ 4 news lines; the world-frame rule; topic mode for the rest; C14's recital metric; O28 |
+| K20 | A persona's road contradicts the news (still waiting for a fight that is over) | M / M | `awaits` with a bridging stage (lint W10); stale-safe wording; C14's contradiction probes |
 
 ---
 
@@ -1253,7 +1278,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Identity | Curated keys; runtime names; stage identity line; pack check | Name keys | Forked memories; reveals | ER04 §7; J3 #19 |
 | Typing safety | Gating, no freeze | Freeze | Freeze is single-source and untested from a task | ER05 §11 |
 | Mouse in chat | DInput/XInput only | Game predicate hook (P3) | Owner rule; one build only | J1 #14 |
-| Prompt | 11 cache-ordered blocks, original text | — | Caching, recap, freshness | SN02 §4 |
+| Prompt | 11 cache-ordered blocks plus block 5b (§10.6), original text | — | Caching, recap, freshness | SN02 §4 |
 | Pacing | Whole pages, reading time | Typewriter | Genre and cadence | J3 #2 |
 | Commit | On display | On generation | #548 | SN00 §3 |
 | Bark floor | Seeds + pools; live only for call-outs | Pools only; live barks | Silent first fights on free and local tiers | J3 #7–8 |
@@ -1262,6 +1287,10 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Memory | Journal + keepsakes whole; facts; claims | FTS notes; summary only; embeddings | No recall tuning; callbacks survive | ER06 §5.4; J2 G9 |
 | Claims | Code-validated basis; `check_key`; ±1 disposition | — | Injection-resistant | P1 §5.9 |
 | Spoilers | 5 layers; verified unlocks; derived lexicon; anti-priming; strict only | Strictness setting | Reveals cannot be undone | J3 #20–21 |
+| World awareness | Derived world stages and tracks; a pure per-persona `known(P)`; block 5b in cache B | KB `always` entries only; one ordered world phase; software latches | The KB's always slots were full and per persona; demigods fall in many orders; outcome flags already latch in the save | §10.6; MEM §12; owner requirement 2026-11-06 |
+| News timing | Known at the next flag frame | Rumours that lag by play time per region | The owner asked that NPCs be aware; deterministic and rollback-free; vanilla NPCs also react at the next talk | MEM §12.5 |
+| Claims and knowledge | `slew:<boss>` proved only when the persona knows the boss's fall | Proved by the flag alone | No NPC vouches for news it could not have heard | MEM §2.5, §12.7 |
+| Claim proof and certainty | Knowing the boss's fall at any certainty, hearsay included, proves a `slew:<boss>` claim | Fact certainty only; a third header for claims that fit hearsay | The promoted group says only that the Tarnished's word fits what the persona holds; the persona weighs hearsay by its own character; the no-doer rule governs world lines, not the Tarnished's own claims; a stricter rule would rewrite the verified MEM §2.8 worked example for no gain in v1 | MEM §2.5, §2.8, §12.7 |
 | Saves | No redirection; launcher backups | Redirect hook; file swap | Fewest hooks; no writes | J1 #27 |
 | Offline | Own gate incl. set count; anti-cheat check; no online-property write | me3 `start_online` | Owner decision | ER05 §3; J1 #26 |
 | Title-screen gate | Clean at the title with lobby `None`, no anti-cheat and `session` healthy; network for the wizard and silent self-test only | Gate false at the title (no wizard self-test) | No multiplayer session exists before a world loads; speech stays dormant | ARCH §5.1; review |
@@ -1278,7 +1307,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 
 ## 19. Decisions for the project owner
 
-**Status: O1–O27 decided by the owner on 2026-11-06.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). O26 and O27 followed later that day, as recommended. A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it.
+**Status: O1–O27 decided by the owner on 2026-11-06; O28 and O29 are Open.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). O26 and O27 followed later that day, as recommended. A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it. O28 and O29 (quest and world awareness, §10.6) were added later on 2026-11-06 and are **Open**.
 
 | # | Decision | Options | Owner's decision (2026-11-06 unless dated), or recommended default while **Open** |
 |---|---|---|---|
@@ -1309,3 +1338,5 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | O25 | Overlay library | hudhook, pinned / a newer hudhook / another hook library / our own DX12 hooks | **hudhook, pinned at exactly 0.9.3** (`=0.9.3`). It is plain MIT, its bundled MinHook is BSD-2, and neither carries an AI clause (checked 2026-11-06). *Rules that follow from the pin (verification pass, 2026-11-06):* only its `dx12` feature is built (`default-features = false`), so its other renderers and its process injector (`inject`) never enter our DLL. `en-overlay` takes `imgui` (0.12) only through the re-export `hudhook::imgui`, MinHook only through hudhook's own FFI module `hudhook::mh`, and `windows` at hudhook's version (0.62), so it adds no copy of its own. hudhook's eject path is never called, because it uninitialises the shared MinHook (R12). `THIRD_PARTY.md` reproduces the notice of every licence file found in a linked dependency's source, among them hudhook's MIT, the BSD-2 notices of MinHook and HDE (`vendor/minhook/LICENSE.txt`) and Dear ImGui's MIT (inside `imgui-sys`); the `licence-files` CI stage fails without them (ARCH §12.1). Any change of version needs the owner's approval and a fresh read of its licence files (ARCH §12.1) |
 | O26 | Game text in another language | (a) treat a non-English text language as if the `text` group were off; (b) also read English names from the install's own English text, if S2 finds it there; (c) follow the game's language | **Decided (2026-11-06): (a) in v1, (b) in v1.1 if S2 confirms it.** Under (a) the capability matrix applies (§4.4: persona fallback names, card `label_fallback`), so no NPC, card or place name in a prompt comes from non-English text, and the wizard says that English game text gives the full experience. Every option needs S2 to find where the game holds its active text language, and (b) also needs it to find whether the install carries English text; if S2 finds no language field, the wizard asks the player to confirm that the game text is English, and EldenNet otherwise runs as if `text` were off. The S2 row in §16.1 carries that scope. A player's name in a non-Latin script never reaches a prompt or the overlay: `PlayerSaid` is `SafeText` (ARCH R13), whose whitelist keeps Latin letters only (NPC §8.2 step 6), and MEM §3.6 step 2 applies the same whitelist to `told_name`, so such a player stays unnamed to every persona, as before an introduction (O18) |
 | O27 | Pattern derivation log | None / a short note per pattern | **Decided (2026-11-06): a short note per pattern** (what was searched for, in which build, the evidence file), reviewed with each `gal/` change. It is the record behind O4's clean-room rule, which CI cannot fully check because `provenance` is self-declared (ARCH §6.3) |
+| O28 | Do personas raise new world news unprompted? | (a) only when the talk turns to it; (b) once, in the first conversation after the news reaches them, and only for news that touches their own affairs (a stage's `knows`, or a tie with its own certainty); (c) whenever it is new to them | **Open. Recommended: (b).** It shows that the NPC noticed, as the owner asked, without turning every greeting into a news bulletin. It costs one short cue on the since-line (MEM §12.6); (a) drops the cue, (c) adds it to every new item. Revisit after C14's recital metric |
+| O29 | Does C14 (world awareness) gate releases? | (a) report only; (b) gate from v0.5; (c) report in v0.5, gate at v1.0 | **Open. Recommended: (c).** The judge rubric gets one increment to settle before it can block a release, while C9 already gates the hard spoiler side and the lints and truth tables gate the deterministic side |
