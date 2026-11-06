@@ -29,6 +29,7 @@ Read the two summaries first. The numbered notes hold the detail and the sources
 | [04-game-design-and-world](eldenring/04-game-design-and-world.md) | NPC taxonomy, talk codes, questline flag blocks, tone statistics, bark vocabulary, lore primer, spoiler risks |
 | [05-game-state-and-events](eldenring/05-game-state-and-events.md) | Which state and events a mod can read (player, location, time, characters, combat, flags, menus) and how robustly |
 | [06-prior-art](eldenring/06-prior-art.md) | Mantella, CHIM, SkyrimNet and others; Elden Ring precedents; lessons on latency, memory, setup friction and model defaults |
+| [07-world-and-quest-leads](eldenring/07-world-and-quest-leads.md) | World-stage flags (endings, story, legacy dungeons, Great Runes, map swaps, Radahn's star, the Erdtree and the ash), boss-kill flags, the v1 personas' flag blocks, related quests and what spike S6 must settle |
 
 ## Method and ground rules
 
