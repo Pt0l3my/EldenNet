@@ -55,7 +55,7 @@ Augur emits three classes (DESIGN §6.4, after SN04 §4.1): **P** events are sto
 | `NativeTalkStarted/Ended` with a persona | the persona only | direct | signals, `held_ms` | `met_count`; pending note |
 | `PlayerSaid` | speech 16 m (player) | direct for the addressee, overheard for others | text ≤ 240 chars, `conv`, input source | history, recap, job evidence, `told_name` |
 | `NpcSaid` | speech 16 m (speaker) | direct for the speaker, overheard for others | shown text, page ends and page `pt`s | history, job evidence |
-| `ConversationEnded{reason}` | the persona only | direct | reason, line counts, `known` (≤ 24 item–certainty pairs, §12.7) | `met_count`, job trigger, `world_seen` (§12.7) |
+| `ConversationEnded{reason}` | the persona only | direct | reason, line counts, `known` (≤ 24 item–certainty pairs, §12.7), `cued` (the item a reaction cue offered, §12.13) | `met_count`, job trigger, `world_seen` (§12.7), `world_seen_pt` and `world_cued` (§12.13) |
 | `PlaythroughReady`, `JourneyChanged` | none | — | key (no name), `ng_lvl` | meta, epochs |
 
 `ConversationStarted`, `PersonaApproached`, `RestEnded`, call-out events and every combat event are T or K and are never written (ARCH §8.6). Events with an empty audience are still stored: global facts, rollback and a later backfill need them (SN04 §13.5).
@@ -187,7 +187,9 @@ The journal is sent **whole** (§4). v1 has no retrieval, FTS or embeddings; the
 | `fought_beside`, `fought_last_boss` | u32, `name_id` | `FoughtBeside` (direct) | +1, overwrite | "You fought beside the Tarnished against {boss}." (≥ 2: "…more than once, most recently against {boss}.") The boss name is the runtime NpcName, already shown on its bar |
 | `seen_player_die` | u32 | `PlayerDied` (witnessed) | +1 | 1: "You have seen the Tarnished fall once, and come back." · ≥ 2: "…more than once…" |
 | `stage_seen` | stage id | each meeting | overwrite with the active stage | not rendered. Selects the tail header variant (§4.3) and is given to the memory job |
-| `world_seen` | JSON `[[item, certainty], …]` | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `known`) | union, keeping the higher certainty | not rendered. Feeds the Kept path, the since-line and the memory job (§12.5–§12.7) |
+| `world_seen` | JSON `[[item, certainty], …]` | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `known`) | union, keeping the higher certainty | not rendered. Feeds the Kept path, the since-line, the reaction cue and the memory job (§12.5–§12.7, §12.13) |
+| `world_seen_pt` | pt | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `known`) | overwrite | not rendered. The pt of the last conversation `world_seen` was folded from; it starts local talk's 6 h window and tells the reaction cue that such a conversation exists (§12.13). A `NativeTalkEnded` never moves it |
+| `world_cued` | JSON `[item, …]` | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `cued`) | union | not rendered. Each item a reaction cue has offered this persona in this journey, so it is cued at most once (§12.13) |
 | `told_name` | text + verified bit | memory job (§3.6) | stored in the journal version, so rollback restores it | verified: "They told you their name is {n}." · unverified: "They asked you to call them {n}." |
 | `verified:<check_key>` | bool + pt | keepsake `check_key` + flag frame | re-evaluated on each flag-frame change and at render | moves the keepsake into the "proved true" group (§4.3) |
 
@@ -295,7 +297,7 @@ Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, fa
 | **C** 1:10 | Chat: "I killed Godrick, you know." (false: `boss.godrick` is F) | Kalé direct | Journal v2: k2 `said`, `check_key = slew:godrick`, unverified: "They claim to have killed the lord of the castle." The "talked" note is folded in | k2 under "their word only". No castle line in block 5b (`castle_fallen` does not hold) |
 | **D** 3:00 | Wren kills Godrick at the castle | nobody (Kalé is far away) | `BossFightEnded{Victory}` stored with an empty audience; `verified:slew:godrick` set at the flag edge | Kalé block 8: k2 under "proved true". Block 5b: "You have heard: Travellers off the castle road say its lord is dead…" (Kalé knows `castle_fallen` by Near, §12.5, so k2 is promoted at the edge as before). **No** "You saw…" line about the fight |
 | **E** 3:20 | Wren strikes Kalé by accident | Kalé direct | `times_attacked = 1`; pending note "struck"; chat refused for 30 s (NPC §5.3) | "The Tarnished struck you once, only a short while ago." |
-| **F** 3:22 | Chat with Kalé | Kalé direct | Journal v3: new k3 `seen` (cites the "struck" note), 0.75: "The Tarnished struck me in my own shop and called it an accident." k3 is now **protected**. `disposition = −1` | "You are wary of the Tarnished." k3 under "You saw for yourself". Block 7 opens with the since-line "Since you last spoke with the Tarnished, you have learned of the death of the castle's lord." |
+| **F** 3:22 | Chat with Kalé | Kalé direct | Journal v3: new k3 `seen` (cites the "struck" note), 0.75: "The Tarnished struck me in my own shop and called it an accident." k3 is now **protected**. `disposition = −1` | "You are wary of the Tarnished." k3 under "You saw for yourself". Block 7 opens with the since-line "Since you last spoke with the Tarnished, you have learned of the death of the castle's lord.", then the cue for the Tarnished's part (k2 is proved): "On your mind: the death of the castle's lord, because of what the Tarnished told you of it." (§12.13) |
 | **G** 3:30 | First chat with the Lantern-Keeper | Lantern-Keeper direct | **During** the chat: no `told_name`, no journal, so its prompt lacks "Wren". **After** its job, whose evidence includes the overheard conv-A note: `told_name = Wren` (overheard counts as "in its hearing", DESIGN §8.8) | Its next chat may use the name once |
 | **H** 40:00 | NG+: `ng_lvl` 0 → 1 | — | Journey 2 epoch; journey-1 rows unchanged (table hash) | Kalé's journey-2 prompt: "You have never spoken with this Tarnished." It lacks "Wren", k1–k3 and any news line: block 5b shows his base road only (the boss flag reset with NG+) |
 
@@ -352,7 +354,7 @@ The store answers `LoadJobInput{job}` with the evidence for `(watermark, upto]`,
 | Current journal | summary, keepsakes with id, basis, weight, about and a "keep" mark on the protected one; disposition in words and number; `told_name` | 450 |
 | Talk `L1…` | committed `PlayerSaid`/`NpcSaid` of this persona's conversations, in order, each `pt`-ordered | 60 lines; oldest dropped first, with a line saying so |
 | Notes `N1…` | pending notes (§2.6) | 10 |
-| Context `C1…` | `shown_context` of the conversations in range: block 7 knowledge lines, the world `C` lines (block-5b items, since-line items and world topic offers of block 7, by `short`, §12.7) and block 9 "just now" lines | 12 |
+| Context `C1…` | `shown_context` of the conversations in range: block 7 knowledge lines, the world `C` lines (block-5b items, since-line items, world topic offers of block 7 and the cued item, by `short`, §12.7) and block 9 "just now" lines | 12 |
 | Check keys | the keys offered (§2.5) | — |
 
 Input target ≤ 2,800 tokens, hard cap 3,500. If the evidence must be cut, the watermark still advances to `upto` on success. The dropped lines stay in the log for a later backfill and are never deleted (SN00 §4 row 25).
@@ -415,7 +417,7 @@ keepsakes (with their id) and at most 3 new ones (id null) in "keepsakes", each 
  "disposition_delta": 0}
 ```
 
-Block-5b items, since-line items and world topic offers of block 7 appear among the context lines as world `C` lines, `(knew) {{ short }}`, `(heard) {{ short }}` or `(believed) {{ short }}` (§12.7).
+Block-5b items, since-line items, world topic offers of block 7 and the cued item (§12.13) appear among the context lines as world `C` lines, `(knew) {{ short }}`, `(heard) {{ short }}` or `(believed) {{ short }}` (§12.7).
 
 `ck.meaning` paraphrases the player's own words ("the Tarnished says they killed the one they called Godrick"), so no other boss name enters the prompt.
 
@@ -457,7 +459,7 @@ Sent as `response_format: json_schema` where the provider supports it, `json_obj
    - check the enums; text ≤ 25 words (≤ 32 is cut at a clause boundary, more is dropped);
    - with `about = tarnished`, *he, she, him, her, his, hers, himself, herself* drop the keepsake;
    - validate `refs` and `basis` (§2.5); new keepsakes need ≥ 1 ref; rewritten ones keep their old refs plus any new ones;
-   - a keepsake with `about = world` whose refs cite only world `C` lines (block-5b items, since-line items and world topic offers of block 7) is dropped as "kept by the world model" (counted, §12.7);
+   - a keepsake with `about = world` whose refs cite only world `C` lines (block-5b items, since-line items, world topic offers of block 7 and the cued item) is dropped as "kept by the world model" (counted, §12.7);
    - `check_key` must be one of this job's offered keys, otherwise it is removed and the keepsake is kept as a plain claim; `name` is folded into step 8;
    - weights per §2.3; protected survival, the 3-new cap and eviction per §2.3.
 7. **Promotion:** evaluate each `check_key` now (§2.5).
@@ -475,7 +477,7 @@ Sent as `response_format: json_schema` where the provider supports it, `json_obj
 
 When the playthrough DB opens, after the rollback is resolved (§9.1) and before the buffered writes are flushed:
 1. Every `conversations` row with `ended_pt IS NULL` is closed: `ended_pt` = the `pt` of its last committed line, `end_reason = 'crash'`, and the line counts are recomputed from the events.
-2. A matching `ConversationEnded{reason: crash}` event is inserted with the persona as its direct audience, so facts fold it like any other ending.
+2. A matching `ConversationEnded{reason: crash}` event is inserted with the persona as its direct audience, its `cued` set from the `cue` mark in `shown_context` when at least one NPC line committed (§12.13), so facts fold it like any other ending.
 3. The job criteria are applied, and a job is queued or merged (DESIGN §10.3; ER06 §2.4).
 4. Jobs left `running` return to `queued` with their attempts unchanged.
 
@@ -999,7 +1001,7 @@ CREATE TABLE conversations (
   shown_context TEXT NOT NULL DEFAULT '[]' CHECK (length(shown_context) <= 4096),
   persona_hash TEXT NOT NULL, kb_hash TEXT NOT NULL, model_fp TEXT);
 
-CREATE TABLE npc_facts (                    -- a cache of fold(events) (§2.2); keys include world_seen (§12.7)
+CREATE TABLE npc_facts (                    -- a cache of fold(events) (§2.2); keys include world_seen, world_seen_pt and world_cued (§12.7, §12.13)
   journey INTEGER NOT NULL, persona TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL,
   src_event INTEGER, updated_pt INTEGER NOT NULL,
   PRIMARY KEY (journey, persona, key)) WITHOUT ROWID;
@@ -1062,7 +1064,7 @@ CREATE INDEX journal_asof   ON npc_journal (journey, as_of_pt);
 CREATE INDEX intents_pj     ON npc_intents (persona, journey);
 ```
 
-`events.payload` of a `ConversationEnded` carries `known` (≤ 24 pairs, ≤ 900 bytes, §12.7); `npc_facts` holds `world_seen` as JSON under its key. No table is added for world awareness.
+`events.payload` of a `ConversationEnded` carries `known` (≤ 24 pairs, ≤ 900 bytes, §12.7) and `cued` (≤ 40 bytes, §12.13); `npc_facts` holds `world_seen` and `world_cued` as JSON under their keys, and `world_seen_pt` as a pt. No table is added for world awareness.
 
 **diag `0001`:** `trace(id, parent, kind, label, start_mono_us, dur_us, wall, meta)`, `counter(name, window_start_wall, value)`, `error(class, detail, count, first_wall, last_wall)`, `lint_hit(rule, persona, slot, count, last_wall)` and `unknown_chr(npc_param_id, entity_id, model, chr_type, team, place_id, count, first_pt, last_wall)` for the curation list of NPC §2.5 (IDs and counts only, never the runtime name). `meta` JSON in traces never carries chat text. Decisions and intents live in the playthrough file instead, because they belong to a timeline and must be trimmed and forgotten with it (§11).
 
@@ -1128,7 +1130,7 @@ trim(cut):
   memory_progress: watermark = upto_event_id of the current version (0 if none)
   decisions      : t_play_ms > cut → deleted
   npc_facts      : recomputed: the core folds the remaining events (EventsForFold) and writes the result
-                   (including `world_seen`, §12.9)
+                   (including `world_seen` and `world_cued`, §12.9)
   meta           : next_event_id unchanged (IDs are never reused); diag records Δ, cut and row counts
 ```
 
@@ -1143,7 +1145,7 @@ A journal version written after the cut in wall time, but whose evidence all lie
 - `JourneyChanged{ng_lvl}` (or a journey mismatch at open): the conversation ends, the K store is cleared, and an epoch with `reason = 'journey'` begins. `meta.current_journey` = `ng_lvl + 1`.
 - New-journey facts, journals, progress and jobs start empty. Earlier journeys stay in the file, read-only, and are never injected: `visible_to` filters by journey (§1.3), and every query takes the journey as a parameter (DESIGN §10.5; O20).
 - `remember_past_journeys` is a reserved persona field. Lint requires it to be `false` in v1.
-- NG+ resets quest flags, so stages, world stages and the KB re-gate on their own (ER04 §4.3; SPECULATION, §12.12 item 5); `world_seen` is per journey and starts empty; flags with `ng = keep` never gate world stages or tracks (§12.9).
+- NG+ resets quest flags, so stages, world stages and the KB re-gate on their own (ER04 §4.3; SPECULATION, §12.12 item 5); `world_seen` and `world_cued` are per journey and start empty; flags with `ng = keep` never gate world stages or tracks (§12.9).
 - Play time keeps rising across NG+, so a rollback across the journey boundary is handled by §9.2 unchanged.
 
 ### 9.5 Forgetting (F10 → Memory; NPC §10.6)
@@ -1155,7 +1157,7 @@ Both actions ask for confirmation, take a `pre-forget` backup (kept with the 3 r
 | **Forget this NPC** (P) | P's `npc_journal`, `npc_facts`, `memory_progress`, `memory_jobs`, `conversations`, `npc_intents` and audience rows in `j`; then any speech or P-subject event in `j` left with no audience rows | events other personas perceived (for them, it still happened); other journeys |
 | **Forget this journey** | every row with journey `j` in every table | earlier journeys; epochs (for rollback arithmetic) |
 
-The RAM caches (bundle, facts, K-store audiences) drop P at once. Forgetting P also clears its `world_seen` with its other facts; its block 5b is unaffected, because it is derived from the flags, and with no `ConversationEnded` meeting left no since-line appears (§12.9). A `forgotten` row records the act without content. Afterwards P meets the Tarnished as a stranger. There is no undo button; the backup is the undo.
+The RAM caches (bundle, facts, K-store audiences) drop P at once. Forgetting P also clears its `world_seen` and `world_cued` with its other facts; its block 5b is unaffected, because it is derived from the flags, and with no `ConversationEnded` meeting left no since-line appears (§12.9). A `forgotten` row records the act without content. Afterwards P meets the Tarnished as a stranger. There is no undo button; the backup is the undo.
 
 ### 9.6 Tests (DESIGN §14: trim at 3 cut points)
 
@@ -1249,7 +1251,7 @@ Two layers keep it exact and spoiler-safe:
 1. **What holds** is derived from the verified flag frame in the pure core on every flag generation (§12.3). It has two parts: **world stages**, states of the land built on outcome flags only, and **quest tracks**, whose active step follows the persona stage rule (NPC §3.2).
 2. **Who knows** is a pure rule, `known(P)`, over persona P's content, its active stage, the flag state its ties' `when`s read, the world view and P's `world_seen` fact (§12.5). It decides what P knows and how surely.
 
-The result reaches the dialogue prompt as block 5b "How things stand" and as a since-line at the top of block 7 (§12.6). It reaches memory as the `world_seen` fact and as part of the job input (§12.7).
+The result reaches the dialogue prompt as block 5b "How things stand" and as a since-line at the top of block 7, followed, when a reaction prompts it, by one cue line (§12.6, §12.13). It reaches memory as the `world_seen` fact and as part of the job input (§12.7).
 
 **Vocabulary.**
 - A **world stage** is a state of the land (`star_fallen`). Its item id is `w:<id>`.
@@ -1259,7 +1261,7 @@ The result reaches the dialogue prompt as block 5b "How things stand" and as a s
 
 **Absence is silence.** An item that does not hold, or that P knows by no path, yields nothing. No prompt says that something has "not yet" happened.
 
-**What is stored.** No new table, no new event kind and no new thread. `ConversationEnded` gains the payload field `known`, and `npc_facts` gains the key `world_seen` (§12.7, §8.7). The world view itself is never stored: it is recomputed from the frame.
+**What is stored.** No new table, no new event kind and no new thread. `ConversationEnded` gains the payload fields `known` and `cued`, and `npc_facts` gains the keys `world_seen`, `world_seen_pt` and `world_cued` (§12.7, §12.13, §8.7). The world view itself is never stored: it is recomputed from the frame.
 
 **Generic NPCs** know nothing of this in v1: `world()` and `knows()` are refused in card, bark and Augur `requires` (§12.10, W1), and generics remember nothing (§2.7).
 
@@ -1269,11 +1271,14 @@ The result reaches the dialogue prompt as block 5b "How things stand" and as a s
 |---|---|---|---|
 | `world/stages.toml` | new | `[[world_stage]]` | 9 entries (§12.4) |
 | `world/tracks.toml` | new | `[[track]]` with `[[track.step]]`, for questlines owned by no persona | 1 track (Tanith), 2 steps; up to 3 tracks if S6 finds the festival's and Ranni's flags (§12.12 item 10) |
-| `personas/<id>.toml` | extended | `[awareness]` (`home`, `[[awareness.tie]]`, `skip`); stage fields `road`, `at`, `hears`, `knows`, `awaits`, `heard`, `short` | 6 personas and the Lantern-Keeper |
+| `personas/<id>.toml` | extended | `[awareness]` (`home`, `[[awareness.tie]]`, `skip`, `news`); stage fields `road`, `at`, `hears`, `knows`, `awaits`, `heard`, `short` | 6 personas and the Lantern-Keeper |
 | `flags/catalog.toml` | extended | about 12 new aliases; the `tanith` `[[block]]`; the field `ng` (§6.1) | — |
 | `prompts/dialogue/05b_world.j2` | new | the fixed scaffolding of block 5b (headers only; the lines come from data) | — |
+| `prompts/dialogue/07_cue.j2` | new | the four fixed strings of the reaction cue (§12.13) | 4 lines |
 | `tests/knowledge/expect.toml` | new | hand-written who-knows-what truth tables (§12.11) | 6 personas × 8 states |
+| `tests/knowledge/cues.toml` | new | hand-written reaction-cue tables and C14's prior meetings (§12.11) | 6 personas × 8 states, with variants |
 | `tests/fixtures/flagstates/{after_radahn,after_rykard,ashen}.toml` | new | fixture states (§12.11) | 3 |
+| `tests/fixtures/personas/test_stake.toml` | new | CI fixture persona for the own-stake reaction (§12.11) | 1 |
 
 **`world/stages.toml`** (two of the nine entries; the rest are in §12.4):
 
@@ -1394,7 +1399,7 @@ road  = "You're lying low among the manor's strange company, with an eye on who 
 
 Inheritance runs in file order: a stage that omits `road`, `at`, `hears` or `knows` takes the previous stage's value (NPC §3.2).
 
-**`[awareness]`:** `home` (≤ 3 RegionKeys), `skip` (verified offsets ≥ +6 of the persona's block that no stage uses, each with a reason, W4; the base stage stands for the initial +5) and ≤ 6 ties, of which ≤ 3 carry their own `line`.
+**`[awareness]`:** `home` (≤ 3 RegionKeys), `skip` (verified offsets ≥ +6 of the persona's block that no stage uses, each with a reason, W4; the base stage stands for the initial +5), ≤ 6 ties, of which ≤ 3 carry their own `line`, and `news` (`close | plain | eager`, default `plain`: which reactions may cue the persona to raise news unasked; code-only, never rendered; §12.13).
 
 **Tie fields:**
 
@@ -1561,7 +1566,7 @@ You believe: {{ belief lines }}
 - **Line text:** the `line` of P's tie for the item if `active(t, X)` (§12.5), else the world stage's `line`, else the active step's `heard`.
 - **Topic offers:** known items not shown in block 5b that have `topics` join block 7's topic selection (§5.4) inside its shared cap of 3. They are scored like KB topics, with `rank` as priority, and render under the same certainty labels (§5.5). So a question about the queen of the academy finds its line even when other items fill block 5b.
 
-**Block 1** (cache A, the world frame) gains item 9, and its cap rises from 350 to 450 tokens, because the nine items as NPC §3.3 words them come to about 450. It tells the model to speak of the news as it is held (as known, as hearsay or as its own belief), never as something seen, and that no word has reached the persona of great events not written there.
+**Block 1** (cache A, the world frame) gains item 9, and its cap rises from 350 to 450 tokens, because the nine items as NPC §3.3 words them come to about 450. It tells the model to speak of the news as it is held (as known, as hearsay or as its own belief), never as something seen, and that no word has reached the persona of great events not written there. Item 9 also says when to raise news (O28): wait for the talk to turn to it, unless it is on the persona's mind (§12.13).
 
 **The since-line** is the first line of block 7 (uncached), ≤ 55 tokens. It is shown only when this journey has at least one `ConversationEnded` meeting with a non-null `known`, and the known set holds items absent from `world_seen`; a rise in certainty is not announced. It names at most 2 items by `short`, chosen in the selection order above (own affairs first, then tied, then rank), the second only while the line stays ≤ 55 tokens, and adds "and other news besides" when there are more:
 
@@ -1569,17 +1574,17 @@ You believe: {{ belief lines }}
 Since you last spoke with the Tarnished, you have learned of {{ short_1 }}[ and {{ short_2 }}][, and other news besides].
 ```
 
-Under O28's recommended default (DESIGN §19), if any named item has `own_affairs`, the line ends "This touches your own affairs." The since-line is computed once, at the first turn of a conversation that has a frame, and stays fixed for that conversation. NPC §3.6 shows it rendered.
+The since-line carries no cue of its own: when a reaction prompts it, one cue line follows (§12.13). The since-line is computed once, at the first turn of a conversation that has a frame, and stays fixed for that conversation. NPC §3.6 shows it rendered.
 
-**Mid-conversation change.** Block 5b re-renders at the next turn (a new cached prefix, as for a stage change, NPC §3.2). The since-line and the history header stay as they were, and no "just now" line is added. In practice a world change during a conversation is a late first frame or a content reload.
+**Mid-conversation change.** Block 5b re-renders at the next turn (a new cached prefix, as for a stage change, NPC §3.2). The since-line and the history header stay as they were, no cue is added (§12.13), and no "just now" line is added. In practice a world change during a conversation is a late first frame or a content reload.
 
 **Budget** (DESIGN §8.3):
 
 | Block | Change | Cap |
 |---|---|---|
-| 1 World frame | + item 9 (≈ 85 tokens) | 350 → 450; the frame file is linted against it, and if it runs over, items 1–3 and 8 are shortened, never 4, 5 or 9 |
+| 1 World frame | + item 9 (≈ 85 tokens) | 350 → 450; the frame file is linted against it, and if it runs over, items 1–3 and 8 are shortened, never 4, 5 or 9; item 9's sentence on when to raise news (+29) is paid for by shortening items 1–3 (−30), so the cap is unchanged |
 | 5b How things stand | new | 180 |
-| 7 What you know now | "flag facts in words" becomes the since-line (≤ 55); world facts leave the KB `always` slots | 350 → 300 |
+| 7 What you know now | "flag facts in words" becomes the since-line (≤ 55); world facts leave the KB `always` slots; the reaction cue (≤ 35) follows it; the two together ≤ 90, never trimmed (§12.13) | 350 → 300 |
 
 The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and block 1 grows by 100), under the 3,500 hard cap; the 2,800 target is unchanged. A typical mid-game prompt is about 2,550 tokens, with block 5b at 120–165. The trim order is unchanged, and blocks 1–5b are never trimmed.
 
@@ -1587,12 +1592,12 @@ The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and 
 
 ### 12.7 Memory interplay
 
-**The fact `world_seen`** (per persona, per journey; §2.2) is the union, keeping the highest certainty, of the `known` payloads of this journey's `ConversationEnded` events that are meetings (≥ 1 committed NPC line). A payload of `null` (no flag frame during the conversation) changes nothing. It is a fold over events like every fact (§2.2), so a trim recomputes it. It is never rendered: it feeds the Kept path (§12.5), the since-line (§12.6) and the memory job.
+**The fact `world_seen`** (per persona, per journey; §2.2) is the union, keeping the highest certainty, of the `known` payloads of this journey's `ConversationEnded` events that are meetings (≥ 1 committed NPC line). A payload of `null` (no flag frame during the conversation) changes nothing. It is a fold over events like every fact (§2.2), so a trim recomputes it. It is never rendered: it feeds the Kept path (§12.5), the since-line (§12.6), the reaction cue (§12.13) and the memory job.
 
 **Tail header** (block 6a, §4.3): the "(things have moved on since)" variant now applies when `stage_seen` differs from the active stage, *or* when the since-line names something.
 
 **The journal never copies the world model.**
-- `shown_context` records block-5b items, since-line items and world topic offers of block 7 by id, not by text (NPC §7.6); together these are the **world `C` lines**. The job renders them as `C` lines with the item's `short` and its certainty word: "C3 (heard) the fall of the red general" (§3.4).
+- `shown_context` records block-5b items, since-line items, world topic offers of block 7 and the cued item (with a `cue` mark, §12.13) by id, not by text (NPC §7.6); together these are the **world `C` lines**. The job renders them as `C` lines with the item's `short` and its certainty word: "C3 (heard) the fall of the red general" (§3.4).
 - Validation (§3.6 step 6): a keepsake with `about = world` whose refs cite only such world `C` lines is dropped as "kept by the world model", and counted. Keepsakes about what was *said* (the Tarnished's claims, the NPC's own words) remain.
 - The memory prompt carries rule 7 (§3.4): "How things stand in the land is kept for {{ name }} elsewhere. Do not write keepsakes that only repeat it; keep what was said about it."
 
@@ -1600,12 +1605,13 @@ The caps sum to 3,360 (from 3,130: block 5b adds 180, block 7 gives back 50 and 
 
 **Claims against known news** (§2.5): `slew:<boss>` is promoted only when `boss('<boss>')` is T **and** P knows the world stage whose `boss = "<boss>"`. A boss with no world stage never promotes: the claim stays the Tarnished's word, because no record lets the persona check it. `name` and `great_runes>=n` are unchanged: the Great Rune is the Tarnished's own state, which vanilla NPCs react to. In §2.8 step D nothing changes: Kalé knows `castle_fallen` by Near at the flag edge, so k2 is promoted then. Any certainty is deliberately enough (DESIGN §18): the promoted group says only that the Tarnished's word fits what the persona holds; the persona weighs hearsay by its own character; the no-doer rule (§12.5) governs world lines, not the Tarnished's own claims; and a stricter rule would rewrite the verified §2.8 worked example for no gain in v1.
 
-**Events.** No new event kind. Nothing depends on dating a world change: the view comes from the frame, and the since-line from `world_seen`. The existing `FlagChanged` rows already date every catalogue flag edge for backfill and debugging.
+**Events.** No new event kind. Nothing depends on dating a world change: the view comes from the frame, the since-line from `world_seen`, and the reaction cue from `world_seen`, `world_cued`, `world_seen_pt` and block 8 (§12.13). The existing `FlagChanged` rows already date every catalogue flag edge for backfill and debugging.
 
 | Change | Where |
 |---|---|
 | `ConversationEnded` gains `known: Option<Vec<(ItemId, Certainty)>>` (the known set's items and certainties at the end of the conversation, ≤ 24 pairs; paths are not stored; ≤ 900 bytes, inside the event's 2,048-byte payload cap) | §1.1, §8.7; ARCH §8.6 |
-| The F11 debug view gains a **World** tab: each world stage with its flags' raw bits, verification and `ng`; each persona's known set with its paths | DESIGN §14 |
+| `ConversationEnded` gains `cued: Option<ItemId>` (≤ 40 bytes), and `npc_facts` gains `world_cued` and `world_seen_pt` | §1.1, §2.2, §8.7, §12.13; ARCH §8.6 |
+| The F11 debug view gains a **World** tab: each world stage with its flags' raw bits, verification and `ng`; each persona's known set with its paths; each persona's `awareness.news`, `world_cued` and the cue that would fire now, or the first condition that fails | DESIGN §14 |
 | Barks and Augur rules may not use `world()` or `knows()` in v1 (a v1.x seam) | §12.10, W1 |
 
 Because who knows is decided at render time, not frozen when an event is emitted, a content fix to a reach or a tie applies at once and deterministically, old saves included.
@@ -1629,22 +1635,24 @@ Because who knows is decided at render time, not frozen when an event is emitted
 
 **Strict mode** (§7.7). An unverified alias is U, so nothing built on it holds, and no spoiler-2 or spoiler-3 item can render on one (§7.4). `world()` and `stage()` propagate U, and `knows(x)` is U when x is U (§6.6); because `knows()` reads F while a tie's `when` is U, it never stands under `!` (W11). An unverified later step leaves an earlier road in place: stale, but never a leak, and the wording rules below keep it from asserting the negative.
 
+**Reaction cues** (§12.13) hide, never unlock: a cue names only an item in `known(P)`, by its `short`; candidates whose short meets `Locked(P)` are removed before selection; and an unverified flag is U, never T (§6.4), so it never unlocks a cue: at most it removes one, or changes its reaction (own stake becoming local talk) or its item, and the cue still names an item P knows by a verified path (an earlier stage's ground, or an older item its unverified successor would supersede; §12.13).
+
 **Anti-priming** (§7.5): `road` joins the field list at every fixture state where its stage is active; item lines, `heard` lines and tie lines are checked at every fixture state where they render.
 
 **Stale-safe wording** (W7): `road`, `gist`, `line`, `heard` and tie lines never assert that a later event has *not* happened ("still alive", "still lives", "still stands", "still holds", "not yet", "has yet to"). A stance from before an event belongs only in a road with `awaits` and a bridging stage. On a step whose flag is ambiguous (dead *or* concluded, ER05 §7), neither its `heard` line nor any other line may say "dead", "died", "killed" or "slain".
 
 ### 12.9 Rollback, NG+ and journeys
 
-- **Rollback:** the save restores the flags, so the next frame derives the right view. The trim (§9.2) deletes later `ConversationEnded` rows, and the `npc_facts` refold recomputes `world_seen` from the meetings that remain. Nothing else needs undoing.
+- **Rollback:** the save restores the flags, so the next frame derives the right view. The trim (§9.2) deletes later `ConversationEnded` rows, and the `npc_facts` refold recomputes `world_seen` and `world_cued` from the meetings that remain. Nothing else needs undoing.
 - **Flags set while EldenNet was not running** need nothing: the view is read from the frame, not built from edges.
-- **NG+:** `JourneyChanged` starts a new partition (§9.4). `world_seen` is per journey and starts empty. The game is expected to reset quest flags (ER04 §4.3, SPECULATION until S6's NG+ recording sets `ng`, §12.12 item 5), so the view falls back to the base stages; W3 keeps any alias not marked `ng = reset` out of world stages and tracks. Earlier journeys are never injected (O20).
+- **NG+:** `JourneyChanged` starts a new partition (§9.4). `world_seen` and `world_cued` are per journey and start empty. The game is expected to reset quest flags (ER04 §4.3, SPECULATION until S6's NG+ recording sets `ng`, §12.12 item 5), so the view falls back to the base stages; W3 keeps any alias not marked `ng = reset` out of world stages and tracks. Earlier journeys are never injected (O20).
 - **Journey scope:** flags that survive NG+ (`ng = keep`: the endings 20–22, the journey counters 50–58, and any that S6 marks) are barred from world-stage and track `when` (W3), so a new journey never starts out "knowing" the last one's world.
-- **Forgetting** (§9.5): "Forget this NPC" deletes P's facts and its `ConversationEnded` rows, so `world_seen` is empty after the refold. Block 5b is unaffected, because it is derived from the flags; with no `ConversationEnded` meeting left, no since-line appears.
-- **Content update:** a newly authored or newly verified item that already holds appears in the next since-line. This is accepted: the line says only that the persona has learned of it since.
+- **Forgetting** (§9.5): "Forget this NPC" deletes P's facts and its `ConversationEnded` rows, so `world_seen` and `world_cued` are empty after the refold. Block 5b is unaffected, because it is derived from the flags; with no `ConversationEnded` meeting left, no since-line appears.
+- **Content update:** a newly authored or newly verified item that already holds appears in the next since-line. This is accepted: the line says only that the persona has learned of it since. A changed `awareness.news` applies from the next conversation, and a spent cue stays spent (§12.13).
 
 ### 12.10 Lints
 
-**Per persona:** `[awareness]` (`home`, `skip`, ≤ 6 ties, of which ≤ 3 carry their own lines); per stage, `road` (required on the base stage; inherits), `at` (base; inherits), `hears` where not `all`, `knows` where a stage implies news, `awaits` plus a bridging stage where a road waits on news, and `heard` with `short` only where another persona ties the track. **Once:** `world/stages.toml` (9 entries) and `world/tracks.toml` (Tanith, 2 steps; plus the festival's and Ranni's tracks if S6 finds them, §12.12 item 10).
+**Per persona:** `[awareness]` (`home`, `skip`, `news`, ≤ 6 ties, of which ≤ 3 carry their own lines); per stage, `road` (required on the base stage; inherits), `at` (base; inherits), `hears` where not `all`, `knows` where a stage implies news, `awaits` plus a bridging stage where a road waits on news, and `heard` with `short` only where another persona ties the track. **Once:** `world/stages.toml` (9 entries) and `world/tracks.toml` (Tanith, 2 steps; plus the festival's and Ranni's tracks if S6 finds them, §12.12 item 10).
 
 **Lints** (CI, `en-tools lint`):
 
@@ -1654,9 +1662,9 @@ Because who knows is decided at render time, not frozen when an event is emitted
 | W2 Spoiler | Item `spoiler` ≥ the highest flag spoiler in its `when` (through `world()`); tie `spoiler` ≥ its item's; `line` needs `spoiler` and `lexicon` |
 | W3 NG+ | Every flag in a world-stage or track `when` has `ng = reset`; `keep` is an error; release lint rejects `unknown` |
 | W4 Coverage | Every verified offset ≥ +6 of a persona's block (+5 is the base stage's own flag, and the base stage's `when` is `true`, NPC §3.2) appears in some stage `when` or in `awareness.skip` with a reason |
-| W5 Caps | Field caps (§12.2); world stages ≤ 32 (the `holds` and `unknown` bit arrays); tracks ≤ 16 (persona tracks plus `world/tracks.toml`, the `active` vector); block 5b ≤ 180 tokens for every persona × stage × fixture state, and with every tie active |
+| W5 Caps | Field caps (§12.2); world stages ≤ 32 (the `holds` and `unknown` bit arrays); tracks ≤ 16 (persona tracks plus `world/tracks.toml`, the `active` vector); block 5b ≤ 180 tokens for every persona × stage × fixture state, and with every tie active; the reaction cue ≤ 35 tokens for every `short` in each of its four strings, and the since-line and cue together ≤ 90 (§12.13) |
 | W6 Lexicon | Every capitalised non-initial word of a line, `heard`, `short` or tie line is in its lexicon, `lexicon/public.toml` or a reveal term; a `short` uses only its item's lexicon; the forbid rule of §12.8 |
-| W7 Wording | Item lines, `heard` and shorts are impersonal (no "you"); no witness verbs ("saw", "watched", "witnessed") and no doer ("the Tarnished", "by your hand") in any news line; the stale-safe list (§12.8); the banned words (NPC §3.3: "quest", "boss" …); no numbers |
+| W7 Wording | Item lines, `heard` and shorts are impersonal (no "you"); no witness verbs ("saw", "watched", "witnessed") and no doer ("the Tarnished", "by your hand") in any news line; the stale-safe list (§12.8); the banned words (NPC §3.3: "quest", "boss" …); no numbers. The four strings of `07_cue.j2` follow the same lists, and also hold no imperative to speak ("tell", "mention", "say", "ask", "remind", "must", "should"), no capitalised non-initial word but "Tarnished", and "the Tarnished" only as the teller in the Tarnished's-part string |
 | W8 Ties | `item` exists; never P's own track; track ties need `certainty` and may not carry `line`; `from` is a step of that track; a `played` tie without evidence is inert, and release lint rejects inert ties (add the evidence or drop the tie) |
 | W9 Stage fields | The base stage has `road` and `at`; `at` is a RegionKey; `knows` names world stages; at each fixture state where a stage is active, each item it `knows` holds (warning) |
 | W10 Awaits | A stage with `awaits = x` is followed in file order by a stage whose `when` holds whenever its own `when` and `world(x)` hold, checked at every fixture state with `x` toggled. At the fixture state that records `x`'s event (`after_radahn` for `general_fallen`, §12.11), W10 also turns `x` off and sets the flags in `x`'s `clears` T; where that makes the awaiting stage active, the fixture state itself must have a stage later in file order than the awaiting stage active. So a bridging stage never rests on a flag the event may clear (Alexander's +8, which TGA's Radahn group writes false, a hint only; S6 records what the game does, §12.12 item 6; NPC §3.6) |
@@ -1674,8 +1682,9 @@ Because who knows is decided at render time, not frozen when an event is emitted
 | Tanith track | 2 steps | ≈ 45 |
 | Conditional tracks (the festival, Ranni) | steps as S6 finds them | ≈ 22 per step |
 | Truth tables | 6 personas × 8 states | — (≈ 3 h) |
+| Cue tables | 6 personas × 8 states, with variants | — (≈ 1 h) |
 
-About 1,250 words of original prose: about 9–11 hours of writing and review, plus 3 hours of truth tables.
+About 1,250 words of original prose: about 9–11 hours of writing and review, plus about 4 hours of truth and cue tables.
 
 ### 12.11 Tests
 
@@ -1687,15 +1696,17 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 |---|---|
 | T1 Determinism | The same frames give the same `WorldView` and `world_gen` over 10 replays; `derive` reads only the frame and the content |
 | T2 Truth tables | `known(P)` equals `tests/knowledge/expect.toml` exactly (item → `certainty:path` or `none`) for every persona × fixture state |
-| T3 Fold | `world_seen` folded live equals the recompute after a trim (a property test over random cuts) |
-| T4 Render | `insta` goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned) |
+| T3 Fold | `world_seen`, `world_seen_pt` and `world_cued` folded live equal the recompute after a trim (a property test over random cuts) |
+| T4 Render | `insta` goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned); and of the reaction cue: Kalé (fresh → after_godrick, 1 h: local talk on the castle's fall), Kalé (after_radahn with `slew:radahn` proved and nothing new: the Tarnished's part), Blaidd (after_godrick → after_radahn: own stake on the star) and Alexander (the same, 2 h: local talk on the general's fall), and the cue line gone once a reply has committed |
 | T5 Byte stability | Blocks 1–5 are unchanged by any world change; block 5b changes only when the stage, an active tie or the known set's (item, certainty) pairs change, and is byte-identical otherwise |
 | T6 Lexicon | `Locked(P)` goldens: "Radahn" locked for Boc at `fresh` and allowed at `after_radahn`; "Rykard" locked for Kalé at `after_rykard` (ken-lock) and allowed for Patches |
-| T7 Rollback | Trims at 3 cut points (before Radahn; between Radahn's fall and the star; after both) leave the view and `world_seen` matching the restored flags |
-| T8 NG+ | After `JourneyChanged`, block 5b shows the base road only and `world_seen` is empty |
+| T7 Rollback | Trims at 3 cut points (before Radahn; between Radahn's fall and the star; after both) leave the view and `world_seen` matching the restored flags; a trim before a cued conversation makes its item cue-able again |
+| T8 NG+ | After `JourneyChanged`, block 5b shows the base road only and `world_seen` and `world_cued` are empty |
 | T9 Strict | With 310 unverified, `star_fallen` never holds and `knows('star_fallen')` is U; with 9130 and Blaidd's +9 verified T, his +10 unverified and his later offsets verified F, Blaidd's bridging stage is active and `after_star` is not |
 | T10 Claims | `slew:radahn` told to Kalé is promoted at `after_radahn`; `slew:rykard` told to Kalé at `after_rykard` stays a claim; `slew:margit` (no world stage) never promotes |
-| T11 Lints | W1–W12 each have a failing fixture file |
+| T11 Lints | W1–W12 each have a failing fixture file, and so do W5's and W7's cue clauses |
+| T12 Cue table | `cue(P)` equals `tests/knowledge/cues.toml` (item and reaction, or `none`) for every persona × fixture state × prior-meeting variant: met before or not; last conversation within or beyond 6 h, with or without a native talk since (a native talk within 6 h after a conversation beyond 6 h still gives no local talk); with and without a told `slew:` claim, proved or not; `world_cued` empty or holding the item; the item's short locked; and strict (310 unverified: no star cue). From v0.3 on Kalé and the CI fixture persona `test_stake` (§12.2); each persona at v0.5 |
+| T13 Cue journey | A scripted journey meets each persona twice at each fixture state in story order (the second meeting 1 h of play after the first), with one rollback and one NG+. It asserts at most 1 cue per conversation, at most 1 per item per persona per journey, none at a first meeting, only the Tarnished's part at a second meeting, that a trim before a cued conversation unspends its item, and that NG+ empties `world_cued`. It reports the share of cued meetings per persona |
 
 **Truth-table format** (`tests/knowledge/expect.toml`, hand-written; one table per state and persona, listing every world stage and every step of a track some persona ties; an item that does not hold, or that P knows by no path, is "none"; `world_seen` is empty):
 
@@ -1710,6 +1721,60 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 "w:erdtree_burned"    = "none"     # everywhere, but no Sky path, and spoiler 2 never spreads by word
 ```
 
+**Cue-table format** (`tests/knowledge/cues.toml`, hand-written; it also gives C14's cue slots their prior meetings, NPC §12.5):
+
+```toml
+# tests/knowledge/cues.toml (excerpt): the reaction cue per persona, state and prior meeting (§12.13)
+[after_radahn.blaidd.met_2h]
+prior  = "after_godrick"         # world_seen = known(P) at that state, from one earlier meeting; "none" = never met
+met_h  = 2.0                     # play hours since that meeting (it sets world_seen and world_seen_pt)
+claims = []                      # slew:<boss> claims told earlier; their proof is computed (§2.5)
+cued   = []                      # world_cued
+expect = "w:star_fallen:own"     # <item>:<own|told|local_here|local_home>, or "none"
+
+[after_radahn.blaidd.strict]
+prior      = "after_godrick"
+met_h      = 2.0
+unverified = ["story.star_fell"] # 310 unverified: the star does not hold (T9)
+expect     = "w:general_fallen:own"
+
+[after_radahn.alexander.met_8h]
+prior  = "after_godrick"
+met_h  = 8.0
+expect = "none"                  # local talk needs the last recorded conversation within 6 h
+
+[after_radahn.alexander.talk_1h]
+prior  = "after_godrick"
+met_h  = 8.0
+talk_h = 1.0                     # play hours since a later native talk; it moves last_met_pt only
+expect = "none"                  # a native talk does not restart the 6 h
+
+[after_radahn.kale.told]
+prior  = "after_radahn"          # nothing is new, so there is no since-line
+met_h  = 0.5
+claims = ["slew:radahn"]
+expect = "w:general_fallen:told"
+
+[after_rykard.kale.unproved]
+prior  = "after_godrick"
+met_h  = 2.0
+claims = ["slew:rykard"]         # stays a claim: Kalé does not know the manor lord's fall (T10)
+expect = "none"
+
+[after_rykard.test_stake.met_2h]
+prior  = "after_godrick"
+met_h  = 2.0
+expect = "none"                  # close: the queen's fall is new and Near (home), but local talk is refused
+
+[after_radahn.test_stake.told]
+prior  = "after_radahn"
+met_h  = 0.5
+claims = ["slew:radahn"]
+expect = "none"                  # close: the Tarnished's part is refused
+```
+
+CI fixture persona **`test_stake`** (tests only, never shipped, kept beside `test_veiled` in `tests/fixtures/personas/`): `awareness.news = "close"`; `home = ["liurnia"]`; a base stage `waiting` (`when = "true"`, `at = "limgrave"`); and a stage `castle_news` (`when = "world('castle_fallen')"`, `knows = ["w:castle_fallen"]`). It exercises own stake at v0.3, before any shipped persona has a stake. Being `close`, it also checks that the Tarnished's part and local talk are refused. Its `home` gives it one item that is new, Near and not its own (the queen's fall at `after_rykard`), so the refusal of local talk is real: `[after_rykard.test_stake.met_2h]` expects `none`, where an `eager` persona would get `w:queen_fallen:local_home`. `[after_radahn.test_stake.told]`, with a proved `slew:radahn`, also expects `none`.
+
 **Acceptance scenario** `tests/scenarios/knowledge/star_falls.scn` (original; recorded memory replies, as in §2.8):
 
 | Step | What happens | Expected |
@@ -1717,9 +1782,10 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 | **A** 0:30 | Chat with Kalé; chat with Blaidd (fixture: Godrick dead, Blaidd at +9) | Kalé's block 5b: road and the castle rumour (his tie line). Blaidd's block 5b: the `awaiting_festival` road and the castle rumour. Both `world_seen` = {`castle_fallen`: rumour} |
 | **B** 5:00 | Radahn dies (9130 rises, verified) | `general_fallen` holds; Blaidd's active stage is the bridge `general_fallen` |
 | **C** 5:02 | 310 rises (verified); Blaidd's +10 rises | `star_fallen` holds; Blaidd at `after_star` |
-| **D** 5:10 | Chat with Kalé: "I brought down the red general myself." | Block 5b as in NPC §3.6; the since-line names the star and the general's fall; the tail header reads "(things have moved on since)"; no reply says Kalé saw it |
+| **D** 5:10 | Chat with Kalé: "I brought down the red general myself." | Block 5b as in NPC §3.6; the since-line names the star and the general's fall; the tail header reads "(things have moved on since)"; no reply says Kalé saw it; no reaction cue (nothing new touches Kalé's affairs, no claim is proved yet, and nothing new came by his own ground) |
 | **E** | Kalé's memory job | The input carries the world tags; a keepsake "a star fell" that cites only the world `C` line is dropped; the claim gets `slew:radahn` and is promoted |
-| **F** 5:20 | Rollback to 4:50 | `general_fallen` and `star_fallen` stop holding; Kalé's `world_seen` reverts to A's; Blaidd is back at `awaiting_festival` |
+| **E2** 5:15 | Chat with Kalé: "Mind if I sit a while?" | No since-line (nothing new since D); block 7 opens with the cue for the Tarnished's part on the general's fall; its `ConversationEnded` carries `cued = w:general_fallen` |
+| **F** 5:20 | Rollback to 4:50 | `general_fallen` and `star_fallen` stop holding; Kalé's `world_seen` reverts to A's; Blaidd is back at `awaiting_festival`; Kalé's `world_cued` is empty again |
 | **G** | NG+ | Kalé's block 5b shows the base road only; no since-line (no `ConversationEnded` meeting in the new journey) |
 
 The world-awareness eval (criterion C14, DESIGN §1.3) is in NPC §12.5.
@@ -1738,14 +1804,166 @@ Added to spike S6 (§6.3; DESIGN §16.1). Each item verifies a lead before conte
 9. **Kalé 4700 and Alexander 3660:** confirm the new block leads (ER07 §4.2, §4.7; §6 item 8; already in each persona's S6 scope; NPC §1.2), and the offsets that ER07 §4 gives for Varré, Boc, Alexander, Kalé and Patches (+13 and +17; +14 is SPECULATION), with the unlabelled ones (ER07 §6 items 1 and 6). Also: which flag drives Varré's +11 (181, 191 or 9101, SPECULATION) and where his +12 and +13 take place (SPECULATION; ER07 §4.3); and whether 1042369328 or 1042369329 is Kalé's `howl_told` (ER07 §4.2; §6 item 15). S6 also records where Patches' +11 (`highwayman`) and +12 (`last_shop`, TGA's filing LIKELY at best) take place, for their `at`, with +11 marked verified only together with its place (until then Patches' manor ties, whose `when` reads +11, stay inactive; NPC §3.6); and Blaidd's places after +5 (GK; NPC §3.6). Among the unlabelled ones, S6 finds the offsets of Alexander's beats after the festival (the hot spring, the last duel) and of Boc's Altus, Leyndell and rebirth beats (ER07 §6 item 6), so that each gets a stage and a `road` before v0.5 (NPC §3.6). These stages are required and do not go to `skip`. Until they exist, the persona keeps a road that names an old place, or, if S6 finds block 3660 or 3940 exclusive, falls back to its base road.
 10. **Ranni's block 3740 and the festival's host (Jerren, block 3360):** find their stage offsets (ER07 §4.8 and §4.9 have both blocks' headers only; §6 items 13 and 14), or, for the festival, check first whether its own flags 9410–9413 mark preparation, festival, aftermath and end (ER07 §2.4), so that Blaidd's related tie to Ranni and Alexander's to the festival can go live in v1, each through a track in `world/tracks.toml` (§12.2). Until S6 finds them, both ties stay deferred (§12.4, NPC §3.6), and no offset is authored ahead of it.
 
-About 12 extra aliases and one late-game route over a tester's checkpoint saves (Radahn, Rykard, Morgott, the Forge, Maliketh, the start of an NG+): roughly 5–6 tester-hours, not counting item 10. The watch list grows from about 700 to about 740 IDs.
+About 12 extra aliases and one late-game route over a tester's checkpoint saves (Radahn, Rykard, Morgott, the Forge, Maliketh, the start of an NG+): roughly 5–6 tester-hours, not counting item 10. Items 1–5 run with the pilot's S6 at v0.2 (O29), and an alias verified there goes live as a data-only change; S6 as a whole still blocks v0.5 (DESIGN §16.3). The watch list grows from about 700 to about 740 IDs.
 
-**Increments** (DESIGN §16.2):
+**Increments** (DESIGN §16.2, §16.3):
 
 | Version | Ships | Exit |
 |---|---|---|
-| v0.2 First words (pilot, RAM only) | `derive`, `known()` (Own, Tie, Sky, Near, Word), block 5b, block 1 item 9, Kalé's `road` and ties, `world/stages.toml` with `castle_fallen` live (9101 and its `ng = reset`, from the NG+ recording, are in the pilot's S6) and the rest present but silent until verified | Kalé's goldens at `fresh` and `after_godrick`; T1, T5 |
-| v0.3 Remembrance | the `known` payload, `world_seen` (Kept), the since-line, the tail-header variant, the memory job's world input and drop rule, claim proof by knowledge | T3, T7, T8, T10; C11 unchanged |
-| v0.5 Veil | all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, with their ties, if S6 item 10 has found their flags), ties and roads for the six, bridging stages, W1–W12, the 8 fixture states, truth tables, the C14 eval | C9 and C10 on 6 personas; C14 reported |
-| v1.0 | — | C14 per O29 |
-| Later | Ranni's persona, and her track and ties if S6 did not find them for v1; shared circles of acquaintance; news that travels with play time; DLC stages; `world()` in bark `requires` | — |
+| v0.2 First words (pilot, RAM only) | `derive`, `known()` (Own, Tie, Sky, Near, Word), block 5b, block 1 item 9 (with its rule on when to raise news), the world part of `Locked(P)`, Kalé's `road` and ties, `world/stages.toml` with `castle_fallen` live (9101 and its `ng = reset`, from the NG+ recording, are in the pilot's S6) and the rest present but silent until verified; the 8 fixture states and Kalé's truth tables | T1, T2 (Kalé, 8 states), T4 (block 5b, Kalé, 8 states plus `ashen`), T5, T6 (Kalé), T9 (the star half), T11; W1–W10 and W12; C14 on Kalé (DESIGN §16.3) |
+| v0.3 Remembrance | the `known` payload, `world_seen` (Kept), the since-line, the tail-header variant, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (§12.13: `cue()`, `07_cue.j2`, `cued`, `world_cued`, `world_seen_pt`, Kalé `eager`) | T3, T4 (the since-line goldens and Kalé's cue goldens), T7, T8, T10, T11 (the W5 and W7 cue-clause fixtures), T12, T13; Kalé's steps of `star_falls.scn`; C14's since-line, claim and cue probes on Kalé; C11 unchanged |
+| v0.5 Veil | all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, with their ties, if S6 item 10 has found their flags), ties and roads for the six, bridging stages, the five personas' `awareness.news` (O30) | C9, C10 and C14 on 6 personas; T2, T4, T6, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; the whole `star_falls.scn` |
+| v1.0 | — | C14 green on the release candidate (DESIGN §16.3) |
+| Later | Ranni's persona, and her track and ties if S6 did not find them for v1; shared circles of acquaintance; news that travels with play time; DLC stages; `world()` in bark `requires`; a persona greeting the Tarnished with news on approach; O30 (d)'s reactions (§12.13) | — |
+
+### 12.13 Reaction cues: raising news unasked (O28, O30)
+
+**Owner decision (O28, 2026-11-06).** A persona may raise news of the land without being asked, but only when a reaction prompts it: never just because the news is new, and never every time. Which reactions count is O30 (DESIGN §19). Until the owner decides, this section carries O30's recommended default.
+
+**Where.** v1 keeps "no autonomous NPC greetings" (DESIGN §8.7). So "unasked" means this: in a conversation the player opened, the persona brings an item up itself in a reply, although the player's line did not ask about it. Nothing is said before the player's first line (NPC §6.1). The event reaction system is Augur (DESIGN §6), but W1 keeps world state out of its rules (§12.10). The cue is therefore computed by the conversation subscriber (ARCH §8.9), from what Augur, the flag watcher, the world view (`known(P)`, `world_seen`) and the journal have already recorded. It makes no LLM call, starts no thread and emits no event.
+
+**The function.** `knowledge::world::cue` is pure. It runs once per conversation, at the first turn that has a flag frame, together with the since-line (§12.6), and returns at most one `Cue { item, why }`, where `why` is `Own`, `Told`, `LocalHere` or `LocalHome`:
+
+```text
+cue(P, conv) -> Option<Cue>:
+  require: conv has a flag frame; no NPC line of conv has committed; and P.world_seen_pt is set
+           (this journey holds a ConversationEnded meeting with P whose `known` is not null)  # never at a first meeting
+  T   = P.awareness.news                       # close | plain | eager; default plain
+  K   = known(P) minus superseded items, minus P.world_cued, minus every item whose short holds a term
+        of Locked(P) (R_locked included); in block 5b's selection order (§12.6)
+  New = [X in K | X not in P.world_seen]
+  1. Own:   the first X in New with own_affairs(P, X)                                -> (X, Own)
+  2. Told:  if T ≠ close: the first X in K with X.boss = b, verified:slew:b = T, and the
+            keepsake with check_key slew:b rendered in this prompt's block 8          -> (X, Told)
+  3. Local: if T = eager and pt_now − P.world_seen_pt ≤ 6 h of play:
+            the first X in New whose best path is Near
+            -> (X, LocalHere) if s.at ∈ X.regions, else (X, LocalHome)
+  otherwise None
+```
+
+There is no roll. The reactions and the once-only records keep cues rare, and the model chooses. Every input is recorded, so replays are identical (C12).
+
+**The reactions** (O30's default; each reads only records). Here, as for the since-line (§12.6), "new since the last meeting" means absent from `world_seen`, so a native talk or a frameless chat in between changes nothing:
+
+| Reaction | Fires when | Records it reads | Counts for |
+|---|---|---|---|
+| **Own stake** | An item new since the last meeting touches the persona's own affairs: its stage `knows` it, or an active tie with its own certainty covers it | `own_affairs` (§12.5); `world_seen` (§2.2) | `close`, `plain`, `eager` |
+| **The Tarnished's part** | The persona holds the Tarnished's claim to the item's deed, and the claim has proved true | the keepsake's `check_key` `slew:<boss>`; `verified:slew:<boss>` (§2.2, §2.5); the item's `boss`; block 8 as rendered (§4.3) | `plain`, `eager` |
+| **Local talk** | An item new since the last conversation that recorded what the persona knew reached it by its own ground, and that conversation was at most 6 h of play ago | the best path (§12.5); `world_seen` and `world_seen_pt` (§2.2; the 6 h is the absence words' boundary, DESIGN §5.5) | `eager` |
+
+- **Own stake.** People speak first of what touches them.
+  - It never fires on a tie with no certainty (prominence only), on an item already held at an earlier meeting, or at a first meeting.
+  - A track step reaches a persona only through a tie with a certainty (§12.2), so a known step always counts as own stake. It sorts last (rank 0).
+- **The Tarnished's part.** The persona reacts to the person in front of it, whose word now fits what it holds.
+  - The item need not be new. Usually the claim is told in one conversation, filed by the memory job and cued at the next. A claim told earlier is also cued once the persona learns of the deed.
+  - It never fires for a claim that is still only a claim (§2.5), for a boss with no world stage, when block 8 leaves the keepsake out (the spoiler recheck, §4.3, or the trim), or for a `close` persona.
+  - The cue says only that the Tarnished told the persona of the item. It never states the deed or its doer (§12.5).
+- **Local talk.** A news-hungry persona passes on what its own district talks of.
+  - It reads only the Near path. Sky, Word, Kept and Tie paths never fire it: Sky would have every eager persona open with the star at once.
+  - An absence of more than 6 h of play since that conversation fails closed, because world changes are not dated (§12.7). Native talk and frameless chats do not restart the window, because they record no `known`.
+  - It never fires for a `plain` or `close` persona.
+- **Why Near needs no new field.** `Known` keeps only the best path. Three facts make that enough:
+  - region items have no Sky path, and everywhere items no Near path;
+  - an item absent from `world_seen` has no Kept path;
+  - an Own or certainty-tie path makes the item own stake, which step 1 tries first.
+
+  So for a new item that is not own stake, the best path is Near exactly when the Near path applies.
+- **Not reactions:**
+  - news that is merely new: the since-line already says so;
+  - the Tarnished arriving "straight from there": fast travel hides where the Tarnished came from, so this would be invented knowledge;
+  - the age of an event: never dated;
+  - another persona's talk: v1 has no shared news (DESIGN §18).
+
+**Temperament.** `awareness.news` (`close | plain | eager`, default `plain`) chooses which reactions count.
+- `close` counts own stake only; `plain` adds the Tarnished's part; `eager` adds local talk.
+- It is code-only, like `home` and `skip`: never rendered, and costs no tokens. It is authored from the persona's own text, as `honesty` is.
+- O30's default values:
+  - Kalé `eager`: he listens for news, because news keeps a lone merchant alive;
+  - Alexander `eager`: his road is a search for battles worth his name;
+  - Boc `close`: he hides, frightened of every passer-by;
+  - Blaidd, Varré, Patches and the Lantern-Keeper `plain`.
+- The values of the five later personas are confirmed when their private text is written (v0.5).
+
+**The cue line.** It goes in block 7, directly after the since-line, or first in the block when there is none. The template is `prompts/dialogue/07_cue.j2`; the strings are ours and fixed:
+
+```text
+On your mind: {{ short }}, for it touches your own affairs.                # Own
+On your mind: {{ short }}, because of what the Tarnished told you of it.   # Told
+On your mind: {{ short }}, for it is the talk of these parts.              # LocalHere
+On your mind: {{ short }}, for it is the talk of your home country.        # LocalHome
+```
+
+- **Naming.** The line names the item only by its `short`. W6 holds a short to its item's own lexicon, and none of the 11 v1 shorts holds a proper noun.
+- **The item's own line.** If the item has no line in block 5b this turn, its line takes the first of block 7's 3 topic slots, under its certainty label (§5.5), and is the last topic entry trimmed. The line is P's tie line, else the world line, else the step's `heard`. So the model has the item's words and its certainty, not only its short. Block 5b is untouched, so there is no cache-B miss.
+- **Budget.**
+  - The cue is ≤ 35 tokens (W5), for every short in each string. Measured: Own 24–28, Told 28–32, LocalHere 25–28, LocalHome 27–30.
+  - The since-line and the cue together are ≤ 90 of block 7's 300. Neither is trimmed; trim priority 3 (topic entries, NPC §7.3) absorbs them.
+  - The block caps are unchanged: block 7 at 300, and the sum at 3,360 under the 3,500 hard cap.
+  - A cue costs 24–32 uncached tokens on one reply per cued conversation. When block 5b does not show the cued item, the item's own line (16–36 tokens for a world line with its label) is added as well. Nothing else changes. The typical prompt (about 2,550 tokens) is unchanged.
+- **The frame rule.** World-frame item 9 (NPC §3.3, cache A) says when to raise news: "Wait for the talk to turn to it, unless it is on your mind; then raise it if it suits you." The cue's label echoes it on purpose. Without a cue, a since-line is news held, not news to volunteer. Even with a cue, the model decides.
+
+**Records.**
+- **One per conversation.** `Conversation` (NPC §6.1) gains `cue: Option<Cue>`, set once, and `cue_spent: bool`. `cue_spent` turns true when a reply rendered with the cue displays its first committed line. The cue line then leaves block 7 for the rest of the conversation.
+- **Once per item per persona per journey.**
+  - `ConversationEnded` gains `cued: Option<ItemId>` (≤ 40 bytes, inside the 2,048-byte payload cap beside `known`'s ≤ 900), set iff `cue_spent`.
+  - `npc_facts` gains `world_cued` (JSON `[item, …]`): per persona, per journey, the union of `cued` over this journey's `ConversationEnded` meetings. It is never rendered.
+  - A cue that reached no committed line does not use up its item. One the model passed over does, because the reaction was offered once.
+  - `world_seen` alone would make own stake and local talk once-only; `world_cued` does it for all three reactions with one rule.
+- **The memory job.** `shown_context` records the cued item by id, with a `cue` mark (§12.7). The memory job renders it as that item's world `C` line, so the drop rule is unchanged.
+
+| Case | Behaviour | Rests on |
+|---|---|---|
+| Live and recompute | `world_cued` and `world_seen_pt` are folds like every fact; T3 covers them | §2.2; §12.11 |
+| Rollback | The trim deletes later `ConversationEnded` rows; the refold restores `world_cued`, `world_seen` and `world_seen_pt`; claims return with the journal version and `verified:*` with the flags. An item cued after the cut can be cued again | §9.2; §12.9 |
+| Keep | Unchanged | §9.3 |
+| NG+ | A new partition: `world_cued`, `world_seen`, `world_seen_pt` and the journal start empty, so nothing is cued before the new journey's first meeting; earlier journeys are never read (O20); the temperament is content and carries over | §9.4 |
+| Forget this NPC or journey | Its rows go, so `world_cued` is empty and no claim remains | §9.5 |
+| Crash | Recovery step 2 sets `cued` from the `cue` mark in `conversations.shown_context` when ≥ 1 NPC line committed | §3.8 |
+| Content update | A newly verified item may be cued at the next meeting, as it appears on the since-line; a changed `awareness.news` applies from the next conversation; `world_cued` holds items, not reactions, so a spent item stays spent | §12.9 |
+| Migration | Additive; older rows read `cued = None` | §10 |
+
+**Mid-conversation.**
+- **Before the player's first line.** Nothing is sent; the first chance is the reply to that line.
+- **A late first frame.** The since-line and the cue are computed at the first framed turn. If an NPC line has already committed by then, the cue is dropped, unspent, and may come at a later meeting.
+- **After the first committed line.** The cue is gone: history shows whether the item was raised, and item 9 governs. If the player's first line was about the cued item, the cue still shows and is spent.
+- **A change to the known set.** It adds no cue; block 5b re-renders as today. The new item enters `world_seen` at the end of the conversation, so it can later be cued only as the Tarnished's part. In practice such a change is a late first frame or a content reload (§12.6).
+- **Trimming.** If trimming would remove the keepsake a Told cue rests on, the cue is dropped for the conversation, unspent.
+- **A fallback deflection** committed first (NPC §8.4) spends the cue.
+
+**Strict mode and spoilers.**
+- **An unverified flag never unlocks a cue.** It is U, never T (§6.4, §6.6; under `!` it stays U): it can hide a cue or change which one fires, but the cue still names an item that holds by verified flags and that P knows by a verified path.
+  - Each reaction is a conjunction over items that hold in Unlock mode (§7.4 for spoiler ≥ 2), `own_affairs` (it needs `active(t, X)`) and `verified:slew:<b>` (Unlock, §2.5).
+  - Its negations over flags only remove candidates (`Locked(P)`), keep an earlier stage active when a later stage's `when` is U (§12.8), or, through `supersedes`, keep an older item when its successor does not hold, as block 5b's selection does (§12.6). Its other negations are over recorded history (`world_seen`, `world_cued`).
+  - So a U flag can change which cue fires: a stage's `knows` goes inactive while Near remains (own stake becomes local talk); an earlier stage stays active with its own `at` and `hears` (stale, never a leak, §12.8) and opens a Near path; or a superseded item stays a candidate in place of its unverified successor. Each time the cue names an item P knows by a verified path.
+- **No locked term.** A cue names only an item in `known(P)`, by its `short`, whose lexicon is in `Allowed(P)` (§12.8). Candidates whose short meets `Locked(P)` (`R_locked` included) are removed before selection.
+- **Ken-lock holds.** Kalé at `after_rykard` does not know the manor lord's fall, so `slew:rykard` stays a claim (T10) and nothing can cue that fall for him.
+- **Wording (W7).** No witness verb, no doer, no "quest" or "boss", no number, no imperative to speak. "What the Tarnished told you" reports speech, not a deed.
+
+**Examples.** The prior meeting was at `after_godrick`, 2 h of play earlier. There `world_seen` held what the persona knew then: the castle's fall, by its own ground or by word. There are no claims unless stated. Stages are the fixtures' (§12.5, §12.11); Blaidd was last met at `awaiting_festival`.
+
+| Persona (`news`), state | New since the last meeting (path) | Reaction | Block 7 opens with |
+|---|---|---|---|
+| Blaidd (`plain`), `after_star` | the star, the general (both Own) | own stake, on the star (rank 80 over 60) | "Since you last spoke with the Tarnished, you have learned of a star come down out of the sky and the fall of the red general." (40) "On your mind: a star come down out of the sky, for it touches your own affairs." (26) |
+| Alexander (`eager`), `after_fall` | the general (Near, his `at` is in its regions), the star (Sky) | local talk | "…the fall of the red general and a star come down out of the sky." (40) "On your mind: the fall of the red general, for it is the talk of these parts." (25). Met 8 h earlier: no cue |
+| Kalé (`eager`), `at_the_church` | the star (Sky), the general (Word) | none | the since-line only (40) |
+| Kalé, his next talk, after `slew:radahn` is proved (§12.11 step E2) | nothing | the Tarnished's part | no since-line; "On your mind: the fall of the red general, because of what the Tarnished told you of it." (29) |
+| Varré (`plain`), Patches (`plain`), Boc (`close`) at `after_radahn` | the star (Sky), the general (Word) | none | the since-line only |
+| Patches (`plain`), `manor_gift`, at `after_rykard` | the manor's lord and the lady's vigil (Tie, fact, both own affairs), the queen (Word) | own stake, on the manor's lord (rank 50 over a step's 0) | "Since you last spoke with the Tarnished, you have learned of the death of the manor's lord and the lady's vigil beside her dead lord, and other news besides." (51) "On your mind: the death of the manor's lord, for it touches your own affairs." (25) |
+| Kalé at `after_rykard`, with a told `slew:rykard` claim | the queen (Word) | none: `slew:rykard` stays a claim, and "Rykard" stays locked for him | the since-line only |
+
+**Lints and tests.** W5 and W7 gain the cue clauses (§12.10). T12 and T13 are new, and T3, T4, T7, T8 and T11 are extended. `star_falls.scn` gains step E2 (§12.11). The C14 probes are in NPC §12.5.
+
+**Increments.**
+- **v0.2:** item 9's sentence and the item 1–3 shortening ship with item 9.
+- **v0.3:** the cue itself:
+  - `cue()`, the three reactions, `07_cue.j2`, `cued`, `world_cued`, `world_seen_pt` and the `Conversation` fields;
+  - Kalé `eager`;
+  - the W5 and W7 clauses; T12 on Kalé and the CI fixture persona `test_stake`; T13; the T3, T4 (the since-line goldens and Kalé's cue goldens), T7, T8 and T11 extensions; step E2;
+  - C14's cue slots on Kalé.
+- **v0.5:** the five other personas' `awareness.news` and their cue tables, Blaidd's and Alexander's cue goldens (T4), and C14's cued and uncued rates pooled over six personas.
+
+**Later (not in v1).**
+- A persona that greets the Tarnished with news on approach. It needs the reserved `Autonomous` scheduler class, S3's talk observer and `PersonaApproached` as its trigger, and it would lift DESIGN §8.7.
+- O30 (d)'s reactions.
+- "Proved since the last meeting" as a narrower Tarnished's part, if the human sample finds late cues odd. It first needs a trim-safe `pt` for `verified:*`.
+- A seeded roll that thins a reaction, if T13 or C14 shows cues coming too often.
