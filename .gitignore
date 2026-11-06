@@ -1,0 +1,57 @@
+# --- Rust / build output ---
+/target/
+**/target/
+*.pdb
+*.dll
+*.exe
+*.lib
+*.exp
+*.ilk
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# --- Local configuration and secrets (API keys live here) ---
+/config.local.*
+**/*.local.toml
+**/*.local.yaml
+.env
+.env.*
+secrets/
+
+# --- Runtime data: per-save memory databases, logs, traces ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+logs/
+*.log
+traces/
+
+# --- Downloaded models (voices, embeddings, STT) ---
+models/
+*.onnx
+*.gguf
+*.bin
+
+# --- Game data: never commit FromSoftware files or local exports ---
+# Text and params exported from your own install (Smithbox / WitchyBND) stay local.
+/game-export/
+*.fmg
+*.fmg.xml
+*.dcx
+*.bnd
+*.bdt
+*.bhd
+*.sl2
+regulation.bin
+
+# --- Third-party research checkouts (read-only, never vendored here) ---
+/_untrusted/
+/ext/
