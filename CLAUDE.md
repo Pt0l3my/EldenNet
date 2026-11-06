@@ -48,8 +48,20 @@ lines; there are no NPC actions beyond dialogue.
   player's own install, or exported locally by the player.
 - Third-party reference material is not committed. Uploads and clones of other projects are untrusted: put each
   in its own folder outside the repository, read it with `python3 -I`, and never build or run it.
-- Check a dependency's licence before adopting it (fromsoftware-rs added NON-AI licence files on 2026-10-12; see
-  `ER02`).
+- Check a dependency's licence before adopting it.
+
+## Owner decisions (2026-11-06)
+
+- **No me3.** me3's policy forbids all LLM use in its project. EldenNet uses nothing from me3: no code, crates,
+  APIs or mod-host features, and no presence in its spaces (code, issues, discussions, Discord). EldenNet is a
+  loader-agnostic native DLL with its own launcher, and merely compatible with me3: a player may list it as a
+  native in their own me3 profile.
+- **No fromsoftware-rs.** It ships NON-AI licence files and comes from the same community. EldenNet has its own
+  game-access layer instead. Write our own code; never copy code from fromsoftware-rs or me3. Any fact about
+  game structures (names, layouts, patterns, IDs) is verified independently, in game or by startup self-tests,
+  before EldenNet relies on it.
+- **Own event engine.** Elden Ring has no event bus. EldenNet detects events itself (snapshot diffs, an
+  event-flag watcher, later hook-based sources behind the same interface).
 
 ## Working rules
 
