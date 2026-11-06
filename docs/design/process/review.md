@@ -145,7 +145,7 @@ Each document now opens with a short "How to read it" after its status block: DE
 6. **The `ReadProcessMemory` fallback (S0-D).** If vectored handlers force the copy primitive onto `ReadProcessMemory` (about 1 µs per copy), the 512-copy budget alone reaches about 0.5 ms. The snapshot's 0.4 ms p99 would then need fewer copies per character or the 2 Hz throttle. Measure in S0-D.
 7. **hudhook's MinHook.** R12 assumes that the DInput and XInput detours can go through the MinHook copy that hudhook bundles. **Partly settled (2026-11-06):** hudhook 0.9.3's source has a public `mh` module (`MhHook::new`, `queue_enable`, and the `MH_*` calls including `MH_ApplyQueued`), and the owner pinned that version (DESIGN O25). The first v0.1 build still confirms that our detours work through it. Two rules follow from its source: `Hudhook::builder()` calls `MH_Initialize` itself (and panics if MinHook cannot allocate), so our detours are created after it, inside the init thread's unwind guard; and hudhook's eject path (`hudhook::eject`, `unapply`) calls `MH_Uninitialize`, which removes every hook in the shared MinHook, ours included, so it must never run (the R12 grep in ARCH §10.1).
 8. **Kalé's data.** His flag block is unknown (`base = 0`), and `kale.howl_told` has `id = 0`. The pilot therefore runs with its base stage only until S6 finds them. That is fine for v0.2, but the eval's 2–3 stages per persona cannot be met for Kalé until then.
-9. **Clean-room discipline for patterns** (ARCH §6.3) is a process rule that CI cannot fully check, because the provenance field is self-declared. Asked as DESIGN O27 (Open), recommending a short derivation note per pattern, reviewed with each `gal/` change.
+9. **Clean-room discipline for patterns** (ARCH §6.3) is a process rule that CI cannot fully check, because the provenance field is self-declared. Decided as DESIGN O27 (2026-11-06): a short derivation note per pattern, reviewed with each `gal/` change (ARCH §6.3).
 
 ### 4.3 For the owner
 
@@ -153,7 +153,7 @@ Each document now opens with a short "How to read it" after its status block: DE
 11. **Adopted by the review:** the title-screen gate clause (§3 item 1) and the sheltered-context definition (§3 item 15).
 12. **Proton** has no supported launch path of our own until S0-C passes. Until then it works only through a loader the player already uses.
 
-**Owner's answer (2026-11-06):** every recommended default then in DESIGN §19 (O1–O24) is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C. Two verification passes after that answer added the build rules that follow from O25 (`dx12` only, no eject path, third-party notices, the licence checks in ARCH §12.1) and raised two new questions, now Open in DESIGN §19: O26 (a game whose text language is not English) and O27 (a derivation note per pattern, item 9).
+**Owner's answer (2026-11-06):** every recommended default then in DESIGN §19 (O1–O24) is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C. Two verification passes after that answer added the build rules that follow from O25 (`dx12` only, no eject path, third-party notices, the licence checks in ARCH §12.1) and raised two new questions: O26 (a game whose text language is not English) and O27 (a derivation note per pattern, item 9). The owner decided both as recommended the same day.
 
 ### 4.4 Not done here
 

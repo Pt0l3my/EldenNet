@@ -62,8 +62,11 @@ lines; there are no NPC actions beyond dialogue.
   before EldenNet relies on it.
 - **Own event engine.** Elden Ring has no event bus. EldenNet detects events itself (snapshot diffs, an
   event-flag watcher, later hook-based sources behind the same interface).
-- **Design defaults accepted.** Every recommended default in DESIGN.md §19 (O1–O24) is decided, and so are the
-  two rules the review adopted (the title-screen gate clause and the sheltered-context definition).
+- **Design defaults accepted.** Every recommended default in DESIGN.md §19 (O1–O24, then O26 and O27) is
+  decided, and so are the two rules the review adopted (the title-screen gate clause and the sheltered-context
+  definition).
+- **Quest and world awareness.** Important NPCs know the state of their own quest and of related quests, and
+  the stage the world is in (for example, that the star has fallen since Radahn's death).
 - **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
   2026-11-06). Change the version only with the owner's approval, after re-reading its licence files. Rules
   that follow from the pin (DESIGN O25): build it with the `dx12` feature only, use `imgui` only through

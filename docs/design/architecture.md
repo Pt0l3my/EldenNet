@@ -688,6 +688,7 @@ builds  = ["2.7.2.0-ww"]
 provenance = { method = "own-derivation", leads = ["ER01 §4"], evidence = "…", date = "…" }
 ```
 
+- **Derivation note (DESIGN O27):** every pattern has a short note, `gal/derivations/<id>.md`, in our own words: what was searched for, in which build, how the hit was confirmed, and the evidence file. It is reviewed with each `gal/` change, and lint fails on a pattern without one. It is the record behind `provenance.method = "own-derivation"`, which CI cannot check by itself.
 - **Grammar:** hex byte pairs, `??` for a wildcard byte, whitespace ignored.
 - **Load-time validation:** ids are unique; every required id is present; `capture` lies within the pattern; and `provenance.method` is `own-derivation`. Anything else fails CI and the boot (O4).
 - **What a lead may carry:** a lead says *what* to look for (the function's role, its caller, the singleton's name, the idiom's shape). It never supplies the bytes. Byte strings that the research quotes from fromsoftware-rs's mapper profile, from TGA's table or from other projects are not pasted into `patterns.toml`; every pattern is cut from our own disassembly of the exe in S0-A and recorded with its evidence file (DESIGN §4.2, O4).
@@ -1793,7 +1794,7 @@ eldennet/
     identity/{personas,archetypes,speech,humanoid_models}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml
-  gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml
+  gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
   tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/, db/}  recordings/*.ensnap.zst (redacted)
               golden/{*.events.jsonl, CHANGES.md}  s6/*.toml
   tools/      privsweep/  workplan/
