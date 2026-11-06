@@ -233,7 +233,7 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 - **R9 Lints.** Deny `unwrap`, `expect`, `panic`, indexing and unchecked arithmetic in `en-gal`, `en-overlay`, `eldennet` and `en-launcher`. In the game process, `unsafe` blocks appear only in `en-gal::{reader, sys}` and `en-overlay::hooks`, each with a `// SAFETY:` note. `eldennet` allows `unsafe_code` only on its `exports` module, for the `#[unsafe(no_mangle)]` attributes of `DllMain` and the instance marker, and that module holds no `unsafe` block. The launcher, a separate process, keeps its Win32 `unsafe` in `en-launcher::win` (ARCH §2.4).
 - **R10 Time-based cadence and self-throttle.** Accumulated QPC time, never frame counts (J2 G21). After 3 ticks over 0.5 ms, drop to 2 Hz and 16 characters within 25 m; restore after 60 s.
 - **R11 Idle while loading.**
-- **R12 System-DLL hooks only.** Installed once at boot, never toggled, chained, all through the one MinHook copy that hudhook bundles (ER02 §7.1, J1 #15).
+- **R12 System-DLL hooks only.** Installed once at boot, never toggled, chained, all through the one MinHook copy that hudhook bundles, exposed as its public `hudhook::mh` module in 0.9.3 (ER02 §7.1, J1 #15, O25).
 - **R13 Sanitized, byte-capped strings** only (§8.4).
 - **R14 No work at `DLL_PROCESS_DETACH`.** Every DB request is one WAL transaction, committed as soon as the store receives it. Speech commits (`PlayerSaid`, each `NpcSaid` page) are sent at once. Other writes are coalesced by the core into one request at most every 250 ms (ARCH §1.5).
 - **R15 Abort-class failures are designed out** (J1 #7). `catch_unwind` cannot stop a stack overflow, OOM, C-level faults or panics in `Drop`. So: size and recursion caps on templates, JSON and the sanitizer; bounded buffers; no panics in `Drop`; no ML in process. The residual risk is accepted, with an out-of-process core kept as a seam (§13).
@@ -313,7 +313,7 @@ If S0-A fails, the owner chooses among the options in §17 K2. Neutralising Arxa
 
 ### 3.6 Save separation
 
-v1 never writes game memory, flags or the `.sl2` (R2). The default (O6) is therefore: no save redirection, rotating launcher backups, and warnings in both the launcher and the wizard never to take a save played offline with mods online (ER02 §2.2). A `CreateFileW`-family redirect hook would be allowed (it is a system DLL). It is deferred to v1.x behind a spike, because it could collide with ERSC's `.co2` handling and a player's me3 `savefile` (J1 #27, J2 §2 #4). A launcher file swap is rejected: it is crash-unsafe and races Steam Cloud.
+v1 never writes game memory, flags or the `.sl2` (R2). The decision (O6) is therefore: no save redirection, rotating launcher backups, and warnings in both the launcher and the wizard never to take a save played offline with mods online (ER02 §2.2). A `CreateFileW`-family redirect hook would be allowed (it is a system DLL). It is deferred to v1.x behind a spike, because it could collide with ERSC's `.co2` handling and a player's me3 `savefile` (J1 #27, J2 §2 #4). A launcher file swap is rejected: it is crash-unsafe and races Steam Cloud.
 
 ---
 
@@ -1098,7 +1098,7 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 
 ## 12. Presentation
 
-- **Host:** hudhook DX12 ImGui, one context. OFL fonts (EB Garamond, Noto Sans); game fonts never ship (ER03 §7A).
+- **Host:** hudhook DX12 ImGui, pinned at exactly 0.9.3 (O25), one context. OFL fonts (EB Garamond, Noto Sans); game fonts never ship (ER03 §7A).
 - **Surfaces:**
   - conversation lower third at about 76% of the screen height, ≤ 46% of its width, speaker name in muted gold;
   - chat box at the bottom centre, with a header and a 3-exchange history;
@@ -1271,12 +1271,15 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |
 | Content size | 6 personas, 6 cards + fallback | 8/12; 12+1/12 | Solo developer; S6 per persona | J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
+| Overlay library | hudhook pinned at exactly 0.9.3, with its `imgui` and MinHook re-exports | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1 |
 
 ---
 
 ## 19. Decisions for the project owner
 
-| # | Decision | Options | Recommended default |
+**Status: all decided by the owner on 2026-11-06.** The owner accepted every recommended default below (O1–O24), the two rules the review adopted (the title-screen clause of §3.4 and the definition of a sheltered context in §8.1), and pinned the overlay library (O25). A question that comes up later is added here as a new row marked **Open**, with a recommended default, until the owner decides it.
+
+| # | Decision | Options | Decision (owner, 2026-11-06) |
 |---|---|---|---|
 | O1 | Project name | Keep "EldenNet" / rename before the first public build | **Keep for development; pick the public name before the v0.6 public test.** It must not trade on SkyrimNet's name (SN00 §7) or lean on FromSoftware marks. The `en-` crate prefix keeps a rename cheap |
 | O2 | Process model | Monolith / split brain | **Monolith.** Revisit only if crash dumps show abort-class faults in core code |
@@ -1302,3 +1305,4 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | O22 | Distribution | GitHub / Nexus / both | **GitHub as the canonical signed source; Nexus mirror with an AI disclosure** |
 | O23 | Generated bark pools in v1.0 | Seeds only / seeds + pools | **Seeds + pools, gated by X2** (pools stay off by default if X2 fails). Pools serve variety, not stability. If v0.4 runs late, ship seeds only and move pools to v1.1; requirement 3 is met by seeds alone |
 | O24 | Floating bark labels in v1.0 | Feed only / feed + labels | **Feed + labels**, labels only once the `camera` group passes. Labels are the one feature that reads game memory every frame (the render feed). If S1 or the soak shows any cost or fault there, ship the feed only |
+| O25 | Overlay library | hudhook, pinned / a newer hudhook / another hook library / our own DX12 hooks | **hudhook, pinned at exactly 0.9.3** (`=0.9.3`). It is plain MIT, its bundled MinHook is BSD-2, and neither carries an AI clause (checked 2026-11-06). `en-overlay` takes `imgui` (0.12) and MinHook through hudhook's re-exports (`hudhook::imgui`, `hudhook::mh`), so the process links one copy of each. Any change of version needs the owner's approval and a fresh read of its licence files (ARCH §12.1) |

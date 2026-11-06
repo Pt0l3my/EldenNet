@@ -96,7 +96,7 @@ Each document now opens with a short "How to read it" after its status block: DE
 
 | # | Source | Conflict | Resolution |
 |---|---|---|---|
-| 1 | ARCH | Wizard vs gate at the title | **Adopted** the title clause (DESIGN §3.4, decision log). The owner may veto it; nothing else depends on it but the wizard's self-test |
+| 1 | ARCH | Wizard vs gate at the title | **Adopted** the title clause (DESIGN §3.4, decision log). The owner accepted it on 2026-11-06; nothing else depends on it but the wizard's self-test |
 | 2 | ARCH | `cargo deny` cannot see NON-AI licence files | **Adopted** the licence-file scan and `[bans]` list (DESIGN §4.7, §14) |
 | 3 | ARCH | Self-tests vs R1 | **Adopted**; L1 wording now covers "no task" and "inert task" (DESIGN §3.1, §4.4). C2 unchanged |
 | 4 | ARCH | Readiness vs scan order | **Adopted** two-phase readiness (DESIGN §3.1, §3.5) |
@@ -143,17 +143,19 @@ Each document now opens with a short "How to read it" after its status block: DE
 
 5. **Play-time width.** ARCH reads `play_time` as a `u32` of milliseconds, which wraps or caps at about 1,193 hours. Rollback is decided by play time (MEM §9.1). MEM should state what a jump of more than 1,000 hours backwards means (a cap or wrap, not a rollback) once S6 shows how the game behaves.
 6. **The `ReadProcessMemory` fallback (S0-D).** If vectored handlers force the copy primitive onto `ReadProcessMemory` (about 1 µs per copy), the 512-copy budget alone reaches about 0.5 ms. The snapshot's 0.4 ms p99 would then need fewer copies per character or the 2 Hz throttle. Measure in S0-D.
-7. **hudhook's MinHook.** R12 assumes that the DInput and XInput detours can go through the MinHook copy that hudhook bundles. Confirm in the first v0.1 build that hudhook 0.9.3 exposes it. If it does not, the rule "one MinHook in the process" needs another route before any second hook library is added.
+7. **hudhook's MinHook.** R12 assumes that the DInput and XInput detours can go through the MinHook copy that hudhook bundles. **Partly settled (2026-11-06):** hudhook 0.9.3's source has a public `mh` module (`MhHook::new`, `queue_enable`, and the `MH_*` calls including `MH_ApplyQueued`), and the owner pinned that version (DESIGN O25). The first v0.1 build still confirms that our detours work through it.
 8. **Kalé's data.** His flag block is unknown (`base = 0`), and `kale.howl_told` has `id = 0`. The pilot therefore runs with its base stage only until S6 finds them. That is fine for v0.2, but the eval's 2–3 stages per persona cannot be met for Kalé until then.
 9. **Clean-room discipline for patterns** (ARCH §6.3) is a process rule that CI cannot fully check, because the provenance field is self-declared. The owner may want a short derivation log per pattern, reviewed with each `gal/` change.
 
 ### 4.3 For the owner
 
 10. **New decisions:** O23 (bark pools) and O24 (floating labels), both with a cut path. **Settled:** O3 presents the three options; the owner then decided (c), own GAL (2026-11-06), and DESIGN §19 records it as decided.
-11. **Adopted by the review, open to veto:** the title-screen gate clause (§3 item 1) and the sheltered-context definition (§3 item 15).
+11. **Adopted by the review:** the title-screen gate clause (§3 item 1) and the sheltered-context definition (§3 item 15).
+
+**Owner's answer (2026-11-06):** every recommended default in DESIGN §19 is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C.
 12. **Proton** has no supported launch path of our own until S0-C passes. Until then it works only through a loader the player already uses.
 
 ### 4.4 Not done here
 
-- No commit was made. Before anything is pushed, run the privacy and safety sweep (`tools/privsweep`).
+- The review itself made no commit. The design set was committed and pushed after the privacy and safety sweep (`tools/privsweep`) passed.
 - The process records (P1–P3, J1–J3) were not edited. Where they disagree with DESIGN.md, DESIGN wins, as its header says.
