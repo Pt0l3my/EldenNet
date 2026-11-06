@@ -240,7 +240,7 @@ pub struct Outputs {
 | `en-store` | `en-proto`, `rusqlite` (bundled), `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` | `en-proto`, `tokio`, `reqwest` (rustls), `serde_json`, `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, `windows` (`sys` only), `bytemuck`, `toml`, `cc` (build) | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, `imgui`, `tokio` |
-| `en-overlay` | `en-proto`, `hudhook` (`=0.9.3`, DESIGN O25; `imgui` 0.12 and MinHook only through its re-exports `hudhook::imgui` and `hudhook::mh`), `windows` | `en-gal` (it can never reach game memory), `en-core` |
+| `en-overlay` | `en-proto`, `hudhook = { version = "=0.9.3", default-features = false, features = ["dx12"] }` (DESIGN O25; `imgui` 0.12 only through the re-export `hudhook::imgui`, MinHook only through hudhook's own FFI module `hudhook::mh`), `windows` 0.62 (hudhook's version, or `hudhook::windows`) | `en-gal` (it can never reach game memory), `en-core` |
 | `eldennet` | All of the above, `crossbeam`, `arc-swap`, `notify`, `tracing`, `tracing-appender` | — |
 | `en-launcher` | `en-gal` (`offline`), `windows` | Everything else in the workspace |
 | `en-tools` | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-gal` (`offline`), `clap`, `zstd`, `insta`, `proptest` | `en-overlay`, `en-gal` with `sys` |
@@ -270,7 +270,7 @@ Every `unsafe` block carries a `// SAFETY:` note (R9). `exported_private_depende
 | `freeze` | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
 | `offline` | `en-gal` | The safe offline modules only (§2.1) | Allowed (tools and launcher) |
 
-The release job runs `cargo tree -e features` and fails if any of `probe`, `hooks`, `actions` or `freeze` is active in `eldennet`.
+The release job runs `cargo tree -e features` and fails if any of `probe`, `hooks`, `actions` or `freeze` is active in `eldennet`, or if hudhook has any feature but `dx12` (DESIGN O25).
 
 ### 2.6 Build profile and target
 
@@ -1471,7 +1471,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 | R9 Lints | Clippy deny-list per crate (§2.4) in CI on the Windows target |
 | R10 Time-based cadence, self-throttle | Simulated frame times of 30, 60 and 144 FPS and 1 s hitches → always 4 Hz, never a burst. Throttle entry and exit tests |
 | R11 Idle while loading | Replay of a recorded loading screen: read counters show the lifecycle subset only |
-| R12 System-DLL hooks only, once | `en-overlay::hooks::install` sits behind a `Once`, and there is no uninstall API. CI grep: no `MH_DisableHook`/`MH_RemoveHook`, no second MinHook copy in `cargo tree`. S0-E |
+| R12 System-DLL hooks only, once | `en-overlay::hooks::install` sits behind a `Once`, and there is no uninstall API. CI grep: none of `MH_DisableHook`, `MH_QueueDisableHook`, `queue_disable`, `MH_Uninitialize`, `MH_RemoveHook`, `hudhook::eject`, `unapply` or the `hudhook!` macro, because hudhook's eject path uninitialises the shared MinHook and would remove our DInput and XInput detours too. A second MinHook fails the `licences` and `licence-files` stages (§12.1). S0-E |
 | R13 Sanitised, capped strings | `UiModel` accepts only `SafeText`, whose constructor runs the sanitizer and the byte cap. `proptest` fuzzing (C7) |
 | R14 Nothing at detach | CI grep: the `DLL_PROCESS_DETACH` path is empty. One DB request = one transaction. Hard-kill tests during a reply |
 | R15 Abort-class failures designed out | The caps in §10.2, each with a test. CI lists every `impl Drop` in the workspace and requires a `// DROP: cannot panic` note |
@@ -1702,12 +1702,12 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `fmt` | Linux | Any diff |
 | `clippy-pure` | Linux: `en-proto`, `en-augur`, `en-core`, `en-store`, `en-llm`, `en-tools` | §2.4 lists |
 | `clippy-win` | Linux via `cargo xwin clippy --target x86_64-pc-windows-msvc` | §2.4 deny lists for `en-gal`, `en-overlay`, `eldennet`, `en-launcher` |
-| `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; `MH_RemoveHook`/`MH_DisableHook`; `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
+| `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 list (`MH_RemoveHook`, `MH_DisableHook`, `MH_QueueDisableHook`, `queue_disable`, `MH_Uninitialize`, `hudhook::eject`, `unapply`, `hudhook!`); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
 | `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), and `lead` entries in release layouts |
-| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares only a `license-file`, so `deny.toml` carries a `[[licenses.clarify]]` entry for `hudhook` 0.9.3: MIT, with its licence file's hash as `cargo deny` records it on first set-up. `[bans]` also denies any hudhook version but 0.9.3 and a second `imgui` version; a second MinHook is caught by R12's own check (§10) (DESIGN O25) | Any other licence or source; a changed hudhook licence file; any hudhook version but 0.9.3 |
-| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI` | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7) |
-| `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled |
+| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by name every other hooking crate (`minhook*`, `retour`, `detour*`, `ilhook`, any kiero port), so the only MinHook is hudhook's (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) | Any other licence or source; any hudhook version but 0.9.3; another hooking crate |
+| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and checks that `THIRD_PARTY.md` carries hudhook's MIT notice and the MinHook and HDE BSD-2 notices (DESIGN O25) | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook; a missing third-party notice |
+| `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled; any hudhook feature but `dx12` (DESIGN O25) |
 | `build-release` | Two independent runners: `cargo xwin build --release --locked`, pinned toolchain and xwin SDK, `SOURCE_DATE_EPOCH`, `--remap-path-prefix`, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
 | `sign` | Release tags only | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
 
