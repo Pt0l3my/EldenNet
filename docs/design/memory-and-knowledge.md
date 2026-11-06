@@ -299,7 +299,7 @@ Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, fa
 
 **Assertions beyond the table:**
 - `event_audience` holds no rows for any card handle.
-- No rendered prompt contains a catalogue alias, a `note` string or any CJK character other than the player's own name as `told_name` holds it (§7.6, DESIGN O26).
+- No rendered prompt contains a catalogue alias, a `note` string or any CJK character (§7.6).
 - After step F, Kalé's prompt lists keepsakes in the order k3, then k2 (proved true), then k1.
 - The trim tests (§9.6) reuse this recording.
 
@@ -441,7 +441,7 @@ Sent as `response_format: json_schema` where the provider supports it, `json_obj
 
 1. **Parse.** Raw output ≤ 8 KB, JSON depth ≤ 6. Without schema support, take the last balanced `{…}` and parse it strictly, once. Unknown keys are ignored and counted. A missing required key, or `finish_reason = length`, is a failure.
 2. **Sanitize** every string with NPC §8.2 steps 0–6.
-3. **Sentence hygiene**, in the summary and every keepsake. Drop a sentence or keepsake that has a banned or safety word (NPC §8.3), CJK text other than the player's own name as `told_name` holds it, or a catalogue alias (§7.6), an injection marker ("ignore", "instruction", "system", "prompt", "as an AI", role labels), or a markup remnant.
+3. **Sentence hygiene**, in the summary and every keepsake. Drop a sentence or keepsake that has a banned or safety word (NPC §8.3), CJK text or a catalogue alias (§7.6), an injection marker ("ignore", "instruction", "system", "prompt", "as an AI", role labels), or a markup remnant.
 4. **Spoiler check:** drop any sentence or keepsake containing a term locked for this persona at the current flag state (§7.3).
 5. **Summary caps:** 121–160 words are cut back to the last full sentence within 120; more than 160 is a failure. If the old summary was non-empty and the new one is empty, or more than half its sentences were dropped in steps 3–4, that is a failure too, so a bad reply never wipes the journal.
 6. **Keepsakes:**
@@ -850,7 +850,7 @@ For every persona, every stage and each of the six fixture flag states (§7.8) i
 1. The repo holds **no FromSoftware developer labels**. The catalogue stores our own `note` and a `src` pointer (§11).
 2. Content lint rejects CJK characters in every content file.
 3. Prompt-snapshot tests assert that no catalogue alias (regex over the alias set) and no 4-word run of any `note` appears in any rendered prompt or overlay string.
-4. Memory-job output with alias-shaped tokens (`[a-z]+\.[a-z_]+`) or CJK is dropped (§3.6 step 3). The one exception is the player's own name exactly as `told_name` holds it, which may be in any script.
+4. Memory-job output with alias-shaped tokens (`[a-z]+\.[a-z_]+`) or CJK is dropped (§3.6 step 3).
 5. The F11 view shows aliases (it is a developer tool, off by default); the bug-report bundle includes aliases but no notes.
 
 ### 7.7 Strict mode only
