@@ -240,7 +240,7 @@ pub struct Outputs {
 | `en-store` | `en-proto`, `rusqlite` (bundled), `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` | `en-proto`, `tokio`, `reqwest` (rustls), `serde_json`, `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, `windows` (`sys` only), `bytemuck`, `toml`, `cc` (build) | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, `imgui`, `tokio` |
-| `en-overlay` | `en-proto`, `hudhook`, `imgui`, `windows` | `en-gal` (it can never reach game memory), `en-core` |
+| `en-overlay` | `en-proto`, `hudhook` (`=0.9.3`, DESIGN O25; `imgui` 0.12 and MinHook only through its re-exports `hudhook::imgui` and `hudhook::mh`), `windows` | `en-gal` (it can never reach game memory), `en-core` |
 | `eldennet` | All of the above, `crossbeam`, `arc-swap`, `notify`, `tracing`, `tracing-appender` | — |
 | `en-launcher` | `en-gal` (`offline`), `windows` | Everything else in the workspace |
 | `en-tools` | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-gal` (`offline`), `clap`, `zstd`, `insta`, `proptest` | `en-overlay`, `en-gal` with `sys` |
@@ -1705,7 +1705,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; `MH_RemoveHook`/`MH_DisableHook`; `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
 | `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), and `lead` entries in release layouts |
-| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only | Any other licence or source |
+| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares only a `license-file`, so `deny.toml` carries a `[[licenses.clarify]]` entry for `hudhook` 0.9.3: MIT, with its licence file's hash as `cargo deny` records it on first set-up. `[bans]` also denies any hudhook version but 0.9.3 and a second `imgui` version; a second MinHook is caught by R12's own check (§10) (DESIGN O25) | Any other licence or source; a changed hudhook licence file; any hudhook version but 0.9.3 |
 | `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI` | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7) |
 | `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled |
 | `build-release` | Two independent runners: `cargo xwin build --release --locked`, pinned toolchain and xwin SDK, `SOURCE_DATE_EPOCH`, `--remap-path-prefix`, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |

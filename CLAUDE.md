@@ -62,11 +62,16 @@ lines; there are no NPC actions beyond dialogue.
   before EldenNet relies on it.
 - **Own event engine.** Elden Ring has no event bus. EldenNet detects events itself (snapshot diffs, an
   event-flag watcher, later hook-based sources behind the same interface).
+- **Design defaults accepted.** Every recommended default in DESIGN.md §19 (O1–O24) is decided, and so are the
+  two rules the review adopted (the title-screen gate clause and the sheltered-context definition).
+- **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
+  2026-11-06). Use `imgui` and MinHook only through its re-exports. Change the version only with the owner's
+  approval, after re-reading its licence files.
 
 ## Working rules
 
 - Work on a topic branch (`design/`, `feat/`, `fix/`, `docs/`, `test/`, `chore/`), never directly on `main`
   unless the owner asks. Open a pull request only when asked.
-- Ask the owner, with a recommendation, about anything the design leaves open. The list is in DESIGN.md's
-  "Decisions for the project owner" section.
+- Ask the owner, with a recommendation, about anything the design leaves open. Add each question to DESIGN.md's
+  "Decisions for the project owner" section (§19) as a new row marked Open, and record the answer there.
 - Keep example content original: personas, archetype cards and prompts are written from our own specs.
