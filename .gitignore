@@ -55,3 +55,7 @@ regulation.bin
 # --- Third-party research checkouts (read-only, never vendored here) ---
 /_untrusted/
 /ext/
+
+# --- Generated tool state ---
+tools/workplan/data/
+**/__pycache__/
