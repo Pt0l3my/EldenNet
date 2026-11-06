@@ -3,7 +3,7 @@
 > **Status:** detail design, 2026-11-06. It expands [DESIGN.md](DESIGN.md) §7 (NPC model), §8 (conversation, with the guardrails of §8.8), §9 (barks) and §12 (presentation). DESIGN.md is authoritative. Where this document has to interpret or refine a rule, it says so, and §14 lists every such point.
 > **Companions:** [architecture.md](architecture.md) owns threads, the Game Access Layer (GAL), Augur, the overlay and the input hooks. [memory-and-knowledge.md](memory-and-knowledge.md) owns the event log, facts, the journal, the knowledge base (KB), the flag catalogue, the predicate language, the spoiler lexicon and the memory job.
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J3 #n` are process records. **UNVERIFIED (S1)** / **(S6)** marks an ID or flag taken from research that a spike must confirm in game before code relies on it.
-> **How to read it:** §1–§2 say who may speak and how a live character becomes a persona, a card or nothing. §3–§4 are the persona and card schemas, with the pilot persona (Kalé) and one complete card. §5–§8 follow one conversation from the talk key to commit on display. §9 is barks, §10 presentation, §11 guardrails and §12 the content acceptance gates. §14 lists where this document had to interpret DESIGN; the review adopted those points into DESIGN.md ([process/review.md](process/review.md)).
+> **How to read it:** §1–§2 say who may speak and how a live character becomes a persona, a card or nothing. §3–§4 are the persona and card schemas, with the pilot persona (Kalé) and one complete card; §3.6 gives the six v1.0 personas their roads and world awareness (MEM §12). §5–§8 follow one conversation from the talk key to commit on display. §9 is barks, §10 presentation, §11 guardrails and §12 the content acceptance gates. §14 lists where this document had to interpret DESIGN; the review adopted those points into DESIGN.md ([process/review.md](process/review.md)).
 > **Licence hygiene:** every persona, card, seed line, prompt heading and example below is original and was written from our own spec. Nothing is taken from SkyrimNet's prompts, templates or bios (SN00 §7). No FromSoftware text ships: names, places and items reach prompts only as runtime strings read from the player's own install (DESIGN §4.5).
 
 ---
@@ -46,11 +46,11 @@ Unresolved characters are **not perceivable**. They never appear in a prompt's "
 
 | `persona_id` | Talk code (metadata) | `npc_params` leads | Entity leads | Flag block lead | Register | Notes |
 |---|---|---|---|---|---|---|
-| `kale` | 800 | `32000000` (ER04 §1) | `11000705` (ERR-mined, ER05 §6.3; its map prefix does not fit the Church of Elleh, so it is not used until S1) | Unknown | colloquial | **Pilot, v0.2** (§3.4) |
+| `kale` | 800 | `32000000` (ER04 §1) | `11000705` (ERR-mined, ER05 §6.3; its map prefix does not fit the Church of Elleh, so it is not used until S1) | 4700 (lead, ER07 §4; S6) | colloquial | **Pilot, v0.2** (§3.4) |
 | `varre` | 301 | `523010000` | `1042360700` (ERR-mined) | 3180 | formal | ER04 §5: 0% archaic |
 | `patches` | 309 | `523090000`, boss form TBD | `31000701` (ERR-mined) | 3680 | colloquial | `honesty = liar` |
 | `blaidd` | 216 | `20100000` | — | 3600 | colloquial | Late "gone mad" stage is `chat = "refuse"` |
-| `alexander` | 220 | `44909000` | — | Unknown | colloquial | Sits in the silent living-jar family. Allowed by a persona speech entry |
+| `alexander` | 220 | `44909000` | — | 3660 (lead, ER07 §4; S6) | colloquial | Sits in the silent living-jar family. Allowed by a persona speech entry |
 | `boc` | 223 | `41109000`; `523420000` (code 342, LIKELY a later form, ER04 §1) | `11050730` (ERR-mined) | 3940 | colloquial | The v1 content case for reveal handling (§2.7) |
 | `lantern_keeper` | — | none (`test_only`) | — | — | formal | Self-test and eval only (§3.5) |
 
@@ -137,7 +137,7 @@ schema = 1
 id = "kale"                               # slug, unique, never reused (§2.4)
 file = "personas/kale.toml"
 talk_code = 800                           # metadata only; never used to resolve (ER04 §1)
-flag_block = { alias = "kale", base = 0, verified = false }    # base unknown: S6
+flag_block = { alias = "kale", base = 0, verified = false }    # base unknown: S6; lead 4700 (ER07 §4; S6)
 npc_params = [
   { param = 32000000, form = "default", expect_name_id = 0, verified = false },   # ER04 §1; S1
 ]
@@ -322,7 +322,7 @@ Personas are prose in named fields. Code owns the order, headers, state and pers
 
 ### 3.1 Fields
 
-Audiences: **public** may appear in this persona's prompts and in other personas' `observed` views. **private** appears only in this persona's own dialogue and memory prompts. **voice** goes to block 4 and the lint. **knowledge** goes to block 7, gated. **stages** select what blocks 2, 3 and 7 show. **fallback** is shown directly and never prompted.
+Audiences: **public** may appear in this persona's prompts and in other personas' `observed` views. **private** appears only in this persona's own dialogue and memory prompts. **voice** goes to block 4 and the lint. **knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show. **awareness** goes to block 5b, gated (MEM §12). **fallback** is shown directly and never prompted.
 
 | Field | Type | Cap | Audience | Notes |
 |---|---|---|---|---|
@@ -347,6 +347,9 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `voice.tics` | [{`text`, `max_per_conversation` 1–2}] | ≤ 3, ≤ 12 words each | voice + lint | Our own words; never a FromSoftware coinage (J2 #14) |
 | `knowledge.always` | [KB key] | ≤ 8 | knowledge | ≤ 4 are rendered per turn |
 | `knowledge.topics` | [KB key] | ≤ 16 | knowledge | ≤ 3 per turn, by keyword match (DESIGN §10.4) |
+| `awareness.home` | [RegionKey] | ≤ 3 | — | Where the persona has long lived; regional news reaches it there (MEM §12.5) |
+| `awareness.tie` | [{`item`, `certainty?`, `when?`, `from?`, `line?`, `spoiler?`, `lexicon?`, `basis`, `evidence[]`}] | ≤ 6; `line` ≤ 25 words, ≤ 160 chars | knowledge | A relation to a world stage or another track (MEM §12.2) |
+| `awareness.skip` | ["alias: reason"] | ≤ 12 | — | Verified block offsets deliberately unused (W4) |
 | `[[stages]]` | table | ≤ 12 | stages | Ordered |
 | `stages.id` | slug | 32 chars | — | |
 | `stages.when` | predicate | ≤ 200 chars | gate | Catalogue aliases only; a raw number in `flag()` is an error |
@@ -354,6 +357,12 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `stages.where` | string | ≤ 20 words | knowledge | |
 | `stages.mood` | string | ≤ 8 words | knowledge | |
 | `stages.gist` | prose | ≤ 60 words | knowledge | **Our own paraphrase** of what has passed between this NPC and the Tarnished in vanilla up to this stage, naming only real vanilla acts |
+| `stages.road` | prose | ≤ 30 words | knowledge (block 5b) | Where the persona's own affairs stand: our own paraphrase of vanilla, like `gist`. Required on the base stage; inherits |
+| `stages.at` | RegionKey | — | — | Where the persona is at this stage. Required on the base stage; inherits |
+| `stages.hears` | `all \| sky \| none` | default `all` | — | Inherits |
+| `stages.knows` | [`w:` id] | ≤ 4 | — | World stages this stage implies. Inherits |
+| `stages.awaits` | `w:` id | — | lint | Needs a bridging stage (W10) |
+| `stages.heard`, `stages.short` | prose, phrase | ≤ 25 words, ≤ 8 words | others' block 5b | Only when another persona ties this track |
 | `stages.unlock.text` | prose | ≤ 80 words | private | Added to block 3 |
 | `stages.unlock.kb` | [KB key] | ≤ 6 | knowledge | |
 | `stages.forbid` | [string] | ≤ 6 × 12 words | knowledge | "Not yours to know". Each entry names a **topic**, never the secret (anti-priming, §11) |
@@ -362,7 +371,10 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 ### 3.2 Stages and predicates
 
 - **The active stage** is the *last* stage in file order whose `when` holds. Stage 1 is the base stage, and lint requires its `when` to be `"true"`.
-- **Predicates** use the grammar and three-valued semantics in memory-and-knowledge.md: `flag()`, `stage()`, `boss()`, `runes >= n`, `region()`, `journey >= n`, with `&&`, `||` and `!`. A predicate that depends on an unverified flag evaluates to *Unknown*. Personas apply DESIGN §10.4's strict rule like this:
+- **Inheritance:** a stage without `road`, `at`, `hears` or `knows` takes the previous stage's value in file order; `awaits`, `heard` and `short` never inherit.
+- **Tracks:** the stage list is the persona's quest track (MEM §12.2). `stage(t, s)` may also name a non-persona track of `world/tracks.toml`.
+- **Bridging stages:** a stage whose road waits on a world event declares `awaits = "w:<id>"` and is followed by a stage whose `when` is its own `when` `&& world('<id>')` (W10), so the road never outlives the event.
+- **Predicates** use the grammar and three-valued semantics in memory-and-knowledge.md: `flag()`, `stage()`, `boss()`, `world()`, `runes >= n`, `region()`, `journey >= n`, with `&&`, `||` and `!`. A predicate that depends on an unverified flag evaluates to *Unknown*. Personas apply DESIGN §10.4's strict rule like this:
   - a stage whose `when` is Unknown is **inactive** if it unlocks anything (`unlock`, `identity`, or a more permissive `chat`);
   - it is **active** if it only restricts (`chat = refuse | mute` with no unlock).
 
@@ -376,7 +388,7 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 
 ### 3.3 The tone kit (DESIGN §8.3 block 1; J3 graft 17)
 
-**World frame** (`prompts/dialogue/01_world_frame.md`, ≤ 350 tokens, byte-identical for every persona). It is written as instructions about *how people speak here*, never as sample lines. Its contents, in order:
+**World frame** (`prompts/dialogue/01_world_frame.md`, ≤ 450 tokens, byte-identical for every persona). It is written as instructions about *how people speak here*, never as sample lines. Its contents, in order:
 1. **Setting as lived:** you are a person of an old, broken land and speak from inside it, as someone who lives with it rather than a guide explaining it.
 2. **Implication over exposition:** say what you know the way a local would; leave things unsaid; courtesy may carry an edge, grief or weariness; everyone knows only part of the truth.
 3. **Only speech:** you can only talk. You never give, take, show, move, open, fight, follow, lead or wait, and you never say you have done or will do any of these. Any dealings happen in the usual way, not in talk.
@@ -385,6 +397,9 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 6. **Address:** call the Tarnished as your notes say; use a name only if they told it to you; never "player" or anything like it.
 7. **Words:** no modern idiom, no words for game things, no numbers for health or strength.
 8. **Form:** spoken words only. No narration, actions, lists, symbols or quotation marks.
+9. **News of the land** is written under "How things stand". Speak of it as you hold it: what you know as known, what you heard as hearsay, what you believe as your own belief, and never as something you saw yourself. Of great events not written there, no word has reached you.
+
+The nine items as worded here come to about 450 tokens by the estimate in §7.1, so the cap is 450 (it was 350 before item 9). The frame file is linted against it; if the file runs over, items 1–3 and 8 are shortened, never items 4, 5 or 9.
 
 **Register presets** (`prompts/registers/<r>.md`, ≤ 60 tokens each), each described as behaviour:
 
@@ -468,12 +483,30 @@ openers = ["Ah.", "Well,"]
 tics = [ { text = "Advice costs nothing; the rest costs runes.", max_per_conversation = 1 } ]
 
 [knowledge]
-always = ["kb.kale.self", "kb.world.tarnished_basic", "kb.limgrave.roads", "kb.limgrave.castle_fallen"]
+always = ["kb.kale.self", "kb.world.tarnished_basic", "kb.limgrave.roads"]
 topics = ["kb.limgrave.east_woods_howl", "kb.limgrave.castle_on_the_cliffs", "kb.kale.road_trade"]
+
+[awareness]                         # MEM §12.2; news reaches him by sky, ground and road (MEM §12.5)
+home = ["limgrave"]
+skip = ["kale.asleep: purpose unknown (+17, lead, ER07 §4)"]
+
+[[awareness.tie]]                   # his own line for the falling star; the certainty comes from the sky
+item    = "w:star_fallen"
+spoiler = 1
+lexicon = []
+line    = "Something came down out of the sky and shook the land. Nobody on the road can say what it means."
+
+[[awareness.tie]]                   # his own line for the castle's fall; the certainty comes from his ground
+item    = "w:castle_fallen"
+spoiler = 1
+lexicon = []
+line    = "Travellers off the castle road say its lord is dead and his soldiers are left without a master."
 
 [[stages]]
 id = "at_the_church"
 when = "true"
+at = "limgrave"
+road = "You keep shop in the ruined church by the grassland road, trading plain goods and listening for whatever news the road brings in."
 where = "inside the ruined church by the grassland road, beside his pack"
 mood = "easygoing, sizing up whoever walks in"
 gist = "You keep shop here for anyone who passes. Whether you have dealt with this Tarnished before is set out below, in what you know of them."
@@ -493,8 +526,10 @@ Design notes:
 - The `howl_told` gist is illustrative. After S6 it is rewritten, in our words, from the curated label of that flag and the player's own export.
 - Kalé has no hostile or dead stage, because live state covers both (§3.2).
 - `forbid` names a topic, not the secret, and it passes the anti-priming lint.
+- The castle's fall is no longer a KB entry: it is the world stage `castle_fallen`, which Kalé hears by Near (MEM §12.5); his tie gives it his own line.
+- `howl_told` inherits `road` and `at`.
 
-Two of the KB entries it references (the format belongs to memory-and-knowledge.md; the text is ours):
+One of the KB entries it references (the format belongs to memory-and-knowledge.md; the text is ours):
 
 ```toml
 [[entry]]
@@ -506,19 +541,8 @@ mode = "topic"
 topics = ["howl", "howling", "wolf", "woods", "mist", "east"]
 certainty = "rumour"
 priority = 40
-spoiler = 1
+spoiler = 0                         # requires = "true", so spoiler must be 0 (MEM §5.1, §11 item 16)
 lexicon = []
-
-[[entry]]
-key = "kb.limgrave.castle_fallen"
-text = "Word on the road is that the lord of the castle on the cliffs has fallen and his garrison is in disarray."
-requires = "boss('godrick')"        # catalogue alias of the boss flag (ER04 §4.1); UNVERIFIED (S6)
-who = ["kale", "varre", "patches"]
-mode = "always"
-certainty = "rumour"
-priority = 60
-spoiler = 1
-lexicon = ["Godrick", "Stormveil"]
 ```
 
 ### 3.5 The Lantern-Keeper (test persona; completes DESIGN §7.3)
@@ -555,13 +579,201 @@ topics = []
 [[stages]]
 id = "default"
 when = "true"
+road = "You tend one lamp at a crossroads, as you have for longer than you can count, and greet whoever passes."
+at = "limgrave"
 where = "beside the lamp at the crossroads"
 mood = "watchful calm"
 gist = "Nothing has passed between you and this traveller before tonight."
 forbid = ["what lies at the end of the road"]
 ```
 
-It has no rows (`test_only`). It drives the wizard's self-test line (§7.7), the X1 protocol (§12.2) and the prompt snapshot tests.
+It has no rows (`test_only`). It drives the wizard's self-test line (§7.7), the X1 protocol (§12.2) and the prompt snapshot tests. It has no ties, so its block 5b holds its road and only the news that reaches it by the sky, its own ground or word of the road (MEM §12.5).
+
+### 3.6 Roads and awareness for the v1.0 personas (original; illustrative until S6)
+
+A persona's **own quest** is its active stage. Block 5b tells it as the stage's `road` (where its own affairs stand), beside the `gist` (what has passed with the Tarnished, block 7) and `unlock.text` (the private self, block 3). **Related quests** reach a persona only three ways: a world stage, which carries most relations in v1 (the bosses whose fall ends or moves a questline); a tie to a track (Patches to Tanith; Blaidd to Ranni later); or its own stage's `knows`. A persona never reads another persona's `gist`, `road` or private fields, and another track renders only through its `heard` line. A `road`, a tie line and a `heard` line state only (a) what the item's own flags show, (b) what the persona's own stage shows, paraphrased from vanilla in our own words (the `gist` rule: name only real vanilla acts), or (c) lore in a played-observation record (`basis = "played"` with `evidence`). Every road below is **illustrative** until S6, like Kalé's `howl_told` gist, and is rewritten afterwards from the curated label and the author's own export. Offsets are leads in each persona's block. Blaidd's +6 to +12 and Patches' +5 to +12 follow ER04 §4.4's stage lists (FACT labels); every other offset, and the places, are leads from the 2026-11-06 dataset pass (ER07 §4), LIKELY, owed to S6. GK is general game knowledge (MEM §12.4). S6 verifies each before content relies on it, and an unverified one leaves the earlier road in place (MEM §12.8). The schema is MEM §12.2, the rule MEM §12.5 and the rendering MEM §12.6; the lints are W4 (coverage), W7 (wording), W8 (ties) and W10 (awaits). `skip` lists not shown here are completed after S6 (W4).
+
+**Kalé** is in §3.4 (block 4700, lead, ER07 §4; his conversation flags sit in the First Step band). He relates to Blaidd only through the howl topic, because no record says he follows Blaidd's road, and the merchants' fate stays a `forbid` topic (spoiler 3, never an item). **The Lantern-Keeper** (§3.5) has one stage and no ties.
+
+**Blaidd** (block 3600; offsets +6 to +12 are FACT labels, ER04 §4.4). The owner's example: his road waits on the red general's fall, a bridging stage covers the gap before +10 rises, and his stages' `knows` carry the general and the star.
+
+```toml
+# personas/blaidd.toml, awareness and stages only (where, mood, gist and forbid omitted; §3.1)
+[awareness]
+home = []
+skip = ["blaidd.at_grace: purpose unknown (+13, lead, ER07 §4, LIKELY)"]
+
+[[awareness.tie]]
+item = "w:general_fallen"                 # prominence: his own road waits on it
+
+[[awareness.tie]]
+item    = "w:star_fallen"
+when    = "stage('blaidd', 'after_star')"
+spoiler = 2
+lexicon = []
+line    = "The star has come down at last, and with it your lady's errand can move."
+
+[[stages]]
+id = "mistwood"
+when = "true"
+at = "limgrave"
+road = "You roam the misty woods to the east on an errand of your own, and strangers who blunder into your path try your patience."
+
+[[stages]]
+id = "after_darriwil"
+when = "flag('blaidd.darriwil')"          # +6
+road = "The one you hunted is dealt with, and the Tarnished fought at your side. You owe them a debt and mean to keep it."
+
+[[stages]]
+id = "sworn"
+when = "flag('blaidd.sworn')"             # +7
+at = "liurnia"
+road = "You serve your lady in the lake country and wait on the task she will set you."
+
+[[stages]]
+id = "searching"
+when = "flag('blaidd.searching')"         # +8
+road = "Your lady has sent you to search old ruins for a way below the earth, and you mean to find it."
+
+[[stages]]
+id = "awaiting_festival"
+when = "flag('blaidd.festival_wait')"     # +9
+at = "caelid"
+awaits = "w:general_fallen"
+road = "You wait in the east for the festival of combat, where warriors may face the red general. Your lady's plan cannot move until he falls."
+
+[[stages]]                                # bridging stage (W10): the general is dead, +10 not yet set
+id = "general_fallen"
+when = "flag('blaidd.festival_wait') && world('general_fallen')"
+knows = ["w:general_fallen"]
+road = "The red general has fallen at the festival, and you are eager to carry the word to your lady and see her plan move at last."
+
+[[stages]]
+id = "after_star"
+when = "flag('blaidd.after_star')"        # +10
+at = "liurnia"
+knows = ["w:general_fallen", "w:star_fallen"]
+road = "Your lady's errand can go forward now, and you keep close, waiting on her next word."
+
+[[stages]]
+id = "imprisoned"
+when = "flag('blaidd.imprisoned')"        # +11; knows inherits
+hears = "none"
+road = "You are shut away, alone, and hear nothing of the world outside."
+
+[[stages]]
+id = "mad"
+when = "flag('blaidd.mad')"               # +12
+chat = "refuse"
+```
+
+Ranni (block 3740) has no stage rows in the research (ER07 §4 has her block header only). Until her persona exists, Blaidd's stages say "your lady" without naming her. If S6 finds her block's offsets (MEM §12.12 item 10), a track `ranni` in `world/tracks.toml` gets `heard` lines and Blaidd gains a tie `q:ranni` in v1; until then the tie is deferred, and it comes with her persona at the latest.
+
+**Varré** (block 3180; offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = ["limgrave"]`.
+
+| Stage | `when` (offset) | `at` | `road` (illustrative) |
+|---|---|---|---|
+| `first_step` | `true` | `limgrave` | You linger by the first stretch of road, sizing up each newcomer and judging who might be worth your lord's notice. |
+| `after_stormveil` | `flag('varre.stormveil')` (+6) | — | You keep watch by the road. This one went up to the castle on the cliffs and came back, which is more than most manage. |
+| `after_rune` | `flag('varre.great_rune')` (+11) | — | This one now bears a Great Rune. Strength of that kind deserves a better master, and you mean to win it for your lord. |
+| `roundtable` | `flag('varre.roundtable')` (+7) | — | This one has been taken in where the Tarnished gather. You mean to show them a truer road than the one offered there. |
+| `rose_church` | `flag('varre.audience')` (+8) | `liurnia` | You keep the rose-grown chapel by the lake now, and you have set this Tarnished on the path of your lord's service. |
+| `trials` | `flag('varre.invasions')` (+9) | — | You set this Tarnished one bloody task after another, to see what they are made of. |
+| `last_trial` | `flag('varre.last_trial')` (+10) | — | The trials are done. You have given this Tarnished the means to seek out your lord's hidden home. |
+| `maze_fight` | `flag('varre.maze_fight')` (+12) | `underground` (SPECULATION) | You wait for this Tarnished in the deep place, ready to test them yourself. |
+| `maze_beaten` | `flag('varre.maze_beaten')` (+13) | — | This Tarnished bested you in the deep place. Your road with them has run its course. |
+
+In these tables a dash in `at` means the value inherits. File order is not play order: +11 can rise before or after +7, and the last stage in file order whose `when` holds wins (§3.2; MEM §12.3).
+
+Ties:
+- `w:castle_fallen`, prominence only: the castle is where his road turned.
+- `w:blood_lord_fallen`, `certainty = "rumour"`, `basis = "played"` (that his lord is the lord of blood is in ER04 §2.2; which of his stages shows it is owed to S6), `evidence = []`, so it is inert until a record exists (W8); `spoiler = 2`, `lexicon = []`, line: "Among the faithful runs a dreadful whisper: the lord of blood has been struck down in his own palace."
+
+**Patches** (block 3680; +5 to +12 are FACT labels (ER04 §4.4), and +13, +14 and +17 are leads (ER07 §4), LIKELY, owed to S6; a liar). `home = []`.
+
+| Stage | `when` (offset) | `at` | `road` (illustrative) |
+|---|---|---|---|
+| `cave` | `true` | `limgrave` | You keep to a damp cave by the river, where a fine-looking chest has a way of drawing in fools. |
+| `lake` | `flag('patches.lake')` (+7) | `liurnia` | You've set up shop on a quiet isle in the lake country, selling odds and ends and keeping your head down. |
+| `cliff_kick` | `flag('patches.cliff_kick') \|\| flag('patches.after_kick')` (+8 or +13) | `gelmir` | You've found your way to the volcano, where a careless step near a cliff edge is nobody's fault but the walker's. |
+| `manor_reunion` | `flag('patches.manor_reunion')` (+9) | `volcano_manor` | You're lying low among the manor's strange company, with an eye on who might be worth fleecing. |
+| `manor_gift` | `flag('patches.manor_gift')` (+10) | — | You've settled in at the manor, and you've handed the Tarnished a little gift to carry to the lady of the house. |
+| `highwayman` | `flag('patches.highwayman')` (+11) | owed to S6 | You're back on the road with a blade and a smile, relieving travellers of whatever they can't hold onto. |
+| `last_shop` | `flag('patches.last_shop')` (+12) | — | You've settled down to plain trading at last, or so you'd have anyone believe. |
+
+Ties (in full in MEM §12.2): `q:tanith` from `hosting`, `certainty = "fact"`, and `w:manor_lord_fallen`, `certainty = "fact"`, with his own line; both have `when = "(stage('patches', 'manor_reunion') || stage('patches', 'manor_gift')) && !stage('patches', 'highwayman') && !stage('patches', 'last_shop')"`. Both ties hold only while he is at the manor, whether S6 finds block 3680 exclusive or cumulative (MEM §12.12 item 6); after he leaves, only Kept carries what he held there. An unverified +11 or +12 makes the `when` U, so the ties are inactive: restrictive, and safe. At the manor he has no sky (§9.5), so the falling star and the burning tree reach him only by Kept or, for the star, word of the road (MEM §12.5); until S6 gives `highwayman` its `at`, that stage inherits `volcano_manor` and stays as shut. `skip`: +14 (a gesture, not a step) and +17 (a live state: not present). `honesty = liar` is unchanged: block 5b says what he holds, not what he tells.
+
+**Alexander** (block 3660; the block, its offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = []`.
+
+| Stage | `when` (offset) | `at` | Other | `road` (illustrative) |
+|---|---|---|---|---|
+| `stuck` | `true` | `limgrave` | — | You are stuck fast in the ground by the road and can only wait for someone strong enough to pull you free. |
+| `tunnel` | `flag('alexander.tunnel')` (+6) | `caelid` (LIKELY) | — | Freed at last, you have set off east in search of battles worthy of a warrior of your kind. |
+| `festival` | `flag('alexander.festival')` (+8) | — | `awaits = "w:general_fallen"` | You have come to the festival at the red castle to test yourself against the general, as warriors from every road have done. |
+| `after_festival` | `flag('alexander.festival') && world('general_fallen')` (bridging stage, W10) | — | `knows = ["w:general_fallen"]` | The battle against the general is over and you came through it whole. A warrior could not ask for a finer trial. |
+
+Tie: `w:general_fallen`, prominence only. His later beats (a hot spring on the mountain, a last duel near Farum Azula) are GK and get no stage until S6. His related quest is the festival's: a tie to its host's track waits for S6 to find that block's offsets (MEM §12.12 item 10).
+
+**Boc** (block 3940; offsets and places are leads (ER07 §4), LIKELY, owed to S6). `home = ["limgrave"]`.
+
+| Stage | `when` (offset) | `at` | `road` (illustrative) |
+|---|---|---|---|
+| `hiding` | `true` | `limgrave` | You hide in the brush by the road, frightened of every passer-by, and wishing you were something finer than you are. |
+| `collapsed` | `flag('boc.collapsed')` (+6) | — | You lie hurt in a cave by the sea after a beating you did nothing to deserve. |
+| `attendant` | `flag('boc.attendant')` (+7) | `liurnia` | You've set up near the cliffs above the lake, mending and altering clothes for the Tarnished, who saved you. |
+
+Tie: `w:queen_fallen`, `certainty = "rumour"`, `basis = "played"` (his hope of a new form through the queen is GK; NpcParam 523420000 is LIKELY his later form, ER04 §1), `evidence = []`. It is inert, and it is dropped at release if no record exists (W8). His `later_form` stage, the reveal stage of `personas.toml` (§2.1, §2.7), waits for S1 and S6 and gets its `road` when it is authored. +3 means dead *or* concluded (ER05 §7), so no line may say that he died (W7).
+
+**Rendered block 5b** (state `after_radahn` for Kalé and Blaidd, `after_rykard` for Patches; token counts estimated as in MEM §0; lines chosen and ordered by MEM §12.6):
+
+*Kalé, `at_the_church` (≈ 150 tokens):*
+
+```text
+How things stand, as far as you know:
+Your own road: You keep shop in the ruined church by the grassland road, trading plain goods and listening for whatever news the road brings in.
+You know: Something came down out of the sky and shook the land. Nobody on the road can say what it means.
+You have heard: Travellers off the castle road say its lord is dead and his soldiers are left without a master. The red general who held the eastern wastes has fallen at last.
+```
+
+*Blaidd, `after_star` (≈ 125 tokens):*
+
+```text
+How things stand, as far as you know:
+Your own road: Your lady's errand can go forward now, and you keep close, waiting on her next word.
+You know: The star has come down at last, and with it your lady's errand can move. The red general who held the eastern wastes has fallen at last.
+You have heard: The lord of the castle on the cliffs is dead, and his garrison has lost its head.
+```
+
+*Patches, `manor_gift` (≈ 175 tokens, within the 180 cap, so all four lines fit):*
+
+```text
+How things stand, as far as you know:
+Your own road: You've settled in at the manor, and you've handed the Tarnished a little gift to carry to the lady of the house.
+You know: The talk in the manor is that the master of the house has met his end inside his own mountain. The lady of the manor has shut herself away with her dead lord and lets no one near.
+You have heard: The queen who kept to the great library by the lake has been brought low in her own hall. The lord of the castle on the cliffs is dead, and his garrison has lost its head.
+```
+
+**Since-lines** (the first line of block 7, MEM §12.6; ≈ 40 and ≈ 50 tokens, within its 55-token cap). Kalé, last met at `after_godrick` with the castle's fall held, now at `after_radahn`:
+
+> Since you last spoke with the Tarnished, you have learned of a star come down out of the sky and the fall of the red general.
+
+Blaidd at `after_star`, last met at `awaiting_festival` with only the castle's fall held. Both news items touch his own affairs, so under O28's recommended default the cue follows:
+
+> Since you last spoke with the Tarnished, you have learned of a star come down out of the sky and the fall of the red general. This touches your own affairs.
+
+**Worked check** (`after_radahn`: Godrick, Radahn and the star; MEM §12.5 gives the paths):
+
+| Persona (stage) | `castle_fallen` | `general_fallen` | `star_fallen` |
+|---|---|---|---|
+| Kalé (`at_the_church`) | rumour, Near | rumour, Word | fact, Sky |
+| Varré (`after_rune`) | rumour, Near | rumour, Word | fact, Sky |
+| Patches (`lake`, Liurnia) | rumour, Word | rumour, Word | fact, Sky |
+| Blaidd (`after_star`) | rumour, Word | fact, Own | fact, Own |
+| Alexander (`after_festival`) | rumour, Word | fact, Own | fact, Sky |
+| Boc (`attendant`) | rumour, Near (home) | rumour, Word | fact, Sky |
+| Blaidd (`imprisoned`, never met) | none | fact, Own (inherited `knows`) | fact, Own |
+
+Every persona above stands under the sky at this state. Below ground or under a roof the Sky path is shut: Varré at `maze_fight` (`underground`) would hear of the star only by word of the road, and of the burning of the great tree not at all (MEM §12.5, §12.11).
 
 ---
 
@@ -887,7 +1099,7 @@ pub struct Conversation {
 ### 6.4 Warm-up on approach (DESIGN §8.2, §11.1)
 
 - `PersonaApproached` (≤ 6 m for 1 s) with the last `dialogue` request > 4 min ago and an Ollama provider → send Ollama's native keep-alive load request (no prompt tokens). Other providers do nothing.
-- On `OpenChat`, prefetch the journal, facts and the previous conversation's tail from the store, and render blocks 1–5, so Submit only renders the tail (blocks 7–11).
+- On `OpenChat`, prefetch the journal, facts and the previous conversation's tail from the store, and render blocks 1–5b, so Submit only renders the tail (blocks 7–11).
 
 ### 6.5 Turn sequence
 
@@ -902,7 +1114,7 @@ sequenceDiagram
   O->>C: UiEvent::OpenChat
   C->>C: target, conversable, safe → box Shown, capture on, epoch += 1
   C->>S: journal, facts, previous tail
-  C->>C: render blocks 1–5
+  C->>C: render blocks 1–5b
   P->>O: line + Enter
   O->>C: UiEvent::Submit(text)
   C->>S: PlayerSaid (audience frozen)
@@ -926,7 +1138,7 @@ sequenceDiagram
 
 - **Templates** are minijinja files in `prompts/{dialogue,callout,memory,pool}/NN_*.j2`, plus `registers/*.md` and `dialogue/01_world_frame.md`. Templates hold layout only; persona prose comes from fields.
 - **Markers:** `[system cache=A]`, `[system cache=B]`, `[history]` and `[user]` map to OpenAI chat messages.
-  - Providers with explicit cache control (OpenRouter cache breakpoints) get breakpoints after A and after B.
+  - Providers with explicit cache control (OpenRouter cache breakpoints) get breakpoints after A, after block 5 and after B (block 5b; MEM §12.6).
   - llama.cpp gets `cache_prompt: true`.
   - Automatic-prefix providers need nothing but the order (ER06 §5.5).
 - **Message assembly:** consecutive messages with the same role are merged with a blank line, for strict chat templates.
@@ -945,20 +1157,21 @@ sequenceDiagram
 
 | # | Block | Marker | Purpose | Source fields | Cap (tokens) | Cache | Trim priority |
 |---|---|---|---|---|---|---|---|
-| 1 | World frame | system | How people speak here; speech only; grounding; address; words | `dialogue/01_world_frame.md` | 350 | A, shared by every persona | Never |
+| 1 | World frame | system | How people speak here; speech only; grounding; address; words | `dialogue/01_world_frame.md` | 450 | A, shared by every persona | Never |
 | 2 | Identity | system | Who you are, as a stranger would see you | `stage.identity` or the default; `public.summary`; `public.appearance` | 120 | B | Never |
 | 3 | Private self | system | Interior life at this stage | `private.*`; `stage.unlock.text` | 350 | B | Never (schema caps bound it) |
 | 4 | Voice | system | Cadence and register | `registers/<r>.md`; `voice.cadence`, `diction`, `deflection`, `openers`, `tics` | 160 | B | Never |
 | 5 | Reply contract | system | Output rules (§8.1) + the empty `actions_block` (DESIGN §13) | `dialogue/05_contract.md`; `reply_words_max` | 110 | B | Never |
-| — | *cache breakpoint* | | Blocks 1–5 contain no relative time and no live state | | | | |
+| 5b | How things stand | system | Where the persona's own affairs stand, and the news it holds | `stage.road`; known items by MEM §12.6 (tie line, world line or `heard`), grouped by certainty | 180 | B (last) | Never |
+| — | *cache breakpoint* | | Blocks 1–5 contain no relative time and no live state; block 5b changes only with the stage, the known set and the active ties | | | | |
 | 6 | Earlier and now | history | (a) the previous conversation's last ≤ 6 shown lines under a fixed header; (b) this conversation's **completed** exchanges, the Tarnished as `user` (quoted) and the NPC's shown text as `assistant` | Event log (committed text only) | 900 | Provider prefix cache up to the last exchange | **1** (oldest first: (a), then (b), always keeping the last 2 exchanges) |
-| 7 | What you know now | user | Stage and world knowledge, and what is not theirs | `where`, `mood`, `gist`; flag facts in words; KB ≤ 4 `always` + ≤ 3 `topic`, labelled by certainty; `forbid` + "if asked, turn it aside in your own way" | 350 | None | **3** (lowest-priority topic entries) |
+| 7 | What you know now | user | Stage and world knowledge, and what is not theirs | the since-line (MEM §12.6); `where`, `mood`, `gist`; KB ≤ 4 `always` + ≤ 3 `topic` (topic offers include known news not shown in 5b), labelled by certainty; `forbid` + "if asked, turn it aside in your own way" | 300 | None | **3** (lowest-priority topic entries) |
 | 8 | The Tarnished, as you know them | user | Continuity | Journal summary; keepsakes by basis ("You saw…" / "The Tarnished told you…"); facts and disposition in words; `told_name` | 450 | None | **2** (lowest-weight keepsakes, never the protected one) |
 | 9 | Here and now | user | The scene | Place (runtime PlaceName), time word, weather word (verified only), ≤ 4 nearby others (`brief`), the Tarnished (`observed`), ≤ 3 "just now" lines visible to this persona | 180 | None | **4** (nearby others) |
 | 10 | Recap | user | Answer the right line | The newest ≤ 3 player lines since the NPC last spoke, quoted (SN02 §4.3) | 120 | None | Never |
 | 11 | Task | user | The ask | Name, pronoun, `reply_words_max`; tic and name-use notes; regeneration note (§8.4); empty `actions_tail` | 40 | None | Never |
 
-Input target ≤ 2,800 tokens and hard cap 3,500 (the caps above sum to 3,130). `max_tokens` is 140, temperature 0.8, and the stop sequences are `"\nThe Tarnished:"` and `"\nTarnished:"`. Reasoning is off per provider. The player's newest lines appear only in the recap until the NPC answers; then they move into history as bare dialogue, which keeps history byte-stable.
+Input target ≤ 2,800 tokens and hard cap 3,500 (the caps above sum to 3,360; a typical mid-game prompt is about 2,550). `max_tokens` is 140, temperature 0.8, and the stop sequences are `"\nThe Tarnished:"` and `"\nTarnished:"`. Reasoning is off per provider. The player's newest lines appear only in the recap until the NPC answers; then they move into history as bare dialogue, which keeps history byte-stable.
 
 **Skeleton** (section labels are ours and end in a colon; `[…]` lines are message markers; `{{ }}` marks fields):
 
@@ -978,6 +1191,11 @@ Your voice:
 Openers you may use, at most one: {{ openers }}. Your own sayings: {{ tics }}.
 How to answer:
 {{ contract }}{{ actions_block }}
+How things stand, as far as you know:
+Your own road: {{ stage.road }}
+You know: {{ world.fact }}
+You have heard: {{ world.rumour }}
+You believe: {{ world.belief }}
 
 [history]
 user: Earlier, when you last spoke with the Tarnished:
@@ -987,6 +1205,7 @@ assistant: …
 
 [user]
 What you know now:
+{{ since_line }}
 You are {{ where }}; you feel {{ mood }}. {{ gist }}
 You know: …  You have heard: …  You believe: …
 Not yours to know (if asked, turn it aside in your own way): {{ forbid }}
@@ -1000,6 +1219,8 @@ The Tarnished: "{{ line }}"
 Your turn:
 Answer as {{ name }}, in {{ possessive }} own voice, in at most {{ n }} words.{{ notes }}{{ actions_tail }}
 ```
+
+Block 5b's three groups each take their own line, and empty groups are omitted (MEM §12.6).
 
 ### 7.4 Call-out reply (`bark_live`, DESIGN §9.6)
 
@@ -1039,7 +1260,7 @@ JSON schema output where supported, otherwise the first JSON array in the text. 
 
 ### 7.6 Memory job
 
-The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md). This document supplies three inputs: the persona brief (`brief` mode, plus `public.summary` and `honesty`), the committed lines only, and `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the dialogue prompts showed (DESIGN §10.3).
+The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md). This document supplies three inputs: the persona brief (`brief` mode, plus `public.summary` and `honesty`), the committed lines only, and `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the dialogue prompts showed (DESIGN §10.3). `shown_context` also lists the block-5b items and since-line items by id (MEM §12.7).
 
 ### 7.7 Self-test line (`selftest`, DESIGN §11.5)
 
@@ -1290,7 +1511,7 @@ A squad is same-card hostiles that became engaged within 10 s and within 20 m of
   | `limgrave`, `stormhill`, `weeping_peninsula`, `stormveil`, `liurnia`, `raya_lucaria`, `caelid`, `dragonbarrow`, `altus`, `gelmir`, `leyndell`, `mountaintops`, `snowfield`, `haligtree`, `farum_azula`, `shadow` (DLC overworld), `shadow_legacy` (`m20`–`m28`) | yes |
   | `volcano_manor`, `roundtable`, `underground` (`m12`), `depths` (`m30`–`m35`, `m39`, `m40`–`m43`) | no |
 
-  `regions.toml` also holds our own short phrase per region for prompts ("open grassland and old ruins by the sea"). A proper region name may appear in a line only if it is in the card's lexicon.
+  The Sky column also decides whether a persona whose stage `at` is that region gets the Sky path of world news (MEM §12.5). `regions.toml` also holds our own short phrase per region for prompts ("open grassland and old ruins by the sea"). A proper region name may appear in a line only if it is in the card's lexicon.
 - **Time** (from `WorldAreaTime`): `dawn` 05:00–06:59, `day` 07:00–16:59, `dusk` 17:00–19:59, `night` 20:00–04:59. Regions without sky use `-`.
 - **Weather** (from series flags 570–575, ER04 §3.3): `fair` (clear, cloudy), `rain`, `snow`, `fog`, and `-` (other, no sky, or **the flags not yet verified by S6**).
 
@@ -1558,10 +1779,11 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 
 | Set | Size | Content |
 |---|---|---|
-| Voice | 50 scripted turns per persona, spread over 2–3 stages | Greetings, place questions, KB topics, off-topic pressure |
+| Voice | 50 scripted turns per persona, spread over 2–3 stages, including a bridging stage where the persona has one | Greetings, place questions, KB topics, off-topic pressure |
 | Spoiler | 100 turns per flag state × 6 states = **600 per release**, shared across personas | States: fresh start, after Godrick, 2 Great Runes, after Morgott, after Mohg, Erdtree burned (P3 §11.2). Probes ask directly about locked content |
 | Memory | "Do you remember" probes after a scripted reload (C11; memory-and-knowledge.md) | |
 | Injection and safety | 30 + 20 probes per persona | |
+| World awareness | 10 probes × 4 flag states × 6 personas = 240 turns | Known news, unknown news and controls (§12.5) |
 
 | Metric | Gate |
 |---|---|
@@ -1575,6 +1797,7 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 | Deflections shown | ≤ 10% (more means the persona is over-restricted) |
 | "…" failure pages | ≤ 1% on a healthy provider |
 | Contract breaks shown | 0 |
+| World awareness (C14) | per MEM §12.11 and §12.5 below; gate per O29 |
 
 **A persona ships only with a passing report** on the default cloud preset and on one local preset from X1. A content change to a persona invalidates its report. Cards pass card lint plus the X2 checks.
 
@@ -1599,9 +1822,28 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 
 1. Every identity row verified (S1) and `expect_name_id` filled. Every flag alias used is verified, or dropped (S6).
 2. Lint green: schema, caps, predicates, aliases, effect adjectives, quoted samples, banned words, gender-neutral cards, seed rules, anti-priming, reveal identities.
-3. `insta` prompt snapshots per persona × stage × scene, and byte-stability of blocks 1–5 across turns and memory changes (DESIGN §14).
-4. Spoiler renders at the 6 flag states contain no locked term.
+3. `insta` prompt snapshots per persona × stage × scene, and byte-stability of blocks 1–5 across turns and memory changes (DESIGN §14); block 5b byte-stable at a fixed known set and active ties.
+4. Spoiler renders at the 6 flag states contain no locked term; block-5b renders at the 8 states match the truth tables (MEM §12.11).
 5. A passing eval report (§12.1) for personas; X2 still green for cards.
+6. Lints W1–W12 green; no inert tie; every road on a verified stage reviewed against the author's own export.
+
+### 12.5 World-awareness eval (C14)
+
+`en-tools eval --set awareness` checks that personas know what the world model says they know, and no more (MEM §12.5, criterion C14 in DESIGN §1.3).
+
+- **Set:** 10 original probes per persona at 4 flag states (`fresh`, `after_godrick`, `after_radahn`, `erdtree_burned`), 240 turns in all. Per state, at least 4 probes ask about changes the persona knows, 2 about items it does not know, and 2 are unrelated controls. At `fresh`, where nothing holds, its probes count as unknown-item probes and controls; the awareness rate is computed only over probes whose item the truth table marks known. Probe lines are ours, for example "Any news on the road?", "Did you see what fell from the sky?" and "Is the red general still about?"
+- **Scoring:** a rubric judge is given the persona's truth table for the state (`tests/knowledge/expect.toml`, MEM §12.11) and scores each reply; a 10% human sample checks the judge.
+- **Report:** a persona's eval report includes C14 from v0.5.
+
+| Metric | Target |
+|---|---|
+| Awareness: a probe on a known change is acknowledged | ≥ 90% |
+| Contradiction: speaking as if a known change had not happened | ≤ 2% (Patches reported, not gated: a liar) |
+| Impossible knowledge: a ken-locked term shown / judged knowledge the persona lacks | 0 / ≤ 1% |
+| Certainty drift: hearsay told as seen | ≤ 5% |
+| Recital: news volunteered on an unrelated control | ≤ 10% |
+
+C14 is reported from v0.5; whether it gates a release is O29 (DESIGN §19; recommended: report in v0.5, gate at v1.0). The hard side needs no judge: ken-locked terms are caught by the lexicon (MEM §12.8), and the truth tables and lints run in CI.
 
 ---
 
@@ -1615,12 +1857,14 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 | `lexicon/banned.toml`, `safety.toml`, `signature.toml`, `context_words.toml`, `reveals.toml` | §3.3, §4.4, §8.3, §9.5 |
 | `barks/triggers.toml`, `regions.toml` | §9 |
 | `pools.sqlite` (runtime) | §9.5 |
+| `world/stages.toml`, `world/tracks.toml` | §3.6 (schema in memory-and-knowledge.md §12.2) |
+| `tests/knowledge/expect.toml` | §12.5 |
 
 ---
 
 ## 14. Interpretations of DESIGN.md made here
 
-These do not change any decision. They resolve ambiguities that code needs settled. The review adopted items 1–7 into DESIGN.md (§8.1, §8.2, §7.2, §9.2, §9.3); item 8 stays a research note.
+These do not change any decision. They resolve ambiguities that code needs settled. The review adopted items 1–7 into DESIGN.md (§8.1, §8.2, §7.2, §9.2, §9.3); items 8–9 stay notes.
 
 1. **Resting chat versus the pre-S3 rule.** §8.1 lets resting count as safe out to 8 m, but §8.7 requires `hud == Default` and 3 s free of `PopupMenu` before S3. The grace menu very likely reads as `PopupMenu`, so before S3 the player must stand up first. After S3, resting chat with the grace menu up is allowed only if the observer tells the grace menu apart from native talk.
 2. **Gamepad chord.** In the default pad layout, View opens the map and D-pad Up switches spells. Without masking, View + D-pad Up leaks one or both actions. §5.6 masks View while D-pad Up is held; S4 must confirm this or pick another chord.
@@ -1630,3 +1874,4 @@ These do not change any decision. They resolve ambiguities that code needs settl
 6. **Conversation output during danger.** §6.5 interrupts `chat_input` only, so pages keep pacing while the box is closed. The conversation ends if danger lasts 10 s (§8.6).
 7. **The seed count** is 141 lines: 126 for the 6 cards (DESIGN §9.3 says "about 125") plus 15 for the fallback card, which has no `idle` or `addressed` seeds.
 8. **Kalé's entity lead** `11000705` (ER05 §6.3, mined from ERR) does not fit his single vanilla location in the First Step tile (ER04 §4.4). It is kept as an unverified note and is not used as a key.
+9. **The persona's track is its stage list.** A non-persona track uses the same step rule (§3.2); `road` sits in block 5b rather than block 3 so the news and the persona's own affairs read as one block (MEM §12.6).

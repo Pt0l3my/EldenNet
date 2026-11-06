@@ -203,7 +203,7 @@ The two dotted edges were added here and adopted into DESIGN §2.2 by the review
 |---|---|---|
 | `en-proto` | Every message that crosses a thread or the adapter boundary. All are `serde` types | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, `trait GameBackend`, `struct GameThread`, `PROTO_VERSION` |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur::new(RuleSet, Registry)`, `Augur::step(&CoreInput, Mono, &dyn AugurCtx, &mut EventBatch)`, `trait EventSource`, `RuleSet::load(&[RuleFile], &dyn PredicateCompiler) -> Result<RuleSet, Vec<RuleError>>`, `Event`, `EventKind` |
-| `en-core` | Identity and tiers, content loading and validation, predicates, scheduler, conversation, barks, memory logic, prompts, sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport` |
+| `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts, sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport`, `world::derive(&FlagState, &WorldFacts, &WorldContent) -> WorldView`, `world::known(PersonaId, &FlagState, &WorldFacts, &WorldView, &WorldSeen, &ContentPack) -> KnownSet` |
 | `en-store` | SQLite files, migrations, the request loop, backups | `Store::spawn(StoreCfg) -> StoreHandle`, `StoreHandle::{send(DbRequest) -> Result<(), Full>, results() -> Receiver<DbResult>}` |
 | `en-llm` | The OpenAI-compatible client, SSE parser, slots, health, local probes, warm-up | `Llm::spawn(ProvidersCfg) -> LlmHandle`, `LlmHandle::{submit(LlmRequest) -> Result<(), Full>, cancel(RequestId), events() -> Receiver<LlmEvent>}`, `probe_local() -> Vec<LocalEndpoint>` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `gate(&ImageView, &Builds) -> Result<BuildProfile, GateError>`, `discover(&dyn SysLayer, &BuildProfile) -> Result<Discovery, DiscoveryReport>`, `install_task(Discovery, TaskWiring) -> Result<TaskToken, GalError>`, `struct ErBackend: GameBackend`, `trait SysLayer` (§6.4) |
@@ -1007,7 +1007,7 @@ pub struct ParamRowInfo { pub param: ParamKind, pub id: u32, pub fields: ArrayVe
 | Item | Rate | Cap | Game-thread budget |
 |---|---|---|---|
 | Snapshot | Every 250 ms of accumulated mono time | Walk ≤ 48 vector entries; keep ≤ 32 within 40 m, nearest first (DESIGN §5.1) | p99 ≤ 0.4 ms |
-| Flag frame | Every 4th snapshot (1 Hz; 0.5 Hz while throttled) | ≤ 2,048 IDs (v1 ≈ 700) | ≤ 0.1 ms |
+| Flag frame | Every 4th snapshot (1 Hz; 0.5 Hz while throttled) | ≤ 2,048 IDs (v1 ≈ 740, including the world-awareness aliases of MEM §12.12) | ≤ 0.1 ms |
 | Render feed | Every frame while `SetTracked` is non-empty | Camera + ≤ 8 handles | ≤ 0.03 ms |
 | Text, params | On demand | 16 FMG + 32 rows per tick | Included |
 | Command drain | Every frame | ≤ 16 commands per frame (impl) | ≤ 0.02 ms |
@@ -1134,6 +1134,8 @@ pub struct Observations {
 | `in_combat` | bool | player | §8.7 |
 | `idle_due` | bool | chr | Set by the Timer at the actor's 30 s phase |
 
+World stages and tracks are not signals in v1: `world()` and `knows()` are refused in Augur and bark `requires` (MEM §12.10, W1). They are derived in bus step 1 (§8.9) and read by the conversation, memory and debug-view subscribers.
+
 ### 8.4 Detector semantics
 
 For one `(rule, subject)`, let `x₀, x₁, …` be the signal's values at the processed snapshots `t₀, t₁, …` in which the subject is present. A detector is a small state machine over these samples. **No detector fires on a subject's first sample.**
@@ -1244,7 +1246,8 @@ pub enum EventKind {
     NpcSaid { speaker: ActorRef, text: SafeText, conv: ConvId, pages: u8 },
     CalloutSent { target: ActorRef }, CalloutReplied { target: ActorRef, from_seed: bool },  // T: nothing is remembered
     ConversationStarted { persona: PersonaId, conv: ConvId },    // T
-    ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16 },
+    ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16,
+                        known: Option<KnownSet> },   // ≤ 24 (item, certainty) at the end (MEM §12.7); None without a flag frame
     // lifecycle (P for PlaythroughReady and journey changes, T otherwise)
     DataReady, PlaythroughReady { key: PlaythroughKey }, LoadingStarted, LoadingEnded, TitleReached,
     JourneyChanged { ng_lvl: u8 }, GateChanged { active: bool }, GroupTripped { group: Group }, LadderChanged { to: Level },
@@ -1308,7 +1311,7 @@ One function, `visible_to(event, persona)`, serves prompts, the recap, memory jo
 ### 8.9 Bus: order and backpressure
 
 **Order inside one step** (DESIGN §6.6):
-1. Update the world model from the input.
+1. Update the world model from the input: trackers from the snapshot; `FlagState` from the newest processed flag frame; then the `WorldView` (MEM §12.3), pure and memoised per flag generation and content version, so every later step reads one `world_gen`.
 2. Poll the sources in fixed order: Lifecycle, SnapshotDiff, FlagWatch, Pipeline, Timer.
 3. Evaluate rules sorted by `(priority, subject distance, handle)`.
 4. Resolve and freeze audiences.
@@ -1346,7 +1349,7 @@ pub trait Subscriber {
 |---|---|---|---|
 | SnapshotDiff + world model | 4 Hz | ≤ 0.4 ms p99 (the snapshot) | ≤ 1 ms |
 | Rule evaluation | 4 Hz | — | ≤ 1 ms for ≈ 25 rules × 33 subjects (impl split of DESIGN's 2 ms) |
-| FlagWatch | Every 4th snapshot: 1 Hz (0.5 Hz while throttled), ≈ 700 IDs | ≤ 0.1 ms | ≤ 0.2 ms |
+| FlagWatch | Every 4th snapshot: 1 Hz (0.5 Hz while throttled), ≈ 740 IDs | ≤ 0.1 ms | ≤ 0.2 ms |
 | Timer, Pipeline, Lifecycle | 1 Hz / per event | — | Negligible |
 | Dispatch | Per event | — | ≤ 0.1 ms per event, excluding prompt rendering, which is deferred to the effect shell's request build |
 | Hook sources | Per call | Reserved | Reserved |
@@ -1716,16 +1719,16 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 
 | Type | Crates | Examples |
 |---|---|---|
-| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes |
+| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation and `known(P)` truth tables (MEM §12.11) |
 | Property (`proptest`) | `en-augur`, `en-core` | §8.12; sanitizer (never panics, never shows markup or a trailer, respects caps) |
 | Golden replay | `en-tools` | 3 recorded routes; 10 identical replays (C12) |
 | Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis |
-| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable; spoiler renders at 6 flag states |
-| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse |
+| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; spoiler renders at 6 flag states; block-5b renders at the 8 fixture states plus `ashen`, and since-line renders for 3 state transitions (MEM §12.11 T4) |
+| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen` after trim and NG+ |
 | Conformance | `en-core` | A trailer never displays; with `actions` off no non-read command; one row per decision (DESIGN §13) |
 | `FakeSys` | `en-gal` | Discovery over synthetic images; statics moving, nulls, vtable swaps, faults → breakers |
 | Backpressure | `en-core`, `en-augur` | §8.12 |
-| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus spoiler and memory probes (C9–C11). A persona ships only with a passing report |
+| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus spoiler and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3; C14 counts toward a pass only as O29 decides). A persona ships only with a passing report |
 | In game | Dev builds | S0-A–S0-E, smoke route, 30 h soak (C1), 20 forced fail-closed launches with `--features probe` fault injection (unknown build, missing pattern, forced read faults) |
 
 ### 12.3 `en-tools` subcommands
@@ -1776,7 +1779,7 @@ eldennet/
   crates/
     en-proto/     src/{lib, snapshot, render, lifecycle, command, ui, llm, db, backend, thread, text}.rs
     en-augur/     src/{lib, sources/, world, signals, detectors, rules, events, audience, kstore, bus}.rs
-    en-core/      src/{lib, step, transport, identity/, content/, predicates, scheduler, conversation/,
+    en-core/      src/{lib, step, transport, identity/, content/, predicates, knowledge/, scheduler, conversation/,
                        barks/, memory/, prompts/, sanitize, lint, ladder, gate}.rs
     en-store/     src/{lib, loop, migrations/, events, facts, journal, rollback, backup}.rs
     en-llm/       src/{lib, client, sse, slots, health, local, warmup}.rs
@@ -1792,11 +1795,12 @@ eldennet/
   content/eldenring/
     prompts/{dialogue,callout,memory,pool}/NN_*.j2  registers/*.md  personas/  archetypes/
     identity/{personas,archetypes,speech,humanoid_models}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
+    world/{stages,tracks}.toml
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml
   gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
-  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/, db/}  recordings/*.ensnap.zst (redacted)
-              golden/{*.events.jsonl, CHANGES.md}  s6/*.toml
+  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), db/}  recordings/*.ensnap.zst (redacted)
+              golden/{*.events.jsonl, CHANGES.md}  s6/*.toml  knowledge/expect.toml
   tools/      privsweep/  workplan/
   dist/       README-install.md  using-a-loader.md  ai-disclosure.md
   docs/
