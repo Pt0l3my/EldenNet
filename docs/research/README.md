@@ -1,0 +1,38 @@
+# Research notes
+
+These notes are the evidence base for the EldenNet design ([../design/DESIGN.md](../design/DESIGN.md)). They were written in November 2026, against Elden Ring patch 1.17.2 (exe 2.7.2.0) and SkyrimNet beta30-rc2.
+
+Read the two summaries first. The numbered notes hold the detail and the sources.
+
+## SkyrimNet: what it does with Skyrim and what we can borrow
+
+| Note | Topic |
+|---|---|
+| [00-summary](skyrimnet/00-summary.md) | **Start here.** How SkyrimNet works, its design principles, a 44-row pattern catalogue (copy / simplify / defer / drop for EldenNet), lessons from its open bugs, default numbers and the licensing boundary |
+| [01-architecture](skyrimnet/01-architecture.md) | Runtime architecture, subsystems, threading, configuration, LLM job slots, content library, APIs |
+| [02-conversation-pipeline](skyrimnet/02-conversation-pipeline.md) | One conversation turn from start to finish: input, audience, speaker selection, prompt layout, streaming, commit, scheduler |
+| [03-prompts-and-characters](skyrimnet/03-prompts-and-characters.md) | The template system, decorators, how character bios are structured, generic bios, filters |
+| [04-memory-and-knowledge](skyrimnet/04-memory-and-knowledge.md) | Event log, memory generation and recall, diaries, world knowledge, identity, save timelines |
+| [05-events-perception-triggers](skyrimnet/05-events-perception-triggers.md) | Game events, perception, triggers, combat speech, the Papyrus/ESP layer |
+| [06-speech-ui-dialogue](skyrimnet/06-speech-ui-dialogue.md) | TTS/STT, audio, lip sync, subtitles, chat overlay, how it works with vanilla dialogue |
+| [07-actions-decisions-gamemaster](skyrimnet/07-actions-decisions-gamemaster.md) | Actions, decisions, GameMaster, thoughts, and the extension seams EldenNet should keep |
+| [08-skyrim-engine](skyrimnet/08-skyrim-engine.md) | The Creation Engine under an AI NPC mod, and how each feature maps to Elden Ring |
+
+## Elden Ring: engine, modding, design and feasibility
+
+| Note | Topic |
+|---|---|
+| [00-summary](eldenring/00-summary.md) | **Start here.** Skyrim vs Elden Ring, a feasibility matrix, the recommended stack, the rejected alternatives, the hard problems ranked by risk |
+| [01-engine-internals](eldenring/01-engine-internals.md) | Engine lineage, tasks and threads, singletons, the character system, text (FMG), event flags, talk scripts (ESD), saves, patch level |
+| [02-modding-ecosystem](eldenring/02-modding-ecosystem.md) | EAC and offline play, the me3 loader, fromsoftware-rs, overlays and input, patch churn, licences, community climate |
+| [03-dialogue-and-presentation](eldenring/03-dialogue-and-presentation.md) | How Elden Ring talk works (ESD, TalkParam, TalkMsg, Wwise), lip movement, presentation options for LLM dialogue |
+| [04-game-design-and-world](eldenring/04-game-design-and-world.md) | NPC taxonomy, talk codes, questline flag blocks, tone statistics, bark vocabulary, lore primer, spoiler risks |
+| [05-game-state-and-events](eldenring/05-game-state-and-events.md) | Which state and events a mod can read (player, location, time, characters, combat, flags, menus) and how robustly |
+| [06-prior-art](eldenring/06-prior-art.md) | Mantella, CHIM, SkyrimNet and others; Elden Ring precedents; lessons on latency, memory, setup friction and model defaults |
+
+## Method and ground rules
+
+- **Evidence labels.** FACT means taken from a primary source. LIKELY means several weaker signals agree. SPECULATION or INFERENCE means our own reasoning. Every report ends with a review or verification log from an independent fact-checking pass.
+- **SkyrimNet.** We studied only what SkyrimNet openly ships and documents: devkit docs, readable content (prompts, YAML, SQL migrations), Papyrus sources, the MIT-licensed API headers, the public repository and public web pages. Nothing came from inspecting its compiled files. SkyrimNet's prompts, templates, bios and code are **not** reused in EldenNet. We take ideas and published numbers only (see [skyrimnet/00-summary §7](skyrimnet/00-summary.md)).
+- **Elden Ring.** Facts about the game come from public modding sources (fromsoftware-rs, The Grand Archives CE table, Smithbox/Paramdex, ESDLang, me3 and others), cited inline. No FromSoftware files are stored in this repository.
+- **Time-sensitive.** Patch levels, tool versions, licences and community policies were current on 2026-11-06. Re-check them before relying on them.
