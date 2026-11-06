@@ -153,7 +153,7 @@ Each document now opens with a short "How to read it" after its status block: DE
 11. **Adopted by the review:** the title-screen gate clause (§3 item 1) and the sheltered-context definition (§3 item 15).
 12. **Proton** has no supported launch path of our own until S0-C passes. Until then it works only through a loader the player already uses.
 
-**Owner's answer (2026-11-06):** every recommended default in DESIGN §19 is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C. A verification pass after that answer raised two new questions, now Open in DESIGN §19: O26 (a game whose text language is not English) and O27 (a derivation note per pattern, item 9).
+**Owner's answer (2026-11-06):** every recommended default then in DESIGN §19 (O1–O24) is accepted, both rules in item 11 stand, and hudhook is pinned at exactly 0.9.3 (O25). Item 12 is unchanged and waits for S0-C. Two verification passes after that answer added the build rules that follow from O25 (`dx12` only, no eject path, third-party notices, the licence checks in ARCH §12.1) and raised two new questions, now Open in DESIGN §19: O26 (a game whose text language is not English) and O27 (a derivation note per pattern, item 9).
 
 ### 4.4 Not done here
 
