@@ -13,7 +13,7 @@
 - **Clocks.** `pt` is the game's play time in milliseconds (`GameDataMan.play_time`, ER05 §2). It is the timeline clock: every stored row carries it, and rollback is decided by it (SN04 §13.4). `mono` (QPC) is used only for scheduling inside a session. Wall time appears only in file names and diagnostics.
 - **Journey** `j = ng_lvl + 1` (DESIGN §10.5).
 - **Event IDs** are 64-bit integers assigned by the core, monotonic per playthrough file and never reused (§8.6). Augur's in-RAM `EventId (step seq, index)` maps to one when a P event is persisted.
-- **Persona IDs** are the slugs of `identity/personas.toml`, after the alias table (NPC §2.4).
+- **Profile IDs** are the slugs of `identity/personas.toml` and `identity/characters.toml`, after the alias table (NPC §2.4). Since O45 every NPC with a profile remembers, so in §1–§4 *persona* reads *profiled NPC* wherever the rule names no stage, tie, road or `awareness` field (DESIGN §7.8); memory keys are profile ids.
 - **Tokens** are estimated as `ceil(bytes / 3.6 × 1.15)` (NPC §7.1). Every budget below is in estimated tokens.
 - **Paths** are relative to `content/eldenring/` unless stated. Every TOML file has `schema = 1` and is parsed with `deny_unknown_fields` (NPC §0).
 - **Three-valued logic:** predicates evaluate to `T`, `F` or `U` (Unknown). §6.5 defines it.
@@ -55,29 +55,29 @@ Augur emits three classes (DESIGN §6.4, after SN04 §4.1): **P** events are sto
 | `NativeTalkStarted/Ended` with a persona | the persona only | direct | signals, `held_ms` | `met_count`; pending note |
 | `StageChanged{from, to}` | the persona only | direct | from, to | `stage_talk`'s fold (§12.14) |
 | `PlayerSaid` | speech 16 m (player) | direct for the addressee, overheard for others | text ≤ 240 chars, `conv`, input source | history, recap, job evidence, `told_name` |
-| `NpcSaid` | speech 16 m (speaker); stored only with a persona speaker (a generic's line is K, 6 s, never written) | direct for the speaker, overheard for others | shown text, page ends and page `pt`s, `to`, `motive`, `cue` | history, block 6(c), job evidence, `world_cued`, `spoke_pt`, the "said unasked" note |
+| `NpcSaid` | speech 16 m (speaker); stored only with a profiled speaker, a persona or a character (O45; a card's line is K, 6 s, never written) | direct for the speaker, overheard for others | shown text, page ends and page `pt`s, `to`, `motive`, `cue` | history, block 6(c), job evidence, `world_cued`, `spoke_pt`, the "said unasked" note |
 | `ConversationEnded{reason}` | the persona only | direct | reason, line counts, `known` (≤ 24 item–certainty pairs, §12.7) | `met_count`, job trigger, `world_seen` (§12.7), `world_seen_pt` (§12.13) |
 | `PlaythroughReady`, `JourneyChanged` | none | — | key (no name), `ng_lvl` | meta, epochs |
 
-`ConversationStarted`, `PersonaApproached`, `RestEnded`, `CameNear`, `AutonomyTick`, `NativeLineHeard`, call-out events, every combat event (`FoeKilled` included), status events and a generic speaker's `NpcSaid` are T or K and are never written (ARCH §8.6). Events with an empty audience are still stored: global facts, rollback and a later backfill need them (SN04 §13.5).
+`ConversationStarted`, `PersonaApproached`, `RestEnded`, `CameNear`, `AutonomyTick`, `NativeLineHeard`, call-out events, every combat event (`FoeKilled` included), status events and a card speaker's `NpcSaid` are T or K and are never written (ARCH §8.6). Events with an empty audience are still stored: global facts, rollback and a later backfill need them (SN04 §13.5).
 
 ### 1.2 Audience computation
 
 The audience is resolved once, in step 4 of the bus order (ARCH §8.9), and **frozen**. Nothing recomputes it later.
 
 1. **Origin** by kind (table above): the subject, the speaker, or the player.
-2. **Candidates:** personas in the current snapshot for which `persona_may_perceive` holds:
-   - resolved to a persona (never a card or a mute character; DESIGN §7.2);
+2. **Candidates:** profiled NPCs (personas and verified character bindings, O45) in the current snapshot for which `persona_may_perceive` holds:
+   - resolved to a persona or a verified character profile (never a card or a mute character; DESIGN §7.2);
    - alive (dead bit clear);
    - conscious: the active stage's effective `state` is not `asleep` or `senseless` (`unknown` holds back only own-initiative lines) and, once S8 verifies it, no runtime sleep signal (NPC §3.2);
    - `perceivable` and `may_remember` in `identity/speech.toml` (NPC §1.3);
-   - the active stage's `chat ≠ mute` (NPC §3.2).
+   - the active stage's `chat ≠ mute` (NPC §3.2), for a persona; a character has no stage, and its consciousness is S8's runtime signal once verified, else unknown, which holds back only own-initiative lines.
 3. **Radius** by kind: speech 16 m, witness 20 m, death 30 m, combat noise 40 m (DESIGN §5.4). Euclidean in Havok space.
 4. **Same area:** the same `BlockId` area byte in the open world (areas 60, 61), the same full block indoors.
 5. **How:** `direct` if the persona is the event's subject, object or addressee; `overheard` for speech not addressed to it; `witnessed` otherwise.
 6. **Cap:** 16 entries, nearest first. No line-of-sight test in v1 (ER05 §6.2).
 
-Generics perceive (barks read K events) but never get audience rows (DESIGN §10.2).
+Cards perceive (barks read K events) but never get audience rows (DESIGN §10.2).
 
 ### 1.3 The `visible_to()` contract
 
@@ -174,7 +174,7 @@ The memory subscriber does nothing for this event: the pending note is implicit 
 | Store | Holds | Written by | Restored on rollback by |
 |---|---|---|---|
 | Event log (`events`, `event_audience`) | P events with frozen audiences | Augur, at emission | trimming rows (§9.2) |
-| Facts (`npc_facts`) | Deterministic counters and places per persona and journey | Core, immediately, from events | recomputation from the remaining events |
+| Facts (`npc_facts`) | Deterministic counters and places per profiled NPC and journey | Core, immediately, from events | recomputation from the remaining events |
 | Claims | Keepsakes with `basis = said`, optionally promotable | Memory job, validated by code | the journal version |
 | Journal (`npc_journal`, versioned) | Summary ≤ 120 words, ≤ 8 keepsakes, disposition, `told_name` | Memory job, at conversation end | the newest version with `as_of_pt ≤ cut` |
 
@@ -216,11 +216,11 @@ pub struct Journal {
     pub upto_event: i64,                      // the watermark this version covers
 }
 pub struct Keepsake {
-    pub id: KeepsakeId,                       // "k1", "k2", … per (journey, persona), never reused
+    pub id: KeepsakeId,                       // "k1", "k2", … per (journey, profile), never reused
     pub text: SafeText,                       // ≤ 25 words, ≤ 200 bytes
     pub basis: Basis,                         // Said | Seen
     pub weight: f32,                          // 0.0..=1.0 in steps of 0.05
-    pub about: About,                         // Tarnished | SelfNpc | World
+    pub about: About,                         // Tarnished | SelfNpc | World | Npc(ProfileId) (O45; its rules wait for Min's blueprint, DESIGN §7.8)
     pub check_key: Option<CheckKey>,          // §2.5; Said only
     pub refs: SmallVec<[EvRef; 4]>,           // supporting event IDs or context-line IDs
     pub since_pt: u64, pub updated_pt: u64,
@@ -291,9 +291,9 @@ A **pending note** is a memory-worthy P event visible to the persona with an ID 
 
 At most 10 notes per job, newest first. Every note carries a relative-time phrase ("earlier today", "some time ago") from its `pt`.
 
-### 2.7 Generics remember nothing
+### 2.7 Cards remember nothing
 
-Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, facts, jobs or the KB. NPCs bound by a character profile (NPC §4.5) are the same: `may_remember = false`, a ring and nothing more. Their per-handle cooldowns, rings and engagements live in RAM and clear on rest, death and loading (ER04 §4.1; DESIGN §10.2). A generic's ring of its own last 6 shown lines serves the no-repeat rule and, in a live autonomy call, lets it refer back (NPC §9.9). The validator also rejects amnesia words in their pools (NPC §9.5).
+Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, facts, jobs or the KB. Since O45, NPCs bound by a verified character profile are not generics here: they have `may_remember = true` and remember as personas do, keyed by their profile id (DESIGN §7.8). A card's per-handle cooldowns, rings and engagements live in RAM and clear on rest, death and loading (ER04 §4.1; DESIGN §10.2). A generic's ring of its own last 6 shown lines serves the no-repeat rule and, in a live autonomy call, lets it refer back (NPC §9.9). The validator also rejects amnesia words in their pools (NPC §9.5).
 
 ### 2.8 Worked example, as an acceptance test
 
@@ -325,6 +325,7 @@ Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, fa
 
 - **Created** on `ConversationEnded` with ≥ 2 player lines and ≥ 4 committed lines (DESIGN §8.6).
 - **Merge:** at most one open job per `(journey, persona)`. If one is `queued`, `deferred` or `parked`, its `upto_event_id` is extended to the new conversation's last event, its `conv_id` is updated and its attempts are reset. A shorter conversation creates no job, but its lines stay above the watermark and enter the next job's evidence.
+- **Exchanges** (O45): an NPC-to-NPC exchange in which a profiled NPC spoke or was addressed (≥ 2 displayed lines) merges into that NPC's open job, or creates one, by the same merge rule, with at most one exchange-created job per NPC per 10 minutes of play (provisional); its trigger, cap, evidence and prompt are provisional until Min's blueprint (DESIGN §7.8).
 - **Never** for cards, `test_only` personas in game, or while `features.memory = false`.
 
 ### 3.2 Scheduling
@@ -358,8 +359,8 @@ The store answers `LoadJobInput{job}` with the evidence for `(watermark, upto]`,
 
 | Part | Content | Cap |
 |---|---|---|
-| Persona brief | `brief` mode, `public.summary`, `honesty` (NPC §7.6) | 150 |
-| Stage and world | the active stage `gist` and `road`, `stage_seen` at the last job, and the `short` of each item new in this conversation's `known` against `world_seen` before it (≤ 3, with its certainty word; §12.7) | 250 |
+| Profile brief | `brief` mode, `public.summary`, `honesty` (NPC §7.6); a character's from its bio (DESIGN §7.8) | 150 |
+| Stage and world | the active stage `gist` and `road` (a character has none), `stage_seen` at the last job, and the `short` of each item new in this conversation's `known` against `world_seen` before it (≤ 3, with its certainty word; §12.7) | 250 |
 | Current journal | summary, keepsakes with id, basis, weight, about and a "keep" mark on the protected one; disposition in words and number; `told_name` | 450 |
 | Talk `L1…` | committed `PlayerSaid`/`NpcSaid` of this persona's conversations, in order, each `pt`-ordered | 60 lines; oldest dropped first, with a line saying so |
 | Notes `N1…` | pending notes (§2.6) | 10 |
@@ -651,7 +652,7 @@ Grouped by certainty, `always` first: "You know: …" (fact), "You have heard: �
   2. it writes a skeleton TOML to the git-ignored `drafts.local/`: keys, `requires` from the block's aliases, `kind`-based `ephemeral`, candidate `topics` and a candidate `lexicon` (proper nouns from the NpcName and PlaceName tables), with every `text` left empty;
   3. it prints the NPC's own lines to the terminal as reference, and never writes them to the draft.
 
-  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never holds game text. There is no runtime generation and no LLM in the drafting aid (SN04 §9.1, SN00 §4 row 16). Shipped profiles of every depth are written the same way. The player's profile helper (NPC §4.7) is a different thing: it drafts only the player's own local profiles, on a click and for the player's review, and never feeds shipped content.
+  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never holds game text. There is no runtime generation and no LLM in this drafting aid (SN04 §9.1, SN00 §4 row 16). Shipped profiles were written the same way until O45; the roster's bios are now drafted offline from our own research notes by `en-tools roster-draft`, which never reads game text or the export, and every field is reviewed by hand and checked by `kb-draft --check` before it ships (DESIGN §7.8). The player's profile helper (NPC §4.7) is a different thing: it drafts only the player's own local profiles, on a click and for the player's review, and never feeds shipped content.
 
 ---
 
@@ -1290,7 +1291,7 @@ The result reaches the dialogue prompt as block 5b "As things stand now" and as 
 
 **What is stored.** No new table, no new event kind and no new thread. `ConversationEnded` gains the payload field `known`, `NpcSaid` gains `cue`, and `npc_facts` gains the keys `world_seen`, `world_seen_pt` and `world_cued` (§12.7, §12.13, §8.7). Speaking up adds one event kind, `StageChanged`, and the fact `spoke_pt` (§12.14). The world view itself is never stored: it is recomputed from the frame.
 
-**Generic NPCs** know nothing of this in v1: `world()` and `knows()` are refused in card, bark and Augur `requires` (§12.10, W1), and generics remember nothing (§2.7).
+**Cards** know nothing of this in v1: `world()` and `knows()` are refused in card, bark and Augur `requires` (§12.10, W1), and cards remember nothing (§2.7). A character profile is not generic here: `known(C)` gives it the land by its ground and the sky, without a stage (§12.5; O45; DESIGN §7.8).
 
 ### 12.2 Files and schemas
 
@@ -1559,7 +1560,8 @@ own_affairs(P, X) = X ∈ s.knows, or a tie with a certainty and active(t, X) co
 - **Witnessing is not a path.** World lines never say that the persona saw the event or was present. Seeing comes only from block 8 (`fought_beside`, `seen` keepsakes) and block 9 ("just now").
 - **No doer.** World lines never say who did the deed. That the Tarnished did it is known only through block 8 (a proved claim or a witnessed note, §12.7).
 - **The Tarnished's word is another channel** (block 8 claims) and never makes `known()` true.
-- **Generic NPCs** know nothing of this in v1 (§12.1).
+- **Cards** know nothing of this in v1 (§12.1).
+- **A character, with no stage track** (O45): `known(C, X)` is the rule above with `s.knows` empty, no ties, `H = all`, `s.at` = the region it stands in now, and `hearing(C) = C.awareness.home ∪ { s.at }`; Own and Tie never apply, so its paths are Kept, Sky, Near and Word. A character with an S6-verified stage track is a persona (DESIGN §7.8).
 
 **Worked check** (`after_radahn`: Godrick, Radahn and the star; stages as in the fixture; `world_seen` empty, as in the truth tables, §12.11):
 
