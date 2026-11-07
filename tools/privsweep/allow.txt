@@ -1,0 +1,14 @@
+# Reviewed false positives of the privacy sweep's generic rules (README.md). One a line:
+#   RULE  VALUE-REGEX  [WHERE-REGEX]
+# RULE is email, ip, userpath, drive, machine, endpoint, secret, handle or identity (never personal). VALUE-REGEX
+# must match the whole value found; WHERE-REGEX, when given, must match somewhere in where it was found. Keep
+# each line as narrow as it can be, and say why above it.
+
+# GitHub's Windows runners and Microsoft's own build machines build in D:\a\ (CI paths, in docs and in the
+# static runtime's strings inside a built DLL), not anyone's own folder.
+drive  D[:](?:\\\\|\\|/)+a(?:\\\\|\\|/)+.*
+
+# A pull request from the owner's fork to another author's repository names the fork in its head
+# ("OWNER:BRANCH"), as GitHub requires, and is opened under the owner's own account anyway. Only that field:
+# never a title, a body or a comment.
+handle  Pt0l3my  ^create_pull_request\.head\b
