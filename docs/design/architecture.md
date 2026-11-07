@@ -93,7 +93,7 @@ flowchart LR
 | C6 | Core → overlay | `ArcSwap<UiModel>` | 1 | Latest wins |
 | C7 | Overlay and WndProc → core | `crossbeam::ArrayQueue<UiEvent>` | 256 | `try_push`. On full, typing, page and debug events are dropped and counted. `Submit` and `CloseChat` wait in a one-slot retry cell inside the overlay and are pushed on the next frame |
 | C8 | Core ↔ store | `crossbeam::bounded` (`DbRequest` / `DbResult`) | 1,024 each way | Diagnostics (traces, counters) are dropped first. P events are never dropped: they spill into the core's 4,096-entry RAM ring, with 256 slots reserved for speech (§8.9, DESIGN §6.6) |
-| C9 | Core → net | `tokio::mpsc` via a blocking-safe `try_send` wrapper | 64 | Pool jobs are dropped first and memory jobs requeue. Dialogue is never dropped; at most one dialogue request is in flight (DESIGN §6.6) |
+| C9 | Core → net | `tokio::mpsc` via a blocking-safe `try_send` wrapper | 64 | Pool jobs are dropped first and memory jobs requeue. Replies are never dropped; at most one dialogue request is in flight, and a persona's own-initiative request yields: the player's `Submit` and any input epoch cancel it first (DESIGN §6.6, §8.9) |
 | C10 | Net → core | `crossbeam::bounded<LlmEvent>` | 1,024 | The net worker awaits a free slot; backpressure then reaches the HTTP stream. Tokens are never dropped |
 | C11 | Watcher → core | `crossbeam::bounded<Reload>` | 8 | Coalescing: a newer `ContentPack` or `Settings` replaces a queued one |
 | C12 | Overlay ↔ input hooks | Statics: `CAPTURE: AtomicU64` (bit 0 captured, bits 1–63 player-input epoch), `LAST_RENDER_QPC: AtomicU64`, `HELD_MASK: [AtomicU64; 4]` | — | None |
@@ -601,6 +601,7 @@ Types are our own. Offsets and copy sizes live in `gal/layouts/<build>.toml` (§
 | `ChrIns` (and subclasses) | Through the vector; the vtable is checked against the RTTI set every tick | `vtable: ptr`, `handle: u64`, `npc_param_id: u32`, `model: u32`, `entity_id: u32`, `chr_type: i32`, `team: u8`, `block_id: u32`, `flags_onscreen: bit`, `flags_dead: bit`, `last_hit_by: u64`, `modules: ptr` | world, combat | `class.<rtti-name>.copy_size` per class (base `ChrIns` lead 0x580, ER05 §6.2) |
 | `ChrIns` modules | Via `modules` | data: `hp, max_hp, fp, max_fp, stamina, max_stamina: i32`; physics: `pos: [f32; 4]`; action flag: `recv_dmg_type: i32`; throw: `throw_state: u8` | world, combat | `class.<Module>.copy_size` |
 | `PlayerIns` extras | Main player only | `locked_on: u64`; ride module `ride_state: u8` (5 = riding, ER05 §3); SpEffect list head (walked ≤ 64 entries, `param_id: i32`; looking for 9621) | player, combat | `class.PlayerIns.copy_size`, `class.SpEffectEntry.stride` |
+| `ChrIns` SpEffect list (S8) | Through the vector, every snapshot character | `special_effect` entries (`param_id: i32`), bound and stride from S8; `PlayerGameData.resistance_gauges[7]`, `proc_status_timers[7]` (the Tarnished); `SpEffectParam` classification rows (the `stateInfo` lead) in `params` | status | `class.SpEffectEntry.stride` |
 | `CSSessionManager` | FD4 singleton | `lobby_state: i32` | session | `class.CSSessionManager.copy_size` |
 | `CSEventFlagMan` | FD4 singleton | `divisor: u32`, `descriptor_map: DLMap header`, `holder_base: ptr`; nodes `{left, parent, right: ptr, key: u32, mode: u32, value: u64}`; blocks of 125 bytes | flags | `class.FlagNode.stride`, 125 per block |
 | `CSFeMan` | FD4 singleton | `hud_state: i32`, `banner_id: i32`, `boss_bars: [ {handle: u64, name_id: i32, damage_taken: i32}; 3 ]` | ui | `class.CSFeMan.copy_size` |
@@ -613,7 +614,7 @@ Types are our own. Offsets and copy sizes live in `gal/layouts/<build>.toml` (§
 
 That is 5 AOB items, 11 FD4 singletons and about 65 fields (DESIGN §4.1).
 
-**Group labels.** The boss bars belong to `ui`. The lifecycle subset is `WorldChrMan.main_player` (in `world`) plus the screen state and load counter (in `ui`). The `boss_fight_active` cross-check is in `player`. That keeps exactly the ten breaker groups of DESIGN §4.3 (DESIGN §4.1 now uses the same labels).
+**Group labels.** The boss bars belong to `ui`. The lifecycle subset is `WorldChrMan.main_player` (in `world`) plus the screen state and load counter (in `ui`). The `boss_fight_active` cross-check is in `player`. That keeps exactly the eleven breaker groups of DESIGN §4.3 (DESIGN §4.1 now uses the same labels). `status` is optional, off until S8 passes; its trip turns off status awareness and the runtime sleep signal only (DESIGN O40).
 
 ### 6.2 Discovery
 
@@ -858,6 +859,7 @@ Each snapshot tick:
 | `place` | — | The place ID resolves; hour < 24 | The same | No |
 | `camera` | — | Orthonormal rotation (each row's length within 1 ± 0.01, rows orthogonal within 0.01); FOV in 0.3–2.5 rad | The same | No |
 | `params` | Known rows found; row sizes match the paramdef | — | Row IDs ascending in the descriptor table | No |
+| `status` | — | Every walked list ends within its bound; classified statuses map to DESIGN §9.9's set; the Tarnished's gauge slots in range | The same | No |
 
 **Breaker.** Each group counts hard faults in a sliding 60 s mono window. On the third fault it trips: the group is off for the session, its fields read as `None`, the features that depend on it degrade (§6.8), and one toast names the reduced feature (R8). There is no half-open state in v1: a reset needs a restart. A structural group tripping moves the ladder to L1, and the task goes inert.
 
@@ -868,6 +870,8 @@ Each snapshot tick:
 | Any AI | `session`, `world`, `player`, and the gate true (§5) | — |
 | Named chat | + `flags`, `ui`, `place`, `params` | No `text` → persona fallback names. No `combat` → stricter gating (no hostile ≤ 25 m at all). No `camera` → no cone targeting; lock-on and nearest remain. **No `flags` → chat off, barks on** (DESIGN §4.4) |
 | Barks | + `combat` | No `camera` → bottom feed instead of floating labels. No `text` → card `label_fallback` |
+| Status awareness, runtime `conscious` | + `status` | Off: no status words, no status lines; generics' calm lines held where O44 needs the sleep signal |
+| Own-initiative persona lines | Named chat + S3 passed | Before S3: none (DESIGN §8.9) |
 | Call-out | Barks + `ui` | — |
 | Persistence | `player` | — |
 | Recording, debug view | `world` | — |
@@ -981,6 +985,7 @@ pub struct Player {
     pub ng_lvl: u8 /* GDM */, pub save_slot: u8 /* GameMan */, pub dead: bool /* dead bit */,
     pub riding: bool /* ride_state == 5 */, pub locked_on: Option<ChrHandle>, pub last_hit_by: Option<ChrHandle>,
     pub throw: u8 /* throw module */, pub roundtable: bool /* SpEffect 9621 in the list */,
+    pub statuses: StatusSet /* bitset of DESIGN §9.9, from the gauges; empty until S8 */,
     pub block: BlockId /* mAA_BB_CC_DD packed */, pub pos: [f32; 3] /* Havok, m */,
     pub gear: Gear /* 6 ItemIds; names come via ResolveText */, pub boss_flag: bool /* GDM.boss_fight_active */ }
 pub struct Place { pub place_id: Option<u32> /* FieldArea, None if <= 0 */, pub region: RegionKey /* from BlockId */,
@@ -991,8 +996,9 @@ pub struct BossBar { pub handle: ChrHandle, pub name_id: i32, pub damage_taken: 
 pub struct Chr { pub handle: ChrHandle, pub param: u32, pub model: u32, pub entity: u32, pub kind: u8 /* chr_type */,
     pub team: u8 /* live team */, pub hp: (u32, u32), pub dead: bool, pub last_hit_by: Option<ChrHandle>,
     pub recv_dmg_type: i32, pub throw: u8, pub dist_m: f32 /* |pos - player.pos|, computed by us */,
-    pub bearing_deg: f32 /* vs camera forward; NaN without camera */, pub on_screen: bool, pub block: BlockId,
-    pub pos: [f32; 3] }
+    pub bearing_deg: f32 /* vs camera forward; NaN without camera */, pub on_screen: bool,
+    pub statuses: StatusSet /* bitset of DESIGN §9.9 */, pub asleep: Option<bool> /* None until S8 */,
+    pub block: BlockId, pub pos: [f32; 3] }
 pub struct FlagFrame { pub watch_version: u32, pub bits: BitArr<2048>, pub valid: BitArr<2048> }
 pub struct TextEntry { pub fmg: u16, pub id: u32, pub text: Option<ArrayString<256>> }   // sanitised UTF-8
 pub struct ParamRowInfo { pub param: ParamKind, pub id: u32, pub fields: ArrayVec<(u8, i64), 8> }
@@ -1097,11 +1103,11 @@ pub struct Observations {
 
 | Source | Reads | Produces |
 |---|---|---|
-| `SnapshotDiff` | The new snapshot against the **last processed** one, which the world model keeps, so a dropped snapshot never fakes an edge | Samples for every registered snapshot signal. The world model also updates trackers (dropped after 2 s absent, impl), engagement and squads |
+| `SnapshotDiff` | The new snapshot against the **last processed** one, which the world model keeps, so a dropped snapshot never fakes an edge | Samples for every registered snapshot signal. The world model also updates trackers (dropped after 2 s absent, impl), engagement and squads. It also yields the samples behind `CameNear` pairs, `FoeKilled` and status edges (after S8) |
 | `FlagWatch` | `FlagFrame` against the catalogue's watch list version | `FlagEdge` facts. Frames whose `watch_version` differs from the core's current version are ignored |
 | `Lifecycle` | `CoreInput::Lifecycle` and `ReadHealth` | `Lifecycle(..)` facts, `GroupTripped`, `GateChanged` |
 | `Pipeline` | `CoreInput::Ui` (`Submit`, `CloseChat`) and events subscribers emit during the step | `Speech(..)`, `Conversation(..)` facts |
-| `Timer` | `now` crossing each whole second | `TimerFire` facts: the `IdleNear` checks (per actor, phase-staggered by `hash(handle) mod 30 s`), engagement timeouts, the gate's 5 s window, K-store expiry, the deferred `BossFightEnded` outcome |
+| `Timer` | `now` crossing each whole second | `TimerFire` facts: the `IdleNear` checks (per actor, phase-staggered by `hash(handle) mod 30 s`), engagement timeouts, the gate's 5 s window, K-store expiry, the deferred `BossFightEnded` outcome; `AutonomyTick` per NPC in range (phase `hash(handle) mod autonomy.period_s`) |
 | H1–H3 | Reserved, behind the `hooks` feature (§8.11) | — |
 
 ### 8.3 Signal registry (code-defined; adding one takes code)
@@ -1222,42 +1228,49 @@ pub enum EventKind {
     BossFightEnded { outcome: BossOutcome /* Victory|Death|Left */, bars: SmallVec<[BossRef; 3]> },
     // personas
     PersonaSeen { persona: PersonaId },                          // ≤ 10 m for 2 s; re-arm > 30 m or after loading
-    PersonaApproached { persona: PersonaId },                    // T: ≤ 6 m for 1 s
+    PersonaApproached { persona: PersonaId },                    // T: ≤ 6 m for 1 s; re-arm beyond 10 m
     PersonaAttacked { persona: PersonaId, via: AttackVia /* HpDrop|HostilityBit */ },  // conf 0.95
     PersonaDied { persona: PersonaId, by_player: bool },
     FoughtBeside { persona: PersonaId, boss: i32 },              // conf 0.9
     NativeTalkStarted { persona: Option<PersonaId>, signals: TalkSignals }, // T + scheduler lock; P with a persona, dedup 5 min; conf 0.6 until S3
     NativeTalkEnded { persona: Option<PersonaId>, held_ms: u32 },
+    StageChanged { persona: PersonaId, from: StageId, to: StageId },  // P, the persona only
     // player
     PlayerDied { killer: Option<ActorRef>, in_boss: bool },      // dead rising | deaths +1 | banner 5; dedup 5 s
-    PlayerHealed { frac: f32 },                                  // T: +≥ 20% of max within 1 s, in combat; conf 0.8
     MountChanged { riding: bool },                               // K 30 s
     // combat (K)
     Struck { att: Option<ActorRef>, vic: ActorRef, hard: bool, count: u16, frac_total: f32, dmg_type: i32 }, // 10 s
     LowHp { subject: ActorRef, frac: f32 },                      // < 0.25, re-arm > 0.35; 20 s
-    Engaged { subject: ActorRef, via: EngageVia, squad: SquadId },  // key eng:{e}; 30 s
-    Disengaged { subject: ActorRef, fled: bool, why: DisengageWhy },
-    AllyDied { victim: ActorRef, card: CardId, witnesses: SmallVec<[ChrHandle; 4]> },  // 10 s
+    Healed { subject: ActorRef, frac: f32 },                     // T: any combatant; +≥ 20% of max within 1 s, in combat; conf 0.8
+    Engaged { subject: ActorRef, opponent: ActorRef, via: EngageVia, squad: SquadId },  // key eng:{a}:{b}; 30 s
+    Disengaged { subject: ActorRef, opponent: ActorRef, fled: bool, why: DisengageWhy },
+    AllyDied { victim: ActorRef, side: SideId, witnesses: SmallVec<[ChrHandle; 4]> },  // 10 s
     CritLanded { victim: ActorRef },                             // player throw 3 while the victim's throw is 4; 10 s
     KilledNear { victim_card: CardId, witnesses: SmallVec<[PersonaId; 4]> },          // 120 s
     IdleNear { subject: ActorRef },                              // T
+    FoeKilled { victim: ActorRef, by: ActorRef },                // K 10 s: an NPC kills an NPC; emitted once S7 verifies last_hit_by for NPC attackers
+    StatusStarted { subject: ActorRef, status: Status }, StatusEnded { subject: ActorRef, status: Status }, StatusBurst { subject: ActorRef, status: Status },  // K; after S8
+    // proximity and timers (T)
+    CameNear { subject: ActorRef, other: ActorRef },  // within range.talk_m for 1 s; re-arm beyond + 4 m
+    AutonomyTick { subject: ActorRef },
     // pipeline
     PlayerSaid { to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, input: InputSource },
-    NpcSaid { speaker: ActorRef, text: SafeText, conv: ConvId, pages: u8 },
+    NpcSaid { speaker: ActorRef, to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, pages: u8, motive: Motive, cue: Option<ItemId> },  // P with a persona speaker, K (6 s) with a generic
     CalloutSent { target: ActorRef }, CalloutReplied { target: ActorRef, from_seed: bool },  // T: nothing is remembered
-    ConversationStarted { persona: PersonaId, conv: ConvId },    // T
+    ConversationStarted { persona: PersonaId, conv: ConvId, opened_by: Opener /* Player | Npc(LineId) */ },    // T
     ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16,
-                        known: Option<Vec<(ItemId, Certainty)>>,   // ≤ 24 (item, certainty) of the known set at the end; paths are not stored (MEM §12.7); None without a flag frame
-                        cued: Option<ItemId> },   // the item a reaction cue offered on a committed reply (MEM §12.13)
+                        known: Option<Vec<(ItemId, Certainty)>> },   // ≤ 24 (item, certainty) of the known set at the end; paths are not stored (MEM §12.7); None without a flag frame
     // lifecycle (P for PlaythroughReady and journey changes, T otherwise)
     DataReady, PlaythroughReady { key: PlaythroughKey }, LoadingStarted, LoadingEnded, TitleReached,
     JourneyChanged { ng_lvl: u8 }, GateChanged { active: bool }, GroupTripped { group: Group }, LadderChanged { to: Level },
+    // scripted lines (T)
+    NativeLineHeard { speaker: Option<ActorRef>, phase: LinePhase /* Started | Ended */, talk_id: Option<u32> },  // T + lock; live per kind S3 verifies; talk_id after S10
     // reserved seams (never emitted in v1)
-    NpcThought, NativeLineHeard, DecisionMade,
+    NpcThought, DecisionMade,
 }
 ```
 
-`ActorRef` is `Player | Persona{id, handle} | Card{id, variant, handle} | Mute{handle}`. `PlaceRef` is `{block, place_id, region}` (DESIGN §6.4).
+`ActorRef` is `Player | Persona{id, handle} | Card{id, variant, handle} | Mute{handle}`. `PlaceRef` is `{block, place_id, region}` (DESIGN §6.4). `Motive` is the reaction type a line answers to (NPC §9.1), or `Reply`; `Opener` is `Player | Npc(LineId)`; `LinePhase` is `Started | Ended`; `Status` is one of DESIGN §9.9's seven, and `StatusSet` their bitset; `SideId` is the Tarnished's side, a card or a live team. Which reaction types each event drives is DESIGN §6.5 and NPC §9.1.
 
 ### 8.7 Engagement, squads and combat state
 
@@ -1268,18 +1281,19 @@ stateDiagram-v2
   Engaged --> Engaged: stronger condition → conf raised (re-emit if it crosses 0.6)
   Engaged --> Idle: 12 s with no exchange and no lock-on → Disengaged(why=Timeout)
   Engaged --> Idle: distance > 30 m → Disengaged(why=Distance)
-  Engaged --> Idle: subject dead (no Disengaged; AllyDied or KilledNear instead)
+  Engaged --> Idle: subject dead (no Disengaged; AllyDied, KilledNear or FoeKilled instead)
   Engaged --> Idle: rest or loading (cleared silently)
 ```
 
-- **Applies to:** each hostile generic (`team_hostile`, `Subject::Card`).
+- **Applies to:** each pair of combatants on hostile sides: the Tarnished and a hostile NPC, or two NPCs on different sides that exchange hits (`last_hit_by` for NPC attackers, verified by S7), or that the team-pair table in `teams.toml` (verified by S7) marks hostile (DESIGN O42).
 - **Start conditions, strongest first** (DESIGN §5.3):
   - `Hit`, conf 0.9: `hit_player ∨ hit_by_player`;
   - `LockClosing`, conf 0.6: `locked_by_player`, `dist ≤ 20 m`, and the distance shrank ≥ 3 m over 2 s;
   - `Near`, conf 0.6: `dist ≤ 8 m`;
   - `LockOnly`, conf 0.3: `locked_by_player`.
+- **NPC pairs:** `Hit` (0.9) from a hit exchange either way, read from HP deltas and `last_hit_by`, once S7 verifies `last_hit_by` for NPC attackers (until then NPC pairs never engage, and a `Struck` on an NPC victim whose `last_hit_by` names another NPC carries `att: None`); `Near` (0.6, ≤ 8 m) once S7 verifies the team-pair table. Lock-on conditions are the Tarnished's only.
 - **`fled`** is computed when the engagement ends: the player's distance grew ≥ 15 m within the last 5 s, and it is now > 25 m.
-- **Squads:** when `e` becomes engaged, it joins an existing squad of the same card that has a member engaged within the last 10 s and within 20 m of `e`. Otherwise it starts a new squad. A squad dissolves when its last member disengages or dies, and on rest or loading. The squad cooldown (8 s) lives in the bark scheduler (DESIGN §9.2).
+- **Squads:** when `e` becomes engaged, it joins an existing squad of the same side (the same card, or the same live team for non-card NPCs) that has a member engaged within the last 10 s and within 20 m of `e`. Otherwise it starts a new squad. A squad dissolves when its last member disengages or dies, and on rest or loading. The group gap (8 s, `pacing.group_gap_s`) lives in the scheduler (DESIGN §9.4).
 - **Combat state:** `in_combat = boss.active ∨ now − last_signal < 8 s`. A signal is damage either way, `CritLanded`, or any engagement with conf ≥ 0.6, refreshed on every step it exists. Gating and barks use only conf ≥ 0.6 (DESIGN §5.3).
 
 ### 8.8 Audience and interrupts
@@ -1287,7 +1301,7 @@ stateDiagram-v2
 **Audience** (resolved in step 4 of §8.9 and then frozen):
 1. **Origin:** the subject's position; the speaker's position for speech; the player's position for player events.
 2. **Radius by kind:** speech 16 m, witnessing 20 m, deaths 30 m, combat noise 40 m (DESIGN §5.4).
-3. **Candidates:** personas present in the current snapshot with `persona_may_perceive`.
+3. **Candidates:** personas present in the current snapshot with `persona_may_perceive` (`persona_may_perceive` includes `conscious`, MEM §1.2).
 4. **Distance:** Euclidean in Havok space, from the candidate to the origin.
 5. **Same area:**
    - in the open world (area 60 or 61), the same area byte of `BlockId`;
@@ -1304,10 +1318,11 @@ One function, `visible_to(event, persona)`, serves prompts, the recap, memory jo
 
 | Event | `interrupts` |
 |---|---|
-| `Engaged` with conf ≥ 0.6 within 25 m | `CHAT_INPUT \| AMBIENT` |
-| `PlayerDied` | `CONVERSATION \| BARKS_EXCEPT_PLAYER_FELL` |
+| `Engaged` with conf ≥ 0.6 within 25 m | `CHAT_INPUT \| AMBIENT \| AUTONOMOUS` |
+| `PlayerDied` | `CONVERSATION \| OWN_LINES_EXCEPT_PLAYER_FELL` |
 | `LoadingStarted` | `ALL` |
-| `NativeTalkStarted` | `CONVERSATION_OUTPUT \| BARKS_WITHIN_20M` |
+| `NativeTalkStarted` | `CONVERSATION_OUTPUT \| OWN_LINES_WITHIN_20M` |
+| `NativeLineHeard{Started}` | `CONVERSATION_OUTPUT \| OWN_LINES_WITHIN_20M` |
 
 ### 8.9 Bus: order and backpressure
 
@@ -1316,7 +1331,7 @@ One function, `visible_to(event, persona)`, serves prompts, the recap, memory jo
 2. Poll the sources in fixed order: Lifecycle, SnapshotDiff, FlagWatch, Pipeline, Timer.
 3. Evaluate rules sorted by `(priority, subject distance, handle)`.
 4. Resolve and freeze audiences.
-5. Dispatch each event to **facts → log → conversation → barks → memory → UI/debug**. Each event goes to all six before the next event starts.
+5. Dispatch each event to **facts → log → conversation → barks → memory → UI/debug**. Each event goes to all six before the next event starts. The `barks` subscriber schedules every own-initiative line (DESIGN §9.4).
 
 **The step FIFO.**
 - Events that subscribers emit (through `BusCtx::emit`, which calls `resolve_audience`) join the tail of the same step's FIFO.
@@ -1339,7 +1354,7 @@ pub trait Subscriber {
 | Snapshot input | 2 slots | Latest wins; the bus itself has no queue |
 | Step FIFO | 256 | Drop T, then K; never P |
 | Store requests | 1,024 | Diagnostics dropped first. P events spill into a RAM ring of 4,096 (256 reserved for speech). When the non-speech part is full, persistence of non-speech P events pauses, with the toast "Memory is behind; recent events are not being saved", until the queue drains below 512 (impl). When the speech reserve is full, the chat stops showing new pages (they wait), so a shown line can never be lost (impl) |
-| Net requests | 64 | Pool jobs dropped first; memory jobs requeue; dialogue never dropped (one in flight) |
+| Net requests | 64 | Pool jobs dropped first; memory jobs requeue; replies never dropped (one dialogue request in flight; an own-initiative one yields to the player's `Submit`) |
 | UI | 1 | Latest wins |
 
 **Latency:** game change → scheduler ≤ 250 ms + ≤ 5 ms. Bark rules have no debounce, so p95 ≤ 300 ms (DESIGN §6.6).
@@ -1394,7 +1409,7 @@ at 2200  hit s1 -> player dmg=80
 at 2600  set_flag rest=false
 at 9000  kill s1 by=player
 expect   event Engaged subject=s1 via=Hit conf=0.9 within 2200..2500
-expect   bark aggro speaker=s1 within 1000 of Engaged
+expect   bark engaged speaker=s1 within 1000 of Engaged
 expect   no bark class=combat after 2500 of Engaged until 9000
 expect   event KilledNear witnesses=[kale] within 9000..9300
 ```
@@ -1570,7 +1585,7 @@ fallback = "google/gemma-4-31b-it"
 
 ### 11.3 Local GPU priority, pause rules and warm-up
 
-- **Priority on a local provider:** dialogue > bark_live > memory > bark_pool (DESIGN §11.1). Local providers run one request at a time.
+- **Priority on a local provider:** replies (`dialogue`) > own-initiative `dialogue` requests > `bark_live` > `memory` > `bark_pool`. An own-initiative request is cancelled by the input epoch, so it never delays a reply (DESIGN §8.9, O37; DESIGN §11.1). Local providers run one request at a time.
 - **Preemption:** a higher-priority job cancels a running `bark_pool` or `memory` job, which requeues. It never cancels dialogue.
 - **Pause rules for background jobs** (`memory`, `bark_pool`):
   - paused while `in_combat`, during a boss fight, while a conversation is open on a local provider, and while the gate is false;
@@ -1582,8 +1597,8 @@ fallback = "google/gemma-4-31b-it"
 
 | Slot | Use | max_tokens | temp | First token | Total | Retries | On failure |
 |---|---|---|---|---|---|---|---|
-| `dialogue` | Persona replies | 140 | 0.8 | 6 s (10 s local) | 20 s | 0, plus 1 lint regeneration | Fallback model once, then "…" and a toast |
-| `bark_live` | Call-out replies | 32 | 0.9 | 1.5 s | 3 s | 0 | Seed |
+| `dialogue` | Persona replies; persona own-initiative lines (cancelled by the input epoch, DESIGN §8.9) | 140 | 0.8 | 6 s (10 s local) | 20 s | 0, plus 1 lint regeneration (replies only) | Replies: fallback model once, then "…" and a toast. Own-initiative lines: the seed or silence (DESIGN §8.9) |
+| `bark_live` | Call-out replies; generic autonomy ticks (DESIGN §9.8) | 32 | 0.9 | 1.5 s | 3 s | 0 | Seed |
 | `bark_pool` | Pool batches | 600 | 1.0 | 15 s | 60 s | 1 | Keep seeds |
 | `memory` | Journal job | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
@@ -1620,16 +1635,55 @@ all = { model_hint = ["qwen3.5-9b"], quant = "Q4" }
 
 ```toml
 # %APPDATA%\EldenNet\config\settings.toml
-schema = 1
-enabled = true                                      # false → Off at the next launch, AI paused now (§1.5)
-features = { chat = true, barks = true, ambient = "sparse", callout = true, memory = true, labels = true }
+schema = 2
+enabled = true                                           # false → Off at the next launch, AI paused now (§1.5)
+features = { chat = true, barks = true, speak_up = true, callout = true, memory = true, labels = true, npc_to_npc = true, self_awareness = true, status_awareness = true }
+autonomy = { enabled = true, period_s = 120 }           # 30–1800; enabled gates the autonomy motive only, the tick still runs (DESIGN §9.8); free-tier presets write enabled = false
+range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 10–40
+pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
 ui = { scale = 1.0, hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false }   # NPC §10.7
-pools = { max_jobs_per_session = 60 }               # 0 turns generated pools off (NPC §9.5, O23)
-safety = { level = "faithful" }                     # faithful | gentle (O17)
+pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
+safety = { level = "faithful" }                          # faithful | gentle (O17)
 hotkeys = { talk = "T", skip_page = "Tab", settings = "F10", debug = "F11" }   # talk default from S4
 augur = { allow_custom_rules = false }
 debug = { panel = false, record_sessions = false, record_redact_text = false, log_level = "info" }
+# tables last: every key above is top-level
+
+[reactions]                                              # every reaction id but autonomy (NPC §9.1); cooldown_s 0–21600, seconds of play
+engaged      = { on = true, cooldown_s = 20 }
+struck_hard  = { on = true, cooldown_s = 20 }
+low_hp       = { on = true, cooldown_s = 60 }
+ally_fell    = { on = true, cooldown_s = 20 }
+foe_fell     = { on = true, cooldown_s = 20 }
+player_fell  = { on = true, cooldown_s = 0 }
+foe_fled     = { on = true, cooldown_s = 30 }
+foe_healed   = { on = true, cooldown_s = 30 }
+status_self  = { on = true, cooldown_s = 30 }
+status_plea  = { on = true, cooldown_s = 45 }
+status_warn  = { on = true, cooldown_s = 20 }
+status_foe   = { on = true, cooldown_s = 20 }
+idle         = { on = true, cooldown_s = 90 }
+greet_player = { on = true, cooldown_s = 600 }
+greet_npc    = { on = true, cooldown_s = 300 }
+answer       = { on = true, cooldown_s = 20 }
+stage_talk   = { on = true, cooldown_s = 300 }
+news         = { on = true, cooldown_s = 10800 }
+saw_kill     = { on = true, cooldown_s = 60 }
+saw_victory  = { on = true, cooldown_s = 600 }
+# autonomy is switched and timed by `autonomy` above (enabled, period_s), not here
+
+[allow."kind:creature"]                                  # DESIGN §7.6: kind, then type, then named slot
+dialogue = false
+[allow."card:vulgar_militia"]
+reactions = { greet_npc = false }                      # its greetings only; answers stay
+[allow."persona:patches"]
+autonomy = false
+reactions = { saw_kill = false }
 ```
+
+- `features.barks` is the master switch for generic NPCs' own-initiative lines, `features.speak_up` for named NPCs'. `features.ambient` is gone (`pacing.idle_max`; schema 2 migrates `off` → 0, `sparse` → 2, `normal` → 4).
+- Effective permission for a line = the feature switch ∧ `reactions.T.on` ∧ the speaker's allowance for T (DESIGN §7.6) ∧ a voice source ∧ every gate. Every line, replies and call-out replies included, also needs the speaker's `dialogue` allowance. `overrides/disable.toml` `triggers = [...]` still removes a trigger from content; either switch turns a trigger off.
+- Before the F10 pages ship (v0.6) the README's config-file section documents these keys; each key ships in the increment of its feature (DESIGN §16.2).
 
 ```toml
 # %APPDATA%\EldenNet\config\secrets.toml (keys only)
@@ -1657,7 +1711,7 @@ triggers = ["idle"]
 rules    = []                   # only rules marked disable_ok = true in their file
 ```
 
-- **Not disableable:** `identity/speech.toml`, `lexicon/*`, `flags/catalog.toml`, `teams.toml` and the world frame. These are the safety and spoiler layers, and an attempt is reported as a validation error.
+- **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`), `identity/types.toml`'s kind rules, `lexicon/*` (tells included), `flags/catalog.toml`, `teams.toml` and the world frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the conversable and safe-context predicates, strict mode, the spoiler gates (there is no spoiler setting), and R2 (the action and gesture allowances cannot be turned on). These are the safety and spoiler layers, and an attempt is reported as a validation error.
 - **Not hot-reloaded:** `gal/` is read at boot only and is never overridden.
 
 **Hot reload** (on T10):
@@ -1673,6 +1727,7 @@ When each change takes effect:
 | Personas, KB, cards, prompts | Next request. Only the edited persona's cached prefix is invalidated |
 | Providers, keys | Next request; in-flight requests finish on the old config |
 | Hotkeys, UI | Immediately |
+| `features`, `autonomy`, `range`, `pacing`, `reactions`, `allow` | The next step; pending requests are re-gated; cooldowns, window entries and reservations are kept; a visible line whose speaker is no longer allowed fades |
 | Augur rules | The next step. Detector state is kept for rules whose `id` and detector are unchanged, and reset otherwise |
 | `enabled` | §1.5 |
 
@@ -1709,7 +1764,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `clippy-win` | Linux via `cargo xwin clippy --target x86_64-pc-windows-msvc` | §2.4 deny lists for `en-gal`, `en-overlay`, `eldennet`, `en-launcher` |
 | `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 backstop (`MH_RemoveHook`, a bare `eject(`, `use hudhook::*`, `hudhook!`); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
-| `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), and `lead` entries in release layouts |
+| `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), beckon (W13), tells (W14), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts |
 | `eval` | Linux: `en-tools eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
 | `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
 | `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
@@ -1726,7 +1781,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | Golden replay | `en-tools` | 3 recorded routes; 10 identical replays (C12) |
 | Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis, memory (`wren_and_kale`, MEM §2.8), knowledge (`star_falls`, MEM §12.11) and identity (`veiled`, NPC §2.7) |
 | Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; spoiler renders at 6 flag states; block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4) |
-| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt` and `world_cued` after trim and NG+ |
+| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+ |
 | Conformance | `en-core` | A trailer never displays; with `actions` off no non-read command; one row per decision (DESIGN §13) |
 | `FakeSys` | `en-gal` | Discovery over synthetic images; statics moving, nulls, vtable swaps, faults → breakers |
 | Backpressure | `en-core`, `en-augur` | §8.12 |
@@ -1798,7 +1853,7 @@ eldennet/
                        bake_pools, selftest, fmg_import, identity_fill, kb_draft, flag_verify, scn}.rs
   content/eldenring/
     prompts/{dialogue,callout,memory,pool}/NN_*.j2  registers/*.md  personas/  archetypes/
-    identity/{personas,archetypes,speech,humanoid_models}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
+    identity/{personas,archetypes,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
     world/{stages,tracks}.toml
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml

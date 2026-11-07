@@ -12,6 +12,10 @@ branch.
   conversation with them.
 - **Generic NPCs** (soldiers, militia, wanderers) know what they are, where they are and what is happening in a
   fight, and say short lines.
+- **NPCs speak up on their own:** named NPCs greet the Tarnished and call them over when they have something
+  for them, NPCs talk among themselves, and NPCs with a voice (named NPCs, soldiers, militia, wanderers) react
+  in words to fights and, once the game's signals for them are verified, to status effects, limited only by
+  pacing and per-type allowances that the player sets.
 - **Dialogue only.** NPCs take no other actions in v1.
 
 v1 is deliberately small and stable: it reads game memory, never writes it, and patches no game code. It is
