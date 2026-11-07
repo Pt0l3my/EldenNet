@@ -1,6 +1,6 @@
 # EldenNet: notes for Claude
 
-EldenNet is an LLM-driven NPC framework for Elden Ring, inspired by the design ideas of SkyrimNet. Version 1 is
+EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's approval. Version 1 is
 deliberately minimal and stable: named NPCs have personality, awareness and memories and can hold a free-form
 conversation; generic NPCs know what they are, where they are and what is happening in a fight, and say short
 lines; there are no NPC actions beyond dialogue.
@@ -41,16 +41,20 @@ lines; there are no NPC actions beyond dialogue.
 
 ## Licences and third-party material
 
-- SkyrimNet: we take ideas, architecture and published numbers only. Never copy its prompts, templates, bios,
-  YAML content or code into EldenNet, never inspect its compiled files, and never use its name to promote
-  EldenNet (see [docs/research/skyrimnet/00-summary.md](docs/research/skyrimnet/00-summary.md) §7).
-  One exception, at the owner's request (2026-11-07): its dashboard's pre-built web bundle may be run to study
-  the UI's structure, served on loopback in a headless browser with every outside request blocked. Only what
-  the browser shows is looked at; the bundle's source is never read, searched or copied.
+- **SkyrimNet (owner's decision, 2026-11-07).** SkyrimNet's author, Min, gives EldenNet the engine blueprint
+  (SkyrimNet's game-agnostic core) to work with, knowing EldenNet is built with AI assistance, and EldenNet's
+  foundation will be based on SkyrimNet. So we may use, copy and adapt SkyrimNet's engine and content (code,
+  prompts, templates, bios, configuration, the dashboard) for Elden Ring. Credit SkyrimNet and Min as Min wishes,
+  keep every licence and notice file that comes with what we take, and never present EldenNet as SkyrimNet itself
+  or claim more endorsement than Min has given. Once the owner supplies the blueprint it is our foundation: we
+  read, build, run and modify it. The older copies under `_untrusted` stay read-only reference.
+  ([docs/research/skyrimnet/00-summary.md](docs/research/skyrimnet/00-summary.md) §7 records the earlier
+  ideas-only boundary.)
 - FromSoftware: never commit game files, text (FMG), params or audio. Game text is read at runtime from the
   player's own install, or exported locally by the player.
 - Third-party reference material is not committed. Uploads and clones of other projects are untrusted: put each
-  in its own folder outside the repository, read it with `python3 -I`, and never build or run it.
+  in its own folder outside the repository, read it with `python3 -I`, and never build or run it. The one
+  exception is Min's engine blueprint once the owner supplies it (above).
 - Check a dependency's licence before adopting it.
 
 ## Owner decisions (2026-11-06 and 2026-11-07)
@@ -79,6 +83,14 @@ lines; there are no NPC actions beyond dialogue.
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,
   not forbid lists. v1 stays dialogue-only and read-only, so "there are no NPC actions beyond dialogue" still
   holds; actions and gestures are later-version seams (DESIGN O31–O42).
+- **The full roster, with free conversation and memories (2026-11-07).** v1.0 ships our own character bio for every
+  named NPC and every named boss (DESIGN O43 as updated): general and stage-independent, in our own words and
+  spoiler-reviewed; stages stay a separate feature (the personas' stage tracks, GraceUI's Playthrough page). Every NPC
+  with a profile holds a free conversation and keeps memories of the player and of other NPCs, and the framework
+  matches the speaker by ID to its data (O45). The roster is generated after a game scan and research, once Min's
+  engine blueprint has arrived and the bio's structure is settled (O46, Open). Drafts come from our own notes, never
+  from game text, and every field is reviewed by hand. What EldenNet adopts from Min's engine is the owner's call
+  once its blueprint arrives (SkyrimNet, under Licences).
 
 ## Working rules
 
