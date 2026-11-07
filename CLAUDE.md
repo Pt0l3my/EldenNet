@@ -44,13 +44,16 @@ lines; there are no NPC actions beyond dialogue.
 - SkyrimNet: we take ideas, architecture and published numbers only. Never copy its prompts, templates, bios,
   YAML content or code into EldenNet, never inspect its compiled files, and never use its name to promote
   EldenNet (see [docs/research/skyrimnet/00-summary.md](docs/research/skyrimnet/00-summary.md) §7).
+  One exception, at the owner's request (2026-11-07): its dashboard's pre-built web bundle may be run to study
+  the UI's structure, served on loopback in a headless browser with every outside request blocked. Only what
+  the browser shows is looked at; the bundle's source is never read, searched or copied.
 - FromSoftware: never commit game files, text (FMG), params or audio. Game text is read at runtime from the
   player's own install, or exported locally by the player.
 - Third-party reference material is not committed. Uploads and clones of other projects are untrusted: put each
   in its own folder outside the repository, read it with `python3 -I`, and never build or run it.
 - Check a dependency's licence before adopting it.
 
-## Owner decisions (2026-11-06)
+## Owner decisions (2026-11-06 and 2026-11-07)
 
 - **No me3.** me3's policy forbids all LLM use in its project. EldenNet uses nothing from me3: no code, crates,
   APIs or mod-host features, and no presence in its spaces (code, issues, discussions, Discord). EldenNet is a
@@ -71,6 +74,11 @@ lines; there are no NPC actions beyond dialogue.
   2026-11-06). Change the version only with the owner's approval, after re-reading its licence files. Rules
   that follow from the pin (DESIGN O25): build it with the `dx12` feature only, use `imgui` only through
   `hudhook::imgui` and MinHook only through `hudhook::mh`, and never call its eject path.
+- **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
+  business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
+  settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,
+  not forbid lists. v1 stays dialogue-only and read-only, so "there are no NPC actions beyond dialogue" still
+  holds; actions and gestures are later-version seams (DESIGN O31–O42).
 
 ## Working rules
 
