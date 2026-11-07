@@ -1219,6 +1219,8 @@ priority = 5
 
 ### 8.6 Event catalogue (every v1 event of DESIGN §6.5)
 
+Since O45, every `PersonaId` in this catalogue reads *profile id* (a persona or a verified character binding, DESIGN §7.8), except in `StageChanged`, which only a stage track emits.
+
 ```rust
 pub enum EventKind {
     // world (P unless noted)
@@ -1257,7 +1259,7 @@ pub enum EventKind {
     AutonomyTick { subject: ActorRef },
     // pipeline
     PlayerSaid { to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, input: InputSource },
-    NpcSaid { speaker: ActorRef, to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, pages: u8, motive: Motive, cue: Option<ItemId> },  // P with a persona speaker, K (6 s) with a generic
+    NpcSaid { speaker: ActorRef, to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, pages: u8, motive: Motive, cue: Option<ItemId> },  // P with a profiled speaker (a persona or a character, O45), K (6 s) with a card
     CalloutSent { target: ActorRef }, CalloutReplied { target: ActorRef, from_seed: bool },  // T: nothing is remembered
     ConversationStarted { persona: PersonaId, conv: ConvId, opened_by: Opener /* Player | Npc(LineId) */ },    // T
     ConversationEnded { persona: PersonaId, conv: ConvId, reason: EndReason, player_lines: u16, committed: u16,
@@ -1303,7 +1305,7 @@ stateDiagram-v2
 **Audience** (resolved in step 4 of §8.9 and then frozen):
 1. **Origin:** the subject's position; the speaker's position for speech; the player's position for player events.
 2. **Radius by kind:** speech 16 m, witnessing 20 m, deaths 30 m, combat noise 40 m (DESIGN §5.4).
-3. **Candidates:** personas present in the current snapshot with `persona_may_perceive` (`persona_may_perceive` includes `conscious`, MEM §1.2).
+3. **Candidates:** profiled NPCs (personas and verified character bindings, O45; DESIGN §7.8) present in the current snapshot with `persona_may_perceive` (`persona_may_perceive` includes `conscious`, MEM §1.2).
 4. **Distance:** Euclidean in Havok space, from the candidate to the origin.
 5. **Same area:**
    - in the open world (area 60 or 61), the same area byte of `BlockId`;
@@ -1810,6 +1812,9 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `fmg-import <export dir>` | Turn the **player's own** WitchyBND or Smithbox FMG export into `%APPDATA%\EldenNet\gamedata\fmg-<lang>.db` (git-ignored; never shipped) | `--lang` |
 | `identity-fill` | Fill each persona row's `expect_name_id` from the author's own params (numbers only, never text; NPC §2.1) | `--persona` |
 | `kb-draft` | Offline KB skeletons from the author's own export, every `text` left empty; `--check` flags ≥ 6-word overlaps with the export (MEM §5.6) | `--persona`, `--export`, `--check` |
+| `roster-scan` | The roster's census from the author's own exports and install data: numbers into the index as leads, names only in the git-ignored `roster.local/` (DESIGN §7.8) | `--batch`, `--export` |
+| `roster-draft` | Offline: one call per NPC turns our own research note into a draft bio in the git-ignored `drafts.local/roster/`; reads no game text, export or vanilla line (DESIGN §7.8) | `--id`, `--batch`, `--providers` |
+| `roster-verify <recording>` | Match the roster's binding leads to a capture's sightings and write evidence records to `tests/roster/` (S1, S2; DESIGN §7.8) | `--batch` |
 | `flag-verify <recording>` | Align flag edges with S6 marks and write evidence records (MEM §6.3) | `--script tests/s6/<topic>.toml` |
 
 ### 12.4 Compatibility matrix (rows from v0.1, the full matrix at v0.6; DESIGN §16.3)

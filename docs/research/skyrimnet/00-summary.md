@@ -383,6 +383,8 @@ SkyrimNet distances are in Skyrim units, converted at 128 units = 1.828 m (`unit
 
 ## 7. Licensing: what we may and may not reuse
 
+**Update (2026-11-07):** SkyrimNet's author, Min, has given EldenNet the engine blueprint to work with, and the owner decided that EldenNet's foundation will be based on SkyrimNet, with Min's approval to use, copy and adapt its engine and content (EldenNet `CLAUDE.md`, Licences). The rest of this section is the published licence as we read it before that approval; it still applies to anyone without it.
+
 This is our reading of `GH/LICENSE`, not legal advice.
 
 **The license covers almost everything SkyrimNet ships:** the DLL, Papyrus scripts, the ESP and its Spriggit source, prompts and templates, configuration, interface files and documentation.

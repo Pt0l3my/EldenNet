@@ -7,9 +7,9 @@ branch.
 
 ## What v1 is meant to do
 
-- **Named NPCs** (questline characters and named merchants) get a personality, an awareness of where they are
-  and what is happening, and memories of earlier conversations. The player can hold a free-form text
-  conversation with them.
+- **Named NPCs and named bosses** each get a character bio of their own, written by us: a personality, an awareness of
+  where they are and what is happening, and memories of the player and of the other NPCs they deal with. The player
+  can hold a free-form text conversation with any of them whom the game lets them meet calmly.
 - **Generic NPCs** (soldiers, militia, wanderers) know what they are, where they are and what is happening in a
   fight, and say short lines.
 - **NPCs speak up on their own:** named NPCs greet the Tarnished and call them over when they have something
@@ -36,7 +36,8 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
   it from a loader they already use.
 - It ships no FromSoftware files, text, params or audio. Game text is read at runtime from the player's own
   install.
-- All personas, prompts and example content are original.
+- Built on SkyrimNet with its author's approval, credited as its author wishes. Our own personas, prompts and example
+  content are original.
 - The project is developed with AI assistance.
 
 ## Tools for contributors
