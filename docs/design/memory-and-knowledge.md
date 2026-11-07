@@ -293,7 +293,7 @@ At most 10 notes per job, newest first. Every note carries a relative-time phras
 
 ### 2.7 Generics remember nothing
 
-Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, facts, jobs or the KB. Their per-handle cooldowns, rings and engagements live in RAM and clear on rest, death and loading (ER04 §4.1; DESIGN §10.2). A generic's ring of its own last 6 shown lines serves the no-repeat rule and, in a live autonomy call, lets it refer back (NPC §9.9). The validator also rejects amnesia words in their pools (NPC §9.5).
+Cards have `may_remember = false` (NPC §1.3), so they never enter audiences, facts, jobs or the KB. NPCs bound by a character profile (NPC §4.5) are the same: `may_remember = false`, a ring and nothing more. Their per-handle cooldowns, rings and engagements live in RAM and clear on rest, death and loading (ER04 §4.1; DESIGN §10.2). A generic's ring of its own last 6 shown lines serves the no-repeat rule and, in a live autonomy call, lets it refer back (NPC §9.9). The validator also rejects amnesia words in their pools (NPC §9.5).
 
 ### 2.8 Worked example, as an acceptance test
 
@@ -651,7 +651,7 @@ Grouped by certainty, `always` first: "You know: …" (fact), "You have heard: �
   2. it writes a skeleton TOML to the git-ignored `drafts.local/`: keys, `requires` from the block's aliases, `kind`-based `ephemeral`, candidate `topics` and a candidate `lexicon` (proper nouns from the NpcName and PlaceName tables), with every `text` left empty;
   3. it prints the NPC's own lines to the terminal as reference, and never writes them to the draft.
 
-  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never holds game text. There is no runtime generation and no LLM in the drafting aid (SN04 §9.1, SN00 §4 row 16).
+  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never holds game text. There is no runtime generation and no LLM in the drafting aid (SN04 §9.1, SN00 §4 row 16). Shipped profiles of every depth are written the same way. The player's profile helper (NPC §4.7) is a different thing: it drafts only the player's own local profiles, on a click and for the player's review, and never feeds shipped content.
 
 ---
 
@@ -859,9 +859,17 @@ Allowed(P)= public ∪ ⋃ lexicon(w) over P's winning, unlocked variants (§5.2
             ∪ ⋃ lexicon(i) ∪ lexicon(P's tie line for i) over items with known(P, i) ≠ none
 Locked(P) = ((G_locked ∪ S_locked ∪ K_locked(P)) − Allowed(P)) ∪ R_locked
 per turn:   Locked_turn(P) = Locked(P) − runtime names in this prompt (other personas, place, boss bars)
+
+for each card or character C (NPC §4.5, §4.8):
+Allowed(C)= public ∪ C.lexicon (shipped) ∪ ⋃ lexicon(e) over C's active shipped knows_when entries e
+            ∪ { t ∈ C.lexicon (the player's) ∪ ⋃ lexicon(e) over the player's active knows_when entries e :
+                t ∉ G_locked ∪ S_locked ∪ R_locked }   # a player's names never unlock
+Locked(C) = ((G_locked ∪ S_locked) − Allowed(C)) ∪ R_locked
+per turn:   Locked_turn(C) = Locked(C) − runtime names in this prompt (the bar's name)
 ```
 
 - Content and the lexicon cannot drift apart: the lexicon *is* the content's own `lexicon` fields (J3 #20; P2 §7.4).
+- A card's lines keep their stricter lexicon-only rule (NPC §4.4 rule 4); `Locked(C)` adds the world and reveal locks for characters and for every profile's `subjects` and `instructions`.
 - Reveal terms are not subtracted by `Allowed`: only their own `unlock` (or the game itself showing the name) releases them. The speaking persona's own runtime name never enters its prompt (NPC §2.7), so it cannot release its own reveal early.
 - **Lint:** a public term may not appear in a reveal or in a `spoiler ≥ 2` lexicon; an entry listing a reveal term needs `spoiler ≥` that term's.
 
@@ -880,7 +888,7 @@ An entry, stage unlock or reveal term with `spoiler ≥ 2` unlocks only if every
 
 ### 7.5 Anti-priming lint
 
-For every persona, every stage and each of the eight fixture flag states (§7.8) in which that stage is active: `forbid` (code-only), `identity`, `public.*`, `gist`, `where`, `mood`, `road`, `beckon` and stance entries must contain no term in `Locked(P)` at that state. World lines, `heard` lines and tie lines are checked at every fixture state where they render (§12.8). And no `forbid` may ever contain a reveal term. Forbids name the topic ("why the merchant caravans scattered"), never the secret (J3 #21; NPC §11). No tell is a `public` term (W14).
+For every persona, every stage and each of the eight fixture flag states (§7.8) in which that stage is active: `forbid` (code-only), `identity`, `public.*`, `gist`, `where`, `mood`, `road`, `beckon`, `subjects`, `instructions` and stance entries must contain no term in `Locked(P)` at that state. World lines, `heard` lines and tie lines are checked at every fixture state where they render (§12.8). And no `forbid` may ever contain a reveal term. Forbids name the topic ("why the merchant caravans scattered"), never the secret (J3 #21; NPC §11). No tell is a `public` term (W14). For every card and character profile at each fixture state, `who`, `manner`, `cadence`, `brief`, `knows`, `subjects`, `instructions` and its seeds hold no term of `Locked(C)`, and each `knows_when` text none at the states where it renders (PL7, NPC §4.8). In the player's own files these checks report nothing: a locked term is kept out of lines by `Allowed(C)` and the output lock, never pointed out (NPC §4.7, §4.8).
 
 ### 7.6 Developer-label firewall
 
@@ -1082,6 +1090,8 @@ CREATE INDEX intents_pj     ON npc_intents (persona, journey);
 
 `events.payload` of a `ConversationEnded` carries `known` (≤ 24 pairs, ≤ 900 bytes, §12.7), and that of an `NpcSaid` its `cue` (≤ 40 bytes, §12.13); `npc_facts` holds `world_seen`, `world_cued` and `spoke_pt` as JSON under their keys, and `world_seen_pt` as a pt. No table is added for world awareness.
 
+**Sightings** (an additive migration): `sightings(journey, param, entity, name_id, bar, first_pt)`, numbers only: one row per named NPC that was the best talk candidate, per boss-bar holder once its bar showed and per invader once it engaged, the first time in this journey (NPC §4.7). It feeds the named slots' "once seen" rule and the profile editor's list of people met. The trim deletes rows after the cut, NG+ starts a new partition, and "Forget this journey" clears it.
+
 **diag `0001`:** `trace(id, parent, kind, label, start_mono_us, dur_us, wall, meta)`, `counter(name, window_start_wall, value)`, `error(class, detail, count, first_wall, last_wall)`, `lint_hit(rule, persona, slot, count, last_wall)` and `unknown_chr(npc_param_id, entity_id, model, chr_type, team, place_id, count, first_pt, last_wall)` for the curation list of NPC §2.5 (IDs and counts only, never the runtime name). `meta` JSON in traces never carries chat text. Decisions and intents live in the playthrough file instead, because they belong to a timeline and must be trimmed and forgotten with it (§11).
 
 **Size:** about 2 KB per stored event including indexes. A 100-hour playthrough, at a few thousand P events and a few thousand speech lines, stays under about 30 MB.
@@ -1145,6 +1155,7 @@ trim(cut):
   npc_journal    : versions with as_of_pt > cut → deleted; the newest remaining one is current
   memory_progress: watermark = upto_event_id of the current version (0 if none)
   decisions      : t_play_ms > cut → deleted
+  sightings      : first_pt > cut → deleted (§8.7)
   npc_facts      : recomputed: the core folds the remaining events (EventsForFold) and writes the result
                    (including `world_seen` and `world_cued`, §12.9)
   meta           : next_event_id unchanged (IDs are never reused); diag records Δ, cut and row counts
@@ -1223,7 +1234,7 @@ fn migrate(db: &mut Connection, path: &Path, set: &[Migration]) -> Result<(), St
 - **64-bit keys:** every key is SQLite `INTEGER` read as `i64`. Handles are stored by bit-cast from `u64`. Test fixtures start event IDs at 2³³ and use handles with the high bit set, because toy IDs hide truncation (SN04 §3 migrations 0016, 0021).
 - **Reserved tables in `0001`** (`memories`, `memories_fts`, `embeddings`, `decisions`, `npc_intents`), so v1.x recall needs no breaking change (DESIGN §13).
 - **Invalidation by content hash and model fingerprint:**
-  - pool lines are keyed by `card_hash`; editing a card retires them (NPC §9.5);
+  - pool lines are keyed by `card_hash`; editing a card retires them, an edit to its `subjects` alone excepted (NPC §4.1, §9.5);
   - embeddings carry `producer`, and rows from another producer are ignored and later deleted (SN04 §3 migration 0028);
   - journal versions record `model_fp`, `prompt_hash` and `persona_hash` for diagnosis only. Memories are never invalidated by a model or content change;
   - the prompt prefix cache and the derived lexicon are keyed by content hashes, in RAM.
@@ -1611,7 +1622,7 @@ The since-line carries no cue of its own: when a reaction prompts it, one cue li
 | 7 What you know now | "flag facts in words" becomes the since-line (≤ 55); world facts leave the KB `always` slots; the reaction cue (≤ 35) follows it; the two together ≤ 90, never trimmed (§12.13); the forbid line is gone (O36) | 350 → 300 → 280 |
 | 9 Here and now | the "you, now" line (≤ 30) | 180 → 210 |
 
-The caps sum to 3,390, under the 3,500 hard cap (from 3,130: block 5b adds 200, block 7 gives back 70, block 1 grows by 100 and block 9 by 30); the 2,800 target is unchanged. A typical mid-game prompt is about 2,525 tokens, with block 5b at 125–175. The trim order is unchanged, and blocks 1–5b are never trimmed.
+The caps sum to 3,390 (3,460 since block 4 carries a profile's `instructions`, DESIGN §7.7), under the 3,500 hard cap (from 3,130: block 5b adds 200, block 7 gives back 70, block 1 grows by 100 and block 9 by 30); the 2,800 target is unchanged. A typical mid-game prompt is about 2,525 tokens, with block 5b at 125–175. The trim order is unchanged, and blocks 1–5b are never trimmed.
 
 **KB caps.** World stages are not KB entries and take no `always` slot (§5.1). Kalé's former `kb.limgrave.castle_fallen` is the world stage `castle_fallen`, which leaves him 3 `always` keys (NPC §3.4). A KB entry that depends on a world event uses `knows('<id>')`, so its detail appears only to a persona who has the news; `world()` is not allowed in KB `requires` (W11).
 
@@ -1689,7 +1700,7 @@ Because who knows is decided at render time, not frozen when an event is emitted
 | W2 Spoiler | Item `spoiler` ≥ the highest flag spoiler in its `when` (through `world()`); tie `spoiler` ≥ its item's; `line` needs `spoiler` and `lexicon` |
 | W3 NG+ | Every flag in a world-stage or track `when` has `ng = reset`; `keep` is an error; release lint rejects `unknown` |
 | W4 Coverage | Every verified offset ≥ +6 of a persona's block (+5 is the base stage's own flag, and the base stage's `when` is `true`, NPC §3.2) appears in some stage `when` or in `awareness.skip` with a reason |
-| W5 Caps | Field caps (§12.2); world stages ≤ 32 (the `holds` and `unknown` bit arrays); tracks ≤ 16 (persona tracks plus `world/tracks.toml`, the `active` vector); block 5b ≤ 200 tokens for every persona × stage × fixture state, and with every tie active; the reaction cue ≤ 35 tokens for every `short` in each of its four strings, and the since-line and cue together ≤ 90 (§12.13); the largest own-initiative task block each persona can produce ≤ 120 tokens, over every motive and every stage's `beckon` (in practice its longest `stage_talk` block, which a greeting carrying quest business also renders; NPC §7.8) |
+| W5 Caps | Field caps (§12.2); world stages ≤ 32 (the `holds` and `unknown` bit arrays); tracks ≤ 16 (persona tracks plus `world/tracks.toml`, the `active` vector); block 5b ≤ 200 tokens for every persona × stage × fixture state, and with every tie active; the reaction cue ≤ 35 tokens for every `short` in each of its four strings, and the since-line and cue together ≤ 90 (§12.13); the largest own-initiative task block each persona can produce ≤ 120 tokens, over every motive, every stage's `beckon` and every one of its `subjects` (in practice its longest `stage_talk` block, which a greeting carrying quest business also renders; NPC §7.8) |
 | W6 Lexicon | Every capitalised non-initial word of a line, `heard`, `short` or tie line is in its lexicon, `lexicon/public.toml` or a reveal term; a `short` uses only its item's lexicon; the forbid rule of §12.8 |
 | W7 Wording | Item lines, `heard` and shorts are impersonal (no "you"); no witness verbs ("saw", "watched", "witnessed") and no doer ("the Tarnished", "by your hand") in any news line; the stale-safe list (§12.8); the banned words (NPC §3.3: "quest", "boss" …); no numbers. The four strings of `07_cue.j2` follow the same lists, and also hold no imperative to speak ("tell", "mention", "say", "ask", "remind", "must", "should"), no capitalised non-initial word but "Tarnished", and "the Tarnished" only as the teller in the Tarnished's-part string |
 | W8 Ties | `item` exists; never P's own track; track ties need `certainty` and may not carry `line`; `from` is a step of that track; a `played` tie without evidence is inert, and release lint rejects inert ties (add the evidence or drop the tie) |
@@ -1734,9 +1745,9 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 | T8 NG+ | After `JourneyChanged`, block 5b shows the base road only and `world_seen`, `world_cued` and `spoke_pt` are empty |
 | T9 Strict | With 310 unverified, `star_fallen` never holds and `knows('star_fallen')` is U; with 9130 and Blaidd's +9 verified T, his +10 unverified and his later offsets verified F, Blaidd's bridging stage is active and `after_star` is not |
 | T10 Claims | `slew:radahn` told to Kalé is promoted at `after_radahn`; `slew:rykard` told to Kalé at `after_rykard` stays a claim; `slew:margit` (no world stage) never promotes |
-| T11 Lints | W1–W15 each have a failing fixture file, and so do W5's and W7's cue clauses |
+| T11 Lints | W1–W15 each have a failing fixture file, and so do W5's and W7's cue clauses and W5's subject clause |
 | T12 Cue table | `cue(P)` equals `tests/knowledge/cues.toml` (item and reaction, or `none`) for every persona × fixture state × prior-meeting variant: met before or not; last conversation within or beyond 6 h, with or without a native talk since (a native talk within 6 h after a conversation beyond 6 h still gives no local talk); with and without a told `slew:` claim, proved or not; a `world_cued` pt inside or outside the news cooldown; the item's short locked; and strict (310 unverified: no star cue). From v0.3 on Kalé and the CI fixture persona `test_stake` (§12.2); each persona at v0.5 |
-| T13 Cue journey | A scripted journey meets each persona twice at each fixture state in story order (the second meeting 1 h of play after the first), with one rollback and one NG+. It asserts a cue for an item only after the news cooldown, cues for other items on later replies, ≤ 1 cue line per reply, a cue on a greeting, none at a first meeting, only the Tarnished's part at a second meeting, that a trim before a cued conversation unspends its item, and that NG+ empties `world_cued`. It reports the share of cued meetings per persona |
+| T13 Cue journey | A scripted journey meets each persona twice at each fixture state in story order (the second meeting 1 h of play after the first), with one rollback and one NG+; at each second meeting with a proved claim, the Tarnished replies 30 s and again 90 s after the Told-cued reply. It asserts no cue for the spent item at the 30 s reply and a cue for it again at the 90 s reply (the 60 s news cooldown, O30), cues for other items on later replies, ≤ 1 cue line per reply, a cue on a greeting, none at a first meeting, only the Tarnished's part at a second meeting, that a trim before a cued conversation unspends its item, and that NG+ empties `world_cued`. It reports the share of cued meetings per persona |
 | T14 Beckon | `beckons(P)` equals `tests/knowledge/beckons.toml` per persona × fixture state × talk history: no talk; a native talk at the stage; a talk ending ≤ 10 s before `StageChanged` (counts as talked) and > 10 s before (does not); `talked` flag T, F and U (U counts as talked); no flag frame yet; a journey adopted mid-playthrough (first frame at play time ≥ 60 s) without a `talked` flag (no beckon) and with one verified F (beckons); after "Forget this NPC" (no beckon until a later live `StageChanged`); `state` asleep and `unknown`; S3 not passed |
 
 **Truth-table format** (`tests/knowledge/expect.toml`, hand-written; one table per state and persona, listing every world stage and every step of a track some persona ties; an item that does not hold, or that P knows by no path, is "none"; `world_seen` is empty):
@@ -1760,7 +1771,7 @@ About 1,250 words of original prose: about 9–11 hours of writing and review, p
 prior  = "after_godrick"         # world_seen = known(P) at that state, from one earlier meeting; "none" = never met
 met_h  = 2.0                     # play hours since that meeting (it sets world_seen and world_seen_pt)
 claims = []                      # slew:<boss> claims told earlier; their proof is computed (§2.5)
-cued   = []                      # world_cued: [[item, play hours ago]]; an item inside the news cooldown (3 h) is skipped
+cued   = []                      # world_cued: [[item, seconds of play ago]]; an item inside the news cooldown (60 s) is skipped
 expect = "w:star_fallen:own"     # <item>:<own|told|local_here|local_home>, or "none"
 
 [after_radahn.blaidd.strict]
@@ -1850,7 +1861,7 @@ About 12 extra aliases and one late-game route over a tester's checkpoint saves 
 
 ### 12.13 Reaction cues: raising news unasked (O28, O30)
 
-**Owner decision (O28, 2026-11-06).** A persona may raise news of the land without being asked, but only when a reaction prompts it: never just because the news is new, and never every time. Which reactions count is O30 (DESIGN §19). Until the owner decides, this section carries O30's recommended default. *Updated by O31 and O39 (2026-11-07):* no count limits; repetition follows the `news` cooldown; a cue may ride on the persona's own greeting.
+**Owner decision (O28, 2026-11-06).** A persona may raise news of the land without being asked, but only when a reaction prompts it: never just because the news is new, and never every time. Which reactions count is O30 (DESIGN §19), decided by the owner on 2026-11-07: (b), the three reactions below chosen by temperament, with the news cooldown at 60 s of play per persona and item. *Updated by O31 and O39 (2026-11-07):* no count limits; repetition follows the `news` cooldown; a cue may ride on the persona's own greeting.
 
 **Where.** A persona raises news unasked in a reply, although the player's line did not ask about it, or in its own greeting (DESIGN §8.9, O39). The event reaction system is Augur (DESIGN §6), but W1 keeps world state out of its rules (§12.10). The cue is therefore computed by the conversation subscriber (ARCH §8.9), and for a greeting by the line scheduler, from what Augur, the flag watcher, the world view (`known(P)`, `world_seen`) and the journal have already recorded. It makes no LLM call of its own, starts no thread and emits no event.
 
@@ -1876,7 +1887,7 @@ cue(P, conv) -> Option<Cue>:
 
 There is no roll. The reactions and the `news` cooldown keep cues apart, and the model chooses. Every input is recorded, so replays are identical (C12).
 
-**The reactions** (O30's default; each reads only records). Here, as for the since-line (§12.6), "new since the last meeting" means absent from `world_seen`, so a native talk or a frameless chat in between changes nothing:
+**The reactions** (O30 (b); each reads only records). Here, as for the since-line (§12.6), "new since the last meeting" means absent from `world_seen`, so a native talk or a frameless chat in between changes nothing:
 
 | Reaction | Fires when | Records it reads | Counts for |
 |---|---|---|---|
@@ -1888,7 +1899,7 @@ There is no roll. The reactions and the `news` cooldown keep cues apart, and the
   - It never fires on a tie with no certainty (prominence only), on an item already held at an earlier meeting, or at a first meeting.
   - A track step reaches a persona only through a tie with a certainty (§12.2), so a known step always counts as own stake. It sorts last (rank 0).
 - **The Tarnished's part.** The persona reacts to the person in front of it, whose word now fits what it holds.
-  - The item need not be new. Usually the claim is told in one conversation, filed by the memory job and cued at the next. A claim told earlier is also cued once the persona learns of the deed.
+  - The item need not be new. Usually the claim is told in one conversation, filed by the memory job and cued at the next. A claim told earlier is also cued once the persona learns of the deed. With the 60 s cooldown (O30) the item may be cued again later in the same conversation.
   - It never fires for a claim that is still only a claim (§2.5), for a boss with no world stage, when block 8 leaves the keepsake out (the spoiler recheck, §4.3, or the trim), or for a `close` persona.
   - The cue says only that the Tarnished told the persona of the item. It never states the deed or its doer (§12.5).
 - **Local talk.** A news-hungry persona passes on what its own district talks of.
@@ -1910,7 +1921,7 @@ There is no roll. The reactions and the `news` cooldown keep cues apart, and the
 **Temperament.** `awareness.news` (`close | plain | eager`, default `plain`) chooses which reactions count.
 - `close` counts own stake only; `plain` adds the Tarnished's part; `eager` adds local talk.
 - It is code-only, like `home` and `skip`: never rendered, and costs no tokens. It is authored from the persona's own text, as `honesty` is.
-- O30's default values:
+- The values (O30 (b), decided 2026-11-07):
   - Kalé `eager`: he listens for news, because news keeps a lone merchant alive;
   - Alexander `eager`: his road is a search for battles worth his name;
   - Boc `close`: he hides, frightened of every passer-by;
@@ -1931,13 +1942,13 @@ On your mind: {{ short }}, for it is the talk of your home country.        # Loc
 - **Budget.**
   - The cue is ≤ 35 tokens (W5), for every short in each string. Measured: Own 24–28, Told 28–32, LocalHere 25–28, LocalHome 27–30.
   - The since-line and the cue together are ≤ 90 of block 7's 280. Neither is trimmed; trim priority 3 (topic entries, NPC §7.3) absorbs them.
-  - The cue needs no block cap of its own: block 7 at 280, and the sum at 3,390 under the 3,500 hard cap (§12.6).
+  - The cue needs no block cap of its own: block 7 at 280, and the sum at 3,460 under the 3,500 hard cap (§12.6).
   - A cue costs 24–32 uncached tokens on each reply that carries one. When block 5b does not show the cued item, the item's own line (16–36 tokens for a world line with its label) is added as well. Nothing else changes. The typical prompt (about 2,525 tokens) is unchanged by it.
 - **The frame rule.** World-frame item 9 (NPC §3.3, cache A) says when to raise news: "Let the talk turn to news, unless something is on your mind; then raise it if it suits you." The cue's label echoes it on purpose. Without a cue, a since-line is news held, not news to volunteer. Even with a cue, the model decides.
 
 **Records.**
 - **Per reply.** `Conversation.cue` holds the cue offered to the next reply; `cue_spent` turns true when a reply rendered with it displays its first committed line, and that `NpcSaid` carries `cue = item`. The next framed reply may carry another item's cue.
-- **Per item, by cooldown.** `npc_facts.world_cued` folds `[[item, pt]]` from the persona's `NpcSaid` lines with a `cue`; the item is cued again only after `reactions.news.cooldown_s`. A cue that reached no committed line starts no cooldown; one the model passed over does.
+- **Per item, by cooldown.** `npc_facts.world_cued` folds `[[item, pt]]` from the persona's `NpcSaid` lines with a `cue`; the item is cued again only after `reactions.news.cooldown_s` (60 s of play by default, O30). A cue that reached no committed line starts no cooldown; one the model passed over does.
 - **The memory job.** `shown_context` records the cued item by id, with a `cue` mark (§12.7). The memory job renders it as that item's world `C` line, so the drop rule is unchanged.
 
 | Case | Behaviour | Rests on |
@@ -1954,7 +1965,7 @@ On your mind: {{ short }}, for it is the talk of your home country.        # Loc
 **Mid-conversation.**
 - **Before the player's first line.** Nothing is sent, unless the persona spoke first (its greeting may carry the cue).
 - **A late first frame.** The since-line and the cue are computed at the first framed turn; the cue may still come.
-- **After a cued reply.** The next reply may carry another item's cue; the spent item waits for its cooldown.
+- **After a cued reply.** The next reply may carry another item's cue; the spent item waits for its cooldown (60 s by default), after which it may be cued again if it still qualifies: an own-stake item stays new until the conversation ends (it enters `world_seen` only then), and a Told item stays proved. The earlier mention stays in block 6's history, and the model decides.
 - **A change to the known set.** It adds no cue; block 5b re-renders as today. The new item enters `world_seen` at the end of the conversation, so it can later be cued only as the Tarnished's part. In practice such a change is a late first frame or a content reload (§12.6).
 - **Trimming.** If trimming would remove the keepsake a Told cue rests on, the cue is dropped for the conversation, unspent.
 - **A fallback deflection** committed first (NPC §8.4) spends the cue.
@@ -1985,7 +1996,7 @@ On your mind: {{ short }}, for it is the talk of your home country.        # Loc
 **Increments.**
 - **v0.2:** item 9's sentence and the item 1–3 shortening ship with item 9.
 - **v0.3:** the cue itself:
-  - `cue()`, the three reactions, `07_cue.j2`, `world_cued` with pt, `NpcSaid.cue`, `world_seen_pt` and the `Conversation` fields;
+  - `cue()`, the three reactions, `07_cue.j2`, the news cooldown at 60 s (O30), `world_cued` with pt, `NpcSaid.cue`, `world_seen_pt` and the `Conversation` fields;
   - Kalé `eager`, and the cue on Kalé's greeting;
   - the W5 and W7 clauses; T12 on Kalé and the CI fixture persona `test_stake`; T13; the T3, T4 (the since-line goldens and Kalé's cue goldens), T7, T8 and T11 extensions; step E2;
   - C14's cue slots on Kalé.

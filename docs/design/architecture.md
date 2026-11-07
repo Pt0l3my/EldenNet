@@ -57,7 +57,7 @@ No helper process is spawned from inside the game. The out-of-process core stays
 | T6 | **Core** | T1, after the safety step | `eldennet::shell` running `en-core` | `crossbeam::select!` over C1–C11 and C16 → `Core::step(input, now)` → effects | No | Only on `select!` | Bounded (§10.2) | Subsystem reset after the first panic, disabled after the second (R8). A panic outside a subsystem stops the core: capture released, banner "EldenNet stopped after an internal error" |
 | T7–T8 | **Net** (tokio, 2 workers) | T6 at Ready | `en-llm` | HTTPS and SSE streams; local probes | No | Async I/O | Yes | Caught per request → `LlmEvent::Error(Internal)` |
 | T9 | **Store** | T6 at Ready | `en-store` | One rusqlite connection per open file; migrations; backups | No | Disk I/O | Yes | Store tripped → toast "Memory is off for this session"; P events stay in the RAM ring (§8.9) |
-| T10 | **Watcher** | T6 | `eldennet::watch` (`notify`) | Hot reload with parse and validation (§11.6); every 60 s re-checks loaded modules for anti-cheat and `ersc.dll` (C14) | No | Yes | Yes | Hot reload off for the session, with a toast |
+| T10 | **Watcher** | T6 | `eldennet::watch` (`notify`) | Hot reload with parse and validation (§11.6); saves the player's profile files sent on C17, after the same validation; every 60 s re-checks loaded modules for anti-cheat and `ersc.dll` (C14) | No | Yes | Yes | Hot reload off for the session, with a toast |
 | T11 | **Log writer** | T6 | `tracing-appender` (non-blocking) | Writes rotating logs | No | Disk I/O | Yes | Lines dropped |
 
 No other thread is created. The game's own threads enter our code only through T2–T5. Each of those entries starts with `ffi_guard` (R3).
@@ -101,6 +101,7 @@ flowchart LR
 | C14 | Init and watcher → task | `ANTICHEAT: AtomicBool`, `ERSC_LOADED: AtomicBool` | — | None |
 | C15 | Core → net | `AI_ALLOWED: AtomicBool`. The net checks it before every send, as a second lock behind the core's own gate (C4 criterion, §5) | — | None |
 | C16 | Clock → core | `crossbeam::tick(100 ms)` (impl), so expiry, page pacing and timers advance with no snapshots (title, loading) | — | Ticks coalesce |
+| C17 | Core → watcher | `crossbeam::bounded<ProfileWrite>` (`target`, `rev`, the file's text) from the settings UI's profile editor (DESIGN §7.7) | 8 | Never blocks: when full the save is refused with "busy, try again"; the result returns on C11 as `Reload::ProfileResult { target, rev, outcome }` |
 
 The game, present, window and input threads use only `try_send`, atomics and preallocated buffers (DESIGN §2.1, R6).
 
@@ -870,7 +871,7 @@ Each snapshot tick:
 | Any AI | `session`, `world`, `player`, and the gate true (§5) | — |
 | Named chat | + `flags`, `ui`, `place`, `params` | No `text` → persona fallback names. No `combat` → stricter gating (no hostile ≤ 25 m at all). No `camera` → no cone targeting; lock-on and nearest remain. **No `flags` → chat off, barks on** (DESIGN §4.4) |
 | Barks | + `combat` | No `camera` → bottom feed instead of floating labels. No `text` → card `label_fallback` |
-| Status awareness, runtime `conscious` | + `status` | Off: no status words, no status lines; generics' calm lines held where O44 needs the sleep signal |
+| Status awareness, runtime `conscious` | + `status` | Off: no status words, no status lines; generics' calm lines held until S8 verifies the sleep signal (O44) |
 | Own-initiative persona lines | Named chat + S3 passed | Before S3: none (DESIGN §8.9) |
 | Call-out | Barks + `ui` | — |
 | Persistence | `player` | — |
@@ -1060,6 +1061,7 @@ pub struct RenderFeed {
 
 - **Then one record per line:** `{"t":<mono_ms>,"k":"snap"|"life"|"ui"|"llm"|"db"|"cmd"|"reload"|"tick","b":{…}}`. Each record is the `serde` form of the message that crossed a boundary. A recording is therefore the input list of `Core::step`, plus the commands for checking.
 - **Privacy:** the player's name and SteamID are replaced by keyed blake3 hashes using the per-file `salt`. Typed text is kept, because replay needs it. The bug-report bundle excludes recordings unless the player ticks a box.
+- **The player's profiles:** a `reload` record carries the text of the player's profile files (replay needs it), like typed text; editor keystrokes never reach the core, only the saved file. A `ui` record keeps a `ProfileWrite` (and any other UI message carrying a profile document) as `{target, rev, bytes}` only: the core only forwards it, and replay takes the text from the `reload` record. A draft's notes (its `ui` record) and reply (its `llm` records) are kept for replay like typed text. With `debug.record_redact_text` on, and in any recording the bug-report bundle includes, each player-profile text field becomes `profile:<slot>:<field>:<chars>`, and a draft's notes and reply become `profile:draft:notes:<chars>` and `profile:draft:reply:<chars>`; replay renders the placeholders. `en-tools lint` rejects a committed recording that holds player-profile or draft text (impl).
 - **Game text (licence):** `snap` records carry `new_text`, which is runtime FromSoftware text (character, place and gear names). A recording meant for the repository is written with `debug.record_redact_text = true` (forced on for `tests/recordings/`): each `TextEntry.text` becomes the placeholder `fmg<fmg>:<id>`, and replay resolves placeholders from `tests/fixtures/names.toml`, a table of our own invented names. `en-tools lint` rejects a committed recording with any non-placeholder `text` (impl).
 - **Size:** about 4 MB per hour (DESIGN §5.2). The recorder rotates files at 256 MB (impl).
 
@@ -1509,7 +1511,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 | Sanitizer and splitter | Input per reply ≤ 16 KB; iterative, never recursive; output 600 bytes per reply and 180 per page (DESIGN §8.4) |
 | Predicate DSL | Expression ≤ 1 KB; parse depth ≤ 32 |
 | Regex | `regex` with `size_limit(1 MB)` and `dfa_size_limit(1 MB)`; patterns ≤ 1,024 bytes |
-| Content files | 64 KB per file, 16 KB per persona (DESIGN §11.4); override tree ≤ 8 MB and ≤ 2,000 files |
+| Content files | 64 KB per file, 16 KB per persona, card or character profile (DESIGN §11.4); the override tree and the player's `profiles\` together ≤ 8 MB and ≤ 2,000 files; `profiles\` ≤ 256 files of ≤ 8 KB |
 | Core memory | Event FIFO 256; RAM ring 4,096; trackers 256; K store 512; text cache 4,096; param cache 2,048; target ≤ 64 MB resident for all of EldenNet |
 | Threads | Core stack 8 MB; tokio worker stacks 2 MB; no recursion on T2–T5 |
 | SQLite | `PRAGMA max_page_count` sized to a 512 MB file cap; `diag.sqlite` rotated at 50 MB (DESIGN §10.5) |
@@ -1602,9 +1604,10 @@ fallback = "google/gemma-4-31b-it"
 | `bark_pool` | Pool batches | 600 | 1.0 | 15 s | 60 s | 1 | Keep seeds |
 | `memory` | Journal job | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
+| `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
 | `meta` (reserved) | `DecisionRequest` | 100 | — | — | 5 s | 0 | Rules backend |
 
-Unknown slot names fall through to `dialogue`. Budgets are identical in every preset (DESIGN §11.2).
+Unknown slot names fall through to `dialogue`, and a preset that names no `draft` model uses its `dialogue` model. Budgets are identical in every preset (DESIGN §11.2).
 
 ```toml
 # content/eldenring/models.toml (shipped; volatile, ER06 §6)
@@ -1667,7 +1670,7 @@ greet_player = { on = true, cooldown_s = 600 }
 greet_npc    = { on = true, cooldown_s = 300 }
 answer       = { on = true, cooldown_s = 20 }
 stage_talk   = { on = true, cooldown_s = 300 }
-news         = { on = true, cooldown_s = 10800 }
+news         = { on = true, cooldown_s = 60 }       # O30: 60 s of play per persona and item
 saw_kill     = { on = true, cooldown_s = 60 }
 saw_victory  = { on = true, cooldown_s = 600 }
 # autonomy is switched and timed by `autonomy` above (enabled, period_s), not here
@@ -1701,23 +1704,25 @@ openrouter = "<entered in the wizard or by the player>"
 1. `<install>/content/eldenring/…` (shipped);
 2. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped file whole;
 3. `overrides\disable.toml`.
+4. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–3, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded.
 
 ```toml
 # %APPDATA%\EldenNet\overrides\disable.toml
 personas = ["patches"]          # that persona becomes mute
 cards    = ["kaiden_sellsword"] # its humanoids fall back to `nameless_soldier`
+characters = []                 # shipped character profiles; their NPCs become unbound
 kb       = ["rumour.some_key"]
 triggers = ["idle"]
 rules    = []                   # only rules marked disable_ok = true in their file
 ```
 
-- **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`), `identity/types.toml`'s kind rules, `lexicon/*` (tells included), `flags/catalog.toml`, `teams.toml` and the world frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the conversable and safe-context predicates, strict mode, the spoiler gates (there is no spoiler setting), and R2 (the action and gesture allowances cannot be turned on). These are the safety and spoiler layers, and an attempt is reported as a validation error.
+- **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`), `identity/types.toml`'s kind rules, the binding rule of `identity/characters.toml` (nothing speaks on an unverified binding), the built-in rules (a)–(f) (NPC §1.3), `lexicon/*` (tells included), `flags/catalog.toml`, `teams.toml` and the world frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the conversable and safe-context predicates, strict mode, the spoiler gates (there is no spoiler setting), and R2 (the action and gesture allowances cannot be turned on). These are the safety and spoiler layers, and an attempt is reported as a validation error.
 - **Not hot-reloaded:** `gal/` is read at boot only and is never overridden.
 
 **Hot reload** (on T10):
-1. A `notify` watcher covers `config/` and `overrides/`, plus `content/` in dev builds, with a 500 ms debounce (DESIGN §11.4).
-2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint.
-3. Success sends `Reload(Arc<ContentPack>)` or `Reload(Arc<Settings>)` over C11. The core swaps it between steps.
+1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds, with a 500 ms debounce (DESIGN §11.4).
+2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint. A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
+3. Success sends `Reload(Arc<ContentPack>)` or `Reload(Arc<Settings>)` over C11. The core swaps it between steps. A save sent on C17 also gets its `Reload::ProfileResult` on C11, saved or refused.
 4. Failure keeps the old version and shows a toast with the file and line.
 
 When each change takes effect:
@@ -1725,13 +1730,14 @@ When each change takes effect:
 | Change | Effect |
 |---|---|
 | Personas, KB, cards, prompts | Next request. Only the edited persona's cached prefix is invalidated |
+| The player's profiles | Next request; only that profile's cached prefix is invalidated, and its hash changes, which retires its generated pool lines; a subjects-only edit invalidates no cached prefix and retires no pool line |
 | Providers, keys | Next request; in-flight requests finish on the old config |
 | Hotkeys, UI | Immediately |
 | `features`, `autonomy`, `range`, `pacing`, `reactions`, `allow` | The next step; pending requests are re-gated; cooldowns, window entries and reservations are kept; a visible line whose speaker is no longer allowed fades |
 | Augur rules | The next step. Detector state is kept for rules whose `id` and detector are unchanged, and reset otherwise |
 | `enabled` | §1.5 |
 
-**Caps:** 64 KB per file, 16 KB per persona, and the override tree as in §10.2.
+**Caps:** 64 KB per file, 16 KB per persona, card or character profile, 8 KB per player profile file, and the override tree and `profiles\` as in §10.2.
 
 ### 11.7 Wizard and self-test
 
@@ -1795,7 +1801,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend` | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` |
 | `golden check\|update` | Compare or rewrite `tests/golden` | `--route <name>` |
 | `eval` | Scripted persona turns and probes against a provider | `--persona`, `--stages`, `--preset <cloud\|local12>`, `--set awareness` (C14, NPC §12.5), `--report out.md` |
-| `lint` | Content and `gal/` validation; `--licence-files` (§12.1) | `--strict` (release rules) |
+| `lint` | Content and `gal/` validation; `--licence-files` (§12.1); `--profiles <dir>` checks a folder of player profile files with the player's rules (NPC §4.8) | `--strict` (release rules) |
 | `render-prompt` | Print the exact prompt for a persona, stage and scene fixture | `--slot`, `--fixture` |
 | `probe-exe <eldenring.exe>` | Offline fingerprint, patterns, FD4 idiom and RTTI check against `gal/` | `--against gal/`, `--json` |
 | `mockllm` | A local SSE server with scripted delays, 429s, `<think>` leaks, trailers and malformed JSON | `--script mock.toml`, `--port` |
@@ -1852,13 +1858,13 @@ eldennet/
     en-tools/     src/{main, replay, golden, eval, lint, render_prompt, probe_exe, mockllm,
                        bake_pools, selftest, fmg_import, identity_fill, kb_draft, flag_verify, scn}.rs
   content/eldenring/
-    prompts/{dialogue,callout,memory,pool}/NN_*.j2  registers/*.md  personas/  archetypes/
-    identity/{personas,archetypes,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
+    prompts/{dialogue,callout,memory,pool,draft}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
+    identity/{personas,archetypes,characters,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
     world/{stages,tracks}.toml
     lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml
   gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
-  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), personas/ (test_veiled, test_stake), db/}  recordings/*.ensnap.zst (redacted)
+  tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), personas/ (test_veiled, test_stake), characters/ (test_tollwarden), profiles/ (player-file fixtures with canary strings), db/}  recordings/*.ensnap.zst (redacted)
               golden/{*.events.jsonl, CHANGES.md}  s6/*.toml  knowledge/{expect,cues}.toml
   tools/      privsweep/  workplan/
   dist/       README-install.md  using-a-loader.md  ai-disclosure.md
@@ -1874,4 +1880,5 @@ eldennet/
 - No FromSoftware material: no FMG text, params, audio or game binaries.
 - Recordings committed under `tests/recordings/` contain no game text: they are written in redacted mode (§7.5), so names appear only as `fmg<fmg>:<id>` placeholders. They are made on a test account, with the name and SteamID hashed.
 - Anything built from a player's own exports goes to git-ignored folders (`gamedata/`, `*.local.*`).
+- The player's own profiles (`%APPDATA%\EldenNet\profiles\`) never enter the repository; the fixtures under `tests/fixtures/profiles/` are ours.
 - `docs/ops/probes/` holds only our own probe records: offsets, invariants used, and sample numbers.
