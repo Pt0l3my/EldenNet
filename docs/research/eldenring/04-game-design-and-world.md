@@ -406,6 +406,7 @@ Overworld conversation flags sit inside each map tile's block. Each tile has a v
 - **Enia (3480):** initial → PC holds 2 Great Runes → PC refused entry to the Erdtree → Erdtree burned → dead.
 
 Rya, Fia, Gurranq and Varre have equally detailed blocks.
+*Extended (2026-11-06):* the blocks of Varré, Patches, Blaidd and Boc, the new blocks of Kalé (4700) and Alexander (3660), and the headers of Ranni (3740) and Jerren (3360) are in [ER07 §4](07-world-and-quest-leads.md#4-persona-flag-blocks).
 
 NPCs move, vanish and die between stages, and many quests lock out at fixed milestones:
 
