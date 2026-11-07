@@ -1,0 +1,11 @@
+{"format": "jobpack/1", "name": "sample-two-items", "server": "<server>",
+ "defaults": {"max_tokens": 80, "temperature": 0.8, "thinking": false},
+ "items": [
+  {"id": "voice-001",
+   "system": "You are Brannoc, a weary travelling pedlar in an old, broken land. Speak as one who lives in it. Spoken words only, one or two sentences.",
+   "prompt": "A stranger in a battered cloak stops at your cart and asks how the road has been."},
+  {"id": "judge-001", "server": "<judge-server>", "max_tokens": 40, "temperature": 0,
+   "response_format": {"type": "json_object"},
+   "system": "Answer only with JSON of the form {\"in_world\": true or false}.",
+   "prompt": "Does this line stay inside a fantasy world, with no modern words? Line: \"Roads are bad since the storms. Keep your blade loose and your purse tight.\""}
+ ]}

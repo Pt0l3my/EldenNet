@@ -41,7 +41,7 @@ lines; there are no NPC actions beyond dialogue.
 
 ## Licences and third-party material
 
-- **SkyrimNet (owner's decision, 2026-11-07).** SkyrimNet's author, Min, gives EldenNet the engine blueprint
+- **SkyrimNet (owner's decision, 2026-11-07, O53).** SkyrimNet's author, Min, gives EldenNet the engine blueprint
   (SkyrimNet's game-agnostic core) to work with, knowing EldenNet is built with AI assistance, and EldenNet's
   foundation will be based on SkyrimNet. So we may use, copy and adapt SkyrimNet's engine and content (code,
   prompts, templates, bios, configuration, the dashboard) for Elden Ring. Credit SkyrimNet and Min as Min wishes,
@@ -59,20 +59,23 @@ lines; there are no NPC actions beyond dialogue.
 
 ## Owner decisions (2026-11-06 and 2026-11-07)
 
-- **No me3.** me3's policy forbids all LLM use in its project. EldenNet uses nothing from me3: no code, crates,
-  APIs or mod-host features, and no presence in its spaces (code, issues, discussions, Discord). EldenNet is a
-  loader-agnostic native DLL with its own launcher, and merely compatible with me3: a player may list it as a
+Each is recorded in full in [docs/DECISIONS.md](docs/DECISIONS.md), under the id in brackets; DESIGN §19 is its
+index.
+
+- **No me3** (O47). me3's policy forbids all LLM use in its project. EldenNet uses nothing from me3: no code,
+  crates, APIs or mod-host features, and no presence in its spaces (code, issues, discussions, Discord). EldenNet
+  is a loader-agnostic native DLL with its own launcher, and merely compatible with me3: a player may list it as a
   native in their own me3 profile.
-- **No fromsoftware-rs.** It ships NON-AI licence files and comes from the same community. EldenNet has its own
-  game-access layer instead. Write our own code; never copy code from fromsoftware-rs or me3. Any fact about
+- **No fromsoftware-rs** (O48). It ships NON-AI licence files and comes from the same community. EldenNet has its
+  own game-access layer instead. Write our own code; never copy code from fromsoftware-rs or me3. Any fact about
   game structures (names, layouts, patterns, IDs) is verified independently, in game or by startup self-tests,
   before EldenNet relies on it.
-- **Own event engine.** Elden Ring has no event bus. EldenNet detects events itself (snapshot diffs, an
+- **Own event engine** (O49). Elden Ring has no event bus. EldenNet detects events itself (snapshot diffs, an
   event-flag watcher, later hook-based sources behind the same interface).
 - **Design defaults accepted.** Every recommended default in DESIGN.md §19 (O1–O24, then O26 and O27) is
   decided, and so are the two rules the review adopted (the title-screen gate clause and the sheltered-context
-  definition).
-- **Quest and world awareness.** Important NPCs know the state of their own quest and of related quests, and
+  definition, O50).
+- **Quest and world awareness** (O51). Important NPCs know the state of their own quest and of related quests, and
   the stage the world is in (for example, that the star has fallen since Radahn's death).
 - **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
   2026-11-06). Change the version only with the owner's approval, after re-reading its licence files. Rules
@@ -96,6 +99,13 @@ lines; there are no NPC actions beyond dialogue.
 
 - Work on a topic branch (`design/`, `feat/`, `fix/`, `docs/`, `test/`, `chore/`), never directly on `main`
   unless the owner asks. Open a pull request only when asked.
-- Ask the owner, with a recommendation, about anything the design leaves open. Add each question to DESIGN.md's
-  "Decisions for the project owner" section (§19) as a new row marked Open, and record the answer there.
+- Ask the owner, with a recommendation, about anything the design leaves open. Add each question to
+  [docs/DECISIONS.md](docs/DECISIONS.md) as a new entry marked Open, with the next free O-number, its options and
+  the recommendation, and to the index in DESIGN.md's "Decisions for the project owner" section (§19). Record the
+  answer in the entry with its date and the owner's words; a later decision amends an earlier entry by a dated note,
+  never by rewriting it, and ids are never renumbered.
+- At the start of a session, read the newest handover-YYYY-MM-DD/HANDOVER.md first. docs/ROADMAP.md is the one
+  roadmap and open-items list for EldenNet and GraceUI: edit it by hand, never renumber its ids, and rebuild
+  docs/roadmap/index.html and docs/showcase/index.html (`python3 -I tools/roadmap/build.py`,
+  `python3 -I tools/showcase/build.py`) in the same commit; both `--check` must pass.
 - Keep example content original: personas, archetype cards and prompts are written from our own specs.

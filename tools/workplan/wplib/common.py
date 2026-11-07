@@ -39,12 +39,13 @@ def tokens(text_or_bytes):
 #
 # Canonical forms:  SN04, SN04§5.2   SkyrimNet research note 04 (docs/research/skyrimnet/04-*.md)
 #                   ER05, ER05§8.1   Elden Ring research note 05 (docs/research/eldenring/05-*.md)
-#                   DESIGN§7, ARCH§3, NPC§4, MEM§2   the design documents (docs/design/)
+#                   DESIGN§7, ARCH§3, NPC§4, MEM§2   the design documents (docs/design/); GraceUI:DESIGN§7
+#                                    in docs/ROADMAP.md is GraceUI's design, never EldenNet's
 # The research notes also cite each other in short forms that depend on where they sit: inside
 # docs/research/skyrimnet "R04" means SN04; inside docs/research/eldenring "R05" means ER05 and "S08" means SN08.
 
 NOTE = re.compile(r"(?<![\w#/-])(SN|ER|R|S)(0\d)(?![\w-])(?:\s?§\s?(\d+(?:\.\d+)*[a-z]?))?")
-DOC_SECTION = re.compile(r"(?<![\w-])(DESIGN|ARCH|NPC|MEM)\s?§\s?(\d+(?:\.\d+)*)")
+DOC_SECTION = re.compile(r"(?<![\w:-])(DESIGN|ARCH|NPC|MEM)\s?§\s?(\d+(?:\.\d+)*)")   # GraceUI:DESIGN§n is GraceUI's
 
 
 def aliases_for(path):

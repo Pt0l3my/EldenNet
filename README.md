@@ -24,7 +24,11 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 ## Design
 
 - [docs/design/DESIGN.md](docs/design/DESIGN.md): the master design. §0 is the design on one page, and §19
-  records the owner's decisions and any question still open.
+  indexes the owner's decisions and any question still open.
+- [docs/DECISIONS.md](docs/DECISIONS.md): the owner's decisions in full, one entry each (O1 onwards).
+- [docs/ROADMAP.md](docs/ROADMAP.md): the one roadmap and open-items list for EldenNet and GraceUI, with its page in
+  docs/roadmap/.
+- [docs/showcase/](docs/showcase/showcase.md): what EldenNet is, and its menu's mock, for players.
 - [docs/design/architecture.md](docs/design/architecture.md), [npcs-and-dialogue.md](docs/design/npcs-and-dialogue.md)
   and [memory-and-knowledge.md](docs/design/memory-and-knowledge.md): the detail documents.
 - [docs/research/](docs/research/README.md): the research the design rests on.
