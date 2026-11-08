@@ -31,6 +31,8 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 - [docs/showcase/](docs/showcase/showcase.md): what EldenNet is, and its menu's mock, for players.
 - [docs/design/architecture.md](docs/design/architecture.md), [npcs-and-dialogue.md](docs/design/npcs-and-dialogue.md)
   and [memory-and-knowledge.md](docs/design/memory-and-knowledge.md): the detail documents.
+- [docs/design/game-data.md](docs/design/game-data.md): the three kinds of game data (research, the framework's data,
+  live tracing) and the map of what each feature reads in play (O57).
 - [docs/research/](docs/research/README.md): the research the design rests on.
 - [docs/design/process/](docs/design/process/): the competing proposals, the judges' scorecards and the review.
 

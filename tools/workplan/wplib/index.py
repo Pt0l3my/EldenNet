@@ -21,6 +21,7 @@ FIXED = {
     "README.md": "README", "CLAUDE.md": "CLAUDE", "CONTRIBUTING.md": "CONTRIB",
     "docs/design/DESIGN.md": "DESIGN", "docs/design/architecture.md": "ARCH",
     "docs/design/npcs-and-dialogue.md": "NPC", "docs/design/memory-and-knowledge.md": "MEM",
+    "docs/design/game-data.md": "DATA",
     "docs/research/README.md": "RES", "tools/privsweep/README.md": "PSW", "tools/workplan/README.md": "WP",
 }
 SERIES = {"docs/research/skyrimnet": "SN", "docs/research/eldenring": "ER"}
