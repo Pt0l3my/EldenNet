@@ -272,13 +272,17 @@ research into the game's data that goes ahead before them (O54).
   - refs: O54, DESIGN§7.8
   - gives: decided 2026-11-08: nothing is built before the blueprint; the game's data is
     researched and documented now, as standalone research.
-- b Research where the game's data can come from: online databases, modding tools and their licences, a Python tool of our own [active]
+- b Research where the game's data can come from: online databases, modding tools and their licences, a Python tool of our own [done]
   - needs: a
-  - refs: O54, O48, ER02
+  - refs: O54, O48, ER02, ER08
   - gives: a research note for the owner (ER08): the sources, their licences, and how our tools read Smithbox's exports.
 - c The owner chooses the source our tools read: Smithbox (O55) [done]
   - refs: O55, ARCH§12.3
-  - gives: adopted once its licence and any AI policy are read in the research note (b).
+  - gives: adopted under ER08's five conditions: MIT, no AI clause; never bundled; numbers only from the owner's own exports.
+- d The owner decides how far our tools go before the blueprint (O56) [waiting]
+  - needs: b, c
+  - refs: O56, ER08
+  - gives: recommended: a small research script on Smithbox's exports, run on the owner's PC; numbers-only leads committed.
 
 ## S7 Open items
 

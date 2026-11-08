@@ -34,8 +34,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   profiles, calm lines and sleep), raised by O28 and by O31–O42. O43's update, O45 and O53 (the full roster, free conversation with memories,
   building on SkyrimNet), which superseded O52.
 - **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
-  (Smithbox as the source our tools read).
-- **Open.** O46 (the bio's structure and the v1.0 roster).
+  (Smithbox as the source our tools read, under ER08's five conditions). O56 put to the owner (how far our tools
+  go before the blueprint).
+- **Open.** O46 (the bio's structure and the v1.0 roster) and O56 (how far our game-data tools go before the
+  blueprint).
 
 ## O1
 
@@ -618,3 +620,15 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Decision.** Smithbox (the maintained successor of DSMapStudio) is the source our tools read: the owner exports from their own install with it, and our own tools (`fmg-import`, `identity-fill`, `roster-scan`, ARCH §12.3, and any research tool written before them) read those exports on the owner's PC, names kept there and only numbers and ids leaving it. Other sources serve only as leads to cross-check. Adopting it waits for its licence and any AI clause or policy to be read (CLAUDE.md: check a dependency's licence before adopting it), in ER08. The owner's words: "also about Smithbox, let's use that for our tools."
 
 **Follows from.** O54; O48 (facts verified independently before EldenNet relies on them); ARCH §12.3.
+
+**Later changes.** 2026-11-08, the same day: ER08 §3.1 read Smithbox's licence and stance. It is plain MIT with no AI clause, and openly built with an AI coding agent, so nothing stops adopting it; it is adopted under five conditions (ER08's TL;DR): EldenNet never bundles, mirrors or redistributes Smithbox, whose repository carries the game's own regulation files, and our tools read only exports from the owner's own install; our tools take numbers only from that data, never Smithbox's names, annotations or layouts as facts (O48); none of its me3 features is used (O47); its loopback server, which can write into the running game, is switched off in its `Startup.json` unless a read-only client of ours uses it; and the GPL duties of the SoulsFormats it ships fall on whoever redistributes it, not on reading its exports. How far our tools go before the blueprint is O56.
+
+## O56
+
+**How far our game-data tools go before the blueprint** · *Open since 2026-11-08*
+
+**Question.** With Smithbox as the source (O55), how far should our tools go before Min's blueprint arrives? (O54 builds nothing of EldenNet before then; O55 allows "any research tool written before them".) **Options** (ER08 §6): (a) **document only**: ER08 and a census procedure in our own words, no script until `roster-scan` is built after the blueprint; (b) **a small research script** on Smithbox's param and text exports (about 3–5 days of work): standalone, outside `en-tools`, Python's standard library only, run by the owner on their PC; it writes the census with names into the git-ignored `roster.local/` and a numbers-only lead file (NpcParam rows per form, `nameId`s, talk ids as metadata) with its provenance; entity ids, model ids, boss bars and flag blocks wait for the in-game captures S1, S2 and S6, with public leads meanwhile; `roster-scan` replaces it later; (c) as (b), plus a read-only client of Smithbox's loopback server for map placements (entity ids, models): 2–4 more days, two more libraries, and a server that can also write into the running game; (d) as (c), plus readers of our own for talk and event scripts, or reading the install directly (about 20–30 days, and the game's compression library and keys on EldenNet).
+
+**Recommendation.** (b), with ER08 §7's recommendations as its defaults: no tool of ours decodes the game's compression or decrypts its files; only the ids a feature binds are committed, in a numbers-only research file under `docs/research/` after the privacy sweep and a numbers-only check, until `identity/characters.toml` takes them; the expansion's numbers are gathered in the same pass, marked as such; neither fstools-rs nor SoulsRandomizers is used, even as leads; slugs come from the name a first meeting shows. *Why:* it gives the game's ids now, usable whatever the blueprint brings, for a week's work at most, with no keys and no binary parsing, and keeps Smithbox at arm's length (its files in, numbers out). What (c) and (d) add are numbers the design captures and verifies in game anyway. *What it gives up:* entity, model and boss-bar leads before the captures.
+
+**Follows from.** O54, O55, O48; ER08 §6 and §7; DESIGN §7.8.

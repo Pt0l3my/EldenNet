@@ -316,11 +316,13 @@ A key goes in and is never shown again.
 - nav: Status
 
 **Design stage.** Nothing is built yet. The design of version 1 and its review rounds are done, and
-so is the design of GraceUI; the owner has made every decision but one (O46). Two things wait on
-the owner: Min's engine blueprint, SkyrimNet's game-independent core, which becomes EldenNet's
-foundation and comes before the build, and the structure of the character profile (decision O46),
-which comes before the roster is written. Meanwhile the game's own data, the numbers by which
-EldenNet will know each character, is being researched and documented (decision O54).
+so is the design of GraceUI, which is now to become a UI framework other mods can use too (a
+proposal is being written). Two things wait on the owner: Min's engine blueprint, SkyrimNet's
+game-independent core, which becomes EldenNet's foundation and comes before the build, and the
+structure of the character profile (decision O46), which comes before the roster is written.
+Meanwhile the game's own data, the numbers by which EldenNet will know each character, has been
+researched (decisions O54 and O55): it will come from the player's own game, through the modding
+tool Smithbox, and how far our tools go before the blueprint is the owner's next decision (O56).
 
 Then the engine is adopted, the roster is written in batches, and EldenNet's versions follow, from
 v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.
