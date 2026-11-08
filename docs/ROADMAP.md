@@ -425,6 +425,9 @@ questions are answered.
   - needs: b, c
   - gives: the event engine, the game-access layer, identity by verified keys, the spoiler
     layers, the gates, pacing and read-only play stay as designed.
+- e Settle the language with the blueprint: C++ for EldenNet and GraceUI's in-game parts, as expected, and the C++ overlay in place of hudhook (O25, G15) with the owner's approval
+  - needs: a
+  - refs: O60, O25, G15
 
 ## S9 The roster pipeline [planned]
 

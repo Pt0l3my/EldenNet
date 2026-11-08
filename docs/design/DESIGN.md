@@ -1977,7 +1977,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57 and O59 on 2026-11-08; O46 and O58 are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08; O46 and O58 are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2046,3 +2046,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O57](../DECISIONS.md#o57) | How are the kinds of game data kept apart, and what must hold? | Research extraction, the framework's data and live tracing kept apart; any method, so long as live tracing serves every feature | Decided 2026-11-08 |
 | [O58](../DECISIONS.md#o58) | Should the live checks be prepared before the blueprint? | Recommended: (b) capture plans and saves now, nothing built | **Open** |
 | [O59](../DECISIONS.md#o59) | Where do the game's id leads go? | A numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it | Decided 2026-11-08 |
+| [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ expected for both, settled when the blueprint is adopted; Python stays for tools | Decided 2026-11-08 (direction) |

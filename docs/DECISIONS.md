@@ -36,7 +36,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
   (Smithbox as the source our tools read, under ER08's five conditions). O56 (how far our tools go before the
   blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature). O58 put to the owner (preparing the live
-  checks before the blueprint). O59 (the game's id leads go to a numbers-only research file).
+  checks before the blueprint). O59 (the game's id leads go to a numbers-only research file). O60 (C++ expected, settled at the blueprint).
 - **Open.** O46 (the bio's structure and the v1.0 roster) and O58 (preparing the live checks before the blueprint).
 
 ## O1
@@ -674,3 +674,15 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Owner's words.** "A research file (Recommended)".
 
 **Follows from.** O54–O57; ER08 §5 and §7 item 3; DataPiler's DP8.
+
+## O60
+
+**The implementation language: C++ expected, settled at the blueprint** · *2026-11-08 · Decided by the owner (direction); confirmed when the blueprint arrives*
+
+**Question.** GitHub labels EldenNet a Python project, since its only code so far is its Python tools. The design says one Rust `cdylib` (DESIGN §2.1), chosen on 2026-11-06 because research found Rust's `fromsoftware-rs` the only maintained typed SDK for the game and hudhook a proven Rust overlay (ER02, ER00); O47 and O48 then excluded fromsoftware-rs and me3, and O53 made SkyrimNet, a C++ SKSE plugin, EldenNet's foundation. Should EldenNet and GraceUI be written in C++? **Options:** decide now, or when Min's blueprint arrives, as part of adopting it (roadmap S8). **Recommendation:** decide at the blueprint; C++ if the blueprint is C++, which is likely.
+
+**Decision.** Wait for the blueprint, with C++ as the expected route for both EldenNet and GraceUI's in-game parts. Python stays for the tools (the sweep, `wp`, the page builders, DataPiler), and GraceUI's browser view stays a web app (G3). When the blueprint is adopted, the design is re-based on C++: the game-access layer, the event engine and the rest of the core, and the overlay, where O25's hudhook (Rust) gives way to a C++ overlay, a change to O25 and to GraceUI's G15 that the owner approves then.
+
+**Owner's words.** "We should wait for the blueprint, but it sounds like C++ would be the right route either way, for both EldenNet and GraceUI."
+
+**Follows from.** O25, O47, O48, O53; GraceUI G3, G15; DESIGN §2.1; ER00, ER02.
