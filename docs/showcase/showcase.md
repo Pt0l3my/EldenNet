@@ -321,8 +321,8 @@ proposal is being written). Two things wait on the owner: Min's engine blueprint
 game-independent core, which becomes EldenNet's foundation and comes before the build, and the
 structure of the character profile (decision O46), which comes before the roster is written.
 Meanwhile the game's own data, the numbers by which EldenNet will know each character, has been
-researched (decisions O54 and O55): it will come from the player's own game, through the modding
-tool Smithbox, and how far our tools go before the blueprint is the owner's next decision (O56).
+researched (decisions O54 to O57): it will come from the player's own game, through the modding
+tool Smithbox, read by DataPiler, a small companion tool of our own (O56).
 
 Then the engine is adopted, the roster is written in batches, and EldenNet's versions follow, from
 v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.

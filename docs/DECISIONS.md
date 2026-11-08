@@ -34,10 +34,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   profiles, calm lines and sleep), raised by O28 and by O31–O42. O43's update, O45 and O53 (the full roster, free conversation with memories,
   building on SkyrimNet), which superseded O52.
 - **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
-  (Smithbox as the source our tools read, under ER08's five conditions). O56 put to the owner (how far our tools
-  go before the blueprint; a dry run first). O57 (three kinds of game data; live tracing for every feature).
-- **Open.** O46 (the bio's structure and the v1.0 roster) and O56 (how far our game-data tools go before the
-  blueprint).
+  (Smithbox as the source our tools read, under ER08's five conditions). O56 (how far our tools go before the
+  blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature).
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -627,7 +626,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O56
 
-**How far our game-data tools go before the blueprint** · *Open since 2026-11-08*
+**How far our game-data tools go before the blueprint** · *Put and decided by the owner 2026-11-08*
 
 **Question.** With Smithbox as the source (O55), how far should our tools go before Min's blueprint arrives? (O54 builds nothing of EldenNet before then; O55 allows "any research tool written before them".) **Options** (ER08 §6): (a) **document only**: ER08 and a census procedure in our own words, no script until `roster-scan` is built after the blueprint; (b) **a small research script** on Smithbox's param and text exports (about 3–5 days of work): standalone, outside `en-tools`, Python's standard library only, run by the owner on their PC; it writes the census with names into the git-ignored `roster.local/` and a numbers-only lead file (NpcParam rows per form, `nameId`s, talk ids as metadata) with its provenance; entity ids, model ids, boss bars and flag blocks wait for the in-game captures S1, S2 and S6, with public leads meanwhile; `roster-scan` replaces it later; (c) as (b), plus a read-only client of Smithbox's loopback server for map placements (entity ids, models): 2–4 more days, two more libraries, and a server that can also write into the running game; (d) as (c), plus readers of our own for talk and event scripts, or reading the install directly (about 20–30 days, and the game's compression library and keys on EldenNet).
 
@@ -638,6 +637,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Discussion.** 2026-11-08: asked to choose, the owner asked first to be shown the options: "let's talk about this first, what is the cleanest and problem free method to extract game data, what game data do we need right now, do we know well enough Smithbox, what kind of extracted data do we need (that's relevant to your questions that you offer, I don't know well enough to answer, so educate me first, explain various options and their benefits." The explanation was given in the conversation; the question stays Open.
 
 **Discussion.** 2026-11-08, after the explanation: the owner chose a dry run first. "good idea, let's do that first so we can test what we can extract from Smithbox." `tools/gamedata/smithbox_inspect.py` reads the owner's own Smithbox exports (NpcParam, TalkParam, the item text containers) on their PC and prints counts and checks only, never a name or other game text; the owner pastes its report into the conversation, and O56 is decided from it.
+
+**Decision.** Beyond the options as put: a tool of its own, **DataPiler**, in a public repository of its own. Started from an executable, it opens in the browser as a tab with all its tools: Smithbox's status, extraction by data type or bundle, a drop zone for job files the assistant writes (it runs the job and writes a file the owner shares back), a PowerShell terminal window and logging. Its buttons fetch data through Smithbox's local server with read calls only, while the game is closed (the server-link part of option (c)), with guided exports for what the server does not serve, such as the game's text; its design is asked of the PandorumLLM session. DataPiler's own decisions DP1 to DP5, in its `docs/DECISIONS.md`, record the details and the owner's words. The owner's words here: "can you make this Smithbox plugin to come with established repo, executable to run, http UI, and interactive button that run tools. [...] for the design you could ask PandorumLLM agent (write request)." The dry run stays available meanwhile.
 
 ## O57
 

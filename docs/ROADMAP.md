@@ -279,14 +279,23 @@ research into the game's data that goes ahead before them (O54).
 - c The owner chooses the source our tools read: Smithbox (O55) [done]
   - refs: O55, ARCH§12.3
   - gives: adopted under ER08's five conditions: MIT, no AI clause; never bundled; numbers only from the owner's own exports.
-- d The owner decides how far our tools go before the blueprint (O56) [waiting]
+- d The owner decides how far our tools go before the blueprint (O56) [done]
   - needs: b, c
   - refs: O56, ER08
-  - gives: recommended: a small research script on Smithbox's exports, run on the owner's PC; numbers-only leads committed.
+  - gives: decided 2026-11-08: DataPiler, a tool of its own in a public repository (its decisions DP1 to DP5).
 - e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [waiting]
   - needs: c
   - refs: O56, ER08, tools/gamedata/README.md
-  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version, before O56 is decided.
+  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version.
+- f DataPiler's design, asked of the PandorumLLM session by the owner, with DataPiler's request 0001 [waiting]
+  - needs: d
+  - refs: O56, O57, ER08
+- g The owner creates the empty public DataPiler repository, so its first commit can be pushed [done]
+  - needs: d
+  - gives: `Pt0l3my/DataPiler`, created 2026-11-08; its first commit is on its `design/v0` branch.
+- h Build DataPiler from that design: launcher and terminal window, the page, the server link, guided exports, jobs, logs
+  - needs: f, g
+  - refs: O56, ER08
 
 ## S7 Open items
 

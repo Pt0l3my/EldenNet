@@ -1977,7 +1977,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54, O55 and O57 on 2026-11-08; O46 and O56 are Open.** Every decision is recorded in full in
+since superseded), O54–O57 on 2026-11-08; O46 is Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2042,5 +2042,5 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O53](../DECISIONS.md#o53) | SkyrimNet | May be used, copied and adapted, credited as Min wishes; foundation once the blueprint arrives | Decided 2026-11-07 (CLAUDE.md) |
 | [O54](../DECISIONS.md#o54) | May the numbers-only census run before the blueprint and O46? | No build before the blueprint; the game's data is researched and documented now (ER08) | Decided 2026-11-08 |
 | [O55](../DECISIONS.md#o55) | Which source do our game-data tools read? | Smithbox exports from the owner's own install, under ER08's five conditions | Decided 2026-11-08 |
-| [O56](../DECISIONS.md#o56) | How far do our game-data tools go before the blueprint? | A dry run of Smithbox's exports first; then recommended (b), a small research script | **Open** |
+| [O56](../DECISIONS.md#o56) | How far do our game-data tools go before the blueprint? | Datapiler, a tool of its own: Smithbox's server read-only with the game closed, guided exports, jobs and logs | Decided 2026-11-08 |
 | [O57](../DECISIONS.md#o57) | How are the kinds of game data kept apart, and what must hold? | Research extraction, the framework's data and live tracing kept apart; any method, so long as live tracing serves every feature | Decided 2026-11-08 |
