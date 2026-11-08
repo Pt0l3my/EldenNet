@@ -30,10 +30,11 @@ Read the two summaries first. The numbered notes hold the detail and the sources
 | [05-game-state-and-events](eldenring/05-game-state-and-events.md) | Which state and events a mod can read (player, location, time, characters, combat, flags, menus) and how robustly |
 | [06-prior-art](eldenring/06-prior-art.md) | Mantella, CHIM, SkyrimNet and others; Elden Ring precedents; lessons on latency, memory, setup friction and model defaults |
 | [07-world-and-quest-leads](eldenring/07-world-and-quest-leads.md) | World-stage flags (endings, story, legacy dungeons, Great Runes, map swaps, Radahn's star, the Erdtree and the ash), boss-kill flags, the v1 personas' flag blocks, related quests and what spike S6 must settle |
+| [08-game-data-sources](eldenring/08-game-data-sources.md) | Where the roster's game ids can come from: online datasets, DSMapStudio, Smithbox and the tools around them, with their licences and AI policies; which files hold which ids; how our tools read Smithbox's exports (O55), and the question of how far they go before the blueprint |
 
 ## Method and ground rules
 
 - **Evidence labels.** FACT means taken from a primary source. LIKELY means several weaker signals agree. SPECULATION or INFERENCE means our own reasoning. Every report ends with a review or verification log from an independent fact-checking pass.
 - **SkyrimNet.** We studied only what SkyrimNet openly ships and documents: devkit docs, readable content (prompts, YAML, SQL migrations), Papyrus sources, the MIT-licensed API headers, the public repository and public web pages. Nothing came from inspecting its compiled files. These notes reuse none of SkyrimNet's prompts, templates, bios or code; they record ideas and published numbers (see [skyrimnet/00-summary §7](skyrimnet/00-summary.md)). Since 2026-11-07 SkyrimNet's author has approved EldenNet building on SkyrimNet (EldenNet `CLAUDE.md`, Licences).
 - **Elden Ring.** Facts about the game come from public modding sources (fromsoftware-rs, The Grand Archives CE table, Smithbox/Paramdex, ESDLang, me3 and others), cited inline. No FromSoftware files are stored in this repository.
-- **Time-sensitive.** Patch levels, tool versions, licences and community policies were current on 2026-11-06. Re-check them before relying on them.
+- **Time-sensitive.** Patch levels, tool versions, licences and community policies were current on each note's research date (2026-11-06; 2026-11-08 for 08-game-data-sources). Re-check them before relying on them.

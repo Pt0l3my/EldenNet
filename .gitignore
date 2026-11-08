@@ -42,7 +42,12 @@ models/
 
 # --- Game data: never commit FromSoftware files or local exports ---
 # Text and params exported from your own install (Smithbox / WitchyBND) stay local.
+# Put every export under game-export/; the census with names and the drafts stay in their
+# local folders (DESIGN §7.8, MEM §5.6, ER08 §5).
 /game-export/
+**/game-export/
+**/roster.local/
+**/drafts.local/
 *.fmg
 *.fmg.xml
 *.dcx
