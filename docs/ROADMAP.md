@@ -311,9 +311,17 @@ research into the game's data that goes ahead before them (O54).
 - l Where the shared id leads go (O59) [done]
   - refs: O59, ER08
   - gives: a numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it.
-- m DataPiler's first run on the owner's PC, and its first job's share file brought back here [waiting]
+- m DataPiler's first run on the owner's PC, and its first job's share file brought back here [done]
   - needs: k
   - refs: O56, O59
+  - gives: 2026-11-08, DataPiler 0.2.0 with Smithbox 2.2.6 on game 2.7.2.0: the character, dialogue and place rows read
+    through the server link, and job en-0001's counts. The names' wrapper leads 18, 328 and 428 held (95.5% of the name
+    numbers resolve), all in the one English item container Smithbox shows, `item_dlc02`. Counts only, so nothing for
+    O59's file yet.
+- n DataPiler 0.2.1: placeholder texts no longer count as names, each layer's names checked on its own, the names rows done once `item_dlc02` arrives, and the 0.2.0 run's smaller fixes [waiting]
+  - needs: m
+  - refs: O56, ER08
+  - gives: offered to the owner; en-0001 runs again on it, as the `[ERROR]` placeholders may count in its named rows.
 
 ## S7 Open items
 
