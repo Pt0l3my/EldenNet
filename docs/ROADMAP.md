@@ -38,7 +38,7 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-07
+- updated: 2026-11-08
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
@@ -331,6 +331,18 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
 - S7.6.a The owner picks EldenNet's public name, at any time before the v0.6 public test [waiting]
   - refs: O1
   - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
+
+### S7.7 An interactive showcase of the menu [waiting]
+
+The owner asked on 2026-11-08 for a showcase of the menu to click through in the browser, beside the static
+showcase; the Skyrizz session advised on how its own is built.
+
+- S7.7.a The owner decides how it is built (G13) [waiting]
+  - refs: G13, GraceUI:DESIGN§2.5
+  - gives: recommended: from GraceUI's page descriptions, with invented sample data, in plain script.
+- b Build it in GraceUI, test it in a headless browser and publish it privately, linked from the static showcase
+  - needs: a
+  - refs: G13, docs/showcase/showcase.md
 
 ## S8 Adopting the engine [planned]
 
