@@ -1241,7 +1241,7 @@ foe_fell    = ["Account settled.", "Paid in full.", "The bridge keeps its fee."]
 
 ### 4.6 Subjects
 
-**The owner's rule (2026-11-07):** autonomy may talk of what the NPC likes in general, not only news or reactions (O30's row, DESIGN §19). Every profile, persona, character or card, carries a short list of subjects it likes to talk about, and the autonomy task offers the model one of them, which it may use or ignore. Positive grounding still applies: the subject is one more fact about the speaker, never an order.
+**The owner's rule (2026-11-07):** autonomy may talk of what the NPC likes in general, not only news or reactions (O30, [docs/DECISIONS.md](../DECISIONS.md)). Every profile, persona, character or card, carries a short list of subjects it likes to talk about, and the autonomy task offers the model one of them, which it may use or ignore. Positive grounding still applies: the subject is one more fact about the speaker, never an order.
 
 - **Counts.** 3–8 on every shipped persona from the increment that ships its autonomy (Kalé v0.3, the others v0.5), on every shipped card from v0.4 and on every shipped character profile; the fallback `nameless_soldier` carries none (it has no lore, §4.3); 0–8 in the player's own files. Each entry ≤ 10 words and ≤ 50 chars.
 - **What a subject is.** What the NPC likes to talk about, in general: interests, not facts and not instructions. Each entry is a noun phrase that reads naturally after "your thoughts may turn to": "the price of rope, lamp oil and good boots".
