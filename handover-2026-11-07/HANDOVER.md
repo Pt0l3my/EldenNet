@@ -9,7 +9,7 @@ blueprint.
 
 1. This file.
 2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O54, one entry each (O46 and O54 open). GraceUI's
-   own are in GraceUI's `docs/DECISIONS.md` (G1–G12, none open).
+   own are in GraceUI's `docs/DECISIONS.md` (G1–G13; G13 open since 2026-11-08).
 3. DESIGN §0, the design at a glance: `python3 -I tools/workplan/wp.py show DESIGN§0`.
 4. [docs/ROADMAP.md](../docs/ROADMAP.md), the one roadmap and open-items list for both repositories (or its page,
    `docs/roadmap/index.html`).
@@ -52,7 +52,7 @@ features we have so far, which will get gradually updated".
   carries G1–G10, G11 (the owner's request that started GraceUI) and G12 (O53 as GraceUI applies it). DESIGN §19 and
   GraceUI DESIGN §12 are now their indexes; where a decision was re-worded in place, the entry restores the text as
   decided from git history and adds dated notes.
-- **docs/ROADMAP.md** (18 stages S0–S17, 56 steps, 166 parts) and its page `docs/roadmap/index.html`, built by
+- **docs/ROADMAP.md** (18 stages S0–S17, 57 steps, 168 parts) and its page `docs/roadmap/index.html`, built by
   `tools/roadmap/build.py` (adapted from Skyrizz's; 48 tests).
 - **docs/showcase/**: what EldenNet is, the features designed so far and GraceUI's mock (8 screenshots at 1280×720,
   lossless WebP, 689 KB in all), built from `docs/showcase/showcase.md` by `tools/showcase/build.py` (37 tests). It
@@ -151,7 +151,7 @@ takes them again.
 ## 4. How the work is done
 
 - **Decisions** are the owner's. Ask only what the design leaves open, always with a recommendation. A new question is
-  an entry marked Open in that repository's docs/DECISIONS.md, with the next free id (O55 in EldenNet, G13 in GraceUI),
+  an entry marked Open in that repository's docs/DECISIONS.md, with the next free id (O55 in EldenNet, G14 in GraceUI),
   its options and the recommendation, and a row in its index (DESIGN §19, GraceUI DESIGN §12). The answer goes in the
   entry with its date and the owner's words. A later decision amends an earlier one by a dated note under **Later
   changes**, never by rewriting it; the question stays as it was put; ids are never renumbered or reused. What the
