@@ -5,6 +5,18 @@ only in its own container; this folder holds those the next steps need. The desi
 from one open question (O46; O54 was decided on 2026-11-08); there is no code yet, and the build waits on the owner for Min's engine
 blueprint.
 
+**Update, 8 November 2026 (evening): DataPiler's first runs and the roster's first ids.** Read roadmap S6.3.m to
+S6.3.o first. DataPiler (`Pt0l3my/DataPiler`): `main` is 0.2.0 (published); 0.2.1 (the Imported tab, the game's
+`[ERROR]` placeholders skipped, one export per names row) and 0.2.2 (`join_names` adds `layer`) are on the branches
+`feat/v0.2.1` and `feat/v0.2.2`, sent to the owner as patch zips, with no pull request or release yet. The owner runs
+0.2.2. Facts from the owner's PC: Smithbox 2.2.6 shows one Item container per language, `item_dlc02`, holding the base
+game, DLC 1 and DLC 2; its Text Editor forgets the Export Directory on restart; the owner's project has no Map Editor
+enabled (likely why the map extract failed). Jobs en-0001 to en-0005 (in the conversation, not committed) found NpcParam's
+name number 0 to be the ordinary enemies' default (6,325 of 7,045 rows) and 213 real names on 699 rows (163 base game,
+50 DLC 1), now in `docs/research/eldenring/leads/roster-rows.json` (O59). Next: the boss question (bar names from event
+scripts; research first, nothing asked of the owner yet); DataPiler's leftovers (faster row reads, a clearer map error,
+picking up Smithbox's default export folder) and a proper 0.2.x release when the owner asks.
+
 **Read first, in this order:**
 
 1. This file.
