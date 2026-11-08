@@ -304,9 +304,10 @@ research into the game's data that goes ahead before them (O54).
   - needs: i
   - refs: O58, DATA
   - gives: recommended: capture plans in our own words and the owner's saves before each named boss fight, nothing built.
-- k DataPiler's fix round: share files limited to what a feature needs (its DP8), the guard's text check, the expansion and the names' facts [active]
+- k DataPiler's fix round: share files limited to what a feature needs (its DP8), the guard's text check, the expansion and the names' facts [done]
   - needs: h
   - refs: O56, O59
+  - gives: DP8 enforced (lineage and a sixth guard check), the text check fixed, the expansion as the owner's setting, the names' wrapper leads checked by data; 396 tests.
 - l Where the shared id leads go (O59) [done]
   - refs: O59, ER08
   - gives: a numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it.
