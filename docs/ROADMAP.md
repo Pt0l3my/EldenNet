@@ -293,9 +293,10 @@ research into the game's data that goes ahead before them (O54).
 - g The owner creates the empty public DataPiler repository, so its first commit can be pushed [done]
   - needs: d
   - gives: `Pt0l3my/DataPiler`, created 2026-11-08; its first commit is on its `design/v0` branch.
-- h Build DataPiler from that design: launcher and terminal window, the page, the server link, guided exports, jobs, logs
+- h Build DataPiler from that design: launcher and terminal window, the page, the server link, guided exports, jobs, logs [done]
   - needs: f, g
   - refs: O56, ER08
+  - gives: DataPiler 0.1 on its `feat/v0.1` branch, tested here on invented data (362 tests, an end-to-end run in a browser).
 - i The coverage map of live tracing for every feature, with its eleven gaps (DATA) [done]
   - refs: O57, DATA
   - gives: 105 pieces of live data: 29 backed by research, 65 waiting on a named spike, 11 gaps, none needing a new kind of game read.
@@ -303,6 +304,15 @@ research into the game's data that goes ahead before them (O54).
   - needs: i
   - refs: O58, DATA
   - gives: recommended: capture plans in our own words and the owner's saves before each named boss fight, nothing built.
+- k DataPiler's fix round: share files limited to what a feature needs (its DP8), the guard's text check, the expansion and the names' facts [active]
+  - needs: h
+  - refs: O56, O59
+- l Where the shared id leads go (O59) [done]
+  - refs: O59, ER08
+  - gives: a numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it.
+- m DataPiler's first run on the owner's PC, and its first job's share file brought back here [waiting]
+  - needs: k
+  - refs: O56, O59
 
 ## S7 Open items
 

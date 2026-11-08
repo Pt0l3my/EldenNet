@@ -36,7 +36,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
   (Smithbox as the source our tools read, under ER08's five conditions). O56 (how far our tools go before the
   blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature). O58 put to the owner (preparing the live
-  checks before the blueprint).
+  checks before the blueprint). O59 (the game's id leads go to a numbers-only research file).
 - **Open.** O46 (the bio's structure and the v1.0 roster) and O58 (preparing the live checks before the blueprint).
 
 ## O1
@@ -662,3 +662,15 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Recommendation.** (b). It builds nothing, so O54 holds; it serves whatever the blueprint brings, since the game-access layer, Augur and identity by verified keys are unchanged by it (DESIGN §7.8); and it takes the slowest part of the captures, preparing the saves, off the critical path (K29). *What it gives up:* some of the owner's play time, and plans that may need revising once the blueprint is known. (c) would find a failing live source sooner, but with code written before its foundation is known; it stays a later choice if the blueprint is long delayed.
 
 **Follows from.** O54, O57; DATA §3 and §4; DESIGN §7.8, §16.1.
+
+## O59
+
+**Where the game's id leads go** · *2026-11-08 · Decided by the owner, as recommended*
+
+**Question.** ER08 §7 item 3 left open how much of an id index may be committed, and where. With DataPiler sharing ids only for rows a job picks for a purpose (DataPiler's DP8), where do the leads the owner shares go? **Options:** (a) **a research file**: a numbers-only file under `docs/research/`, each lead marked unverified, with DataPiler's provenance block, replaced by EldenNet's own identity data (`identity/characters.toml`) once EldenNet runs and checks them in game; (b) **not committed yet**: the leads stay in the conversation and the owner's share folder until EldenNet is built.
+
+**Decision.** (a). Only the ids a feature binds (each named character's row ids per form and name number, and later entity ids, boss-bar name ids and flag block bases) are committed, in a numbers-only research file under `docs/research/`, each with `verified = false` and the share file's provenance, after the privacy sweep and a numbers-only check; EldenNet's own identity data replaces it once the leads are checked in game (O48).
+
+**Owner's words.** "A research file (Recommended)".
+
+**Follows from.** O54–O57; ER08 §5 and §7 item 3; DataPiler's DP8.
