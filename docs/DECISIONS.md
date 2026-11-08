@@ -35,7 +35,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   building on SkyrimNet), which superseded O52.
 - **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
   (Smithbox as the source our tools read, under ER08's five conditions). O56 put to the owner (how far our tools
-  go before the blueprint).
+  go before the blueprint; a dry run first). O57 (three kinds of game data; live tracing for every feature).
 - **Open.** O46 (the bio's structure and the v1.0 roster) and O56 (how far our game-data tools go before the
   blueprint).
 
@@ -636,3 +636,17 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Follows from.** O54, O55, O48; ER08 §6 and §7; DESIGN §7.8.
 
 **Discussion.** 2026-11-08: asked to choose, the owner asked first to be shown the options: "let's talk about this first, what is the cleanest and problem free method to extract game data, what game data do we need right now, do we know well enough Smithbox, what kind of extracted data do we need (that's relevant to your questions that you offer, I don't know well enough to answer, so educate me first, explain various options and their benefits." The explanation was given in the conversation; the question stays Open.
+
+**Discussion.** 2026-11-08, after the explanation: the owner chose a dry run first. "good idea, let's do that first so we can test what we can extract from Smithbox." `tools/gamedata/smithbox_inspect.py` reads the owner's own Smithbox exports (NpcParam, TalkParam, the item text containers) on their PC and prints counts and checks only, never a name or other game text; the owner pastes its report into the conversation, and O56 is decided from it.
+
+## O57
+
+**Three kinds of game data, and live tracing for every feature** · *2026-11-08 · Decided by the owner*
+
+**Question.** None was put: the owner's direction of 2026-11-08, given while O56 was discussed.
+
+**Decision.** EldenNet keeps three kinds of game data apart: (1) **research extraction**: offline, on the owner's PC, from the owner's own install (Smithbox's exports, O55 and O56), giving documentation and leads, never shipped; (2) **the framework's data**: the data files EldenNet builds and ships for its functions (the identity bindings and the roster index, the flag catalogue, regions, NPC types), made from those leads and verified (O48) before EldenNet relies on them; (3) **live tracing during play**: what EldenNet's game-access layer and event engine read and detect while the game runs (the characters near the player, flags, boss bars, places, combat and status), on which every feature depends. How the data is got does not matter, so long as everything needed is got; what must hold is that EldenNet can trace and monitor events, NPCs and data during play so that every feature works. A coverage map checks it: each feature, the live data it needs, how EldenNet reads it in game, how that is verified, and the gaps.
+
+**Owner's words.** "Also, we need to make clear distinction between data extraction for research and general data collection for the AI framework functions, and in-game live event and data tracing/monitoring for the AI framework in action (during gameplay). I don't mind how we get the data as long as we get what we need, we just need to ensure that EldenNet will be able to track/trace/monitor events, NPCs, data during gameplay so that all features work."
+
+**Follows from.** O45, O48, O49, O51, O54, O55, O56.

@@ -283,6 +283,10 @@ research into the game's data that goes ahead before them (O54).
   - needs: b, c
   - refs: O56, ER08
   - gives: recommended: a small research script on Smithbox's exports, run on the owner's PC; numbers-only leads committed.
+- e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [waiting]
+  - needs: c
+  - refs: O56, ER08, tools/gamedata/README.md
+  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version, before O56 is decided.
 
 ## S7 Open items
 

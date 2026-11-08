@@ -49,6 +49,8 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 - [tools/privsweep](tools/privsweep/README.md): the privacy and safety sweep, run before every push.
 - [tools/workplan](tools/workplan/README.md): `wp`, which reads the design and research documents section by
   section.
+- [tools/gamedata](tools/gamedata/README.md): research tools the owner runs on their own Smithbox exports; they
+  print numbers and counts only, never game text.
 
 ## Licence
 
