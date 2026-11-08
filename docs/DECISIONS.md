@@ -677,7 +677,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O60
 
-**The implementation language: C++ expected, settled at the blueprint** · *2026-11-08 · Decided by the owner (direction); confirmed when the blueprint arrives*
+**The implementation language: C++ expected, settled at the blueprint** · *2026-11-08 · Decided by the owner (direction); confirmed the same day*
 
 **Question.** GitHub labels EldenNet a Python project, since its only code so far is its Python tools. The design says one Rust `cdylib` (DESIGN §2.1), chosen on 2026-11-06 because research found Rust's `fromsoftware-rs` the only maintained typed SDK for the game and hudhook a proven Rust overlay (ER02, ER00); O47 and O48 then excluded fromsoftware-rs and me3, and O53 made SkyrimNet, a C++ SKSE plugin, EldenNet's foundation. Should EldenNet and GraceUI be written in C++? **Options:** decide now, or when Min's blueprint arrives, as part of adopting it (roadmap S8). **Recommendation:** decide at the blueprint; C++ if the blueprint is C++, which is likely.
 
@@ -686,3 +686,5 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Owner's words.** "We should wait for the blueprint, but it sounds like C++ would be the right route either way, for both EldenNet and GraceUI."
 
 **Follows from.** O25, O47, O48, O53; GraceUI G3, G15; DESIGN §2.1; ER00, ER02.
+
+**Later changes.** 2026-11-08, the same day: asked on SkyrimNet's Discord whether the blueprint engine is in C++, Min answered: "Yep! It's C++". So the language is settled: EldenNet and GraceUI's in-game parts are written in C++, and the design is re-based on C++ when the blueprint is adopted (roadmap S8.1.e). The overlay that replaces hudhook still needs the owner's approval when it is chosen, as a change to O25 and G15.
