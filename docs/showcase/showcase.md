@@ -69,8 +69,9 @@ gestures, nothing changed in your game. EldenNet reads the game and never writes
 dormant unless you play offline, alone in your own world.
 
 EldenNet builds on SkyrimNet, Min's AI framework for the characters of Skyrim, with Min's approval.
-It is a project of its own, not SkyrimNet itself. Its menu and dashboard, GraceUI, is a mod of its
-own too, and every EldenNet release carries it.
+It is a project of its own, not SkyrimNet itself. Its menu and dashboard are drawn by GraceUI, a
+UI framework of its own that other mods will be able to use too, and every EldenNet release
+carries it.
 
 ## What version 1 does {#v1}
 
@@ -238,8 +239,8 @@ with a notice, instead of guessing.
 - kind: gallery
 - nav: The menu
 
-GraceUI is EldenNet's menu and dashboard: the same pages in game on a hotkey, and in your browser on
-the same PC while the game runs. It wears its own dark theme, Grace: warm ash greys lit by a single
+GraceUI draws EldenNet's menu and dashboard: the same pages in game on a hotkey, and in your browser
+on the same PC while the game runs. It wears its own dark theme, Grace: warm ash greys lit by a single
 gold light. These are screenshots of the design mock, with placeholder data and invented names; the
 menu itself is built alongside EldenNet's versions.
 
@@ -315,11 +316,11 @@ A key goes in and is never shown again.
 - nav: Status
 
 **Design stage.** Nothing is built yet. The design of version 1 and its review rounds are done, and
-so is the design of GraceUI; the owner has made every decision but two (O46 and O54). Two things
-wait on the owner: Min's engine blueprint, SkyrimNet's game-independent core, which becomes
-EldenNet's foundation and comes before the build, and the structure of the character profile
-(decision O46), which comes before the roster is written. The other open decision, O54, is whether
-a first count of the roster, in numbers only, may start before both.
+so is the design of GraceUI; the owner has made every decision but one (O46). Two things wait on
+the owner: Min's engine blueprint, SkyrimNet's game-independent core, which becomes EldenNet's
+foundation and comes before the build, and the structure of the character profile (decision O46),
+which comes before the roster is written. Meanwhile the game's own data, the numbers by which
+EldenNet will know each character, is being researched and documented (decision O54).
 
 Then the engine is adopted, the roster is written in batches, and EldenNet's versions follow, from
 v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.

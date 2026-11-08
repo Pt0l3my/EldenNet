@@ -33,7 +33,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   combat dialogue) and O52 (studying SkyrimNet's dashboard). O30, O43 and O44 (which reactions raise news, character
   profiles, calm lines and sleep), raised by O28 and by O31–O42. O43's update, O45 and O53 (the full roster, free conversation with memories,
   building on SkyrimNet), which superseded O52.
-- **Open.** O46 (the bio's structure and the v1.0 roster) and O54 (an early, numbers-only roster census).
+- **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now).
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -597,10 +598,12 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O54
 
-**An early, numbers-only roster census** · *Open since 2026-11-07*
+**An early, numbers-only roster census** · *Put 2026-11-07 · Decided by the owner 2026-11-08*
 
 **Question.** May `en-tools roster-scan` (with the parts of `identity-fill` and `fmg-import` it needs) be built, and the numbers-only census run on the author's machine (names kept there, the index getting ids and numbers only), before Min's blueprint arrives and before O46 is decided? **Options:** (a) wait for both prerequisites, as DESIGN §7.8 plans; (b) build those tools and run the numbers-only census now, since it depends on neither.
 
 **Recommendation.** (b): it settles the roster's numbers and leads early, against K29's schedule risk, and commits nothing of the bio's structure.
+
+**Decision.** Neither as put. Nothing of EldenNet is built before Min's blueprint arrives, `roster-scan` and the tools beside it included; the game's own data (its ids and such) is researched and documented now, as standalone research for EldenNet, usable whatever the blueprint brings. Where that data comes from (an online database, a modding tool's exports, or a Python tool of our own reading the owner's install) is researched first (ER08) and then put to the owner as O55. The owner's words: "Can we carry out this research as a standalone documentation for EldenNet? What I mean is that there is no point to build yet until we get the Blueprint engine, but we could gather data about the game itself to get data about IDs and such. That is usable information regardless. Is there a database online that we could access for what we need? what source should we use? should we extract from game files with a tool like DSmapstudio (perhaps we could write a python tool to work with it that could easily extract info for us)?"
 
 **Follows from.** DESIGN §7.8 (Schedule risk) and K29.
