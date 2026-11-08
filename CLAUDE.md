@@ -80,7 +80,9 @@ index.
 - **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
   2026-11-06). Change the version only with the owner's approval, after re-reading its licence files. Rules
   that follow from the pin (DESIGN O25): build it with the `dx12` feature only, use `imgui` only through
-  `hudhook::imgui` and MinHook only through `hudhook::mh`, and never call its eject path.
+  `hudhook::imgui` and MinHook only through `hudhook::mh`, and never call its eject path. Since GraceUI's G15
+  (2026-11-08) the one overlay, with this pin and its rules, is GraceUI's, and EldenNet draws through GraceUI; the
+  designs are folded in roadmap S7.8.c.
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,
