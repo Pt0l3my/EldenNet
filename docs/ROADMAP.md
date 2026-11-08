@@ -370,6 +370,8 @@ questions are answered.
 - b The owner answers the proposal's questions, G15 to G20 [waiting]
   - needs: a
   - refs: G15, G16, G17, G18, G19, G20
+  - gives: G15 to G17 decided 2026-11-08, as recommended (GraceUI owns the overlay; page data and panels; the
+    browser view for every mod that opts in); G18 to G20 still wait.
 - c Fold the answers into both designs [planned]
   - needs: b
   - refs: GraceUI:docs/eldennet-changes.md

@@ -261,6 +261,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Recorded in.** CLAUDE.md, Owner decisions ("hudhook pinned at exactly 0.9.3"). GraceUI's G10 keeps the one overlay, and every rule here, in EldenNet.
 
+**Later changes.** 2026-11-08: by GraceUI's G15 (a), decided by the owner, the one overlay moves into GraceUI so that any mod can use GraceUI without EldenNet; the pin and every rule here move with it, unchanged, and EldenNet draws its surfaces through GraceUI and links no hook library. The designs are folded in roadmap S7.8.c (GraceUI's proposal 0001).
+
 ## O26
 
 **Game text in another language** · *2026-11-06 · Decided by the owner as recommended*
@@ -632,3 +634,5 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Recommendation.** (b), with ER08 §7's recommendations as its defaults: no tool of ours decodes the game's compression or decrypts its files; only the ids a feature binds are committed, in a numbers-only research file under `docs/research/` after the privacy sweep and a numbers-only check, until `identity/characters.toml` takes them; the expansion's numbers are gathered in the same pass, marked as such; neither fstools-rs nor SoulsRandomizers is used, even as leads; slugs come from the name a first meeting shows. *Why:* it gives the game's ids now, usable whatever the blueprint brings, for a week's work at most, with no keys and no binary parsing, and keeps Smithbox at arm's length (its files in, numbers out). What (c) and (d) add are numbers the design captures and verifies in game anyway. *What it gives up:* entity, model and boss-bar leads before the captures.
 
 **Follows from.** O54, O55, O48; ER08 §6 and §7; DESIGN §7.8.
+
+**Discussion.** 2026-11-08: asked to choose, the owner asked first to be shown the options: "let's talk about this first, what is the cleanest and problem free method to extract game data, what game data do we need right now, do we know well enough Smithbox, what kind of extracted data do we need (that's relevant to your questions that you offer, I don't know well enough to answer, so educate me first, explain various options and their benefits." The explanation was given in the conversation; the question stays Open.
