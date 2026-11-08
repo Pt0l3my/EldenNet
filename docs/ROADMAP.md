@@ -332,16 +332,16 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
   - refs: O1
   - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
 
-### S7.7 An interactive showcase of the menu [waiting]
+### S7.7 An interactive showcase of the menu [planned]
 
 The owner asked on 2026-11-08 for a showcase of the menu to click through in the browser, beside the static
-showcase; the Skyrizz session advised on how its own is built.
+showcase; the Skyrizz session advised on how its own is built. The owner chose to wait for Min's blueprint.
 
-- S7.7.a The owner decides how it is built (G13) [waiting]
+- S7.7.a The owner decides how it is built (G13) [done]
   - refs: G13, GraceUI:DESIGN§2.5
-  - gives: recommended: from GraceUI's page descriptions, with invented sample data, in plain script.
+  - gives: decided 2026-11-08: wait for the blueprint; how to build it is asked again once it has arrived.
 - b Build it in GraceUI, test it in a headless browser and publish it privately, linked from the static showcase
-  - needs: a
+  - needs: a, S6.1
   - refs: G13, docs/showcase/showcase.md
 
 ## S8 Adopting the engine [planned]
