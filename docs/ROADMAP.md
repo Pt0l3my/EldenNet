@@ -296,6 +296,13 @@ research into the game's data that goes ahead before them (O54).
 - h Build DataPiler from that design: launcher and terminal window, the page, the server link, guided exports, jobs, logs
   - needs: f, g
   - refs: O56, ER08
+- i The coverage map of live tracing for every feature, with its eleven gaps (DATA) [done]
+  - refs: O57, DATA
+  - gives: 105 pieces of live data: 29 backed by research, 65 waiting on a named spike, 11 gaps, none needing a new kind of game read.
+- j The owner decides whether to prepare the live checks before the blueprint (O58) [waiting]
+  - needs: i
+  - refs: O58, DATA
+  - gives: recommended: capture plans in our own words and the owner's saves before each named boss fight, nothing built.
 
 ## S7 Open items
 
