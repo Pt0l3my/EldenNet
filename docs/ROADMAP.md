@@ -323,6 +323,12 @@ research into the game's data that goes ahead before them (O54).
   - needs: m
   - refs: O56, ER08
   - gives: offered to the owner; not urgent, as en-0001's counts stand without it.
+- o The roster's first ids: DataPiler's jobs en-0002 to en-0004 separate the named characters from the ordinary enemies, and their ids go to O59's research file [done]
+  - needs: m
+  - refs: O59, O48, ER08
+  - gives: name number 0 is the ordinary enemies' default (6,325 of 7,045 rows); 213 real name numbers on 699 rows, in
+    `docs/research/eldenring/leads/roster-rows.json`, unverified. Open: the expansion's characters are not told apart
+    yet, 21 rows' name numbers did not resolve, and bosses may take their bar names from event scripts, not NpcParam.
 
 ## S7 Open items
 
