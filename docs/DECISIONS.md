@@ -33,7 +33,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   combat dialogue) and O52 (studying SkyrimNet's dashboard). O30, O43 and O44 (which reactions raise news, character
   profiles, calm lines and sleep), raised by O28 and by O31–O42. O43's update, O45 and O53 (the full roster, free conversation with memories,
   building on SkyrimNet), which superseded O52.
-- **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now).
+- **2026-11-08.** O54 (no build before the blueprint; the game's data researched and documented now) and O55
+  (Smithbox as the source our tools read).
 - **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
@@ -607,3 +608,13 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Decision.** Neither as put. Nothing of EldenNet is built before Min's blueprint arrives, `roster-scan` and the tools beside it included; the game's own data (its ids and such) is researched and documented now, as standalone research for EldenNet, usable whatever the blueprint brings. Where that data comes from (an online database, a modding tool's exports, or a Python tool of our own reading the owner's install) is researched first (ER08) and then put to the owner as O55. The owner's words: "Can we carry out this research as a standalone documentation for EldenNet? What I mean is that there is no point to build yet until we get the Blueprint engine, but we could gather data about the game itself to get data about IDs and such. That is usable information regardless. Is there a database online that we could access for what we need? what source should we use? should we extract from game files with a tool like DSmapstudio (perhaps we could write a python tool to work with it that could easily extract info for us)?"
 
 **Follows from.** DESIGN §7.8 (Schedule risk) and K29.
+
+## O55
+
+**Smithbox as the source our game-data tools read** · *2026-11-08 · Decided by the owner*
+
+**Question.** None was put as such: while O54's research was asking where the game's data should come from (an online database, a modding tool such as DSMapStudio, or a Python tool of our own; the owner had asked "should we extract from game files with a tool like DSmapstudio (perhaps we could write a python tool to work with it that could easily extract info for us)?"), the owner chose.
+
+**Decision.** Smithbox (the maintained successor of DSMapStudio) is the source our tools read: the owner exports from their own install with it, and our own tools (`fmg-import`, `identity-fill`, `roster-scan`, ARCH §12.3, and any research tool written before them) read those exports on the owner's PC, names kept there and only numbers and ids leaving it. Other sources serve only as leads to cross-check. Adopting it waits for its licence and any AI clause or policy to be read (CLAUDE.md: check a dependency's licence before adopting it), in ER08. The owner's words: "also about Smithbox, let's use that for our tools."
+
+**Follows from.** O54; O48 (facts verified independently before EldenNet relies on them); ARCH §12.3.
