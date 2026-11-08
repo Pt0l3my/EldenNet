@@ -327,8 +327,9 @@ research into the game's data that goes ahead before them (O54).
   - needs: m
   - refs: O59, O48, ER08
   - gives: name number 0 is the ordinary enemies' default (6,325 of 7,045 rows); 213 real name numbers on 699 rows, in
-    `docs/research/eldenring/leads/roster-rows.json`, unverified. Open: the expansion's characters are not told apart
-    yet, 21 rows' name numbers did not resolve, and bosses may take their bar names from event scripts, not NpcParam.
+    `docs/research/eldenring/leads/roster-rows.json`, unverified. DataPiler 0.2.2's job en-0005 adds each name's layer:
+    163 names first held by the base game's text and 50 by DLC 1 (the expansion's characters), none new in DLC 2. Open:
+    21 rows' name numbers did not resolve, and bosses may take their bar names from event scripts, not NpcParam.
 
 ## S7 Open items
 
