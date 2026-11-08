@@ -2,13 +2,13 @@
 
 For the session that picks up EldenNet and GraceUI. The work so far ran in one long session whose working files lived
 only in its own container; this folder holds those the next steps need. The design of both is done and decided, apart
-from two open questions (O46 and O54); there is no code yet, and the build waits on the owner for Min's engine
+from one open question (O46; O54 was decided on 2026-11-08); there is no code yet, and the build waits on the owner for Min's engine
 blueprint.
 
 **Read first, in this order:**
 
 1. This file.
-2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O54, one entry each (O46 and O54 open). GraceUI's
+2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O54, one entry each (O46 open). GraceUI's
    own are in GraceUI's `docs/DECISIONS.md` (G1–G13, none open; G13 decided on 2026-11-08).
 3. DESIGN §0, the design at a glance: `python3 -I tools/workplan/wp.py show DESIGN§0`.
 4. [docs/ROADMAP.md](../docs/ROADMAP.md), the one roadmap and open-items list for both repositories (or its page,
@@ -80,8 +80,10 @@ it), and only the owner changes who may see a page.
 - **O53, building on Min's engine.** Memory, prompt and context design that the engine may supply is marked as waiting
   for the blueprint rather than designed twice (DESIGN §7.8; roadmap S8.1). The research notes keep the earlier
   ideas-only boundary as dated evidence (SN00 §7).
-- **Put to the owner as O54** (Open; roadmap S6.3.a): whether the numbers-only census may start before the
-  prerequisites, as DESIGN §7.8 allows "if the owner agrees".
+- **Put to the owner as O54** (roadmap S6.3.a): whether the numbers-only census may start before the
+  prerequisites, as DESIGN §7.8 allowed "if the owner agrees". Decided on 2026-11-08: no build before the blueprint;
+  the game's data is researched and documented now (S6.3.b; the research note becomes ER08, then O55 asks which
+  source to use).
 
 ## 2. Next steps, in order
 
@@ -98,12 +100,12 @@ it), and only the owner changes who may see a page.
    named NPC and named boss, the base game's roster in v1.0 and the expansion's in v1.1. The owner wants it settled
    before the profiles are generated. Check the recommendation against the blueprint's own bio format when it arrives,
    before asking again.
-3. **The roster pipeline** (S9), once O46 is decided (the numbers-only census sooner if the owner answers O54 with (b);
-   roadmap S6.3.a): the roster's scan, draft and verify tools and the lints PL10 to PL12 (NPC §4.8); then batch by
-   batch, by region or hub: the census on the author's machine (names stay local; the index gets ids and numbers only),
-   a research note per NPC in our own words, a draft from each note with every field reviewed by hand, and a second
-   reader's spoiler review at first-meeting level. About 140 base-game profiles and about 170 hours, on v1.0's critical
-   path (DESIGN §7.8, risk K29). Drafts never come from game text.
+3. **The roster pipeline** (S9), once O46 is decided (its leads sooner from the game-data research of O54; roadmap
+   S6.3): the roster's scan, draft and verify tools and the lints PL10 to PL12 (NPC §4.8); then batch by batch, by
+   region or hub: the census on the author's machine (names stay local; the index gets ids and numbers only), a research
+   note per NPC in our own words, a draft from each note with every field reviewed by hand, and a second reader's
+   spoiler review at first-meeting level. About 140 base-game profiles and about 170 hours, on v1.0's critical path
+   (DESIGN §7.8, risk K29). Drafts never come from game text.
 4. **GraceUI's changes to EldenNet's design** (S7.1). These can go ahead while step 1 waits: fold
    `docs/eldennet-changes.md` §1–§9 into EldenNet's DESIGN, ARCH and NPC, and record G1, G2, G4–G6 and G8–G10 in
    EldenNet's docs/DECISIONS.md as its item 7.4 says, in the owner's words as GraceUI's DECISIONS.md gives them.

@@ -42,13 +42,14 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
-approval; GraceUI is its menu and dashboard, a mod of its own that every EldenNet release carries.
-This one roadmap covers both. The design is done and decided, apart from the bio's structure (O46)
-and an early census (O54). Two things wait on the owner: Min's engine blueprint, which becomes
-EldenNet's foundation and comes before the build, and O46, which comes before the roster is
-written; O54 asks whether the numbers-only census may start before both. Then the engine is adopted, the roster pipeline starts, and EldenNet's increments v0.1 to
-v1.0 follow, each shippable to testers, with GraceUI's milestones beside them. Version 1 stays
-dialogue-only and read-only towards the game.
+approval; GraceUI is a UI framework for Elden Ring mods, of its own, that every EldenNet release
+carries and whose first user is EldenNet's menu and dashboard (G14). This one roadmap covers both.
+The design is done and decided, apart from the bio's structure (O46). Two things wait on the owner:
+Min's engine blueprint, which becomes EldenNet's foundation and comes before the build, and O46,
+which comes before the roster is written. Meanwhile the game's own data (its ids and such) is
+researched and documented (O54). Then the engine is adopted, the roster pipeline starts, and
+EldenNet's increments v0.1 to v1.0 follow, each shippable to testers, with GraceUI's milestones
+beside them. Version 1 stays dialogue-only and read-only towards the game.
 
 ## S0 Research [done]
 
@@ -244,8 +245,8 @@ dialogue-only and read-only towards the game.
 - needs: S4
 - refs: DESIGN§7.8
 
-The two prerequisites the owner set for the engine work and the roster (DESIGN §7.8), and whether
-the census may start before them (O54).
+The two prerequisites the owner set for the engine work and the roster (DESIGN §7.8), and the
+research into the game's data that goes ahead before them (O54).
 
 ### S6.1 Min's engine blueprint [waiting]
 
@@ -265,12 +266,16 @@ the census may start before them (O54).
   - gives: recommended: one bio for every named NPC and named boss, the base game's roster in
     v1.0 and the expansion's in v1.1.
 
-### S6.3 An early census [waiting]
+### S6.3 An early census
 
-- S6.3.a The owner decides O54: whether the numbers-only roster census may run before the blueprint and O46 [waiting]
+- S6.3.a The owner decides O54: whether the numbers-only roster census may run before the blueprint and O46 [done]
   - refs: O54, DESIGN§7.8
-  - gives: recommended: yes, so the roster's numbers and leads come early, against the schedule
-    risk (K29), with nothing of the bio's structure committed.
+  - gives: decided 2026-11-08: nothing is built before the blueprint; the game's data is
+    researched and documented now, as standalone research.
+- b Research where the game's data can come from: online databases, modding tools and their licences, a Python tool of our own [active]
+  - needs: a
+  - refs: O54, O48, ER02
+  - gives: a research note for the owner, with the question of which source to use.
 
 ## S7 Open items
 
@@ -335,14 +340,30 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
 ### S7.7 An interactive showcase of the menu [planned]
 
 The owner asked on 2026-11-08 for a showcase of the menu to click through in the browser, beside the static
-showcase; the Skyrizz session advised on how its own is built. The owner chose to wait for Min's blueprint.
+showcase; the Skyrizz session advised on how its own is built. The owner chose to wait for Min's blueprint,
+and decided the same day that it is part of EldenNet, not GraceUI (G13's later change).
 
 - S7.7.a The owner decides how it is built (G13) [done]
   - refs: G13, GraceUI:DESIGN§2.5
   - gives: decided 2026-11-08: wait for the blueprint; how to build it is asked again once it has arrived.
-- b Build it in GraceUI, test it in a headless browser and publish it privately, linked from the static showcase
+- b Build it in EldenNet, test it in a headless browser and publish it privately, linked from the static showcase
   - needs: a, S6.1
   - refs: G13, docs/showcase/showcase.md
+
+### S7.8 GraceUI as a UI framework for any mod
+
+The owner widened GraceUI's scope on 2026-11-08 (G14): a UI framework other modders can use, as
+Magelight UI and PrismaUI are for Skyrim; EldenNet requires it and always ships with it, and its
+menu and dashboard become GraceUI's first user. The decided design stands until the proposal's
+questions are answered.
+
+- S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [active]
+  - refs: G14, G1, G10, O25, GraceUI:docs/research/magelight.md
+- b The owner answers the proposal's questions (G15 onwards) [waiting]
+  - needs: a
+- c Fold the answers into both designs [planned]
+  - needs: b
+  - refs: GraceUI:docs/eldennet-changes.md
 
 ## S8 Adopting the engine [planned]
 
@@ -383,7 +404,7 @@ a batch's captures share saves.
 
 - S9.2.a The census on the author's machine: names stay local, and the index gets ids and numbers only
   - needs: S9.1.a, S8.1.d
-  - gives: earlier, with numbers only, if the owner agrees (S6.3.a, O54).
+  - gives: its leads earlier, from the game-data research (S6.3, O54).
 - b A research note per NPC in our own words, with its reveal terms and tells
   - needs: a
 - c A draft from each note, every field reviewed by hand, and a second reader's spoiler review at first-meeting level
