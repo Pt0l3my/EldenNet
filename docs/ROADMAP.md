@@ -364,10 +364,12 @@ Magelight UI and PrismaUI are for Skyrim; EldenNet requires it and always ships 
 menu and dashboard become GraceUI's first user. The decided design stands until the proposal's
 questions are answered.
 
-- S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [active]
-  - refs: G14, G1, G10, O25, GraceUI:docs/research/magelight.md
-- b The owner answers the proposal's questions (G15 onwards) [waiting]
+- S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [done]
+  - refs: G14, G1, G10, O25, GraceUI:docs/proposals/0001-ui-framework.md, GraceUI:docs/research/ui-frameworks.md
+  - gives: proposal 0001 and the research note FW; the Skyrizz session answered on Skyrim's UI hosts.
+- b The owner answers the proposal's questions, G15 to G20 [waiting]
   - needs: a
+  - refs: G15, G16, G17, G18, G19, G20
 - c Fold the answers into both designs [planned]
   - needs: b
   - refs: GraceUI:docs/eldennet-changes.md
