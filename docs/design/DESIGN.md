@@ -2046,4 +2046,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O57](../DECISIONS.md#o57) | How are the kinds of game data kept apart, and what must hold? | Research extraction, the framework's data and live tracing kept apart; any method, so long as live tracing serves every feature | Decided 2026-11-08 |
 | [O58](../DECISIONS.md#o58) | Should the live checks be prepared before the blueprint? | Recommended: (b) capture plans and saves now, nothing built | **Open** |
 | [O59](../DECISIONS.md#o59) | Where do the game's id leads go? | A numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it | Decided 2026-11-08 |
-| [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ expected for both, settled when the blueprint is adopted; Python stays for tools | Decided 2026-11-08 (direction) |
+| [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ for both (Min confirmed the blueprint is C++); the design is re-based on it at adoption; Python stays for tools | Decided 2026-11-08 |
