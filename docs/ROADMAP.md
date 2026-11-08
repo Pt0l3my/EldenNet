@@ -275,7 +275,10 @@ research into the game's data that goes ahead before them (O54).
 - b Research where the game's data can come from: online databases, modding tools and their licences, a Python tool of our own [active]
   - needs: a
   - refs: O54, O48, ER02
-  - gives: a research note for the owner, with the question of which source to use.
+  - gives: a research note for the owner (ER08): the sources, their licences, and how our tools read Smithbox's exports.
+- c The owner chooses the source our tools read: Smithbox (O55) [done]
+  - refs: O55, ARCH§12.3
+  - gives: adopted once its licence and any AI policy are read in the research note (b).
 
 ## S7 Open items
 
