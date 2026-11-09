@@ -1977,7 +1977,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61 and O62 on 2026-11-09; O46 and O58 are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61 and O62 on 2026-11-09; O46, O58 and O63 are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2049,3 +2049,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ for both (Min confirmed the blueprint is C++); the design is re-based on it at adoption; Python stays for tools | Decided 2026-11-08 |
 | [O61](../DECISIONS.md#o61) | Which kinds of creature and enemy may speak? | The evidence rule: only kinds the game shows a speaker of (demi-humans, living jars, beastmen, man-serpents, albinaurics, Omens, Hornsent); the rest, dragons included, stay mute | Decided 2026-11-09 |
 | [O62](../DECISIONS.md#o62) | Whose voices does TTS speak in? | The game's own voice recordings, cloned on the player's PC from their own install, as SkyrimNet does; never shipped or uploaded | Decided 2026-11-09 |
+| [O63](../DECISIONS.md#o63) | Melina: mute, or a voice of her own? | Recommended: a character profile, conversable in EldenNet's overlay while resting at a grace once she has met the Tarnished; a full persona later | Open |

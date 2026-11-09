@@ -716,6 +716,11 @@ later-version seam, "creature voices told in words", is where a dragon's roar co
 
 **Follows from.** DESIGN §7.1 (tiers E and F), §7.5; O48; the positive grounding of spoilers (2026-11-07).
 
+**Later changes.** *2026-11-09:* named bosses follow their kind. A dragon (Placidusax and the other dragons), a giant
+(the Fire Giant) or a beast (the Elden Beast) stays mute even with a bio, as its kind shows no speaker in game; the bio
+still serves the roster and what others know of it. A silent boss of a speaking people (Radahn, for one) may speak
+combat lines through its bio, in a voice generated for it (O62).
+
 ## O62
 
 **Voices from the game's own voice recordings** · *2026-11-09 · Decided by the owner*
@@ -745,3 +750,21 @@ This supersedes DESIGN §1.2's Never entry and ER03's voice-design note.
 
 **Follows from.** O8, O53, O61; DESIGN §1.2; ER03; SN00 row 34.
 
+**Later changes.** *2026-11-09, the owner:* "As for those without voices, we might going to need to generate voices that
+are appropriate." A speaker the game never voices (generic humanoids, O61's speaking kinds, a silent boss of a speaking
+people) gets a voice generated to fit it, designed from a description (its archetype, body type and age band, or its
+bio), rather than another character's voice. Being made from no one's recordings, such voices may ship as EldenNet's
+own if the licence of the tool that makes them allows it, checked in v1.5.
+
+## O63
+
+**Melina: mute, or a voice of her own** · *2026-11-09 · Open*
+
+**Question.** O19 keeps Melina silent and never bound, for reasons the design gives in NPC §1.3 and ER04 §10 item 8: she
+is reached through the grace menu and cutscenes, not as a world NPC EldenNet can walk up to and chat with, and a
+read-only v1 cannot add an option to the grace menu; she also carries some of the game's heaviest spoilers. The owner
+sees no reason for her silence. In the lore she travels with the Tarnished unseen, and the game voices her fully.
+**Options:** (a) keep her mute in v1, as now; (b) a character profile like every named NPC's, with a conversation in
+EldenNet's own overlay while the Tarnished rests at a site of grace, once she has met them, her knowledge gated by the
+stages already reached (positive grounding); (c) a full persona with a stage track, a seventh beside the six, in a later
+version. **Recommendation:** (b) for v1.0, with (c) as a later step.
