@@ -20,7 +20,7 @@ picking up Smithbox's default export folder) and a proper 0.2.x release when the
 **Read first, in this order:**
 
 1. This file.
-2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O61, one entry each (O46 and O58 open). GraceUI's
+2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O62, one entry each (O46 and O58 open). GraceUI's
    own are in GraceUI's `docs/DECISIONS.md` (G1–G13, none open; G13 decided on 2026-11-08).
 3. DESIGN §0, the design at a glance: `python3 -I tools/workplan/wp.py show DESIGN§0`.
 4. [docs/ROADMAP.md](../docs/ROADMAP.md), the one roadmap and open-items list for both repositories (or its page,
@@ -165,7 +165,7 @@ takes them again.
 ## 4. How the work is done
 
 - **Decisions** are the owner's. Ask only what the design leaves open, always with a recommendation. A new question is
-  an entry marked Open in that repository's docs/DECISIONS.md, with the next free id (O62 in EldenNet; in GraceUI the
+  an entry marked Open in that repository's docs/DECISIONS.md, with the next free id (O63 in EldenNet; in GraceUI the
   framework proposal's questions take G15 onwards), its options and the recommendation, and a row in its index (DESIGN
   §19, GraceUI DESIGN §12). The answer goes in the entry with its date and the owner's words. A later decision amends an
   earlier one by a dated note under **Later changes**, never by rewriting it; the question stays as it was put; ids are

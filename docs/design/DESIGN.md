@@ -73,11 +73,11 @@ flowchart LR
 |---|---|---|---|
 | Loading | Own launcher; loader-agnostic DLL; documented use as a player-configured me3 native | Proxy-DLL install | Any me3 code, API or reliance on its behaviour; posting in me3's spaces |
 | Game access | Reads, task registration, SEH-guarded copies | Hook-based event sources; probation mode for unknown builds | Code patching in v1; LLM-chosen flag writes |
-| NPCs | 6 personas, 6 cards plus a fallback card; our own character profile, holding a bio, for every named NPC and named boss of the base game, each able to converse and remember (O43, O45, §7.8); the player's own instructions on any profile and character profiles of their own for any named NPC, boss or invader they have met (§7.7); everything else mute; an NPC-type page with allowances per type and per named slot (§7.6) | The DLC's roster (v1.1, O46); Ranni's stage track; a merchant card; Melina; creature voices told in words | Cloning the cast's voices |
+| NPCs | 6 personas, 6 cards plus a fallback card; our own character profile, holding a bio, for every named NPC and named boss of the base game, each able to converse and remember (O43, O45, §7.8); the player's own instructions on any profile and character profiles of their own for any named NPC, boss or invader they have met (§7.7); everything else mute; an NPC-type page with allowances per type and per named slot (§7.6) | The DLC's roster (v1.1, O46); Ranni's stage track; a merchant card; Melina; creature voices told in words | Shipping or uploading game audio, voice samples or voice models (O62) |
 | Conversation | Typed one-to-one chat with every NPC that has a profile, when conversable (O45); Steam floating keyboard if S4 passes; personas speak up unasked: greetings, quest business, news on a greeting (§8.9), and other profiled NPCs greet, remark and answer within pacing (§7.8) | Pad intent list (v1.1), STT (v1.5), `@name` addressing | Any online use |
 | Barks | Combat lines for every combatant, either side (boss fights as S3 allows), status reactions in words (after S8), sparse idle lines, NPC-to-NPC exchanges, autonomy on subjects each NPC likes, seeds plus pools, one-line call-out replies; pacing only (O31) | Live combat lines, taunt key, user triggers, NPC acts (O41), a director that breaks silences (§13) | — |
 | Memory | Event log, facts, claims and a journal for every profiled NPC, with memories of the Tarnished and of other NPCs (O45); rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall, diaries; news that travels with play time; shared circles of acquaintance; what Min's blueprint may replace (§7.8) | Telemetry upload |
-| Presentation | ImGui text overlay | TTS (v1.5); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
+| Presentation | ImGui text overlay | TTS (v1.5), in the cast's own voices, made from the player's install on the player's PC (O62); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
 | ML | Out of process, over HTTP | Bundled out-of-process TTS binaries | LLM, TTS or STT inside the game process |
 
 ### 1.3 Success criteria ("minimal and stable", measured)
@@ -1977,7 +1977,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61 on 2026-11-09; O46 and O58 are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61 and O62 on 2026-11-09; O46 and O58 are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2048,3 +2048,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O59](../DECISIONS.md#o59) | Where do the game's id leads go? | A numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it | Decided 2026-11-08 |
 | [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ for both (Min confirmed the blueprint is C++); the design is re-based on it at adoption; Python stays for tools | Decided 2026-11-08 |
 | [O61](../DECISIONS.md#o61) | Which kinds of creature and enemy may speak? | The evidence rule: only kinds the game shows a speaker of (demi-humans, living jars, beastmen, man-serpents, albinaurics, Omens, Hornsent); the rest, dragons included, stay mute | Decided 2026-11-09 |
+| [O62](../DECISIONS.md#o62) | Whose voices does TTS speak in? | The game's own voice recordings, cloned on the player's PC from their own install, as SkyrimNet does; never shipped or uploaded | Decided 2026-11-09 |
