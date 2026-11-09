@@ -688,3 +688,31 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Follows from.** O25, O47, O48, O53; GraceUI G3, G15; DESIGN §2.1; ER00, ER02.
 
 **Later changes.** 2026-11-08, the same day: asked on SkyrimNet's Discord whether the blueprint engine is in C++, Min answered: "Yep! It's C++". So the language is settled: EldenNet and GraceUI's in-game parts are written in C++, and the design is re-based on C++ when the blueprint is adopted (roadmap S8.1.e). The overlay that replaces hudhook still needs the owner's approval when it is chosen, as a change to O25 and G15.
+
+## O61
+
+**Which kinds of creature and enemy may speak** · *2026-11-09 · Decided by the owner, as recommended*
+
+**Question.** DESIGN §7.1 gives generic humanoids an archetype card (barks and a one-line call-out reply) and keeps the
+voiceless kinds mute. Which of the kinds that never speak in game, and are not plainly human, may speak by the game's
+lore? **Options:** (a) **the evidence rule**: a kind may speak only if the game itself shows one of its people speaking,
+and every other kind stays mute; (b) humans and human-like peoples only; (c) anything with a mind, trolls, Misbegotten,
+giants and dragons included.
+
+**Decision.** (a). The kinds it lets speak, each a lead to check before its archetype card is written (O48): demi-humans
+(a demi-human speaks in game), living jars (a warrior jar speaks), the beastmen of Farum Azula (a beast clergyman
+speaks), man-serpents (transformed people, and their lord speaks as a serpent), albinaurics, Omens and the expansion's
+Hornsent. Each speaks in a manner its archetype card sets (crude, few words, archaic and so on), never in another
+people's voice. With no speaker shown in game, Misbegotten, trolls, giants, dragons and the Kindred of Rot stay mute, as
+do constructs, the undead, spirits and beasts. A humanoid silent by its own nature or vow stays silent. A new speaker
+found in the game's own content can move a kind across, by a dated note here.
+
+**Dragons and languages.** Asked whether dragons speak a tongue of their own, as in Skyrim: the game shows no dragon
+language and no dragon speaking (its dragon powers come by Dragon Communion, not by words), and no other spoken language
+than the one common tongue its peoples share, so dragons stay mute and EldenNet invents no language. DESIGN §1.2's
+later-version seam, "creature voices told in words", is where a dragon's roar could be described.
+
+**Owner's words.** "I like your logic, so I would go with choice "a"".
+
+**Follows from.** DESIGN §7.1 (tiers E and F), §7.5; O48; the positive grounding of spoilers (2026-11-07).
+
