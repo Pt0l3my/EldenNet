@@ -211,6 +211,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 *2026-11-07, by O43 as updated and O45, the same day:* Our own character profiles for every named boss and every named NPC, named invaders among them, ship in v1.0 (O43), so "silent" now covers Melina, who is never bound under any option, and any boss or invader without a profile. A bound boss or invader speaks combat lines in its fights once S3 has recorded its kind (O42), and holds a conversation and keeps memories only where the game lets the Tarnished meet it calm and not hostile (O45); built-in rules (a) and (b) are unchanged, so a bar holder or an invading phantom never converses. A player's own character profile may still give a voice to anyone without one (§7.7).
 
+*2026-11-09, by O63:* Melina is no longer silent: our own character profile binds her, conversable only while the Tarnished rests at a site of grace, once she has met them.
+
 ## O20
 
 **Memories in NG+** · *2026-11-06 · The design's recommended default, accepted by the owner with O1–O24*
@@ -754,11 +756,15 @@ This supersedes DESIGN §1.2's Never entry and ER03's voice-design note.
 are appropriate." A speaker the game never voices (generic humanoids, O61's speaking kinds, a silent boss of a speaking
 people) gets a voice generated to fit it, designed from a description (its archetype, body type and age band, or its
 bio), rather than another character's voice. Being made from no one's recordings, such voices may ship as EldenNet's
-own if the licence of the tool that makes them allows it, checked in v1.5.
+own if the licence of the tool that makes them allows it, checked in v1.5. *2026-11-09, the owner, on SkyrimNet's Beta30 (rc2), whose
+creature voices give skeletons and flame atronachs voices of their own, shared voices that need no voice consent:*
+"Maybe we could use some of those voices too." They may serve where they fit, under O53's permission, once Min
+confirms they are SkyrimNet's own to give and says how they were made; any shipped with EldenNet keep their notice and
+credit.
 
 ## O63
 
-**Melina: mute, or a voice of her own** · *2026-11-09 · Open*
+**Melina: mute, or a voice of her own** · *2026-11-09 · Decided by the owner, as recommended*
 
 **Question.** O19 keeps Melina silent and never bound, for reasons the design gives in NPC §1.3 and ER04 §10 item 8: she
 is reached through the grace menu and cutscenes, not as a world NPC EldenNet can walk up to and chat with, and a
@@ -768,3 +774,12 @@ sees no reason for her silence. In the lore she travels with the Tarnished unsee
 EldenNet's own overlay while the Tarnished rests at a site of grace, once she has met them, her knowledge gated by the
 stages already reached (positive grounding); (c) a full persona with a stage track, a seventh beside the six, in a later
 version. **Recommendation:** (b) for v1.0, with (c) as a later step.
+
+**Decision.** (b). Melina gets our own character profile in v1.0, like every named NPC (O43), in her own game voice
+when TTS comes (O62). She converses only in EldenNet's own overlay while the Tarnished rests at a site of grace, once
+she has met them, never elsewhere; her knowledge is gated by the stages reached (positive grounding). Her own profile is
+the only binding (a player's may not replace it). A full persona with a stage track (c) stays a later step.
+
+**Owner's words.** "for Melina, I would go with "b"".
+
+**Follows from.** O19, O43, O45, O62; NPC §1.3; ER04 §10 item 8.
