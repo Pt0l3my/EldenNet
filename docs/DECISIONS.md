@@ -716,3 +716,32 @@ later-version seam, "creature voices told in words", is where a dragon's roar co
 
 **Follows from.** DESIGN §7.1 (tiers E and F), §7.5; O48; the positive grounding of spoilers (2026-11-07).
 
+## O62
+
+**Voices from the game's own voice recordings** · *2026-11-09 · Decided by the owner*
+
+**Question.** DESIGN §1.2 listed cloning the cast's voices under Never, following ER03's advice (generic TTS voices per
+archetype, for the legal and ethical risk of cloning the original voice actors). Asked which NPCs have voice samples,
+what can serve which, and which wanted speakers have none, the options put were: (a) keep Never, with generic and
+designed voices; (b) voices cloned on the player's PC from their own install, as Skyrim mods do; (c) licensed voices.
+The recommendation was (a).
+
+**Decision.** (b), as SkyrimNet does it: EldenNet's TTS (v1.5, O8) generates speech from the game's own voice
+recordings, each character in its own voice where the game voices it (SkyrimNet keys its voices by Skyrim's voice types
+and clones them from the game's own `.fuz` files, SN00 row 34). What follows from the rules that stand:
+
+- The samples come from the player's own install, on the player's PC (the voice banks in `Game/sd`, ER03), and stay
+  there, as game text does. EldenNet never commits, ships or uploads game audio, samples or voice models.
+- `voice_key` resolves the character's own game voice first (NPC §10.8). Which game voice serves a speaker the game
+  never voices (generic humanoids, O61's kinds, silent bosses) is settled in v1.5's design, by archetype, body type and
+  age band.
+- What Min's engine blueprint brings for TTS is adopted then (O53).
+- The mod page states that the voices are AI-generated from the player's own game files, as Nexus Mods' AI disclosure
+  asks.
+
+This supersedes DESIGN §1.2's Never entry and ER03's voice-design note.
+
+**Owner's words.** "we will absolutely use the game provided voice samples and generate based on those with TTS, just like SkyrimNet does"
+
+**Follows from.** O8, O53, O61; DESIGN §1.2; ER03; SN00 row 34.
+

@@ -2482,7 +2482,7 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 
 - **v1:** `TextSink` only, and `voice_key = None` everywhere. The `tts` allowance exists per type and slot and takes effect in v1.5; `dialogue` off turns it off.
 - **v1.5 `TtsSink`:** hold = `max(audio_ms + 250, 2000)`. "Shown" becomes "playback of this page started", through the same `PageShown` ack, so commit-on-display is unchanged.
-- **`voice_key` resolution:** persona `voice_key` → card variant → card → body type and age band → default. Keys are stable IDs, never display names (SN06 §7.1 item 6).
+- **`voice_key` resolution:** the character's own game voice, made on the player's PC (O62) → persona `voice_key` → card variant → card → body type and age band → default. Keys are stable IDs, never display names (SN06 §7.1 item 6).
 - **STT:** enters as `InputSource::Stt`. Prompts render it like typed text but tag it in history. Push-to-talk, name hints and a pinned language follow later (SN00 row 35).
 
 ---
