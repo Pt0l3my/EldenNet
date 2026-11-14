@@ -74,6 +74,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 49 | 2026-11-14 | The smaller dungeons hold the model pattern: 61 of 101 named models placed | FACT | #roster #maps |
 | 50 | 2026-11-14 | Empty tiles looked like failed loads; Smithbox's file keys tell them apart | FACT | #smithbox #maps #datapiler |
 | 51 | 2026-11-14 | The graphics driver went down with Smithbox holding about 720 maps; jobs now keep what they read | LIKELY | #smithbox #maps #datapiler |
+| 52 | 2026-11-14 | What Smithbox puts on the graphics card for a map, and the OpenGL build as the way round | FACT | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -654,3 +655,18 @@ WHY§48, roadmap S6.3.p
 - DataPiler 0.2.12 (S63): each map's placements are read as soon as it loads and kept on disk at once, so a crash
   costs only the map in hand; and a job pauses once Smithbox holds 300 maps, asking for a restart of Smithbox. The
   0.2.11 run's maps were not kept: that version had no such file.
+
+### 52. What Smithbox puts on the graphics card for a map, and the OpenGL build as the way round
+
+`2026-11-14` · FACT (`Universe.cs` `LoadMapAsync` lines 124–246 and `Smithbox.cs` lines 60–121 at `d144cc7`; the
+owner's Smithbox folder holds both builds, DataPiler S1x facts of 2026-11-08) · `#smithbox #maps #datapiler` · refs:
+WHY§51, DataPiler DP20, S64
+
+- After reading a map's MSB, Smithbox's Vulkan build prepares its model and texture lists whatever the rendering
+  setting (`Vulkan || Viewport_Enable_Rendering`), and every load ends with a texture and compass refresh; the models
+  and textures themselves load only with rendering on. None of it serves DataPiler, which reads the entries only, from
+  ordinary memory. The OpenGL build (`Smithbox.OpenGL.exe`, the same program started on its OpenGL context) skips the
+  lists with rendering off. No program with a window runs without the GPU, so "no GPU" is not on offer, only less.
+- Whether the OpenGL build spares the card in practice is untried (the refresh still runs). The owner chose a setting,
+  on by default, that map jobs wait for the OpenGL build (DataPiler DP20, 0.2.13); the next open-world run is the
+  trial, and if it shows no "Unable to allocate texture descriptor" lines, the 300-map pause of S63 can be raised.
