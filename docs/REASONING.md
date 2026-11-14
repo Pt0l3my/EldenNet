@@ -799,3 +799,8 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   rectangles and scales, u32 flags). The tables hold 422 resting places, 472 map points, 10 place names, 34 map
   pieces and 196 conversion rows. The fields are verified in DataPiler's sense (P4); reading their values waits for
   DP21.
+- Later (2026-11-14): the owner decided DP21 in wider terms, "using game data for research and development is fine,
+  we are just careful what we ship online". DataPiler 0.2.20 shares the five tables' rows whole under the label
+  `map_coords`; job en-0016 reads them. The share file is research material: it stays out of every repository, and
+  only what is derived from it (a fitted conversion, counts, error figures) is committed. The owner also chose the
+  map's terrain (GraceUI G27 (a)): heights built locally, a 3D relief in the browser, our own sprites as the fallback.
