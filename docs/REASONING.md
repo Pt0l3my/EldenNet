@@ -794,3 +794,8 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   Smithbox which fields exist, with no values.
 - Sharing the coordinates themselves needs an exception to DataPiler's DP8, put to the owner as DP21 (recommended: a
   narrow one for these tables' coordinate columns, shared for research and never committed).
+- Later (2026-11-14): en-0015 ran on the owner's PC (DataPiler 0.2.19, game 2.7.2.0). All 91 fields named are in the
+  server's answers, each with the type Smithbox's definition gives (u8 area and grid numbers, f32 positions,
+  rectangles and scales, u32 flags). The tables hold 422 resting places, 472 map points, 10 place names, 34 map
+  pieces and 196 conversion rows. The fields are verified in DataPiler's sense (P4); reading their values waits for
+  DP21.
