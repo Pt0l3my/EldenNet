@@ -455,7 +455,7 @@ the player's game, and optionally opened by the map key.
 - b The owner answers G21 to G26 [waiting]
   - needs: a
   - refs: G21, G22, G23, G24, G25, G26
-- c The map spike: a route to the player's map image, its fit check, world-to-map coordinates, and catching the map key [planned]
+- c The map spike: a route to the player's map image, its fit check, exact sources for the drawn base (shape, areas), world-to-map coordinates, and catching the map key [planned]
   - needs: b
   - refs: G21, G25, G26, O47, O48
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
