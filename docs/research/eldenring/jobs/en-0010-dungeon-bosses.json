@@ -1,0 +1,18 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0010-dungeon-bosses",
+  "title": "Bosses (c): the characters placed in boss slots of the smaller dungeons, base game and expansion",
+  "needs": "0.2.10",
+  "ops": [
+    {"op": "load_maps", "maps": ["m30_*", "m31_*", "m32_*", "m33_*", "m34_*", "m35_*", "m36_*", "m37_*",
+                                 "m38_*", "m39_*", "m40_*", "m41_*", "m42_*", "m43_*", "m44_*", "m45_*"]},
+    {"op": "read_placements", "as": "placed", "maps": ["m30_*", "m31_*", "m32_*", "m33_*", "m34_*", "m35_*", "m36_*",
+                                                         "m37_*", "m38_*", "m39_*", "m40_*", "m41_*", "m42_*", "m43_*",
+                                                         "m44_*", "m45_*"]},
+    {"op": "filter", "as": "bosses", "rows": "placed", "slots": "boss"},
+    {"op": "count", "as": "placed_per_map", "rows": "placed", "by": ["map"]},
+    {"op": "write_share", "name": "dungeon-bosses", "tables": ["placed_per_map", "bosses"],
+     "columns": {"placed_per_map": ["map", "count"], "bosses": ["map", "entityId", "npcParamId", "model"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

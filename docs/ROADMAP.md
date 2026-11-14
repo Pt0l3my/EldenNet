@@ -332,6 +332,14 @@ research into the game's data that goes ahead before them (O54).
     rows whose name numbers hold no text are left out, by the owner's agreement (2026-11-08): the game has no name to show
     for them, so most likely cut or unused characters; revisited if EldenNet meets one in game or with the map work for
     bosses. Open: bosses may take their bar names from event scripts, not NpcParam.
+- p The bosses' leads: DataPiler's jobs en-0006 to en-0010 find the bosses' rows and their likely bar names, before EldenNet checks them in game [active]
+  - needs: o
+  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48
+  - gives: so far the legacy dungeons (en-0007 and en-0008, DataPiler 0.2.10), in
+    `docs/research/eldenring/leads/boss-leads.json`, unverified: 141 characters in boss slots of 24 maps, 46 models,
+    and the 269 character names no NpcParam row uses. 240 of those names are numbered 90, a model, then three digits,
+    and 34 of the 45 non-human models in the boss slots have such names, each in the layer of its model's era: likely
+    the bosses' bar names (WHY§47). Next: en-0010 for the smaller dungeons; the open world later, in parts.
 
 ## S7 Open items
 

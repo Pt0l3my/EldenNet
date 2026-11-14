@@ -68,6 +68,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 43 | 2026-11-14 | One map that never loads held up the rest | LIKELY | #smithbox #maps #datapiler |
 | 44 | 2026-11-14 | What DataPiler can and cannot learn from Smithbox about a failed map | FACT | #smithbox #maps #datapiler |
 | 45 | 2026-11-14 | en-0007's full load: 46 of 47 maps, one empty, and Smithbox's auto-save | FACT | #smithbox #maps #datapiler |
+| 46 | 2026-11-14 | What the legacy dungeons' boss slots hold | FACT | #roster #maps |
+| 47 | 2026-11-14 | Bosses' bar names are numbered by their model | LIKELY | #roster #text |
+| 48 | 2026-11-14 | The other unused names: 13 in the named range, 16 of one unknown family | LIKELY | #roster #text |
 
 ## Entries
 
@@ -385,6 +388,8 @@ DataPiler S46, WHY§36
 - **Later (2026-11-14):** en-0009 loaded the tutorial dungeon's map (m18_00_00_00, 53 placed characters): two
   boss slots, entity ids 18000800 and 18000850 (rows 46400007 and 43113906, models 4640 and 4311), as many as the
   bosses that map is known to hold. Neither row is among the 699 named rows, so both carry name 0, as WHY§33 expected.
+- **Later (2026-11-14):** en-0007 found boss slots in 24 of the 27 legacy-dungeon maps that hold characters (WHY§46).
+  The slots also hold helpers and adds, as feared, so a boss is told by its model and its count, not by its slot alone.
 
 ### 35. Smithbox lists every map as if loaded; DataPiler 0.2.x misread it
 
@@ -408,6 +413,9 @@ refs: DataPiler S44, WHY§6
   at once in game. Until then the two lists, with what is known of where each boss lives, are leads.
 - Risk: check 6 refuses en-0006's ids if more than half of the names are unused; the card then still shows the
   count, and the next step is the owner's.
+- **Later (2026-11-14):** the two routes meet after all, though not through the event scripts: most unused names are
+  numbered by a model, and the boss slots give each boss's model (WHY§47). That narrows each boss to a few candidate
+  bar names; the binding itself still waits for the game.
 
 ### 37. Only Smithbox's plain Map Editor makes the map data its server reads
 
@@ -533,3 +541,50 @@ refs: WHY§40, DataPiler S53
 - Also: thousands of "Unable to allocate texture descriptor" lines while 50 maps were loaded; restarting Smithbox
   after a map job frees what they hold.
 
+### 46. What the legacy dungeons' boss slots hold
+
+`2026-11-14` · FACT (en-0007 on DataPiler 0.2.10; `leads/boss-leads.json`) · `#roster #maps` · refs: WHY§34, WHY§33,
+WHY§45, roadmap S6.3.p
+
+- 50 maps read (m10_01_00_99 asked for twice and left out, as WHY§45 expected: the card's "50 of 51" counts it); 27
+  hold characters, 24 of them boss slots. 141 placements in the slots, 46 models: 44 at …800 to …809, 23 at …850 to
+  …859, the rest at …810 to …849 and …860 to …869.
+- Not all are bosses. Four models fill most of the helpers' sub-ranges at once (24, 15, 8 and 4 of a kind), and
+  twelve maps put rows at both …800 and …801, of one model or of two numbered one apart (a boss and its other form
+  or partner, LIKELY). Five models with bar names sit in boss slots of two maps each, so one body serves two bosses
+  or one boss met twice.
+- 13 slot placements have rows that carry a real name in NpcParam (three names, 132400, 132500 and 120000), likely
+  characters who also appear in another role, as WHY§33 expected; 120000 is on both rows of one two-form boss.
+- The last two digits of a slot's row id are, with few exceptions, one value per map (LIKELY an area code), and rows
+  ending 00 are shared base rows. Noted, never relied on.
+
+### 47. Bosses' bar names are numbered by their model
+
+`2026-11-14` · LIKELY (en-0007 and en-0008 side by side; the event scripts that state the link are out of reach,
+WHY§32) · `#roster #text` · refs: WHY§36, WHY§46, O48, O59, DESIGN§7.7
+
+- 240 of the 269 character names no NpcParam row uses are numbered 90, then a four-digit model, then three digits
+  (102 models). Of the 45 non-human models in the boss slots, 34 have such names. The 11 without are a second model
+  beside a named one (four cases, its number one off: a boss's other form under one bar, LIKELY), the four
+  many-of-a-kind helpers of WHY§46, and three single placements.
+- The layers agree with it: every expansion model (5000 and up) in the slots has its names in DLC 1's layer, every
+  base-game model in the base game's; the human model's names (900000…) are in both.
+- Variants: 000 to 002 look like a dungeon's own boss and its forms; 300s, 500s and 600s likely the same kind of foe
+  met elsewhere (SPECULATION). 67 named models are in no legacy-dungeon slot: bosses of the smaller dungeons, the
+  evergaols and the open world.
+- So the leads give each boss a few candidate bar names. EldenNet's in-game check (S2 records the bar and its holder)
+  confirms one, and nothing is bound by the pattern alone (O48).
+- Next: en-0010 (the smaller dungeons, m30 to m45); the open world later, in parts, with Smithbox restarted between
+  jobs and its auto-save off.
+
+### 48. The other unused names: 13 in the named range, 16 of one unknown family
+
+`2026-11-14` · LIKELY (en-0008) · `#roster #text` · refs: WHY§33, WHY§47
+
+- 13 six-digit numbers, in the range of named characters' names (6 base game, 7 DLC 1), are used by no row. They are
+  likely names shown only by event scripts (a named character's bar name, or a name revealed later); 121810 sits next
+  to 121800, a base-game name only enemy rows carry.
+- 16 eight-digit numbers form one family: 101 to 117 (no 106), then five digits, all from the base game. What they
+  name is unknown (SPECULATION: not characters the roster needs).
+- The owner can tell their kind apart by looking a few up in DataPiler's local workspace; the names stay on the PC
+  and in chat, never here.
