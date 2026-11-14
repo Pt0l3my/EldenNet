@@ -56,6 +56,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 31 | 2026-11-14 | Usage is the owner's call | METHOD | #process |
 | 32 | 2026-11-14 | Smithbox 2.2.6 has no event-script editor | FACT | #smithbox #roster |
 | 33 | 2026-11-14 | Most of the base game's bosses are missing from NpcParam's names | LIKELY | #roster |
+| 34 | 2026-11-14 | Bosses sit in entity slots ending 800 to 899 | LIKELY | #roster #maps |
+| 35 | 2026-11-14 | Smithbox lists every map as if loaded; DataPiler 0.2.x misread it | FACT | #smithbox #maps #datapiler |
+| 36 | 2026-11-14 | The two routes to the bosses, and why both | METHOD | #roster #datapiler |
 
 ## Entries
 
@@ -358,4 +361,37 @@ WHY§16, DESIGN§7.8
   event scripts.
 - Next: a route to the bar names (put to the owner, 2026-11-14): the names no character row uses, map placements,
   or EldenNet reading the bar in game.
+
+### 34. Bosses sit in entity slots ending 800 to 899
+
+`2026-11-14` · LIKELY (FromSoftware's habit, as modders know it; not checked in our data) · `#roster #maps` · refs:
+DataPiler S46, WHY§36
+
+- A map's boss usually has the entity id of its map block followed by 800 (for example a castle's boss at …0800 and
+  a second at …0850). DataPiler 0.2.3's boss-slot pick keeps placements ending 800 to 899, so it may catch some
+  helpers and miss a boss numbered otherwise.
+- Next: en-0007's rows, checked against which bosses live in which dungeon, then in game (O48).
+
+### 35. Smithbox lists every map as if loaded; DataPiler 0.2.x misread it
+
+`2026-11-14` · FACT (`Utilities/SoapstoneService.cs`, `SearchObjects`, at `d144cc7`) · `#smithbox #maps #datapiler` ·
+refs: DataPiler S44, WHY§6
+
+- A file search over the map bank returns every map Smithbox knows, loaded or not; entries come only from loaded maps.
+  DataPiler 0.2.x took the file search for the loaded maps, so it would have read every map as loaded at once and
+  found no placements. 0.2.3 tells a loaded map by an entry search, and gains the list of all maps for free.
+- The first map run's UNKNOWN came before any of this (WHY§6): the project's missing Map Editor.
+
+### 36. The two routes to the bosses, and why both
+
+`2026-11-14` · METHOD · `#roster #datapiler` · refs: WHY§32, WHY§33, WHY§34, DESIGN§7.7
+
+- (a) en-0006: the character names no NpcParam row uses. A boss whose row carries name 0 shows its bar name from
+  those entries, so they hold the bar names EldenNet binds bosses by, among unused or cut names.
+- (b) en-0007: the characters placed in boss slots of the legacy dungeons. They give the bosses' rows, entity ids
+  and models; EldenNet can bind by entity id as well (DESIGN §7.7).
+- Neither links a boss's row to its bar name; the event scripts do, and Smithbox cannot read them. EldenNet sees both
+  at once in game. Until then the two lists, with what is known of where each boss lives, are leads.
+- Risk: check 6 refuses en-0006's ids if more than half of the names are unused; the card then still shows the
+  count, and the next step is the owner's.
 
