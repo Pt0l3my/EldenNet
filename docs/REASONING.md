@@ -75,6 +75,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 50 | 2026-11-14 | Empty tiles looked like failed loads; Smithbox's file keys tell them apart | FACT | #smithbox #maps #datapiler |
 | 51 | 2026-11-14 | The graphics driver went down with Smithbox holding about 720 maps; jobs now keep what they read | LIKELY | #smithbox #maps #datapiler |
 | 52 | 2026-11-14 | What Smithbox puts on the graphics card for a map, and the OpenGL build as the way round | FACT | #smithbox #maps #datapiler |
+| 53 | 2026-11-14 | The OpenGL build's first 300 maps: no texture warnings; one-go jobs, Resume job and an icon | LIKELY | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -670,3 +671,23 @@ WHY§51, DataPiler DP20, S64
 - Whether the OpenGL build spares the card in practice is untried (the refresh still runs). The owner chose a setting,
   on by default, that map jobs wait for the OpenGL build (DataPiler DP20, 0.2.13); the next open-world run is the
   trial, and if it shows no "Unable to allocate texture descriptor" lines, the 300-map pause of S63 can be raised.
+
+### 53. The OpenGL build's first 300 maps: no texture warnings; one-go jobs, Resume job and an icon
+
+`2026-11-14` · LIKELY (DataPiler's and Smithbox's logs of en-0011 on 0.2.13 with `Smithbox.OpenGL.exe`) ·
+`#smithbox #maps #datapiler` · refs: WHY§51, WHY§52, DataPiler S65, S66, DP20
+
+- On the OpenGL build, en-0011 loaded and read 300 open-world maps in 10 minutes (about 2 s a map, as on Vulkan),
+  until 0.2.13's pause. Smithbox's Warning Log held only the navmesh (NVA) read errors, and no "Unable to allocate
+  texture descriptor" line; on Vulkan those began near 400 maps, so the trial is short of proof, but the OpenGL build
+  likely spares the graphics card.
+- The owner wants a map job in one go: DataPiler 0.2.14 drops the pause (S65). Each map is still kept as it is read,
+  so a crash costs the map in hand.
+- 0.2.14 also adds Resume job (S66): a stopped run's card shows the maps kept and the next map, and Resume goes on
+  from them; Start again asks first and starts from the beginning. Cards stopped by 0.2.12 or 0.2.13 show the count
+  from their file.
+- The owner asked for an exe icon after a famous blood-red katana of the game. DataPiler's rules keep game art out of
+  a public repository, so the icon is our own drawing in its spirit (a blood-red katana in a rising slash, with
+  drops), in three levels of detail so it reads at 16 px. The patch carries an exe built by BUILD.md's local route,
+  with the toolchain's licence notices; the sweep's allow list now passes the authors' addresses in those notices,
+  in that file only.
