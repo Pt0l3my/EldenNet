@@ -80,6 +80,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 55 | 2026-11-14 | The named characters' flag blocks, and the jobs for their placements and forms | METHOD | #roster #flags #datapiler |
 | 56 | 2026-11-14 | The map: the game's map only as the player's own copy; trails are sightings; masking against one upload | METHOD | #graceui #map #spoilers #licences |
 | 57 | 2026-11-14 | The named characters' census: placements, forms and the talk id's two patterns | FACT | #roster #datapiler #talk |
+| 58 | 2026-11-14 | Where the map's coordinates can come from: five map tables, but no placement positions through Smithbox | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -774,3 +775,22 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   talk), but what each number means is not taken from any label: EldenNet checks it in game (O48).
 - No simple numeric rule links the 55 flag blocks (WHY§55) to the talk groups; that join is EldenNet's in-game check.
 - `leads/named-census.json` keeps it all as numbers, one name per line.
+
+### 58. Where the map's coordinates can come from: five map tables, but no placement positions through Smithbox
+
+`2026-11-14` · FACT · `#map #datapiler #graceui` · refs: O48, O59, G21, D97, WHY§56, WHY§57, DataPiler S67 and DP21
+
+- Placed parts' positions cannot be read through Smithbox's server: at the build the owner runs (2.2.6), SoapstoneLib's
+  `ToPropertyValue` turns only scalars and strings into property values, a part's `Position` is a vector, and
+  Smithbox's `Entity.GetPropertyValue` takes a property's name with no path into it. Read as text from an untrusted
+  folder at Smithbox's commit d144cc7. Characters' positions therefore come from EldenNet in game (the sightings,
+  D89), not from DataPiler.
+- Smithbox's definitions for Elden Ring name five map tables whose rows carry coordinates as plain numbers (an area, a
+  grid cell and a position): the resting places (`BonfireWarpParam`), the map's points (`WorldMapPointParam`), the
+  place names (`WorldMapPlaceNameParam`, each tied to a map piece), the pieces the map reveals
+  (`WorldMapPieceParam`: rectangles, a flag, a centre and scales) and a conversion of the dungeons' coordinates onto
+  the open world (`WorldMapLegacyConvParam`: source and destination area, grid and position, with base points).
+  These are labels until verified (O48): DataPiler 0.2.18's `check_fields` (job en-0015) asks the owner's own
+  Smithbox which fields exist, with no values.
+- Sharing the coordinates themselves needs an exception to DataPiler's DP8, put to the owner as DP21 (recommended: a
+  narrow one for these tables' coordinate columns, shared for research and never committed).
