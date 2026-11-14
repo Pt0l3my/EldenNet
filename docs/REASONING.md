@@ -81,6 +81,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 56 | 2026-11-14 | The map: the game's map only as the player's own copy; trails are sightings; masking against one upload | METHOD | #graceui #map #spoilers #licences |
 | 57 | 2026-11-14 | The named characters' census: placements, forms and the talk id's two patterns | FACT | #roster #datapiler #talk |
 | 58 | 2026-11-14 | Where the map's coordinates can come from: five map tables, but no placement positions through Smithbox | FACT | #map #datapiler #graceui |
+| 59 | 2026-11-14 | The world map's frame: about one map unit per metre, north up, three sheets | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -804,3 +805,26 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   `map_coords`; job en-0016 reads them. The share file is research material: it stays out of every repository, and
   only what is derived from it (a fitted conversion, counts, error figures) is committed. The owner also chose the
   map's terrain (GraceUI G27 (a)): heights built locally, a 3D relief in the browser, our own sprites as the fallback.
+
+### 59. The world map's frame: about one map unit per metre, north up, three sheets
+
+`2026-11-14` · LIKELY · `#map #datapiler #graceui` · refs: WHY§58, G21, G27, D97, DataPiler DP21
+
+From en-0016 (DataPiler 0.2.20, game 2.7.2.0), the five map tables' rows, read as research material that stays out of
+the repositories. Only these derived numbers are kept here.
+
+- **Three sheets.** Each resting place shows on one of three maps by its display mask: 284 on the first, 32 on the
+  second (all of them in area 12, the underground), 105 on the third (the expansion's areas). Map pieces fall in three
+  id ranges to match (0 to 20, 100 to 105, 1000 to 1004, plus 70 and 1070), each opened by a flag of its own.
+- **One frame for the open world.** A world position is the grid cell times 256 plus the position in the cell. With a
+  uniform scale s, map x = s (X - X0) and map y = s (Z0 - Z) (north up) places all four place names of area 60 inside
+  their own pieces' rectangles and all 166 open-world resting places inside the first sheet's pieces for every s from
+  0.90 to 1.02, and best near s = 1.0 with X0 about 7,700 and Z0 about 16,700. So the pieces' rectangles are very
+  likely in a map space of about one unit per metre. The bounds are loose (100 to 1,000 units of slack): the exact fit
+  needs anchors, a set of places whose map position is known, from the player's map image or the game in the spike.
+- **The dungeons' conversion.** 196 rows, 194 marked base points, carry positions from 25 dungeon and underground
+  areas into the open world (118 into area 60, 45 into 61, 7 into area 70) and a few into other dungeons: the frames
+  the drawn base needs to place marks inside legacy dungeons on the world map.
+- Only 10 place names exist as map labels, tied to pieces; the 422 resting places and 472 map points are the dense
+  anchors.
+- Next: anchors for an exact fit (map image or in game), then the fit's error per sheet, recorded here.
