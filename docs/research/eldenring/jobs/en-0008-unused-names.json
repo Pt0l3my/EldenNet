@@ -1,0 +1,60 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0008-unused-names",
+  "title": "Bosses (a), again on 0.2.4: the character names that no NpcParam row uses, with their layers",
+  "needs": "0.2.4",
+  "ops": [
+    {
+      "op": "fetch_rows",
+      "as": "npc",
+      "param": "NpcParam",
+      "fields": [
+        "id",
+        "nameId"
+      ]
+    },
+    {
+      "op": "unused_names",
+      "as": "unused",
+      "rows": "npc",
+      "key": "nameId",
+      "text": "character_names"
+    },
+    {
+      "op": "count",
+      "as": "unused_per_layer",
+      "rows": "unused",
+      "by": [
+        "layer"
+      ]
+    },
+    {
+      "op": "write_local",
+      "name": "unused-names",
+      "tables": [
+        "unused"
+      ]
+    },
+    {
+      "op": "write_share",
+      "name": "unused-names",
+      "tables": [
+        "unused_per_layer",
+        "unused"
+      ],
+      "columns": {
+        "unused_per_layer": [
+          "layer",
+          "count"
+        ],
+        "unused": [
+          "nameId",
+          "layer"
+        ]
+      },
+      "notes": [
+        "vanilla_rows"
+      ]
+    }
+  ]
+}

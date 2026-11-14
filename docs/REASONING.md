@@ -59,6 +59,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 34 | 2026-11-14 | Bosses sit in entity slots ending 800 to 899 | LIKELY | #roster #maps |
 | 35 | 2026-11-14 | Smithbox lists every map as if loaded; DataPiler 0.2.x misread it | FACT | #smithbox #maps #datapiler |
 | 36 | 2026-11-14 | The two routes to the bosses, and why both | METHOD | #roster #datapiler |
+| 37 | 2026-11-14 | Only Smithbox's plain Map Editor makes the map data its server reads | FACT | #smithbox #maps |
+| 38 | 2026-11-14 | A whole text container makes ordinary words look like game text | FACT | #datapiler #text |
 
 ## Entries
 
@@ -394,4 +396,25 @@ refs: DataPiler S44, WHY§6
   at once in game. Until then the two lists, with what is known of where each boss lives, are leads.
 - Risk: check 6 refuses en-0006's ids if more than half of the names are unused; the card then still shows the
   count, and the next step is the owner's.
+
+### 37. Only Smithbox's plain Map Editor makes the map data its server reads
+
+`2026-11-14` · FACT (`Editors/Project Editor/ProjectEditorHandler.cs` lines 136–140 and 272–275 at `d144cc7`) ·
+`#smithbox #maps` · refs: WHY§6, WHY§35
+
+- `MapData`, which `SearchObjects` reads, is made only when the project's `EnableMapEditor` is on, and the Map Editor
+  screen only when `MapData` exists. "Map Data Editor" (`EnableMapDataEditor`) is another editor. The owner first
+  ticked Map Data Editor, and en-0007 met UNKNOWN again.
+- So: tick the Map Editor in the project's Available Editors, press Update Project, restart Smithbox, keep its Map
+  Editor tab open while a map job runs.
+
+### 38. A whole text container makes ordinary words look like game text
+
+`2026-11-14` · FACT (en-0006 and Copy for sharing, DataPiler 0.2.3) · `#datapiler #text` · refs: DataPiler DP18, DP17
+
+- With the whole English item container imported (21,532 entries, descriptions included), check 3 found the table
+  name `unused` inside some description and refused the share file, and refused a log copy for one line that listed
+  file names. The names are the only texts DataPiler writes, so the owner narrowed check 3 to them (DP18).
+- The same run showed 269 of 483 character-name entries unused (56%), over check 6's half; the owner let such
+  number-only lists be shared whole (DP17). Job en-0008 runs en-0006 again on 0.2.4.
 
