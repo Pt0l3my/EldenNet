@@ -94,7 +94,7 @@ may_speak = true
 may_remember = true
 
 [[entry]]
-match = { param = 21800000 }      # Melina (ER04 §1); UNVERIFIED (S1)
+match = { param = 21800000 }      # Melina (ER04 §1), name number 110000 in the owner's data (WHY§22); UNVERIFIED in game (S1)
 perceivable = false
 may_speak = false
 may_remember = false
@@ -224,7 +224,7 @@ file = "personas/kale.toml"
 talk_code = 800                           # metadata only; never used to resolve (ER04 §1)
 flag_block = { alias = "kale", base = 4700, verified = false } # lead from both datasets (ER07 §4.2); S6 verifies it
 npc_params = [
-  { param = 32000000, form = "default", expect_name_id = 0, verified = false },   # ER04 §1; S1
+  { param = 32000000, form = "default", expect_name_id = 180000, verified = false },   # ER04 §1; name from the owner's data (WHY§22); S1
 ]
 entity_ids = [
   { id = 11000705, verified = false, note = "ERR-mined lead (ER05 §6.3); prefix does not fit the church; S1" },
@@ -237,8 +237,8 @@ file = "personas/boc.toml"
 talk_code = 223
 flag_block = { alias = "boc", base = 3940, verified = false }
 npc_params = [
-  { param = 41109000,  form = "default", expect_name_id = 0, verified = false },
-  { param = 523420000, form = "later",   expect_name_id = 0, verified = false, reveal_stage = "later_form" },
+  { param = 41109000,  form = "default", expect_name_id = 122300, verified = false },   # WHY§22
+  { param = 523420000, form = "later",   expect_name_id = 122310, verified = false, reveal_stage = "later_form" },   # WHY§22: the later form shows another name
 ]
 entity_ids = [ { id = 11050730, verified = false, note = "ERR-mined lead" } ]
 

@@ -44,7 +44,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 19 | 2026-11-09 | Why voiceless speakers get generated voices, not borrowed ones | DECIDED | #voice |
 | 20 | 2026-11-09 | Why Melina was mute, and why that changed | DECIDED | #lore #voice |
 | 21 | 2026-11-09 | DataPiler 0.2.1 and 0.2.2 went out as patch zips | METHOD | #datapiler #release |
-| 22 | 2026-11-14 | The design's row leads for Melina, Kalé and Boc are in the data | LIKELY | #roster |
+| 22 | 2026-11-14 | The design's row leads for Melina, Kalé and Boc are in the data | FACT (Later) | #roster |
 | 23 | 2026-11-08 | WorldMapPlaceNameParam has only 10 rows | LIKELY | #roster #maps |
 | 24 | 2026-11-09 | TalkParam is the route from a character to its recordings | METHOD | #voice #datapiler |
 | 25 | 2026-11-08 | Detect works on the owner's PC: Smithbox's project record is read right | FACT | #datapiler #smithbox |
@@ -252,6 +252,10 @@ O48, WHY§13
   merchants' shared name, which would make the Kalé lead wrong.
 - Next: the owner can look these four ids up in DataPiler's local `roster-named-rows.json` and confirm the names in
   chat; until then they are leads for `expect_name_id`, unverified.
+- **Later (2026-11-14): FACT.** The owner's local file confirms all four: Melina, Merchant Kalé, and Boc under his
+  demi-human name and, in his later form, his seamster's name. The doubt was wrong: 180000 is Kalé's own name, on 18
+  rows. The name numbers go into NPC §1.3's examples as `expect_name_id`, still `verified = false` until checked in
+  game (O48).
 
 ### 23. WorldMapPlaceNameParam has only 10 rows
 
