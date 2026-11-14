@@ -339,8 +339,6 @@ O48, WHY§13
   and such"), though the privacy sweep still runs. Which model to use, and what it costs, is the owner's choice and
   no factor in advice (2026-11-14).
 
-
-
 ### 32. Smithbox 2.2.6 has no event-script editor
 
 `2026-11-14` · FACT (`Editors/Project Editor/JSON/ProjectDescriptor.cs` at `d144cc7`) · `#smithbox #roster` · refs:
