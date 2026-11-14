@@ -12,3 +12,8 @@ drive  D[:](?:\\\\|\\|/)+a(?:\\\\|\\|/)+.*
 # ("OWNER:BRANCH"), as GitHub requires, and is opened under the owner's own account anyway. Only that field:
 # never a title, a body or a comment.
 handle  Pt0l3my  ^create_pull_request\.head\b
+
+# The licence notices of a statically linked toolchain (GCC's and MinGW-w64's), which go with DataPiler.exe as their
+# licences ask, name their authors' public addresses. Only inside a file named THIRD-PARTY-NOTICES.txt; the
+# personal rule still catches the owner's own details there as anywhere.
+email  [^@\s]+@[^@\s]+  THIRD-PARTY-NOTICES\.txt$
