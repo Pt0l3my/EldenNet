@@ -751,3 +751,7 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   at draw time, with a tested exception to invariant 1.
 - The owner asked for glow; invariant 14 (no loops) is kept in the recommendation (still glow, one-shot flares), and
   put as G22.
+- Later (2026-11-14): the owner requires the map's exact shape, areas and accurate placements in every base, our own
+  texture included. A shape traced from the game's map is a copy of its art, so none ships: the drawn base is built on
+  the player's PC from their own game (D97), and the spike (S7.9.c) must also find exact sources for it (the map
+  image; the game's map data and terrain where a map mod does not fit).
