@@ -63,6 +63,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 38 | 2026-11-14 | A whole text container makes ordinary words look like game text | FACT | #datapiler #text |
 | 39 | 2026-11-14 | The map UNKNOWN was DataPiler's own request | FACT | #smithbox #maps #datapiler |
 | 40 | 2026-11-14 | Smithbox loads maps only while its Map Editor is drawn | FACT | #smithbox #maps |
+| 41 | 2026-11-14 | Smithbox loads one map at a time; ten at once kept one | FACT | #smithbox #maps #datapiler |
+| 42 | 2026-11-14 | Where a map load's time goes, and why more PC does not help | FACT | #smithbox #maps |
 
 ## Entries
 
@@ -452,4 +454,28 @@ refs: DataPiler S44, WHY§6
   keep loading and shows the progress.
 - Next: en-0009 loads one small map family first, to see loading work and time it, then en-0007.
 - **Later (2026-11-14):** en-0009 worked with the Map Editor in front: map loading through DataPiler is confirmed.
+
+### 41. Smithbox loads one map at a time; ten at once kept one
+
+`2026-11-14` · FACT (`Editors/Map Editor/MapUniverse.cs` lines 43–86, at `d144cc7`) · `#smithbox #maps #datapiler` ·
+refs: WHY§40, DataPiler S53
+
+- `LoadMap` refuses while another map is loading ("map already loading") unless a caller allows concurrent loads,
+  which the command path never does. DataPiler 0.2.3 to 0.2.6 asked for ten at once, so Smithbox loaded the first and
+  dropped nine, and the job waited for them in vain (en-0007's second run: 1 of 49 maps, then no more).
+- 0.2.7 asks for one map at a time and asks again every 10 s until Smithbox takes it; the fake server refuses a load
+  while another runs, so the tests now cover it.
+- Parallel jobs ("array jobs", the owner's idea) cannot help here, for the same reason; they do help row reads, which
+  Smithbox answers each on its own (0.2.7 reads four at once).
+
+### 42. Where a map load's time goes, and why more PC does not help
+
+`2026-11-14` · FACT (`MapUniverse.cs` lines 64–80 and 120–245, at `d144cc7`) · `#smithbox #maps` · refs: WHY§41
+
+- Before the async load, Smithbox loads the map's Havok collision unless `MapEditor_SkipHavokLoad` is on; then, on the
+  Vulkan build with `Viewport_Enable_Rendering` on, every model and (with `Viewport_Enable_Texturing`) every texture.
+  The OpenGL build never loads map models or textures. DataPiler needs only the MSB's placed characters.
+- The owner saw about 3.5 minutes for the first legacy-dungeon map with the PC nearly idle: Smithbox's own one-at-a-time
+  work, not a lack of CPU, GPU or memory, so DataPiler cannot speed it up by using more of the PC.
+- Next: time en-0009 with rendering off and Havok skipped (or on the OpenGL build) against the first run.
 
