@@ -54,6 +54,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 29 | 2026-11-08 | Publishing pages: what the sweep misses and how publishes fail | METHOD | #process |
 | 30 | 2026-11-08 | Other sessions as consultants | METHOD | #process #graceui |
 | 31 | 2026-11-14 | Usage is the owner's call | METHOD | #process |
+| 32 | 2026-11-14 | Smithbox 2.2.6 has no event-script editor | FACT | #smithbox #roster |
+| 33 | 2026-11-14 | Most of the base game's bosses are missing from NpcParam's names | LIKELY | #roster |
 
 ## Entries
 
@@ -336,4 +338,26 @@ O48, WHY§13
 - When the owner says usage is low, keep to the essentials and skip extra rounds of checks (2026-11-09: "no rechecks
   and such"), though the privacy sweep still runs. Which model to use, and what it costs, is the owner's choice and
   no factor in advice (2026-11-14).
+
+
+
+### 32. Smithbox 2.2.6 has no event-script editor
+
+`2026-11-14` · FACT (`Editors/Project Editor/JSON/ProjectDescriptor.cs` at `d144cc7`) · `#smithbox #roster` · refs:
+WHY§16, DESIGN§7.8
+
+- A project's editors are Param, Text, Map, MapData, Model, Material, Anim, Gparam and Havok; none reads the event
+  scripts, where a boss's bar name is set when its fight starts. So bar names cannot come through Smithbox, and
+  DataPiler never opens the game's archives itself (no keys, no Oodle).
+
+### 33. Most of the base game's bosses are missing from NpcParam's names
+
+`2026-11-14` · LIKELY (en-0003) · `#roster` · refs: WHY§16, WHY§14
+
+- Of the 213 real names, 49 appear on enemy-team (6) rows, mostly characters who also have a friendly form; only 14
+  appear on enemy rows alone, 12 of them from DLC 1 (140903 to 143200) and 2 from the base game (121610, 121800). The
+  base game has far more bosses than that, so most of them probably carry name 0 and get their bar name from the
+  event scripts.
+- Next: a route to the bar names (put to the owner, 2026-11-14): the names no character row uses, map placements,
+  or EldenNet reading the bar in game.
 
