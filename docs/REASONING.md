@@ -61,6 +61,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 36 | 2026-11-14 | The two routes to the bosses, and why both | METHOD | #roster #datapiler |
 | 37 | 2026-11-14 | Only Smithbox's plain Map Editor makes the map data its server reads | FACT | #smithbox #maps |
 | 38 | 2026-11-14 | A whole text container makes ordinary words look like game text | FACT | #datapiler #text |
+| 39 | 2026-11-14 | The map UNKNOWN was DataPiler's own request | FACT | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -117,6 +118,8 @@ lines 117–153 and 377) · `#smithbox #text` · refs: WHY§2
 - Smithbox's `SearchObjects` reads `MapData.PrimaryBank.Maps` (`Utilities/SoapstoneService.cs` lines 430–620 at
   `d144cc7`); with no map editor that is probably null, and an unhandled exception reaches gRPC as UNKNOWN.
 - Next: enable the Map Editor in the project before any map work; DataPiler should say so in its error.
+- **Later (2026-11-14):** wrong cause. The UNKNOWN came from DataPiler's request, which lacked its search clause
+  (WHY§39); the Visual Map Editor is still needed for the map data (WHY§37).
 
 ### 7. Row reads are one call per row; the batch path reads the wrong bank
 
@@ -417,4 +420,18 @@ refs: DataPiler S44, WHY§6
   file names. The names are the only texts DataPiler writes, so the owner narrowed check 3 to them (DP18).
 - The same run showed 269 of 483 character-name entries unused (56%), over check 6's half; the owner let such
   number-only lists be shared whole (DP17). Job en-0008 runs en-0006 again on 0.2.4.
+
+### 39. The map UNKNOWN was DataPiler's own request
+
+`2026-11-14` · FACT (SoapstoneLib's `SoapstoneServer.cs` lines 108–121 and 223–227, at Smithbox `d144cc7`) ·
+`#smithbox #maps #datapiler` · refs: WHY§6, WHY§37, DataPiler S51
+
+- Smithbox's server library checks `request.Search` is set and throws otherwise, which a client sees as UNKNOWN.
+  DataPiler's map listing sent no search clause from 0.1.0 on, so every map job failed, with or without the Visual
+  Map Editor; the fake server in its tests answered such requests, so nothing caught it.
+- 0.2.5 sends an empty clause (it goes on the wire as an empty field, checked), and the fake refuses a search without
+  one. The rest of the map search was checked in the same source: the resource needs a type and a game, and the map
+  key template is one the library knows.
+- Lesson: a fake must refuse what the real server refuses; read the server's own argument checks before trusting a
+  fake.
 
