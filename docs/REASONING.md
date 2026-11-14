@@ -66,6 +66,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 41 | 2026-11-14 | Smithbox loads one map at a time; ten at once kept one | FACT | #smithbox #maps #datapiler |
 | 42 | 2026-11-14 | Where a map load's time goes, and why more PC does not help | FACT | #smithbox #maps |
 | 43 | 2026-11-14 | One map that never loads held up the rest | LIKELY | #smithbox #maps #datapiler |
+| 44 | 2026-11-14 | What DataPiler can and cannot learn from Smithbox about a failed map | FACT | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -495,4 +496,17 @@ refs: WHY§40, DataPiler S53
   after 5 minutes, leaves it out of the placements and stops only after three skipped in a row.
 - Also found that day: 0.2.7's newest-first order sorted on a time the page never received (fixed in 0.2.8).
 - Next: the map 0.2.8 skips, and what Smithbox's own log says when it fails.
+
+### 44. What DataPiler can and cannot learn from Smithbox about a failed map
+
+`2026-11-14` · FACT (`Smithbox.cs` lines 120–160, 228–250 and 485–495; `Application/CFG.cs` lines 1415–1465; at
+`d144cc7`) · `#smithbox #maps #datapiler` · refs: WHY§43, DataPiler DP19, S58, S59
+
+- Smithbox's log goes to its own windows (an in-memory provider behind the Action Log and Warning Log); no file and no
+  server call carry it, so DataPiler cannot read why a map failed. The owner reads the Warning Log; DataPiler names the
+  map and when.
+- Its preferences live in `Configuration.json`, written when Smithbox closes or saves its configuration. DataPiler
+  0.2.9 reads two of them (DP19) to set the first map's limit, and corrects from the first measured load on.
+- A timeout is the only failure signal; with model rendering off a map loads in about 2 s, so 10 s a map is safe,
+  with a second try at the end for any skipped.
 
