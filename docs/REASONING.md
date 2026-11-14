@@ -377,6 +377,9 @@ DataPiler S46, WHY§36
   a second at …0850). DataPiler 0.2.3's boss-slot pick keeps placements ending 800 to 899, so it may catch some
   helpers and miss a boss numbered otherwise.
 - Next: en-0007's rows, checked against which bosses live in which dungeon, then in game (O48).
+- **Later (2026-11-14):** en-0009 loaded the tutorial dungeon's map (m18_00_00_00, 53 placed characters): two
+  boss slots, entity ids 18000800 and 18000850 (rows 46400007 and 43113906, models 4640 and 4311), as many as the
+  bosses that map is known to hold. Neither row is among the 699 named rows, so both carry name 0, as WHY§33 expected.
 
 ### 35. Smithbox lists every map as if loaded; DataPiler 0.2.x misread it
 
@@ -448,4 +451,5 @@ refs: DataPiler S44, WHY§6
   the library knows), and the old per-batch limit would have failed big dungeons anyway; 0.2.6 waits as long as maps
   keep loading and shows the progress.
 - Next: en-0009 loads one small map family first, to see loading work and time it, then en-0007.
+- **Later (2026-11-14):** en-0009 worked with the Map Editor in front: map loading through DataPiler is confirmed.
 
