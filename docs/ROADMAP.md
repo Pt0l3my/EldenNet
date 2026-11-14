@@ -463,7 +463,7 @@ the player's game, and optionally opened by the map key.
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
-- e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.18, job en-0015), then their coordinates if DataPiler's DP21 allows [waiting]
+- e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates if DataPiler's DP21 allows [waiting]
   - needs: a
   - refs: O48, O59, WHY§58
   - gives: whether the resting places, map points, place names, revealed pieces and the dungeons' conversion carry the coordinates the map needs, verified on the owner's PC.
