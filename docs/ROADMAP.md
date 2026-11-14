@@ -332,14 +332,15 @@ research into the game's data that goes ahead before them (O54).
     rows whose name numbers hold no text are left out, by the owner's agreement (2026-11-08): the game has no name to show
     for them, so most likely cut or unused characters; revisited if EldenNet meets one in game or with the map work for
     bosses. Open: bosses may take their bar names from event scripts, not NpcParam.
-- p The bosses' leads: DataPiler's jobs en-0006 to en-0010 find the bosses' rows and their likely bar names, before EldenNet checks them in game [active]
+- p The bosses' leads: DataPiler's jobs en-0006 to en-0012 find the bosses' rows and their likely bar names, before EldenNet checks them in game [done]
   - needs: o
-  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48, WHY§49
-  - gives: so far the legacy dungeons and the smaller dungeons (en-0007, en-0008 and en-0010, DataPiler 0.2.10), in
-    `docs/research/eldenring/leads/boss-leads.json`, unverified: 256 characters in boss slots of 84 maps, and the 269
-    character names no NpcParam row uses. 240 of those names are numbered 90, a model, then three digits; 61 of the 76
-    non-human models in the boss slots have such names, each in the layer of its map's era: likely the bosses' bar
-    names (WHY§47, WHY§49). 40 such models are still unplaced. Next: en-0011 and en-0012, the open world.
+  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48, WHY§49, WHY§54
+  - gives: the legacy and smaller dungeons and the open world of the base game and the expansion (en-0007, en-0008,
+    en-0010 to en-0012, DataPiler 0.2.10 to 0.2.14), in `docs/research/eldenring/leads/boss-leads.json`, unverified:
+    442 characters in boss slots of 179 maps, and the 269 character names no NpcParam row uses. 240 of those names
+    are numbered 90, a model, then three digits; 98 of the 128 non-human models in the boss slots have such names,
+    each in the layer of its map's era: likely the bosses' bar names (WHY§47, WHY§54). 98 of the 101 models so named
+    are placed; three are in no boss slot. The binding of each boss to its bar name waits for EldenNet's check in game.
 
 ## S7 Open items
 

@@ -76,6 +76,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 51 | 2026-11-14 | The graphics driver went down with Smithbox holding about 720 maps; jobs now keep what they read | LIKELY | #smithbox #maps #datapiler |
 | 52 | 2026-11-14 | What Smithbox puts on the graphics card for a map, and the OpenGL build as the way round | FACT | #smithbox #maps #datapiler |
 | 53 | 2026-11-14 | The OpenGL build's first 300 maps: no texture warnings; one-go jobs, Resume job and an icon | LIKELY | #smithbox #maps #datapiler |
+| 54 | 2026-11-14 | The open world's boss slots: 98 of 101 named models placed | FACT | #roster #maps |
 
 ## Entries
 
@@ -691,3 +692,22 @@ WHY§51, DataPiler DP20, S64
   drops), in three levels of detail so it reads at 16 px. The patch carries an exe built by BUILD.md's local route,
   with the toolchain's licence notices; the sweep's allow list now passes the authors' addresses in those notices,
   in that file only.
+
+### 54. The open world's boss slots: 98 of 101 named models placed
+
+`2026-11-14` · FACT (en-0011 and en-0012 on DataPiler 0.2.14; `leads/boss-leads.json`) · `#roster #maps` · refs:
+WHY§47, WHY§49, WHY§53, roadmap S6.3.p
+
+- en-0011 (m60, 829 maps, resumed after 0.2.13's pause, then in one go on the OpenGL build): 293 maps hold
+  characters (14,716), 72 of them boss slots, 107 placements, 46 models; 38 of the 45 non-human ones have names of
+  WHY§47's shape, all in the base game's layer. en-0012 (m61): 132 maps hold characters (8,741), 31 of them boss
+  slots, 95 placements, 28 models; 16 of the 27 non-human ones have such names, all in DLC 1's layer.
+- Open-world entity ids have ten digits and keep the …800 to …899 habit. Characters live mostly in the small tiles
+  (_00); a tile's _10 version holds some too, and repeats 16 of its _00 tile's boss placements (same entity, row and
+  model): kept once each. A few large tiles (_01, _02, _12) hold characters as well.
+- Of all 101 named non-human models, 98 are now placed in a boss slot; 3253, 3575 and 3700 are in none (a boss
+  outside the slots, or a cut one). Of the 128 non-human models in boss slots, 98 have candidates; the rest are
+  helpers in batches (the expansion's world has more: one model 16 times), stand-ins (100, 1000) and models numbered
+  next to a named one. Five slot rows carry real names in the expansion's world (142100 to 142400), one in the base
+  game's (130401).
+- The research for the bosses' leads is done; binding each boss to its bar name waits for EldenNet in game (O48).
