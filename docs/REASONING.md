@@ -77,6 +77,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 52 | 2026-11-14 | What Smithbox puts on the graphics card for a map, and the OpenGL build as the way round | FACT | #smithbox #maps #datapiler |
 | 53 | 2026-11-14 | The OpenGL build's first 300 maps: no texture warnings; one-go jobs, Resume job and an icon | LIKELY | #smithbox #maps #datapiler |
 | 54 | 2026-11-14 | The open world's boss slots: 98 of 101 named models placed | FACT | #roster #maps |
+| 55 | 2026-11-14 | The named characters' flag blocks, and the jobs for their placements and forms | METHOD | #roster #flags #datapiler |
 
 ## Entries
 
@@ -711,3 +712,21 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   next to a named one. Five slot rows carry real names in the expansion's world (142100 to 142400), one in the base
   game's (130401).
 - The research for the bosses' leads is done; binding each boss to its bar name waits for EldenNet in game (O48).
+
+### 55. The named characters' flag blocks, and the jobs for their placements and forms
+
+`2026-11-14` · METHOD · `#roster #flags #datapiler` · refs: ER08§2, O51, O59, DESIGN§7.7, WHY§54
+
+- Flag blocks: the owner allowed FromSoftSaveManager (Apache-2.0) as a source. Read at the commit ER08 pinned
+  (`f2980db`), as text from an untrusted folder, never built or run. Its Elden Ring data gives 55 characters' blocks
+  keyed by their first flag (3100 to 4800). The block's first four flags mark the character's status (friendly,
+  hostile, dead), the base + 5 to + 18 their questline's stages, and 112 progress steps point into 238 flags; 6
+  endings have reached, unlock and lock flags. `leads/npc-flags.json` keeps the numbers only, with slugs of ours as
+  labels (DESIGN §7.7's "ids, numbers and our slugs"); its names, stage texts and ending names stay out, and the
+  source, commit and licence are named in the file. Binding a block to a character goes through the roster's ids
+  in game (O48).
+- en-0013 reads every map once more (about 1,300, all families; resumable on 0.2.14) and keeps the placements of the
+  699 named rows: each character's maps, entity ids, models and talk ids. en-0014 re-reads the named rows' team and
+  type, which roster-rows.json did not keep, to tell friendly, hostile and summoned forms apart. Both pass
+  DataPiler's checker (DP8: rows picked by an explicit list).
+- Next: the two share files; then join placements, forms, flag blocks and boss leads into one census per character.
