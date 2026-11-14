@@ -72,6 +72,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 47 | 2026-11-14 | Bosses' bar names are numbered by their model | LIKELY | #roster #text |
 | 48 | 2026-11-14 | The other unused names: 13 in the named range, 16 of one unknown family | LIKELY | #roster #text |
 | 49 | 2026-11-14 | The smaller dungeons hold the model pattern: 61 of 101 named models placed | FACT | #roster #maps |
+| 50 | 2026-11-14 | Empty tiles looked like failed loads; Smithbox's file keys tell them apart | FACT | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -541,6 +542,8 @@ refs: WHY§40, DataPiler S53
   never asks Smithbox to save; loading maps for research makes them part of the project's auto-save.
 - Also: thousands of "Unable to allocate texture descriptor" lines while 50 maps were loaded; restarting Smithbox
   after a map job frees what they hold.
+- **Later (2026-11-14):** the empty map is handled since DataPiler 0.2.11, which tells loaded maps by their file keys
+  (WHY§50).
 
 ### 46. What the legacy dungeons' boss slots hold
 
@@ -614,3 +617,21 @@ WHY§48, roadmap S6.3.p
   137600 and 142700 (nine of one, at m41_02's …800 and …810 to …817).
 - Next: the open world, one job per family so no tile is missed: en-0011 (m60, the base game) and en-0012 (m61, the
   expansion), Smithbox restarted before each. If one is too much for Smithbox at once, it is split by tiles.
+
+### 50. Empty tiles looked like failed loads; Smithbox's file keys tell them apart
+
+`2026-11-14` · FACT (DataPiler's and Smithbox's logs of en-0011 on 0.2.10; `SoapstoneService.cs` `GetObjects` and
+`GetServerInfo`, `Universe.cs` `LoadMapAsync` line 180, `SoulsKey.cs` `ParseFileKey`, at `d144cc7`) ·
+`#smithbox #maps #datapiler` · refs: WHY§45, WHY§43, DataPiler S62, DP4
+
+- en-0011 (m60, 829 maps) stopped twice at the same place, 452 of 829: three tiles in a row (m60_43_56_00 to
+  m60_43_58_00, with m60_42_56_00 and two others skipped earlier) never showed as loaded. Smithbox's log shows each
+  of them loading at once with nothing but its texture jobs: tiles with nothing in them. An entry search lists no
+  entry for such a map, so 0.2.3 to 0.2.10 took it for a failed load, and three in a row for a stuck Smithbox.
+- Smithbox sets a map's container once its MSB is read, entries or none, and answers a map's file key
+  (`map/mapstudio/<id>.msb`) through GetObject and BatchGetObjects only while that container exists. Both calls are on
+  DP4's list, so DataPiler 0.2.11 asks BatchGetObjects which maps are loaded, a few hundred keys a call. GetServerInfo
+  also lists the loaded maps, but it is not on the list, and it carries the paths of Smithbox and the project.
+- Also in those logs: Smithbox failed to read a few tiles' navmesh files (NVA), caught inside its loader, harmless to
+  the read; its auto-save still ran, writing every loaded map into the project folder every five minutes.
+- Next: en-0011 again on 0.2.11, then en-0012.
