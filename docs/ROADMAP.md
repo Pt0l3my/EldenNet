@@ -467,6 +467,8 @@ the player's game, and optionally opened by the map key.
   - needs: a
   - refs: O48, O59, WHY§58
   - gives: whether the resting places, map points, place names, revealed pieces and the dungeons' conversion carry the coordinates the map needs, verified on the owner's PC.
+    Fields verified 2026-11-14 (en-0015: 91 of 91, types as defined; 422, 472, 10, 34 and 196 rows); the values wait
+    for DP21.
 
 ## S8 Adopting the engine [planned]
 
