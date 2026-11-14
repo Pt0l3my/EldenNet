@@ -509,4 +509,7 @@ refs: WHY§40, DataPiler S53
   0.2.9 reads two of them (DP19) to set the first map's limit, and corrects from the first measured load on.
 - A timeout is the only failure signal; with model rendering off a map loads in about 2 s, so 10 s a map is safe,
   with a second try at the end for any skipped.
+- **Later (2026-11-14):** where the owner finds it (`Logger/GUI/LoggerUI.cs` lines 95–160): two small arrow buttons in
+  Smithbox's top menu bar, after Help, open the Action Log and the Warning Log; each log window has Clear Log and Copy
+  to Clipboard. en-0007 on 0.2.9 runs, skipping some maps after the short limit.
 
