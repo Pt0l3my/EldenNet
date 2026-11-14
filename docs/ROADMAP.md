@@ -334,12 +334,12 @@ research into the game's data that goes ahead before them (O54).
     bosses. Open: bosses may take their bar names from event scripts, not NpcParam.
 - p The bosses' leads: DataPiler's jobs en-0006 to en-0010 find the bosses' rows and their likely bar names, before EldenNet checks them in game [active]
   - needs: o
-  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48
-  - gives: so far the legacy dungeons (en-0007 and en-0008, DataPiler 0.2.10), in
-    `docs/research/eldenring/leads/boss-leads.json`, unverified: 141 characters in boss slots of 24 maps, 46 models,
-    and the 269 character names no NpcParam row uses. 240 of those names are numbered 90, a model, then three digits,
-    and 34 of the 45 non-human models in the boss slots have such names, each in the layer of its model's era: likely
-    the bosses' bar names (WHY§47). Next: en-0010 for the smaller dungeons; the open world later, in parts.
+  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48, WHY§49
+  - gives: so far the legacy dungeons and the smaller dungeons (en-0007, en-0008 and en-0010, DataPiler 0.2.10), in
+    `docs/research/eldenring/leads/boss-leads.json`, unverified: 256 characters in boss slots of 84 maps, and the 269
+    character names no NpcParam row uses. 240 of those names are numbered 90, a model, then three digits; 61 of the 76
+    non-human models in the boss slots have such names, each in the layer of its map's era: likely the bosses' bar
+    names (WHY§47, WHY§49). 40 such models are still unplaced. Next: en-0011 and en-0012, the open world.
 
 ## S7 Open items
 
