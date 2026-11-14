@@ -62,6 +62,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 37 | 2026-11-14 | Only Smithbox's plain Map Editor makes the map data its server reads | FACT | #smithbox #maps |
 | 38 | 2026-11-14 | A whole text container makes ordinary words look like game text | FACT | #datapiler #text |
 | 39 | 2026-11-14 | The map UNKNOWN was DataPiler's own request | FACT | #smithbox #maps #datapiler |
+| 40 | 2026-11-14 | Smithbox loads maps only while its Map Editor is drawn | FACT | #smithbox #maps |
 
 ## Entries
 
@@ -434,4 +435,17 @@ refs: DataPiler S44, WHY§6
   key template is one the library knows.
 - Lesson: a fake must refuse what the real server refuses; read the server's own argument checks before trusting a
   fake.
+
+### 40. Smithbox loads maps only while its Map Editor is drawn
+
+`2026-11-14` · FACT (`Editors/Map Editor/MapEditorStub.cs` lines 23–75, `Framework/MapCommandQueue.cs` lines 22–61, at
+`d144cc7`) · `#smithbox #maps` · refs: WHY§39, DataPiler S52
+
+- `OpenResource` queues `map load <id>`; Smithbox takes one queued command per frame and passes a "map" command to the
+  Map Editor's `OnGUI` only while that editor's window is drawn (`ImGui.Begin` true), which then calls `LoadMap`. With
+  Smithbox minimised or another tab in front, nothing loads: en-0007's first batch timed out after 900 s that way.
+- Also learned: DataPiler's loaded check is sound (an empty search matches every entry, and map entries are a key type
+  the library knows), and the old per-batch limit would have failed big dungeons anyway; 0.2.6 waits as long as maps
+  keep loading and shows the progress.
+- Next: en-0009 loads one small map family first, to see loading work and time it, then en-0007.
 
