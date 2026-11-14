@@ -73,6 +73,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 48 | 2026-11-14 | The other unused names: 13 in the named range, 16 of one unknown family | LIKELY | #roster #text |
 | 49 | 2026-11-14 | The smaller dungeons hold the model pattern: 61 of 101 named models placed | FACT | #roster #maps |
 | 50 | 2026-11-14 | Empty tiles looked like failed loads; Smithbox's file keys tell them apart | FACT | #smithbox #maps #datapiler |
+| 51 | 2026-11-14 | The graphics driver went down with Smithbox holding about 720 maps; jobs now keep what they read | LIKELY | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -635,3 +636,21 @@ WHY§48, roadmap S6.3.p
 - Also in those logs: Smithbox failed to read a few tiles' navmesh files (NVA), caught inside its loader, harmless to
   the read; its auto-save still ran, writing every loaded map into the project folder every five minutes.
 - Next: en-0011 again on 0.2.11, then en-0012.
+
+### 51. The graphics driver went down with Smithbox holding about 720 maps; jobs now keep what they read
+
+`2026-11-14` · LIKELY (DataPiler's log of en-0011 on 0.2.11; Smithbox's logs of the runs before; `Universe.cs`
+`LoadMapAsync` at `d144cc7`) · `#smithbox #maps #datapiler` · refs: WHY§50, WHY§45, DataPiler S63
+
+- en-0011's third run loaded 718 maps in 33 minutes, then Smithbox (its Vulkan build) and the GPU's driver went down
+  while loading m60_51_56_00, and the job failed with UNAVAILABLE. The owner's PC has had no driver crash in games or
+  AI inference.
+- DataPiler never touches the GPU; it only sends requests to Smithbox. Smithbox keeps every loaded map. On the Vulkan
+  build it prepares each map's model and texture lists even with rendering off, and refreshes its textures after
+  every load. Its log showed thousands of "Unable to allocate texture descriptor" lines from about 400 open-world maps
+  (and after a few dozen legacy-dungeon maps). So Smithbox running out of graphics resources with hundreds of maps
+  held is the likely cause, not the hardware. Windows' Event Viewer (System log, near 19:17) would say which driver
+  reset; not checked yet.
+- DataPiler 0.2.12 (S63): each map's placements are read as soon as it loads and kept on disk at once, so a crash
+  costs only the map in hand; and a job pauses once Smithbox holds 300 maps, asking for a restart of Smithbox. The
+  0.2.11 run's maps were not kept: that version had no such file.
