@@ -67,6 +67,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 42 | 2026-11-14 | Where a map load's time goes, and why more PC does not help | FACT | #smithbox #maps |
 | 43 | 2026-11-14 | One map that never loads held up the rest | LIKELY | #smithbox #maps #datapiler |
 | 44 | 2026-11-14 | What DataPiler can and cannot learn from Smithbox about a failed map | FACT | #smithbox #maps #datapiler |
+| 45 | 2026-11-14 | en-0007's full load: 46 of 47 maps, one empty, and Smithbox's auto-save | FACT | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -512,4 +513,23 @@ refs: WHY§40, DataPiler S53
 - **Later (2026-11-14):** where the owner finds it (`Logger/GUI/LoggerUI.cs` lines 95–160): two small arrow buttons in
   Smithbox's top menu bar, after Help, open the Action Log and the Warning Log; each log window has Clear Log and Copy
   to Clipboard. en-0007 on 0.2.9 runs, skipping some maps after the short limit.
+
+### 45. en-0007's full load: 46 of 47 maps, one empty, and Smithbox's auto-save
+
+`2026-11-14` · FACT (DataPiler's and Smithbox's logs, 0.2.9; `SoapstoneService.cs` lines 192–215 at `d144cc7`) ·
+`#smithbox #maps #datapiler` · refs: WHY§43, WHY§44, DataPiler S60, S61
+
+- With model rendering off, 47 legacy-dungeon maps took about 13 minutes: small ones 2 s, big ones 20 to 55 s
+  (Leyndell's m11_00_00_00 first skipped at 10 s, then counted as it loaded late). Smithbox's "a map is already in the
+  process of loading" lines are DataPiler's 2 s re-asks, harmless.
+- m10_01_00_99 never showed as loaded, yet Smithbox's auto-save named it among its loaded maps from the 0.2.7 run on:
+  it loads with nothing an entry search lists (LIKELY an empty map), so WHY§43's "map that never loads" was this map,
+  not a failing load.
+- Reading placements then stopped on a placed character without TalkID: Smithbox leaves out a property a part lacks;
+  0.2.10 reads it as -1.
+- Smithbox's auto-save (every 5 minutes) wrote every loaded map, and the params, into the project folder ("Saved map:
+  ..."): unchanged copies of the game's own, but files in the owner's Smithbox project, outside the game. DataPiler
+  never asks Smithbox to save; loading maps for research makes them part of the project's auto-save.
+- Also: thousands of "Unable to allocate texture descriptor" lines while 50 maps were loaded; restarting Smithbox
+  after a map job frees what they hold.
 
