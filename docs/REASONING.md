@@ -78,6 +78,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 53 | 2026-11-14 | The OpenGL build's first 300 maps: no texture warnings; one-go jobs, Resume job and an icon | LIKELY | #smithbox #maps #datapiler |
 | 54 | 2026-11-14 | The open world's boss slots: 98 of 101 named models placed | FACT | #roster #maps |
 | 55 | 2026-11-14 | The named characters' flag blocks, and the jobs for their placements and forms | METHOD | #roster #flags #datapiler |
+| 56 | 2026-11-14 | The map: the game's map only as the player's own copy; trails are sightings; masking against one upload | METHOD | #graceui #map #spoilers #licences |
 
 ## Entries
 
@@ -730,3 +731,23 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   type, which roster-rows.json did not keep, to tell friendly, hostile and summoned forms apart. Both pass
   DataPiler's checker (DP8: rows picked by an explicit list).
 - Next: the two share files; then join placements, forms, flag blocks and boss leads into one census per character.
+
+### 56. The map: the game's map only as the player's own copy; trails are sightings; masking against one upload
+
+`2026-11-14` · METHOD · `#graceui #map #spoilers #licences` · refs: G21–G26, O47, O48, O51, GraceUI:docs/proposals/0002-map.md
+
+- The game's map image is FromSoftware's artwork: an altered copy is still derived from it, so it is never committed,
+  shipped or shown in our documents. It can be used only as the player's own copy, read at run time from their game,
+  on the basis on which game text is read. The mock-up therefore uses an invented island and a painted stand-in.
+- A map mod may change the image's size or framing, so the base map is a setting with a fit check, and GraceUI's own
+  drawn base is the fallback (G21, after the owner's point about custom maps).
+- SPECULATION: the game loads its map textures only when its own map opens, so replacing that map by the map key (G25)
+  may leave nothing to read in memory; the archives are the other route (keys read from the player's game, never
+  shipped). The spike S7.9.c settles it; no route means the drawn base is the map.
+- Trails are sightings (D89): the game's characters move between places as their stories advance and are seen only
+  when loaded near the player, so a trail is the places the player met them, never tracking.
+- Invariant 1 (views receive projections only) meets invariant 11 (one texture upload, because hudhook 0.9.3 leaks a
+  buffer per upload) in game: new areas are reached during play. Put as G26, recommending one upload at start masked
+  at draw time, with a tested exception to invariant 1.
+- The owner asked for glow; invariant 14 (no loops) is kept in the recommendation (still glow, one-shot flares), and
+  put as G22.
