@@ -467,6 +467,9 @@ refs: WHY§40, DataPiler S53
   while another runs, so the tests now cover it.
 - Parallel jobs ("array jobs", the owner's idea) cannot help here, for the same reason; they do help row reads, which
   Smithbox answers each on its own (0.2.7 reads four at once).
+- **Later (2026-11-14):** confirmed by en-0007's third run on 0.2.6: 1 of 49 maps loaded within the first minute, then
+  none for 15 minutes, as predicted. Timings from the same log: the tutorial map took 6.2 s (en-0009), the first
+  legacy-dungeon map under a minute.
 
 ### 42. Where a map load's time goes, and why more PC does not help
 
