@@ -1,0 +1,15 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0001-roster-counts",
+  "title": "Roster: how many character rows have a name, by team",
+  "needs": "0.1",
+  "ops": [
+    {"op": "fetch_rows", "as": "npc", "param": "NpcParam", "fields": ["id", "nameId", "teamType"]},
+    {"op": "join_names", "as": "npc_named", "rows": "npc", "key": "nameId", "text": "character_names"},
+    {"op": "count", "as": "by_named", "rows": "npc_named", "by": ["named"]},
+    {"op": "count", "as": "named_per_team", "rows": "npc_named", "by": ["teamType"], "where": {"named": {"eq": true}}},
+    {"op": "write_local", "name": "roster-named-rows", "tables": ["npc_named"], "columns": {"npc_named": ["id", "nameId", "teamType", "name"]}},
+    {"op": "write_share", "name": "roster-counts", "tables": ["by_named", "named_per_team"],
+     "columns": {"by_named": ["named", "count"], "named_per_team": ["teamType", "count"]}, "notes": ["vanilla_rows"]}
+  ]
+}

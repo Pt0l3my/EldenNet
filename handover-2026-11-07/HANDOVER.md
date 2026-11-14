@@ -23,9 +23,10 @@ picking up Smithbox's default export folder) and a proper 0.2.x release when the
 2. [docs/DECISIONS.md](../docs/DECISIONS.md): the owner's decisions O1–O63, one entry each (O46 and O58 open). GraceUI's
    own are in GraceUI's `docs/DECISIONS.md` (G1–G13, none open; G13 decided on 2026-11-08).
 3. DESIGN §0, the design at a glance: `python3 -I tools/workplan/wp.py show DESIGN§0`.
-4. [docs/ROADMAP.md](../docs/ROADMAP.md), the one roadmap and open-items list for both repositories (or its page,
+4. [docs/REASONING.md](../docs/REASONING.md)'s index: the reasoning behind findings and leads (`wp show WHY§n`).
+5. [docs/ROADMAP.md](../docs/ROADMAP.md), the one roadmap and open-items list for both repositories (or its page,
    `docs/roadmap/index.html`).
-5. GraceUI's `docs/DESIGN.md` §0, "At a glance" (grep its headings, then read that range).
+6. GraceUI's `docs/DESIGN.md` §0, "At a glance" (grep its headings, then read that range).
 
 Then both CLAUDE.md files, which bind this work (§5).
 

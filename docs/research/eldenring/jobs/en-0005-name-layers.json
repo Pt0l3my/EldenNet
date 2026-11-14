@@ -1,0 +1,17 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0005-name-layers",
+  "title": "Roster: which layer of the text (base game, DLC 1, DLC 2) first holds each character name",
+  "needs": "0.2.2",
+  "ops": [
+    {"op": "fetch_rows", "as": "npc", "param": "NpcParam", "fields": ["id", "nameId", "teamType", "npcType"]},
+    {"op": "join_names", "as": "npc_named", "rows": "npc", "key": "nameId", "text": "character_names"},
+    {"op": "filter", "as": "roster", "rows": "npc_named", "where": {"named": {"eq": true}, "nameId": {"ne": 0}}},
+    {"op": "count", "as": "name_layers", "rows": "roster", "by": ["nameId", "layer"]},
+    {"op": "distinct", "as": "layer_names", "rows": "roster", "by": ["layer", "nameId"]},
+    {"op": "count", "as": "names_per_layer", "rows": "layer_names", "by": ["layer"]},
+    {"op": "write_share", "name": "name-layers", "tables": ["names_per_layer", "name_layers"],
+     "columns": {"names_per_layer": ["layer", "count"], "name_layers": ["nameId", "layer", "count"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

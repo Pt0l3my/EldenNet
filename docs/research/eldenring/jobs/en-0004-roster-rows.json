@@ -1,0 +1,15 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0004-roster-rows",
+  "title": "Roster: the rows of the named characters (name number above 0), and where the unnamed rows sit",
+  "needs": "0.2.1",
+  "ops": [
+    {"op": "fetch_rows", "as": "npc", "param": "NpcParam", "fields": ["id", "nameId", "teamType", "npcType"]},
+    {"op": "join_names", "as": "npc_named", "rows": "npc", "key": "nameId", "text": "character_names"},
+    {"op": "filter", "as": "roster", "rows": "npc_named", "where": {"named": {"eq": true}, "nameId": {"ne": 0}}},
+    {"op": "count", "as": "unnamed_by_team", "rows": "npc_named", "by": ["teamType", "npcType"], "where": {"named": {"eq": false}}},
+    {"op": "write_share", "name": "roster-rows", "tables": ["roster", "unnamed_by_team"],
+     "columns": {"roster": ["id", "nameId", "teamType", "npcType"], "unnamed_by_team": ["teamType", "npcType", "count"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

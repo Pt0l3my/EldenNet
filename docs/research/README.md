@@ -32,6 +32,7 @@ Read the two summaries first. The numbered notes hold the detail and the sources
 | [07-world-and-quest-leads](eldenring/07-world-and-quest-leads.md) | World-stage flags (endings, story, legacy dungeons, Great Runes, map swaps, Radahn's star, the Erdtree and the ash), boss-kill flags, the v1 personas' flag blocks, related quests and what spike S6 must settle |
 | [08-game-data-sources](eldenring/08-game-data-sources.md) | Where the roster's game ids can come from: online datasets, DSMapStudio, Smithbox and the tools around them, with their licences and AI policies; which files hold which ids; how our tools read Smithbox's exports (O55), and the question of how far they go before the blueprint |
 | [leads/roster-rows.json](eldenring/leads/roster-rows.json) | O59's research file: the 213 name numbers NpcParam rows carry with a real name, each with its row ids (699 rows), from DataPiler's job en-0004 on game 2.7.2.0. Numbers only, every lead unverified until EldenNet checks it in game |
+| [jobs/](eldenring/jobs/) | DataPiler's job files en-0001 to en-0005, which made the roster's counts and leads (WHY§12). Our own data: operations and numbers, no game text |
 
 ## Method and ground rules
 
