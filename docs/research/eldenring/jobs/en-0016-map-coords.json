@@ -6,7 +6,7 @@
  "ops": [
   {
    "op": "fetch_rows",
-   "as": "bonfire",
+   "as": "t_bonfire",
    "param": "BonfireWarpParam",
    "fields": [
     "id",
@@ -37,7 +37,7 @@
   },
   {
    "op": "fetch_rows",
-   "as": "point",
+   "as": "t_point",
    "param": "WorldMapPointParam",
    "fields": [
     "id",
@@ -76,7 +76,7 @@
   },
   {
    "op": "fetch_rows",
-   "as": "place",
+   "as": "t_place",
    "param": "WorldMapPlaceNameParam",
    "fields": [
     "id",
@@ -93,7 +93,7 @@
   },
   {
    "op": "fetch_rows",
-   "as": "piece",
+   "as": "t_piece",
    "param": "WorldMapPieceParam",
    "fields": [
     "id",
@@ -114,7 +114,7 @@
   },
   {
    "op": "fetch_rows",
-   "as": "legacy",
+   "as": "t_legacy",
    "param": "WorldMapLegacyConvParam",
    "fields": [
     "id",
@@ -138,14 +138,14 @@
    "op": "write_share",
    "name": "map-coords",
    "tables": [
-    "bonfire",
-    "point",
-    "place",
-    "piece",
-    "legacy"
+    "t_bonfire",
+    "t_point",
+    "t_place",
+    "t_piece",
+    "t_legacy"
    ],
    "columns": {
-    "bonfire": [
+    "t_bonfire": [
      "id",
      "disableParam_NT",
      "eventflagId",
@@ -171,7 +171,7 @@
      "textDisableFlagId1",
      "altIconId"
     ],
-    "point": [
+    "t_point": [
      "id",
      "disableParam_NT",
      "eventFlagId",
@@ -205,7 +205,7 @@
      "dispMask02",
      "textId1"
     ],
-    "place": [
+    "t_place": [
      "id",
      "disableParam_NT",
      "worldMapPieceId",
@@ -217,7 +217,7 @@
      "posY",
      "posZ"
     ],
-    "piece": [
+    "t_piece": [
      "id",
      "disableParam_NT",
      "openEventFlagId",
@@ -233,7 +233,7 @@
      "acquisitionEventResOffsetX",
      "acquisitionEventResOffsetY"
     ],
-    "legacy": [
+    "t_legacy": [
      "id",
      "disableParam_NT",
      "srcAreaNo",
