@@ -65,6 +65,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 40 | 2026-11-14 | Smithbox loads maps only while its Map Editor is drawn | FACT | #smithbox #maps |
 | 41 | 2026-11-14 | Smithbox loads one map at a time; ten at once kept one | FACT | #smithbox #maps #datapiler |
 | 42 | 2026-11-14 | Where a map load's time goes, and why more PC does not help | FACT | #smithbox #maps |
+| 43 | 2026-11-14 | One map that never loads held up the rest | LIKELY | #smithbox #maps #datapiler |
 
 ## Entries
 
@@ -481,4 +482,17 @@ refs: WHY§40, DataPiler S53
 - The owner saw about 3.5 minutes for the first legacy-dungeon map with the PC nearly idle: Smithbox's own one-at-a-time
   work, not a lack of CPU, GPU or memory, so DataPiler cannot speed it up by using more of the PC.
 - Next: time en-0009 with rendering off and Havok skipped (or on the OpenGL build) against the first run.
+- **Later (2026-11-14):** with Enable Model Rendering off, the first map of en-0007's fourth run loaded in 2 s.
+
+### 43. One map that never loads held up the rest
+
+`2026-11-14` · LIKELY · `#smithbox #maps #datapiler` · refs: WHY§41, WHY§42, DataPiler S57
+
+- en-0007 on 0.2.7: map 1 loaded in 2 s, map 2 never did in 15 minutes although DataPiler asked again every 10 s and
+  Smithbox kept answering. Smithbox clears its loading state in `finally` (`MapUniverse.cs` lines 236–266), so it was
+  not stuck loading map 1; the likely cause is that map 2's own load fails every time, its exception kept by Smithbox.
+- DataPiler's log did not name the map, so it could not be looked up. 0.2.8 names each map, skips one not loaded
+  after 5 minutes, leaves it out of the placements and stops only after three skipped in a row.
+- Also found that day: 0.2.7's newest-first order sorted on a time the page never received (fixed in 0.2.8).
+- Next: the map 0.2.8 skips, and what Smithbox's own log says when it fails.
 
