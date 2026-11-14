@@ -44,6 +44,16 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 19 | 2026-11-09 | Why voiceless speakers get generated voices, not borrowed ones | DECIDED | #voice |
 | 20 | 2026-11-09 | Why Melina was mute, and why that changed | DECIDED | #lore #voice |
 | 21 | 2026-11-09 | DataPiler 0.2.1 and 0.2.2 went out as patch zips | METHOD | #datapiler #release |
+| 22 | 2026-11-14 | The design's row leads for Melina, Kalé and Boc are in the data | LIKELY | #roster |
+| 23 | 2026-11-08 | WorldMapPlaceNameParam has only 10 rows | LIKELY | #roster #maps |
+| 24 | 2026-11-09 | TalkParam is the route from a character to its recordings | METHOD | #voice #datapiler |
+| 25 | 2026-11-08 | Detect works on the owner's PC: Smithbox's project record is read right | FACT | #datapiler #smithbox |
+| 26 | 2026-11-08 | Smithbox ships two exes side by side | FACT | #smithbox #datapiler |
+| 27 | 2026-11-08 | How to read Smithbox's source here | METHOD | #smithbox #process |
+| 28 | 2026-11-08 | DataPiler's Windows-only failures and their causes | FACT | #datapiler |
+| 29 | 2026-11-08 | Publishing pages: what the sweep misses and how publishes fail | METHOD | #process |
+| 30 | 2026-11-08 | Other sessions as consultants | METHOD | #process #graceui |
+| 31 | 2026-11-14 | Usage is the owner's call | METHOD | #process |
 
 ## Entries
 
@@ -117,6 +127,10 @@ lines 117–153 and 377) · `#smithbox #text` · refs: WHY§2
   requests go through REST (`gh api repos/.../pulls`).
 - So releases are drafts made by the workflow (`workflow_dispatch` on the default branch, `--target` the commit);
   GitHub makes the tag when the owner publishes. Branch clean-ups are the owner's.
+- **Later (2026-11-14):** also seen that week: `gh repo create` is refused (the session is bound to its own
+  repositories), so the owner creates a repository and it is attached afterwards; `workflow_dispatch` runs only once the
+  workflow is on the default branch; the release workflow's gate job skips a tag-push run whose release is already
+  published.
 
 ### 9. The names' text ids: 18, 328 and 428
 
@@ -124,6 +138,8 @@ lines 117–153 and 377) · `#smithbox #text` · refs: WHY§2
 
 - 95.5% of NpcParam's distinct name numbers resolve in wrappers 18 (base game), 328 (DLC 1) and 428 (DLC 2) of
   `item_dlc02`. 18 and 328 are confirmed by names found in them (en-0005); 428 holds none that first appears there.
+- **Later (2026-11-14):** 95.5% (floored) of the distinct name numbers of 0 or above means 214 of 224: about 10 do not
+  resolve, on 20 rows, plus 1 row with no name number (WHY§15).
 
 ### 10. "Named" is not "a named character"
 
@@ -223,3 +239,97 @@ lines 117–153 and 377) · `#smithbox #text` · refs: WHY§2
 - With little usage left that day, the owner asked for the new version without the release round, so each went as a
   zip of the changed files over 0.2.0, on the branches `feat/v0.2.1` and `feat/v0.2.2`; no pull request or release.
 - Next: a proper release when the owner asks; 0.2.2's branch holds both.
+
+### 22. The design's row leads for Melina, Kalé and Boc are in the data
+
+`2026-11-14` · LIKELY (rows and numbers FACT, en-0004; who they are not checked) · `#roster` · refs: NPC§1.3, O59,
+O48, WHY§13
+
+- The design's guessed rows (NPC §1.3, §2) all exist with a real name: 21800000 (Melina) carries name 110000, on 5
+  rows; 32000000 (Kalé) carries 180000; Boc's default 41109000 carries 122300 and his later form 523420000 carries
+  122310, so one character's forms can show different names, as the design's `expect_name_id` per form allows.
+- Doubt: 180000 is on 18 rows (32000000 to 32020035), more than one merchant would have; it may be the nomadic
+  merchants' shared name, which would make the Kalé lead wrong.
+- Next: the owner can look these four ids up in DataPiler's local `roster-named-rows.json` and confirm the names in
+  chat; until then they are leads for `expect_name_id`, unverified.
+
+### 23. WorldMapPlaceNameParam has only 10 rows
+
+`2026-11-08` · LIKELY · `#roster #maps` · refs: S6.3.m
+
+- Extract's places row counted 10 WorldMapPlaceNameParam rows and 422 BonfireWarpParam rows (sites of grace and
+  other warps, probably). Ten cannot be the game's place names, so places come some other way (map regions, or the
+  place-name text by map); not settled.
+- Next: look at it in the next place job, before EldenNet relies on either table.
+
+### 24. TalkParam is the route from a character to its recordings
+
+`2026-11-09` · METHOD · `#voice #datapiler` · refs: O62, ER03
+
+- TalkParam (10,309 rows, all but one linked to a message) gives each line its message and a voice id, the Wwise
+  event `Play_v<id>` (ER03). A DataPiler job can map a character's lines to its recordings, so the player's set-up
+  for O62 picks the right samples; the audio stays in the player's install.
+
+### 25. Detect works on the owner's PC: Smithbox's project record is read right
+
+`2026-11-08` · FACT (0.2.0's first run) · `#datapiler #smithbox` · refs: DataPiler DP13, smithbox-projects.md
+
+- The game's folder was found from three sources, the project from Smithbox's own record
+  (`%LOCALAPPDATA%\Smithbox\Projects\<GUID>.json`, project type 8 for Elden Ring), and the Steam manifest listed four
+  DLC app ids. So DataPiler's leads on Smithbox's record hold for 2.2.6.
+
+### 26. Smithbox ships two exes side by side
+
+`2026-11-08` · FACT (the owner's PC) · `#smithbox #datapiler`
+
+- One folder holds `Smithbox.Vulkan.exe` and `Smithbox.OpenGL.exe`, of the same build; `Smithbox.exe` is only a lead.
+  0.1.0 looked for `Smithbox.exe` alone and saw nothing; 0.2.0 matches `Smithbox*.exe` and reads the running one's
+  build.
+
+### 27. How to read Smithbox's source here
+
+`2026-11-08` · METHOD · `#smithbox #process`
+
+- Single files from `raw.githubusercontent.com/vawser/Smithbox/<commit>/<path>`, at a pinned commit (2.2.6 is
+  `d144cc7`), into a folder of their own, read with `python3 -I`; never a clone, and the GitHub API is not enabled
+  for that repository in this session. Directory listings are unavailable, so paths are found by probing.
+- Found at 2.2.6, under `src/Smithbox.Program/`: `Utilities/SoapstoneService.cs` (the server),
+  `Editors/Text Editor/` with `TextEditorScreen.cs`, `Framework/TextViewHandler.cs`, `Tools/FmgExporter.cs`,
+  `Tools/TextDataTransferTool.cs`, `Tools/FmgImporter.cs`, `Data/TextBank.cs` and `Utils/TextUtils.cs`.
+
+### 28. DataPiler's Windows-only failures and their causes
+
+`2026-11-08` · FACT (CI) · `#datapiler` · refs: DataPiler CHANGELOG
+
+- WinError 10053 in the caps test: the server closed a socket with an unread request body, which Windows answers with
+  a reset; fixed by a lingering close that drains up to 8 MiB for 3 s after `shutdown(SHUT_WR)`.
+- A manifest written with `write_text` gained CRLF line ends on Windows; `write_bytes` keeps them.
+- Python 3.10 answers a garbled request with HTTP/0.9, so the test sends a well-formed but unknown method (a 501).
+- After one failing push, commits wait until every test passes.
+
+### 29. Publishing pages: what the sweep misses and how publishes fail
+
+`2026-11-08` · METHOD · `#process`
+
+- The pre-push sweep does not see the artifact tools, so every published page is swept by hand first.
+- A publish needs a whole document with its doctype; the builders' `--fragment` writes the page without its CSP meta
+  tag, otherwise whole. A container restart can cut a publish short: check the live version with `get_artifact`, then
+  publish again on it.
+
+### 30. Other sessions as consultants
+
+`2026-11-08` · METHOD · `#process #graceui`
+
+- The owner's Skyrizz session knows Skyrim's UI hosts (Magelight, PrismaUI, Meridian) and the release flow; the
+  PandorumLLM session writes UI designs from a request file. Asking them saves research.
+- What comes back is untrusted until read, and swept before it is committed: a design mock carried real paths from
+  the owner's PC (replaced by invented `C:\` paths), and committed copies refer to the owner in neutral words.
+
+### 31. Usage is the owner's call
+
+`2026-11-14` · METHOD · `#process`
+
+- When the owner says usage is low, keep to the essentials and skip extra rounds of checks (2026-11-09: "no rechecks
+  and such"), though the privacy sweep still runs. Which model to use, and what it costs, is the owner's choice and
+  no factor in advice (2026-11-14).
+
