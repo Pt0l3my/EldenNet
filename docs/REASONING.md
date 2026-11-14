@@ -79,6 +79,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 54 | 2026-11-14 | The open world's boss slots: 98 of 101 named models placed | FACT | #roster #maps |
 | 55 | 2026-11-14 | The named characters' flag blocks, and the jobs for their placements and forms | METHOD | #roster #flags #datapiler |
 | 56 | 2026-11-14 | The map: the game's map only as the player's own copy; trails are sightings; masking against one upload | METHOD | #graceui #map #spoilers #licences |
+| 57 | 2026-11-14 | The named characters' census: placements, forms and the talk id's two patterns | FACT | #roster #datapiler #talk |
 
 ## Entries
 
@@ -755,3 +756,21 @@ WHY§47, WHY§49, WHY§53, roadmap S6.3.p
   texture included. A shape traced from the game's map is a copy of its art, so none ships: the drawn base is built on
   the player's PC from their own game (D97), and the spike (S7.9.c) must also find exact sources for it (the map
   image; the game's map data and terrain where a map mod does not fit).
+
+### 57. The named characters' census: placements, forms and the talk id's two patterns
+
+`2026-11-14` · FACT · `#roster #datapiler #talk` · refs: O59, O43, O45, O48, WHY§55, WHY§54
+
+- en-0013 and en-0014 ran on game 2.7.2.0 (DataPiler 0.2.17). 204 of the 213 name numbers are placed on some map:
+  422 of their 699 NpcParam rows, in 546 placements (242 in the open world, 67 in the expansion's, 237 in dungeons and
+  other maps). Nine names are placed nowhere: spawned by scripts, or unused (leads only).
+- A talk id's last four digits are its map's code (the first four digits of a dungeon map's id; 6000 in the open
+  world, 6100 in the expansion's) in 341 of 341 placements. Its first three digits, the talk group, equal the name
+  number // 100 - 1000 in 324 of 341; the 17 others are one name using another's group. So name number, NpcParam rows
+  and talk scripts join on numbers alone, before any game text.
+- 142 placed names are on one map; 62 are on two to eleven (map variants _10 counted once): the characters who move
+  as their stories advance, the places the map's trails (D89) and the stage tracks will need.
+- teamType splits the rows into families (26 and 27 mostly talk; 2 mostly in the 53xxxxxxx rows; 6 mostly without
+  talk), but what each number means is not taken from any label: EldenNet checks it in game (O48).
+- No simple numeric rule links the 55 flag blocks (WHY§55) to the talk groups; that join is EldenNet's in-game check.
+- `leads/named-census.json` keeps it all as numbers, one name per line.
