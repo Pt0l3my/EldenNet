@@ -2,7 +2,7 @@
  "format": "datapiler-job/1",
  "id": "en-0015-map-fields",
  "title": "The map: which coordinate fields the game's five map tables have, their types, and how many rows each holds (no values)",
- "needs": "0.2.18",
+ "needs": "0.2.19",
  "ops": [
   {
    "op": "check_fields",
