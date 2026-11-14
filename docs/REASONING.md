@@ -71,6 +71,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 46 | 2026-11-14 | What the legacy dungeons' boss slots hold | FACT | #roster #maps |
 | 47 | 2026-11-14 | Bosses' bar names are numbered by their model | LIKELY | #roster #text |
 | 48 | 2026-11-14 | The other unused names: 13 in the named range, 16 of one unknown family | LIKELY | #roster #text |
+| 49 | 2026-11-14 | The smaller dungeons hold the model pattern: 61 of 101 named models placed | FACT | #roster #maps |
 
 ## Entries
 
@@ -576,6 +577,9 @@ WHY§32) · `#roster #text` · refs: WHY§36, WHY§46, O48, O59, DESIGN§7.7
   confirms one, and nothing is bound by the pattern alone (O48).
 - Next: en-0010 (the smaller dungeons, m30 to m45); the open world later, in parts, with Smithbox restarted between
   jobs and its auto-save off.
+- **Later (2026-11-14):** en-0010 holds the pattern (WHY§49). The era check goes by map, not by model number: model
+  7100 is placed in two base-game catacombs and its names are in the base game's layer, so "5000 and up" above was a
+  gloss, not the rule.
 
 ### 48. The other unused names: 13 in the named range, 16 of one unknown family
 
@@ -588,3 +592,25 @@ WHY§32) · `#roster #text` · refs: WHY§36, WHY§46, O48, O59, DESIGN§7.7
   name is unknown (SPECULATION: not characters the roster needs).
 - The owner can tell their kind apart by looking a few up in DataPiler's local workspace; the names stay on the PC
   and in chat, never here.
+- **Later (2026-11-14):** 10 of the 13 share their first four digits with real names on rows (the same character's
+  other names, LIKELY). 130901 sits beside 130900, the name on two human rows in one cave's boss slots (WHY§49): a
+  likely bar name for that character.
+
+### 49. The smaller dungeons hold the model pattern: 61 of 101 named models placed
+
+`2026-11-14` · FACT (en-0010 on DataPiler 0.2.10; `leads/boss-leads.json`) · `#roster #maps` · refs: WHY§46, WHY§47,
+WHY§48, roadmap S6.3.p
+
+- 71 maps of m30 to m45 hold characters, 60 of them boss slots: 115 placements, 42 models. Most dungeons have one
+  boss at …800 (91 placements at …800 to …809), with helpers at …810 to …819 and a few second bosses at …850.
+- 35 of the 41 non-human models have names of WHY§47's shape. The six without are again helpers (4 and 3 of a kind),
+  the two odd single models of en-0007 (rows 10000000 and 1000000, likely stand-ins), and two numbered near a named
+  model (3701 by 3700, 4603 by 4600). Every model in a base-game map has its names in the base game's layer, every
+  model in an expansion map (m40 to m43) in DLC 1's: no exception in 256 slots.
+- With en-0007: 76 non-human slot models, 61 with candidate bar names; 61 of the 101 named non-human models are now
+  placed. The other 40 (25 base game, 15 expansion) are in no dungeon slot: likely the open world's bosses.
+- Characters without boss slots: three m34 maps, five expansion maps (m40_02, m42_00 to m42_03) and the three m45
+  maps, which hold one character each, numbered outside 800 to 899. 12 slot placements carry real row names: 130900,
+  137600 and 142700 (nine of one, at m41_02's …800 and …810 to …817).
+- Next: the open world, one job per family so no tile is missed: en-0011 (m60, the base game) and en-0012 (m61, the
+  expansion), Smithbox restarted before each. If one is too much for Smithbox at once, it is split by tiles.

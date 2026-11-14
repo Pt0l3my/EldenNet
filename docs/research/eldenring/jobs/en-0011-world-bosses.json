@@ -1,0 +1,15 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0011-world-bosses",
+  "title": "Bosses (d): the characters placed in boss slots of the base game's open world",
+  "needs": "0.2.10",
+  "ops": [
+    {"op": "load_maps", "maps": ["m60_*"]},
+    {"op": "read_placements", "as": "placed", "maps": ["m60_*"]},
+    {"op": "filter", "as": "bosses", "rows": "placed", "slots": "boss"},
+    {"op": "count", "as": "placed_per_map", "rows": "placed", "by": ["map"]},
+    {"op": "write_share", "name": "world-bosses", "tables": ["placed_per_map", "bosses"],
+     "columns": {"placed_per_map": ["map", "count"], "bosses": ["map", "entityId", "npcParamId", "model"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}
