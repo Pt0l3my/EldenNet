@@ -341,6 +341,15 @@ research into the game's data that goes ahead before them (O54).
     are numbered 90, a model, then three digits; 98 of the 128 non-human models in the boss slots have such names,
     each in the layer of its map's era: likely the bosses' bar names (WHY§47, WHY§54). 98 of the 101 models so named
     are placed; three are in no boss slot. The binding of each boss to its bar name waits for EldenNet's check in game.
+- q The named characters' placements and forms: DataPiler's jobs en-0013 (every map: map, entity, model and dialogue ids of the 699 named rows) and en-0014 (each named row's team and type) [waiting]
+  - needs: o
+  - refs: O43, O59, O48, WHY§55
+  - gives: the roster's entity and talk ids, and which row is a character's friendly, hostile or summoned form.
+- r The named characters' flag blocks, from FromSoftSaveManager (Apache-2.0) [done]
+  - needs: o
+  - refs: O43, O51, O59, WHY§55
+  - gives: `docs/research/eldenring/leads/npc-flags.json`: 55 blocks (status, questline stages, 112 progress steps)
+    and 6 endings, numbers only, unverified; bound to the roster's ids later, never by the slug.
 
 ## S7 Open items
 
