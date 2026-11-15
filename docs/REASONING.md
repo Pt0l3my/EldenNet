@@ -83,6 +83,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 58 | 2026-11-14 | Where the map's coordinates can come from: five map tables, but no placement positions through Smithbox | FACT | #map #datapiler #graceui |
 | 59 | 2026-11-14 | The world map's frame: about one map unit per metre, north up, three sheets | LIKELY | #map #datapiler #graceui |
 | 60 | 2026-11-15 | The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion | LIKELY | #map #datapiler #graceui |
+| 61 | 2026-11-15 | The game's map tiles: four sheets, five zoom levels, a variant per revealed piece | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -860,3 +861,26 @@ repositories. Derived numbers only here.
 - **What it gives the map.** If the image is found among the textures, the exact area shapes for the drawn base, the
   masking and the area labels come from it, and its colours checked against where the resting places stand give the
   exact world-to-map fit. Its name is not known yet; en-0018 (the map tiles, counted) is the next step.
+
+### 61. The game's map tiles: four sheets, five zoom levels, a variant per revealed piece
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§59, WHY§60, G21, G26, D90, DataPiler DP25
+
+From en-0018 (DataPiler 0.2.23): counts of the map tiles the owner exported from Smithbox's Texture Viewer, numbers
+only; the images stay on the owner's PC.
+
+- **FACT, the layout.** 28,469 tiles, every one 256 by 256 pixels. Sheets 0 and 1 have five zoom levels on square
+  grids of 41, 31, 11, 6 and 3 tiles a side; sheet 10 has three (41, 31 and 9 a side); sheet 11 has three small ones
+  (its level 0 in a window of 16 by 10 tiles). Every grid position has a variant with code 0 at every level (1,681 =
+  41 squared at level 0, down to 9 = 3 squared at level 4).
+- **LIKELY, the codes.** The other variants carry codes that are sets of bits (0x10, 0x20, 0x40, 0x4000, 0x40000 on
+  sheet 0; single low bits on sheets 1 and 10), so the code is very likely the set of map pieces revealed over that
+  tile, and the game draws each tile in the variant for the pieces the player holds. Sheet 0 is the base map, sheet 1
+  the underground and sheet 10 the expansion (their counts match WHY§59's three sheets); sheet 11 is a small fourth.
+- **LIKELY, the scale.** Level 0 spans 41 x 256 = 10,496 pixels, which holds the pieces' rectangles (0 to about
+  9,650), so the map's units are very likely level-0 pixels, and by WHY§59 about one level-0 pixel per metre.
+- **What it gives the map.** EldenNet can draw the player's own map exactly as the game does, choosing each tile's
+  variant from the pieces the player holds (their flags, WHY§58): the reveal G26 and D90 need comes from the game's
+  own variants, not from shapes of ours. The colour-coded area image of WHY§60 is not among the map tiles.
+- Next: en-0019, each level-0 tile's position and code, to tell which bit is which piece and test map units against
+  level-0 pixels exactly.

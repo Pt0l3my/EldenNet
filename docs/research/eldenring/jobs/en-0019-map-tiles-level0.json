@@ -1,0 +1,45 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0019-map-tiles-level0",
+ "title": "The map: each level-0 tile's sheet, column, row and code, to tell which code bit is which map piece (DP25)",
+ "needs": "0.2.23",
+ "ops": [
+  {
+   "op": "read_map_tiles",
+   "as": "t_tiles"
+  },
+  {
+   "op": "filter",
+   "as": "t_level0",
+   "rows": "t_tiles",
+   "where": {
+    "level": {
+     "eq": 0
+    },
+    "sheet": {
+     "in": [
+      0,
+      1,
+      10,
+      11
+     ]
+    }
+   }
+  },
+  {
+   "op": "write_share",
+   "name": "map-tiles-level0",
+   "tables": [
+    "t_level0"
+   ],
+   "columns": {
+    "t_level0": [
+     "sheet",
+     "x",
+     "y",
+     "code"
+    ]
+   }
+  }
+ ]
+}
