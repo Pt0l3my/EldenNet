@@ -519,9 +519,11 @@ EldenNet may hook as well as GraceUI.
   - gives: R12 and GraceUI's invariant 16 as O65 decided; the plugins layer, the launcher's step and flags, the seam and
     the decision-log rows in EldenNet's design; GraceUI's published hook list (D102) and plugins on its Content packs
     page (D103); the upload route put to the owner as G28.
-- d GraceUI's upload route for the dashboard's drop zone [waiting]
+- d GraceUI's upload route for the dashboard's drop zone [done]
   - needs: c
-  - refs: G28, O67
+  - refs: G28, O67, GraceUI:DESIGN§7.2
+  - gives: G28 decided 2026-11-15, as recommended: one narrow route on the loopback listener for a space's sensitive file
+    commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18).
 
 ## S8 Adopting the engine [planned]
 
@@ -871,7 +873,7 @@ v0.1's testing uses, draw through it.
 - d The map of the journey: the map panel, the map projection and the Map page
   - needs: S7.9.d
   - refs: G24, GraceUI:DESIGN§4.13
-- e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone once G28 allows it
+- e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone through GraceUI's upload route (G28)
   - needs: S7.10.c
   - refs: O66, O67, G28, docs/proposals/0001-plugins.md
 

@@ -1,8 +1,8 @@
 # Proposal 0001: Plugins for EldenNet
 
 **Status: proposal, 2026-11-15 (roadmap S7.10.a). Answered by the owner the same day, "all five as recommended", and
-folded into EldenNet's and GraceUI's designs (S7.10.c); the dashboard's upload route is put to the owner as GraceUI's
-G28.** Where this text and the designs differ, the designs hold. Each answer's effect is stated with its question (§12).
+folded into EldenNet's and GraceUI's designs (S7.10.c); the dashboard's upload route decided as GraceUI's G28 (a),
+a narrow route on the loopback listener (GraceUI §7.2 item 18).** Where this text and the designs differ, the designs hold. Each answer's effect is stated with its question (§12).
 What it settles itself is listed in §10, each row open to the owner. Evidence: SkyrimNet's published plugin headers
 (MIT; WHY§87), ER02 §7.1 on hook libraries (WHY§86), ARCH §11.6 on content layers, and GraceUI's DESIGN §2.9 and §7. A
 bare §n is a section of this proposal; DESIGN, ARCH and NPC are EldenNet's design documents, and "GraceUI §n" and G- and

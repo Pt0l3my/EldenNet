@@ -899,7 +899,8 @@ none.
 **Decision.** (a): both routes into one installer. The Plugins folder (a folder or a `.zip`), installed by the launcher
 before the game starts; and the dashboard's drop zone and Add file, in the browser only, this PC only, never for code.
 Content applies at once where it reloads live, the rest at the next start; uninstalling works the same way. GraceUI is
-asked for the upload route (GraceUI G28).
+asked for the upload route (GraceUI G28). *Later (2026-11-15):* GraceUI's G28 decided (a) the same day: one narrow route
+on the loopback listener, for a space's sensitive file commands, with a one-use ticket (GraceUI §7.2 item 18).
 
 **Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
 
