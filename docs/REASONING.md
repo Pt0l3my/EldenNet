@@ -114,6 +114,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 89 | 2026-11-15 | The terrain's heights are very likely the ground models, stored at three levels of detail | LIKELY | #map #datapiler #graceui |
 | 90 | 2026-11-15 | The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone | FACT | #map #datapiler #graceui |
 | 91 | 2026-11-15 | The expansion, a far view and the underground in the file dictionary, and two jobs to read them | LIKELY | #map #datapiler #graceui |
+| 92 | 2026-11-15 | The expansion, the far view and the underground: what en-0037 and en-0038 show | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1551,6 +1552,9 @@ checkout), O68, O53
 - Later (2026-11-15): the prefix takes 16 values in this square, one per tile, not three (the three above were only the
   pieces looked at): its first digit is the tile's column in the large square (0 to 3), its second the row plus 4 (4
   to 7).
+- Later (2026-11-15): pieces can reach past their tile (3 of these 32, by up to 50 m), so the edges were measured
+  again with all pieces together (WHY§92): top-surface steps over 1 m cross 1.0% of the edge samples against 0.2%
+  across the tiles' middles. Tile 40_38's gap stands, and the far view has no ground there either.
 
 ### 91. The expansion, a far view and the underground in the file dictionary, and two jobs to read them
 
@@ -1571,3 +1575,43 @@ checkout), O68, O53
   models for that square and for en-0036's (3), and five placement files. en-0038 (64): one underground map whole
   (`m12_03_00_00`: 63 models, 6 resting places) and its placement file. Next: WHY§90's checks on the expansion, the far
   view against level 2, and in the underground the placements and how to tell a floor from a ceiling.
+- Later (2026-11-15): read in WHY§92. The two-digit prefix of an eight-digit model number is its tile's x and z
+  numbers modulo 8 (04 for tile 40_36, 13 for 49_43): 2,758 of the dictionary's 2,768 eight-digit names fit, and the
+  other 10 name no tile of their square.
+
+### 92. The expansion, the far view and the underground: what en-0037 and en-0038 show
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§90, WHY§91, WHY§78, O48
+
+- The placement files were read with a reader of our own (the param lists, the model names, and each part's type,
+  model, position, rotation and scale). In tile 42_36 one resting place and three map points sit exactly (0.00 m) on
+  parts of one type, and the four ground pieces at the tile's origin, so its positions are checked against the
+  owner's own data (O48).
+- The expansion square (`m61_12_10_02`, 50 models, 5.6 MiB): its 1 km placement file puts each piece at its tile's
+  offset from the square's centre, unturned and unscaled, the same as placing by the tile numbers. 7 of its 9 resting
+  places sit within 0.03 m of the ground and 5 of its 9 map points within 0.12 m (the others 0.9 to 30 m off, on
+  structures). Level 2 against level 0 in tile 48_40: rms 0.01 m, at most 0.18 m. Heights −572 to 463 m; ground on 30
+  to 100% of each tile.
+- Its pieces are of two kinds: one per tile numbered under 50 (here a deep floor, −573 to 10 m), and pieces from 50 up
+  (the land above it, −85 to 464 m), which reach up to 133 m into the next tile. Top-surface steps over 1 m cross
+  8.6% of the tile edges' samples against 1.4% of the tiles' middles (the base game: 1.0% against 0.2%). At the larger
+  steps the land stops exactly at a tile edge, and the far view goes on at the land's height across 52 of 72 steps
+  over 50 m: there the land continues in other models (the 1 km placement file also places 4,177 assets).
+- The far view (level 99) is one model per 1 km square, centred on it and placed by its square in the level-99
+  placement file. Against level 2 its nearest surface lies a median 0.4 m away, but 74 m (base game) and 296 m
+  (expansion) at the 95th percentile: coarse at cliffs (2,807 triangles for the base square). It lacks 19% of the
+  base square's ground and adds 12% to the expansion square's where level 2 has none. The second kind (91) covers a
+  third of the base square, so it is no relief by itself; the base square's gap (tile 40_38) has no far view either.
+- The underground map (`m12_03_00_00`, 63 models, 31.5 MiB): 60 pieces sit at the map's origin, two are moved by
+  0.3 m, and one by about 620 m across and 91 m up, turned 42.2° about the vertical (which way is not settled: it
+  meets no other piece's floor either way). Three pieces 16 to 39 km wide are a backdrop; the other 60 lie within 1.7
+  by 1.4 km. Floors and ceilings face opposite ways in the files' winding: 5 of the 6 resting places stand on a
+  floor-facing surface within 0.2 m (the sixth 25.6 m above one, on a structure), with ceilings 58 to 622 m above.
+  In 8 m cells there are up to 34 floor layers (90% at most 7), so the map needs a rule for which floor to show; one
+  tried with triangle centres missed the large ceiling triangles, and the rule stays open. The low-detail groups (90
+  and 91, 1.0 MiB) cover under half of the floors.
+- So level 2 gives the open worlds' ground exactly; where the expansion's land is made of other models, the far view
+  fills it coarsely (or its assets would); the underground is read whole, placed by its placement file, with floors
+  told by their facing. Each model's lower-detail triangle sets were left out this time (level 2 against level 0
+  unchanged). Next, for the spike (S7.9.c): the underground's floor rule, and whether the expansion's assets are worth
+  reading.

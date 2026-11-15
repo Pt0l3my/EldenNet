@@ -475,7 +475,7 @@ the player's game, and optionally opened by the map key.
   - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
 - c The map spike: EldenNet's run-time read of the game's archives for the map's tiles and masks, the tile set's check (D93), exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
   - needs: b
-  - refs: G21, G25, G26, O47, O48, WHY§90
+  - refs: G21, G25, G26, O47, O48, WHY§90, WHY§92
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
@@ -501,10 +501,10 @@ the player's game, and optionally opened by the map key.
   - needs: e
   - refs: G27, WHY§89, WHY§90, O48
   - gives: yes (WHY§90): the ground models hold the heights, and the tile numbers in their names alone place them; one 1 km square's 16 tiles meet at their edges (median 0.04 m), open ground agrees with the resting places' heights (0.02 m and 1.34 m), and the 1 km level is enough for the relief (rms 0.03 m from the finest). Left for c: the run-time read, a rule for the gaps (18 to 100% ground per tile here), and the rest of the map.
-- h Research ahead of the spike: the expansion's and the underground's terrain, and a far view of the land (jobs en-0037 and en-0038) [waiting]
+- h Research ahead of the spike: the expansion's and the underground's terrain, and a far view of the land (jobs en-0037 and en-0038) [done]
   - needs: g
-  - refs: G27, WHY§90, WHY§91, O48
-  - gives: whether the expansion's ground works as the base game's (placed by tile numbers, the levels agreeing), whether the far-view models are enough for a coarse relief, and how the underground's pieces are placed and its floors told from its ceilings.
+  - refs: G27, WHY§90, WHY§91, WHY§92, O48
+  - gives: (WHY§92) the expansion's ground is placed by tile numbers as the base game's, level 2 matches level 0 (rms 0.01 m) and its resting places (7 of 9 within 0.03 m), but its land is partly other models (breaks on about 7% of tile edges), which the far view fills coarsely (a median 0.4 m off, up to 296 m at cliffs); the underground is read whole with its placement file, floors told from ceilings by their facing (5 of 6 resting places on a floor within 0.2 m), up to 34 floors deep. Which floor to show, and the expansion's assets, stay with c.
 
 ### S7.10 Plugins (EldenNet proposal 0001)
 
