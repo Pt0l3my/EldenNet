@@ -505,6 +505,10 @@ the player's game, and optionally opened by the map key.
   - needs: g
   - refs: G27, WHY§90, WHY§91, WHY§92, O48
   - gives: (WHY§92) the expansion's ground is placed by tile numbers as the base game's, level 2 matches level 0 (rms 0.01 m) and its resting places (7 of 9 within 0.03 m), but its land is partly other models (breaks on about 7% of tile edges), which the far view fills coarsely (a median 0.4 m off, up to 296 m at cliffs); the underground is read whole with its placement file, floors told from ceilings by their facing (5 of 6 resting places on a floor within 0.2 m), up to 34 floors deep. Which floor to show, and the expansion's assets, stay with c.
+- i Research ahead of the spike: the underground's floor rule, found on one map and checked on five more (jobs en-0039 and en-0040) [waiting]
+  - needs: h
+  - refs: G27, WHY§92, WHY§93, O48
+  - gives: whether the topmost floor no steeper than 50° (91% of the placed characters' floors in `m12_03_00_00`) holds in five more underground maps, and what the in-game relief shows where levels stack.
 
 ### S7.10 Plugins (EldenNet proposal 0001)
 

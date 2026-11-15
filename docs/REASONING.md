@@ -115,6 +115,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 90 | 2026-11-15 | The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone | FACT | #map #datapiler #graceui |
 | 91 | 2026-11-15 | The expansion, a far view and the underground in the file dictionary, and two jobs to read them | LIKELY | #map #datapiler #graceui |
 | 92 | 2026-11-15 | The expansion, the far view and the underground: what en-0037 and en-0038 show | FACT | #map #datapiler #graceui |
+| 93 | 2026-11-15 | The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1615,3 +1616,21 @@ checkout), O68, O53
   told by their facing. Each model's lower-detail triangle sets were left out this time (level 2 against level 0
   unchanged). Next, for the spike (S7.9.c): the underground's floor rule, and whether the expansion's assets are worth
   reading.
+
+### 93. The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§92, O48
+
+- In `m12_03_00_00` (en-0038) the placement file places 356 characters (enemies, players and stand-ins) and the map
+  has 6 resting places. 250 of them stand on a map piece's floor-facing surface within 1.5 m below them; the others
+  stand on structures, in water or in the air. Those floors are gentle: 95% at most 14°, the steepest 23°.
+- Rules tried on the pieces' layers under each of them, without its own height (the 3 backdrop pieces and the 13
+  low-detail ones left out): the topmost floor-facing surface picks their floor for 90%; the topmost one no steeper
+  than 40 to 60° for 91% (228 of 250; 93% without the stand-ins), and never one too low; the lowest floor for 82%. A
+  roof test adds nothing: the caves' ceilings lie in the backdrop pieces, over everything.
+- The 22 misses all stand under an upper level, 11 to 74 m above them with a ceiling between: 10 under one piece's
+  flat upper floors (48 and 58 m up), 10 stand-ins under one piece's floor 74 m up, and 2 under overhangs. A relief
+  seen from above shows the upper level there, as a map would; the browser's 3D view could show both.
+- So the rule, for now: the topmost floor-facing surface no steeper than 50°, from the map pieces alone. Jobs en-0039
+  (57 steps: `m12_05_00_00`, `m12_08_00_00`, `m12_09_00_00`) and en-0040 (40: `m12_07_00_00`, `m12_04_00_00`) read
+  five more underground maps whole, to check it there; the two largest (`m12_01`, `m12_02`) would take five more jobs.
