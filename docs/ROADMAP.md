@@ -269,9 +269,9 @@ research into the game's data that goes ahead before them (O54).
 
 - S6.2.a The owner decides O46: the bio's fields, and which NPCs v1.0 covers [waiting]
   - refs: O46, O85, DESIGN§7.8, WHY§96
-  - gives: recommended since 2026-11-15 (proposal 0004, after the owner's direction): five layers (first meeting,
-    revealed by verified stages, companion, lived per playthrough, the Tarnished's own), the base game's roster in
-    v1.0 and the expansion's in v1.1; a follower system put as O85.
+  - gives: recommended since 2026-11-15 (proposal 0004, after the owner's direction, revised after SkyrimNet 1.2.0):
+    five layers (first meeting, revealed by verified stages, companion, lived per journey, the Tarnished's own), the
+    base game's roster in v1.0 and the expansion's in v1.1; a follower system put as O85.
 
 ### S6.3 An early census
 
@@ -623,6 +623,9 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
 - e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
   - needs: a
   - refs: O60, O84, O25, G15
+- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, gated background jobs, mechanical spoiler checks, per-witness memories, evaluation with a spoiler check [planned]
+  - needs: a
+  - refs: WHY§97, WHY§98, O84, O46
 
 ## S9 The roster pipeline [planned]
 

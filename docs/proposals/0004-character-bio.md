@@ -1,6 +1,6 @@
 # Proposal 0004: The character bio, fitted to Elden Ring
 
-**Status: proposal, 2026-11-15 (roadmap S6.2). O46 and O85 open.** Where this text and the designs differ, the designs
+**Status: proposal, 2026-11-15 (roadmap S6.2), revised the same day after reading SkyrimNet 1.2.0 (§8; WHY§97, WHY§98). O46 and O85 open.** Where this text and the designs differ, the designs
 hold. A bare §n is a section of this proposal; DESIGN, NPC and MEM are EldenNet's design documents. Evidence:
 SkyrimNet's bio format (SN03 §5 and §6, confirmed on 2026-11-15 by two of SkyrimNet's own bio files the owner shared,
 kept outside the repositories; WHY§96), the persona schema (NPC §3.1) and O46's draft (DESIGN §7.8).
@@ -94,6 +94,27 @@ within 16 KB and the prompt's cached prefix within its block caps (DESIGN §8.3)
 - The roster pipeline (DESIGN §7.8) drafts each field from our own research notes, as before; the spoiler review
   checks `claims`, `seeks` and `ties` at the opening state.
 - MEM gains the lived layer's update job (S8.1.b).
+
+## 8. After SkyrimNet 1.2.0 (2026-11-15)
+
+Reading SkyrimNet 1.2.0 (WHY§97) confirmed the shape above and showed where SkyrimNet's own discipline slips. So:
+
+- **Size.** SkyrimNet's prose is a median 512 words a bio (p10 430, p90 606), not 570; §5's 450 to 550 matches it.
+- **Mechanical checks, not review alone.** About 3% of SkyrimNet's public summaries state the character's secret, and the
+  summary is the most-copied text in the system. `summary`, `appearance`, `role`, `stirs` and `ties` are checked
+  mechanically against the NPC's locked terms (the topics its research note names), then reviewed.
+- **`claims` holds the cover story and its deflections.** A liar kept from the truth needs its lie written down, and
+  how it turns a question aside, so that the lie holds without the model knowing what it hides.
+- **The revealed layer follows SkyrimNet's world-knowledge pattern:** an entry with a condition, shown always or only
+  when relevant, a shared key so that a later stage replaces an earlier one, and a span ("while the step runs" or "for
+  good"). Its condition requires both the Tarnished's verified progress and that the NPC would know it.
+- **Every background job gets the same layers as dialogue.** In SkyrimNet, memories, diaries and bio updates are
+  written with the full bio, so a secret can enter a memory and return through recall for good. EldenNet's memory job,
+  the lived layer's update and any summary job see only the layers unlocked for the journey.
+- **No bio presumes the Tarnished's deeds** (100 of SkyrimNet's bios assume the player's), and generic cards are
+  written without assuming a gender unless the kind has one.
+- **The lived layer is per journey:** a new cycle starts a new journey, and earlier journeys are read-only and never
+  injected (DESIGN §10.5).
 
 ## 7. Questions for the owner
 

@@ -185,6 +185,8 @@ A bio file is ten `{% block %}` definitions and nothing else. A 1-line fragment 
 
 Statistics over the 1,507 non-empty bios (my scan): every one fills every block. The median bio is about 570 words, with generic and unique bios about the same length.
 
+*Later (2026-11-15), WHY§97:* the 570 counts whole files, tags included. In SkyrimNet 1.2.0, whose bios are byte-identical, the prose alone is a median 512 words (p10 430, p90 606; unique 518, generic 494).
+
 | Block | Median words | Shown in modes | Audience | Content guidance (paraphrased from bios and `helpers/generate_profile`) |
 |---|---|---|---|---|
 | `summary` | 43 | full/stable, dialogue_target, **short_inline**, bio_summary | **public** | role and first impression. What a stranger would perceive |

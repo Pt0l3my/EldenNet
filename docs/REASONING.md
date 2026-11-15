@@ -119,6 +119,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 94 | 2026-11-15 | The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand | FACT | #map #datapiler #graceui |
 | 95 | 2026-11-15 | Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint | FACT | #engine #process |
 | 96 | 2026-11-15 | SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player | FACT | #engine #roster |
+| 97 | 2026-11-15 | SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts | FACT | #engine #roster |
+| 98 | 2026-11-15 | What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine | LIKELY | #engine #roster #process |
 
 ## Entries
 
@@ -1493,6 +1495,8 @@ checkout), O68, O53
 - So a SkyrimNet plugin never patches SkyrimNet: the game's script extender loads it, and it calls SkyrimNet.
   EldenNet's code plugins would take the same shape (proposal 0001 §7), with GraceUI's ABI rules and EldenNet's
   projections, re-checked against Min's blueprint when it arrives (O53).
+- Later (2026-11-15): SkyrimNet 1.2.0's header holds 51 function pointers, not 45: the count above left out the
+  named-place functions and the package probe (WHY§97).
 
 ### 88. One plugin cluster: what a shared host can tell apart, and why a library clash needs a check
 
@@ -1710,3 +1714,50 @@ checkout), O68, O53
   the shape is taken and the secrets are not ([proposal 0004](proposals/0004-character-bio.md)).
 - The owner's direction (O46's Later note): ideas from it, a structure that fits Elden Ring, and possibly followers,
   for whom parts such as skills matter (O85).
+
+### 97. SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts
+
+`2026-11-15` · FACT · `#engine #roster` · refs: SN01 to SN08, WHY§87, WHY§96, O53, O84
+
+- The owner shared SkyrimNet 1.2.0 and its dev tools, kept outside the repositories and read by two agents with Read,
+  Grep and counting scripts only; no binary was run and nothing was copied. In everything readable it is the beta30-rc2
+  behind SN01 to SN08 with a few changes, so those notes still describe it: the 1,507 bios are byte-identical, and the
+  memory, decision, diary and bio-update logic, the configuration, the headers and the record roots are unchanged; 3 of
+  137 prompt files are new and 16 changed.
+- Corrections: a bio's prose is a median 512 words (p10 430, p90 606; unique 518, generic 494), not SN03 §5.1's 570,
+  which counted the tags too; the plugin header holds 51 function pointers at API version 14, not WHY§87's 45.
+- New: a pickpocket event whose audience depends on detection; combat sides from the game's groups, a stance for each
+  person towards the speaker (enemy, ally, turned, bystander), stated as ground truth that outranks the history; a
+  notice of unseen attackers; masks while the player is hidden; outfit descriptions. Speech: PocketTTS (an MIT C++ port)
+  replaces Piper and Kokoro, with voice cloning and 27 voice packs; espeak-ng is gone.
+- SkyrimNet's own spoiler discipline slips: about 3% of public summaries state the character's secret, 100 bios assume
+  the player's deeds, and memories, diaries and bio updates are written with the full bio, so a secret can enter a
+  memory and return for good. No evaluation checks spoilers.
+- Licences: the plugin headers are MIT (Fateless.Ai); SkyrimNet itself carries no licence in either archive and is not
+  open source. EldenNet takes its logic and structure under O53 and O84, copies and ships nothing from either archive,
+  and takes libraries from their original publishers.
+
+### 98. What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine
+
+`2026-11-15` · LIKELY · `#engine #roster #process` · refs: WHY§97, O84, O46, ARCH§11, DESIGN§10.5
+
+- **The client (ARCH §11).** (1) A 400 is retried without `extra_body`, which holds the reasoning switch, so a
+  reasoning model may spend the whole budget thinking: keep the switch, retry at minimal effort, and record it about
+  the model.
+  (2) Decisions are reserved, not designed: our own format over chat completions (an enum schema, probabilities from
+  logprobs where offered, options the engine builds, a rules fallback always, a `decisions` slot). (3) No backup
+  request: start the fallback when a cloud reply's first token is late (about 2.5 s, EST), keep whichever streams
+  first, and add a quantisation floor where a provider offers one.
+- **The world.** (4) A stance towards each viewer, "turned" included, so a charmed foe or a summon is not just "not
+  hostile" (to verify in game). (5) Unseen attackers, and a concealed Tarnished who is not greeted.
+- **Plugins and the store.** (6) The code-plugin interface exposes rollback and promises ids never reused. (7) The C++
+  store avoids SkyrimNet's traps: SQLite's own statement parsing, 64-bit ids, locale-proof numbers. (8) The template
+  function reference and the lint's allowlist are generated from one registry.
+- **Spoilers and memory.** (9) Memory, diary and lived-layer jobs get the same gated layers as dialogue. (10) Public
+  fields, `stirs` and `ties` are checked mechanically against the NPC's locked terms, as well as reviewed. (11) Each
+  witness writes its own first-person memory of a scene, as schema-bound data (place, emotion, importance, tags, type),
+  with actor ids, stamped with the horizon it was written under; recall searches twice and then asks a gate.
+- **Evaluation.** (12) Adopt SkyrimNet's 1-to-5 scale and pairwise comparisons by axis, run in both orders, and add
+  what it lacks: a spoiler check, perception, voice and register, invented lore. (13) In v1, decisions only for the
+  next speaker (silence always offered) and, later, the recall gate.
+- Next: S8.1.f folds these into ARCH §11, MEM and the design; proposal 0004 takes (9) and (10) at once.
