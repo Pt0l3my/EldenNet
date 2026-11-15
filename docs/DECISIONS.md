@@ -211,6 +211,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 *2026-11-07, by O43 as updated and O45, the same day:* Our own character profiles for every named boss and every named NPC, named invaders among them, ship in v1.0 (O43), so "silent" now covers Melina, who is never bound under any option, and any boss or invader without a profile. A bound boss or invader speaks combat lines in its fights once S3 has recorded its kind (O42), and holds a conversation and keeps memories only where the game lets the Tarnished meet it calm and not hostile (O45); built-in rules (a) and (b) are unchanged, so a bar holder or an invading phantom never converses. A player's own character profile may still give a voice to anyone without one (§7.7).
 
+*2026-11-09, by O63:* Melina is no longer silent: our own character profile binds her, conversable only while the Tarnished rests at a site of grace, once she has met them.
+
 ## O20
 
 **Memories in NG+** · *2026-11-06 · The design's recommended default, accepted by the owner with O1–O24*
@@ -688,3 +690,96 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Follows from.** O25, O47, O48, O53; GraceUI G3, G15; DESIGN §2.1; ER00, ER02.
 
 **Later changes.** 2026-11-08, the same day: asked on SkyrimNet's Discord whether the blueprint engine is in C++, Min answered: "Yep! It's C++". So the language is settled: EldenNet and GraceUI's in-game parts are written in C++, and the design is re-based on C++ when the blueprint is adopted (roadmap S8.1.e). The overlay that replaces hudhook still needs the owner's approval when it is chosen, as a change to O25 and G15.
+
+## O61
+
+**Which kinds of creature and enemy may speak** · *2026-11-09 · Decided by the owner, as recommended*
+
+**Question.** DESIGN §7.1 gives generic humanoids an archetype card (barks and a one-line call-out reply) and keeps the
+voiceless kinds mute. Which of the kinds that never speak in game, and are not plainly human, may speak by the game's
+lore? **Options:** (a) **the evidence rule**: a kind may speak only if the game itself shows one of its people speaking,
+and every other kind stays mute; (b) humans and human-like peoples only; (c) anything with a mind, trolls, Misbegotten,
+giants and dragons included.
+
+**Decision.** (a). The kinds it lets speak, each a lead to check before its archetype card is written (O48): demi-humans
+(a demi-human speaks in game), living jars (a warrior jar speaks), the beastmen of Farum Azula (a beast clergyman
+speaks), man-serpents (transformed people, and their lord speaks as a serpent), albinaurics, Omens and the expansion's
+Hornsent. Each speaks in a manner its archetype card sets (crude, few words, archaic and so on), never in another
+people's voice. With no speaker shown in game, Misbegotten, trolls, giants, dragons and the Kindred of Rot stay mute, as
+do constructs, the undead, spirits and beasts. A humanoid silent by its own nature or vow stays silent. A new speaker
+found in the game's own content can move a kind across, by a dated note here.
+
+**Dragons and languages.** Asked whether dragons speak a tongue of their own, as in Skyrim: the game shows no dragon
+language and no dragon speaking (its dragon powers come by Dragon Communion, not by words), and no other spoken language
+than the one common tongue its peoples share, so dragons stay mute and EldenNet invents no language. DESIGN §1.2's
+later-version seam, "creature voices told in words", is where a dragon's roar could be described.
+
+**Owner's words.** "I like your logic, so I would go with choice "a"".
+
+**Follows from.** DESIGN §7.1 (tiers E and F), §7.5; O48; the positive grounding of spoilers (2026-11-07).
+
+**Later changes.** *2026-11-09:* named bosses follow their kind. A dragon (Placidusax and the other dragons), a giant
+(the Fire Giant) or a beast (the Elden Beast) stays mute even with a bio, as its kind shows no speaker in game; the bio
+still serves the roster and what others know of it. A silent boss of a speaking people (Radahn, for one) may speak
+combat lines through its bio, in a voice generated for it (O62).
+
+## O62
+
+**Voices from the game's own voice recordings** · *2026-11-09 · Decided by the owner*
+
+**Question.** DESIGN §1.2 listed cloning the cast's voices under Never, following ER03's advice (generic TTS voices per
+archetype, for the legal and ethical risk of cloning the original voice actors). Asked which NPCs have voice samples,
+what can serve which, and which wanted speakers have none, the options put were: (a) keep Never, with generic and
+designed voices; (b) voices cloned on the player's PC from their own install, as Skyrim mods do; (c) licensed voices.
+The recommendation was (a).
+
+**Decision.** (b), as SkyrimNet does it: EldenNet's TTS (v1.5, O8) generates speech from the game's own voice
+recordings, each character in its own voice where the game voices it (SkyrimNet keys its voices by Skyrim's voice types
+and clones them from the game's own `.fuz` files, SN00 row 34). What follows from the rules that stand:
+
+- The samples come from the player's own install, on the player's PC (the voice banks in `Game/sd`, ER03), and stay
+  there, as game text does. EldenNet never commits, ships or uploads game audio, samples or voice models.
+- `voice_key` resolves the character's own game voice first (NPC §10.8). Which game voice serves a speaker the game
+  never voices (generic humanoids, O61's kinds, silent bosses) is settled in v1.5's design, by archetype, body type and
+  age band.
+- What Min's engine blueprint brings for TTS is adopted then (O53).
+- The mod page states that the voices are AI-generated from the player's own game files, as Nexus Mods' AI disclosure
+  asks.
+
+This supersedes DESIGN §1.2's Never entry and ER03's voice-design note.
+
+**Owner's words.** "we will absolutely use the game provided voice samples and generate based on those with TTS, just like SkyrimNet does"
+
+**Follows from.** O8, O53, O61; DESIGN §1.2; ER03; SN00 row 34.
+
+**Later changes.** *2026-11-09, the owner:* "As for those without voices, we might going to need to generate voices that
+are appropriate." A speaker the game never voices (generic humanoids, O61's speaking kinds, a silent boss of a speaking
+people) gets a voice generated to fit it, designed from a description (its archetype, body type and age band, or its
+bio), rather than another character's voice. Being made from no one's recordings, such voices may ship as EldenNet's
+own if the licence of the tool that makes them allows it, checked in v1.5. *2026-11-09, the owner, on SkyrimNet's Beta30 (rc2), whose
+creature voices give skeletons and flame atronachs voices of their own, shared voices that need no voice consent:*
+"Maybe we could use some of those voices too." They may serve where they fit, under O53's permission, once Min
+confirms they are SkyrimNet's own to give and says how they were made; any shipped with EldenNet keep their notice and
+credit.
+
+## O63
+
+**Melina: mute, or a voice of her own** · *2026-11-09 · Decided by the owner, as recommended*
+
+**Question.** O19 keeps Melina silent and never bound, for reasons the design gives in NPC §1.3 and ER04 §10 item 8: she
+is reached through the grace menu and cutscenes, not as a world NPC EldenNet can walk up to and chat with, and a
+read-only v1 cannot add an option to the grace menu; she also carries some of the game's heaviest spoilers. The owner
+sees no reason for her silence. In the lore she travels with the Tarnished unseen, and the game voices her fully.
+**Options:** (a) keep her mute in v1, as now; (b) a character profile like every named NPC's, with a conversation in
+EldenNet's own overlay while the Tarnished rests at a site of grace, once she has met them, her knowledge gated by the
+stages already reached (positive grounding); (c) a full persona with a stage track, a seventh beside the six, in a later
+version. **Recommendation:** (b) for v1.0, with (c) as a later step.
+
+**Decision.** (b). Melina gets our own character profile in v1.0, like every named NPC (O43), in her own game voice
+when TTS comes (O62). She converses only in EldenNet's own overlay while the Tarnished rests at a site of grace, once
+she has met them, never elsewhere; her knowledge is gated by the stages reached (positive grounding). Her own profile is
+the only binding (a player's may not replace it). A full persona with a stage track (c) stays a later step.
+
+**Owner's words.** "for Melina, I would go with "b"".
+
+**Follows from.** O19, O43, O45, O62; NPC §1.3; ER04 §10 item 8.

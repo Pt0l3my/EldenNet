@@ -15,6 +15,10 @@ docs/showcase/index.html from tools/showcase/page.html, with its screenshots in 
                                                         Pillow), then build
   python3 -I tools/showcase/build.py --fragment FILE    also write the page for publishing on claude.ai:
                                                         no content-security line, screenshots inlined
+  python3 -I tools/showcase/build.py --share FILE       also write one file to hand to someone, opened in any
+                                                        browser: screenshots inlined, the content-security line
+                                                        kept, and no link to a private or missing page
+                                                        (the roadmap's published page is private)
 
 The source's syntax is explained in the comment at its top. A status section lists the roadmap's
 stages, read from docs/ROADMAP.md through the roadmap tool (tools/roadmap/build.py), which also
@@ -578,6 +582,18 @@ def fragment(html):
     return re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>\s*', "", html, count=1, flags=re.I)
 
 
+def share(page, stages, images=IMAGES):
+    """One file to hand to someone: the screenshots inside it as data, the content-security line kept (it allows
+    data images and nothing from outside), and no link out: the roadmap's published page is private, so the status
+    section names the roadmap without linking it."""
+    alone = {**page, "fields": {**page["fields"], "roadmap-published": "none"}}
+    html = render(render_body(alone, stages, [], images, inline_images=True))
+    links = [h for h in re.findall(r'href="([^"]*)"', html)
+             if not h.startswith(("#", "https://")) or "claude.ai" in h]
+    assert not links, f"the shared page links to a private or missing page: {links}"
+    return html
+
+
 def stale(html, page):
     try:
         return page.read_text(encoding="utf-8") != html
@@ -618,6 +634,8 @@ def main(argv=None):
     ap.add_argument("--roadmap", type=pathlib.Path, default=ROADMAP_SOURCE, help=argparse.SUPPRESS)
     ap.add_argument("--images-from", type=pathlib.Path, metavar="DIR",
                     help="first write the screenshots from the GraceUI mock shots in DIR (needs Pillow)")
+    ap.add_argument("--share", type=pathlib.Path, metavar="FILE",
+                    help="also write one self-contained file to share: screenshots inside, no outside link")
     ap.add_argument("--fragment", type=pathlib.Path, metavar="FILE",
                     help="also write the page for publishing on claude.ai: no content-security line, screenshots inlined")
     args = ap.parse_args(argv)
@@ -648,6 +666,11 @@ def main(argv=None):
         args.fragment.parent.mkdir(parents=True, exist_ok=True)
         args.fragment.write_text(frag, encoding="utf-8")
         print(f"wrote {shown(args.fragment)} ({len(frag.encode('utf-8')):,} bytes)")
+    if args.share:
+        alone = share(page, roadmap_stages(args.roadmap)[0], args.images)
+        args.share.parent.mkdir(parents=True, exist_ok=True)
+        args.share.write_text(alone, encoding="utf-8")
+        print(f"wrote {shown(args.share)} ({len(alone.encode('utf-8')):,} bytes)")
     return 0
 
 

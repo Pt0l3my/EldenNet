@@ -1,0 +1,15 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0009-one-map-test",
+  "title": "Bosses (b), a quick test first: the boss slots of the tutorial dungeon's map family (m18_*)",
+  "needs": "0.2.6",
+  "ops": [
+    {"op": "load_maps", "maps": ["m18_*"]},
+    {"op": "read_placements", "as": "placed", "maps": ["m18_*"]},
+    {"op": "filter", "as": "bosses", "rows": "placed", "slots": "boss"},
+    {"op": "count", "as": "placed_per_map", "rows": "placed", "by": ["map"]},
+    {"op": "write_share", "name": "one-map-test", "tables": ["placed_per_map", "bosses"],
+     "columns": {"placed_per_map": ["map", "count"], "bosses": ["map", "entityId", "npcParamId", "model"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

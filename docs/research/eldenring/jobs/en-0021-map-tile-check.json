@@ -1,0 +1,111 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0021-map-tile-check",
+ "title": "The map: which exported tiles belong to one image, levels 2 to 4, with labelled overviews (S78)",
+ "needs": "0.2.28",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_check2",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_check3",
+   "sheet": 0,
+   "level": 3
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_check4",
+   "sheet": 0,
+   "level": 4
+  },
+  {
+   "op": "write_share",
+   "name": "map-tile-check",
+   "tables": [
+    "t_check2",
+    "t_check3",
+    "t_check4"
+   ],
+   "columns": {
+    "t_check2": [
+     "x",
+     "y",
+     "code",
+     "folder",
+     "copies",
+     "drawn",
+     "like",
+     "near_level",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_check3": [
+     "x",
+     "y",
+     "code",
+     "folder",
+     "copies",
+     "drawn",
+     "like",
+     "near_level",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_check4": [
+     "x",
+     "y",
+     "code",
+     "folder",
+     "copies",
+     "drawn",
+     "like",
+     "near_level",
+     "near_code",
+     "near",
+     "near_base"
+    ]
+   }
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2-labels",
+   "sheet": 0,
+   "level": 2,
+   "labels": true
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2-base",
+   "sheet": 0,
+   "level": 2,
+   "variant": "base",
+   "labels": true
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l3-labels",
+   "sheet": 0,
+   "level": 3,
+   "labels": true
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l4-labels",
+   "sheet": 0,
+   "level": 4,
+   "labels": true
+  }
+ ]
+}

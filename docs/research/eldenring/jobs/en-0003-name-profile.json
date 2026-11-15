@@ -1,0 +1,14 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0003-name-profile",
+  "title": "Roster: each character name number with its rows per team and NPC type",
+  "needs": "0.2.1",
+  "ops": [
+    {"op": "fetch_rows", "as": "npc", "param": "NpcParam", "fields": ["id", "nameId", "teamType", "npcType"]},
+    {"op": "join_names", "as": "npc_named", "rows": "npc", "key": "nameId", "text": "character_names"},
+    {"op": "filter", "as": "named", "rows": "npc_named", "where": {"named": {"eq": true}}},
+    {"op": "count", "as": "name_profile", "rows": "named", "by": ["nameId", "teamType", "npcType"]},
+    {"op": "write_share", "name": "name-profile", "tables": ["name_profile"],
+     "columns": {"name_profile": ["nameId", "teamType", "npcType", "count"]}, "notes": ["vanilla_rows"]}
+  ]
+}

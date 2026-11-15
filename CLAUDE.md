@@ -106,8 +106,13 @@ index.
   the recommendation, and to the index in DESIGN.md's "Decisions for the project owner" section (§19). Record the
   answer in the entry with its date and the owner's words; a later decision amends an earlier entry by a dated note,
   never by rewriting it, and ids are never renumbered.
-- At the start of a session, read the newest handover-YYYY-MM-DD/HANDOVER.md first. docs/ROADMAP.md is the one
-  roadmap and open-items list for EldenNet and GraceUI: edit it by hand, never renumber its ids, and rebuild
+- At the start of a session, and after a switch of model, read the newest handover-YYYY-MM-DD/HANDOVER.md first, then
+  the index of the reasoning log, [docs/REASONING.md](docs/REASONING.md) (`wp show WHY§n` opens an entry).
+- Keep that log as you work, for EldenNet, GraceUI and DataPiler alike: an entry of a few lines for each finding,
+  conclusion, rejected path or workaround that DECISIONS.md and the roadmap don't hold, with its date, label (FACT,
+  LIKELY, SPECULATION, METHOD, DECIDED), tags and references, added to the index in the same commit. Append only:
+  never renumber or rewrite an entry; a later finding adds a dated Later line or a new entry.
+- docs/ROADMAP.md is the one roadmap and open-items list for EldenNet and GraceUI: edit it by hand, never renumber its ids, and rebuild
   docs/roadmap/index.html and docs/showcase/index.html (`python3 -I tools/roadmap/build.py`,
   `python3 -I tools/showcase/build.py`) in the same commit; both `--check` must pass.
 - Keep example content original: personas, archetype cards and prompts are written from our own specs.

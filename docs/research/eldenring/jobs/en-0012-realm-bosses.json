@@ -1,0 +1,15 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0012-realm-bosses",
+  "title": "Bosses (e): the characters placed in boss slots of the expansion's open world",
+  "needs": "0.2.10",
+  "ops": [
+    {"op": "load_maps", "maps": ["m61_*"]},
+    {"op": "read_placements", "as": "placed", "maps": ["m61_*"]},
+    {"op": "filter", "as": "bosses", "rows": "placed", "slots": "boss"},
+    {"op": "count", "as": "placed_per_map", "rows": "placed", "by": ["map"]},
+    {"op": "write_share", "name": "realm-bosses", "tables": ["placed_per_map", "bosses"],
+     "columns": {"placed_per_map": ["map", "count"], "bosses": ["map", "entityId", "npcParamId", "model"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

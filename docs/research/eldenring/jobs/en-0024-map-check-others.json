@@ -1,0 +1,276 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0024-map-check-others",
+ "title": "The map: every level of the underground, the expansion and sheet 11 checked, with overviews (S79)",
+ "needs": "0.2.29",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l0",
+   "sheet": 1,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l1",
+   "sheet": 1,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l2",
+   "sheet": 1,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l3",
+   "sheet": 1,
+   "level": 3
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l4",
+   "sheet": 1,
+   "level": 4
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l0",
+   "sheet": 10,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l1",
+   "sheet": 10,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l2",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m11_l0",
+   "sheet": 11,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m11_l1",
+   "sheet": 11,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m11_l2",
+   "sheet": 11,
+   "level": 2
+  },
+  {
+   "op": "write_share",
+   "name": "map-check-others",
+   "tables": [
+    "t_m01_l0",
+    "t_m01_l1",
+    "t_m01_l2",
+    "t_m01_l3",
+    "t_m01_l4",
+    "t_m10_l0",
+    "t_m10_l1",
+    "t_m10_l2",
+    "t_m11_l0",
+    "t_m11_l1",
+    "t_m11_l2"
+   ],
+   "columns": {
+    "t_m01_l0": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m01_l1": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m01_l2": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m01_l3": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m01_l4": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m10_l0": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m10_l1": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m10_l2": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m11_l0": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m11_l1": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m11_l2": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ]
+   }
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l0",
+   "sheet": 1,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l1",
+   "sheet": 1,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l2",
+   "sheet": 1,
+   "level": 2,
+   "shrink": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l3",
+   "sheet": 1,
+   "level": 3
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l4",
+   "sheet": 1,
+   "level": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l0",
+   "sheet": 10,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l1",
+   "sheet": 10,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l2",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l0",
+   "sheet": 11,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l1",
+   "sheet": 11,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l2",
+   "sheet": 11,
+   "level": 2
+  }
+ ]
+}

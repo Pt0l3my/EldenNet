@@ -1,0 +1,17 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0007-boss-slots",
+  "title": "Bosses (b): the characters placed in boss slots of the legacy dungeons, base game and expansion",
+  "needs": "0.2.3",
+  "ops": [
+    {"op": "load_maps", "maps": ["m10_*", "m11_*", "m12_*", "m13_*", "m14_*", "m15_*", "m16_*", "m18_*", "m19_*",
+                                 "m20_*", "m21_*", "m22_*", "m25_*", "m28_*"]},
+    {"op": "read_placements", "as": "placed", "maps": ["m10_*", "m11_*", "m12_*", "m13_*", "m14_*", "m15_*", "m16_*",
+                                                        "m18_*", "m19_*", "m20_*", "m21_*", "m22_*", "m25_*", "m28_*"]},
+    {"op": "filter", "as": "bosses", "rows": "placed", "slots": "boss"},
+    {"op": "count", "as": "placed_per_map", "rows": "placed", "by": ["map"]},
+    {"op": "write_share", "name": "boss-slots", "tables": ["placed_per_map", "bosses"],
+     "columns": {"placed_per_map": ["map", "count"], "bosses": ["map", "entityId", "npcParamId", "model"]},
+     "notes": ["vanilla_rows"]}
+  ]
+}

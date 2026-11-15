@@ -1,0 +1,186 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0017-map-colours",
+ "title": "The map: the areas' colour keys and the save names' colour keys, with the expansion's (DP21, DP24)",
+ "needs": "0.2.22",
+ "ops": [
+  {
+   "op": "check_fields",
+   "as": "ct_name_tex",
+   "param": "MapNameTexParam",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mapNameId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_name_tex_dlc",
+   "param": "MapNameTexParam_m61",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mapNameId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_piece_tex",
+   "param": "MapPieceTexParam",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "saveMapNameId",
+    "multiPlayAreaId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_piece_tex_dlc",
+   "param": "MapPieceTexParam_m61",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "saveMapNameId",
+    "multiPlayAreaId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_name_tex",
+   "param": "MapNameTexParam",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mapNameId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_name_tex_dlc",
+   "param": "MapNameTexParam_m61",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mapNameId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_piece_tex",
+   "param": "MapPieceTexParam",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "saveMapNameId",
+    "multiPlayAreaId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_piece_tex_dlc",
+   "param": "MapPieceTexParam_m61",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "saveMapNameId",
+    "multiPlayAreaId"
+   ]
+  },
+  {
+   "op": "write_share",
+   "name": "map-colours",
+   "tables": [
+    "ct_name_tex",
+    "ct_name_tex_dlc",
+    "ct_piece_tex",
+    "ct_piece_tex_dlc",
+    "t_name_tex",
+    "t_name_tex_dlc",
+    "t_piece_tex",
+    "t_piece_tex_dlc"
+   ],
+   "columns": {
+    "ct_name_tex": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_name_tex_dlc": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_piece_tex": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_piece_tex_dlc": [
+     "field",
+     "present",
+     "type"
+    ],
+    "t_name_tex": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "mapNameId"
+    ],
+    "t_name_tex_dlc": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "mapNameId"
+    ],
+    "t_piece_tex": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "saveMapNameId",
+     "multiPlayAreaId"
+    ],
+    "t_piece_tex_dlc": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "saveMapNameId",
+     "multiPlayAreaId"
+    ]
+   },
+   "notes": [
+    "map_coords",
+    "vanilla_rows"
+   ]
+  }
+ ]
+}

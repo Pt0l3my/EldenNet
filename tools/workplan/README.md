@@ -17,6 +17,7 @@ itself whenever an indexed file changes, so there is nothing to remember. The se
 | `DESIGN§7`, `ARCH§3`, `NPC§4`, `MEM§2` | The design documents in `docs/design/` |
 | `P1`, `J2`, `REVIEW` | The design-panel records in `docs/design/process/` |
 | `RES`, `README`, `CLAUDE`, `PSW`, `WP` | The research index, the root README, CLAUDE.md, the privsweep and wp READMEs |
+| `WHY`, `WHY§12` | The reasoning log (`docs/REASONING.md`), or one of its entries |
 
 A numbered heading gets its number (`SN00§4`). Any other heading gets a slug of its title
 (`SN00§tl-dr`, `ER03§verification-log`). The research notes also cite each other in short forms: inside

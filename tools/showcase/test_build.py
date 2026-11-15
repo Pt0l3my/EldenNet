@@ -439,6 +439,22 @@ class PageTests(unittest.TestCase):
         self.assertIn('href="../roadmap/index.html"', self.page.read_text(encoding="utf-8"))
 
 
+    def test_the_shared_file_stands_alone_and_links_nowhere(self):
+        self.source.write_text(self.source.read_text(encoding="utf-8").replace(
+            "roadmap-published: none", "roadmap-published: https://claude.ai/public/artifacts/abc"), encoding="utf-8")
+        alone = pathlib.Path(self.tmp.name) / "share.html"
+        self.assertEqual(self.run_main("--share", str(alone))[0], 0)
+        html = alone.read_text(encoding="utf-8")
+        self.assertTrue(html.lower().startswith("<!doctype html>"))
+        self.assertIn("Content-Security-Policy", html)
+        self.assertIn('src="data:image/webp;base64,', html)
+        self.assertNotIn('src="img/', html)
+        self.assertNotIn("claude.ai", html)
+        self.assertNotIn("../roadmap/", html)
+        self.assertEqual([h for h in re.findall(r'href="([^"]*)"', html) if not h.startswith("#")],
+                         ["https://example.org/a?b=1&amp;c=2"])           # the source's own public link stays
+        self.assertIn("is on EldenNet\u2019s roadmap page.", html)
+
 class LookTests(unittest.TestCase):
     """GraceUI's U7 rule on this page: every readable text 4.5:1 or better on the grounds it sits on."""
 

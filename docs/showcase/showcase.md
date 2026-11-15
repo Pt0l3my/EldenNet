@@ -47,9 +47,9 @@ slug 884a0cd5-2a74-4287-a29b-a99bc5ce0693).
 
 # EldenNet
 
-- updated: 2026-11-07
+- updated: 2026-11-15
 - lede: A mod for Elden Ring on PC, for offline play, that lets the game's characters talk with you in their own words, remember you, and know what is going on around them.
-- status: Design stage: waiting for the engine blueprint
+- status: Design stage: ready for Min's engine
 - facts: Offline, solo play · Dialogue only in version 1 · A cloud model or your own · Spoiler-safe by design · Never writes to your game
 - roadmap-published: https://claude.ai/artifact/1HQVhkTsKhgR1EdkqUijxk
 
@@ -315,14 +315,18 @@ A key goes in and is never shown again.
 - kind: status
 - nav: Status
 
-**Design stage.** Nothing is built yet. The design of version 1 and its review rounds are done, and
-so is the design of GraceUI, which is now to become a UI framework other mods can use too (a
-proposal is being written). Two things wait on the owner: Min's engine blueprint, SkyrimNet's
-game-independent core, which becomes EldenNet's foundation and comes before the build, and the
-structure of the character profile (decision O46), which comes before the roster is written.
-Meanwhile the game's own data, the numbers by which EldenNet will know each character, has been
-researched (decisions O54 to O57): it will come from the player's own game, through the modding
-tool Smithbox, read by DataPiler, a small companion tool of our own (O56).
+**Design stage.** EldenNet itself is not built yet. The design of version 1 and its review rounds
+are done, and so is the design of GraceUI, which is becoming a UI framework other mods can use too.
+Min's engine, SkyrimNet's game-independent core (its language-model layer, speech recognition,
+text to speech, prompt engine and context engine), becomes EldenNet's foundation and comes before
+the build; the structure of the character profile (decision O46) comes before the roster is
+written.
+
+Meanwhile the research tools are at work. DataPiler, a small companion tool of our own, reads the
+game's data from the player's own game through the modding tool Smithbox (decisions O54 to O57):
+the numbers by which EldenNet will know each character, and the world map. GraceUI's interactive
+map is being designed, drawn at run time from the player's own game, each map tile checked against
+the game's other zoom levels before it is used.
 
 Then the engine is adopted, the roster is written in batches, and EldenNet's versions follow, from
 v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.

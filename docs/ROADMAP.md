@@ -332,6 +332,26 @@ research into the game's data that goes ahead before them (O54).
     rows whose name numbers hold no text are left out, by the owner's agreement (2026-11-08): the game has no name to show
     for them, so most likely cut or unused characters; revisited if EldenNet meets one in game or with the map work for
     bosses. Open: bosses may take their bar names from event scripts, not NpcParam.
+- p The bosses' leads: DataPiler's jobs en-0006 to en-0012 find the bosses' rows and their likely bar names, before EldenNet checks them in game [done]
+  - needs: o
+  - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48, WHY§49, WHY§54
+  - gives: the legacy and smaller dungeons and the open world of the base game and the expansion (en-0007, en-0008,
+    en-0010 to en-0012, DataPiler 0.2.10 to 0.2.14), in `docs/research/eldenring/leads/boss-leads.json`, unverified:
+    442 characters in boss slots of 179 maps, and the 269 character names no NpcParam row uses. 240 of those names
+    are numbered 90, a model, then three digits; 98 of the 128 non-human models in the boss slots have such names,
+    each in the layer of its map's era: likely the bosses' bar names (WHY§47, WHY§54). 98 of the 101 models so named
+    are placed; three are in no boss slot. The binding of each boss to its bar name waits for EldenNet's check in game.
+- q The named characters' placements and forms: DataPiler's jobs en-0013 (every map: map, entity, model and dialogue ids of the 699 named rows) and en-0014 (each named row's team and type) [done]
+  - needs: o
+  - refs: O43, O59, O48, WHY§55
+  - gives: `docs/research/eldenring/leads/named-census.json`: 204 of the 213 names placed (422 of 699 rows, 546
+    placements), their maps, entity and talk ids, team and type numbers and boss slots; the talk id's map suffix and
+    talk-group rule; no numeric link from the flag blocks to the talk groups, which waits for the in-game check.
+- r The named characters' flag blocks, from FromSoftSaveManager (Apache-2.0) [done]
+  - needs: o
+  - refs: O43, O51, O59, WHY§55
+  - gives: `docs/research/eldenring/leads/npc-flags.json`: 55 blocks (status, questline stages, 112 progress steps)
+    and 6 endings, numbers only, unverified; bound to the roster's ids later, never by the slug.
 
 ## S7 Open items
 
@@ -424,6 +444,33 @@ questions are answered.
 - c Fold the answers into both designs [planned]
   - needs: b
   - refs: GraceUI:docs/eldennet-changes.md
+
+### S7.9 The map (GraceUI proposal 0002)
+
+The owner asked on 2026-11-14 for an interactive map of the playthrough: quest progress, NPC placements and
+trails, world changes and lore notes from memories, with tooltips and glow, over the game's own map read from
+the player's game, and optionally opened by the map key.
+
+- S7.9.a A proposal with a mock-up on an invented island, and questions for the owner [done]
+  - refs: G21, G22, G23, G24, G25, G26, G27, O51, GraceUI:docs/proposals/0002-map.md, WHY§56
+  - gives: proposal 0002 (base map, layers, two views, the map key, glow, lore notes) and the owner's mock-up.
+- b The owner answers G21 to G26 [waiting]
+  - needs: a
+  - refs: G21, G22, G23, G24, G25, G26
+- c The map spike: a route to the player's map image, its fit check, exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
+  - needs: b
+  - refs: G21, G25, G26, O47, O48
+- d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
+  - needs: c, S7.8.c
+  - refs: G24, GraceUI:docs/eldennet-changes.md
+- e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates (DataPiler 0.2.20, job en-0016; DP21 decided) [waiting]
+  - needs: a
+  - refs: O48, O59, WHY§58
+  - gives: whether the resting places, map points, place names, revealed pieces and the dungeons' conversion carry the coordinates the map needs, verified on the owner's PC.
+    Fields verified 2026-11-14 (en-0015: 91 of 91, types as defined; 422, 472, 10, 34 and 196 rows); the values come
+    with en-0016, as research material that stays out of the repositories.
+    Next: en-0017 (DataPiler 0.2.22): the areas' colour keys and the grid height limits; the map tiles and an area
+    image exported from Smithbox by the owner, for the exact fit.
 
 ## S8 Adopting the engine [planned]
 

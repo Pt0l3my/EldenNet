@@ -1,0 +1,257 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0015-map-fields",
+ "title": "The map: which coordinate fields the game's five map tables have, their types, and how many rows each holds (no values)",
+ "needs": "0.2.19",
+ "ops": [
+  {
+   "op": "check_fields",
+   "as": "fields_bonfire",
+   "param": "BonfireWarpParam",
+   "fields": [
+    "disableParam_NT",
+    "eventflagId",
+    "bonfireEntityId",
+    "bonfireSubCategorySortId",
+    "bonfireSubCategoryId",
+    "clearedEventFlagId",
+    "iconId",
+    "forbiddenIconId",
+    "dispMinZoomStep",
+    "selectMinZoomStep",
+    "dispMask00",
+    "dispMask01",
+    "dispMask02",
+    "areaNo",
+    "gridXNo",
+    "gridZNo",
+    "posX",
+    "posY",
+    "posZ",
+    "textId1",
+    "textEnableFlagId1",
+    "textDisableFlagId1",
+    "altIconId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "fields_point",
+   "param": "WorldMapPointParam",
+   "fields": [
+    "disableParam_NT",
+    "eventFlagId",
+    "distViewEventFlagId",
+    "clearedEventFlagId",
+    "iconId",
+    "altIconId",
+    "distViewIconId",
+    "isAreaIcon",
+    "bgmPlaceType",
+    "angle",
+    "areaNo",
+    "gridXNo",
+    "gridZNo",
+    "posX",
+    "posY",
+    "posZ",
+    "isOverrideDistViewMarkPos",
+    "areaNo_forDistViewMark",
+    "gridXNo_forDistViewMark",
+    "gridZNo_forDistViewMark",
+    "posX_forDistViewMark",
+    "posY_forDistViewMark",
+    "posZ_forDistViewMark",
+    "distViewId",
+    "dispMinZoomStep",
+    "selectMinZoomStep",
+    "entryFEType",
+    "dispMask00",
+    "dispMask01",
+    "dispMask02",
+    "textId1",
+    "textType1"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "fields_place",
+   "param": "WorldMapPlaceNameParam",
+   "fields": [
+    "disableParam_NT",
+    "worldMapPieceId",
+    "textId",
+    "areaNo",
+    "gridXNo",
+    "gridZNo",
+    "posX",
+    "posY",
+    "posZ"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "fields_piece",
+   "param": "WorldMapPieceParam",
+   "fields": [
+    "disableParam_NT",
+    "openEventFlagId",
+    "openTravelAreaLeft",
+    "openTravelAreaRight",
+    "openTravelAreaTop",
+    "openTravelAreaBottom",
+    "acquisitionEventFlagId",
+    "acquisitionEventScale",
+    "acquisitionEventCenterX",
+    "acquisitionEventCenterY",
+    "acquisitionEventResScale",
+    "acquisitionEventResOffsetX",
+    "acquisitionEventResOffsetY"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "fields_legacy",
+   "param": "WorldMapLegacyConvParam",
+   "fields": [
+    "disableParam_NT",
+    "srcAreaNo",
+    "srcGridXNo",
+    "srcGridZNo",
+    "srcPosX",
+    "srcPosY",
+    "srcPosZ",
+    "dstAreaNo",
+    "dstGridXNo",
+    "dstGridZNo",
+    "dstPosX",
+    "dstPosY",
+    "dstPosZ",
+    "isBasePoint"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "bonfire",
+   "param": "BonfireWarpParam",
+   "fields": [
+    "id"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "rows_bonfire",
+   "rows": "bonfire"
+  },
+  {
+   "op": "fetch_rows",
+   "as": "point",
+   "param": "WorldMapPointParam",
+   "fields": [
+    "id"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "rows_point",
+   "rows": "point"
+  },
+  {
+   "op": "fetch_rows",
+   "as": "place",
+   "param": "WorldMapPlaceNameParam",
+   "fields": [
+    "id"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "rows_place",
+   "rows": "place"
+  },
+  {
+   "op": "fetch_rows",
+   "as": "piece",
+   "param": "WorldMapPieceParam",
+   "fields": [
+    "id"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "rows_piece",
+   "rows": "piece"
+  },
+  {
+   "op": "fetch_rows",
+   "as": "legacy",
+   "param": "WorldMapLegacyConvParam",
+   "fields": [
+    "id"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "rows_legacy",
+   "rows": "legacy"
+  },
+  {
+   "op": "write_share",
+   "name": "map-fields",
+   "tables": [
+    "fields_bonfire",
+    "fields_point",
+    "fields_place",
+    "fields_piece",
+    "fields_legacy",
+    "rows_bonfire",
+    "rows_point",
+    "rows_place",
+    "rows_piece",
+    "rows_legacy"
+   ],
+   "columns": {
+    "fields_bonfire": [
+     "field",
+     "present",
+     "type"
+    ],
+    "fields_point": [
+     "field",
+     "present",
+     "type"
+    ],
+    "fields_place": [
+     "field",
+     "present",
+     "type"
+    ],
+    "fields_piece": [
+     "field",
+     "present",
+     "type"
+    ],
+    "fields_legacy": [
+     "field",
+     "present",
+     "type"
+    ],
+    "rows_bonfire": [
+     "count"
+    ],
+    "rows_point": [
+     "count"
+    ],
+    "rows_place": [
+     "count"
+    ],
+    "rows_piece": [
+     "count"
+    ],
+    "rows_legacy": [
+     "count"
+    ]
+   }
+  }
+ ]
+}

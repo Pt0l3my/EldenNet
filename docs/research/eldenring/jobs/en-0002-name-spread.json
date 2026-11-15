@@ -1,0 +1,186 @@
+{
+  "format": "datapiler-job/1",
+  "id": "en-0002-name-spread",
+  "title": "Roster: how the character names spread over rows, teams and NPC types",
+  "needs": "0.2.1",
+  "ops": [
+    {
+      "op": "fetch_rows",
+      "as": "npc",
+      "param": "NpcParam",
+      "fields": [
+        "id",
+        "nameId",
+        "teamType",
+        "npcType"
+      ]
+    },
+    {
+      "op": "join_names",
+      "as": "npc_named",
+      "rows": "npc",
+      "key": "nameId",
+      "text": "character_names"
+    },
+    {
+      "op": "filter",
+      "as": "named",
+      "rows": "npc_named",
+      "where": {
+        "named": {
+          "eq": true
+        }
+      }
+    },
+    {
+      "op": "count",
+      "as": "rows_by_team_and_type",
+      "rows": "named",
+      "by": [
+        "teamType",
+        "npcType"
+      ]
+    },
+    {
+      "op": "distinct",
+      "as": "team_names",
+      "rows": "named",
+      "by": [
+        "teamType",
+        "nameId"
+      ]
+    },
+    {
+      "op": "count",
+      "as": "names_per_team",
+      "rows": "team_names",
+      "by": [
+        "teamType"
+      ]
+    },
+    {
+      "op": "distinct",
+      "as": "type_names",
+      "rows": "named",
+      "by": [
+        "npcType",
+        "nameId"
+      ]
+    },
+    {
+      "op": "count",
+      "as": "names_per_type",
+      "rows": "type_names",
+      "by": [
+        "npcType"
+      ]
+    },
+    {
+      "op": "count",
+      "as": "rows_per_name",
+      "rows": "named",
+      "by": [
+        "nameId"
+      ]
+    },
+    {
+      "op": "count",
+      "as": "names_on_1_row",
+      "rows": "rows_per_name",
+      "where": {
+        "count": {
+          "eq": 1
+        }
+      }
+    },
+    {
+      "op": "count",
+      "as": "names_on_2_rows",
+      "rows": "rows_per_name",
+      "where": {
+        "count": {
+          "eq": 2
+        }
+      }
+    },
+    {
+      "op": "count",
+      "as": "names_on_3_to_5_rows",
+      "rows": "rows_per_name",
+      "where": {
+        "count": {
+          "ge": 3,
+          "le": 5
+        }
+      }
+    },
+    {
+      "op": "count",
+      "as": "names_on_6_to_20_rows",
+      "rows": "rows_per_name",
+      "where": {
+        "count": {
+          "ge": 6,
+          "le": 20
+        }
+      }
+    },
+    {
+      "op": "count",
+      "as": "names_on_over_20_rows",
+      "rows": "rows_per_name",
+      "where": {
+        "count": {
+          "gt": 20
+        }
+      }
+    },
+    {
+      "op": "write_share",
+      "name": "name-spread",
+      "tables": [
+        "rows_by_team_and_type",
+        "names_per_team",
+        "names_per_type",
+        "names_on_1_row",
+        "names_on_2_rows",
+        "names_on_3_to_5_rows",
+        "names_on_6_to_20_rows",
+        "names_on_over_20_rows"
+      ],
+      "columns": {
+        "rows_by_team_and_type": [
+          "teamType",
+          "npcType",
+          "count"
+        ],
+        "names_per_team": [
+          "teamType",
+          "count"
+        ],
+        "names_per_type": [
+          "npcType",
+          "count"
+        ],
+        "names_on_1_row": [
+          "count"
+        ],
+        "names_on_2_rows": [
+          "count"
+        ],
+        "names_on_3_to_5_rows": [
+          "count"
+        ],
+        "names_on_6_to_20_rows": [
+          "count"
+        ],
+        "names_on_over_20_rows": [
+          "count"
+        ]
+      },
+      "notes": [
+        "vanilla_rows"
+      ]
+    }
+  ]
+}

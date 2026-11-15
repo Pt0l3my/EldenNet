@@ -1,0 +1,45 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0022-map-tiles-level1",
+ "title": "The map: each level-1 tile's sheet, column, row and code, to tell which level-2 set it pairs with (S78)",
+ "needs": "0.2.23",
+ "ops": [
+  {
+   "op": "read_map_tiles",
+   "as": "t_tiles"
+  },
+  {
+   "op": "filter",
+   "as": "t_level1",
+   "rows": "t_tiles",
+   "where": {
+    "level": {
+     "eq": 1
+    },
+    "sheet": {
+     "in": [
+      0,
+      1,
+      10,
+      11
+     ]
+    }
+   }
+  },
+  {
+   "op": "write_share",
+   "name": "map-tiles-level1",
+   "tables": [
+    "t_level1"
+   ],
+   "columns": {
+    "t_level1": [
+     "sheet",
+     "x",
+     "y",
+     "code"
+    ]
+   }
+  }
+ ]
+}
