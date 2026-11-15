@@ -97,6 +97,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 72 | 2026-11-15 | The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle | FACT | #map #datapiler #smithbox |
 | 73 | 2026-11-15 | The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet | FACT | #map #datapiler #graceui |
 | 74 | 2026-11-15 | en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3 | FACT | #map #datapiler |
+| 75 | 2026-11-15 | en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left | FACT | #map #datapiler |
 
 ## Entries
 
@@ -1194,3 +1195,23 @@ reference level (level 2; level 2 itself against its nearest level), with `in_ma
   scale between levels as the drawing does, compared with level 2 at a fifth. Against level 1 more should pass.
 - Next: en-0030 checks again on 0.2.33. en-0029's overviews, drawn from the masks without any check, show each level
   as the game draws it.
+
+### 75. en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left
+
+`2026-11-15` · FACT (the scores, the speed), LIKELY (a scale off by about a thousandth) · `#map #datapiler` · refs:
+WHY§73, WHY§74, DataPiler S83
+
+From en-0030 (DataPiler 0.2.33, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against its
+nearest level the game draws.
+
+- **Levels 1 and 2 match everywhere.** Today's variants pass 1,982 of 1,982 and 737 of 737 on the base map, 326 of 326
+  and 55 of 55 on the underground, 502 of 502 and 98 of 98 on the expansion (medians 0.96 to 1.0); level 2's bases too.
+  The other layout's pass almost none (2% at most). So the masks' tiles and today's geometry hold at levels 1 and 2.
+- **Level 0 drifts.** Against level 1 (cells of 6 level-1 pixels) today's level-0 variants pass 54% on the base map,
+  66% on the underground and 57% on the expansion, fewer than against level 2 in en-0029 (80%, 88%, 83%). On the base
+  map the share falls from the top left: by columns from 70% (0-4) to 30-48% (25-39), by rows from 90% at the top to
+  32-47% low down; en-0029's numbers show the same fall, gentler. LIKELY: level 0 is not exactly 4/3 of level 1 about
+  the top left (a thousandth off moves the far side by some 10 level-1 pixels); the images will say.
+- **Speed.** On the owner's PC en-0030 took about a minute, where checks of this size took about half an hour before
+  0.2.33 (worker processes, Windows' own decoder).
+- Next: fit level 0 against level 1 on en-0029's overviews (each drawn from the masks), then the exact world fit.
