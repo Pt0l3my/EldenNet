@@ -113,6 +113,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 88 | 2026-11-15 | One plugin cluster: what a shared host can tell apart, and why a library clash needs a check | FACT | #plugins #design |
 | 89 | 2026-11-15 | The terrain's heights are very likely the ground models, stored at three levels of detail | LIKELY | #map #datapiler #graceui |
 | 90 | 2026-11-15 | The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone | FACT | #map #datapiler #graceui |
+| 91 | 2026-11-15 | The expansion, a far view and the underground in the file dictionary, and two jobs to read them | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1547,3 +1548,26 @@ checkout), O68, O53
 - Next, with the spike (S7.9.c): the run-time read of these models from the player's archives, a rule for the gaps,
   and the rest of the map, the expansion and the underground included, none of it read yet. The collision files stay
   unread.
+- Later (2026-11-15): the prefix takes 16 values in this square, one per tile, not three (the three above were only the
+  pieces looked at): its first digit is the tile's column in the large square (0 to 3), its second the row plus 4 (4
+  to 7).
+
+### 91. The expansion, a far view and the underground in the file dictionary, and two jobs to read them
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: G27, WHY§89, WHY§90, O48
+
+- Smithbox's file dictionary (the untrusted copy, read as text) gives the expansion's open world (area 61) the same
+  three levels as area 60: 425, 423 and 423 model binders, over 22 large squares of 1 to 58 models each.
+- Both areas also have a second set at levels 10, 11 and 12, numbered like levels 0 to 2: 53 models a level in area 60
+  (four large squares) and 58 in area 61 (one). Perhaps ground that changes with the world's state; not read yet.
+- Each area has a level 99, one map for the whole area: 86 models in area 60 and 17 in area 61, each numbered by a
+  large square after a two-digit kind (80, 81, 90, 91 and 92 occur). Perhaps the land as seen from afar: if so, a
+  coarse relief of the whole map would take a few dozen models.
+- The underground (area 12) is eight maps of 4 to 134 models, numbered without tiles, so where each piece sits is for
+  the maps' placement files to say; three maps have a second placement file, numbered 99. The model numbers start with
+  a two-digit group, and 90 occurs in each of the five largest maps, as in level 99.
+- A job takes at most 64 steps, so the reading is split in two. en-0037 (63 steps): one expansion square whole
+  (`m61_12_10_02`: 50 models, 9 resting places), one of its tiles at the finest level (`m61_48_40_00`: 5), the far-view
+  models for that square and for en-0036's (3), and five placement files. en-0038 (64): one underground map whole
+  (`m12_03_00_00`: 63 models, 6 resting places) and its placement file. Next: WHY§90's checks on the expansion, the far
+  view against level 2, and in the underground the placements and how to tell a floor from a ceiling.

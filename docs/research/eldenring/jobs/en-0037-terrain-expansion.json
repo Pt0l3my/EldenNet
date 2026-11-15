@@ -1,0 +1,260 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0037-terrain-expansion",
+ "title": "The map's terrain (G27): one expansion square at two detail levels, and the far-view models (WHY§91)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_00484000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_00484050.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_00484051.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_00484052.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_00484053.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_01484100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_01484150.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_01484151.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_01484152.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_01484153.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_02484200.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_02484250.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_02484251.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_03484300.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_03484350.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_03484351.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_03484352.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_03484353.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_10494000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_10494050.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_10494051.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_11494100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_11494150.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_12494200.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_12494250.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_13494300.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_13494350.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_13494351.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_13494352.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_13494353.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_20504000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_20504050.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_20504051.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_21504100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_21504150.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_21504151.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_22504200.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_23504300.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_23504350.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_23504351.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_30514000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_30514050.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_30514051.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_31514100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_31514150.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_31514151.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_32514200.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_32514250.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_33514300.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02_33514350.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00_484000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00_484050.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00_484051.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00_484052.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00_484053.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_00_00_99_901009.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_00_00_99_911009.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_00_00_99_901210.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_48_40_00.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_00_00_99.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_00_00_99.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_99.msb.dcx"
+  }
+ ]
+}

@@ -1,0 +1,264 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0038-terrain-underground",
+ "title": "The map's terrain (G27): one underground map's models and their placements (WHY§91)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000000.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000001.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000002.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000004.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000005.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000007.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000008.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000009.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000010.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000012.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000013.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000014.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000015.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000020.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000021.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000025.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000030.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000031.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000081.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000101.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000102.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000103.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000104.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000105.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000106.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000110.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000111.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000112.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000113.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000114.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000115.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000116.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000120.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000121.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000122.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000123.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000125.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000126.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000127.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000128.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000150.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000151.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000152.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000153.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000155.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000156.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000157.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000200.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_000201.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_900010.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_900100.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_900101.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910002.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910003.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910004.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910005.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910006.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910007.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910008.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910009.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910010.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00_910011.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m12_03_00_00.msb.dcx"
+  }
+ ]
+}

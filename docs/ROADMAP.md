@@ -501,6 +501,10 @@ the player's game, and optionally opened by the map key.
   - needs: e
   - refs: G27, WHY§89, WHY§90, O48
   - gives: yes (WHY§90): the ground models hold the heights, and the tile numbers in their names alone place them; one 1 km square's 16 tiles meet at their edges (median 0.04 m), open ground agrees with the resting places' heights (0.02 m and 1.34 m), and the 1 km level is enough for the relief (rms 0.03 m from the finest). Left for c: the run-time read, a rule for the gaps (18 to 100% ground per tile here), and the rest of the map.
+- h Research ahead of the spike: the expansion's and the underground's terrain, and a far view of the land (jobs en-0037 and en-0038) [waiting]
+  - needs: g
+  - refs: G27, WHY§90, WHY§91, O48
+  - gives: whether the expansion's ground works as the base game's (placed by tile numbers, the levels agreeing), whether the far-view models are enough for a coarse relief, and how the underground's pieces are placed and its floors told from its ceilings.
 
 ### S7.10 Plugins (EldenNet proposal 0001)
 
