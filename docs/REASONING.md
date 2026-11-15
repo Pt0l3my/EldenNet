@@ -85,6 +85,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 60 | 2026-11-15 | The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion | LIKELY | #map #datapiler #graceui |
 | 61 | 2026-11-15 | The game's map tiles: four sheets, five zoom levels, a variant per revealed piece | LIKELY | #map #datapiler #graceui |
 | 62 | 2026-11-15 | Each tile code bit is one map piece, and map units are level-0 pixels | LIKELY | #map #datapiler #graceui |
+| 63 | 2026-11-15 | A tile's pieces that never meet have a variant each, laid together | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -905,3 +906,24 @@ Numbers only.
 - **With WHY§59** a world position goes to map units (about one per metre, north up), map units to level-0 pixels,
   and a tile's variant follows the bits of the pieces the player holds. What is still loose is §59's world-to-map
   offset (hundreds of units of slack): it needs anchors from an image.
+
+### 63. A tile's pieces that never meet have a variant each, laid together
+
+`2026-11-15` · FACT (the variant sets), LIKELY (how the game draws them) · `#map #datapiler #graceui` · refs: WHY§61,
+WHY§62, G26, D90
+
+From en-0019's codes per level-0 tile position, and measurements of the owner's en-0020 overviews (numbers only; the
+images stay out of every repository).
+
+- **Variant sets.** On every sheet, a position's exported codes are exactly every subset of a few *widest* codes
+  (codes no other code of the position contains), and nothing else. On the base sheet 290 of 1,681 positions have the
+  base alone, 514 one widest code, 531 two, 315 three and 31 four; underground 191 positions have two; the expansion
+  2. Widest codes can share a bit (152 positions on the base sheet): pieces 1 and 2 meet, 2 and 4 meet, 1 and 4 not.
+- **So the game lays them together.** With every piece found there is often no single variant to show; the drawing
+  is the base with each widest variant over it. DataPiler 0.2.26 showed only the code with the most bits, so the
+  other pieces' parts of a tile stayed unexplored: these were the "joins" in the overviews. The joins themselves line
+  up (across each tile edge the colour step matches the step inside a tile, and no shift or doubled border fits
+  better), so the bottom-up layout of WHY§62 stands.
+- **For GraceUI (G26, D90).** A map drawn from the player's own tiles picks, per position and widest code, the subset
+  of the pieces the player holds, and lays those variants over the base: one texture per widest code, not one per
+  position.
