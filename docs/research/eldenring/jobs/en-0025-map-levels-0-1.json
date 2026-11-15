@@ -1,0 +1,32 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0025-map-levels-0-1",
+ "title": "The map: levels 0 and 1 of the base map laid out unchecked, and level 1's base, to find their scale (S79)",
+ "needs": "0.2.29",
+ "ops": [
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l0-all",
+   "sheet": 0,
+   "level": 0,
+   "check": false,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l1-all",
+   "sheet": 0,
+   "level": 1,
+   "check": false,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l1-base",
+   "sheet": 0,
+   "level": 1,
+   "variant": "base",
+   "shrink": 4
+  }
+ ]
+}
