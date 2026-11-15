@@ -37,6 +37,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   (Smithbox as the source our tools read, under ER08's five conditions). O56 (how far our tools go before the
   blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature). O58 put to the owner (preparing the live
   checks before the blueprint). O59 (the game's id leads go to a numbers-only research file). O60 (C++ expected, settled at the blueprint).
+- **2026-11-15.** O64 (the privacy sweep only in the owner's private repository; EldenNet's history rewritten
+  without it).
 - **Open.** O46 (the bio's structure and the v1.0 roster) and O58 (preparing the live checks before the blueprint).
 
 ## O1
@@ -783,3 +785,27 @@ the only binding (a player's may not replace it). A full persona with a stage tr
 **Owner's words.** "for Melina, I would go with "b"".
 
 **Follows from.** O19, O43, O45, O62; NPC §1.3; ER04 §10 item 8.
+
+## O64
+
+**Where the privacy sweep lives, and EldenNet's history** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** The privacy and safety sweep (`tools/privsweep`) had been committed to EldenNet, a public repository,
+since 2026-11-06, as a copy of the one in the owner's private Skyrizz repository. A public copy publishes the sweep's
+rules and `personal.txt`, the owner's personal words as single SHA-256 hashes beside their salt, which a list of names
+can test quickly. **Options.** Where it lives: (a) only in the private Skyrizz repository, installed from that checkout
+in every session; (b) a new private repository of its own; (c) unchanged. EldenNet's history: (a) rewritten without
+it, force-pushed, and the old commits purged by GitHub Support; (b) the repository made private; (c) left as it is.
+**Recommendation.** (a) and (a).
+
+**Decision.** (a) and (a). The sweep lives only in the private Skyrizz repository: EldenNet's copy is removed, its one
+allow line of its own (the toolchain's licence notices that ship with DataPiler) moved to Skyrizz's list, and the
+session-start hook installs the sweep from the Skyrizz checkout beside this one, so a session on EldenNet, GraceUI
+or DataPiler needs Skyrizz attached. EldenNet's history was rewritten without `tools/privsweep` on every branch and
+force-pushed the same day; the old commits stay reachable through the closed pull requests until GitHub Support
+purges them, which the owner asks for.
+
+**Owner's words.** "the sweep tool is only supposed to be your cloud drive no? shouldn't upload to public repo"; then
+"Only in private Skyrizz" and "Rewrite and purge".
+
+**Follows from.** The privacy rules of CLAUDE.md; Skyrizz's d414.
