@@ -98,6 +98,12 @@ index.
   or ignore when they stop (O70). No hook service for plugins at first. The launcher stays in the background as the
   crash watcher, and a full crash dump never leaves the player's PC (O71); a sandbox for plugin hosts comes later, as
   an option (O72).
+- **The EldenNet devkit** (O73, O74, 2026-11-15). One reader of the game's data of our own (a C++ library and a
+  command-line tool, published with EldenNet) serves EldenNet in the game, DataPiler on the PC (its DP35: the workbench
+  and the replay harness) and, later, plugin authors. It does nothing unless the game is running, reads only the user's
+  own install, and carries nothing of the game: no files, no text, no keys (taken from the user's own game when used,
+  never stored). In-game data for research comes from EldenNet itself, built once Min's engine arrives; DataPiler never
+  reads the game's memory.
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,

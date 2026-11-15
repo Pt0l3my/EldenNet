@@ -1993,7 +1993,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64 and O65–O72 (proposal 0001, plugins) on 2026-11-15; O46 is Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O74 (in-game data, the devkit) on 2026-11-15; O46 is Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2075,3 +2075,5 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O70](../DECISIONS.md#o70) | Where do code plugins run, and what happens when they stop? | The owner's design: one plugin cluster outside the game, each plugin linked on its own; rows with On/Off and Cluster or Detached; a pop-up with four choices; library clashes caught by the validator | Decided 2026-11-15 |
 | [O71](../DECISIONS.md#o71) | Should the launcher stay running as the crash watcher? | (a) yes, in the background while the game runs; crash dumps stay on the PC | Decided 2026-11-15 |
 | [O72](../DECISIONS.md#o72) | A sandbox for plugin hosts? | (a) later, as an option, after a spike | Decided 2026-11-15 |
+| [O73](../DECISIONS.md#o73) | Where does the research's in-game data come from? | (b) EldenNet itself, in the game, once Min's engine arrives; DataPiler imports its recordings | Decided 2026-11-15 |
+| [O74](../DECISIONS.md#o74) | One reader of the game's data of our own, as an EldenNet devkit? | (a) the devkit: only while the game runs, nothing of the game shipped | Decided 2026-11-15 |

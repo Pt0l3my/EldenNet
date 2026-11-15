@@ -475,7 +475,7 @@ the player's game, and optionally opened by the map key.
   - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
 - c The map spike: EldenNet's run-time read of the game's archives for the map's tiles and masks, the tile set's check (D93), exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
   - needs: b
-  - refs: G21, G25, G26, O47, O48, WHY§90, WHY§92
+  - refs: G21, G25, G26, O47, O48, O74, WHY§90, WHY§92
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
@@ -547,6 +547,35 @@ EldenNet may hook as well as GraceUI.
   - refs: O71, O72
   - gives: both decided 2026-11-15, as recommended: the launcher stays in the background as the crash watcher, crash
     dumps staying on the PC; a sandbox for plugin hosts later, as an option, after a spike.
+
+### S7.11 The devkit and the workbench (O73, O74; DataPiler DP35)
+
+The owner decided on 2026-11-15 that one reader of the game's data of our own, the EldenNet devkit, serves EldenNet in
+the game and DataPiler on the PC; that it does nothing unless the game is running and ships nothing of the game; that
+in-game data for research comes from EldenNet itself once Min's engine arrives; and that DataPiler becomes the
+workbench and the replay harness.
+
+- S7.11.a The owner decides where in-game data comes from (O73), the devkit (O74) and DataPiler's part (DP35) [done]
+  - refs: O73, O74, O48, O53
+  - gives: EldenNet in the game, once Min's engine arrives; the devkit, only while the game runs, shipping nothing of the game; DataPiler as the workbench and the replay harness.
+- b The devkit's design: its parts and first version, the check that the game runs, the keys taken from the user's own game, the command-line tool, licence and releases, how EldenNet and DataPiler call it [planned]
+  - needs: a
+  - refs: O74, O48
+- c The devkit's first check: the archives read while the game runs, and a file read through it matching Smithbox's copy byte for byte, on the owner's PC through DataPiler [planned]
+  - needs: b
+  - refs: O74, WHY§56
+- d The devkit's first version: archives, map models, placement files and map textures (the map's run-time read, S7.9.c), then text [planned]
+  - needs: c
+  - refs: O74, G27
+- e DataPiler reads through the devkit (its DP35, amending its DP28) and keeps a local index of the game's data [planned]
+  - needs: d
+  - refs: O74
+- f DataPiler imports EldenNet's play recordings [planned]
+  - needs: e, S10.1.a
+  - refs: O73
+- g DataPiler's replay harness: recordings replayed through EldenNet's engine outside the game, with the owner's model services [planned]
+  - needs: f, S8
+  - refs: O74
 
 ## S8 Adopting the engine [planned]
 

@@ -45,6 +45,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-15.** O70 decided as the owner designed it (code plugins in one cluster outside the game, or detached;
   the plugins-stopped pop-up; library clashes caught by the validator); O71 (the launcher stays as the crash watcher)
   and O72 (a sandbox for plugin hosts, later, as an option) put and decided the same day, as recommended.
+- **2026-11-15.** O73 (in-game data for research comes from EldenNet itself, built once Min's engine arrives) and
+  O74 (the EldenNet devkit, one reader of the game's data of our own, working only while the game runs and
+  shipping nothing of it) put and decided the same day; DataPiler's DP35 makes it the workbench and the replay
+  harness, reading the game through the devkit.
 - **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
@@ -1047,3 +1051,66 @@ sandbox becomes part of code plugins' first release, and the spike comes first.
 on Windows and under Proton; a plugin's manifest then names what it needs, for the player to allow.
 
 **Owner's words.** "Later, as an option (Recommended)".
+
+## O73
+
+**In-game data for research: EldenNet itself, once Min's engine arrives** · *2026-11-15 · Decided by the owner*
+
+**Question.** The map's spike (S7.9.c), and O48's rule that facts about the game's structures are verified in game,
+need data from the running game: where the player is, and which map pieces and resting places the game counts as
+found. Where should it come from? **Options:** (a) **DataPiler reads the running game from outside**: a read-only
+probe, only while the game runs without anti-cheat, from a closed list of values found by our own scans; (b)
+**EldenNet itself, in the game**: its game-access layer records play sessions as numbers, which DataPiler imports, and
+may later answer DataPiler's queries on the PC; built with v0.1's spikes, after Min's engine (S8, S10.1); (c) **(b)
+brought forward**: a small spike build of the launcher and a recorder before the engine.
+
+**Recommendation.** (c), for (b)'s reasons and sooner: the reads are the code EldenNet's features rely on, its offline
+and anti-cheat gates already apply, and nothing opens the game from outside.
+
+**What each answer changes.** (a): a probe in DataPiler with scans and self-tests of its own. (b): nothing now; v0.1's
+spike and recording build (S10.1.a) gains a recording DataPiler imports (its DP35). (c): that build moves before S8.
+
+**Follows from.** O48, O53; G27; WHY§94.
+
+**Decision.** (b). EldenNet in the game is built once Min's engine arrives (S8, then v0.1's spikes, S10.1). Its
+game-access layer gives the live data: play sessions recorded as numbers only, imported by DataPiler (DP35), and a
+local query later if needed. DataPiler never reads the game's memory itself.
+
+**Owner's words.** "hmm so we need something in-game, a more favourable setup would be EldenNet itself communicating
+with datapiler to get data, correct?" and "EldenNet in the game: we build this once we get Min's engine."
+
+## O74
+
+**The EldenNet devkit: one reader of the game's data of our own** · *2026-11-15 · Decided by the owner, with the
+owner's condition*
+
+**Question.** EldenNet must read the player's own game at run time (the map's tiles and terrain, then text), and the
+research reads it through Smithbox's unpacking. Should one reader of our own serve both, as an EldenNet devkit?
+**Options:** (a) **the devkit**: a C++ library and a command-line tool, published with EldenNet (MIT), reading
+everything from each user's own install and carrying nothing of the game; (b) **the same reader, private** inside
+EldenNet, published later; (c) **no**: the research keeps Smithbox, and EldenNet writes its own run-time reader when
+the map is built.
+
+**Recommendation.** (a): one reader, tested once, for EldenNet in the game, DataPiler on the PC (its DP35) and, later,
+plugin authors, beside the plugin interface's headers and its checker (O68).
+
+**What each answer changes.** (a): a new part of EldenNet, with a design and releases of its own; DataPiler reads
+through it. (b): the same code, unpublished. (c): nothing now.
+
+**Follows from.** O48, O53, O68; G27; WHY§56, WHY§89 to WHY§94.
+
+**Decision.** (a), with the owner's condition: the devkit does nothing unless the game is running, and nothing of the
+game is shipped.
+- It opens the game's files only while the game of the same install is running, and refuses otherwise. It never reads
+  or writes the game's memory: it only sees that the game runs, and reads the files on disk.
+- It carries nothing of the game: no files, no text, no keys. Archives are read with the keys taken from the user's
+  own game when used, never stored or shipped; compression goes through the game's own library, loaded from the game's
+  folder and never copied. What it reads stays on the user's PC; research shares carry numbers only, through
+  DataPiler's guard.
+- First version: what the map needs (the archives, map models, placement files, map textures), then text; the game's
+  data tables later. Its first check: that the archives can be read while the game runs (if the game locks them, the
+  condition is put to the owner again), and that a file read through it matches Smithbox's copy byte for byte.
+
+**Owner's words.** "One game-data reader of our own: could this be EldenNet devkit?" and "yes we go with devkit, but
+without game running it won't do anything, and we still don't ship game related content or files off the game. is
+that okay?"
