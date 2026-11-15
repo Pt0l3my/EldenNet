@@ -252,14 +252,17 @@ research into the game's data that goes ahead before them (O54).
 
 ### S6.1 Min's engine blueprint [waiting]
 
-- S6.1.a The owner supplies Min's engine blueprint [waiting]
+- S6.1.a The owner supplies Min's engine blueprint [done]
   - refs: O53, DESIGN§7.8
-  - gives: SkyrimNet's game-agnostic core (an LLM layer, TTS, STT, a prompt engine and a context
-    engine), EldenNet's foundation from then on.
-- b Read it, keep its licence and notice files, and recommend what EldenNet adopts [planned]
+  - gives: supplied 2026-11-15: an LLM layer, speech to text, voice detection, text to speech and a prompt engine,
+    as a closed DLL with MIT headers; no context engine or content store yet (WHY§95).
+- b Read it, keep its licence and notice files, and recommend what EldenNet adopts [done]
   - needs: a
+  - refs: WHY§95, O80, O81, O82, O83
+  - gives: supplied 2026-11-15: FatelessAiEngine 0.2.0, a closed Windows DLL with MIT headers, kept outside the repositories (WHY§95); proposal 0003 recommends what EldenNet adopts, where it runs, Min's online service and the keys, as O80 to O83.
 - c The owner decides what EldenNet adopts, with its licence and the owner's terms recorded [waiting]
   - needs: b
+  - refs: O80, O81, O82, O83
 
 ### S6.2 The bio's structure [waiting]
 

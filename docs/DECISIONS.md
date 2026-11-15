@@ -54,7 +54,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   game). O76–O79 decided the same day: the launcher runs EldenNet's engine off game (O76, not as recommended), all
   settings but a short list change off game (O77), the devkit's browser tools include viewers (O78, not as
   recommended), and the devkit ships as part of EldenNet behind Developer mode (O79).
-- **Open.** O46 (the bio's structure and the v1.0 roster).
+- **2026-11-15.** The owner supplied Min's engine (WHY§95); O80–O83 (what EldenNet adopts from it, where it runs, Min's
+  online service, and how API keys reach it) put with proposal 0003.
+- **Open.** O46 (the bio's structure and the v1.0 roster); O80–O83 (proposal 0003).
 
 ## O1
 
@@ -619,6 +621,12 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Supersedes.** The earlier rule that SkyrimNet gives ideas, architecture and published numbers only (SN00 §7, and CLAUDE.md until this decision on 2026-11-07), and O52's sandbox-only exception.
 
 **Waiting.** The blueprint itself; then the owner's decision on what EldenNet adopts, which O45's roster and O46's bio wait for.
+
+*Later (2026-11-15):* the owner supplied Min's engine: FatelessAiEngine 0.2.0, a closed Windows DLL under a binary
+licence, with MIT headers (WHY§95). EldenNet may ship it unmodified inside its releases and builds on its interface;
+it may not change it, so "read, build, run and modify" does not reach the engine itself. What Min gives in a form we
+may adapt (prompts, templates, configuration, the dashboard) follows this decision as written, each under its own
+licence. What EldenNet adopts is put as O80 to O83 ([proposal 0003](proposals/0003-adopting-the-engine.md)).
 
 ## O54
 
@@ -1242,3 +1250,73 @@ builds of the devkit.
 
 **Owner's words.** "Same as EldenNet, and shipped as part of it, in EldenNet, the user can toggle Developer mode to use
 its features."
+
+## O80
+
+**What does EldenNet adopt from Min's engine?** · *2026-11-15 · Open*
+
+**Question.** The engine arrived as a closed DLL (WHY§95). **Options:** (a) **everything it offers that EldenNet
+planned to build**: LLM requests and decisions, prompt templates, speech to text, voice detection, text to speech and
+model downloads, behind EldenNet's own seams; (b) language models and templates first, speech later; (c) nothing yet:
+wait for the content store.
+
+**Recommendation.** (a): it replaces EldenNet's planned LLM client, template engine and speech seams with SkyrimNet's
+own behaviour, and EldenNet keeps its context engine, memories, pacing, budgets and deadlines.
+
+**What each answer changes.** (a): ARCH §11 is rewritten around the engine, and DESIGN §13's voice seams name its
+backends (S8). (b): the speech seams stay EldenNet's until a later decision. (c): S8 waits.
+
+**Follows from.** O53, O60; [proposal 0003](proposals/0003-adopting-the-engine.md) §2.
+
+## O81
+
+**Where does the engine run?** · *2026-11-15 · Open*
+
+**Question.** The engine blocks for seconds when its services are created or released, calls back on its own threads,
+and loads libraries under their upstream names, which another mod's copies could replace inside the game.
+**Options:** (a) **in EldenNet's launcher**, out of the game's process, EldenNet's DLL asking it over a local channel;
+(b) inside the game's process, as the SDK is designed for.
+
+**Recommendation.** (a): a library's fault cannot take the game down, nothing clashes with other mods, blocking calls
+are harmless, and the launcher already runs off game (O70, O71, O76); one local hop per request is small beside a
+model's answer.
+
+**What each answer changes.** (a): the launcher becomes EldenNet's AI host, and a local channel joins the DLL to it.
+(b): the engine's threads and libraries live in the game's process, with the clash and crash risks in WHY§95.
+
+**Follows from.** O70, O71, O76; [proposal 0003](proposals/0003-adopting-the-engine.md) §3.
+
+## O82
+
+**Min's online service, fateless.ai?** · *2026-11-15 · Open*
+
+**Question.** The engine can sign the player in to fateless.ai, for Fateless's models and cloud speech, paid for by the
+player. **Options:** (a) **an opt-in provider, off by default**, basic scope only; (b) not in v1; (c) offered by
+default. Whatever the answer, EldenNet never creates the engine's telemetry service, and never sends a game file's
+voice to be cloned (O74, O75).
+
+**Recommendation.** (a): players who want Min's service can choose it, as they choose any provider; nothing reaches it
+unless they do.
+
+**What each answer changes.** (a): a provider row in the settings and a sign-in through the engine's device flow. (b)
+and (c): none, or that row on by default.
+
+**Follows from.** O74, O75; [proposal 0003](proposals/0003-adopting-the-engine.md) §4.
+
+## O83
+
+**How do API keys reach the engine?** · *2026-11-15 · Open*
+
+**Question.** EldenNet keeps keys in `secrets.toml` (DESIGN §11.4); the engine takes them only from a plain-text
+provider file it rewrites at each load. **Options:** (a) **EldenNet writes the engine's provider file from
+`secrets.toml`** at each start, in a folder only the player's Windows account can read, never logged or shown, while
+the owner asks Min for keys in memory; (b) keyless routes only (local servers, and Fateless if O82 allows it) until
+Min adds that.
+
+**Recommendation.** (a): the file sits beside `secrets.toml` with the same protection, so nothing is weaker than
+today's design, and players keep every provider.
+
+**What each answer changes.** (a): a second file with keys in the player's folder, written by EldenNet. (b): only keyless
+providers until then.
+
+**Follows from.** DESIGN §11.4; [proposal 0003](proposals/0003-adopting-the-engine.md) §5.

@@ -15,7 +15,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
   in a tool's output), **LIKELY** (strong inference, not yet checked), **SPECULATION** (a guess worth recording),
   **METHOD** (how something is done, and why), **DECIDED** (a pointer to the decision that settled it).
 - **Tags:** `#roster` (the game's characters and their ids), `#datapiler`, `#smithbox`, `#text` (the game's text and
-  its exports), `#maps`, `#voice`, `#lore`, `#graceui`, `#release` (GitHub releases and this session's limits), `#process`.
+  its exports), `#maps`, `#voice`, `#lore`, `#graceui`, `#engine` (Min's engine and what EldenNet takes from it), `#release` (GitHub releases and this session's limits), `#process`.
 - The privacy rules bind it as every file: nothing personal, no paths from the owner's PC, no game text beyond
   names the design already uses. No model identifiers.
 
@@ -117,6 +117,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 92 | 2026-11-15 | The expansion, the far view and the underground: what en-0037 and en-0038 show | FACT | #map #datapiler #graceui |
 | 93 | 2026-11-15 | The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters | FACT | #map #datapiler #graceui |
 | 94 | 2026-11-15 | The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand | FACT | #map #datapiler #graceui |
+| 95 | 2026-11-15 | Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint | FACT | #engine #process |
 
 ## Entries
 
@@ -1667,3 +1668,29 @@ checkout), O68, O53
   matter here (99.1% reached).
 - At run time EldenNet needs, for each underground map: its pieces, its placement file (for the placements and the
   seeds) and the resting places' positions, all read from the player's install.
+
+### 95. Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint
+
+`2026-11-15` · FACT · `#engine #process` · refs: O53, O60, O74, O75, S6.1
+
+- On 2026-11-15 the owner supplied the engine Min released to early adopters: FatelessAiEngine 0.2.0. One Windows x64
+  DLL (47 MB) and 22 libraries it loads (ggml for the CPU, Vulkan and CUDA; whisper; parakeet; ONNX Runtime; FFmpeg),
+  MIT headers for a COM-style interface, a host guide and a binary licence: about 304 MB, about 135 MB without the CUDA
+  library, models downloaded on request. It is kept outside the repositories and never committed.
+- The licence: use the DLL and ship it unmodified inside one's own product, with its licence and notices; no
+  modifying, reverse engineering or shipping it on its own; the names not used to promote a product; its online
+  services not granted. The headers are MIT. The FFmpeg libraries are LGPL: separate, replaceable files, their source
+  shipped or offered. So O53's "read, build, run and modify" does not reach the engine itself: EldenNet builds on its
+  interface.
+- It gives: LLM requests with variants, failover, streaming, structured output and typed decisions (four at once by
+  default); prompt templates in Inja with SkyrimNet's additions, the host pushing every template and answering its
+  functions; speech to text (local whisper), voice detection, text to speech (a local model, or Min's cloud); model
+  downloads on request; a sign-in to Min's service; telemetry; tracing.
+- It does not give: a context engine, memories, event history, a content store, pacing, budgets, per-request
+  deadlines, audio playback, game access or a UI. Min says the content store comes next.
+- How it behaves: one engine a process; events arrive on its worker threads; creating, reloading and releasing its
+  services blocks for seconds, so a host calls it only from workers of its own. The host chooses every folder; a log
+  is always written. It contacts Min's service only if the host creates the sign-in or telemetry services (telemetry
+  sends nothing before consent); otherwise only the LLM providers configured, OpenRouter being the default endpoint of
+  a slot that names no provider. Keys come only from a plain-text file the engine rewrites at each load.
+- Next: proposal 0003 (S6.1.b), with O80 to O83 for the owner.

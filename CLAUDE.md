@@ -49,6 +49,9 @@ lines; there are no NPC actions beyond dialogue.
   keep every licence and notice file that comes with what we take, and never present EldenNet as SkyrimNet itself
   or claim more endorsement than Min has given. Once the owner supplies the blueprint it is our foundation: we
   read, build, run and modify it. The older copies under `_untrusted` stay read-only reference.
+  *Since 2026-11-15:* Min's engine arrived as a closed Windows DLL (FatelessAiEngine, binary licence; MIT headers;
+  WHY§95). Ship it only unmodified inside EldenNet's releases, with its licence and notices; never modify, reverse
+  engineer or commit it, and never use its names to promote EldenNet. What EldenNet adopts is O80–O83 (proposal 0003).
   ([docs/research/skyrimnet/00-summary.md](docs/research/skyrimnet/00-summary.md) §7 records the earlier
   ideas-only boundary.)
 - FromSoftware: never commit game files, text (FMG), params or audio. Game text is read at runtime from the
