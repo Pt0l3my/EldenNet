@@ -1,0 +1,158 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0026-map-level1-and-expansion",
+ "title": "The map: levels 0 and 1 re-checked with level 1 lifted and the old set's place; the expansion's images (S80)",
+ "needs": "0.2.30",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l0",
+   "sheet": 0,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l1",
+   "sheet": 0,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l0",
+   "sheet": 1,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l1",
+   "sheet": 1,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l0",
+   "sheet": 10,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l1",
+   "sheet": 10,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l2",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "write_share",
+   "name": "map-check-moved",
+   "tables": [
+    "t_m00_l0",
+    "t_m00_l1",
+    "t_m01_l0",
+    "t_m01_l1",
+    "t_m10_l0",
+    "t_m10_l1",
+    "t_m10_l2"
+   ],
+   "columns": {
+    "t_m00_l0": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m00_l1": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m01_l0": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m01_l1": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m10_l0": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m10_l1": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ],
+    "t_m10_l2": [
+     "x",
+     "y",
+     "code",
+     "near_code",
+     "near",
+     "near_base",
+     "moved"
+    ]
+   }
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l1-checked",
+   "sheet": 0,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l0-all",
+   "sheet": 10,
+   "level": 0,
+   "check": false,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l1-all",
+   "sheet": 10,
+   "level": 1,
+   "check": false,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l2-all",
+   "sheet": 10,
+   "level": 2,
+   "check": false
+  }
+ ]
+}

@@ -92,6 +92,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 67 | 2026-11-15 | The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete | FACT | #map #datapiler #graceui |
 | 68 | 2026-11-15 | Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter | FACT | #map #datapiler #graceui |
 | 69 | 2026-11-15 | Every base-map level checked: level 0 is mixed like level 2, level 1 hardly passes | FACT | #map #datapiler #graceui |
+| 70 | 2026-11-15 | Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1061,3 +1062,26 @@ against level 4), at LEVEL_SCALES from the bottom left.
 - **Level 1 hardly passes.** 38 of 3,698 (1%), at 32 of 806 places, with failing scores near 0 both ways. Either
   level 1's scale or anchor is not three quarters from the bottom left, or it is all of the other drawing.
 - Next: en-0025 lays levels 0 and 1 out unchecked, and level 1's base, to fit their scale against level 3 by image.
+
+### 70. Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off
+
+`2026-11-15` · FACT (the offsets), LIKELY (what the old set is) · `#map #datapiler #graceui` · refs: WHY§64, WHY§67,
+WHY§69, DataPiler S80
+
+From the owner's en-0025 images (levels 0 and 1 laid out without the check, shrunk four times), each tile located on
+its own in the level-3 image by normalised cross-correlation (numbers only; the images stay out of every
+repository), and en-0024's check of the other sheets.
+
+- **Two sets at level 0, one scale.** Of level 0's tiles that match level 3 well (0.6 or more), 97 sit where their
+  names put them and 326 sit exactly 128 level-3 pixels further right: 1,024 map units, four level-0 tiles, with no
+  vertical offset. Level 1 shows the same two groups (three level-1 tiles apart). So the container holds a second set
+  of tiles at the same scale whose columns are numbered four apart: an older layout of the same map, LIKELY left
+  behind by a patch. Level 2's odd set is not this shift (WHY§67), and stays left out.
+- **Level 1 sits at the top.** At three quarters of level 0 its tiles match about 12 level-3 pixels lower than a
+  bottom anchor puts them, the same in every row (11 to 13): the 64-pixel gap its 31-tile grid leaves over the map
+  (10.7 level-3 pixels) is at the bottom. Assuming the bottom is why level 1 passed 1% in en-0023; the underground's
+  level 1 (7% in en-0024) has the same grids.
+- **The other sheets (en-0024).** The underground: levels 3 and 4 pass 95% and 96%, level 2 67% and level 0 63%.
+  The expansion passes almost nothing at any level, so its scales or anchors differ from LEVEL_SCALES; sheet 11 has
+  base tiles only. en-0026 re-checks levels 0 and 1 with level 1 lifted and the old set's place measured, and lays
+  out the expansion's levels to fit its geometry.
