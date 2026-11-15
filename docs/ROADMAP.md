@@ -524,6 +524,15 @@ EldenNet may hook as well as GraceUI.
   - refs: G28, O67, GraceUI:DESIGN§7.2
   - gives: G28 decided 2026-11-15, as recommended: one narrow route on the loopback listener for a space's sensitive file
     commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18).
+- e Validators and safeguards by kind, and where code plugins run: proposal 0001 §13, with O70 decided as the owner designed it [done]
+  - needs: c
+  - refs: O70, O71, O72, docs/proposals/0001-plugins.md, WHY§88
+  - gives: validators before anything installs, the library-clash check against every installed plugin, the plugin
+    cluster outside the game with Detached rows, the plugins-stopped pop-up with four choices, folded into both designs
+    (GraceUI D104, D105).
+- f The owner answers O71 (the launcher as the crash watcher) and O72 (a sandbox for plugin hosts) [waiting]
+  - needs: e
+  - refs: O71, O72
 
 ## S8 Adopting the engine [planned]
 
@@ -891,6 +900,6 @@ v0.1's testing uses, draw through it.
 - c The typing freeze after spike S5, and the save redirect hook [idea]
   - refs: O9, O6
 - d Native talk, native line ids and hook sources: spikes S9 and S10, H1 to H3, the hooks with EldenNet's own library (O65) [idea]
-- e Code plugins through EldenNet's published interface, a preview first, and a hook service for them only if one is needed [idea]
-  - refs: O68, O69, docs/proposals/0001-plugins.md
+- e Code plugins through EldenNet's published interface, a preview first, in the plugin cluster outside the game or detached, and a hook service for them only if one is needed [idea]
+  - refs: O68, O69, O70, docs/proposals/0001-plugins.md
   - refs: DESIGN§16.1

@@ -110,6 +110,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 85 | 2026-11-15 | Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay | METHOD | #graceui #design |
 | 86 | 2026-11-15 | One owner per hooked function: what the evidence on hook libraries rules out, and what it does not | FACT | #hooks #graceui #design |
 | 87 | 2026-11-15 | SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet | FACT | #plugins #skyrimnet #design |
+| 88 | 2026-11-15 | One plugin cluster: what a shared host can tell apart, and why a library clash needs a check | FACT | #plugins #design |
 
 ## Entries
 
@@ -1484,3 +1485,18 @@ checkout), O68, O53
 - So a SkyrimNet plugin never patches SkyrimNet: the game's script extender loads it, and it calls SkyrimNet.
   EldenNet's code plugins would take the same shape (proposal 0001 §7), with GraceUI's ABI rules and EldenNet's
   projections, re-checked against Min's blueprint when it arrives (O53).
+
+### 88. One plugin cluster: what a shared host can tell apart, and why a library clash needs a check
+
+`2026-11-15` · FACT · `#plugins #design` · refs: O70, proposal 0001 §13.2, §13.3
+
+- **Libraries.** Microsoft's account of the DLL search order: when a DLL is found by name and a module of that name is
+  already loaded, Windows uses the loaded one, whichever folder it came from (redirection and manifests aside). So two
+  plugins in one process that ship different versions of one library cannot both have theirs: the reason for the
+  validator's clash check, and for Detached as its way out.
+- **Attribution.** In one host the plugins share memory: a crash in a plugin's own code on its own thread names that
+  plugin, but one plugin can damage memory another then trips over, so a crash elsewhere can only be "most likely".
+  A process per plugin would make every attribution certain; the owner chose one cluster with a per-plugin Detached
+  row instead, which gives certainty where it is wanted.
+- **Limits.** Windows' job limits apply to a process as a whole, so in a cluster memory cannot be capped per plugin;
+  each plugin's processor time can still be measured per thread.

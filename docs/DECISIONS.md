@@ -42,7 +42,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-15.** O65–O69 put to the owner with proposal 0001 (plugins) and decided the same day, all as
   recommended: EldenNet's own hook library for functions GraceUI does not hook; content plugins in 1.1; both install
   routes; code plugins through a published interface after v1.0; no hook service for plugins at first.
-- **Open.** O46 (the bio's structure and the v1.0 roster).
+- **2026-11-15.** O70 decided as the owner designed it (code plugins in one cluster outside the game, or detached;
+  the plugins-stopped pop-up; library clashes caught by the validator); O71 and O72 put to the owner.
+- **Open.** O46 (the bio's structure and the v1.0 roster); O71 (the launcher as the crash watcher); O72 (a sandbox for
+  plugin hosts).
 
 ## O1
 
@@ -934,6 +937,9 @@ interface is re-checked against Min's blueprint when it arrives.
 
 **Follows from.** The owner's question of 2026-11-15; [proposal 0001](proposals/0001-plugins.md) §7, §12.
 
+**Later changes.** 2026-11-15: O70 moves code plugins out of the game: they run in the plugin cluster by default, or
+detached in a host of their own; only plugins that must draw in game or patch the game run inside it.
+
 ## O69
 
 **Hooks for code plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
@@ -956,3 +962,76 @@ needed.
 **Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
 
 **Follows from.** O65, O68; [proposal 0001](proposals/0001-plugins.md) §8, §12.
+
+## O70
+
+**Where code plugins run, and what happens when they stop** · *2026-11-15 · Decided by the owner, as the owner designed
+it*
+
+**Question.** Inside the game process (O68), a code plugin cannot be stopped without stopping the game: a crash in a
+plugin's own code ends the game. The owner asked for validators and safeguards by kind, and then designed the answer
+([proposal 0001](proposals/0001-plugins.md) §13).
+
+**Decision.** One plugin cluster outside the game: one plugin host process, started by EldenNet once it has reached
+Ready, runs every code plugin whose row says Cluster. EldenNet keeps a separate link per plugin, so it knows which one
+made each call and which one failed, and if the cluster crashes, the game and EldenNet stay alive. On the Plugins page,
+a row per plugin with an On/Off switch and, for a code plugin, Cluster or Detached (a host of its own). When plugins
+stop, a pop-up names the plugin, its title in another colour, with whatever else needs reporting, the X at the top
+right, and four choices: Restart plugins; Restart plugins without the plugin; Restart plugins with the plugin detached;
+Ignore (no plugins). The validator checks every plugin before it installs, and catches library clashes against every
+installed plugin, on or off. Plugins that must draw in game or patch the game stay a separate, trusted tier inside it.
+
+**Owner's words.** "would it be possible to design and add another layer for plugins, and run them as one cluster in
+one process. EldenNet would still have link for each plugin and recognise them as separate plugins, and if one acts up
+or crashes, EldenNet would know exactly which one done it. Then in this case the whole cluster would likely crash but
+Elden Ring game and EldenNet would stay alive"; then "make this a pop up UI, stating plugin layer crashes due to plugin
+<title>. and whatever else needs reporting there, then offer a choice to user to close down the pop up window (an usual
+X button at the top right corner), text buttons: "Restart plugins", "Restart plugins without <crashed plugin title in
+different text color>", "Restart plugins with <crashed plugin title in different text color> detached", "Ignore (no
+plugins)""; "a list of plugins in rows, each row would have toggle switch: on/off, cluster (part of cluster), detached
+(its own process)"; and "if a plugin such as that is already installed (even if the plugin is currently switched off)
+the validator would catch incompatibilities" (2026-11-15).
+
+**Amends.** O68's loading: code plugins run outside the game by default.
+
+**Follows from.** O68; [proposal 0001](proposals/0001-plugins.md) §13.
+
+## O71
+
+**The launcher as the crash watcher** · *Open since 2026-11-15*
+
+**Question.** When the game itself crashes, everything inside it stops, the dashboard's server included, so only
+something outside the game can record what happened. **Options:** (a) **the launcher stays in the background while the
+game runs** and records any crash of the game (the module, the kind of error, the last log lines and events, the
+plugins and mods loaded), and the next start explains it; players who use their own loader get the watcher started by
+EldenNet; (b) **the launcher stays short-lived**, and fault finding after a crash has only EldenNet's own log; (c) **a
+watcher program of its own**, separate from the launcher.
+
+**Recommendation.** (a). Nothing inside the game survives its crash, and the launcher already holds the game's handle.
+A full crash dump, if written, stays on the PC, since it can hold the player's keys and chats; the report a player
+shares is a scrubbed summary. *What (a) gives up:* one small process for the length of a session, and the design's
+"short-lived" launcher.
+
+**What each answer changes.** (a): DESIGN §18's process model and ARCH §1.1 and §4; the watcher's checks join S0-D.
+(b): proposal 0001 §13.7 falls away, and the plugins-stopped pop-up covers only plugin hosts. (c): as (a), with one more
+program to ship and sign.
+
+**Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.7.
+
+## O72
+
+**A sandbox for plugin hosts** · *Open since 2026-11-15*
+
+**Question.** Each plugin host could run with reduced rights, the kind of sandbox web browsers use, so that even a
+hostile plugin could not read the player's files, reach the network or touch the game's memory unless its manifest asks
+and the player allows it. **Options:** (a) **later, as an option**: after code plugins ship, a spike checks it on
+Windows and under Proton; (b) **never**; (c) **from the start of code plugins**.
+
+**Recommendation.** (a). It is the strongest protection, but it limits what honest plugins can do and may not work on
+the Steam Deck, so it is better added once real plugins exist. *What (a) gives up:* until then, a hostile plugin can do
+what any program the player runs can.
+
+**What each answer changes.** (a): a spike after code plugins ship, and a field in the manifest. (b): nothing. (c): the
+sandbox becomes part of code plugins' first release, and the spike comes first.
+
+**Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.8.

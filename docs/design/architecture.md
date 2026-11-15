@@ -543,9 +543,13 @@ Before the game starts, after the pre-flight checks (§4.3), the launcher looks 
 - each new folder holding a `plugin.toml`, and each `.zip` holding one such folder, is checked by [proposal
   0001](../proposals/0001-plugins.md) §6.3's archive rules and §5.2's manifest; an archive is unpacked into
   `plugins/<id>/` and then removed; a folder whose files no longer match its manifest is turned off with the reason;
+- nothing installs until its validator passes ([proposal 0001](../proposals/0001-plugins.md) §13.1): it is checked in
+  `plugins/pending/` and moved into place whole, or not at all, and a library clash with any installed code plugin, on
+  or off, is named on both rows with Detached offered as the way out (§13.2);
 - a new content plugin is turned on at the end of the player's order; a new or changed code plugin (after v1.0,
-  O68) stays off until the player turns it on, with its name, version, author and SHA-256 shown, and the answer is
-  kept until the DLL's hash changes;
+  O68) stays off until the player turns it on, with its name, version, author, SHA-256 and what it can reach shown,
+  and the answer is kept until the DLL's hash changes; once it is on, a trial run in a throwaway plugin host, outside
+  the game, must pass before the game starts with it (O70);
 - plugins removed on the dashboard are deleted now; if `plugins/` is not writable, the launcher says so in E06's
   manner and changes nothing;
 - **Start without plugins** starts the game with every plugin off, for support.

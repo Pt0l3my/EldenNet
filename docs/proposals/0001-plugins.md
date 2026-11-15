@@ -1,12 +1,13 @@
 # Proposal 0001: Plugins for EldenNet
 
-**Status: proposal, 2026-11-15 (roadmap S7.10.a). Answered by the owner the same day, "all five as recommended", and
-folded into EldenNet's and GraceUI's designs (S7.10.c); the dashboard's upload route decided as GraceUI's G28 (a),
-a narrow route on the loopback listener (GraceUI §7.2 item 18).** Where this text and the designs differ, the designs hold. Each answer's effect is stated with its question (§12).
-What it settles itself is listed in §10, each row open to the owner. Evidence: SkyrimNet's published plugin headers
-(MIT; WHY§87), ER02 §7.1 on hook libraries (WHY§86), ARCH §11.6 on content layers, and GraceUI's DESIGN §2.9 and §7. A
-bare §n is a section of this proposal; DESIGN, ARCH and NPC are EldenNet's design documents, and "GraceUI §n" and G- and
-D-numbers are GraceUI's.
+**Status: proposal, 2026-11-15 (roadmap S7.10.a). O65 to O69 answered by the owner the same day, "all five as
+recommended", and folded into EldenNet's and GraceUI's designs (S7.10.c); the dashboard's upload route decided as
+GraceUI's G28 (a), a narrow route on the loopback listener (GraceUI §7.2 item 18). §13 added the same day, with O70
+decided as the owner designed it, and O71 and O72 Open.** Where this text and the designs differ, the designs hold. Each
+answer's effect is stated with its question (§12). What it settles itself is listed in §10, each row open to the owner.
+Evidence: SkyrimNet's published plugin headers (MIT; WHY§87), ER02 §7.1 on hook libraries (WHY§86), ARCH §11.6 on
+content layers, and GraceUI's DESIGN §2.9 and §7. A bare §n is a section of this proposal; DESIGN, ARCH and NPC are
+EldenNet's design documents, and "GraceUI §n" and G- and D-numbers are GraceUI's.
 
 ## 1. What the owner asked
 
@@ -223,7 +224,9 @@ says of its own consumers).
 ### 7.3 Loading
 
 - **By EldenNet**: enabled code plugins in `plugins\` are loaded by EldenNet itself, by full path with the DLL-folder
-  and System32 search flags, once EldenNet has reached Ready after its gate and safety steps. So a plugin inherits
+  and System32 search flags, once EldenNet has reached Ready after its gate and safety steps. *Since O70 (§13.3):*
+  they run outside the game, in the plugin cluster or detached in a host of their own, which EldenNet starts at that
+  point; only a plugin that must draw in game or patch the game is loaded inside it. So a plugin inherits
   EldenNet's fail-closed rules: nothing is loaded on an unknown build, beside anti-cheat or at L1, and plugins hear
   "dormant" when multiplayer starts.
 - **Turned on once by the player**: the launcher shows a new or changed DLL with its name, version, author and SHA-256
@@ -277,6 +280,8 @@ Each would join DESIGN §18 when the answers are folded in.
 | Archive rules | §6.3 | O67 |
 | Code through the browser | Never | — |
 | Plugin model calls | Within EldenNet's pacing, budget and gates, shown on AI › Requests | O68 (a) |
+| Validators | Nothing installs until its validator passes; checked in `plugins\pending\` and moved into place whole; content dry-run against the fixture states; code checked statically, by the library-clash check and by a trial run (§13.1, §13.2) | — |
+| Safeguards | A breaker per content plugin; budgets and a watchdog per code plugin; quarantine after two stops (§13.5) | O70 |
 
 ## 11. Risks
 
@@ -285,7 +290,8 @@ Each would join DESIGN §18 when the answers are folded in.
 | A plugin's content spoils the story | §5.4's checks; EldenNet's output checks on every line; one switch to turn the plugin off |
 | Two plugins hold the same file | The order decides, and the page names the conflict |
 | A crafted archive | §6.3; nothing in it runs while it is checked |
-| A code plugin crashes the game or harms the PC | Code only through the folder, turned on by the player once with its hash shown; Start without plugins; documented as native code with full rights |
+| A code plugin crashes the game or harms the PC | Code plugins run outside the game, in the cluster or detached (§13.3), so a crash stops only plugins and the pop-up lets the player choose (§13.6); code only through the folder, turned on by the player once with its hash shown; validators and a trial run first (§13.1); Start without plugins; documented as native code with full rights |
+| Two plugins clash over a library | The library-clash check, against every installed plugin, on or off; Detached as the way out (§13.2) |
 | A plugin's model calls cost the player money | The request budget, pacing and gates apply; each call is shown with the plugin's name |
 | Support burden of a public interface | A preview first, a stated support window per major (GraceUI D74), versions checked at `connect` |
 | Scope against "minimal and stable" | Nothing in v1.0; content plugins first, in 1.1; code plugins later |
@@ -358,3 +364,182 @@ Each would join DESIGN §18 when the answers are folded in.
   real plugins ask for it. *What (a) gives up:* until then, two plugins could patch one function and break each other.
 - **What each answer changes.** (a): the guide's rule and EldenNet's published list. (b): EldenNet's interface gains
   hook calls, after code plugins have shipped. (c): the guide forbids patching for EldenNet plugins.
+
+## 13. Validators, safeguards and the plugin cluster (added 2026-11-15)
+
+After O65 to O69 were decided, the owner asked for validators and safeguards by kind, and then designed where code
+plugins run, what happens when they stop, and the rows of the Plugins page:
+
+> do you think we could also add safeguards and validators for plugins by their type (content, code, etc.) so the
+> plugin would be validated first if it's compatible and the files don't cause bad code (that wouldn't work, prompts
+> that would fail, syntax issues, etc.) then if validator passes, then the plugin can install, and then safeguards
+> could be monitoring elements that prevent critical failures by catching and stopping them
+
+> would it be possible to design and add another layer for plugins, and run them as one cluster in one process.
+> EldenNet would still have link for each plugin and recognise them as separate plugins, and if one acts up or crashes,
+> EldenNet would know exactly which one done it. Then in this case the whole cluster would likely crash but Elden Ring
+> game and EldenNet would stay alive.
+
+> I would go further and make this a pop up UI, stating plugin layer crashes due to plugin <title>. and whatever else
+> needs reporting there, then offer a choice to user to close down the pop up window (an usual X button at the top
+> right corner), text buttons: "Restart plugins", "Restart plugins without <crashed plugin title in different text
+> color>", "Restart plugins with <crashed plugin title in different text color> detached", "Ignore (no plugins)".
+> For "run it's own", we could add setting like that to the plugin UI page in EldenNet, something like a list of
+> plugins in rows, each row would have toggle switch: on/off, cluster (part of cluster), detached (its own process).
+> "Plugins can clash over shared libraries." this is something we need to add to validator: if a plugin such as that
+> is already installed (even if the plugin is currently switched off) the validator would catch incompatibilities
+> based on this issue.
+
+### 13.1 Validators, by kind
+
+Nothing installs until its validator passes. A plugin is checked in `plugins\pending\` and moved into place whole, or
+not at all, so nothing is ever half-installed.
+
+| Kind | What the validator checks | What it cannot check |
+|---|---|---|
+| Content | Everything of §5.4, and a dry run: EldenNet builds its whole content with the plugin in a scratch copy and renders, at the fixture states, every prompt the plugin's files feed into, so a file that would break a prompt or push it over its token budget is refused before it installs | Nothing that matters: content is read, never run, and the model's lines are still checked as they come (§13.5) |
+| Code | The manifest, its EldenNet range and interface major; that the file is a 64-bit Windows DLL with the entry EldenNet expects, and the exact file its manifest's hash names; what it can reach, read from its imports (the network, files, other processes), shown to the player before it is turned on; its libraries against every other installed code plugin's, on or off (§13.2); then, once the player has turned it on, a trial run in a throwaway plugin host outside the game, with a short scripted session of fixture events: a plugin that crashes, hangs or misuses the interface is refused before the game starts | Whether its code is free of bugs: no tool can prove that, which is why §13.5's safeguards exist |
+
+Plugin authors get the same checks as a test kit (the interface's mock and the trial run as a tool, as GraceUI's
+harness and C mock serve its consumers, GraceUI D85), so most problems are caught before a plugin is published.
+
+### 13.2 The library-clash check
+
+When a plugin's library is found by name, Windows reuses a library of that name already loaded in the process,
+whichever folder it came from. So two plugins in one cluster that ship different versions of the same library cannot
+both have their own: the second gets the first's copy, and may crash.
+
+- The validator reads every code plugin's imports and the libraries it ships in its folder (name, version, hash), and
+  compares them with every installed code plugin's, **on or off**, so that turning one on later cannot create a clash
+  unseen.
+- The same library and the same file: fine. The same name with another version or file: a clash. The validator names
+  both plugins and the library, shows the clash on both rows, and offers to install the new plugin **Detached**
+  (§13.3), since a detached plugin has a process of its own, or not to install it. A clash between two Cluster rows
+  is never started together.
+- At run time the cluster also watches every library loaded into it, and a library loaded a second time under the
+  same name for another plugin is logged with both plugins' names.
+- The guide tells authors to build their libraries into their own DLL, which avoids the problem altogether.
+
+### 13.3 Where code plugins run: the plugin cluster (O70)
+
+- **The cluster.** One small program, the plugin host, started by EldenNet once it has reached Ready (§7.3), runs every
+  code plugin whose row says **Cluster**: one extra process outside the game, however many plugins. It has memory of
+  its own, so a crash in it never reaches the game or EldenNet.
+- **One link per plugin.** EldenNet gives each plugin its own tagged connection, and the host gives each its own
+  threads, named after it. So EldenNet knows which plugin made each call and how much processor time each one uses,
+  and the host's crash handler sees whose code was running when it failed.
+- **Detached.** A plugin whose row says **Detached** runs alone in a host of its own.
+- **Every host** talks to EldenNet over a private channel EldenNet hands to it alone, with no network port and nothing
+  another program can join; it runs under Windows limits on memory and processor time, never as administrator, and is
+  closed with the game. It loads only plugins from EldenNet's Plugins folder that the player turned on, checked by
+  their hashes, and takes no file from its command line (§9).
+- **Inside the game**, a separate and trusted tier: only a plugin that must draw on the game's screen through GraceUI,
+  or patch the game, runs inside it, after a stronger warning; nothing in §13.5 can protect the game from it.
+- **How sure the attribution is.** A crash in a plugin's own code, on its own thread, is named for certain. Plugins in
+  one cluster share memory, so one plugin can damage something another then trips over; a crash outside the faulting
+  plugin's own code is then reported as "most likely", and **Detached** is how the player makes sure.
+
+### 13.4 The Plugins page
+
+Plugins get a page of their own, **Plugins**, at the foot of the menu from 1.1 (GraceUI D104); Content packs keeps
+EldenNet's own content and the player's overrides. The page is a list of plugins in rows, as the owner designed it:
+
+- **Each row:** the plugin's name, version and author; its **On/Off** switch; for a code plugin, **Cluster** or
+  **Detached**; its state (on, off, refused, stopped, waiting for a restart); a clash or a failed check, in words.
+  Opening a row shows §5.6's details and the plugin's reports; Remove is there too.
+- Content plugins keep their order, which decides between two plugins holding the same file (§5.3).
+- In the browser, the drop zone and **Add file** sit at the head of the list (§6.2).
+
+### 13.5 Safeguards while the game runs
+
+- **Content plugins.** Each part of a prompt carries the layer it came from. If the model's lines keep failing
+  EldenNet's checks while one plugin's content was in the prompt (three times in ten minutes, EST), or its content keeps
+  pushing prompts over their budget, that plugin is turned off for the session, with a notice naming it; everything
+  else carries on.
+- **Code plugins.** Every call checked; budgets per plugin (model calls, events, memories, lore); a watchdog per
+  plugin, which marks one "not responding" after 10 s without an answer (EST); the cluster's limits as a whole, with
+  each plugin's processor time measured. A plugin over its budget or not responding is cut off: EldenNet refuses its
+  calls and drops its events. A host that stops, by a crash or a limit, brings up §13.6's pop-up; the game and EldenNet
+  carry on.
+- **Quarantine.** A plugin that stopped its host twice is off from the next start until the player turns it back on.
+
+### 13.6 When plugins stop: the pop-up (O70, the owner's design)
+
+- **What it says.** "Plugins stopped: <plugin> crashed" (or "stopped responding", "used too much memory"), with the
+  plugin's title in the danger colour and in bold, since colour is never the only signal (GraceUI §3.12); how sure
+  EldenNet is ("in its own code", or "most likely", §13.3); the plugin's version; which plugins were in the cluster
+  and have stopped with it, and which detached plugins are still running; **Details**, which opens the report on the
+  Plugins page, and **Copy report** (scrubbed, PV1 to PV8).
+- **Its choices.**
+  - The **X** at the top right closes it. Code plugins stay off, and the same choices stay on the Plugins page.
+  - **Restart plugins**: the same plugins again. After a second stop in the session, it asks once more first.
+  - **Restart plugins without <plugin>**: that plugin's row is switched off.
+  - **Restart plugins with <plugin> detached**: that plugin's row is set to Detached, and it restarts in a host of its
+    own.
+  - **Ignore (no plugins)**: code plugins stay off for the rest of the session, and the pop-up does not come back for
+    it.
+- **Where it shows.** In the browser at once. In game, first as a notice ("Plugins stopped: open Plugins to choose"),
+  and as the pop-up only at a safe moment, never in danger, as every view (GraceUI invariant 9). If the player never
+  chose, it shows again on the launcher's first screen at the next start.
+- **A detached plugin** that stops brings up the same pop-up about itself alone; the cluster keeps running.
+
+### 13.7 The crash watcher (O71)
+
+- **When the game itself crashes** (in EldenNet, GraceUI, the game, another mod or an in-game plugin), something outside
+  the game must record it, because everything inside the game, the dashboard's server included, stops with it.
+- **The watcher is the launcher**, staying in the background while the game runs instead of exiting after it has
+  started it. It started the game, so it holds a handle to it and sees the moment it ends and how. For the moment of a
+  crash, EldenNet's crash filter in the game signals the watcher and waits, and the watcher records from outside:
+  where the crash happened (the module), the kind of error and the thread, the last lines of EldenNet's log and the
+  last events, and which plugins and mods were loaded, with their versions. This is how crash reporters work; whether
+  it sits well beside the game's own handler and other mods' is for S0-D's checks (LIKELY).
+- **At the next start**, the launcher and the dashboard say what happened in plain words, and a plugin found at fault is
+  off until the player turns it back on. When the fault is in the game's own code, the report says "most likely".
+- **A full crash dump**, if one is written, stays on the PC: it can hold whatever was in the game's memory, the player's
+  keys and chats included. The report a player shares is the scrubbed summary.
+- **Players who start the game through their own loader** get the same watcher, started by EldenNet itself.
+- **It changes** DESIGN §18's process model ("one DLL plus a short-lived launcher") and ARCH §1.1, hence O71.
+
+### 13.8 The sandbox (O72)
+
+Each plugin host could run with reduced rights, the kind of sandbox web browsers use, so that even a hostile plugin
+could not read the player's files, reach the network or touch the game's memory unless its manifest asks and the player
+allows it. It is the strongest protection, but it limits what honest plugins can do, and its support under Proton is
+unknown, so it would come later, as an option, after a spike.
+
+### 13.9 Questions for the owner (O70 onwards)
+
+#### O70: Where do code plugins run, and what happens when they stop?
+
+- **Decided by the owner on 2026-11-15**, as the owner designed it: one plugin cluster outside the game by default,
+  each plugin still linked and recognised on its own; a row per plugin with **On/Off** and **Cluster** or **Detached**;
+  the validator's library-clash check against every installed plugin, on or off; and the pop-up of §13.6, with its X
+  and its four choices. Plugins that must draw in game or patch the game stay a separate, trusted tier inside it.
+  This amends O68's loading (§7.3).
+
+#### O71: Should the launcher stay running as the crash watcher?
+
+- **As it would be put.** **(a) Yes** (recommended): the launcher stays in the background while the game runs and
+  records any crash of the game itself, as §13.7 describes; players who use their own loader get the watcher started
+  by EldenNet. **(b) No:** the launcher stays short-lived, and fault finding after a crash has only EldenNet's own log.
+  **(c) A watcher program of its own**, separate from the launcher.
+- **In plain words.** When the whole game crashes, should EldenNet's launcher be waiting in the background to record
+  what happened, so the next start can tell you why?
+- **Recommendation: (a).** Nothing inside the game survives its crash, and the launcher already holds the game's
+  handle. *What (a) gives up:* one small process for the length of a session, and the design's "short-lived" launcher.
+- **What each answer changes.** (a): DESIGN §18's process model and ARCH §1.1 and §4; the watcher's checks join S0-D.
+  (b): §13.7 falls away, and the plugins-stopped pop-up covers only the cluster. (c): as (a), with one more program
+  to ship and sign.
+
+#### O72: A sandbox for plugin hosts?
+
+- **As it would be put.** **(a) Later, as an option** (recommended): after code plugins ship, a spike checks Windows'
+  reduced-rights sandbox on Windows and under Proton, and a plugin's manifest names what it needs for the player to
+  allow. **(b) Never.** **(c) From the start of code plugins.**
+- **In plain words.** Should plugins one day be able to run boxed in, so that even a malicious one could not read your
+  files or reach the internet without your say?
+- **Recommendation: (a).** It is the strongest protection, but it limits what honest plugins can do and may not work on
+  the Steam Deck, so it is better added once real plugins exist. *What (a) gives up:* until then, a hostile plugin can
+  do what any program the player runs can.
+- **What each answer changes.** (a): a spike after code plugins ship, and a field in the manifest. (b): nothing. (c):
+  the sandbox becomes part of code plugins' first release, and the spike comes first.
