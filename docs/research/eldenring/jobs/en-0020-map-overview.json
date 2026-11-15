@@ -1,0 +1,33 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0020-map-overview",
+ "title": "The map: overview images of the base map at levels 4, 3 and 2, on the PC, for the world-to-map fit (DP27)",
+ "needs": "0.2.25",
+ "ops": [
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l4",
+   "sheet": 0,
+   "level": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l4-top",
+   "sheet": 0,
+   "level": 4,
+   "rows_from": "top"
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l3",
+   "sheet": 0,
+   "level": 3
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2",
+   "sheet": 0,
+   "level": 2
+  }
+ ]
+}
