@@ -116,6 +116,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 91 | 2026-11-15 | The expansion, a far view and the underground in the file dictionary, and two jobs to read them | LIKELY | #map #datapiler #graceui |
 | 92 | 2026-11-15 | The expansion, the far view and the underground: what en-0037 and en-0038 show | FACT | #map #datapiler #graceui |
 | 93 | 2026-11-15 | The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters | FACT | #map #datapiler #graceui |
+| 94 | 2026-11-15 | The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1634,3 +1635,30 @@ checkout), O68, O53
 - So the rule, for now: the topmost floor-facing surface no steeper than 50°, from the map pieces alone. Jobs en-0039
   (57 steps: `m12_05_00_00`, `m12_08_00_00`, `m12_09_00_00`) and en-0040 (40: `m12_07_00_00`, `m12_04_00_00`) read
   five more underground maps whole, to check it there; the two largest (`m12_01`, `m12_02`) would take five more jobs.
+- Later (2026-11-15): it does not hold elsewhere (WHY§94). On the five maps of en-0039 and en-0040 it picks the
+  characters' floor for 91% in one, 41% in a map of stacked levels, and for none in three small maps, where a
+  floor-facing surface about 55 m above everyone, with nothing between, is the rock's outer top. Over all six maps:
+  73% (635 of 873).
+
+### 94. The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§92, WHY§93, O48
+
+- en-0039 and en-0040 read five more underground maps whole (`m12_05`, `m12_08`, `m12_09`, `m12_07` and `m12_04`: 92
+  models, about 117 MB unpacked). The plain rule of WHY§93 fails in four of them (its Later line).
+- The revised rule, our own: a grid of 2 m cells holds each walkable floor layer (floor-facing, no steeper than 50°,
+  from the map pieces alone, the backdrop and low-detail pieces left out), joined to the layers of the four
+  neighbouring cells within a step of 2.9 m. The parts joined to a floor that a placed character or a resting place
+  stands on are the reachable floor, and each cell shows its topmost reachable layer.
+- Tested by seeding with half of each map's characters and checking the other half (454 over six maps): their floor
+  is reached for 99.1%; the rule picks it for 85.9%, a floor above it for 13.7% (an upper level the seeds reach too,
+  a median 71 m higher), one below it for 0.2%, and none for 0.2%. The plain topmost floor on the same grid: 69.6%.
+  In the three small maps the rule goes from none to all (36 characters), in the map of stacked levels from 36% to
+  70%.
+- The reachable floor is 43 to 79% of each map's walkable layers; the rest is rock tops and ledges no one stands on.
+- Where levels stack, the relief shows the upper one, as a map seen from above; the browser's 3D view could show each
+  reachable level. A part with no character and no resting place would not show, and floors joined only by
+  structures (bridges, lifts or stairs made as assets) join only if both sides hold a character; neither was seen to
+  matter here (99.1% reached).
+- At run time EldenNet needs, for each underground map: its pieces, its placement file (for the placements and the
+  seeds) and the resting places' positions, all read from the player's install.
