@@ -100,6 +100,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 75 | 2026-11-15 | en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left | FACT | #map #datapiler |
 | 76 | 2026-11-15 | Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875 | FACT | #map #datapiler #graceui |
 | 77 | 2026-11-15 | en-0031: at the measured sizes every variant the game draws passes, at every level of every map | FACT | #map #datapiler |
+| 78 | 2026-11-15 | The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -858,6 +859,11 @@ the repositories. Only these derived numbers are kept here.
   coarse height lead for G27's fallback, its key to be found.
   Later the same day: en-0017 found neither of that table's two fields in Smithbox's answer (it may hold no rows, or
   other names); it was left out, as the relief comes from the terrain itself (G27).
+- Later (2026-11-15): the exact fit is WHY§78. On the base map X0 is 7,041 and Z0 16,688 with s = 1 (the first guess
+  was 659 units off across, which the pieces' rectangles allowed); the expansion has its own (7,120 and 16,684); the
+  underground and the dungeons go through the conversion. Of the six groups of conversion rows that spread, two are
+  rows to different maps of one area: grouped by source map and destination map, three spread far (areas 13, 15 and
+  25, 551 m to 3.2 km) and one by 1.2 m.
 
 ### 60. The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion
 
@@ -920,6 +926,7 @@ Numbers only.
 - **With WHY§59** a world position goes to map units (about one per metre, north up), map units to level-0 pixels,
   and a tile's variant follows the bits of the pieces the player holds. What is still loose is §59's world-to-map
   offset (hundreds of units of slack): it needs anchors from an image.
+- Later (2026-11-15): the offset is settled in WHY§78 (base map x = X − 7,041, y = 16,688 − Z, one unit a metre).
 
 ### 63. A tile's pieces that never meet have a variant each, laid together
 
@@ -1256,3 +1263,41 @@ nearest drawn level, at the measured sizes.
 - **The other layout's tiles do not** (0 to 2%; 2 of 20 on the expansion): the masks tell them apart exactly.
 - So the map tiles are settled: which tile the game draws at every place and level (its masks, WHY§73), and where each
   level lies against level 0 (WHY§76). Next: the world-to-map fit at level 0.
+
+### 78. The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§59, WHY§62, WHY§76, WHY§77, G21, D97, DataPiler DP21
+
+Measured in scratch on the five map tables (en-0016) and the game's own level-0 overviews (en-0029), which stay out of
+the repositories; only these derived numbers are kept.
+
+- **Map units.** One map unit is one level-0 pixel, from the top left of the sheet's 10,496-pixel frame (WHY§62); a
+  level-1 or level-2 pixel is the unit times 0.74857 or 0.19875, also from the top left (WHY§76). A world position is
+  X = grid x × 256 + position x and Z = grid z × 256 + position z, in metres.
+- **The base map (sheet 0, area 60):** map x = X − 7,041 and map y = 16,688 − Z: one unit a metre, north up. Fitted on
+  the place-name banners drawn into the tiles, each name centred on its banner. Measured the same way, the five
+  banners on this sheet (four names of area 60 and one carried from area 10 by the conversion below) lie −17 to +2
+  units from their names across and within about 20 up and down. All 166 open-world resting places land on drawn land.
+- **The expansion (sheet 10, area 61):** map x = X − 7,120 and map y = 16,684 − Z. Its one place name lies within about
+  10 units of its banner, and all 59 of its open-world resting places land on drawn land.
+- **The underground (sheet 1) and the dungeons have no transform of their own.** A position in any other area is
+  carried onto the open world by `WorldMapLegacyConvParam`, then drawn with a transform above: the base map's for the
+  underground (its sheet shares the base map's frame) and for the dungeons that end in area 60, the expansion's for
+  those that end in 61. The rule that fits: take the rows whose source is the position's own map (its area and both
+  grid numbers, which name a map in a dungeon and a cell in the open world); prefer a row straight onto area 60 or 61;
+  else follow a row to another map and start again (one underground map goes through two other areas). Where one map
+  has rows to the same destination with different offsets (areas 13, 15 and 25, 551 m to 3.2 km apart: pieces of one
+  dungeon placed apart), the nearest base point is used (LIKELY: no check here tells them apart).
+- **Checks.** The three underground place names land on their banners (0, +4 and +36 units across, within about 20 up
+  and down). All 30 underground resting places with a row land on the drawn caves; 118 dungeon resting places land on
+  the base map's pieces and 46 on the expansion's, the sheet each one's display mask names (WHY§59: 284, 32 and 105).
+  Three have no row (two in one underground map, one in area 19); how the game places them is not known.
+- **Precision.** About ±20 units on the base map and the expansion (the banners' own placement is the limit, and the
+  expansion has only one); about ±40 underground, where two paths through the conversion can differ by up to 36 units
+  (a loop of rows does not quite close) and one banner sits 36 units off. A resting place's icon is larger than that
+  at level 0. A few units better would need the game's own icons: one screenshot per sheet at level 0 with resting
+  places showing.
+- The transforms are ours, fitted. The conversion rows are game data: read from the player's install at run time,
+  never committed.
+- Next: EldenNet's map projection and GraceUI's map page (G21) use these: a world position to its sheet, map units
+  and level pixels.

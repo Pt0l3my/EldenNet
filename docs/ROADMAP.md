@@ -480,7 +480,9 @@ the player's game, and optionally opened by the map key.
     Since then the map tiles: the game's own masks unpacked (en-0027), which name the tiles it draws today and give
     one geometry for every sheet; levels 3 and 4 are an older layout (en-0019 to en-0027, DataPiler 0.2.23 to 0.2.32,
     WHY§62 to WHY§77; en-0029 drew every sheet's levels 0 to 2 whole from the masks, their sizes are measured, and
-    en-0031 passed every tile the game draws). Next: the exact world fit at level 0.
+    en-0031 passed every tile the game draws). The world-to-map fit followed (WHY§78): one transform per open-world
+    sheet, to about 20 units, and the underground and the dungeons through the game's own conversion rows, to about 40.
+    Still open here: the areas' colour image (WHY§60), the terrain heights (G27) and catching the map key.
 
 ## S8 Adopting the engine [planned]
 
