@@ -112,6 +112,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 87 | 2026-11-15 | SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet | FACT | #plugins #skyrimnet #design |
 | 88 | 2026-11-15 | One plugin cluster: what a shared host can tell apart, and why a library clash needs a check | FACT | #plugins #design |
 | 89 | 2026-11-15 | The terrain's heights are very likely the ground models, stored at three levels of detail | LIKELY | #map #datapiler #graceui |
+| 90 | 2026-11-15 | The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1518,3 +1519,31 @@ checkout), O68, O53
   (`m60_21_18_01`: 10) and that small tile (`m60_42_36_00`: 4), with their three placement files. Next: read the
   models' vertex positions and the placements in scratch, build a height grid, compare the three levels, and check the
   heights against the resting places' own (WHY§78's points).
+- Later (2026-11-15): confirmed on one large square by en-0036 (WHY§90): the ground models hold the heights, and the
+  tile numbers in their names alone place them. The placement files were not needed, and were not read.
+
+### 90. The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§89, WHY§78, O48
+
+- en-0036's 46 models were read in scratch with a reader of our own for the model format (vertex positions and
+  triangle lists; the files stay in scratch). Every piece's vertices are in its small tile's own frame, centred on the
+  tile. Placed by the tile numbers in their names alone, 256 m a tile, the large square's 32 pieces for its 16 tiles
+  meet at every shared edge: over 2,531 samples 2 m apart, the nearest surfaces on the two sides differ by a median
+  0.04 m, and 95% by 0.19 m or less. So the tiles share one vertical datum, and the ground needs no placement offset.
+- Against the resting places' own heights in tile 42_36 (WHY§78's points): open ground agrees to 0.02 m and 1.34 m;
+  two points on structures read 3.6 m and 15.2 m above the ground, since structures are models of their own.
+- The three levels agree. In tile 42_36 the middle level differs from the finest by an rms of 0.01 m (at most 0.35 m),
+  and the coarsest by 0.03 m (at most 0.95 m). The ground's triangle edges are a median 2.0, 2.8 and 2.9 m long at
+  levels 0, 1 and 2 (90% under 2.8, 4.5 and 8.2 m). So the 1 km level is enough for the relief: 32 models and 3.5 MiB
+  unpacked for 16 tiles, against 10 models and 2.0 MiB for 4 tiles at the middle level.
+- Large steps at tile edges are the land itself: overhangs and cliffs, where the topmost surface changes (35 of the 70
+  steps over 1 m meet within 0.5 m on another surface), and one corner where ground at about 170 m falls to a flat
+  floor at −52 m.
+- Gaps: at 4 m a sample, 93.5% of the square has ground, from −52 to 301 m. One tile at the square's edge (40_38) has
+  a single piece, covering 18% of it (the piece's own bounding box says the same, so the reader misses nothing); the
+  others lack 0 to 11%. What lies in the gaps (water, or a structure's own models) is not read yet. Each piece's name
+  carries a two-digit prefix before its tile number; three values occur here.
+- Next, with the spike (S7.9.c): the run-time read of these models from the player's archives, a rule for the gaps,
+  and the rest of the map, the expansion and the underground included, none of it read yet. The collision files stay
+  unread.

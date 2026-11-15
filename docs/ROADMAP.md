@@ -475,7 +475,7 @@ the player's game, and optionally opened by the map key.
   - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
 - c The map spike: EldenNet's run-time read of the game's archives for the map's tiles and masks, the tile set's check (D93), exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
   - needs: b
-  - refs: G21, G25, G26, O47, O48
+  - refs: G21, G25, G26, O47, O48, WHY§90
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
@@ -497,10 +497,10 @@ the player's game, and optionally opened by the map key.
   - needs: e
   - refs: G21, G24, G26, WHY§78, WHY§80, WHY§82, GraceUI:docs/proposals/0002-map.md
   - gives: revised recommendations for the owner's G21 to G26; terrain heights, the archives' run-time read and the map key stay with c.
-- g Research ahead of the spike: the terrain's heights, from the ground models at three levels of detail (job en-0036) [waiting]
+- g Research ahead of the spike: the terrain's heights, from the ground models at three levels of detail (job en-0036) [done]
   - needs: e
-  - refs: G27, WHY§89, O48
-  - gives: whether the ground models and their placements give the heights for the 3D relief and the drawn base, at which level, and how close to the resting places' own heights.
+  - refs: G27, WHY§89, WHY§90, O48
+  - gives: yes (WHY§90): the ground models hold the heights, and the tile numbers in their names alone place them; one 1 km square's 16 tiles meet at their edges (median 0.04 m), open ground agrees with the resting places' heights (0.02 m and 1.34 m), and the 1 km level is enough for the relief (rms 0.03 m from the finest). Left for c: the run-time read, a rule for the gaps (18 to 100% ground per tile here), and the rest of the map.
 
 ### S7.10 Plugins (EldenNet proposal 0001)
 
