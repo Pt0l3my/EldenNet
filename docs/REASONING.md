@@ -88,6 +88,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 63 | 2026-11-15 | A tile's pieces that never meet have a variant each, laid together | FACT | #map #datapiler #graceui |
 | 64 | 2026-11-15 | Level 2's export holds a second drawing of the map; levels 2 to 4 nest by two | LIKELY | #map #datapiler #graceui |
 | 65 | 2026-11-15 | With the check, level 2 is one image; its base and pieces 15 to 20 stand apart | LIKELY | #map #datapiler #graceui |
+| 66 | 2026-11-15 | Level 2's export is two tile sets under one set of names; Smithbox's export overwrites by name | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -975,3 +976,26 @@ repository) and en-0016's piece rows.
   the same mix of pieces.
 - Open: what flags 62004 to 62009 open, whether the left-out variants are stale files the game never asks for, and a
   rule for the mid scores. The per-tile numbers of en-0021 (`map-tile-check.json`) will tell more.
+
+### 66. Level 2's export is two tile sets under one set of names; Smithbox's export overwrites by name
+
+`2026-11-15` · FACT (the numbers, Smithbox's export code), LIKELY (that two sets were mixed by it) · `#map #datapiler
+#graceui` · refs: WHY§64, WHY§65, G26, D90, DataPiler S78
+
+From en-0021's `map-tile-check.json` (DataPiler 0.2.28, numbers only) and Smithbox's texture export source (read in an
+untrusted copy, commit d144cc7).
+
+- **Level 2 holds two sets.** Of its 2,045 variants, 424 match level 3 (379 at 1.00) and 1,621 do not; every one that
+  matches has a variant of the same code at its level-3 place, and 1,391 of those that do not have none. All 854
+  with bits 15 to 20 fail; level 3 and 4 use bits 0 to 14 only. Level 3 is clean against level 4 (519 of 525 match,
+  504 at 1.00), and level 4 against level 3 (4,195 of 4,516).
+- **One copy of each name, all in one folder.** Every tile was found once, in a single folder.
+- **Smithbox writes a container's textures into one folder by their names alone** ("Export textures from container":
+  each texture of each TPF in the binder, `File.WriteAllBytes` on `<name>.<type>`), with no check for a file already
+  there. Two sets of tiles with the same names (two containers, two TPFs in one binder, or an earlier export left in
+  the folder) end as one mixed set, the last written winning name by name.
+- **So, LIKELY:** level 2's export is a set drawn for the levels as they are (codes of bits 0 to 14, matching level 3)
+  mixed with a set at three quarters of that scale (bits 0 to 20, its own base), the second winning wherever both had
+  a name. That explains the gaps (places where no right variant is left) as well as the second drawing.
+- Next: the owner re-exports the map tiles container into an empty folder, with older exports moved out of
+  DataPiler's folder, and notes which containers hold `MENU_MapTile` textures; en-0021 run again tells which.
