@@ -38,7 +38,7 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-08
+- updated: 2026-11-15
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
@@ -292,7 +292,7 @@ research into the game's data that goes ahead before them (O54).
   - refs: O56, O57, ER08
 - g The owner creates the empty public DataPiler repository, so its first commit can be pushed [done]
   - needs: d
-  - gives: `Pt0l3my/DataPiler`, created 2026-11-08; its first commit is on its `design/v0` branch.
+  - gives: the DataPiler repository, created 2026-11-08; its first commit is on its `design/v0` branch.
 - h Build DataPiler from that design: launcher and terminal window, the page, the server link, guided exports, jobs, logs [done]
   - needs: f, g
   - refs: O56, ER08
