@@ -300,10 +300,10 @@ research into the game's data that goes ahead before them (O54).
 - i The coverage map of live tracing for every feature, with its eleven gaps (DATA) [done]
   - refs: O57, DATA
   - gives: 105 pieces of live data: 29 backed by research, 65 waiting on a named spike, 11 gaps, none needing a new kind of game read.
-- j The owner decides whether to prepare the live checks before the blueprint (O58) [waiting]
+- j The owner decides whether to prepare the live checks before the blueprint (O58) [done]
   - needs: i
   - refs: O58, DATA
-  - gives: recommended: capture plans in our own words and the owner's saves before each named boss fight, nothing built.
+  - gives: (b), decided 2026-11-15: capture plans in our own words and the owner's saves before each named boss fight, nothing built.
 - k DataPiler's fix round: share files limited to what a feature needs (its DP8), the guard's text check, the expansion and the names' facts [done]
   - needs: h
   - refs: O56, O59
@@ -352,6 +352,14 @@ research into the game's data that goes ahead before them (O54).
   - refs: O43, O51, O59, WHY§55
   - gives: `docs/research/eldenring/leads/npc-flags.json`: 55 blocks (status, questline stages, 112 progress steps)
     and 6 endings, numbers only, unverified; bound to the roster's ids later, never by the slug.
+- s The capture plans, in our own words: S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch [next]
+  - needs: j
+  - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1
+  - gives: what each live check records, where and when, so the captures start the day the first build runs.
+- t The owner keeps a save before each named boss fight and each later form of a roster NPC, on their own PC, never committed and never taken online [waiting]
+  - needs: j
+  - refs: O58, DESIGN§7.8
+  - gives: the saves S1 and S2 replay from, about 40 to 60 for S2 alone.
 
 ## S7 Open items
 

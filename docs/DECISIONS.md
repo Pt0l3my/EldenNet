@@ -38,8 +38,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature). O58 put to the owner (preparing the live
   checks before the blueprint). O59 (the game's id leads go to a numbers-only research file). O60 (C++ expected, settled at the blueprint).
 - **2026-11-15.** O64 (the privacy sweep only in the owner's private repository; EldenNet's history rewritten
-  without it).
-- **Open.** O46 (the bio's structure and the v1.0 roster) and O58 (preparing the live checks before the blueprint).
+  without it). O58 decided: (b), the live checks prepared now, nothing built.
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -659,11 +659,15 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O58
 
-**Preparing the live checks before the blueprint** · *Open since 2026-11-08*
+**Preparing the live checks before the blueprint** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-08)*
 
 **Question.** Live tracing is verified only in game (DATA §1.4), and every capture waits for the first build, which follows Min's blueprint (DATA §3.2). Should anything be prepared now, without building EldenNet? **Options** (DATA §4): (a) **wait**: prepare nothing until the blueprint, so the capture plans and saves are made when v0.1's spikes start; (b) **prepare now, without building**: write the capture plans in our own words (S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch), and the owner keeps a save before each named boss fight and each later form of a roster NPC as they play (about 40–60 for S2 alone), copies on their own PC, never committed, kept apart from any save they take online; (c) as (b), plus a standalone read-only spike build (the game-access layer, the recorder and the debug view, no model and no network) before the blueprint, so the in-game spikes can run early.
 
 **Recommendation.** (b). It builds nothing, so O54 holds; it serves whatever the blueprint brings, since the game-access layer, Augur and identity by verified keys are unchanged by it (DESIGN §7.8); and it takes the slowest part of the captures, preparing the saves, off the critical path (K29). *What it gives up:* some of the owner's play time, and plans that may need revising once the blueprint is known. (c) would find a failing live source sooner, but with code written before its foundation is known; it stays a later choice if the blueprint is long delayed.
+
+**Decision.** (b): prepare now, without building. The capture plans are written in our own words (S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch), and the owner keeps a save before each named boss fight and each later form of a roster NPC as they play, on their own PC, never committed, kept apart from any save taken online. Nothing of EldenNet is built, so O54 holds.
+
+**Owner's words.** "okay go with O58 option b, prepare now".
 
 **Follows from.** O54, O57; DATA §3 and §4; DESIGN §7.8, §16.1.
 
