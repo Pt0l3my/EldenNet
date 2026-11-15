@@ -1,0 +1,134 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0023-map-check-base",
+ "title": "The map: every level of the base map checked against its reference level, with overviews (S79)",
+ "needs": "0.2.29",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l0",
+   "sheet": 0,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l1",
+   "sheet": 0,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l2",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l3",
+   "sheet": 0,
+   "level": 3
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l4",
+   "sheet": 0,
+   "level": 4
+  },
+  {
+   "op": "write_share",
+   "name": "map-check-m00",
+   "tables": [
+    "t_m00_l0",
+    "t_m00_l1",
+    "t_m00_l2",
+    "t_m00_l3",
+    "t_m00_l4"
+   ],
+   "columns": {
+    "t_m00_l0": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m00_l1": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m00_l2": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m00_l3": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ],
+    "t_m00_l4": [
+     "x",
+     "y",
+     "code",
+     "drawn",
+     "like",
+     "near_code",
+     "near",
+     "near_base"
+    ]
+   }
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l0",
+   "sheet": 0,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l1",
+   "sheet": 0,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2",
+   "sheet": 0,
+   "level": 2,
+   "shrink": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l3",
+   "sheet": 0,
+   "level": 3
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l4",
+   "sheet": 0,
+   "level": 4
+  }
+ ]
+}
