@@ -477,8 +477,10 @@ the player's game, and optionally opened by the map key.
   - gives: whether the resting places, map points, place names, revealed pieces and the dungeons' conversion carry the coordinates the map needs, verified on the owner's PC.
     Fields verified 2026-11-14 (en-0015: 91 of 91, types as defined; 422, 472, 10, 34 and 196 rows); the values come
     with en-0016, as research material that stays out of the repositories.
-    Next: en-0017 (DataPiler 0.2.22): the areas' colour keys and the grid height limits; the map tiles and an area
-    image exported from Smithbox by the owner, for the exact fit.
+    Since then the map tiles: every level of each sheet measured against one reference level, level 1 lifted, the
+    old tile set placed and the expansion's own scales fitted (en-0019 to en-0026, DataPiler 0.2.23 to 0.2.31,
+    WHY§62 to WHY§72). Next: en-0027 (the game's tile masks, unpacked on the PC) and en-0028 (every sheet's levels
+    with the old set moved), then the exact fit.
 
 ## S8 Adopting the engine [planned]
 

@@ -1,0 +1,32 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0027-map-masks",
+ "title": "The map: the game's tile masks unpacked on the PC, their numbers shared (S81)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "71_maptile.mtmskbnd.dcx",
+   "as": "t_masks"
+  },
+  {
+   "op": "write_share",
+   "name": "map-masks",
+   "tables": [
+    "t_masks"
+   ],
+   "columns": {
+    "t_masks": [
+     "file",
+     "parent",
+     "depth",
+     "id",
+     "kind",
+     "packing",
+     "stored",
+     "size"
+    ]
+   }
+  }
+ ]
+}

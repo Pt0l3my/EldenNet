@@ -93,6 +93,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 68 | 2026-11-15 | Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter | FACT | #map #datapiler #graceui |
 | 69 | 2026-11-15 | Every base-map level checked: level 0 is mixed like level 2, level 1 hardly passes | FACT | #map #datapiler #graceui |
 | 70 | 2026-11-15 | Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off | FACT | #map #datapiler #graceui |
+| 71 | 2026-11-15 | The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places | FACT | #map #datapiler #graceui |
+| 72 | 2026-11-15 | The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle | FACT | #map #datapiler #smithbox |
 
 ## Entries
 
@@ -1085,3 +1087,48 @@ repository), and en-0024's check of the other sheets.
   The expansion passes almost nothing at any level, so its scales or anchors differ from LEVEL_SCALES; sheet 11 has
   base tiles only. en-0026 re-checks levels 0 and 1 with level 1 lifted and the old set's place measured, and lays
   out the expansion's levels to fit its geometry.
+
+### 71. The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places
+
+`2026-11-15` · FACT (the fits and counts), SPECULATION (sheet 11) · `#map #datapiler #graceui` · refs: WHY§67,
+WHY§70, DataPiler S81
+
+From the owner's en-0026 images of the expansion's map (sheet 10, every level laid out unchecked; numbers only, the
+images stay out of every repository) and en-0026's check of levels 0 and 1 with the old set's place measured.
+
+- **The expansion's geometry.** Its level 0 is the base map's 41 by 41 tiles. Level 1 is three quarters of it at the
+  top of its 31-tile grid, as on the base map. Level 2 is not a quarter: fitted against level 0 shrunk four times it
+  is 1 / 1.258 of that, so 2,089 of level 0's 10,496 pixels a side (0.199), at the top left of its 9-tile grid
+  (2,304 pixels), with no offset. DataPiler 0.2.31 holds these as the sheet's own scales and anchors.
+- **What the old set adds.** On the base map's level 0, 1,654 variants fail at their own place but match 1,024 map
+  units to the right. At that place, 694 are already covered by today's passing variant of the same code, 485 stand
+  in for today's variant of the same code that fails, 456 add pieces today's passing variants lack, and 19 fill a
+  place with no passing variant: 960 in all. Level 1 has 788 (296, 231, 243 and 18), the underground's level 0 243
+  (188 covered, 55 standing in) and its level 1 146 (109, 37). An overview at levels 0 and 1 now moves them there.
+- **Still open.** The third set, which fails both in place and moved (level 0 2,162, level 1 2,569), and level 2's
+  odd set. Sheet 11's grids (34 by 21, 26 by 17 and 7 by 6 tiles) fit neither table; SPECULATION: a smaller map with
+  its own scales, which its overviews in en-0028 will show.
+- Next: en-0028 re-checks the expansion at its own scales and lays out every sheet's levels 0 to 2 with the old set
+  moved; en-0027 unpacks the game's masks (WHY§72).
+
+### 72. The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle
+
+`2026-11-15` · FACT (the file and its layers), SPECULATION (what a mask holds) · `#map #datapiler #smithbox` · refs:
+WHY§70, WHY§71, DataPiler DP28, S81
+
+From the owner's Smithbox unpack of the game's `menu` folder and the file they uploaded (kept in scratch only).
+
+- **The file.** `menu/71_maptile.mtmskbnd.dcx` sits beside the tiles' own containers. It is a DCX packed with Oodle
+  (KRAK): 5,873 bytes that unpack to 300,712, a BND4 binder of four `.mtmsk` files, `menu_maptile_m00`, `m01`, `m10`
+  and `m11`, one per sheet, in the game's ScaleformMaptile mask folder. Smithbox unpacks it but shows nothing of it.
+  SPECULATION: each mask holds, for every tile place and level, which pieces reveal it: the game's own rule for which
+  variant to draw, which would settle WHY§70's old set and the third set at once.
+- **Opening it.** DataPiler 0.2.31 reads the DCX and BND4 layouts itself (learnt from SoulsFormats, MIT, read only)
+  and loads the game's own `oo2core_6_win64.dll` from the Game folder for KRAK (DP28); the owner's copy is the
+  64-bit library with `OodleLZ_Decompress` among its exports, read without loading it. Its call was checked here
+  against a stand-in library built for the purpose.
+- **The owner's full unpack.** Smithbox unpacked the whole game into DataPiler's folder quickly, but failed to write
+  the same 75 or so files in two runs: patched shaders, two map variants (`m60_42_40_10`, `m60_47_42_10`), a few
+  sounds, one script and the game's two network key files. None is in `menu`; the keys were never written (no such
+  folder), and DataPiler refuses a job that names a key or the regulation.
+- Next: en-0027 unpacks it on the PC; the owner sends the four masks, kept in scratch, to decode their layout.
