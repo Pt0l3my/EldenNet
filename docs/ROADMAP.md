@@ -471,7 +471,7 @@ the player's game, and optionally opened by the map key.
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
-- e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates (DataPiler 0.2.20, job en-0016; DP21 decided) [waiting]
+- e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates (DataPiler 0.2.20, job en-0016; DP21 decided) [done]
   - needs: a
   - refs: O48, O59, WHY§58
   - gives: whether the resting places, map points, place names, revealed pieces and the dungeons' conversion carry the coordinates the map needs, verified on the owner's PC.
@@ -484,6 +484,10 @@ the player's game, and optionally opened by the map key.
     sheet, to about 20 units, and the underground and the dungeons through the game's own conversion rows, to about 40.
     The areas' image followed (WHY§80, en-0032 and en-0033): the exact shapes of the area names and finer areas at
     4 m. Still open here: the terrain heights (G27) and catching the map key.
+- f The research's findings put into proposal 0002 (its §14): the base composed from the game's own tiles for the map pieces held, the placements and areas found, G26 put again [done]
+  - needs: e
+  - refs: G21, G24, G26, WHY§78, WHY§80, WHY§82, GraceUI:docs/proposals/0002-map.md
+  - gives: revised recommendations for the owner's G21 to G26; terrain heights, the archives' run-time read and the map key stay with c.
 
 ## S8 Adopting the engine [planned]
 
