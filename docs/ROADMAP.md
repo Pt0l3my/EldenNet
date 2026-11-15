@@ -497,6 +497,10 @@ the player's game, and optionally opened by the map key.
   - needs: e
   - refs: G21, G24, G26, WHY§78, WHY§80, WHY§82, GraceUI:docs/proposals/0002-map.md
   - gives: revised recommendations for the owner's G21 to G26; terrain heights, the archives' run-time read and the map key stay with c.
+- g Research ahead of the spike: the terrain's heights, from the ground models at three levels of detail (job en-0036) [waiting]
+  - needs: e
+  - refs: G27, WHY§89, O48
+  - gives: whether the ground models and their placements give the heights for the 3D relief and the drawn base, at which level, and how close to the resting places' own heights.
 
 ### S7.10 Plugins (EldenNet proposal 0001)
 

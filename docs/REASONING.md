@@ -111,6 +111,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 86 | 2026-11-15 | One owner per hooked function: what the evidence on hook libraries rules out, and what it does not | FACT | #hooks #graceui #design |
 | 87 | 2026-11-15 | SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet | FACT | #plugins #skyrimnet #design |
 | 88 | 2026-11-15 | One plugin cluster: what a shared host can tell apart, and why a library clash needs a check | FACT | #plugins #design |
+| 89 | 2026-11-15 | The terrain's heights are very likely the ground models, stored at three levels of detail | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1500,3 +1501,20 @@ checkout), O68, O53
   row instead, which gives certainty where it is wanted.
 - **Limits.** Windows' job limits apply to a process as a whole, so in a cluster memory cannot be capped per plugin;
   each plugin's processor time can still be measured per thread.
+
+### 89. The terrain's heights are very likely the ground models, stored at three levels of detail
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: G27, WHY§79, WHY§78, O48
+
+- Smithbox's file dictionary (read as text from an untrusted copy) lists, for the open world (area 60), 850 model
+  binders (`mapbnd`) at each of three levels: in the 532 small tiles' folders (`m60_XX_YY_00`, 256 m), the 152 middle
+  squares' (`_01`, 512 m) and the 48 large squares' (`_02`, 1 km, the same 48 as the area image's, WHY§79). Each
+  model's number names its small tile (`423600` for tile 42_36), so every piece of ground is very likely stored three
+  times, at three levels of detail. No file in the dictionary is named for heights or terrain.
+- So the heights G27 needs are very likely the vertices of these ground models, placed by each square's placement file
+  (`msb`); the collision files beside them are a second source, which DataPiler cannot open yet. A name in a
+  dictionary is a label until the files are read (O48).
+- Job en-0036 unpacks one large square (`m60_10_09_02`: 32 models), the middle square inside it holding the tile
+  (`m60_21_18_01`: 10) and that small tile (`m60_42_36_00`: 4), with their three placement files. Next: read the
+  models' vertex positions and the placements in scratch, build a height grid, compare the three levels, and check the
+  heights against the resting places' own (WHY§78's points).

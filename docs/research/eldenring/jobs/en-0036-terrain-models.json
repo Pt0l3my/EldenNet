@@ -1,0 +1,204 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0036-terrain-models",
+ "title": "The map's terrain (G27): one 1 km square's ground models at three detail levels, with their placements (WHY§89)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_04403600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_05403700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_06403800.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_07403900.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_07403901.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_14413600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_14413602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_15413700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_15413701.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_16413800.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_16413801.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_17413900.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_17413901.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_24423600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_24423602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_24423603.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_24423604.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_25423700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_25423701.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_26423800.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_26423801.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_27423900.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_34433600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_34433602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_35433700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_35433702.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_36433800.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_36433802.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_37433900.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_37433901.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_37433902.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02_37433903.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_24423600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_24423602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_24423603.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_24423604.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_25423700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_25423701.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_34433600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_34433602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_35433700.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01_35433702.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_21_18_01.msb.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_42_36_00_423600.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_42_36_00_423602.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_42_36_00_423603.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_42_36_00_423604.mapbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_42_36_00.msb.dcx"
+  }
+ ]
+}
