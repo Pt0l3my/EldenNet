@@ -82,6 +82,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 57 | 2026-11-14 | The named characters' census: placements, forms and the talk id's two patterns | FACT | #roster #datapiler #talk |
 | 58 | 2026-11-14 | Where the map's coordinates can come from: five map tables, but no placement positions through Smithbox | FACT | #map #datapiler #graceui |
 | 59 | 2026-11-14 | The world map's frame: about one map unit per metre, north up, three sheets | LIKELY | #map #datapiler #graceui |
+| 60 | 2026-11-15 | The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -840,3 +841,22 @@ the repositories. Only these derived numbers are kept here.
   coarse height lead for G27's fallback, its key to be found.
   Later the same day: en-0017 found neither of that table's two fields in Smithbox's answer (it may hold no rows, or
   other names); it was left out, as the relief comes from the terrain itself (G27).
+
+### 60. The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§59, G21, D97, DataPiler DP21, DP24, DP25
+
+From en-0017 (DataPiler 0.2.23, game 2.7.2.0): the four colour-key tables, research material kept out of the
+repositories. Derived numbers only here.
+
+- **Area names.** The base map's key gives 32 colours for 16 area-name numbers in five groups of three or four
+  (61000 to 65002), each name under two colours (one with the name's number negative, one positive). The expansion's
+  key gives 11 names, several rows switched off by their disable flag.
+- **Finer areas.** The second key gives 49 colours on the base map for multiplayer areas in the same five groups
+  (61xxxxx to 65xxxxx: 10, 13, 10, 7 and 9 of them), and 18 named areas among 42 colours in the expansion. 18 of the
+  base colours are the very colours the name key uses, so one image very likely serves both keys: each pixel's colour
+  says the area's name and its finer area. The order differs between the two (one name's colour is another's finer
+  area number), so they join by colour, never by number.
+- **What it gives the map.** If the image is found among the textures, the exact area shapes for the drawn base, the
+  masking and the area labels come from it, and its colours checked against where the resting places stand give the
+  exact world-to-map fit. Its name is not known yet; en-0018 (the map tiles, counted) is the next step.
