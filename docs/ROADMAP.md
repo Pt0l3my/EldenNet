@@ -121,7 +121,7 @@ beside them. Version 1 stays dialogue-only and read-only towards the game.
 ### S1.5 Working tools and records [done]
 
 - S1.5.a The privacy and safety sweep, git's pre-push gate on every repository [done]
-  - refs: tools/privsweep, PSW
+  - refs: CLAUDE
 - S1.5.b wp, the section index for reading the documents cheaply [done]
   - refs: tools/workplan, WP
 - S1.5.c llmworker, a client for running prompts on OpenAI-compatible models [done]

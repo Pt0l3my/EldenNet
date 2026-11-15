@@ -48,7 +48,7 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 
 ## Tools for contributors
 
-- [tools/privsweep](tools/privsweep/README.md): the privacy and safety sweep, run before every push.
+- The privacy and safety sweep, run before every push and upload, is kept in the owner's private repository.
 - [tools/workplan](tools/workplan/README.md): `wp`, which reads the design and research documents section by
   section.
 - [tools/gamedata](tools/gamedata/README.md): research tools the owner runs on their own Smithbox exports; they

@@ -22,12 +22,14 @@ lines; there are no NPC actions beyond dialogue.
 
 ## Privacy and safety: the sweep comes first
 
-- Nothing is pushed or uploaded before the privacy and safety sweep passes:
-  [tools/privsweep](tools/privsweep/README.md). It is git's pre-push gate on every repository. If
-  `~/.config/privsweep` is missing, run `python3 -I tools/privsweep/privsweep.py install` first. Sweep by hand
-  anything the gate doesn't cover, such as a message to another session or a file sent to the owner.
+- Nothing is pushed or uploaded before the privacy and safety sweep passes. The sweep lives only in the owner's
+  private Skyrizz repository (`tools/privsweep` there), never in this public one (owner, 2026-11-15). It is git's
+  pre-push gate on every repository. If `~/.config/privsweep` is missing, run
+  `python3 -I tools/privsweep/privsweep.py install` in the Skyrizz checkout first: a session on this repository
+  needs Skyrizz attached. Sweep by hand anything the gate doesn't cover, such as a message to another session or a
+  file sent to the owner.
 - Never bypass it: no `--no-verify`, no change to `core.hooksPath`, no HOME or GIT_CONFIG override. Remove what
-  it finds, or allow a generic false positive with a narrow, commented line in its `allow.txt`. A personal hit
+  it finds, or allow a generic false positive with a narrow, commented line in its `allow.txt`, in Skyrizz. A personal hit
   is never allowed.
 - Never commit or upload anything personal about the owner: real name, account names, machine names, contact
   details, API keys, local endpoint addresses or IPs. The owner's own local commands (their folders, their LAN
@@ -36,8 +38,7 @@ lines; there are no NPC actions beyond dialogue.
   author or committer to the owner's own e-mail.
 - No model identifiers of the assistant in files, apart from the commit trailer. Naming third-party models as
   research subject matter (which models other projects use or recommend) is fine.
-- `privsweep.py` and `personal.txt` are identical copies of the owner's Skyrizz sweep. Update them by copying
-  from Skyrizz, never by editing them here.
+- The sweep is changed in Skyrizz only, and never copied into this repository or any other public one.
 
 ## Licences and third-party material
 

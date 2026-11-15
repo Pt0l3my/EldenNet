@@ -1607,7 +1607,7 @@ eldennet/
     teams.toml  regions.toml  models.toml
   gal/      builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
   tests/    scenarios/ fixtures/ recordings/ (redacted, §6.8) golden/ s6/ roster/ knowledge/
-  tools/    privsweep/ workplan/
+  tools/    workplan/
   dist/     README-install.md  using-a-loader.md  ai-disclosure.md
   docs/     research/  design/{DESIGN.md, architecture.md, npcs-and-dialogue.md, memory-and-knowledge.md, spikes/, process/}
             authoring/ (roster/: research notes, §7.8)  ops/patching.md
