@@ -1761,3 +1761,5 @@ checkout), O68, O53
   what it lacks: a spoiler check, perception, voice and register, invented lore. (13) In v1, decisions only for the
   next speaker (silence always offered) and, later, the recall gate.
 - Next: S8.1.f folds these into ARCH §11, MEM and the design; proposal 0004 takes (9) and (10) at once.
+- Later (2026-11-15): O86 keeps spoilers by grounding alone, so (10) becomes a review when fields are written, and
+  (12)'s spoiler check a few test questions per character on the model's own knowledge of the game.

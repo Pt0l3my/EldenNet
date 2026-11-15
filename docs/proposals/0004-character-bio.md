@@ -100,9 +100,9 @@ within 16 KB and the prompt's cached prefix within its block caps (DESIGN §8.3)
 Reading SkyrimNet 1.2.0 (WHY§97) confirmed the shape above and showed where SkyrimNet's own discipline slips. So:
 
 - **Size.** SkyrimNet's prose is a median 512 words a bio (p10 430, p90 606), not 570; §5's 450 to 550 matches it.
-- **Mechanical checks, not review alone.** About 3% of SkyrimNet's public summaries state the character's secret, and the
-  summary is the most-copied text in the system. `summary`, `appearance`, `role`, `stirs` and `ties` are checked
-  mechanically against the NPC's locked terms (the topics its research note names), then reviewed.
+- **Review of the public fields.** About 3% of SkyrimNet's public summaries state the character's secret, and the
+  summary is the most-copied text in the system. `summary`, `appearance`, `role`, `stirs` and `ties` are reviewed
+  for that when written; by O86 there are no locked-term lists or mechanical checks.
 - **`claims` holds the cover story and its deflections.** A liar kept from the truth needs its lie written down, and
   how it turns a question aside, so that the lie holds without the model knowing what it hides.
 - **The revealed layer follows SkyrimNet's world-knowledge pattern:** an entry with a condition, shown always or only

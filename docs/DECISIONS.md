@@ -58,6 +58,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   online service, and how API keys reach it) put with proposal 0003.
 - **2026-11-15.** O84 (our own engine, on SkyrimNet's logic and structure, not its prompts; Min's DLL not used), decided
   by the owner; O80–O83 withdrawn. O85 (a follower system) put with proposal 0004, with O46's revised recommendation.
+- **2026-11-15.** O86 (spoilers by positive grounding alone, the playthrough state telling each NPC what it knows),
+  put and decided the same day, as recommended; O36's guards dropped.
 - **Open.** O46 (the bio's structure and the v1.0 roster; proposal 0004); O85 (a follower system).
 
 ## O1
@@ -417,6 +419,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 **Follows from.** O51: the stages it tells the model about are quest and world awareness's.
 
 **Amends.** The prompt as designed: block 7's "Not yours to know" forbid list and world-frame item 9's "no word has reached you" leave the prompt.
+
+*Later (2026-11-15):* simplified by O86. Positive grounding from the playthrough state is the one mechanism; the
+deterministic guards, tells, the output lock and the fallback ladder are dropped.
 
 ## O37
 
@@ -1390,3 +1395,36 @@ for it from v1.0.
 brought into a v1 release. (c): the companion layer serves summons only.
 
 **Follows from.** O42, O46; [proposal 0004](proposals/0004-character-bio.md) §3.3.
+
+## O86
+
+**Spoilers by grounding alone** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** O36 made positive grounding the way spoilers are kept, and the design kept deterministic guards beside it:
+per-character locked-term sets (`Locked(C)`, `Locked(P)`), an output lock that checks every line, reveal terms and
+tells, spoiler lints at eight fixture states (PL7), a second reader's reveal list, and a fallback ladder; proposal 0004
+§8 added mechanical checks against locked terms. The owner: the playthrough system tracks the world's, the NPCs' and the
+quests' states, so each prompt says exactly what the NPC knows, what it is doing and its own part in its quest at that
+stage. **Options:** (a) **grounding only, simple**: the playthrough state is the one mechanism, in every prompt and
+every memory, diary and lived-layer job; stage texts reviewed when written; a few test questions per character check
+the model's own knowledge of the game, and a model that leaks is replaced, or a light check turned on then; the output
+lock, locked-term sets, tells, reveal lists and fallback ladder dropped, and 0004's mechanical checks a review step;
+(b) (a) plus a cheap per-line check for a short list of major-twist words per questline, the line replaced by an
+in-character deflection on a hit; (c) the current guards kept.
+
+**Recommendation.** (a): what our prompts hold is safe by construction; what remains is the model's own knowledge of
+Elden Ring, which test questions measure and model choice answers, without filters in the runtime.
+
+**What each answer changes.** (a): DESIGN §7.7, §7.8, §8.1, §10.4, §16.2 to §18, ARCH §11.6 and §12.1, MEM §7, NPC §4.7,
+§4.8 and §11, and the tests lose the guards; a character's name stays out of its own prompt fields until the game shows
+it; GraceUI's SP2 lock filter is re-cut. (b): (a) plus one list and one check. (c): nothing.
+
+**Follows from.** O36, O45, O51; [proposal 0004](proposals/0004-character-bio.md) §8; WHY§98.
+
+**Decision.** (a). The playthrough state is the one spoiler mechanism. Folded by roadmap S7.13.b.
+
+**Owner's words.** "the playthrough system will track world state, NPC states, quest states, etc. so our system will
+tell the LLM in prompt what each NPC is exactly supposed to know, what it's currently doing, and it's own part in the
+quest (not necessarily what the player needs to do, but for example what it asks of the player at that stage in the
+quest). so we shouldn't need a very complex and strict spoiler prevention system." and "Grounding only, simple
+(Recommended)".

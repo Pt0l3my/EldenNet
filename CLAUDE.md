@@ -116,8 +116,10 @@ index.
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,
-  not forbid lists. v1 stays dialogue-only and read-only, so "there are no NPC actions beyond dialogue" still
-  holds; actions and gestures are later-version seams (DESIGN O31–O42).
+  not forbid lists: the playthrough state tells each NPC what it knows, its activity and its part in its quest,
+  in every prompt and background job, with no runtime filters (O86). v1 stays dialogue-only and read-only, so
+  "there are no NPC actions beyond dialogue" still holds; actions and gestures are later-version seams (DESIGN
+  O31–O42).
 - **The full roster, with free conversation and memories (2026-11-07).** v1.0 ships our own character bio for every
   named NPC and every named boss (DESIGN O43 as updated): general and stage-independent, in our own words and
   spoiler-reviewed; stages stay a separate feature (the personas' stage tracks, GraceUI's Playthrough page). Every NPC

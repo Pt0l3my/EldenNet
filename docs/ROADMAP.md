@@ -602,6 +602,18 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
   - needs: a
   - refs: G29, O76
 
+### S7.13 Spoilers by grounding alone (O86)
+
+The owner decided on 2026-11-15 that the playthrough state, telling each NPC what it knows, what it is doing and its own
+part in its quest, is the one spoiler mechanism, and that the design's extra guards go.
+
+- S7.13.a The owner decides how strict spoiler prevention is (O86) [done]
+  - refs: O86, O36
+  - gives: decided 2026-11-15: grounding only; a few test questions per character check the model's own knowledge.
+- b Fold O86 into the designs: the guards (locked-term sets, the output lock, reveal terms and tells, PL7's fixture checks, the second reader's reveal list, the fallback ladder) leave DESIGN, ARCH, MEM, NPC and the tests; GraceUI's SP2 is re-cut; every background job is grounded like dialogue [planned]
+  - needs: a
+  - refs: O86, O36, G5
+
 ## S8 Our own engine, on SkyrimNet's logic (O84) [planned]
 
 - needs: S6.1
@@ -623,7 +635,7 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
 - e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
   - needs: a
   - refs: O60, O84, O25, G15
-- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, gated background jobs, mechanical spoiler checks, per-witness memories, evaluation with a spoiler check [planned]
+- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [planned]
   - needs: a
   - refs: WHY§97, WHY§98, O84, O46
 
