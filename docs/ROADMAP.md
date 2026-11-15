@@ -479,8 +479,8 @@ the player's game, and optionally opened by the map key.
     with en-0016, as research material that stays out of the repositories.
     Since then the map tiles: the game's own masks unpacked (en-0027), which name the tiles it draws today and give
     one geometry for every sheet; levels 3 and 4 are an older layout (en-0019 to en-0027, DataPiler 0.2.23 to 0.2.32,
-    WHY§62 to WHY§76; en-0029 drew every sheet's levels 0 to 2 whole from the masks, and their sizes are measured).
-    Next: en-0031 (the check at the measured sizes, DataPiler 0.2.34), then the exact world fit at level 0.
+    WHY§62 to WHY§77; en-0029 drew every sheet's levels 0 to 2 whole from the masks, their sizes are measured, and
+    en-0031 passed every tile the game draws). Next: the exact world fit at level 0.
 
 ## S8 Adopting the engine [planned]
 

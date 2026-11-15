@@ -99,6 +99,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 74 | 2026-11-15 | en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3 | FACT | #map #datapiler |
 | 75 | 2026-11-15 | en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left | FACT | #map #datapiler |
 | 76 | 2026-11-15 | Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875 | FACT | #map #datapiler #graceui |
+| 77 | 2026-11-15 | en-0031: at the measured sizes every variant the game draws passes, at every level of every map | FACT | #map #datapiler |
 
 ## Entries
 
@@ -1240,3 +1241,18 @@ four times; the images stay in scratch, never in a repository).
   to 335 patches. So three quarters (WHY§70) and 2,089 / 10,496 (WHY§71) were near but not exact, and WHY§75's drift
   is the difference, about 14 level-1 pixels at the far side. DataPiler 0.2.34 holds the measured sizes.
 - Next: en-0031 confirms the check on 0.2.34; then the world-to-map fit at level 0, the map now known tile by tile.
+
+### 77. en-0031: at the measured sizes every variant the game draws passes, at every level of every map
+
+`2026-11-15` · FACT · `#map #datapiler` · refs: WHY§75, WHY§76, DataPiler S85
+
+From en-0031 (DataPiler 0.2.34, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against its
+nearest drawn level, at the measured sizes.
+
+- **All of today's variants pass:** the base map's 2,873, 1,982 and 737 at levels 0, 1 and 2, the underground's 520,
+  326 and 55, the expansion's 760, 502 and 98 (medians 0.98 to 1.0). Level 0's bases pass as well (1,681 of 1,681 on
+  the base map, median 0.99, where en-0030 had 0.44): the parchment scales with the drawing after all, and only the
+  sizes were off.
+- **The other layout's tiles do not** (0 to 2%; 2 of 20 on the expansion): the masks tell them apart exactly.
+- So the map tiles are settled: which tile the game draws at every place and level (its masks, WHY§73), and where each
+  level lies against level 0 (WHY§76). Next: the world-to-map fit at level 0.
