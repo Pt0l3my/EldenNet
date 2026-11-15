@@ -498,6 +498,23 @@ the player's game, and optionally opened by the map key.
   - refs: G21, G24, G26, WHY§78, WHY§80, WHY§82, GraceUI:docs/proposals/0002-map.md
   - gives: revised recommendations for the owner's G21 to G26; terrain heights, the archives' run-time read and the map key stay with c.
 
+### S7.10 Plugins (EldenNet proposal 0001)
+
+The owner asked on 2026-11-15 for an easy way to add plugins to EldenNet: dropped into a Plugins folder and
+installed when the game starts, or dropped on the dashboard while it runs, with a restart to finish; and whether
+EldenNet may hook as well as GraceUI.
+
+- S7.10.a A proposal: content plugins and code plugins, how they are installed, and EldenNet's own hooks, with questions for the owner [done]
+  - refs: O65, O66, O67, O68, O69, docs/proposals/0001-plugins.md, WHY§86, WHY§87
+  - gives: proposal 0001: EldenNet's own hook library for functions GraceUI does not hook; content plugins checked like
+    EldenNet's own content, from 1.1; both install routes, code never through the browser; a published interface for
+    code plugins after v1.0.
+- b The owner answers O65 to O69 [waiting]
+  - needs: a
+  - refs: O65, O66, O67, O68, O69
+- c Fold the answers into EldenNet's and GraceUI's designs [planned]
+  - needs: b
+
 ## S8 Adopting the engine [planned]
 
 - needs: S6.1

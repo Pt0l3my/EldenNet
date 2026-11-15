@@ -108,6 +108,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 83 | 2026-11-15 | The design fold: proposal 0001's parts adopted by reference, what waits for G18 to G20, and three settlements of the fold's own | DECIDED | #graceui #design |
 | 84 | 2026-11-15 | Under G15 EldenNet links no hook library, so any later hook of its own needs the owner | FACT | #graceui #hooks #design |
 | 85 | 2026-11-15 | Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay | METHOD | #graceui #design |
+| 86 | 2026-11-15 | One owner per hooked function: what the evidence on hook libraries rules out, and what it does not | FACT | #hooks #graceui #design |
+| 87 | 2026-11-15 | SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet | FACT | #plugins #skyrimnet #design |
 
 ## Entries
 
@@ -1450,3 +1452,31 @@ only.
   three approvals, for GraceUI's own pages. Both lines stay.
 - Also kept apart: proposal 0001 §6 freezes ABI 1 at 1.0, while G18 (a) publishes a frozen ABI 1 with 1.1. GraceUI's
   §10 leaves the freeze to G18's answer.
+
+### 86. One owner per hooked function: what the evidence on hook libraries rules out, and what it does not
+
+`2026-11-15` · FACT · `#hooks #graceui #design` · refs: ER02 §7.1, WHY§84, O65, GraceUI invariant 16
+
+- ER02 §7.1: the conflict er-mods-rs names is "two MinHook instances detouring one prologue and corrupting each other's
+  trampolines"; two DXGI Present compositors conflict; hudhook bundles its own MinHook, so a second hudhook-based DLL is
+  exactly that case.
+- So the evidence rules out two hook libraries on one function, and two overlays over one screen and one set of keys.
+  It says nothing against a second library hooking other functions.
+- GraceUI's invariant 16, as folded on 2026-11-15, bans any hook library in a consumer, which is stricter than this.
+  Proposal 0001 (plugins) puts the narrower rule to the owner as O65 (a), with EldenNet's own hooks installed only
+  after `connect` has answered, so that GraceUI's are already in place and the two never patch at the same moment.
+
+### 87. SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet
+
+`2026-11-15` · FACT · `#plugins #skyrimnet #design` · refs: SkyrimNet's `PublicAPI.h` (MIT, read in the Skyrizz
+checkout), O68, O53
+
+- SkyrimNet's plugin header (MIT, its licence covering the plugin API headers) is loaded at run time with
+  `LoadLibraryA` and `GetProcAddress`, from an SKSE plugin's data-loaded handler. It names 45 functions.
+- They fall into: versions; actions and their categories, registered from C++; events (registering an event type, and
+  event callbacks); decorators (context for prompts); memories, diaries and world knowledge (read, add, update,
+  delete); actors (names, bios, engagement, related actors, search, marking one busy); recent events and dialogue, the
+  timeline and the player's context; plugin settings; and custom prompts and decisions sent to the model.
+- So a SkyrimNet plugin never patches SkyrimNet: the game's script extender loads it, and it calls SkyrimNet.
+  EldenNet's code plugins would take the same shape (proposal 0001 §7), with GraceUI's ABI rules and EldenNet's
+  projections, re-checked against Min's blueprint when it arrives (O53).

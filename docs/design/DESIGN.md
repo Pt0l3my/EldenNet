@@ -1981,7 +1981,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58 and O64 on 2026-11-15; O46 is Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58 and O64 on 2026-11-15; O46 and O65–O69 (proposal 0001, plugins) are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2055,3 +2055,8 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O62](../DECISIONS.md#o62) | Whose voices does TTS speak in? | The game's own voice recordings, cloned on the player's PC from their own install, as SkyrimNet does; never shipped or uploaded | Decided 2026-11-09 |
 | [O63](../DECISIONS.md#o63) | Melina: mute, or a voice of her own? | (b): a character profile, conversable in EldenNet's overlay while resting at a grace once she has met the Tarnished; a full persona later | Decided 2026-11-09 |
 | [O64](../DECISIONS.md#o64) | Where does the privacy sweep live, and what of EldenNet's history? | Only in the owner's private Skyrizz repository, installed from that checkout; EldenNet's history rewritten without it, the old commits purged by GitHub Support | Decided 2026-11-15 |
+| [O65](../DECISIONS.md#o65) | How may EldenNet itself hook? | Recommended: (a) its own hook library, for functions GraceUI does not hook, each hook with its spike and the owner's approval | **Open** |
+| [O66](../DECISIONS.md#o66) | Content plugins? | Recommended: (a) yes, in 1.1: profiles, cards, lore and layers, checked like EldenNet's own content | **Open** |
+| [O67](../DECISIONS.md#o67) | How are plugins installed? | Recommended: (a) both: the Plugins folder at launch and the dashboard's drop zone, this PC only, never code | **Open** |
+| [O68](../DECISIONS.md#o68) | Code plugins? | Recommended: (a) a published interface designed now, built and opened after v1.0 | **Open** |
+| [O69](../DECISIONS.md#o69) | May code plugins patch the game through EldenNet? | Recommended: (a) not at first | **Open** |
