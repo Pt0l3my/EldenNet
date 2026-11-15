@@ -1,7 +1,7 @@
 {
  "format": "datapiler-job/1",
  "id": "en-0017-map-colours",
- "title": "The map: the areas' colour keys, the save names' colour keys and the grid height limits (DP21, DP24)",
+ "title": "The map: the areas' colour keys and the save names' colour keys, with the expansion's (DP21, DP24)",
  "needs": "0.2.22",
  "ops": [
   {
@@ -52,15 +52,6 @@
     "srcB",
     "saveMapNameId",
     "multiPlayAreaId"
-   ]
-  },
-  {
-   "op": "check_fields",
-   "as": "ct_height_limit",
-   "param": "MapGridCreateHeightLimitInfo",
-   "fields": [
-    "GridEnableCreateHeightMin",
-    "GridEnableCreateHeightMax"
    ]
   },
   {
@@ -118,16 +109,6 @@
    ]
   },
   {
-   "op": "fetch_rows",
-   "as": "t_height_limit",
-   "param": "MapGridCreateHeightLimitInfo",
-   "fields": [
-    "id",
-    "GridEnableCreateHeightMin",
-    "GridEnableCreateHeightMax"
-   ]
-  },
-  {
    "op": "write_share",
    "name": "map-colours",
    "tables": [
@@ -135,12 +116,10 @@
     "ct_name_tex_dlc",
     "ct_piece_tex",
     "ct_piece_tex_dlc",
-    "ct_height_limit",
     "t_name_tex",
     "t_name_tex_dlc",
     "t_piece_tex",
-    "t_piece_tex_dlc",
-    "t_height_limit"
+    "t_piece_tex_dlc"
    ],
    "columns": {
     "ct_name_tex": [
@@ -159,11 +138,6 @@
      "type"
     ],
     "ct_piece_tex_dlc": [
-     "field",
-     "present",
-     "type"
-    ],
-    "ct_height_limit": [
      "field",
      "present",
      "type"
@@ -201,11 +175,6 @@
      "srcB",
      "saveMapNameId",
      "multiPlayAreaId"
-    ],
-    "t_height_limit": [
-     "id",
-     "GridEnableCreateHeightMin",
-     "GridEnableCreateHeightMax"
     ]
    },
    "notes": [

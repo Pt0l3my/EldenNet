@@ -838,3 +838,5 @@ the repositories. Only these derived numbers are kept here.
   area shapes G21 and D97 ask for, readable from the player's install like the map image, and a second source of
   anchors for the exact fit. `MapGridCreateHeightLimitInfo` holds a minimum and maximum height per row: a possible
   coarse height lead for G27's fallback, its key to be found.
+  Later the same day: en-0017 found neither of that table's two fields in Smithbox's answer (it may hold no rows, or
+  other names); it was left out, as the relief comes from the terrain itself (G27).
