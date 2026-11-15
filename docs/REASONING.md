@@ -103,6 +103,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 78 | 2026-11-15 | The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion | FACT | #map #datapiler #graceui |
 | 79 | 2026-11-15 | The areas' colour image is very likely the map-information binders, one per kilometre square | LIKELY | #map #datapiler #graceui |
 | 80 | 2026-11-15 | The areas' image ships converted: each map-information square holds the two keys' row numbers | FACT | #map #datapiler #graceui |
+| 81 | 2026-11-15 | The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image) | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1352,3 +1353,33 @@ material. Numbers only here.
   finer areas, at 4 m, for G21 and D97. They are read from the player's install at run time and never committed, and
   the names' text comes from the game's own place names, by `mapNameId`, at run time too.
 - Next: the blue channel and the second layer; then GraceUI's map labels from these shapes.
+- Later (2026-11-15): the blue channel and the second image are very likely the weather and mimicry keys (WHY§81).
+
+### 81. The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image)
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§80, O48
+
+From en-0032 and en-0033 (research material, read in scratch) and Smithbox's table definitions (an untrusted copy,
+read as text; labels until the rows are read, O48). Numbers only here.
+
+- **Four keys, not two.** The definitions name four tables keyed by "the map image before conversion": the area names,
+  the finer areas, a weather key (`WeatherLotTexParam`: a weather lottery id) and a mimicry key
+  (`MimicryEstablishmentTexParam`: a per-map mimicry probability id, which decides what the Mimic's Veil turns the
+  player into), each with an expansion twin. The expansion's mimicry key notes that the expansion added choosing the
+  mimicry targets place by place "through the map information image param", so the images carry these keys too.
+- **The blue channel** is a key of its own. Its regions are large and smooth and cross both the name and the
+  finer-area borders: 78 per cent of the base map's land lies in its finer area's main blue value, 98 per cent on the
+  expansion. The base map holds 22 values plus 0 (31 per cent of the land, very likely "none") and 255; the
+  expansion 29. Very likely the weather key's rows.
+- **The second image** is empty on the base map. On the expansion it copies the first image's red value on 89 per cent
+  of the land and differs on 44,568 pixels (11 per cent) in six squares, always by a neighbouring number (92 to 93,
+  50 to 56, 52 to 55, 40 to 42, 47 to 48), most of them rows of neither known key. Very likely the mimicry key's rows:
+  a key the expansion added, laid out on the finer areas with a few splits. It is not a second floor of finer areas:
+  the two expansion resting places on the differing ground read as the first image's finer area.
+- **Heights.** The expansion's weather key holds a border height in metres and separate weather lots for high and low
+  ground (`isUseHeightInfo`, `borderHeight`), so ground stacked above other ground is split by height inside a key's
+  row, not by a second image. The mimicry key's own high and low ids are marked unused, in favour of the multiplayer
+  area.
+- **To confirm:** the two keys' row ids against these values. DataPiler does not read these tables yet: they are not
+  among its params, and a share file may hold their rows whole only under DP21's research label. Either a new DataPiler
+  version or Smithbox's own CSV export, done by hand, would give them.
