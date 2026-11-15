@@ -87,6 +87,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 62 | 2026-11-15 | Each tile code bit is one map piece, and map units are level-0 pixels | LIKELY | #map #datapiler #graceui |
 | 63 | 2026-11-15 | A tile's pieces that never meet have a variant each, laid together | FACT | #map #datapiler #graceui |
 | 64 | 2026-11-15 | Level 2's export holds a second drawing of the map; levels 2 to 4 nest by two | LIKELY | #map #datapiler #graceui |
+| 65 | 2026-11-15 | With the check, level 2 is one image; its base and pieces 15 to 20 stand apart | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -952,3 +953,25 @@ of every repository).
   of levels 2 to 4.
 - **For GraceUI (G26, D90).** A map drawn from the player's own tiles must use only variants that pass this check (or
   the game's own rule, once known); the code alone does not say which file is part of the map.
+
+### 65. With the check, level 2 is one image; its base and pieces 15 to 20 stand apart
+
+`2026-11-15` · FACT (the scores, the pieces' rows), LIKELY (what they mean) · `#map #datapiler #graceui` · refs: WHY§62,
+WHY§64, G26, D90, DataPiler S78
+
+From the owner's en-0021 overviews (DataPiler 0.2.28; measured here, numbers only, the images kept out of every
+repository) and en-0016's piece rows.
+
+- **One image.** Laid with the check, every level-2 land tile matches level 3 at its place at 0.99 or more, but for a
+  handful around Leyndell (0.52 to 0.84) and north of Caelid (0.56); dark margin tiles score low, as their texture
+  does not line up. Level 3 itself is clean: nearly every variant scores 1.00 against level 4.
+- **The base is not part of it.** Level 2's code-0 tiles are a dark margin with a faint outline of the land at another
+  scale, transparent over part of column 8 and row 0: not the same drawing as the level's variants. Where a variant
+  covers a tile this does not show.
+- **Pieces 15 to 20 are not fragments.** Their open flags are 62004 to 62009 with no pickup event (the fragments, 0 to
+  14, open by 62010 to 62053 with pickup events 63010 to 63053), their rectangles are wide regions (a quarter of the
+  map or more), and levels 3 and 4 have no variant for them. At level 2 their variants are among those left out (0.2
+  or less), with some fragment codes at some places (scores near 0) and partial ones (0.5 to 0.7) where level 3 lacks
+  the same mix of pieces.
+- Open: what flags 62004 to 62009 open, whether the left-out variants are stale files the game never asks for, and a
+  rule for the mid scores. The per-tile numbers of en-0021 (`map-tile-check.json`) will tell more.
