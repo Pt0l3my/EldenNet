@@ -1383,3 +1383,7 @@ read as text; labels until the rows are read, O48). Numbers only here.
 - **To confirm:** the two keys' row ids against these values. DataPiler does not read these tables yet: they are not
   among its params, and a share file may hold their rows whole only under DP21's research label. Either a new DataPiler
   version or Smithbox's own CSV export, done by hand, would give them.
+- Later (2026-11-15): en-0034 (DataPiler 0.2.36) read the base weather key, 25 rows, then stopped: the owner's
+  Smithbox (2.2.6) names only the five fields the four keys share (the colour and the weather or mimicry id), not the
+  expansion keys' height fields, which come from a newer Smithbox's definitions. So the height split stays a label
+  (O48). en-0035 reads the five shared fields of all four keys.
