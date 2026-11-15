@@ -84,6 +84,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 59 | 2026-11-14 | The world map's frame: about one map unit per metre, north up, three sheets | LIKELY | #map #datapiler #graceui |
 | 60 | 2026-11-15 | The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion | LIKELY | #map #datapiler #graceui |
 | 61 | 2026-11-15 | The game's map tiles: four sheets, five zoom levels, a variant per revealed piece | LIKELY | #map #datapiler #graceui |
+| 62 | 2026-11-15 | Each tile code bit is one map piece, and map units are level-0 pixels | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -884,3 +885,23 @@ only; the images stay on the owner's PC.
   own variants, not from shapes of ours. The colour-coded area image of WHY§60 is not among the map tiles.
 - Next: en-0019, each level-0 tile's position and code, to tell which bit is which piece and test map units against
   level-0 pixels exactly.
+
+### 62. Each tile code bit is one map piece, and map units are level-0 pixels
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§59, WHY§61, G21, G26, D90
+
+From en-0019 (each level-0 tile's sheet, column, row and code, 12,442 tiles) against the pieces' rectangles of en-0016.
+Numbers only.
+
+- **Bits are pieces.** The base sheet uses exactly 21 code bits and has 21 pieces (0 to 20); the underground 6 and 6
+  (100 to 105); the expansion 5 and 5 (1000 to 1004). Matching each bit's tiles to the rectangle that holds most of
+  them, with no order imposed, pairs bit n with piece n on the base sheet for 18 of 21 bits (the rest involve pieces
+  13 and 14, whose rectangles are identical, and one bit whose tiles span the whole map), bit n with piece 1000 + n
+  on the expansion (each 73 to 100 per cent inside), and bit n with piece 100 + n underground (54 to 74 per cent).
+- **Units are level-0 pixels, rows from the bottom.** The fit is best with one map unit to one level-0 pixel, no
+  horizontal shift (within 64 pixels), and the tile rows counted up from the bottom of a map 41 x 256 = 10,496 pixels
+  high: tile row = (10,496 - unit y) / 256. Shares under 100 per cent fit a reading that the pieces' rectangles bound
+  where the map may be scrolled when the piece is open, not every tile it reveals.
+- **With WHY§59** a world position goes to map units (about one per metre, north up), map units to level-0 pixels,
+  and a tile's variant follows the bits of the pieces the player holds. What is still loose is §59's world-to-map
+  offset (hundreds of units of slack): it needs anchors from an image.
