@@ -101,6 +101,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 76 | 2026-11-15 | Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875 | FACT | #map #datapiler #graceui |
 | 77 | 2026-11-15 | en-0031: at the measured sizes every variant the game draws passes, at every level of every map | FACT | #map #datapiler |
 | 78 | 2026-11-15 | The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion | FACT | #map #datapiler #graceui |
+| 79 | 2026-11-15 | The areas' colour image is very likely the map-information binders, one per kilometre square | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1301,3 +1302,19 @@ the repositories; only these derived numbers are kept.
   never committed.
 - Next: EldenNet's map projection and GraceUI's map page (G21) use these: a world position to its sheet, map units
   and level pixels.
+
+### 79. The areas' colour image is very likely the map-information binders, one per kilometre square
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§60, WHY§78, O48, DataPiler S81
+
+- Smithbox's file dictionary for the game (read as text from an untrusted copy) names 72 files
+  `other/mapinfotex/m6x_XX_ZZ_02.mapinfotexbnd.dcx`: 48 for area 60 and 24 for area 61, one per level-2 cell of the
+  open world (very likely 4 × 4 cells of 256 m, so 1,024 m a side). They fill area 60's cells 8 to 14 across and 7
+  to 16 up, and area 61's 10 to 14 and 8 to 13. Nothing else in the dictionary is named for map names, areas or name
+  textures.
+- So the colour keys' image (WHY§60) is very likely cut into these squares, a texture or more in each binder. A name
+  in a dictionary is a label until the files are read (O48).
+- Jobs en-0032 (the 48) and en-0033 (the 24) unpack them on the owner's PC with DataPiler's unpack step (0.2.31
+  onwards). The inner files stay local, and the owner uploads them as research material. Next: read their textures
+  in scratch, check their colours against the keys and the resting places (WHY§78's transforms), and if they hold,
+  record the areas' shapes.

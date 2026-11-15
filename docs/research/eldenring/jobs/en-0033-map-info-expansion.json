@@ -1,0 +1,104 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0033-map-info-expansion",
+ "title": "The map: the expansion's 24 map-information binders unpacked on the PC, to find the areas' colour image (WHY§60)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "m61_10_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_10_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_10_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_11_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_12_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_13_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_14_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_14_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m61_14_10_02.mapinfotexbnd.dcx"
+  }
+ ]
+}
