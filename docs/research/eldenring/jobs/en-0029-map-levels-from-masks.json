@@ -1,0 +1,243 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0029-map-levels-from-masks",
+ "title": "The map: levels 0 to 2 of every sheet checked and laid out from the game's own masks (S82)",
+ "needs": "0.2.32",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l0",
+   "sheet": 0,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l1",
+   "sheet": 0,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l2",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l0",
+   "sheet": 1,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l1",
+   "sheet": 1,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l2",
+   "sheet": 1,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l0",
+   "sheet": 10,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l1",
+   "sheet": 10,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l2",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "write_share",
+   "name": "map-check-masks",
+   "tables": [
+    "t_m00_l0",
+    "t_m00_l1",
+    "t_m00_l2",
+    "t_m01_l0",
+    "t_m01_l1",
+    "t_m01_l2",
+    "t_m10_l0",
+    "t_m10_l1",
+    "t_m10_l2"
+   ],
+   "columns": {
+    "t_m00_l0": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m00_l1": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m00_l2": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m01_l0": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m01_l1": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m01_l2": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m10_l0": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m10_l1": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ],
+    "t_m10_l2": [
+     "x",
+     "y",
+     "code",
+     "near",
+     "near_base",
+     "moved",
+     "in_mask"
+    ]
+   }
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l0-game",
+   "sheet": 0,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l1-game",
+   "sheet": 0,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m00-l2-game",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l0-game",
+   "sheet": 1,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l1-game",
+   "sheet": 1,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m01-l2-game",
+   "sheet": 1,
+   "level": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l0-game",
+   "sheet": 10,
+   "level": 0,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l1-game",
+   "sheet": 10,
+   "level": 1,
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m10-l2-game",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l0-base",
+   "sheet": 11,
+   "level": 0,
+   "variant": "base",
+   "shrink": 4
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l1-base",
+   "sheet": 11,
+   "level": 1,
+   "variant": "base",
+   "shrink": 2
+  },
+  {
+   "op": "make_map_overview",
+   "name": "overview-m11-l2-base",
+   "sheet": 11,
+   "level": 2,
+   "variant": "base"
+  }
+ ]
+}

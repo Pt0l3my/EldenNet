@@ -95,6 +95,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 70 | 2026-11-15 | Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off | FACT | #map #datapiler #graceui |
 | 71 | 2026-11-15 | The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places | FACT | #map #datapiler #graceui |
 | 72 | 2026-11-15 | The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle | FACT | #map #datapiler #smithbox |
+| 73 | 2026-11-15 | The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1087,6 +1088,9 @@ repository), and en-0024's check of the other sheets.
   The expansion passes almost nothing at any level, so its scales or anchors differ from LEVEL_SCALES; sheet 11 has
   base tiles only. en-0026 re-checks levels 0 and 1 with level 1 lifted and the old set's place measured, and lays
   out the expansion's levels to fit its geometry.
+- **Later (2026-11-15, WHY§73):** reversed. The tiles that match level 3 four columns further right are today's,
+  as the game's masks name them, and level 3 is the older layout; the tiles that matched it in place are that
+  layout's leftovers. Level 1 at the top of its frame stands.
 
 ### 71. The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places
 
@@ -1110,6 +1114,8 @@ images stay out of every repository) and en-0026's check of levels 0 and 1 with 
   its own scales, which its overviews in en-0028 will show.
 - Next: en-0028 re-checks the expansion at its own scales and lays out every sheet's levels 0 to 2 with the old set
   moved; en-0027 unpacks the game's masks (WHY§72).
+- **Later (2026-11-15, WHY§73):** the expansion's geometry is every sheet's. The variants 0.2.31 moved were today's
+  tiles, moved into the older layout; DataPiler 0.2.32 withdraws the moving.
 
 ### 72. The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle
 
@@ -1132,3 +1138,38 @@ From the owner's Smithbox unpack of the game's `menu` folder and the file they u
   sounds, one script and the game's two network key files. None is in `menu`; the keys were never written (no such
   folder), and DataPiler refuses a job that names a key or the regulation.
 - Next: en-0027 unpacks it on the PC; the owner sends the four masks, kept in scratch, to decode their layout.
+- **Later (2026-11-15, WHY§73):** en-0027 opened it on the owner's PC with the game's own Oodle. The four files are
+  `MENU_MapTile_M00.mtmsk` to `M11` in `menu/ScaleForm/maptile/mask`, and the speculation holds: each is an XML
+  list of the pieces that touch each tile.
+
+### 73. The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet
+
+`2026-11-15` · FACT (the masks, counts and fits), LIKELY (why the older layout is there) · `#map #datapiler #graceui` ·
+refs: WHY§63, WHY§67, WHY§70, WHY§71, WHY§72, DataPiler S82
+
+From the four mask files en-0027 unpacked on the owner's PC (kept in scratch only), against the tile lists of en-0019
+and en-0022 and the scores of en-0026 (numbers only), and the owner's en-0021 image of level 2's base tiles.
+
+- **What a mask is.** Each `MENU_MapTile_Mxx.mtmsk` is plain XML: `MapTileMask` entries whose id is level * 10,000 +
+  column * 100 + row, as the tiles' names number them, and whose mask is the pieces that touch that tile, for levels
+  0 to 2 only. The base map has 1,369, 784 and 65 entries, the underground 418, 250 and 26, the expansion 480, 288 and
+  30; sheet 11's 2,434 are all marked as not existing (it has base tiles only).
+- **The game's rule.** At every entry of sheets 0, 1 and 10 every subset of the mask is exported, the mask's own code
+  always. So the game draws the variant whose code is the mask without the pieces not yet revealed, and any other code
+  at a place is not drawn. The base map's level 0 has such leftovers at 877 places (2,319 variants): exactly S77's
+  places with several widest codes, which were never pieces to lay together.
+- **The older layout.** The leftovers fall inside today's masks four columns to the left at level 0 (704, against 636
+  at five) and three at level 1, with no row shift. Against level 3 the image check passed 1,324 leftovers in place and
+  3 of today's variants, while 1,304 of today's passed four columns right. So levels 3 and 4, which have no masks, are
+  an older layout whose ground sits 1,024 map units right of today's, and the leftovers are its tiles: WHY§70's "old
+  set" is today's. LIKELY: the map was laid out anew when the expansion came, and the container kept every file no
+  new one replaced.
+- **One geometry.** Fitting each piece's tile extent at levels 1 and 2 against level 0 gives, on the base map, 0.748
+  (across) and 0.750 (down) at level 1 with the map at the top (offset 88 pixels; 64 expected) and 0.191 and 0.199 at
+  level 2 (offset 189; 215 expected); the expansion, the control, gives about 0.75 and 0.20 (offset 212). Level 2's
+  base tiles on the owner's en-0021 image turn transparent at 8.16 tiles across and 0.84 up: a 2,089-pixel map at the
+  top left of a 9 by 9 frame. So every sheet has the expansion's geometry (WHY§71), and WHY§67's quarter was the older
+  layout's level 2.
+- DataPiler 0.2.32 draws overviews from the masks, adds `in_mask` to the check, uses the one geometry and never takes
+  level 3 or 4 as the reference. en-0028 was withdrawn before it ran; en-0029 re-checks levels 0 to 2 of every sheet
+  and lays them out from the masks.
