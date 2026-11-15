@@ -828,3 +828,13 @@ the repositories. Only these derived numbers are kept here.
 - Only 10 place names exist as map labels, tied to pieces; the 422 resting places and 472 map points are the dense
   anchors.
 - Next: anchors for an exact fit (map image or in game), then the fit's error per sheet, recorded here.
+- Later (2026-11-15): the dungeons' conversion is mostly plain offsets. Grouping its rows by source area and grid cell
+  and destination area, 44 of the 50 groups with two or more rows move every point by the same offset (within 0.5 m),
+  so a dungeon's frame maps onto the world by one translation; 6 groups spread up to about 3.5 km (several pieces of a
+  dungeon sharing one cell, to be split by their own base points), and 64 groups have one row only.
+- Later (2026-11-15), a lead (O48: unverified): Smithbox's definitions name `MapNameTexParam` and `MapPieceTexParam`
+  (and `_m61` twins for the expansion) as colour keys (red, green, blue) to an area-name id, a save-name id and a
+  multiplayer area. So the game very likely keeps its areas as a colour-coded texture, one colour per area: the exact
+  area shapes G21 and D97 ask for, readable from the player's install like the map image, and a second source of
+  anchors for the exact fit. `MapGridCreateHeightLimitInfo` holds a minimum and maximum height per row: a possible
+  coarse height lead for G27's fallback, its key to be found.
