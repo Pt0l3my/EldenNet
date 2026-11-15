@@ -43,9 +43,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   recommended: EldenNet's own hook library for functions GraceUI does not hook; content plugins in 1.1; both install
   routes; code plugins through a published interface after v1.0; no hook service for plugins at first.
 - **2026-11-15.** O70 decided as the owner designed it (code plugins in one cluster outside the game, or detached;
-  the plugins-stopped pop-up; library clashes caught by the validator); O71 and O72 put to the owner.
-- **Open.** O46 (the bio's structure and the v1.0 roster); O71 (the launcher as the crash watcher); O72 (a sandbox for
-  plugin hosts).
+  the plugins-stopped pop-up; library clashes caught by the validator); O71 (the launcher stays as the crash watcher)
+  and O72 (a sandbox for plugin hosts, later, as an option) put and decided the same day, as recommended.
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -998,7 +998,7 @@ the validator would catch incompatibilities" (2026-11-15).
 
 ## O71
 
-**The launcher as the crash watcher** · *Open since 2026-11-15*
+**The launcher as the crash watcher** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** When the game itself crashes, everything inside it stops, the dashboard's server included, so only
 something outside the game can record what happened. **Options:** (a) **the launcher stays in the background while the
@@ -1018,9 +1018,16 @@ program to ship and sign.
 
 **Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.7.
 
+**Decision.** (a): the launcher stays in the background while the game runs and records any crash of the game (where it
+happened, the kind of error, the last log lines and events, the plugins and mods loaded), and the next start explains
+it; players who start the game through their own loader get the watcher started by EldenNet. A full crash dump stays on
+the PC; only a scrubbed summary is ever shared.
+
+**Owner's words.** "Launcher stays as watcher (Recommended)".
+
 ## O72
 
-**A sandbox for plugin hosts** · *Open since 2026-11-15*
+**A sandbox for plugin hosts** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** Each plugin host could run with reduced rights, the kind of sandbox web browsers use, so that even a
 hostile plugin could not read the player's files, reach the network or touch the game's memory unless its manifest asks
@@ -1035,3 +1042,8 @@ what any program the player runs can.
 sandbox becomes part of code plugins' first release, and the spike comes first.
 
 **Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.8.
+
+**Decision.** (a): later, as an option. Once code plugins have shipped, a spike checks Windows' reduced-rights sandbox
+on Windows and under Proton; a plugin's manifest then names what it needs, for the player to allow.
+
+**Owner's words.** "Later, as an option (Recommended)".

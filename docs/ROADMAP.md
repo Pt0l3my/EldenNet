@@ -530,9 +530,11 @@ EldenNet may hook as well as GraceUI.
   - gives: validators before anything installs, the library-clash check against every installed plugin, the plugin
     cluster outside the game with Detached rows, the plugins-stopped pop-up with four choices, folded into both designs
     (GraceUI D104, D105).
-- f The owner answers O71 (the launcher as the crash watcher) and O72 (a sandbox for plugin hosts) [waiting]
+- f The owner answers O71 (the launcher as the crash watcher) and O72 (a sandbox for plugin hosts) [done]
   - needs: e
   - refs: O71, O72
+  - gives: both decided 2026-11-15, as recommended: the launcher stays in the background as the crash watcher, crash
+    dumps staying on the PC; a sandbox for plugin hosts later, as an option, after a spike.
 
 ## S8 Adopting the engine [planned]
 
@@ -902,4 +904,6 @@ v0.1's testing uses, draw through it.
 - d Native talk, native line ids and hook sources: spikes S9 and S10, H1 to H3, the hooks with EldenNet's own library (O65) [idea]
 - e Code plugins through EldenNet's published interface, a preview first, in the plugin cluster outside the game or detached, and a hook service for them only if one is needed [idea]
   - refs: O68, O69, O70, docs/proposals/0001-plugins.md
+- f A sandbox for plugin hosts, as an option, after a spike on Windows and under Proton [idea]
+  - refs: O72
   - refs: DESIGN§16.1

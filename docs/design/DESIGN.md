@@ -122,7 +122,7 @@ flowchart LR
 
 ### 2.1 Runtime shape
 
-There are two processes: the short-lived `eldennet-launcher.exe` (§3.2) and the game. All of EldenNet runs in the game process as one Rust `cdylib`, and all ML is reached over HTTP (ER06 §5.1). P2's split brain was rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
+There are two processes: `eldennet-launcher.exe` (§3.2), which since O71 stays in the background as the crash watcher, and the game; code plugins, after v1.0, add their plugin hosts outside the game (O70). All of EldenNet runs in the game process as one Rust `cdylib`, and all ML is reached over HTTP (ER06 §5.1). P2's split brain was rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
 
 | Thread | Runs | Game memory? |
 |---|---|---|
@@ -251,6 +251,7 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 |---|---|
 | GraceUI missing, damaged or too old (GraceUI D83, D88) | Before start, the launcher installs the GraceUI that EldenNet carries, or explains what is missing; in the process, a failed connect leaves EldenNet headless (L2 at most, nothing drawn), logged, with a hint the next time the launcher runs |
 | Anti-cheat present | GraceUI draws notices only, EldenNet's banner among them (GraceUI D88) |
+| The game crashes | At the next start, the launcher and the dashboard say where it happened and why, in plain words; a plugin found at fault stays off until the player turns it back on (O71) |
 | Unknown build or failed discovery | Banner: "EldenNet inactive: game build 2.x.y.z not supported yet", with the reason, drawn as a GraceUI notice |
 | An optional group tripped | One toast naming the reduced feature |
 | Slow first token | The "Name …" card keeps pulsing; one silent fallback to the backup model |
@@ -285,7 +286,7 @@ A small windowless Win32 program of our own, about 400 lines. It follows the doc
 3. **Back up the save:** copy `%APPDATA%\EldenRing\<SteamID64>\ER0000.sl2` and its `.bak` to `%APPDATA%\EldenNet\save-backups\…\<timestamp>`, keeping 10.
 4. **Start without EAC:** put `steam_appid.txt` next to `eldenring.exe` (TGA's recommended method) and record that we created it. A `SteamAppId` environment variable instead would avoid writing into the game folder; S0-C tests it (SPECULATION).
 5. **Inject:** `CreateProcessW(…, CREATE_SUSPENDED)`, then `VirtualAllocEx` + `WriteProcessMemory` + `CreateRemoteThread(LoadLibraryW)`. Check the module handle, then resume.
-6. **Exit.** Flags: `--vanilla-offline`, `--no-backup`, `--dll <path>`.
+6. **Stay as the crash watcher** (O71): in the background until the game ends, recording any crash for the next start to explain; then exit. Flags: `--vanilla-offline`, `--no-backup`, `--dll <path>`.
 
 Its first screen states, in plain words: offline only; saves are backed up but not separated (§3.6); typed text goes to the player's chosen provider; the content is AI-generated (J3 §4); and the dashboard's address, which GraceUI serves while the game runs, read from GraceUI's own settings (GraceUI D84). Under Proton the launcher must run inside the game's prefix. S0-C settles the recipe, and the player's own me3 profile is the fallback.
 
@@ -1634,7 +1635,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | **S0-A Untouched image** | Do our finder and the 5 AOB items resolve without dearxan, under early and late load, alone and beside me3 (with `disable_arxan`), ERSC and Reforged? | 20/20 launches per mode, else L1 with no crash | v0.1 |
 | **S0-B Task without dearxan** | Does the task tick for 2 h with no code-restoration trouble? | 0 faults; p99 ≤ 0.5 ms | v0.1 |
 | **S0-C Launcher and offline** | No-EAC start on Windows and Proton; the `SteamAppId` variant; the session gate solo and in ERSC (via the player's me3); is a FromSoftware connection impossible? | Gate false in every session; no online menu | v0.1 |
-| **S0-D Guarded reads** | Forced faults beside ERSC, the Steam overlay and a VEH-installing crash reporter | 20/20 caught; breakers trip | v0.1 |
+| **S0-D Guarded reads** | Forced faults beside ERSC, the Steam overlay and a VEH-installing crash reporter; the crash watcher's record beside the game's own handler and other mods' (O71) | 20/20 caught; breakers trip; every forced crash recorded by the watcher | v0.1 |
 | **S0-E Hook coexistence** | GraceUI's hooks installed once, in both load orders, beside another DInput overlay; EldenNet connecting to them (GraceUI G15) | Both mods work; no leak | v0.1 (the present hook, on GraceUI's 0.1 Host, in both load orders, beside another overlay); v0.2 (the input hooks) |
 | S1 Perception | List coverage; is `distance` squared; share of `entity == 0`; invader class; which `chr_type` values populate `player_chr_set` (NPC summons, NPC invaders; §3.4); cost; for character profiles (§7.7), each shipped binding's rows and entities, as for persona rows, and whether a boss's phases use one row or several; for the roster (about 140 NPCs), captures in batches from v0.4, once the census has run, to the v1.0 release candidate, matched by `roster-verify` (§7.8) | ≤ 0.4 ms p99; Kalé and 3 soldier families resolve | v0.1 |
 | S2 Text | FMG table reads on 1.17.2; where the game holds its active text language; whether the install carries English text (O26); boss bars: whether `boss_bars[i].name_id` is the id of the name the bar shows, per fight, over ≥ 10 fights including one with two bars (ER05 open question 13) | 100 IDs match the player's export; the language is read, or the wizard's confirmation fallback is used; every shipped `bar` binding matches its fight (for the roster, every named boss's fight once, §7.8) | v0.1 (the `text` group ships there) |
@@ -1660,7 +1661,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | **v0.6 Threshold** | Wizard, settings, call-out, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build; F10 pages: Pacing, Ranges, Autonomy, Reactions, NPC types and allowances; the call-out with repeat calls; the profile editor, the sightings list and the `draft` helper (§7.7); the rest of the base-game roster's bios (§7.8) | C1–C4 on the full matrix; C13 on the wizard path; X3 on the matrix; the patch drill again; C7 and C8 for the call-out; the F10 pages of §12; the bundle scan with profile canaries and `player_profiles.scn`'s save-path checks; each new bio's roster eval and checklist (§16.3) |
 | **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release; a bio for every named NPC and named boss of the base game, about 140 named profiles, the six personas included (§7.8) | C1–C14 green on the release candidate, with C1's 30 h soak on 3 machines; every base-game bio shipped with its checklist; every binding verified, or the bio held with its reason (§7.8) |
 | **v1.1** (planned) | The DLC's roster, if O46 keeps it out of v1.0 (§7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26); the map of the journey (GraceUI G21–G27, its §4.13; roadmap S7.9.d), on groundwork v1.0 builds anyway: the sightings record and the world stages; content plugins, from the Plugins folder and the dashboard (O66, O67) | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
-| Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; the freeze after S5; code plugins through EldenNet's published interface, a preview first (O68), in the plugin cluster outside the game (O70) | Designed and scheduled when taken up |
+| Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; the freeze after S5; code plugins through EldenNet's published interface, a preview first (O68), in the plugin cluster outside the game (O70); a sandbox for plugin hosts, as an option after a spike (O72) | Designed and scheduled when taken up |
 
 ### 16.3 Test schedule (O29)
 
@@ -1911,7 +1912,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 
 | Decision | Choice | Alternatives | Why | Source |
 |---|---|---|---|---|
-| Process model | One DLL plus a short-lived launcher | P2 split brain; sidecar server | Fewest parts. The split does not isolate game reads and adds antivirus risk | ER06 §5.1; J1 #11 |
+| Process model | One DLL plus a launcher, which since O71 stays in the background while the game runs as the crash watcher; from code plugins on, the plugin hosts outside the game (O70) | P2 split brain; sidecar server; a short-lived launcher (the first reading) | Fewest parts. The split does not isolate game reads and adds antivirus risk; only something outside the game can record its crash (O71) | ER06 §5.1; J1 #11; proposal 0001 §13.7 |
 | Loading | Own launcher; loader-agnostic DLL; me3-native compatible | me3 profile; proxy DLLs | Owner decision; proxies conflict and cannot carry ERSC | ER02 §2.1, §3.3 |
 | Game access | Own GAL behind `GameBackend` / `SysLayer` | Vendored fromsoftware-rs | Owner decision; single-build panics; licence | ER02 §4.1; J1 §7.1 |
 | Memory discipline | Reads only; no calls after registration; SEH-guarded copies | `catch_unwind` only; page checks | Access violations escape `catch_unwind` | P1 §2.8; J2 G2 |
@@ -1992,7 +1993,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64 and O65–O70 (proposal 0001, plugins) on 2026-11-15; O46, O71 and O72 are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64 and O65–O72 (proposal 0001, plugins) on 2026-11-15; O46 is Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2072,5 +2073,5 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O68](../DECISIONS.md#o68) | Code plugins? | (a) a published interface designed now, built and opened after v1.0 | Decided 2026-11-15 |
 | [O69](../DECISIONS.md#o69) | May code plugins patch the game through EldenNet? | (a) not at first | Decided 2026-11-15 |
 | [O70](../DECISIONS.md#o70) | Where do code plugins run, and what happens when they stop? | The owner's design: one plugin cluster outside the game, each plugin linked on its own; rows with On/Off and Cluster or Detached; a pop-up with four choices; library clashes caught by the validator | Decided 2026-11-15 |
-| [O71](../DECISIONS.md#o71) | Should the launcher stay running as the crash watcher? | Recommended: (a) yes, in the background while the game runs | **Open** |
-| [O72](../DECISIONS.md#o72) | A sandbox for plugin hosts? | Recommended: (a) later, as an option, after a spike | **Open** |
+| [O71](../DECISIONS.md#o71) | Should the launcher stay running as the crash watcher? | (a) yes, in the background while the game runs; crash dumps stay on the PC | Decided 2026-11-15 |
+| [O72](../DECISIONS.md#o72) | A sandbox for plugin hosts? | (a) later, as an option, after a spike | Decided 2026-11-15 |

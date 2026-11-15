@@ -95,7 +95,9 @@ index.
   even against plugins that are off. Code plugins call a published interface (`EldenNet_RequestApi`), designed now and
   opened after v1.0, each turned on once by the player; they get projections only, never keys, and run outside the
   game, in one plugin cluster or detached in a host of their own, with a pop-up to restart, restart without or detached,
-  or ignore when they stop (O70). No hook service for plugins at first.
+  or ignore when they stop (O70). No hook service for plugins at first. The launcher stays in the background as the
+  crash watcher, and a full crash dump never leaves the player's PC (O71); a sandbox for plugin hosts comes later, as
+  an option (O72).
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,

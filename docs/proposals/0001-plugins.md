@@ -3,7 +3,7 @@
 **Status: proposal, 2026-11-15 (roadmap S7.10.a). O65 to O69 answered by the owner the same day, "all five as
 recommended", and folded into EldenNet's and GraceUI's designs (S7.10.c); the dashboard's upload route decided as
 GraceUI's G28 (a), a narrow route on the loopback listener (GraceUI §7.2 item 18). §13 added the same day, with O70
-decided as the owner designed it, and O71 and O72 Open.** Where this text and the designs differ, the designs hold. Each
+decided as the owner designed it, and O71 and O72 decided as recommended.** Where this text and the designs differ, the designs hold. Each
 answer's effect is stated with its question (§12). What it settles itself is listed in §10, each row open to the owner.
 Evidence: SkyrimNet's published plugin headers (MIT; WHY§87), ER02 §7.1 on hook libraries (WHY§86), ARCH §11.6 on
 content layers, and GraceUI's DESIGN §2.9 and §7. A bare §n is a section of this proposal; DESIGN, ARCH and NPC are
@@ -519,6 +519,8 @@ unknown, so it would come later, as an option, after a spike.
 
 #### O71: Should the launcher stay running as the crash watcher?
 
+- **Decided by the owner on 2026-11-15, as recommended: (a).**
+
 - **As it would be put.** **(a) Yes** (recommended): the launcher stays in the background while the game runs and
   records any crash of the game itself, as §13.7 describes; players who use their own loader get the watcher started
   by EldenNet. **(b) No:** the launcher stays short-lived, and fault finding after a crash has only EldenNet's own log.
@@ -532,6 +534,8 @@ unknown, so it would come later, as an option, after a spike.
   to ship and sign.
 
 #### O72: A sandbox for plugin hosts?
+
+- **Decided by the owner on 2026-11-15, as recommended: (a).**
 
 - **As it would be put.** **(a) Later, as an option** (recommended): after code plugins ship, a spike checks Windows'
   reduced-rights sandbox on Windows and under Proton, and a plugin's manifest names what it needs for the player to

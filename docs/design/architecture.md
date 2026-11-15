@@ -40,7 +40,7 @@
 
 | Process | Lifetime | Contains |
 |---|---|---|
-| `eldennet-launcher.exe` | A few seconds per launch, then it exits (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection |
+| `eldennet-launcher.exe` | A launch, then, since O71, the whole session in the background as the crash watcher; it exits when the game does (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection; plugins (§4.12); the crash watcher ([proposal 0001](../proposals/0001-plugins.md) §13.7) |
 | `eldenring.exe` | The game session | `eldennet.dll`: GAL, core, store, net, overlay. All ML is reached over HTTP (DESIGN §2.1) |
 
 No helper process is spawned from inside the game. The out-of-process core stays a seam (`CoreTransport`, §2.2, DESIGN §13).
@@ -470,7 +470,8 @@ sequenceDiagram
   P-->>LA: thread exits (WaitForSingleObject, 30 s)
   LA->>LA: GetExitCodeThread != 0, and the module is listed (Toolhelp32 snapshot)
   LA->>P: VirtualFreeEx, then ResumeThread(main thread)
-  LA->>LA: wait for the window (§4.5), remove steam_appid.txt if ours, exit
+  LA->>LA: wait for the window (§4.5), remove steam_appid.txt if ours
+  LA->>LA: stay as the crash watcher until the game ends (O71), then exit
 ```
 
 - **Absolute path:** the DLL path is absolute, so the game's search order is never used.
