@@ -274,7 +274,7 @@ Every `unsafe` block carries a `// SAFETY:` note (R9). `exported_private_depende
 | Feature | Crates | Enables | Release CI |
 |---|---|---|---|
 | `probe` | `en-gal`, `eldennet` | In-game invariant search that writes a draft layout (§6.10), plus the fault-injection hooks used by the C1 forced fail-closed launches | Refused |
-| `hooks` | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11). Compiled out in v1 | Refused |
+| `hooks` | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11), and with them EldenNet's own hook library, in `en-gal::hooks` (O65). Compiled out in v1 | Refused |
 | `actions` | `en-proto`, `en-core` | `GameCommand::Action`, executors, prompt partials | Refused |
 | `freeze` | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
 | `offline` | `en-gal` | The safe offline modules only (§2.1) | Allowed (tools and launcher) |
@@ -411,8 +411,10 @@ The DLL never assumes which loader it has, never calls a loader export, and need
 | `--backup-only` | Back up saves and exit. Meant for players who start through their own loader (§4.11) |
 | `--cleanup` | Remove a `steam_appid.txt` that this launcher created, if the game is not running, and exit |
 | `--print-diagnostics` | Write the discovery and pre-flight results to the console and to `launcher.log`, and exit |
+| `--no-plugins` | Start with every plugin off, for support (§4.12; the first screen's Start without plugins) |
+| `--plugins` | Check and install what is new in `plugins/`, show the list with the code plugins to turn on, and exit without starting the game: the way to manage plugins for players who start through their own loader (§4.12) |
 
-`--game`, `--backup-only`, `--cleanup` and `--print-diagnostics` are additions to DESIGN's three flags (impl).
+`--game`, `--backup-only`, `--cleanup` and `--print-diagnostics` are additions to DESIGN's three flags (impl); `--no-plugins` and `--plugins` come with plugins in 1.1 (O66, O67).
 
 ### 4.2 Finding the game
 
@@ -534,6 +536,24 @@ The page is written by us and lives only in our repository and release zip. It n
 6. **If something fails,** EldenNet shows a banner with the reason. Send the bug-report bundle from the settings panel (F10, Diagnostics).
 
 ---
+
+### 4.12 Plugins (from 1.1; O66, O67)
+
+Before the game starts, after the pre-flight checks (§4.3), the launcher looks at `<install>/plugins/`:
+- each new folder holding a `plugin.toml`, and each `.zip` holding one such folder, is checked by [proposal
+  0001](../proposals/0001-plugins.md) §6.3's archive rules and §5.2's manifest; an archive is unpacked into
+  `plugins/<id>/` and then removed; a folder whose files no longer match its manifest is turned off with the reason;
+- a new content plugin is turned on at the end of the player's order; a new or changed code plugin (after v1.0,
+  O68) stays off until the player turns it on, with its name, version, author and SHA-256 shown, and the answer is
+  kept until the DLL's hash changes;
+- plugins removed on the dashboard are deleted now; if `plugins/` is not writable, the launcher says so in E06's
+  manner and changes nothing;
+- **Start without plugins** starts the game with every plugin off, for support.
+
+The dashboard's route (proposal 0001 §6.2) writes into `plugins/pending/` and is checked by T10 in the game, never on
+the game, render or input threads; code never arrives that way. When the game is started another way (a player's own
+loader, §4.10), T10 makes the same checks at boot for anything new in `plugins/`, and a code plugin stays off until the
+player turns it on with `--plugins`.
 
 ## 5. The offline and multiplayer gate
 
@@ -1389,7 +1409,7 @@ The world model keeps ≤ 256 trackers and the K store ≤ 512 entries (impl). P
 
 ### 8.11 Reserved hook sources H1–H3
 
-These are compiled out in v1 (cargo feature `hooks`). They implement the same `EventSource` trait and emit into the same kinds, plus the reserved ones. Each **requires a code patch or a game-memory pointer write**, both forbidden in v1 (R2, R12). Each therefore needs its spike and an owner decision before v1.x. Since GraceUI's G15, EldenNet also links no hook library (R12; GraceUI invariant 16), so each needs the owner's decision on how to hook beside GraceUI's MinHook too (WHY§84).
+These are compiled out in v1 (cargo feature `hooks`). They implement the same `EventSource` trait and emit into the same kinds, plus the reserved ones. Each **requires a code patch or a game-memory pointer write**, both forbidden in v1 (R2, R12). Each therefore needs its spike and an owner decision before v1.x. Since GraceUI's G15 they would use EldenNet's own hook library, never on a function GraceUI hooks (O65, R12; WHY§84, WHY§86).
 
 | Source | Hook point (lead) | Would emit | Spike prerequisites |
 |---|---|---|---|
@@ -1506,7 +1526,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 | R9 Lints | Clippy deny-list per crate (§2.4) in CI on the Windows target |
 | R10 Time-based cadence, self-throttle | Simulated frame times of 30, 60 and 144 FPS and 1 s hitches → always 4 Hz, never a burst. Throttle entry and exit tests |
 | R11 Idle while loading | Replay of a recorded loading screen: read counters show the lifecycle subset only |
-| R12 EldenNet hooks nothing (since GraceUI's G15) | EldenNet links no hudhook, MinHook or other hook library and installs no hook: `cargo deny` bans `hudhook` and every known hooking crate in EldenNet's workspace, the `licence-files` stage fails on any MinHook source, and the release job reads `eldennet.dll`'s import table and symbols for a hook library (`MH_*`, a detours library) and fails on one (GraceUI invariant 16). The process's hooks are GraceUI's, in `graceui.dll`'s `grace-host`, behind a `Once` with no uninstall API; hudhook's eject path, which uninitialises the shared MinHook, never runs, and GraceUI's own clippy and greps ban it (GraceUI §2.2). S0-E checks them in both load orders, on GraceUI's 0.1 Host |
+| R12 GraceUI's functions are GraceUI's; EldenNet's own hooks are few and approved (GraceUI G15; O65) | In v1 EldenNet links no hudhook or other hook library and installs no hook: `cargo deny` bans `hudhook` and every known hooking crate in EldenNet's workspace, the `licence-files` stage fails on any MinHook source, and the release job reads `eldennet.dll`'s import table and symbols for a hook library (`MH_*`, a detours library) and fails on one (GraceUI invariant 16). Once a first hook of EldenNet's own is approved (O65), its one library is allowed in `en-gal::hooks` alone, behind the `hooks` feature: the bans then name that crate as the one exception, and a CI check compares every hook target in the source with GraceUI's published list (GraceUI D102) and fails on a match. The process's overlay and input hooks are GraceUI's, in `graceui.dll`'s `grace-host`, behind a `Once` with no uninstall API; hudhook's eject path, which uninitialises the shared MinHook, never runs, and GraceUI's own clippy and greps ban it (GraceUI §2.2). EldenNet's own hooks follow the same rules: installed once, after `connect` has answered, chained, never removed. S0-E checks GraceUI's in both load orders, on GraceUI's 0.1 Host |
 | R13 Sanitised, capped strings | `UiModel` accepts only `SafeText`, whose constructor runs the sanitizer and the byte cap. `proptest` fuzzing (C7) |
 | R14 Nothing at detach | CI grep: the `DLL_PROCESS_DETACH` path is empty. One DB request = one transaction. Hard-kill tests during a reply |
 | R15 Abort-class failures designed out | The caps in §10.2, each with a test. CI lists every `impl Drop` in the workspace and requires a `// DROP: cannot panic` note |
@@ -1715,9 +1735,10 @@ openrouter = "<entered in the wizard or by the player>"
 
 **Content layers** (DESIGN §11.4):
 1. `<install>/content/eldenring/…` (shipped);
-2. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped file whole;
-3. `overrides\disable.toml`.
-4. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–3, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded.
+2. `<install>/plugins/<id>/…` (from 1.1, O66): the content plugins that are on, in the player's order (`config\plugins.toml`), each adding or replacing only what [proposal 0001](../proposals/0001-plugins.md) §5.1 allows, a later plugin winning over an earlier one, every conflict shown on the Content packs page;
+3. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped or plugin file whole;
+4. `overrides\disable.toml`.
+5. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–4, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded, and they always win over a plugin's.
 
 ```toml
 # %APPDATA%\EldenNet\overrides\disable.toml
@@ -1733,8 +1754,8 @@ rules    = []                   # only rules marked disable_ok = true in their f
 - **Not hot-reloaded:** `gal/` is read at boot only and is never overridden.
 
 **Hot reload** (on T10):
-1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds, with a 500 ms debounce (DESIGN §11.4).
-2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint. A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
+1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds and `plugins/` from 1.1, with a 500 ms debounce (DESIGN §11.4).
+2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint; for a plugin also its manifest, the folders and kinds of change §5.1 of proposal 0001 allows, every id, type, flag and term it names, and the locked-term check of its public fields (proposal 0001 §5.4). A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
 3. Success sends `Reload(Arc<ContentPack>)` or `Reload(Arc<Settings>)` over C11. The core swaps it between steps. A save sent on C17 also gets its `Reload::ProfileResult` on C11, saved or refused.
 4. Failure keeps the old version and shows a toast with the file and line.
 
@@ -1785,8 +1806,8 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
 | `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), beckon (W13), tells (W14), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts |
 | `eval` | Linux: `en-tools eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
-| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) *Since GraceUI's G15 (2026-11-08):* hudhook and its MinHook are GraceUI's, so EldenNet's `deny.toml` bans `hudhook`, every known hooking crate and any ImGui renderer backend, and its `[[licenses.clarify]]` entry for hudhook moves to GraceUI's `deny.toml`; `imgui` 0.12 stays allowed without a backend, for F11. | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
-| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) *Since GraceUI's G15:* in EldenNet's tree no package may be hudhook or match the hooking pattern at all, and hudhook's and MinHook's licence checks are GraceUI's (GraceUI §2.2, proposal 0001 §4.14). | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
+| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) *Since GraceUI's G15 (2026-11-08):* hudhook and its MinHook are GraceUI's, so EldenNet's `deny.toml` bans `hudhook`, every known hooking crate and any ImGui renderer backend, and its `[[licenses.clarify]]` entry for hudhook moves to GraceUI's `deny.toml`; `imgui` 0.12 stays allowed without a backend, for F11. Once a first hook of EldenNet's own is approved (O65), its one hook library is the bans' single exception, allowed in `en-gal` behind `hooks`, its licence checked when it is chosen. | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
+| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) *Since GraceUI's G15:* in EldenNet's tree no package may be hudhook or match the hooking pattern, save the one hook library O65 may allow in `en-gal::hooks`, and hudhook's and MinHook's licence checks are GraceUI's (GraceUI §2.2, GraceUI's proposal 0001 §4.14). | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
 | `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled; any hudhook at all, since GraceUI's G15 (its `dx12`-only check is GraceUI's) |
 | `build-release` | Two independent runners: `cargo xwin build --release --locked`, pinned toolchain and xwin SDK, `SOURCE_DATE_EPOCH`, `--remap-path-prefix`, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
 | `sign` | Every tester build from v0.1, and release tags | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |

@@ -509,11 +509,19 @@ EldenNet may hook as well as GraceUI.
   - gives: proposal 0001: EldenNet's own hook library for functions GraceUI does not hook; content plugins checked like
     EldenNet's own content, from 1.1; both install routes, code never through the browser; a published interface for
     code plugins after v1.0.
-- b The owner answers O65 to O69 [waiting]
+- b The owner answers O65 to O69 [done]
   - needs: a
   - refs: O65, O66, O67, O68, O69
-- c Fold the answers into EldenNet's and GraceUI's designs [planned]
+  - gives: all five decided on 2026-11-15, as recommended ("all five as recommended").
+- c Fold the answers into EldenNet's and GraceUI's designs [done]
   - needs: b
+  - refs: DESIGN§2.6, DESIGN§11.4, DESIGN§13, DESIGN§18, ARCH§4, ARCH§11.6, GraceUI:DESIGN§13, GraceUI:docs/eldennet-changes.md
+  - gives: R12 and GraceUI's invariant 16 as O65 decided; the plugins layer, the launcher's step and flags, the seam and
+    the decision-log rows in EldenNet's design; GraceUI's published hook list (D102) and plugins on its Content packs
+    page (D103); the upload route put to the owner as G28.
+- d GraceUI's upload route for the dashboard's drop zone [waiting]
+  - needs: c
+  - refs: G28, O67
 
 ## S8 Adopting the engine [planned]
 
@@ -863,6 +871,9 @@ v0.1's testing uses, draw through it.
 - d The map of the journey: the map panel, the map projection and the Map page
   - needs: S7.9.d
   - refs: G24, GraceUI:DESIGN§4.13
+- e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone once G28 allows it
+  - needs: S7.10.c
+  - refs: O66, O67, G28, docs/proposals/0001-plugins.md
 
 ### S17.2 v1.5
 
@@ -877,5 +888,7 @@ v0.1's testing uses, draw through it.
   - refs: O41
 - c The typing freeze after spike S5, and the save redirect hook [idea]
   - refs: O9, O6
-- d Native talk, native line ids and hook sources: spikes S9 and S10, H1 to H3 [idea]
+- d Native talk, native line ids and hook sources: spikes S9 and S10, H1 to H3, the hooks with EldenNet's own library (O65) [idea]
+- e Code plugins through EldenNet's published interface, a preview first, and a hook service for them only if one is needed [idea]
+  - refs: O68, O69, docs/proposals/0001-plugins.md
   - refs: DESIGN§16.1

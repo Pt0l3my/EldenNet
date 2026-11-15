@@ -1441,6 +1441,9 @@ only.
   redirect of DESIGN §3.6 (deferred to v1.x).
 - So each, when proposed, also needs the owner's decision on how to hook beside GraceUI's MinHook: a hook service in
   GraceUI's ABI, or an amendment to invariant 16. Nothing in v1 is affected. Recorded in DESIGN R12, §3.6 and §13.
+- Later (2026-11-15): decided by the owner as O65 (a): EldenNet may link one hook library of its own for functions
+  GraceUI does not hook, each hook with its spike and approval; GraceUI's invariant 16 became "GraceUI's functions have
+  one owner", with its published list (GraceUI D102).
 
 ### 85. Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay
 
@@ -1465,6 +1468,7 @@ only.
 - GraceUI's invariant 16, as folded on 2026-11-15, bans any hook library in a consumer, which is stricter than this.
   Proposal 0001 (plugins) puts the narrower rule to the owner as O65 (a), with EldenNet's own hooks installed only
   after `connect` has answered, so that GraceUI's are already in place and the two never patch at the same moment.
+- Later (2026-11-15): O65 decided (a), on this reading.
 
 ### 87. SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet
 

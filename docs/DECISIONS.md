@@ -39,9 +39,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   checks before the blueprint). O59 (the game's id leads go to a numbers-only research file). O60 (C++ expected, settled at the blueprint).
 - **2026-11-15.** O64 (the privacy sweep only in the owner's private repository; EldenNet's history rewritten
   without it). O58 decided: (b), the live checks prepared now, nothing built.
-- **2026-11-15.** O65–O69 put to the owner with proposal 0001 (plugins): how EldenNet itself may hook, content
-  plugins, how plugins are installed, code plugins, and hooks for code plugins.
-- **Open.** O46 (the bio's structure and the v1.0 roster); O65–O69 (plugins and EldenNet's own hooks).
+- **2026-11-15.** O65–O69 put to the owner with proposal 0001 (plugins) and decided the same day, all as
+  recommended: EldenNet's own hook library for functions GraceUI does not hook; content plugins in 1.1; both install
+  routes; code plugins through a published interface after v1.0; no hook service for plugins at first.
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -818,7 +819,7 @@ purges them, which the owner asks for.
 
 ## O65
 
-**How EldenNet itself may hook** · *Open since 2026-11-15*
+**How EldenNet itself may hook** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** Since GraceUI's G15 the design says EldenNet hooks nothing and links no hook library (DESIGN R12,
 GraceUI's invariant 16), which leaves no way to add the hooks EldenNet's design keeps open for later: the hook-based
@@ -839,11 +840,19 @@ nothing".
 
 **Owner's words so far.** "I lay towards (a), but I want to discuss this further" (2026-11-15).
 
+**Decision.** (a). EldenNet may link one hook library of its own and hook game functions, and system functions GraceUI
+does not hook, never a function on GraceUI's published list; each hook is installed once, after GraceUI's `connect`
+has answered, chained and never removed, and each needs its spike and the owner's approval before it ships; the
+library is chosen with the first hook, its licence checked first. GraceUI's invariant 16 becomes "GraceUI's functions
+have one owner", and R12 is rewritten to match.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
 **Follows from.** GraceUI's G15 and the design fold (WHY§84); [proposal 0001](proposals/0001-plugins.md) §2, §3, §12.
 
 ## O66
 
-**Content plugins** · *Open since 2026-11-15*
+**Content plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** Should players be able to install packs of character profiles, NPC cards, lore and layers on shipped
 profiles that other people made, checked and loaded by EldenNet like its own content, with a manifest and a place
@@ -858,12 +867,18 @@ an installer, and they cannot run code: game facts, the spoiler machinery, promp
 Content packs page, GraceUI's D46 amended) and its §10's rows apply; (b) moves it into v1.0's scope. (c): §5 and §6 fall
 away.
 
+**Decision.** (a): content plugins in 1.1, as proposal 0001 §5 describes: character profiles, NPC cards, lore and
+layers on shipped profiles, checked as EldenNet's own content and loaded between the shipped content and the player's
+overrides. Game facts, the spoiler machinery, prompts and event rules stay EldenNet's.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
 **Follows from.** The owner's request for easy plugin installation (2026-11-15); [proposal
 0001](proposals/0001-plugins.md) §4, §5, §12.
 
 ## O67
 
-**How plugins are installed** · *Open since 2026-11-15*
+**How plugins are installed** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** **Options:** (a) **both routes**: the Plugins folder (a folder or a `.zip`), checked and installed by
 EldenNet's launcher before the game starts and working with mod managers; and the dashboard's drop zone with an Add
@@ -881,11 +896,18 @@ none.
 
 **Owner's words so far.** "Or perhaps both routes? what do you think?" (2026-11-15).
 
+**Decision.** (a): both routes into one installer. The Plugins folder (a folder or a `.zip`), installed by the launcher
+before the game starts; and the dashboard's drop zone and Add file, in the browser only, this PC only, never for code.
+Content applies at once where it reloads live, the rest at the next start; uninstalling works the same way. GraceUI is
+asked for the upload route (GraceUI G28).
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
 **Follows from.** The owner's request (2026-11-15); [proposal 0001](proposals/0001-plugins.md) §6, §12.
 
 ## O68
 
-**Code plugins** · *Open since 2026-11-15*
+**Code plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** Should other modders' DLLs be able to use EldenNet's characters, memories, lore, events and model calls
 through a published interface, as SkyrimNet's plugins use SkyrimNet's (WHY§87)? **Options:** (a) **designed now, built
@@ -901,11 +923,19 @@ public interface to support for years, and the trust that comes with loading oth
 **What each answer changes.** (a): DESIGN §13 gains the seam, and proposal 0001 §7 is designed in ARCH after v1.0.
 (b): §7 and §8 fall away. (c): §7 moves into v1.0's scope.
 
+**Decision.** (a): code plugins through a published interface (`EldenNet_RequestApi`, with GraceUI's ABI rules),
+designed now as a seam, built and opened after v1.0 with a preview first. Projections only, never keys; model calls
+within EldenNet's pacing, budget and gates; EldenNet loads enabled code plugins from its Plugins folder once it has
+reached Ready, each turned on once by the player with its hash shown, and a player's own loader may start one. The
+interface is re-checked against Min's blueprint when it arrives.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
 **Follows from.** The owner's question of 2026-11-15; [proposal 0001](proposals/0001-plugins.md) §7, §12.
 
 ## O69
 
-**Hooks for code plugins** · *Open since 2026-11-15*
+**Hooks for code plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
 
 **Question.** If a code plugin needs to patch the game, should EldenNet patch it for the plugin, so that two mods never
 patch one function? **Options:** (a) **not at first**: a plugin patches on its own, and the guide tells it never to hook
@@ -917,5 +947,11 @@ plugins ask for it. *What (a) gives up:* until then, two plugins could patch one
 
 **What each answer changes.** (a): the guide's rule and EldenNet's published list. (b): EldenNet's interface gains hook
 calls, after code plugins have shipped. (c): the guide forbids patching for EldenNet plugins.
+
+**Decision.** (a): not at first. A code plugin that patches the game does so on its own, never on a function GraceUI
+or EldenNet hooks, from the lists both publish; a hook service may follow once code plugins have shipped and one is
+needed.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
 
 **Follows from.** O65, O68; [proposal 0001](proposals/0001-plugins.md) §8, §12.

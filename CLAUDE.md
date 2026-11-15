@@ -83,8 +83,17 @@ index.
   that follow from the pin (DESIGN O25): build it with the `dx12` feature only, use `imgui` only through
   `hudhook::imgui` and MinHook only through `hudhook::mh`, and never call its eject path. Since GraceUI's G15
   (2026-11-08) the one overlay, with this pin and its rules, is GraceUI's (`grace-host` in `graceui.dll`): EldenNet
-  links no hudhook, MinHook or ImGui renderer backend, hooks nothing, and draws through GraceUI's C ABI (panels and
-  notices; its F11 view on a headless Dear ImGui of its own). Folded into both designs on 2026-11-15 (roadmap S7.8.c).
+  links no hudhook or ImGui renderer backend, hooks none of GraceUI's functions, and draws through GraceUI's C ABI
+  (panels and notices; its F11 view on a headless Dear ImGui of its own). Folded into both designs on 2026-11-15
+  (roadmap S7.8.c). v1 hooks nothing of its own; a later hook, on a function GraceUI does not hook, uses one hook
+  library of EldenNet's, each hook after its spike and the owner's approval (O65, DESIGN R12).
+- **Plugins** (O65–O69, 2026-11-15; [proposal 0001](docs/proposals/0001-plugins.md)). Content plugins (character
+  profiles, NPC cards, lore, layers on shipped profiles; data only) from 1.1, checked like EldenNet's own content and
+  loaded between the shipped content and the player's overrides; game facts, the spoiler machinery, prompts and event
+  rules stay EldenNet's. Installed from the Plugins folder by the launcher, or from the dashboard's drop zone, this PC
+  only; never code through the browser. Code plugins call a published interface (`EldenNet_RequestApi`), designed now
+  and opened after v1.0, each turned on once by the player; they get projections only, never keys. No hook service for
+  plugins at first.
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,
