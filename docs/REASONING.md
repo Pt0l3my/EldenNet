@@ -102,6 +102,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 77 | 2026-11-15 | en-0031: at the measured sizes every variant the game draws passes, at every level of every map | FACT | #map #datapiler |
 | 78 | 2026-11-15 | The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion | FACT | #map #datapiler #graceui |
 | 79 | 2026-11-15 | The areas' colour image is very likely the map-information binders, one per kilometre square | LIKELY | #map #datapiler #graceui |
+| 80 | 2026-11-15 | The areas' image ships converted: each map-information square holds the two keys' row numbers | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -884,6 +885,8 @@ repositories. Derived numbers only here.
 - **What it gives the map.** If the image is found among the textures, the exact area shapes for the drawn base, the
   masking and the area labels come from it, and its colours checked against where the resting places stand give the
   exact world-to-map fit. Its name is not known yet; en-0018 (the map tiles, counted) is the next step.
+- Later (2026-11-15): found, converted (WHY§80). The game ships the image with each pixel holding the two keys'
+  row ids (red: finer area, green: area name) in 72 squares of 1,024 m at 4 m a pixel, not the keys' colours.
 
 ### 61. The game's map tiles: four sheets, five zoom levels, a variant per revealed piece
 
@@ -1318,3 +1321,34 @@ the repositories; only these derived numbers are kept.
   onwards). The inner files stay local, and the owner uploads them as research material. Next: read their textures
   in scratch, check their colours against the keys and the resting places (WHY§78's transforms), and if they hold,
   record the areas' shapes.
+- Later (2026-11-15): confirmed in WHY§80. The binders hold the areas' image, converted to the keys' row ids.
+
+### 80. The areas' image ships converted: each map-information square holds the two keys' row numbers
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§60, WHY§78, WHY§79, G21, D97, DataPiler S81
+
+From en-0032 and en-0033 (DataPiler 0.2.34): the 72 binders unpacked on the owner's PC and read in scratch as research
+material. Numbers only here.
+
+- **What a binder holds.** Two uncompressed 256 × 256 images (24-bit BMP), so 4 m a pixel over its square. The colour
+  keys' own definitions call their colours those of "the map image before conversion", and the game ships the image
+  converted. In the first image the red channel holds a row id of the finer-area key (`MapPieceTexParam`: 48 of the
+  base map's 49 values, all 42 of the expansion's) and the green channel a row id of the area-name key
+  (`MapNameTexParam`: 29 of 30, and 31 of 31). The one other value is 0, and 255 (a row of both keys) marks no area.
+  The blue channel holds a third set of numbers that neither key has (24 values on the base map); its meaning is not
+  known.
+- **Placement.** A binder `m6x_XX_ZZ_02` covers world X from 1,024 × XX − 128 to 1,024 × XX + 896 (the 256 m cells
+  are centred on their numbers), and Z likewise, with rows from north to south. So a world position's square is
+  ((X + 128) // 1,024, (Z + 128) // 1,024), and its pixel follows at 4 m.
+- **Check.** Read that way, 224 of the 225 open-world resting places land on a named area, and 93 per cent of them on
+  the main name of their own resting-place sub-category. The other readings (no 128 m shift, or rows south to north)
+  give 160 to 199 and 67 to 76 per cent. Drawn on the game's level-0 overviews through WHY§78's transforms, the area
+  borders follow the map's own cliffs, rivers and coasts on both sheets: an independent check of those transforms.
+- **The second image.** On the base map it is empty (255) but for three quarters of the northernmost square, which
+  holds 0 in both images. On the expansion its red channel holds finer-area ids where the first image has an area (46
+  values, four of them not rows of the expansion's key). Very likely a second layer for places stacked one above
+  another; which layer applies where is not known yet.
+- **What it gives the map.** The exact shapes of the area names (16 on the base map, 11 on the expansion) and of the
+  finer areas, at 4 m, for G21 and D97. They are read from the player's install at run time and never committed, and
+  the names' text comes from the game's own place names, by `mapNameId`, at run time too.
+- Next: the blue channel and the second layer; then GraceUI's map labels from these shapes.

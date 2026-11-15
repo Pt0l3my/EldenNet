@@ -482,7 +482,8 @@ the player's game, and optionally opened by the map key.
     WHY§62 to WHY§77; en-0029 drew every sheet's levels 0 to 2 whole from the masks, their sizes are measured, and
     en-0031 passed every tile the game draws). The world-to-map fit followed (WHY§78): one transform per open-world
     sheet, to about 20 units, and the underground and the dungeons through the game's own conversion rows, to about 40.
-    Still open here: the areas' colour image (WHY§60), the terrain heights (G27) and catching the map key.
+    The areas' image followed (WHY§80, en-0032 and en-0033): the exact shapes of the area names and finer areas at
+    4 m. Still open here: the terrain heights (G27) and catching the map key.
 
 ## S8 Adopting the engine [planned]
 
