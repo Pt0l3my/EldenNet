@@ -86,6 +86,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 61 | 2026-11-15 | The game's map tiles: four sheets, five zoom levels, a variant per revealed piece | LIKELY | #map #datapiler #graceui |
 | 62 | 2026-11-15 | Each tile code bit is one map piece, and map units are level-0 pixels | LIKELY | #map #datapiler #graceui |
 | 63 | 2026-11-15 | A tile's pieces that never meet have a variant each, laid together | FACT | #map #datapiler #graceui |
+| 64 | 2026-11-15 | Level 2's export holds a second drawing of the map; levels 2 to 4 nest by two | LIKELY | #map #datapiler #graceui |
 
 ## Entries
 
@@ -927,3 +928,27 @@ images stay out of every repository).
 - **For GraceUI (G26, D90).** A map drawn from the player's own tiles picks, per position and widest code, the subset
   of the pieces the player holds, and lays those variants over the base: one texture per widest code, not one per
   position.
+
+### 64. Level 2's export holds a second drawing of the map; levels 2 to 4 nest by two
+
+`2026-11-15` · FACT (the nesting and the second drawing), LIKELY (that the game never draws it) · `#map #datapiler
+#graceui` · refs: WHY§61, WHY§62, WHY§63, G26, D90, DataPiler S78
+
+From measurements of the owner's en-0020 overviews of DataPiler 0.2.26 and 0.2.27 (numbers only; the images stay out
+of every repository).
+
+- **Levels 2, 3 and 4 nest by two, from the bottom left.** Each level-2 tile at the edge of the map matches the level-3
+  image at twice its size, at its own place counted from the bottom left (correlation 0.82 to 0.96 at full size, about
+  0.99 on small thumbnails); counted from the top it does not (about 0). Levels 0 and 1 do not nest so (41 and 31
+  tiles a side: three quarters).
+- **A second drawing.** A block of about 7 by 7 tiles at level 2 instead shows the whole map again at about three
+  quarters of that scale, clouds and all, ending partway through a tile, with the right image beyond its edge. Its
+  tiles match level 3 at their place at most about 0.4. They are variant files like the others, told apart by no
+  name; laying every widest variant (0.2.27) brought more of them in than 0.2.26's one variant did.
+- **So variants are checked, not trusted.** DataPiler 0.2.28 measures each variant against the next level's variant
+  for the same pieces (and its base) and leaves out one below 0.7: on tiles cut from these images, the right drawing
+  scored 0.90 to 1.00 and the other at most 0.46. That the game never shows the second drawing is LIKELY (its map at
+  that zoom shows one image); whether it is a leftover or drawn at another zoom is open. en-0021 measures every tile
+  of levels 2 to 4.
+- **For GraceUI (G26, D90).** A map drawn from the player's own tiles must use only variants that pass this check (or
+  the game's own rule, once known); the code alone does not say which file is part of the map.
