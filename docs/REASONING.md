@@ -98,6 +98,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 73 | 2026-11-15 | The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet | FACT | #map #datapiler #graceui |
 | 74 | 2026-11-15 | en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3 | FACT | #map #datapiler |
 | 75 | 2026-11-15 | en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left | FACT | #map #datapiler |
+| 76 | 2026-11-15 | Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875 | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1118,6 +1119,8 @@ images stay out of every repository) and en-0026's check of levels 0 and 1 with 
   moved; en-0027 unpacks the game's masks (WHY§72).
 - **Later (2026-11-15, WHY§73):** the expansion's geometry is every sheet's. The variants 0.2.31 moved were today's
   tiles, moved into the older layout; DataPiler 0.2.32 withdraws the moving.
+- **Later (2026-11-15, WHY§76):** measured on the game's own overviews, level 2 is 0.19875 of level 0 (about
+  2,086 of 10,496 pixels), not 2,089, and level 1 0.74857, not three quarters.
 
 ### 72. The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle
 
@@ -1175,6 +1178,8 @@ and en-0022 and the scores of en-0026 (numbers only), and the owner's en-0021 im
 - DataPiler 0.2.32 draws overviews from the masks, adds `in_mask` to the check, uses the one geometry and never takes
   level 3 or 4 as the reference. en-0028 was withdrawn before it ran; en-0029 re-checks levels 0 to 2 of every sheet
   and lays them out from the masks.
+- **Later (2026-11-15, WHY§76):** the one geometry holds, with level 1 at 0.74857 and level 2 at 0.19875 of level
+  0, measured to a third of a pixel on the game's own overviews.
 
 ### 74. en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3
 
@@ -1215,3 +1220,23 @@ nearest level the game draws.
 - **Speed.** On the owner's PC en-0030 took about a minute, where checks of this size took about half an hour before
   0.2.33 (worker processes, Windows' own decoder).
 - Next: fit level 0 against level 1 on en-0029's overviews (each drawn from the masks), then the exact world fit.
+
+### 76. Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875
+
+`2026-11-15` · FACT (the images, the fits), SPECULATION (sheet 11) · `#map #datapiler #graceui` · refs: WHY§71, WHY§73,
+WHY§75, DataPiler S85
+
+From the owner's en-0029 overviews, each drawn from the game's masks with every piece revealed (levels 0 and 1 shrunk
+four times; the images stay in scratch, never in a repository).
+
+- **Whole maps.** Levels 0 to 2 of the base map, the underground and the expansion each show their map fully revealed,
+  with no stray tile and no seam: the Lands Between filling 92% of its canvas at every level, with the dark margin to
+  the right and below; the underground's three cave regions; the Realm of Shadow under its great tree, inside its faded
+  border. Sheet 11 shows only a grey grid with a rough placeholder in one corner, and its masks are all marked as not
+  existing: SPECULATION, an unused or test sheet.
+- **The true sizes.** Matching 128-pixel patches of each level inside the next and fitting each axis by least squares:
+  level 1 is 0.74855 of level 0 on the base map and the expansion (0.74866 on the underground) and level 2 0.19875 on
+  both, level 2 against level 1 0.26545; every offset within half a pixel of the top left, residuals 0.3 pixel over 100
+  to 335 patches. So three quarters (WHY§70) and 2,089 / 10,496 (WHY§71) were near but not exact, and WHY§75's drift
+  is the difference, about 14 level-1 pixels at the far side. DataPiler 0.2.34 holds the measured sizes.
+- Next: en-0031 confirms the check on 0.2.34; then the world-to-map fit at level 0, the map now known tile by tile.
