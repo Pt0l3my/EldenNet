@@ -90,6 +90,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 65 | 2026-11-15 | With the check, level 2 is one image; its base and pieces 15 to 20 stand apart | LIKELY | #map #datapiler #graceui |
 | 66 | 2026-11-15 | Level 2's export is two tile sets under one set of names; Smithbox's export overwrites by name | LIKELY | #map #datapiler #graceui |
 | 67 | 2026-11-15 | The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete | FACT | #map #datapiler #graceui |
+| 68 | 2026-11-15 | Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1022,3 +1023,22 @@ From the owner's look at two level-2 tiles in Smithbox, en-0021's numbers and en
 - **So** the map's own drawing at level 2 is set B, with gaps; the game must draw that zoom from something else, or
   from set A at another scale (en-0022, the level-1 codes, tests whether set A is level 1 at a quarter). For GraceUI:
   draw from levels 0, 3 and 4 (and 1 once checked), and from level 2 only where a variant passes the check.
+
+### 68. Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter
+
+`2026-11-15` · FACT (the shares), LIKELY (what they leave open) · `#map #datapiler #graceui` · refs: WHY§62, WHY§67, G26,
+D90
+
+From en-0022 (each level-1 tile's sheet, column, row and code: 8,078 tiles, 4,660 on the base sheet) against en-0019's
+level-0 codes and en-0021's level-2 sets. The test, as in WHY§67: is every piece of a variant's code among the codes of
+the finer tiles beneath it?
+
+- **Level 1 against level 0, at three quarters:** 2,873 of 3,699 variants (78%) pass with no shift, and about as many
+  with any shift (best 80%): no clean nest of the kind level 2's set B shows (100% in place, 27% shifted). Variants
+  with bits 15 to 20 pass 95%; those with bits 0 to 14 only, 69%.
+- **Set A against level 1:** 58% at a quarter with no shift, best 87% at a third with a shift of 192 pixels: set A is
+  not level 1 at a quarter. Set B against level 1 at a third: 79% in place, best 92% shifted.
+- **What it leaves open:** a level-1 tile spans one and a third level-0 tiles a side, so the codes beneath hold most
+  bits anyway (the shifted share barely drops): codes alone cannot tell whether levels 0 and 1 hold one drawing each.
+  That needs their images, at a size an overview can take (level 1 at a half, level 0 at a quarter). Until then the
+  map's fit uses level 3, which is clean against levels 2 (set B) and 4.
