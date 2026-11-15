@@ -25,7 +25,8 @@ flowchart LR
     end
     NET["net (tokio)"]
     STO["store (SQLite WAL)"]
-    OVL["overlay + input hooks"]
+    OVL["display layer: panels, notices, F11"]
+    GUI["GraceUI host (graceui.dll): the one overlay,<br/>input hooks, menu, browser view"]
   end
   INIT --> TASK
   TASK -->|"snapshot, latest wins"| AUG --> SUBS
@@ -34,11 +35,12 @@ flowchart LR
   SUBS -->|"UiModel"| OVL
   OVL -->|"UiEvent"| SUBS
   TASK -->|"render feed"| OVL
+  OVL <-->|"C ABI: panels, notices, input, page data"| GUI
 ```
 
 1. **One loader-agnostic DLL plus our own small launcher.** No me3 code, APIs or features. A player may also list the DLL as a native in their own me3 profile (§3).
 2. **Our own Game Access Layer (GAL).** The version gate runs first. Discovery needs 5 AOB items and 11 FD4 singletons. Layouts are per-build data, confirmed by self-tests. Every read is an SEH-guarded copy, and every read group has a breaker (§4).
-3. **Zero game writes and zero game-code hooks.** No game function is called after task registration. The only hooks are in system DLLs (DXGI/D3D12, DirectInput, XInput), so no Arxan neutralisation is needed. A blocking spike confirms this (§3.5).
+3. **Zero game writes and zero game-code hooks.** No game function is called after task registration. The only hooks in the process are GraceUI's, in system DLLs (DXGI/D3D12, the window procedure, DirectInput, XInput); EldenNet itself hooks nothing and draws through GraceUI's C ABI (GraceUI G15, O25), so no Arxan neutralisation is needed. A blocking spike confirms this (§3.5).
 4. **One game-thread task:** a time-based 4 Hz snapshot, flags on every 4th snapshot (1 Hz), and a per-frame render feed only while labels show (§5).
 5. **Augur, the event engine, inside the pure core.** Sources feed declarative rules (debounce, hysteresis, cooldown, confidence, dedup and merge, TTL). The rules emit typed events with a frozen audience onto an ordered, synchronous bus. Golden replay tests guard it (§6).
 6. **Profiles at three depths:** *personas* (a bio with a verified stage track) for questline NPCs and named services, *character profiles* (a bio) for every other named NPC and every named boss, and *archetype cards* (kind profiles) for generic humanoids. v1.0 ships one for every named NPC and named boss of the base game, matched to the speaker by ID, and every NPC with a profile can hold a conversation and keeps memories (O43, O45, §7.8). Each carries the subjects its NPC likes to talk about, and the player can add instructions to any of them or write a character profile of their own for any named NPC, boss or invader they have met (O43). Anything unresolved or unbound is mute (§7, §7.7).
@@ -77,7 +79,7 @@ flowchart LR
 | Conversation | Typed one-to-one chat with every NPC that has a profile, when conversable (O45); Steam floating keyboard if S4 passes; personas speak up unasked: greetings, quest business, news on a greeting (§8.9), and other profiled NPCs greet, remark and answer within pacing (§7.8) | Pad intent list (v1.1), STT (v1.5), `@name` addressing | Any online use |
 | Barks | Combat lines for every combatant, either side (boss fights as S3 allows), status reactions in words (after S8), sparse idle lines, NPC-to-NPC exchanges, autonomy on subjects each NPC likes, seeds plus pools, one-line call-out replies; pacing only (O31) | Live combat lines, taunt key, user triggers, NPC acts (O41), a director that breaks silences (§13) | — |
 | Memory | Event log, facts, claims and a journal for every profiled NPC, with memories of the Tarnished and of other NPCs (O45); rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall, diaries; news that travels with play time; shared circles of acquaintance; what Min's blueprint may replace (§7.8) | Telemetry upload |
-| Presentation | ImGui text overlay | TTS (v1.5), in the cast's own voices, made from the player's install on the player's PC (O62); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
+| Presentation | Text panels and notices drawn through GraceUI's overlay (GraceUI G15) | TTS (v1.5), in the cast's own voices, made from the player's install on the player's PC (O62); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
 | ML | Out of process, over HTTP | Bundled out-of-process TTS binaries | LLM, TTS or STT inside the game process |
 
 ### 1.3 Success criteria ("minimal and stable", measured)
@@ -86,7 +88,7 @@ flowchart LR
 |---|---|---|
 | C1 | Crash safety | 0 EldenNet-caused crashes or hangs in a 30 h soak on 3 machines (one Proton, one HDR, one with ERSC), plus 20 forced fail-closed launches (unknown build, missing pattern, injected faults) (J2 #16) |
 | C2 | Unknown build | 100% banner mode: zero tasks registered, zero game-object reads (read counters) |
-| C3 | Game-thread cost | Task mean ≤ 0.15 ms, p99 ≤ 0.5 ms at 32 characters. Render feed ≤ 0.03 ms. Overlay ≤ 0.3 ms per frame. ≤ 1 FPS loss at the 60 FPS cap |
+| C3 | Game-thread cost | Task mean ≤ 0.15 ms, p99 ≤ 0.5 ms at 32 characters. Render feed ≤ 0.03 ms. EldenNet's panels ≤ 0.3 ms per frame, its `on_present` callback within GraceUI's 0.5 ms p99 per mod (GraceUI D71). ≤ 1 FPS loss at the 60 FPS cap |
 | C4 | Multiplayer | Dormant within one snapshot (≤ 250 ms). 0 LLM requests while the gate is false |
 | C5 | Dialogue latency | First page p50 ≤ 1.6 s and p90 ≤ 3.0 s (cloud preset); p50 ≤ 2.5 s (12 GB local preset) |
 | C6 | Barks | 100% shown before expiry. ≥ 95% within 0.5 s of the game change. At default pacing (O31): combat lines ≥ 2.5 s apart and ≤ 6 per rolling minute (the death gloat aside), one fighting group never twice within 8 s, ≤ 2 labels visible; the camp of five gives 2–4 lines per fight |
@@ -125,8 +127,8 @@ There are two processes: the short-lived `eldennet-launcher.exe` (§3.2) and the
 | Thread | Runs | Game memory? |
 |---|---|---|
 | Game thread | The single GAL task closure | **Yes, only here.** It never blocks, locks or allocates after warm-up |
-| Present thread | hudhook callback: draws `UiModel` and the render feed | No |
-| Game input thread(s) | DirectInput and XInput detours. They read one atomic and zero buffers | No |
+| Present thread | GraceUI's hudhook callback (GraceUI G15); EldenNet's work there is its `on_present` callback, which draws `UiModel` and the render feed as panels within GraceUI's budget (GraceUI D71) | No |
+| Game input thread(s) | GraceUI's DirectInput and XInput detours, which mask input for whichever holder has it; EldenNet installs none | No |
 | Init (transient) | Gate, readiness wait, discovery, task registration | Image scans only, before the task exists |
 | Core | `Core::step` over a `crossbeam::select!` of inputs | No |
 | Net (tokio, 2 workers), store (rusqlite), watcher | Effects | No |
@@ -135,7 +137,7 @@ There are two processes: the short-lived `eldennet-launcher.exe` (§3.2) and the
 - Task → core: a two-slot latest-wins snapshot slot, plus a 64-entry lifecycle queue.
 - Task → overlay: a triple-buffered render feed.
 - Core → task: a 64-entry SPSC command queue.
-- Core → overlay: `ArcSwap<UiModel>`. Overlay → core: a 256-entry `UiEvent` queue.
+- Core → overlay: `ArcSwap<UiModel>`. Overlay → core: a 256-entry `UiEvent` queue. Overlay ↔ GraceUI: its C ABI (`submit`, `notice`, `request_input`, `poll`; GraceUI §2.9), never blocking the present thread.
 - Core ↔ store: 1,024 each way. Core ↔ net: 64 requests and 1,024 stream events.
 
 The game and render threads use only `try_send`, atomics and preallocated buffers (P1 R5, P2 §2.3).
@@ -150,7 +152,7 @@ flowchart TB
   STORE["en-store (SQLite)"]
   LLM["en-llm (HTTP/SSE)"]
   GAL["en-gal<br/>gate, discovery, layouts, reader, task"]
-  OVL["en-overlay<br/>hudhook ImGui, input hooks"]
+  OVL["en-overlay<br/>display layer: panels through GraceUI,<br/>F11 on a headless ImGui"]
   DLL["eldennet (cdylib)"]
   LAUNCH["en-launcher (bin)"]
   TOOLS["en-tools (bin)"]
@@ -168,7 +170,7 @@ flowchart TB
 
 - `en-proto`, `en-augur` and `en-core` use no `unsafe`, do no I/O and read no clock. ER meaning lives in `content/eldenring/`, so the core stays game-neutral.
 - `en-gal` holds the only `unsafe` that reads game memory, and it has no LLM, DB or UI. Its `offline` feature compiles only the safe modules (PE parsing, the pattern grammar, the build and layout schemas), which is all the launcher and `en-tools probe-exe` use (ARCH §2.1).
-- `en-overlay` uses `unsafe` only for hudhook and the input hooks.
+- `en-overlay` uses `unsafe` only for its calls across GraceUI's C ABI (through `graceui-sys`). It links no hudhook, MinHook or ImGui renderer backend and installs no hook (GraceUI G15, invariant 16); its F11 view keeps imgui-rs on a headless context of its own, submitted as a panel.
 - `eldennet` wires the threads together and wraps foreign entries in `ffi_guard`.
 - `en-tools` provides `replay`, `golden`, `eval`, `lint`, `render-prompt`, `probe-exe`, `mockllm`, `bake-pools`, `selftest`, `fmg-import`, `identity-fill`, `kb-draft`, `flag-verify`, `roster-scan`, `roster-draft` and `roster-verify` (ARCH §12.3).
 
@@ -234,10 +236,10 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 - **R6 Never block** the game, render or input threads: no shared mutex, bounded `try_send`, no allocation on the game thread after warm-up.
 - **R7 Gate before layout.**
 - **R8 Breakers.** A read group trips after 3 faults in 60 s: off for the session, with a toast. A core subsystem is reset after its first panic and disabled after its second.
-- **R9 Lints.** Deny `unwrap`, `expect`, `panic`, indexing and unchecked arithmetic in `en-gal`, `en-overlay`, `eldennet` and `en-launcher`. In the game process, `unsafe` blocks appear only in `en-gal::{reader, sys}` and `en-overlay::hooks`, each with a `// SAFETY:` note. `eldennet` allows `unsafe_code` only on its `exports` module, for the `#[unsafe(no_mangle)]` attributes of `DllMain` and the instance marker, and that module holds no `unsafe` block. The launcher, a separate process, keeps its Win32 `unsafe` in `en-launcher::win` (ARCH §2.4).
+- **R9 Lints.** Deny `unwrap`, `expect`, `panic`, indexing and unchecked arithmetic in `en-gal`, `en-overlay`, `eldennet` and `en-launcher`. In the game process, `unsafe` blocks appear only in `en-gal::{reader, sys}` and `en-overlay::abi` (its calls across GraceUI's C ABI; under GraceUI's G15 it has no hooks module), each with a `// SAFETY:` note. `eldennet` allows `unsafe_code` only on its `exports` module, for the `#[unsafe(no_mangle)]` attributes of `DllMain` and the instance marker, and that module holds no `unsafe` block. The launcher, a separate process, keeps its Win32 `unsafe` in `en-launcher::win` (ARCH §2.4).
 - **R10 Time-based cadence and self-throttle.** Accumulated QPC time, never frame counts (J2 G21). After 3 ticks over 0.5 ms, drop to 2 Hz and 16 characters within 25 m; restore after 60 s.
 - **R11 Idle while loading.**
-- **R12 System-DLL hooks only.** Installed once at boot, never toggled, chained, all through the one MinHook copy that hudhook bundles, exposed as its public `hudhook::mh` module in 0.9.3 (ER02 §7.1, J1 #15, O25).
+- **R12 EldenNet hooks nothing.** Since GraceUI's G15 (2026-11-08) the process's only hooks are GraceUI's, in system DLLs, installed once, never toggled, chained, all through the one MinHook copy that hudhook bundles (`hudhook::mh` in 0.9.3), inside `graceui.dll` (ER02 §7.1, J1 #15, O25; GraceUI invariant 16). EldenNet links no hudhook, MinHook or other hook library; CI checks its imports and symbols for one. A later hook of EldenNet's own (a hook-based event source, §13; a file-redirect hook, §3.6) would need a hook library beside GraceUI's MinHook, so it would need the owner's decision as well as its spike.
 - **R13 Sanitized, byte-capped strings** only (§8.4).
 - **R14 No work at `DLL_PROCESS_DETACH`.** Every DB request is one WAL transaction, committed as soon as the store receives it. Speech commits (`PlayerSaid`, each `NpcSaid` page) are sent at once. Other writes are coalesced by the core into one request at most every 250 ms (ARCH §1.5).
 - **R15 Abort-class failures are designed out** (J1 #7). `catch_unwind` cannot stop a stack overflow, OOM, C-level faults or panics in `Drop`. So: size and recursion caps on templates, JSON and the sanitizer; bounded buffers; no panics in `Drop`; no ML in process. The residual risk is accepted, with an out-of-process core kept as a seam (§13).
@@ -247,7 +249,9 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 
 | Failure | Player sees |
 |---|---|
-| Unknown build or failed discovery | Banner: "EldenNet inactive: game build 2.x.y.z not supported yet", with the reason |
+| GraceUI missing, damaged or too old (GraceUI D83, D88) | Before start, the launcher installs the GraceUI that EldenNet carries, or explains what is missing; in the process, a failed connect leaves EldenNet headless (L2 at most, nothing drawn), logged, with a hint the next time the launcher runs |
+| Anti-cheat present | GraceUI draws notices only, EldenNet's banner among them (GraceUI D88) |
+| Unknown build or failed discovery | Banner: "EldenNet inactive: game build 2.x.y.z not supported yet", with the reason, drawn as a GraceUI notice |
 | An optional group tripped | One toast naming the reduced feature |
 | Slow first token | The "Name …" card keeps pulsing; one silent fallback to the backup model |
 | No reply in 20 s | An uncommitted "…" page plus "No answer: provider timed out" |
@@ -277,13 +281,13 @@ The DLL finds `content/` and `gal/` from its own module path, so the install fol
 
 A small windowless Win32 program of our own, about 400 lines. It follows the documented pattern that LukeYui's Offline Launcher and me3's launcher also use (ER02 §2.1, §3.2):
 1. **Find the game:** Steam library folders, or a path the player gives. Check the build; if it is unknown, offer "launch anyway (EldenNet stays inactive)".
-2. **Pre-flight:** Steam must be running. Refuse if `start_protected_game.exe` is running.
+2. **Pre-flight:** Steam must be running. Refuse if `start_protected_game.exe` is running. **Check GraceUI** (GraceUI D83, D88): read `Game\GraceUI\graceui.toml` (present, sizes and hashes, ABI major, EldenNet's floor); install the GraceUI release EldenNet carries where none or an older one is installed, never over a newer one, and over an older major only while the carried release still serves it; otherwise explain, in E08's manner, what is missing or would stop working, and install only when the player confirms.
 3. **Back up the save:** copy `%APPDATA%\EldenRing\<SteamID64>\ER0000.sl2` and its `.bak` to `%APPDATA%\EldenNet\save-backups\…\<timestamp>`, keeping 10.
 4. **Start without EAC:** put `steam_appid.txt` next to `eldenring.exe` (TGA's recommended method) and record that we created it. A `SteamAppId` environment variable instead would avoid writing into the game folder; S0-C tests it (SPECULATION).
 5. **Inject:** `CreateProcessW(…, CREATE_SUSPENDED)`, then `VirtualAllocEx` + `WriteProcessMemory` + `CreateRemoteThread(LoadLibraryW)`. Check the module handle, then resume.
 6. **Exit.** Flags: `--vanilla-offline`, `--no-backup`, `--dll <path>`.
 
-Its first screen states, in plain words: offline only; saves are backed up but not separated (§3.6); typed text goes to the player's chosen provider; the content is AI-generated (J3 §4). Under Proton the launcher must run inside the game's prefix. S0-C settles the recipe, and the player's own me3 profile is the fallback.
+Its first screen states, in plain words: offline only; saves are backed up but not separated (§3.6); typed text goes to the player's chosen provider; the content is AI-generated (J3 §4); and the dashboard's address, which GraceUI serves while the game runs, read from GraceUI's own settings (GraceUI D84). Under Proton the launcher must run inside the game's prefix. S0-C settles the recipe, and the player's own me3 profile is the fallback.
 
 ### 3.3 Alternatives evaluated
 
@@ -307,7 +311,7 @@ Its first screen states, in plain words: offline only; saves are backed up but n
 
 ### 3.5 Arxan: none needed, because no code is patched
 
-v1 does reads, one `register_task` call and system-DLL hooks. The task system avoids Arxan's code restoration (ER02 §5). Still unproven: whether scans work on an image with Arxan untouched, since encrypted functions "may be unreadable until Arxan runs" (J1 claim 6). **S0-A is a blocking spike.** Built-in mitigations:
+v1 does reads and one `register_task` call; the only hooks are GraceUI's, in system DLLs (R12). The task system avoids Arxan's code restoration (ER02 §5). Still unproven: whether scans work on an image with Arxan untouched, since encrypted functions "may be unreadable until Arxan runs" (J1 claim 6). **S0-A is a blocking spike.** Built-in mitigations:
 - scan in two phases: only the two readiness items once the window exists, and the full discovery after the readiness wait (§3.1);
 - retry unresolved patterns at +5, +15 and +30 s;
 - prefer data-side evidence (DLRF names, `.data` statics, RTTI in `.rdata`);
@@ -317,7 +321,7 @@ If S0-A fails, the owner chooses among the options in §17 K2. Neutralising Arxa
 
 ### 3.6 Save separation
 
-v1 never writes game memory, flags or the `.sl2` (R2). The decision (O6) is therefore: no save redirection, rotating launcher backups, and warnings in both the launcher and the wizard never to take a save played offline with mods online (ER02 §2.2). A `CreateFileW`-family redirect hook would be allowed (it is a system DLL). It is deferred to v1.x behind a spike, because it could collide with ERSC's `.co2` handling and a player's me3 `savefile` (J1 #27, J2 §2 #4). A launcher file swap is rejected: it is crash-unsafe and races Steam Cloud.
+v1 never writes game memory, flags or the `.sl2` (R2). The decision (O6) is therefore: no save redirection, rotating launcher backups, and warnings in both the launcher and the wizard never to take a save played offline with mods online (ER02 §2.2). A `CreateFileW`-family redirect hook would be allowed (it is a system DLL), though since GraceUI's G15 EldenNet links no hook library, so it would also need the owner's decision on how to hook beside GraceUI's MinHook (R12). It is deferred to v1.x behind a spike, because it could collide with ERSC's `.co2` handling and a player's me3 `savefile` (J1 #27, J2 §2 #4). A launcher file swap is rejected: it is crash-unsafe and races Steam Cloud.
 
 ---
 
@@ -674,7 +678,7 @@ The flag rate follows the snapshot count rather than a clock, so the R10 self-th
 | A. Questline NPCs | **Important** | The six personas: persona, stages, gated knowledge, journal, chat when not hostile. Every other questline NPC: a character profile (bio), journal, chat when not hostile, the land by its ground (§7.8) |
 | B. Named services (Kalé, Hewg…) | **Important** | Same pipeline; vanilla menus stay the only way to trade (ER04 §2.4) |
 | B′. Nomadic merchants | Mute ("They have nothing to say to you.") unless a character profile binds them | A shared card waits until entity identity is verified (J3 #11); a bound one speaks as a character, conversation and memory included (O45, §7.8) |
-| C. Named bosses, D. named invaders, Melina | **Character** (our own bio from v1.0, O43); Melina's conversable only while the Tarnished rests at a site of grace, in EldenNet's overlay, once she has met them (O63) | A bound boss or invader speaks combat lines in its fights once S3 has recorded its kind (§9.10), and converses and remembers only where the game lets the Tarnished meet it calm and not hostile (O45), never while it holds a bar or invades (built-in rules (a), (b)); Melina is bound by our own profile only (O63); a boss whose bar shows a kind's name stays mute unless a profile binds it; others' combat lines in their fights follow O42 (§9.10) |
+| C. Named bosses, D. named invaders, Melina | **Character** (our own bio from v1.0, O43); Melina's conversable only while the Tarnished rests at a site of grace, in EldenNet's chat box (a panel through GraceUI), once she has met them (O63) | A bound boss or invader speaks combat lines in its fights once S3 has recorded its kind (§9.10), and converses and remembers only where the game lets the Tarnished meet it calm and not hostile (O45), never while it holds a bar or invades (built-in rules (a), (b)); Melina is bound by our own profile only (O63); a boss whose bar shows a kind's name stays mute unless a profile binds it; others' combat lines in their fights follow O42 (§9.10) |
 | E. Generic humanoids | **Generic** | Archetype card: barks plus a one-line call-out reply |
 | F. Voiceless (beasts, spirits, golems, Twin Maiden Husks, Goldmask, Torrent) | Mute | Perceived only |
 | Summoned questline NPCs | Important; combat lines only, in its own voice (O42) | `FoughtBeside` recorded |
@@ -991,10 +995,10 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
   A mute target shows the hint line.
 - **Conversable:** alive; the stage allows chat; the live team is not hostile; the +1/+2/+3 bits are clear where verified; not attacked by the player in the last 30 s; no native talk within 8 m. A failure gives a status toast, never generated speech.
 - **Safe context:** the player is alive and not riding; no boss fight; not in combat; no engaged (≥ 0.6) hostile ≤ 25 m and no hostile at all ≤ 12 m; `hud == Default`. **Sheltered** places waive the two hostile-distance checks (never the boss and combat checks) and let rule 5 of the target order (nearest persona) reach 8 m instead of 5 m: the Roundtable (SpEffect 9621, ER05 §3) and resting at a grace (flag 9000, once S6 verifies it). In practice resting adds nothing before S3: the grace menu very likely reads as `PopupMenu`, and the fail-closed rule of §8.7 then blocks chat, so the player stands up first. After S3, resting chat is allowed only if the observer tells the grace menu apart from native talk (NPC §14 item 1). There is **no world freeze** (O9).
-- **Input capture:**
-  - one atomic; DirectInput keyboard and mouse buffers zeroed; XInput neutral; ImGui draws its own cursor;
+- **Input capture** (GraceUI's since its G15; the chat box asks for input with `request_input` and gives it back with `release_input`, and GraceUI applies these rules to every input holder, GraceUI D77):
+  - one capture state; DirectInput keyboard and mouse buffers zeroed; XInput neutral; ImGui draws its own cursor;
   - keys held at close stay masked until released;
-  - capture is released on Esc, on focus loss, after 2 s without an overlay render, on danger, on loading and on any core fault (P2 R7);
+  - capture is released on Esc, on focus loss, after 2 s without an overlay render, on danger, on loading and on any core fault (P2 R7); the player's own exit (a second menu-key press, or Escape held 1 s) ends any holder;
   - no game-code mouse hook (J1 #14). If S4 shows camera drift, the answer is "chat only while standing still".
 - **Danger while typing** closes the box at once, releases input and keeps the draft: "The moment has passed." (P3 §5.2). `Engaged` interrupts `chat_input`, not conversation output (§6.5), so pages already being shown keep their pacing. The conversation ends only if danger lasts 10 s (§8.6).
 
@@ -1527,13 +1531,13 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 
 ## 12. Presentation
 
-- **Host:** hudhook DX12 ImGui, pinned at exactly 0.9.3 (O25), one context. OFL fonts (EB Garamond, Noto Sans); game fonts never ship (ER03 §7A).
+- **Host:** GraceUI's `graceui.dll` (GraceUI G15), which holds hudhook DX12 ImGui, pinned at exactly 0.9.3 (O25), with one context. EldenNet's surfaces are panels on GraceUI's layers (`hud` and `panel`), drawn from checked draw lists in an `on_present` callback; toasts and the banner go through GraceUI's notices; F11 is a panel built on a headless Dear ImGui of EldenNet's own. EldenNet's faces are registered in GraceUI's one atlas before warm-up. OFL fonts (EB Garamond, Noto Sans); game fonts never ship (ER03 §7A).
 - **Surfaces:**
   - conversation lower third at about 76% of the screen height, ≤ 46% of its width, speaker name in muted gold;
   - chat box at the bottom centre, with a header and a 3-exchange history;
   - call-out box; talk hint and target marker;
   - bark feed and labels;
-  - toasts (top right, ≤ 2, never in boss fights), banner and pause badge;
+  - toasts (top right, ≤ 2, never in boss fights), banner and pause badge, as GraceUI notices;
   - settings (F10, safe moments only); debug view (F11, off by default).
 - **Style:** ash-white text with a soft shadow and no box behind subtitles; HDR-safe colours; fades only (120 ms in, 300–400 ms out); scale 75–150%. Pacing is part of the style (§8.5).
 - **Hidden** when `screen != InGame`, `hud == HideAll` (cutscenes, LIKELY), during loading, and while banners show (the chat box excepted).
@@ -1550,7 +1554,8 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 | TTS / STT / pad | `SpeechSink` + `PageTiming`; `Line.voice_key`; `InputSource {Typed, Stt, Intent}`; the `tts` allowance | TTS, push-to-talk, intent list |
 | Thoughts | `npc_thought` event type; parser channel reserved | Add to the contract |
 | Triggers | Augur and bark rule formats; `allow_custom_rules = false` | User rule files |
-| Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3 |
+| UI | The `UiPort` in the core (player-safe projections, one validating command entry point, the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space, panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
+| Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3, and the owner's decision on how EldenNet would hook beside GraceUI's MinHook (R12) |
 | Scene or vector memory | `trait Recall` (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log |
 | Native subtitles | `trait PresentationSink`; `GameCommand::NativeLine`; `NativeLineHeard` event; `NativeLineHeard` live as the scripted-line detector for verified kinds (O42) | v2 after S9; line ids after S10 |
 | Director, freeze | Scheduler class `Directed` (P1, reserved; `Autonomous` is live, §9.4); the `subjects` of every profile (§7.7); the autonomy path, whose task already carries a subject (§9.8); pacing and the reservation rule; `GameCommand::Freeze` | v1.x: the director. After a stretch of silence near the Tarnished it picks one eligible NPC within range by a pure, replayable rule and hands it a subject to talk about, through the autonomy path and within pacing (the owner's idea, 2026-11-07, O30); nothing of it is built in v1. The freeze: a v1.x opt-in after S5 (O9) |
@@ -1628,7 +1633,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | **S0-B Task without dearxan** | Does the task tick for 2 h with no code-restoration trouble? | 0 faults; p99 ≤ 0.5 ms | v0.1 |
 | **S0-C Launcher and offline** | No-EAC start on Windows and Proton; the `SteamAppId` variant; the session gate solo and in ERSC (via the player's me3); is a FromSoftware connection impossible? | Gate false in every session; no online menu | v0.1 |
 | **S0-D Guarded reads** | Forced faults beside ERSC, the Steam overlay and a VEH-installing crash reporter | 20/20 caught; breakers trip | v0.1 |
-| **S0-E Hook coexistence** | Hooks installed once, in both load orders, beside another DInput overlay | Both mods work; no leak | v0.1 (the present hook, in both load orders, beside another overlay); v0.2 (the input hooks) |
+| **S0-E Hook coexistence** | GraceUI's hooks installed once, in both load orders, beside another DInput overlay; EldenNet connecting to them (GraceUI G15) | Both mods work; no leak | v0.1 (the present hook, on GraceUI's 0.1 Host, in both load orders, beside another overlay); v0.2 (the input hooks) |
 | S1 Perception | List coverage; is `distance` squared; share of `entity == 0`; invader class; which `chr_type` values populate `player_chr_set` (NPC summons, NPC invaders; §3.4); cost; for character profiles (§7.7), each shipped binding's rows and entities, as for persona rows, and whether a boss's phases use one row or several; for the roster (about 140 NPCs), captures in batches from v0.4, once the census has run, to the v1.0 release candidate, matched by `roster-verify` (§7.8) | ≤ 0.4 ms p99; Kalé and 3 soldier families resolve | v0.1 |
 | S2 Text | FMG table reads on 1.17.2; where the game holds its active text language; whether the install carries English text (O26); boss bars: whether `boss_bars[i].name_id` is the id of the name the bar shows, per fight, over ≥ 10 fights including one with two bars (ER05 open question 13) | 100 IDs match the player's export; the language is read, or the wizard's confirmation fallback is used; every shipped `bar` binding matches its fight (for the roster, every named boss's fight once, §7.8) | v0.1 (the `text` group ships there) |
 | S3 Talk observer | Talk fields during menus, greetings and boss lines. Adds, per persona × stage: whether a menu-less approach line plays, its radius and delay, and its played flag (→ `approach`, `approach_m`, `approach_played`). Per NPC kind: a detector of scripted combat and boss lines ("this NPC is speaking scripted dialogue now") from the talk fields and the `CSTalkIns` leads, and the kinds with none (→ `scripted = "none"`). Records go to `types.toml` (`[[boss]]`, and `[[named]]` for other non-persona kinds), including every kind a shipped character profile binds (§7.7; the roster's named bosses with scripted lines, each its own kind, §7.8). Joint with S6: when a talk-driven stage flag rises (during, at the end, or after the talk) | ≥ 95% precision over 30 events, else stay fail-closed; per kind (each boss its own kind): ≥ 95% of ≥ 30 scripted lines detected as "speaking" within 0.3 s of their start (recall), and no "speaking" report over 10 min of that kind's combat with no scripted line playing; else that kind stays held | v0.2; it runs on v0.1 recordings; persona own-initiative lines (v0.3, v0.5); boss-fight lines and combat lines of kinds with scripted lines (v0.4 on) |
@@ -1645,14 +1650,14 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 
 | Version | Contents | Exit criteria |
 |---|---|---|
-| **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, the eleven read groups (`status` off until S8), L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view, recording, replay. No LLM. S8 and S3's additions run on recordings; the `status` read group exists, off until S8 passes | C12 (golden events over 3 routes); C2; C1 (0 crashes in 10 h, and the 20 forced fail-closed launches); C3 for the task, overlay and FPS; C4's dormancy; S2, S6's core flags, S7 and S0-E's present-hook half; the read-group self-tests; the v0.1 matrix rows (ARCH §12.4); the patch drill, if the JP layout is ready; every CI stage but `eval` (from v0.2) gating; signed tester builds (§16.3) |
+| **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, the eleven read groups (`status` off until S8), L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view (drawn through GraceUI 0.1, the host: GraceUI G15), recording, replay. No LLM. S8 and S3's additions run on recordings; the `status` read group exists, off until S8 passes | C12 (golden events over 3 routes); C2; C1 (0 crashes in 10 h, and the 20 forced fail-closed launches); C3 for the task, overlay and FPS; C4's dormancy; S2, S6's core flags, S7 and S0-E's present-hook half; the read-group self-tests; the v0.1 matrix rows (ARCH §12.4); the patch drill, if the JP layout is ready; every CI stage but `eval` (from v0.2) gating; signed tester builds (§16.3) |
 | **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)`, block 5b with Kalé's `road`, and the world part of `Locked(P)` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `en-tools eval` and its CI stage; the 8 fixture states and Kalé's truth tables; positive grounding: block 5b's three parts, world-frame items 1–9 positive, the contract and regeneration notes, `forbid` code-only, tells on spoiler ≥ 2 world items (reveals at v0.5), W14, W15; X1's spoiler and positive-wording arms; C9's judged part on Kalé; the "you, now" line (wounds and fighting); `settings.toml` schema 2 with `range` and the feature switches | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T6, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks; C9's judged part on Kalé; X1's spoiler and positive-wording arms (§16.3) |
 | **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (O28, MEM §12.13; Kalé `eager`); the pacing core and the `Autonomous` class; Kalé's own-initiative lines (`greet_player`, a news cue on it, `saw_kill`, `autonomy`; `stage_talk` if his S6 verified a `beckon`), each only if S3 passed and S6 settled his +17 sleep lead; `NpcSaid` widened, `StageChanged`, `CameNear`, `AutonomyTick`; `world_cued` with pt and `spoke_pt`; block 6(c) and the "said unasked" note; the news cooldown (60 s, O30) in place of the once-only records; Kalé's `subjects` and the subject line in his autonomy task; the persona `instructions` field and the player's profile layers for personas, by file (§7.7) | C11; trim test green; world trim, NG+ and cue tests green (MEM §12.11: T3, T4's since-line goldens and Kalé's cue goldens, T7, T8, T10, T11's cue-clause fixtures, T12, T13); C14's since-line, claim and cue probes on Kalé; `wren_and_kale.scn` and Kalé's steps of `star_falls.scn`; `speak_up.scn`; T14; T13 as changed; `autonomy_subjects.scn`'s persona case and `player_profiles.scn`'s layer case; PL1, PL4–PL7 and PL9 on persona files (§16.3) |
 | **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools; the `Combat` and `Ambient` classes on the same pacing; `pacing` and `reactions` keys; `allow` keys and `types.toml` (file); combat for every combatant (NPC pairs by hits, once S7 verifies `last_hit_by` for NPC attackers); generic exchanges (`greet_npc`, `answer`) and the generic ring; generic autonomy; status awareness and reactions as S8 passes; persona combat seeds and pools (lines held per kind until S3's detector passes); boss-fight lines kind by kind; generic calm lines once S8 verifies the sleep or senseless signal (O44), sparse idle remarks (O14) among them; the six cards' `subjects` and the generic subject line; character profiles (`identity/characters.toml`, bindings, resolution, built-in rules (b) and (f), `[[named]]` records, the CI character `test_tollwarden`); card layers and the player's own character profiles, by file (§7.7); character profiles converse and remember (O45) on the CI fixtures, the speaker matched by profile id; the roster index and the first S1 and S2 roster captures once the census may run (after Min's blueprint and O46, §7.8; the game-data research of O54 gives its leads earlier) | C6 at 3 camps; X2; C3's render feed; C7 and C8 for barks and ambient lines; `ambient_walk.scn`; the card checklist and bark scenarios; `busy_fight.scn`, `chatter.scn`, `autonomy_bound.scn`, `boss_lines.scn`, `npc_vs_npc.scn`; `status_edges.scn` if S8 passed; S7's additions; `character_profile.scn`, `autonomy_subjects.scn` and `player_profiles.scn`; PL1–PL9; every shipped card has `scripted` recorded, and a card left `unknown` ships with its combat lines held (the card checklist reports it); S8; `roster_talk.scn`; PL10–PL12 once O46 is decided (§16.3) |
 | **v0.5 Veil** | Verified catalogue, stages, KB, the full lexicon (`public`, `reveals`, the KB's terms), 5 more personas with their `awareness.news` (O30) and `subjects`; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, their truth tables and awareness probes; the other five personas: `beckon`, `state` and `approach` per S6 and S3, combat seeds, greeting and quest-business seeds, cue tables; the roster's first batch of bios, reviewed, linted and bound (§7.8; batches move with the prerequisites) | C9, C10 and C14 on 6 personas; T2, T4, T6, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; release lint on all shipped content; all of S6; the whole `star_falls.scn`; Boc's `veiled` case; the identity-pack check for every persona; each persona's `beckon`, `state` and `approach` values (NPC §3.6) verified, or left unset (`beckon`) or `unknown` (`state`, `approach`); each persona's open sleep leads settled before its own-initiative lines ship; each new bio's roster eval and checklist (§16.3) |
 | **v0.6 Threshold** | Wizard, settings, call-out, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build; F10 pages: Pacing, Ranges, Autonomy, Reactions, NPC types and allowances; the call-out with repeat calls; the profile editor, the sightings list and the `draft` helper (§7.7); the rest of the base-game roster's bios (§7.8) | C1–C4 on the full matrix; C13 on the wizard path; X3 on the matrix; the patch drill again; C7 and C8 for the call-out; the F10 pages of §12; the bundle scan with profile canaries and `player_profiles.scn`'s save-path checks; each new bio's roster eval and checklist (§16.3) |
 | **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release; a bio for every named NPC and named boss of the base game, about 140 named profiles, the six personas included (§7.8) | C1–C14 green on the release candidate, with C1's 30 h soak on 3 machines; every base-game bio shipped with its checklist; every binding verified, or the bio held with its reason (§7.8) |
-| **v1.1** (planned) | The DLC's roster, if O46 keeps it out of v1.0 (§7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26) | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
+| **v1.1** (planned) | The DLC's roster, if O46 keeps it out of v1.0 (§7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26); the map of the journey (GraceUI G21–G27, its §4.13; roadmap S7.9.d), on groundwork v1.0 builds anyway: the sightings record and the world stages | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
 | Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; the freeze after S5 | Designed and scheduled when taken up |
 
 ### 16.3 Test schedule (O29)
@@ -1799,7 +1804,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Spike | Was: blocks | Now | Why |
 |---|---|---|---|
 | S0-A to S0-D | v0.1 | Unchanged | Already earliest |
-| S0-E Hook coexistence | v0.2 | Split: the present hook (both load orders, beside another overlay) blocks v0.1; the input hooks block v0.2 | The present hook ships in v0.1 (banner, debug view); the input hooks in v0.2 |
+| S0-E Hook coexistence | v0.2 | Split: the present hook (both load orders, beside another overlay) blocks v0.1; the input hooks block v0.2 | The present hook ships in v0.1 (banner, debug view), on GraceUI's 0.1 Host since its G15; the input hooks in v0.2 |
 | S1 Perception | v0.1 | Unchanged | — |
 | S2 Text | v0.2 | v0.1 | The `text` read group and its self-test ship in v0.1 |
 | S3 Talk observer | v0.2 | Runs on v0.1 recordings; blocks v0.2 | Its first consumer is chat's fail-closed rule; a miss leaves the observer fail-closed |
@@ -1841,7 +1846,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | ARCH §8.12's example scenario | Event lines v0.1; bark lines v0.4 | — | v0.1; v0.4 |
 | Smoke route (§4.6) | Events v0.1; the chat with Kalé v0.2 | Inside the patch drill | v0.1 on events; v0.2 with the chat |
 | Patch drill, JP as the new build (ARCH §12.5) | v0.1, once the JP layout exists | Before v0.6 | First at v0.1's exit, or v0.2's if the JP layout comes later; again before v0.6 |
-| Compatibility matrix (ARCH §12.4) | Rows from v0.1 | v0.6 | From v0.1 on the rows ARCH §12.4 lists for v0.1 (every build, the unknown one included; every load path, double load included; ERSC through the player's me3, Reforged, Proton, the Steam overlay and another DInput-hooking overlay for the present hook; SDR and HDR for the banner and debug view); the input-leak axis from v0.2; labels × HDR from v0.4; the full matrix certifies v0.6 |
+| Compatibility matrix (ARCH §12.4) | Rows from v0.1 | v0.6 | From v0.1 on the rows ARCH §12.4 lists for v0.1 (every build, the unknown one included; every load path, double load included; ERSC through the player's me3, Reforged, Proton, the Steam overlay and another DInput-hooking overlay for the present hook, GraceUI's since its G15; ARCH §12.4's GraceUI rows that need no input; SDR and HDR for the banner and debug view); the input-leak axis from v0.2; labels × HDR from v0.4; the full matrix certifies v0.6 |
 | Release checklist (NPC §12.4) | Kalé v0.2; cards v0.4; the other five v0.5; the roster's bios from v0.5, batch by batch, every base-game bio by the v1.0 release candidate | v0.5 and v1.0 by implication | Per persona and card at the increment that first ships it to testers |
 
 **Harness and CI** (ARCH §12.1, §12.3)
@@ -1875,7 +1880,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | K10 | Spoilers and lore drift | H / M | Five layers, verified-only unlocks, anti-priming lint, eval |
 | K11 | Tone misses | M / H | X1 in week 1, tone kit, per-persona eval gate |
 | K12 | Latency, free-tier caps, outages | H / M | Seeds, pools, expiry, fallback, local presets, honest toasts |
-| K13 | Hook and overlay conflicts | M / M | One MinHook, chained, installed once; published hook list; compat matrix |
+| K13 | Hook and overlay conflicts | M / M | One MinHook, GraceUI's, chained, installed once; EldenNet hooks nothing (R12); published hook list; GraceUI's install-time warning for another overlay (GraceUI D86); compat matrix |
 | K14 | Content workload | H / H | 6 personas, 6 cards and about 134 bios (§7.8): drafts from our own notes, review, lint, batches; see K29 |
 | K15 | Memory pollution | M / L | Claims stay claims; bounded disposition |
 | K16 | GPU contention on local setups | M / M | Background jobs at rest; cloud suggested under 12 GB |
@@ -1945,7 +1950,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |
 | Content size | 6 personas, 6 cards + fallback, and a bio for every named NPC and named boss of the base game: about 140 named profiles, the six personas included (§7.8) | 6 personas and 6 cards only (before O43's update); the DLC's roster in v1.0 | Owner decision (O43, updated); drafts from our own notes make the roster affordable, and review keeps it ours; the DLC waits for its research and saves (O46) | O43, O46; J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
-| Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1 |
+| Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module; GraceUI's `grace-host` holds it since GraceUI's G15 (2026-11-08), and EldenNet draws through GraceUI | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1; GraceUI §2.9 |
 | Unprompted news | A reaction cue computed by the conversation subscriber: three reactions (own stake, the Tarnished's part, local talk) chosen by the persona's `awareness.news` (O30, decided 2026-11-07); at most one cue line per reply, on a reply or on the persona's own greeting; repetition by the `news` cooldown (60 s per persona and item by default); the model decides | News only when asked; a cue for every new item; a seeded roll; Augur rules over world state; a separate rule file of reactions; freshness dated from flag edges; once-only records (before O31); a 3 h cooldown (before O30's decision) | Owner decisions O28, O30 and O31: a reaction, never every time, no count limit, three reactions by temperament and a 60 s cooldown. Every reaction reads an exact record; W1 keeps world state out of Augur; nothing has to date a world change | O28, O30, O31; MEM §12.13 |
 | Test schedule | Every check runs from the increment its subject ships in; deterministic, measured and zero-tolerance checks gate there; judged rates gate there once the judge check passes; costly sweeps cover each increment's additions and certify the release candidate | C14 reported only; gated from v0.5; reported at v0.5 and gated at v1.0 (the earlier recommendation) | Owner decision (O29): "test everything asap that makes sense"; no increment ships a feature that is neither gated nor measured | O29; §14, §16.3 |
 | Unprompted speech | One model: every own-initiative line has a motive; each motive is an event type with a player setting and a cooldown; allowances say who may act on it; one scheduler admits every line | A separate mechanism and limit per feature | Owner decisions O31 and O39; one rule set, one replay harness, one settings page | O31, O39; §9.4 |
@@ -2010,7 +2015,7 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O22](../DECISIONS.md#o22) | Distribution | GitHub canonical; Nexus mirror with an AI disclosure | Decided 2026-11-06 |
 | [O23](../DECISIONS.md#o23) | Generated bark pools in v1.0 | Seeds + pools, gated by X2 | Decided 2026-11-06 |
 | [O24](../DECISIONS.md#o24) | Floating bark labels in v1.0 | Feed + labels, labels once `camera` passes | Decided 2026-11-06 |
-| [O25](../DECISIONS.md#o25) | Overlay library | hudhook pinned at exactly 0.9.3; `dx12` only; never its eject path | Decided 2026-11-06 |
+| [O25](../DECISIONS.md#o25) | Overlay library | hudhook pinned at exactly 0.9.3; `dx12` only; never its eject path; held by GraceUI since its G15 (2026-11-08) | Decided 2026-11-06 |
 | [O26](../DECISIONS.md#o26) | Game text in another language | (a) in v1; (b) in v1.1 if S2 confirms it | Decided 2026-11-06 |
 | [O27](../DECISIONS.md#o27) | Pattern derivation log | A short note per pattern | Decided 2026-11-06 |
 | [O28](../DECISIONS.md#o28) | Do personas raise new world news unprompted? | Yes, only when a recorded reaction prompts it | Decided 2026-11-06; updated 2026-11-07 |

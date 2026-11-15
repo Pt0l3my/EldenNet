@@ -238,7 +238,9 @@ beside them. Version 1 stays dialogue-only and read-only towards the game.
 - e A larger text scale on the Steam Deck; later features as WIP entries [done]
   - refs: G6, G7
 - f EldenNet keeps the one overlay, and graceui.dll hooks nothing [done]
-  - refs: G10, GraceUI:DESIGN§2.9
+  - refs: G10, G15, GraceUI:DESIGN§2.9
+  - gives: superseded by G15 on 2026-11-08: GraceUI owns the overlay and EldenNet draws through it; folded into both
+    designs on 2026-11-15 (S7.8.c).
 
 ## S6 Waiting on the owner [waiting]
 
@@ -371,9 +373,9 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
 
 - refs: GraceUI:docs/eldennet-changes.md
 - S7.1.a The main menu on F5 through GraceUI, the bridge (a UiPort in the core) and the overlay [next]
-  - refs: G1, G10, DESIGN§12
-- b The local server, always on, with pairing for the home network [next]
-  - refs: G4, G9, GraceUI:DESIGN§7.2
+  - refs: G1, G10, G15, DESIGN§12
+- b The local server, always on, with pairing for the home network; since G17 the server is GraceUI's, so EldenNet registers its space after its gate and marks its sensitive commands [next]
+  - refs: G4, G9, G17, GraceUI:DESIGN§7.2
 - c Criteria, presentation and the compatibility matrix's rows [next]
   - refs: ARCH§12.4
 - d GraceUI as its own mod in EldenNet's release, and the small fixes found on the way [next]
@@ -438,8 +440,8 @@ and decided the same day that it is part of EldenNet, not GraceUI (G13's later c
 
 The owner widened GraceUI's scope on 2026-11-08 (G14): a UI framework other modders can use, as
 Magelight UI and PrismaUI are for Skyrim; EldenNet requires it and always ships with it, and its
-menu and dashboard become GraceUI's first user. The decided design stands until the proposal's
-questions are answered.
+menu and dashboard become GraceUI's first user. G15 to G17 were decided on 2026-11-08 and folded
+into both designs on 2026-11-15 (c); what depends on G18 to G20 waits for their answers.
 
 - S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [done]
   - refs: G14, G1, G10, O25, GraceUI:docs/proposals/0001-ui-framework.md, GraceUI:docs/research/ui-frameworks.md
@@ -449,9 +451,14 @@ questions are answered.
   - refs: G15, G16, G17, G18, G19, G20
   - gives: G15 to G17 decided 2026-11-08, as recommended (GraceUI owns the overlay; page data and panels; the
     browser view for every mod that opts in); G18 to G20 still wait.
-- c Fold the answers into both designs [planned]
+- c Fold the answers into both designs [done]
   - needs: b
-  - refs: GraceUI:docs/eldennet-changes.md
+  - refs: GraceUI:docs/eldennet-changes.md, GraceUI:DESIGN§2.9, GraceUI:DESIGN§4.13
+  - gives: G15 to G17 and the map's G21 to G27 folded on 2026-11-15: GraceUI's DESIGN (the host, D69 to D101, the map
+    section), its notes and invariants 15 to 18, eldennet-changes §11, and EldenNet's DESIGN, ARCH and NPC documents;
+    what G18 to G20 decide is folded when the owner answers them (d).
+- d Fold G18 to G20 once the owner answers them [waiting]
+  - needs: b
 
 ### S7.9 The map (GraceUI proposal 0002)
 
@@ -466,7 +473,7 @@ the player's game, and optionally opened by the map key.
   - needs: a
   - refs: G21, G22, G23, G24, G25, G26
   - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
-- c The map spike: a route to the player's map image, its fit check, exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
+- c The map spike: EldenNet's run-time read of the game's archives for the map's tiles and masks, the tile set's check (D93), exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
   - needs: b
   - refs: G21, G25, G26, O47, O48
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
@@ -547,8 +554,9 @@ a batch's captures share saves.
 - refs: DESIGN§16.2
 
 The game-access layer, the event engine and the gates are unchanged whatever the blueprint says
-(DESIGN §7.8), but the code starts on the adopted foundation, so v0.1 follows S8. No LLM yet;
-GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
+(DESIGN §7.8), but the code starts on the adopted foundation, so v0.1 follows S8. No LLM yet.
+Since G15, GraceUI's 0.1 Host ships with v0.1 (S10.4): EldenNet's banner and its F11 debug view, which
+v0.1's testing uses, draw through it.
 
 ### S10.1 The spikes for v0.1, in game
 
@@ -556,11 +564,11 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
 - S10.1.a The spike and recording build
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a
-- c Spikes S1 perception, S2 text, S6's core flags, S7 combat, and S0-E's present-hook half [waiting]
+- c Spikes S1 perception, S2 text, S6's core flags, S7 combat, and S0-E's present-hook half, on GraceUI's 0.1 Host [waiting]
   - needs: a
 - d Spike S8 and S3's additions, on v0.1's recordings
   - needs: c
-- e What the review left to measure: the fallback copy's cost, hudhook's MinHook in the first build, the play-time width, a Proton path
+- e What the review left to measure: the fallback copy's cost, hudhook's MinHook in the first build (GraceUI's host since G15), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
 
@@ -577,12 +585,26 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
 
 ### S10.3 v0.1's exit checks
 
-- needs: S10.1, S10.2
+- needs: S10.1, S10.2, S10.4
 - S10.3.a Golden events over three routes; no crash in 10 hours and 20 forced fail-closed launches; the unknown-build banner; the task's cost; dormancy in multiplayer
   - refs: DESIGN§16.3, DESIGN§1.3
 - b The read-group self-tests, the matrix's v0.1 rows, and the patch drill if the JP build's layout is ready
   - refs: ARCH§12.4
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
+- d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
+  - refs: G15, GraceUI:DESIGN§10
+
+### S10.4 GraceUI 0.1 Host
+
+- refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
+- S10.4.a graceui.dll as the host: hudhook 0.9.3 with its MinHook, Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
+  - refs: O25, GraceUI:DESIGN§2.2
+- b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
+  - refs: GraceUI:DESIGN§13
+- c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit
+  - needs: a
+- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in CI
+  - needs: c
 
 ## S11 v0.2 First words [planned]
 
@@ -598,13 +620,13 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
   - refs: tools/llmworker
 - d X3, latency in game [waiting]
 
-### S11.2 GraceUI 0.1 Foundations
+### S11.2 GraceUI 0.2 Foundations (0.1 before G15)
 
-- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake EldenNet with fixtures
+- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures
   - refs: G3, GraceUI:DESIGN§9.2
-- b For spike S4: one settings page drawn in game through EldenNet's host kit, from graceui.dll's vertex lists
-  - needs: a
-  - refs: G10, GraceUI:DESIGN§2.9
+- b For spike S4: one settings page drawn in game by GraceUI's host
+  - needs: a, S10.4
+  - refs: G15, GraceUI:DESIGN§2.9
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip
   - needs: b
 - d The owner's look review of the in-game menu, from screenshots [waiting]
@@ -630,6 +652,8 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
   - refs: G2, GraceUI:DESIGN§4.6
 - b The browser dashboard, always on, on loopback only, with the server's security suite
   - refs: G4, GraceUI:DESIGN§7.2
+- c The server in GraceUI with two spaces and per-space routing; EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
+  - refs: G17, GraceUI:DESIGN§10
 
 ### S11.5 v0.2's exit checks
 
@@ -765,8 +789,8 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
 
 ### S15.2 GraceUI 0.6
 
-- S15.2.a graceui.dll and its fonts; the menu in game on F5, every page but Workshop
-  - refs: G1, G10
+- S15.2.a The menu's fonts; the menu in game on F5, every page but Workshop; the space switcher and GraceUI's own space
+  - refs: G1, G15
 - b Settings, First light, the home-network switch and pairing, the call-out page, and the WIP pages
   - refs: G9, G7
 
@@ -819,6 +843,9 @@ GraceUI has no part in v0.1, whose testing uses EldenNet's own F11 debug view.
   - refs: O11
 - c English names from a non-English install's own English text, if spike S2 found it there
   - refs: O26
+- d The map of the journey: the map panel, the map projection and the Map page
+  - needs: S7.9.d
+  - refs: G24, GraceUI:DESIGN§4.13
 
 ### S17.2 v1.5
 

@@ -265,7 +265,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Recorded in.** CLAUDE.md, Owner decisions ("hudhook pinned at exactly 0.9.3"). GraceUI's G10 keeps the one overlay, and every rule here, in EldenNet.
 
-**Later changes.** 2026-11-08: by GraceUI's G15 (a), decided by the owner, the one overlay moves into GraceUI so that any mod can use GraceUI without EldenNet; the pin and every rule here move with it, unchanged, and EldenNet draws its surfaces through GraceUI and links no hook library. The designs are folded in roadmap S7.8.c (GraceUI's proposal 0001).
+**Later changes.** 2026-11-08: by GraceUI's G15 (a), decided by the owner, the one overlay moves into GraceUI so that any mod can use GraceUI without EldenNet; the pin and every rule here move with it, unchanged, and EldenNet draws its surfaces through GraceUI and links no hook library. The designs are folded in roadmap S7.8.c (GraceUI's proposal 0001). 2026-11-15: folded (S7.8.c); GraceUI's DESIGN §2 and its invariants 15 to 18 hold the host, and EldenNet's ARCH and DESIGN its side (GraceUI's eldennet-changes §11).
 
 ## O26
 

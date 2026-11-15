@@ -1,7 +1,7 @@
 # EldenNet v1: NPCs and dialogue
 
 > **Status:** detail design, 2026-11-06. It expands [DESIGN.md](DESIGN.md) §7 (NPC model), §8 (conversation, with the guardrails of §8.8), §9 (barks) and §12 (presentation). DESIGN.md is authoritative. Where this document has to interpret or refine a rule, it says so, and §14 lists every such point.
-> **Companions:** [architecture.md](architecture.md) owns threads, the Game Access Layer (GAL), Augur, the overlay and the input hooks. [memory-and-knowledge.md](memory-and-knowledge.md) owns the event log, facts, the journal, the knowledge base (KB), the flag catalogue, the predicate language, the spoiler lexicon and the memory job.
+> **Companions:** [architecture.md](architecture.md) owns threads, the Game Access Layer (GAL), Augur and EldenNet's display layer; the overlay and the input hooks are GraceUI's since its G15 (GraceUI DESIGN §2.9). [memory-and-knowledge.md](memory-and-knowledge.md) owns the event log, facts, the journal, the knowledge base (KB), the flag catalogue, the predicate language, the spoiler lexicon and the memory job.
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J3 #n` are process records. **UNVERIFIED (S1)** / **(S6)** marks an ID or flag taken from research that a spike must confirm in game before code relies on it.
 > **How to read it:** §1–§2 say who may speak and how a live character becomes a persona, a card or nothing. §3–§4 are the persona and card schemas, with the pilot persona (Kalé) and one complete card; §3.6 gives the six v1.0 personas their roads and world awareness (MEM §12). §5–§8 follow one conversation from the talk key to commit on display. §9 is barks, §10 presentation, §11 guardrails and §12 the content acceptance gates. §14 lists where this document had to interpret DESIGN; the review adopted those points into DESIGN.md ([process/review.md](process/review.md)).
 > **Licence hygiene:** every persona, card, seed line, prompt heading and example below is original and was written from our own spec. Nothing is taken from SkyrimNet's prompts, templates or bios (SN00 §7). No FromSoftware text ships: names, places and items reach prompts only as runtime strings read from the player's own install (DESIGN §4.5).
@@ -1369,8 +1369,8 @@ Since O45 every NPC with a profile converses. In this section *persona* reads *p
 
 ### 5.1 Hotkey, hint and marker
 
-- **Talk key:** rebindable. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). Our hotkeys (talk, F10, F11, Tab while a page shows) are **always masked** from the game's DirectInput reads.
-- The box **opens on key-down** within ≤ 50 ms (DESIGN §1.4). The first `WM_CHAR` matching the hotkey within 100 ms of opening is swallowed, so the box never starts with a stray "t".
+- **Talk key:** rebindable. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). Our hotkeys (talk, F10, F11, Tab while a page shows) are **always masked** from the game's DirectInput reads: since GraceUI's G15 they are actions EldenNet registers with GraceUI, which masks them and keeps the player's bindings (GraceUI D77).
+- The box **opens on key-down** within ≤ 50 ms (DESIGN §1.4). The first `WM_CHAR` matching the hotkey within 100 ms of opening is swallowed, so the box never starts with a stray "t" (GraceUI pairs the characters and hands them over; the swallow rule stays EldenNet's).
 - **Talk hint:** "[T] Speak — Kalé" (or "[T] Call out — Godrick Soldier") under a small diamond marker above the target's head, shown whenever the key would open chat or a call-out. The core computes the target per snapshot. It changes target only after the new best has led for 500 ms, so the hint does not flicker between two NPCs. After a persona's line addressed to the Tarnished, the hint reads "[T] Answer — Kalé" for 10 s (§5.9).
 - **Header:** "Speak to Kalé — heard by: Kalé", listing the personas in the speech audience (DESIGN §5.4). Other personas overhear, but while a conversation is open they never answer (§9.4's gates).
 - **Pressing the key with no valid target**, or a target that fails a check, never produces generated speech:
@@ -1436,12 +1436,12 @@ fn safe_context(w: &WorldModel) -> Result<(), Unsafe> {
 
 ### 5.5 Input capture and release
 
-- **On open** (same step): set the capture atomic.
+- **On open** (same step): ask GraceUI for input with `request_input`, which answers at once: `granted`, `refused` naming the holder (the box stays shut, with a status toast), or `not_now` with the reason (GraceUI D77). GraceUI applies the rules below to every holder.
   - DirectInput keyboard and mouse: `GetDeviceState` results are zeroed, which is how the game reads both devices (ER02 §7.2). If S4 finds the game also reads buffered input through `GetDeviceData`, the same detour pattern drops those events; otherwise that function is not hooked.
   - `XInputGetState` returns a neutral pad, with the packet number bumped once so the game sees a change.
-  - ImGui draws its own cursor (`MouseDrawCursor`). Text arrives through the window messages hudhook already receives. There is **no game-code hook** (DESIGN §8.1, J1 #14).
+  - ImGui draws its own cursor (`MouseDrawCursor`). Text arrives through the window messages GraceUI's filter receives, surrogates paired. There is **no game-code hook** (DESIGN §8.1, J1 #14).
 - **Held keys:** keys (and pad buttons) down at the moment of release stay masked, each one until it goes up.
-- **Release on:** Esc; the box closing for any reason; window focus loss; **2 s without an overlay render** (a watchdog that reads the render thread's last-present time); danger; loading; dormant; any core or overlay fault (`ffi_guard` releases first, then reports) (P2 R7).
+- **Release on:** Esc; the box closing for any reason; window focus loss; **2 s without an overlay render** (GraceUI's watchdog on the last present); danger; loading; dormant; any core or overlay fault (`ffi_guard` calls `release_input` first, then reports) (P2 R7); and the player's exit, which GraceUI never lets a holder capture (a second menu-key press, or Escape held 1 s; GraceUI D77).
 - **Camera drift:** if S4 shows the camera still moves while mouse input is zeroed, the rule becomes "chat opens only while the player is standing still" (DESIGN §8.1). There is never a game-predicate hook.
 
 ### 5.6 Gamepad gesture (pending S4, O11)
@@ -2388,14 +2388,14 @@ Positions are fractions of the back buffer (W × H). Sizes are pixels at 1080p a
 | **Bark label** | Label anchor (§10.3) | 2 × 32 chars | EB Garamond 24 px × distance step | `#E8E2D0` + shadow | None |
 | Edge chevron | Screen edge, 3% inset | 1 line | 20 px + "‹"/"›" | As labels | None |
 | **Bark feed** | Bottom-left: left 0.03 W, bottom 0.70 H (above the quick slots) | 0.30 W, 3 lines | EB Garamond 20 px | Name `#C8B27A`, text `#E8E2D0` | None |
-| **Toasts** | Top-right: right 0.98 W, top 0.05 H, stacking down with an 8 px gap | 0.24 W, ≤ 3 lines | Noto Sans 18 px | 3 px accent: info `#C8B27A`, warning `#D2A24C`, error `#C98A80` | `#101010` α 0.85 |
-| Banner (L1) and pause badge | Top-right, top 0.02 H | 1 line | Noto Sans 16 px | `#E8E2D0` α 0.8 | `#101010` α 0.6 |
+| **Toasts** (GraceUI notices) | Top-right: right 0.98 W, top 0.05 H, stacking down with an 8 px gap | 0.24 W, ≤ 3 lines | Noto Sans 18 px | 3 px accent: info `#C8B27A`, warning `#D2A24C`, error `#C98A80` | `#101010` α 0.85 |
+| Banner (L1) and pause badge (GraceUI notices) | Top-right, top 0.02 H | 1 line | Noto Sans 16 px | `#E8E2D0` α 0.8 | `#101010` α 0.6 |
 | Settings (F10) | Centre | 0.42 W × 0.60 H | Noto Sans 18 px | — | `#0C0C0C` α 0.92 |
-| Debug (F11) | Right panel | 0.34 W × H | Noto Sans Mono 14 px | — | α 0.85 |
+| Debug (F11; a panel built on EldenNet's headless Dear ImGui) | Right panel | 0.34 W × H | Noto Sans Mono 14 px | — | α 0.85 |
 
 A persona's own-initiative line addressed to the Tarnished uses the lower third as one page, with the speaker's name in muted gold (§5.9).
 
-The fonts are OFL (EB Garamond Regular and Italic, Noto Sans, Noto Sans Mono) and ship with their licences. Game fonts never ship (ER03 §7A). The atlas holds Latin, Latin-1, Latin Extended-A and General Punctuation. Motion is fades only: 120 ms in, 300–400 ms out. There is no typewriter effect, no sliding and no bouncing.
+The fonts are OFL (EB Garamond Regular and Italic, Noto Sans, Noto Sans Mono) and ship with their licences. Game fonts never ship (ER03 §7A). EldenNet registers its faces in GraceUI's one atlas before warm-up (`register_face`, GraceUI D80); the atlas holds Latin, Latin-1, Latin Extended-A and General Punctuation. Motion is fades only: 120 ms in, 300–400 ms out. There is no typewriter effect, no sliding and no bouncing.
 
 ### 10.2 Visibility rules
 
@@ -2462,8 +2462,8 @@ The settings panel captures input like the chat box. Changes are written to `set
 
 ### 10.7 Scale and HDR
 
-- `ui_scale = (H / 1080) × ui.scale`, with `ui.scale` from 0.75 to 1.5 (`settings.toml`, ARCH §11.5). Font atlases are baked for the effective sizes at init and rebuilt only when the scale changes, when the settings panel closes. The minimum body size is 16 px.
-- **HDR:** detect it from the swapchain format and colour space when hudhook starts. In HDR, colours are linearised and scaled by `paper_white_nits / 80`, with a default of 203 nits (the BT.2408 reference white) and an adjustable range of 80–400 (`ui.paper_white_nits`). `ui.hdr = auto | off | on`. The compat matrix's HDR machine verifies it (DESIGN §1.3 C1).
+- `ui_scale = (H / 1080) × ui.scale`, with `ui.scale` from 0.75 to 1.5, GraceUI's own setting since GraceUI D84, delivered with the host's display-changed event. Font atlases are baked for the effective sizes at init and rebuilt only when the scale changes, when the settings panel closes. The minimum body size is 16 px.
+- **HDR:** GraceUI's host detects it from the swapchain format and colour space when hudhook starts, and applies these rules to every panel (GraceUI §3.14). In HDR, colours are linearised and scaled by `paper_white_nits / 80`, with a default of 203 nits (the BT.2408 reference white) and an adjustable range of 80–400 (`ui.paper_white_nits`). `ui.hdr = auto | off | on`. The compat matrix's HDR machine verifies it (DESIGN §1.3 C1).
 
 ### 10.8 v1.5 seam: TTS and STT (DESIGN §12, §13; O8)
 

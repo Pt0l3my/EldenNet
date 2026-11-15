@@ -105,6 +105,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 80 | 2026-11-15 | The areas' image ships converted: each map-information square holds the two keys' row numbers | FACT | #map #datapiler #graceui |
 | 81 | 2026-11-15 | The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image) | LIKELY | #map #datapiler #graceui |
 | 82 | 2026-11-15 | Confirmed: the blue channel holds the weather key's rows, the second image the mimicry key's | FACT | #map #datapiler #graceui |
+| 83 | 2026-11-15 | The design fold: proposal 0001's parts adopted by reference, what waits for G18 to G20, and three settlements of the fold's own | DECIDED | #graceui #design |
+| 84 | 2026-11-15 | Under G15 EldenNet links no hook library, so any later hook of its own needs the owner | FACT | #graceui #hooks #design |
+| 85 | 2026-11-15 | Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay | METHOD | #graceui #design |
 
 ## Entries
 
@@ -1408,3 +1411,42 @@ only.
   area name (green), weather (blue) and, on the expansion, mimicry (the second image's red).
 - The expansion keys' height fields (WHY§81) are not in the owner's Smithbox 2.2.6 (en-0035's check: absent), so
   splitting stacked ground by height stays unverified (O48).
+
+### 83. The design fold: proposal 0001's parts adopted by reference, what waits for G18 to G20, and three settlements of the fold's own
+
+`2026-11-15` · DECIDED · `#graceui #design` · refs: GraceUI G15–G17, G21–G27, GraceUI DESIGN §2.1, §4.13, D69–D101; S7.8.c
+
+- **How.** Proposal 0001's §4 (but §4.10) is part of GraceUI's design by reference, with DESIGN §2 as its binding
+  summary and D69 to D81 and D83 to D88 in §13; proposal 0002's design is GraceUI DESIGN §4.13, with D89 to D98 as its
+  §14.3 and the answers revise them. Where a proposal and the design differ, the design holds.
+- **What waits.** D82 and proposal 0001 §4.10 (EldenNet's pages in EldenNet's repository) wait for G20, so GraceUI's
+  §4, SP1–SP9 and the goldens stay in GraceUI for now; when the framework opens and ABI 1 is frozen waits for G18;
+  SkyrimNet-derived material in GraceUI waits for G19.
+- **Settled by the fold** (GraceUI D99 to D101): the Map is a later-version statement in v1.0's rail (principle 8,
+  G7); a fault in GraceUI's menu turns off the menu alone, never consumers' panels and notices; the settings D84 moves
+  keep their names (`hotkeys.menu`, not proposal 0001's `menu.key`).
+- **EldenNet's side** is GraceUI's eldennet-changes §11, folded into DESIGN, ARCH and NPC the same day; the older items
+  of §1 to §10 (the F10 to F5 change among them) stay S7.1's.
+
+### 84. Under G15 EldenNet links no hook library, so any later hook of its own needs the owner
+
+`2026-11-15` · FACT · `#graceui #hooks #design` · refs: GraceUI invariant 16, G15; DESIGN R12, §3.6, §13; ARCH §8.11; O49
+
+- GraceUI's invariant 16 leaves the process one hook library, GraceUI's MinHook, and no consumer may link one. R12 is
+  now "EldenNet hooks nothing".
+- Two later EldenNet hooks the design keeps as options would need one: O49's hook-based event sources (behind the
+  `hooks` feature, compiled out in v1, already needing a spike and the owner) and the `CreateFileW`-family save
+  redirect of DESIGN §3.6 (deferred to v1.x).
+- So each, when proposed, also needs the owner's decision on how to hook beside GraceUI's MinHook: a hook service in
+  GraceUI's ABI, or an amendment to invariant 16. Nothing in v1 is affected. Recorded in DESIGN R12, §3.6 and §13.
+
+### 85. Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay
+
+`2026-11-15` · METHOD · `#graceui #design` · refs: GraceUI G1, G16, proposal 0001 §4.2; GraceUI DESIGN §10, §11
+
+- The fold's inventory suggested dropping "HTML in game if G1 ever changes" from GraceUI's §10 and "an Ultralight
+  spike" from §11's fallbacks, reading G16 (a) as ruling out HTML in game.
+- Rejected: G16 (a) rules out HTML from other mods in game, but proposal 0001 §4.2 keeps G1's later spike, with its
+  three approvals, for GraceUI's own pages. Both lines stay.
+- Also kept apart: proposal 0001 §6 freezes ABI 1 at 1.0, while G18 (a) publishes a frozen ABI 1 with 1.1. GraceUI's
+  §10 leaves the freeze to G18's answer.
