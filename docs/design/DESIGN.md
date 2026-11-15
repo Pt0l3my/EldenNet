@@ -1993,7 +1993,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O74 (in-game data, the devkit) on 2026-11-15; O46 is Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O75 (in-game data, the devkit) on 2026-11-15; O46 and O76–O79 (proposal 0002) are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2077,3 +2077,8 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O72](../DECISIONS.md#o72) | A sandbox for plugin hosts? | (a) later, as an option, after a spike | Decided 2026-11-15 |
 | [O73](../DECISIONS.md#o73) | Where does the research's in-game data come from? | (b) EldenNet itself, in the game, once Min's engine arrives; DataPiler imports its recordings | Decided 2026-11-15 |
 | [O74](../DECISIONS.md#o74) | One reader of the game's data of our own, as an EldenNet devkit? | (a) the devkit: only while the game runs, nothing of the game shipped | Decided 2026-11-15 |
+| [O75](../DECISIONS.md#o75) | The devkit with the game closed? | (a) yes, within safe limits and with a disclosure of safe use and of what we condemn | Decided 2026-11-15 |
+| [O76](../DECISIONS.md#o76) | How does the dashboard work off game? | (a) recommended: the launcher serves GraceUI's pages over page data EldenNet saves, read-only, plus settings | Open |
+| [O77](../DECISIONS.md#o77) | Which settings change off game? | (a) recommended: all but a short in-game-only list | Open |
+| [O78](../DECISIONS.md#o78) | What do the devkit's browser tools show? | (a) recommended: checks and numbers only | Open |
+| [O79](../DECISIONS.md#o79) | Where does the devkit live? | (a) recommended: a `devkit/` folder in EldenNet's repository | Open |

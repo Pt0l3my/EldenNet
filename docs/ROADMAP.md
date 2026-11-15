@@ -551,17 +551,18 @@ EldenNet may hook as well as GraceUI.
 ### S7.11 The devkit and the workbench (O73, O74; DataPiler DP35)
 
 The owner decided on 2026-11-15 that one reader of the game's data of our own, the EldenNet devkit, serves EldenNet in
-the game and DataPiler on the PC; that it does nothing unless the game is running and ships nothing of the game; that
-in-game data for research comes from EldenNet itself once Min's engine arrives; and that DataPiler becomes the
-workbench and the replay harness.
+the game and DataPiler on the PC, and ships nothing of the game; that it works with the game closed too, within safe
+limits and with a disclosure of safe use and of what we condemn (O75); that in-game data for research comes from
+EldenNet itself once Min's engine arrives; and that DataPiler becomes the workbench and the replay harness.
 
 - S7.11.a The owner decides where in-game data comes from (O73), the devkit (O74) and DataPiler's part (DP35) [done]
   - refs: O73, O74, O48, O53
   - gives: EldenNet in the game, once Min's engine arrives; the devkit, only while the game runs, shipping nothing of the game; DataPiler as the workbench and the replay harness.
-- b The devkit's design: its parts and first version, the check that the game runs, the keys taken from the user's own game, the command-line tool, licence and releases, how EldenNet and DataPiler call it [planned]
+- b The devkit's design, in proposal 0002 §2: its parts and first version, its safe limits and disclosure (O75), the keys taken from the user's own game, the command-line tool and its browser tools (O78), where it lives (O79) [waiting]
   - needs: a
-  - refs: O74, O48
-- c The devkit's first check: the archives read while the game runs, and a file read through it matching Smithbox's copy byte for byte, on the owner's PC through DataPiler [planned]
+  - refs: O74, O75, O78, O79, O48
+  - gives: O75 decided 2026-11-15; O78 and O79 open.
+- c The devkit's first check: a file read through it matching Smithbox's copy byte for byte, and the archives read with the game closed and while it runs, on the owner's PC through DataPiler [planned]
   - needs: b
   - refs: O74, WHY§56
 - d The devkit's first version: archives, map models, placement files and map textures (the map's run-time read, S7.9.c), then text [planned]
@@ -576,6 +577,21 @@ workbench and the replay harness.
 - g DataPiler's replay harness: recordings replayed through EldenNet's engine outside the game, with the owner's model services [planned]
   - needs: f, S8
   - refs: O74
+
+### S7.12 EldenNet off game (proposal 0002)
+
+The owner asked on 2026-11-15 for EldenNet's dashboard in the browser with the game closed: what EldenNet saved, to
+look at, and settings changed off game that apply when EldenNet next loads; and for the devkit's tools in the browser.
+
+- S7.12.a A proposal: the dashboard off game, the settings off game, GraceUI's server for hosts outside the game, the devkit's browser tools [done]
+  - refs: O76, O77, O78, G29
+  - gives: proposal 0002 §2.5, §3 and §4, with O76 to O79 and GraceUI's G29 put to the owner.
+- b The owner answers O76 to O79 and GraceUI's G29 [waiting]
+  - needs: a
+  - refs: O76, O77, O78, O79, G29
+- c The answers folded into EldenNet's and GraceUI's designs: the launcher's dashboard, the page data at save points and on exit, the settings index's off-game mark, GraceUI's server library [planned]
+  - needs: b
+  - refs: O76, O77, G4, G29
 
 ## S8 Adopting the engine [planned]
 

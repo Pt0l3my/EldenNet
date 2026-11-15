@@ -49,7 +49,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   O74 (the EldenNet devkit, one reader of the game's data of our own, working only while the game runs and
   shipping nothing of it) put and decided the same day; DataPiler's DP35 makes it the workbench and the replay
   harness, reading the game through the devkit.
-- **Open.** O46 (the bio's structure and the v1.0 roster).
+- **2026-11-15.** O75 (the devkit works with the game closed too, within safe limits and with a disclosure of safe
+  use and of what we condemn), decided by the owner; O76–O79 put with proposal 0002 (the devkit, and EldenNet off
+  game).
+- **Open.** O46 (the bio's structure and the v1.0 roster); O76–O79 (proposal 0002).
 
 ## O1
 
@@ -1114,3 +1117,97 @@ game is shipped.
 **Owner's words.** "One game-data reader of our own: could this be EldenNet devkit?" and "yes we go with devkit, but
 without game running it won't do anything, and we still don't ship game related content or files off the game. is
 that okay?"
+
+*Later (2026-11-15):* amended by O75. The devkit works with the game closed too, within the safe limits and with
+the disclosure of [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.3 and §2.4; the first check reads the
+archives with the game closed and, separately, while it runs.
+
+## O75
+
+**The devkit with the game closed, within safe limits and with a disclosure** · *2026-11-15 · Decided by the owner*
+
+**Question.** O74 has the devkit do nothing unless the game is running. That makes every research job start the game,
+keeps the launcher from preparing the map before play or checking the game's files after an update, and leaves the
+devkit unable to read on the PC at all if the game locks its archives while it runs; as a safeguard it is weak, since
+the devkit is open source and other tools unpack the game with it closed. **Options:** (a) **allow it closed, with
+limits**: read-only, no bulk export, nothing of the game shipped and no key stored, never the game's memory, and a
+notice of safe use; (b) **keep O74's condition**.
+
+**Recommendation.** (a): the real risk, sharing the game's content, is the same with the game running or closed, so the
+protection belongs in what the devkit does.
+
+**What each answer changes.** (a): O74's condition is dropped; the launcher can build the map's cache and check an
+update before the game starts; DataPiler's reads need no running game. (b): nothing.
+
+**Follows from.** O74; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.
+
+**Decision.** (a), with a disclosure the owner asked for: the devkit says plainly what safe use is and what we condemn.
+Its limits and the disclosure's draft are in proposal 0002 §2.3 and §2.4.
+
+**Owner's words.** "allow it closed with safe limits and disclosure about safe usage and what is condemned (we make
+that clear)."
+
+## O76
+
+**How does EldenNet's dashboard work off game?** · *2026-11-15 · Open*
+
+**Question.** The owner asked for EldenNet's dashboard in the browser with the game closed: what EldenNet saved, to look
+at, and settings to change, applied when EldenNet next loads ([proposal 0002](proposals/0002-devkit-and-off-game.md)
+§3). **Options:** (a) **the launcher serves GraceUI's pages over page data EldenNet writes** at each save point and on
+exit, already through the spoiler and privacy rules: read-only, plus the settings; (b) the launcher runs EldenNet's
+engine off game to build the pages from the saved files: more complete, heavier, and only once Min's engine is adopted;
+(c) settings only, off game.
+
+**Recommendation.** (a): the pages show exactly what the player saw in the game, with nothing to recompute off game.
+
+**What each answer changes.** (a) and (b): GraceUI's G4 widens to off game while the launcher runs, its server runs
+outside the game (G29), and the launcher serves the dashboard; (a) adds EldenNet's page data at save points and on
+exit. (c): the settings pages only.
+
+**Follows from.** O71; GraceUI G4, G17, G29.
+
+## O77
+
+**Which settings change off game?** · *2026-11-15 · Open*
+
+**Question.** With the dashboard off game (O76), which settings may be changed there, to apply when EldenNet next loads?
+**Options:** (a) **all but a short list that needs the live game**, each setting marked in the settings index (GraceUI
+D101), secrets write-only as in the game; (b) a chosen few: model providers and keys, voices, features and pacing; (c)
+none: off game is for looking only.
+
+**Recommendation.** (a): the same validator checks a change in or out of the game, so little needs the live game.
+
+**What each answer changes.** (a) and (b): a mark per setting in the settings index; changes written to `settings.toml`
+(ARCH §11.5) and shown as applying at the next load. (c): nothing.
+
+**Follows from.** O76; [proposal 0002](proposals/0002-devkit-and-off-game.md) §3.3.
+
+## O78
+
+**What do the devkit's browser tools show?** · *2026-11-15 · Open*
+
+**Question.** The owner asked for the devkit's tools in the browser, off game. **Options:** (a) **checks and numbers
+only**: a self-test of the install, content plugins checked against the game's ids, research numbers for DataPiler; no
+viewers of the game's assets; (b) also viewers of the game's models, textures and text, in the browser, never exported.
+
+**Recommendation.** (a): viewers would make the devkit an asset browser, which O75's limits avoid; Smithbox is there
+for viewing.
+
+**What each answer changes.** (a): `eldennet-dk serve` with three tools. (b): viewers as well, and a page in the
+disclosure on screenshots and sharing.
+
+**Follows from.** O75; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.5.
+
+## O79
+
+**Where does the devkit live?** · *2026-11-15 · Open*
+
+**Question.** **Options:** (a) **a `devkit/` folder in EldenNet's repository**, under EldenNet's design and reasoning
+log, with releases of its own; (b) a repository of its own.
+
+**Recommendation.** (a): one design and one log, and no new repository to keep.
+
+**What each answer changes.** (a): EldenNet's repository holds code from the devkit's first version. (b): a new public
+repository, with the privacy sweep as its gate.
+
+**Follows from.** O74; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.6.
