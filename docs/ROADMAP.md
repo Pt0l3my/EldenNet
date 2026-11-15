@@ -462,15 +462,17 @@ the player's game, and optionally opened by the map key.
 - S7.9.a A proposal with a mock-up on an invented island, and questions for the owner [done]
   - refs: G21, G22, G23, G24, G25, G26, G27, O51, GraceUI:docs/proposals/0002-map.md, WHY§56
   - gives: proposal 0002 (base map, layers, two views, the map key, glow, lore notes) and the owner's mock-up.
-- b The owner answers G21 to G26 [waiting]
+- b The owner answers G21 to G26 [done]
   - needs: a
   - refs: G21, G22, G23, G24, G25, G26
+  - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
 - c The map spike: a route to the player's map image, its fit check, exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
   - needs: b
   - refs: G21, G25, G26, O47, O48
 - d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
+  - gives: G24 decided (a): in 1.1, after v1.0, on groundwork v1.0 builds anyway (the sightings record, the world stages).
 - e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates (DataPiler 0.2.20, job en-0016; DP21 decided) [done]
   - needs: a
   - refs: O48, O59, WHY§58
