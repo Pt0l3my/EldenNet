@@ -118,6 +118,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 93 | 2026-11-15 | The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters | FACT | #map #datapiler #graceui |
 | 94 | 2026-11-15 | The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand | FACT | #map #datapiler #graceui |
 | 95 | 2026-11-15 | Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint | FACT | #engine #process |
+| 96 | 2026-11-15 | SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player | FACT | #engine #roster |
 
 ## Entries
 
@@ -1694,3 +1695,18 @@ checkout), O68, O53
   sends nothing before consent); otherwise only the LLM providers configured, OpenRouter being the default endpoint of
   a slot that names no provider. Keys come only from a plain-text file the engine rewrites at each load.
 - Next: proposal 0003 (S6.1.b), with O80 to O83 for the owner.
+- Later (2026-11-15): the owner chose our own engine (O84); Min's DLL is not used.
+
+### 96. SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player
+
+`2026-11-15` · FACT · `#engine #roster` · refs: SN03, O46, O84
+
+- The owner shared two of SkyrimNet's character bio files: one NPC's bio and the player's template, kept outside the
+  repositories and never quoted. Each is ten named blocks of prose and nothing else, in the order and with the names
+  SN03 §5.1 records from the older copies; the player's template is the same ten blocks, empty, for the player to fill.
+  So SN03 §5's schema, its audiences and its render modes describe SkyrimNet's current format.
+- The NPC's bio shows the spoiler question plainly: its background and aims state the whole of that character's story,
+  which SkyrimNet trusts the model to hold back. EldenNet's rule (O36) gives an NPC only what is safe to hear now, so
+  the shape is taken and the secrets are not ([proposal 0004](proposals/0004-character-bio.md)).
+- The owner's direction (O46's Later note): ideas from it, a structure that fits Elden Ring, and possibly followers,
+  for whom parts such as skills matter (O85).

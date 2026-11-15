@@ -1,6 +1,7 @@
 # Proposal 0003: Adopting Min's engine
 
-**Status: proposal, 2026-11-15 (roadmap S6.1.b). O80 to O83 open.** Where this text and the designs differ, the designs
+**Status: proposal, 2026-11-15 (roadmap S6.1.b). Superseded the same day: the owner chose our own engine (O84), so O80
+to O83 were withdrawn. Kept as the record of the engine's evaluation.** Where this text and the designs differ, the designs
 hold. A bare §n is a section of this proposal; DESIGN and ARCH are EldenNet's design documents. The facts behind it
 are in WHY§95; the engine itself stays outside the repositories, as its licence and our rules require.
 

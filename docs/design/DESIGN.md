@@ -1993,7 +1993,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O46 and O80–O83 (proposal 0003, adopting Min's engine) are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O46 (proposal 0004) and O85 are Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2082,7 +2082,9 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O77](../DECISIONS.md#o77) | Which settings change off game? | (a) all but a short in-game-only list, marked in the settings index | Decided 2026-11-15 |
 | [O78](../DECISIONS.md#o78) | What do the devkit's browser tools show? | (b) checks, numbers and viewers of the game's models, textures and text, never exported, behind Developer mode | Decided 2026-11-15 |
 | [O79](../DECISIONS.md#o79) | Where does the devkit live? | (a) in EldenNet's repository, shipped as part of EldenNet, its features behind Developer mode | Decided 2026-11-15 |
-| [O80](../DECISIONS.md#o80) | What does EldenNet adopt from Min's engine? | (a) recommended: everything it offers that EldenNet planned to build, behind EldenNet's seams | Open |
-| [O81](../DECISIONS.md#o81) | Where does the engine run? | (a) recommended: in EldenNet's launcher, out of the game's process | Open |
-| [O82](../DECISIONS.md#o82) | Min's online service, fateless.ai? | (a) recommended: an opt-in provider, off by default | Open |
-| [O83](../DECISIONS.md#o83) | How do API keys reach the engine? | (a) recommended: written from `secrets.toml` at each start, in a folder only the player can read | Open |
+| [O80](../DECISIONS.md#o80) | What does EldenNet adopt from Min's engine? | — | Withdrawn 2026-11-15 (O84) |
+| [O81](../DECISIONS.md#o81) | Where does the engine run? | — | Withdrawn 2026-11-15 (O84) |
+| [O82](../DECISIONS.md#o82) | Min's online service, fateless.ai? | — | Withdrawn 2026-11-15 (O84) |
+| [O83](../DECISIONS.md#o83) | How do API keys reach the engine? | — | Withdrawn 2026-11-15 (O84) |
+| [O84](../DECISIONS.md#o84) | EldenNet's own engine, or Min's DLL? | (a) our own engine: MIT, C++, open libraries, SkyrimNet's logic and structure, not its prompts; no telemetry | Decided 2026-11-15 |
+| [O85](../DECISIONS.md#o85) | A follower system? | (a) recommended: later, after v1.0, on the companion layer every bio carries | Open |

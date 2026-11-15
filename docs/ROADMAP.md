@@ -260,16 +260,18 @@ research into the game's data that goes ahead before them (O54).
   - needs: a
   - refs: WHY§95, O80, O81, O82, O83
   - gives: supplied 2026-11-15: FatelessAiEngine 0.2.0, a closed Windows DLL with MIT headers, kept outside the repositories (WHY§95); proposal 0003 recommends what EldenNet adopts, where it runs, Min's online service and the keys, as O80 to O83.
-- c The owner decides what EldenNet adopts, with its licence and the owner's terms recorded [waiting]
+- c The owner decides what EldenNet adopts, with its licence and the owner's terms recorded [done]
   - needs: b
-  - refs: O80, O81, O82, O83
+  - refs: O84, O80, O81, O82, O83
+  - gives: decided 2026-11-15 (O84): our own engine, MIT, in C++, on open libraries, following SkyrimNet's logic and structure, not its prompts, with no telemetry; O80 to O83 withdrawn, and Min's DLL neither used nor shipped.
 
 ### S6.2 The bio's structure [waiting]
 
 - S6.2.a The owner decides O46: the bio's fields, and which NPCs v1.0 covers [waiting]
-  - refs: O46, DESIGN§7.8
-  - gives: recommended: one bio for every named NPC and named boss, the base game's roster in
-    v1.0 and the expansion's in v1.1.
+  - refs: O46, O85, DESIGN§7.8, WHY§96
+  - gives: recommended since 2026-11-15 (proposal 0004, after the owner's direction): five layers (first meeting,
+    revealed by verified stages, companion, lived per playthrough, the Tarnished's own), the base game's roster in
+    v1.0 and the expansion's in v1.1; a follower system put as O85.
 
 ### S6.3 An early census
 
@@ -600,14 +602,14 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
   - needs: a
   - refs: G29, O76
 
-## S8 Adopting the engine [planned]
+## S8 Our own engine, on SkyrimNet's logic (O84) [planned]
 
 - needs: S6.1
 
-### S8.1 The blueprint as EldenNet's foundation
+### S8.1 Our own engine as EldenNet's foundation
 
-- S8.1.a Build and run the engine core outside the game; keep its notices; credit SkyrimNet and Min as Min wishes
-  - refs: O53
+- S8.1.a Design and build the engine's core: the model client and its job slots, decision calls, and the template engine on inja with SkyrimNet's template rules; run it outside the game first; credit SkyrimNet's design
+  - refs: O84, O53, O60
 - b Design what was deferred: memories of other NPCs and their recall, the memory job for NPC-to-NPC exchanges, keepsakes from another NPC's line, context assembly
   - needs: a
   - refs: DESIGN§7.8, MEM§4.5
@@ -618,9 +620,9 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
   - needs: b, c
   - gives: the event engine, the game-access layer, identity by verified keys, the spoiler
     layers, the gates, pacing and read-only play stay as designed.
-- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (settled: the blueprint is C++), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
+- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
   - needs: a
-  - refs: O60, O25, G15
+  - refs: O60, O84, O25, G15
 
 ## S9 The roster pipeline [planned]
 

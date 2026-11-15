@@ -50,15 +50,16 @@ lines; there are no NPC actions beyond dialogue.
   or claim more endorsement than Min has given. Once the owner supplies the blueprint it is our foundation: we
   read, build, run and modify it. The older copies under `_untrusted` stay read-only reference.
   *Since 2026-11-15:* Min's engine arrived as a closed Windows DLL (FatelessAiEngine, binary licence; MIT headers;
-  WHY§95). Ship it only unmodified inside EldenNet's releases, with its licence and notices; never modify, reverse
-  engineer or commit it, and never use its names to promote EldenNet. What EldenNet adopts is O80–O83 (proposal 0003).
+  WHY§95), and the owner chose our own engine instead (O84): MIT, in C++, on open libraries, following SkyrimNet's
+  proven logic and structure, not its prompts, with no telemetry. Min's DLL is never committed, modified or reverse
+  engineered, and EldenNet does not ship it.
   ([docs/research/skyrimnet/00-summary.md](docs/research/skyrimnet/00-summary.md) §7 records the earlier
   ideas-only boundary.)
 - FromSoftware: never commit game files, text (FMG), params or audio. Game text is read at runtime from the
   player's own install, or exported locally by the player.
 - Third-party reference material is not committed. Uploads and clones of other projects are untrusted: put each
-  in its own folder outside the repository, read it with `python3 -I`, and never build or run it. The one
-  exception is Min's engine blueprint once the owner supplies it (above).
+  in its own folder outside the repository, read it with `python3 -I`, and never build or run it. Min's engine is
+  no exception since O84: EldenNet builds its own.
 - Check a dependency's licence before adopting it.
 
 ## Owner decisions (2026-11-06 and 2026-11-07)
@@ -121,10 +122,10 @@ index.
   named NPC and every named boss (DESIGN O43 as updated): general and stage-independent, in our own words and
   spoiler-reviewed; stages stay a separate feature (the personas' stage tracks, GraceUI's Playthrough page). Every NPC
   with a profile holds a free conversation and keeps memories of the player and of other NPCs, and the framework
-  matches the speaker by ID to its data (O45). The roster is generated after a game scan and research, once Min's
-  engine blueprint has arrived and the bio's structure is settled (O46, Open). Drafts come from our own notes, never
-  from game text, and every field is reviewed by hand. What EldenNet adopts from Min's engine is the owner's call
-  once its blueprint arrives (SkyrimNet, under Licences).
+  matches the speaker by ID to its data (O45). The roster is generated after a game scan and research, once the
+  bio's structure is settled (O46, Open; [proposal 0004](docs/proposals/0004-character-bio.md)): Min's engine arrived on
+  2026-11-15 and EldenNet builds its own (O84). Drafts come from our own notes, never from game text, and every
+  field is reviewed by hand.
 
 ## Working rules
 

@@ -56,7 +56,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   recommended), and the devkit ships as part of EldenNet behind Developer mode (O79).
 - **2026-11-15.** The owner supplied Min's engine (WHY§95); O80–O83 (what EldenNet adopts from it, where it runs, Min's
   online service, and how API keys reach it) put with proposal 0003.
-- **Open.** O46 (the bio's structure and the v1.0 roster); O80–O83 (proposal 0003).
+- **2026-11-15.** O84 (our own engine, on SkyrimNet's logic and structure, not its prompts; Min's DLL not used), decided
+  by the owner; O80–O83 withdrawn. O85 (a follower system) put with proposal 0004, with O46's revised recommendation.
+- **Open.** O46 (the bio's structure and the v1.0 roster; proposal 0004); O85 (a follower system).
 
 ## O1
 
@@ -538,6 +540,12 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Follows from.** O43 as updated and O45. The owner wants it settled before the profiles are generated (O45).
 
+*Later (2026-11-15):* the owner shared two of SkyrimNet's own bio files (WHY§96) and, asked whether to adopt its ten
+parts made spoiler-safe, answered: "We can take ideas from it, but we should think about what fits Elden Ring, and
+possibly a follower system where these blocks matter more (e.g. skills may not be important until they actually join
+the player)." A revised recommendation, five layers (first meeting, revealed, companion, lived, the Tarnished's own),
+is in [proposal 0004](proposals/0004-character-bio.md); the follower system is put as O85.
+
 ## O47
 
 **No me3** · *2026-11-06 · Decided by the owner; predates §19*
@@ -627,6 +635,10 @@ licence, with MIT headers (WHY§95). EldenNet may ship it unmodified inside its 
 it may not change it, so "read, build, run and modify" does not reach the engine itself. What Min gives in a form we
 may adapt (prompts, templates, configuration, the dashboard) follows this decision as written, each under its own
 licence. What EldenNet adopts is put as O80 to O83 ([proposal 0003](proposals/0003-adopting-the-engine.md)).
+
+*Later (2026-11-15):* the owner chose our own engine instead (O84): EldenNet takes SkyrimNet's proven logic and
+structure, not its prompts, and does not use Min's DLL. What Min gives in a form we may adapt stays open to us under
+this decision, each under its own licence.
 
 ## O54
 
@@ -1253,7 +1265,7 @@ its features."
 
 ## O80
 
-**What does EldenNet adopt from Min's engine?** · *2026-11-15 · Open*
+**What does EldenNet adopt from Min's engine?** · *2026-11-15 · Withdrawn the same day (O84)*
 
 **Question.** The engine arrived as a closed DLL (WHY§95). **Options:** (a) **everything it offers that EldenNet
 planned to build**: LLM requests and decisions, prompt templates, speech to text, voice detection, text to speech and
@@ -1268,9 +1280,12 @@ backends (S8). (b): the speech seams stay EldenNet's until a later decision. (c)
 
 **Follows from.** O53, O60; [proposal 0003](proposals/0003-adopting-the-engine.md) §2.
 
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
 ## O81
 
-**Where does the engine run?** · *2026-11-15 · Open*
+**Where does the engine run?** · *2026-11-15 · Withdrawn the same day (O84)*
 
 **Question.** The engine blocks for seconds when its services are created or released, calls back on its own threads,
 and loads libraries under their upstream names, which another mod's copies could replace inside the game.
@@ -1286,9 +1301,12 @@ model's answer.
 
 **Follows from.** O70, O71, O76; [proposal 0003](proposals/0003-adopting-the-engine.md) §3.
 
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
 ## O82
 
-**Min's online service, fateless.ai?** · *2026-11-15 · Open*
+**Min's online service, fateless.ai?** · *2026-11-15 · Withdrawn the same day (O84)*
 
 **Question.** The engine can sign the player in to fateless.ai, for Fateless's models and cloud speech, paid for by the
 player. **Options:** (a) **an opt-in provider, off by default**, basic scope only; (b) not in v1; (c) offered by
@@ -1303,9 +1321,12 @@ and (c): none, or that row on by default.
 
 **Follows from.** O74, O75; [proposal 0003](proposals/0003-adopting-the-engine.md) §4.
 
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
 ## O83
 
-**How do API keys reach the engine?** · *2026-11-15 · Open*
+**How do API keys reach the engine?** · *2026-11-15 · Withdrawn the same day (O84)*
 
 **Question.** EldenNet keeps keys in `secrets.toml` (DESIGN §11.4); the engine takes them only from a plain-text
 provider file it rewrites at each load. **Options:** (a) **EldenNet writes the engine's provider file from
@@ -1320,3 +1341,52 @@ today's design, and players keep every provider.
 providers until then.
 
 **Follows from.** DESIGN §11.4; [proposal 0003](proposals/0003-adopting-the-engine.md) §5.
+
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
+## O84
+
+**EldenNet's own engine, on SkyrimNet's logic** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** Min's engine arrived as a closed DLL that may not be modified (WHY§95), with telemetry built in. Build
+EldenNet on it, or on an engine of its own? **Options:** (a) **our own engine**: MIT, in EldenNet's repository, in
+C++ (O60), on open libraries (inja for templates; later whisper.cpp, ggml and ONNX Runtime for speech), following
+SkyrimNet's proven logic and structure, not its prompts; no telemetry; keys passed from `secrets.toml` in memory;
+(b) Min's DLL, as proposal 0003 set out (O80 to O83); (c) decide later.
+
+**Recommendation.** (a): v1 is text first (DESIGN §0 item 14), so it needs only a model client, decision calls and
+templates, which ARCH §11 had already designed; the engine stays open, testable and free of telemetry, and speech is
+decided at v1.5.
+
+**What each answer changes.** (a): S8 builds our own engine (about 3 to 5 weeks for the model client, decisions and
+templates, EST); proposal 0003's O80 to O83 are withdrawn; Min's DLL is neither used nor shipped. (b): proposal 0003.
+(c): S8 waits.
+
+**Follows from.** O53, O60; WHY§95; [proposal 0003](proposals/0003-adopting-the-engine.md).
+
+**Decision.** (a). EldenNet builds its own engine, MIT, in C++, on open libraries, following SkyrimNet's proven logic
+and structure (its template rules, job slots, decisions, bios' shape, memories' logic) and not its prompts. No
+telemetry. SkyrimNet's design is credited; Min is told, and asked whether source access is planned.
+
+**Owner's words.** "wouldn't it be better if we just build EldenNet on our own dll? this unmodifiable dll seems like a
+serious limitation, I also don't want the telemetry part.", "I am not really interested in using SN prompts, just the
+logic and structure that is proven to work." and "Our own engine (Recommended)".
+
+## O85
+
+**A follower system?** · *2026-11-15 · Open*
+
+**Question.** The owner suggested a follower system, where parts of a bio such as skills matter once an NPC joins the
+Tarnished (O46's Later note). v1 is dialogue only, and Elden Ring's own summons already fight beside the Tarnished.
+**Options:** (a) **later, after v1.0, when actions open**: characters who travel with the Tarnished, on the companion
+layer every bio carries from v1.0, first used by the game's own summons ([proposal 0004](proposals/0004-character-bio.md)
+§3.3); (b) designed now, for a v1 release; (c) none: summons only.
+
+**Recommendation.** (a): following needs actions (DESIGN O31 to O42), which are later-version seams; the bio is ready
+for it from v1.0.
+
+**What each answer changes.** (a): the companion layer in O46's bio; a design for followers after v1.0. (b): actions
+brought into a v1 release. (c): the companion layer serves summons only.
+
+**Follows from.** O42, O46; [proposal 0004](proposals/0004-character-bio.md) §3.3.
