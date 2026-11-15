@@ -89,6 +89,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 64 | 2026-11-15 | Level 2's export holds a second drawing of the map; levels 2 to 4 nest by two | LIKELY | #map #datapiler #graceui |
 | 65 | 2026-11-15 | With the check, level 2 is one image; its base and pieces 15 to 20 stand apart | LIKELY | #map #datapiler #graceui |
 | 66 | 2026-11-15 | Level 2's export is two tile sets under one set of names; Smithbox's export overwrites by name | LIKELY | #map #datapiler #graceui |
+| 67 | 2026-11-15 | The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -999,3 +1000,25 @@ untrusted copy, commit d144cc7).
   a name. That explains the gaps (places where no right variant is left) as well as the second drawing.
 - Next: the owner re-exports the map tiles container into an empty folder, with older exports moved out of
   DataPiler's folder, and notes which containers hold `MENU_MapTile` textures; en-0021 run again tells which.
+- Later (2026-11-15): not the export. Smithbox lists one container of map tiles, one file per tile, and shows the same
+  images as the export for two checked tiles, under the same names. The mixing is in the game's container. WHY§67.
+
+### 67. The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete
+
+`2026-11-15` · FACT (the checks), LIKELY (that the game draws level 2 from neither alone) · `#map #datapiler #graceui` ·
+refs: WHY§62, WHY§64, WHY§66, G26, D90, DataPiler S78
+
+From the owner's look at two level-2 tiles in Smithbox, en-0021's numbers and en-0019's level-0 codes.
+
+- **In the container.** `menu/71_maptile.tpfbhd` is the only container of map tiles; each file holds one texture of its
+  own name. Two level-2 files the check left out (column 2, row 3, code 0x20, and column 4, row 8, code 0x100000) show
+  in Smithbox as they were exported: part of a dark margin with land at its edge, and open sea with a city.
+- **Set B fits the other levels exactly.** For all 424 level-2 variants that match level 3, every piece of the code is
+  among the level-0 codes of the 4 by 4 level-0 tiles beneath it, with no shift: level 2 = level 0 at a quarter, level
+  3 = level 2 at a half. Shifted by a tile either way, the share falls to about a quarter.
+- **Set A fits neither.** For the 1,621 others it is 0.27 at a quarter scale and at most 0.65 at three sixteenths with
+  any shift; it has all of level 2's code-0 tiles and every code with bits 15 to 20. Set B has no code-0 tile, files at
+  67 of 121 places, and 59 subsets missing from its own widest codes.
+- **So** the map's own drawing at level 2 is set B, with gaps; the game must draw that zoom from something else, or
+  from set A at another scale (en-0022, the level-1 codes, tests whether set A is level 1 at a quarter). For GraceUI:
+  draw from levels 0, 3 and 4 (and 1 once checked), and from level 2 only where a variant passes the check.
