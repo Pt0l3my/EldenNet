@@ -104,6 +104,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 79 | 2026-11-15 | The areas' colour image is very likely the map-information binders, one per kilometre square | LIKELY | #map #datapiler #graceui |
 | 80 | 2026-11-15 | The areas' image ships converted: each map-information square holds the two keys' row numbers | FACT | #map #datapiler #graceui |
 | 81 | 2026-11-15 | The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image) | LIKELY | #map #datapiler #graceui |
+| 82 | 2026-11-15 | Confirmed: the blue channel holds the weather key's rows, the second image the mimicry key's | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1387,3 +1388,23 @@ read as text; labels until the rows are read, O48). Numbers only here.
   Smithbox (2.2.6) names only the five fields the four keys share (the colour and the weather or mimicry id), not the
   expansion keys' height fields, which come from a newer Smithbox's definitions. So the height split stays a label
   (O48). en-0035 reads the five shared fields of all four keys.
+- Later (2026-11-15): confirmed by en-0035 (WHY§82): blue is the weather key, the second image the mimicry key.
+
+### 82. Confirmed: the blue channel holds the weather key's rows, the second image the mimicry key's
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§80, WHY§81, DataPiler S89
+
+From en-0035 (DataPiler 0.2.36): the four keys' rows on the owner's PC, against en-0032's and en-0033's images. Numbers
+only.
+
+- **Weather.** Every blue value of the first image is a row of its sheet's weather key (`WeatherLotTexParam`, and
+  `_m61` on the expansion), on every pixel of land: the base map's 24 values among its key's 25 rows (row 51 unused,
+  row 0 included), the expansion's 30 among its 30.
+- **Mimicry.** Every red value of the expansion's second image is a row of the expansion's mimicry key
+  (`MimicryEstablishmentTexParam_m61`, 48 rows, row 72 unused), on every pixel, the neighbouring numbers of WHY§81
+  included. The base map's mimicry key has one row, 255, with no mimicry id (-1), which is the value its second image
+  holds everywhere but the northernmost square's 0.
+- So the map-information images carry four keys, all rows of the game's own colour-key tables: finer area (red),
+  area name (green), weather (blue) and, on the expansion, mimicry (the second image's red).
+- The expansion keys' height fields (WHY§81) are not in the owner's Smithbox 2.2.6 (en-0035's check: absent), so
+  splitting stacked ground by height stays unverified (O48).
