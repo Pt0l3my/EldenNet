@@ -1,0 +1,63 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0018-map-tiles",
+ "title": "The map: the exported map tiles, by sheet, level, column, row and code, with their sizes (DP25)",
+ "needs": "0.2.23",
+ "ops": [
+  {
+   "op": "read_map_tiles",
+   "as": "t_tiles"
+  },
+  {
+   "op": "count",
+   "as": "t_levels",
+   "rows": "t_tiles",
+   "by": [
+    "sheet",
+    "level"
+   ]
+  },
+  {
+   "op": "count",
+   "as": "t_codes",
+   "rows": "t_tiles",
+   "by": [
+    "sheet",
+    "level",
+    "code"
+   ]
+  },
+  {
+   "op": "write_share",
+   "name": "map-tiles",
+   "tables": [
+    "t_tiles",
+    "t_levels",
+    "t_codes"
+   ],
+   "columns": {
+    "t_tiles": [
+     "sheet",
+     "level",
+     "x",
+     "y",
+     "code",
+     "width",
+     "height",
+     "copies"
+    ],
+    "t_levels": [
+     "sheet",
+     "level",
+     "count"
+    ],
+    "t_codes": [
+     "sheet",
+     "level",
+     "code",
+     "count"
+    ]
+   }
+  }
+ ]
+}
