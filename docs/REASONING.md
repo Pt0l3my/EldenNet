@@ -96,6 +96,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 71 | 2026-11-15 | The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places | FACT | #map #datapiler #graceui |
 | 72 | 2026-11-15 | The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle | FACT | #map #datapiler #smithbox |
 | 73 | 2026-11-15 | The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet | FACT | #map #datapiler #graceui |
+| 74 | 2026-11-15 | en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3 | FACT | #map #datapiler |
 
 ## Entries
 
@@ -1173,3 +1174,23 @@ and en-0022 and the scores of en-0026 (numbers only), and the owner's en-0021 im
 - DataPiler 0.2.32 draws overviews from the masks, adds `in_mask` to the check, uses the one geometry and never takes
   level 3 or 4 as the reference. en-0028 was withdrawn before it ran; en-0029 re-checks levels 0 to 2 of every sheet
   and lays them out from the masks.
+
+### 74. en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3
+
+`2026-11-15` · FACT · `#map #datapiler` · refs: WHY§73, DataPiler S82, S83
+
+From en-0029 (DataPiler 0.2.32, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against the
+reference level (level 2; level 2 itself against its nearest level), with `in_mask` from the game's masks.
+
+- **Today's tiles match.** Of the variants the masks name, the base map's level 1 passes 1,982 of 1,982 (median
+  0.961) and level 0 2,312 of 2,873 (0.840); the underground's level 1 326 of 326 and level 0 458 of 519 measured; the
+  expansion's levels 0, 1 and 2 634 of 760, 502 of 502 and 98 of 98. So the one geometry of WHY§73 holds on every
+  sheet. Of the other layout's variants, 31 of 2,296 pass in place on the base map's level 0.
+- **Level 2 met the wrong reference.** On the base map and the underground no variant of level 2 passed (median
+  0.099): as the reference itself it was measured against its nearest level, and level 3, the older layout, tied with
+  level 1 and won as the coarser. The expansion, which has no level 3, passed 98 of 98. DataPiler 0.2.33 measures each
+  level the game draws against its nearest such level (level 0 against level 1), never 3 or 4.
+- **Base tiles score lower** at level 0 (554 of 1,681 pass, median 0.614): unrevealed parchment, whose grain does not
+  scale between levels as the drawing does, compared with level 2 at a fifth. Against level 1 more should pass.
+- Next: en-0030 checks again on 0.2.33. en-0029's overviews, drawn from the masks without any check, show each level
+  as the game draws it.

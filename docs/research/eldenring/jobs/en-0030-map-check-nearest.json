@@ -1,0 +1,160 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0030-map-check-nearest",
+ "title": "The map: levels 0 to 2 of every sheet checked against their nearest drawn level (S83)",
+ "needs": "0.2.33",
+ "ops": [
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l0",
+   "sheet": 0,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l1",
+   "sheet": 0,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m00_l2",
+   "sheet": 0,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l0",
+   "sheet": 1,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l1",
+   "sheet": 1,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m01_l2",
+   "sheet": 1,
+   "level": 2
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l0",
+   "sheet": 10,
+   "level": 0
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l1",
+   "sheet": 10,
+   "level": 1
+  },
+  {
+   "op": "check_map_tiles",
+   "as": "t_m10_l2",
+   "sheet": 10,
+   "level": 2
+  },
+  {
+   "op": "write_share",
+   "name": "map-check-nearest",
+   "tables": [
+    "t_m00_l0",
+    "t_m00_l1",
+    "t_m00_l2",
+    "t_m01_l0",
+    "t_m01_l1",
+    "t_m01_l2",
+    "t_m10_l0",
+    "t_m10_l1",
+    "t_m10_l2"
+   ],
+   "columns": {
+    "t_m00_l0": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m00_l1": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m00_l2": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m01_l0": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m01_l1": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m01_l2": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m10_l0": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m10_l1": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ],
+    "t_m10_l2": [
+     "x",
+     "y",
+     "code",
+     "near_level",
+     "near",
+     "near_base",
+     "in_mask"
+    ]
+   }
+  }
+ ]
+}
