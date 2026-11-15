@@ -91,6 +91,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 66 | 2026-11-15 | Level 2's export is two tile sets under one set of names; Smithbox's export overwrites by name | LIKELY | #map #datapiler #graceui |
 | 67 | 2026-11-15 | The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete | FACT | #map #datapiler #graceui |
 | 68 | 2026-11-15 | Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter | FACT | #map #datapiler #graceui |
+| 69 | 2026-11-15 | Every base-map level checked: level 0 is mixed like level 2, level 1 hardly passes | FACT | #map #datapiler #graceui |
 
 ## Entries
 
@@ -1042,3 +1043,21 @@ the finer tiles beneath it?
   bits anyway (the shifted share barely drops): codes alone cannot tell whether levels 0 and 1 hold one drawing each.
   That needs their images, at a size an overview can take (level 1 at a half, level 0 at a quarter). Until then the
   map's fit uses level 3, which is clean against levels 2 (set B) and 4.
+
+### 69. Every base-map level checked: level 0 is mixed like level 2, level 1 hardly passes
+
+`2026-11-15` · FACT (the scores), SPECULATION (what level 1 is) · `#map #datapiler #graceui` · refs: WHY§64, WHY§67,
+WHY§68, DataPiler S79
+
+From en-0023 (DataPiler 0.2.29, numbers only): every variant of the base map's five levels against level 3 (level 3
+against level 4), at LEVEL_SCALES from the bottom left.
+
+- **Levels 2 to 4 as before.** Level 3 passes 519 of 525, level 4 4,195 of 4,508, level 2 424 of 2,045 (the same
+  variants as en-0021).
+- **Level 0 is mixed.** 1,353 of 5,169 measured variants pass (26%), in two clear groups (978 score 0.9 or more,
+  1,403 below 0); 633 of the 1,391 places with variants have one that passes, spread over the whole map. Of 1,796
+  variants with bits 15 to 20, 3 pass. The scale and anchor are right for those that pass: scores of 0.9 cannot come
+  by chance.
+- **Level 1 hardly passes.** 38 of 3,698 (1%), at 32 of 806 places, with failing scores near 0 both ways. Either
+  level 1's scale or anchor is not three quarters from the bottom left, or it is all of the other drawing.
+- Next: en-0025 lays levels 0 and 1 out unchecked, and level 1's base, to fit their scale against level 3 by image.

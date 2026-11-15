@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"$HOME/.config/privsweep/privsweep.py\"; [ -f \"$f\" ] || f=\"$CLAUDE_PROJECT_DIR/tools/privsweep/privsweep.py\"; exec python3 -I -S \"$f\" hook",
+            "command": "f=\"$HOME/.config/privsweep/privsweep.py\"; [ -f \"$f\" ] || f=\"$CLAUDE_PROJECT_DIR/../skyrizz/tools/privsweep/privsweep.py\"; exec python3 -I -S \"$f\" hook",
             "timeout": 900,
             "onFailure": "block",
             "statusMessage": "Privacy sweep"

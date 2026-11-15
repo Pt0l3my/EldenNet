@@ -22,7 +22,7 @@ FIXED = {
     "docs/design/DESIGN.md": "DESIGN", "docs/design/architecture.md": "ARCH",
     "docs/design/npcs-and-dialogue.md": "NPC", "docs/design/memory-and-knowledge.md": "MEM",
     "docs/design/game-data.md": "DATA", "docs/REASONING.md": "WHY",
-    "docs/research/README.md": "RES", "tools/privsweep/README.md": "PSW", "tools/workplan/README.md": "WP",
+    "docs/research/README.md": "RES", "tools/workplan/README.md": "WP",
 }
 SERIES = {"docs/research/skyrimnet": "SN", "docs/research/eldenring": "ER"}
 

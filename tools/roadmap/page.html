@@ -691,7 +691,7 @@ function editView() {
 <pre>python3 -I tools/roadmap/build.py --check   # ids, needs, statuses, fields, references, a stale page
 python3 -I tools/roadmap/build.py           # writes docs/roadmap/index.html
 python3 -I tools/roadmap/build.py --fragment FILE   # and FILE, to publish on claude.ai once swept
-python3 -I tools/privsweep/privsweep.py files FILE  # the sweep, by hand, before every publish</pre>
+python3 -I ~/.config/privsweep/privsweep.py files FILE  # the sweep (installed from Skyrizz), by hand, before every publish</pre>
   <p class="muted">Rebuild the page in the same commit as any edit to the source or the tool. The tests are tools/roadmap/test_build.py: <code>python3 -I -m unittest discover -s tools/roadmap</code>.</p></div></div>`;
 }
 

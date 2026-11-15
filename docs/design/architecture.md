@@ -1871,7 +1871,7 @@ eldennet/
   gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
   tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), personas/ (test_veiled, test_stake), characters/ (test_tollwarden), profiles/ (player-file fixtures with canary strings), db/}  recordings/*.ensnap.zst (redacted)
               golden/{*.events.jsonl, CHANGES.md}  s6/*.toml  knowledge/{expect,cues}.toml
-  tools/      privsweep/  workplan/
+  tools/      workplan/
   dist/       README-install.md  using-a-loader.md  ai-disclosure.md
   docs/
     research/
