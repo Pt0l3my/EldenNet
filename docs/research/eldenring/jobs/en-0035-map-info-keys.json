@@ -1,0 +1,186 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0035-map-info-keys",
+ "title": "The map: the weather and mimicry colour keys, the fields every one holds (DP21, DP24)",
+ "needs": "0.2.36",
+ "ops": [
+  {
+   "op": "check_fields",
+   "as": "ct_weather_tex",
+   "param": "WeatherLotTexParam",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "weatherLogId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_weather_tex_dlc",
+   "param": "WeatherLotTexParam_m61",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "weatherLogId",
+    "isUseHeightInfo",
+    "borderHeight",
+    "weatherLotIdLowPlace",
+    "weatherLotIdHighPlace"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_mimicry_tex",
+   "param": "MimicryEstablishmentTexParam",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mimicryEstablishmentParamId"
+   ]
+  },
+  {
+   "op": "check_fields",
+   "as": "ct_mimicry_tex_dlc",
+   "param": "MimicryEstablishmentTexParam_m61",
+   "fields": [
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mimicryEstablishmentParamId",
+    "isUseHeightInfo",
+    "borderHeight"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_weather_tex",
+   "param": "WeatherLotTexParam",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "weatherLogId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_weather_tex_dlc",
+   "param": "WeatherLotTexParam_m61",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "weatherLogId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_mimicry_tex",
+   "param": "MimicryEstablishmentTexParam",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mimicryEstablishmentParamId"
+   ]
+  },
+  {
+   "op": "fetch_rows",
+   "as": "t_mimicry_tex_dlc",
+   "param": "MimicryEstablishmentTexParam_m61",
+   "fields": [
+    "id",
+    "disableParam_NT",
+    "srcR",
+    "srcG",
+    "srcB",
+    "mimicryEstablishmentParamId"
+   ]
+  },
+  {
+   "op": "write_share",
+   "name": "map-info-weather-mimicry",
+   "tables": [
+    "ct_weather_tex",
+    "ct_weather_tex_dlc",
+    "ct_mimicry_tex",
+    "ct_mimicry_tex_dlc",
+    "t_weather_tex",
+    "t_weather_tex_dlc",
+    "t_mimicry_tex",
+    "t_mimicry_tex_dlc"
+   ],
+   "columns": {
+    "ct_weather_tex": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_weather_tex_dlc": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_mimicry_tex": [
+     "field",
+     "present",
+     "type"
+    ],
+    "ct_mimicry_tex_dlc": [
+     "field",
+     "present",
+     "type"
+    ],
+    "t_weather_tex": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "weatherLogId"
+    ],
+    "t_weather_tex_dlc": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "weatherLogId"
+    ],
+    "t_mimicry_tex": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "mimicryEstablishmentParamId"
+    ],
+    "t_mimicry_tex_dlc": [
+     "id",
+     "disableParam_NT",
+     "srcR",
+     "srcG",
+     "srcB",
+     "mimicryEstablishmentParamId"
+    ]
+   },
+   "notes": [
+    "map_coords",
+    "vanilla_rows"
+   ]
+  }
+ ]
+}
