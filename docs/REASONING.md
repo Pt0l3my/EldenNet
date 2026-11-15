@@ -1617,6 +1617,11 @@ checkout), O68, O53
   told by their facing. Each model's lower-detail triangle sets were left out this time (level 2 against level 0
   unchanged). Next, for the spike (S7.9.c): the underground's floor rule, and whether the expansion's assets are worth
   reading.
+- Later (2026-11-15): the far view's second kind does fill the base square's gap: model 911009 covers 66% of tile
+  40_38's gap, at −39 to 417 m (a median 321 m, where the ground around it lies near 180 m), so the gap is most
+  likely a large structure, kept in its own map and seen from afar only in that kind (LIKELY). "No far view either"
+  above, and in WHY§90's Later line, holds for the first kind only. How the relief shows a structure's footprint is
+  for the spike.
 
 ### 93. The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters
 
