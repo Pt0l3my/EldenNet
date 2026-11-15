@@ -1,7 +1,8 @@
 # Proposal 0002: The EldenNet devkit, and EldenNet off game
 
-**Status: proposal, 2026-11-15 (roadmap S7.11.b and S7.12.a). O74 and O75 decided by the owner the same day; O76 to
-O79, and GraceUI's G29, open.** Where this text and the designs differ, the designs hold. A bare §n is a section of
+**Status: proposal, 2026-11-15 (roadmap S7.11.b and S7.12.a). O74 and O75 decided by the owner the same day, and O76
+to O79 too: O76 (b) and O78 (b) not as recommended, O77 (a) as recommended, O79 (a) with the devkit shipped as part
+of EldenNet behind Developer mode (§6). GraceUI's G29 open.** Where this text and the designs differ, the designs hold. A bare §n is a section of
 this proposal; DESIGN and ARCH are EldenNet's design documents, and "GraceUI §n" and G- and D-numbers are GraceUI's.
 Evidence: the terrain research (WHY§89 to WHY§94), the map's research (WHY§56, WHY§62 to WHY§82), GraceUI's server
 (GraceUI §7.2, invariant 4) and EldenNet's settings (ARCH §11.5).
@@ -148,20 +149,33 @@ its own server.
 exit: read-only, plus the settings (§3.2). (b) The launcher runs EldenNet's engine off game, to build the pages from
 the saved files: more complete, heavier, and only once Min's engine is adopted. (c) Settings only, off game.
 
+*Decided 2026-11-15: (b), "Launcher runs the engine off game". §3.2's page data is not needed: the launcher runs
+EldenNet's engine off game once it is adopted (S8), and builds the pages from the saved files.*
+
 ### O77: Which settings change off game?
 
 (a) **Recommended.** All but a short in-game-only list, marked in the settings index (§3.3). (b) A chosen few: model
 providers and keys, voices, features and pacing. (c) None: off game is for looking only.
+
+*Decided 2026-11-15: (a), as recommended.*
 
 ### O78: What do the devkit's browser tools show?
 
 (a) **Recommended.** Checks and numbers only (§2.5). (b) Also viewers of the game's models, textures and text, shown in
 the browser and never exported.
 
+*Decided 2026-11-15: (b), "Also asset viewers", behind Developer mode (O79). The disclosure gains a line: the
+viewers are for looking at your own copy, and using them to pass the game's assets on, as images, captures or copies,
+is among what we condemn.*
+
 ### O79: Where does the devkit live?
 
 (a) **Recommended.** A `devkit/` folder in EldenNet's repository, with releases of its own. (b) A repository of its
 own.
+
+*Decided 2026-11-15: (a), with the owner's addition: "Same as EldenNet, and shipped as part of it, in EldenNet, the
+user can toggle Developer mode to use its features." No releases of its own: the devkit ships inside EldenNet, and
+Developer mode turns on its browser tools, viewers and command-line tool.*
 
 ### GraceUI's G29: GraceUI's server for hosts outside the game?
 

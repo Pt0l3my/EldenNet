@@ -105,7 +105,10 @@ index.
   ids and checks only), never the game's memory, and nothing of the game carried: no files, no text, no keys (taken
   from the user's own game when used, never stored). It shows a disclosure of safe use and of what we condemn (O75).
   In-game data for research comes from EldenNet itself, built once Min's engine arrives; DataPiler never reads the
-  game's memory (O73). EldenNet off game and the devkit's browser tools are proposed as O76–O79 (Open).
+  game's memory (O73). The devkit ships as part of EldenNet: its browser tools, viewers (never exporting) and
+  command-line tool are on only in Developer mode (O78, O79). Off game, the launcher runs EldenNet's engine and serves
+  the dashboard from the saved files once the engine is adopted (O76), and all settings but a short list can be
+  changed there, applied at the next load (O77).
 - **NPCs speak on their own, within pacing (2026-11-07).** NPCs may start lines themselves (greetings, quest
   business, news, NPC-to-NPC exchanges, autonomy, combat and status reactions), limited only by pacing
   settings, per-type allowances and context gates, never by counts; spoilers are kept by positive grounding,

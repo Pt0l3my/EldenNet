@@ -558,10 +558,10 @@ EldenNet itself once Min's engine arrives; and that DataPiler becomes the workbe
 - S7.11.a The owner decides where in-game data comes from (O73), the devkit (O74) and DataPiler's part (DP35) [done]
   - refs: O73, O74, O48, O53
   - gives: EldenNet in the game, once Min's engine arrives; the devkit, only while the game runs, shipping nothing of the game; DataPiler as the workbench and the replay harness.
-- b The devkit's design, in proposal 0002 §2: its parts and first version, its safe limits and disclosure (O75), the keys taken from the user's own game, the command-line tool and its browser tools (O78), where it lives (O79) [waiting]
+- b The devkit's design, in proposal 0002 §2: its parts and first version, its safe limits and disclosure (O75), the keys taken from the user's own game, the command-line tool and its browser tools (O78), where it lives (O79) [done]
   - needs: a
   - refs: O74, O75, O78, O79, O48
-  - gives: O75 decided 2026-11-15; O78 and O79 open.
+  - gives: decided 2026-11-15: the devkit works with the game closed, within safe limits and with a disclosure (O75); its browser tools include viewers, never exporting (O78); it ships as part of EldenNet, its features behind Developer mode (O79).
 - c The devkit's first check: a file read through it matching Smithbox's copy byte for byte, and the archives read with the game closed and while it runs, on the owner's PC through DataPiler [planned]
   - needs: b
   - refs: O74, WHY§56
@@ -586,12 +586,16 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
 - S7.12.a A proposal: the dashboard off game, the settings off game, GraceUI's server for hosts outside the game, the devkit's browser tools [done]
   - refs: O76, O77, O78, G29
   - gives: proposal 0002 §2.5, §3 and §4, with O76 to O79 and GraceUI's G29 put to the owner.
-- b The owner answers O76 to O79 and GraceUI's G29 [waiting]
+- b The owner answers O76 to O79 [done]
   - needs: a
-  - refs: O76, O77, O78, O79, G29
-- c The answers folded into EldenNet's and GraceUI's designs: the launcher's dashboard, the page data at save points and on exit, the settings index's off-game mark, GraceUI's server library [planned]
-  - needs: b
+  - refs: O76, O77, O78, O79
+  - gives: answered 2026-11-15: the launcher runs EldenNet's engine off game once it is adopted (O76 (b)); all settings but a short list change off game (O77 (a)); viewers in the devkit's tools (O78 (b)); the devkit shipped as part of EldenNet, behind Developer mode (O79).
+- c The answers folded into EldenNet's and GraceUI's designs: the launcher's dashboard on EldenNet's engine off game, the settings index's off-game mark, Developer mode and the devkit's tools, GraceUI's server outside the game [planned]
+  - needs: b, d
   - refs: O76, O77, G4, G29
+- d The owner answers GraceUI's G29 (its server for hosts outside the game) [waiting]
+  - needs: a
+  - refs: G29, O76
 
 ## S8 Adopting the engine [planned]
 

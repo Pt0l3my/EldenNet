@@ -51,8 +51,10 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   harness, reading the game through the devkit.
 - **2026-11-15.** O75 (the devkit works with the game closed too, within safe limits and with a disclosure of safe
   use and of what we condemn), decided by the owner; O76–O79 put with proposal 0002 (the devkit, and EldenNet off
-  game).
-- **Open.** O46 (the bio's structure and the v1.0 roster); O76–O79 (proposal 0002).
+  game). O76–O79 decided the same day: the launcher runs EldenNet's engine off game (O76, not as recommended), all
+  settings but a short list change off game (O77), the devkit's browser tools include viewers (O78, not as
+  recommended), and the devkit ships as part of EldenNet behind Developer mode (O79).
+- **Open.** O46 (the bio's structure and the v1.0 roster).
 
 ## O1
 
@@ -1149,7 +1151,7 @@ that clear)."
 
 ## O76
 
-**How does EldenNet's dashboard work off game?** · *2026-11-15 · Open*
+**How does EldenNet's dashboard work off game?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*
 
 **Question.** The owner asked for EldenNet's dashboard in the browser with the game closed: what EldenNet saved, to look
 at, and settings to change, applied when EldenNet next loads ([proposal 0002](proposals/0002-devkit-and-off-game.md)
@@ -1166,9 +1168,16 @@ exit. (c): the settings pages only.
 
 **Follows from.** O71; GraceUI G4, G17, G29.
 
+**Decision.** (b). EldenNet's launcher runs EldenNet's engine off game and builds the dashboard's pages from the saved
+files, read-only, with the settings (O77). It comes once Min's engine is adopted (S8): the engine runs outside the game
+in the launcher, as it will in DataPiler's replay harness (its DP35), reads the game's data through the devkit with the
+game closed (O75), and its pages pass the same spoiler and privacy rules as in the game. (a)'s page data is not needed.
+
+**Owner's words.** "Launcher runs the engine off game".
+
 ## O77
 
-**Which settings change off game?** · *2026-11-15 · Open*
+**Which settings change off game?** · *2026-11-15 · Decided by the owner, as recommended*
 
 **Question.** With the dashboard off game (O76), which settings may be changed there, to apply when EldenNet next loads?
 **Options:** (a) **all but a short list that needs the live game**, each setting marked in the settings index (GraceUI
@@ -1182,9 +1191,15 @@ none: off game is for looking only.
 
 **Follows from.** O76; [proposal 0002](proposals/0002-devkit-and-off-game.md) §3.3.
 
+**Decision.** (a). Every setting may be changed off game but a short list that needs the live game, each marked in the
+settings index (GraceUI D101). A change is checked by the same validator as in the game, written to `settings.toml` and
+applied when EldenNet next loads; secrets stay write-only.
+
+**Owner's words.** "All but a short list (Recommended)".
+
 ## O78
 
-**What do the devkit's browser tools show?** · *2026-11-15 · Open*
+**What do the devkit's browser tools show?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*
 
 **Question.** The owner asked for the devkit's tools in the browser, off game. **Options:** (a) **checks and numbers
 only**: a self-test of the install, content plugins checked against the game's ids, research numbers for DataPiler; no
@@ -1198,9 +1213,16 @@ disclosure on screenshots and sharing.
 
 **Follows from.** O75; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.5.
 
+**Decision.** (b). The devkit's browser tools show the game's models, textures and text as well, in the browser and
+never exported to files, behind Developer mode (O79). The disclosure (proposal 0002 §2.4) gains a line: the viewers are
+for looking at your own copy, and using them to pass the game's assets on, as images, captures or copies, is among what
+we condemn.
+
+**Owner's words.** "Also asset viewers".
+
 ## O79
 
-**Where does the devkit live?** · *2026-11-15 · Open*
+**Where does the devkit live?** · *2026-11-15 · Decided by the owner, with an addition*
 
 **Question.** **Options:** (a) **a `devkit/` folder in EldenNet's repository**, under EldenNet's design and reasoning
 log, with releases of its own; (b) a repository of its own.
@@ -1211,3 +1233,12 @@ log, with releases of its own; (b) a repository of its own.
 repository, with the privacy sweep as its gate.
 
 **Follows from.** O74; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.6.
+
+**Decision.** (a), with the owner's addition. The devkit's code lives in EldenNet's repository, and the devkit ships as
+part of EldenNet, with no releases of its own. The player turns on Developer mode in EldenNet's settings to use its
+features: its browser tools and viewers, and its command-line tool. EldenNet's own uses of the reader (the map's
+run-time read, names at run time) need no Developer mode. Until EldenNet ships, the owner's DataPiler uses development
+builds of the devkit.
+
+**Owner's words.** "Same as EldenNet, and shipped as part of it, in EldenNet, the user can toggle Developer mode to use
+its features."
