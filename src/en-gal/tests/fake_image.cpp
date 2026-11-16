@@ -187,6 +187,26 @@ BuiltImage build(const FakeImageSpec& spec) {
     out.pdata_rva = place(static_cast<std::uint32_t>(pdata.size()));
     if (out.pdata_rva != pdata_rva) throw std::logic_error("the .pdata RVA came out other than planned");
   }
+  std::vector<std::uint8_t> reloc;
+  if (!spec.fixups.empty()) {
+    // One block per page, each a page RVA, its size, and 16-bit entries (type 10, DIR64, and the offset in the page).
+    std::vector<std::uint32_t> sorted = spec.fixups;
+    std::sort(sorted.begin(), sorted.end());
+    for (std::size_t i = 0; i < sorted.size();) {
+      const std::uint32_t page = sorted[i] & ~0xFFFu;
+      const std::size_t block = reloc.size();
+      put(reloc, block, page, 4);
+      put(reloc, block + 4, 0, 4);
+      while (i < sorted.size() && (sorted[i] & ~0xFFFu) == page) {
+        put(reloc, reloc.size(), 0xA000u | (sorted[i] & 0xFFFu), 2);
+        ++i;
+      }
+      if (reloc.size() % 4 != 0) put(reloc, reloc.size(), 0, 2);  // IMAGE_REL_BASED_ABSOLUTE: padding
+      put(reloc, block + 4, reloc.size() - block, 4);
+    }
+    sections.push_back(FakeSection{".reloc", kReadOnly, reloc, 0});
+    out.reloc_rva = place(static_cast<std::uint32_t>(reloc.size()));
+  }
   out.size_of_image = rva;
 
   // The headers.
@@ -216,6 +236,10 @@ BuiltImage build(const FakeImageSpec& spec) {
   if (!spec.functions.empty()) {
     put(headers, kOptionalAt + 112 + 8 * 3, out.pdata_rva, 4);
     put(headers, kOptionalAt + 112 + 8 * 3 + 4, 12 * spec.functions.size(), 4);
+  }
+  if (!spec.fixups.empty()) {
+    put(headers, kOptionalAt + 112 + 8 * 5, out.reloc_rva, 4);
+    put(headers, kOptionalAt + 112 + 8 * 5 + 4, reloc.size(), 4);
   }
   std::uint32_t raw = kHeadersSize;
   std::vector<std::uint32_t> raws;

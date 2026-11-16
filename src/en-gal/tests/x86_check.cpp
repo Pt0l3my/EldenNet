@@ -17,7 +17,6 @@
 // decodes and we refuse; and opcodes a map leaves undefined, which LLVM refuses and we size by the map's shape. It
 // prints the counts and examples of each kind, and exits 1 on any finding.
 #include <cstdint>
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -36,10 +35,17 @@ using en::gal::x86::Instruction;
 std::optional<std::vector<std::byte>> parse_hex(const std::string& s) {
   if (s.size() % 2 != 0) return std::nullopt;
   std::vector<std::byte> out;
+  const auto digit = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
   for (std::size_t i = 0; i < s.size(); i += 2) {
-    unsigned v = 0;
-    if (std::sscanf(s.substr(i, 2).c_str(), "%2x", &v) != 1) return std::nullopt;
-    out.push_back(std::byte{static_cast<std::uint8_t>(v)});
+    const int hi = digit(s[i]);
+    const int lo = digit(s[i + 1]);
+    if (hi < 0 || lo < 0) return std::nullopt;
+    out.push_back(std::byte{static_cast<std::uint8_t>(hi * 16 + lo)});
   }
   return out;
 }

@@ -1,0 +1,41 @@
+# What the derivation looks for in fakegame.exe (eldennet-engine probe-exe --derive; O89): the fake game's own invented
+# names, under labels of ours. A lead says what to look for, never the bytes (ARCH §6.3). The harness's probe-exe
+# cases derive with it and compare what comes back with `fakegame.exe --describe`. Nothing here is a game's.
+schema = 1
+product_name = "EldenNet Fake Game"
+
+[fd4]
+path_suffix = "FD4Singleton.h"   # the suffix ARCH §6.2's rule checks, which the fake game's paths carry too
+
+[singletons]                     # label = the name the runtime class object gives
+task_loom = "TaskLoom"
+actor_roster = "ActorRoster"
+lobby_warden = "LobbyWarden"
+mark_ledger = "MarkLedger"
+gauge_board = "GaugeBoard"
+menu_desk = "MenuDesk"
+veil_keeper = "VeilKeeper"
+sky_clock = "SkyClock"
+eye_rig = "EyeRig"
+table_vault = "TableVault"
+phrase_book = "PhraseBook"
+duplicata = "Duplicata"          # decoys: two statics behind one name
+strayling = "Strayling"          # its path ends otherwise
+rockbound = "Rockbound"          # its static is in .rdata
+
+[register]
+instance = "task_loom"
+
+[task]
+group = "Fg_ActorSettle"
+base = "FG::TaskUnit"
+
+[vtable_sets]
+actor = "FG::Actor"
+player = "FG::PlayerActor"
+
+[statics]
+hinstance = { module = true }
+save_ledger = { rtti = "FG::SaveLedgerImp" }
+run_warden = { rtti = "FG::RunWardenImp" }
+field_plot = { rtti = "FG::FieldPlotImp" }

@@ -10,7 +10,16 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/builds.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/layout.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/toml_reader.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/x86.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/x86.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/report.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/image_bytes.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/code.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/cut.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/rtti.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/fd4.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/derive.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_leads.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp)
 if(MSVC)
   list(APPEND EN_GAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp)
 else()
@@ -34,12 +43,17 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_builds.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_layout.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_x86.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_x86.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_report.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_program.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/sample_program.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_derive.cpp)
   if(MSVC)
     list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp)
   endif()
   add_executable(en_gal_tests ${EN_GAL_TESTS})
   target_link_libraries(en_gal_tests PRIVATE en_gal en_doctest)
+  target_include_directories(en_gal_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)  # the derivation's internals
   add_test(NAME en_gal_tests COMMAND en_gal_tests)
 
   # The decoder against LLVM's disassembler (tests/x86_objdump.py), in the Linux builds: every instruction of our own

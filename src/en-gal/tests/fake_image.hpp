@@ -58,6 +58,7 @@ struct FakeImageSpec {
   std::vector<FakeSection> sections;    // in order; the first named ".text" holds the functions
   std::optional<FakeVersion> version;   // adds .rsrc after them
   std::vector<FakeFunction> functions;  // adds .xdata and .pdata after them
+  std::vector<std::uint32_t> fixups;    // DIR64 base relocations, by RVA: adds .reloc last
 };
 
 struct BuiltImage {
@@ -68,6 +69,7 @@ struct BuiltImage {
   std::uint32_t pdata_rva = 0;
   std::uint32_t rsrc_rva = 0;
   std::uint32_t version_rva = 0;  // the version resource's data
+  std::uint32_t reloc_rva = 0;
 };
 
 BuiltImage build(const FakeImageSpec& spec);
