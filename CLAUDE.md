@@ -36,6 +36,8 @@ lines; there are no NPC actions beyond dialogue.
   model servers) go in chat only, never in the repository.
 - Commit identities are noreply addresses only. Use this environment's default git identity; never set an
   author or committer to the owner's own e-mail.
+- No `Claude-Session` link in commit messages or pull requests (owner, 2026-11-16): it points to a private
+  transcript and tells readers nothing. The `Co-Authored-By` trailer stays.
 - No model identifiers of the assistant in files, apart from the commit trailer. Naming third-party models as
   research subject matter (which models other projects use or recommend) is fine.
 - The sweep is changed in Skyrizz only, and never copied into this repository or any other public one.
