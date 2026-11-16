@@ -370,9 +370,11 @@ and each slot's requests reaching its own provider, with its own key, on the fak
 the client; `test_r3.cpp` the guards: the threads' stack sizes (where the system reports them: Windows, and Linux with
 glibc), a thread's throw, a worker's request whose client throws, and the caller's callbacks throwing. The transports'
 own callbacks are tested in `test_transport.cpp` with a fault of the tests' own (`fault_alloc.hpp`): the test program
-replaces `operator new` so that, once armed, one allocation of a chosen size fails on any thread but the test
-servers', inside libcurl's or WinHTTP's callback; libcurl and WinHTTP allocate with their own allocators and never meet
-it.
+replaces every form of the global `operator new` and `delete` (all twenty, so that no memory passes between its
+allocator and a runtime's), so that, once armed, one allocation of a chosen size fails (a nothrow form returns null) on
+any thread but the test servers', inside libcurl's or WinHTTP's callback; libcurl and WinHTTP allocate with their own
+allocators and never meet it. On MSVC's CRT (the clang-cl build) `system_env` reads with `_dupenv_s`, the CRT's
+thread-safe `getenv`, and the tests' `ScopedEnv` reads through `system_env`.
 
 ## Later
 

@@ -87,5 +87,7 @@ them: filters (`x | upper`: write `upper(x)`), `{% raw %}` and macros. After ren
 disk, names and texts in memory), `messages.hpp` (markers and messages), `registry.hpp` (functions), `errors.hpp`.
 `src/compile.cpp` rewrites inja's parsed tree once, at load, so that every operator, function, condition, loop and
 printed value runs through checked code that knows its place in the template; `src/builtins.cpp` holds the functions;
-`src/source.cpp` the sources and the one check of template names. The library holds no object of static storage with
-a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7). The tests in `tests/` use invented templates only.
+`src/source.cpp` the sources and the one check of template names. The library holds no object of static storage with a
+dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7). The tests in `tests/` use invented templates only. A
+test of symbolic links runs where a link exists once made: Windows needs a privilege for one, MinGW's library cannot
+make one, and Wine 9.0's `CreateSymbolicLinkW` answers success and makes nothing.

@@ -42,6 +42,7 @@ if(MSVC)
 else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
+include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
 # with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §3.1 and §1.7. Clang checks both.
@@ -61,3 +62,16 @@ add_subdirectory(src/en-prompt)
 add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
 add_subdirectory(src/en-tools)
+if(EN_FUZZ)
+  add_subdirectory(fuzz)
+endif()
+
+# en-gal's guarded copy is C++ with structured exception handling (__try/__except, ARCH §2.6), which only an MSVC-like
+# compiler has: the clang-cl build (cmake/clang-cl-xwin.cmake) builds it, and GCC's and Clang's builds on Linux and
+# MinGW-w64's skip it.
+if(MSVC)
+  add_subdirectory(src/en-gal)
+else()
+  message(STATUS "en-gal skipped: its SEH-guarded copy (__try/__except) is built by an MSVC-like compiler only, and "
+    "this build's is ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; cmake/clang-cl-xwin.cmake builds it")
+endif()

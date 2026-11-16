@@ -156,11 +156,12 @@ TEST_CASE("R3: a thread starts with the stack asked, and its body's throw trips 
 }
 
 TEST_CASE("R3: the handle's workers and its dispatcher run on 2 MB stacks") {
-  Handle h;
+  // The callback's state outlives the handle: its dispatcher may call the callback again until it has shut down.
   std::mutex m;
   std::condition_variable cv;
   std::optional<std::size_t> dispatcher_stack;
   bool notified = false;
+  Handle h;
   h.service->set_notify([&] {
     std::lock_guard lock(m);
     dispatcher_stack = current_stack_size();

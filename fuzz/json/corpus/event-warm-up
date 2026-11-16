@@ -1,0 +1,10 @@
+ {
+ "kind": "WarmUpEnded",
+ "id": 9,
+ "warm_up": {
+  "ok": true,
+  "status": 200,
+  "time_ms": 1500,
+  "error": "None"
+ }
+}

@@ -1,0 +1,10 @@
+~  data: {"choices": [{"index": 0, "delta": {"content": "musing on the question"}, "finish_reason": null}]}
+
+data: {"choices": [{"index": 0, "delta": {"content": "</think>Ask the ferryman."}, "finish_reason": null}], "logprobs": null}
+
+data: {"choices":[{"delta":{"content":" Now."},"logprobs":{"content":[{"token":" Now","logprob":-0.25,"top_logprobs":[{"token":" Now","logprob":-0.25},{"token":" Later","logprob":-1.5}]}]}}]}
+
+data: {"error":{"code":429,"message":"slow down: sk-test and abcdefghijklmnopqrstuvwxyz, Bearer abc"}}
+
+data: {"choices":[{"delta":{"reasoning_content":"hidden"},"finish_reason":"length"}]}
+
