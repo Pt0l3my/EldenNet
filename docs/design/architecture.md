@@ -361,9 +361,12 @@ if(MSVC)                                        # clang-cl
 endif()
 ```
 
-- **Target:** x64 Windows with MSVC's ABI, built on Linux CI with clang-cl and lld-link (LLVM, pinned) against the
-  MSVC CRT and Windows SDK that xwin downloads (pinned), through a CMake toolchain file beside the MinGW-w64 one in
-  `cmake/`. So debug information is PDB, and SEH (`__try`/`__except`) is available to C++ directly.
+- **Target:** x64 Windows with MSVC's ABI, built on Linux CI with clang-cl and lld-link (LLVM, pinned) against the MSVC
+  CRT and Windows SDK that xwin downloads (pinned), through a CMake toolchain file beside the MinGW-w64 one in `cmake/`.
+  So debug information is PDB, and SEH (`__try`/`__except`) is available to C++ directly. Built (S8.1.i):
+  `cmake/clang-cl-xwin.cmake`, LLVM 18, xwin 0.10.0, CRT 14.43.17.13 and SDK 10.0.26100, pinned in `cmake/xwin.lock`
+  (the toolchain file refuses a splat that differs); 14.43, not the newest, since 14.44's standard library refuses a
+  Clang older than 19 (WHY§111).
 - **Static CRT:** `/MT`, so the DLL needs no Visual C++ runtime on the player's machine.
 - **Deterministic link:** `/Brepro` at compile and link, path prefixes mapped (`/clang:-ffile-prefix-map`),
   `SOURCE_DATE_EPOCH` and no incremental link (§12.1).
@@ -934,26 +937,45 @@ class SysLayer {
 ### 6.5 `GuardedReader`
 
 ```cpp
-// src/en-gal/src/reader.cpp: our own SEH-guarded copy, in C++, compiled by clang-cl (no separate shim)
+// src/en-gal/src/reader.cpp (built, S8.1.i): our own SEH-guarded copy, in C++, compiled by clang-cl (no separate shim)
 namespace {
-int en_filter(unsigned long code) noexcept {
-  return code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER
-                                                                               : EXCEPTION_CONTINUE_SEARCH;
-}
-}  // namespace
-
-// SAFETY: the one read of a game address, after the plausibility checks below, into storage the caller owns.
-// `memcpy` stays a call (`len` is never a constant): clang's SEH catches a fault raised in a callee's frame, not one
-// raised in the `__try`'s own (S0-D's forced faults test it).
-bool en_seh_copy(void* dst, const void* src, std::size_t len, unsigned long& code) noexcept {
-  __try {
-    std::memcpy(dst, src, len);
-    return true;
-  } __except (en_filter(code = GetExceptionCode())) {
-    return false;
+// The faults a read can meet: a page not mapped, not committed or not readable; a page its file could not bring in;
+// a guard page. Any other exception is not the copy's, and goes on to the next handler.
+int filter(unsigned long code) noexcept {
+  switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION: case EXCEPTION_IN_PAGE_ERROR: case EXCEPTION_GUARD_PAGE:
+      return EXCEPTION_EXECUTE_HANDLER;
+    default:
+      return EXCEPTION_CONTINUE_SEARCH;
   }
 }
+// The copy, in a frame of its own, never inlined: clang's SEH on x64 covers the calls a __try makes, and a memcpy
+// written in the __try becomes an intrinsic, which is no call.
+__declspec(noinline) void copy_bytes(void* dst, const void* src, std::size_t len) noexcept { std::memcpy(dst, src, len); }
+}  // namespace
+
+// SAFETY: the one read of a game address, after the plausibility checks below, into storage the caller owns; the
+// pointer made from the address lives for the copy alone. On a fault the destination is zeroed.
+CopyOutcome seh_copy(std::uint64_t address, std::span<std::byte> dst) noexcept {
+  if (dst.empty()) return {true, 0};
+  const void* src = reinterpret_cast<const void*>(static_cast<std::uintptr_t>(address));
+  __try {
+    copy_bytes(dst.data(), src, dst.size());
+  } __except (filter(GetExceptionCode())) {
+    const auto code = static_cast<std::uint32_t>(GetExceptionCode());
+    std::memset(dst.data(), 0, dst.size());
+    return {false, code};
+  }
+  return {true, 0};
+}
 ```
+
+*Corrected 2026-11-16 (S8.1.i, WHY§111):* the first sketch wrote the `memcpy` inside the `__try`, trusting it to stay a
+call; clang makes it an intrinsic that no scope-table entry covers, so under Wine the fault went unhandled at `/Od`, and
+at `/O2` clang deleted the `__except` and the copy always answered success. Its filter also let a guard page's fault
+(`STATUS_GUARD_PAGE_VIOLATION`) through, which would end the game. Reading a guard page lifts its guard, and Windows
+grows a thread's stack through such a page, so `GuardedReader` is never pointed into a thread's stack.
+
 
 ```cpp
 // Pod: trivially copyable, standard layout, every bit pattern valid (integers, floats and arrays of them); each
@@ -2209,9 +2231,9 @@ the bench runs (WHY§99). Its rule takes the candidate both searches ranked firs
 | `tidy-pure` | Linux: `clang-tidy` and warnings as errors over `en-proto`, `en-augur`, `en-core`, `en-prompt`, `en-store`, `en-llm`, `en-tools` | §2.4 lists |
 | `tidy-win` | Linux: the same over the clang-cl build against xwin's SDK | §2.4 lists for `en-gal`, `en-overlay`, `eldennet`, `en-launcher` |
 | `greps` | Linux | `ffi_guard` first statement in every `extern "C"`, `WINAPI` and `CALLBACK` body (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; raw addresses, `reinterpret_cast` and pointer arithmetic outside the files §2.4 allows, or without a `// SAFETY:` note; clocks and `std::unordered_map` in the pure modules; the R12 backstop (since GraceUI's G15: any MinHook (`MH_`), ImGui renderer backend (`ImGui_Impl`) or detour symbol in EldenNet's sources); `patterns.toml` provenance not `own-derivation` |
-| `test` | Linux, with GCC and with Clang: doctest through CTest, under AddressSanitizer and UndefinedBehaviorSanitizer, and ThreadSanitizer for the threaded modules | Unit, property, DB, conformance, prompt snapshots (golden files, our own diff), golden replay, scenarios, backpressure; any sanitizer report |
+| `test` | Linux, with GCC and with Clang: doctest through CTest, under AddressSanitizer and UndefinedBehaviorSanitizer, and ThreadSanitizer for the threaded modules (built for Clang: `cmake/sanitizers.cmake`, `EN_SANITIZE`) | Unit, property, DB, conformance, prompt snapshots (golden files, our own diff), golden replay, scenarios, backpressure; any sanitizer report |
 | `test-win` | Linux: the MinGW-w64 build's Windows tests under Wine (WHY§102) | Any failure |
-| `fuzz` | Linux: a libFuzzer target for every parser (the PE parser, the pattern grammar, SSE frames, TOML content), for a fixed time per change | A crash, a sanitizer report or a hang |
+| `fuzz` | Linux: a libFuzzer target for every parser (the PE parser, the pattern grammar, SSE frames, TOML content), for a fixed time per change (built: `EN_FUZZ`, `fuzz/` with SSE frames, en-proto's JSON caps and en-prompt's template compile; the others come with their parsers; a target's entry has no `ffi_guard`, so an escaping exception reaches libFuzzer as a finding, and R3's grep leaves `fuzz/` out) | A crash, a sanitizer report or a hang |
 | `content` | Linux: `eldennet-engine lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, beckon (W13), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts; no spoiler lint against term lists (O86: stage texts and bio fields are reviewed when written) |
 | `eval` | Linux: `eldennet-engine eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
 | `licences` | Linux: the third-party check over `THIRD_PARTY.md` and the build's sources. Every third-party source is vendored with its licence files, or fetched at configure time from its own project and pinned by SHA-256 (`CMakeLists.txt`), and each is listed in `THIRD_PARTY.md` with its version and licence, against an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0, the curl licence, SQLite's public-domain dedication). System libraries are listed apart: WinHTTP, which the Windows binaries load from the system directory, and libcurl, which only the Linux and test builds link. The ban list refuses fromsoftware-rs, `from-singleton`, me3, `dearxan` and libER by name. *Since GraceUI's G15 (2026-11-08):* MinHook and the overlay's renderer backends are GraceUI's, so EldenNet's ban list also refuses, by name, every known hook library (MinHook, Detours, PolyHook, subhook, funchook, Frida, Dobby, kiero) and any ImGui renderer backend (`imgui_impl_*`); Dear ImGui's core stays allowed without a backend, for F11, as one copy at the version GraceUI pins (DESIGN O25). Once a first hook of EldenNet's own is approved (O65), its one hook library is the ban list's single exception, allowed in `en-gal` behind `hooks`, its licence checked when it is chosen. A hook library under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12) | A source not listed, unpinned, or fetched from elsewhere than its own project; a hash that differs; any other licence; a listed name |

@@ -735,9 +735,13 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
     failure's wording), fixed in m; run 2 the same day, with a cloud key: the reply and the backup request work against
     a real provider, and the cloud decision missed its 1.5 s. Still to run: cancelling a reply part-way, and run 3's
     timings of NanoGPT's candidate models, which choose `cloud-nanogpt`'s (O88, n; ARCH §11.4).
-- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
+- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs [done]
   - needs: e
-  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
+  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103, WHY§111, WHY§112
+  - gives: built 2026-11-16 on the engine branch: clang-cl and lld-link against xwin's CRT and SDK, pinned in
+    `cmake/xwin.lock`; en-gal's SEH-guarded copy, its ARCH §6.5 sketch corrected (a never-inlined copy, guard pages
+    caught); AddressSanitizer, UBSan and ThreadSanitizer builds and three libFuzzer targets on Linux. Every build and
+    test passes, under Wine for the Windows builds.
 - j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them [done]
   - needs: e
   - refs: ARCH§2.3, ARCH§2.4, ARCH§3.1, ARCH§10.2, DESIGN§2.6, WHY§103, WHY§106

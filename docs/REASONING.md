@@ -133,6 +133,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
 | 109 | 2026-11-16 | WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it | METHOD | #engine |
 | 110 | 2026-11-16 | O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows | DECIDED | #engine #design |
+| 111 | 2026-11-16 | The clang-cl build with xwin, and the SEH copy: what clang does to `__try`, guard pages, and the pinned CRT | FACT | #engine #gal #build |
+| 112 | 2026-11-16 | The sanitizers and the first fuzz targets on Linux: two test defects, no finding in our code | METHOD | #engine |
 
 ## Entries
 
@@ -2073,3 +2075,43 @@ PAGES§4.5, WHY§108
   before they ship and whenever a model changes; a local preset's models are the player's, and the self-test measures
   them. The engine reads both forms and the reserved slots (roadmap S8.1.n): GCC and Clang en_llm 155 cases, Wine 157;
   NanoGPT's models wait on run 3 (S8.1.h).
+
+### 111. The clang-cl build with xwin, and the SEH copy: what clang does to `__try`, guard pages, and the pinned CRT
+
+`2026-11-16` · FACT · `#engine #gal #build` · refs: ARCH§2.6, ARCH§6.5, DESIGN§2.6, O60
+
+- **The SEH sketch was unsafe under clang-cl** (ARCH §6.5, corrected): a `memcpy` written inside the `__try` becomes the
+  `llvm.memcpy` intrinsic, which no scope-table entry covers. Probed under Wine: at `/Od` the fault went unhandled; at
+  `/O2` clang deleted the `__except` and the copy always answered success. A never-inlined callee doing the `memcpy` is
+  covered (the tests pass at `/Od` and at `/O2` with ThinLTO; the linked function has one call in its guarded range,
+  under `__C_specific_handler`).
+- **Guard pages.** The sketch's filter (access violation, in-page error) let `STATUS_GUARD_PAGE_VIOLATION` (0x80000001)
+  through, which would end the game; the filter takes it too. Reading a guard page lifts its guard (tested under Wine).
+  LIKELY: reading another thread's stack guard takes that thread's stack growth away, so `GuardedReader` is never
+  pointed into a stack (spike S0-D).
+- **The CRT is 14.43.** MSVC's standard library 14.44 (VS 17.14) refuses a Clang older than 19 (`yvals_core.h`,
+  STL1000); 14.43 (MSVC 14.43.34808) asks for Clang 18. With LLVM pinned at 18 the lock takes CRT 14.43.17.13 and SDK
+  10.0.26100 from manifest 17.14.45, and the static CRT (`/MT`) in every configuration.
+- **Two diagnostics in the whole engine at `/W4 /WX`:** MSVC's CRT marks `getenv` deprecated, so en-llm's `system_env`
+  uses `_dupenv_s` there; and Wine 9.0's `CreateSymbolicLinkW` answers success and makes nothing (MinGW's library never
+  calls it), so en-prompt's link tests check that a link exists before judging it.
+- **Getting xwin** (METHOD): the session's network refuses crates.io's download host, so xwin 0.10.0 came from its own
+  GitHub release archive for x86_64-unknown-linux-musl, checked against the release's SHA-256. Microsoft's licence
+  covers the CRT and SDK; they stay in a cache outside every repository (O60).
+
+### 112. The sanitizers and the first fuzz targets on Linux: two test defects, no finding in our code
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§12.1, ARCH§10.2, WHY§106
+
+- **AddressSanitizer found one defect, in a test:** the R3 test of the net threads' 2 MB stacks registered a notify
+  callback capturing locals declared after the handle, which the dispatcher could call until the handle shut down
+  (stack-use-after-scope); the state now comes first.
+- **ThreadSanitizer could not link `en_llm_tests`:** its static runtime defines every form of `operator new` and
+  `delete` strongly, so a program replacing them clashes; the thread build links the shared runtime, and the tests
+  replace all twenty forms, not six, so no memory passes between their allocator and a runtime's.
+- **No finding in our code or a library's:** the three fuzz targets (SSE frames, the JSON caps, the template compile)
+  took about 3 million inputs in two runs each, and a chunking bug planted in the SSE parser was caught on the seeds at
+  once. nlohmann/json 3.11.3 refuses a number past a double's range (`1e400`), so no infinity reaches the JSON forms.
+- **The give-way test (S8.1.l):** ThreadSanitizer saw no race in 38 runs of the suite (24 of them four at once), 150 of
+  the test alone under load and 600 without the sanitizer; what failed twice is not a race it sees, and S8.1.l stays
+  open.
