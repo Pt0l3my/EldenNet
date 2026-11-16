@@ -638,16 +638,27 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: b, c
   - gives: the event engine, the game-access layer, identity by verified keys, the spoiler
     layers, the gates, pacing and read-only play stay as designed.
-- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
+- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval [done]
   - needs: a
-  - refs: O60, O84, O25, G15
+  - refs: O60, O84, O25, G15, G30, WHY§103, WHY§104
+  - gives: done 2026-11-16: DESIGN, ARCH, NPC, MEM, game data and GraceUI's design re-based from Rust crates on C++20 modules, with the behaviour, numbers and ids unchanged; the overlay chosen by the owner (Dear ImGui 1.93.0 and MinHook 1.3.4, O25 and G15 as changed); GraceUI's server decided as our own (G30), with an independent review's rules folded in (GraceUI D111 to D114, its §7.6); the core-to-overlay hand-off a triple buffer, so the present thread never waits (ARCH C6).
 - f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98), and the Skyrizz session's measurements (WHY§99): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [done]
   - needs: a
   - refs: WHY§97, WHY§98, WHY§99, O84, O46
   - gives: folded 2026-11-16: ARCH §11 (the reasoning retry, the backup request, the quantisation floor, the hourly budget), ARCH §11.8 Decision calls (new), Augur's stance and concealment (ARCH §8), the store's rules, NPC §7.1's template rules, MEM §3 and §4's per-witness memories and recall, DESIGN §13's plugin interface rules, the evaluation in NPC §12.
-- g The engine's next increment: the WinHTTP transport for the Windows build, the local probes and `/v1/models`, Ollama's warm-up, and the asynchronous handle (submit, cancel, events) that the core drives
+- g The engine's next increment: the WinHTTP transport for the Windows build, the local probes and `/v1/models`, Ollama's warm-up, and the asynchronous handle (submit, cancel, events) that the core drives [done]
   - needs: a
   - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
+  - gives: built 2026-11-16 on the engine branch: the WinHTTP transport, loaded by its full path from the system directory, with one conformance suite for it and libcurl, run under Wine; the local probes with the probe and models commands; the asynchronous handle (submit, cancel, the input epoch, events with backpressure, exactly one end per request) and Ollama's warm-up; 125 tests on Linux and 127 under Wine; every command run through the Windows build under Wine (WHY§101).
+- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [waiting]
+  - needs: g
+  - refs: ARCH§11.1, WHY§101
+- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
+  - needs: e
+  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
+- j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them
+  - needs: e
+  - refs: ARCH§2.3, ARCH§2.4, DESIGN§2.3, WHY§103
 
 ## S9 The roster pipeline [planned]
 
@@ -697,7 +708,7 @@ v0.1's testing uses, draw through it.
   - needs: a
 - d Spike S8 and S3's additions, on v0.1's recordings
   - needs: c
-- e What the review left to measure: the fallback copy's cost, hudhook's MinHook in the first build (GraceUI's host since G15), the play-time width, a Proton path
+- e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
 
@@ -726,7 +737,7 @@ v0.1's testing uses, draw through it.
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: hudhook 0.9.3 with its MinHook, Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
   - refs: O25, GraceUI:DESIGN§2.2
 - b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
   - refs: GraceUI:DESIGN§13

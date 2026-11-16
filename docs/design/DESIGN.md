@@ -1,7 +1,16 @@
 # EldenNet v1: master design
 
-> **Status:** the single source of truth for EldenNet v1, 2026-11-06. It supersedes the proposals and the judges' scorecards in [process/](process/) wherever they disagree. **Target:** ELDEN RING PC/Steam, App 1.17.2, exe 2.7.2.0 (WW) and 2.7.2.1 (JP), offline only.
-> **Built from:** [P1 lean monolith](process/P1-lean-monolith.md) as the base, with grafts from [P2](process/P2-split-brain.md) and [P3](process/P3-experience-first.md) picked by the judges ([J1](process/J1-stability-feasibility.md), [J2](process/J2-minimalism-delivery.md), [J3](process/J3-experience-ai-quality.md)). It also applies the **owner decisions of 2026-11-06** (recorded in CLAUDE.md): no me3, no fromsoftware-rs, our own event engine; and later that day, every recommended default then in §19 (O1–O24) accepted, and hudhook pinned at exactly 0.9.3 (O25). All three proposals assumed me3 (loader, `start_online`, `disable_arxan`, `savefile`) and a vendored fromsoftware-rs (J1 §4.1, J2 §2). Every such assumption is replaced in §3–§4.
+> **Status:** the single source of truth for EldenNet v1, 2026-11-06, re-based on C++ on 2026-11-16 (O60, O84;
+> roadmap S8.1.e). It supersedes the proposals and the judges' scorecards in [process/](process/) wherever they
+> disagree. **Target:** ELDEN RING PC/Steam, App 1.17.2, exe 2.7.2.0 (WW) and 2.7.2.1 (JP), offline only.
+> **Built from:** [P1 lean monolith](process/P1-lean-monolith.md) as the base, with grafts from
+> [P2](process/P2-split-brain.md) and [P3](process/P3-experience-first.md) picked by the judges
+> ([J1](process/J1-stability-feasibility.md), [J2](process/J2-minimalism-delivery.md),
+> [J3](process/J3-experience-ai-quality.md)). It also applies the **owner decisions of 2026-11-06** (recorded in
+> CLAUDE.md): no me3, no fromsoftware-rs, our own event engine; and later that day, every recommended default then in
+> §19 (O1–O24) accepted, and hudhook pinned at exactly 0.9.3 (O25; Dear ImGui and MinHook, pinned, in its place since
+> 2026-11-16). All three proposals assumed me3 (loader, `start_online`, `disable_arxan`, `savefile`) and a vendored
+> fromsoftware-rs (J1 §4.1, J2 §2). Every such assumption is replaced in §3–§4.
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J2 G9` point into the process records. LIKELY and SPECULATION keep the research's evidence labels. **RE-needed** facts are settled by the spikes in §16 before code depends on them.
 > **Licence hygiene:** SkyrimNet's author, Min, has approved EldenNet building on SkyrimNet (the owner's decision, 2026-11-07: CLAUDE.md, Licences), so its engine and content may be used and adapted, credited as Min wishes; this design was written before that, from SkyrimNet's ideas and published numbers only (SN00 §7). All example content is original. No FromSoftware text or assets ship; game text is read at runtime from the player's install.
 > **Detail documents:** [architecture.md](architecture.md) expands §2–§6, §11, §14 and §15. [npcs-and-dialogue.md](npcs-and-dialogue.md) expands §7–§9 and §12. [memory-and-knowledge.md](memory-and-knowledge.md) expands §10. The adversarial review, with what it changed and what is still open, is [process/review.md](process/review.md).
@@ -23,7 +32,7 @@ flowchart LR
       AUG["Augur event engine<br/>sources → rules → typed events"]
       SUBS["subscribers in fixed order:<br/>facts · log · conversation · barks · memory · UI"]
     end
-    NET["net (tokio)"]
+    NET["net (en-llm's own threads)"]
     STO["store (SQLite WAL)"]
     OVL["display layer: panels, notices, F11"]
     GUI["GraceUI host (graceui.dll): the one overlay,<br/>input hooks, menu, browser view"]
@@ -142,75 +151,108 @@ flowchart LR
 
 ### 2.1 Runtime shape
 
-There are two processes: `eldennet-launcher.exe` (§3.2), which since O71 stays in the background as the crash watcher, and the game; code plugins, after v1.0, add their plugin hosts outside the game (O70). All of EldenNet runs in the game process as one Rust `cdylib`, and all ML is reached over HTTP (ER06 §5.1). P2's split brain was rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
+There are two processes: `eldennet-launcher.exe` (§3.2), which since O71 stays in the background as the crash watcher,
+and the game; code plugins, after v1.0, add their plugin hosts outside the game (O70). All of EldenNet runs in the game
+process as one C++ DLL, `eldennet.dll` (O60), and all ML is reached over HTTP (ER06 §5.1). P2's split brain was
+rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
 
 | Thread | Runs | Game memory? |
 |---|---|---|
 | Game thread | The single GAL task closure | **Yes, only here.** It never blocks, locks or allocates after warm-up |
-| Present thread | GraceUI's hudhook callback (GraceUI G15); EldenNet's work there is its `on_present` callback, which draws `UiModel` and the render feed as panels within GraceUI's budget (GraceUI D71) | No |
+| Present thread | GraceUI's Present hook, which draws its frame with Dear ImGui's DX12 backend (GraceUI G15, O25); EldenNet's work there is its `on_present` callback, which draws `UiModel` and the render feed as panels within GraceUI's budget (GraceUI D71) | No |
 | Game input thread(s) | GraceUI's DirectInput and XInput detours, which mask input for whichever holder has it; EldenNet installs none | No |
 | Init (transient) | Gate, readiness wait, discovery, task registration | Image scans only, before the task exists |
-| Core | `Core::step` over a `crossbeam::select!` of inputs | No |
-| Net (tokio, 2 workers), store (rusqlite), watcher | Effects | No |
+| Core | `Core::step`, woken by one signal that every producer raises, then each input queue drained in a fixed order | No |
+| Net (en-llm's own threads, built: a fixed pool of one more worker than the providers' total concurrency, 2 to 8, and one dispatcher), store (SQLite's C API), watcher (`ReadDirectoryChangesW`) | Effects | No |
 
 **Channels.**
 - Task → core: a two-slot latest-wins snapshot slot, plus a 64-entry lifecycle queue.
 - Task → overlay: a triple-buffered render feed.
 - Core → task: a 64-entry SPSC command queue.
-- Core → overlay: `ArcSwap<UiModel>`. Overlay → core: a 256-entry `UiEvent` queue. Overlay ↔ GraceUI: its C ABI (`submit`, `notice`, `request_input`, `poll`; GraceUI §2.9), never blocking the present thread.
+- Core → overlay: a triple buffer of `UiModel`s with an atomic index swap, as the render feed: the core owns every
+  slot, so the present thread never waits and never frees (R6). Overlay → core: a 256-entry `UiEvent` queue.
+  Overlay ↔ GraceUI: its C ABI (`submit`, `notice`, `request_input`, `poll`; GraceUI §2.9), never blocking the present
+  thread.
 - Core ↔ store: 1,024 each way. Core ↔ net: 64 requests and 1,024 stream events.
 
-The game and render threads use only `try_send`, atomics and preallocated buffers (P1 R5, P2 §2.3).
+The game and render threads use only non-blocking `try_push` and `try_pop` on lock-free queues, atomics and
+preallocated buffers (P1 R5, P2 §2.3).
 
-### 2.2 Crates
+### 2.2 Modules
+
+Each module is a CMake target in `src/<module>/`, with its headers in `include/en/<name>/`, its sources in `src/` and
+its tests in `tests/`: a static library, except `eldennet` (the DLL), `en-launcher` and `en-tools` (programs), which
+link the others (§15).
 
 ```mermaid
 flowchart TB
   PROTO["en-proto<br/>messages, GameBackend, GameThread"]
   AUG["en-augur<br/>event engine"]
+  PROMPT["en-prompt<br/>templates on inja (built)"]
   CORE["en-core<br/>identity, scheduler, conversation,<br/>barks, memory logic, prompts, content"]
   STORE["en-store (SQLite)"]
-  LLM["en-llm (HTTP/SSE)"]
+  LLM["en-llm (HTTP/SSE, built)"]
   GAL["en-gal<br/>gate, discovery, layouts, reader, task"]
-  OVL["en-overlay<br/>display layer: panels through GraceUI,<br/>F11 on a headless ImGui"]
-  DLL["eldennet (cdylib)"]
-  LAUNCH["en-launcher (bin)"]
-  TOOLS["en-tools (bin)"]
+  OVL["en-overlay<br/>display layer: panels through GraceUI,<br/>F11 on Dear ImGui's core, no backend"]
+  DLL["eldennet (DLL)"]
+  LAUNCH["en-launcher (exe)"]
+  TOOLS["en-tools (exe: eldennet-engine)"]
   AUG --> PROTO
-  CORE --> AUG & PROTO
+  CORE --> AUG & PROTO & PROMPT
   STORE --> PROTO
   LLM --> PROTO
   GAL --> PROTO
   OVL --> PROTO
   DLL --> CORE & GAL & OVL & STORE & LLM
-  TOOLS --> CORE & STORE & LLM
-  TOOLS -.->|"offline modules only"| GAL
-  LAUNCH -.->|"offline modules only"| GAL
+  TOOLS --> CORE & PROMPT & STORE & LLM
+  TOOLS -.->|"offline part only"| GAL
+  LAUNCH -.->|"offline part only"| GAL
 ```
 
-- `en-proto`, `en-augur` and `en-core` use no `unsafe`, do no I/O and read no clock. ER meaning lives in `content/eldenring/`, so the core stays game-neutral.
-- `en-gal` holds the only `unsafe` that reads game memory, and it has no LLM, DB or UI. Its `offline` feature compiles only the safe modules (PE parsing, the pattern grammar, the build and layout schemas), which is all the launcher and `en-tools probe-exe` use (ARCH §2.1).
-- `en-overlay` uses `unsafe` only for its calls across GraceUI's C ABI (through `graceui-sys`). It links no hudhook, MinHook or ImGui renderer backend and installs no hook (GraceUI G15, invariant 16); its F11 view keeps imgui-rs on a headless context of its own, submitted as a panel.
+- `en-proto`, `en-augur` and `en-core` hold no raw address and no `reinterpret_cast`, do no I/O and read no clock. ER
+  meaning lives in `content/eldenring/`, so the core stays game-neutral.
+- `en-prompt` (built, O84) is the template engine, on inja, with the rules of §8.3 (NPC §7.1); `en-core` builds its
+  prompts with it.
+- `en-gal` holds the only code that reads game memory (`GuardedReader`, R4), and it has no LLM, DB or UI. Its offline
+  part (PE parsing, the pattern grammar, the build and layout schemas) is a library target of its own, which is all
+  the launcher and `eldennet-engine probe-exe` link (ARCH §2.1).
+- `en-overlay` keeps its calls across GraceUI's C ABI in its `abi` file (through `graceui-sys`, GraceUI's header-only C
+  helper, and its thin C++ wrapper). It links neither MinHook nor an ImGui renderer backend and installs no hook
+  (GraceUI G15, invariant 16); its F11 view keeps Dear ImGui's core, at the version GraceUI pins, on a context of its
+  own with no backend, submitted as a panel.
 - `eldennet` wires the threads together and wraps foreign entries in `ffi_guard`.
-- `en-tools` provides `replay`, `golden`, `eval`, `lint`, `render-prompt`, `probe-exe`, `mockllm`, `bake-pools`, `selftest`, `fmg-import`, `identity-fill`, `kb-draft`, `flag-verify`, `roster-scan`, `roster-draft` and `roster-verify` (ARCH §12.3).
+- `en-tools` builds the `eldennet-engine` command (built: `render-prompt`, `chat`, `decide`, `probe`, `models`); the
+  other tools are its subcommands: `replay`, `golden`, `eval`, `lint`, `probe-exe`, `mockllm`, `bake-pools`,
+  `selftest`, `fmg-import`, `identity-fill`, `kb-draft`, `flag-verify`, `roster-scan`, `roster-draft` and
+  `roster-verify` (ARCH §12.3).
 
 ### 2.3 The adapter boundary: snapshot in, commands out
 
-```rust
-pub trait GameBackend: Send {                        // en-proto; implemented by en-gal and by replay
-    fn probe(&mut self, gt: &GameThread) -> Capabilities;
-    fn snapshot(&mut self, gt: &GameThread, out: &mut WorldSnapshot) -> Result<(), ReadError>;
-    fn render_feed(&mut self, gt: &GameThread, want: &[ChrHandle], out: &mut RenderFeed) -> Result<(), ReadError>;
-    fn apply(&mut self, gt: &GameThread, cmd: &GameCommand) -> Result<(), ApplyError>;
-}
-pub enum GameCommand {                               // v1: read configuration only
-    SetWatchFlags { version: u32, ids: Arc<[u32]> }, SetTracked { handles: SmallVec<[ChrHandle; 8]> },
-    ResolveText { fmg: u16, ids: SmallVec<[u32; 8]> }, ResolveParams { ids: SmallVec<[u32; 16]> }, Noop,
-    // reserved behind features that are off in v1: Freeze, NativeLine, Action{executor, args, epoch, deadline}
-}
+```cpp
+struct GameCommand {                       // en-proto; v1: read configuration only
+  struct SetWatchFlags { std::uint32_t version; std::shared_ptr<const std::vector<std::uint32_t>> ids; };
+  struct SetTracked { FixedVector<ChrHandle, 8> handles; };
+  struct ResolveText { std::uint16_t fmg; FixedVector<std::uint32_t, 8> ids; };
+  struct ResolveParams { FixedVector<std::uint32_t, 16> ids; };
+  struct Noop {};
+  // reserved behind options that are off in v1: Freeze, NativeLine, Action{executor, args, epoch, deadline}
+  std::variant<SetWatchFlags, SetTracked, ResolveText, ResolveParams, Noop> payload;
+};
+class GameBackend {                        // en-proto; implemented by en-gal and by replay
+ public:
+  virtual ~GameBackend() = default;
+  virtual Capabilities probe(const GameThread& gt) = 0;
+  virtual Expected<void, ReadError> snapshot(const GameThread& gt, WorldSnapshot& out) = 0;
+  virtual Expected<void, ReadError> render_feed(const GameThread& gt, std::span<const ChrHandle> want,
+                                                RenderFeed& out) = 0;
+  virtual Expected<void, ApplyError> apply(const GameThread& gt, const GameCommand& cmd) = 0;
+};
 ```
 
-- `GameThread` is a zero-sized, `!Send` token. Its constructor may be called only by the task trampoline and the replay harness; Rust cannot restrict a public constructor to two crates, so a CI grep allows it in exactly those two files (ARCH §6.4). Off-thread reads therefore do not compile without breaking that CI rule (P2 §2.1, J2 G5).
+- `GameThread` is an empty, move-only token type with a private constructor. Only the task trampoline and the replay
+  harness issue one; C++ cannot limit that to two files by itself, so a CI grep allows it in exactly those two files
+  (ARCH §6.4). Code off the game thread therefore holds no token to read with, short of breaking that CI rule (P2
+  §2.1, J2 G5).
 - Handles (the packed `FieldInsHandle`) cross the boundary; pointers never do.
 - Every message is serializable, so a recording is just the list of messages (ER00 §3.1).
 
@@ -248,21 +290,53 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 
 ### 2.6 Crash-safety rules (normative)
 
-- **R1 One reader.** Game objects are read only in the task closure, through methods that require `&GameThread`. Init reads only the executable image: section bytes, and static slots compared with null. It never follows a static into a heap object. This is the one documented exception to "game memory only on the game thread", and it ends when the task is registered.
+- **R1 One reader.** Game objects are read only in the task closure, through methods that take a `const GameThread&`.
+  Init reads only the executable image: section bytes, and static slots compared with null. It never follows a static
+  into a heap object. This is the one documented exception to "game memory only on the game thread", and it ends when
+  the task is registered.
 - **R2 No writes, no calls.** No game memory is written and no game function is called after `register_task`. Before it, the only game-code calls are `register_task` itself and the init-only singleton-name getter fallback (§4.2). Text, params and flags are read from memory (§4.5). The one call into third-party code is the S4-gated Steam floating keyboard (`steam_api64.dll`, never game code; §8.1).
-- **R3 Guard foreign entries.** Every callback entered from foreign code starts with `ffi_guard`: `catch_unwind` plus a per-component tripped flag. Built with `panic = "unwind"`, and enforced by a CI grep.
-- **R4 Copies, never references.** `GuardedReader::copy::<T: Pod>(addr, len)` is an SEH-protected memcpy plus plausibility checks: canonical address, alignment, vtable in `.rdata`. Copy sizes come from the layout profile, per class (J1 #8: base `ChrIns` ends at 0x580 on 1.17.2).
+- **R3 Guard foreign entries.** No exception crosses into foreign code. Every entry from it (`DllMain`, the C ABI
+  exports, the game's task callback, GraceUI's callbacks, and the callbacks Windows or a library calls, such as
+  WinHTTP's status callback and libcurl's write callback) is `noexcept` and starts with `ffi_guard`: a catch-all
+  handler plus a per-component tripped flag. A CI grep enforces it.
+- **R4 Copies, never references.** `GuardedReader::copy<T>(addr, len)`, for a trivially copyable `T`, is one
+  SEH-protected `memcpy` (`__try`/`__except`, written in C++ in `en-gal`'s reader) into storage the caller owns, plus
+  plausibility checks: canonical address, alignment, vtable in `.rdata`. Copy sizes come from the layout profile, per
+  class (J1 #8: base `ChrIns` ends at 0x580 on 1.17.2).
 - **R5 Re-resolve every tick.** Singleton instances are re-read from their statics, and null means loading (J1 #6). Characters are re-found by handle. Each object's vtable is compared, every tick, with the RTTI-resolved set (J1 #16).
-- **R6 Never block** the game, render or input threads: no shared mutex, bounded `try_send`, no allocation on the game thread after warm-up.
+- **R6 Never block** the game, render or input threads: no shared mutex, bounded non-blocking `try_push`, no
+  allocation on the game thread after warm-up.
 - **R7 Gate before layout.**
-- **R8 Breakers.** A read group trips after 3 faults in 60 s: off for the session, with a toast. A core subsystem is reset after its first panic and disabled after its second.
-- **R9 Lints.** Deny `unwrap`, `expect`, `panic`, indexing and unchecked arithmetic in `en-gal`, `en-overlay`, `eldennet` and `en-launcher`. In the game process, `unsafe` blocks appear only in `en-gal::{reader, sys}` and `en-overlay::abi` (its calls across GraceUI's C ABI; under GraceUI's G15 it has no hooks module), each with a `// SAFETY:` note. `eldennet` allows `unsafe_code` only on its `exports` module, for the `#[unsafe(no_mangle)]` attributes of `DllMain` and the instance marker, and that module holds no `unsafe` block. The launcher, a separate process, keeps its Win32 `unsafe` in `en-launcher::win` (ARCH §2.4).
+- **R8 Breakers.** A read group trips after 3 faults in 60 s: off for the session, with a toast. A core subsystem is
+  reset after its first fault (an exception its guard catches) and disabled after its second.
+- **R9 Lints.** In `en-gal`, `en-overlay`, `eldennet` and `en-launcher`, CI refuses `throw`, unchecked access to a
+  `std::optional` or an `Expected`, unchecked indexing and unchecked or narrowing arithmetic (`clang-tidy` with a
+  checked-in configuration, and warnings as errors). In the game process, raw addresses, `reinterpret_cast` and
+  pointer arithmetic on them appear only in `en-gal`'s `reader` and `sys` files and `en-overlay`'s `abi` file (its
+  calls across GraceUI's C ABI; under GraceUI's G15 it has no hooks file), each with a `// SAFETY:` note; a grep and a
+  `clang-tidy` rule enforce it. The modules that never touch game memory (`en-store`, `en-llm`, `en-prompt`) may cast
+  only a C API's own pointers, such as a callback's context, each with the same note (ARCH §2.4). `eldennet`'s
+  `exports` file holds its exports (`extern "C" BOOL WINAPI DllMain(...)`
+  and the instance marker) and no raw address. The launcher, a separate process, keeps its raw Win32 handles and casts
+  in `en-launcher`'s `win` file (ARCH §2.4).
 - **R10 Time-based cadence and self-throttle.** Accumulated QPC time, never frame counts (J2 G21). After 3 ticks over 0.5 ms, drop to 2 Hz and 16 characters within 25 m; restore after 60 s.
 - **R11 Idle while loading.**
-- **R12 GraceUI's functions are GraceUI's; EldenNet's own hooks are few and approved.** Since GraceUI's G15 (2026-11-08) the process's overlay and input hooks are GraceUI's, in system DLLs, installed once, never toggled, chained, all through the one MinHook copy that hudhook bundles (`hudhook::mh` in 0.9.3), inside `graceui.dll` (ER02 §7.1, J1 #15, O25; GraceUI invariant 16). EldenNet links no hudhook and hooks none of the functions GraceUI publishes. In v1 it hooks nothing at all. Later, under O65 (2026-11-15), it may link one hook library of its own, in `en-gal` behind the `hooks` feature, to hook game functions and system functions GraceUI does not hook (a hook-based event source, §13; the save redirect, §3.6): each hook installed once, after GraceUI's `connect` has answered, chained and never removed, and each needing its spike and the owner's approval before it ships. CI checks EldenNet's imports and symbols: no hook library outside that module, and no hook target on GraceUI's published list.
+- **R12 GraceUI's functions are GraceUI's; EldenNet's own hooks are few and approved.** Since GraceUI's G15
+  (2026-11-08) the process's overlay and input hooks are GraceUI's, in system DLLs, installed once, never toggled,
+  chained, all through the one MinHook copy (1.3.4, pinned; O25 as changed on 2026-11-16) inside `graceui.dll`, which
+  never unhooks or unloads while the game runs (ER02 §7.1, J1 #15, O25; GraceUI invariant 16). EldenNet links neither
+  MinHook nor an ImGui renderer backend, and hooks none of the functions GraceUI publishes. In v1 it hooks nothing at
+  all. Later, under O65 (2026-11-15), it may link one hook library of its own, in `en-gal` behind the `hooks` build
+  option, to hook game functions and system functions GraceUI does not hook (a hook-based event source, §13; the save
+  redirect, §3.6): each hook installed once, after GraceUI's `connect` has answered, chained and never removed, and
+  each needing its spike and the owner's approval before it ships. CI checks EldenNet's imports and symbols: no hook
+  library outside that module, and no hook target on GraceUI's published list.
 - **R13 Sanitized, byte-capped strings** only (§8.4).
 - **R14 No work at `DLL_PROCESS_DETACH`.** Every DB request is one WAL transaction, committed as soon as the store receives it. Speech commits (`PlayerSaid`, each `NpcSaid` page) are sent at once. Other writes are coalesced by the core into one request at most every 250 ms (ARCH §1.5).
-- **R15 Abort-class failures are designed out** (J1 #7). `catch_unwind` cannot stop a stack overflow, OOM, C-level faults or panics in `Drop`. So: size and recursion caps on templates, JSON and the sanitizer; bounded buffers; no panics in `Drop`; no ML in process. The residual risk is accepted, with an out-of-process core kept as a seam (§13).
+- **R15 Abort-class failures are designed out** (J1 #7). A catch-all handler cannot stop a stack overflow, a C-level
+  fault, an exception leaving a destructor or another `noexcept` function (`std::terminate`) or, in practice, running
+  out of memory. So: size and recursion caps on templates, JSON and the sanitizer; bounded buffers; destructors that
+  never throw; no ML in process. The residual risk is accepted, with an out-of-process core kept as a seam (§13).
 - **R16 Single instance.** A per-process named mutex. A second copy, for example one loaded by both the launcher and a me3 profile, exits its init thread.
 
 ### 2.7 Failure contract (what the player sees; P3 §5.11, J3 #26)
@@ -318,13 +392,15 @@ Its first screen states, in plain words: offline only; saves are backed up but n
 | **Player-configured me3 native** | **Supported; documented in our own docs only** | Seamless Co-op must start from its own launcher or a mod engine, and injectors cannot carry it (ER02 §2.3). We rely on no me3 feature: a post-main load simply passes the readiness wait. We never post in me3's spaces (ER02 §3.2) |
 | `dinput8.dll` proxy | Rejected | Clashes with Elden Mod Loader, ME2's dinput8 mode and the practice tool. Cannot carry ERSC. Needs `WINEDLLOVERRIDES` under Proton (ER02 §3.3) |
 | `winhttp.dll` proxy | v1.x note | Used by EROverlay and the EAC Toggler. Useful property: EAC LIKELY refuses to start next to it (ER02 §2.1) |
-| `dxgi.dll` proxy | Rejected | It would sit under hudhook's own DXGI hooks and other DXGI injectors (SPECULATION, J1 #24) |
+| `dxgi.dll` proxy | Rejected | It would sit under GraceUI's own DXGI hooks and other DXGI injectors (SPECULATION, J1 #24) |
 | ME2 `external_dlls`, Elden Mod Loader | Work, unsupported | The DLL is loader-agnostic; both loaders are discontinued or legacy |
 | Other chain loaders and injectors (Lazy Loader and similar) | Work if they call `LoadLibraryW`, unsupported | Nothing in the DLL depends on who loaded it or when (ARCH §4.10). Like Elden Mod Loader, they cannot carry ERSC (ER02 §2.3) |
 
 ### 3.4 Offline and multiplayer gating, in our own code
 
-- **Active** only if every snapshot shows `multiplay_role == Host`, `is_my_world`, `LobbyState == None` and `player_chr_set.len() == 1`, and no anti-cheat module is loaded (ER05 §3). Otherwise EldenNet goes **dormant** at once, and re-activates only after 5 clean seconds. If the `session` group fails its self-test, AI stays off.
+- **Active** only if every snapshot shows `multiplay_role == Host`, `is_my_world`, `LobbyState == None` and
+  `player_chr_set.size() == 1`, and no anti-cheat module is loaded (ER05 §3). Otherwise EldenNet goes **dormant** at
+  once, and re-activates only after 5 clean seconds. If the `session` group fails its self-test, AI stays off.
 - **The set count** is meant to catch ERSC partners at any distance (J2 G14; SPECULATION until S0-C). It counts only entries whose `chr_type` is not an NPC type. If NPC summons (`WhiteSummonNpc`) or NPC invaders also live in `player_chr_set`, counting them would make EldenNet dormant in every summon-assisted boss fight, and `FoughtBeside` could never fire, because a dormant task reads no characters. S1 lists which `chr_type` values appear in the set.
 - **At the title screen** there is no `PlayerGameData`, so no role can be read. There the gate is clean only if the lobby is `None`, no anti-cheat module is loaded and the `session` group is healthy. This title clause permits network calls for the wizard and the silent self-test (§11.5) and nothing else: speech stays dormant until a world is loaded (ARCH §5.1).
 - **Anti-cheat check (SPECULATION, cheap):** a loaded module named `EasyAntiCheat*`, or a parent process named `start_protected_game.exe` → banner.
@@ -391,11 +467,11 @@ That is 5 AOB items, 11 singletons and about 65 fields (P1 §2.5, J1 §7.1 #3). 
 |---|---|
 | `session` | Lobby in enum range; solo play reads Host and own world. **Must pass, or AI stays off** |
 | `world` | Vtables are `ChrIns` subclasses; distances ascend; `0 < max_hp ≤ 100000`, `hp ≤ max_hp`; `npc_param_id` resolves |
-| `combat` | Handles resolve or are null; throw state in 0..=6 |
-| `player` | Main player is `CS::PlayerIns`; name is valid UTF-16 of 1–16 chars; slot in 0..=9; play time rising |
+| `combat` | Handles resolve or are null; throw state in 0–6 |
+| `player` | Main player is `CS::PlayerIns`; name is valid UTF-16 of 1–16 chars; slot in 0–9; play time rising |
 | `flags` | Divisor == 1000; flag 100 set. Unallocated groups read false (ER01 §9), so each watched ID's group is checked: every core alias (100, 9000, 180–187) must exist; more than 10% of non-DLC aliases missing fails the group; a missing DLC alias reads Unknown, because the DLC may not be installed (MEM §6.2) |
 | `text` | ≥ 20 tables; known NpcName and PlaceName IDs give 1–64 printable chars |
-| `ui` | `hud_state` in 0..=3; banner and popup values in range |
+| `ui` | `hud_state` in 0–3; banner and popup values in range |
 | `place` | Place ID resolves; hour < 24 |
 | `camera` | Orthonormal rotation; FOV in 0.3–2.5 rad |
 | `params` | Known rows found; row sizes match the paramdef |
@@ -425,21 +501,36 @@ Unknown builds always stop at L1. A probation mode is deferred (O12).
 
 ### 4.5 Text, params and flags without function calls
 
-- **Text:** walk the in-memory FMG table from `MsgRepository` (ER01 §8.3). NpcName is {428, 328, 18}, PlaceName {429, 329, 19}, in DLC order. Look-ups are binary-searched and cached until the table pointer changes. There is no `GetMessage` call or hook, so nothing collides with Reforged (J1 claim 8). Caveat: a mod that serves text through a `GetMessage` hook (Reforged merges DLC text that way, ER01 §8.3) can show names the raw tables do not hold, so under such a mod our names may differ from the game's. The layout leads (`+0x08`, `+0x14`) date from 2.6.2.0; S2 confirms them. Fallback: `en-tools fmg-import` reads an export the *player* made from their own install.
+- **Text:** walk the in-memory FMG table from `MsgRepository` (ER01 §8.3). NpcName is {428, 328, 18}, PlaceName
+  {429, 329, 19}, in DLC order. Look-ups are binary-searched and cached until the table pointer changes. There is no
+  `GetMessage` call or hook, so nothing collides with Reforged (J1 claim 8). Caveat: a mod that serves text through a
+  `GetMessage` hook (Reforged merges DLC text that way, ER01 §8.3) can show names the raw tables do not hold, so under
+  such a mod our names may differ from the game's. The layout leads (`+0x08`, `+0x14`) date from 2.6.2.0; S2 confirms
+  them. Fallback: `eldennet-engine fmg-import` reads an export the *player* made from their own install.
 - **Params:** guarded `SoloParamRepository` walks, ≤ 32 new rows per tick, cached.
 - **Flags:** `id / 1000` → descriptor map → block → `byte = (id % 1000) / 8`, `bit = 7 − id % 8` (ER01 §9). A pure read on every 4th snapshot (1 Hz; 0.5 Hz while throttled, R10).
 
 ### 4.6 How a patch is absorbed (budget 1–7 days; ER00 §4)
 
 1. On patch day, players see the L1 banner automatically (C2).
-2. `en-tools probe-exe` checks every pattern and singleton against the new exe file, offline (P3 §11.4).
-3. A dev build with `--features probe` recovers offsets in game by invariant search (RTTI vtables, `hp ≤ max_hp` pairs, the ascending distance vector, the known UTF-16 name) and writes a draft layout file (P1 §11.5).
+2. `eldennet-engine probe-exe` checks every pattern and singleton against the new exe file, offline (P3 §11.4).
+3. A dev build with the `probe` build option recovers offsets in game by invariant search (RTTI vtables, `hp ≤ max_hp`
+   pairs, the ascending distance vector, the known UTF-16 name) and writes a draft layout file (P1 §11.5).
 4. Run the self-tests and the recorded smoke route (Church of Elleh → Gatefront → camp fight → Kalé → Roundtable), and compare its events with the golden files.
 5. If no code changed, ship a **data-only update** of `gal/`. Keep the earlier builds' profiles (ER01 §1).
 
 ### 4.7 Backend seam
 
-The swap point is `GameBackend` (§2.3). Inside `en-gal`, a narrower `SysLayer` trait (`register_recurring`, `singleton`, `param_table`, `rtti_vtables`, taking `&GameThread` where it reads) isolates the platform primitives (P1 §2.5, J1 §7.1 #1). Our own implementation is about 600 lines plus a few weeks (P1 §2.5). The owner has ruled out fromsoftware-rs (O3): its NON-AI licence files start on 2026-10-12, and its build gate panics (ER02 §4.1). The seam remains for replay and for other backends. CI enforces the licence rule three ways (ARCH §12.1): a `cargo deny` licence allowlist; a `[bans]` list that names fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; and `en-tools lint --licence-files`, which scans every dependency's licence-file text for "NON-AI". The last is needed because `cargo deny` reads only `Cargo.toml` metadata, and fromsoftware-rs's metadata still says `MIT OR Apache-2.0` while its licence files say NON-AI (ER00 §7).
+The swap point is `GameBackend` (§2.3). Inside `en-gal`, a narrower `SysLayer` interface (`register_recurring`,
+`singleton`, `param_table`, `rtti_vtables`, taking a `const GameThread&` where it reads) isolates the platform
+primitives (P1 §2.5, J1 §7.1 #1). Our own implementation is about 600 lines plus a few weeks (P1 §2.5). The owner has
+ruled out fromsoftware-rs (O3): its NON-AI licence files start on 2026-10-12, and its build gate panics (ER02 §4.1).
+The seam remains for replay and for other backends. CI enforces the licence rule three ways (ARCH §12.1): every
+third-party source is vendored with its licence files or fetched at configure time pinned by SHA-256, and listed in
+`THIRD_PARTY.md` against a licence allowlist; a ban list refuses fromsoftware-rs, `from-singleton`, me3, `dearxan` and
+libER by name (code copied from them is refused as well); and `eldennet-engine lint --licence-files` scans every
+dependency's licence-file text for "NON-AI". The last is needed because a project's declared licence can disagree with
+its files: fromsoftware-rs's metadata still says `MIT OR Apache-2.0` while its licence files say NON-AI (ER00 §7).
 
 ---
 
@@ -458,37 +549,42 @@ The 40 m radius follows SN00 §6. S1 checks whether `distance` is squared (ER01 
 
 ### 5.2 `WorldSnapshot` schema
 
-```rust
+```cpp
+struct Meter { std::uint32_t cur, max; };
+struct Chr { ChrHandle handle; std::uint32_t param, model, entity; std::uint8_t kind, team;
+  Meter hp; bool dead; std::optional<ChrHandle> last_hit_by; std::int32_t recv_dmg_type; std::uint8_t throw_state;
+  float dist_m, bearing_deg; bool on_screen; StatusSet statuses; std::optional<bool> asleep;
+  BlockId block; std::array<float, 3> pos; };
 struct WorldSnapshot {
-    seq: u64, mono_ms: u64, gap: bool, build: BuildKey, health: ReadHealth,
-    session: Session { role: MultiplayRole, is_my_world: bool, lobby: LobbyState, player_set_len: u8,
-                       anticheat: bool, ersc_loaded: bool },
-    life: Life { main_player: bool, screen: Screen /* InGame|Loading|Title */, load_counter: u32 },
-    ui: Ui { hud: HudState /* 0 HideAll 1 ShowAll 2 PopupMenu 3 Default */, banner: Option<u16>,
-             popup_talk_id: Option<u32>, talk_cam: bool, subtitles_on: bool },
-    player: Option<Player { handle: ChrHandle, level: u16, archetype: u8, body: BodyType,
-        hp: (u32, u32), fp: (u32, u32), stamina: (u32, u32), runes_held: u32, deaths: u32,
-        play_time_ms: u64, ng_lvl: u8, save_slot: u8, dead: bool, riding: bool /* ride_state 5 */,
-        locked_on: Option<ChrHandle>, last_hit_by: Option<ChrHandle>, throw: u8,
-        roundtable: bool /* SpEffect 9621 */, statuses: StatusSet, block: BlockId, pos: [f32; 3], gear: Gear,
-        boss_flag: bool /* boss_fight_active, the cross-check */ }>,   // None when main_player is null
-    place: Option<Place { place_id: Option<u32>, region: RegionKey, legacy: bool, overworld: bool }>,
-    clock: Option<Clock { h: u8, m: u8 }>,
-    boss: Boss { active: bool /* bars non-empty or boss_flag */, bars: ArrayVec<BossBar, 3> },
-    chars: ArrayVec<Chr, 32>,
-    flags: Option<FlagFrame /* watch-list version + bitset + valid bits */>,
-    new_text: ArrayVec<TextEntry, 16>,        // answers to ResolveText
-    new_params: ArrayVec<ParamRowInfo, 32>,   // answers to ResolveParams and the Ready-time grace/place export
-}
-struct Chr { handle: ChrHandle, param: u32, model: u32, entity: u32, kind: u8, team: u8,
-    hp: (u32, u32), dead: bool, last_hit_by: Option<ChrHandle>, recv_dmg_type: i32, throw: u8,
-    dist_m: f32, bearing_deg: f32, on_screen: bool, statuses: StatusSet, asleep: Option<bool>,
-    block: BlockId, pos: [f32; 3] }
+  std::uint64_t seq, mono_ms; bool gap; BuildKey build; ReadHealth health;
+  struct Session { MultiplayRole role; bool is_my_world; LobbyState lobby; std::uint8_t player_set_len;
+                   bool anticheat, ersc_loaded; } session;
+  struct Life { bool main_player; Screen screen /* InGame|Loading|Title */; std::uint32_t load_counter; } life;
+  struct Ui { HudState hud /* 0 HideAll 1 ShowAll 2 PopupMenu 3 Default */; std::optional<std::uint16_t> banner;
+              std::optional<std::uint32_t> popup_talk_id; bool talk_cam, subtitles_on; } ui;
+  struct Player { ChrHandle handle; std::uint16_t level; std::uint8_t archetype; BodyType body;
+    Meter hp, fp, stamina; std::uint32_t runes_held, deaths; std::uint64_t play_time_ms;
+    std::uint8_t ng_lvl, save_slot; bool dead, riding /* ride_state 5 */;
+    std::optional<ChrHandle> locked_on, last_hit_by; std::uint8_t throw_state;
+    bool roundtable /* SpEffect 9621 */; StatusSet statuses; BlockId block; std::array<float, 3> pos; Gear gear;
+    bool boss_flag /* boss_fight_active, the cross-check */; };
+  std::optional<Player> player;               // empty when main_player is null
+  struct Place { std::optional<std::uint32_t> place_id; RegionKey region; bool legacy, overworld; };
+  std::optional<Place> place;
+  struct Clock { std::uint8_t h, m; };
+  std::optional<Clock> clock;
+  struct Boss { bool active /* bars non-empty or boss_flag */; FixedVector<BossBar, 3> bars; } boss;
+  FixedVector<Chr, 32> chars;
+  std::optional<FlagFrame> flags;             // watch-list version + bitset + valid bits
+  FixedVector<TextEntry, 16> new_text;        // answers to ResolveText
+  FixedVector<ParamRowInfo, 32> new_params;   // answers to ResolveParams and the Ready-time grace/place export
+};
 ```
 
 - The player's name is read once per playthrough, sent in `PlaythroughReady`, and used only to verify a name the player gives in chat (§10.2).
 - A snapshot is about 3–4 KB serialised (about 8 KB in memory), so a recording runs about 4 MB/h after zstd. ARCH §7.1 gives every field's unit and source.
-- Torrent and spirit summons carry their `kind`; they are perceived, never voiced. `statuses` and `asleep` stay empty and `None` until S8 verifies them (O40).
+- Torrent and spirit summons carry their `kind`; they are perceived, never voiced. `statuses` and `asleep` stay empty
+  and unset until S8 verifies them (O40).
 
 ### 5.3 Combat state and engagement (with confidence)
 
@@ -526,7 +622,9 @@ Code turns numbers into phrases before any prompt sees them (SN00 §4 row 13):
 
 ## 6. Augur: the event engine
 
-Elden Ring has no event bus: flags are state bits, and nothing notifies anyone when they change (ER00 §1.2). **Augur** turns raw state into typed, timestamped, audience-tagged events for conversation, barks and memory. It is a pure crate (`en-augur`) running inside `Core::step`, not a threaded framework (J2 §2 item 5).
+Elden Ring has no event bus: flags are state bits, and nothing notifies anyone when they change (ER00 §1.2). **Augur**
+turns raw state into typed, timestamped, audience-tagged events for conversation, barks and memory. It is a pure
+module (`en-augur`) running inside `Core::step`, not a threaded framework (J2 §2 item 5).
 
 ### 6.1 Shape
 
@@ -546,7 +644,8 @@ flowchart LR
 
 ### 6.2 Sources
 
-All sources implement one interface: `trait EventSource { fn poll(&mut self, input: &CoreInput, world: &WorldModel, out: &mut Observations) }`.
+All sources implement one interface, `EventSource`, whose one function is
+`virtual void poll(const CoreInput& input, const WorldModel& world, Observations& out) = 0;`.
 
 | Source | Feeds on | Observes |
 |---|---|---|
@@ -555,7 +654,7 @@ All sources implement one interface: `trait EventSource { fn poll(&mut self, inp
 | `Lifecycle` | GAL state and health | Ready, playthrough, loading, title, gate changes, group trips |
 | `Pipeline` | Conversation and UI outputs | Speech and conversation events |
 | `Timer` | `now` | Periodic checks (ambient idle, decay) |
-| `HookFlagSetter`, `HookDamage`, `HookTalkInvoke` | **Reserved; cargo feature `hooks`, off** | Flag-set routine (TGA AOB), `CSChrDamageModule` slot 7 / `HitChr`, `CSEzStateTalkEvent::invoke` (ER01 §9, ER05 §8.2, §8.6). Each needs a spike and an Arxan review |
+| `HookFlagSetter`, `HookDamage`, `HookTalkInvoke` | **Reserved; build option `hooks`, off** | Flag-set routine (TGA AOB), `CSChrDamageModule` slot 7 / `HitChr`, `CSEzStateTalkEvent::invoke` (ER01 §9, ER05 §8.2, §8.6). Each needs a spike and an Arxan review |
 
 ### 6.3 Declarative rules (`content/eldenring/augur/*.toml`)
 
@@ -594,15 +693,16 @@ Rules are validated at load and hot-reloaded. User rule files load only when `au
 
 ### 6.4 Event model
 
-```rust
+```cpp
 struct Event {
-    id: EventId /* (step seq, index) */, kind: EventKind /* typed payload */, class: Class /* P|K|T */,
-    t_play_ms: u64, t_mono_ms: u64, journey: u16, place: PlaceRef /* block, place_id, region */,
-    subject: Option<ActorRef>, object: Option<ActorRef>,     // persona | card + handle | player
-    audience: SmallVec<[(PersonaId, How); 4]>,              // frozen; direct | overheard | witnessed
-    confidence: f32, source: SourceId, rule: RuleId,
-    key: Option<ArcStr>, ttl_ms: Option<u32>, count: u16, interrupts: InterruptSet,
-}
+  EventId id /* (step seq, index) */; EventKind kind /* typed payload */; Class event_class /* P|K|T */;
+  std::uint64_t t_play_ms, t_mono_ms; std::uint16_t journey; PlaceRef place /* block, place_id, region */;
+  std::optional<ActorRef> subject, object;              // persona | card + handle | player
+  std::vector<std::pair<PersonaId, How>> audience;      // frozen; direct | overheard | witnessed
+  float confidence; SourceId source; RuleId rule;
+  std::shared_ptr<const std::string> key; std::optional<std::uint32_t> ttl_ms; std::uint16_t count;
+  InterruptSet interrupts;
+};
 ```
 
 - **P** events are stored with their audience.
@@ -624,7 +724,7 @@ struct Event {
 | `FoughtBeside` | Boss victory with the persona present as a summon | P | 0.9 | — (memory) |
 | `PlayerDied` | Dead rising, `deaths` +1, or banner 5 | P, dedup 5 s | 1.0 | `player_fell` |
 | `NativeTalkStarted/Ended` | Popup talk id, talk camera, or `hud == PopupMenu` with a persona ≤ 3 m (S3 picks the signals) | T + scheduler lock; P with persona, dedup 5 min | 0.6 until S3 | — (gates; `stage_talk`'s fold) |
-| `Struck{att, vic, hard}` | HP Δ > 0, att = `last_hit_by` (`None` when the victim is an NPC and its `last_hit_by` names another NPC, until S7 verifies that read; an NPC striking the Tarnished keeps its attacker, read from the Tarnished's `last_hit_by` as `hit_player` is, ARCH §8.3), merged per pair over 2.5 s; `hard` if ≥ 30% of max within 3 s | K `hit:att:vic`, 10 s | 0.9 | `struck_hard` |
+| `Struck{att, vic, hard}` | HP Δ > 0, att = `last_hit_by` (unset when the victim is an NPC and its `last_hit_by` names another NPC, until S7 verifies that read; an NPC striking the Tarnished keeps its attacker, read from the Tarnished's `last_hit_by` as `hit_player` is, ARCH §8.3), merged per pair over 2.5 s; `hard` if ≥ 30% of max within 3 s | K `hit:att:vic`, 10 s | 0.9 | `struck_hard` |
 | `LowHp` | Below 25%, re-armed above 35% | K, 20 s | 0.95 | `low_hp` |
 | `Engaged{opponent, via}` / `Disengaged{opponent, fled}` | §5.3, any pair of combatants | K `eng:a:b`, 30 s | 0.9 / 0.6 / 0.3 | `engaged`, `foe_fled` |
 | `AllyDied` | Death of an NPC with live witnesses on its side ≤ 20 m (the Tarnished's side included) | K, 10 s | 1.0 | `ally_fell` |
@@ -690,7 +790,11 @@ The flag rate follows the snapshot count rather than a clock, so the R10 self-th
 
 ### 6.8 Test harness
 
-- **Recordings** (`*.ensnap.zst`: adapter messages, UI events and LLM responses, with the name and SteamID hashed) replay through the real `GameBackend` trait and Augur (P3 §11.1). Snapshots carry runtime game text (`new_text`: names of characters, places and gear), so a recording that is committed to the repo is written in redacted mode: every `TextEntry.text` becomes a placeholder such as `fmg18:<id>`, and replay resolves it from a fixture name table of our own (ARCH §7.5).
+- **Recordings** (`*.ensnap.zst`: adapter messages, UI events and LLM responses, with the name and SteamID hashed)
+  replay through the real `GameBackend` interface and Augur (P3 §11.1). Snapshots carry runtime game text (`new_text`:
+  names of characters, places and gear), so a recording that is committed to the repo is written in redacted mode:
+  every `TextEntry.text` becomes a placeholder such as `fmg18:<id>`, and replay resolves it from a fixture name table
+  of our own (ARCH §7.5).
 - **Golden files** (`tests/golden/*.events.jsonl`: type, time, actors, key, confidence, audience) fail CI on any diff that was not made on purpose (J2 G8).
 - A **synthetic DSL** (`spawn`, `move`, `hit`, `kill`, `set_flag`, `say`, `wait`) builds scenarios with assertions such as "an `engaged` line within 1.0 s of `Engaged`; none after 2.5 s" (P1 §11.2).
 - **Property tests** cover hysteresis (never twice without a re-arm), debounce, merge windows and ordering. **Backpressure tests** cover queue saturation and snapshot gaps (P2 §11.4).
@@ -1059,16 +1163,20 @@ NPC with a profile converses and remembers, whoever wrote the profile (§7.7).
 **The roster pipeline.** Two prerequisites first, as the owner set them, both now settled: (1) Min's engine blueprint,
 and the owner's decision on what EldenNet adopts from it (O84: an engine of our own); (2) the bio's structure (O46).
 Then, per batch of NPCs (a region or a hub, so that a batch's captures share saves):
-1. **Census** (`en-tools roster-scan`, offline, on the author's machine): from the author's own exports and install data (params through `identity-fill`, names through `fmg-import`'s local database; ARCH §12.3), every NpcParam row with a personal name, its `nameId`, entity ids where known, its flag block if one exists, and each boss encounter's bar name id. It writes `roster.local/census.toml` (git-ignored; names stay there). The committed index gets ids, numbers and our slugs only, every binding a lead (`verified = false`).
+1. **Census** (`eldennet-engine roster-scan`, offline, on the author's machine): from the author's own exports and
+   install data (params through `identity-fill`, names through `fmg-import`'s local database; ARCH §12.3), every
+   NpcParam row with a personal name, its `nameId`, entity ids where known, its flag block if one exists, and each boss
+   encounter's bar name id. It writes `roster.local/census.toml` (git-ignored; names stay there). The committed index
+   gets ids, numbers and our slugs only, every binding a lead (`verified = false`).
 2. **Research** in our own words: one note per NPC under `docs/authoring/roster/` (its kind, where it is first met,
    what a first meeting shows, its role, what it claims and seeks, the people it names, what stirs it, its temperament
    and voice, how it fights if the game can summon it, and the later truths the story discloses about it, each named
    as a topic, never stated), from the research documents and the author's play; never a quoted or close-paraphrased
    game line. The later truths it lists are the topics of its test questions (§10.4; NPC §12.1), as a persona's
    `forbid` topics are, and the review reads the bio against them (step 4).
-3. **Draft** (`en-tools roster-draft`, offline): one call per NPC on the author's chosen provider turns the note into a
-   draft bio in `drafts.local/roster/` (git-ignored), every layer the NPC gets included. It reads the note, the schema,
-   our labels and caps, and nothing else: no game text, export, vanilla line or other profile.
+3. **Draft** (`eldennet-engine roster-draft`, offline): one call per NPC on the author's chosen provider turns the note
+   into a draft bio in `drafts.local/roster/` (git-ignored), every layer the NPC gets included. It reads the note, the
+   schema, our labels and caps, and nothing else: no game text, export, vanilla line or other profile.
 4. **Review:** a person edits and accepts every field and its seeds; `kb-draft --check` finds no run of ≥ 6 words
    shared with the author's export; the profile lints pass (NPC §4.8); a second reader does the spoiler review
    (below). The file records `drafted = "assisted"` and its review id.
@@ -1089,7 +1197,11 @@ note lists and the author's own export, and the checklist records the review; PL
 mechanical checks (banned words, quoted lines, template syntax; NPC §4.8).
 
 **Bindings at scale.** About 140 NPCs need a verified key before they speak:
-- **S1 roster captures** (rows and entities, and the forms a reveal or a hostile turn uses): recordings at the author's saves across one full playthrough, about a dozen points, each NPC seen once while F11's unknown-characters list and the sightings record its keys; `en-tools roster-verify` matches the leads to what was seen and writes evidence records to `tests/roster/`, as `flag-verify` does for S6. About 2–4 minutes per NPC on a prepared save: roughly 5–8 hours.
+- **S1 roster captures** (rows and entities, and the forms a reveal or a hostile turn uses): recordings at the
+  author's saves across one full playthrough, about a dozen points, each NPC seen once while F11's unknown-characters
+  list and the sightings record its keys; `eldennet-engine roster-verify` matches the leads to what was seen and
+  writes evidence records to `tests/roster/`, as `flag-verify` does for S6. About 2–4 minutes per NPC on a prepared
+  save: roughly 5–8 hours.
 - **S2 roster captures:** every named boss's fight once, its bar's `name_id` matched to its holder's row; about 10 minutes a fight with retries: roughly 8–10 hours.
 - **S3 records:** each named boss with scripted lines is its own kind (§9.10): ≥ 30 of its lines detected, over several attempts if it has few, and a boss with none is recorded `scripted = "none"`. About ten base-game bosses have lines (ER04 §2.5): roughly 10 hours. Every named invader and every hostile form of a roster NPC gets an S3 record the same way, most as `scripted = "none"` (ER04 §2.6 finds no invader lines in the dump, which holds for the dump only), taken during the S1 or S2 capture of that invasion or fight so no extra session is needed: about 5 minutes each, roughly 2–3 hours. A kind that S3 or S7 has not recorded stays held.
 - **Schedule:** captures start at v0.4, once the census has run and character bindings ship, run in batches through v0.5 and v0.6, and finish by the v1.0 release candidate. A bio whose binding is not verified by then ships *held*: listed and described in GraceUI, silent in game, with the reason in its checklist; release lint rejects any binding that would speak unverified. The v1.0 exit wants every binding verified; a held bio is the fallback, not the plan.
@@ -1312,7 +1424,8 @@ On end: write `ConversationEnded` and update facts. Queue a memory job if there 
 
 A persona speaks to the Tarnished unasked when it has quest business for them (a new road, or a stage that waits on the Tarnished talking with it), the Tarnished is within range, and it is alive and conscious (O32), and O39 makes this one motive among several (a greeting, news, autonomy), all limited only by pacing and allowances. EldenNet stays read-only: the line draws the Tarnished in, the stage moves only through the game's own talk, and the line never claims to give, advance or settle anything (world-frame item 3, the hard promise lint).
 
-**The motive** (reaction type `stage_talk`, "Quest business" on the settings page) is a pure function over recorded state, `speak::beckons(P, now) -> Option<Beckon>`:
+**The motive** (reaction type `stage_talk`, "Quest business" on the settings page) is a pure function over recorded
+state, `speak::beckons(P, now)`, which returns a `std::optional<Beckon>`:
 
 ```text
 beckons(P, now):
@@ -1353,7 +1466,12 @@ beckons(P, now):
 - **Lint and failure:** the line is sanitized and linted as a reply (NPC §8.2, §8.3), but never regenerated, deflected or retried on the fallback model: a hard-lint hit in sentence 1, a provider failure or a timeout gives the motive's seed where one exists (`[seed] greet` for a greeting or a news cue, `[seed] beckon` for quest business), else silence; a later hit ends the line at the previous sentence; a lone "." is silence (NPC §7.8). So one reservation is one call.
 - **Preparation:** sent when the motive is armed and the Tarnished is within the prepare ring, under the reservation rule (§9.4). A prepared line stays valid for up to 30 s once ready while its motive, the stage and the known set are unchanged and the Tarnished stays within the prepare ring (the gates are checked again at display); otherwise it is discarded. A motive is armed while its own conditions hold (for `stage_talk`, `beckons(P, now)`) and its cooldown key is free. An armed motive sends at most one request per edge: the Tarnished entering the prepare ring from outside it, `CameNear{P, Tarnished}` firing with no line ready, and, for `stage_talk` only, a new stage becoming active while the Tarnished is in range or P's autonomy tick (a greeting is sent only on ring entry or `CameNear`, §9.7). A ready line shows when `CameNear` fires, or, if `CameNear` has already fired and not re-armed, as soon as the Tarnished is within `range.talk_m` (at once if the Tarnished is there already). After an unshown discard, ring entry sends nothing more for that cooldown key until a line for it has shown, so the next request comes on `CameNear` or, for `stage_talk`, a new stage or a tick. So a Tarnished lingering in the ring, or crossing its edge back and forth, costs at most one unshown call per key between shown lines, apart from one that a gate or a cancellation stops after it is sent.
 - **The request yields.** It is cancelled by any input epoch (a box opening), by native talk or a scripted line starting within 20 m, and by a conversation opening. The player's own `Submit` cancels it first, so it never delays a reply (ARCH C9 keeps "at most one dialogue request in flight").
-- **Display:** a persona line addressed to the Tarnished is one lower-third page (≤ 20 words), the speaker's name in muted gold, plus the label when labels are on. For 10 s (the arm window) the talk hint reads "[T] Answer — Kalé". Answering opens a conversation with `opened_by = Npc(line)`, and the line is its first NPC turn in block 6. An unanswered line is a stored `NpcSaid{conv: None}` (§6.5): it is no meeting, folds no `world_seen` and moves no `met_count`. A persona line not addressed to the Tarnished (an autonomy remark, an exchange line, a combat line) shows as a label and a feed line, like a bark, with the persona's name in the feed.
+- **Display:** a persona line addressed to the Tarnished is one lower-third page (≤ 20 words), the speaker's name in
+  muted gold, plus the label when labels are on. For 10 s (the arm window) the talk hint reads "[T] Answer — Kalé".
+  Answering opens a conversation with `opened_by = Npc(line)`, and the line is its first NPC turn in block 6. An
+  unanswered line is a stored `NpcSaid` with no `conv` (§6.5): it is no meeting, folds no `world_seen` and moves no
+  `met_count`. A persona line not addressed to the Tarnished (an autonomy remark, an exchange line, a combat line)
+  shows as a label and a feed line, like a bark, with the persona's name in the feed.
 - **Commit on display**, as for every line (§8.5).
 
 **Native-talk coexistence.**
@@ -1576,7 +1694,15 @@ Combat dialogue is on by default for every type, for any NPC engaged in combat w
   never converses, and one of a voiceless kind (§7.1 F) never speaks: our bio for it holds the seen fields only (§7.8).
   Personas in their boss or hostile forms (Patches in his cave, Blaidd at `mad`, Alexander at the end of his road, Varré
   at `maze_fight`) speak combat lines in their own voice once S3 has verified their scripted-line detector.
-- **Engagement between any two combatants** (§5.3, ARCH §8.7): the machine runs per pair (A, B) on hostile sides: the Tarnished and a hostile NPC (as today, with every start condition), or two NPCs on different sides that exchange hits or that the team-pair table marks hostile. For NPC pairs only two start conditions exist: `Hit` (0.9), a hit exchange between them (`Struck{att: A, vic: B}` either way, from HP deltas and `last_hit_by`, both read today), from v0.4 once S7 has verified `last_hit_by` for NPC attackers (until then NPC pairs never engage, `FoeKilled` is not emitted, and a `Struck` on an NPC victim whose `last_hit_by` names another NPC carries `att: None`); and `Near` (0.6, ≤ 8 m), only once S7's additions have verified a **team-pair table** in `teams.toml` (which live team pairs fight each other). Lock-on conditions are the Tarnished's only. An NPC's current AI target has no tested offset (ER05 §6.2); S7 may find one later behind the same signal. Squads form per side (same card, or the same live team for non-card NPCs).
+- **Engagement between any two combatants** (§5.3, ARCH §8.7): the machine runs per pair (A, B) on hostile sides: the
+  Tarnished and a hostile NPC (as today, with every start condition), or two NPCs on different sides that exchange hits
+  or that the team-pair table marks hostile. For NPC pairs only two start conditions exist: `Hit` (0.9), a hit exchange
+  between them (`Struck{att: A, vic: B}` either way, from HP deltas and `last_hit_by`, both read today), from v0.4 once
+  S7 has verified `last_hit_by` for NPC attackers (until then NPC pairs never engage, `FoeKilled` is not emitted, and a
+  `Struck` on an NPC victim whose `last_hit_by` names another NPC carries no `att`); and `Near` (0.6, ≤ 8 m), only once
+  S7's additions have verified a **team-pair table** in `teams.toml` (which live team pairs fight each other). Lock-on
+  conditions are the Tarnished's only. An NPC's current AI target has no tested offset (ER05 §6.2); S7 may find one
+  later behind the same signal. Squads form per side (same card, or the same live team for non-card NPCs).
 - **Named NPCs in combat** speak combat lines in their own voice, **from seeds and pools, never live**: a combat line
   is worth showing only within its 1.2–3 s expiry and C6 wants 95% within 0.5 s, which a live call (1.5 s to the first
   token on `bark_live`) cannot meet. Seeds: `[seed]` in the persona file, 3 lines for each combat type the persona can
@@ -1705,7 +1831,9 @@ Cards remember nothing. Their per-handle cooldowns live in RAM and clear on rest
 
 - **File:** `%APPDATA%\EldenNet\saves\<SteamID64>\pt-s<slot>-<fp8>.sqlite`.
   - The SteamID comes from the save folder name (ER01 §11). If there are several, the folder holding the most recently modified full-size save file of any name (so ERSC's `.co2` and a player's me3 `savefile` name count), preferring one written since the game started (MEM §8.2).
-  - `fp8 = blake3(steamid ‖ slot ‖ name ‖ archetype ‖ starting gift if readable)[..8]` (the starting gift is the game's creation-time keepsake item, not a journal keepsake; MEM §8.3). Body type is excluded because it can change.
+  - `fp8` is the first 8 hex digits of `blake3(steamid ‖ slot ‖ name ‖ archetype ‖ starting gift if readable)` (the
+    starting gift is the game's creation-time keepsake item, not a journal keepsake; MEM §8.3). Body type is excluded
+    because it can change.
   - A new fingerprint in a used slot archives the old file.
 - **Global files:** `pools.sqlite` and `diag.sqlite` (traces, rotated at 50 MB).
 - **Hygiene:** WAL, `synchronous = NORMAL`, 64-bit keys read as 64-bit, locale-proof number formatting, a numbered
@@ -1752,9 +1880,10 @@ bookkeeping stays in code; thinking is a last resort (WHY§99).
 
 ### 11.1 Client
 
-- One OpenAI-compatible `/v1/chat/completions` SSE client (`reqwest` + `rustls`) plus `/v1/models` (ER06 §5.2).
-  Providers are data: `{base_url, key_ref, headers, extra_body}`, with a quantisation floor where the provider offers
-  one.
+- One OpenAI-compatible `/v1/chat/completions` SSE client plus `/v1/models` (ER06 §5.2), built in `en-llm`: our own
+  SSE parser over libcurl (Linux and test builds) and the system's WinHTTP (Windows, loaded by its full path from the
+  system directory). Providers are data: `{base_url, key_ref, headers, extra_body}`, with a quantisation floor where
+  the provider offers one.
 - Reasoning is switched off per provider, and `<think>` is stripped anyway. A rejected request (HTTP 400, 404 or 422)
   is retried without the optional fields but never without the reasoning switch; a model that refuses reasoning off is
   retried once at minimal effort, and that is recorded about the model (ARCH §11; WHY§98).
@@ -1810,7 +1939,10 @@ Local probing: LM Studio :1234, Ollama :11434, llama.cpp :9931 (legacy :8080), K
 | `%APPDATA%\EldenNet\overrides\` | Same paths as `content/`: whole-file replacement, plus `disable.toml` (P3 §8.4) |
 | `%APPDATA%\EldenNet\profiles\` | The player's own profiles: `layers\` over shipped profiles, `characters\` of their own and an optional bio of the Tarnished (§7.7); never shipped, bundled or uploaded |
 
-`settings.toml` (schema 2) also holds pacing, ranges, autonomy, reactions and allowances (ARCH §11.5). A watcher with a 500 ms debounce parses (`deny_unknown_fields`), validates and swaps atomically. On error the old version stays and a toast names the file and line. Caps: 64 KB per file, 16 KB per persona, card or character profile, 8 KB per player profile file; 4 MB per content plugin (EST).
+`settings.toml` (schema 2) also holds pacing, ranges, autonomy, reactions and allowances (ARCH §11.5). A watcher
+(`ReadDirectoryChangesW`) with a 500 ms debounce parses (toml++, unknown fields refused), validates and swaps
+atomically. On error the old version stays and a toast names the file and line. Caps: 64 KB per file, 16 KB per
+persona, card or character profile, 8 KB per player profile file; 4 MB per content plugin (EST).
 
 ### 11.5 First run and self-test
 
@@ -1821,13 +1953,18 @@ The wizard opens at the title screen, where the gate's title clause permits its 
 4. a self-test: TTFT, tokens per second, one Lantern-Keeper line, a JSON check. Results are given in words and figures (P3 §8.6, P2 §8.5): the estimated first page (TTFT + 15 tokens ÷ tokens per second) is "quick" at ≤ 1.6 s, "acceptable" at ≤ 3.0 s and "slow" beyond, matching C5's cloud targets (ARCH §11.7);
 5. an optional bark pre-bake.
 
-The self-test also runs silently at every start, and `en-tools selftest` runs it outside the game.
+The self-test also runs silently at every start, and `eldennet-engine selftest` runs it outside the game.
 
 ---
 
 ## 12. Presentation
 
-- **Host:** GraceUI's `graceui.dll` (GraceUI G15), which holds hudhook DX12 ImGui, pinned at exactly 0.9.3 (O25), with one context. EldenNet's surfaces are panels on GraceUI's layers (`hud` and `panel`), drawn from checked draw lists in an `on_present` callback; toasts and the banner go through GraceUI's notices; F11 is a panel built on a headless Dear ImGui of EldenNet's own. EldenNet's faces are registered in GraceUI's one atlas before warm-up. OFL fonts (EB Garamond, Noto Sans); game fonts never ship (ER03 §7A).
+- **Host:** GraceUI's `graceui.dll` (GraceUI G15), which holds Dear ImGui 1.93.0 with its DX12 and Win32 backends,
+  hooked with MinHook 1.3.4, both pinned (O25, as changed on 2026-11-16), with one context. EldenNet's surfaces are
+  panels on GraceUI's layers (`hud` and `panel`), drawn from checked draw lists in an `on_present` callback; toasts and
+  the banner go through GraceUI's notices; F11 is a panel built on Dear ImGui's core of EldenNet's own, at the same
+  version and with no backend. EldenNet's faces are registered in GraceUI's one atlas before warm-up. OFL fonts (EB
+  Garamond, Noto Sans); game fonts never ship (ER03 §7A).
 - **Surfaces:**
   - conversation lower third at about 76% of the screen height, ≤ 46% of its width, speaker name in muted gold;
   - chat box at the bottom centre, with a header and a 3-exchange history;
@@ -1841,7 +1978,10 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
   and talk); ranges; autonomy; reactions per event type (on, cooldown); NPC types and allowances; profiles (the
   player's own instructions, subjects, character profiles and bio of the Tarnished, §7.7); floating labels; follow the
   game's subtitles; scale; safety level; hotkeys; provider; "forget" actions; latency toasts.
-- **TTS and STT: v1.5** (O8). Text first gets cadence and content right; lip movement is unavailable (ER03 §5); every v1 budget is met without audio. The seam is `SpeechSink::{begin, page(&Page) -> PageTiming, cancel}`, so a later `TtsSink` supplies timing from audio length without touching the pacing code (J2 G22). STT enters through `InputSource::Stt`.
+- **TTS and STT: v1.5** (O8). Text first gets cadence and content right; lip movement is unavailable (ER03 §5); every
+  v1 budget is met without audio. The seam is the `SpeechSink` interface (`begin`; `page`, which takes a `const Page&`
+  and returns a `PageTiming`; `cancel`), so a later `TtsSink` supplies timing from audio length without touching the
+  pacing code (J2 G22). STT enters through `InputSource::Stt`.
 
 ---
 
@@ -1849,7 +1989,7 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 
 | Seam | v1 artefact | Later |
 |---|---|---|
-| Actions | `ACT:` trailer → `npc_intent`; decision calls on the `decisions` slot, with their rules fallback (§11.2; ARCH §11.8); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a feature; empty prompt partials; a `decisions` table, one row per call (ARCH §11.8; MEM §8.7; SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
+| Actions | `ACT:` trailer → `npc_intent`; decision calls on the `decisions` slot, with their rules fallback (§11.2; ARCH §11.8); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a build option; empty prompt partials; a `decisions` table, one row per call (ARCH §11.8; MEM §8.7; SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
 | Followers | The companion layer every bio carries (§7.8), used in v1.0 by the game's own summons | Characters who travel with the Tarnished, after v1.0, when actions open (O85) |
 | TTS / STT / pad | `SpeechSink` + `PageTiming`; `Line.voice_key`; `InputSource {Typed, Stt, Intent}`; the `tts` allowance | TTS, push-to-talk, intent list |
 | Thoughts | `npc_thought` event type; parser channel reserved | Add to the contract |
@@ -1857,10 +1997,10 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 | UI | The `UiPort` in the core (player-safe projections: only what the game has shown or what is written to be impersonal, GraceUI SP1, with no lock filter since O86; one validating command entry point; the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space, panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
 | Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3, with EldenNet's own hook library (O65, R12), each hook approved by the owner |
 | Plugins | The plugins layer in the content loader and the `plugin.toml` schema; the code-plugin interface `EldenNet_RequestApi` reserved (O66–O68; [proposal 0001](../proposals/0001-plugins.md)), with its rules set now (WHY§98, WHY§99): a plain C ABI whose structs start with their size, documented threads, reads by id, audiences that truly bound who sees an event, typed error codes, requests that complete exactly once, JSON for queries, ids never reused, the rollback state and a "trimmed to playtime T" event (plugin writes buffered as EldenNet buffers its own), and one request in flight per character | Content plugins in 1.1, installed from the Plugins folder or the dashboard (O67); code plugins after v1.0, with a preview first (O68), run outside the game in one plugin cluster or detached (O70); a hook service for plugins only if one is needed (O69) |
-| Scene or vector memory | `trait Recall` (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log; recall gathered by code, then the recall gate on the `decisions` slot (§10.1) |
-| Native subtitles | `trait PresentationSink`; `GameCommand::NativeLine`; `NativeLineHeard` event; `NativeLineHeard` live as the scripted-line detector for verified kinds (O42) | v2 after S9; line ids after S10 |
+| Scene or vector memory | The `Recall` interface (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log; recall gathered by code, then the recall gate on the `decisions` slot (§10.1) |
+| Native subtitles | The `PresentationSink` interface; `GameCommand::NativeLine`; `NativeLineHeard` event; `NativeLineHeard` live as the scripted-line detector for verified kinds (O42) | v2 after S9; line ids after S10 |
 | Director, freeze | Scheduler class `Directed` (P1, reserved; `Autonomous` is live, §9.4); the `subjects` of every profile (§7.7); the autonomy path, whose task already carries a subject (§9.8); pacing and the reservation rule; `GameCommand::Freeze` | v1.x: the director. After a stretch of silence near the Tarnished it picks one eligible NPC within range by a pure, replayable rule and hands it a subject to talk about, through the autonomy path and within pacing (the owner's idea, 2026-11-07, O30); nothing of it is built in v1. The freeze: a v1.x opt-in after S5 (O9) |
-| Out-of-process core, other backends | `trait CoreTransport`; `GameBackend` | If crash data justifies a sidecar |
+| Out-of-process core, other backends | The `CoreTransport` interface; `GameBackend` | If crash data justifies a sidecar |
 
 Conformance tests check three things: a trailer never displays; with `actions` off, no non-read command is ever emitted; every decision writes exactly one row.
 
@@ -1869,19 +2009,20 @@ Conformance tests check three things: a trailer never displays; with `actions` o
 ## 14. Testing and tooling
 
 - **Headless core on Linux CI:**
-  - unit tests: detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, the profile
-    cases of NPC §4.8 (resolution, layer merge, subject rotation, draft validation), and the template engine's cases
-    (unknown names, null and missing, booleans, substring tests, empty strings; NPC §7.1);
-  - `proptest` sanitizer fuzzing;
+  - unit tests (doctest under CTest): detectors, scheduler with a simulated clock, identity, predicates, splitter,
+    budgets, the profile cases of NPC §4.8 (resolution, layer merge, subject rotation, draft validation), and the
+    template engine's cases (unknown names, null and missing, booleans, substring tests, empty strings; NPC §7.1);
+  - seeded property tests fuzzing the sanitizer (our own, on doctest: deterministic seeds, the failing seed printed);
   - DB tests: every migration, trim at 3 cut points, crash mid-reply, NG+, slot reuse, all with realistic 64-bit ids.
-- **Replay** (§6.8): `en-tools replay --llm recorded|mock|live`. `en-tools mockllm` serves scripted delays, 429s, `<think>` leaks and trailers.
-- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b
-  at a fixed known set and active ties), renders at the 6 flag states (what each prompt holds there, reviewed when it
-  changes), block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`,
-  since-line renders for 3 state transitions and reaction-cue renders (MEM §12.11 T4), and hand-written
-  who-knows-what truth tables and reaction-cue tables (MEM §12.11 T2, T12, T13); the character block at each `gates`
-  state, block 4 with and without `instructions`, and the autonomy task and generic call block with a subject (NPC
-  §4.8).
+- **Replay** (§6.8): `eldennet-engine replay --llm recorded|mock|live`. `eldennet-engine mockllm` serves scripted
+  delays, 429s, `<think>` leaks and trailers.
+- **Prompt tests:** golden renders per persona × stage × scene (compared by our own diff, updated only by
+  `eldennet-engine golden update`), a byte-stability assertion for blocks 1–5 (and 5b at a fixed known set and active
+  ties), renders at the 6 flag states (what each prompt holds there, reviewed when it changes), block-5b renders at the
+  8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`, since-line renders for 3 state transitions
+  and reaction-cue renders (MEM §12.11 T4), and hand-written who-knows-what truth tables and reaction-cue tables (MEM
+  §12.11 T2, T12, T13); the character block at each `gates` state, block 4 with and without `instructions`, and the
+  autonomy task and generic call block with a subject (NPC §4.8).
 - **Lint:** schemas, caps, predicates, aliases, effect adjectives, banned words, gender-neutral cards, the profile
   lints (NPC §4.8; PL10–PL12 for the roster, §7.8), and the template allowlist, generated from the template engine's
   one registry (NPC §7.1).
@@ -1895,9 +2036,14 @@ Conformance tests check three things: a trailer never displays; with `actions` o
   speaks with a passing roster eval (NPC §12.1).
 - **In game:**
   - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, the world view (each world stage with its flags' raw bits and verification) and each persona's known set with its paths, its `awareness.news`, its `world_cued` and the reaction cue that would fire now, or the first condition that fails (MEM §12.13), latency traces, unknown characters;
-  - rotating `tracing` logs;
+  - rotating logs (our own logger);
   - a "copy bug report" bundle without secrets, chat text or the player's profile text, which a deterministic scan test checks from v0.6, when the settings panel ships it (NPC §10.6).
-- **CI:** `cargo-xwin`, the clippy deny-list, the `ffi_guard` grep, content validation, the `cargo deny` licence allowlist and `[bans]` list, the licence-file text scan (§4.7), and signed, reproducible releases (ER06 risks). ARCH §12.1 lists every stage.
+- **CI:** the Windows builds on Linux with clang-cl and lld-link against the MSVC CRT and Windows SDK that xwin
+  downloads (all pinned; static CRT, `/Brepro`), and a MinGW-w64 build whose Windows tests run under Wine (WHY§102);
+  `clang-tidy` with warnings as errors; the Linux test runs under AddressSanitizer and UndefinedBehaviorSanitizer
+  (ThreadSanitizer for the threaded modules), and libFuzzer on every parser; the `ffi_guard` grep, content validation,
+  the third-party check (`THIRD_PARTY.md`: the licence allowlist, the pinned hashes and the ban list), the licence-file
+  text scan (§4.7), and signed, reproducible releases (ER06 risks). ARCH §12.1 lists every stage.
 - **Schedule (O29).** The owner's rule: "test everything asap that makes sense".
   - Every check runs from the first increment in which the thing it checks exists, on whatever content exists then. A criterion whose content ships later runs and gates on the part that exists, and widens as content ships.
   - **Deterministic checks** gate from that increment: lints, unit, property, DB and conformance tests, truth tables, goldens, scenarios and self-tests. So do **measurements that need no judge**: timings, counters, hand-marked accuracy and a stopwatch.
@@ -1923,8 +2069,11 @@ The patch procedure is in §4.6.
 
 ```text
 eldennet/
-  Cargo.toml            # workspace; release: panic = "unwind", lto = "thin"
-  crates/  en-proto/ en-augur/ en-core/ en-store/ en-llm/ en-gal/ en-overlay/ eldennet/ en-launcher/ en-tools/
+  CMakeLists.txt        # the CMake project, C++20; release: static CRT (/MT), /Brepro, mapped path prefixes, thin LTO
+  cmake/                # toolchain files: clang-cl and lld-link with xwin's SDK and CRT; MinGW-w64
+  src/     en-proto/ en-augur/ en-prompt/ en-core/ en-store/ en-llm/ en-gal/ en-overlay/ eldennet/ en-launcher/
+           en-tools/  (each: CMakeLists.txt, include/en/<name>/, src/, tests/)
+  third_party/  inja/ doctest/   # vendored with their licences; the rest fetched at configure time, pinned by hash
   content/eldenring/
     prompts/{dialogue,callout,memory,pool,draft,decisions}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
     identity/{personas,archetypes,characters,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml  world/{stages,tracks}.toml
@@ -1971,7 +2120,7 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Version | Contents | Exit criteria |
 |---|---|---|
 | **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, the eleven read groups (`status` off until S8), L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view (drawn through GraceUI 0.1, the host: GraceUI G15), recording, replay. No LLM. S8 and S3's additions run on recordings; the `status` read group exists, off until S8 passes | C12 (golden events over 3 routes); C2; C1 (0 crashes in 10 h, and the 20 forced fail-closed launches); C3 for the task, overlay and FPS; C4's dormancy; S2, S6's core flags, S7 and S0-E's present-hook half; the read-group self-tests; the v0.1 matrix rows (ARCH §12.4); the patch drill, if the JP layout is ready; every CI stage but `eval` (from v0.2) gating; signed tester builds (§16.3) |
-| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)` and block 5b with Kalé's `road` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `en-tools eval` and its CI stage; the 8 fixture states and Kalé's truth tables; positive grounding: block 5b's three parts, world-frame items 1–9 positive, the contract and regeneration notes, `forbid` as eval-only test topics, W15; X1's test questions and positive-wording arm (NPC §12.2); Kalé's test questions (C9, O86); the client's reasoning retry, backup request, quantisation floor and requests-per-hour budget (§11.1); the template engine's rules (§8.3); the "you, now" line (wounds and fighting); `settings.toml` schema 2 with `range` and the feature switches | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks; X1's test questions and positive-wording arm (§16.3) |
+| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)` and block 5b with Kalé's `road` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `eldennet-engine eval` and its CI stage; the 8 fixture states and Kalé's truth tables; positive grounding: block 5b's three parts, world-frame items 1–9 positive, the contract and regeneration notes, `forbid` as eval-only test topics, W15; X1's test questions and positive-wording arm (NPC §12.2); Kalé's test questions (C9, O86); the client's reasoning retry, backup request, quantisation floor and requests-per-hour budget (§11.1); the template engine's rules (§8.3); the "you, now" line (wounds and fighting); `settings.toml` schema 2 with `range` and the feature switches | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks; X1's test questions and positive-wording arm (§16.3) |
 | **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; one memory per witness (§10.3) and the lived layer's update (§7.8; MEM §13); `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (O28, MEM §12.13; Kalé `eager`); the pacing core and the `Autonomous` class; Kalé's own-initiative lines (`greet_player`, a news cue on it, `saw_kill`, `autonomy`; `stage_talk` if his S6 verified a `beckon`), each only if S3 passed and S6 settled his +17 sleep lead; `NpcSaid` widened, `StageChanged`, `CameNear`, `AutonomyTick`; `world_cued` with pt and `spoke_pt`; block 6(c) and the "said unasked" note; the news cooldown (60 s, O30) in place of the once-only records; Kalé's `subjects` and the subject line in his autonomy task; the persona `instructions` field and the player's profile layers for personas, by file (§7.7) | C11; trim test green; world trim, NG+ and cue tests green (MEM §12.11: T3, T4's since-line goldens and Kalé's cue goldens, T7, T8, T10, T11's cue-clause fixtures, T12, T13); C14's since-line, claim and cue probes on Kalé; `wren_and_kale.scn` and Kalé's steps of `star_falls.scn`; `speak_up.scn`; T14; T13 as changed; `autonomy_subjects.scn`'s persona case and `player_profiles.scn`'s layer case; PL1, PL4–PL6 and PL9 on persona files (§16.3) |
 | **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools; the `Combat` and `Ambient` classes on the same pacing; `pacing` and `reactions` keys; `allow` keys and `types.toml` (file); combat for every combatant (NPC pairs by hits, once S7 verifies `last_hit_by` for NPC attackers); generic exchanges (`greet_npc`, `answer`) and the generic ring; generic autonomy; status awareness and reactions as S8 passes; persona combat seeds and pools (lines held per kind until S3's detector passes); boss-fight lines kind by kind; generic calm lines once S8 verifies the sleep or senseless signal (O44), sparse idle remarks (O14) among them; the six cards' `subjects` and the generic subject line; character profiles (`identity/characters.toml`, bindings, resolution, built-in rules (b) and (f), `[[named]]` records, the CI character `test_tollwarden`); card layers and the player's own character profiles, by file (§7.7); character profiles converse and remember (O45) on the CI fixtures, the speaker matched by profile id; the `decisions` slot and the next-speaker decision, on CI fixtures (§9.7, §11.2); stance, unseen attackers and the concealed Tarnished as S7 and S8 verify their reads (§6.5); the roster index and the first S1 and S2 roster captures once the census may run (after its tools and our own engine, §7.8; the game-data research of O54 gives its leads earlier) | C6 at 3 camps; X2; C3's render feed; C7 and C8 for barks and ambient lines; `ambient_walk.scn`; the card checklist and bark scenarios; `busy_fight.scn`, `chatter.scn`, `autonomy_bound.scn`, `boss_lines.scn`, `npc_vs_npc.scn`; `status_edges.scn` if S8 passed; S7's additions; `character_profile.scn`, `autonomy_subjects.scn` and `player_profiles.scn`; the next-speaker decision's scenario (§16.3); PL1–PL6, PL8 and PL9; every shipped card has `scripted` recorded, and a card left `unknown` ships with its combat lines held (the card checklist reports it); S8; `roster_talk.scn`; PL10–PL12 (§16.3) |
 | **v0.5 Veil** | Verified catalogue, stages, KB, the full lexicon (`public`, the KB's terms), 5 more personas with their `awareness.news` (O30), `subjects` and test questions; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, their truth tables and awareness probes; the other five personas: `beckon`, `state` and `approach` per S6 and S3, combat seeds, greeting and quest-business seeds, cue tables; the roster's first batch of bios, reviewed, linted and bound (§7.8; batches move with the prerequisites) | C9, C10 and C14 on 6 personas; T2, T4, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; release lint on all shipped content; all of S6; the whole `star_falls.scn`; Boc's `veiled` case; the identity-pack check for every persona; each persona's `beckon`, `state` and `approach` values (NPC §3.6) verified, or left unset (`beckon`) or `unknown` (`state`, `approach`); each persona's open sleep leads settled before its own-initiative lines ship; each new bio's roster eval and checklist (§16.3) |
@@ -2036,7 +2185,7 @@ Each check runs and gates from the first increment in which the thing it checks 
 
 | Lint | Subject ships | Was | Runs and gates from | Note |
 |---|---|---|---|---|
-| Schemas, `deny_unknown_fields`, caps at load | v0.1 (`gal/`, Augur rules); v0.2 (personas, the world file); v0.4 (cards, barks) | CI, no increment named | Each file family from the increment it ships in | — |
+| Schemas, unknown fields refused, caps at load | v0.1 (`gal/`, Augur rules); v0.2 (personas, the world file); v0.4 (cards, barks) | CI, no increment named | Each file family from the increment it ships in | — |
 | Predicates and aliases | v0.1 (Augur `requires`); v0.2 (persona `when`) | The same | v0.1; v0.2 | — |
 | Effect adjectives (warn); banned words in content | v0.2 | The same | v0.2 | — |
 | Gender-neutral cards; seed rules 1–9 | v0.4 | v0.4 | v0.4 | Cards ship in v0.4 |
@@ -2052,7 +2201,7 @@ Each check runs and gates from the first increment in which the thing it checks 
 | Block budgets: block 5b ≤ 200, frame ≤ 450 | v0.2 | 5b at v0.5 | v0.2 | — |
 | Block 7: since-line ≤ 55, cue ≤ 35, together ≤ 90 | v0.3 | — | v0.3 | — |
 | Release mode (`--strict`) | v0.2 | v1.0 builds only | v0.2 on the content each tester build turns on, world-stage and track aliases owed to S6 excepted (W3's `unknown` check included); all shipped content at v0.5 | Unverified leads stay present but silent by design until S6 ends |
-| Clippy deny lists, `unsafe` attributes, `greps` | v0.1 | From the start | v0.1, gating every merge | Already earliest |
+| `clang-tidy` and warnings as errors, the raw-address check (R9), the sanitizer runs and fuzz targets, `greps` | v0.1 | From the start | v0.1, gating every merge | Already earliest |
 | `kb-draft --check` (≥ 6-word overlap with the author's own export) | v0.5 (KB); v0.2 (roads and world text) | With KB authoring | v0.5 for the KB, and from v0.2 over roads, world lines, `heard`, shorts and tie lines | Local only: CI holds no game text |
 
 **Test types**
@@ -2118,7 +2267,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Per-tick plausibility; breakers | v0.1 | v0.1 | v0.1 |
 | Flag descriptor-map validation (core aliases; the 10% Missing rule) | v0.1 | v0.1, with the core flags verified only by S6 at v0.2 | v0.1, with S6's core flags verified before v0.1's exit |
 | Identity-pack check | v0.2 (Kalé's rows) | v0.5 | v0.2: unit tests over synthetic params and the check at runtime for the pilot; every persona at v0.5 |
-| `en-tools selftest` and the silent self-test (wizard steps 4a–4e) | v0.2 (the LLM client); 4d at v0.3 | With the wizard at v0.6 | v0.2: 4a, 4b, 4c, 4e, the silent self-test and the verdict-words unit test; 4d at v0.3; wizard steps 1–3 and 5 at v0.6 |
+| `eldennet-engine selftest` and the silent self-test (wizard steps 4a–4e) | v0.2 (the LLM client); 4d at v0.3 | With the wizard at v0.6 | v0.2: 4a, 4b, 4c, 4e, the silent self-test and the verdict-words unit test; 4d at v0.3; wizard steps 1–3 and 5 at v0.6 |
 | Runtime `identity_lag` | v0.2 | — | With `veiled.scn` |
 
 **Spikes** (§16.1)
@@ -2175,7 +2324,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 
 | Item | Ships | Was | Runs and gates from |
 |---|---|---|---|
-| `en-tools eval` | v0.2 | "Eval in CI" at v0.5 | v0.2: on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The memory set from v0.3 |
+| `eldennet-engine eval` | v0.2 | "Eval in CI" at v0.5 | v0.2: on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The memory set from v0.3 |
 | CI `eval` stage | — | Missing | Added at v0.2, with those triggers; the provider key is a CI secret |
 | `replay`, `golden check` and `update`, `probe-exe`, `fmg-import`, `flag-verify` | v0.1 | `fmg-import` and `flag-verify` at v0.2 | v0.1 (`fmg-import` for S2, `flag-verify` for S6's core flags) |
 | `mockllm`, `render-prompt`, `identity-fill`, `selftest` | v0.2 | `selftest` at v0.6; `identity-fill` at v0.5 | v0.2 |
@@ -2233,9 +2382,10 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Decision | Choice | Alternatives | Why | Source |
 |---|---|---|---|---|
 | Process model | One DLL plus a launcher, which since O71 stays in the background while the game runs as the crash watcher; from code plugins on, the plugin hosts outside the game (O70) | P2 split brain; sidecar server; a short-lived launcher (the first reading) | Fewest parts. The split does not isolate game reads and adds antivirus risk; only something outside the game can record its crash (O71) | ER06 §5.1; J1 #11; proposal 0001 §13.7 |
+| Language | C++20 for the DLL, the launcher, our own engine and the tools that link it; the Windows binaries built on Linux CI with clang-cl and lld-link against the MSVC CRT and Windows SDK that xwin downloads (pinned), and a MinGW-w64 build whose tests run under Wine; Python for the repository's own tools | Rust, this design's language until 2026-11-16 | Owner decision (O60). Rust was chosen for fromsoftware-rs and hudhook (ER02), and O48 ruled out fromsoftware-rs; SkyrimNet, EldenNet's foundation (O53), is C++, and so is our own engine on its logic (O84) | O60, O84; WHY§102 |
 | Loading | Own launcher; loader-agnostic DLL; me3-native compatible | me3 profile; proxy DLLs | Owner decision; proxies conflict and cannot carry ERSC | ER02 §2.1, §3.3 |
 | Game access | Own GAL behind `GameBackend` / `SysLayer` | Vendored fromsoftware-rs | Owner decision; single-build panics; licence | ER02 §4.1; J1 §7.1 |
-| Memory discipline | Reads only; no calls after registration; SEH-guarded copies | `catch_unwind` only; page checks | Access violations escape `catch_unwind` | P1 §2.8; J2 G2 |
+| Memory discipline | Reads only; no calls after registration; SEH-guarded copies | A C++ catch-all only; page checks | Access violations escape a C++ `catch (...)` | P1 §2.8; J2 G2 |
 | Arxan | No neutralisation; S0-A blocks | dearxan | No code patching; scans must be proven | ER02 §5; J1 claim 6 |
 | Version gate | PE version, region, product, timestamp; unknown → L1 | Probation mode | No silent misreads | J1 §7.1 #8 |
 | Ladder | Off, L1–L4, Dormant; no flags → chat off | — | Spoiler safety over availability | P3 §2.5 |
@@ -2275,7 +2425,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |
 | Content size | 6 personas, 6 cards + fallback, and a bio for every named NPC and named boss of the base game: about 140 named profiles, the six personas included (§7.8) | 6 personas and 6 cards only (before O43's update); the DLC's roster in v1.0 | Owner decision (O43, updated); drafts from our own notes make the roster affordable, and review keeps it ours; the DLC waits for its research and saves (O46) | O43, O46; J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
-| Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module; GraceUI's `grace-host` holds it since GraceUI's G15 (2026-11-08), and EldenNet draws through GraceUI | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1; GraceUI §2.9 |
+| Overlay library | Dear ImGui 1.93.0 with its own DX12 and Win32 backends, hooked with MinHook 1.3.4, both pinned, since 2026-11-16 in place of hudhook 0.9.3; GraceUI's `grace-host` holds them since GraceUI's G15 (2026-11-08) and never unhooks or unloads while the game runs, and EldenNet draws through GraceUI, its F11 view on Dear ImGui's core with no backend | hudhook 0.9.3 (Rust; the choice from 2026-11-06 until the re-base on C++); kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25, as changed on 2026-11-16). Dear ImGui MIT, MinHook BSD-2 with its Hacker Disassembler Engine (BSD-2), no AI clause (checked 2026-11-16); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1; GraceUI §2.9 |
 | EldenNet's own hooks | One hook library of EldenNet's, in `en-gal` behind `hooks`, for game functions and system functions GraceUI does not hook; each hook installed once after GraceUI's, never removed, and approved with its spike | A hook service in GraceUI; never hooking | Owner decision (O65): the evidence rules out two libraries on one function, not one library per process (WHY§86) | ER02 §7.1; proposal 0001 §3 |
 | Plugins | Content plugins (data only) from 1.1, checked like EldenNet's own content and loaded between the shipped content and the overrides; code plugins through a published C interface after v1.0, each turned on once by the player, its rules set now (§13); no hook service for plugins at first | The overrides only; code plugins in v1.0 | Owner decisions (O66, O68, O69): content can be shared without the risk of code now, and other mods can build on EldenNet later | Proposal 0001 §4–§8; WHY§87 |
 | Plugin installation | The Plugins folder (a folder or a `.zip`) installed by the launcher before the game starts, and the dashboard's drop zone, this PC only; one installer and one set of checks; code never through the browser | The folder only; the dashboard only | Owner decision (O67) | Proposal 0001 §6 |
@@ -2300,7 +2450,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Bindings | An NpcParam row with its name id, a non-zero entity id, or a live boss bar's name id; each a lead until S1, S2 or a sighting in the player's own game verifies it; nothing speaks on an unverified binding | Talk codes as keys; runtime names; a bar id valid outside its fight | The GAL reads no per-character talk code and the datasets disagree (NPC §2); names fork memories; a bar id is authored per encounter (ER05), so it binds only while its bar shows | O43; §7.2, §7.7 |
 | The player's profiles | `%APPDATA%\EldenNet\profiles\`: a layer per slot (instructions, subjects, register, reply length), character profiles of their own and an optional bio of the Tarnished (its seen fields only); each file validated alone by the watcher; lexicon and wording lints warn and no spoiler check applies, while schema, caps, predicates, template syntax and the safety lexicon block; output guards unchanged; never bundled or uploaded | Whole-file overrides only; profiles in `settings.toml`; edits to shipped files | A layer survives content updates; one file per slot resets cleanly; the player's text is theirs, only verified flags unlock a stage or a revealed entry (O86), and the guards on output keep safety where it was | O43, O46, O86; §7.7; ARCH §11.6 |
 | Profile drafting | On the player's click only, one `draft` call turns the player's own notes into a draft of the editable fields, shown for review and saved only by the player; it reads no game text, no name the notes or the player's own text do not give and no shipped private field; ≤ 20 a session | No helper; runtime bio generation; profiles the model updates over time | Our proposal within O43, to make the owner's per-NPC instructions easy to write; it goes beyond SN00 row 16's offline-only drafting by running in game, but only on the player's click, from the player's own notes and text (never game text), and only as a draft the player reviews and saves; row 17's self-updating bios stay dropped: no model changes a profile by itself | O43; §7.7; NPC §4.7 |
-| Roster drafting | `en-tools roster-draft`, offline on the author's machine: one call per NPC turns our own research note into a draft bio; a person edits every field, a second reader does the spoiler review, the lints and the ≥ 6-word overlap check run; no game text, export or vanilla line reaches the model | Hand-writing every bio (MEM §5.6 before O45); runtime generation; drafts from the NPC's own lines (SN00 row 16) | The owner's "we will generate a profile for them" (O45) at about 140 bios; our own notes as the only input keep game text out; review keeps quality and spoilers where hand-writing had them | O45; §7.8; MEM §5.6 |
+| Roster drafting | `eldennet-engine roster-draft`, offline on the author's machine: one call per NPC turns our own research note into a draft bio; a person edits every field, a second reader does the spoiler review, the lints and the ≥ 6-word overlap check run; no game text, export or vanilla line reaches the model | Hand-writing every bio (MEM §5.6 before O45); runtime generation; drafts from the NPC's own lines (SN00 row 16) | The owner's "we will generate a profile for them" (O45) at about 140 bios; our own notes as the only input keep game text out; review keeps quality and spoilers where hand-writing had them | O45; §7.8; MEM §5.6 |
 | Character bio | Five layers: the first meeting (seen, self, voice, speaking up, knows), later truths revealed by verified stages, companion, lived per journey, and the Tarnished's own; about 450–550 words of first-meeting prose for an NPC that speaks; a secret never in the first meeting, a liar's cover story in its `claims` | O46's draft (no claims, aims or ties, no companion or lived layer); SkyrimNet's ten parts, secrets included | Owner decision (O46, as revised in proposal 0004): models leak and Elden Ring is built on mystery, so an NPC holds only what is safe to hear now; skills matter only beside the Tarnished | O46; proposal 0004; WHY§96, WHY§98 |
 | Followers | After v1.0, when actions open, on the companion layer every bio carries from v1.0 and the game's own summons use first | Designed now for a v1 release; summons only | Owner decision (O85): following needs actions, which are later-version seams | O85; §13 |
 | Free conversation | Every NPC with a profile (personas, the roster's bios and the player's own character profiles) converses when conversable and keeps memories of the Tarnished and of other NPCs; the predicates, built-in rules (a) and (b), gates, pacing and spoiler layers are unchanged | Conversation and memory for personas only (O43 before O45) | Owner decision O45; one rule for every profile, whoever wrote it (the player's own included: our reading of O45) | O45; §7.8 |
@@ -2318,7 +2468,11 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the same day; O46 (proposal 0004) and O85 on 2026-11-16. None is Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001,
+plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal
+0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
+same day; O46 (proposal 0004) and O85 on 2026-11-16, and O25 changed that day (the overlay, for C++). None is Open.**
+Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2352,7 +2506,7 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O22](../DECISIONS.md#o22) | Distribution | GitHub canonical; Nexus mirror with an AI disclosure | Decided 2026-11-06 |
 | [O23](../DECISIONS.md#o23) | Generated bark pools in v1.0 | Seeds + pools, gated by X2 | Decided 2026-11-06 |
 | [O24](../DECISIONS.md#o24) | Floating bark labels in v1.0 | Feed + labels, labels once `camera` passes | Decided 2026-11-06 |
-| [O25](../DECISIONS.md#o25) | Overlay library | hudhook pinned at exactly 0.9.3; `dx12` only; never its eject path; held by GraceUI since its G15 (2026-11-08) | Decided 2026-11-06 |
+| [O25](../DECISIONS.md#o25) | Overlay library | Dear ImGui 1.93.0 (its DX12 and Win32 backends) and MinHook 1.3.4, pinned, replaced hudhook 0.9.3 on 2026-11-16, for C++; held by GraceUI's host since its G15 (2026-11-08), never unhooked or unloaded while the game runs | Decided 2026-11-06; changed 2026-11-16 |
 | [O26](../DECISIONS.md#o26) | Game text in another language | (a) in v1; (b) in v1.1 if S2 confirms it | Decided 2026-11-06 |
 | [O27](../DECISIONS.md#o27) | Pattern derivation log | A short note per pattern | Decided 2026-11-06 |
 | [O28](../DECISIONS.md#o28) | Do personas raise new world news unprompted? | Yes, only when a recorded reaction prompts it | Decided 2026-11-06; updated 2026-11-07 |
@@ -2387,7 +2541,7 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O57](../DECISIONS.md#o57) | How are the kinds of game data kept apart, and what must hold? | Research extraction, the framework's data and live tracing kept apart; any method, so long as live tracing serves every feature | Decided 2026-11-08 |
 | [O58](../DECISIONS.md#o58) | Should the live checks be prepared before the blueprint? | (b): capture plans and saves now, nothing built | Decided 2026-11-15 |
 | [O59](../DECISIONS.md#o59) | Where do the game's id leads go? | A numbers-only research file under `docs/research/`, each lead unverified, until EldenNet's identity data replaces it | Decided 2026-11-08 |
-| [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++ for both (Min confirmed the blueprint is C++); the design is re-based on it at adoption; Python stays for tools | Decided 2026-11-08 |
+| [O60](../DECISIONS.md#o60) | Should EldenNet and GraceUI be written in C++? | C++20 for both (Min confirmed the blueprint is C++; our own engine is C++ too, O84); the design was re-based on it on 2026-11-16 (roadmap S8.1.e); Python stays for tools | Decided 2026-11-08 |
 | [O61](../DECISIONS.md#o61) | Which kinds of creature and enemy may speak? | The evidence rule: only kinds the game shows a speaker of (demi-humans, living jars, beastmen, man-serpents, albinaurics, Omens, Hornsent); the rest, dragons included, stay mute | Decided 2026-11-09 |
 | [O62](../DECISIONS.md#o62) | Whose voices does TTS speak in? | The game's own voice recordings, cloned on the player's PC from their own install, as SkyrimNet does; never shipped or uploaded | Decided 2026-11-09 |
 | [O63](../DECISIONS.md#o63) | Melina: mute, or a voice of her own? | (b): a character profile, conversable in EldenNet's overlay while resting at a grace once she has met the Tarnished; a full persona later | Decided 2026-11-09 |
