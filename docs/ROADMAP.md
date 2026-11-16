@@ -839,8 +839,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.1 The spikes for v0.1, in game
 
 - refs: DESIGN§16.1
-- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73)
+- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [active]
   - refs: O73
+  - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Built the same day, on the
+    engine's branch, are en-proto's types for the game-access layer, en-gal's PE reader, patterns and file schemas,
+    and our own fake game with its Wine harness (WHY§120 to §125); the derivation kit and `probe-exe` come next.
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
