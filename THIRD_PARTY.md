@@ -16,7 +16,7 @@ toml++ are downloaded at configure time from their original projects, with their
 |---|---|---|---|
 | [inja](https://github.com/pantor/inja) | 3.4.0 | MIT (`third_party/inja/LICENSE`) | Prompt templates (en-prompt) |
 | [nlohmann/json](https://github.com/nlohmann/json) | 3.11.3 | MIT (downloaded with it) | JSON for templates and requests |
-| [toml++](https://github.com/marzer/tomlplusplus) | 3.4.0 | MIT (downloaded with it) | Configuration files |
+| [toml++](https://github.com/marzer/tomlplusplus) | 3.4.0 | MIT (downloaded with it) | Configuration files (en-llm); gal/'s files (en-gal, built there with `TOML_EXCEPTIONS=0`) |
 | [doctest](https://github.com/doctest/doctest) | 2.4.11 | MIT (`third_party/doctest/LICENSE.txt`) | Unit tests only; never shipped |
 
 ## System libraries (not vendored)
