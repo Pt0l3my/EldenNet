@@ -8,6 +8,7 @@ The command-line host that runs EldenNet's engine outside the game (ARCH §12.3)
 
 ```text
 eldennet-engine probe-exe <exe> --derive --leads <leads.toml> --out <derive.json> [--static <label>=<rva>]...
+eldennet-engine probe-exe <exe> --sections
 ```
 
 It reads the game's executable **file**, and nothing else: never a running process and never the game's memory (O73 to
@@ -26,6 +27,18 @@ patterns is in it.
   vtable for R1's search.
 - `--help` prints the options, the exit codes and the devkit's disclosure of safe use and of what we condemn (proposal
   0002 §2.4, a draft for the owner to amend).
+- `--sections`, alone, is the diagnostic for an executable that is refused: it prints the section table's numbers as
+  the table gives them, read with only the checks a safe read needs (en-gal's `read_section_table`), and nothing else:
+
+  ```text
+  probe-exe: image size 0x1d000 file size 0x1c00 section alignment 0x1000
+  probe-exe: section 0 va 0x1000 vsize 0x8000 raw 0x400 rawsize 0x600 flags 0x60000020
+  ```
+
+  `va` is the section's VirtualAddress, `vsize` its VirtualSize, `raw` its PointerToRawData, `rawsize` its SizeOfRawData
+  and `flags` its Characteristics, by its index in the table; the image size is SizeOfImage. Numbers and fixed words
+  only, as `lint --report` asks of a report: no name, no byte of the file. Exit codes 0 (printed), 2 (usage: with any
+  other option) and 3 (the headers or the table cannot be read).
 
 **The game's leads** are `gal/leads.toml`: only what the design names, each with its section (ARCH §6.1 to §6.3).
 The design names no task base class, so its `[task] base` holds a marker of ours that matches nothing, and R0 reports
@@ -34,6 +47,8 @@ the task `missing` for R1 to find; GameMan and FieldArea are left out until a de
 build, `gal/leads.toml`, `README-R0.txt` (what the tool reads, writes and never does, and the disclosure above),
 `LICENSE.txt`, `THIRD_PARTY.md`, `THIRD-PARTY-NOTICES.txt` (the three libraries' licences) and `SHA256SUMS`, which
 DataPiler 0.2.41's `probe_exe` step checks the tool and the leads file against before it runs them.
+`EldenNet-devkit-R0b.zip` is the same package with the reader that keeps only the loader's rules on sections, and
+`--sections` (README-R0.txt says how to run it); derive.json's format is unchanged.
 
 **For DataPiler's job (roadmap S7.11.h).** Exit codes:
 
@@ -48,7 +63,14 @@ DataPiler 0.2.41's `probe_exe` step checks the tool and the leads file against b
 | 6 | derive.json cannot be written | not written |
 
 Messages go to standard error, one line each, starting `probe-exe: `; none shows a path or anything read from the
-executable (a malformed image's message gives the problem and an offset; a leads file's, the key where it lies). On success one summary line goes to standard output:
+executable (a malformed image's message gives the problem and an offset; a leads file's, the key where it lies). A
+section the reader refuses is named by the rule it breaks, its index and its numbers, in `--sections`' words, in a line
+of at most 251 characters with no path sign, so that DataPiler's log shows it whole:
+`probe-exe: the executable is not a PE32+ image for x64: a section is misplaced: section 1 starts below the end of
+section 0, 0x9000; va 0x1000 vsize 0x8000 raw 0xa00 rawsize 0x600 flags 0x40000040 (at 0x1b0)`. The rules are the
+loader's own (en-gal's README): virtual ranges aligned, ascending, disjoint and within SizeOfImage as the loader rounds
+it, and no raw range that wraps; raw ranges in any order, overlapping, shared, empty or past the end of the file are
+read as the loader maps them. On success one summary line goes to standard output:
 `probe-exe: derive.json written (complete|incomplete): fd4 <status>, <n> of <m> singletons; registration <status>;
 task <status>; group <status>`. It holds the file and a copy of its sections in memory (about twice the file's size),
 and decodes `.text` a few times over: here about 3.5 million instructions a second, a third of a second for 3.5 MB of
@@ -86,5 +108,7 @@ was there; 2 a usage error, or a file that cannot be read or is larger than 256 
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's
 content, the static's pattern from a slot, the lint's refusals of a path, a free string, a byte run and a float without
-quoting them, and no path in any message. The Windows builds run the same commands under Wine on `fakegame.exe`
+quoting them, and no path in any message; `--sections` against the table read in Python, a refused section's line
+(its shape, its numbers, and DataPiler's log's shape), and a copy whose last section's raw data runs past the end of
+the file and whose SizeOfImage is short of its alignment, which derives as the file itself does. The Windows builds run the same commands under Wine on `fakegame.exe`
 (`tests/fakegame/`).
