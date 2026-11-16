@@ -121,6 +121,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 96 | 2026-11-15 | SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player | FACT | #engine #roster |
 | 97 | 2026-11-15 | SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts | FACT | #engine #roster |
 | 98 | 2026-11-15 | What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine | LIKELY | #engine #roster #process |
+| 99 | 2026-11-16 | The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine | LIKELY | #engine #process |
 
 ## Entries
 
@@ -1763,3 +1764,35 @@ checkout), O68, O53
 - Next: S8.1.f folds these into ARCH §11, MEM and the design; proposal 0004 takes (9) and (10) at once.
 - Later (2026-11-15): O86 keeps spoilers by grounding alone, so (10) becomes a review when fields are written, and
   (12)'s spoiler check a few test questions per character on the model's own knowledge of the game.
+
+### 99. The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine
+
+`2026-11-16` · LIKELY · `#engine #process` · refs: WHY§97, WHY§98, O68, O84, O86
+
+- Source: the Skyrizz session's reply to our questions (2026-11-16), from its bench runs on local models, captured
+  SkyrimNet payloads and logs, and static reading; Skyrizz has not run in game, and none of it is verified here.
+- **Recall.** Code gathering only the records a question needs reached 93 to 100%, against 0 to 25% when the model
+  was given an index or told the joins. A recall gate picking the right memory among 4 to 12 near misses reached 83 to
+  100%, best when the question named the setup, the matter and the outcome. SkyrimNet writes memories in a background
+  cycle about every five minutes (importance 0.2 or more, one per participant and witness); linked identities make
+  duplicates; diary entries are memory rows; recall keeps up to 12 above a similarity of 0.52.
+- **Decisions.** Typed decisions on a small model never failed to parse (432 requests, 0.04 to 0.15 s) but were weak on
+  subtle readings, and SkyrimNet's 0.70 confidence cut-off lost about a quarter of right answers. Chat on an
+  OpenAI-compatible endpoint matched or beat them (0.10 to 0.32 s); its misses were format, fixed by readers that go by
+  meaning and by plain yes/no questions. Thinking cost 2 to 35 s a step, with rare runaways near 50k tokens.
+- **Templates.** Unresolved variables reached the model 12 times in the captures. Traps seen: `not` binding tighter
+  than `==` and passing a null; JSON at column 0; `capitalize("")` crashing; stock Inja failing 55 of SkyrimNet's
+  1,622 files, with `loop.last`, `loop.index0`, indexing and `in` silently wrong.
+- **Records.** SkyrimNet renders the full profile in every full-mode prompt, with no allow-list. Instructions planted
+  in records were obeyed 10 times in 10, and models copied ties from their own task lines.
+- **Plugins and cost.** An event's audience bounds only characters' own history, not the GameMaster or the speaker
+  picker; the interface passes C++ library types, and its threads and runtime linkage are undocumented. Outside
+  scenes, about 6k input tokens a request and 506 requests an hour; decorator values may be up to 55 s stale.
+- **For our engine** (with WHY§98, in S8.1.f): (1) code gathers the records a call needs, by id, and the model only
+  picks or writes; (2) decisions over chat, read by meaning, with plain yes/no questions, thinking off by default and
+  no hard confidence cut-off; (3) the template engine fails loudly on unknown names, keeps null and missing apart, has
+  real booleans, a real substring test and built-ins safe on empty strings, and nothing unresolved reaches a model;
+  (4) records enter prompts as quoted data, plugin content is validated, and examples use names no record holds (O86
+  stands: no runtime output filter); (5) the lived layer changes only what cited memories justify; (6) the code-plugin
+  interface (O68) has binding audiences, a C ABI, documented threads and reads by id; (7) the next speaker and its
+  addressee are checked by code; (8) a budget of requests per hour, and a bound on how stale a cached value may be.

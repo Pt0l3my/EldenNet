@@ -635,9 +635,9 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
   - needs: a
   - refs: O60, O84, O25, G15
-- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [planned]
+- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98), and the Skyrizz session's measurements (WHY§99): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [planned]
   - needs: a
-  - refs: WHY§97, WHY§98, O84, O46
+  - refs: WHY§97, WHY§98, WHY§99, O84, O46
 
 ## S9 The roster pipeline [planned]
 
