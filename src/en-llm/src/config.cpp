@@ -1,0 +1,579 @@
+// Reading providers.toml, models.toml, settings.toml and secrets.toml (ARCH §11.1, §11.4, §11.5).
+//
+// Every table the client owns is read strictly: an unknown key is an error, as `deny_unknown_fields` is in the design,
+// and a newer schema is refused. settings.toml belongs mostly to other modules, so only its `budget` table is read
+// here (strictly); the rest of that file is theirs to check. Errors name the file and the line, and never a key's value.
+#include "en/llm/config.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <initializer_list>
+#include <sstream>
+
+#include <toml.hpp>
+
+namespace en::llm {
+
+using nlohmann::json;
+
+namespace {
+
+constexpr std::int64_t kProvidersSchema = 1;
+constexpr std::int64_t kModelsSchema = 1;
+constexpr std::int64_t kSettingsSchema = 2;
+constexpr std::uintmax_t kMaxFileBytes = 64 * 1024;  // DESIGN §11.4
+
+// The levels OpenRouter's provider.quantizations takes, lowest first.
+constexpr std::array<std::string_view, 8> kQuantLevels = {"int4", "fp4", "fp6", "int8", "fp8", "fp16", "bf16", "fp32"};
+
+// Fields the client writes itself; extra_body may not set them.
+constexpr std::array<std::string_view, 11> kClientFields = {
+    "model", "messages", "stream", "stream_options", "max_tokens", "max_completion_tokens",
+    "temperature", "response_format", "logprobs", "top_logprobs", "n"};
+
+struct Ctx {
+  std::string file;
+  std::string where;
+
+  [[noreturn]] void fail(const std::string& what, const toml::node* at = nullptr) const {
+    std::string message = where.empty() ? what : where + ": " + what;
+    if (at != nullptr && at->source().begin.line > 0) {
+      message += " (line " + std::to_string(at->source().begin.line) + ")";
+    }
+    throw ConfigError(file, message);
+  }
+  Ctx sub(std::string inner) const { return Ctx{file, std::move(inner)}; }
+};
+
+toml::table parse_toml(const std::string& file, std::string_view text, bool secret) {
+  try {
+    return toml::parse(text, file);
+  } catch (const toml::parse_error& e) {
+    const auto line = std::to_string(e.source().begin.line);
+    // The parser's description can quote the text it stopped at, which in secrets.toml may be a key.
+    if (secret) throw ConfigError(file, "not valid TOML near line " + line);
+    throw ConfigError(file, std::string(e.description()) + " (line " + line + ")");
+  }
+}
+
+void check_keys(const toml::table& table, std::initializer_list<std::string_view> allowed, const Ctx& ctx) {
+  for (auto&& [key, value] : table) {
+    if (std::find(allowed.begin(), allowed.end(), key.str()) == allowed.end()) {
+      ctx.fail("unknown key \"" + std::string(key.str()) + "\"", &value);
+    }
+  }
+}
+
+std::optional<std::string> get_string(const toml::table& table, std::string_view key, const Ctx& ctx) {
+  const toml::node* node = table.get(key);
+  if (node == nullptr) return std::nullopt;
+  if (!node->is_string()) ctx.fail("\"" + std::string(key) + "\" must be a string", node);
+  return node->as_string()->get();
+}
+
+std::string require_string(const toml::table& table, std::string_view key, const Ctx& ctx) {
+  auto value = get_string(table, key, ctx);
+  if (!value || value->empty()) ctx.fail("needs \"" + std::string(key) + "\"");
+  return *value;
+}
+
+std::optional<std::int64_t> get_int(const toml::table& table, std::string_view key, const Ctx& ctx) {
+  const toml::node* node = table.get(key);
+  if (node == nullptr) return std::nullopt;
+  if (!node->is_integer()) ctx.fail("\"" + std::string(key) + "\" must be an integer", node);
+  return node->as_integer()->get();
+}
+
+std::optional<bool> get_bool(const toml::table& table, std::string_view key, const Ctx& ctx) {
+  const toml::node* node = table.get(key);
+  if (node == nullptr) return std::nullopt;
+  if (!node->is_boolean()) ctx.fail("\"" + std::string(key) + "\" must be true or false", node);
+  return node->as_boolean()->get();
+}
+
+const toml::table* get_table(const toml::table& table, std::string_view key, const Ctx& ctx) {
+  const toml::node* node = table.get(key);
+  if (node == nullptr) return nullptr;
+  if (!node->is_table()) ctx.fail("\"" + std::string(key) + "\" must be a table", node);
+  return node->as_table();
+}
+
+void check_schema(const toml::table& table, std::int64_t supported, const Ctx& ctx, bool required) {
+  auto schema = get_int(table, "schema", ctx);
+  if (!schema) {
+    if (required) ctx.fail("needs schema = " + std::to_string(supported));
+    return;
+  }
+  if (*schema > supported) {
+    ctx.fail("schema " + std::to_string(*schema) + " is newer than this build reads (" + std::to_string(supported) +
+             "); update EldenNet");
+  }
+  if (*schema < 1) ctx.fail("schema must be 1 or more");
+}
+
+json to_json(const toml::node& node, const Ctx& ctx) {
+  if (const auto* table = node.as_table()) {
+    json object = json::object();
+    for (auto&& [key, value] : *table) object[std::string(key.str())] = to_json(value, ctx);
+    return object;
+  }
+  if (const auto* array = node.as_array()) {
+    json list = json::array();
+    for (const auto& value : *array) list.push_back(to_json(value, ctx));
+    return list;
+  }
+  if (const auto* s = node.as_string()) return s->get();
+  if (const auto* i = node.as_integer()) return i->get();
+  if (const auto* f = node.as_floating_point()) return f->get();
+  if (const auto* b = node.as_boolean()) return b->get();
+  ctx.fail("dates and times are not request values", &node);
+}
+
+using Keys = std::map<std::string, Secret, std::less<>>;
+
+Keys parse_secrets(const std::string& text) {
+  const Ctx ctx{"secrets.toml", ""};
+  const toml::table root = parse_toml(ctx.file, text, /*secret=*/true);
+  check_keys(root, {"keys"}, ctx);
+  Keys keys;
+  const toml::table* table = get_table(root, "keys", ctx);
+  if (table == nullptr) return keys;
+  for (auto&& [name, value] : *table) {
+    // Names are safe to show; values never are.
+    if (!value.is_string()) ctx.fail("keys." + std::string(name.str()) + " must be a string", &value);
+    keys.emplace(std::string(name.str()), Secret(value.as_string()->get()));
+  }
+  return keys;
+}
+
+// "secrets:NAME" or "env:VAR". A ref that finds nothing is not an error at load: the provider is simply not used
+// until the key is there. Anything else is refused without being echoed, since it may be a key written inline.
+std::optional<Secret> resolve_ref(const std::string& ref, const Keys& keys, const EnvLookup& env, const Ctx& ctx,
+                                  const std::string& field) {
+  if (ref.rfind("secrets:", 0) == 0 && ref.size() > 8) {
+    auto it = keys.find(std::string_view(ref).substr(8));
+    if (it == keys.end() || it->second.empty()) return std::nullopt;
+    return it->second;
+  }
+  if (ref.rfind("env:", 0) == 0 && ref.size() > 4) {
+    auto value = env(ref.substr(4));
+    if (!value || value->empty()) return std::nullopt;
+    return Secret(std::move(*value));
+  }
+  ctx.fail(field + " must be \"secrets:NAME\" or \"env:VAR\"; keys are never written inline");
+}
+
+bool is_ref(const std::string& value) {
+  return (value.rfind("secrets:", 0) == 0 && value.size() > 8) || (value.rfind("env:", 0) == 0 && value.size() > 4);
+}
+
+bool valid_id(std::string_view id) {
+  if (id.empty() || id.size() > 64) return false;
+  return std::all_of(id.begin(), id.end(), [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
+           c == '.';
+  });
+}
+
+std::string lower(std::string s) {
+  for (char& c : s) {
+    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  }
+  return s;
+}
+
+std::string url_host(std::string_view url) {
+  const auto scheme_end = url.find("://");
+  std::string_view rest = scheme_end == std::string_view::npos ? url : url.substr(scheme_end + 3);
+  rest = rest.substr(0, rest.find_first_of("/?#"));
+  if (const auto at = rest.rfind('@'); at != std::string_view::npos) rest = rest.substr(at + 1);
+  if (!rest.empty() && rest.front() == '[') return lower(std::string(rest.substr(0, rest.find(']') + 1)));
+  return lower(std::string(rest.substr(0, rest.find(':'))));
+}
+
+bool is_loopback_host(const std::string& host) {
+  return host == "localhost" || host == "[::1]" || host.rfind("127.", 0) == 0;
+}
+
+std::string normalise_base_url(std::string url) {
+  while (!url.empty() && (url.back() == '/' || url.back() == ' ')) url.pop_back();
+  while (!url.empty() && url.front() == ' ') url.erase(url.begin());
+  return url;
+}
+
+template <typename Enum, std::size_t N>
+Enum parse_choice(const std::string& value, const std::array<std::pair<std::string_view, Enum>, N>& choices,
+                  const std::string& field, const Ctx& ctx) {
+  for (const auto& [name, e] : choices) {
+    if (value == name) return e;
+  }
+  std::string list;
+  for (const auto& [name, e] : choices) list += (list.empty() ? "" : " | ") + std::string(name);
+  ctx.fail(field + " must be " + list);
+}
+
+constexpr std::array<std::pair<std::string_view, Flavor>, 5> kFlavors = {{{"openai", Flavor::OpenAI},
+                                                                          {"ollama", Flavor::Ollama},
+                                                                          {"llamacpp", Flavor::LlamaCpp},
+                                                                          {"lmstudio", Flavor::LmStudio},
+                                                                          {"koboldcpp", Flavor::KoboldCpp}}};
+constexpr std::array<std::pair<std::string_view, ProviderKind>, 2> kKinds = {
+    {{"cloud", ProviderKind::Cloud}, {"local", ProviderKind::Local}}};
+constexpr std::array<std::pair<std::string_view, JsonMode>, 3> kJsonModes = {
+    {{"none", JsonMode::None}, {"json_object", JsonMode::JsonObject}, {"json_schema", JsonMode::JsonSchema}}};
+constexpr std::array<std::pair<std::string_view, CacheMarks>, 3> kCacheMarks = {
+    {{"none", CacheMarks::None}, {"breakpoints", CacheMarks::Breakpoints}, {"cache_prompt", CacheMarks::CachePrompt}}};
+
+ProviderConfig parse_provider(const toml::table& table, std::size_t index, const Keys& keys, const EnvLookup& env,
+                              const Ctx& file_ctx) {
+  const Ctx ctx = file_ctx.sub("provider " + std::to_string(index + 1));
+  check_keys(table,
+             {"id", "flavor", "kind", "base_url", "key_ref", "headers", "extra_body", "max_concurrency", "json_mode",
+              "quant_floor", "cache_marks", "logprobs"},
+             ctx);
+  ProviderConfig p;
+  p.id = require_string(table, "id", ctx);
+  if (!valid_id(p.id)) ctx.fail("id must be 1 to 64 letters, digits, '_', '-' or '.'");
+  const Ctx pctx = file_ctx.sub("provider \"" + p.id + "\"");
+
+  p.flavor = parse_choice(get_string(table, "flavor", pctx).value_or("openai"), kFlavors, "flavor", pctx);
+  p.base_url = normalise_base_url(require_string(table, "base_url", pctx));
+  if (p.base_url.rfind("https://", 0) != 0 && p.base_url.rfind("http://", 0) != 0) {
+    pctx.fail("base_url must start with https:// or http://");
+  }
+  const bool loopback = is_loopback_host(url_host(p.base_url));
+  if (auto kind = get_string(table, "kind", pctx)) {
+    p.kind = parse_choice(*kind, kKinds, "kind", pctx);
+  } else {
+    p.kind = loopback ? ProviderKind::Local : ProviderKind::Cloud;
+  }
+  // A key must never cross a network in clear text.
+  if (p.base_url.rfind("http://", 0) == 0 && !loopback && p.kind == ProviderKind::Cloud) {
+    pctx.fail("a cloud provider's base_url must use https://");
+  }
+
+  if (auto ref = get_string(table, "key_ref", pctx)) {
+    p.key_ref = *ref;
+    p.key = resolve_ref(*ref, keys, env, pctx, "key_ref");
+    if (!p.key) p.unresolved_refs.push_back(*ref);
+  }
+
+  if (const toml::table* headers = get_table(table, "headers", pctx)) {
+    for (auto&& [name, value] : *headers) {
+      if (!value.is_string()) pctx.fail("headers." + std::string(name.str()) + " must be a string", &value);
+      std::string text = value.as_string()->get();
+      if (is_ref(text)) {
+        if (auto secret = resolve_ref(text, keys, env, pctx, "headers." + std::string(name.str()))) {
+          p.secret_headers.emplace_back(std::string(name.str()), std::move(*secret));
+        } else {
+          p.unresolved_refs.push_back(text);
+        }
+      } else {
+        p.headers.push_back(HttpHeader{std::string(name.str()), std::move(text)});
+      }
+    }
+  }
+
+  if (const toml::table* extra = get_table(table, "extra_body", pctx)) {
+    p.extra_body = to_json(*extra, pctx);
+    for (std::string_view field : kClientFields) {
+      if (p.extra_body.contains(field)) pctx.fail("extra_body may not set \"" + std::string(field) + "\": the client sets it");
+    }
+  }
+
+  const std::int64_t concurrency = get_int(table, "max_concurrency", pctx).value_or(p.kind == ProviderKind::Cloud ? 2 : 1);
+  if (concurrency < 1 || concurrency > 16) pctx.fail("max_concurrency must be 1 to 16");
+  p.max_concurrency = static_cast<int>(concurrency);
+
+  p.json_mode = parse_choice(get_string(table, "json_mode", pctx).value_or("none"), kJsonModes, "json_mode", pctx);
+
+  if (auto floor = get_string(table, "quant_floor", pctx)) {
+    if (std::find(kQuantLevels.begin(), kQuantLevels.end(), *floor) == kQuantLevels.end()) {
+      pctx.fail("quant_floor must be one of int4, fp4, fp6, int8, fp8, fp16, bf16, fp32");
+    }
+    p.quant_floor = *floor;
+  }
+
+  if (auto marks = get_string(table, "cache_marks", pctx)) {
+    p.cache_marks = parse_choice(*marks, kCacheMarks, "cache_marks", pctx);
+  } else {
+    p.cache_marks = p.flavor == Flavor::LlamaCpp ? CacheMarks::CachePrompt : CacheMarks::None;
+  }
+
+  p.logprobs = get_bool(table, "logprobs", pctx).value_or(p.flavor == Flavor::OpenAI || p.flavor == Flavor::LlamaCpp);
+  return p;
+}
+
+// The preset's provider (models.toml says what it expects) is the configured provider that matches it: by base_url
+// where the preset gives one, otherwise by kind and flavour, otherwise the only provider there is.
+std::string resolve_preset_provider(const toml::table& preset, const Config& cfg, const Ctx& ctx) {
+  const toml::table* spec = get_table(preset, "provider", ctx);
+  if (spec == nullptr) {
+    if (cfg.providers.size() == 1) return cfg.providers.front().id;
+    ctx.fail("names no provider, and providers.toml has " + std::to_string(cfg.providers.size()));
+  }
+  const Ctx sctx = ctx.sub(ctx.where + ".provider");
+  check_keys(*spec, {"flavor", "kind", "base_url"}, sctx);
+  if (auto url = get_string(*spec, "base_url", sctx)) {
+    const std::string wanted = normalise_base_url(*url);
+    for (const auto& p : cfg.providers) {
+      if (p.base_url == wanted) return p.id;
+    }
+    ctx.fail("needs a provider with base_url = \"" + wanted + "\" in providers.toml");
+  }
+  std::optional<ProviderKind> kind;
+  std::optional<Flavor> flavor;
+  if (auto k = get_string(*spec, "kind", sctx)) kind = parse_choice(*k, kKinds, "kind", sctx);
+  if (auto f = get_string(*spec, "flavor", sctx)) flavor = parse_choice(*f, kFlavors, "flavor", sctx);
+  for (const auto& p : cfg.providers) {
+    if ((!kind || p.kind == *kind) && (!flavor || p.flavor == *flavor)) return p.id;
+  }
+  ctx.fail("needs a matching provider in providers.toml");
+}
+
+// Returns the provider the preset resolved to, which [slots] overrides then default to.
+std::string apply_preset(Config& cfg, const std::string& models_text, const std::string& preset_id) {
+  const Ctx ctx{"models.toml", ""};
+  const toml::table root = parse_toml(ctx.file, models_text, false);
+  check_keys(root, {"schema", "preset"}, ctx);
+  check_schema(root, kModelsSchema, ctx, /*required=*/true);
+  const toml::table* presets = get_table(root, "preset", ctx);
+  const toml::node* node = presets != nullptr ? presets->get(preset_id) : nullptr;
+  if (node == nullptr || !node->is_table()) ctx.fail("has no preset \"" + preset_id + "\"");
+  const toml::table& preset = *node->as_table();
+  const Ctx pctx = ctx.sub("preset." + preset_id);
+  check_keys(preset,
+             {"provider", "all", "warn_free_tier_for", kDialogue, kBarkLive, kBarkPool, kMemory, kSelftest, kDraft,
+              kDecisions},
+             pctx);
+  if (const toml::node* warn = preset.get("warn_free_tier_for"); warn != nullptr && !warn->is_array()) {
+    pctx.fail("warn_free_tier_for must be a list", warn);  // the wizard's concern; only checked here
+  }
+  const std::string provider = resolve_preset_provider(preset, cfg, pctx);
+  const toml::table* all = get_table(preset, "all", pctx);
+  for (const std::string& slot : known_slots()) {
+    const toml::table* entry = get_table(preset, slot, pctx);
+    const Ctx ectx = pctx.sub(pctx.where + "." + (entry != nullptr ? slot : std::string("all")));
+    if (entry == nullptr) entry = all;
+    if (entry == nullptr) continue;
+    check_keys(*entry, {"model", "fallback", "model_hint", "quant", "background_at_rest_only"}, ectx);
+    auto model = get_string(*entry, "model", ectx);
+    auto fallback = get_string(*entry, "fallback", ectx);
+    get_string(*entry, "quant", ectx);
+    get_bool(*entry, "background_at_rest_only", ectx);
+    if (const toml::node* hint = entry->get("model_hint"); hint != nullptr && !hint->is_array()) {
+      ectx.fail("model_hint must be a list", hint);
+    }
+    auto& models = cfg.slots[slot].models;
+    models.clear();
+    if (model && !model->empty()) {
+      models.push_back(ModelRef{provider, *model});
+      if (fallback && !fallback->empty()) models.push_back(ModelRef{provider, *fallback});
+    } else if (entry->get("model_hint") != nullptr) {
+      cfg.warnings.push_back("preset " + preset_id + ": slot " + slot +
+                             " names model hints only; the local probe resolves them (later work), or name a model in "
+                             "providers.toml [slots." + slot + "]");
+    }
+  }
+  return provider;
+}
+
+void apply_slot_overrides(Config& cfg, const toml::table& slots, const std::optional<std::string>& preset_provider,
+                          const Ctx& file_ctx) {
+  for (auto&& [name, value] : slots) {
+    const std::string slot(name.str());
+    const Ctx ctx = file_ctx.sub("slots." + slot);
+    if (cfg.slots.find(slot) == cfg.slots.end()) ctx.fail("is not a slot (" + std::string(kDialogue) + ", ...)", &value);
+    if (!value.is_table()) ctx.fail("must be a table", &value);
+    const toml::table& table = *value.as_table();
+    check_keys(table, {"model", "fallback", "provider", "fallback_provider"}, ctx);
+
+    auto provider_for = [&](std::string_view key, const std::optional<std::string>& fallback_to) -> std::string {
+      if (auto id = get_string(table, key, ctx)) {
+        if (cfg.provider(*id) == nullptr) ctx.fail("names no provider \"" + *id + "\"");
+        return *id;
+      }
+      if (fallback_to) return *fallback_to;
+      if (cfg.providers.size() == 1) return cfg.providers.front().id;
+      ctx.fail("needs " + std::string(key) + " = \"<id>\": providers.toml has several providers");
+    };
+
+    auto& models = cfg.slots[slot].models;
+    std::optional<ModelRef> primary = models.empty() ? std::nullopt : std::optional<ModelRef>(models[0]);
+    std::optional<ModelRef> fallback = models.size() < 2 ? std::nullopt : std::optional<ModelRef>(models[1]);
+    if (auto model = get_string(table, "model", ctx)) {
+      primary = ModelRef{provider_for("provider", preset_provider), *model};
+    } else if (table.get("provider") != nullptr) {
+      ctx.fail("names a provider but no model");
+    }
+    if (auto model = get_string(table, "fallback", ctx)) {
+      const std::optional<std::string> base = primary ? std::optional<std::string>(primary->provider) : preset_provider;
+      fallback = ModelRef{provider_for("fallback_provider", base), *model};
+    } else if (table.get("fallback_provider") != nullptr) {
+      ctx.fail("names a fallback_provider but no fallback");
+    }
+    if (!primary && fallback) ctx.fail("has a fallback but no model");
+    models.clear();
+    if (primary) models.push_back(*primary);
+    if (fallback) models.push_back(*fallback);
+  }
+}
+
+// A slot with no model of its own borrows one (ARCH §11.4): draft and the rest use dialogue's, decisions bark_live's.
+void fill_empty_slots(Config& cfg) {
+  const auto& dialogue = cfg.slots[std::string(kDialogue)].models;
+  auto& bark_live = cfg.slots[std::string(kBarkLive)].models;
+  if (bark_live.empty()) bark_live = dialogue;
+  for (auto& [name, slot] : cfg.slots) {
+    if (!slot.models.empty() || name == kDialogue) continue;
+    slot.models = name == kDecisions ? bark_live : dialogue;
+  }
+}
+
+void parse_settings(Config& cfg, const std::string& text) {
+  const Ctx ctx{"settings.toml", ""};
+  const toml::table root = parse_toml(ctx.file, text, false);
+  check_schema(root, kSettingsSchema, ctx, /*required=*/false);
+  const toml::table* budget = get_table(root, "budget", ctx);
+  if (budget == nullptr) return;
+  const Ctx bctx = ctx.sub("budget");
+  check_keys(*budget, {"requests_per_hour"}, bctx);
+  if (auto per_hour = get_int(*budget, "requests_per_hour", bctx)) {
+    if (*per_hour < 60 || *per_hour > 3600) bctx.fail("requests_per_hour must be 60 to 3600");
+    cfg.requests_per_hour = static_cast<int>(*per_hour);
+  }
+}
+
+std::optional<std::string> read_file(const std::filesystem::path& path, bool required) {
+  std::error_code ec;
+  if (!std::filesystem::exists(path, ec)) {
+    if (required) throw ConfigError(path.filename().string(), "not found in the configuration folder");
+    return std::nullopt;
+  }
+  const auto size = std::filesystem::file_size(path, ec);
+  if (ec) throw ConfigError(path.filename().string(), "cannot be read");
+  if (size > kMaxFileBytes) throw ConfigError(path.filename().string(), "is larger than 64 KB");
+  std::ifstream in(path, std::ios::binary);
+  if (!in) throw ConfigError(path.filename().string(), "cannot be opened");
+  std::ostringstream text;
+  text << in.rdbuf();
+  return text.str();
+}
+
+}  // namespace
+
+const char* to_string(Flavor f) {
+  for (const auto& [name, e] : kFlavors) {
+    if (e == f) return name.data();
+  }
+  return "openai";
+}
+
+const char* to_string(ProviderKind k) { return k == ProviderKind::Cloud ? "cloud" : "local"; }
+
+const std::vector<std::string>& known_slots() {
+  static const std::vector<std::string> slots = {std::string(kDialogue), std::string(kBarkLive),
+                                                 std::string(kBarkPool), std::string(kMemory),
+                                                 std::string(kSelftest), std::string(kDraft),
+                                                 std::string(kDecisions)};
+  return slots;
+}
+
+SlotBudget default_budget(std::string_view slot) {
+  using std::chrono::milliseconds;
+  // max_tokens, temperature, first token, first token on a local provider, total, retries, concurrency.
+  // ARCH §11.4's table; concurrency is ours (impl): one reply in flight (ARCH §1.3, C9), two call-outs or decisions.
+  if (slot == kBarkLive) return {32, 0.9, milliseconds(1500), milliseconds(1500), milliseconds(3000), 0, 2};
+  if (slot == kBarkPool) return {600, 1.0, milliseconds(15000), milliseconds(15000), milliseconds(60000), 1, 1};
+  if (slot == kMemory) return {500, 0.3, milliseconds(20000), milliseconds(20000), milliseconds(60000), 2, 1};
+  if (slot == kSelftest) return {32, 0.0, milliseconds(10000), milliseconds(10000), milliseconds(20000), 0, 1};
+  if (slot == kDraft) return {500, 0.7, milliseconds(20000), milliseconds(20000), milliseconds(60000), 0, 1};
+  if (slot == kDecisions) return {100, 0.0, milliseconds(1500), milliseconds(3000), milliseconds(5000), 0, 2};
+  return {140, 0.8, milliseconds(6000), milliseconds(10000), milliseconds(20000), 0, 1};  // dialogue
+}
+
+const ProviderConfig* Config::provider(std::string_view id) const {
+  for (const auto& p : providers) {
+    if (p.id == id) return &p;
+  }
+  return nullptr;
+}
+
+const SlotConfig& Config::slot(std::string_view name) const {
+  auto it = slots.find(name);
+  if (it == slots.end()) it = slots.find(kDialogue);
+  if (it == slots.end()) throw std::logic_error("a configuration without the dialogue slot");
+  return it->second;
+}
+
+std::optional<std::string> system_env(const std::string& name) {
+  const char* value = std::getenv(name.c_str());
+  if (value == nullptr) return std::nullopt;
+  return std::string(value);
+}
+
+std::vector<std::string> quantizations_from(std::string_view floor) {
+  std::vector<std::string> levels;
+  bool reached = false;
+  for (std::string_view level : kQuantLevels) {
+    reached = reached || level == floor;
+    if (reached) levels.emplace_back(level);
+  }
+  return levels;
+}
+
+Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
+  Config cfg;
+  for (const std::string& slot : known_slots()) cfg.slots[slot] = SlotConfig{slot, default_budget(slot), {}};
+  const Keys keys = texts.secrets ? parse_secrets(*texts.secrets) : Keys{};
+  if (texts.settings) parse_settings(cfg, *texts.settings);
+
+  const Ctx ctx{"providers.toml", ""};
+  const toml::table root = parse_toml(ctx.file, texts.providers, false);
+  check_keys(root, {"schema", "preset", "provider", "slots"}, ctx);
+  check_schema(root, kProvidersSchema, ctx, /*required=*/true);
+  cfg.preset = get_string(root, "preset", ctx).value_or("custom");
+
+  if (const toml::node* list = root.get("provider")) {
+    if (!list->is_array_of_tables()) ctx.fail("provider must be [[provider]] tables", list);
+    std::size_t index = 0;
+    for (const auto& entry : *list->as_array()) {
+      ProviderConfig p = parse_provider(*entry.as_table(), index++, keys, env, ctx);
+      if (cfg.provider(p.id) != nullptr) ctx.fail("two providers have the id \"" + p.id + "\"", &entry);
+      cfg.providers.push_back(std::move(p));
+    }
+  }
+  if (cfg.providers.empty()) ctx.fail("names no [[provider]]");
+
+  std::optional<std::string> preset_provider;
+  if (cfg.preset != "custom") {
+    if (!texts.models) throw ConfigError("models.toml", "is needed for preset \"" + cfg.preset + "\"");
+    preset_provider = apply_preset(cfg, *texts.models, cfg.preset);
+  }
+  if (const toml::table* slots = get_table(root, "slots", ctx)) apply_slot_overrides(cfg, *slots, preset_provider, ctx);
+  fill_empty_slots(cfg);
+  if (cfg.slots[std::string(kDialogue)].models.empty()) {
+    cfg.warnings.push_back("no slot has a model: name one in providers.toml [slots.dialogue] or choose a preset");
+  }
+  for (const auto& p : cfg.providers) {
+    for (const auto& ref : p.unresolved_refs) {
+      cfg.warnings.push_back("provider " + p.id + ": " + ref + " names no key, so the provider is not used");
+    }
+  }
+  return cfg;
+}
+
+Config load_config_dir(const std::filesystem::path& dir, const std::optional<std::filesystem::path>& models_file,
+                       const EnvLookup& env) {
+  ConfigTexts texts;
+  texts.providers = *read_file(dir / "providers.toml", /*required=*/true);
+  texts.models = read_file(models_file ? *models_file : dir / "models.toml", /*required=*/models_file.has_value());
+  texts.settings = read_file(dir / "settings.toml", false);
+  texts.secrets = read_file(dir / "secrets.toml", false);
+  return parse_config(texts, env);
+}
+
+}  // namespace en::llm
