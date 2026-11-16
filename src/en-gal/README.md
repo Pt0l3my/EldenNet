@@ -35,6 +35,18 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   finds sections by name and by RVA, places an RVA's bytes in the source (`offset_of`), finds the function holding an
   RVA (`function_at`, by binary search), and `is_fragment` tells a function's fragment (chained unwind information, or
   an entry pointing at another).
+  **Sections keep the loader's rules, and no more** (a protected game's executable was refused by stricter ones):
+  virtual ranges aligned to SectionAlignment, ascending from the end of the headers, disjoint, and within SizeOfImage
+  as the loader rounds it (to SectionAlignment and to 4 KiB); and no raw range whose end passes 4 GiB. Raw ranges are
+  otherwise free: in any order, overlapping, shared, empty (SizeOfRawData or PointerToRawData 0) or past the end of the
+  file; SizeOfRawData may pass VirtualSize and the reverse; a section of no size at all is let through, and holds no
+  RVA. In a file, `file_span` gives what the file holds of a section (its raw data, at most its virtual size, up to the
+  end of the file) and `read_mapped` reads an RVA as the loader maps it, zeros for the rest; the pattern scan and
+  `ImageBytes` read through them. A section's refusal carries a `SectionFault`: the rule, the section's index (never
+  its name), the bound it broke and its numbers, worded by `describe` in at most 192 characters (`describe_numbers`'
+  words, `va`, `vsize`, `raw`, `rawsize` and `flags`). `read_section_table` reads the headers' sizes and the table with
+  only the checks a safe read needs, for `probe-exe --sections`. In the exception directory, an entry of no length
+  (GNU toolchains emit them) is left out, not refused.
 - **`patterns.hpp`: the patterns** (ARCH §6.2, §6.3). The grammar (`parse_pattern`): hex byte pairs, `??` for a
   wildcard, whitespace between them ignored; 1 to 256 bytes, at least 4 of them fixed; refused with the problem and the
   character where it was found. `MultiMatcher` finds many patterns in one pass, anchored on a pair of fixed bytes (or
@@ -269,8 +281,12 @@ const auto registered = en::gal::install_task(sys, *found.last, task);      // t
 `cmake --build <build> --target en_gal_tests`, then run `en_gal_tests` (under Wine for the Windows builds). The offline
 part's tests run in every build, on `FakeImage`s (`tests/fake_image.hpp`): PE32+ images of the tests' own, laid out as
 a linker would, from invented bytes, in both layouts, with whatever sections a test gives them, a version resource and
-a function table with chained and indirect entries. They check the same facts from the file and from memory; every
-problem a malformed image can have, with where; unreadable bytes in the source; the grammar's forms and refusals; the
+a function table with chained and indirect entries, and, on request, raw data placed by hand, a file cut short and a
+SizeOfImage of the test's own. They check the same facts from the file and from memory; every problem a malformed
+image can have, with where, and for a section its rule, index and numbers; each raw layout the loader accepts (out of
+order, overlapping, shared, empty, past the end of the file; sections of no size; a virtual size of 1 GiB; SizeOfImage
+short of the last section's alignment) read as the loader maps it, through `read_mapped`, `ImageBytes` and the scan;
+unreadable bytes in the source; the grammar's forms and refusals; the
 matcher against a plain search, fed whole and in chunks of many sizes, with gaps and held-back positions counted; each
 of ARCH §6.2's rules over planted patterns, functions and statics; unreadable pages skipped and the matches around
 them found; the three schemas with every refusal and its path; the gate's exact match; and R7 (a `BuildProfile` only

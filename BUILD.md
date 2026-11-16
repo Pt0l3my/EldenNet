@@ -42,8 +42,9 @@ builds `en_gal_game` too, whose tests run on `FakeSys` there as everywhere; `Nat
 structured exception handling, so they are clang-cl's alone. Its `eldennet-engine.exe` is the program the owner runs
 for the derivation's offline round (R0, O89):
 `eldennet-engine probe-exe <the game's executable> --derive --leads gal/leads.toml --out derive.json`, with the game
-closed (src/en-tools/README.md has its exit codes). With the tests on, the fake game's harness runs it under Wine on
-`fakegame.exe` (`ctest -R fakegame.probe-exe`).
+closed (src/en-tools/README.md has its exit codes); `probe-exe <exe> --sections` prints the section table's numbers
+for an executable it refuses. With the tests on, the fake game's harness runs it under Wine on `fakegame.exe`
+(`ctest -R fakegame.probe-exe`).
 
 ## The Windows build with clang-cl
 
@@ -102,10 +103,10 @@ cmake --build build-cl
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 5 minutes for the clang-cl build's 61 cases: 50 of about 2 s each, and the ten `gal-*` cases of part 4, 12 to
+- About 5 minutes for the clang-cl build's 63 cases: 52 of about 2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to
   25 s each, which first write gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as R1
   would find them) and `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the
-  fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build runs 47 (no `__try`, GCC's own
+  fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build runs 49 (no `__try`, GCC's own
   RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
@@ -158,7 +159,7 @@ CTest replays each corpus once (`en_fuzz_<target>_corpus`), and `--target en_fuz
 | `en_fuzz_json` | A byte for the caps (the built 256 KB and 32 deep below `0x80`, else small ones), then a JSON text, through en-proto's `parse_json`, and `read_json` for `LlmRequest` and `LlmEvent` | A refusal other than the caps give (TooLarge, else TooDeep, else Malformed exactly when nlohmann/json refuses the text); a value nested deeper than the cap; an exception other than `ProtoError`; a message that, written back, does not read again to the same |
 | `en_fuzz_template` | Up to five templates split at NUL bytes, under fixed names (a prompt, a folder of numbered parts, a template either may render), each linted with and without a context: every template it reaches is compiled, none is rendered | An exception from `lint`; a template that compiles differently once others have been compiled |
 | `en_fuzz_game` | A byte choosing one of the four game messages (`WorldSnapshot`, `Lifecycle`, `GameCommand`, `RenderFeed`), then a JSON text, through `read_json` | An exception other than `ProtoError`; a container past its capacity; what is read writing invalid JSON text, or not reading back to the same JSON form |
-| `en_fuzz_pe` | A byte (the layout; an unreadable 4 KiB page or none; 4 KiB or 1 MiB copies), then an image, through en-gal's `read_image` and `scan_patterns` with three invented patterns | An accepted image whose sections, function table, product name or placement disagree with the reader's rules; a refusal it cannot word; a resolved pattern whose hits break ARCH §6.2's rules |
+| `en_fuzz_pe` | A byte (the layout; an unreadable 4 KiB page or none; 4 KiB or 1 MiB copies), then an image, through en-gal's `read_image` and `scan_patterns` with three invented patterns | An accepted image whose sections (the loader's rules), what a file holds of them, their bytes as loaded, function table, product name or placement disagree with the reader's rules, or whose section table reads otherwise alone; a refusal it cannot word, or a section's without its fault or longer than 192 characters; a resolved pattern whose hits break ARCH §6.2's rules |
 | `en_fuzz_pattern` | A pattern's text, NUL, a byte for the chunk size, then bytes to search | An accepted pattern outside the grammar's limits, or whose canonical text reads back differently; a refusal pointing outside the text; the matcher, fed in chunks, finding other than a plain search finds, or missing a planted pattern |
 | `en_fuzz_galtoml` | A byte choosing `patterns.toml`, `builds.toml` or a layout (for a build gated on an invented image), then the text | A refusal without its problems, or past the cap; an accepted file breaking its schema's rules (unique ids, own-derivation, captures within patterns, keys, layouts under `layouts/`, fields within their classes, classes named that exist) |
 | `en_fuzz_x86` | Bytes, decoded at every offset (each from an exact-size copy) and as a sweep | An instruction longer than 15 bytes or than the bytes given; its parts out of order, outside it, or not ending it; a RIP-relative operand without ModRM and a 32-bit displacement; bytes after it changing it; a shorter run not refused as truncated; "truncated" with 15 bytes given |
