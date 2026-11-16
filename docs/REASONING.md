@@ -194,6 +194,24 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 169 | 2026-11-16 | What part 4 leaves unbuilt, and why | DECIDED | #engine #gal |
 | 170 | 2026-11-16 | The probe's slot search faults on purpose on the game thread: R1 without a crash reporter, or with the rpm copy | METHOD | #engine #gal |
 | 171 | 2026-11-16 | R0 refused the protected game's executable: the PE reader was stricter than the loader on sections | FACT | #engine #gal |
+| 172 | 2026-11-16 | An early-loaded DLL's crash filter is replaced by the game's own C runtime when it starts | FACT | #engine #launcher |
+| 173 | 2026-11-16 | The launcher's watch block: one page of shared memory, made by whoever comes first | DECIDED | #engine #launcher |
+| 174 | 2026-11-16 | BLAKE3's hash mode is our own, against its published vectors | DECIDED | #engine #launcher |
+| 175 | 2026-11-16 | The gate's badge after a loading screen, and the gate when snapshots stop | DECIDED | #engine #core |
+| 176 | 2026-11-16 | The core's slice decides a playthrough from PlaythroughReady, and the store's step is a no-op for now | DECIDED | #engine #core |
+| 177 | 2026-11-16 | The launcher's late loads, closing the game, and what it checks of a DLL | DECIDED | #engine #launcher |
+| 178 | 2026-11-16 | Wine's module list of another process and the watcher's timing | FACT | #engine #launcher #wine |
+| 179 | 2026-11-16 | Once, the fake game ended with 0xC0000409 after its last line, with galtest loaded at the window | SPECULATION | #engine #launcher #wine |
+| 180 | 2026-11-16 | R0's FD4 finder refused every hit: it took the first read-only load after the idiom for the path | FACT | #engine #gal |
+| 181 | 2026-11-16 | The idiom's wildcards also match loads that are no RIP-relative statics: every hit is decoded now | LIKELY | #engine #gal |
+| 182 | 2026-11-16 | An idiom has as many hits as the game has inlined accessors: the scan's cap of 4,096 was too low | FACT | #engine #gal |
+| 183 | 2026-11-16 | Accepted FD4 sites without a name layout leave the singletons to R1's getter calls | DECIDED | #engine #gal |
+| 184 | 2026-11-16 | A table of one is no table: the group's index from a lone pointer was an artefact | FACT | #engine #gal |
+| 185 | 2026-11-16 | A static whose class has no RTTI cannot be found offline; R1 finds its slot | LIKELY | #engine #gal |
+| 186 | 2026-11-16 | Product names are compared without symbols, in the derivation and at the gate | DECIDED | #engine #gal #datapiler |
+| 187 | 2026-11-16 | The bytes R0 could not decode are no gap of the decoder's | METHOD | #engine #gal |
+| 188 | 2026-11-16 | derive.json's schema 1 is frozen by DataPiler 0.2.41's copy of it | DECIDED | #engine #gal #datapiler |
+| 189 | 2026-11-16 | The executable has a second code section the derivation does not read | SPECULATION | #engine #gal |
 
 ## Entries
 
@@ -3196,3 +3214,233 @@ invariant 10, EldenNet ARCH (T3)
 - **Left as it was**: a section of no size is let through (the loader refuses one), an exception directory whose size
   is not whole entries is still refused, and PointerToRawData is read where it points; the loader is said to round it
   down to 512 bytes (LIKELY, from public notes on the format), which matters only for an offset off that boundary.
+
+### 172. An early-loaded DLL's crash filter is replaced by the game's own C runtime when it starts
+
+`2026-11-16` · FACT · `#engine #launcher` · refs: O71, S0-D, ARCH§3.2, ARCH§4.6, WHY§170
+
+- **Seen** (the fake game, clang-cl, under Wine): galtest.dll injected into the suspended game installed its
+  unhandled-exception filter on T1 at once; a crash on the game thread later reached no filter of ours, and the watcher
+  had only the exit code. Loaded at the window or by the game's own loader, the same filter ran every time. The game's
+  C runtime installs a filter of its own while it starts (MSVC's, which does not chain), after an early DLL's T1 has
+  run.
+- **What follows**: EldenNet's crash filter (part 6) is installed once the game has started, after WaitEngine (the
+  statics are non-null), never in Pin or Safety; galtest does so before its registration. A game that replaces the
+  filter later (the `launcher-crash-filter-replaced` case) still leaves the exit code and the last module list (5 s
+  old at most): S0-D's row "beside the game's own handler" is that case on the real game.
+
+### 173. The launcher's watch block: one page of shared memory, made by whoever comes first
+
+`2026-11-16` · DECIDED · `#engine #launcher` · refs: O71, O90, ARCH§1.1, ARCH§2.3, ARCH§4.6
+
+- **Chosen**: en-proto's `watch.hpp`, a 464-byte layout with fixed offsets (static_asserts in every build, since the
+  launcher builds with MinGW and clang-cl and the DLL with clang-cl), named by the game's PID
+  (`Local\EldenNet.Watch.<pid>`, two events beside it). The launcher makes it before it injects; under another loader
+  EldenNet's watcher (`--watch <pid>`) makes it. EldenNet writes T1's state, its status (the core's phase, level and
+  gate flags, discovery's counts, snapshots, faults, trips, p99) and, from its filter, the crash record; the launcher
+  writes the spike, a crash request (probe builds) and the Marks. Numbers and one module file name only.
+- **Why in en-proto**: the DLL may not depend on en-launcher and the launcher on nothing but en-gal's offline part
+  (ARCH §2.3); en-proto is plain data both already reach (en-gal's offline part exposes it). ARCH §2.3's row for
+  en-launcher should name en-proto (its watch block, `ffi_guard`) and nlohmann/json and toml++ (its records and
+  settings), and drop BLAKE3's C implementation (WHY§174).
+- **Rejected**: a pipe (needs a reader thread on both sides and a protocol), a file (no wake-up, and a crash leaves it
+  half written), the DLL writing the record itself (it must not allocate or do I/O in its filter).
+
+### 174. BLAKE3's hash mode is our own, against its published vectors
+
+`2026-11-16` · DECIDED · `#engine #launcher` · refs: ARCH§2.3, ARCH§4.4, O84
+
+- **Chosen**: the backup manifests and their de-duplication need a 32-byte hash of a file; `en_launcher_core`'s
+  `blake3.cpp` (about 150 lines, from the specification: the compression function, 1,024-byte chunks, the tree of
+  chaining values) instead of BLAKE3's C implementation, which ARCH §2.3 names. The C sources would have added a C
+  compiler to every build (the MinGW toolchain file names none, and the sanitizer and fuzz builds set only Clang for
+  C++), a third-party compiled target and its notices, for one function.
+- **Checked**: 16 of the official test vectors (0 to 102,400 bytes, every chunk and tree boundary), each fed whole and
+  in pieces of 1, 63, 64, 1,000, 1,024 and 4,097 bytes. en-core's keyed hashes (the playthrough key's fp8, the
+  recordings' salts, DESIGN §10.5, ARCH §7.5) may extend it (keyed and derive-key modes are a few lines more) or adopt
+  the C implementation then.
+
+### 175. The gate's badge after a loading screen, and the gate when snapshots stop
+
+`2026-11-16` · DECIDED · `#engine #core` · refs: ARCH§5.1, ARCH§5.4, ARCH§6.8, DESIGN§2.7
+
+- **Seen**: ARCH §5.1's predicate is not clean during a loading screen (neither in a world nor at the title), so the
+  gate closes at every loading screen and holds its 5 s again after it. Shown as written, "EldenNet paused
+  (multiplayer)" would follow every fast travel for 5 s.
+- **Chosen**: the badge is up only while in a world with the gate closed for a reason of the session (`not_solo`:
+  role, world, lobby or player set), until the gate has held again; a loading screen alone never raises it. The gate
+  itself is as ARCH §5.1 says (Dormant through the hold; speech returns 5 s after each loading screen). If that delay
+  is unwanted, a design change would exempt the hold after a loading screen whose session fields were clean before it.
+- **Left as it was**: the gate changes only on snapshots. When the task stops sending them (a hang), it stays as it
+  was; the stall detector (part 6) is the place to act, not the gate.
+
+### 176. The core's slice decides a playthrough from PlaythroughReady, and the store's step is a no-op for now
+
+`2026-11-16` · DECIDED · `#engine #core` · refs: ARCH§9, DESIGN§10.5
+
+- **Chosen**: a playthrough is identified by PlaythroughReady's slot, name, class and keepsake (equality, no hash: the
+  store's fp8 is its file name). Title → Playthrough needs it (slot 0–9, a name, the snapshot's slot), phase B on the
+  structural groups and the play time rising since the previous snapshot. Loading → InWorld needs the world on two
+  consecutive snapshots with the same load counter, and the same character: a newer PlaythroughReady's identity, or,
+  without one, the same slot and class; another identity is a new playthrough. Without the store, Playthrough →
+  InWorld happens on the same step (the store's `Opened` will gate it). The title ends a playthrough: the same
+  character again is a new one (the store reopens its database).
+- **Rebuilt from snapshots** when C2 loses a message: DataReady (structural groups Ok in the Gate phase) and a
+  structural trip (Tripped in a snapshot's health). A later anti-cheat hit in a snapshot is L1 with its banner, for the
+  session.
+
+### 177. The launcher's late loads, closing the game, and what it checks of a DLL
+
+`2026-11-16` · DECIDED · `#engine #launcher` · refs: ARCH§3.3, ARCH§4.3, ARCH§4.6, O89, O90, O91
+
+- `--inject-at title` cannot see the title from outside (the launcher never reads the game's memory, O73): it waits
+  `--title-wait` seconds (15 by default) after the window. S0-A's late mode should set it to what the owner's game needs
+  to reach its title; the run's report says where T1 found the game.
+- A spike's run closes the game with `WM_CLOSE` to its windows, then `TerminateProcess` with "ENLC" (0x454E4C43) after
+  10 s, which the records call `closed`, never a crash.
+- LoadLibraryW's thread exit code is the module handle's low half, 0 for a module at a 4 GiB boundary: the game's
+  module list decides whether the DLL loaded; a 0 only names the failed step.
+- A failed late load ends the game too (E10 says "The game was closed again"), as an early one does.
+- The development options (`--inject-at`, `--also`, `--console`, `--spike`, `--gal`, `--steam`, `--appdata`,
+  `--no-steam-check`, `--no-dialogs`) are in every build, listed apart; ARCH §2.5 has no launcher option to compile
+  them out, and none changes anything unless given.
+
+### 178. Wine's module list of another process and the watcher's timing
+
+`2026-11-16` · FACT · `#engine #launcher #wine` · refs: O71, WHY§102
+
+- **Seen**: under Wine 9.0 `CreateToolhelp32Snapshot(TH32CS_SNAPMODULE)` of the game lists its modules (26 with the
+  test DLL), while the game waits in EldenNet's crash filter too. A bug of ours had listed again after the crash (an
+  unsigned difference of times taken out of order), with an older, shorter list; fixed. Every module name is reduced to
+  its file name and to letters, digits and `._-+ `.
+- **Seen**: a process the case starts outside the harness's own (the watcher galtest starts) outlives the game by a
+  moment; the harness waits for the prefix's processes (`wineserver -w`) before it stops the server, or the watcher's
+  record would be cut off.
+
+### 179. Once, the fake game ended with 0xC0000409 after its last line, with galtest loaded at the window
+
+`2026-11-16` · SPECULATION · `#engine #launcher #wine` · refs: O71, S0-D
+
+- **Seen once** in about 30 injected runs (clang-cl, Wine 9.0): `launcher-inject-window`'s fake game printed its end
+  line (720 frames, exit 0) and its process then ended with 0xC0000409 (a fast fail, past every filter); the watcher
+  recorded it as a crash from the exit code alone, as it should. Not seen again in 12 reruns of the injection cases.
+- **Guess**: the process's exit racing galtest's T1, which now allocates every 100 ms (en-core's step); a fast fail
+  needs `__fastfail` or a /GS check, so it is not a lock left by a killed thread. **What follows**: EldenNet's T1 and
+  core thread (part 6) should allocate nothing once idle; S0-B's two hours and S0-D's records will show whether a real
+  game's exit does the same.
+
+### 180. R0's FD4 finder refused every hit: it took the first read-only load after the idiom for the path
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, ARCH§6.2, ER01§4, WHY§171
+
+- **Seen**: R0's report derived an idiom from thousands of sites (the head only: the static's load, its test, the
+  jump, the class object's load and the getter's call, with the registers' bytes wildcarded) but accepted no hit: most
+  were refused because "the path does not end with the suffix". The sites differ after the getter's call, so the idiom
+  has no path capture, and the finder took the first RIP-relative load into `.rdata` in the block the jump skips for
+  the path, whatever its text. The derivation had itself seen each site's path reference inside that block, so another
+  read-only load comes first.
+- **Likely**: it is the log's format string, which ER01 §4 places before the path (`lea r8, [fmt]` before `lea rcx,
+  [path]`). Either way the rule was the kit's mistake: it ignored the suffix it then checked.
+- **What follows** (R0c): the path is the load, of every load in the block, whose string ends with the suffix:
+  whichever comes first, in any register, before or after the getter's call; a RIP-relative address, a RIP-relative
+  pointer to the string, or a 64-bit absolute address; else a load hoisted before the head, within the function. Each
+  accepted hit's load is reported (place, length, the read-only loads before it, register, opcode), and R0's rule is
+  run beside it over the same hits, so R0c's report shows both. The review's record: `docs/ops/probes/2026-11-16-r0.md`.
+
+### 181. The idiom's wildcards also match loads that are no RIP-relative statics: every hit is decoded now
+
+`2026-11-16` · LIKELY · `#engine #gal` · refs: O89, ARCH§6.2
+
+- **Seen**: a few dozen of R0's hits were refused because their "static" lay outside `.data` or outside the image.
+- **Likely**: the idiom wildcards the static's REX and ModRM bytes (the sites use several registers), so it also
+  matches `mov reg, [base+disp32]`, whose displacement is no RIP-relative address.
+- **What follows**: `fd4::find` decodes each hit and refuses one whose static, class object or path is not a
+  RIP-relative operand, or whose getter is no relative call, where the captures say (counted as `unreadable`). It
+  applies in game too, where the same finder reads patterns.toml's `fd4_idiom`.
+
+### 182. An idiom has as many hits as the game has inlined accessors: the scan's cap of 4,096 was too low
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, ARCH§6.2, ARCH§6.3
+
+- **Seen**: part 2's scan, which checks the idiom as patterns.toml would hold it, refused R0's idiom unread: its hits
+  passed the cap every pattern had (4,096 hits kept, and at most that many expected).
+- **What follows**: an idiom may expect, and the scan keeps, up to 65,536 hits; every other kind keeps 4,096. In game
+  this changes only the scan's verdict on the idiom: the FD4 finder always read up to 65,536.
+
+### 183. Accepted FD4 sites without a name layout leave the singletons to R1's getter calls
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: O89, ARCH§6.2
+
+- **Decided**: the report's `fd4.status` now says whether the idiom was derived (its sites all match, the scan
+  resolves it, the finder accepts a hit), and the name layout is reported apart. Where hits are accepted but no name
+  layout reads, each singleton is `depends`, and the confirm list asks R1 for the name layout without a value: in game
+  each singleton is named through its getter once (ARCH §6.2 step 3), as the design already allows.
+- **Why**: whether the runtime class objects hold their names in the file (relocated pointers) or only once the game
+  has run (zeros past the file's raw data) is not known. R0c's report counts both.
+
+### 184. A table of one is no table: the group's index from a lone pointer was an artefact
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, ARCH§6.3, ER01§3.2
+
+- **Seen**: R0 found one pointer to the task group's name and grew a "table" of one entry from it, index 0, which the
+  confirm list passed on as the index to confirm.
+- **Speculation**: the pointer is a field of a table whose entries are wider than a pointer (an index or flags beside
+  the name), so its neighbours eight bytes away are no name pointers.
+- **What follows**: tables are now looked for at strides of 8 to 64 bytes, the longest run kept, cut where code
+  addresses an entry's start (which gives the name pointer's offset in the entry), with an index field the entries may
+  hold; a lone pointer is listed last and gives no index, and the group is `derived` only from a table of two entries
+  or more, or from code.
+
+### 185. A static whose class has no RTTI cannot be found offline; R1 finds its slot
+
+`2026-11-16` · LIKELY · `#engine #gal` · refs: O89, ARCH§6.2, ARCH§6.3
+
+- **Seen**: R0 found no type descriptor for `CS::GameDataMan` (as a class or a struct), and the confirm list offered R1
+  a vtable of zero.
+- **Reasoning**: offline, such a static is a slot of `.data` that holds zero in the file; the code that reads it names
+  nothing; RTTI is the only name a file gives an instance's class, and a lead may carry a name or a shape, never bytes
+  (ARCH §6.3). So no rule of ours can single it out offline.
+- **What follows**: R0c counts type descriptors of the class's own name in any namespace (a wrong namespace would show
+  there). If there are none, R1 finds the slot in game by what the instance holds, and `probe-exe --static` cuts the
+  pattern from it offline. The confirm list no longer offers a vtable that does not exist.
+
+### 186. Product names are compared without symbols, in the derivation and at the gate
+
+`2026-11-16` · DECIDED · `#engine #gal #datapiler` · refs: O89, ARCH§6.3, DataPiler DP36
+
+- **Seen**: R0 reported the product name `differs` from the leads' (an exact comparison).
+- **Likely**: a trademark sign after the name.
+- **Decided**: both the derivation and `gal/builds.toml`'s gate compare names once symbols are removed (the
+  trademark, registered and copyright signs and their like, zero-width characters; spaces made one; ASCII and every
+  other letter kept). The report keeps schema 1's word `matches`, with the name's characters and those kept beside it:
+  the word `matches_without_symbols` would make DataPiler 0.2.41's guard refuse the whole report.
+
+### 187. The bytes R0 could not decode are no gap of the decoder's
+
+`2026-11-16` · METHOD · `#engine #gal` · refs: O89, ARCH§6.2, WHY§148
+
+- **Checked**: en-gal's decoder against LLVM 18's disassembler, with the repository's own harness, over Microsoft's
+  C++ runtime libraries from the pinned SDK (the game's compiler's own code) and over code compiled for AVX2 and
+  AVX-512: no disagreement. The only ones met anywhere were APX's REX2 prefix and data, in a Linux crypto library.
+- **Likely**: what R0 stepped over is data in `.text` (MSVC puts switch tables in the code section) and perhaps a
+  protection layer's code; it matters to the finder only where decoding from a function's entry does not land on a
+  site, which R0c counts per reference, beside a census of every executable section (runs, where they start, bytes
+  inside functions).
+
+### 188. derive.json's schema 1 is frozen by DataPiler 0.2.41's copy of it
+
+`2026-11-16` · DECIDED · `#engine #gal #datapiler` · refs: O89, DataPiler DP36
+
+- **Seen**: DataPiler 0.2.41's guard holds its own copy of schema 1's keys and words and refuses any other.
+- **Decided**: R0c's diagnostics add no key and no word: they nest schema 1's keys under `stats` (and a few beside the
+  results), each place's meaning listed in en-tools' README; a unit test pins the vocabulary to DataPiler 0.2.41's,
+  key for key and word for word. A new key needs a schema 2 and a DataPiler that reads it.
+
+### 189. The executable has a second code section the derivation does not read
+
+`2026-11-16` · SPECULATION · `#engine #gal` · refs: O89, WHY§171
+
+- **Seen**: the section table holds a second section named `.text`, after the import table, and another executable
+  section of another name; the derivation reads only the first `.text`.
+- **Speculation**: a protection layer's code. R0c's census decodes every executable section and counts references to
+  the FD4 paths from each, so the next report says whether anything of ours lives there.
