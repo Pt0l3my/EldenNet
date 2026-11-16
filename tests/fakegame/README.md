@@ -51,7 +51,8 @@ lines, and, for `describe`, reads `fakegame.exe` from outside with a PE reader o
 pattern (one match, inside its `.pdata` function, the capture in `.data`), the FD4 finder's whole logic (placements,
 naming through the class object, the ambiguous and refused decoys) and, for clang-cl, the RTTI locators and the actor
 set. CTest runs one test per case (`ctest -R fakegame`, about 2 s each); the first, `fakegame.prefix`, makes the Wine
-prefix (`EN_WINE_PREFIX`, by default `build-*/wineprefix`) and turns Wine's crash dialog off, and no two cases run in
-it at once. On Windows the cases run directly (`--native`). A case may start another program with paths CMake gives
-it (`program="{launcher}"`, `--set launcher=…`), so the DLL's and the launcher's chain cases, early and late, join the
+prefix (`EN_WINE_PREFIX`, by default `build-*/wineprefix`) and turns Wine's crash dialog and its JIT debugger off (with
+`winedbg --auto` attached, a crash's exit code raced it), and no two cases run in it at once, each with a wineserver of
+its own. On Windows the cases run directly (`--native`). A case may start another program with paths CMake gives it
+(`program="{launcher}"`, `--set launcher=…`), so the DLL's and the launcher's chain cases, early and late, join the
 same table when those parts land.
