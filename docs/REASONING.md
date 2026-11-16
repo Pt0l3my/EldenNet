@@ -123,6 +123,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 98 | 2026-11-15 | What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine | LIKELY | #engine #roster #process |
 | 99 | 2026-11-16 | The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine | LIKELY | #engine #process |
 | 100 | 2026-11-16 | The engine's first increment: parts join exactly; two libraries fetched, not vendored; the template root | METHOD | #engine #process |
+| 101 | 2026-11-16 | The engine's second increment: WinHTTP by its full path; the handle's and the probes' choices | DECIDED | #engine #process |
+| 102 | 2026-11-16 | Wine 9.0 runs the Windows build, and its WinHTTP differs from Windows' in three ways | FACT | #engine #process |
 
 ## Entries
 
@@ -1821,3 +1823,42 @@ checkout), O68, O53
   the key only in its header; the decision call sent an enum schema, temperature 0 and the top 5 logprobs. With the
   server stopped, the decision took its rule's pick and the chat command failed with no address in its message. The
   MinGW-w64 build compiles with no warnings.
+
+### 101. The engine's second increment: WinHTTP by its full path; the handle's and the probes' choices
+
+`2026-11-16` · DECIDED · `#engine #process` · refs: O84, ARCH§1.3, ARCH§4.6, ARCH§4.10, ARCH§11.1, WHY§100
+
+- Source: building roadmap S8.1.g in three parts, each in its own worktree, merged on the engine branch.
+- **WinHTTP by its full path.** ARCH §4.10 lists `winhttp.dll` proxies that sit beside the game (EROverlay, the EAC
+  Toggler), and §4.6 already loads our own DLL by its absolute path. A DLL imported by name binds to a loaded module of
+  that name, or to the game folder's copy, before the system's, so every request and the key's header would pass through
+  the proxy. The transport loads `<system directory>\winhttp.dll` by its full path, resolves its functions with
+  `GetProcAddress`, keeps it loaded, and the build fails if the tests' import table names `winhttp.dll`. Any later
+  system DLL that sees a secret is loaded the same way (impl).
+- **The handle** (ARCH §1.3's C9, C10): requests start one at a time in priority order, so a provider's last free
+  connection goes to the request that comes first; a Busy request goes back to its place, and a live one ends Busy
+  once its slot's first-token time has passed; an Ended event never waits for room, so the event queue may pass its
+  bound by one per live request and shutdown never blocks; a `bark_pool` job evicted from a full queue ends Dropped (a
+  new class), a `memory` job Preempted, to be requeued; a successful warm-up counts as serving for the 4-minute rule,
+  so each approach does not send another. Rejected: a thread-local hand-off of the attempt observer into decision
+  calls; one private `run_chat` path serves `chat` and `decide`.
+- **The probes** (ARCH §11.4): an empty model list counts, since a server that is up with no model loaded is the
+  commonest local mistake and the wizard can say so only if it sees the server; Ollama is confirmed by a `version`
+  string, llama.cpp by three of its props fields, and a server that answers as both is taken for neither.
+
+### 102. Wine 9.0 runs the Windows build, and its WinHTTP differs from Windows' in three ways
+
+`2026-11-16` · FACT · `#engine #process` · refs: ARCH§11.1, WHY§101
+
+- Source: the engine's Windows build (MinGW-w64, GCC 13 with the win32 thread model, the runtime linked statically)
+  run under Wine 9.0 from the distribution's packages, and Wine's own source for WinHTTP.
+- **What it gives.** The Windows tests and commands run in the container, so a Windows-only path is tested, not just
+  compiled: 127 client tests in each of three runs, en-prompt's 62, and every command end to end. Proton is Wine, so
+  the Steam Deck meets the same WinHTTP.
+- **The three differences:** a chunked reply arrives one chunk late (a read that ends a chunk completes only when the
+  next one begins); closing a request does not stop a receive already waiting, so a cancelled exchange's connection
+  stays open until the server sends or closes; the automatic proxy mode means no proxy, and an IPv6 address in
+  brackets does not resolve. `WinHttpReadData` can also block its caller, and a closed handle's value is reused at
+  once, which is why each exchange has a driver thread that alone calls WinHTTP on its handle.
+- **What Wine cannot show** waits for Windows itself (roadmap S8.1.h): the system's proxy, TLS with real
+  certificates, IPv6 loopback and cancelling on Windows.

@@ -1614,9 +1614,11 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
 ### 11.1 Client and provider schema
 
 - **API:** one OpenAI-compatible client over `/v1/chat/completions` with `stream: true`, plus `/v1/models` (ER06 §5.2).
-  Built in C++ as en-llm (O84): libcurl on Linux and in tests, the system's WinHTTP on Windows (later work, S8.1.g),
-  each with the system root store, HTTP/1.1 keep-alive and a connect timeout of 3 s (impl), and our own SSE parser
-  (`data:` lines, `[DONE]`).
+  Built in C++ as en-llm (O84): libcurl on Linux and in tests, the system's WinHTTP on Windows, each with the system
+  root store, HTTP/1.1 keep-alive and a connect timeout of 3 s (impl), and our own SSE parser (`data:` lines,
+  `[DONE]`). WinHTTP is loaded at run time by its full path in the system directory and never imported by name: a
+  proxy `winhttp.dll` beside the game (§4.10) would otherwise stand in for it and see every request, the key's header
+  included (WHY§101).
 - **Streaming:** `stream_options.include_usage` is requested where supported. Decision calls also ask for `logprobs`
   (the top 5, impl) where the provider offers them (§11.8).
 - **Reasoning:** reasoning is switched off per provider through `extra_body`, and `<think>` is stripped anyway
