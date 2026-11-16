@@ -75,3 +75,5 @@ else()
   message(STATUS "en-gal skipped: its SEH-guarded copy (__try/__except) is built by an MSVC-like compiler only, and "
     "this build's is ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; cmake/clang-cl-xwin.cmake builds it")
 endif()
+add_subdirectory(tests/fakegame)  # the fake game and its Wine harness (Windows builds with the tests)
+add_subdirectory(tests/vehprobe)  # the vectored-handler DLL the harness loads into it
