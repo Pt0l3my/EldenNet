@@ -73,12 +73,16 @@ header whose first key does not start right after `[` (`[!]`, `[é]`); a charact
 stand (after a key or a value, or inside a bare value, which toml++ scans quotes and all up to a space, `]`, `}`, `,`
 or `#`): its test for non-ASCII whitespace reaches "unreachable" for U+00A1 to U+0499 and other ranges; a `}`
 where an array expects a value (`[1, }]`); and a date followed by a space and one digit (`1979-05-27 7,`), from which
-it scans on past a terminator. So before toml++ sees a gal/ file, five rules of our own are checked
-(`toml_read::unsafe_for_toml`): a line that starts with `[` opens a table header with a key (a letter, a digit, `_`,
-`-` or a quote after `[` or `[[`; such a line inside a multi-line array is refused too); a character outside ASCII
-stands only in a comment, and a string writes one as `\uXXXX` (`leads = ["ER01 \u00A73.2"]`); there is no multi-line
-string; a `}` never follows `[` or `,`; and a bare key or value that starts with a digit has no `-` or `:` after it
-(gal/'s files hold no dates or times). The five inputs are kept in `fuzz/galtoml/corpus/` as `finding-*`.
+it scans on past a terminator. So before toml++ sees a gal/ file, en-proto's `unsafe_for_toml` (toml_check.hpp, which
+en-llm's readers of the player's files run too, with the player's rules) checks it, following TOML's contexts: a line
+that starts with `[` opens a table header with a key (a letter, a digit, `_`, `-` or a quote after `[` or `[[`; such a
+line inside a multi-line array is refused too); no control character but a tab; a character outside ASCII stands only
+in a comment, and a string writes one as `\uXXXX` (`leads = ["ER01 \u00A73.2"]`); a quote never stands inside what
+toml++ scans as a bare value (up to a space, a tab, `]`, `}`, `,`, `#` or a line break, `=` and `[` included), nor
+right after a key's own character; after a value only a terminator or a comment; there is no multi-line string; a `}`
+never stands where a value must; and a bare key or value that starts with a digit has no `-` or `:` after it (gal/'s
+files hold no dates or times). en_fuzz_galtoml's five inputs are kept in `fuzz/galtoml/corpus/` as `finding-*`,
+and en_fuzz_config's two in `fuzz/config/corpus/`.
 
 ```cpp
 #include "en/gal/builds.hpp"
