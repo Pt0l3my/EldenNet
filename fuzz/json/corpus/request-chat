@@ -1,0 +1,1 @@
+ {"id": 1, "epoch": 3, "chat": {"slot": "dialogue", "purpose": "reply", "messages": [{"role": "system", "parts": [{"text": "You are an invented speaker.", "cache_break": true}]}, {"role": "user", "parts": [{"text": "Hello there.", "cache_break": false}]}], "max_tokens": 120, "temperature": 0.7, "json_schema": null, "top_logprobs": 0}}

@@ -1,0 +1,22 @@
+1schema = 1
+[[build]]
+key = "9.8.7.0-ww"
+app = "4.5.6"
+file_version = "9.8.7.0"
+product_name = "INVENTED GAME"
+region = "ww"
+time_date_stamp = 0x12345678
+size_of_image = 0x4000
+layout = "layouts/9.8.7.0-ww.toml"
+dlrf_name_layout = false
+status = "supported"
+[[build]]
+key = "9.8.7.1-jp"
+app = "4.5.6"
+file_version = "9.8.7.1"
+product_name = "INVENTED GAME"
+region = "jp"
+time_date_stamp = 0x12345679
+size_of_image = 0x4000
+layout = "layouts/9.8.7.1-jp.toml"
+status = "retired"

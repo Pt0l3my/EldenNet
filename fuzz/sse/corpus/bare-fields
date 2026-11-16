@@ -1,0 +1,9 @@
+@  data
+event
+:
+retry: 99999999999
+data: 
+
+data: {"choices": [{"index": 0, "delta": {"content": "…"}, "finish_reason": null}]}
+
+data: [DONE]

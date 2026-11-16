@@ -1,9 +1,9 @@
 #pragma once
 // A fault for the R3 tests: once armed, the next allocation through operator new whose size lies in [min, max) throws
-// std::bad_alloc, as running out of memory would, on any thread but the test servers' own (which keep serving). It
-// fires once and disarms itself. The test program replaces the global operator new for it (fault_alloc.cpp); unarmed,
-// each allocation only reads one flag. Libraries that allocate with malloc (libcurl, WinHTTP) are never touched, so
-// the fault lands in our own code inside their callbacks.
+// std::bad_alloc (a nothrow form returns null), as running out of memory would, on any thread but the test servers'
+// own (which keep serving). It fires once and disarms itself. The test program replaces every form of the global
+// operator new and delete for it (fault_alloc.cpp); unarmed, each allocation only reads one flag. Libraries that
+// allocate with malloc (libcurl, WinHTTP) are never touched, so the fault lands in our own code inside their callbacks.
 #include <cstddef>
 
 namespace en::llm::test::faults {

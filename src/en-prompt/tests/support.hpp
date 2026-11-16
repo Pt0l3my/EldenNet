@@ -52,6 +52,19 @@ class TempTree {
   std::filesystem::path root_;
 };
 
+// Makes `link` a symbolic link to `target` (a folder's when `folder`) and answers whether there is one now. Not every
+// system makes one: Windows needs a privilege for it, MinGW's library cannot, and Wine answers that it made one while
+// it makes nothing. A test of links runs where one exists.
+inline bool made_link(const std::filesystem::path& target, const std::filesystem::path& link, bool folder = false) {
+  std::error_code error;
+  if (folder) {
+    std::filesystem::create_directory_symlink(target, link, error);
+  } else {
+    std::filesystem::create_symlink(target, link, error);
+  }
+  return !error && std::filesystem::is_symlink(link, error);
+}
+
 // Runs `f` and returns the TemplateError it throws; the test fails when it throws none.
 template <class F>
 prompt::TemplateError error_of(F&& f) {

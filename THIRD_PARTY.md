@@ -16,7 +16,7 @@ toml++ are downloaded at configure time from their original projects, with their
 |---|---|---|---|
 | [inja](https://github.com/pantor/inja) | 3.4.0 | MIT (`third_party/inja/LICENSE`) | Prompt templates (en-prompt) |
 | [nlohmann/json](https://github.com/nlohmann/json) | 3.11.3 | MIT (downloaded with it) | JSON for templates and requests |
-| [toml++](https://github.com/marzer/tomlplusplus) | 3.4.0 | MIT (downloaded with it) | Configuration files |
+| [toml++](https://github.com/marzer/tomlplusplus) | 3.4.0 | MIT (downloaded with it) | Configuration files (en-llm); gal/'s files (en-gal, built there with `TOML_EXCEPTIONS=0`) |
 | [doctest](https://github.com/doctest/doctest) | 2.4.11 | MIT (`third_party/doctest/LICENSE.txt`) | Unit tests only; never shipped |
 
 ## System libraries (not vendored)
@@ -25,5 +25,13 @@ toml++ are downloaded at configure time from their original projects, with their
 |---|---|---|
 | [libcurl](https://curl.se/libcurl/) | curl (MIT-style) | HTTP on Linux and test builds |
 | WinHTTP | Part of Windows | HTTP on Windows: the system directory's own `winhttp.dll`, loaded by its full path at run time, never imported or shipped |
+
+## Build tools and toolchain parts (not vendored)
+
+| Component | Version | Licence | Use |
+|---|---|---|---|
+| MSVC CRT and Windows SDK, through xwin | CRT 14.43.17.13 (MSVC 14.43.34808), SDK 10.0.26100 (`cmake/xwin.lock`) | Microsoft's, accepted through xwin; never committed | The clang-cl build: the static CRT (`/MT`) linked into each Windows binary, and the SDK's headers and import libraries |
+| [xwin](https://github.com/Jake-Shadle/xwin) | 0.10.0 | MIT OR Apache-2.0 | Downloads and splats the CRT and SDK; a build tool, never linked or shipped |
+| LLVM's compiler-rt: the sanitizers' and libFuzzer's runtimes | 18.1.3 (Ubuntu's `libclang-rt-18-dev`) | Apache-2.0 WITH LLVM-exception | Linked into the sanitizer and fuzz builds' programs only; never shipped |
 
 Each licence was read before adoption, and none carries a clause on AI use.

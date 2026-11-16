@@ -320,15 +320,12 @@ TEST_CASE("a folder source answers only for names in the checked form, inside it
     CHECK(source.leads_outside(name));
   }
   // A link is seen for what it leads to, and one that leads out is neither read nor listed.
-  std::error_code error;
-  std::filesystem::create_symlink(tree.root() / "outside.j2", tree.root() / "inner" / "link.j2", error);
-  if (!error) {
+  if (made_link(tree.root() / "outside.j2", tree.root() / "inner" / "link.j2")) {
     CHECK(source.find("link.j2") == Entry::file);
     CHECK(source.leads_outside("link.j2"));
     CHECK_FALSE(source.read("link.j2").has_value());
   }
-  std::filesystem::create_directory_symlink(tree.root(), tree.root() / "inner" / "up", error);
-  if (!error) {
+  if (made_link(tree.root(), tree.root() / "inner" / "up", true)) {
     CHECK(source.find("up") == Entry::folder);
     CHECK(source.leads_outside("up"));
     CHECK_FALSE(source.files("up").has_value());

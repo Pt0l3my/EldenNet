@@ -2,8 +2,8 @@
 
 An LLM-driven NPC framework for ELDEN RING on PC, for offline play.
 
-**Status: design stage.** There is no code yet. The v1 design is under discussion on the `design/v1-proposal`
-branch.
+**Status: building towards the first test in game.** The engine is being built, and so far runs outside the game
+([BUILD.md](BUILD.md)). The v1 design is under discussion on the `design/v1-proposal` branch.
 
 ## What v1 is meant to do
 
@@ -50,6 +50,8 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
 
 ## Tools for contributors
 
+- [BUILD.md](BUILD.md): building the engine and running its tests: on Linux (GCC, Clang), for Windows with
+  MinGW-w64 under Wine and with clang-cl and xwin, and with the sanitizers and fuzz targets.
 - The privacy and safety sweep, run before every push and upload, is kept in the owner's private repository.
 - [tools/workplan](tools/workplan/README.md): `wp`, which reads the design and research documents section by
   section.

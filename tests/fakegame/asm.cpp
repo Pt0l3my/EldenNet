@@ -1,0 +1,350 @@
+// The fake game's code that discovery is to find (ARCH §6.2), written in our own assembly so that its bytes are the
+// same under clang-cl and MinGW at every optimisation level: the FD4-style singleton sites, the AOB items, the task
+// registration front and the program's own call sites into it. Every name, string and pattern here is invented.
+//
+// Short jumps are written as bytes (0x75 and the distance between two labels): at -O0 clang relaxes every jump it
+// assembles to its long form, which would change the patterns with the optimisation level.
+#include <cstddef>
+
+#include "fakegame.hpp"
+
+static_assert(offsetof(FG::TaskLoomFields, group_count) + 8 == FG_LOOM_GROUP_COUNT_OFF);
+static_assert(offsetof(FG::RunWardenFields, save_slot) + 8 == FG_WARDEN_SAVE_SLOT_OFF);
+static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
+
+#define FG_STR(x) #x
+#define FG_XSTR(x) FG_STR(x)
+
+#define FG_FUNC_BEGIN(fn)                       \
+  "  .p2align 4, 0xcc\n"                        \
+  "  .globl " #fn "\n"                          \
+  "  .def " #fn "; .scl 2; .type 32; .endef\n"  \
+  "  .seh_proc " #fn "\n" #fn ":\n"
+
+// One FD4-style accessor (ARCH §6.2 step 1's shape): answers the instance in the static, or, while the static is null,
+// asks the runtime class for its name and logs that the singleton was used before it was set, then answers null.
+// The idiom starts at the accessor's entry + 5, at the label .Lsite_<fn>.
+#define FG_FD4_ACCESSOR(fn, statik, rtclass, path, site) \
+  FG_FUNC_BEGIN(fn)                                      \
+  "  push rbx\n"                                         \
+  "  .seh_pushreg rbx\n"                                 \
+  "  sub rsp, 0x20\n"                                    \
+  "  .seh_stackalloc 0x20\n"                             \
+  "  .seh_endprologue\n"                                 \
+  ".Lsite_" #fn ":\n"                                    \
+  "  mov rbx, qword ptr [rip + " #statik "]\n"           \
+  "  test rbx, rbx\n"                                    \
+  "  .byte 0x75, 1f - 2f\n"                              \
+  "2:\n"                                                 \
+  "  lea rcx, [rip + " #rtclass "]\n"                    \
+  "  call fg_rtclass_name\n"                             \
+  "  mov rdx, rax\n"                                     \
+  "  mov r8d, " #site "\n"                               \
+  "  lea rcx, [rip + " #path "]\n"                       \
+  "  call fg_fd4_unset\n"                                \
+  "1:\n"                                                 \
+  "  mov rax, rbx\n"                                     \
+  "  add rsp, 0x20\n"                                    \
+  "  pop rbx\n"                                          \
+  "  ret\n"                                              \
+  "  .seh_endproc\n"
+
+// A runtime-class object (the DLRF class's role): a table pointer, an instance size, a parent, and at +0x18 the name.
+#define FG_RTCLASS(label, name_label, size) \
+  "  .p2align 4\n"                          \
+  "  .globl " #label "\n" #label ":\n"      \
+  "  .quad fg_rtclass_table\n"              \
+  "  .long " #size ", 0\n"                  \
+  "  .quad 0\n"                             \
+  "  .quad " #name_label "\n"               \
+  "  .quad 0\n"
+
+#define FG_STATIC(label) \
+  "  .p2align 3\n"       \
+  "  .globl " #label "\n" #label ":\n  .quad 0\n"
+
+#define FG_SITE_ROW(fn, statik, rtclass, path) "  .quad .Lsite_" #fn ", " #statik ", " #rtclass ", " #path "\n"
+
+__asm__(
+    "  .intel_syntax noprefix\n"
+
+    // ---- Statics, runtime-class objects and words in .data ----
+    "  .data\n"
+    FG_STATIC(fg_static_taskloom)
+    FG_STATIC(fg_static_roster)
+    FG_STATIC(fg_static_lobby)
+    FG_STATIC(fg_static_marks)
+    FG_STATIC(fg_static_gauges)
+    FG_STATIC(fg_static_menu)
+    FG_STATIC(fg_static_veil)
+    FG_STATIC(fg_static_sky)
+    FG_STATIC(fg_static_eye)
+    FG_STATIC(fg_static_tables)
+    FG_STATIC(fg_static_phrases)
+    FG_STATIC(fg_static_duplicata_a)
+    FG_STATIC(fg_static_duplicata_b)
+    FG_STATIC(fg_static_strayling)
+    FG_STATIC(fg_static_save_ledger)
+    FG_STATIC(fg_static_run_warden)
+    FG_STATIC(fg_static_field_plot)
+    FG_STATIC(fg_static_hinstance)
+    FG_STATIC(fg_hinstance_check)
+    "  .globl fg_save_ledger_ready\n"
+    "fg_save_ledger_ready:\n  .byte 0\n"
+    FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
+    FG_RTCLASS(fg_rtclass_roster, fg_name_roster, 0x48)
+    FG_RTCLASS(fg_rtclass_lobby, fg_name_lobby, 0x18)
+    FG_RTCLASS(fg_rtclass_marks, fg_name_marks, 0x18)
+    FG_RTCLASS(fg_rtclass_gauges, fg_name_gauges, 0x40)
+    FG_RTCLASS(fg_rtclass_menu, fg_name_menu, 0x18)
+    FG_RTCLASS(fg_rtclass_veil, fg_name_veil, 0x10)
+    FG_RTCLASS(fg_rtclass_sky, fg_name_sky, 0x18)
+    FG_RTCLASS(fg_rtclass_eye, fg_name_eye, 0x10)
+    FG_RTCLASS(fg_rtclass_tables, fg_name_tables, 0x18)
+    FG_RTCLASS(fg_rtclass_phrases, fg_name_phrases, 0x20)
+    FG_RTCLASS(fg_rtclass_duplicata_a, fg_name_duplicata, 0x10)
+    FG_RTCLASS(fg_rtclass_duplicata_b, fg_name_duplicata, 0x10)
+    FG_RTCLASS(fg_rtclass_strayling, fg_name_strayling, 0x10)
+    FG_RTCLASS(fg_rtclass_rockbound, fg_name_rockbound, 0x10)
+
+    // ---- Strings and tables in .rdata ----
+    "  .section .rdata,\"dr\"\n"
+    "  .p2align 3\n"
+    "  .globl fg_static_rockbound\n"
+    "fg_static_rockbound:\n  .quad 0\n"
+    "fg_rtclass_table:\n  .quad fg_rtclass_name\n"
+    "  .globl fg_fd4_path\n"
+    "fg_fd4_path:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.h\"\n"
+    "  .globl fg_fd4_path_decoy\n"
+    "fg_fd4_path_decoy:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.hpp\"\n"
+    "fg_name_taskloom:\n  .asciz \"TaskLoom\"\n"
+    "fg_name_roster:\n  .asciz \"ActorRoster\"\n"
+    "fg_name_lobby:\n  .asciz \"LobbyWarden\"\n"
+    "fg_name_marks:\n  .asciz \"MarkLedger\"\n"
+    "fg_name_gauges:\n  .asciz \"GaugeBoard\"\n"
+    "fg_name_menu:\n  .asciz \"MenuDesk\"\n"
+    "fg_name_veil:\n  .asciz \"VeilKeeper\"\n"
+    "fg_name_sky:\n  .asciz \"SkyClock\"\n"
+    "fg_name_eye:\n  .asciz \"EyeRig\"\n"
+    "fg_name_tables:\n  .asciz \"TableVault\"\n"
+    "fg_name_phrases:\n  .asciz \"PhraseBook\"\n"
+    "fg_name_duplicata:\n  .asciz \"Duplicata\"\n"
+    "fg_name_strayling:\n  .asciz \"Strayling\"\n"
+    "fg_name_rockbound:\n  .asciz \"Rockbound\"\n"
+    // Every FD4-style site, for --describe: {idiom start, static, runtime class, path}, then a row of zeros.
+    "  .p2align 3\n"
+    "  .globl fg_fd4_site_table\n"
+    "fg_fd4_site_table:\n"
+    FG_SITE_ROW(fg_get_taskloom, fg_static_taskloom, fg_rtclass_taskloom, fg_fd4_path)
+    FG_SITE_ROW(fg_get_roster, fg_static_roster, fg_rtclass_roster, fg_fd4_path)
+    FG_SITE_ROW(fg_get_roster_near, fg_static_roster, fg_rtclass_roster, fg_fd4_path)
+    FG_SITE_ROW(fg_get_lobby, fg_static_lobby, fg_rtclass_lobby, fg_fd4_path)
+    FG_SITE_ROW(fg_get_marks, fg_static_marks, fg_rtclass_marks, fg_fd4_path)
+    FG_SITE_ROW(fg_get_gauges, fg_static_gauges, fg_rtclass_gauges, fg_fd4_path)
+    FG_SITE_ROW(fg_get_menu, fg_static_menu, fg_rtclass_menu, fg_fd4_path)
+    FG_SITE_ROW(fg_get_menu_popup_site, fg_static_menu, fg_rtclass_menu, fg_fd4_path)
+    FG_SITE_ROW(fg_get_veil, fg_static_veil, fg_rtclass_veil, fg_fd4_path)
+    FG_SITE_ROW(fg_get_sky, fg_static_sky, fg_rtclass_sky, fg_fd4_path)
+    FG_SITE_ROW(fg_get_eye, fg_static_eye, fg_rtclass_eye, fg_fd4_path)
+    FG_SITE_ROW(fg_get_tables, fg_static_tables, fg_rtclass_tables, fg_fd4_path)
+    FG_SITE_ROW(fg_get_phrases, fg_static_phrases, fg_rtclass_phrases, fg_fd4_path)
+    FG_SITE_ROW(fg_get_duplicata_a, fg_static_duplicata_a, fg_rtclass_duplicata_a, fg_fd4_path)
+    FG_SITE_ROW(fg_get_duplicata_b, fg_static_duplicata_b, fg_rtclass_duplicata_b, fg_fd4_path)
+    FG_SITE_ROW(fg_get_strayling, fg_static_strayling, fg_rtclass_strayling, fg_fd4_path_decoy)
+    FG_SITE_ROW(fg_get_rockbound, fg_static_rockbound, fg_rtclass_rockbound, fg_fd4_path)
+    "  .quad 0, 0, 0, 0\n"
+    // The program's own calls into the registration (each call instruction), for --describe; then a zero.
+    "  .globl fg_register_call_table\n"
+    "fg_register_call_table:\n"
+    "  .quad .Lcall_1, .Lcall_2, .Lcall_3, .Lcall_4, 0\n"
+
+    "  .text\n"
+
+    // ---- The name getter: a leaf, and the start of a .pdata function ----
+    FG_FUNC_BEGIN(fg_rtclass_name)
+    "  .seh_endprologue\n"
+    "  mov rax, qword ptr [rcx + " FG_XSTR(FG_RTCLASS_NAME_OFF) "]\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- The FD4-style accessors: eleven names, two of them with a second site, and four decoys ----
+    FG_FD4_ACCESSOR(fg_get_taskloom, fg_static_taskloom, fg_rtclass_taskloom, fg_fd4_path, 101)
+    FG_FD4_ACCESSOR(fg_get_roster, fg_static_roster, fg_rtclass_roster, fg_fd4_path, 102)
+    FG_FD4_ACCESSOR(fg_get_lobby, fg_static_lobby, fg_rtclass_lobby, fg_fd4_path, 103)
+    FG_FD4_ACCESSOR(fg_get_marks, fg_static_marks, fg_rtclass_marks, fg_fd4_path, 104)
+    FG_FD4_ACCESSOR(fg_get_gauges, fg_static_gauges, fg_rtclass_gauges, fg_fd4_path, 105)
+    FG_FD4_ACCESSOR(fg_get_menu, fg_static_menu, fg_rtclass_menu, fg_fd4_path, 106)
+    FG_FD4_ACCESSOR(fg_get_veil, fg_static_veil, fg_rtclass_veil, fg_fd4_path, 107)
+    FG_FD4_ACCESSOR(fg_get_sky, fg_static_sky, fg_rtclass_sky, fg_fd4_path, 108)
+    FG_FD4_ACCESSOR(fg_get_eye, fg_static_eye, fg_rtclass_eye, fg_fd4_path, 109)
+    FG_FD4_ACCESSOR(fg_get_tables, fg_static_tables, fg_rtclass_tables, fg_fd4_path, 110)
+    FG_FD4_ACCESSOR(fg_get_phrases, fg_static_phrases, fg_rtclass_phrases, fg_fd4_path, 111)
+    FG_FD4_ACCESSOR(fg_get_roster_near, fg_static_roster, fg_rtclass_roster, fg_fd4_path, 112)
+    FG_FD4_ACCESSOR(fg_get_menu_popup_site, fg_static_menu, fg_rtclass_menu, fg_fd4_path, 113)
+    FG_FD4_ACCESSOR(fg_get_duplicata_a, fg_static_duplicata_a, fg_rtclass_duplicata_a, fg_fd4_path, 121)
+    FG_FD4_ACCESSOR(fg_get_duplicata_b, fg_static_duplicata_b, fg_rtclass_duplicata_b, fg_fd4_path, 122)
+    FG_FD4_ACCESSOR(fg_get_strayling, fg_static_strayling, fg_rtclass_strayling, fg_fd4_path_decoy, 123)
+    FG_FD4_ACCESSOR(fg_get_rockbound, fg_static_rockbound, fg_rtclass_rockbound, fg_fd4_path, 124)
+
+    // ---- global_hinstance's role: stores the module handle and a check word made from it; answers the old value.
+    // Pattern from entry + 5; the static is the third RIP-relative operand.
+    FG_FUNC_BEGIN(fg_boot_publish_instance)
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rdi, rcx\n"
+    "  bswap ecx\n"
+    "  ror rcx, 0x0B\n"
+    "  mov qword ptr [rip + fg_hinstance_check], rcx\n"
+    "  mov rax, qword ptr [rip + fg_static_hinstance]\n"
+    "  mov qword ptr [rip + fg_static_hinstance], rdi\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- GameDataMan's role: swaps the SaveLedger static and notes whether it is set; answers the old value ----
+    FG_FUNC_BEGIN(fg_save_ledger_swap)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  xchg qword ptr [rip + fg_static_save_ledger], rcx\n"
+    "  test rbx, rbx\n"
+    "  setne dl\n"
+    "  mov byte ptr [rip + fg_save_ledger_ready], dl\n"
+    "  mov rax, rcx\n"
+    "  add rsp, 0x20\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- GameMan's role: the save slot through the RunWarden static, or -1 ----
+    FG_FUNC_BEGIN(fg_run_warden_slot)
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov r9, qword ptr [rip + fg_static_run_warden]\n"
+    "  or eax, -1\n"
+    "  test r9, r9\n"
+    "  .byte 0x74, 1f - 2f\n"
+    "2:\n"
+    "  mov eax, dword ptr [r9 + " FG_XSTR(FG_WARDEN_SAVE_SLOT_OFF) "]\n"
+    "1:\n"
+    "  add rsp, 0x20\n"
+    "  pop rsi\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- FieldArea's role: the place id through the FieldPlot static, or 0 ----
+    FG_FUNC_BEGIN(fg_field_plot_place)
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov r10, qword ptr [rip + fg_static_field_plot]\n"
+    "  xor eax, eax\n"
+    "  test r10, r10\n"
+    "  .byte 0x74, 1f - 2f\n"
+    "2:\n"
+    "  movsxd rax, dword ptr [r10 + " FG_XSTR(FG_PLOT_PLACE_OFF) "]\n"
+    "1:\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group. It checks the
+    // hub against its static, the group against the hub's count and the task against null, then queues the task.
+    // Anything else is refused by fg_register_rejected, which faults (a game given bad arguments would not check).
+    FG_FUNC_BEGIN(fg_register_task)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x30\n"
+    "  .seh_stackalloc 0x30\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  mov rsi, rdx\n"
+    "  mov edi, r8d\n"
+    "  mov rax, qword ptr [rip + fg_static_taskloom]\n"
+    "  cmp rax, rsi\n"
+    "  .byte 0x75, 4f - 5f\n"
+    "5:\n"
+    "  cmp edi, dword ptr [rsi + " FG_XSTR(FG_LOOM_GROUP_COUNT_OFF) "]\n"
+    "  .byte 0x73, 6f - 7f\n"
+    "7:\n"
+    "  test rbx, rbx\n"
+    "  .byte 0x74, 8f - 9f\n"
+    "9:\n"
+    "  mov r8, rbx\n"
+    "  mov edx, edi\n"
+    "  mov rcx, rsi\n"
+    "  call fg_hub_enqueue\n"
+    "3:\n"
+    "  add rsp, 0x30\n"
+    "  pop rdi\n"
+    "  pop rsi\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "4:\n"
+    "  mov ecx, 1\n"
+    "  call fg_register_rejected\n"
+    "  .byte 0xEB, 3b - 1f\n"
+    "1:\n"
+    "6:\n"
+    "  mov ecx, 2\n"
+    "  call fg_register_rejected\n"
+    "  .byte 0xEB, 3b - 1f\n"
+    "1:\n"
+    "8:\n"
+    "  mov ecx, 3\n"
+    "  call fg_register_rejected\n"
+    "  .byte 0xEB, 3b - 1f\n"
+    "1:\n"
+    "  .seh_endproc\n"
+
+    // ---- The program's own call sites into the registration: each loads the hub from its static into rdx ----
+    FG_FUNC_BEGIN(fg_boot_register_tasks)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx]\n"
+    "  mov r8d, dword ptr [rbx + 0x08]\n"
+    ".Lcall_1:\n"
+    "  call fg_register_task\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx + 0x10]\n"
+    "  mov r8d, dword ptr [rbx + 0x18]\n"
+    ".Lcall_2:\n"
+    "  call fg_register_task\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx + 0x20]\n"
+    "  mov r8d, dword ptr [rbx + 0x28]\n"
+    ".Lcall_3:\n"
+    "  call fg_register_task\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx + 0x30]\n"
+    "  mov r8d, dword ptr [rbx + 0x38]\n"
+    ".Lcall_4:\n"
+    "  call fg_register_task\n"
+    "  add rsp, 0x20\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    "  .att_syntax prefix\n");

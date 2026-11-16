@@ -2,8 +2,12 @@
 #include "fault_alloc.hpp"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdlib>
 #include <new>
+#ifdef _WIN32
+#include <malloc.h>  // _aligned_malloc, _aligned_free
+#endif
 
 namespace en::llm::test::faults {
 
@@ -42,15 +46,84 @@ void exempt_this_thread() noexcept { t_exempt = true; }
 
 }  // namespace en::llm::test::faults
 
-void* operator new(std::size_t size) {
+// Every form of the global operator new allocates here and every form of delete frees here: all twenty are replaced,
+// so that no memory passes between this program's allocator and a runtime's (a sanitizer's nothrow or aligned new,
+// freed here by free(), would be a mismatch).
+namespace {
+
+void* allocate(std::size_t size) {
   if (en::llm::test::faults::take(size)) throw std::bad_alloc();
   if (void* p = std::malloc(size == 0 ? 1 : size)) return p;
   throw std::bad_alloc();
 }
 
-void* operator new[](std::size_t size) { return ::operator new(size); }
+void* allocate(std::size_t size, std::align_val_t alignment) {
+  if (en::llm::test::faults::take(size)) throw std::bad_alloc();
+  const auto align = static_cast<std::size_t>(alignment);
+#ifdef _WIN32
+  if (void* p = _aligned_malloc(size == 0 ? 1 : size, align)) return p;
+#else
+  void* p = nullptr;
+  if (posix_memalign(&p, align, size == 0 ? 1 : size) == 0) return p;
+#endif
+  throw std::bad_alloc();
+}
 
-void operator delete(void* p) noexcept { std::free(p); }
-void operator delete[](void* p) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
+void release(void* p) noexcept { std::free(p); }
+
+void release_aligned(void* p) noexcept {
+#ifdef _WIN32
+  _aligned_free(p);
+#else
+  std::free(p);
+#endif
+}
+
+}  // namespace
+
+void* operator new(std::size_t size) { return allocate(size); }
+void* operator new[](std::size_t size) { return allocate(size); }
+void* operator new(std::size_t size, std::align_val_t alignment) { return allocate(size, alignment); }
+void* operator new[](std::size_t size, std::align_val_t alignment) { return allocate(size, alignment); }
+
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
+  try {
+    return allocate(size);
+  } catch (...) {
+    return nullptr;
+  }
+}
+void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
+  try {
+    return allocate(size);
+  } catch (...) {
+    return nullptr;
+  }
+}
+void* operator new(std::size_t size, std::align_val_t alignment, const std::nothrow_t&) noexcept {
+  try {
+    return allocate(size, alignment);
+  } catch (...) {
+    return nullptr;
+  }
+}
+void* operator new[](std::size_t size, std::align_val_t alignment, const std::nothrow_t&) noexcept {
+  try {
+    return allocate(size, alignment);
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+void operator delete(void* p) noexcept { release(p); }
+void operator delete[](void* p) noexcept { release(p); }
+void operator delete(void* p, std::size_t) noexcept { release(p); }
+void operator delete[](void* p, std::size_t) noexcept { release(p); }
+void operator delete(void* p, const std::nothrow_t&) noexcept { release(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { release(p); }
+void operator delete(void* p, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete[](void* p, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete(void* p, std::size_t, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete(void* p, std::align_val_t, const std::nothrow_t&) noexcept { release_aligned(p); }
+void operator delete[](void* p, std::align_val_t, const std::nothrow_t&) noexcept { release_aligned(p); }

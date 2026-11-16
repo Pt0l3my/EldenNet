@@ -42,6 +42,7 @@ if(MSVC)
 else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
+include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
 # with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §3.1 and §1.7. Clang checks both.
@@ -60,4 +61,12 @@ endif()
 add_subdirectory(src/en-prompt)
 add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
+# en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
+# MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
+add_subdirectory(src/en-gal)
 add_subdirectory(src/en-tools)
+if(EN_FUZZ)
+  add_subdirectory(fuzz)
+endif()
+add_subdirectory(tests/fakegame)  # the fake game and its Wine harness (Windows builds with the tests)
+add_subdirectory(tests/vehprobe)  # the vectored-handler DLL the harness loads into it

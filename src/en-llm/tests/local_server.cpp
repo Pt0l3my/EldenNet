@@ -1,5 +1,6 @@
 #include "local_server.hpp"
 
+#include "en/llm/config.hpp"
 #include "fault_alloc.hpp"
 
 #ifdef _WIN32
@@ -414,9 +415,9 @@ bool Signal::notified() const {
 }
 
 ScopedEnv::ScopedEnv(std::string name, const std::string& value) : name_(std::move(name)) {
-  if (const char* old = std::getenv(name_.c_str()); old != nullptr) {
+  if (const std::optional<std::string> old = system_env(name_)) {
     had_value_ = true;
-    old_value_ = old;
+    old_value_ = *old;
   }
 #ifdef _WIN32
   _putenv((name_ + "=" + value).c_str());

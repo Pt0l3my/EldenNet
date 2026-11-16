@@ -1,0 +1,485 @@
+// The fake game's entry: the command line, the status lines, the window, the boot order (ARCH §1.4 and §3.3 as a game
+// shows them to EldenNet: a window, then global_hinstance, then the statics), and the frame loop, which runs every
+// registered task at a set rate, with hitches, stalls, moves, loading screens, faults and DLL loads on request.
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cwchar>
+
+#include "program.hpp"  // windows.h first, then the headers that need it
+
+#include <mmsystem.h>
+#include <shellapi.h>
+
+namespace fakegame {
+namespace {
+
+Options g_options;
+DWORD g_game_thread = 0;
+volatile bool g_quit = false;
+
+double g_started = 0.0;
+HANDLE g_stdout = nullptr;
+HANDLE g_file = INVALID_HANDLE_VALUE;
+SRWLOCK g_status_lock = SRWLOCK_INIT;
+
+#if defined(_MSC_VER)
+constexpr const char* kToolchain = "clang-cl";
+#else
+constexpr const char* kToolchain = "mingw";
+#endif
+
+double now_s() {
+  LARGE_INTEGER f{}, c{};
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&c);
+  return static_cast<double>(c.QuadPart) / static_cast<double>(f.QuadPart);
+}
+
+std::string narrow(const std::wstring& w) {
+  std::string out;
+  for (wchar_t c : w) out.push_back(c < 0x80 ? static_cast<char>(c) : '?');
+  return out;
+}
+
+const wchar_t* base_name(const std::wstring& path) {
+  const std::size_t cut = path.find_last_of(L"\\/");
+  return cut == std::wstring::npos ? path.c_str() : path.c_str() + cut + 1;
+}
+
+const char* moment_name(LoadMoment m) {
+  switch (m) {
+    case LoadMoment::Boot: return "boot";
+    case LoadMoment::Window: return "window";
+    case LoadMoment::Ready: return "ready";
+    case LoadMoment::Title: return "title";
+    case LoadMoment::World: return "world";
+  }
+  return "?";
+}
+
+// --load: the stand-in for a loader that loads a DLL into the game at one moment (ARCH §3.3's late load).
+void load_dlls(LoadMoment moment) {
+  for (DllLoad& load : g_options.loads) {
+    if (load.done || load.moment != moment) continue;
+    load.done = true;
+    HMODULE module = LoadLibraryW(load.path.c_str());
+    status("load moment=%s dll=%ls ok=%d error=%lu", moment_name(moment), base_name(load.path), module != nullptr ? 1 : 0,
+           module != nullptr ? 0UL : GetLastError());
+  }
+}
+
+LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_CLOSE) {
+    g_quit = true;
+    DestroyWindow(window);
+    return 0;
+  }
+  return DefWindowProcW(window, message, wparam, lparam);
+}
+
+HWND make_window(HINSTANCE instance) {
+  WNDCLASSEXW wc{};
+  wc.cbSize = sizeof wc;
+  wc.lpfnWndProc = window_proc;
+  wc.hInstance = instance;
+  wc.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));  // IDC_ARROW
+  wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+  wc.lpszClassName = L"FakeGameWindow";
+  RegisterClassExW(&wc);
+  HWND window = CreateWindowExW(0, wc.lpszClassName, L"Fake Game (EldenNet test fixture)",
+                                WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 640, 360, nullptr,
+                                nullptr, instance, nullptr);
+  if (window != nullptr) {
+    ShowWindow(window, SW_SHOWNORMAL);
+    UpdateWindow(window);
+  }
+  return window;
+}
+
+void pump() {
+  MSG msg;
+  while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    TranslateMessage(&msg);
+    DispatchMessageW(&msg);
+  }
+}
+
+void wait_pumping(double seconds, bool window) {
+  const double until = now_s() + seconds;
+  while (now_s() < until && !g_quit) {
+    if (window) pump();
+    Sleep(5);
+  }
+}
+
+// --- Command line -------------------------------------------------------------------------------------------------------
+struct Parser {
+  int argc;
+  wchar_t** argv;
+  int i = 1;
+  std::wstring name;
+  std::wstring inline_value;
+  bool has_inline = false;
+  std::string& error;
+
+  bool value(std::wstring& out) {
+    if (has_inline) {
+      out = inline_value;
+      return true;
+    }
+    if (i + 1 < argc) {
+      out = argv[++i];
+      return true;
+    }
+    error = "missing value for " + narrow(name);
+    return false;
+  }
+  template <class T>
+  bool number(T& out) {
+    std::wstring v;
+    if (!value(v)) return false;
+    wchar_t* end = nullptr;
+    const unsigned long long n = std::wcstoull(v.c_str(), &end, 0);
+    if (v.empty() || end == nullptr || *end != L'\0' || v[0] == L'-') {
+      error = "not a number for " + narrow(name) + ": " + narrow(v);
+      return false;
+    }
+    out = static_cast<T>(n);
+    return true;
+  }
+  template <class E, std::size_t N>
+  bool choice(E& out, const wchar_t* const (&names)[N], const E (&values)[N]) {
+    std::wstring v;
+    if (!value(v)) return false;
+    for (std::size_t k = 0; k < N; ++k) {
+      if (v == names[k]) {
+        out = values[k];
+        return true;
+      }
+    }
+    error = "unknown value for " + narrow(name) + ": " + narrow(v);
+    return false;
+  }
+};
+
+}  // namespace
+
+bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
+  Parser p{argc, argv, 1, {}, {}, false, error};
+  for (; p.i < argc; ++p.i) {
+    std::wstring arg = argv[p.i];
+    if (arg.rfind(L"--", 0) != 0) {
+      error = "unexpected argument: " + narrow(arg);
+      return false;
+    }
+    const std::size_t eq = arg.find(L'=');
+    p.has_inline = eq != std::wstring::npos;
+    p.inline_value = p.has_inline ? arg.substr(eq + 1) : std::wstring{};
+    p.name = p.has_inline ? arg.substr(0, eq) : arg;
+    const std::wstring& n = p.name;
+    bool ok = true;
+    if (n == L"--frames") ok = p.number(o.frames);
+    else if (n == L"--forever") o.forever = true;
+    else if (n == L"--fps") ok = p.number(o.fps);
+    else if (n == L"--no-window") o.window = false;
+    else if (n == L"--boot-delay-ms") ok = p.number(o.boot_delay_ms);
+    else if (n == L"--statics-delay-ms") ok = p.number(o.statics_delay_ms);
+    else if (n == L"--title-frames") ok = p.number(o.title_frames);
+    else if (n == L"--load-frames") ok = p.number(o.load_frames);
+    else if (n == L"--stay-title") o.stay_title = true;
+    else if (n == L"--reload-every") ok = p.number(o.reload_every);
+    else if (n == L"--actors") ok = p.number(o.actors);
+    else if (n == L"--online") o.online = true;
+    else if (n == L"--online-at") ok = p.number(o.online_at);
+    else if (n == L"--hitch-every") ok = p.number(o.hitch_every);
+    else if (n == L"--hitch-ms") ok = p.number(o.hitch_ms);
+    else if (n == L"--stall-at") ok = p.number(o.stall_at);
+    else if (n == L"--stall-ms") ok = p.number(o.stall_ms);
+    else if (n == L"--move-every") ok = p.number(o.move_every);
+    else if (n == L"--move-mode") {
+      static const wchar_t* const names[] = {L"poison", L"free", L"keep"};
+      static const MoveMode values[] = {MoveMode::Poison, MoveMode::Free, MoveMode::Keep};
+      ok = p.choice(o.move_mode, names, values);
+    } else if (n == L"--shift-groups") ok = p.number(o.shift_groups);
+    else if (n == L"--register") {
+      static const wchar_t* const names[] = {L"normal", L"fault", L"ignore"};
+      static const RegisterMode values[] = {RegisterMode::Normal, RegisterMode::Fault, RegisterMode::Ignore};
+      ok = p.choice(o.register_mode, names, values);
+    } else if (n == L"--crash") {
+      static const wchar_t* const names[] = {L"av-read",        L"av-write",   L"av-exec",  L"div-zero", L"illegal",
+                                             L"stack-overflow", L"breakpoint", L"fastfail", L"terminate"};
+      static const Crash values[] = {Crash::AvRead,        Crash::AvWrite,    Crash::AvExec,   Crash::DivZero,
+                                     Crash::Illegal,       Crash::StackOverflow, Crash::Breakpoint, Crash::FastFail,
+                                     Crash::Terminate};
+      ok = p.choice(o.crash, names, values);
+    } else if (n == L"--crash-at") ok = p.number(o.crash_at);
+    else if (n == L"--crash-thread") {
+      static const wchar_t* const names[] = {L"game", L"worker"};
+      static const bool values[] = {false, true};
+      ok = p.choice(o.crash_on_worker, names, values);
+    } else if (n == L"--handled-every") ok = p.number(o.handled_every);
+    else if (n == L"--handled-kind") {
+      static const wchar_t* const names[] = {L"seh", L"cxx"};
+      static const Handled values[] = {Handled::Seh, Handled::Cxx};
+      ok = p.choice(o.handled_kind, names, values);
+    } else if (n == L"--game-filter") o.game_filter = true;
+    else if (n == L"--game-filter-at") ok = p.number(o.game_filter_at);
+    else if (n == L"--game-filter-result") {
+      static const wchar_t* const names[] = {L"execute", L"continue"};
+      static const bool values[] = {false, true};
+      ok = p.choice(o.game_filter_continue, names, values);
+    } else if (n == L"--load") {
+      std::wstring v;
+      ok = p.value(v);
+      DllLoad load;
+      static const wchar_t* const moments[] = {L"boot", L"window", L"ready", L"title", L"world"};
+      static const LoadMoment values[] = {LoadMoment::Boot, LoadMoment::Window, LoadMoment::Ready, LoadMoment::Title,
+                                          LoadMoment::World};
+      load.path = v;
+      const std::size_t colon = v.find(L':');
+      for (std::size_t k = 0; ok && colon != std::wstring::npos && k < 5; ++k) {
+        if (v.compare(0, colon, moments[k]) == 0) {
+          load.moment = values[k];
+          load.path = v.substr(colon + 1);
+        }
+      }
+      if (ok) o.loads.push_back(load);
+    } else if (n == L"--selftest-task") o.selftest_task = true;
+    else if (n == L"--selftest-abi") {
+      static const wchar_t* const names[] = {L"published", L"swapped"};
+      static const bool values[] = {false, true};
+      ok = p.choice(o.selftest_swapped, names, values);
+    } else if (n == L"--selftest-object-size") ok = p.number(o.selftest_object_size);
+    else if (n == L"--selftest-group") ok = p.number(o.selftest_group);
+    else if (n == L"--status-file") ok = p.value(o.status_file);
+    else if (n == L"--exit-code") ok = p.number(o.exit_code);
+    else if (n == L"--describe") o.describe = true;
+    else if (n == L"--verbose") o.verbose = true;
+    else {
+      error = "unknown option: " + narrow(n);
+      return false;
+    }
+    if (!ok) return false;
+  }
+  if (o.actors > FG::kMaxNear - 1) {
+    error = "--actors is at most 47";
+    return false;
+  }
+  if (o.shift_groups > 8) {
+    error = "--shift-groups is at most 8";
+    return false;
+  }
+  if (o.selftest_object_size > 0x1000 || o.selftest_object_size % 8 != 0) {
+    error = "--selftest-object-size is a multiple of 8, at most 0x1000";
+    return false;
+  }
+  if (o.handled_every != 0 && !handled_supported(o.handled_kind)) {
+    error = "--handled-kind seh needs the clang-cl build";
+    return false;
+  }
+  return true;
+}
+
+const Options& options() { return g_options; }
+void set_options(const Options& opts) { g_options = opts; }
+DWORD game_thread_id() { return g_game_thread; }
+
+void status_open(const std::wstring& file) {
+  HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+  g_stdout = (out == INVALID_HANDLE_VALUE) ? nullptr : out;
+  if (!file.empty()) {
+    g_file = CreateFileW(file.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
+                         FILE_ATTRIBUTE_NORMAL, nullptr);
+  }
+}
+
+// Each line ends with t=<milliseconds since the program started>.
+void status(const char* fmt, ...) {
+  char line[1024];
+  int n = std::snprintf(line, sizeof line, "FAKEGAME ");
+  va_list args;
+  va_start(args, fmt);
+  const int m = std::vsnprintf(line + n, sizeof line - static_cast<std::size_t>(n) - 40, fmt, args);
+  va_end(args);
+  n += m < 0 ? 0 : (m > static_cast<int>(sizeof line) - n - 40 ? static_cast<int>(sizeof line) - n - 40 : m);
+  n += std::snprintf(line + n, 40, " t=%.1f", (now_s() - g_started) * 1000.0);
+  line[n++] = '\n';
+  AcquireSRWLockExclusive(&g_status_lock);
+  DWORD written = 0;
+  if (g_stdout != nullptr) WriteFile(g_stdout, line, static_cast<DWORD>(n), &written, nullptr);
+  if (g_file != INVALID_HANDLE_VALUE) WriteFile(g_file, line, static_cast<DWORD>(n), &written, nullptr);
+  ReleaseSRWLockExclusive(&g_status_lock);
+}
+
+void status_raw(const char* text, std::size_t size) {
+  AcquireSRWLockExclusive(&g_status_lock);
+  DWORD written = 0;
+  if (g_stdout != nullptr) WriteFile(g_stdout, text, static_cast<DWORD>(size), &written, nullptr);
+  if (g_file != INVALID_HANDLE_VALUE) WriteFile(g_file, text, static_cast<DWORD>(size), &written, nullptr);
+  ReleaseSRWLockExclusive(&g_status_lock);
+}
+
+void status_flush() {
+  if (g_stdout != nullptr) FlushFileBuffers(g_stdout);
+  if (g_file != INVALID_HANDLE_VALUE) FlushFileBuffers(g_file);
+}
+
+namespace {
+
+void print_usage() {
+  static const char* const kUsage[] = {
+      "usage: fakegame [options]   (README.md describes each)",
+      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N",
+      "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
+      "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",
+      "  --shift-groups N  --register normal|fault|ignore",
+      "  --crash av-read|av-write|av-exec|div-zero|illegal|stack-overflow|breakpoint|fastfail|terminate",
+      "  --crash-at F  --crash-thread game|worker  --handled-every N  --handled-kind seh|cxx",
+      "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
+      "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
+      "  --selftest-object-size N  --selftest-group N  --status-file PATH  --exit-code N  --describe  --verbose"};
+  for (const char* line : kUsage) status("usage %s", line);
+}
+
+int run(HINSTANCE instance) {
+  const Options& o = g_options;
+  timeBeginPeriod(1);
+  status("boot pid=%lu toolchain=%s product=fakegame version=3.14.15.0", GetCurrentProcessId(), kToolchain);
+  load_dlls(LoadMoment::Boot);
+  if (o.selftest_task) selftest_start(g_game_thread);
+  if (o.game_filter) install_game_filter();
+  if (o.boot_delay_ms != 0) Sleep(o.boot_delay_ms);
+
+  HWND window = nullptr;
+  if (o.window) {
+    window = make_window(instance);
+    status("window hwnd=%p visible=%d", static_cast<void*>(window), window != nullptr && IsWindowVisible(window) ? 1 : 0);
+    if (window == nullptr) return 3;
+  } else {
+    status("window none");
+  }
+  world_publish_hinstance(instance);
+  (void)fg_get_rockbound();  // a singleton asked for before it is set: the idiom's log path runs once (fd4_unset=1)
+  load_dlls(LoadMoment::Window);
+  if (o.statics_delay_ms != 0) wait_pumping(o.statics_delay_ms / 1000.0, window != nullptr);
+  world_create_singletons();
+  world_register_tasks();
+  status("ready standin=%u groups=%u", standin_group(), group_count());
+  load_dlls(LoadMoment::Ready);
+
+  const double period = o.fps == 0 ? 0.0 : 1.0 / o.fps;
+  double prev = now_s();
+  double max_ms = 0.0;
+  double sum_ms = 0.0;
+  std::uint32_t hitches = 0;
+  std::uint64_t frame = 0;
+  bool saw_title = false;
+  bool saw_world = false;
+  while (!g_quit && (o.forever || frame < o.frames)) {
+    ++frame;
+    const double start = now_s();
+    const double dt_s = start - prev;
+    prev = start;
+    if (frame > 1) {
+      max_ms = dt_s * 1000.0 > max_ms ? dt_s * 1000.0 : max_ms;
+      sum_ms += dt_s * 1000.0;
+    }
+    if (window != nullptr) pump();
+    if (o.stall_at == frame) {
+      status("stall frame=%llu ms=%u", static_cast<unsigned long long>(frame), o.stall_ms);
+      status_flush();
+      if (o.stall_ms == 0) {
+        for (;;) Sleep(1000);
+      }
+      Sleep(o.stall_ms);
+    }
+    if (o.hitch_every != 0 && frame % o.hitch_every == 0) {
+      Sleep(o.hitch_ms);
+      ++hitches;
+    }
+    if (o.game_filter_at == frame) install_game_filter();
+    if (o.crash != Crash::None && frame == o.crash_at) {
+      if (o.crash_on_worker) {
+        crash_on_worker(o.crash);
+      } else {
+        crash_now(o.crash);
+      }
+    }
+    if (o.handled_every != 0 && frame % o.handled_every == 0) {
+      const bool ok = handled_exception(o.handled_kind);
+      if (o.verbose) status("handled frame=%llu ok=%d", static_cast<unsigned long long>(frame), ok ? 1 : 0);
+    }
+    world_frame_begin(frame);
+    if (!saw_title && world_phase() == Phase::Title) {
+      saw_title = true;
+      load_dlls(LoadMoment::Title);
+    }
+    if (!saw_world && world_phase() == Phase::World) {
+      saw_world = true;
+      load_dlls(LoadMoment::World);
+    }
+    hub_run_frame(frame, static_cast<float>(dt_s > 0.25 ? 0.25 : dt_s));
+    if (period > 0.0) {
+      const double until = start + period;
+      for (double t = now_s(); t < until; t = now_s()) {
+        const double left_ms = (until - t) * 1000.0;
+        Sleep(left_ms > 2.0 ? static_cast<DWORD>(left_ms - 1.0) : 0);
+      }
+    }
+  }
+
+  const HubStats hs = hub_stats();
+  const WorldStats ws = world_stats();
+  if (o.selftest_task) {
+    const SelftestStats st = selftest_stats();
+    status("selftest registered=%d faulted=%d code=0x%08X attach=%llu runs=%llu queries=%llu wrong_thread=%llu "
+           "wrong_group=%llu body_ok=%d",
+           st.registered ? 1 : 0, st.faulted ? 1 : 0, st.fault_code, static_cast<unsigned long long>(st.attach),
+           static_cast<unsigned long long>(st.runs), static_cast<unsigned long long>(st.queries),
+           static_cast<unsigned long long>(st.wrong_thread), static_cast<unsigned long long>(st.wrong_group),
+           st.body_ok ? 1 : 0);
+  }
+  status("end frames=%llu phase=%s builtin_runs=%llu foreign_tasks=%u foreign_runs=%llu foreign_us_max=%llu "
+         "rejected=%u ignored=%u moves=%u loads=%u poisoned=%u freed=%u hitches=%u handled=%u fd4_unset=%u "
+         "frame_ms_max=%.1f frame_ms_mean=%.2f exit=%u",
+         static_cast<unsigned long long>(frame), phase_name(world_phase()),
+         static_cast<unsigned long long>(hs.builtin_runs), hs.foreign_tasks,
+         static_cast<unsigned long long>(hs.foreign_runs), static_cast<unsigned long long>(hs.foreign_us_max),
+         hs.rejected, hs.ignored, ws.moves, ws.loads, ws.poisoned, ws.freed, hitches, handled_count(), ws.fd4_unset,
+         max_ms,
+         frame > 1 ? sum_ms / static_cast<double>(frame - 1) : 0.0, o.exit_code);
+  status_flush();
+  timeEndPeriod(1);
+  return static_cast<int>(o.exit_code);
+}
+
+}  // namespace
+}  // namespace fakegame
+
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
+  using namespace fakegame;
+  g_started = now_s();
+  g_game_thread = GetCurrentThreadId();
+  int argc = 0;
+  wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  Options opts;
+  std::string error;
+  const bool parsed = argv != nullptr && parse_options(argc, argv, opts, error);
+  if (argv != nullptr) LocalFree(argv);
+  if (!parsed) {
+    set_options(opts);
+    status_open(opts.status_file);
+    if (error == "unknown option: --help") {
+      print_usage();
+      return 0;
+    }
+    status("error %s", error.c_str());
+    status_flush();
+    return 2;
+  }
+  set_options(opts);
+  status_open(opts.status_file);
+  if (opts.describe) return describe(instance);
+  return run(instance);
+}

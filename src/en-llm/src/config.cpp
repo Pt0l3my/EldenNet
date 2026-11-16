@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <initializer_list>
+#include <memory>
 #include <sstream>
 
 #include <toml.hpp>
@@ -640,10 +641,28 @@ const SlotConfig& Config::slot(std::string_view name) const {
   return it->second;
 }
 
+#ifdef _MSC_VER
+namespace {
+struct CrtFree {
+  void operator()(char* p) const noexcept { std::free(p); }
+};
+}  // namespace
+#endif
+
 std::optional<std::string> system_env(const std::string& name) {
+#ifdef _MSC_VER
+  // MSVC's CRT marks getenv unsafe, as it is not thread-safe there; _dupenv_s is its thread-safe form, and hands back a
+  // copy for us to free.
+  char* value = nullptr;
+  std::size_t size = 0;
+  if (_dupenv_s(&value, &size, name.c_str()) != 0 || value == nullptr) return std::nullopt;
+  const std::unique_ptr<char, CrtFree> copy(value);
+  return std::string(copy.get());
+#else
   const char* value = std::getenv(name.c_str());
   if (value == nullptr) return std::nullopt;
   return std::string(value);
+#endif
 }
 
 std::vector<std::string> quantizations_from(std::string_view floor) {

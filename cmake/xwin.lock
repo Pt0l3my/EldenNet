@@ -1,0 +1,16 @@
+# The MSVC CRT and Windows SDK that cmake/clang-cl-xwin.cmake builds against (O60, ARCH §2.6), as xwin splats them
+# outside every repository: versions only. Microsoft's licence covers the files themselves, which are never committed
+# or copied into a repository. The toolchain file refuses a splat whose CRT or SDK differs from these.
+#
+# The CRT is the newest in the manifest whose standard library accepts Clang 18 (LLVM is pinned at 18): 14.44's
+# yvals_core.h asks for Clang 19 or newer, 14.43's for 18 or newer.
+xwin = "0.10.0"
+manifest_version = "17"
+channel = "release"
+vs_manifest = "17.14.45+37906.3"
+arch = "x86_64"
+variant = "desktop"
+crt = "14.43.17.13"
+msvc = "14.43.34808"
+sdk = "10.0.26100"
+llvm = "18"

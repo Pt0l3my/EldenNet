@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "en/proto/llm.hpp"
+#include "json_read.hpp"
 
 namespace en::proto {
 
@@ -79,15 +80,7 @@ ParsedJson parse_json(std::string_view text, const JsonLimits& limits) {
 
 // ---- JSON forms ----
 
-namespace {
-
-// Where a value sits in the document being read: kept on the stack, spelled out only for an error. The chain is as
-// deep as the message types nest, never as deep as the text.
-struct At {
-  const At* parent = nullptr;
-  std::string_view name;  // the message type at the root, a field below it; empty for an array's element
-  std::size_t index = 0;  // an element's
-};
+namespace detail {
 
 std::string path_of(const At& at) {
   std::vector<const At*> chain;
@@ -107,9 +100,8 @@ std::string path_of(const At& at) {
   return out;
 }
 
-[[noreturn]] void fail(const At& at, const std::string& problem) { throw ProtoError(path_of(at) + ": " + problem); }
+void fail(const At& at, const std::string& problem) { throw ProtoError(path_of(at) + ": " + problem); }
 
-// A field's name as an error may show it: short, printable ASCII only. Values are never shown.
 std::string shown_name(const std::string& name) {
   const bool plain = name.size() <= 40 && std::all_of(name.begin(), name.end(), [](char c) {
                        return c >= 0x20 && c < 0x7F && c != '"' && c != '\\';
@@ -117,14 +109,7 @@ std::string shown_name(const std::string& name) {
   return plain ? "\"" + name + "\"" : "with a long or unprintable name";
 }
 
-// Readers: one per type, each refusing what is not its form. Declared first, so that every template below finds them.
-void read(const json& j, const At& at, bool& out);
-void read(const json& j, const At& at, int& out);
-void read(const json& j, const At& at, std::uint64_t& out);
-void read(const json& j, const At& at, double& out);
-void read(const json& j, const At& at, std::string& out);
-void read(const json& j, const At& at, std::chrono::milliseconds& out);
-void read(const json& j, const At& at, json& out);
+// The model client's messages' readers, declared first so that the templates find each other's.
 void read(const json& j, const At& at, Role& out);
 void read(const json& j, const At& at, Purpose& out);
 void read(const json& j, const At& at, ErrorClass& out);
@@ -149,58 +134,6 @@ void read(const json& j, const At& at, DecisionPick& out);
 void read(const json& j, const At& at, LlmRequest& out);
 void read(const json& j, const At& at, WarmUpOutcome& out);
 void read(const json& j, const At& at, LlmEvent& out);
-
-template <class T>
-void read(const json& j, const At& at, std::optional<T>& out) {
-  if (j.is_null()) {
-    out.reset();
-    return;
-  }
-  T value{};
-  read(j, at, value);
-  out = std::move(value);
-}
-
-template <class T>
-void read(const json& j, const At& at, std::vector<T>& out) {
-  if (!j.is_array()) fail(at, "must be an array");
-  out.clear();
-  out.reserve(j.size());
-  for (std::size_t i = 0; i < j.size(); ++i) {
-    T value{};
-    read(j[i], At{&at, {}, i}, value);
-    out.push_back(std::move(value));
-  }
-}
-
-// One object as one message: each field read by its own reader, none unknown; a field left out keeps its default.
-class Fields {
- public:
-  Fields(const json& j, const At& at) : j_(j), at_(at) {
-    if (!j.is_object()) fail(at, "must be an object");
-  }
-
-  template <class T>
-  Fields& operator()(const char* name, T& out) {
-    names_.emplace_back(name);
-    if (const auto it = j_.find(name); it != j_.end()) read(*it, At{&at_, name, 0}, out);
-    return *this;
-  }
-
-  // Refuses a field that no call above named.
-  void done() const {
-    for (auto it = j_.begin(); it != j_.end(); ++it) {
-      if (std::find(names_.begin(), names_.end(), it.key()) == names_.end()) {
-        fail(at_, "has an unknown field " + shown_name(it.key()));
-      }
-    }
-  }
-
- private:
-  const json& j_;
-  const At& at_;
-  std::vector<std::string_view> names_;
-};
 
 void read(const json& j, const At& at, bool& out) {
   if (!j.is_boolean()) fail(at, "must be true or false");
@@ -259,25 +192,6 @@ void read(const json& j, const At& at, std::chrono::milliseconds& out) {
 }
 
 void read(const json& j, const At&, json& out) { out = j; }
-
-template <class E, std::size_t N>
-void read_enum(const json& j, const At& at, const std::array<E, N>& all, E& out) {
-  if (j.is_string()) {
-    const std::string& name = j.get_ref<const std::string&>();
-    for (const E e : all) {
-      if (name == to_string(e)) {
-        out = e;
-        return;
-      }
-    }
-  }
-  std::string names;
-  for (const E e : all) {
-    if (!names.empty()) names += ", ";
-    names += to_string(e);
-  }
-  fail(at, "must be one of " + names);
-}
 
 constexpr std::array kRoles = {Role::System, Role::User, Role::Assistant};
 constexpr std::array kPurposes = {Purpose::Reply, Purpose::OwnInitiative, Purpose::Decision, Purpose::Background};
@@ -410,6 +324,10 @@ void read(const json& j, const At& at, LlmEvent& out) {
       "chat", out.chat)("pick", out.pick)("warm_up", out.warm_up)
       .done();
 }
+
+}  // namespace detail
+
+namespace {
 
 // Writers: every field, an absent optional as null.
 json write(const Part& v);
@@ -559,62 +477,56 @@ json write(const LlmEvent& v) {
           {"warm_up", write(v.warm_up)}};
 }
 
-// The root of a document read as one message type.
-template <class T>
-void read_root(const json& j, const char* type, T& out) {
-  read(j, At{nullptr, type, 0}, out);
-}
-
 }  // namespace
 
 void to_json(json& j, Role v) { j = to_string(v); }
-void from_json(const json& j, Role& v) { read_root(j, "Role", v); }
+void from_json(const json& j, Role& v) { detail::read_root(j, "Role", v); }
 void to_json(json& j, Purpose v) { j = to_string(v); }
-void from_json(const json& j, Purpose& v) { read_root(j, "Purpose", v); }
+void from_json(const json& j, Purpose& v) { detail::read_root(j, "Purpose", v); }
 void to_json(json& j, ErrorClass v) { j = to_string(v); }
-void from_json(const json& j, ErrorClass& v) { read_root(j, "ErrorClass", v); }
+void from_json(const json& j, ErrorClass& v) { detail::read_root(j, "ErrorClass", v); }
 void to_json(json& j, DecisionKind v) { j = to_string(v); }
-void from_json(const json& j, DecisionKind& v) { read_root(j, "DecisionKind", v); }
+void from_json(const json& j, DecisionKind& v) { detail::read_root(j, "DecisionKind", v); }
 void to_json(json& j, DecidedBy v) { j = to_string(v); }
-void from_json(const json& j, DecidedBy& v) { read_root(j, "DecidedBy", v); }
+void from_json(const json& j, DecidedBy& v) { detail::read_root(j, "DecidedBy", v); }
 void to_json(json& j, ReadAs v) { j = to_string(v); }
-void from_json(const json& j, ReadAs& v) { read_root(j, "ReadAs", v); }
+void from_json(const json& j, ReadAs& v) { detail::read_root(j, "ReadAs", v); }
 void to_json(json& j, RequestKind v) { j = to_string(v); }
-void from_json(const json& j, RequestKind& v) { read_root(j, "RequestKind", v); }
+void from_json(const json& j, RequestKind& v) { detail::read_root(j, "RequestKind", v); }
 void to_json(json& j, EventKind v) { j = to_string(v); }
-void from_json(const json& j, EventKind& v) { read_root(j, "EventKind", v); }
+void from_json(const json& j, EventKind& v) { detail::read_root(j, "EventKind", v); }
 
 void to_json(json& j, const Part& v) { j = write(v); }
-void from_json(const json& j, Part& v) { read_root(j, "Part", v); }
+void from_json(const json& j, Part& v) { detail::read_root(j, "Part", v); }
 void to_json(json& j, const Message& v) { j = write(v); }
-void from_json(const json& j, Message& v) { read_root(j, "Message", v); }
+void from_json(const json& j, Message& v) { detail::read_root(j, "Message", v); }
 void to_json(json& j, const ChatRequest& v) { j = write(v); }
-void from_json(const json& j, ChatRequest& v) { read_root(j, "ChatRequest", v); }
+void from_json(const json& j, ChatRequest& v) { detail::read_root(j, "ChatRequest", v); }
 void to_json(json& j, const Usage& v) { j = write(v); }
-void from_json(const json& j, Usage& v) { read_root(j, "Usage", v); }
+void from_json(const json& j, Usage& v) { detail::read_root(j, "Usage", v); }
 void to_json(json& j, const TopLogprob& v) { j = write(v); }
-void from_json(const json& j, TopLogprob& v) { read_root(j, "TopLogprob", v); }
+void from_json(const json& j, TopLogprob& v) { detail::read_root(j, "TopLogprob", v); }
 void to_json(json& j, const TokenLogprob& v) { j = write(v); }
-void from_json(const json& j, TokenLogprob& v) { read_root(j, "TokenLogprob", v); }
+void from_json(const json& j, TokenLogprob& v) { detail::read_root(j, "TokenLogprob", v); }
 void to_json(json& j, const AttemptInfo& v) { j = write(v); }
-void from_json(const json& j, AttemptInfo& v) { read_root(j, "AttemptInfo", v); }
+void from_json(const json& j, AttemptInfo& v) { detail::read_root(j, "AttemptInfo", v); }
 void to_json(json& j, const ChatResult& v) { j = write(v); }
-void from_json(const json& j, ChatResult& v) { read_root(j, "ChatResult", v); }
+void from_json(const json& j, ChatResult& v) { detail::read_root(j, "ChatResult", v); }
 void to_json(json& j, const DecisionOption& v) { j = write(v); }
-void from_json(const json& j, DecisionOption& v) { read_root(j, "DecisionOption", v); }
+void from_json(const json& j, DecisionOption& v) { detail::read_root(j, "DecisionOption", v); }
 void to_json(json& j, const DecisionRecord& v) { j = write(v); }
-void from_json(const json& j, DecisionRecord& v) { read_root(j, "DecisionRecord", v); }
+void from_json(const json& j, DecisionRecord& v) { detail::read_root(j, "DecisionRecord", v); }
 void to_json(json& j, const DecisionCall& v) { j = write(v); }
-void from_json(const json& j, DecisionCall& v) { read_root(j, "DecisionCall", v); }
+void from_json(const json& j, DecisionCall& v) { detail::read_root(j, "DecisionCall", v); }
 void to_json(json& j, const KeyProbability& v) { j = write(v); }
-void from_json(const json& j, KeyProbability& v) { read_root(j, "KeyProbability", v); }
+void from_json(const json& j, KeyProbability& v) { detail::read_root(j, "KeyProbability", v); }
 void to_json(json& j, const DecisionPick& v) { j = write(v); }
-void from_json(const json& j, DecisionPick& v) { read_root(j, "DecisionPick", v); }
+void from_json(const json& j, DecisionPick& v) { detail::read_root(j, "DecisionPick", v); }
 void to_json(json& j, const LlmRequest& v) { j = write(v); }
-void from_json(const json& j, LlmRequest& v) { read_root(j, "LlmRequest", v); }
+void from_json(const json& j, LlmRequest& v) { detail::read_root(j, "LlmRequest", v); }
 void to_json(json& j, const WarmUpOutcome& v) { j = write(v); }
-void from_json(const json& j, WarmUpOutcome& v) { read_root(j, "WarmUpOutcome", v); }
+void from_json(const json& j, WarmUpOutcome& v) { detail::read_root(j, "WarmUpOutcome", v); }
 void to_json(json& j, const LlmEvent& v) { j = write(v); }
-void from_json(const json& j, LlmEvent& v) { read_root(j, "LlmEvent", v); }
+void from_json(const json& j, LlmEvent& v) { detail::read_root(j, "LlmEvent", v); }
 
 }  // namespace en::proto

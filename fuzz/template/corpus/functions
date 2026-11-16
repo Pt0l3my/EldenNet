@@ -1,0 +1,7 @@
+[ system ]
+{{ join(sort(split("c,a,b", ",")), " ") }} {{ replace(trim("  x  "), "x", "y") }}
+{{ default(speaker.title, "no title") }} {{ exists("speaker.name") }} {{ contains(lines, "a first line") }}
+{{ round(3.14159, 2) }} {{ int("42") }} {{ float("2.5") }} {{ max(1, 2) }} {{ min([3, 1]) }} {{ even(4) }} {{ odd(3) }}
+{{ to_json(object("a", 1)) }} {{ quote(speaker.name) }} {{ capitalize("word") }} {{ oneline("a b") }}
+{% for i in range(3) %}{{ at(lines, 0) }}{% endfor %} {{ last(lines) }} {{ empty(lines) }} {{ lower("ABC") }}
+{{ starts_with("abc", "a") }} {{ ends_with("abc", "c") }} {{ get(speaker, "mood") }}

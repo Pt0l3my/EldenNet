@@ -1,0 +1,30 @@
+// The fake game's version resource: an invented fingerprint (FileVersion 3.14.15.0, whose fourth field 0 stands for
+// the "ww" region, and British English, 0x0809, with Unicode, 1200). Nothing in it is a game's.
+1 VERSIONINFO
+FILEVERSION 3,14,15,0
+PRODUCTVERSION 3,14,15,0
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904B0"
+    BEGIN
+      VALUE "CompanyName", "EldenNet test fixtures"
+      VALUE "FileDescription", "Fake game: an invented stand-in for EldenNet's tests, not a game"
+      VALUE "FileVersion", "3.14.15.0"
+      VALUE "InternalName", "fakegame"
+      VALUE "LegalCopyright", "MIT licence"
+      VALUE "OriginalFilename", "fakegame.exe"
+      VALUE "ProductName", "EldenNet Fake Game"
+      VALUE "ProductVersion", "3.14.15.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0809, 1200
+  END
+END

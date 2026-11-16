@@ -129,15 +129,12 @@ TEST_CASE("template names stay inside the root") {
     CHECK(refused.site().line == 2);
   }
   // A link inside the root that leads out of it is refused too.
-  std::error_code error;
-  std::filesystem::create_symlink(tree.root() / "outside.j2", tree.root() / "inner" / "link.j2", error);
-  if (!error) {
+  if (made_link(tree.root() / "outside.j2", tree.root() / "inner" / "link.j2")) {
     CHECK(says(error_of([&] { environment.render("main.j2", json{{"name", "link"}}); }), "leads outside the root"));
   }
   // So is a folder's part that is such a link.
   std::filesystem::create_directories(tree.root() / "inner" / "parts");
-  std::filesystem::create_symlink(tree.root() / "outside.j2", tree.root() / "inner" / "parts" / "10_link.j2", error);
-  if (!error) {
+  if (made_link(tree.root() / "outside.j2", tree.root() / "inner" / "parts" / "10_link.j2")) {
     const auto part = error_of([&] { environment.render("parts", json::object()); });
     CHECK(part.site().template_name == "parts/10_link.j2");
     CHECK(says(part, "the part leads outside the root"));

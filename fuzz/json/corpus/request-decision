@@ -1,0 +1,1 @@
+ {"id": 18446744073709551615, "epoch": null, "decision": {"task": "next_speaker", "kind": "choice", "subject": "an-invented-profile", "question": "Who speaks next?", "state": [{"name": "place", "text": "an invented crossroads"}], "options": [{"key": "A", "text": "the first invented speaker"}, {"key": "none", "text": "no one"}], "rule": "A", "messages": [], "slot": "decisions"}}
