@@ -1,9 +1,18 @@
-# en-gal: the game access layer (ARCH §6). Its portable, offline part builds with every compiler: the PE32+ reader
-# (pe), the byte patterns and their matcher (patterns), gal/builds.toml with the version gate (builds) and the layouts
-# (layout); en-launcher and en-tools use it off game too (ARCH §2.3). Its guarded copy (reader.cpp) is C++ with
-# structured exception handling (__try/__except, ARCH §2.6), which only an MSVC-like compiler has: the clang-cl build
-# (cmake/clang-cl-xwin.cmake) adds it, and GCC's, Clang's and MinGW-w64's builds leave it out. It is a module the DLL
-# links, and it knows nothing of the game.
+# en-gal: the game access layer (ARCH §6). Three libraries:
+# - en_gal, its offline part, which builds with every compiler: the PE32+ reader (pe), the byte patterns and their
+#   matcher (patterns), gal/builds.toml with the version gate (builds), the layouts (layout), and the derivation kit
+#   (x86, rtti, fd4, derive, report). en-launcher and en-tools use it off game (ARCH §2.3). With an MSVC-like compiler
+#   it also holds the guarded copy (reader.cpp: structured exception handling, __try/__except, ARCH §2.6), which the
+#   clang-cl build (cmake/clang-cl-xwin.cmake) adds and GCC's, Clang's and MinGW-w64's leave out.
+# - en_gal_game, the part that runs in the game process (part 4 of the first in-game build): GuardedReader, the
+#   groups and their breakers, discovery over the live image, ErBackend's reads, the task, all portable and tested on
+#   Linux over the tests' FakeSys; and, with an MSVC-like compiler, NativeSys (sys/), the platform seam in game.
+# - en_gal_game_probe, the same with the probe option (EN_PROBE, ARCH §2.5, §6.10: R1's invariant searches, slot
+#   counts and fault injection). It is built for the tests and the test DLL, and when EN_PROBE is on; a release build
+#   links en_gal_game, and CI's `options` stage refuses EN_PROBE there (ARCH §12.1).
+# Every module the DLL links keeps en_dll_module's rules, and none knows the game.
+option(EN_PROBE "Build the probe option of en-gal (R1's in-game round; never in a release)" OFF)
+
 set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/pe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/patterns.cpp
@@ -23,8 +32,8 @@ set(EN_GAL_SOURCES
 if(MSVC)
   list(APPEND EN_GAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp)
 else()
-  message(STATUS "en-gal: its SEH-guarded copy (__try/__except) is built by an MSVC-like compiler only, and this "
-    "build's is ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; cmake/clang-cl-xwin.cmake builds it")
+  message(STATUS "en-gal: its SEH-guarded copy (__try/__except) and NativeSys are built by an MSVC-like compiler only, "
+    "and this build's is ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; cmake/clang-cl-xwin.cmake builds them")
 endif()
 add_library(en_gal STATIC ${EN_GAL_SOURCES})
 en_dll_module(en_gal)
@@ -32,6 +41,34 @@ target_include_directories(en_gal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_gal PUBLIC en_proto PRIVATE en_third_party)
 # toml++ is built without exceptions (en_third_party, CMakeLists.txt): en-gal may not throw (ARCH §2.4), so a parse
 # answers its error instead.
+
+set(EN_GAL_GAME_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/guarded.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/roles.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/discovery.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp)
+if(MSVC)
+  # NativeSys, the platform seam in game (sys/): structured exception handling and Win32, clang-cl only.
+  list(APPEND EN_GAL_GAME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/native_sys.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/register.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/trampoline.cpp)
+endif()
+function(en_gal_game target probe)
+  add_library(${target} STATIC ${EN_GAL_GAME_SOURCES})
+  en_dll_module(${target})
+  target_link_libraries(${target} PUBLIC en_gal en_proto)
+  target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  # PUBLIC: a class's layout depends on it (guarded.hpp), so every user of the headers must see the same value.
+  target_compile_definitions(${target} PUBLIC EN_PROBE=${probe})
+endfunction()
+en_gal_game(en_gal_game 0)
+if(EN_BUILD_TESTS OR EN_PROBE)
+  en_gal_game(en_gal_game_probe 1)
+endif()
 
 if(EN_BUILD_TESTS)
   set(EN_GAL_TESTS
@@ -46,12 +83,22 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_report.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_program.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/sample_program.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_derive.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_derive.cpp
+    # The in-game part, on FakeSys (part 4)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/alloc_count.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_sys.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_world.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_guarded.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp)
   if(MSVC)
-    list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp)
+    list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sys.cpp)
   endif()
   add_executable(en_gal_tests ${EN_GAL_TESTS})
-  target_link_libraries(en_gal_tests PRIVATE en_gal en_doctest)
+  target_link_libraries(en_gal_tests PRIVATE en_gal_game_probe en_gal en_doctest)
   target_include_directories(en_gal_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)  # the derivation's internals
   add_test(NAME en_gal_tests COMMAND en_gal_tests)
 

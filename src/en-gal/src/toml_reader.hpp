@@ -35,29 +35,9 @@ class Errors {
 // The document, or nothing with the parser's error recorded (its line and column, and what it expected).
 [[nodiscard]] std::optional<toml::table> parse(std::string_view text, Errors& errors);
 
-// toml++ 3.4.0 has four traps that en_fuzz_galtoml found (in five inputs), each an assertion in a debug build (which
-// aborts) and an assumption or __builtin_unreachable in a release one (undefined behaviour):
-// - a table header's first key is read without a check that one starts there ("[!]", "[ \x01]", "[[ \xC3\xA9 ]]");
-// - its test for non-ASCII whitespace reaches "unreachable" for many characters (U+00A1 to U+0499 among them), and it
-//   runs on any character where whitespace may stand: after a key or a value, after a backslash in a multi-line
-//   string, and so on;
-// - an array reads a value wherever it does not find ',' or ']', and a value assumes it does not start with '}'
-//   ("[}]", "[1, }]");
-// - a date followed by a space and one digit makes it scan on from a terminator ("1979-05-27 7,").
-// So before toml++ sees a gal/ file, five rules of our own are checked, which refuse no file of gal/'s own:
-// - a line whose first character after spaces and tabs is '[' goes on, after "[" or "[[" and spaces or tabs, with a
-//   key's first character (a letter, a digit, '_', '-' or a quote), ']' or the end;
-// - a character outside ASCII stands only in a comment (a string writes one as \uXXXX): toml++ scans a bare value up to
-//   a space, ']', '}', ',' or '#', quotes and all, so "x = a\"é\"" reaches the trap through what looks like a string;
-// - there is no multi-line string;
-// - a '}' never follows '[' or ',' (spaces, tabs, line breaks and comments between them aside), which is never valid;
-// - a bare key or value that starts with a digit has no '-' or ':' after it: gal/'s files hold no dates or times.
-// The first rule also refuses such a line inside a multi-line array, which gal/'s files never need.
-struct UnsafeText {
-  std::size_t line = 0;
-  const char* problem = "";
-};
-[[nodiscard]] std::optional<UnsafeText> unsafe_for_toml(std::string_view text) noexcept;
+// Before toml++ sees a text, en-proto's unsafe_for_toml (toml_check.hpp; WHY§122) checks it with gal/'s rules: toml++
+// 3.4.0 has traps that are undefined behaviour in a release build, and the check refuses every text that could reach
+// them.
 
 // "build[3]".
 [[nodiscard]] std::string indexed(std::string_view base, std::size_t i);

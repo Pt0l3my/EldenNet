@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "en/gal/schema.hpp"
+#include "en/proto/toml_check.hpp"
 
 namespace en::gal {
 
@@ -27,107 +28,12 @@ SchemaErrors Errors::take() {
   return std::move(errors_);
 }
 
-namespace {
-constexpr const char* kOutsideAscii =
-    "a character outside ASCII may stand only in a comment; in a string, write it as \\uXXXX";
-}  // namespace
-
-std::optional<UnsafeText> unsafe_for_toml(std::string_view text) noexcept {
-  const auto blank = [](char c) { return c == ' ' || c == '\t'; };
-  const auto key_start = [](char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
-           c == '"' || c == '\'';
-  };
-  enum class In { Text, Basic, Literal, Comment };
-  In in = In::Text;
-  char last = '\n';  // the last character outside strings and comments that is not a space, a tab or a line break
-  const auto bare = [](char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
-           c == '+' || c == '.' || c == ':';
-  };
-  bool in_bare = false;                                      // within a bare key or value
-  bool digit_bare = false;                                   // and it began with a digit
-  std::size_t i = text.starts_with("\xEF\xBB\xBF") ? 3 : 0;  // toml++ skips a byte-order mark
-  std::size_t line = 1;
-  bool line_start = true;
-  for (; i < text.size(); ++i) {
-    const char c = text[i];
-    if (c == '\n' || c == '\r') {  // no string or comment of a gal/ file goes past its line
-      if (c == '\n') ++line;
-      in = In::Text;
-      line_start = true;
-      in_bare = false;
-      continue;
-    }
-    if (in == In::Text && line_start) {
-      line_start = false;
-      std::size_t k = i;
-      while (k < text.size() && blank(text[k])) ++k;
-      if (k < text.size() && text[k] == '[') {
-        ++k;
-        while (k < text.size() && blank(text[k])) ++k;
-        if (k < text.size() && text[k] == '[') ++k;
-        while (k < text.size() && blank(text[k])) ++k;
-        if (k < text.size() && !key_start(text[k]) && text[k] != ']') {
-          return UnsafeText{line, "a line that starts with [ must open a table header with a key"};
-        }
-      }
-    }
-    switch (in) {
-      case In::Text:
-        if (bare(c)) {
-          if (!in_bare) {
-            in_bare = true;
-            digit_bare = c >= '0' && c <= '9';
-          } else if (digit_bare && (c == '-' || c == ':')) {
-            return UnsafeText{line,
-                              "a number with - or : after its first digit (a date or a time) is not used in "
-                              "gal/'s files"};
-          }
-        } else {
-          in_bare = false;
-        }
-        if (c == '#') {
-          in = In::Comment;
-        } else if (c == '"' || c == '\'') {
-          if (text.substr(i, 3) == std::string_view(c == '"' ? "\"\"\"" : "\'\'\'")) {
-            return UnsafeText{line, "multi-line strings are not used in gal/'s files"};
-          }
-          in = c == '"' ? In::Basic : In::Literal;
-          last = c;
-        } else if (static_cast<unsigned char>(c) >= 0x80) {
-          return UnsafeText{line, kOutsideAscii};
-        } else if (c == '}' && (last == '[' || last == ',')) {
-          return UnsafeText{line, "a } stands where a value must"};
-        } else if (!blank(c)) {
-          last = c;
-        }
-        break;
-      case In::Basic:
-        if (static_cast<unsigned char>(c) >= 0x80) {
-          return UnsafeText{line, kOutsideAscii};
-        } else if (c == '\\' && i + 1 < text.size() && text[i + 1] != '\n' && text[i + 1] != '\r') {
-          ++i;  // the escaped character, whatever it is, does not end the string
-        } else if (c == '"') {
-          in = In::Text;
-        }
-        break;
-      case In::Literal:
-        if (static_cast<unsigned char>(c) >= 0x80) return UnsafeText{line, kOutsideAscii};
-        if (c == '\'') in = In::Text;
-        break;
-      case In::Comment: break;
-    }
-  }
-  return std::nullopt;
-}
-
 std::optional<toml::table> parse(std::string_view text, Errors& errors) {
   if (text.size() > kMaxGalFileBytes) {
     errors.add("", "is larger than " + std::to_string(kMaxGalFileBytes >> 10) + " KiB");
     return std::nullopt;
   }
-  if (const std::optional<UnsafeText> unsafe = unsafe_for_toml(text)) {
+  if (const std::optional<proto::TomlRefusal> unsafe = proto::unsafe_for_toml(text, proto::TomlText::Gal)) {
     errors.add("", "is refused before it is parsed: line " + std::to_string(unsafe->line) + ": " + unsafe->problem);
     return std::nullopt;
   }

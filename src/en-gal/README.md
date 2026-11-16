@@ -1,10 +1,16 @@
 # en-gal: the game access layer
 
-The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. It holds, so far, its portable offline part,
-which builds with every compiler, the derivation kit that `eldennet-engine probe-exe` runs (part 3), and
-`GuardedReader`'s guarded copy, which needs clang-cl. Its static library
-`en_gal` is a module the DLL links (`en_dll_module`), and en-launcher and en-tools use the offline part off game
-(ARCH §2.3).
+The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. Three static libraries, each a module the DLL
+may link (`en_dll_module`):
+
+- `en_gal`, the offline part, which builds with every compiler: the PE reader, the patterns, `gal/`'s schemas, the
+  derivation kit that `eldennet-engine probe-exe` runs (part 3), and, with clang-cl, `GuardedReader`'s guarded copy.
+  en-launcher and en-tools use it off game (ARCH §2.3).
+- `en_gal_game`, the part that runs in the game process (part 4): `GuardedReader`, the read groups and their breakers,
+  discovery over the live image, `ErBackend`'s reads, the task; portable C++ over `SysLayer`, the platform seam, tested
+  on Linux over the tests' `FakeSys`; and, with clang-cl, `NativeSys` (`src/sys/`), the seam in game.
+- `en_gal_game_probe`, the same with the probe option (`EN_PROBE`; ARCH §2.5): built for the tests and the test DLL,
+  and when the CMake option `EN_PROBE` is on. A release build links `en_gal_game`.
 
 Nothing in it knows the game. It reads any PE32+ image for x64; the patterns, their sections, the layouts and what the
 read groups need come from `gal/`'s files and from the caller, and the real values arrive only through the derivation
@@ -13,8 +19,8 @@ patterns and layouts are invented. It keeps ARCH §2.4's rules for en-gal: nothi
 with `TOML_EXCEPTIONS=0`, so a parse answers its error; in every module alike, since its reader interface has a
 virtual function only without exceptions, so two settings in one program are two vtables of one name, which the linker
 merges: eldennet-engine, linking en-gal and en-llm, crashed in GCC's build), indexing only after a bound check, checked arithmetic on every
-value read from an image, no lock, and no raw address, `reinterpret_cast` or pointer arithmetic outside `reader` (and,
-to come, `sys`).
+value read from an image, no lock, and no raw address, `reinterpret_cast` or pointer arithmetic outside `reader` and
+`sys`, each with its `// SAFETY:` note.
 
 ## The offline part
 
@@ -67,12 +73,16 @@ header whose first key does not start right after `[` (`[!]`, `[é]`); a charact
 stand (after a key or a value, or inside a bare value, which toml++ scans quotes and all up to a space, `]`, `}`, `,`
 or `#`): its test for non-ASCII whitespace reaches "unreachable" for U+00A1 to U+0499 and other ranges; a `}`
 where an array expects a value (`[1, }]`); and a date followed by a space and one digit (`1979-05-27 7,`), from which
-it scans on past a terminator. So before toml++ sees a gal/ file, five rules of our own are checked
-(`toml_read::unsafe_for_toml`): a line that starts with `[` opens a table header with a key (a letter, a digit, `_`,
-`-` or a quote after `[` or `[[`; such a line inside a multi-line array is refused too); a character outside ASCII
-stands only in a comment, and a string writes one as `\uXXXX` (`leads = ["ER01 \u00A73.2"]`); there is no multi-line
-string; a `}` never follows `[` or `,`; and a bare key or value that starts with a digit has no `-` or `:` after it
-(gal/'s files hold no dates or times). The five inputs are kept in `fuzz/galtoml/corpus/` as `finding-*`.
+it scans on past a terminator. So before toml++ sees a gal/ file, en-proto's `unsafe_for_toml` (toml_check.hpp, which
+en-llm's readers of the player's files run too, with the player's rules) checks it, following TOML's contexts: a line
+that starts with `[` opens a table header with a key (a letter, a digit, `_`, `-` or a quote after `[` or `[[`; such a
+line inside a multi-line array is refused too); no control character but a tab; a character outside ASCII stands only
+in a comment, and a string writes one as `\uXXXX` (`leads = ["ER01 \u00A73.2"]`); a quote never stands inside what
+toml++ scans as a bare value (up to a space, a tab, `]`, `}`, `,`, `#` or a line break, `=` and `[` included), nor
+right after a key's own character; after a value only a terminator or a comment; there is no multi-line string; a `}`
+never stands where a value must; and a bare key or value that starts with a digit has no `-` or `:` after it (gal/'s
+files hold no dates or times). en_fuzz_galtoml's five inputs are kept in `fuzz/galtoml/corpus/` as `finding-*`,
+and en_fuzz_config's two in `fuzz/config/corpus/`.
 
 ```cpp
 #include "en/gal/builds.hpp"
@@ -170,8 +180,7 @@ if (!out.copied) {
   page stops it: it answers `{false, code}` with `dst` zeroed, so nothing of a partial copy survives. Any other
   exception is not the copy's, and goes on to the next handler. An empty `dst` copies nothing and answers `{true, 0}`.
 - It never throws, keeps no state and takes no lock, and the pointer it makes from the address lives for the copy
-  alone (R4). The plausibility checks, groups, budgets and breakers around it are `GuardedReader`'s, still to come
-  (§6.5, §6.7).
+  alone (R4). The plausibility checks, groups, budgets and breakers around it are `GuardedReader`'s (below).
 - **Why the copy has a frame of its own.** Clang's SEH on x64 covers the calls a `__try` makes, not the instructions
   of its own frame, and clang turns a `memcpy` written in a `__try` into an intrinsic, which is no call: at `/Od` its
   fault goes unhandled, and at `/O2` clang deletes the `__except` altogether. So the `__try` calls `copy_bytes`, which
@@ -179,6 +188,81 @@ if (!out.copied) {
   under `__C_specific_handler`.
 - **Guard pages.** Windows lifts a guard page's guard as it raises the fault, so a guard page read once is a guard page
   no more, and its next read goes through. Windows grows a thread's stack through such a page.
+
+## In game (part 4 of the first in-game build)
+
+What runs in the game process, around the one call EldenNet makes into the game. Nothing here names the game either:
+`roles.hpp` gives every item, class and field a label of ours (`characters`, `save_data`, `vitals.hp`, ...), and the
+game's names (the singletons' runtime-class names, the RTTI classes, the task group's name) and every offset come from
+`gal/`'s files under those labels (O48; WHY§123). A field is checked by its kind (a whole number of any width, a
+pointer, a bit, ...), so a layout says what the game holds and the reader widens it.
+
+- **`sys.hpp`: the seam.** `SysLayer` keeps what needs the platform: the main module and a guarded view of its image,
+  the copy primitive (`Copier`), the stack table, the clock, the init-only getter fallback and `register_task`.
+  Discovery is not the seam's but portable code over the image it shows, so the tests run the same discovery the game
+  does. `run_task(body, frame)` is the trampoline's body call, in `task.cpp`, the one place that issues the game
+  thread's token (R1); an exception out of the body trips the task's guard and every later call returns at once (R3).
+- **`native_sys.hpp`: NativeSys** (`src/sys/`, clang-cl only). The image view reads pages VirtualQuery calls
+  committed, readable and no guard page, through the SEH copy; the copy primitive is the SEH copy or
+  ReadProcessMemory on our own process (`CopyKind::Rpm`, S0-D's setting); the stack table holds every allocation with
+  a guard page (the shape of a thread's stack; in an image, its guard pages alone) and each thread's own stack as it
+  asks (`note_own_stack`, T1 at init and the game thread at its first tick). `register.cpp` holds the two casts of an
+  address to a function (R2): `register_task`, called once with the layout's argument registers, and the FD4 getter,
+  once per candidate before it, both under SEH. `trampoline.cpp` makes our task object once (a pointer to a read-only
+  fake vtable of `vtable_slots` guarded no-ops that count their calls, the run slot `en_task_run`; the layout's
+  `object_size` zeroed bytes; our body's pointer), never freed; `en_task_run` runs only for our own object.
+- **`guarded.hpp`: GuardedReader** (ARCH §6.5). Every read takes the token and a group; plausibility before any copy
+  (non-null, at least 64 KiB, within user space, aligned for its type, no overflow, at most 0x4000 bytes, never in a
+  known stack); 512 copies and 256 KiB a tick; faults counted by kind (C13); and, in debug and probe builds, a read
+  off the thread that ran the first tick refused. `ObjView` reads typed fields from a copy by the layout, bounds-checked
+  and widened.
+- **`health.hpp`: breakers and C13.** A breaker trips on the third hard fault within 60 s, for the session (R8); the
+  group book holds each group's state (Untested, Ok, Tripped and why); `Histogram` is C13's 64 buckets of µs, four
+  an octave, with percentiles as bucket bounds.
+- **`discovery.hpp`: discovery in process** (ARCH §3.2, §6.2). `gate_image` reads the mapped headers and gates them on
+  builds.toml; `discover` runs one pass: the AOB items of patterns.toml by item label, one multi-pattern pass; a static
+  the probe round gives by its slot (`DiscoveryOptions::static_slots`, the derivation's `--static label=rva`) needs no
+  pattern; the FD4 singletons from patterns.toml's `fd4_idiom` and its `path_suffix`, named through the class object
+  where builds.toml's `dlrf_name_layout` says so, else by the getter, and matched to the layout's classes by their
+  `singleton` names (two statics behind a name: ambiguous); the RTTI sets, each layout class's vtable and those of every
+  class deriving from it. `discover_with_retries` passes again at +5, +15 and +30 s while a required item is missing;
+  an optional item missing turns only its group off. A refused file is an error, never retried.
+- **`backend.hpp`: ErBackend.** Each snapshot re-reads every static it uses and compares each instance's vtable with
+  its class's set (R5): a mismatch skips the group for the tick and is a hard fault only on the third tick in a row
+  with the main player present; a list entry of another class is dropped softly, and more than a quarter of them is a
+  hard fault for world. Each group's reads carry ARCH §6.7's per-tick plausibility (enum values the layout names, ranges,
+  hp within max, an orthonormal camera, an hour below 24, play time never going back); a hard fault counts toward the
+  group's breaker, and a structural group that trips makes the backend inert. Phase A runs on the first ticks (at most
+  8; an instance still null is waited for), phase B on the first full snapshot of each playthrough, with
+  `PlaythroughReady` (the name read once, sent only there). While loading only the lifecycle subset is read (R11), and
+  at the title or with the session not solo only the session and the lifecycle (Dormant). The flags descend the
+  layout's tree to each group's 125-byte block once per group; text and params are binary searches, within the
+  per-tick caps; a replaced watch list goes back to the core (C5); the render feed re-checks, every frame, the address
+  the last walk found each tracked character at (its vtable and handle).
+- **`task.hpp`: GalTask and `install_task`.** The first tick checks the group at the layout's index by name (else inert,
+  with where the name really is for the probe); phase A follows, then `DataReady`; then each invocation drains at most
+  16 commands, stamps the render feed, and builds a snapshot every 250 ms of accumulated monotonic time (a hitch counts
+  for at most 1 s; at most one snapshot an invocation), a flag frame every fourth; three builds over 0.5 ms throttle to
+  2 Hz and 16 characters within 25 m, and 60 s of fast builds end it. `TaskStatus` holds C13's histograms (each
+  invocation and each build) and the counters, as atomics. `install_task` reads the hub's instance from its static
+  through the image and makes the one registration.
+- **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
+  instance has its class's vtable (candidates read on T1 from the image's writable data, checked on the game thread
+  within the tick's budget); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied
+  object's bytes by invariant and answer offsets only; `GuardedReader::inject` makes every n-th read of a group a real
+  fault; `SysLayer::slot_calls` counts the game's calls of each slot.
+
+```cpp
+#include "en/gal/discovery.hpp"
+#include "en/gal/native_sys.hpp"
+#include "en/gal/task.hpp"
+
+en::gal::NativeSys sys;                                                     // T1; lives for the process
+auto gated = en::gal::gate_image(sys, builds_text);                         // Expected<Gated, GateFailure>
+auto found = en::gal::discover_with_retries(sys, *gated, patterns_text, layout_text, {}, wait_until);
+en::gal::GalTask task(sys, *found.last, io);                                // io: the DLL's rings (TaskIo)
+const auto registered = en::gal::install_task(sys, *found.last, task);      // the one call into the game
+```
 
 ## Tests
 
@@ -209,6 +293,25 @@ labels, the decoys refused, the statics' patterns from both layouts, and the rep
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
 than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
 `fakegame --describe` says.
+
+The in-game part's tests (part 4) run in every build over `FakeSys` (`tests/fake_sys.hpp`: a process of byte regions,
+copies that fail as an access violation would, released regions, declared stacks, a clock and a thread of the test's
+own, and a hub's tick) and `FakeWorld` (`tests/fake_world.hpp`: an invented game of eleven singletons of invented names,
+a registration of its own argument order, AOB statics, MSVC RTTI with a character base and its subclasses, a flag
+tree, text and param tables, and its gal/ texts). They check the reader's rules, ObjView, the breakers' window and
+the histogram (`test_guarded.cpp`); discovery: every item where the world put it, the getter called once a candidate
+and refused after registration, the probe round's slot, the retries' times, optional and structural items missing, a
+release build refusing leads (`test_discovery.cpp`); every snapshot field against the world, phase A and phase B, R11's
+copies while loading, statics that move (as tombstones, released, kept), are nulled and repointed (R5), vtable swaps and
+the three-tick rule, real faults tripping an optional group (L3) and a structural one (inert, then no copy at all), the
+budget's gap, the first tick's group check, the render feed and C5 (`test_backend.cpp`); registration once with the
+layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stalls (one snapshot an invocation at
+most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
+this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
+(`test_probe.cpp`). The clang-cl build adds NativeSys's (`test_native_sys.cpp`): the module's image, both copy
+primitives, the stack table and a guard page left untouched, the calls under SEH, and the task object driven as a hub
+would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
+it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page
 and small chunks), `en_fuzz_pattern` (the grammar, and the matcher against a plain search), `en_fuzz_galtoml` (the

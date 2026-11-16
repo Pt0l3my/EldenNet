@@ -130,9 +130,10 @@ TEST_CASE("text that toml++ 3.4.0 cannot read safely is refused before it reads 
   CHECK(has_error(refusal("schema = 5887-ab-0c\n"), "builds.toml", dates));
   CHECK(has_error(refusal("schema = -1\n"), "builds.toml: schema", "must be between 1 and 1"));  // a sign leads: read
   CHECK(has_error(refusal("schema = [1, # a comment\n  }]\n"), "builds.toml", "line 2: a } stands where a value must"));
-  // toml++ scans a bare value through a quote, so outside ASCII is refused in what only looks like a string, and in a
-  // string too: a string writes it as \uXXXX.
-  CHECK(has_error(refusal("schema = a\"\xC3\xA9\"\n"), "builds.toml", ascii));
+  // toml++ scans a bare value through a quote, so a quote after a bare word's own character is refused (it would
+  // carry what only looks like a string past the check), and outside ASCII is refused in a string too: a string writes
+  // it as \uXXXX.
+  CHECK(has_error(refusal("schema = a\"\xC3\xA9\"\n"), "builds.toml", "a quote may not follow a bare word's own"));
   CHECK(has_error(refusal("schema = \"\xC3\xA9\"\n"), "builds.toml", ascii));
   CHECK(has_error(refusal("schema = '\xC3\xA9'\n"), "builds.toml", ascii));
   // In a comment it is read as usual, and so are a quote and a # in a string, and an escape.
