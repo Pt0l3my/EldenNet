@@ -2,8 +2,9 @@
 
 **Status: proposal, 2026-11-15 (roadmap S7.11.b and S7.12.a). O74 and O75 decided by the owner the same day, and O76
 to O79 too: O76 (b) and O78 (b) not as recommended, O77 (a) as recommended, O79 (a) with the devkit shipped as part
-of EldenNet behind Developer mode (§6). GraceUI's G29 open.** Where this text and the designs differ, the designs hold. A bare §n is a section of
-this proposal; DESIGN and ARCH are EldenNet's design documents, and "GraceUI §n" and G- and D-numbers are GraceUI's.
+of EldenNet behind Developer mode (§6). GraceUI's G29 decided on 2026-11-16, (a), as recommended, and folded the same
+day (roadmap S7.12.e).** Where this text and the designs differ, the designs hold. A bare §n is a section of this
+proposal; DESIGN and ARCH are EldenNet's design documents, and "GraceUI §n" and G- and D-numbers are GraceUI's.
 Evidence: the terrain research (WHY§89 to WHY§94), the map's research (WHY§56, WHY§62 to WHY§82), GraceUI's server
 (GraceUI §7.2, invariant 4) and EldenNet's settings (ARCH §11.5).
 

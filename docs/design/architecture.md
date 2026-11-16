@@ -229,15 +229,15 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 
 | Module | Owns | Public surface (sketch) |
 |---|---|---|
-| `en-proto` | Every message that crosses a thread or the adapter boundary. Each has a JSON form through nlohmann/json (`to_json`, `from_json`) | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, the interface `GameBackend`, the token `GameThread`, `PROTO_VERSION`. `LlmRequest`/`LlmEvent` are built for now in en-llm's `service.hpp`, with the request, decision and result types they carry; §2.3 keeps `en-core` off `en-llm` |
+| `en-proto` | Every message that crosses a thread or the adapter boundary. Each has a JSON form through nlohmann/json (`to_json`, `from_json`) | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, the interface `GameBackend`, the token `GameThread`, `PROTO_VERSION`, `ffi_guard` and its components (R3), `parse_json`. Built (S8.1.j): `ffi_guard.hpp` (a constant-initialised tripped flag per component), `llm.hpp` (`LlmRequest`/`LlmEvent` and the request, decision and result types they carry, each with its JSON form; en-llm keeps their names by using-declarations, and §2.3 keeps `en-core` off `en-llm`) and `json.hpp` (§10.2's JSON caps, checked before nlohmann/json parses) |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur(RuleSet, Registry)`, `void Augur::step(const CoreInput&, Mono, const AugurCtx&, EventBatch&)`, the interface `EventSource`, `Expected<RuleSet, std::vector<RuleError>> RuleSet::load(std::span<const RuleFile>, const PredicateCompiler&)`, `Event`, `EventKind` |
-| `en-prompt` (built, O84) | The template engine on inja 3.4, with SkyrimNet's template rules (its message markers and folders of numbered parts) made strict (NPC §7.1): composition with its guards, the function registry and the reference generated from it, lint | `Environment(root, FunctionRegistry, EnvironmentOptions)`, `std::vector<Message> Environment::render(std::string_view name, const nlohmann::json& context) const`, which throws a `TemplateError` naming the template, line and column, `std::vector<Finding> Environment::lint(std::string_view name, const nlohmann::json* context) const`, `FunctionRegistry::add` |
+| `en-prompt` (built, O84) | The template engine on inja 3.4, with SkyrimNet's template rules (its message markers and folders of numbered parts) made strict (NPC §7.1): composition with its guards, the function registry and the reference generated from it, lint; template sources (§2.3) | `Environment(std::shared_ptr<const TemplateSource>, FunctionRegistry, EnvironmentOptions)`, with `MemorySource(std::map<std::string, std::string>)` for `en-core` and `FolderSource(root)` for the tools (`Environment(root, …)` builds one), `std::vector<Message> Environment::render(std::string_view name, const nlohmann::json& context) const`, which throws a `TemplateError` naming the template, line and column, `std::vector<Finding> Environment::lint(std::string_view name, const nlohmann::json* context) const`, `FunctionRegistry::add` |
 | `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts (rendered with en-prompt), decision calls (§11.8), sanitizer, lint, ladder policy, bus subscribers | `Core(std::shared_ptr<const ContentPack>, std::shared_ptr<const Settings>)`, `Outputs Core::step(CoreInput, Mono)`, `Expected<ContentPack, std::vector<ContentError>> ContentPack::load(const ContentFs&)`, the interface `CoreTransport`, `WorldView world::derive(const FlagState&, const WorldFacts&, const WorldContent&)`, `KnownSet world::known(PersonaId, const FlagState&, const WorldFacts&, const WorldView&, const WorldSeen&, const ContentPack&)`, `std::optional<Cue> world::cue(PersonaId, StageId, const KnownSet&, const WorldSeen&, const WorldCued&, const PersonaFacts&, const RenderedJournal&, const ContentPack&, Pt)` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; its candidates are what the known set holds, O86) |
 | `en-store` | SQLite files, migrations, the request loop, backups | `StoreHandle Store::spawn(StoreCfg)`, `Expected<void, Full> StoreHandle::send(DbRequest)`, `BoundedQueue<DbResult>& StoreHandle::results()` |
 | `en-llm` (built, O84) | The OpenAI-compatible client and its transports (libcurl, WinHTTP), SSE parser, slots, health, budgets, decision calls (§11.8), local probes, warm-up, and the asynchronous handle the core drives (WHY§101) | `Service(Config, std::shared_ptr<TransportFactory>, ServiceOptions)`, `SubmitResult Service::submit(LlmRequest)`, and its `cancel(RequestId)`, `cancel_before_epoch(Epoch)`, `poll`, `drain`, `wait`, `set_notify`, `set_gate_open`, `warm_up(slot)`, `reload(Config)` and `shutdown`; the blocking `Client::chat` and `Client::decide` beneath it; `probe_local` (its `LocalEndpoint`s) and `list_models` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `Expected<BuildProfile, GateError> gate(const ImageView&, const Builds&)`, `Expected<Discovery, DiscoveryReport> discover(const SysLayer&, const BuildProfile&)`, `Expected<TaskToken, GalError> install_task(Discovery, TaskWiring)`, `class ErBackend : public GameBackend`, the interface `SysLayer` (§6.4) |
 | `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()` |
-| `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell, `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
+| `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell; its foreign entries start with en-proto's `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
 | `en-launcher` | The launcher program (§4) | CLI only |
 | `en-tools` | The `eldennet-engine` command (built: `render-prompt`, `chat`, `decide`, `probe`, `models`), with the developer tools as its subcommands (§12.3), the replay `GameBackend` | CLI only |
 
@@ -281,20 +281,24 @@ struct Outputs {
 |---|---|---|
 | `en-proto` | The standard library; nlohmann/json 3.11.3 (each message's JSON form). Our own fixed-capacity `FixedVector` and `FixedString` and the flag sets (an `enum class` with bitwise operators) live here | Anything with I/O, threads, clocks, Win32 or game knowledge |
 | `en-augur` | `en-proto`, nlohmann/json, toml++ 3.4.0 (the rule files), our own `IndexMap` (a vector in insertion order with a hash index beside it) | `en-core`, `en-gal`, `en-store`, `en-llm`, `en-overlay`, any thread or network library, the Windows SDK, `std::filesystem` and file streams, any clock |
-| `en-prompt` (built) | inja 3.4.0 (vendored, MIT), nlohmann/json; the standard library (`std::filesystem` reads its template folder) | Every other module of ours, the Windows SDK, any clock |
+| `en-prompt` (built) | inja 3.4.0 (vendored, MIT), nlohmann/json; the standard library (`std::filesystem` and file streams in its folder source only, for the tools) | Every other module of ours, the Windows SDK, any clock |
 | `en-core` | `en-augur`, `en-proto`, `en-prompt` (the template engine on inja, O84), toml++, nlohmann/json, RE2 (where a pattern comes from content, §10.2), utf8proc (grapheme boundaries), BLAKE3 (its C implementation), GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, any network library, libcurl, WinHTTP, SQLite, the Windows SDK, any clock |
 | `en-store` | `en-proto`, SQLite (its amalgamation, pinned at adoption, through its C API), the standard library's threads (the request loop and C8's queues) | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` (built) | `en-proto`, nlohmann/json, toml++ (its configuration files), libcurl (Linux and test builds, the `EN_WITH_CURL` option), the system's WinHTTP (Windows: loaded at run time by its full path from the system directory, never imported), the standard library's threads | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, the Windows SDK's headers (`sys` only), toml++ | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, Dear ImGui, any network library |
 | `en-overlay` | `en-proto`; GraceUI's `graceui-sys` (its header-only C helper and thin C++ wrapper), `grace-draw` and `grace-view`, pinned by tag and commit (GraceUI G15, its §2.7); Dear ImGui's core with no renderer backend, at the version GraceUI pins (1.93.0), for F11's context; the Windows SDK's headers | `en-gal` (it can never reach game memory), `en-core`; since GraceUI's G15, MinHook or any other hook library, an ImGui renderer backend, and GraceUI's `grace-host` and `grace-serve` (GraceUI invariant 16; DESIGN R12) |
 | `eldennet` | All of the above and the Windows SDK (`ReadDirectoryChangesW` for T10). Its queues and its logger are our own (§1.3) | — |
-| `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4) | Every other module of ours |
+| `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4); once it serves the dashboard off game (O76), GraceUI's `grace-serve`, pinned by tag (GraceUI G29, §4.13) | Every other module of ours |
 | `en-tools` | `en-core`, `en-prompt`, `en-augur`, `en-store`, `en-llm`, `en-gal`'s offline part, zstd; doctest for its tests | `en-overlay`, the rest of `en-gal` (`sys`, `reader`, `task`) |
 
-**`en-prompt` inside `en-core`.** As built, `en-prompt` reads its templates from a folder, which is how the tools use
-it. `en-core` does no I/O, so it hands `en-prompt` the content pack's templates, already loaded by the content loader,
-through a template source of `en-prompt`'s own; its folder loader is never reached from `en-core` (roadmap S8.1.j
-builds the source). Errors stay inside `en-core` as `TemplateError`, caught where a prompt is built.
+**`en-prompt` inside `en-core`.** `en-prompt` finds every template through a template source of its own
+(`TemplateSource`, built in roadmap S8.1.j), which answers only what a name is (a file, a folder of parts or nothing),
+which files a folder holds and what a file says. The name rules, a folder's parts and their order, and composition stay
+in the environment, so every source gives the same messages and the same errors. The tools use `FolderSource`, which
+reads a folder and refuses a name or a link that leads out of it. `en-core` does no I/O, so it hands `en-prompt` the
+content pack's templates, already loaded by the content loader, in a `MemorySource`, which opens no file (its tests
+render with no file of those names on disk); the folder source is never reached from `en-core`. Errors stay inside
+`en-core` as `TemplateError`, caught where a prompt is built.
 
 Every third-party library is vendored with its licence, or fetched at configure time from its own project, pinned by
 SHA-256, into the build tree, and listed in `THIRD_PARTY.md` (§12.1).
@@ -630,6 +634,18 @@ The dashboard's route (proposal 0001 §6.2) writes into `plugins/pending/` and i
 the game, render or input threads; code never arrives that way. When the game is started another way (a player's own
 loader, §4.10), T10 makes the same checks at boot for anything new in `plugins/`, and a code plugin stays off until the
 player turns it on with `--plugins`.
+
+### 4.13 The dashboard off game (O76; GraceUI G29)
+
+Once EldenNet's engine runs off game in the launcher (O76 (b)), the launcher serves EldenNet's pages (PAGES) to the
+player's browser with the game closed. It serves them through `grace-serve`, the one server library GraceUI publishes
+for hosts outside the game (GraceUI G29 (a), decided by the owner on 2026-11-16, as recommended; its §7.2 item 26),
+never through a server of its own, so every rule of GraceUI's §7.2 and its invariant 4 holds as in the game: loopback
+only; the `Host`, `Origin` and Fetch Metadata checks, the session cookie and the ticket; a strict CSP; only the files
+`graceui.toml` lists. The home-network switch and pairing (GraceUI G9) stay in the game at first, so the launcher opens
+no network listener. `eldennet.dll` links no `grace-serve`: in the game the server is GraceUI's. What the off-game pages
+show, the settings off game and the handover of the address between the launcher and the game are O76 to O79's fold
+(roadmap S7.12.c).
 
 ## 5. The offline and multiplayer gate
 
@@ -1731,14 +1747,14 @@ running out of memory. The caps keep each of these out of reach.
 | Resource | Cap (impl unless cited) |
 |---|---|
 | Template rendering | The template engine (en-prompt on inja, built, O84; NPC §7.1): nesting depth ≤ 16 (built); output ≤ 64 KB; a bound on render steps |
-| JSON parsing (memory jobs, pools, SSE payloads) | Input ≤ 256 KB; nesting depth ≤ 32 (checked before nlohmann/json parses it) |
-| SSE | Line ≤ 64 KB; total response ≤ 1 MB; a stream that passes 16 KB of display text is cancelled |
+| JSON parsing (memory jobs, pools, SSE payloads) | Input ≤ 256 KB; nesting depth ≤ 32 (checked before nlohmann/json parses it; built: en-proto's `parse_json`, on every JSON en-llm parses). A model list, read as it parses and keeping only its ids, has its own bound: 1 MB from a local probe, 8 MB from a provider, and the same depth |
+| SSE | Line ≤ 64 KB; total response ≤ 1 MB; a stream that passes 16 KB of display text is cancelled and ends as `Truncated` with the text that fitted (built) |
 | Sanitizer and splitter | Input per reply ≤ 16 KB; iterative, never recursive; output 600 bytes per reply and 180 per page (DESIGN §8.4) |
 | Predicate DSL | Expression ≤ 1 KB; parse depth ≤ 32 |
 | Regex | RE2 (linear time), where a pattern comes from content, with `max_mem` at 2 MB for its compiled program and its DFA together; patterns ≤ 1,024 bytes; `std::regex` never on content or player text |
 | Content files | 64 KB per file, 16 KB per persona, card or character profile (DESIGN §11.4); the override tree and the player's `profiles\` together ≤ 8 MB and ≤ 2,000 files; `profiles\` ≤ 256 files of ≤ 8 KB |
 | Core memory | Event FIFO 256; RAM ring 4,096; trackers 256; K store 512; text cache 4,096; param cache 2,048; target ≤ 64 MB resident for all of EldenNet |
-| Threads | Core stack 8 MB; the net's workers 2 MB each; no recursion on T2–T5 |
+| Threads | Core stack 8 MB; the net's workers 2 MB each (built: en-llm's `StackThread` for the handle's workers and dispatcher and WinHTTP's drivers); no recursion on T2–T5 |
 | SQLite | `PRAGMA max_page_count` sized to a 512 MB file cap; `diag.sqlite` rotated at 50 MB (DESIGN §10.5) |
 | In-process ML | None (DESIGN §1.2) |
 
@@ -1780,6 +1796,12 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
   `provider.quantizations`), `quant_floor` keeps every request at that level or above; the client writes it in the
   flavour's own field and keeps it on a retry, as it keeps the reasoning switch (§11.2). Elsewhere it is ignored: a
   local model's quantisation is the file the player loaded (§11.4).
+- **A provider for every use** (O88): a provider is an endpoint with its own key, one `[[provider]]` entry with its
+  `base_url` and `key_ref`, and every slot names its own provider, model and fallback (`provider`, `model`, `fallback`
+  and `fallback_provider`, in `[slots.*]` below or in the preset's entry for the slot, §11.4). That is how each use
+  gets a provider of its own: replies on one, prepared lines on another, decisions on a fast one. A slot that names no
+  provider takes the one its preset gives it, and a fallback that names none takes its model's provider. The reserved
+  slots `actions` and `vision` are written the same way (§11.4).
 
 ```toml
 # %APPDATA%\EldenNet\config\providers.toml
@@ -1803,8 +1825,8 @@ logprobs = true                         # whether decision calls may ask for log
 [slots.dialogue]                        # optional per-slot overrides of the preset's model choice
 model = "google/gemma-4-26b-a4b-it"
 fallback = "google/gemma-4-31b-it"
-# provider = "…" and fallback_provider = "…" name a provider by id: by default the preset's provider, and for the
-# fallback the primary model's
+# provider = "…" and fallback_provider = "…" name a provider by id (O88): by default the one the preset gives this
+# slot, and for the fallback the primary model's
 ```
 
 ### 11.2 Error classes, actions and health
@@ -1869,9 +1891,15 @@ any slot's do.
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
 | `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1; at most 12 options, the top 5 logprobs where offered (§11.1) | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The rules fallback: the task's rule (§11.8) |
+| `actions` | *Reserved* (O88): NPC actions, after v1 (O31 to O42). An act is to be picked as a decision call picks, from options code builds (DESIGN §13) | 100 | 0 | Set with the feature | Set with the feature | Set with the feature | No act: the rules fallback (§11.8) |
+| `vision` | *Reserved* (O88): a later feature that lets an NPC see the screen; none is designed yet | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature |
 
 Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
 that names no `decisions` model uses its `bark_live` model (impl). Budgets are identical in every preset (DESIGN §11.2).
+The reserved slots keep the files and Settings in the shape their features will need (O88): `[slots.actions]`,
+`[slots.vision]` and a preset's `actions` and `vision` are read and checked as every slot's are, but no request uses
+them yet. A request that names one falls through to `dialogue`, as an unknown name does, until its feature exists and
+brings the budgets left open above.
 
 **Requests per hour** (WHY§99). Beside these budgets for each request, `budget.requests_per_hour` (§11.5) bounds what
 the client sends in any rolling hour, retries, backups and decision calls included. At the bound, replies still go out,
@@ -1879,19 +1907,52 @@ since the player asked; own-initiative lines take their seeds or silence, decisi
 jobs wait. One toast says so, and the debug view shows the count. The default, 600 (impl), sits above the 506 an hour
 measured for SkyrimNet outside scenes (WHY§99) and is meant to stop a runaway, not ordinary play.
 
+**Presets** (O88). A preset names a model for each slot and the providers its slots use, in one of two forms. A preset
+of one provider may write it as `provider = { flavor, kind, base_url }`, as the local presets do. A preset may instead
+name its providers, each a table `[preset.<id>.providers.<name>]` with the same three keys, and each slot then names
+its own (`provider = "<name>"`) and, where it differs, its fallback's (`fallback_provider = "<name>"`, by default the
+slot's own); a slot may leave out `provider` only when its preset names one provider. Each of a preset's providers is
+matched to an entry of `providers.toml` as the single one is: by `base_url` where it gives one, otherwise by kind and
+flavour. The keys stay with those entries (`key_ref`, §11.5): a preset never holds one. Refused, with the file and
+line: a preset with neither form or with both, a slot naming a provider its preset does not define, and one name given
+to two providers.
+
+Two cloud presets ship (O88): OpenRouter's, `cloud-budget`, offered first, and NanoGPT's, `cloud-nanogpt`. A preset
+that names its models is measured before it ships, and again whenever a model changes: its `decisions` and `bark_live`
+models must reach a first token within 1.5 s, those slots' first-token budget, which DeepSeek V3.2 through NanoGPT
+missed at 2.9 s (WHY§108). NanoGPT's models are to be measured (run 3's timings, roadmap S8.1.h); OpenRouter's stay
+X1's to confirm or replace (DESIGN §11.3).
+
 ```toml
 # content/eldenring/models.toml (shipped; volatile, ER06 §6)
 schema = 1
+
+[preset.cloud-budget.providers.openrouter]   # OpenRouter's (O88), offered first
+flavor = "openai"
+kind = "cloud"
+base_url = "https://openrouter.ai/api/v1"
+
 [preset.cloud-budget]
-provider = { flavor = "openai", kind = "cloud", base_url = "https://openrouter.ai/api/v1" }
-dialogue  = { model = "google/gemma-4-26b-a4b-it", fallback = "google/gemma-4-31b-it" }
-bark_live = { model = "google/gemma-4-26b-a4b-it" }
-bark_pool = { model = "deepseek/deepseek-v4-flash" }
-memory    = { model = "qwen/qwen3-235b-a22b-2507" }
+dialogue  = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it", fallback = "google/gemma-4-31b-it" }
+bark_live = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it" }
+bark_pool = { provider = "openrouter", model = "deepseek/deepseek-v4-flash" }
+memory    = { provider = "openrouter", model = "qwen/qwen3-235b-a22b-2507" }
 warn_free_tier_for = ["bark_pool"]
 
+[preset.cloud-nanogpt.providers.nanogpt]     # NanoGPT's (O88)
+flavor = "openai"
+kind = "cloud"
+base_url = "https://nano-gpt.com/api/v1"
+
+[preset.cloud-nanogpt]                        # every model to be measured before it ships (roadmap S8.1.h)
+dialogue  = { provider = "nanogpt", model = "…", fallback = "…" }
+bark_live = { provider = "nanogpt", model = "…" }   # a first token within 1.5 s
+bark_pool = { provider = "nanogpt", model = "…" }
+memory    = { provider = "nanogpt", model = "…" }
+decisions = { provider = "nanogpt", model = "…" }   # a first token within 1.5 s
+
 [preset.local-12gb]
-provider = { kind = "local" }           # filled from the probe
+provider = { kind = "local" }           # one provider, filled from the probe
 all = { model_hint = ["gemma-4-e4b", "qwen3.5-4b"], quant = "Q4", background_at_rest_only = true }
 
 [preset.local-16gb]
@@ -1914,7 +1975,9 @@ features = { chat = true, barks = true, speak_up = true, callout = true, memory 
 autonomy = { enabled = true, period_s = 120 }           # 30–1800; enabled gates the autonomy motive only, the tick still runs (DESIGN §9.8); free-tier presets write enabled = false
 range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 10–40
 pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
-ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false }   # NPC §10.7; `scale` is GraceUI's own setting since GraceUI D84, and EldenNet's text follows it
+# NPC §10.7. `scale` and the menu's options are GraceUI's (GraceUI D84, D115), and EldenNet's text follows the scale;
+# `show_world` and `home_cards` (Home's cards, their order and Setup's place) are EldenNet's (PAGES §4.5).
+ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false, show_world = true }
 pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
 budget = { requests_per_hour = 600 }                     # 60–3600 (impl); replies are never refused (§11.4)
 safety = { level = "faithful" }                          # faithful | gentle (O17)
@@ -2047,8 +2110,8 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 |---|---|---|
 | 1 Notices | The four statements of §4.8 | Acknowledged |
 | 2 Status | Build, ladder level, capability list (§6.8) | Informational |
-| 3 Provider | *Cloud:* a masked key field, written to `secrets.toml`. *Local:* the probe results (§11.4) and a model picker | A key is entered, or a model is picked |
-| 4a Reachability | `GET /v1/models`; the chosen model is listed | HTTP 200 and the model is present |
+| 3 Provider | *Cloud*, first (O88): a masked key field, written to `secrets.toml`. The preset follows the key's provider where the key's form marks it (OpenRouter's keys begin `sk-or-`); otherwise the player says which provider the key is for, OpenRouter first, then NanoGPT. The key is never tried on a provider to learn whose it is. The provider's entry and the preset go to `providers.toml` (§11.1, §11.4). *Local*, one choice away: the probe results (§11.4) and a model picker | A key is entered and its provider known, or a model is picked |
+| 4a Reachability | `GET /v1/models` on each provider the chosen preset uses; its models are listed | HTTP 200 and the models are present |
 | 4b Latency | `selftest` slot: a streamed 32-token reply; measures TTFT and tokens per second | Completes |
 | 4c Voice check | One Lantern-Keeper line through the real `dialogue` pipeline (prompt, sanitizer, lint) | The output passes the lint |
 | 4d JSON check | The `memory` slot returns a 2-field object against a schema | Parses |
@@ -2078,12 +2141,14 @@ DecisionCall {                          // built by en-core, rendered from promp
   question: one plain question
   state:    [(name, text)]              // the records it needs, gathered by id, quoted as data
   options:  [(key, text)]               // Choice only: short keys (A, B, … or neutral labels), and none; by code
-  rule:     the rules fallback, a pure function of the same state
+  rule:     the key the task's rules pick from the same state (a pure function of it, run by en-core when it
+            builds the call): data, one of the options' keys, checked before anything is sent
 }
 DecisionPick { key, probs: optional [(key, f32)], by: Model | Rules, latency_ms }
 ```
 
-Both are built in en-llm's `decision.hpp` (O84, WHY§100), the pick with how it was read and the call's one row.
+Both are plain data in en-proto's `llm.hpp` (S8.1.j), read and acted on by en-llm's `decision.hpp` (O84, WHY§100),
+the pick with how it was read and the call's one row.
 
 - **Options are built by code.** Only legal options are offered, at most 12 (EST, as MEM §4.5's gate keeps), each a
   short key with one line that code writes from records; the model cannot name an option code did not offer, and
@@ -2236,20 +2301,20 @@ eldennet/
                                                     # configure time, pinned by SHA-256, into the build tree
   src/            each module: CMakeLists.txt, include/en/<name>/*.hpp, src/*.cpp, tests/
     en-proto/     include/en/proto/{snapshot, render, lifecycle, command, ui, llm, db, backend, thread, text,
-                       fixed}.hpp  src/json.cpp
+                       fixed, ffi_guard, json}.hpp  src/{json, llm, ffi_guard}.cpp   (llm, json, ffi_guard built)
     en-augur/     src/{sources/, world, signals, detectors, rules, events, audience, kstore, bus}.cpp
-    en-prompt/    src/{environment, compile, builtins, messages, registry, text, errors, version}.cpp   (built)
+    en-prompt/    src/{environment, source, compile, builtins, messages, registry, text, errors, version}.cpp   (built)
     en-core/      src/{step, transport, identity/, content/, predicates, knowledge/, scheduler, conversation/,
                        barks/, memory/, decisions/, prompts/, sanitize, lint, ladder, gate}.cpp
     en-store/     src/{loop, migrations/, events, facts, journal, rollback, backup}.cpp
     en-llm/       src/{client, config, request, message, transport, transport_curl, transport_winhttp, sse, stream,
-                       errors, health, decision, probe, service, secret, clock, version}.cpp   (built)
+                       errors, health, decision, probe, service, thread, secret, clock, version}.cpp   (built)
     en-gal/       src/{gate, pe, patterns, builds, layout, fd4, rtti, groups, snapshot, flags,
                        text, params, render, backend, task, probe}.cpp  # the offline part: pe, patterns, builds, layout
                   src/reader.cpp                       # raw addresses: GuardedReader and its SEH-guarded copy
                   src/sys/{image, register, fd4, trampoline, boot, process}.cpp   # raw addresses: the Win32 seam
     en-overlay/   src/{surfaces/, fonts, style, input, debug}.cpp  src/abi.cpp   (no hooks: GraceUI's, G15)
-    eldennet/     src/{exports, boot, shell, wiring, watch, recorder, ffi_guard, log}.cpp
+    eldennet/     src/{exports, boot, shell, wiring, watch, recorder, log}.cpp   (ffi_guard: en-proto's)
     en-launcher/  src/{main, discover, vdf, preflight, backup, appid, notices, errors}.cpp  src/win/inject.cpp
     en-tools/     src/{main, render_prompt, chat, decide, probe}.cpp (built)
                   src/{replay, golden, eval, lint, probe_exe, mockllm, bake_pools, selftest, fmg_import,

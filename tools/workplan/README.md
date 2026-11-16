@@ -14,7 +14,7 @@ itself whenever an indexed file changes, so there is nothing to remember. The se
 |---|---|
 | `SN04`, `SN04§5.2` | SkyrimNet research note 04 (`docs/research/skyrimnet/04-*.md`), or one of its sections |
 | `ER05`, `ER05§8.1` | Elden Ring research note 05 (`docs/research/eldenring/05-*.md`), or one of its sections |
-| `DESIGN§7`, `ARCH§3`, `NPC§4`, `MEM§2` | The design documents in `docs/design/` |
+| `DESIGN§7`, `ARCH§3`, `NPC§4`, `MEM§2`, `DATA§2`, `PAGES§4.6` | The design documents in `docs/design/` (PAGES: EldenNet's pages) |
 | `P1`, `J2`, `REVIEW` | The design-panel records in `docs/design/process/` |
 | `RES`, `README`, `CLAUDE`, `WP` | The research index, the root README, CLAUDE.md and the wp README |
 | `WHY`, `WHY§12` | The reasoning log (`docs/REASONING.md`), or one of its entries |

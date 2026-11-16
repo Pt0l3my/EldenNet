@@ -729,6 +729,14 @@ this decision, each under its own licence.
 
 **Follows from.** O54, O57; DATA §3 and §4; DESIGN §7.8, §16.1.
 
+*Later (2026-11-16):* the saves are dropped. The owner asked what they were for ("A save for what? isn't EldenNet
+constantly saving its latest state? There is only 1 save in Elden Ring per character which is constant auto save."):
+copies of the game's one save file, kept before each named boss fight and each later form of a roster NPC, so that
+the in-game checks could start at those moments without replaying. Offered keeping them with a helper, putting them on
+hold, or dropping them, the owner chose "Drop it": no prepared saves; the in-game checks run during a normal
+playthrough once EldenNet runs in game, and a check that fails waits for the next chance. The capture plans written
+under (b) stay. Roadmap S6.3.t is dropped.
+
 ## O59
 
 **Where the game's id leads go** · *2026-11-08 · Decided by the owner, as recommended*
@@ -1218,6 +1226,10 @@ game closed (O75), and its pages pass the same spoiler and privacy rules as in t
 
 **Owner's words.** "Launcher runs the engine off game".
 
+*Later (2026-11-16):* GraceUI's G29 decided (a), as recommended: the launcher serves the dashboard off game through
+`grace-serve`, the one server library GraceUI publishes for hosts outside the game, with every rule of GraceUI's §7.2
+and invariant 4, on loopback only; the home-network switch and pairing stay in the game at first (ARCH §4.13).
+
 ## O77
 
 **Which settings change off game?** · *2026-11-15 · Decided by the owner, as recommended*
@@ -1451,3 +1463,60 @@ tell the LLM in prompt what each NPC is exactly supposed to know, what it's curr
 quest (not necessarily what the player needs to do, but for example what it asks of the player at that stage in the
 quest). so we shouldn't need a very complex and strict spoiler prevention system." and "Grounding only, simple
 (Recommended)".
+
+## O87
+
+**The interactive showcase of the menu, built from page data** · *2026-11-16 · Decided by the owner, as recommended*
+
+**Question.** GraceUI's G13 (2026-11-08): the owner asked for an interactive showcase of the menu, a page to click
+through in the browser beside the static showcase, and chose to wait for Min's blueprint before deciding how it is
+built; the same day it became EldenNet's, not GraceUI's (G13's later change). The blueprint came as a closed engine with
+no UI (WHY§95), EldenNet builds its own (O84), and G19 keeps SkyrimNet-derived material out of GraceUI, so the question
+is asked again, here. **Options:** (a) **from page data**: the menu's page descriptions written now as data, with
+invented sample data, drawn by a small renderer of the shared components into one self-contained page, tested in a
+headless browser (no request outside the page, every page at two widths, no script error, no name of the game's
+characters or places, the spoiler and privacy rules, contrast), published privately and linked from the static showcase;
+(b) the real web app now, against test data; (c) the static mock made clickable by hand; (d) keep waiting until the real
+menu exists.
+
+**Recommendation.** (a): the page descriptions are the one source of the pages (GraceUI's §2.5), and they and the sample
+data carry over into the real menu whatever its code becomes; since G20 (2026-11-16) EldenNet's pages live in EldenNet,
+which is where they are written. *What (a) gives up:* a renderer that the real browser view replaces later.
+
+**Decision.** (a). Built in EldenNet (roadmap S7.7.b); G13's checks stand.
+
+**Owner's words.** "From page data (Recommended)", asked how the interactive showcase should be built now that Min's
+blueprint turned out to have no UI.
+
+**Follows from.** GraceUI's G13, G19 and G20; O84; WHY§95.
+
+## O88
+
+**Cloud by default, and a provider for every use** · *2026-11-16 · Decided by the owner*
+
+**Question.** The owner, after the first runs on Windows (WHY§108): "our default should be cloud, but we should also add
+providers for each model we use (dialogue, actions, vision, etc.)". The design ships one cloud preset (`cloud-budget`,
+on OpenRouter, ARCH §11.4), its wizard asks for "a cloud key, or a local probe" (DESIGN §11.5), and the built engine
+already lets a slot name its own provider (`provider` and `fallback_provider` in `[slots.*]`, ARCH §11.1); but a preset
+has one provider, and Settings shows none per slot. Left to ask: which cloud provider the default preset is for.
+**Options:** (a) **both, OpenRouter first**: a preset for OpenRouter and one for NanoGPT, the wizard picking by the key
+it is given and offering OpenRouter first; (b) OpenRouter only; (c) NanoGPT only.
+
+**Recommendation.** (a): players with either key start at once. *What it gives up:* two model lists to keep current
+(ER06 §6).
+
+**Decision.** Cloud is the default, and every use has a provider of its own. (1) Every slot (dialogue, call-outs
+`bark_live`, pools `bark_pool`, memory, profile drafts `draft`, decisions, the self-test) names its provider, model and
+fallback, a provider being an endpoint with its own key; a preset may name several providers; Settings › AI shows one
+row per slot, each "same as dialogue" until changed. (2) Slots reserved now for later uses, so the files and the page
+keep their shape when those arrive: `actions` (NPC actions, after v1, O31 to O42) and `vision` (a later feature that
+lets an NPC see the screen; none is designed yet). (3) Two cloud presets ship, OpenRouter's and NanoGPT's, as (a): the
+wizard leads with a cloud key, picks the preset by the key's provider and offers OpenRouter first; a local server stays
+one choice away. Each preset's models are measured before they ship: the decisions slot needs a first token within 1.5
+s, which DeepSeek V3.2 through NanoGPT missed (WHY§108).
+
+**Owner's words.** "our default should be cloud, but we should also add providers for each model we use (dialogue,
+actions, vision, etc.)"; then, asked which cloud provider the default should ship for: "Both, OpenRouter first
+(Recommended)".
+
+**Follows from.** O84; ARCH §11.1 and §11.4; DESIGN §11.5; WHY§108. Folded by roadmap S8.1.n.

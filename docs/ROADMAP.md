@@ -117,11 +117,15 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
   - refs: DESIGN§19, O1, O2, O23, O24, O50, REVIEW§4.3
 - S1.4.c hudhook pinned at exactly 0.9.3; game text in another language; a note per pattern [done]
   - refs: O25, O26, O27
+  - gives: superseded in part by O25 as changed on 2026-11-16: Dear ImGui 1.93.0 and MinHook 1.3.4 replace hudhook,
+    held by GraceUI's host (S8.1.e); O26 and O27 stand.
 
 ### S1.5 Working tools and records [done]
 
 - S1.5.a The privacy and safety sweep, git's pre-push gate on every repository [done]
-  - refs: CLAUDE
+  - refs: CLAUDE, O64
+  - gives: since 2026-11-15 the sweep lives only in the owner's private repository, installed from that checkout, and
+    EldenNet's history was rewritten without it (O64; S7.5).
 - S1.5.b wp, the section index for reading the documents cheaply [done]
   - refs: tools/workplan, WP
 - S1.5.c llmworker, a client for running prompts on OpenAI-compatible models [done]
@@ -180,7 +184,9 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
 ### S3.4 Grounding and scope [done]
 
 - S3.4.a Positive grounding: the prompt says what has happened, and forbid lists stay in code [done]
-  - refs: O36
+  - refs: O36, O86
+  - gives: simplified by O86 on 2026-11-15: grounding is the one spoiler mechanism and the guards beside it are dropped
+    (S7.13); `forbid` stays code-only, as the topics of the test questions.
 - b Version 1 stays dialogue-only and read-only; acts and gestures are later seams [done]
   - refs: O41, DESIGN§13
 
@@ -206,10 +212,12 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
   - refs: O45
 - c The bio's structure and the roster's reach put to the owner, with a recommendation [done]
   - refs: O46
+  - gives: decided 2026-11-16, as revised in proposal 0004: one bio in five layers (S6.2.a).
 - d SkyrimNet's author gives EldenNet the engine blueprint, and EldenNet builds on SkyrimNet [done]
-  - refs: O53
-  - gives: we may use, copy and adapt SkyrimNet's engine and content, credited as its author
-    wishes, with every licence and notice file kept.
+  - refs: O53, O84
+  - gives: we may use, copy and adapt SkyrimNet's engine and content, credited as its author wishes, with every licence
+    and notice file kept. Since 2026-11-15 (O84): our own engine follows SkyrimNet's logic and structure, not its
+    prompts, and Min's DLL is neither used nor shipped (S6.1.c).
 
 ## S5 GraceUI's design [done]
 
@@ -242,13 +250,14 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
   - gives: superseded by G15 on 2026-11-08: GraceUI owns the overlay and EldenNet draws through it; folded into both
     designs on 2026-11-15 (S7.8.c).
 
-## S6 Waiting on the owner [waiting]
+## S6 Waiting on the owner [active]
 
 - needs: S4
 - refs: DESIGN§7.8
 
-The two prerequisites the owner set for the engine work and the roster (DESIGN §7.8), and the
-research into the game's data that goes ahead before them (O54).
+The two prerequisites the owner set for the engine work and the roster (DESIGN §7.8), both settled (O84 on 2026-11-15,
+O46 on 2026-11-16), and the research into the game's data that went ahead before them (O54). The capture plans
+(S6.3.s) remain.
 
 ### S6.1 Min's engine blueprint [done]
 
@@ -294,13 +303,15 @@ research into the game's data that goes ahead before them (O54).
   - needs: b, c
   - refs: O56, ER08
   - gives: decided 2026-11-08: DataPiler, a tool of its own in a public repository (its decisions DP1 to DP5).
-- e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [waiting]
+- e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [done]
   - needs: c
   - refs: O56, ER08, tools/gamedata/README.md
-  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version.
-- f DataPiler's design, asked of the PandorumLLM session by the owner, with DataPiler's request 0001 [waiting]
+  - gives: superseded by DataPiler on 2026-11-08 (h, m): its jobs have read the owner's own data through Smithbox's
+    server link since en-0001, so the dry run was never needed; marked done on 2026-11-16.
+- f DataPiler's design, asked of the PandorumLLM session by the owner, with DataPiler's request 0001 [done]
   - needs: d
   - refs: O56, O57, ER08
+  - gives: the answer to request 0001, adopted as DataPiler's design on 2026-11-08 (DataPiler's DP5 and DP6).
 - g The owner creates the empty public DataPiler repository, so its first commit can be pushed [done]
   - needs: d
   - gives: the DataPiler repository, created 2026-11-08; its first commit is on its `design/v0` branch.
@@ -330,10 +341,11 @@ research into the game's data that goes ahead before them (O54).
     numbers resolve), all in the one English item container Smithbox shows, `item_dlc02`. None of the named rows has the
     game's `[ERROR]` placeholder as its name (the owner's count on the local file), so the counts stand. Counts only, so
     nothing for O59's file yet.
-- n DataPiler 0.2.1: placeholder texts no longer count as names, each layer's names checked on its own, the names rows done once `item_dlc02` arrives, and the 0.2.0 run's smaller fixes [waiting]
+- n DataPiler 0.2.1: placeholder texts no longer count as names, each layer's names checked on its own, the names rows done once `item_dlc02` arrives, and the 0.2.0 run's smaller fixes [done]
   - needs: m
   - refs: O56, ER08
-  - gives: offered to the owner; not urgent, as en-0001's counts stand without it.
+  - gives: offered to the owner; not urgent, as en-0001's counts stand without it. Released on 2026-11-08 and kept by
+    every later version (0.2.40 by 2026-11-16).
 - o The roster's first ids: DataPiler's jobs en-0002 to en-0004 separate the named characters from the ordinary enemies, and their ids go to O59's research file [done]
   - needs: m
   - refs: O59, O48, ER08
@@ -342,7 +354,8 @@ research into the game's data that goes ahead before them (O54).
     163 names first held by the base game's text and 50 by DLC 1 (the expansion's characters), none new in DLC 2. The 21
     rows whose name numbers hold no text are left out, by the owner's agreement (2026-11-08): the game has no name to show
     for them, so most likely cut or unused characters; revisited if EldenNet meets one in game or with the map work for
-    bosses. Open: bosses may take their bar names from event scripts, not NpcParam.
+    bosses. Open then: bosses may take their bar names from event scripts, not NpcParam; p found them very likely
+    numbered by model (WHY§47, WHY§54), each binding left to the in-game check.
 - p The bosses' leads: DataPiler's jobs en-0006 to en-0012 find the bosses' rows and their likely bar names, before EldenNet checks them in game [done]
   - needs: o
   - refs: O43, O59, O48, WHY§36, WHY§46, WHY§47, WHY§48, WHY§49, WHY§54
@@ -367,38 +380,53 @@ research into the game's data that goes ahead before them (O54).
   - needs: j
   - refs: O58, DATA, MEM§6.3, DESIGN§7.8, DESIGN§16.1
   - gives: what each live check records, where and when, so the captures start the day the first build runs.
-- t The owner keeps a save before each named boss fight and each later form of a roster NPC, on their own PC, never committed and never taken online [waiting]
+- t The owner keeps a save before each named boss fight and each later form of a roster NPC, on their own PC, never committed and never taken online [done]
   - needs: j
   - refs: O58, DESIGN§7.8
-  - gives: the saves S1 and S2 replay from, about 40 to 60 for S2 alone.
+  - gives: dropped on 2026-11-16 by the owner (O58's note): no prepared saves; the in-game checks run during a normal
+    playthrough once EldenNet runs in game, and a check that fails waits for its next chance.
+- u The gear's names: which text entries hold the weapon and armour names, checked on the owner's data (DataPiler 0.2.40, jobs en-0041 to en-0043) [done]
+  - refs: DATA§3.1, DESIGN§4.5, WHY§105
+  - gives: 2026-11-16: WeaponName (11) and ProtectorName (12) name 80.0% and 76.4% of the rows by row id, and no row needs the expansion's layers; DESIGN §4.5 lists them, and S2 checks them in game.
 
 ## S7 Open items
 
 - needs: S5
 
-Work that can go ahead while S6 waits, and the owner's housekeeping.
+Work beside the engine and the increments, and the owner's housekeeping.
 
 ### S7.1 GraceUI's changes to EldenNet's design [next]
 
 - refs: GraceUI:docs/eldennet-changes.md
-- S7.1.a The main menu on F5 through GraceUI, the bridge (a UiPort in the core) and the overlay [next]
-  - refs: G1, G10, G15, DESIGN§12
-- b The local server, always on, with pairing for the home network; since G17 the server is GraceUI's, so EldenNet registers its space after its gate and marks its sensitive commands [next]
-  - refs: G4, G9, G17, GraceUI:DESIGN§7.2
+- S7.1.a The main menu on F5 through GraceUI, and the bridge (a UiPort in the core) [next]
+  - refs: G1, G15, DESIGN§12
+  - gives: the overlay's items (eldennet-changes §4) became GraceUI's host's under G15, and what EldenNet keeps of them
+    was folded with S7.8.c on 2026-11-15 (eldennet-changes §11).
+- b The local server's items left for EldenNet (eldennet-changes §3 items 2, 3, 4 and 6) [next]
+  - refs: G4, G9, G17, G30, GraceUI:DESIGN§7.2
+  - gives: C4's wording, the privacy scrub, F11's address commands and keys bound to their address. The server is
+    GraceUI's since G17, our own small server since G30, and EldenNet's side of it (its space registered after its
+    gate, its sensitive commands marked, the launcher's first screen) was folded with S7.8.c on 2026-11-15.
 - c Criteria, presentation and the compatibility matrix's rows [next]
   - refs: ARCH§12.4
 - d GraceUI as its own mod in EldenNet's release, and the small fixes found on the way [next]
   - refs: G2
-- e The roster's first-meeting field, the roster list and the Playthrough projection [next]
+- e The roster list and the Playthrough projection [next]
   - refs: G5, G8, DESIGN§7.8
+  - gives: the roster's first-meeting field came with O46's fold on 2026-11-16 (S6.2.b: `public.summary`, `public.role`
+    and `subjects`), and its names at the title screen with DATA §3.1's gap 1; eldennet-changes §9 items 3 and 4 remain.
 
 ### S7.2 The profile editor pass [next]
 
 - refs: GraceUI:docs/profile-editor-needs.md, O43
-- S7.2.a GraceUI revisits the decisions the editor's needs name, with O43 as the reason [next]
-- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in GraceUI's design [next]
+- S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [next]
+  - refs: O43, O46, O86
+  - gives: the needs date from 2026-11-07, before O46 settled the bio the player's own profiles follow (the Tarnished's
+    own included) and O86 retired the lints against fixture states (PL7) they assume; SP1's `subjects` came with
+    GraceUI's O46 fold on 2026-11-16.
+- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
   - needs: a
-  - refs: GraceUI:DESIGN§4.6
+  - refs: PAGES§4.6
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -410,21 +438,28 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
 - e A card's bark word cap against a character's word cap [next]
 - f Character keys in the bark pool store [next]
 
-### S7.4 The LLM Jobrunner [waiting]
+### S7.4 The LLM Jobrunner [active]
 
-- S7.4.a The request and the read-only review of version 1.2 go to the session that builds it [waiting]
-  - gives: a local job runner for running prompt sets on the owner's own model servers; nothing
-    in the reviewed bundle was run.
-- b Its next version reviewed, read-only, before EldenNet's prompt sets run on it [planned]
+- S7.4.a The request and the read-only review of version 1.2 go to the session that builds it [done]
+  - gives: a local job runner for running prompt sets on the owner's own model servers; nothing in the reviewed bundle
+    was run. The owner runs 1.2 against their servers (2026-11-16) and asked this session to build 1.3 (c).
+- b Its next version reviewed, read-only, before EldenNet's prompt sets run on it [done]
   - needs: a
   - refs: tools/llmworker
+  - gives: superseded on 2026-11-16: from 1.3 this session builds and tests the Jobrunner itself (c), from 1.2's
+    reviewed source, so no separate read-only review is needed; 1.3 carries the review's nine fixes.
+- c Version 1.3: a chat tab for each server (images and text files attached), Check servers and a test jobpack, servers by address with Find servers, an update installed from a dropped zip, DataPiler's job cards, and the 1.2 review's nine fixes [active]
+  - needs: a
+  - gives: asked by the owner on 2026-11-16, built in a local copy and delivered as a release zip; the owner's
+    addresses and names never enter it.
 
 ### S7.5 GitHub [waiting]
 
 - S7.5.a The owner reviews the design pull requests, EldenNet's and GraceUI's [done]
   - gives: merged by the owner: EldenNet #1 to #3 and GraceUI #1 and #2, the last on 7 November.
-- b The temporary branches left by the history rewrite deleted [waiting]
-- c GitHub Support asked to purge the closed pull request's ref [waiting]
+- b The temporary branches left by the history rewrite deleted [done]
+  - gives: deleted by the owner on 2026-11-16; both pointed into the clean history, so they exposed nothing.
+- c GitHub Support asked to purge the refs of the pull requests that still reach the rewritten history [waiting]
 
 ### S7.6 The public name [waiting]
 
@@ -432,42 +467,63 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
   - refs: O1
   - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
 
-### S7.7 An interactive showcase of the menu [planned]
+### S7.7 An interactive showcase of the menu [next]
 
 The owner asked on 2026-11-08 for a showcase of the menu to click through in the browser, beside the static
 showcase; the Skyrizz session advised on how its own is built. The owner chose to wait for Min's blueprint,
 and decided the same day that it is part of EldenNet, not GraceUI (G13's later change).
+Min's engine arrived on 2026-11-15, with no UI, and EldenNet builds its own (O84), so the question was asked again
+(c): built from page data (O87).
 
 - S7.7.a The owner decides how it is built (G13) [done]
   - refs: G13, GraceUI:DESIGN§2.5
   - gives: decided 2026-11-08: wait for the blueprint; how to build it is asked again once it has arrived.
-- b Build it in EldenNet, test it in a headless browser and publish it privately, linked from the static showcase
-  - needs: a, S6.1
-  - refs: G13, docs/showcase/showcase.md
+- b Build it in EldenNet from page data, test it in a headless browser and publish it privately, linked from the static showcase [next]
+  - needs: a, c
+  - refs: G13, O87, docs/showcase/showcase.md
+- c How it is built, asked again in EldenNet now that Min's engine has arrived, and the owner's answer (G13) [done]
+  - needs: a
+  - refs: G13, O84, O87, WHY§95
+  - gives: decided 2026-11-16 (O87, as recommended): from page data, with invented sample data and a small renderer,
+    tested in a headless browser and published privately.
 
 ### S7.8 GraceUI as a UI framework for any mod
 
 The owner widened GraceUI's scope on 2026-11-08 (G14): a UI framework other modders can use, as
 Magelight UI and PrismaUI are for Skyrim; EldenNet requires it and always ships with it, and its
 menu and dashboard become GraceUI's first user. G15 to G17 were decided on 2026-11-08 and folded
-into both designs on 2026-11-15 (c); what depends on G18 to G20 waits for their answers.
+into both designs on 2026-11-15 (c); G18 to G20 were decided on 2026-11-16 and folded the same day (d).
 
 - S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [done]
   - refs: G14, G1, G10, O25, GraceUI:docs/proposals/0001-ui-framework.md, GraceUI:docs/research/ui-frameworks.md
   - gives: proposal 0001 and the research note FW; the Skyrizz session answered on Skyrim's UI hosts.
-- b The owner answers the proposal's questions, G15 to G20 [waiting]
+- b The owner answers the proposal's questions, G15 to G20 [done]
   - needs: a
   - refs: G15, G16, G17, G18, G19, G20
-  - gives: G15 to G17 decided 2026-11-08, as recommended (GraceUI owns the overlay; page data and panels; the
-    browser view for every mod that opts in); G18 to G20 still wait.
+  - gives: G15 to G17 decided 2026-11-08, as recommended (GraceUI owns the overlay; page data and panels; the browser
+    view for every mod that opts in); G18 to G20 decided 2026-11-16, as recommended: the framework opens to other
+    modders after EldenNet v1.0, as GraceUI 1.1; no SkyrimNet-derived material in GraceUI; EldenNet's pages and their
+    spoiler rules live in EldenNet.
 - c Fold the answers into both designs [done]
   - needs: b
   - refs: GraceUI:docs/eldennet-changes.md, GraceUI:DESIGN§2.9, GraceUI:DESIGN§4.13
   - gives: G15 to G17 and the map's G21 to G27 folded on 2026-11-15: GraceUI's DESIGN (the host, D69 to D101, the map
     section), its notes and invariants 15 to 18, eldennet-changes §11, and EldenNet's DESIGN, ARCH and NPC documents;
     what G18 to G20 decide is folded when the owner answers them (d).
-- d Fold G18 to G20 once the owner answers them [waiting]
+- d Fold G18 to G20 now that the owner has answered them: EldenNet's pages, SP1 to SP9 and its halves of PV1 to PV8 move to EldenNet (G20) [done]
   - needs: b
+  - refs: G18, G19, G20, PAGES§1, GraceUI:DESIGN§4, GraceUI:docs/eldennet-changes.md, WHY§107
+  - gives: folded 2026-11-16: GraceUI's §4 content, SP1 to SP9, PV1, PV2, PV4, PV5, PV8, D61, the fixtures and goldens
+    are EldenNet's PAGES under their numbers, with pointers left in GraceUI; GraceUI keeps the frame, search, the
+    settings row, PV3, PV6, PV7 and the map (WHY§107); 1.1 opens the framework (G18); GraceUI carries nothing
+    SkyrimNet-derived (G19).
+- e Where GraceUI's own settings live now that EldenNet's pages are EldenNet's (its menu key, scale and browser view, homed on EldenNet's pages today), and PV3's sentence on paired devices brought to D84 [done]
+  - needs: d
+  - refs: G20, WHY§107, GraceUI:D79, GraceUI:D84, GraceUI:D115, PAGES§4.5
+  - gives: settled 2026-11-16 by GraceUI's D115: GraceUI's own settings (the menu key, the size, the menu's options,
+    the browser view's server) are homed on GraceUI's own pages at the rail's foot, with links from EldenNet's pages;
+    Home's cards and the World page's switch are EldenNet's (`ui.home_cards`, `ui.show_world`); PV3 says GraceUI keeps
+    the paired device's hash, in its user folder.
 
 ### S7.9 The map (GraceUI proposal 0002)
 
@@ -482,13 +538,17 @@ the player's game, and optionally opened by the map key.
   - needs: a
   - refs: G21, G22, G23, G24, G25, G26
   - gives: answered 2026-11-15, after the research's revised recommendations (f): the player's own game map (G21), still glow (G22), lore notes added by the model with a setting on by default (G23), the map in 1.1 (G24), the map key a setting off by default (G25), the game's own reveal in game (G26).
-- c The map spike: EldenNet's run-time read of the game's archives for the map's tiles and masks, the tile set's check (D93), exact sources for the drawn base (shape, areas, terrain heights, G27), world-to-map coordinates, and catching the map key [planned]
-  - needs: b
-  - refs: G21, G25, G26, O47, O48, O74, WHY§90, WHY§92
-- d Build the map panel, the `map` projection and the Map page, when G24 says [planned]
+- c The map spike: the run-time read through the devkit, the fit check (D93), checks in game, the map key [planned]
+  - needs: b, S7.11.d, S10.1.a
+  - refs: G21, G25, G26, G27, O47, O48, O73, O74, WHY§78, WHY§90, WHY§92, WHY§94
+  - gives: the research (e to i) found the sources: the tiles and masks, the areas, the world-to-map fit, and the
+    terrain with its floor rule. Left: their run-time read, through the devkit's first version (S7.11.d, O74); their
+    checks in game, which need EldenNet in the game (O73); and catching the map key, with spike S4.
+- d Build the map panel, the `map` projection and the Map page, when G24 says [done]
   - needs: c, S7.8.c
   - refs: G24, GraceUI:docs/eldennet-changes.md
-  - gives: G24 decided (a): in 1.1, after v1.0, on groundwork v1.0 builds anyway (the sightings record, the world stages).
+  - gives: merged into S17.1.d on 2026-11-15: G24 decided (a), so the build is part of 1.1, after v1.0, on groundwork
+    v1.0 builds anyway (the sightings record, the world stages).
 - e Research ahead of the spike: the game's five map tables, their fields and sizes (DataPiler 0.2.19, job en-0015), then their coordinates (DataPiler 0.2.20, job en-0016; DP21 decided) [done]
   - needs: a
   - refs: O48, O59, WHY§58
@@ -501,7 +561,8 @@ the player's game, and optionally opened by the map key.
     en-0031 passed every tile the game draws). The world-to-map fit followed (WHY§78): one transform per open-world
     sheet, to about 20 units, and the underground and the dungeons through the game's own conversion rows, to about 40.
     The areas' image followed (WHY§80, en-0032 and en-0033): the exact shapes of the area names and finer areas at
-    4 m. Still open here: the terrain heights (G27) and catching the map key.
+    4 m. Still open here then: the terrain heights (G27), researched since in g to i (WHY§90 to WHY§94), and catching
+    the map key (c).
 - f The research's findings put into proposal 0002 (its §14): the base composed from the game's own tiles for the map pieces held, the placements and areas found, G26 put again [done]
   - needs: e
   - refs: G21, G24, G26, WHY§78, WHY§80, WHY§82, GraceUI:docs/proposals/0002-map.md
@@ -562,11 +623,14 @@ EldenNet may hook as well as GraceUI.
 The owner decided on 2026-11-15 that one reader of the game's data of our own, the EldenNet devkit, serves EldenNet in
 the game and DataPiler on the PC, and ships nothing of the game; that it works with the game closed too, within safe
 limits and with a disclosure of safe use and of what we condemn (O75); that in-game data for research comes from
-EldenNet itself once Min's engine arrives; and that DataPiler becomes the workbench and the replay harness.
+EldenNet itself, built after its engine (S8; our own since O84); and that DataPiler becomes the workbench and the
+replay harness.
 
 - S7.11.a The owner decides where in-game data comes from (O73), the devkit (O74) and DataPiler's part (DP35) [done]
   - refs: O73, O74, O48, O53
-  - gives: EldenNet in the game, once Min's engine arrives; the devkit, only while the game runs, shipping nothing of the game; DataPiler as the workbench and the replay harness.
+  - gives: EldenNet in the game, built after its engine (S8; our own since O84); the devkit, shipping nothing of the
+    game, at first only while the game runs (O74), with it closed too since O75; DataPiler as the workbench and the
+    replay harness.
 - b The devkit's design, in proposal 0002 §2: its parts and first version, its safe limits and disclosure (O75), the keys taken from the user's own game, the command-line tool and its browser tools (O78), where it lives (O79) [done]
   - needs: a
   - refs: O74, O75, O78, O79, O48
@@ -598,13 +662,21 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
 - b The owner answers O76 to O79 [done]
   - needs: a
   - refs: O76, O77, O78, O79
-  - gives: answered 2026-11-15: the launcher runs EldenNet's engine off game once it is adopted (O76 (b)); all settings but a short list change off game (O77 (a)); viewers in the devkit's tools (O78 (b)); the devkit shipped as part of EldenNet, behind Developer mode (O79).
-- c The answers folded into EldenNet's and GraceUI's designs: the launcher's dashboard on EldenNet's engine off game, the settings index's off-game mark, Developer mode and the devkit's tools, GraceUI's server outside the game [planned]
-  - needs: b, d
-  - refs: O76, O77, G4, G29
-- d The owner answers GraceUI's G29 (its server for hosts outside the game) [waiting]
+  - gives: answered 2026-11-15: the launcher runs EldenNet's engine off game once it is built (O76 (b); our own engine since O84); all settings but a short list change off game (O77 (a)); viewers in the devkit's tools (O78 (b)); the devkit shipped as part of EldenNet, behind Developer mode (O79).
+- c The answers folded into EldenNet's and GraceUI's designs: the launcher's dashboard on EldenNet's engine off game, the settings index's off-game mark, Developer mode and the devkit's tools [planned]
+  - needs: b
+  - refs: O76, O77, O78, O79, G4
+- d The owner answers GraceUI's G29 (its server for hosts outside the game) [done]
   - needs: a
   - refs: G29, O76
+  - gives: decided 2026-11-16, as recommended: GraceUI publishes its server (our own since G30) as a library for hosts
+    outside the game, EldenNet's launcher first.
+- e GraceUI's server for hosts outside the game, folded into both designs as G29 decided [done]
+  - needs: c, d
+  - refs: G29, O76, GraceUI:DESIGN§7.2, ARCH§4.13
+  - gives: folded 2026-11-16: `grace-serve` is one library for hosts outside the game under every rule of GraceUI's
+    §7.2 (its item 26) and invariant 4, loopback only; G4 widened off game; the launcher serves through it (ARCH
+    §4.13, DESIGN §3.2), with the rest of O76 left to c.
 
 ### S7.13 Spoilers by grounding alone (O86)
 
@@ -619,7 +691,7 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - refs: O86, O36, G5
   - gives: folded 2026-11-16: grounding alone (DESIGN §10.4, MEM §7); test questions per character (NPC §12.1, MEM §7.8); GraceUI's SP2 re-cut as "shown, grounded or impersonal".
 
-## S8 Our own engine, on SkyrimNet's logic (O84) [planned]
+## S8 Our own engine, on SkyrimNet's logic (O84) [active]
 
 - needs: S6.1
 
@@ -631,9 +703,14 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - b Design what was deferred: memories of other NPCs and their recall, the memory job for NPC-to-NPC exchanges, keepsakes from another NPC's line, context assembly
   - needs: a
   - refs: DESIGN§7.8, MEM§4.5
-- c The prompt templates and their engine, the LLM client and its job slots, the TTS and STT seams, the bio's file format
+  - gives: settled in part by f on 2026-11-16: each witness writes its own memory, with schema-bound fields (MEM §2.3),
+    and recall after v1 sits behind the Recall seam (MEM §4.5). The caps across the roster, relations between NPCs,
+    the exchange job's trigger and numbers, the keepsake from another NPC's line and context assembly stay here.
+- c The TTS and STT seams, and the bio's file format
   - needs: a
-  - refs: DESIGN§11, DESIGN§13
+  - refs: DESIGN§13, DESIGN§7.8
+  - gives: the template engine and its rules, the LLM client with its job slots and the decision calls, first listed
+    here, were built in a and g and folded in f on 2026-11-16 (ARCH §11, ARCH §11.8, NPC §7.1).
 - d The changes folded into DESIGN, ARCH, NPC and MEM, and into GraceUI's pages that show them, with a review pass
   - needs: b, c
   - gives: the event engine, the game-access layer, identity by verified keys, the spoiler
@@ -650,15 +727,46 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: a
   - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
   - gives: built 2026-11-16 on the engine branch: the WinHTTP transport, loaded by its full path from the system directory, with one conformance suite for it and libcurl, run under Wine; the local probes with the probe and models commands; the asynchronous handle (submit, cancel, the input epoch, events with backpressure, exactly one end per request) and Ollama's warm-up; 125 tests on Linux and 127 under Wine; every command run through the Windows build under Wine (WHY§101).
-- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [waiting]
+- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [active]
   - needs: g
-  - refs: ARCH§11.1, WHY§101
+  - refs: ARCH§11.1, WHY§101, WHY§108
+  - gives: run 1 on 2026-11-16 (WHY§108): the home network's llama-server, TLS with real certificates and the tests
+    pass, except two WinHTTP checks that real Windows answers differently from Wine (the connect deadline, the TLS
+    failure's wording), fixed in m; run 2 the same day, with a cloud key: the reply and the backup request work against
+    a real provider, and the cloud decision missed its 1.5 s. Still to run: cancelling a reply part-way, and run 3's
+    timings of NanoGPT's candidate models, which choose `cloud-nanogpt`'s (O88, n; ARCH §11.4).
 - i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
   - needs: e
   - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
-- j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them
+- j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them [done]
   - needs: e
-  - refs: ARCH§2.3, ARCH§2.4, DESIGN§2.3, WHY§103
+  - refs: ARCH§2.3, ARCH§2.4, ARCH§3.1, ARCH§10.2, DESIGN§2.6, WHY§103, WHY§106
+  - gives: built 2026-11-16 on the engine branch: `en-prompt` takes a template source (a folder for the tools; memory
+    for `en-core`, which then opens no file); `en-proto` holds `ffi_guard` and the model client's messages as plain
+    data with their JSON forms (a decision call's rules pick is data); `en-llm`'s foreign entries start with
+    `ffi_guard`, its casts carry their notes, its net threads run on 2 MB stacks and ARCH §10.2's caps hold; Clang
+    refuses a dynamic initialiser or an exit-time destructor in every module the DLL links. GCC, Clang and Wine pass
+    every test.
+- k The template engine's last caps: output at most 64 KB and a bound on render steps (ARCH §10.2)
+  - needs: j
+  - refs: ARCH§10.2, NPC§7.1
+- l The handle's give-way test failed twice in about twenty runs of the suite under heavy load, and in none of about 1,000 since: find the race, from what the test now reports when it fails
+  - needs: j
+  - refs: ARCH§11.3, WHY§106
+- m Fold WinHTTP's two findings from the first Windows run: the driver's own connect deadline, and a TLS failure told by how far the exchange got [done]
+  - needs: h
+  - refs: ARCH§11.1, WHY§108, WHY§109
+  - gives: built 2026-11-16 on the engine branch (WHY§109): the driver's own connect deadline and TLS failures told by
+    phase, the wording a pure function tested on every build; the second Windows package went to the owner the same
+    day for run 3, with a step that times NanoGPT's candidate models (O88).
+- n A provider for every use, cloud by default (O88): presets with several providers, a slot per use with `actions` and `vision` reserved, OpenRouter's and NanoGPT's presets with measured models, the wizard leading with a cloud key, and Settings › AI with a row per slot [done]
+  - needs: m
+  - refs: O88, ARCH§11.1, ARCH§11.4, ARCH§11.7, DESIGN§11.5, PAGES§4.5, WHY§108, WHY§110
+  - gives: folded and built 2026-11-16 (WHY§110): ARCH §11.1 (a provider for every use), §11.4 (`actions` and `vision`
+    reserved, presets in two forms, OpenRouter's `cloud-budget` beside NanoGPT's `cloud-nanogpt`, the 1.5 s rule) and
+    §11.7, DESIGN §11.2, §11.3, §11.5 (the wizard leads with a cloud key) and §13, PAGES §4.5 and §4.6.2 (a row per
+    slot); the engine reads both preset forms and the reserved slots, with GCC and Clang en_llm 155 cases and Wine
+    157. NanoGPT's models wait on run 3's timings (h).
 
 ## S9 The roster pipeline [planned]
 
@@ -668,13 +776,13 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 About 140 profiles for the base game, the six personas included: about 170 hours of authoring
 and capture on v1.0's critical path (DESIGN §7.8, risk K29). Drafts come from our own notes,
 never from game text, and every field is reviewed by hand. Batches go by region or hub, so that
-a batch's captures share saves.
+a batch's captures share a stretch of play.
 
 ### S9.1 The roster's tools
 
-- S9.1.a The roster scan, draft and verify tools, and the lints PL10 to PL12, built as soon as O46 is decided
+- S9.1.a The roster scan, draft and verify tools, and the lints PL10 to PL12, built now that O46 is decided [next]
   - needs: S6.2.a
-  - refs: NPC§4.8
+  - refs: NPC§4.8, DESIGN§7.8
 
 ### S9.2 Each batch, up to its review
 
@@ -701,7 +809,8 @@ v0.1's testing uses, draw through it.
 ### S10.1 The spikes for v0.1, in game
 
 - refs: DESIGN§16.1
-- S10.1.a The spike and recording build
+- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73)
+  - refs: O73
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a
 - c Spikes S1 perception, S2 text, S6's core flags, S7 combat, and S0-E's present-hook half, on GraceUI's 0.1 Host [waiting]
@@ -737,7 +846,7 @@ v0.1's testing uses, draw through it.
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking
   - refs: O25, GraceUI:DESIGN§2.2
 - b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
   - refs: GraceUI:DESIGN§13
@@ -756,8 +865,8 @@ v0.1's testing uses, draw through it.
 - refs: DESIGN§16.1
 - S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
-- c X1, voice in a bottle: candidate models against the prompt, offline
-  - refs: tools/llmworker
+- c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
+  - refs: NPC§12.2, ARCH§12.3
 - d X3, latency in game [waiting]
 
 ### S11.2 GraceUI 0.2 Foundations (0.1 before G15)
@@ -775,7 +884,7 @@ v0.1's testing uses, draw through it.
 
 ### S11.3 EldenNet v0.2
 
-- S11.3.a The LLM client (config file only), the chat box, input capture and gating, the talk observer
+- S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer
   - refs: DESIGN§8, DESIGN§11
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5
@@ -789,7 +898,7 @@ v0.1's testing uses, draw through it.
 ### S11.4 GraceUI 0.2
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
-  - refs: G2, GraceUI:DESIGN§4.6
+  - refs: G2, PAGES§4.6
 - b The browser dashboard, always on, on loopback only, with the server's security suite
   - refs: G4, GraceUI:DESIGN§7.2
 - c The server in GraceUI with two spaces and per-space routing; EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
@@ -818,11 +927,13 @@ v0.1's testing uses, draw through it.
   - refs: DESIGN§9.4, DESIGN§8.9, O31
 - d The 60-second news cooldown, subjects, persona instructions and the player's profile layers, by file
   - refs: O30, DESIGN§7.7
+- e One memory per witness, and the lived layer's update at quiet moments
+  - refs: O46, DESIGN§10.3, MEM§13
 
 ### S12.2 GraceUI 0.3
 
 - S12.2.a Named NPCs (the pilot) and Playthrough; Conversations and Memories, with Forget
-  - refs: GraceUI:DESIGN§4.6
+  - refs: PAGES§4.6
 - b Home's Nearby; Speaking up for named NPCs; the top bar's Journey
 
 ### S12.3 v0.3's exit checks
@@ -830,7 +941,8 @@ v0.1's testing uses, draw through it.
 - needs: S12.1, S12.2
 - S12.3.a Memory; the trim, world trim, NG+ and cue tests; the since-line, claim and cue probes
   - refs: DESIGN§16.3, MEM§12
-- b Forget's confirmation and backup; GraceUI's spoiler goldens for memories and journeys
+- b Forget's confirmation and backup; the spoiler goldens for memories and journeys
+  - refs: PAGES§5
 
 ## S13 v0.4 War cries [planned]
 
@@ -861,11 +973,15 @@ v0.1's testing uses, draw through it.
   - refs: DESIGN§7.8
 - g The first roster captures in game, binding by binding [waiting]
   - needs: f
+- h The decisions slot and the next-speaker decision, on the CI fixtures
+  - refs: DESIGN§9.7, DESIGN§11.2, ARCH§11.8, WHY§98, WHY§99
+- i Stance, unseen attackers and the concealed Tarnished, as spikes S7 and S8 verify their reads
+  - refs: DESIGN§6.5, WHY§98
 
 ### S13.3 GraceUI 0.4
 
 - S13.3.a NPC types; Pacing, Reactions, Speaking up, Combat and Awareness; Events; the event monitor
-  - refs: G5, GraceUI:DESIGN§4.6
+  - refs: G5, PAGES§4.6
 - b Home's Happening now and Recent events; settings writable in the browser
 
 ### S13.4 v0.4's exit checks
@@ -873,7 +989,7 @@ v0.1's testing uses, draw through it.
 - needs: S13.1, S13.2, S13.3
 - S13.4.a Barks at three camps, the taste test, the render feed's cost, hygiene and silence for barks and ambient lines
   - refs: DESIGN§16.3
-- b The character-profile, subject and player-profile scenarios; profile lints PL1 to PL9; every card's scripted record
+- b The character-profile, subject and player-profile scenarios; profile lints PL1 to PL6, PL8 and PL9 (PL7 retired by O86); every card's scripted record
   - refs: NPC§4.8
 - c GraceUI's command validation and the event monitor's rates; testers tune pacing
 
@@ -886,7 +1002,7 @@ v0.1's testing uses, draw through it.
 
 - S14.1.a The verified flag catalogue, stages, the knowledge base and the full lexicon
   - refs: MEM§5, MEM§6, MEM§7
-- b Five more personas, with their news awareness and subjects; all nine world stages verified or dropped
+- b Five more personas, with their news awareness, subjects and test questions; all nine world stages verified or dropped
   - refs: O10, O30, MEM§12
 - c Each persona's tracks, ties, roads and bridging stages, truth tables and awareness probes
 - d All of spike S6, in game [waiting]
@@ -907,8 +1023,8 @@ v0.1's testing uses, draw through it.
 - needs: S14.1, S14.2, S14.3
 - S14.4.a Spoilers, voice and world awareness on six personas; release lint on all shipped content
   - refs: DESIGN§16.3
-- b Each new bio's roster eval and checklist; GraceUI's world, roster and Playthrough goldens
-  - refs: NPC§12
+- b Each new bio's roster eval and checklist; the world, roster and Playthrough goldens
+  - refs: NPC§12, PAGES§5
 
 ## S15 v0.6 Threshold [planned]
 
@@ -918,7 +1034,7 @@ v0.1's testing uses, draw through it.
 ### S15.1 EldenNet v0.6
 
 - S15.1.a The first-run wizard, the call-out with repeat calls, and the pad gesture
-  - refs: O13, O11
+  - refs: O13, O11, O88, DESIGN§11.5
 - b The compatibility matrix and the patch drill, with the JP build as the "new" one
   - refs: ARCH§12.4, O5
 - c The profile editor, the sightings list and the draft helper
@@ -977,23 +1093,28 @@ v0.1's testing uses, draw through it.
 
 ### S17.1 v1.1
 
-- S17.1.a The expansion's roster, if O46 keeps it out of v1.0
+- S17.1.a The expansion's roster, which O46 keeps out of v1.0
   - refs: O46
+  - gives: decided 2026-11-16: the base game's roster in v1.0 and the expansion's in v1.1; a bio lands earlier if its
+    bindings verify in time (DESIGN §7.8).
 - b The gamepad intent list
   - refs: O11
 - c English names from a non-English install's own English text, if spike S2 found it there
   - refs: O26
 - d The map of the journey: the map panel, the map projection and the Map page
-  - needs: S7.9.d
+  - needs: S7.9.c, S7.8.c
   - refs: G24, GraceUI:DESIGN§4.13
 - e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone through GraceUI's upload route (G28)
   - needs: S7.10.c
   - refs: O66, O67, G28, docs/proposals/0001-plugins.md
+- f GraceUI 1.1 opens the framework to other modders: the modders' guide, the three example mods, the harness, the C mock, its own release page and a frozen ABI 1
+  - refs: G18, GraceUI:DESIGN§10
+  - gives: G18 (a), decided 2026-11-16: after EldenNet v1.0; ABI 1 is a preview until then.
 
 ### S17.2 v1.5
 
-- S17.2.a Text-to-speech and speech-to-text, with GraceUI's Voice pages
-  - refs: O8, GraceUI:DESIGN§10
+- S17.2.a Text-to-speech and speech-to-text, with the Voice pages
+  - refs: O8, PAGES§4.6.3, GraceUI:DESIGN§10
 
 ### S17.3 Later [idea]
 
@@ -1004,10 +1125,12 @@ v0.1's testing uses, draw through it.
 - c The typing freeze after spike S5, and the save redirect hook [idea]
   - refs: O9, O6
 - d Native talk, native line ids and hook sources: spikes S9 and S10, H1 to H3, the hooks with EldenNet's own library (O65) [idea]
+  - refs: DESIGN§16.1, O65
 - e Code plugins through EldenNet's published interface, a preview first, in the plugin cluster outside the game or detached, and a hook service for them only if one is needed [idea]
   - refs: O68, O69, O70, docs/proposals/0001-plugins.md
 - f A sandbox for plugin hosts, as an option, after a spike on Windows and under Proton [idea]
   - refs: O72
 - g Followers: characters who travel with the Tarnished, on the companion layer every bio carries, once actions open [idea]
   - refs: O85, O46
-  - refs: DESIGN§16.1
+- h The recall gate: candidate memories gathered in code, one picked by a decision call, behind the Recall seam [idea]
+  - refs: MEM§4.5, DESIGN§13, WHY§99

@@ -441,13 +441,13 @@ Personas are prose in named fields. Code owns the order, headers, state and pers
 ### 3.1 Fields
 
 Audiences: **public** (what anyone sees at a first meeting) may appear in this persona's prompts, in other NPCs'
-`observed` views, in the next-speaker decision (§9.2) and in GraceUI's roster (its D67: `public.summary`, `public.role`
-and `subjects`). **private** appears only in this persona's own prompts: dialogue, own-initiative lines and its own
-background jobs (the memory job and the lived layer's update, §7.6). **voice** goes to block 4 and the lint.
-**knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show. **awareness** goes to block 5b,
-gated (MEM §12). **companion** goes to the persona's combat pool jobs against foes other than the Tarnished, the fights
-a summon meets (§9.11). **fallback** is shown directly and never prompted; **seed** lines are shown directly, never
-prompted.
+`observed` views, in the next-speaker decision (§9.2) and on the roster page (PAGES §4.6.4; GraceUI's D67:
+`public.summary`, `public.role` and `subjects`). **private** appears only in this persona's own prompts: dialogue,
+own-initiative lines and its own background jobs (the memory job and the lived layer's update, §7.6). **voice** goes to
+block 4 and the lint. **knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show.
+**awareness** goes to block 5b, gated (MEM §12). **companion** goes to the persona's combat pool jobs against foes other
+than the Tarnished, the fights a summon meets (§9.11). **fallback** is shown directly and never prompted; **seed** lines
+are shown directly, never prompted.
 
 | Field | Type | Cap | Audience | Notes |
 |---|---|---|---|---|
@@ -471,7 +471,7 @@ prompted.
 | `voice.deflection` | prose | ≤ 30 words | voice | How they dodge |
 | `voice.openers` | [string] | ≤ 4, one word each | voice + lint | At most one per reply |
 | `voice.tics` | [{`text`, `max_per_conversation` 1–2}] | ≤ 3, ≤ 12 words each | voice + lint | Our own words; never a FromSoftware coinage (J2 #14) |
-| `subjects` | [string] | 3–8 on a shipped persona; ≤ 10 words and ≤ 50 chars each | own-initiative task; GraceUI's roster (PL11) | What the persona likes to talk about, in our own words; one is offered on each autonomy line (§4.6) |
+| `subjects` | [string] | 3–8 on a shipped persona; ≤ 10 words and ≤ 50 chars each | own-initiative task; the roster page (PAGES §4.6.4; PL11) | What the persona likes to talk about, in our own words; one is offered on each autonomy line (§4.6) |
 | `stirs` | [string] | 2–6 on a shipped persona or a shipped bio that speaks, 0–6 in the player's own files; ≤ 12 words each | the next-speaker decision (§9.2) | What makes it speak up unasked: a place, a name, a deed done near it, another's words (O46). Noun phrases in our own words, as `subjects`; reviewed when written, at the opening state (PL11) |
 | `instructions` | prose | ≤ 35 words, ≤ 210 chars | voice (block 4, last) | Free-text notes on the persona; usually the player's own (§4.7) |
 | `knowledge.always` | [KB key] | ≤ 8 | knowledge | ≤ 4 are rendered per turn |
@@ -1227,7 +1227,7 @@ test_only = true                               # never resolved in game; CI and 
 | `knows` | [string] | 0–6 × ≤ 20 words | character block | Facts true at every state |
 | `[[knows_when]]` | `{when, text, spoiler, lexicon}` | ≤ 6; `when` ≤ 200 chars; `text` ≤ 20 words; `spoiler` 0–3; `lexicon` ≤ 4 | character block, gated | The revealed layer (O46): what it knows once the story has reached a point, never written before it; renders only when `when` is True in strict mode (Unknown hides; `spoiler ≥ 2` needs every flag atom verified, MEM §7.4); at most 4 render, the last true in file order first |
 | `lexicon` | [string] | ≤ 8 | character block; lint (PL6) | The only proper nouns its lines may use, with `lexicon/public.toml` |
-| `subjects` | [string] | 3–8 shipped, 0–8 the player's; ≤ 10 words, ≤ 50 chars each | autonomy task; GraceUI's roster (PL11) | What it likes to talk about (§4.6) |
+| `subjects` | [string] | 3–8 shipped, 0–8 the player's; ≤ 10 words, ≤ 50 chars each | autonomy task; the roster page (PAGES §4.6.4; PL11) | What it likes to talk about (§4.6) |
 | `instructions` | prose | ≤ 35 words, ≤ 210 chars | character block, last | Free-text notes |
 | `[seed]` | key = [lines] | shipped: exactly 3 per seeded key; player: 0–3 | shown directly | Card keys (§9.5), and `greet_player` (characters only, §9.5); written by seed rules 2–9 (rule 1 binds the Tarnished and comrades only, not the character itself; rule 8's no-greeting clause binds cards only, so a non-hostile character's `greet_player` seeds may greet the Tarnished, §9.8) |
 | `drafted`, `review` | `hand \| assisted`; a review record | — | code only | Provenance (PL12) |

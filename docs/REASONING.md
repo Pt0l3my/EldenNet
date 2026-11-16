@@ -127,6 +127,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 102 | 2026-11-16 | Wine 9.0 runs the Windows build, and its WinHTTP differs from Windows' in three ways | FACT | #engine #process |
 | 103 | 2026-11-16 | The design on C++: one mapping, the behaviour unchanged, and what the re-base found | METHOD | #engine #graceui #process |
 | 104 | 2026-11-16 | GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap | DECIDED | #graceui |
+| 105 | 2026-11-16 | The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers | FACT | #gamedata #datapiler |
+| 106 | 2026-11-16 | The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took | METHOD | #engine |
+| 107 | 2026-11-16 | EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open | METHOD | #graceui #design |
+| 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
+| 109 | 2026-11-16 | WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it | METHOD | #engine |
+| 110 | 2026-11-16 | O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows | DECIDED | #engine #design |
 
 ## Entries
 
@@ -1909,3 +1915,161 @@ checkout), O68, O53
   `Connection: close`; static paths matched byte for byte; RFC 9112's and RFC 6455's strict rules;
   `SO_EXCLUSIVEADDRUSE`; one address shown, `127.0.0.1`, with a redirect for the other two loopback names (GraceUI
   D112, its §7.2 items 19 to 25 and §7.6).
+
+### 105. The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers
+
+`2026-11-16` · FACT · `#gamedata #datapiler` · refs: DESIGN§4.5, DATA§3.1, ER01§8.3, WHY§104
+
+- Source: DataPiler 0.2.40's jobs en-0041 to en-0043 on the owner's install (2.7.2.0, English text, Smithbox
+  2.2.6), counts only (`docs/research/eldenring/leads/gear-names.json`).
+- **Weapons:** 3,636 `EquipParamWeapon` rows; 2,909 (80.0%) find a name by their row id, every one of them in the base
+  table 11. **Armour:** 838 `EquipParamProtector` rows; 641 (76.4%) find one, all in 12. The rest have none, so a
+  piece without a name is left out of block 9, as a missing name is anywhere.
+- **The expansion's layers name no row.** The pattern from the character and place names (310 and 410 above the base
+  table) gives 321 and 421, 322 and 422, but every named row is already in 11 or 12. Those layers hold names no row
+  uses (weapons: 489 only in 321, 1 only in 421; armour: 22 and 1), as the base tables do (310 and 2); what they are is
+  not known, since names never leave the PC. The character names differ: 50 of 213 were only in their expansion layer
+  (en-0005).
+- So ER01's lead for the base tables holds, and DESIGN §4.5 lists them; S2 still checks them in game (gap 3).
+
+### 106. The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§3.1, ARCH§1.7, ARCH§10.1, ARCH§10.2, ARCH§11.8, DESIGN§2.6, WHY§103
+
+- **Static objects.** With `-Werror=global-constructors` and `-Werror=exit-time-destructors` on every module the DLL
+  links (`en_dll_module`), Clang found six: two in en-prompt and four in en-llm. Constants became `constexpr` arrays
+  behind spans; the long-lived ones (the system clock, the no-proxy list) are made once with `new` and never destroyed;
+  and the per-thread render stack became a linked list of frames on the stack under one `thread_local` pointer, since a
+  `new` per thread would leak an object for every thread. The rule against dynamic initialisers is ARCH §3.1 (the brief
+  and the CMake helper had cited §1.6, the mutex: corrected).
+- **A decision call's rules pick is data.** `DecisionCall::rule` is the key the task's rules picked from the same state,
+  computed by en-core when it builds the call. The rules are a pure function of that state, so nothing is lost: no
+  worker runs the caller's code, the call has a JSON form, and en-llm refuses a key the call does not offer before
+  anything is sent.
+- **The JSON caps fit what is parsed whole, not model lists.** 256 KB and 32 deep cover stream events, bodies, error
+  bodies, decision answers and the probe's checks. A provider's model list can be larger (OpenRouter's very likely is),
+  so lists, read as they parse and keeping only their ids, keep their own bounds (1 MB from a local probe, 8 MB from a
+  provider) with the same depth check (ARCH §10.2's row says so).
+- **R3 on the transports, tested.** A transport callback never throws in a test by itself, so the test program alone
+  replaces `operator new` with one that, once armed, fails one allocation of a chosen size on any thread but the test
+  servers'. libcurl and WinHTTP allocate with their own allocators and never meet it; the fault lands in our code inside
+  their callbacks, which trip `LlmTransport` and fail the exchange at once.
+- **2 MB stacks.** `std::thread` cannot set a stack size: `_beginthreadex` with `STACK_SIZE_PARAM_IS_A_RESERVATION` on
+  Windows and `pthread_attr_setstacksize` elsewhere (`StackThread`). The size reads back through
+  `GetCurrentThreadStackLimits`, which Wine reports, and glibc's `pthread_getattr_np`.
+- **Running the suite many times found two test defects.** Two runs at once shared one temporary folder, since an
+  unseeded `std::rand()` gives every process the same name: fixed. The handle's give-way test failed twice in about
+  twenty runs of the suite under heavy load, and in none of about 1,000 since (the test alone and the whole suite, in
+  parallel and in sequence); it now reports how the call-out ended and the order of the events, and roadmap S8.1.l keeps
+  it open.
+- Counts: GCC and Clang, en_proto 15, en_llm 138 and en_prompt 68 test cases; MinGW under Wine, 15, 140 and 68; no
+  warnings.
+
+### 107. EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open
+
+`2026-11-16` · METHOD · `#graceui #design` · refs: G18, G19, G20, G29, GraceUI D82, D92, PAGES§1, PAGES§2, PAGES§4.5;
+S7.8.d, S7.12.e
+
+- **The cut.** By subsection, never inside one, but for §4.9, which G20 splits itself: what is about EldenNet's content
+  moved to PAGES under GraceUI's numbers (§4.1, §4.2.1, §4.4 to §4.6, §4.8, PV1, PV2, PV4, PV5 and PV8, §4.10 to
+  §4.12; §9.1's spoiler goldens row, §9.2's fixtures; D61). The frame (§4.2.2 to §4.2.5), search (§4.3) and the
+  settings row (§4.7) stayed, as D82 and proposal 0001 §4.10 name them, though they still use EldenNet's space as
+  their example. Every heading and rule id that left stays in GraceUI with a one-line pointer, and the parts GraceUI
+  kept stand in PAGES as pointers under the same numbers, so either document resolves a reference by number.
+- **The map stayed in GraceUI §4.13.** It is GraceUI's own proposal 0002 under its G21 to G27, with D89 to D98 in its
+  log and the framework's map panel kind (D91) at its centre; D92 tied only the Map page's repository to G20, and that
+  page's rail entry and settings rows moved with PAGES §4.2.1 and §4.5. If the owner wants all of EldenNet's spoiler
+  review in EldenNet, the map's content (its layers, lore notes and goldens) can follow in a fold of its own.
+- **Left open by G20 (FACT).** GraceUI's §4.5 deferred to G20 "how GraceUI's own space (D79: Menu, Hotkeys, Browser
+  view, …) meets EldenNet's Settings groups", and (a) does not say. GraceUI's own keys (`hotkeys.menu`, `ui.scale`,
+  `ui.menu.*`, `dashboard.*`; D84) are homed on EldenNet's pages (Settings › Menu, Browser view and Hotkeys; Voice ›
+  Text and subtitles; Home › Customise), while GraceUI §6.9 describes GraceUI's settings in its own space and D81 keeps
+  commands within their space. The homes stay as listed until a design pass or the owner settles it.
+- **Not moved: the protocol schema.** GraceUI §6.5 and §6.6 still list EldenNet's topics and commands, generated in
+  `grace-protocol`; G20 (a) names the pages and their rules, not the schema, so GraceUI §6.1 now says they stay there.
+- **G29's EldenNet side** is ARCH §4.13 and DESIGN §3.2: the launcher links `grace-serve`, `eldennet.dll` never does;
+  the rest of the off-game dashboard waits for O76's fold (S7.12.c).
+- **A stale phrase (FACT).** GraceUI's PV3 says "EldenNet keeps only its hash" of a paired device's cookie, but since
+  D84 the paired devices are in GraceUI's user folder. PV3 is kept as worded; a later pass should correct it.
+
+*Later (2026-11-16):* both open points settled by GraceUI's D115 (roadmap S7.8.e): GraceUI's own settings live on
+GraceUI's own pages, linked from EldenNet's; `ui.menu.home_cards` and `ui.menu.show_world` became EldenNet's
+`ui.home_cards` and `ui.show_world`; PV3 now says GraceUI keeps the paired device's hash, in its user folder.
+
+### 108. The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes
+
+`2026-11-16` · FACT · `#engine` · refs: ARCH§11.1, ARCH§11.2, WHY§101, WHY§106
+
+- Source: the owner's run of the Windows check (roadmap S8.1.h), the MinGW Release build of the engine branch, on
+  2026-11-16; its reports were scrubbed of the user's and the PC's names and the servers' addresses before they left the
+  PC.
+- **Works.** The three test programs: en_proto 15 of 15, en_prompt 68 of 68, en_llm 138 of 140. A llama-server on the
+  home network, through WinHTTP: its model listed, a reply streamed (first text 378 ms, all of it 862 ms) and a decision
+  picked by the model, with its probability, in 85 ms. A cloud provider's model list (623 ids) over HTTPS with real
+  certificates. `probe` found nothing on the PC's usual ports, which was right for that PC.
+- **A cloud key rejected.** NanoGPT answered 401: it takes the key as a Bearer token, which the engine sends, so the key
+  itself was refused. The provider was then off until its configuration changes, and the decision fell back to its
+  rules, both as designed (ARCH §11.2).
+- **Two tests fail on Windows and pass under Wine.** (1) A connect to a listener with a full backlog lasts about 2 s,
+  since Windows retries the connection before it gives up, and WinHTTP's own connect timeout (300 ms in the test) does
+  not cut it short; it ends as "could not connect", not as a timeout. (2) TLS against a server that answers in plain
+  HTTP is reported by real Windows as a broken connection, not a TLS failure, so the message names no TLS. The fix
+  (roadmap S8.1.h): the driver's own connect deadline, and a TLS failure told by how far the exchange got.
+- Not yet tried on Windows: cancelling a reply part-way (Ctrl+C).
+
+*Later (2026-11-16, run 2):* with a valid NanoGPT key the cloud reply went through, and the backup request (ARCH §11.1)
+worked against a real provider: DeepSeek V3.2's first text came at 2,854 ms, the backup on V4.1 Flash had started at 2.5
+s, lost the race and was cancelled, and NanoGPT's own log shows both cancelled requests as cancelled, billed only for
+what they made (2 tokens and none). The cloud decision missed its 1.5 s first-token deadline and the rules picked
+(`FirstTokenTimeout`), while the home network's server decided in 82 ms; so O88's presets measure their decisions model
+before they ship.
+
+### 109. WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§11.1, WHY§102, WHY§108
+
+- **What Wine 9.0 does** (FACT, checked by experiment while fixing run 1's findings): it reports `CONNECTED_TO_SERVER`
+  only after the TLS handshake, and a handshake with a server that answers in plain HTTP fails as
+  `ERROR_WINHTTP_SECURE_CHANNEL_ERROR`; real Windows named the same case as a broken connection (WHY§108). With
+  WinHTTP's own connect timeout raised to 10 s, the full-backlog case under Wine still ended at 301 ms once the driver
+  kept the deadline.
+- **The connect deadline is ours.** A request that has not begun to go out (`SENDING_REQUEST`) by its connect timeout is
+  closed as `cancel()` closes it and fails as "timed out connecting"; WinHTTP's own timeout stays as a backstop.
+  Resolving the name, connecting and the TLS handshake all count, and so, on a PC that detects a proxy automatically,
+  does that detection: run 3 shows whether a cloud request's 3 s fits it.
+- **TLS by phase, not by code.** For `https`, a failure before the request goes out is a TLS failure whatever its code
+  (`CONNECTION_ERROR`, `INVALID_SERVER_RESPONSE`, the secure codes), worded by the secure flags when a `SECURE_FAILURE`
+  gave them, and a handshake that runs out of time reads "TLS failed: the handshake timed out". So the rule holds
+  whether a system reports the connection before the handshake or after it.
+- **Tested everywhere.** The wording is a pure function (`winhttp_failure`), built on every system with WinHTTP's codes
+  written out and checked against `winhttp.h` on Windows builds; the two transport tests print what they saw when they
+  fail. GCC and Clang en_llm 143 cases, Wine 145 (roadmap S8.1.m).
+
+### 110. O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows
+
+`2026-11-16` · DECIDED (folding O88) · `#engine #design` · refs: O88, ARCH§11.1, ARCH§11.4, ARCH§11.7, DESIGN§11.5,
+PAGES§4.5, WHY§108
+
+- **A preset's providers are expectations, not endpoints.** In either form a preset's provider says what it expects (a
+  base URL, else a kind and flavour) and is matched to an entry of `providers.toml`, as the one-provider form always
+  was. The key and every setting of the endpoint (the reasoning switch, concurrency, JSON mode, the floor) stay with
+  that entry, which the player owns and AI › Providers edits, so the wizard writes the entry beside the preset.
+  Rejected: presets that define endpoints of their own, with keys found by the preset's names; they would clash with
+  the player's entry of the same id, keep endpoints off AI › Providers and put reasoning switches in shipped content.
+- **One name, one provider.** TOML refuses a name given twice in a preset; a preset's name that is another entry's id
+  in `providers.toml` is refused too, since it would stand for two. A preset with neither form is now refused, where it
+  used to take the only provider there was.
+- **The reserved slots.** `actions` gets a decision call's tokens and temperature (100, 0), since an act is to be picked
+  as a decision is (DESIGN §13), and no act on failure, as R2 fails closed; its times and retries, and all of
+  `vision`'s budgets, are set with their features. Until then a request naming either falls through to `dialogue`, and
+  a preset's `all` does not reach them.
+- **"Same as dialogue"** (PAGES §4.5). O88's Settings › AI is the AI page's Models. A slot with no model of its own,
+  from the preset or the player, follows Conversation, as the engine's borrowing does, and its row says so until it is
+  changed (Decisions follows Quick lines); a preset's own picks show as picks, since they do not follow a change to
+  Conversation. A `[slots]` entry without a provider takes the one the preset gives that slot.
+- **A key is read, never tried.** The wizard knows OpenRouter's keys by `sk-or-` and asks about any other; trying a key
+  on each provider to see which accepts it would send it where it does not belong.
+- **Measured before shipping.** The 1.5 s first-token rule binds the presets that name their models (the cloud ones),
+  before they ship and whenever a model changes; a local preset's models are the player's, and the self-test measures
+  them. The engine reads both forms and the reserved slots (roadmap S8.1.n): GCC and Clang en_llm 155 cases, Wine 157;
+  NanoGPT's models wait on run 3 (S8.1.h).

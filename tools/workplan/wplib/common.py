@@ -45,7 +45,7 @@ def tokens(text_or_bytes):
 # docs/research/skyrimnet "R04" means SN04; inside docs/research/eldenring "R05" means ER05 and "S08" means SN08.
 
 NOTE = re.compile(r"(?<![\w#/-])(SN|ER|R|S)(0\d)(?![\w-])(?:\s?§\s?(\d+(?:\.\d+)*[a-z]?))?")
-DOC_SECTION = re.compile(r"(?<![\w:-])(DESIGN|ARCH|NPC|MEM|DATA|WHY)\s?§\s?(\d+(?:\.\d+)*)")
+DOC_SECTION = re.compile(r"(?<![\w:-])(DESIGN|ARCH|NPC|MEM|DATA|PAGES|WHY)\s?§\s?(\d+(?:\.\d+)*)")
 # The owner's decisions, O1 onwards (docs/DECISIONS.md), cited as codes of their own: `wp refs O59`.
 DECISION = re.compile(r"(?<![\w:#-])(O\d{1,3})(?![\w-])")   # GraceUI:DESIGN§n is GraceUI's
 

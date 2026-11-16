@@ -33,6 +33,8 @@ dormant unless the game runs offline, without anti-cheat, with the player alone 
   and [memory-and-knowledge.md](docs/design/memory-and-knowledge.md): the detail documents.
 - [docs/design/game-data.md](docs/design/game-data.md): the three kinds of game data (research, the framework's data,
   live tracing) and the map of what each feature reads in play (O57).
+- [docs/design/pages.md](docs/design/pages.md): EldenNet's menu and dashboard pages, with their spoiler and privacy
+  rules, which GraceUI draws (moved from GraceUI's design by its G20, 2026-11-16).
 - [docs/research/](docs/research/README.md): the research the design rests on.
 - [docs/design/process/](docs/design/process/): the competing proposals, the judges' scorecards and the review.
 
