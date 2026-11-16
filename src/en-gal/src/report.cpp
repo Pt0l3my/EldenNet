@@ -65,7 +65,7 @@ Writer::Writer(const Vocabulary& vocabulary) : vocabulary_(vocabulary) {
   out_ += vocabulary_.kind;
   out_ += "\",\n  \"schema\": ";
   out_ += std::to_string(vocabulary_.schema);
-  levels_.push_back(Level{false, nullptr, 2, ""});
+  levels_.push_back(Level{false, nullptr, 2, "", {}});
   if (!kind_ok) refuse("report", "the vocabulary's kind is not a label");
 }
 
@@ -124,6 +124,11 @@ bool Writer::value_start(std::string_view key, Type type, const Key** found) {
       refuse(at, std::string("must be ") + type_name(k->type));
       return false;
     }
+    if (std::find(top.keys.begin(), top.keys.end(), k) != top.keys.end()) {
+      refuse(at, "is a key given twice");
+      return false;
+    }
+    top.keys.push_back(k);
   }
   if (found != nullptr) *found = k;
   const bool inline_items = top.array && k != nullptr && scalar(k->element);
@@ -146,7 +151,7 @@ void Writer::begin_object(std::string_view key) {
   if (!value_start(key, Type::Object, nullptr)) return;
   if (levels_.size() >= kMaxDepth) return refuse(at, "nested too deep");
   out_ += "{";
-  levels_.push_back(Level{false, nullptr, 0, at});
+  levels_.push_back(Level{false, nullptr, 0, at, {}});
 }
 
 void Writer::end_object() {
@@ -167,7 +172,7 @@ void Writer::begin_array(std::string_view key) {
   if (!value_start(key, Type::Array, &k)) return;
   if (levels_.size() >= kMaxDepth) return refuse(at, "nested too deep");
   out_ += "[";
-  levels_.push_back(Level{true, k, 0, at});
+  levels_.push_back(Level{true, k, 0, at, {}});
 }
 
 void Writer::end_array() {

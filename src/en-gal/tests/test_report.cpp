@@ -124,6 +124,12 @@ TEST_CASE("report: the writer refuses what is outside the vocabulary, and writes
   CHECK(refusal([](Writer& w) { w.label("label", "two words"); }) == "label: is not a label");
   CHECK(refusal([](Writer& w) { w.label("label", std::string(49, 'a')); }) == "label: is not a label");
   CHECK(refusal([](Writer& w) { w.number("report", 1); }) == "report: is the report's own key");
+  CHECK(refusal([](Writer& w) { w.number("size", 2); }) == "size: is a key given twice");  // as the lint refuses
+  CHECK(refusal([](Writer& w) {
+          w.begin_object("part");
+          w.number("size", 1);
+          w.number("size", 2);
+        }) == "part.size: is a key given twice");
   CHECK(refusal([](Writer& w) { w.begin_object("part"); }) == "an object or array was left open");
   CHECK(refusal([](Writer& w) { w.end_array(); }) == "end_array without an array open");
   CHECK(refusal([](Writer& w) {

@@ -1,7 +1,8 @@
 # en-gal: the game access layer
 
 The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. It holds, so far, its portable offline part,
-which builds with every compiler, and `GuardedReader`'s guarded copy, which needs clang-cl. Its static library
+which builds with every compiler, the derivation kit that `eldennet-engine probe-exe` runs (part 3), and
+`GuardedReader`'s guarded copy, which needs clang-cl. Its static library
 `en_gal` is a module the DLL links (`en_dll_module`), and en-launcher and en-tools use the offline part off game
 (ARCH §2.3).
 
@@ -84,6 +85,69 @@ auto layout = en::gal::load_layout(*profile, layout_text, needs, en::gal::Layout
 const en::gal::ScanReport found = en::gal::scan_patterns(*image, source, *patterns);
 ```
 
+## The derivation kit (part 3: the offline round R0 of O89)
+
+Our own code, written from the documented formats and ARCH §6.2's description (O48): no byte, pattern, offset or name
+of any game is in it, and every name it looks for comes from a leads file.
+
+- **`x86.hpp`: the x86-64 instruction-length decoder.** For 64-bit mode: legacy and REX prefixes, the one-, two- and
+  three-byte maps, ModRM, SIB, displacements and immediates, VEX, EVEX and XOP. `decode(bytes)` answers an
+  `Instruction`: its length, where its displacement and immediates lie, whether the displacement is RIP-relative or an
+  absolute address, whether the immediate is a branch's displacement, and the flow (call, jump, branch, return). It
+  names no mnemonic, reads at most 15 bytes, never throws and allocates nothing. Where processors disagree it follows
+  LLVM (a 66 prefix shortens JMP's, Jcc's and XBEGIN's displacement but not CALL's; a REX followed by another prefix is
+  ignored); it sizes opcodes a map leaves undefined by the map's shape, where LLVM refuses them; and it refuses APX
+  (REX2, EVEX map 4) and the VIA PadLock opcodes.
+- **`image_bytes.hpp`: an image read once.** Every section's bytes as the loader maps them, copied through a
+  `ByteSource`, for reads by RVA (`u32`, `u64`, `ascii`, `utf16`, `rva_of` a virtual address).
+- **`rtti.hpp`: the RTTI walk.** MSVC's complete-object locators (signature 1, their own offset), type descriptors,
+  class hierarchies and base class arrays, and the vtables one pointer after a pointer to a locator, with their slots
+  (pointers into code). `find_type_descriptor("Space::Class")` by the decorated name; `derived_from(walk, base)` gives the
+  primary and subobject vtables of every class that lists the base (ARCH §6.2's vtable sets).
+- **`fd4.hpp`: the FD4 singleton finder.** `find(img, idiom, config)` matches the idiom's pattern over `.text`, checks
+  each hit's placement as ARCH §6.2 says, names it through the runtime class object's name layout, and indexes by name
+  (two statics behind one name: ambiguous). Where the pattern stops short of the path's load, the path is the first
+  load from `.rdata` in the block the idiom's jump skips. `idiom_from(spec)` builds the idiom from patterns.toml's
+  `fd4_idiom`, by its captures' names (`static`, `class`, `getter`, `path`).
+- **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
+  bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
+  - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
+    the leads', TimeDateStamp, SizeOfImage, the section table);
+  - the FD4 idiom, cut from the sites that load a path ending with the leads' suffix (the closest `mov reg, [rip+x];
+    test reg, reg; jnz` before each load whose jump passes it): the largest group of sites with the same head, their
+    shared bytes, and the captures; the name layout (the offset in the class objects that points at an identifier in
+    `.rdata` for the most of them); the singletons by the leads' names, the rest only counted;
+  - the vtable sets and the task classes (their slots, how many functions each slot holds across them, and the one slot
+    every class fills with its own: the run slot's candidate);
+  - `register_task`: the direct calls after a load of the registration's instance, whose arguments a small register
+    model follows back to the start of the block (the instance, a 64-bit argument, a 32-bit one), grouped by callee;
+  - the task group's index: its name, as ASCII or UTF-16, in a table of pointers to names, cut where the code addresses
+    the table, or beside a small constant where the code loads it;
+  - each AOB static's class vtable, for R1's search, and, given R1's slot (`Options::static_slots`), a pattern at a
+    reference to it;
+  - every pattern cut by `cut.hpp`'s rules: whole instructions, at entry + 5 or later inside a function of the exception
+    directory that is no fragment, at most 64 bytes, the RIP-relative and other 32-bit displacements, the branches whose
+    targets lie outside the pattern, the relocated bytes and the immediates that do not fit in a signed byte
+    wildcarded; unique in `.text`, preferring 20 bytes with 12 fixed and the smaller function; then checked again by
+    `scan_patterns` as patterns.toml would hold it;
+  - and the list of what R1 must confirm. `complete(result)` says whether everything R0 can derive was derived.
+- **`report.hpp`: the numbers-only writer and its lint.** A report is one JSON object whose keys all come from its
+  kind's closed vocabulary, each with one type of value: whole numbers, booleans, fixed words, labels (`[a-z][a-z0-9_]*`),
+  patterns of at most 64 bytes in canonical form, objects and arrays. The `Writer` refuses anything else, and its first
+  refusal leaves no text; `lint(text, vocabularies)` checks a file token by token (a repeated key cannot hide a
+  string), with problems that say where, never what. `derive::write_report` writes derive.json through it, under
+  `derive::vocabulary()`.
+
+```cpp
+#include "en/gal/derive.hpp"
+
+const auto leads = en::gal::derive::parse_leads(leads_text);              // Expected<Leads, SchemaErrors>
+const en::gal::SpanSource source(exe_bytes);
+const auto image = en::gal::read_image(source, en::gal::ImageLayout::File);
+const auto result = en::gal::derive::derive(*image, source, *leads);
+const auto json = en::gal::derive::write_report(result);                  // Expected<std::string, report::Problem>
+```
+
 ## The guarded copy (clang-cl only)
 
 `GuardedReader`'s copy (ARCH §6.5, DESIGN R4): `seh_copy(address, dst)` copies bytes from an address into storage the
@@ -131,6 +195,23 @@ page (whose guard is gone after), from the null page, the kernel's half, a no-ac
 one across the end of a committed region, fails cleanly with the destination zeroed, and the program goes on; 2,000
 rounds of faults and good copies, and four threads faulting at once, leave nothing behind.
 
+The derivation kit's tests run in every build too. The decoder's (`test_x86.cpp`) take encodings worked out by hand,
+every shorter run of each refused as truncated; `tests/x86_objdump.py`, in the Linux builds, compares it with
+llvm-objdump over every instruction of the build's own `eldennet-engine` and `en_gal_tests` (any disagreement is a
+finding) and over 20,000 seeded random byte strings (three kinds no compiler emits counted apart: a stray REX, APX, and
+opcodes a map leaves undefined). The rest (`test_derive.cpp`, `test_report.cpp`) run on an invented program that
+`tests/fake_program.hpp` writes like an assembler (`tests/sample_program.hpp`: FD4-style accessors of a shape of their
+own, class objects that name them at +0x10, RTTI with a second base and a same-named class elsewhere, task classes, a
+registration with its own argument order, a table of UTF-16 group names, statics read by small functions, and decoys):
+the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
+labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
+the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
+than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
+`fakegame --describe` says.
+
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page
-and small chunks), `en_fuzz_pattern` (the grammar, and the matcher against a plain search) and `en_fuzz_galtoml` (the
-three schemas) are in `fuzz/`.
+and small chunks), `en_fuzz_pattern` (the grammar, and the matcher against a plain search), `en_fuzz_galtoml` (the
+three schemas), `en_fuzz_x86` (the decoder at every offset: its parts within the instruction and in order, nothing after
+it changing it, every shorter run truncated), `en_fuzz_report` (the lint on any text, and the writer driven by the
+input: what it writes always lints clean and holds no string offered that is not a word or a label) and
+`en_fuzz_derive` (the derivation over any executable: its report always passes the lint) are in `fuzz/`.

@@ -874,17 +874,24 @@ void derive_statics(Context& cx, const std::map<std::uint32_t, std::vector<code:
       continue;
     }
     s.references = it->second.size();
-    std::optional<cut::Cut> best;
-    const RuntimeFunction* best_fn = nullptr;
-    std::size_t tried = 0;
+    // The references inside functions of the exception directory that are no fragments, at entry + 5 or later; the
+    // 16 in the smallest functions are cut (each cut is one pass over .text).
+    std::vector<std::pair<const code::Decoded*, const RuntimeFunction*>> usable;
     for (const code::Decoded& ref : it->second) {
-      if (tried >= 64) break;
       const RuntimeFunction* fn = cx.image.function_at(ref.rva);
       if (fn == nullptr || ref.rva < fn->begin + 5 ||
           is_fragment(cx.image, cx.source, *fn) != std::optional<bool>(false)) {
         continue;
       }
-      ++tried;
+      usable.emplace_back(&ref, fn);
+    }
+    std::stable_sort(usable.begin(), usable.end(),
+                     [](const auto& a, const auto& b) { return a.second->length() < b.second->length(); });
+    if (usable.size() > 16) usable.resize(16);
+    std::optional<cut::Cut> best;
+    const RuntimeFunction* best_fn = nullptr;
+    for (const auto& [ref_ptr, fn] : usable) {
+      const code::Decoded& ref = *ref_ptr;
       std::optional<cut::Cut> c = cut::cut(cx.img, *cx.text, cx.fixups, cut::Request{fn->begin, fn->end, 5, ref.rva});
       if (!c || !c->capture) continue;
       // Of the references' patterns: one with a margin (20 bytes, 12 fixed) first, then the one in the smaller

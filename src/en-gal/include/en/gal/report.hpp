@@ -90,6 +90,7 @@ class Writer {
     const Key* key = nullptr;  // an array's key
     std::size_t items = 0;
     std::string path;
+    std::vector<const Key*> keys;  // an object's keys so far: each may be given once
   };
   bool value_start(std::string_view key, Type type, const Key** found);
   void refuse(std::string where, std::string problem);
