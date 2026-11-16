@@ -5,7 +5,8 @@
 // It reads the executable file and nothing else: never a running process, never the game's memory (O73 to O75). What it
 // finds is written through the numbers-only writer (en-gal's report.hpp), checked again by the lint before it is
 // written, and holds only numbers, fixed words, the leads' labels and patterns of at most 64 bytes: no path, no name or
-// text read from the file, no code beyond those patterns. Its messages never show a path or a value read from a file.
+// text read from the file, no code beyond those patterns. Its messages never show a path or anything read from the
+// executable (a leads file's problem names the key where it lies).
 //
 // Exit codes (for DataPiler's job, roadmap S7.11.h):
 //   0  derive.json written; everything the round derives offline was derived

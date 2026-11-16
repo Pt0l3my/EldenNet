@@ -39,8 +39,8 @@ patterns is in it.
 | 5 | The report was refused by its own writer or by the lint: a defect of ours, to report | not written |
 | 6 | derive.json cannot be written | not written |
 
-Messages go to standard error, one line each, starting `probe-exe: `; none shows a path or a value read from a file
-(a malformed image's message gives the problem and an offset). On success one summary line goes to standard output:
+Messages go to standard error, one line each, starting `probe-exe: `; none shows a path or anything read from the
+executable (a malformed image's message gives the problem and an offset; a leads file's, the key where it lies). On success one summary line goes to standard output:
 `probe-exe: derive.json written (complete|incomplete): fd4 <status>, <n> of <m> singletons; registration <status>;
 task <status>; group <status>`. It holds the file and a copy of its sections in memory (about twice the file's size),
 and decodes `.text` a few times over: here about 3.5 million instructions a second, a third of a second for 3.5 MB of

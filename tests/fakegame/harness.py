@@ -800,9 +800,12 @@ def probe_exe(args, c, env):
             text = "".join(l for l in f if not re.match(r"^(duplicata|strayling|rockbound) ", l))
         with open(clean, "w") as f:
             f.write(text)
-        role = {"global_hinstance": "hinstance", "GameDataMan": "save_ledger", "GameMan": "run_warden",
-                "FieldArea": "field_plot"}
-        slots = {role[a["role"]]: a for a in truth["aob"] if a["role"] in role}
+        # --describe lists the four AOB statics in this order (describe.cpp's items); the leads' labels follow it.
+        statics = [a for a in truth["aob"] if a["kind"] == "static"]
+        labels = ["hinstance", "save_ledger", "run_warden", "field_plot"]
+        if len(statics) != len(labels):
+            raise ValueError("--describe lists %d AOB statics, not 4" % len(statics))
+        slots = dict(zip(labels, statics))
         argv = base + ["--leads", as_win(clean)]
         for label, a in sorted(slots.items()):
             argv += ["--static", "%s=0x%X" % (label, a["target_rva"])]

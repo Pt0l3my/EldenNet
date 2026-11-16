@@ -10,8 +10,9 @@ Nothing in it knows the game. It reads any PE32+ image for x64; the patterns, th
 read groups need come from `gal/`'s files and from the caller, and the real values arrive only through the derivation
 round (O89): no byte pattern, offset, address or class name of the game is in the code or the tests, whose images,
 patterns and layouts are invented. It keeps ARCH §2.4's rules for en-gal: nothing throws or aborts (toml++ is built
-here with `TOML_EXCEPTIONS=0`, so a parse answers its error; it keeps either setting in an ABI namespace of its own,
-so en-llm's toml++ with exceptions links beside it), indexing only after a bound check, checked arithmetic on every
+with `TOML_EXCEPTIONS=0`, so a parse answers its error; in every module alike, since its reader interface has a
+virtual function only without exceptions, so two settings in one program are two vtables of one name, which the linker
+merges: eldennet-engine, linking en-gal and en-llm, crashed in GCC's build), indexing only after a bound check, checked arithmetic on every
 value read from an image, no lock, and no raw address, `reinterpret_cast` or pointer arithmetic outside `reader` (and,
 to come, `sys`).
 

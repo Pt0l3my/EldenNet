@@ -30,9 +30,8 @@ add_library(en_gal STATIC ${EN_GAL_SOURCES})
 en_dll_module(en_gal)
 target_include_directories(en_gal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_gal PUBLIC en_proto PRIVATE en_third_party)
-# toml++ without exceptions, here only: en-gal may not throw (ARCH §2.4), so a parse answers its error instead. toml++
-# keeps either setting in an ABI namespace of its own, so en-llm, which builds it with exceptions, links beside it.
-target_compile_definitions(en_gal PRIVATE TOML_EXCEPTIONS=0)
+# toml++ is built without exceptions (en_third_party, CMakeLists.txt): en-gal may not throw (ARCH §2.4), so a parse
+# answers its error instead.
 
 if(EN_BUILD_TESTS)
   set(EN_GAL_TESTS
