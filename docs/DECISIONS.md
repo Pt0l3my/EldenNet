@@ -1520,3 +1520,92 @@ actions, vision, etc.)"; then, asked which cloud provider the default should shi
 (Recommended)".
 
 **Follows from.** O84; ARCH §11.1 and §11.4; DESIGN §11.5; WHY§108. Folded by roadmap S8.1.n.
+
+## O89
+
+**The derivation round: how the game-access layer's facts are found for the owner's build** · *2026-11-16 ·
+Decided by the owner, with DataPiler taking part*
+
+**Question.** The game-access layer needs facts about the owner's build of the game: five code patterns, the FD4
+singleton idiom, the name layout, `register_task` and how it is called, the task's group and object shape, and two
+singletons still to confirm. ARCH §6.2 says they come "from our own derivation in S0-A", and the design fixes the
+rules (leads say what to look for, never the bytes; every pattern has a derivation note in our own words; `lead`
+layouts run in development builds only: ARCH §6.3, DESIGN §4.2, O27, O48). It does not say how the derivation is done,
+by whom, or how its results reach the repository. No agent ever sees the game, so it runs on the owner's PC (the plan
+for roadmap S10.1.a, 2026-11-16). What leaves the PC is numbers, offsets and short patterns with their addresses
+wildcarded: never a code dump, text, a param or a path (O75).
+**Options:** (a) **two reviewed rounds with our own tools**: R0, offline, the engine's `probe-exe --derive` on the
+game's executable with the game closed (about 5 minutes), returning the fingerprint, offsets, counts and candidate
+patterns of at most 64 bytes; then R1, one probe session built from R0's reviewed drafts, which registers EldenNet's
+task once at the title screen with no save loaded and confirms the rest (about 30 minutes). An agent reviews each
+returned file and writes the derivation notes before anything is relied on, and nothing is confirmed until S0-A and
+the self-tests pass; (b) one session that derives and registers at once: faster, but the first call into the game
+rests on a derivation nobody has reviewed; (c) the owner derives by hand with a disassembler: hours of specialist work,
+again at every patch.
+
+**Recommendation.** (a): a review comes before EldenNet's one call into the game, it costs the owner about 45 minutes,
+and the same tools serve every patch (ARCH §6.10). *What it gives up:* two round trips instead of one.
+
+**Decision.** (a), with DataPiler taking part, as the owner asked: two reviewed rounds on the owner's PC.
+(1) R0, offline, with the game closed: a DataPiler job runs EldenNet's devkit tool (`probe-exe --derive`) on the
+game's executable, checks that the result holds only numbers, offsets and wildcarded patterns of at most 64 bytes (no
+code dump, text, param or path), and packs it for the owner to send (DataPiler DP36). DataPiler reads only the file,
+never the game's memory (O73). (2) R1, in game: one probe session from EldenNet's launcher, built from R0's reviewed
+drafts, registering EldenNet's task once at the title screen with no save loaded; only EldenNet reads the game's memory
+(O73). (3) An agent reviews each returned file and writes its derivation notes (ARCH §6.3) before anything is relied
+on, and nothing is `confirmed` until S0-A and the self-tests pass. (4) Then DataPiler imports R1's numbers and compares
+the param and text ids and counts that EldenNet read in game with what Smithbox reads from the files, numbers only: a
+second, independent source for the self-tests and for S2 (O48: Smithbox's labels are never facts, only numbers from
+the owner's own data).
+
+**Owner's words.** First: "can this be done by datapiler? or could it be part of it? perhaps we could add this and
+then also a feature to analyse presence of data in smithbox as well to compare."; then, asked to confirm R0 as a
+DataPiler job, R1 from EldenNet's launcher and the comparison with Smithbox: "Yes, DataPiler + Smithbox check
+(Recommended)".
+
+**Follows from.** ARCH §6.2, §6.3 and §6.10; DESIGN §4.2 and §16.1 (S0-A); O27, O48, O73 to O75, O84. Roadmap
+S10.1.f, S7.11.h and i.
+
+## O90
+
+**Spikes before GraceUI's host** · *2026-11-16 · Decided by the owner, as recommended*
+
+**Question.** Roadmap S10.1.c runs S1 (perception), S2 (text), S6's core flags and S7 (combat) on GraceUI's 0.1 Host,
+but only S0-E needs GraceUI's hooks. S6 and S7 need a Mark, the owner's key press when something happens in game, so
+that the recording can be checked against it; the design puts the Mark on F11, which draws through GraceUI.
+**Options:** (a) wait for GraceUI's host; (b) run S1 and S2 without GraceUI once S0 passes, and S6 and S7 when
+GraceUI's Mark exists; (c) as (b), plus a development Mark in the launcher: a system hotkey (Pause) registered outside
+the game, with no hook, stamped on the recording's clock, and retired when GraceUI's Mark arrives.
+
+**Recommendation.** (c): GraceUI's host leaves the spikes' critical path. *What it gives up:* a temporary hotkey path
+in the development launcher until GraceUI's Mark replaces it.
+
+**Decision.** (c): S1 and S2 run without GraceUI once S0 passes; S6 and S7 use a development Mark in the launcher, a
+system hotkey (Pause) registered outside the game with no hook, stamped on the recording's clock, and retired when
+GraceUI's Mark arrives. S0-E's present-hook half stays on GraceUI's 0.1 Host (roadmap S10.1.c and g).
+
+**Owner's words.** "No, add a launcher Mark (Recommended)".
+
+**Follows from.** DESIGN §14 and §16.1; roadmap S10.1.c and S10.4; GraceUI's G15.
+
+## O91
+
+**When S0's third-party rows run** · *2026-11-16 · Decided by the owner, as recommended*
+
+**Question.** DESIGN §16.1's S0 spikes include runs beside other software: me3 with `disable_arxan` (in the owner's own
+profile; O47), Seamless Co-op with a partner, Reforged, a crash reporter that installs a vectored handler, and Proton.
+They need the owner's own copies, a second player and about 60 launches by hand.
+**Options:** (a) run them all now; (b) run now what EldenNet's build drives by itself (early and late load, and our
+own stand-in DLL with a vectored handler), and each third-party row as the owner can; a row not run moves to v0.1's
+compatibility rows (roadmap S10.3.b), which still block v0.1; (c) leave them to v0.6.
+
+**Recommendation.** (b): the first runs need no third-party install, and nothing is skipped: Seamless Co-op with a
+partner stays required before v0.1. *What it gives up:* the first S0 results come without the third-party rows.
+
+**Decision.** (b): the first S0 runs cover what EldenNet's build drives by itself (early and late load, and our own
+stand-in DLL with a vectored handler), and each third-party row runs as the owner can. A row not run moves to v0.1's
+compatibility rows (roadmap S10.3.b), which still block v0.1, Seamless Co-op with a partner among them.
+
+**Owner's words.** "As you can (Recommended)".
+
+**Follows from.** DESIGN §16.1 (S0-A, S0-C, S0-D) and §16.3; roadmap S10.3.b; O47.

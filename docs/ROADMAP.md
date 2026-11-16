@@ -654,11 +654,19 @@ replay harness.
   - needs: d
   - refs: O74
 - f DataPiler imports EldenNet's play recordings [planned]
-  - needs: e, S10.1.a
+  - needs: S10.1.a
   - refs: O73
+  - gives: recordings are numbers-only JSON Lines, so the import needs no read through the devkit (e) (the plan for
+    S10.1.a, 2026-11-16).
 - g DataPiler's replay harness: recordings replayed through EldenNet's engine outside the game, with the owner's model services [planned]
   - needs: f, S8
   - refs: O74
+- h DataPiler runs the derivation's offline round with EldenNet's devkit tool on the game's executable, checks that the result holds only numbers and wildcarded patterns, and packs it to send (DataPiler DP36)
+  - needs: S10.1.a
+  - refs: O89, O73
+- i DataPiler compares the param and text ids and counts that EldenNet read in game with Smithbox's reading of the files, numbers only (DataPiler DP36)
+  - needs: h, S10.1.f
+  - refs: O89, O48
 
 ### S7.12 EldenNet off game (proposal 0002)
 
@@ -817,7 +825,8 @@ a batch's captures share a stretch of play.
 The game-access layer, the event engine and the gates are our own and stay as designed (DESIGN §7.8),
 but the code starts on our own engine (O84), so v0.1 follows S8. No LLM yet.
 Since G15, GraceUI's 0.1 Host ships with v0.1 (S10.4): EldenNet's banner and its F11 debug view, which
-v0.1's testing uses, draw through it.
+v0.1's testing uses, draw through it. Since O90 the spikes S1, S2, S6 and S7 run without it (S6 and S7 with a
+development Mark in the launcher), and only S0-E's present-hook half waits on it (S10.1.g).
 
 ### S10.1 The spikes for v0.1, in game
 
@@ -825,14 +834,24 @@ v0.1's testing uses, draw through it.
 - S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73)
   - refs: O73
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
-  - needs: a
-- c Spikes S1 perception, S2 text, S6's core flags, S7 combat, and S0-E's present-hook half, on GraceUI's 0.1 Host [waiting]
-  - needs: a
+  - needs: a, f
+- c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
+  - needs: b
+  - refs: O90
+  - gives: until O90 (2026-11-16) this part ran on GraceUI's 0.1 Host, with S0-E's present-hook half, now g.
 - d Spike S8 and S3's additions, on v0.1's recordings
   - needs: c
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on
+  - needs: a
+  - refs: O89, ARCH§6.2, ARCH§6.10
+- g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
+  - needs: a, S10.4.a
+  - refs: O90, G15
+- h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1)
+  - refs: O89, O90, O91
 
 ### S10.2 EldenNet v0.1
 
@@ -850,8 +869,8 @@ v0.1's testing uses, draw through it.
 - needs: S10.1, S10.2, S10.4
 - S10.3.a Golden events over three routes; no crash in 10 hours and 20 forced fail-closed launches; the unknown-build banner; the task's cost; dormancy in multiplayer
   - refs: DESIGN§16.3, DESIGN§1.3
-- b The read-group self-tests, the matrix's v0.1 rows, and the patch drill if the JP build's layout is ready
-  - refs: ARCH§12.4
+- b The read-group self-tests, the matrix's v0.1 rows (with S0's third-party rows not yet run), and the patch drill if the JP build's layout is ready
+  - refs: ARCH§12.4, O91
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
 - d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
   - refs: G15, GraceUI:DESIGN§10
