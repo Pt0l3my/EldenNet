@@ -250,7 +250,7 @@ beside them. Version 1 stays dialogue-only and read-only towards the game.
 The two prerequisites the owner set for the engine work and the roster (DESIGN §7.8), and the
 research into the game's data that goes ahead before them (O54).
 
-### S6.1 Min's engine blueprint [waiting]
+### S6.1 Min's engine blueprint [done]
 
 - S6.1.a The owner supplies Min's engine blueprint [done]
   - refs: O53, DESIGN§7.8
@@ -265,13 +265,16 @@ research into the game's data that goes ahead before them (O54).
   - refs: O84, O80, O81, O82, O83
   - gives: decided 2026-11-15 (O84): our own engine, MIT, in C++, on open libraries, following SkyrimNet's logic and structure, not its prompts, with no telemetry; O80 to O83 withdrawn, and Min's DLL neither used nor shipped.
 
-### S6.2 The bio's structure [waiting]
+### S6.2 The bio's structure
 
-- S6.2.a The owner decides O46: the bio's fields, and which NPCs v1.0 covers [waiting]
+- S6.2.a The owner decides O46: the bio's fields, and which NPCs v1.0 covers [done]
   - refs: O46, O85, DESIGN§7.8, WHY§96
-  - gives: recommended since 2026-11-15 (proposal 0004, after the owner's direction, revised after SkyrimNet 1.2.0):
-    five layers (first meeting, revealed by verified stages, companion, lived per journey, the Tarnished's own), the
-    base game's roster in v1.0 and the expansion's in v1.1; a follower system put as O85.
+  - gives: decided 2026-11-16, as recommended (proposal 0004): five layers (first meeting, revealed by verified stages,
+    companion, lived per journey, the Tarnished's own), the base game's roster in v1.0 and the expansion's in v1.1;
+    followers after v1.0 (O85).
+- b Fold O46's five layers into DESIGN §7.8, NPC §3.1, MEM (the lived layer's update job) and the roster pipeline, with GraceUI's roster entries (D67) [planned]
+  - needs: a
+  - refs: O46, O85, O86, G5
 
 ### S6.3 An early census
 
@@ -987,4 +990,6 @@ v0.1's testing uses, draw through it.
   - refs: O68, O69, O70, docs/proposals/0001-plugins.md
 - f A sandbox for plugin hosts, as an option, after a spike on Windows and under Proton [idea]
   - refs: O72
+- g Followers: characters who travel with the Tarnished, on the companion layer every bio carries, once actions open [idea]
+  - refs: O85, O46
   - refs: DESIGN§16.1

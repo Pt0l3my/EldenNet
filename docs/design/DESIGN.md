@@ -1993,7 +1993,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 ## 19. Decisions for the project owner
 
 **Status: O1–O29 and O47–O51 decided by the owner on 2026-11-06, O30–O45 and O53 on 2026-11-07 (O52 the same day,
-since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the same day; O46 (proposal 0004) and O85 are Open.** Every decision is recorded in full in
+since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09, O58, O64, O65–O72 (proposal 0001, plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the same day; O46 (proposal 0004) and O85 on 2026-11-16. None is Open.** Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
 here and an entry there. O47–O53 were not questions of §19: they were first recorded in CLAUDE.md, and are indexed
@@ -2048,7 +2048,7 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O43](../DECISIONS.md#o43) | Character profiles, and voices for bosses, invaders and named NPCs | (a) the profile system in v1; updated: our own bio for every named NPC and named boss in v1.0 | Decided 2026-11-07; updated the same day |
 | [O44](../DECISIONS.md#o44) | May generic NPCs speak calm lines before a sleep signal is verified? | (a) no: they wait for S8 | Decided 2026-11-07 |
 | [O45](../DECISIONS.md#o45) | Which NPCs converse and keep memories in v1.0? | (b) every NPC with a profile, matched by ID | Decided 2026-11-07 |
-| [O46](../DECISIONS.md#o46) | The character bio's structure and the v1.0 roster | Recommended: (a) one bio for every named NPC; the base game in v1.0, the DLC in v1.1 | **Open** |
+| [O46](../DECISIONS.md#o46) | The character bio's structure and the v1.0 roster | (a) one bio for every named NPC, in five layers (first meeting, revealed, companion, lived, the Tarnished's own; proposal 0004); the base game in v1.0, the DLC in v1.1 | Decided 2026-11-16 |
 | [O47](../DECISIONS.md#o47) | me3 | Nothing from me3; merely compatible | Decided 2026-11-06 (CLAUDE.md) |
 | [O48](../DECISIONS.md#o48) | fromsoftware-rs | Not used; our own game-access layer | Decided 2026-11-06 (CLAUDE.md) |
 | [O49](../DECISIONS.md#o49) | Events | Our own event engine (Augur, §6) | Decided 2026-11-06 (CLAUDE.md) |
@@ -2087,5 +2087,5 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O82](../DECISIONS.md#o82) | Min's online service, fateless.ai? | — | Withdrawn 2026-11-15 (O84) |
 | [O83](../DECISIONS.md#o83) | How do API keys reach the engine? | — | Withdrawn 2026-11-15 (O84) |
 | [O84](../DECISIONS.md#o84) | EldenNet's own engine, or Min's DLL? | (a) our own engine: MIT, C++, open libraries, SkyrimNet's logic and structure, not its prompts; no telemetry | Decided 2026-11-15 |
-| [O85](../DECISIONS.md#o85) | A follower system? | (a) recommended: later, after v1.0, on the companion layer every bio carries | Open |
+| [O85](../DECISIONS.md#o85) | A follower system? | (a) later, after v1.0, on the companion layer every bio carries | Decided 2026-11-16 |
 | [O86](../DECISIONS.md#o86) | How strict is spoiler prevention? | (a) grounding only: the playthrough state is the one mechanism; the guards dropped; test questions check the model's own knowledge | Decided 2026-11-15 |

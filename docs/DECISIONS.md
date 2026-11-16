@@ -60,7 +60,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   by the owner; O80–O83 withdrawn. O85 (a follower system) put with proposal 0004, with O46's revised recommendation.
 - **2026-11-15.** O86 (spoilers by positive grounding alone, the playthrough state telling each NPC what it knows),
   put and decided the same day, as recommended; O36's guards dropped.
-- **Open.** O46 (the bio's structure and the v1.0 roster; proposal 0004); O85 (a follower system).
+- **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
+- **Open.** None.
 
 ## O1
 
@@ -537,7 +538,7 @@ deterministic guards, tells, the output lock and the fallback ladder are dropped
 
 ## O46
 
-**The character bio's structure and the v1.0 roster** · *Open since 2026-11-07*
+**The character bio's structure and the v1.0 roster** · *Open since 2026-11-07 · Decided by the owner 2026-11-16, as revised and recommended*
 
 **Question.** What is the structure of the character bio that every named NPC's profile uses, and which NPCs does the v1.0 roster cover? **Options:** (a) **One bio for every named NPC**: the fields in the recommendation, shared by the six personas (their files need no change, since the bio takes the persona schema's names where it has the field) and by every other named NPC and named boss, with a persona's stage track as an optional part that only an NPC with an S6-verified flag block has; (b) two schemas: NPC §4.5's character profile grown with conversation fields, and personas unchanged; (c) a minimal bio (who, manner, cadence and a first-meeting line), with conversation built from it alone.
 
@@ -550,6 +551,19 @@ parts made spoiler-safe, answered: "We can take ideas from it, but we should thi
 possibly a follower system where these blocks matter more (e.g. skills may not be important until they actually join
 the player)." A revised recommendation, five layers (first meeting, revealed, companion, lived, the Tarnished's own),
 is in [proposal 0004](proposals/0004-character-bio.md); the follower system is put as O85.
+
+**Decision.** (a) as revised in [proposal 0004](proposals/0004-character-bio.md), with its §8: one bio for every named NPC,
+in five layers. *First meeting* (every NPC that speaks): what anyone sees (`summary`, `appearance`, `role`), its own
+self (`personality`, `honesty`, `claims` with the cover story and its deflections, `seeks`, the `ties` it names at a
+first meeting), its voice (NPC §3.1's voice fields), what makes it speak (`subjects`, `stirs`) and what it knows at
+every state. *Revealed*: later truths behind story stages verified in game, as `knows_when` entries or a persona's
+stage track, never written before they happen. *Companion*: `skills` and `beside`, for when it fights beside or travels
+with the Tarnished, used in v1.0 by the game's own summons. *Lived*: what has passed between it and the Tarnished and
+other NPCs, per journey, changed only as its memories justify. *The Tarnished's own*: an optional bio the player
+writes, seen parts only. A speaking NPC's first-meeting layer is about 450 to 550 words of prose; spoilers are kept by
+grounding alone (O86). The roster: the base game's in v1.0 and the expansion's in v1.1, as before.
+
+**Owner's words.** "O46 and O85 as recommended".
 
 ## O47
 
@@ -1380,7 +1394,7 @@ logic and structure that is proven to work." and "Our own engine (Recommended)".
 
 ## O85
 
-**A follower system?** · *2026-11-15 · Open*
+**A follower system?** · *2026-11-15 · Decided by the owner 2026-11-16, as recommended*
 
 **Question.** The owner suggested a follower system, where parts of a bio such as skills matter once an NPC joins the
 Tarnished (O46's Later note). v1 is dialogue only, and Elden Ring's own summons already fight beside the Tarnished.
@@ -1395,6 +1409,11 @@ for it from v1.0.
 brought into a v1 release. (c): the companion layer serves summons only.
 
 **Follows from.** O42, O46; [proposal 0004](proposals/0004-character-bio.md) §3.3.
+
+**Decision.** (a). Followers, characters who travel with the Tarnished, come after v1.0, when actions open; every bio
+carries the companion layer from v1.0, first used by the game's own summons, so followers need no change to it.
+
+**Owner's words.** "O46 and O85 as recommended".
 
 ## O86
 

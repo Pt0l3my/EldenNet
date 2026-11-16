@@ -1,6 +1,6 @@
 # Proposal 0004: The character bio, fitted to Elden Ring
 
-**Status: proposal, 2026-11-15 (roadmap S6.2), revised the same day after reading SkyrimNet 1.2.0 (§8; WHY§97, WHY§98). O46 and O85 open.** Where this text and the designs differ, the designs
+**Status: proposal, 2026-11-15 (roadmap S6.2), revised the same day after reading SkyrimNet 1.2.0 (§8; WHY§97, WHY§98) and for O86. O46 and O85 decided by the owner on 2026-11-16, as recommended.** Where this text and the designs differ, the designs
 hold. A bare §n is a section of this proposal; DESIGN, NPC and MEM are EldenNet's design documents. Evidence:
 SkyrimNet's bio format (SN03 §5 and §6, confirmed on 2026-11-15 by two of SkyrimNet's own bio files the owner shared,
 kept outside the repositories; WHY§96), the persona schema (NPC §3.1) and O46's draft (DESIGN §7.8).
