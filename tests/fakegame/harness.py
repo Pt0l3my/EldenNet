@@ -814,6 +814,7 @@ def en_log_is_clean(result):
     need(":\\" not in text and "/" not in text and "\\" not in text, "the DLL's log holds a path", failures)
     need(os.environ.get("USER", "\0") not in text, "the DLL's log holds the user's name", failures)
     need("redacted" not in text, "the DLL's log redacted something it was given", failures)
+    need("Wanderer" not in text, "the DLL's log holds the character's name", failures)
     return failures
 
 
@@ -844,7 +845,9 @@ def check_recordings(min_snaps):
             need(ts == sorted(ts), "the snapshots' times go back", failures)
             with open(path, encoding="utf-8") as f:
                 text = f.read()
-            need("Tess" not in text and "Wayfarer" not in text, "the character's name was recorded", failures)
+            need("Wanderer" not in text and "Test W" not in text, "the character's name was recorded", failures)
+            need(not any(w in text for w in ("Ash Warden", "Quiet Vale", "Lantern")), "game text was recorded",
+                 failures)
         return failures
     return check
 
@@ -947,6 +950,16 @@ case("launcher-eldennet-crash", LGAME + ["--dll", "{eldennetdll}"] + game("--cra
                        crash_records(r)[0]["status"]["init"] != "ready" else [])),
      what="the game crashes on its game thread: eldennet.dll's own filter writes the record into the block and waits "
           "for the watcher, which keeps a scrubbed record")
+case("launcher-eldennet-overflow", LGAME + ["--dll", "{eldennetdll}"] +
+     game("--crash", "stack-overflow", "--crash-at", "400", frames=720),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(),
+     check=lambda r: (want(r, "LAUNCHER", "end", kind="crash", exit_code="0xC00000FD", crash_filter=1, at_crash=1) +
+                      want(r, "LAUNCHER", "crash", code="0xC00000FD", thread="game") +
+                      want(r, "LAUNCHER", "record", kept=1, kind="crash") +
+                      [f for rec in crash_records(r) for f in record_is_clean(rec)]),
+     what="a stack overflow on the game thread: the DLL's filter, in the little stack left, still writes the record "
+          "(no module look-up) and waits for the watcher")
 case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{eldennetdll}", "--crash", "av-read",
                                            "--crash-at", "400"],
      needs=EN_NEEDS, toolchains=("clang-cl",), exit=AV, settle=True, timeout=180, env=EN_ENV,

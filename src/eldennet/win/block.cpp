@@ -5,7 +5,8 @@
 // path), since an early filter is replaced by the game's own C runtime as it starts (WHY§172); chained to the filter
 // before it; guarded (one record per process, a second fault inside it passes straight on); allocation-free and within
 // a few KB of stack (after a stack overflow the C runtime cannot even format: nothing of it is called, and the module
-// look-up is skipped); it writes the record into the block, wakes the watcher and waits for it at most 2 s.
+// look-up is skipped); it writes the record into the block, wakes the watcher and waits for it at most 2 s. A stack
+// overflow alone is not passed on: the process ends in the filter with its code (WHY§186).
 #include <array>
 
 #include "dll.hpp"
@@ -66,6 +67,12 @@ LONG WINAPI crash_filter(EXCEPTION_POINTERS* ep) noexcept {
           SetEvent(g_crash_event);
           if (g_ack_event != nullptr) WaitForSingleObject(g_ack_event, w::kCrashWaitMs);
         }
+      }
+      // A stack overflow leaves no stack for whatever would handle it after us: the process ends here with its code,
+      // as it would end anyway (WHY§186: under Wine, passing it on hung the process for good).
+      if (ep != nullptr && ep->ExceptionRecord != nullptr &&
+          ep->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW) {
+        TerminateProcess(GetCurrentProcess(), EXCEPTION_STACK_OVERFLOW);
       }
     }
     return g_previous != nullptr ? g_previous(ep) : LONG{EXCEPTION_CONTINUE_SEARCH};

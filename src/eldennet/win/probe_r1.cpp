@@ -87,7 +87,7 @@ class R1Body final : public en::gal::TaskBody {
         break;
       }
     }
-    if (rising_) (void)rising_->step(gt, reader_, 32, frame.qpc_now_us);
+    if (rising_) (void)rising_->step(gt, reader_, 48, frame.qpc_now_us);
     if (n % 64 == 1 && !object_.empty()) {
       const std::uint64_t at = s_.sys->task_object();
       if (at != 0 && reader_.copy_into(gt, en::proto::Group::Status, at + 8, object_, 8)) {
@@ -387,7 +387,9 @@ class Round {
     }
     auto census = std::make_unique<probe::Census>(std::move(vts), hub_static_, base_, image_->size_of_image,
                                                   std::move(data));
-    auto rising = std::make_unique<probe::RisingSearch>(probe::heap_slots(*s_.sys, *image_));
+    // Every heap static of the image (up to 65,536: 16 MB of copies kept on T1's heap), so that the play time's static
+    // is not cut off by the cap.
+    auto rising = std::make_unique<probe::RisingSearch>(probe::heap_slots(*s_.sys, *image_), 0x100, 1u << 16);
     std::vector<std::unique_ptr<probe::SlotSearch>> statics;
     for (std::size_t i = 0; i < leads_.statics.size() && i < result_.statics.size(); ++i) {
       const derive::StaticResult& sr = result_.statics[i];
