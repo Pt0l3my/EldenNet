@@ -1,0 +1,168 @@
+#pragma once
+// The watch block: the one page of shared memory between EldenNet in the game and the launcher outside it, the crash
+// watcher (O71) and its development console with the Mark (O90). Plain data, laid out the same by every compiler (the
+// launcher builds with MinGW-w64 and clang-cl, the DLL with clang-cl), with fixed offsets checked below.
+//
+// - Its creator is whoever comes first: the launcher, before it injects, or EldenNet, started by another loader, which
+//   then starts the watcher (`eldennet-launcher --watch <pid>`). Both name it by the game's process id
+//   (`Local\EldenNet.Watch.<pid>`); the creator constructs it and writes the header, the magic last.
+// - EldenNet writes its status (the dev console shows it; a spike's run reads its outcome there) and, once, from its
+//   crash filter, the crash record: allocation-free, then it signals `Local\EldenNet.Crash.<pid>` and waits at most
+//   2 s for the watcher's `Local\EldenNet.CrashAck.<pid>`, while the watcher lists the game's modules.
+// - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D) and the
+//   Marks: each press of the hotkey, stamped in mono milliseconds (QPC, the recording's clock), which EldenNet's
+//   recorder writes into the recording.
+// Numbers only, and one file name with no folder: nothing personal, no path, no text from the game.
+#include <array>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <type_traits>
+
+namespace en::proto::watch {
+
+inline constexpr std::uint32_t kMagic = 0x42574E45u;  // "ENWB"
+inline constexpr std::uint32_t kVersion = 1;
+inline constexpr std::size_t kBlockSize = 4096;      // one page: what the creator maps
+inline constexpr std::size_t kModuleNameBytes = 64;  // a module's file name, ASCII, NUL-padded
+inline constexpr std::size_t kMarkRing = 32;         // the newest marks the block keeps
+inline constexpr std::uint32_t kCrashWaitMs = 2000;  // the crash filter waits at most this long for the watcher
+
+// The objects' names, each followed by the game's process id in decimal.
+inline constexpr std::wstring_view kBlockPrefix = L"Local\\EldenNet.Watch.";
+inline constexpr std::wstring_view kCrashEventPrefix = L"Local\\EldenNet.Crash.";
+inline constexpr std::wstring_view kAckEventPrefix = L"Local\\EldenNet.CrashAck.";
+
+// T1's states (ARCH §3.2), as EldenNet reports them; None until it has attached.
+enum class InitState : std::uint32_t {
+  None,
+  Pin,
+  Gate,
+  Safety,
+  Settings,
+  WaitWindow,
+  Connect,
+  ReadyScan,
+  WaitEngine,
+  Discover,
+  Register,
+  FirstTick,
+  Ready,   // DataReady sent: the task ticks and phase A passed
+  Inert,   // the first tick's checks failed, or no tick in 30 s
+  Banner,  // stopped at a banner (the status's `banner` says which)
+  Exit,    // a second copy, or Off
+};
+inline constexpr std::uint32_t kInitStateCount = 16;
+[[nodiscard]] const char* to_string(InitState s) noexcept;  // "none", "pin", ..., "ready", "inert", "banner", "exit"
+// Where T1 stops: a spike's run ends there.
+[[nodiscard]] constexpr bool terminal(InitState s) noexcept {
+  return s == InitState::Ready || s == InitState::Inert || s == InitState::Banner || s == InitState::Exit;
+}
+
+// The S0 spikes (DESIGN §16.1) the launcher runs, told to EldenNet so it can do its part.
+enum class Spike : std::uint32_t { None, S0a, S0b, S0c, S0d, S0dCrash };
+inline constexpr std::uint32_t kSpikeCount = 6;
+[[nodiscard]] const char* to_string(Spike s) noexcept;  // "none", "s0a", "s0b", "s0c", "s0d", "s0d-crash"
+
+enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
+
+// The thread that crashed, as EldenNet knows its threads.
+enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other };
+[[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other"
+
+// Status flags (Status::flags).
+inline constexpr std::uint32_t kFlagGateOpen = 1u << 0;
+inline constexpr std::uint32_t kFlagDormant = 1u << 1;
+inline constexpr std::uint32_t kFlagBadge = 1u << 2;
+inline constexpr std::uint32_t kFlagCore = 1u << 3;  // phase, level and the gate's flags are the core's
+
+struct Header {
+  std::atomic<std::uint32_t> magic;  // kMagic, written last by the creator
+  std::uint32_t version;
+  std::uint32_t size;
+  std::uint32_t game_pid;
+};
+
+// The launcher's requests (development).
+struct Control {
+  std::atomic<std::uint32_t> spike;          // Spike
+  std::atomic<std::uint32_t> crash_request;  // 1: crash now (s0d-crash; honoured by probe builds only)
+  std::atomic<std::uint32_t> watcher_pid;    // the watcher's process id while it watches, else 0
+  std::atomic<std::uint32_t> reserved;
+};
+
+// EldenNet's status, field by field (a reader may see one update half done; each field is whole).
+struct Status {
+  std::atomic<std::uint32_t> init;              // InitState
+  std::atomic<std::uint32_t> phase;             // en-core's Phase + 1; 0 before the core
+  std::atomic<std::uint32_t> level;             // en-core's Level + 1; 0 before the core
+  std::atomic<std::uint32_t> banner;            // en-core's BannerReason + 1; 0 none
+  std::atomic<std::uint32_t> flags;             // kFlag*
+  std::atomic<std::uint32_t> items_resolved;    // discovery's items resolved
+  std::atomic<std::uint32_t> items_total;       // and asked for
+  std::atomic<std::uint32_t> discovery_passes;  // 1 to 4 (the retries at +5, +15, +30 s)
+  std::atomic<std::uint32_t> ready_ms;          // from T1's start to its terminal state
+  std::atomic<std::uint32_t> task_us_p99;       // C13
+  std::atomic<std::uint64_t> snapshots;         // built by the task
+  std::atomic<std::uint64_t> faults;            // guarded reads that faulted, all groups
+  std::atomic<std::uint64_t> tripped;           // the groups tripped, bit per proto::Group
+  std::atomic<std::uint64_t> updated_ms;        // mono ms of the last update
+};
+
+// Written once, by EldenNet's crash filter, with no allocation; published by `state` = Written.
+struct Crash {
+  std::atomic<std::uint32_t> state;           // CrashState
+  std::uint32_t code;                         // the exception's code
+  std::uint32_t thread;                       // ThreadKind
+  std::uint32_t chained;                      // 1: a filter installed before EldenNet's was called after it
+  std::uint64_t offset;                       // the faulting address's offset in its module; 0 outside every module
+  std::uint64_t at_ms;                        // mono ms
+  std::array<char, kModuleNameBytes> module;  // that module's file name, no folder: ASCII, '?' for anything else
+};
+
+// The Marks (O90): mark n (from 1) is at mono_ms[(n - 1) % kMarkRing]; `count` is written after it.
+struct Marks {
+  std::atomic<std::uint32_t> count;
+  std::atomic<std::uint32_t> reserved;
+  std::array<std::atomic<std::uint64_t>, kMarkRing> mono_ms;
+};
+
+struct Block {
+  Header header;
+  Control control;
+  Status status;
+  Crash crash;
+  Marks marks;
+};
+
+static_assert(std::atomic<std::uint32_t>::is_always_lock_free && std::atomic<std::uint64_t>::is_always_lock_free,
+              "the block's atomics must be lock-free: they live in memory two processes share");
+static_assert(sizeof(std::atomic<std::uint64_t>) == 8 && alignof(std::atomic<std::uint64_t>) == 8);
+static_assert(std::is_standard_layout_v<Block>);
+static_assert(offsetof(Block, control) == 16);
+static_assert(offsetof(Block, status) == 32);
+static_assert(offsetof(Block, crash) == 104);
+static_assert(offsetof(Block, marks) == 200);
+static_assert(sizeof(Block) == 464);
+static_assert(sizeof(Block) <= kBlockSize);
+
+// The creator's part, on memory it has just mapped (zero-filled): every field zero, then the header, magic last.
+void initialise(Block& b, std::uint32_t game_pid) noexcept;
+// The magic, version and size agree: what an opener checks before it reads or writes anything else.
+[[nodiscard]] bool valid(const Block& b) noexcept;
+
+// A module's file name (no folder) into the record's fixed field: ASCII letters, digits and `._-+ ` kept, anything
+// else '?', cut at kModuleNameBytes - 1. Allocation-free, for a crash filter.
+void set_module_name(Crash& c, const wchar_t* name, std::size_t length) noexcept;
+[[nodiscard]] std::string_view module_name(const Crash& c) noexcept;
+
+// Mono milliseconds from a performance counter and its frequency, without overflow: the snapshots' clock.
+[[nodiscard]] constexpr std::uint64_t mono_ms(std::uint64_t counter, std::uint64_t frequency) noexcept {
+  return frequency == 0 ? 0 : (counter / frequency) * 1000 + (counter % frequency) * 1000 / frequency;
+}
+
+// Adds a Mark; answers its number (from 1).
+std::uint32_t add_mark(Marks& m, std::uint64_t at_ms) noexcept;
+
+}  // namespace en::proto::watch

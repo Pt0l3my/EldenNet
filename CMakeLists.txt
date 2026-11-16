@@ -66,10 +66,12 @@ endif()
 add_subdirectory(src/en-prompt)
 add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
+add_subdirectory(src/en-core)   # the core's v0.1 slice: the lifecycle, the gate, L1, L2 and Dormant (part 5)
 # en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
 # MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
 add_subdirectory(src/en-gal)
 add_subdirectory(src/en-tools)
+add_subdirectory(src/en-launcher)  # eldennet-launcher and its crash watcher (part 7)
 if(EN_FUZZ)
   add_subdirectory(fuzz)
 endif()

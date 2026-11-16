@@ -14,9 +14,11 @@ offset, enum value and number is invented here, shaped only by what the design d
 |---|---|
 | A visible top-level window, then a non-null `fg_static_hinstance`, then the statics (`--boot-delay-ms`, `--statics-delay-ms`, `--no-window`) | The game's start as T1 meets it: readiness 1 (the window) and 2 (statics non-null; ARCH §1.4, §3.2) |
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
+| The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
 | `fg_register_task`, found by an interior pattern at entry + 7 inside a `.pdata` function, with our own ABI: **rcx the task, rdx the hub instance, r8d the group**; the program's four own call sites load the hub from its static into rdx | `register_task` and its `register_abi` (ARCH §6.2, §6.4). Bad arguments fault in the caller's thread; `--register fault` faults on request, `--register ignore` never runs the task |
 | A task object: a vtable pointer, then 0x18 bytes the hub writes (group, state, hub, a run count), so `object_size` is 0x18; three slots: 0 attach (once, on the game thread), **1 run (`self`, `FrameInfo*`) every frame**, 2 query (every 64th frame) | The task object's shape the derivation must find (`vtable_slots`, `run_slot`, `object_size`) |
 | Seventeen accessors with the FD4 shape (`mov rbx,[rip+static]; test; jnz; lea rcx,[rip+class]; call getter; mov rdx,rax; mov r8d,site; lea rcx,[rip+path]; call log`), the path ending in `FD4Singleton.h`, the class object's name at +0x18 | The FD4 singleton idiom (ARCH §6.2): eleven names (`TaskLoom` for CSTask's role, `ActorRoster` for WorldChrMan's, and so on; `--describe` maps each), two of them with a second site, and three decoys: `Duplicata` (two statics: ambiguous), `Strayling` (path ends in `.hpp`), `Rockbound` (its static is in `.rdata`) |
+| R0c's variants: five more sites of five of those names, with the same head but the static in rdi, r12, rsi or rbx, and the path loaded after a format string, into rdx right after the getter's call, through a pointer to it, by its absolute address, or into rsi before the head; and `Mimicry`, a decoy whose "static" is read through rsi, which only the idiom's wildcards match | The ways a game's compiler may load the path (R0's review), so that the idiom cut from them has the registers' bytes wildcarded (as the game's was) and no path capture, and the finder must find each path by its text; `--describe` gives each site's path load |
 | Four AOB functions, each with a distinct shape referring to a static at entry + 5 or later | `global_hinstance`, `GameDataMan`, `GameMan` and `FieldArea` (ARCH §6.1) |
 | C++ classes in the invented namespace `FG` (`FG::Actor`, `FG::PlayerActor`, `FG::NpcActor`, `FG::BeastActor`, `FG::MountActor` with a second base `FG::Saddle`, `FG::Prop`, `FG::Tombstone`, the singletons' `FG::…Imp`) and `Decoy::Actor` | MSVC RTTI for the walk (ARCH §6.2): type descriptors in `.data`, locators in `.rdata`, an actor set with a second vtable and a same-named class elsewhere. The clang-cl build only: MinGW's GCC writes its own RTTI |
 | Title, loading and world phases (`--title-frames`, `--load-frames`, `--stay-title`, `--reload-every`), a main player and `--actors` actors with health, positions and a distance-sorted list | The lifecycle and the structural groups' self-tests (ARCH §6.7, §9) |
@@ -29,10 +31,12 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--handled-every` with `--handled-kind seh\|cxx` | Exceptions a game raises and handles itself, which a vectored handler sees first |
 | `--load [boot\|window\|ready\|title\|world:]PATH` | A loader that loads a DLL at one moment (ARCH §3.3's late load) |
 | `--selftest-task` (`--selftest-abi`, `--selftest-object-size`, `--selftest-group`) | EldenNet's T1 and trampoline, in miniature: a task registered from another thread, its slots counted |
+| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F | The player pressing the launcher's Mark, a system hotkey (O90) |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
-`EldenNet Fake Game`, translation 0x0809 and 1200.
+`EldenNet Fake Game` followed by a trademark sign (U+2122), which the derivation and the gate compare without, and
+translation 0x0809 and 1200.
 
 ## Status lines and `--describe`
 
@@ -73,9 +77,28 @@ searches' finds, no allocation on the game thread; and, by case, moving statics,
 online, an optional group's breaker, a structural group's (inert), the RPM copy, and a group table shifted since the
 derivation (the first tick finds another name and goes inert).
 
+The launcher (part 7) joined it with the `launcher-*` cases: each runs `eldennet-launcher.exe` with `--no-dialogs`
+on a copy of `fakegame.exe` in the case's own folder (`{game}`), with an `%APPDATA%` of its own (`{appdata}`) and
+gal/ (the derivation's for the cases with `galtest.dll`, else a `builds.toml` written from the fake game's own
+fingerprint), after the case's own invented files (saves, a stale record of the appid file, someone else's appid
+file, a crash record of an earlier session, Steam folders with a library list and an app manifest). The fake game's
+arguments follow `--`, with `--status-file`, where galtest's and vehprobe's lines go too (a game started by a launcher
+has no console). The checks read the launcher's `LAUNCHER` lines and the files it leaves: the appid file and its
+record, backups and their manifests, the watcher's crash records (each checked for paths and the user's name), the
+spikes' logs. Eleven cases run in both builds (no DLL: a vanilla start and a crash, the env method, someone else's
+appid file, `--backup-only`, `--cleanup`, `--print-diagnostics`, E02, E05, E08, a usage error); ten more with
+`galtest.dll` in the clang-cl build: injection suspended, at the window and at the title, a crash recorded through
+EldenNet's filter, a game that replaces the filter, `--also vehprobe.dll`, the S0-A, S0-D crash and S0-C loops, and
+`launcher-watch`, where the fake game loads galtest itself and galtest starts the watcher (`--watch <pid>`), whose
+lines the case reads from its log once every process has ended (`settle`). galtest.dll does EldenNet's part of the
+watch block for them (`tests/galtest/watch_client.cpp`): T1's states and the status, a chained crash filter installed
+once the game has started, a crash on the launcher's request, and en-core's slice stepped on its snapshots, whose
+phase, level and gate it reports.
+
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
-labels) and check derive.json against `--describe`: the fingerprint, the FD4 idiom (byte for byte), the singletons and
-the decoys' verdicts, the registration with its argument registers and call sites, the group's index, the RTTI sets and
+labels) and check derive.json against `--describe`: the fingerprint (the product name matching without its sign), the
+FD4 idiom (byte for byte), the singletons and the decoys' verdicts, where each site's path was found and what R0's rule
+made of the same hits, the group table's stride, entries and index field, the registration with its argument registers and call sites, the group's index, the RTTI sets and
 task classes (clang-cl), and, given the AOB statics' slots as R1 would find them, a pattern at each; then the lint's
 refusals of a path, a free string and a long byte run.

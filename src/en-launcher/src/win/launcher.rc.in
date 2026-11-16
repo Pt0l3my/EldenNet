@@ -1,0 +1,32 @@
+// eldennet-launcher's resources (CMake fills this in): its manifest (asInvoker, Common Controls 6), here for MinGW's
+// windres while the MSVC-like linker embeds it itself, and its version, whose ProductName is EldenNet.
+@EN_LAUNCHER_MANIFEST_RC@
+
+1 VERSIONINFO
+FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904B0"
+    BEGIN
+      VALUE "CompanyName", "EldenNet"
+      VALUE "FileDescription", "EldenNet launcher and crash watcher"
+      VALUE "FileVersion", "@PROJECT_VERSION@.0"
+      VALUE "InternalName", "eldennet-launcher"
+      VALUE "LegalCopyright", "MIT licence"
+      VALUE "OriginalFilename", "eldennet-launcher.exe"
+      VALUE "ProductName", "EldenNet"
+      VALUE "ProductVersion", "@PROJECT_VERSION@"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0809, 1200
+  END
+END

@@ -4,6 +4,7 @@
 #include <doctest.h>
 
 #include <algorithm>
+#include <iterator>
 #include <ostream>  // doctest prints std::string_view through it
 #include <set>
 #include <string>
@@ -413,4 +414,254 @@ TEST_CASE("derive: an image with nothing to find answers missing everywhere, and
   REQUIRE(text.has_value());
   const en::gal::report::Vocabulary* known[] = {&en::gal::derive::vocabulary()};
   CHECK(en::gal::report::lint(*text, known).has_value());
+}
+
+TEST_CASE("derive: the variants of R0c, each found, and R0's rule compared") {
+  const Sample sample = en::gal::test::build_variants();
+  const SpanSource source(sample.built.file);
+  const auto image = en::gal::read_image(source, ImageLayout::File);
+  REQUIRE(image.has_value());
+  const auto rv = [&](const char* label) { return sample.program.rva(label); };
+  en::gal::derive::Options options;
+  options.file_size = sample.built.file.size();
+  const auto r = en::gal::derive::derive(*image, source, leads(en::gal::test::kVariantLeads), options);
+
+  // A trademark sign after the product name: it matches once symbols are removed, and says how many it held.
+  CHECK(r.fingerprint.product_name == "matches");
+  CHECK(r.fingerprint.product_name_characters == 13);
+  CHECK(r.fingerprint.product_name_kept == 12);
+
+  // The idiom is cut from the three sites a path's reference shows (Forge's reference lies before its head), with
+  // the registers' bytes wildcarded, and without a path capture: each site loads its path elsewhere.
+  CHECK(r.fd4.path_references == 4);
+  CHECK(r.fd4.sites == 3);
+  CHECK(r.fd4.diagnostics.outcomes[static_cast<std::size_t>(en::gal::derive::SiteOutcome::Site)] == 3);
+  CHECK(r.fd4.diagnostics.outcomes[static_cast<std::size_t>(en::gal::derive::SiteOutcome::Nothing)] == 1);
+  REQUIRE(r.fd4.idiom.has_value());
+  CHECK(r.fd4.idiom->bytes.text() == "?? 8B ?? ?? ?? ?? ?? ?? 85 ?? 75 ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ??");
+  CHECK_FALSE(r.fd4.idiom->path.has_value());
+  CHECK(r.fd4.idiom_hits == 7);  // the six accessors and the decoy
+  CHECK(r.fd4.scan_resolved);
+  CHECK(r.fd4.status == Status::Derived);
+
+  // R0c's finder: every accessor accepted, whatever its path's load; the decoy refused as no idiom.
+  CHECK(r.fd4.accepted == 6);
+  CHECK(r.fd4.refused[static_cast<std::size_t>(en::gal::fd4::Refusal::Unreadable)] == 1);
+  REQUIRE(r.fd4.names.has_value());
+  CHECK(r.fd4.names->offset == 0x10);
+  for (const char* label : {"anvil", "bellows", "crucible", "dross", "ember", "forge"}) {
+    CAPTURE(label);
+    CHECK(singleton(r, label).status == Status::Derived);
+  }
+  CHECK(singleton(r, "ember").static_slot == rv("vst_Ember"));
+  CHECK(singleton(r, "forge").static_slot == rv("vst_Forge"));
+
+  // Where each path's load was found: six buckets, one hoisted, one after a format string, three forms.
+  const auto& hit_paths = r.fd4.diagnostics.hit_paths;
+  CHECK(hit_paths.size() == 6);
+  const auto has = [&](auto pred) { return std::any_of(hit_paths.begin(), hit_paths.end(), pred); };
+  CHECK(has([](const auto& b) { return b.hoisted && b.before == 7 && b.reg == 6 && b.opcode == 0x8D; }));
+  CHECK(has([](const auto& b) { return !b.hoisted && b.ordinal == 1 && b.reg == 1 && b.insn_end == 46; }));
+  CHECK(has([](const auto& b) { return b.reg == 2 && b.opcode == 0x8D && b.insn_end == 34; }));
+  CHECK(has([](const auto& b) { return b.opcode == 0x8B && b.reg == 1; }));
+  CHECK(has([](const auto& b) { return b.opcode == 0xB9 && b.length == 10; }));
+  CHECK(r.fd4.diagnostics.site_paths.size() == 3);
+
+  // R0's rule over the same hits: only the two whose first load into .rdata is the path pass.
+  const auto& g = r.fd4.diagnostics;
+  CHECK(g.first_reference_accepted == 2);
+  CHECK(g.first_reference_refused[static_cast<std::size_t>(en::gal::fd4::Refusal::PathText)] == 2);
+  CHECK(g.first_reference_refused[static_cast<std::size_t>(en::gal::fd4::Refusal::NoPath)] == 2);
+  CHECK(g.first_reference_refused[static_cast<std::size_t>(en::gal::fd4::Refusal::StaticSection)] == 1);
+  CHECK(g.class_objects == 6);
+  CHECK(g.class_fixups == 6);  // each class object's table and name pointers are relocated
+  CHECK(g.class_beyond_file == 0);
+
+  // The group table of 16-byte entries: found at its stride, from its first entry, with the index its entries hold.
+  CHECK(r.group.status == Status::Derived);
+  CHECK(r.group.strings == 1);
+  CHECK(r.group.pointers == 1);
+  REQUIRE_FALSE(r.group.candidates.empty());
+  const auto& t = r.group.candidates.front();
+  CHECK(t.source == "pointer_table");
+  CHECK(t.stride == 16);
+  CHECK(t.entries == 5);
+  CHECK(t.index == 2);
+  CHECK(t.name_offset == std::optional<std::uint32_t>(8));
+  CHECK(t.at == rv("v_groups"));
+  CHECK(t.wide);
+  CHECK(t.stored_index == std::optional<std::uint32_t>(12));
+
+  // Statics whose classes have no RTTI of that name: missing, the one with a class of its name elsewhere counted, and
+  // no vtable offered to R1.
+  REQUIRE(r.statics.size() == 2);  // in the labels' order
+  CHECK(r.statics[0].label == "moved");
+  CHECK(r.statics[0].rtti.status == Status::Missing);
+  CHECK(r.statics[0].same_name == 1);
+  CHECK(r.statics[1].label == "plain");
+  CHECK(r.statics[1].rtti.status == Status::Missing);
+  CHECK(r.statics[1].same_name == 0);
+  for (const auto& c : r.confirm) {
+    if (c.item == "static_slot_instance") CHECK_FALSE(c.value.has_value());
+  }
+
+  // The census: .text decoded, its references to the path counted.
+  REQUIRE_FALSE(r.stats.sections.empty());
+  CHECK(r.stats.sections.front().name == ".text");
+  CHECK(r.stats.sections.front().path_references == 4);
+  CHECK(r.stats.sections.front().instructions > 0);
+
+  // The report: still schema 1's keys and words only, clean, and nothing of the program's.
+  const auto text = en::gal::derive::write_report(r);
+  REQUIRE(text.has_value());
+  const en::gal::report::Vocabulary* known[] = {&en::gal::derive::vocabulary()};
+  CHECK(en::gal::report::lint(*text, known).has_value());
+  for (const char* secret : {"Anvil", "Bellows", "Va_", "Lone", "variant", "VARIANT", "Moved", "Plain", "early use"}) {
+    CAPTURE(secret);
+    CHECK(text->find(secret) == std::string::npos);
+  }
+}
+
+TEST_CASE("derive: a path loaded before the getter's call in every site becomes the idiom's path capture") {
+  const Sample sample = en::gal::test::build_path_early();
+  const SpanSource source(sample.built.file);
+  const auto image = en::gal::read_image(source, ImageLayout::File);
+  REQUIRE(image.has_value());
+  const auto r = en::gal::derive::derive(*image, source, leads(en::gal::test::kPathEarlyLeads));
+  CHECK(r.fd4.sites == 3);
+  REQUIRE(r.fd4.idiom.has_value());
+  REQUIRE(r.fd4.idiom->path.has_value());
+  CHECK(*r.fd4.idiom->path == en::gal::Capture{15, 19});
+  CHECK(r.fd4.idiom->class_object == en::gal::Capture{22, 26});
+  CHECK(r.fd4.idiom->getter == en::gal::Capture{27, 31});
+  CHECK(r.fd4.status == Status::Derived);
+  for (const char* label : {"gorge", "heath", "isle"}) {
+    CAPTURE(label);
+    CHECK(singleton(r, label).status == Status::Derived);
+  }
+}
+
+TEST_CASE("derive: accepted sites without a name layout leave the singletons depending on it") {
+  // The variants with their class objects' names unreadable: the name layout's leads point at nothing.
+  const Sample sample = en::gal::test::build_variants();
+  auto bytes = sample.built.file;
+  const SpanSource probe(bytes);
+  const auto image = en::gal::read_image(probe, ImageLayout::File);
+  REQUIRE(image.has_value());
+  // Blank the names' strings in the file, so that no class object leads to an identifier.
+  for (const char* n :
+       {"vname_Anvil", "vname_Bellows", "vname_Crucible", "vname_Dross", "vname_Ember", "vname_Forge"}) {
+    const auto off = image->offset_of(sample.program.rva(n), 1);
+    REQUIRE(off.has_value());
+    bytes[static_cast<std::size_t>(*off)] = std::byte{0};
+  }
+  const SpanSource source(bytes);
+  const auto r = en::gal::derive::derive(*image, source, leads(en::gal::test::kVariantLeads));
+  CHECK(r.fd4.accepted == 6);
+  CHECK_FALSE(r.fd4.names.has_value());
+  CHECK(r.fd4.status == Status::Derived);
+  CHECK(singleton(r, "anvil").status == Status::Depends);
+  CHECK(r.registration.status == Status::Depends);
+  const auto it =
+      std::find_if(r.confirm.begin(), r.confirm.end(), [](const auto& c) { return c.item == "name_layout"; });
+  REQUIRE(it != r.confirm.end());
+  CHECK_FALSE(it->value.has_value());
+}
+
+TEST_CASE("derive: a lone pointer to the group's name is no table, and gives no index") {
+  // The sample's group table cut to one entry: the other names no longer read as identifiers.
+  Loaded l = load();
+  auto bytes = l.sample.built.file;
+  for (const char* g : {"g0", "g1", "g3"}) {
+    const auto off = l.image.offset_of(rva(l, g), 2);
+    REQUIRE(off.has_value());
+    bytes[static_cast<std::size_t>(*off)] = std::byte{0};
+  }
+  const SpanSource source(bytes);
+  auto lead_text = std::string(en::gal::test::kSampleLeadsClean);
+  const auto r = en::gal::derive::derive(l.image, source, leads(lead_text.c_str()));
+  // The code that names the group with its index still gives one; the table itself is one entry long.
+  REQUIRE_FALSE(r.group.candidates.empty());
+  CHECK(r.group.candidates.front().source == "code_reference");
+  CHECK(r.group.candidates.back().entries == 1);
+  CHECK(r.group.status == Status::Derived);
+}
+
+TEST_CASE("derive: the vocabulary is schema 1's as DataPiler 0.2.41's guard holds it, key for key and word for word") {
+  // DataPiler 0.2.41 (its derive.py) refuses a report with a key or a word outside this list: a change to the
+  // vocabulary needs a schema 2 and a DataPiler that reads it, and this test changes with them.
+  struct Want {
+    const char* key;
+    const char* type;  // uint, bool, object, objects, uints, label, pattern, or the key's words
+  };
+  constexpr Want kWant[] = {
+    {"complete", "bool"}, {"image", "object"}, {"fd4", "object"}, {"rtti", "object"}, {"register", "object"},
+    {"group", "object"}, {"statics", "objects"}, {"confirm", "objects"}, {"stats", "object"}, {"file_size", "uint"},
+    {"image_base", "uint"}, {"entry_point", "uint"}, {"size_of_image", "uint"}, {"size_of_headers", "uint"},
+    {"section_alignment", "uint"}, {"file_alignment", "uint"}, {"time_date_stamp", "uint"},
+    {"characteristics", "uint"}, {"dll_characteristics", "uint"}, {"subsystem", "uint"}, {"functions", "uint"},
+    {"fixups", "uint"}, {"file_version", "uints"}, {"product_version", "uints"}, {"region", "ww jp other none"},
+    {"product_name", "matches differs absent not_given"}, {"translation", "uints"}, {"resource_language", "uint"},
+    {"sections", "objects"},
+    {"section",
+     ".text .rdata .data .pdata .xdata .rsrc .reloc .tls .idata .edata .bss .CRT _RDATA .00cfg "
+     ".gfids .retplne .voltbl .didat .buildid other"},
+    {"rva", "uint"}, {"virtual_size", "uint"}, {"raw_size", "uint"},
+    {"status", "derived ambiguous refused missing not_unique needs_slot depends"}, {"path_strings", "uint"},
+    {"path_references", "uint"}, {"sites", "uint"}, {"shapes", "uint"}, {"sites_used", "uint"}, {"idiom", "object"},
+    {"bytes", "pattern"}, {"length", "uint"}, {"fixed", "uint"}, {"hits", "uint"}, {"sites_matched", "uint"},
+    {"captures", "objects"}, {"capture", "static class getter path"}, {"at", "uint"}, {"insn_end", "uint"},
+    {"align", "uint"}, {"function", "bool"}, {"scan_resolved", "bool"}, {"scan_hits", "uint"},
+    {"scan_rejected", "uint"}, {"names", "object"}, {"offset", "uint"}, {"encoding", "ascii utf16"}, {"agree", "uint"},
+    {"of", "uint"}, {"accepted", "uint"}, {"refused", "object"}, {"unreadable", "uint"}, {"static_section", "uint"},
+    {"static_alignment", "uint"}, {"class_section", "uint"}, {"getter_section", "uint"},
+    {"getter_not_function", "uint"}, {"no_path", "uint"}, {"path_section", "uint"}, {"path_text", "uint"},
+    {"unnamed", "uint"}, {"unlisted", "uint"}, {"unlisted_ambiguous", "uint"}, {"singletons", "objects"},
+    {"label", "label"}, {"static", "uint"}, {"class", "uint"}, {"getter", "uint"},
+    {"refusal",
+     "unreadable static_section static_alignment class_section getter_section "
+     "getter_not_function no_path path_section path_text"},
+    {"locators", "uint"}, {"vtables_found", "uint"}, {"sets", "objects"}, {"type_descriptor", "uint"},
+    {"classes", "uint"}, {"primary", "uints"}, {"subobject", "uints"}, {"task", "object"}, {"base_vtable", "uint"},
+    {"base_slots", "uint"}, {"vtables", "uints"}, {"slots_min", "uint"}, {"slots_max", "uint"},
+    {"slot_targets", "uints"}, {"run_slot", "uint"}, {"instance_static", "uint"}, {"loads", "uint"}, {"calls", "uint"},
+    {"candidates", "objects"}, {"callee", "uint"}, {"instance_register", "rcx rdx r8 r9 ecx edx r8d r9d"},
+    {"task_register", "rcx rdx r8 r9 ecx edx r8d r9d"}, {"group_register", "rcx rdx r8 r9 ecx edx r8d r9d"},
+    {"shaped", "bool"}, {"agrees", "bool"}, {"callers", "uints"}, {"pattern", "object"}, {"hit", "uint"},
+    {"entry", "uint"}, {"anchor", "uint"}, {"fn_length", "uint"}, {"matches", "uint"}, {"capture_at", "uint"},
+    {"capture_insn_end", "uint"}, {"target", "uint"}, {"strings", "uint"}, {"index", "uint"},
+    {"source", "pointer_table code_reference"}, {"entries", "uint"}, {"kind", "class module"}, {"vtable", "uint"},
+    {"slots", "uint"}, {"rtti_status", "derived ambiguous refused missing not_unique needs_slot depends"},
+    {"slot", "uint"}, {"references", "uint"},
+    {"item",
+     "name_layout singleton_instance vtable_set register_task register_abi task_group_index "
+     "task_run_slot task_object_size static_slot_instance static_slot_module_base "
+     "static_pattern_in_memory layout_fields"},
+    {"value", "uint"}, {"instructions", "uint"}, {"undecodable", "uint"},
+  };
+  const auto& vocabulary = en::gal::derive::vocabulary();
+  CHECK(vocabulary.schema == 1);
+  CHECK(vocabulary.keys.size() == std::size(kWant));
+  for (const Want& w : kWant) {
+    CAPTURE(w.key);
+    const en::gal::report::Key* k = vocabulary.find(w.key);
+    REQUIRE(k != nullptr);
+    std::string type;
+    using en::gal::report::Type;
+    switch (k->type) {
+      case Type::Unsigned: type = "uint"; break;
+      case Type::Boolean: type = "bool"; break;
+      case Type::Object: type = "object"; break;
+      case Type::Array:
+        type = k->element == Type::Object ? "objects" : k->element == Type::Unsigned ? "uints" : "?";
+        break;
+      case Type::Label: type = "label"; break;
+      case Type::Pattern: type = "pattern"; break;
+      case Type::Word:
+        for (const std::string_view word : k->words) type += (type.empty() ? "" : " ") + std::string(word);
+        break;
+      default: type = "?";
+    }
+    CHECK(type == w.type);
+  }
 }

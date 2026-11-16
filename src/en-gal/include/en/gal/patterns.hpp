@@ -181,6 +181,9 @@ struct PatternSet {
 };
 
 inline constexpr std::uint32_t kMaxPatternHits = 4096;  // the most hits a pattern may expect, and the most kept
+// An idiom's: every inlined accessor of every singleton is a hit (some thousands in a large game), so an idiom may
+// expect, and the scan keeps, up to 65536.
+inline constexpr std::uint32_t kMaxIdiomHits = 1u << 16;
 
 // Reads patterns.toml (schema 1): every field of its kind and none of another's, the grammar, the captures within
 // their patterns, ids unique, provenance "own-derivation", and each of `required_ids` present. `file` names the file
@@ -220,7 +223,7 @@ struct PatternResult {
   std::string id;
   PatternKind kind = PatternKind::Function;
   std::uint64_t count = 0;
-  std::vector<std::uint32_t> hits;    // RVAs, the first kMaxPatternHits
+  std::vector<std::uint32_t> hits;    // RVAs, the first kMaxPatternHits (an idiom's, kMaxIdiomHits)
   std::optional<HitProblem> problem;  // why it did not resolve; empty when it did
   std::uint32_t problem_at = 0;       // the hit, or the RVA, where the problem was found
   std::uint32_t entry = 0;            // a function's entry RVA

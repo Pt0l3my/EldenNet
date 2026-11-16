@@ -26,6 +26,7 @@ const char* to_string(Component component) noexcept {
     case Component::LlmTransport: return "LlmTransport";
     case Component::LlmWorker: return "LlmWorker";
     case Component::Tools: return "Tools";
+    case Component::Launcher: return "Launcher";
   }
   return "Unknown";
 }

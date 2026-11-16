@@ -148,7 +148,8 @@ void check_scan(const ImageInfo& image, const ScanReport& report) {
   for (std::size_t i = 0; i < set.patterns.size(); ++i) {
     const PatternSpec& spec = set.patterns[i];
     const PatternResult& r = report.results[i];
-    require(r.hits.size() <= kMaxPatternHits && r.hits.size() <= r.count, "hits kept within the cap and the count");
+    const std::uint32_t cap = spec.kind == PatternKind::Idiom ? kMaxIdiomHits : kMaxPatternHits;
+    require(r.hits.size() <= cap && r.hits.size() <= r.count, "hits kept within the cap and the count");
     if (!r.resolved()) continue;
     require(r.count >= spec.expect_min && r.count <= spec.expect_max, "a resolved pattern matched as expected");
     if (spec.kind == PatternKind::Function) {

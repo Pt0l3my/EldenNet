@@ -12,7 +12,8 @@ using namespace en::proto;
 namespace {
 
 constexpr std::array kAll = {Component::DllMain,      Component::Task,      Component::Present, Component::Overlay,
-                             Component::LlmTransport, Component::LlmWorker, Component::Tools};
+                             Component::LlmTransport, Component::LlmWorker, Component::Tools,
+                             Component::Launcher};
 
 void clear_all() {
   for (const Component c : kAll) clear_trip(c);

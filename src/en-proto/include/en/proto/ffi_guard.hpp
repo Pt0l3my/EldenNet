@@ -23,10 +23,11 @@ enum class Component : std::uint8_t {
   LlmTransport,  // libcurl's and WinHTTP's callbacks, and WinHTTP's driver threads (en-llm)
   LlmWorker,     // the model handle's worker and dispatcher threads (en-llm)
   Tools,         // the eldennet-engine command's own entries, such as its signal handler
+  Launcher,      // eldennet-launcher's own entries: its wWinMain and the system's callbacks into it
 };
 
 inline constexpr std::size_t kComponentSlots = 32;  // one flag each, named or not yet
-static_assert(static_cast<std::size_t>(Component::Tools) < kComponentSlots, "a component past the flags' room");
+static_assert(static_cast<std::size_t>(Component::Launcher) < kComponentSlots, "a component past the flags' room");
 
 const char* to_string(Component component) noexcept;
 

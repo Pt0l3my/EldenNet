@@ -6,6 +6,9 @@
 if(NOT MSVC OR NOT EN_BUILD_TESTS)
   return()
 endif()
-add_library(galtest SHARED galtest.cpp)
-target_link_libraries(galtest PRIVATE en_gal_game_probe)
+enable_language(RC)
+# watch_client.cpp: EldenNet's part of the launcher's watch block, in miniature (part 7); galtest.rc: its version,
+# ProductName EldenNet, for the launcher's pre-flight. It steps en-core's slice on its snapshots (part 5).
+add_library(galtest SHARED galtest.cpp watch_client.cpp galtest.rc)
+target_link_libraries(galtest PRIVATE en_gal_game_probe en_core)
 en_dll_module(galtest)

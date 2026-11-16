@@ -5,7 +5,8 @@
 # derive.json. A lead is not a fact: nothing here is relied on until R0's report is reviewed and R1 and the self-tests
 # confirm it (O89, ARCH §6.3 "Lead and confirmed").
 schema = 1
-product_name = "ELDEN RING"         # ARCH §6.3, gal/builds.toml's product_name, which the gate requires
+product_name = "ELDEN RING"         # ARCH §6.3, gal/builds.toml's product_name, which the gate requires; compared,
+                                    # as the gate compares it, once symbols such as a trademark sign are removed
 
 [fd4]
 path_suffix = "FD4Singleton.h"      # ARCH §6.2, the FD4 singleton finder's step 2 (ER01 §4)
@@ -48,3 +49,6 @@ player_ins = "CS::PlayerIns"        # ARCH §6.2: CS::PlayerIns gets its own set
 [statics]
 global_hinstance = { module = true }          # ARCH §6.1 global_hinstance: a static in .data holding the module's base
 game_data_man = { rtti = "CS::GameDataMan" }  # ARCH §6.3, gal/patterns.toml's GameDataMan: rtti checked on the instance
+# R0 found no RTTI of that class. R0c's report counts the type descriptors of its name in any namespace; if there are
+# none, the class has no RTTI to find, its static cannot be found offline, and R1 finds its slot by what the instance
+# holds (then --static game_data_man=<rva> cuts its pattern). The lead stays as ARCH §6.3 gives it until then.

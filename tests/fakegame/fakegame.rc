@@ -1,5 +1,6 @@
 // The fake game's version resource: an invented fingerprint (FileVersion 3.14.15.0, whose fourth field 0 stands for
-// the "ww" region, and British English, 0x0809, with Unicode, 1200). Nothing in it is a game's.
+// the "ww" region, and British English, 0x0809, with Unicode, 1200). The product name ends with a trademark sign
+// (U+2122), which the derivation and the gate compare without (R0c). Nothing in it is a game's.
 1 VERSIONINFO
 FILEVERSION 3,14,15,0
 PRODUCTVERSION 3,14,15,0
@@ -19,7 +20,7 @@ BEGIN
       VALUE "InternalName", "fakegame"
       VALUE "LegalCopyright", "MIT licence"
       VALUE "OriginalFilename", "fakegame.exe"
-      VALUE "ProductName", "EldenNet Fake Game"
+      VALUE "ProductName", L"EldenNet Fake Game\x2122"
       VALUE "ProductVersion", "3.14.15.0"
     END
   END

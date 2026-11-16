@@ -9,6 +9,7 @@
 #include "bytes.hpp"
 #include "code.hpp"
 #include "cut.hpp"
+#include "en/gal/builds.hpp"
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/rtti.hpp"
 
@@ -76,7 +77,11 @@ void fingerprint(Context& cx) {
   f.translation = im.version->translation;
   f.resource_language = im.version->resource_language;
   if (!cx.leads.product_name.empty() && im.version->product_name) {
-    f.product_name = *im.version->product_name == cx.leads.product_name ? "matches" : "differs";
+    // Compared as the gate compares (builds.hpp): once symbols such as a trademark sign are removed.
+    const std::string& name = *im.version->product_name;
+    f.product_name = same_product_name(name, cx.leads.product_name) ? "matches" : "differs";
+    f.product_name_characters = characters(name);
+    f.product_name_kept = characters(without_symbols(name));
   }
 }
 
@@ -152,29 +157,79 @@ struct SiteSeq {
   std::size_t path = 0;              // the path's load, in insns
 };
 
+struct SiteFind {
+  std::optional<SiteSeq> site;
+  SiteOutcome outcome = SiteOutcome::Nothing;
+};
+
+bool data_static(Context& cx, const code::Decoded& d) {
+  const std::optional<std::uint32_t> t = code::rip_target(cx.img, *cx.text, d);
+  return t && cx.img.section_name(*t) == kData;
+}
+
+// cmp qword [rip+x], 0 (83 /7 ib, or 81 /7 id).
+bool is_zero_compare(Context& cx, const code::Decoded& d) {
+  const x86::Instruction& in = d.insn;
+  if (in.encoding != x86::Encoding::Legacy || in.map != 0 || (in.opcode != 0x83 && in.opcode != 0x81) || !in.wide ||
+      !in.rip_relative || ((in.modrm >> 3) & 7) != 7) {
+    return false;
+  }
+  return x86::immediate(in, code::bytes_of(*cx.text, d)) == std::optional<std::int64_t>(0);
+}
+
 // The idiom around one reference to a path: the closest `mov reg, [rip+static]; test reg, reg; jnz` before it whose
-// jump passes the reference, then on to the call after it.
-std::optional<SiteSeq> site_at(Context& cx, std::uint32_t ref) {
+// jump passes the reference, then on to the call after it; or why there is none.
+SiteFind site_at(Context& cx, std::uint32_t ref) {
+  SiteFind out;
   const std::optional<std::vector<code::Decoded>> window = code::decode_to(cx.image, *cx.text, ref);
-  if (!window || window->size() < 4) return std::nullopt;
+  if (!window) {
+    out.outcome = SiteOutcome::NoLanding;
+    return out;
+  }
+  if (window->size() < 4) return out;
   const std::size_t r = window->size() - 1;
   const std::size_t lowest = r > 24 ? r - 24 : 0;
+  bool short_jump = false;
   for (std::size_t i0 = r - 2; i0-- > lowest;) {  // i0 + 2, the jump, comes before r
     const code::Decoded& a = (*window)[i0];
     const code::Decoded& b = (*window)[i0 + 1];
     const code::Decoded& c = (*window)[i0 + 2];
     if (!is_static_load(a.insn) || !is_self_test(b.insn, a.insn.reg()) || !is_jnz(c.insn)) continue;
     const std::optional<std::uint32_t> skip = code::branch_target(cx.img, *cx.text, c);
-    if (!skip || *skip < (*window)[r].end()) continue;
+    if (!skip || *skip < (*window)[r].end()) {
+      short_jump = true;
+      continue;
+    }
     SiteSeq s;
     s.insns.assign(window->begin() + static_cast<std::ptrdiff_t>(i0), window->end());
     s.path = r - i0;
-    const std::vector<code::Decoded> after =
-        code::decode_range(cx.image, *cx.text, (*window)[r].end(), (*window)[r].end() + x86::kMaxLength);
-    if (!after.empty() && after.front().insn.flow == x86::Flow::Call) s.insns.push_back(after.front());
-    return s;
+    // On to the next call after the path's load: the log's, or, where the path is loaded before the getter's call,
+    // the class object's load and the getter's call, so that every site holds its head.
+    std::uint32_t at = (*window)[r].end();
+    for (int k = 0; k < 6; ++k) {
+      const std::vector<code::Decoded> next = code::decode_range(cx.image, *cx.text, at, at + x86::kMaxLength);
+      if (next.empty() || next.front().rva != at) break;
+      s.insns.push_back(next.front());
+      at = next.front().end();
+      if (next.front().insn.flow != x86::Flow::None) break;
+    }
+    if (s.insns.back().insn.flow != x86::Flow::Call) s.insns.resize(r - i0 + 1);  // no call: the sequence as found
+    out.site = std::move(s);
+    out.outcome = SiteOutcome::Site;
+    return out;
   }
-  return std::nullopt;
+  bool compare = false;
+  bool load = false;
+  for (std::size_t i = lowest; i < r; ++i) {
+    const code::Decoded& d = (*window)[i];
+    if (is_zero_compare(cx, d) && data_static(cx, d)) compare = true;
+    if (is_static_load(d.insn) && data_static(cx, d)) load = true;
+  }
+  out.outcome = short_jump ? SiteOutcome::JumpShort
+                : compare  ? SiteOutcome::CompareForm
+                : load     ? SiteOutcome::LoadOnly
+                           : SiteOutcome::Nothing;
+  return out;
 }
 
 // An instruction's shape: its length, map and opcode.
@@ -246,11 +301,55 @@ void derive_names(Context& cx, const std::vector<std::uint32_t>& class_objects) 
     }
   }
   r.names_agree = best;
+  r.diagnostics.names_best = best;
+  r.diagnostics.best_names = r.names;
   if (best == 0 || 2 * best < class_objects.size()) r.names.reset();
+}
+
+// The class objects as the file holds them: with a base relocation in their first 128 bytes (a pointer the file
+// initialises), or past the raw data the file holds of their section (zeros until the game writes them).
+void class_object_census(Context& cx, const std::vector<std::uint32_t>& class_objects) {
+  Fd4Diagnostics& g = cx.result.fd4.diagnostics;
+  for (const std::uint32_t cls : class_objects) {
+    const auto fix = std::lower_bound(cx.fixups.begin(), cx.fixups.end(), cls,
+                                      [](const Fixup& f, std::uint32_t at) { return f.rva < at; });
+    if (fix != cx.fixups.end() && fix->rva < std::uint64_t{cls} + 0x80) ++g.class_fixups;
+    const Section* sec = cx.image.layout == ImageLayout::File ? cx.image.section_at(cls) : nullptr;
+    if (sec != nullptr && cls - sec->rva >= cx.image.file_span(*sec).size) ++g.class_beyond_file;
+  }
+}
+
+// Adds one path load to a histogram, keeping the 16 largest buckets in the report's writing.
+void add_bucket(std::vector<PathBucket>& buckets, const PathBucket& b) {
+  for (PathBucket& have : buckets) {
+    if (have.hoisted == b.hoisted && have.at == b.at && have.insn_end == b.insn_end && have.before == b.before &&
+        have.length == b.length && have.ordinal == b.ordinal && have.reg == b.reg && have.opcode == b.opcode) {
+      ++have.count;
+      return;
+    }
+  }
+  if (buckets.size() < 4096) {
+    buckets.push_back(b);
+    buckets.back().count = 1;
+  }
+}
+
+void sort_buckets(std::vector<PathBucket>& buckets) {
+  std::stable_sort(buckets.begin(), buckets.end(),
+                   [](const PathBucket& a, const PathBucket& b) { return a.count > b.count; });
+  if (buckets.size() > 16) buckets.resize(16);
+}
+
+// The register an address load writes: ModRM's reg, or the opcode's for B8+r.
+std::uint8_t written_register(const x86::Instruction& in) {
+  if (in.encoding == x86::Encoding::Legacy && in.map == 0 && in.opcode >= 0xB8 && in.opcode <= 0xBF)
+    return in.opcode_reg();
+  return in.has_modrm ? in.reg() : std::uint8_t{0};
 }
 
 void derive_fd4(Context& cx) {
   Fd4Result& r = cx.result.fd4;
+  Fd4Diagnostics& g = r.diagnostics;
   // Every singleton the leads name is reported, missing until found.
   for (const NamedLead& lead : cx.leads.singletons) {
     SingletonResult missing;
@@ -266,7 +365,9 @@ void derive_fd4(Context& cx) {
   for (const auto& [_, refs] : references(cx, targets, 1u << 16, true)) {
     r.path_references += refs.size();
     for (const code::Decoded& ref : refs) {
-      if (std::optional<SiteSeq> s = site_at(cx, ref.rva)) sites.push_back(std::move(*s));
+      SiteFind found = site_at(cx, ref.rva);
+      ++g.outcomes[static_cast<std::size_t>(found.outcome)];
+      if (found.site) sites.push_back(std::move(*found.site));
     }
   }
   r.sites = sites.size();
@@ -287,6 +388,25 @@ void derive_fd4(Context& cx) {
   }
   if (group == nullptr) return;
   r.sites_used = group->size();
+
+  // Where each site of the group loads its path, as its reference shows: from the site's start, the register, the
+  // opcode, and how many other references into .rdata come between the jump and it.
+  for (const SiteSeq* s : *group) {
+    const code::Decoded& load = s->insns[s->path];
+    PathBucket b;
+    const std::uint32_t start = offset_in(*s, s->path);
+    b.at = start + (load.insn.rip_relative ? load.insn.disp_at : load.insn.imm_at);
+    b.insn_end = start + load.insn.length;
+    b.length = load.insn.length;
+    b.reg = written_register(load.insn);
+    b.opcode = std::uint32_t{load.insn.map} * 256 + load.insn.opcode;
+    for (std::size_t j = 3; j < s->path; ++j) {
+      const std::optional<std::uint32_t> t = code::rip_target(cx.img, *cx.text, s->insns[j]);
+      if (t && cx.img.section_name(*t) == kRdata) ++b.ordinal;
+    }
+    add_bucket(g.site_paths, b);
+  }
+  sort_buckets(g.site_paths);
 
   // How far every site of the group shares its shape, within 64 bytes.
   std::size_t n = group->front()->insns.size();
@@ -319,7 +439,7 @@ void derive_fd4(Context& cx) {
   idiom.getter = Capture{offset_in(first, *getter) + first.insns[*getter].insn.imm_at, offset_in(first, *getter + 1)};
   const bool same_path =
       std::all_of(group->begin(), group->end(), [&](const SiteSeq* s) { return s->path == first.path; });
-  if (same_path && first.path < n) {
+  if (same_path && first.path < n && first.insns[first.path].insn.rip_relative) {
     idiom.path =
         Capture{offset_in(first, first.path) + first.insns[first.path].insn.disp_at, offset_in(first, first.path + 1)};
   }
@@ -330,17 +450,53 @@ void derive_fd4(Context& cx) {
   r.idiom_hits = hits.count;
   const std::set<std::uint32_t> hit_set(hits.hits.begin(), hits.hits.end());
   for (const SiteSeq* s : *group) r.sites_matched += hit_set.count(s->insns.front().rva);
+  std::vector<std::pair<std::uint64_t, std::uint64_t>> shape_sizes;
+  for (const auto& [_, members] : heads) {
+    std::uint64_t matched = 0;
+    for (const SiteSeq* s : members) matched += hit_set.count(s->insns.front().rva);
+    shape_sizes.emplace_back(members.size(), matched);
+  }
+  std::stable_sort(shape_sizes.begin(), shape_sizes.end(),
+                   [](const auto& a, const auto& b) { return a.first > b.first; });
+  if (shape_sizes.size() > 8) shape_sizes.resize(8);
+  g.heads = std::move(shape_sizes);
 
   // The name layout, from the class objects of the hits that pass the placement checks.
   fd4::Config config;
   config.path_suffix = cx.leads.fd4_path_suffix;
   const fd4::Result unnamed = fd4::find(cx.img, idiom, config);
   std::vector<std::uint32_t> class_objects;
+  std::set<std::uint32_t> statics;
+  std::set<std::uint32_t> getters;
   for (const fd4::Site& s : unnamed.sites) {
-    if (!s.refused && std::find(class_objects.begin(), class_objects.end(), s.class_object) == class_objects.end()) {
+    if (s.refused) continue;
+    if (std::find(class_objects.begin(), class_objects.end(), s.class_object) == class_objects.end()) {
       class_objects.push_back(s.class_object);
     }
+    statics.insert(s.static_slot);
+    getters.insert(s.getter);
+    if (s.path_load) {
+      const fd4::PathLoad& p = *s.path_load;
+      PathBucket b;
+      b.hoisted = p.hoisted;
+      if (p.hoisted) {
+        b.before = s.hit - p.insn;
+      } else {
+        b.at = p.insn - s.hit + p.field_at;
+        b.insn_end = p.insn - s.hit + p.length;
+      }
+      b.length = p.length;
+      b.ordinal = p.ordinal;
+      b.reg = p.reg;
+      b.opcode = std::uint32_t{p.map} * 256 + p.opcode;
+      add_bucket(g.hit_paths, b);
+    }
   }
+  sort_buckets(g.hit_paths);
+  g.class_objects = class_objects.size();
+  g.statics = statics.size();
+  g.getters = getters.size();
+  class_object_census(cx, class_objects);
   derive_names(cx, class_objects);
   config.names = r.names;
   const fd4::Result found = fd4::find(cx.img, idiom, config);
@@ -354,7 +510,22 @@ void derive_fd4(Context& cx) {
   }
   r.unnamed = found.unnamed;
 
-  // The leads' singletons by their names; the others only counted.
+  // R0's rule over the same hits, for the comparison: no decoding of the hit, and the first reference into .rdata after
+  // the pattern taken for the path.
+  fd4::Config r0 = config;
+  r0.names.reset();
+  r0.first_reference = true;
+  for (const fd4::Site& s : fd4::find(cx.img, idiom, r0).sites) {
+    if (s.refused) {
+      const auto i = static_cast<std::size_t>(*s.refused);
+      if (i < g.first_reference_refused.size()) ++g.first_reference_refused[i];
+    } else {
+      ++g.first_reference_accepted;
+    }
+  }
+
+  // The leads' singletons by their names; the others only counted. Without a name layout, accepted sites cannot be
+  // named offline: the singletons then depend on it (R1 names them through the getter, ARCH §6.2 step 3).
   std::set<std::string> listed;
   r.singletons.clear();
   for (const NamedLead& lead : cx.leads.singletons) {
@@ -377,6 +548,8 @@ void derive_fd4(Context& cx) {
         one.refusal = refused->refused;
         one.static_slot = refused->static_slot;
         one.class_object = refused->class_object;
+      } else if (!r.names && r.accepted > 0) {
+        one.status = Status::Depends;
       }
     }
     r.singletons.push_back(std::move(one));
@@ -395,7 +568,7 @@ void derive_fd4(Context& cx) {
   spec.section = std::string(kText);
   spec.bytes = idiom.bytes;
   spec.expect_min = 1;
-  spec.expect_max = kMaxPatternHits;
+  spec.expect_max = kMaxIdiomHits;
   spec.captures.push_back(IdiomCapture{"static", idiom.static_slot, std::string(kData), 8, false});
   spec.captures.push_back(IdiomCapture{"class", idiom.class_object, std::string(kData), 1, false});
   spec.captures.push_back(IdiomCapture{"getter", idiom.getter, std::string(kText), 1, true});
@@ -409,9 +582,9 @@ void derive_fd4(Context& cx) {
   }
   r.idiom = std::move(idiom);
 
-  // The idiom and the name layout are derived when every site of the group matches and part 2's scan resolves the
-  // idiom; each singleton carries its own status.
-  r.status = r.names && r.scan_resolved && r.sites_matched == r.sites_used ? Status::Derived : Status::Refused;
+  // The idiom is derived when every site of the group matches, part 2's scan resolves it and the finder accepts a
+  // site; the name layout is reported apart (names), and each singleton carries its own status.
+  r.status = r.scan_resolved && r.sites_matched == r.sites_used && r.accepted > 0 ? Status::Derived : Status::Refused;
 }
 
 // ---- RTTI ----
@@ -793,46 +966,126 @@ std::set<std::uint32_t> addressed_within(Context& cx, std::uint32_t from, std::u
   return out;
 }
 
+// The pointer slot `k` entries from `entry` at `stride`, within its section; nothing past it.
+std::optional<std::uint64_t> slot_at(const SectionCopy& c, std::uint64_t entry_off, std::int64_t k,
+                                     std::uint32_t stride) {
+  const std::int64_t off = static_cast<std::int64_t>(entry_off) + k * static_cast<std::int64_t>(stride);
+  if (off < 0 || static_cast<std::uint64_t>(off) + 8 > c.bytes.size()) return std::nullopt;
+  return bytes::u64(c.bytes, static_cast<std::uint64_t>(off));
+}
+
+// A table of names around one pointer to ours (`off` in `c`): of the strides 8 to 64, the one whose run of pointers to
+// identifiers of the same encoding, both ways from ours, is the longest (the smaller stride on a tie); cut where code
+// addresses an entry's start, so that tables lying end to end are told apart: an address within the `stride` bytes up
+// to an entry's name pointer starts that entry, and gives the name pointer's offset in it.
+GroupCandidate table_at(Context& cx, const SectionCopy& c, std::uint64_t off, bool wide) {
+  std::uint32_t stride = 8;
+  std::uint64_t back = 0;
+  std::uint64_t fwd = 0;
+  for (std::uint32_t st = 8; st <= 64; st += 8) {
+    std::uint64_t b = 0;
+    while (b < 4096) {
+      const std::optional<std::uint64_t> v = slot_at(c, off, -static_cast<std::int64_t>(b + 1), st);
+      if (!v || !names_identifier(cx.img, *v, wide)) break;
+      ++b;
+    }
+    std::uint64_t f = 0;
+    while (f < 4096) {
+      const std::optional<std::uint64_t> v = slot_at(c, off, static_cast<std::int64_t>(f + 1), st);
+      if (!v || !names_identifier(cx.img, *v, wide)) break;
+      ++f;
+    }
+    if (b + f > back + fwd) {
+      stride = st;
+      back = b;
+      fwd = f;
+    }
+  }
+  const auto first_ptr = static_cast<std::uint32_t>(c.rva + off - std::uint64_t{stride} * back);
+  const auto ours = static_cast<std::uint32_t>(back);
+  std::uint32_t start = 0;
+  auto end = static_cast<std::uint32_t>(back + fwd + 1);
+  std::optional<std::uint32_t> name_offset;
+  if (end >= 2) {
+    const std::uint32_t window = first_ptr - (stride - 8);
+    for (const std::uint32_t at : addressed_within(cx, window, first_ptr + stride * end)) {
+      if (stride == 8 && (at - first_ptr) % 8 != 0) continue;
+      const std::uint32_t k = (at - window) / stride;  // the entry whose name pointer `at` is at or before
+      if (k <= ours && (!name_offset || k > start)) {  // the latest entry at or before ours, at its lowest address
+        start = k;
+        name_offset = first_ptr + stride * k - at;
+      }
+      if (k > ours && k < end) end = k;
+    }
+  }
+  GroupCandidate g;
+  g.index = ours - start;
+  g.source = "pointer_table";
+  g.entries = end - start;
+  g.stride = stride;
+  g.wide = wide;
+  g.name_offset = stride > 8 || name_offset.value_or(0) != 0 ? name_offset : std::nullopt;
+  g.at = first_ptr + stride * start - name_offset.value_or(0);
+  // A field of every entry holding its position plus a constant: the index the entries may carry. Where code addresses
+  // an entry before its name pointer, the entry's own fields are tried; else (code may address the name field itself)
+  // the fields before the name pointer first, the nearest first, then those after it.
+  if (stride > 8 && g.entries >= 2) {
+    std::vector<std::int64_t> rel;
+    if (name_offset && *name_offset > 0) {
+      for (std::int64_t r = -static_cast<std::int64_t>(*name_offset); r + 4 <= stride - *name_offset; r += 4)
+        if (r < 0 || r >= 8) rel.push_back(r);
+    } else {
+      for (std::int64_t r = -4; r > -static_cast<std::int64_t>(stride); r -= 4) rel.push_back(r);
+      for (std::int64_t r = 8; r + 4 <= stride; r += 4) rel.push_back(r);
+    }
+    for (const std::int64_t r : rel) {
+      std::optional<std::int64_t> constant;
+      bool holds = true;
+      std::uint32_t mine = 0;
+      for (std::uint32_t k = start; k < end && holds; ++k) {
+        const std::int64_t at = static_cast<std::int64_t>(off) + (static_cast<std::int64_t>(k) - ours) * stride + r;
+        if (at < 0 || static_cast<std::uint64_t>(at) + 4 > c.bytes.size()) {
+          holds = false;
+          break;
+        }
+        const std::uint32_t v = bytes::u32(c.bytes, static_cast<std::uint64_t>(at)).value_or(0xFFFFFFFFu);
+        const std::int64_t d = std::int64_t{v} - (std::int64_t{k} - start);
+        if (!constant) constant = d;
+        holds = d == *constant && d >= 0 && d < 4096;
+        if (k == ours) mine = v;
+      }
+      if (holds) {
+        g.stored_index = mine;
+        break;
+      }
+    }
+  }
+  return g;
+}
+
 void derive_group(Context& cx, const std::map<std::uint32_t, std::vector<code::Decoded>>& refs,
                   const std::vector<std::pair<std::uint32_t, bool>>& strings) {
   GroupResult& g = cx.result.group;
   g.strings = strings.size();
+  std::vector<GroupCandidate> tables;
+  std::vector<GroupCandidate> lone;
+  std::vector<GroupCandidate> code;
   for (const auto& [rva, wide] : strings) {
-    // Tables of pointers to names, one of them this one. Tables can lie end to end, so the table is the run of such
-    // pointers cut where code addresses it: its index is its place after the last start the code addresses.
+    // Tables of pointers to names, one of them this one, with their stride.
     const std::uint64_t va = cx.image.image_base + rva;
     for (const SectionCopy& c : cx.img.sections()) {
       if (!data_section(cx.img, c)) continue;
       for (std::uint64_t off = (8 - c.rva % 8) % 8; off + 8 <= c.bytes.size(); off += 8) {
         if (bytes::u64(c.bytes, off).value_or(0) != va) continue;
-        std::uint64_t back = 0;
-        while (off >= 8 * (back + 1) &&
-               names_identifier(cx.img, bytes::u64(c.bytes, off - 8 * (back + 1)).value_or(0), wide) && back < 4096) {
-          ++back;
-        }
-        std::uint64_t fwd = 0;
-        while (off + 8 * (fwd + 2) <= c.bytes.size() &&
-               names_identifier(cx.img, bytes::u64(c.bytes, off + 8 * (fwd + 1)).value_or(0), wide) && fwd < 4096) {
-          ++fwd;
-        }
-        const auto run_start = static_cast<std::uint32_t>(c.rva + off - 8 * back);
-        const auto entry = static_cast<std::uint32_t>(c.rva + off);
-        const auto run_end = static_cast<std::uint32_t>(c.rva + off + 8 * (fwd + 1));
-        std::uint32_t start = run_start;
-        std::uint32_t end = run_end;
-        for (const std::uint32_t at : addressed_within(cx, run_start, run_end)) {
-          if ((at - run_start) % 8 != 0) continue;
-          if (at <= entry) start = at;
-          if (at > entry && at < end) end = at;
-        }
-        if (g.candidates.size() < 16) {
-          g.candidates.push_back(GroupCandidate{(entry - start) / 8, "pointer_table", start, (end - start) / 8});
-        }
+        ++g.pointers;
+        GroupCandidate t = table_at(cx, c, off, wide);
+        (t.entries >= 2 ? tables : lone).push_back(t);
       }
     }
     // Code that loads the name, with a small 32-bit constant set beside it.
     const auto it = refs.find(rva);
     if (it == refs.end()) continue;
+    g.references += it->second.size();
     for (const code::Decoded& ref : it->second) {
       const std::optional<std::vector<code::Decoded>> before = code::decode_to(cx.image, *cx.text, ref.rva);
       std::vector<code::Decoded> near;
@@ -854,10 +1107,20 @@ void derive_group(Context& cx, const std::map<std::uint32_t, std::vector<code::D
           best_distance = distance;
         }
       }
-      if (best && g.candidates.size() < 16) g.candidates.push_back(GroupCandidate{*best, "code_reference", ref.rva, 0});
+      if (best) {
+        code.push_back(GroupCandidate{*best, "code_reference", ref.rva, 0, 0, std::nullopt, wide, std::nullopt});
+      }
     }
   }
-  g.status = g.candidates.empty() ? Status::Missing : Status::Derived;
+  // Tables first, the largest first; then code; then lone pointers, which say nothing of an index (a table of one).
+  std::stable_sort(tables.begin(), tables.end(),
+                   [](const GroupCandidate& a, const GroupCandidate& b) { return a.entries > b.entries; });
+  for (auto* list : {&tables, &code, &lone}) {
+    for (const GroupCandidate& c : *list) {
+      if (g.candidates.size() < 16) g.candidates.push_back(c);
+    }
+  }
+  g.status = tables.empty() && code.empty() ? Status::Missing : Status::Derived;
 }
 
 // ---- The statics ----
@@ -948,7 +1211,8 @@ void confirm_list(Context& cx) {
   auto add = [&](std::string_view item, std::string label, std::optional<std::uint64_t> value) {
     r.confirm.push_back(ConfirmItem{item, std::move(label), value});
   };
-  if (r.fd4.names) add("name_layout", "", r.fd4.names->offset);
+  // The name layout: the offset derived, or R1's to find (else R1 names each singleton through its getter).
+  add("name_layout", "", r.fd4.names ? std::optional<std::uint64_t>(r.fd4.names->offset) : std::nullopt);
   for (const SingletonResult& s : r.fd4.singletons) {
     if (s.status == Status::Derived) add("singleton_instance", s.label, s.static_slot);
   }
@@ -959,21 +1223,114 @@ void confirm_list(Context& cx) {
     add("register_task", "", r.registration.candidates.front().callee);
     add("register_abi", "", std::nullopt);
   }
-  if (!r.group.candidates.empty())
-    add("task_group_index", "", r.group.candidates.front().index);
-  else
-    add("task_group_index", "", std::nullopt);
+  // A lone pointer to the name is no table: it says nothing of an index.
+  add("task_group_index", "",
+      r.group.status == Status::Derived ? std::optional<std::uint64_t>(r.group.candidates.front().index)
+                                        : std::nullopt);
   add("task_run_slot", "", r.task.run_slot ? std::optional<std::uint64_t>(*r.task.run_slot) : std::nullopt);
   add("task_object_size", "", std::nullopt);
   for (const StaticResult& s : r.statics) {
     if (s.status == Status::NeedsSlot) {
+      // The class's vtable for R1's search, when RTTI gave one; without it R1 finds the slot by what the instance holds.
       add(s.module ? "static_slot_module_base" : "static_slot_instance", s.label,
-          s.module ? std::nullopt : std::optional<std::uint64_t>(s.rtti.vtable));
+          s.module || s.rtti.vtable == 0 ? std::nullopt : std::optional<std::uint64_t>(s.rtti.vtable));
     } else if (s.pattern) {
       add("static_pattern_in_memory", s.label, s.pattern->hit);
     }
   }
   add("layout_fields", "", std::nullopt);
+}
+
+// ---- The decoder's census of the executable sections ----
+
+bool escape_byte(const SectionCopy& c, std::uint32_t at) {
+  const std::uint64_t off = at - c.rva;
+  if (off >= c.bytes.size()) return false;
+  const auto b = std::to_integer<std::uint8_t>(c.bytes[off]);
+  return b == 0xC4 || b == 0xC5 || b == 0x62 || b == 0x8F;
+}
+
+// Every executable section decoded as the derivation decodes .text (code.hpp's sweep), counting what did not decode,
+// where, and the instructions addressing the FD4 path strings.
+void census(Context& cx, const std::set<std::uint32_t>& path_targets) {
+  for (const SectionCopy& c : cx.img.sections()) {
+    const Section& h = cx.img.header(c);
+    if ((h.characteristics & kSectionExecute) == 0) continue;
+    SectionCensus k;
+    k.name = h.name;
+    k.rva = h.rva;
+    k.virtual_size = h.virtual_size;
+    const std::uint32_t end = c.rva + static_cast<std::uint32_t>(c.bytes.size());
+    auto next_fn = std::upper_bound(cx.image.functions.begin(), cx.image.functions.end(), c.rva,
+                                    [](std::uint32_t r, const RuntimeFunction& f) { return r < f.begin; });
+    std::uint32_t at = c.rva;
+    bool in_run = false;
+    bool stopped = false;  // the instruction before did not fall through
+    while (at < end) {
+      while (next_fn != cx.image.functions.end() && next_fn->begin <= at) ++next_fn;
+      const std::uint32_t limit =
+          next_fn != cx.image.functions.end() && next_fn->begin < end ? next_fn->begin : end;
+      const std::optional<x86::Instruction> insn = code::detail::step(c, at, limit);
+      if (!insn) {
+        ++k.undecodable;
+        if (!in_run) {
+          ++k.runs;
+          if (stopped) ++k.runs_after_stop;
+          if (escape_byte(c, at)) ++k.runs_at_escape;
+          in_run = true;
+        }
+        if (cx.image.function_at(at) != nullptr) ++k.in_functions;
+        ++at;
+        continue;
+      }
+      in_run = false;
+      ++k.instructions;
+      const x86::Flow f = insn->flow;
+      stopped = f == x86::Flow::Jump || f == x86::Flow::JumpIndirect || f == x86::Flow::Return || f == x86::Flow::Trap;
+      if (insn->rip_relative && !path_targets.empty()) {
+        const std::optional<std::uint32_t> t = code::rip_target(cx.img, c, code::Decoded{at, *insn});
+        if (t && path_targets.count(*t) != 0) ++k.path_references;
+      }
+      at += insn->length;
+    }
+    cx.result.stats.sections.push_back(std::move(k));
+  }
+}
+
+// ---- RTTI: a class of the same name elsewhere ----
+
+// Type descriptors of a class or struct whose own name (the last part of `cls`) is the class's, in any namespace.
+std::uint64_t same_name(const ImageBytes& img, std::string_view cls) {
+  const std::size_t sep = cls.rfind("::");
+  const std::string_view own = sep == std::string_view::npos ? cls : cls.substr(sep + 2);
+  if (!is_identifier_text(own)) return 0;
+  std::set<std::uint32_t> found;
+  for (const char* head : {".?AV", ".?AU"}) {
+    std::string needle_text = std::string(head) + std::string(own) + "@";
+    std::vector<std::byte> needle;
+    for (const char ch : needle_text) needle.push_back(std::byte{static_cast<unsigned char>(ch)});
+    for (const SectionCopy& c : img.sections()) {
+      if (!data_section(img, c)) continue;
+      auto from = c.bytes.begin();
+      while (true) {
+        const auto hit = std::search(from, c.bytes.end(), needle.begin(), needle.end());
+        if (hit == c.bytes.end()) break;
+        from = hit + 1;
+        const auto off = static_cast<std::uint64_t>(hit - c.bytes.begin());
+        if (off < 16) continue;
+        const auto td = static_cast<std::uint32_t>(c.rva + off - 16);
+        const std::optional<std::uint64_t> vft = img.u64(td);
+        const std::optional<std::uint64_t> spare = img.u64(td + 8);
+        const std::optional<std::string> name = img.ascii(td + 16, 4096);
+        if (!vft || !img.rva_of(*vft) || !spare || *spare != 0 || !name || name->size() < 2 ||
+            name->compare(name->size() - 2, 2, "@@") != 0) {
+          continue;
+        }
+        found.insert(td);
+      }
+    }
+  }
+  return found.size();
 }
 
 }  // namespace
@@ -988,6 +1345,7 @@ Result derive(const ImageInfo& image, const ByteSource& source, const Leads& lea
   fingerprint(cx);
   derive_fd4(cx);
   derive_rtti(cx);
+  const std::vector<std::uint32_t> path_targets = path_strings(img, leads.fd4_path_suffix);
 
   // One sweep for every reference the rest needs: the registration's instance, the group's name, the statics' slots.
   std::set<std::uint32_t> targets;
@@ -1003,6 +1361,10 @@ Result derive(const ImageInfo& image, const ByteSource& source, const Leads& lea
   derive_register(cx, refs);
   derive_group(cx, refs, strings);
   derive_statics(cx, refs);
+  for (std::size_t i = 0; i < result.statics.size() && i < leads.statics.size(); ++i) {
+    if (!leads.statics[i].module) result.statics[i].same_name = same_name(img, leads.statics[i].rtti);
+  }
+  census(cx, std::set<std::uint32_t>(path_targets.begin(), path_targets.end()));
   confirm_list(cx);
   return result;
 }

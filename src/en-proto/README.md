@@ -14,7 +14,8 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   It is `noexcept`, and so is every entry that starts with it; the two-argument form is for entries that answer
   nothing. The components are those whose entries foreign code calls: `DllMain`, `Task`, `Present`, `Overlay`,
   `LlmTransport` (libcurl's and WinHTTP's callbacks, WinHTTP's driver threads), `LlmWorker` (the model handle's
-  threads) and `Tools` (the command's signal handler), with room for 32. Each flag is a constant-initialised atomic:
+  threads), `Tools` (the command's signal handler) and `Launcher` (eldennet-launcher's `wWinMain` and the system's
+  callbacks into it), with room for 32. Each flag is a constant-initialised atomic:
   `tripped(c)` reads it, `clear_trip(c)` clears it. A trip changes nothing by itself: what it means (a toast, a
   subsystem off) is its owner's decision.
 - **`Expected<T, E>`** (`expected.hpp`, ARCH §2.2): a value or the error that stands in for it, shaped like C++23's

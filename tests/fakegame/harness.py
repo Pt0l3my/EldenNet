@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import signal
 import struct
 import subprocess
@@ -34,8 +35,10 @@ class Case:
     add their chain cases here: program="{launcher}", needs=("launcher", "eldennet")."""
 
     def __init__(self, name, args, exit=0, expect=(), forbid=(), check=None, env=None, toolchains=("clang-cl", "mingw"),
-                 timeout=60, kill_after=None, what="", program="{exe}", needs=()):
+                 timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False):
         self.name = name
+        self.prepare = prepare  # a launcher case's own files, made before it runs (launcher_setup)
+        self.settle = settle    # wait for every process the case started (a watcher) before the prefix is stopped
         self.program = program
         self.needs = tuple(needs)
         self.args = list(args)
@@ -363,6 +366,386 @@ case("gal-group-shift", GAL + ["--frames", "300", "--shift-groups", "1", "--load
      needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "group-shift"),
      what="the group table shifted since the derivation: the first tick finds another name there and goes inert")
 
+# The launcher and its crash watcher (part 7): eldennet-launcher starts the fake game (a copy in the case's own folder,
+# with the case's own %APPDATA%), and, with galtest.dll as the DLL, injects, watches and records. Its lines are checked
+# ("LAUNCHER <event> key=value"), and so are the fake game's, galtest's and vehprobe's (in the status file, as a game
+# started by a launcher has no console), and the files it leaves: the appid file and its record, backups, the
+# watcher's records, the spikes' logs. `launcher_setup` makes the folders; a case's `prepare` adds its own invented
+# files (saves, a stale record, Steam folders). Every name, number and file here is invented, the app id excepted:
+# it is the launcher's own constant, which it writes into the fake game's folder.
+APPID = "1245620"
+LBASE = ["--no-dialogs", "--appdata", "{appdata}", "--gal", "{galdir}"]
+LGAME = LBASE + ["--no-steam-check", "--game", "{game}", "--no-backup"]
+GALTEST_ENV = {"EN_GALTEST_DIR": "{galdir}", "EN_GALTEST_STATUS": "{status}"}
+LNEEDS = ("launcher",)
+LGAL_NEEDS = ("launcher", "engine", "leads", "galtest", "gallayout")
+
+
+def game(*extra, frames=180):
+    """The fake game's own arguments, after `--`."""
+    return ["--", "--frames", str(frames), "--fps", "60", "--status-file", "{status}"] + list(extra)
+
+
+def lines_of(result, source, event):
+    return result.events(source, event)
+
+
+def want(result, source, event, /, which="last", **kv):
+    """One line's values: each key equal to a string, or a number within (lo, hi); `which` first or last."""
+    found = [e for e in result.events(source, event) if all(k in e for k in kv)]
+    if not found:
+        return ["no %s %s line with %s" % (source, event, ", ".join(sorted(kv)))]
+    line = found[-1] if which == "last" else found[0]
+    failures = []
+    for key, value in kv.items():
+        got = line.get(key)
+        if isinstance(value, tuple):
+            ok = got is not None and re.match(r"^-?[0-9.]+$", got) and value[0] <= float(got) <= value[1]
+            need(ok, "%s %s %s=%s, wanted %s..%s" % (source, event, key, got, value[0], value[1]), failures)
+        else:
+            need(got == str(value), "%s %s %s=%s, wanted %s" % (source, event, key, got, value), failures)
+    return failures
+
+
+def no_appid_file(result):
+    path = os.path.join(result.paths["gamedir"], "steam_appid.txt")
+    return ["steam_appid.txt is still in the game folder"] if os.path.exists(path) else []
+
+
+def crash_records(result):
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "crashes")
+    if not os.path.isdir(folder):
+        return []
+    out = []
+    for name in sorted(os.listdir(folder)):
+        with open(os.path.join(folder, name), encoding="utf-8") as f:
+            out.append(json.load(f))
+    return out
+
+
+def record_is_clean(rec):
+    """A record holds numbers, fixed words and module file names only: no path, no user name."""
+    text = json.dumps(rec)
+    failures = []
+    need(":\\\\" not in text and "/" not in text.replace("\\/", ""), "a record holds a path: %s" % text[:200], failures)
+    need(os.environ.get("USER", "\0") not in text, "a record holds the user's name", failures)
+    return failures
+
+
+def check_lines(*pairs, **files):
+    """Checks lines as (source, event, {key: value}) triples, then each `files` check (a function of the result)."""
+    def check(result):
+        failures = []
+        for source, event, kv in pairs:
+            failures += want(result, source, event, **kv)
+        for f in files.values():
+            failures += f(result)
+        return failures
+    return check
+
+
+def with_saves(paths):
+    # Two invented save folders (17 digits) and one that is no SteamID; the files' contents invented.
+    saves = os.path.join(paths["appdata"], "EldenRing")
+    for sid, body in (("76500000000000042", b"invented save A"), ("76500000000000077", b"invented save B")):
+        os.makedirs(os.path.join(saves, sid))
+        with open(os.path.join(saves, sid, "ER0000.sl2"), "wb") as f:
+            f.write(body * 100)
+    with open(os.path.join(saves, "76500000000000042", "ER0000.sl2.bak"), "wb") as f:
+        f.write(b"invented backup")
+    os.makedirs(os.path.join(saves, "not-a-steam-id"))
+
+
+def with_stale_record(paths):
+    # A steam_appid.txt this launcher made in an earlier session and never removed (its record says so).
+    target = os.path.join(paths["gamedir"], "steam_appid.txt")
+    with open(target, "w") as f:
+        f.write(APPID)
+    cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+    os.makedirs(cfg)
+    with open(os.path.join(cfg, "launcher-state.toml"), "w") as f:
+        f.write('schema = 1\n[appid]\nfile = "%s"\ncreated_by_us = true\ncreated_at = "20261116-101500"\n'
+                % paths["as_windows"](target).replace("\\", "\\\\"))
+
+
+def with_foreign_appid(paths):
+    with open(os.path.join(paths["gamedir"], "steam_appid.txt"), "w") as f:
+        f.write("4242")  # someone else's file: never ours to touch
+
+
+def with_old_crash(paths):
+    # The watcher's record of a crash in an earlier session, not explained yet: the next start explains it.
+    folder = os.path.join(paths["appdata"], "EldenNet", "crashes")
+    os.makedirs(folder)
+    with open(os.path.join(folder, "crash-20261116-090000-77.json"), "w") as f:
+        json.dump({"record": 1, "kind": "crash", "exit_code": 3221225477, "crash": {"module": "fakegame.exe"},
+                   "explained": False}, f)
+
+
+def with_steam(paths):
+    # An invented Steam folder: libraryfolders.vdf naming a second library, which holds the app's manifest and, at
+    # the path the launcher forms, a copy of the fake game standing in for the game's executable.
+    steam = os.path.join(paths["case"], "Steam")
+    lib = os.path.join(paths["case"], "Library Two")
+    os.makedirs(os.path.join(steam, "steamapps"))
+    os.makedirs(os.path.join(lib, "steamapps", "common", "Invented Install", "Game"))
+    esc = lambda p: paths["as_windows"](p).replace("\\", "\\\\")
+    with open(os.path.join(steam, "steamapps", "libraryfolders.vdf"), "w") as f:
+        f.write('"libraryfolders"\n{\n\t"0"\n\t{\n\t\t"path"\t\t"%s"\n\t}\n\t"1"\n\t{\n\t\t"path"\t\t"%s"\n\t}\n}\n'
+                % (esc(steam), esc(lib)))
+    with open(os.path.join(lib, "steamapps", "appmanifest_%s.acf" % APPID), "w") as f:
+        f.write('"AppState"\n{\n\t"appid"\t\t"%s"\n\t"installdir"\t\t"Invented Install"\n}\n' % APPID)
+    shutil.copy2(paths["game"], os.path.join(lib, "steamapps", "common", "Invented Install", "Game", "eldenring.exe"))
+    paths["steam"] = steam
+
+
+def spike_log(result, spike):
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-")] if os.path.isdir(folder) else []
+    if not names:
+        return None
+    with open(os.path.join(folder, names[-1]), encoding="utf-8") as f:
+        return [json.loads(l) for l in f if l.strip()]
+
+
+def check_vanilla(result):
+    failures = check_lines(("LAUNCHER", "started", {"ok": 1, "mode": "vanilla", "inject": 0}),
+                           ("LAUNCHER", "appid", {"removal": "removed", "at": "window"}),
+                           ("LAUNCHER", "end", {"kind": "clean", "exit_code": "0x00000000", "crash_filter": 0}),
+                           ("LAUNCHER", "run", {"outcome": "game_ended", "record": 0}),
+                           ("LAUNCHER", "last_crash", {"explained": 1}),
+                           ("FAKEGAME", "end", {"frames": 180}))(result)
+    failures += want(result, "LAUNCHER", "appid", which="first", method="file", step="created")
+    failures += want(result, "LAUNCHER", "end", modules=(3, 500))
+    failures += no_appid_file(result)
+    recs = crash_records(result)
+    need(len(recs) == 1 and recs[0]["explained"] is True, "the old record is not marked explained: %s" % recs, failures)
+    state = os.path.join(result.paths["appdata"], "EldenNet", "config", "launcher-state.toml")
+    need(os.path.exists(state) and "[appid]" not in open(state).read(), "launcher-state.toml still records the file",
+         failures)
+    return failures
+
+
+def check_vanilla_crash(result):
+    failures = check_lines(("LAUNCHER", "end", {"kind": "crash", "exit_code": "0xC0000005", "crash_filter": 0}),
+                           ("LAUNCHER", "record", {"kept": 1, "kind": "crash"}),
+                           ("FAKEGAME", "crash", {"kind": "av-read"}))(result)
+    recs = crash_records(result)
+    need(len(recs) == 1, "%d crash records, wanted 1" % len(recs), failures)
+    if recs:
+        r = recs[0]
+        need(r["kind"] == "crash" and r["exit_code_hex"] == "0xC0000005" and r["crash"] is None,
+             "the record: %s" % r, failures)
+        need("fakegame.exe" in r["modules"] and r["mode"] == "vanilla", "the record's modules: %s" % r["modules"],
+             failures)
+        need(r["explained"] is False, "a new record is not yet explained", failures)
+        failures += record_is_clean(r)
+    return failures
+
+
+def check_backup_only(result):
+    failures = check_lines(("LAUNCHER", "backup", {"folders": 2, "made": 2, "unchanged": 0, "problems": 0}),
+                           ("LAUNCHER", "finish", {"exit": 0}))(result)
+    root = os.path.join(result.paths["appdata"], "EldenNet", "save-backups")
+    for sid, files in (("76500000000000042", {"ER0000.sl2", "ER0000.sl2.bak", "manifest.toml"}),
+                       ("76500000000000077", {"ER0000.sl2", "manifest.toml"})):
+        stamps = os.listdir(os.path.join(root, sid)) if os.path.isdir(os.path.join(root, sid)) else []
+        need(len(stamps) == 1, "%s: %d backups" % (sid, len(stamps)), failures)
+        if stamps:
+            got = set(os.listdir(os.path.join(root, sid, stamps[0])))
+            need(got == files, "%s: %s" % (sid, sorted(got)), failures)
+            man = open(os.path.join(root, sid, stamps[0], "manifest.toml")).read()
+            need('name = "ER0000.sl2"' in man and "blake3 = " in man, "manifest: %s" % man[:200], failures)
+    need(not os.path.exists(os.path.join(root, "not-a-steam-id")), "a folder that is no SteamID was backed up",
+         failures)
+    return failures
+
+
+# The launcher on the fake game, with no DLL (both builds).
+case("launcher-vanilla", LGAME + ["--vanilla-offline"] + game(), program="{launcher}", needs=LNEEDS,
+     prepare=with_old_crash, check=check_vanilla, timeout=120,
+     what="starts the fake game offline with no DLL: the appid file made, removed once the window shows, a clean "
+          "end watched; the last session's crash record explained and marked so")
+case("launcher-vanilla-crash", LGAME + ["--vanilla-offline"] + game("--crash", "av-read", "--crash-at", "60"),
+     program="{launcher}", needs=LNEEDS, check=check_vanilla_crash, timeout=120,
+     what="a crash with no EldenNet in the game: the watcher keeps a record from the exit code and the module list")
+case("launcher-env", LGAME + ["--vanilla-offline", "--appid-method", "env"] + game(), program="{launcher}",
+     needs=LNEEDS, timeout=120,
+     check=check_lines(("LAUNCHER", "appid", {"method": "env"}), ("LAUNCHER", "end", {"kind": "clean"}),
+                       files=no_appid_file),
+     what="the SteamAppId method (pending S0-C): no file written in the game's folder")
+case("launcher-foreign-appid", LGAME + ["--vanilla-offline"] + game(), program="{launcher}", needs=LNEEDS,
+     prepare=with_foreign_appid, timeout=120,
+     check=lambda r: want(r, "LAUNCHER", "appid", step="foreign") + want(r, "LAUNCHER", "end", kind="clean") +
+     ([] if open(os.path.join(r.paths["gamedir"], "steam_appid.txt")).read() == "4242"
+      else ["someone else's steam_appid.txt was changed"]),
+     what="a steam_appid.txt that is not the launcher's is left as it is; that start uses the environment")
+case("launcher-backup-only", LBASE + ["--backup-only"], program="{launcher}", needs=LNEEDS, prepare=with_saves,
+     check=check_backup_only, timeout=60,
+     what="--backup-only: each SteamID folder's save files copied with a BLAKE3 manifest; nothing else touched")
+case("launcher-cleanup", LGAME[:-1] + ["--cleanup"], program="{launcher}", needs=LNEEDS, prepare=with_stale_record,
+     timeout=60,
+     check=check_lines(("LAUNCHER", "appid", {"stale": 1, "removal": "removed"}),
+                       ("LAUNCHER", "cleanup", {"appid": "done"}), files=no_appid_file),
+     what="--cleanup removes a stale steam_appid.txt the launcher's record says it made")
+case("launcher-diagnostics", LBASE + ["--steam", "{steam}", "--print-diagnostics"], program="{launcher}",
+     needs=LNEEDS, prepare=with_steam, timeout=60,
+     check=check_lines(("LAUNCHER", "diagnostics", {"how": "steam", "found": 1, "libraries": 2, "manifests": 1}),
+                       ("LAUNCHER", "gate", {"result": "passed", "build": "3.14.15.0-ww"})),
+     what="--print-diagnostics through invented Steam folders: the library list, the app manifest, the gate")
+case("launcher-e02", LBASE + ["--game", "{game}", "--no-backup", "--vanilla-offline"], program="{launcher}",
+     needs=LNEEDS, exit=12, timeout=60, check=check_lines(("LAUNCHER", "error", {"code": "E02", "exit": 12})),
+     what="no Steam running: E02, nothing started")
+def with_unknown_build(paths):
+    # builds.toml naming the fake game's version with another TimeDateStamp: a build EldenNet does not know.
+    with open(os.path.join(paths["galdir"], "builds.toml")) as f:
+        text = re.sub(r"time_date_stamp = 0x([0-9A-F]+)",
+                      lambda m: "time_date_stamp = 0x%X" % ((int(m.group(1), 16) + 1) & 0xFFFFFFFF), f.read())
+    paths["galdir"] = os.path.join(paths["case"], "gal-unknown")
+    os.makedirs(paths["galdir"])
+    with open(os.path.join(paths["galdir"], "builds.toml"), "w") as f:
+        f.write(text)
+
+
+case("launcher-e05", LGAME + ["--dll", "{vehprobe}"] + game(), program="{launcher}", needs=LNEEDS, exit=15,
+     timeout=60, prepare=with_unknown_build,
+     check=check_lines(("LAUNCHER", "gate", {"result": "unknown"}),
+                       ("LAUNCHER", "error", {"code": "E05", "answer": "no"})),
+     what="a build builds.toml does not know: E05, answered no, nothing started")
+case("launcher-e08", LGAME + ["--dll", "{vehprobe}"] + game(), program="{launcher}", needs=LNEEDS, exit=18,
+     timeout=60, check=check_lines(("LAUNCHER", "preflight", {"dll_ours": 0}), ("LAUNCHER", "error", {"code": "E08"})),
+     what="a DLL whose ProductName is not EldenNet: E08 before anything starts")
+case("launcher-usage", ["--inject-at", "later"], program="{launcher}", needs=LNEEDS, exit=2, timeout=30,
+     expect=[r'^LAUNCHER usage error="--inject-at is suspended, window or title"'], what="a usage error: exit 2")
+
+
+def check_inject(where):
+    def check(result):
+        failures = check_lines(("LAUNCHER", "inject", {"dll": "galtest.dll", "ok": 1}),
+                               ("LAUNCHER", "init", {"state": "ready"}),
+                               ("LAUNCHER", "end", {"kind": "clean", "crash_filter": 0}),
+                               ("LAUNCHER", "run", {"outcome": "ready"}),
+                               ("GALTEST", "watch", {"attached": 1}),
+                               ("GALTEST", "registered", {"ok": 1}),
+                               ("LAUNCHER", "mark", {"n": 1}),
+                               ("GALTEST", "watch", {"marks": 1}),
+                               ("FAKEGAME", "pressed", {"key": "pause", "sent": 2}))(result)
+        failures += want(result, "LAUNCHER", "mark", which="first", hotkey="pause", registered=1)
+        failures += want(result, "LAUNCHER", "status", init="ready", snapshots=(8, 1e9), tripped="0x0")
+        if where == "world":
+            # en-core's slice in galtest (part 5): the world reached, and the gate open after its 5 s hold.
+            failures += want(result, "GALTEST", "core", phase="in_world", level="L2", gate=1, dormant=0, badge=0,
+                             why="none", playthroughs=1)
+            failures += want(result, "LAUNCHER", "status", flags="0x9")  # the core's, the gate open, not dormant
+        else:
+            failures += want(result, "GALTEST", "core", phase="title", level="L2", gate=1, dormant=1)
+        return failures + no_appid_file(result)
+    return check
+
+
+# The launcher with galtest.dll as the DLL (clang-cl): injected suspended, at the window or at the title; watched;
+# the dev console's status lines; the Mark pressed in game (the fake game sends Pause) and seen in galtest's block.
+case("launcher-inject", LGAME + ["--dll", "{galtest}", "--console"] + game("--press-pause-at", "300", frames=720),
+     program="{launcher}", needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180,
+     check=check_inject("world"),
+     what="injected into the suspended game: T1 to Ready, the world, the gate open after 5 s (en-core), the dev "
+          "console's status, a Mark on Pause stamped into the block, a clean end")
+case("launcher-inject-window", LGAME + ["--dll", "{galtest}", "--console", "--inject-at", "window"] +
+     game("--press-pause-at", "300", frames=720), program="{launcher}", needs=LGAL_NEEDS, toolchains=("clang-cl",),
+     env=GALTEST_ENV, timeout=180, check=check_inject("world"),
+     what="injected once the window shows (a late load)")
+case("launcher-inject-title", LGAME + ["--dll", "{galtest}", "--console", "--inject-at", "title", "--title-wait", "1"] +
+     game("--stay-title", "--press-pause-at", "300", frames=720), program="{launcher}", needs=LGAL_NEEDS,
+     toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180, check=check_inject("title"),
+     what="injected at the title (a late load): Dormant there, the title clause's gate open")
+
+
+def check_crash(thread, filter_ran=True):
+    def check(result):
+        failures = want(result, "LAUNCHER", "end", kind="crash", exit_code="0xC0000005",
+                        crash_filter=1 if filter_ran else 0, at_crash=1 if filter_ran else 0)
+        failures += want(result, "LAUNCHER", "record", kept=1, kind="crash")
+        if filter_ran:
+            failures += want(result, "LAUNCHER", "crash", code="0xC0000005", thread=thread)
+        else:
+            need(not result.events("LAUNCHER", "crash"), "the crash filter ran, though the game replaced it", failures)
+        recs = crash_records(result)
+        need(len(recs) == 1, "%d crash records" % len(recs), failures)
+        if recs:
+            r = recs[0]
+            if filter_ran:
+                need(r["crash"] is not None and r["crash"]["thread"] == thread and r["modules_at_crash"],
+                     "the record's crash: %s" % r.get("crash"), failures)
+                need(r["crash"] is not None and r["crash"]["module"].lower() in ("fakegame.exe", "kernelbase.dll",
+                                                                                 "ntdll.dll", "galtest.dll"),
+                     "the record's module: %s" % (r["crash"] or {}).get("module"), failures)
+            else:
+                need(r["crash"] is None, "a crash record without the filter: %s" % r.get("crash"), failures)
+            need("galtest.dll" in r["modules"] and r["status"]["init"] == "ready", "the record: %s" % r, failures)
+            failures += record_is_clean(r)
+        return failures
+    return check
+
+
+case("launcher-crash", LGAME + ["--dll", "{galtest}"] + game("--crash", "av-read", "--crash-at", "400", frames=720),
+     program="{launcher}", needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180,
+     check=check_crash("game"),
+     what="the game crashes on its game thread: EldenNet's filter writes the record, the watcher lists the modules "
+          "while it waits, and keeps a scrubbed record (no dump)")
+case("launcher-crash-filter-replaced", LGAME + ["--dll", "{galtest}"] +
+     game("--game-filter-at", "300", "--crash", "av-read", "--crash-at", "400", frames=720), program="{launcher}",
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180, check=check_crash("game", False),
+     what="the game replaces EldenNet's crash filter (S0-D): the exit code and the module list remain")
+case("launcher-also-vehprobe", LGAME + ["--also", "{vehprobe}", "--dll", "{galtest}"] +
+     game("--crash", "av-read", "--crash-at", "400", frames=720), program="{launcher}", needs=LGAL_NEEDS,
+     toolchains=("clang-cl",), env=dict(GALTEST_ENV, VEHPROBE_MODE="pass", VEHPROBE_LOG="{status}"), timeout=180,
+     check=lambda r: (check_order("LAUNCHER inject dll=vehprobe.dll ok=1", "LAUNCHER inject dll=galtest.dll ok=1")(r) +
+                      want(r, "VEHPROBE", "saw", code="0xC0000005") + check_crash("game")(r)),
+     what="--also loads a stand-in crash reporter first; its vectored handler sees the fault, then EldenNet's filter")
+
+
+def check_spike(spike, runs, **tally):
+    def check(result):
+        failures = want(result, "LAUNCHER", "tally", spike=spike, runs=runs, passed=1, **tally)
+        log = spike_log(result, spike)
+        need(log is not None and len(log) == runs + 1, "the spike's log: %s" % log, failures)
+        if log:
+            need(log[-1].get("tally") == 1 and log[-1].get("passed") is True, "the log's tally: %s" % log[-1], failures)
+            need(all(l["spike"] == spike for l in log), "a line of another spike", failures)
+        return failures + no_appid_file(result)
+    return check
+
+
+# The S0 spikes' loops (clang-cl, with galtest): S0-A's runs to the title, S0-D's crashes on request, S0-C's session.
+case("launcher-spike-s0a", LGAME + ["--dll", "{galtest}", "--spike", "s0a", "--runs", "3", "--run-timeout", "60"] +
+     ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=240,
+     check=check_spike("s0a", 3, ready=3, crashes=0, timeout=0),
+     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes")
+case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-crash", "--runs", "2",
+                                          "--run-timeout", "60"] +
+     ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=240,
+     check=lambda r: check_spike("s0d-crash", 2, crashes=2, records=2, filter_records=2)(r) +
+     want(r, "LAUNCHER", "crash", thread="init"),
+     what="--spike s0d-crash --runs 2: a crash asked for at the title each run, every one recorded by the watcher")
+case("launcher-spike-s0c", LGAME + ["--dll", "{galtest}", "--spike", "s0c"] + game(frames=300), program="{launcher}",
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180,
+     check=check_spike("s0c", 1, crashes=0),
+     what="--spike s0c: one watched session, the game's connections counted (none), the tally kept")
+case("launcher-watch", GAL + ["--frames", "720", "--load", "ready:{galtest}", "--crash", "av-read", "--crash-at", "400"],
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), exit=AV, settle=True, timeout=180,
+     env=dict(GALTEST_ENV, EN_GALTEST_WATCHER="{launcher}",
+              EN_GALTEST_WATCHER_ARGS="--no-dialogs --appdata {appdata}"),
+     check=lambda r: (want(r, "GALTEST", "watcher", started=1) + want(r, "GALTEST", "watch", which="first", attached=1) +
+                      want(r, "LAUNCHER", "watch", ok=1, block_created=1) +
+                      want(r, "LAUNCHER", "crash", code="0xC0000005", thread="game") +
+                      want(r, "LAUNCHER", "end", kind="crash", crash_filter=1) +
+                      want(r, "LAUNCHER", "record", kept=1)),
+     what="loaded by another loader (the fake game's own --load): EldenNet starts the watcher (--watch <pid>), which "
+          "makes the block, sees the crash and keeps its record")
+
+
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------
 
 class PE:
@@ -498,7 +881,7 @@ def check_file(pe, d, toolchain):
     need(img["size_of_image"] == pe.size_of_image, "SizeOfImage differs", failures)
     ver = pe.version()
     need(ver.get("file_version") == "3.14.15.0" == img.get("file_version"), "file version %s" % ver, failures)
-    need(ver.get("product_name") == "EldenNet Fake Game" == img.get("product_name"), "product name %s" % ver, failures)
+    need(ver.get("product_name") == PRODUCT_NAME == img.get("product_name"), "product name %s" % ver, failures)
     need(ver.get("translation") == [0x0809, 1200] == img.get("translation"), "translation %s" % ver, failures)
     need(img.get("region") == "ww", "region %s" % img.get("region"), failures)
     need([s["name"] for s in img["sections"]] == [s[0] for s in pe.sections], "sections differ", failures)
@@ -525,21 +908,31 @@ def check_file(pe, d, toolchain):
             need(target == item["target_rva"], "%s: capture 0x%X" % (role, target), failures)
             need(pe.section_of(target) == ".data" and target % 8 == 0, "%s: target placement" % role, failures)
 
-    # The FD4 finder (ARCH §6.2): every site the idiom matches, its placement checks, and naming by the class object.
+    # The FD4 finder (ARCH §6.2): every site the idiom matches, its shape and placement checks, its path's load as
+    # --describe gives it (after the head in rcx or rdx, after a format string, through a pointer, by its absolute
+    # address, or hoisted before the head), and naming by the class object.
     fd4 = d["fd4"]
-    listed = sorted(s["site"] for e in fd4["singletons"] + fd4["decoys"] for s in e["sites"])
+    listed = {s["site"]: s for e in fd4["singletons"] + fd4["decoys"] for s in e["sites"]}
     hits = sorted(text_va + m.start() for m in pattern_regex(fd4["idiom"]).finditer(text))
-    need(hits == listed, "fd4 idiom hits %s, listed %s" % (hits, listed), failures)
+    need(hits == sorted(listed), "fd4 idiom hits %s, listed %s" % (hits, sorted(listed)), failures)
     found = {}
     refused = []
     for hit in hits:
-        b = pe.read(hit, 45)
+        b = pe.read(hit, 24)
+        rip_static = (b[2] & 0xC7) == 0x05  # mod 00, r/m 101: RIP-relative
         static = hit + 7 + disp32(b, 3)
         cls = hit + 19 + disp32(b, 15)
         getter = hit + 24 + disp32(b, 20)
-        path = hit + 40 + disp32(b, 36)
+        load = listed.get(hit, {}).get("path_load", {})
+        insn = load.get("insn", 0)
+        if load.get("form") == "pointer":
+            path = pe.u64(insn + 7 + disp32(pe.read(insn, 7), 3)) - pe.image_base
+        elif load.get("form") == "absolute":
+            path = pe.u64(insn + 2) - pe.image_base
+        else:
+            path = insn + 7 + disp32(pe.read(insn, 7), 3)
         path_text = pe.cstr(path) or ""
-        ok = (pe.section_of(static) == ".data" and static % 8 == 0 and pe.section_of(cls) == ".data"
+        ok = (rip_static and pe.section_of(static) == ".data" and static % 8 == 0 and pe.section_of(cls) == ".data"
               and pe.section_of(getter) == ".text" and getter in func_starts and pe.section_of(path) == ".rdata"
               and path_text.endswith(fd4["path_suffix"]))
         need(getter == fd4["getter_rva"], "fd4 site 0x%X: getter 0x%X" % (hit, getter), failures)
@@ -553,8 +946,10 @@ def check_file(pe, d, toolchain):
     want = {e["name"]: e["static_rva"] for e in fd4["singletons"]}
     need(resolved == want, "fd4 resolved %s, wanted %s" % (resolved, want), failures)
     need(ambiguous == ["Duplicata"], "fd4 ambiguous %s" % ambiguous, failures)
-    need(sorted(refused) == ["Rockbound", "Strayling"], "fd4 refused %s" % refused, failures)
+    need(sorted(refused) == ["Mimicry", "Rockbound", "Strayling"], "fd4 refused %s" % refused, failures)
     need(len(want) == 11, "%d singletons, wanted 11" % len(want), failures)
+    kinds = sorted({s["path_load"]["kind"] for s in listed.values()})
+    need(kinds == [1, 2, 3, 4, 5, 6, 7], "fd4 path kinds %s" % kinds, failures)
 
     # The registration's call sites: each a call to the function, after the hub's static was loaded into rdx.
     task = d["task"]
@@ -677,7 +1072,7 @@ def stop_wineserver(args, env):
         raise RuntimeError("the wineserver did not end within 60 s of wineserver -k")
 
 
-def launch(args, argv, env, timeout, kill_after=None):
+def launch(args, argv, env, timeout, kill_after=None, settle=False):
     if args.native:
         cmd = argv
     else:
@@ -696,6 +1091,12 @@ def launch(args, argv, env, timeout, kill_after=None):
             os.killpg(proc.pid, signal.SIGKILL)
             stop_wineserver(args, env)
         out, err = proc.communicate()
+    if settle and not args.native and not killed:
+        # Processes the case's program started (a watcher) end by themselves: wait for them, and the server, first.
+        try:
+            subprocess.run([wineserver(args), "-w"], env=env, check=False, timeout=60)
+        except subprocess.TimeoutExpired:
+            pass
     if not args.native:
         stop_wineserver(args, env)
     return proc.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"), killed
@@ -776,6 +1177,53 @@ def run_engine(args, env, argv):
     return code & want_bits, out, err
 
 
+PRODUCT_NAME = "EldenNet Fake Game\u2122"   # fakegame.rc's, with its trademark sign
+
+
+def check_fd4_diagnostics(d, truth):
+    """derive.json's FD4 diagnostics (stats.fd4) against --describe: what the site search found at each reference to
+    the path, where the finder found each accepted site's path, and R0's rule over the same hits."""
+    failures = []
+    tfd4 = truth["fd4"]
+    g = d["stats"]["fd4"]
+    accepted_names = {e["name"] for e in tfd4["singletons"]} | {"Duplicata"}
+    sites = [(e["name"], s) for e in tfd4["singletons"] + tfd4["decoys"] for s in e["sites"]]
+    # Each reference to the path: a site where the path follows the head in code (the first two kinds and rdx), none
+    # where it is hoisted or the "static" is no RIP-relative load; the pointer and the absolute address are no
+    # RIP-relative references to the path. The program's own C++ also names the suffix in a few string literals, which
+    # end with it too: their references find no site either.
+    refs = [s for _, s in sites if s["path_ok"] and s["path_load"]["form"] == "address"]
+    outcome = {c["index"]: c["references"] for c in g.get("candidates", [])}
+    want_sites = sum(1 for s in refs if s["path_load"]["kind"] in (1, 2, 3))
+    total = g.get("path_references", 0)
+    need(total >= len(refs) and outcome.get(0) == want_sites and sum(outcome.values()) == total and
+         outcome.get(5, 0) >= len(refs) - want_sites, "fd4 references %s, outcomes %s" % (total, outcome), failures)
+    # The accepted sites' path loads, bucket by bucket.
+    want = {}
+    for name, s in sites:
+        if name not in accepted_names:
+            continue
+        p = s["path_load"]
+        key = (("anchor", p["before"]),) if p["hoisted"] else (("at", p["at"]), ("insn_end", p["insn_end"]))
+        key += (("length", p["length"]), ("index", p["ordinal"]), ("slot", p["reg"]), ("value", p["opcode"]))
+        want[key] = want.get(key, 0) + 1
+    got = {}
+    for b in g.get("idiom", {}).get("captures", []):
+        key = tuple((k, b[k]) for k in ("anchor", "at", "insn_end", "length", "index", "slot", "value") if k in b)
+        got[key] = b.get("hits")
+    need(got == want, "fd4 path loads %s, wanted %s" % (sorted(got.items()), sorted(want.items())), failures)
+    # R0's rule: the first reference into .rdata taken for the path, and no decoding of the hit.
+    r0 = g.get("refused", {})
+    kinds = [s["path_load"]["kind"] for name, s in sites if name in accepted_names]
+    need(g.get("accepted") == sum(1 for k in kinds if k in (1, 3)) and r0.get("path_text") == 1 + kinds.count(2) +
+         kinds.count(4) and r0.get("no_path") == kinds.count(5) + kinds.count(6) and r0.get("static_section") == 1
+         and r0.get("unreadable") == 1,
+         "fd4 under R0's rule: %s accepted, %s" % (g.get("accepted"), r0), failures)
+    need(d["fd4"]["refused"].get("unreadable") == 1, "fd4 refused %s: the decoy is no idiom" % d["fd4"]["refused"],
+         failures)
+    return failures
+
+
 def check_derive(d, truth, leads, toolchain, failures):
     """Every claim of derive.json against --describe."""
     img, timg = d["image"], truth["image"]
@@ -784,6 +1232,9 @@ def check_derive(d, truth, leads, toolchain, failures):
     need(".".join(str(v) for v in img.get("file_version", [])) == timg["file_version"], "file version", failures)
     need(img["region"] == timg["region"] == "ww", "region %s" % img["region"], failures)
     need(img["product_name"] == "matches", "product name %s" % img["product_name"], failures)
+    # It matched once its trademark sign was removed: one character fewer.
+    need(img.get("names") == {"of": len(PRODUCT_NAME), "agree": len(PRODUCT_NAME) - 1}, "product name's characters %s"
+         % img.get("names"), failures)
     need(img.get("translation") == timg["translation"], "translation", failures)
 
     fd4, tfd4 = d["fd4"], truth["fd4"]
@@ -791,9 +1242,10 @@ def check_derive(d, truth, leads, toolchain, failures):
     idiom = fd4.get("idiom", {})
     need(idiom.get("bytes") == tfd4["idiom"], "fd4 idiom %s, wanted %s" % (idiom.get("bytes"), tfd4["idiom"]), failures)
     caps = {c["capture"]: (c["at"], c["insn_end"]) for c in idiom.get("captures", [])}
-    for name, key in (("static", "static"), ("class", "class"), ("getter", "getter"), ("path", "path")):
-        want = tfd4["operands"][key]
+    for name in ("static", "class", "getter"):
+        want = tfd4["operands"][name]
         need(caps.get(name) == (want["at"], want["insn_end"]), "fd4 capture %s %s" % (name, caps.get(name)), failures)
+    need("path" not in caps, "fd4 path capture %s: the sites load their paths otherwise" % caps.get("path"), failures)
     need(idiom.get("scan_resolved") is True, "fd4 idiom not resolved by the scan", failures)
     names = fd4.get("names", {})
     need(names.get("offset") == tfd4["name_ptr_off"] and names.get("encoding") == tfd4["name_encoding"],
@@ -811,6 +1263,7 @@ def check_derive(d, truth, leads, toolchain, failures):
     for name, (status, refusal) in want_decoys.items():
         s = got.get(label_of.get(name), {})
         need(s.get("status") == status and s.get("refusal") == refusal, "decoy %s: %s" % (name, s), failures)
+    failures += check_fd4_diagnostics(d, truth)
 
     reg, task = d["register"], truth["task"]
     need(reg["status"] == "derived", "register status %s" % reg["status"], failures)
@@ -827,6 +1280,11 @@ def check_derive(d, truth, leads, toolchain, failures):
     groups = [c["index"] for c in d["group"].get("candidates", [])]
     need(task["standin"]["index"] in groups[:1], "group index %s, wanted %s first" % (groups, task["standin"]["index"]),
          failures)
+    # The group table's entries are 16 bytes ({ index, flags, name }): found at that stride, with its ten entries and
+    # the index the entry holds.
+    first = (d["group"].get("candidates") or [{}])[0]
+    need((first.get("length"), first.get("entries"), first.get("value"), first.get("encoding")) ==
+         (16, 10, task["standin"]["index"], "utf16"), "group table %s" % first, failures)
 
     rtti = d["rtti"]
     if toolchain != "clang-cl":
@@ -1214,6 +1672,41 @@ def make_gal(args, env):
     return gal, truth
 
 
+def write_builds(folder, exe):
+    """builds.toml for the fake game's own fingerprint (its invented version resource; the rest from the file)."""
+    with open(exe, "rb") as f:
+        pe = PE(f.read())
+    os.makedirs(os.path.join(folder, "layouts"), exist_ok=True)
+    with open(os.path.join(folder, "builds.toml"), "w") as f:
+        f.write('schema = 1\n[[build]]\nkey = "3.14.15.0-ww"\napp = "3.14.15.0"\nfile_version = "3.14.15.0"\n'
+                'product_name = "EldenNet Fake Game"\nregion = "ww"\ntime_date_stamp = 0x%X\nsize_of_image = 0x%X\n'
+                'layout = "layouts/fakegame.toml"\ndlrf_name_layout = true\nstatus = "supported"\n'
+                % (pe.time_date_stamp, pe.size_of_image))
+    return folder
+
+
+def launcher_setup(args, env, c, paths):
+    """A launcher case's folder: a copy of the fake game in game/, its own %APPDATA%, gal/ (the derivation's for the
+    cases with galtest, else builds.toml alone), then the case's own files. Answers --describe's truth, or None."""
+    case_dir = os.path.join(args.work, "%s-%s" % (args.toolchain, c.name))
+    shutil.rmtree(case_dir, ignore_errors=True)
+    game_dir = os.path.join(case_dir, "game")
+    os.makedirs(game_dir)
+    game_exe = os.path.join(game_dir, "fakegame.exe")
+    shutil.copy2(args.exe, game_exe)
+    appdata = os.path.join(case_dir, "appdata")
+    os.makedirs(appdata)
+    paths.update(case=case_dir, game=game_exe, gamedir=game_dir, appdata=appdata)
+    truth = None
+    if "galtest" in c.needs and "gallayout" in c.needs:
+        paths["galdir"], truth = make_gal(args, env)
+    else:
+        paths["galdir"] = write_builds(os.path.join(case_dir, "gal"), args.exe)
+    if c.prepare is not None:
+        c.prepare(paths)
+    return truth
+
+
 SCREEN = {"InGame": 1, "Loading": 2, "Title": 3}
 LOBBY = {"None": 1, "Hosting": 2, "Joined": 3}
 
@@ -1363,10 +1856,22 @@ def cmd_run(args):
     if os.path.exists(paths["status"]):
         os.remove(paths["status"])
     as_windows = lambda m: windows_path(paths[m.group(1)], args.native)
-    argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
-    argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
+    if not c.name.startswith(("launcher-", "gal-")):  # those cases make their paths first
+        argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
+        argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
     env = wine_env(args)
     truth = None
+    if c.name.startswith("launcher-"):
+        args.set_paths = paths
+        paths["as_windows"] = lambda p: windows_path(p, args.native)
+        try:
+            truth = launcher_setup(args, env, c, paths)
+        except (OSError, ValueError, KeyError, IndexError) as e:
+            print("case %s: its setup failed: %r" % (c.name, e))
+            print("FAILED")
+            return 1
+        argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
+        argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
     if c.name.startswith("gal-"):
         args.set_paths = paths
         try:
@@ -1394,14 +1899,20 @@ def cmd_run(args):
         print("PASS" if not failures else "FAILED")
         return 0 if not failures else 1
     start = time.monotonic()
-    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after)
+    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle)
     elapsed = time.monotonic() - start
     status_text = ""
     if os.path.exists(paths["status"]):
         with open(paths["status"], encoding="utf-8", errors="replace") as f:
             status_text = f.read()
+    if "case" in paths:  # a watcher started by the case writes its lines to its log only
+        log = os.path.join(paths["appdata"], "EldenNet", "logs", "launcher.log")
+        if c.settle and os.path.exists(log):
+            with open(log, encoding="utf-8", errors="replace") as f:
+                status_text += f.read()
     result = Result(code, out, err, killed, status_text)
     result.truth = truth
+    result.paths = paths
     failures = []
     if c.kill_after is not None:
         need(killed, "it ended by itself; it should have hung", failures)
