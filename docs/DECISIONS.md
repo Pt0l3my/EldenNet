@@ -565,6 +565,10 @@ grounding alone (O86). The roster: the base game's in v1.0 and the expansion's i
 
 **Owner's words.** "O46 and O85 as recommended".
 
+*Later (2026-11-16):* a correction of proposal 0004 §4's table, which summarised bosses too broadly. As O46's own
+recommendation, O42 and DESIGN §9.10 have it: a named boss never met calm holds the seen fields and never
+converses; one of a voiceless kind never speaks; one of a speaking kind keeps its combat lines.
+
 ## O47
 
 **No me3** · *2026-11-06 · Decided by the owner; predates §19*

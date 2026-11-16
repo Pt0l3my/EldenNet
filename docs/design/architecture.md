@@ -22,7 +22,7 @@
 | 8 | Augur, the event engine | DESIGN §5.3–§5.4, §6 |
 | 9 | The lifecycle state machine | DESIGN §2.5 |
 | 10 | Crash-safety rules and their enforcement | DESIGN §2.6–§2.7 |
-| 11 | The LLM client and configuration | DESIGN §11 |
+| 11 | The LLM client, configuration and decision calls | DESIGN §11 |
 | 12 | Testing, CI and tooling | DESIGN §14, §4.6 |
 | 13 | Repo layout | DESIGN §15 |
 
@@ -212,7 +212,7 @@ The two dotted edges were added here and adopted into DESIGN §2.2 by the review
 |---|---|---|
 | `en-proto` | Every message that crosses a thread or the adapter boundary. All are `serde` types | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, `trait GameBackend`, `struct GameThread`, `PROTO_VERSION` |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur::new(RuleSet, Registry)`, `Augur::step(&CoreInput, Mono, &dyn AugurCtx, &mut EventBatch)`, `trait EventSource`, `RuleSet::load(&[RuleFile], &dyn PredicateCompiler) -> Result<RuleSet, Vec<RuleError>>`, `Event`, `EventKind` |
-| `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts, sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport`, `world::derive(&FlagState, &WorldFacts, &WorldContent) -> WorldView`, `world::known(PersonaId, &FlagState, &WorldFacts, &WorldView, &WorldSeen, &ContentPack) -> KnownSet`, `world::cue(PersonaId, StageId, &KnownSet, &Locked, &WorldSeen, &WorldCued, &PersonaFacts, &RenderedJournal, &ContentPack, Pt) -> Option<Cue>` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; `&Locked` is this turn's `Locked(P)`, `R_locked` included, MEM §7.2, used to remove candidates whose short meets it) |
+| `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts, decision calls (§11.8), sanitizer, lint, ladder policy, bus subscribers | `Core::new(Arc<ContentPack>, Arc<Settings>) -> Core`, `Core::step(CoreInput, Mono) -> Outputs`, `ContentPack::load(&dyn ContentFs) -> Result<ContentPack, Vec<ContentError>>`, `trait CoreTransport`, `world::derive(&FlagState, &WorldFacts, &WorldContent) -> WorldView`, `world::known(PersonaId, &FlagState, &WorldFacts, &WorldView, &WorldSeen, &ContentPack) -> KnownSet`, `world::cue(PersonaId, StageId, &KnownSet, &WorldSeen, &WorldCued, &PersonaFacts, &RenderedJournal, &ContentPack, Pt) -> Option<Cue>` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; its candidates are what the known set holds, O86) |
 | `en-store` | SQLite files, migrations, the request loop, backups | `Store::spawn(StoreCfg) -> StoreHandle`, `StoreHandle::{send(DbRequest) -> Result<(), Full>, results() -> Receiver<DbResult>}` |
 | `en-llm` | The OpenAI-compatible client, SSE parser, slots, health, local probes, warm-up | `Llm::spawn(ProvidersCfg) -> LlmHandle`, `LlmHandle::{submit(LlmRequest) -> Result<(), Full>, cancel(RequestId), events() -> Receiver<LlmEvent>}`, `probe_local() -> Vec<LocalEndpoint>` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `gate(&ImageView, &Builds) -> Result<BuildProfile, GateError>`, `discover(&dyn SysLayer, &BuildProfile) -> Result<Discovery, DiscoveryReport>`, `install_task(Discovery, TaskWiring) -> Result<TaskToken, GalError>`, `struct ErBackend: GameBackend`, `trait SysLayer` (§6.4) |
@@ -238,6 +238,18 @@ pub struct Outputs {
     pub cancel: SmallVec<[RequestId; 2]>, pub db: Vec<DbRequest>, pub ai_allowed: bool, pub log: Vec<LogRecord>,
 }
 ```
+
+**The store's rules** (`en-store`; WHY§98 names the traps they avoid):
+- a migration file is split into statements by SQLite's own parser (each prepared in turn from the tail the last one
+  left), never by searching for `;`, so a trigger or a string that holds one stays whole;
+- every id is 64-bit end to end: bound and read as a 64-bit integer, never through a 32-bit value or a double, and
+  written as a string wherever a JSON reader may hold numbers as doubles (GraceUI's browser view);
+- ids are never reused: a trim (MEM §9.2) never hands a removed row's id to a new row (impl: `AUTOINCREMENT`, or a
+  high-water mark kept across trims), so an id that a view or, after v1.0, a code plugin holds (O68) never comes to
+  name another row;
+- numbers written into SQL, JSON, prompts or logs read the same in every locale: the shortest form that reads back
+  exactly, with `.` as the decimal point and no grouping;
+- the DB tests use realistic ids, above 2³² and above 2⁵³, never only 1, 2 and 3 (§12.2).
 
 ### 2.3 Dependency rules
 
@@ -1156,6 +1168,7 @@ pub struct Observations {
 | `hp_delta` | f32 | chr, player | (prev hp − hp) / max, over the last processed snapshot |
 | `dead` | bool | chr, player | Dead bit |
 | `team_hostile` | bool | chr | Live `team` ∈ the `teams.toml` hostile set {6, 7, 27, 29}, and not a persona with clear hostility bits (DESIGN §5.3) |
+| `team_turned` | bool | chr | Live `team` ≠ the `team` of its `NpcParam` row (`Chr.param`, resolved through `ResolveParams`): a charmed foe or a summon fighting on a side not its own (§8.7). To verify in game (S7); never sampled until then |
 | `dist_m` | f32 | chr | `Chr.dist_m` |
 | `on_screen` | bool | chr | `Chr.on_screen` |
 | `locked_by_player` | bool | chr | `player.locked_on == handle` |
@@ -1164,6 +1177,8 @@ pub struct Observations {
 | `engaged` | enum + f32 | chr | Engagement state and confidence (§8.7) |
 | `throw` | u8 | chr, player | Throw state |
 | `riding` | bool | player | `player.riding` |
+| `crouching` | bool | player | A crouch state, from a source verified in game; none is known yet, so it is never sampled (§8.7) |
+| `invisible` | bool | player | An invisibility effect in the player's SpEffect list (the list walked for 9621), once its id is verified in game; never sampled until then (§8.7) |
 | `roundtable` | bool | player | `player.roundtable` |
 | `place_id` | u32? | player | `place.place_id` |
 | `block_area` | u8 | player | Area byte of `player.block` |
@@ -1218,7 +1233,7 @@ emits = "Struck"
 subjects = { kinds = ["generic", "persona", "player"], alive = true }
 signal = "hp_frac"
 detect = { kind = "drop_over_window", fraction = 0.001, window_ms = 300 }   # fires on each processed HP drop (base resets on fire)
-payload = "struck"            # code-registered builder: att = last_hit_by; hard if ≥ 0.30 of max within 3 s
+payload = "struck"            # code-registered builder: att = last_hit_by; hard if ≥ 0.30 of max within 3 s; unseen (§8.7)
 class = "K"
 key = "hit:{att}:{subject}"
 ttl_s = 10
@@ -1279,7 +1294,7 @@ pub enum EventKind {
     PlayerDied { killer: Option<ActorRef>, in_boss: bool },      // dead rising | deaths +1 | banner 5; dedup 5 s
     MountChanged { riding: bool },                               // K 30 s
     // combat (K)
-    Struck { att: Option<ActorRef>, vic: ActorRef, hard: bool, count: u16, frac_total: f32, dmg_type: i32 }, // 10 s
+    Struck { att: Option<ActorRef>, vic: ActorRef, hard: bool, unseen: bool, count: u16, frac_total: f32, dmg_type: i32 }, // 10 s; unseen: §8.7
     LowHp { subject: ActorRef, frac: f32 },                      // < 0.25, re-arm > 0.35; 20 s
     Healed { subject: ActorRef, frac: f32 },                     // T: any combatant; +≥ 20% of max within 1 s, in combat; conf 0.8
     Engaged { subject: ActorRef, opponent: ActorRef, via: EngageVia, squad: SquadId },  // key eng:{a}:{b}; 30 s
@@ -1291,7 +1306,8 @@ pub enum EventKind {
     FoeKilled { victim: ActorRef, by: ActorRef },                // K 10 s: an NPC kills an NPC; emitted once S7 verifies last_hit_by for NPC attackers
     StatusStarted { subject: ActorRef, status: Status }, StatusEnded { subject: ActorRef, status: Status }, StatusBurst { subject: ActorRef, status: Status },  // K; after S8
     // proximity and timers (T)
-    CameNear { subject: ActorRef, other: ActorRef },  // within range.talk_m for 1 s; re-arm beyond + 4 m
+    CameNear { subject: ActorRef, other: ActorRef },  // within range.talk_m for 1 s; re-arm beyond + 4 m;
+                                                      // the Tarnished only while not concealed from subject (§8.7)
     AutonomyTick { subject: ActorRef },
     // pipeline
     PlayerSaid { to: Option<ActorRef>, text: SafeText, conv: Option<ConvId>, input: InputSource },
@@ -1335,6 +1351,22 @@ stateDiagram-v2
 - **`fled`** is computed when the engagement ends: the player's distance grew ≥ 15 m within the last 5 s, and it is now > 25 m.
 - **Squads:** when `e` becomes engaged, it joins an existing squad of the same side (the same card, or the same live team for non-card NPCs) that has a member engaged within the last 10 s and within 20 m of `e`. Otherwise it starts a new squad. A squad dissolves when its last member disengages or dies, and on rest or loading. The group gap (8 s, `pacing.group_gap_s`) lives in the scheduler (DESIGN §9.4).
 - **Combat state:** `in_combat = boss.active ∨ now − last_signal < 8 s`. A signal is damage either way, `CritLanded`, or any engagement with conf ≥ 0.6, refreshed on every step it exists. Gating and barks use only conf ≥ 0.6 (DESIGN §5.3).
+- **Stance towards each viewer** (WHY§97, WHY§98; DESIGN §6.5). For a viewer V and each other person X that a prompt or
+  a speaker choice names, the world model gives X's stance towards V, the first that holds: `enemy` if X is engaged
+  with V (≥ 0.6) or the two are on hostile sides (one `team_hostile` and the other on the Tarnished's side, or, between
+  two NPCs, a pair the team-pair table marks hostile once S7 verifies it); `turned` if `team_turned` holds for X;
+  `ally` if X is on V's side (the same card, the same live team, or both on the Tarnished's side); `bystander`
+  otherwise. "Turned", a live team that differs from the row's team, is to verify in game (S7); until then no one
+  reads as turned. The prompt gives the stance as a fact of the moment, so it outranks what earlier lines imply.
+- **Unseen attacks.** A hit whose source resolves to no one within 20 m of the victim (its `last_hit_by` was read and
+  names no tracked character, or one farther than 20 m) marks its `Struck` `unseen` (§8.6), and no prompt or memory
+  then names an attacker for it. An attacker that cannot be read yet (an NPC's, before S7) is unknown, not unseen.
+- **A concealed Tarnished.** The Tarnished is concealed from a viewer V while it crouches more than 5 m from V
+  (impl), or while an invisibility effect holds (`crouching` and `invisible`, §8.3, each once verified in game; until
+  then it is never concealed). A concealed Tarnished is not greeted and not addressed: `CameNear{V, Tarnished}` waits
+  until it is no longer concealed from V, so standing up near V greets as arriving does, and the scheduler refuses, at
+  request and at display, an own-initiative line from V addressed to the Tarnished (DESIGN §9.4). A conversation the
+  Tarnished opens is untouched.
 
 ### 8.8 Audience and interrupts
 
@@ -1352,7 +1384,9 @@ stateDiagram-v2
    - `witnessed` otherwise.
 7. **Cap:** 16 entries (impl), nearest first. Generics never get rows. There is no line-of-sight test in v1 (DESIGN §5.4).
 
-One function, `visible_to(event, persona)`, serves prompts, the recap, memory jobs and facts.
+One function, `visible_to(event, persona)`, serves prompts, the recap, memory jobs, facts and decision calls (§11.8), so
+an event's audience bounds every reader: a speaker choice offers only candidates who perceived what they would answer
+(WHY§99). Events a code plugin reports after v1.0 (O68) are bound the same way.
 
 **Interrupt sets** are bitflags carried on each event (DESIGN §6.5):
 
@@ -1580,8 +1614,14 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
 ### 11.1 Client and provider schema
 
 - **API:** one OpenAI-compatible client over `/v1/chat/completions` with `stream: true`, plus `/v1/models` (ER06 §5.2). Built on `reqwest` with `rustls` and the system root store, HTTP/1.1 keep-alive, a connect timeout of 3 s (impl), and our own SSE parser (`data:` lines, `[DONE]`).
-- **Streaming:** `stream_options.include_usage` is requested where supported.
-- **Reasoning:** reasoning is switched off per provider through `extra_body`, and `<think>` is stripped anyway (DESIGN §11.1).
+- **Streaming:** `stream_options.include_usage` is requested where supported. Decision calls also ask for `logprobs`
+  (the top 5, impl) where the provider offers them (§11.8).
+- **Reasoning:** reasoning is switched off per provider through `extra_body`, and `<think>` is stripped anyway
+  (DESIGN §11.1). The switch goes with every request, retries included (§11.2).
+- **Quantisation floor:** where a provider lets a request filter its upstreams by quantisation (OpenRouter's
+  `provider.quantizations`), `quant_floor` keeps every request at that level or above; the client writes it in the
+  flavour's own field and keeps it on a retry, as it keeps the reasoning switch (§11.2). Elsewhere it is ignored: a
+  local model's quantisation is the file the player loaded (§11.4).
 
 ```toml
 # %APPDATA%\EldenNet\config\providers.toml
@@ -1598,6 +1638,7 @@ headers = {}
 extra_body = { reasoning = { enabled = false }, provider = { sort = "latency" } }
 max_concurrency = 2                     # cloud 2, local 1 (impl)
 json_mode = "json_schema"               # none | json_object | json_schema
+quant_floor = "fp8"                     # where the provider filters its upstreams by quantisation (impl)
 
 [slots.dialogue]                        # optional per-slot overrides of the preset's model choice
 model = "google/gemma-4-26b-a4b-it"
@@ -1608,15 +1649,31 @@ fallback = "google/gemma-4-31b-it"
 
 | Class | Detected by | `dialogue` | `bark_live` | `bark_pool` | `memory` | Health effect |
 |---|---|---|---|---|---|---|
-| `FirstTokenTimeout` | No content delta by the slot's first-token time | Fallback model once, then "…" and a toast | Seed | Retry once | Retry (2 total), then requeue | +1 failure |
+| `FirstTokenTimeout` | No content delta by the slot's first-token time | Fallback model once (already sent if a backup request started, below), then "…" and a toast | Seed | Retry once | Retry (2 total), then requeue | +1 failure |
 | `TotalTimeout` | Total time exceeded | Commit shown pages; "…" and a toast | Seed | Keep seeds | Requeue | +1 |
 | `RateLimited` | HTTP 429 | Fallback model once, then a toast | Seed | Drop the batch | Requeue | Provider cooling 60 s (honour `Retry-After` up to 300 s, impl) |
 | `Auth` | HTTP 401/403 | Toast "API key rejected: open settings (F10)" | Seed | Drop | Requeue | Provider disabled until `providers.toml` or `secrets.toml` changes |
-| `BadRequest` | HTTP 400/404/422 | Retry once without the optional fields (`json_schema`, `stream_options`, `extra_body`), then a toast | Seed | Drop | Retry once stripped, then requeue | Not counted (our request) |
+| `BadRequest` | HTTP 400/404/422 | Retry once without the optional fields (`json_schema`, `stream_options`, the rest of `extra_body`), but never without the reasoning switch or the quantisation floor (below), then a toast | Seed | Drop | Retry once stripped the same way, then requeue | Not counted (our request) |
 | `Server` | HTTP 5xx, connection reset | Fallback model once | Seed | Retry once | Requeue | +1 |
 | `Empty` | `[DONE]` with no content | Fallback model once | Seed | Batch rejected | Retry | +1 |
 | `Truncated` | `finish_reason = length` before a full sentence | Show the complete sentences | Seed | Keep valid lines | Retry | +1 |
 | `Refused` | A content-filter finish, or a refusal pattern | Authored deflection (DESIGN §2.7) | Seed | Drop | Keep the journal | Not counted |
+
+**The reasoning switch is never stripped** (WHY§98). A reasoning model sent without it may spend the whole budget
+thinking, so a retry keeps it, and keeps the quantisation floor (§11.1). When the error says that the model refuses
+reasoning off (a 400 or 422 whose body names reasoning, impl), the one retry asks for the lowest effort the flavour
+offers instead (`minimal`, else `low`), and the client records that about the (provider, model) pair: its later
+requests start at that effort for the rest of the session, and the log and the debug view say so once.
+
+**A backup request** (cloud replies; WHY§98). When a `dialogue` reply on a cloud provider has had no content delta
+2.5 s (EST) after it was sent, the client sends the same request to the slot's fallback model, if that pair is healthy,
+cancelling a running `bark_pool` or `memory` request on that provider if the backup needs its connection (that job
+requeues). Whichever streams first is kept and the other is cancelled at once, which counts as no failure for its
+pair; both count towards the requests per hour (§11.4). The core still sees one request (§1.3). Own-initiative
+lines get no backup, and neither do local providers, which serve one request at a time (§11.3).
+
+**Decision calls** take their rules at once on every class, with no retry (§11.8); their failures count in health as
+any slot's do.
 
 **Health is tracked per (provider, model):**
 - 3 consecutive counted failures put the pair in a 60 s cooldown, during which the slot uses its fallback model (DESIGN §11.1).
@@ -1625,7 +1682,10 @@ fallback = "google/gemma-4-31b-it"
 
 ### 11.3 Local GPU priority, pause rules and warm-up
 
-- **Priority on a local provider:** replies (`dialogue`) > own-initiative `dialogue` requests > `bark_live` > `memory` > `bark_pool`. An own-initiative request is cancelled by the input epoch, so it never delays a reply (DESIGN §8.9, O37; DESIGN §11.1). Local providers run one request at a time.
+- **Priority on a local provider:** replies (`dialogue`) > own-initiative `dialogue` requests, each with the
+  `decisions` call that chose it (§11.8) > `bark_live` > `memory` > `bark_pool`. An own-initiative request is
+  cancelled by the input epoch, so it never delays a reply (DESIGN §8.9, O37; DESIGN §11.1). Local providers run one
+  request at a time.
 - **Preemption:** a higher-priority job cancels a running `bark_pool` or `memory` job, which requeues. It never cancels dialogue.
 - **Pause rules for background jobs** (`memory`, `bark_pool`):
   - paused while `in_combat`, during a boss fight, while a conversation is open on a local provider, and while the gate is false;
@@ -1640,12 +1700,19 @@ fallback = "google/gemma-4-31b-it"
 | `dialogue` | Persona replies; persona own-initiative lines (cancelled by the input epoch, DESIGN §8.9) | 140 | 0.8 | 6 s (10 s local) | 20 s | 0, plus 1 lint regeneration (replies only) | Replies: fallback model once, then "…" and a toast. Own-initiative lines: the seed or silence (DESIGN §8.9) |
 | `bark_live` | Call-out replies; generic autonomy ticks (DESIGN §9.8) | 32 | 0.9 | 1.5 s | 3 s | 0 | Seed |
 | `bark_pool` | Pool batches | 600 | 1.0 | 15 s | 60 s | 1 | Keep seeds |
-| `memory` | Journal job | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal |
+| `memory` | Journal job; the lived layer's update (MEM, the lived layer) | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal, or the lived version |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
-| `meta` (reserved) | `DecisionRequest` | 100 | — | — | 5 s | 0 | Rules backend |
+| `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1 | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The task's rules (§11.8) |
 
-Unknown slot names fall through to `dialogue`, and a preset that names no `draft` model uses its `dialogue` model. Budgets are identical in every preset (DESIGN §11.2).
+Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
+that names no `decisions` model uses its `bark_live` model (impl). Budgets are identical in every preset (DESIGN §11.2).
+
+**Requests per hour** (WHY§99). Beside these budgets for each request, `budget.requests_per_hour` (§11.5) bounds what
+the client sends in any rolling hour, retries, backups and decision calls included. At the bound, replies still go out,
+since the player asked; own-initiative lines take their seeds or silence, decision calls their rules, and background
+jobs wait. One toast says so, and the debug view shows the count. The default, 600 (impl), sits above the 506 an hour
+measured for SkyrimNet outside scenes (WHY§99) and is meant to stop a runaway, not ordinary play.
 
 ```toml
 # content/eldenring/models.toml (shipped; volatile, ER06 §6)
@@ -1684,6 +1751,7 @@ range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 1
 pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
 ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false }   # NPC §10.7; `scale` is GraceUI's own setting since GraceUI D84, and EldenNet's text follows it
 pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
+budget = { requests_per_hour = 600 }                     # 60–3600 (impl); replies are never refused (§11.4)
 safety = { level = "faithful" }                          # faithful | gentle (O17)
 hotkeys = { talk = "T", skip_page = "Tab", debug = "F11" }   # talk default from S4; the defaults EldenNet registers with GraceUI, whose Hotkeys page keeps the player's bindings (GraceUI D77, D84); the menu key (F5) is GraceUI's, so `settings` goes, by a migration before v0.6 (deny_unknown_fields)
 augur = { allow_custom_rules = false }
@@ -1743,7 +1811,10 @@ openrouter = "<entered in the wizard or by the player>"
 2. `<install>/plugins/<id>/…` (from 1.1, O66): the content plugins that are on, in the player's order (`config\plugins.toml`), each adding or replacing only what [proposal 0001](../proposals/0001-plugins.md) §5.1 allows, a later plugin winning over an earlier one, every conflict shown on the Content packs page;
 3. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped or plugin file whole;
 4. `overrides\disable.toml`.
-5. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–4, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded, and they always win over a plugin's.
+5. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one
+   shipped profile after layers 1–4, `characters\` adds character profiles of the player's own, and `tarnished.toml`
+   is the Tarnished's own bio (O46: `public.summary` and `public.appearance` only). They are never shipped, bundled or
+   uploaded, and they always win over a plugin's.
 
 ```toml
 # %APPDATA%\EldenNet\overrides\disable.toml
@@ -1755,12 +1826,25 @@ triggers = ["idle"]
 rules    = []                   # only rules marked disable_ok = true in their file
 ```
 
-- **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`), `identity/types.toml`'s kind rules, the binding rule of `identity/characters.toml` (nothing speaks on an unverified binding), the built-in rules (a)–(f) (NPC §1.3), `lexicon/*` (tells included), `flags/catalog.toml`, `teams.toml` and the world frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the conversable and safe-context predicates, strict mode, the spoiler gates (there is no spoiler setting), and R2 (the action and gesture allowances cannot be turned on). These are the safety and spoiler layers, and an attempt is reported as a validation error.
+- **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`),
+  `identity/types.toml`'s kind rules, the binding rule of `identity/characters.toml` (nothing speaks on an unverified
+  binding), the built-in rules (a)–(f) (NPC §1.3), `lexicon/*`, `flags/catalog.toml`, `teams.toml` and the world
+  frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines
+  win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the
+  conversable and safe-context predicates, strict mode, the grounding from the playthrough state (what each NPC knows
+  at its stage, the one spoiler mechanism, O86; there is no spoiler setting), and R2 (the action and gesture
+  allowances cannot be turned on). These are the safety rules and the grounding, and an attempt is reported as a
+  validation error.
 - **Not hot-reloaded:** `gal/` is read at boot only and is never overridden.
 
 **Hot reload** (on T10):
 1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds and `plugins/` from 1.1, with a 500 ms debounce (DESIGN §11.4).
-2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint; for a plugin also its manifest, the folders and kinds of change §5.1 of proposal 0001 allows, every id, type, flag and term it names, and the locked-term check of its public fields (proposal 0001 §5.4). A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
+2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template
+   compilation against fixture contexts (an unknown name fails it, NPC §7.1), and lint; for a plugin also its
+   manifest, the folders and kinds of change §5.1 of proposal 0001 allows, and every id, type, flag and term it names
+   (O86 drops proposal 0001 §5.4's locked-term check). A player's profile file is validated alone, with NPC §4.8's
+   rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the
+   editor name the file, field and line, never its text.
 3. Success sends `Reload(Arc<ContentPack>)` or `Reload(Arc<Settings>)` over C11. The core swaps it between steps. A save sent on C17 also gets its `Reload::ProfileResult` on C11, saved or refused.
 4. Failure keeps the old version and shows a toast with the file and line.
 
@@ -1769,12 +1853,20 @@ When each change takes effect:
 | Change | Effect |
 |---|---|
 | Personas, KB, cards, prompts | Next request. Only the edited persona's cached prefix is invalidated |
-| The player's profiles | Next request; only that profile's cached prefix is invalidated, and its hash changes, which retires its generated pool lines; a subjects-only edit invalidates no cached prefix and retires no pool line |
+| The player's profiles | Next request; only that profile's cached prefix is invalidated, and its hash changes, which retires its generated pool lines; an edit of `subjects` or `stirs` alone invalidates no cached prefix and retires no pool line |
 | Providers, keys | Next request; in-flight requests finish on the old config |
 | Hotkeys, UI | Immediately |
 | `features`, `autonomy`, `range`, `pacing`, `reactions`, `allow` | The next step; pending requests are re-gated; cooldowns, window entries and reservations are kept; a visible line whose speaker is no longer allowed fades |
 | Augur rules | The next step. Detector state is kept for rules whose `id` and detector are unchanged, and reset otherwise |
 | `enabled` | §1.5 |
+
+**Staleness bound** (WHY§99: SkyrimNet's cached template values may be up to 55 s stale). No value a template
+renders is older than the step that builds its request: live state (who is near and their stance, health in words,
+the place, the hour, combat) is read from that step's world model; values derived from flags (the world view, known
+sets, stages) are memoised per flag generation (§8.9), so they are at most one processed flag frame old (1 s, or 2 s
+while throttled); and a cached prefix is keyed by every input it renders and rebuilt when one changes. Nothing is
+cached by time alone. A request that waits is bounded by its class's expiry, and its gates are checked again at
+display (DESIGN §9.4).
 
 **Caps:** 64 KB per file, 16 KB per persona, card or character profile, 8 KB per player profile file, and the override tree and `profiles\` as in §10.2.
 
@@ -1796,6 +1888,78 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 
 **Silent self-test** at every Ready while the gate allows: steps 4a and 4b only. A failure gives one toast and one log line with the cause. `en-tools selftest` runs steps 4a–4e outside the game.
 
+### 11.8 Decision calls
+
+A decision call asks the model to pick one of a few options that code has built. It is EldenNet's own format (O84:
+SkyrimNet's logic, not its prompts) over the same chat completions as every other request (§11.1), on the `decisions`
+slot (§11.4), which replaces the reserved `meta` slot and `DecisionRequest` (WHY§98, WHY§99).
+
+**The principle: code gathers, the model picks.** Every model call, a decision or a line, gets only the records it
+needs, gathered by code by id; the model never searches, joins or counts. Bookkeeping (who is present, who heard what,
+cooldowns, stages, the known set) stays in code, and the model only picks or writes. Thinking is a last resort. In
+bench runs, code that gathered the records a question needed gave 93 to 100% right answers, against 0 to 25% when the
+model was handed an index or told the joins (LIKELY, WHY§99).
+
+```text
+DecisionCall {                          // built by en-core, rendered from prompts/decisions/
+  task:     NextSpeaker | RecallGate    // RecallGate after v1
+  kind:     Choice | YesNo
+  subject:  Option<ProfileId>           // the NPC it is for, if one (the recall gate's)
+  question: one plain question
+  state:    [(name, text)]              // the records it needs, gathered by id, quoted as data
+  options:  [(key, text)]               // Choice only: short keys (A, B, … or neutral labels), and none; by code
+  rule:     the rules fallback, a pure function of the same state
+}
+DecisionPick { key, probs: Option<[(key, f32)]>, by: Model | Rules, latency_ms }
+```
+
+- **Options are built by code.** Only legal options are offered, at most 12 (EST, as MEM §4.5's gate keeps), each a
+  short key with one line that code writes from records; the model cannot name an option code did not offer, and
+  `none` is an option wherever picking nothing is a legal answer (silence, no memory).
+- **The answer.** Where the provider takes a JSON schema (`json_mode = "json_schema"`, §11.1), the reply is held to an
+  enum of the keys. Elsewhere the model answers in plain words and the reader goes by meaning: the key, the option's
+  own words or a plain paraphrase ("no one" and "silence" for `none`), whatever the case, quotes, markup or words
+  around it. An answer that matches no option, or more than one, is a miss. A provider that rejects the schema
+  (`BadRequest`) gets plain answers for the rest of the session.
+- **Yes or no.** A question that can be put as yes or no is put that way (`YesNo`) and read the same way. In the bench
+  runs, typed decisions on a small model never failed to parse but were weak on subtle readings, while plain chat
+  matched or beat them once readers went by meaning and questions were plain yes or no (WHY§99).
+- **Probabilities, never a cut-off.** Where the provider returns logprobs (§11.1), the call's row records each key's
+  probability, for the diagnostics and the evaluation. Nothing cuts on it: the pick stands whatever its probability,
+  since SkyrimNet's 0.70 cut-off lost about a quarter of right answers (WHY§99).
+- **Thinking off.** Every decision call carries the reasoning switch (§11.1, §11.2), and `<think>` is stripped as
+  anywhere. A task may turn thinking on only when its evaluation shows the plain pick failing, and then at minimal
+  effort within the slot's 5 s: thinking cost 2 to 35 s a step in the bench runs, with rare runaways near 50k tokens
+  (WHY§99).
+- **A rules fallback, always.** The task's rule decides when no model serves the slot (none set up, or none healthy),
+  the gate is false (§5.1),
+  the requests per hour are spent (§11.4), the call fails or runs out of time (any class of §11.2, with no retry) or
+  its answer is a miss. Replays with `--llm mock:<script>` and the scenario tests use the rules unless the script
+  answers (§12.3).
+- **One row per call.** Each call writes exactly one row in the playthrough file's `decisions` table (MEM §8.7;
+  DESIGN §13's conformance test): the task, its subject, the option keys, the pick, its probability where offered,
+  whether the model or the rules decided, the latency and the prompt's hash; never the prompt's text or a name. A call
+  emits no event: `DecisionMade` stays reserved for actions (§8.6).
+- **Prompts.** The templates are `prompts/decisions/NN_*.j2`, under NPC §7.1's rules: records enter as quoted data,
+  never as instructions, and examples use names no record holds.
+
+**The next speaker** (v1; NPC §9.2, DESIGN §9.7). Outside a fight, when a moment leaves two or more profiled NPCs
+eligible for the same calm motive (a heard line with no addressee, a deed several of them saw, the Tarnished coming
+near several at once at a shared place such as the Roundtable Hold), code lists the legal speakers: each one the
+motive's own rule accepts and the scheduler would admit now (DESIGN §9.4), in the audience of what it would answer
+(§8.8), never the line's own speaker and never a card. Each option is a neutral label with the candidate's `brief`,
+`public.summary` and `stirs` (NPC §9.2), never a name, and `none`, silence, is always offered. With one legal speaker
+there is no call. The model picks the speaker only: the addressee is code's, the talk target the motive sets (the
+heard line's speaker for an answer, the Tarnished for a greeting, no one for a remark on a deed). The call goes out
+when the moment arrives, so its pick is usually ready before the gap (`pacing.gap_s`) allows the next line. Combat
+speakers stay with the rules, since a combat line cannot wait for a call. The rule is the motive's own: the addressee
+or the nearest listener on the speaker's side for an answer (`addressee_or_side_listener`), otherwise the scheduler's
+order (NPC §9.4).
+
+**The recall gate** (after v1, with MEM §4.5's `SceneRecall`). Code gathers the candidate memories and the gate picks
+the one meant, or `none`, by a question that names the setup, the matter and the outcome, the form that did best in
+the bench runs (WHY§99). Its rule takes the candidate both searches ranked first, else none (MEM §4.5).
+
 ---
 
 ## 12. Testing and tooling
@@ -1809,7 +1973,7 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `clippy-win` | Linux via `cargo xwin clippy --target x86_64-pc-windows-msvc` | §2.4 deny lists for `en-gal`, `en-overlay`, `eldennet`, `en-launcher` |
 | `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 backstop (since GraceUI's G15: any `hudhook`, `MH_` or detour symbol in EldenNet's sources); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
-| `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), beckon (W13), tells (W14), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts |
+| `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, beckon (W13), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts; no spoiler lint against term lists (O86: stage texts and bio fields are reviewed when written) |
 | `eval` | Linux: `en-tools eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
 | `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) *Since GraceUI's G15 (2026-11-08):* hudhook and its MinHook are GraceUI's, so EldenNet's `deny.toml` bans `hudhook`, every known hooking crate and any ImGui renderer backend, and its `[[licenses.clarify]]` entry for hudhook moves to GraceUI's `deny.toml`; `imgui` 0.12 stays allowed without a backend, for F11. Once a first hook of EldenNet's own is approved (O65), its one hook library is the bans' single exception, allowed in `en-gal` behind `hooks`, its licence checked when it is chosen. | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
 | `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) *Since GraceUI's G15:* in EldenNet's tree no package may be hudhook or match the hooking pattern, save the one hook library O65 may allow in `en-gal::hooks`, and hudhook's and MinHook's licence checks are GraceUI's (GraceUI §2.2, GraceUI's proposal 0001 §4.14). | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
@@ -1821,16 +1985,16 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 
 | Type | Crates | Examples |
 |---|---|---|
-| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation, `known(P)` truth tables, and the reaction-cue table and journey (MEM §12.11 T2, T12, T13) |
+| Unit | All | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation, `known(P)` truth tables, the reaction-cue table and journey (MEM §12.11 T2, T12, T13), stance and concealment (§8.7), and the decision reader over keys, option words, plain yes and no, and misses (§11.8) |
 | Property (`proptest`) | `en-augur`, `en-core` | §8.12; sanitizer (never panics, never shows markup or a trailer, respects caps) |
 | Golden replay | `en-tools` | 3 recorded routes; 10 identical replays (C12) |
 | Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis, memory (`wren_and_kale`, MEM §2.8), knowledge (`star_falls`, MEM §12.11) and identity (`veiled`, NPC §2.7) |
-| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; spoiler renders at 6 flag states; block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4) |
-| DB | `en-store` | Every migration; trim at 3 cut points; crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+ |
+| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; grounding renders at 6 flag states (what each state tells the persona, O86); block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4); each decision task's prompt (§11.8) |
+| DB | `en-store` | Every migration, split by SQLite's own parser; trim at 3 cut points, with no id reused after it; realistic ids (above 2³² and 2⁵³) read back exactly; numbers written the same under another locale (§2.2); crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+ |
 | Conformance | `en-core` | A trailer never displays; with `actions` off no non-read command; one row per decision (DESIGN §13) |
 | `FakeSys` | `en-gal` | Discovery over synthetic images; statics moving, nulls, vtable swaps, faults → breakers |
 | Backpressure | `en-core`, `en-augur` | §8.12 |
-| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus spoiler and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
+| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus a few test questions per character on what the model already knows of the game (O86; a persona's topics are its `stages.forbid`) and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
 | In game | Dev builds | S0-A–S0-E, smoke route, 30 h soak (C1), 20 forced fail-closed launches with `--features probe` fault injection (unknown build, missing pattern, forced read faults) |
 
 ### 12.3 `en-tools` subcommands
@@ -1888,7 +2052,7 @@ eldennet/
     en-proto/     src/{lib, snapshot, render, lifecycle, command, ui, llm, db, backend, thread, text}.rs
     en-augur/     src/{lib, sources/, world, signals, detectors, rules, events, audience, kstore, bus}.rs
     en-core/      src/{lib, step, transport, identity/, content/, predicates, knowledge/, scheduler, conversation/,
-                       barks/, memory/, prompts/, sanitize, lint, ladder, gate}.rs
+                       barks/, memory/, decisions/, prompts/, sanitize, lint, ladder, gate}.rs
     en-store/     src/{lib, loop, migrations/, events, facts, journal, rollback, backup}.rs
     en-llm/       src/{lib, client, sse, slots, health, local, warmup}.rs
     en-gal/       src/{lib, gate, pe, patterns, builds, layout, fd4, rtti, groups, snapshot, flags,
@@ -1901,10 +2065,10 @@ eldennet/
     en-tools/     src/{main, replay, golden, eval, lint, render_prompt, probe_exe, mockllm,
                        bake_pools, selftest, fmg_import, identity_fill, kb_draft, flag_verify, scn}.rs
   content/eldenring/
-    prompts/{dialogue,callout,memory,pool,draft}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
+    prompts/{dialogue,callout,memory,pool,draft,decisions}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
     identity/{personas,archetypes,characters,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml
     world/{stages,tracks}.toml
-    lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml
+    lexicon/{banned,safety,signature,context_words,public}.toml  barks/triggers.toml
     augur/{world,persona,combat,ambient}.toml  teams.toml  regions.toml  models.toml
   gal/        builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
   tests/      scenarios/*.scn  fixtures/{names.toml, flagstates/ (8 states + ashen), personas/ (test_veiled, test_stake), characters/ (test_tollwarden), profiles/ (player-file fixtures with canary strings), db/}  recordings/*.ensnap.zst (redacted)

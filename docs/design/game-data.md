@@ -150,7 +150,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | C-4 | Whether a named boss or invader speaks scripted lines (so its combat lines may play) | S3's per-kind detector (J-11) | `types.toml` `[[boss]]` and `[[named]]` records | S3 records: ≥ 30 lines detected per kind, or `scripted = "none"`, during the S1 and S2 captures | **Spike** S3 · §3.2 risk 1 | DESIGN §7.8, §9.10 |
 | C-5 | Whether an overhaul has remapped the roster's rows | Every row binding's live name id (`NpcParam.name_id` through `SoloParamRepository`) | the index | at every start: more than 20% misses quiet every roster bio | **Backed** · ER05 §6.2 | DESIGN §7.8 |
 | C-6 | The player's own character profile, bound from a sighting | The keys recorded at the sighting, compared with the live NPC on every resolution | the player's profile folder | the binding holds only while every recorded key agrees | **Backed** · ER05 §6.2 | DESIGN §7.7 |
-| C-7 | Knowledge a bio unlocks by the world's state (`knows_when`) | Verified catalogue flags in the frame (E-1) | `flags/catalog.toml` | S6 | **Spike** S6 | DESIGN §7.8; O46 |
+| C-7 | The revealed layer: later truths a bio unlocks by story stages verified in game (`knows_when`; a persona's is its stage track, E-5) | Verified catalogue flags in the frame (E-1), and E-9 for whether the NPC would know of them | `flags/catalog.toml` | S6 | **Spike** S6 | DESIGN §7.8; O46 |
 
 ### 2.5 Place, time and the here and now (D)
 
@@ -184,7 +184,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | E-6 | A persona's hostility bits (+1, +2, +3) | Flags of its block | the persona file | S6 | **Spike** S6 · labels FACT, ER04 §4.5, ER07 §4.1 | DESIGN §8.1 |
 | E-7 | Related quests: tracks no persona owns | A track's block, or the festival's own flags | `world/tracks.toml` | S6 items 7 and 10; until then the ties stay deferred | **Spike** S6 · ER07 §4.8, §4.9 (headers only) | DESIGN §10.6; MEM §12.12 |
 | E-8 | Journeys and NG+ | `ng_lvl`; each alias's `ng` (reset or keep) | catalogue `ng` | S6 item 5 (one NG+ recording) | **Spike** S6 · `ng_lvl` FACT, ER05 §2 | DESIGN §10.5; MEM §12.9 |
-| E-9 | What each profiled NPC knows of it (`known(P)`, `known(C)`) | A pure rule over E-3 to E-8, its region (D-3) and `world_seen` | `regions.toml` (Sky), `awareness.home`, ties | MEM §12.11's tests; golden replays | **Spike** S6 (its inputs) | DESIGN §10.6; MEM §12.5 |
+| E-9 | What each profiled NPC knows of it (`known(P)`, `known(C)`) | A pure rule over E-3 to E-8, its region (D-3) and `world_seen` | `regions.toml` (Sky), `awareness.home`, a persona's `awareness.tie` | MEM §12.11's tests; golden replays | **Spike** S6 (its inputs) | DESIGN §10.6; MEM §12.5 |
 | E-10 | The DLC's aliases | The same read; an invalid DLC alias reads Missing silently | catalogue `dlc = true` | validation at playthrough start; S6 in DLC saves for v1.1 | **Spike** S6 · no public DLC block dump, ER08 §1 | MEM §6.2; DESIGN §16.2 (v1.1) |
 
 ### 2.7 Conversation (F)
@@ -210,7 +210,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | H-4 | A persona awake, asleep or senseless by its stage | The active stage's `state` | persona `state`, `sleep_leads` | S6 (the pilot's and one other persona's open sleep leads) | **Spike** S6 | DESIGN §8.9 |
 | H-5 | A persona's native approach line, played or pending | Per persona and stage: whether one plays, its radius, its played flag | persona `approach`, `approach_m`, `approach_played` | S3 per persona and stage | **Spike** S3 | DESIGN §8.9 |
 | H-6 | No native talk or scripted line within 20 m, and no unrecorded talker within 20 m | F-2; the scripted-line detector (J-11); the kinds of nearby NPCs (B-4, B-5) | `types.toml` `scripted` | S3; S7 for the cards | **Spike** S3 · §3.2 risk 1 | DESIGN §8.7, §9.4 |
-| H-7 | News raised unasked (reaction cues) | World stages known (E-9), proved claims, the journal | `awareness.news` | S6 for the stages | **Spike** S6 | DESIGN §10.6; MEM §12.13 |
+| H-7 | News raised unasked (reaction cues) | World stages known (E-9), the Tarnished's proved claims, the journal | `awareness.news` | S6 for the stages | **Spike** S6 | DESIGN §10.6; MEM §12.13 |
 | H-8 | Display gates: not loading or dormant, `hud == Default`, no banner, the subtitle band | Lifecycle (A-6); `hud_state`, banner id, `show_subtitles` | — | the `ui` self-test (HUD state 0–3, banner in range); S3's talk-field recordings for the HUD values (S10.1.d); the v0.1 goldens for the banners' meanings | **Spike** S3 · the HUD enum FACT, ER05 §9; that vanilla banners write these fields LIKELY, ER05 §3; the cutscene part is H-10 | DESIGN §8.7, §9.4, §12 |
 | H-9 | Pacing's clock (gaps, windows, cooldowns in play time) | Play time | `[pacing]` | the `player` self-test (play time rising) | **Backed** · ER05 §2 | DESIGN §9.4 |
 | H-10 | A cutscene is playing (presentation hidden, pages held, the chat box closed under the danger rule) | `hud == HideAll` (`hud_state`, every snapshot) | — | none planned: S3 records the talk fields only "during menus, greetings and boss lines" (§3.1 gap 6) | **Gap** · the enum FACT, ER05 §9; its use in cutscenes LIKELY (DESIGN §12); ER00 §7's cutscene question (its S8 row) is carried by no spike in DESIGN §16.1 | DESIGN §12; NPC §10.2 |
@@ -230,7 +230,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | J-9 | Sides and squads | The same card, or the same live team | `teams.toml` | S7 | **Spike** S7 | DESIGN §9.10 |
 | J-10 | A boss fight started, and how it ended | Bars non-empty or `boss_fight_active`; a victory by banner 1–4 or 22, or a boss flag rising within 10 s; a death by `PlayerDied` | catalogue boss flags | v0.1 goldens; S2; S6's core flags | **Spike** S2, S6 · fields FACT, live meaning LIKELY, ER05 §8.4 | DESIGN §6.5; ARCH §8.5 |
 | J-11 | Whether an NPC is speaking scripted dialogue now (combat and boss lines) | S3's per-kind detector from the talk fields and the talk-instance leads | `types.toml` `scripted` | S3 per kind (≥ 95% of ≥ 30 lines within 0.3 s; no false report over 10 min), S10.1.d, S13.1.b | **Spike** S3 · §3.2 risk 1; ER00 §7 (S3's open question) | DESIGN §9.4, §9.10 |
-| J-12 | A persona fighting beside the Tarnished (`FoughtBeside`) | The persona's summon-form row, its `chr_type`, a boss victory | `personas.toml` summon rows | S1 | **Spike** S1 · the gate through an NPC summon is A-7, a gap | DESIGN §6.5, §7.1 |
+| J-12 | A profiled NPC fighting beside the Tarnished as a summon: its companion layer for its combat lines, and a persona's `FoughtBeside` | Its summon-form row (a persona's, or a roster binding's, C-3), its `chr_type`, a boss victory | `personas.toml` summon rows; summon forms in `identity/characters.toml` | S1 | **Spike** S1 · the gate through an NPC summon is A-7, a gap | DESIGN §6.5, §7.1; O46 |
 | J-13 | An invasion, and a bound invader | The invader class; `player_chr_set`; every gate field through the invasion (A-7): if any flips, EldenNet goes dormant and a bound invader never speaks | built-in rule (b); bindings | S1 for the class and the set's `chr_type` values; the other gate fields: none planned (§3.1 gap 9) | **Spike** S1 · ER05 open question 12; A-7 is a gap | DESIGN §7.6, §3.4 |
 
 ### 2.10 Status and consciousness (K; S8)
@@ -256,7 +256,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 |---|---|---|---|---|---|---|
 | M-1 | Which playthrough file: SteamID, slot, character fingerprint | The save folder's name; `save_slot` (GameMan); name, archetype and starting gift (PlayerGameData) | — | the `player` self-test (slot 0–9) | **Backed** · ER01 §11, ER05 §2 | DESIGN §10.5; MEM §8.2, §8.3 |
 | M-2 | The rollback clock | Play time | — | the trim test (#825) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.1 |
-| M-3 | The journey number | `ng_lvl + 1` | — | the `player` self-test; S6 item 5 for the flags (E-8) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.4 |
+| M-3 | The journey number (each bio's lived layer is per journey; earlier journeys are read-only and never injected) | `ng_lvl + 1` | — | the `player` self-test; S6 item 5 for the flags (E-8) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.4 and MEM (the lived layer) |
 | M-4 | Audiences: which profiled NPCs saw, heard or witnessed each event | Resolution, radii, the same area, conscious | — | S1 | **Spike** S1 | DESIGN §5.4; MEM §1.2 |
 | M-5 | Facts: met and seen counts, first and last place and play time met, times attacked, fought beside, saw the Tarnished die | `PersonaSeen`, `Struck`, `FoughtBeside`, `PlayerDied`, D-2, M-2 | — | golden replays | **Spike** S1 | DESIGN §10.2; MEM §2.2 |
 
@@ -326,13 +326,19 @@ Needs that are designed but rest on a spike that may fail. In every case the des
 3. **NPC against NPC** (J-4, L-2). Until S7 verifies `last_hit_by` for NPC attackers and the team-pair table, NPC pairs never engage, `FoeKilled` is not emitted and soldiers say nothing to the Tarnished's summons (DESIGN §9.10). **Closes by** S7's additions (S13.1.a).
 4. **About 140 bindings by capture** (C-1 to C-4). Every roster NPC needs its binding verified in game: about 27–33 hours of captures at prepared saves, plus the play to make the saves (S2 alone needs about 40–60), on v1.0's critical path (K29). Smithbox's file exports give rows and name ids only, and DataPiler's server link may add entity and model leads (§1.1); bar and flag-block leads wait for the captures, with public leads meanwhile (ER08 §1, §6), and every lead still needs its capture (O48). A binding not verified by the release candidate ships held. **Closes by** the captures (S9.2, S14.2, S15.1, S16.1); see §4.
 5. **Every check waits for the blueprint** (all Spike rows). Every in-game check needs EldenNet running, so everything gathered before the blueprint stays `verified = false` (ER08 §4.4), and v0.1, the first build, follows the engine's adoption (roadmap S10 needs S8; O54). A live source that fails (risk 1 or 2) is found only then. See §4.
-6. **The DLC** (E-10; v1.1). No public per-NPC dump of the DLC's flag blocks exists, both developer flag dumps stop before the DLC's maps, and its bindings need saves inside it (ER08 §1; ER04 §10). The design defers the DLC's roster to v1.1 (O46's recommendation) and reads a missing DLC alias as Missing. **Closes by** S6 and the roster captures in DLC saves (S17.1).
+6. **The DLC** (E-10; v1.1). No public per-NPC dump of the DLC's flag blocks exists, both developer flag dumps stop
+   before the DLC's maps, and its bindings need saves inside it (ER08 §1; ER04 §10). The design defers the DLC's roster
+   to v1.1 (O46) and reads a missing DLC alias as Missing.
+   **Closes by** S6 and the roster captures in DLC saves (S17.1).
 7. **The session gate in summon fights and NPC invasions** (A-5, A-7, J-12, J-13). If NPC summons or NPC invaders count in `player_chr_set`, EldenNet would go dormant in every summon-assisted boss fight and `FoughtBeside` could never fire; the gate counts only non-NPC entries, and S1 lists which `chr_type` values appear (DESIGN §3.4). The other gate fields (role, own world, lobby) could flip the same way, and no planned check records them through an NPC invasion or an NPC summon: that half is gap 9. If any field flips, EldenNet goes dormant and a bound invader never speaks. **Closes by** S1 (S10.1.c), with gap 9's addition to its question.
 8. **Overhauls and text hooks.** A mod that serves text through a `GetMessage` hook can show names the raw tables lack (DESIGN §4.5), and one that remaps rows trips the identity-pack checks, which silence personas or the roster with a toast (DESIGN §7.2, §7.8). Designed fail-closed; the compatibility matrix tests it (v0.6, S15.1).
 
 ### 3.3 Scope boundaries (decided, not gaps)
 
-- **Own-quest stages only for the six personas in v1.0.** Every other questline NPC knows the land as its ground and the sky show it, but not its own road, which needs a flag block per NPC verified by S6 and makes it a persona (O43 as updated, O46; DESIGN §7.8, §10.6).
+- **Own-quest stages only for the six personas in v1.0.** Every other questline NPC knows the land as its ground and the
+  sky show it, and of its own story only the later truths its revealed layer unlocks by verified steps (`knows_when`,
+  C-7), but not its own road, which needs a flag block per NPC verified by S6 and makes it a persona (O43 as updated,
+  O46; DESIGN §7.8, §10.6).
 - **No line of sight** in v1, because the ray-cast filter is undocumented (DESIGN §5.4; ER05 §6.2).
 - **No AI target or battle state:** engagement is a heuristic, which S7 may later replace behind the same signal (DESIGN §5.3; ER05 §8.1).
 - **No game-code hooks:** the flag-set, damage and talk-invoke hook sources are reserved and compiled out; no v1 row depends on them (DESIGN §0 item 3, §6.2).

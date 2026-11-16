@@ -1,7 +1,10 @@
 # EldenNet v1: NPCs and dialogue
 
 > **Status:** detail design, 2026-11-06. It expands [DESIGN.md](DESIGN.md) §7 (NPC model), §8 (conversation, with the guardrails of §8.8), §9 (barks) and §12 (presentation). DESIGN.md is authoritative. Where this document has to interpret or refine a rule, it says so, and §14 lists every such point.
-> **Companions:** [architecture.md](architecture.md) owns threads, the Game Access Layer (GAL), Augur and EldenNet's display layer; the overlay and the input hooks are GraceUI's since its G15 (GraceUI DESIGN §2.9). [memory-and-knowledge.md](memory-and-knowledge.md) owns the event log, facts, the journal, the knowledge base (KB), the flag catalogue, the predicate language, the spoiler lexicon and the memory job.
+> **Companions:** [architecture.md](architecture.md) owns threads, the Game Access Layer (GAL), Augur and EldenNet's
+> display layer; the overlay and the input hooks are GraceUI's since its G15 (GraceUI DESIGN §2.9).
+> [memory-and-knowledge.md](memory-and-knowledge.md) owns the event log, facts, the journal, the knowledge base (KB),
+> the flag catalogue, the predicate language, spoiler control (MEM §7), the memory job and the lived layer.
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J3 #n` are process records. **UNVERIFIED (S1)** / **(S6)** marks an ID or flag taken from research that a spike must confirm in game before code relies on it.
 > **How to read it:** §1–§2 say who may speak and how a live character becomes a persona, a card or nothing. §3–§4 are the persona and card schemas, with the pilot persona (Kalé) and one complete card; §3.6 gives the six v1.0 personas their roads and world awareness (MEM §12). §5–§8 follow one conversation from the talk key to commit on display. §9 is barks, §10 presentation, §11 guardrails and §12 the content acceptance gates. §14 lists where this document had to interpret DESIGN; the review adopted those points into DESIGN.md ([process/review.md](process/review.md)).
 > **Licence hygiene:** every persona, card, seed line, prompt heading and example below is original and was written from our own spec. Nothing is taken from SkyrimNet's prompts, templates or bios (SN00 §7). No FromSoftware text ships: names, places and items reach prompts only as runtime strings read from the player's own install (DESIGN §4.5).
@@ -59,7 +62,9 @@ These tiers appear as kinds and types on the NPC-type page (§1.4).
 
 **Cards:** `godrick_soldier` (43110000 family), `vulgar_militia` (43210000), `kaiden_sellsword` (40500000), `raya_lucaria_soldier` (43120000), `leyndell_soldier` (43130000), `demi_human` (41000000, register `broken`), and the fallback `nameless_soldier`. The family IDs are community row names (ER04 §2.7). The range extents are **UNVERIFIED (S1)**. The `demi_human` range must exclude Boc's row (§2.2 lint).
 
-**The roster** (O43 as updated, O45, O46; DESIGN §7.8): a character profile with its bio for every other named NPC and named boss of the base game, about 134 beside the six personas, listed in `identity/characters.toml` with `content = "base"`, each binding a lead until S1 or S2 verifies it. The DLC's follow in v1.1 if O46 keeps them out.
+**The roster** (O43 as updated, O45, O46; DESIGN §7.8): a character profile with its bio for every other named NPC and
+named boss of the base game, about 134 beside the six personas, listed in `identity/characters.toml` with `content =
+"base"`, each binding a lead until S1 or S2 verifies it. The DLC's follow in v1.1 (O46).
 
 ### 1.3 `identity/speech.toml`
 
@@ -399,9 +404,14 @@ flowchart LR
 2. **Self-knowledge** = the active stage's `identity` line (block 2, §7.3), or the default "You are {display_name_fallback}." A persona with any `reveal_stage` row must give **every stage before the reveal** an explicit `identity` line, and its `display_name_fallback` must be the pre-reveal name (lint error otherwise).
 3. **The speaking persona's own runtime NpcName never enters its prompt**, nor does a character's own (§4.5), which other prompts show by its `brief`. Other personas appear under their runtime names in `brief` mode, because that is what the player sees.
 4. **Runtime lint:** if the current row has `reveal_stage = S` and the active stage comes before `S` in file order, log `identity_lag` (debug and diag). The prompt keeps the stage identity (J3 #19).
-5. **Offline lint:** every `reveal_stage` names an existing stage. No pre-reveal `identity`, `public` or `forbid` text contains a term from `lexicon/reveals.toml` or a locked lexicon term.
+5. **Offline lint:** every `reveal_stage` names an existing stage. **Review when written** (O86): no pre-reveal
+   `identity`, `public` or `private` text holds the name the reveal brings, so a character's name stays out of its own
+   prompt fields until the game has shown it (§12.4 item 7).
 6. **Acceptance test** (CI fixture `tests/scenarios/identity/veiled.scn`): the original fixture persona `test_veiled` has rows `99000010` (`form = "veiled"`) and `99000000` (`form = "revealed"`, `reveal_stage = "unveiled"`).
-   - *Case A:* the snapshot shows row `99000000` while the flags are pre-reveal. Assert that block 2 equals the veiled identity line, that the rendered prompt contains no reveal-list term, that the header uses the fixture's runtime name for `99000000`, and that `identity_lag` is logged.
+   - *Case A:* the snapshot shows row `99000000` while the flags are pre-reveal. Assert that block 2 equals the veiled
+     identity line, that the rendered prompt holds neither the revealed stage's identity line nor the runtime name of
+     `99000000` (item 3), that the header uses the fixture's runtime name for `99000000`, and that `identity_lag` is
+     logged.
    - *Case B:* the reveal flag is set. Assert the revealed identity line.
    - The content version runs on Boc's second row once S1 and S6 verify it (v0.5), and on Renna/Ranni (`20500010` / `20500000`, ER04 §7) when Ranni is authored after v1.
 
@@ -413,7 +423,14 @@ Personas are prose in named fields. Code owns the order, headers, state and pers
 
 ### 3.1 Fields
 
-Audiences: **public** may appear in this persona's prompts and in other personas' `observed` views. **private** appears only in this persona's own dialogue and memory prompts. **voice** goes to block 4 and the lint. **knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show. **awareness** goes to block 5b, gated (MEM §12). **fallback** is shown directly and never prompted; **seed** lines are shown directly, never prompted.
+Audiences: **public** (what anyone sees at a first meeting) may appear in this persona's prompts, in other NPCs'
+`observed` views, in the next-speaker decision (§9.2) and in GraceUI's roster (its D67: `public.summary`, `public.role`
+and `subjects`). **private** appears only in this persona's own prompts: dialogue, own-initiative lines and its own
+background jobs (the memory job and the lived layer's update, §7.6). **voice** goes to block 4 and the lint.
+**knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show. **awareness** goes to block 5b,
+gated (MEM §12). **companion** goes to the persona's combat pool jobs against foes other than the Tarnished, the fights
+a summon meets (§9.11). **fallback** is shown directly and never prompted; **seed** lines are shown directly, never
+prompted.
 
 | Field | Type | Cap | Audience | Notes |
 |---|---|---|---|---|
@@ -424,19 +441,21 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `address_forms` | [string] | ≤ 3, ≤ 3 words each | voice | The first is the default |
 | `pronouns` | `he \| she \| they \| it` | — | task | Block 11 |
 | `deflections` | [string] | 3–5, ≤ 20 words each | fallback | Shown after a double lint failure (§8.4) |
-| `public.summary` | prose | ≤ 60 words | public | The Stranger Test (SN03 §5.4): no reveals |
-| `public.appearance` | prose | ≤ 40 words | public | Visible traits only |
-| `private.background` | prose | ≤ 120 words | private | History and secrets at the base stage |
+| `public.summary` | prose | ≤ 60 words | public | Who it seems to be: what a first meeting shows, or its public repute (the Stranger Test, SN03 §5.4); reviewed when written, at the opening state (PL11; O86) |
+| `public.appearance` | prose | ≤ 40 words | public | Visible traits only, hoods and masks included |
+| `public.role` | prose | ≤ 20 words | public | What it does, as anyone can see: a smith, a merchant, a knight sworn to a fallen house (O46) |
 | `private.personality` | prose | ≤ 80 words | private | Values and temperament |
-| `private.goals` | [string] | ≤ 4 × 15 words | private | |
-| `private.relationships` | [string] | ≤ 6 × 20 words | private | `"Who: feeling"`. Proper nouns must be in a KB lexicon |
-| `private.honesty` | string | `truthful \| guarded \| liar` + ≤ 25 words | private | |
+| `private.honesty` | string | `truthful \| guarded \| liar` + ≤ 25 words | private | How it holds to its `claims`: a guarded or lying persona plays its account as one, without the model knowing what it hides |
+| `private.claims` | prose | ≤ 80 words | private | What it says of its past to a stranger, true or not. A guarded or lying persona's cover story, and how it turns a question aside, are written out, so that the lie holds (proposal 0004 §8). Never a secret: a later truth goes in the `unlock.text` of the stage that reveals it |
+| `private.seeks` | [string] | ≤ 3 × 15 words | private | What it openly says it wants |
+| `private.ties` | [string] | ≤ 4 × 20 words | private | `"Who: feeling"`, only for the people it names at a first meeting. Proper nouns must be in a lexicon it holds at the base stage, or in `lexicon/public.toml` |
 | `voice.cadence` | prose | ≤ 60 words | voice | Behaviour, never effect words (§3.3) |
 | `voice.diction` | prose | ≤ 40 words | voice | |
 | `voice.deflection` | prose | ≤ 30 words | voice | How they dodge |
 | `voice.openers` | [string] | ≤ 4, one word each | voice + lint | At most one per reply |
 | `voice.tics` | [{`text`, `max_per_conversation` 1–2}] | ≤ 3, ≤ 12 words each | voice + lint | Our own words; never a FromSoftware coinage (J2 #14) |
 | `subjects` | [string] | 3–8 on a shipped persona; ≤ 10 words and ≤ 50 chars each | own-initiative task; GraceUI's roster (PL11) | What the persona likes to talk about, in our own words; one is offered on each autonomy line (§4.6) |
+| `stirs` | [string] | 2–6 on a shipped persona or a shipped bio that speaks, 0–6 in the player's own files; ≤ 12 words each | the next-speaker decision (§9.2) | What makes it speak up unasked: a place, a name, a deed done near it, another's words (O46). Noun phrases in our own words, as `subjects`; reviewed when written, at the opening state (PL11) |
 | `instructions` | prose | ≤ 35 words, ≤ 210 chars | voice (block 4, last) | Free-text notes on the persona; usually the player's own (§4.7) |
 | `knowledge.always` | [KB key] | ≤ 8 | knowledge | ≤ 4 are rendered per turn |
 | `knowledge.topics` | [KB key] | ≤ 16 | knowledge | ≤ 3 per turn, by keyword match (DESIGN §10.4) |
@@ -445,6 +464,8 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `awareness.skip` | ["alias: reason"] | ≤ 12 | — | Verified block offsets deliberately unused (W4) |
 | `awareness.sleep_leads` | ["+offset"] | — | — | Offsets of the persona's block that may mean it sleeps or lies senseless and that S6 has not settled (Kalé's +17). While non-empty, the persona speaks no own-initiative line; an offset leaves only with an S6 record (W13; DESIGN §8.9). Code-only, never rendered |
 | `awareness.news` | `close \| plain \| eager` | default `plain` | — | Which reactions may cue the persona to raise news unasked (MEM §12.13; O30): `close` own stake only; `plain` adds the Tarnished's part; `eager` adds local talk. Code-only, never rendered |
+| `companion.skills` | prose | ≤ 60 words | companion | How it fights and what it brings (sorcery, a greatshield, a blade art), in our own words. Only on a persona that can be summoned (O85) |
+| `companion.beside` | prose | ≤ 40 words | companion | What it says and notices fighting beside the Tarnished; its combat seeds (§9.11) belong to this layer |
 | `[[stages]]` | table | ≤ 12 | stages | Ordered |
 | `stages.id` | slug | 32 chars | — | |
 | `stages.when` | predicate | ≤ 200 chars | gate | Catalogue aliases only; a raw number in `flag()` is an error |
@@ -458,9 +479,9 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `stages.knows` | [`w:` id] | ≤ 4 | — | World stages this stage implies. Inherits |
 | `stages.awaits` | `w:` id | — | lint | Needs a bridging stage (W10) |
 | `stages.heard`, `stages.short` | prose, phrase | ≤ 25 words, ≤ 8 words | others' block 5b | Only when another persona ties this track |
-| `stages.unlock.text` | prose | ≤ 80 words | private | Added to block 3 |
+| `stages.unlock.text` | prose | ≤ 80 words | private | Added to block 3. The revealed layer: what the persona now holds of its past, aims and ties (O46). Never on the base stage |
 | `stages.unlock.kb` | [KB key] | ≤ 6 | knowledge | |
-| `stages.forbid` | [string] | ≤ 6 × 12 words | — (code-only) | Topics for C9's probes and W14; never rendered (O36). Each entry names a **topic**, never the secret (anti-priming, §11) |
+| `stages.forbid` | [string] | ≤ 6 × 12 words | — (eval-only) | The topics of the persona's test questions (§12.1); never rendered and never checked at runtime (O36, O86). Each entry names a **topic**, never the secret, so a question built on it asks without telling |
 | `stages.chat` | `allowed \| refuse \| mute` | default `allowed` | gate | §3.2 |
 | `stages.beckon` | string | ≤ 20 words | own-initiative task only | The stage waits on the Tarnished talking with the persona; why, in its terms. Non-inheriting; W13; never says "quest" |
 | `stages.beckon_src` | S6 record id | — | lint | Required with `beckon`; a `ci:` id only on a `test_only` persona (W13) |
@@ -468,6 +489,21 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 | `stages.state` | `awake \| asleep \| senseless \| unknown` | inherits; the base stage must set it | gate | Authored consciousness (§3.2); `unknown` until S6 records it (§3.6) |
 | `stages.approach`, `approach_m`, `approach_played` | `none \| native \| unknown`, metres, alias | inherits; unset reads `unknown` | gate | From S3's recording (§5.8); `unknown` until S3 records it (§3.6) |
 | `[seed]` | `greet`, `beckon` = [3 lines]; combat keys for personas who fight | exactly 3 per key | fallback lines | §9.5 |
+
+**The bio's layers** (O46; proposal 0004). A persona file is the bio of DESIGN §7.8, under the same field names, with a
+stage track added:
+
+- *First meeting:* the public, private and voice fields, `subjects` and `stirs`, and the base stage (`road`, `where`,
+  `mood`, `gist`): about 450 to 550 words of prose (SkyrimNet's median is 512).
+- *Revealed:* the later stages, each behind a verified flag (§3.2), whose `identity`, `unlock.text` and `unlock.kb`
+  carry the later truths of its past, aims and ties.
+- *Companion:* `companion.*` and its combat seeds, for a persona that can be summoned (O85).
+- *Lived:* per journey, in the playthrough file, never in this file (MEM (the lived layer); §7.3).
+
+A secret is never in the base stage or a first-meeting field, and a fate or a later form is never written as text the
+persona holds before it happens. `private.background`, `private.goals` and `private.relationships` are retired: what a
+persona says of itself at a first meeting goes in `claims`, `seeks` and `ties`, and what it reveals later in the unlock
+fields of its stages (O46, which replaces O36's "a persona's secrets sit in its private self").
 
 ### 3.2 Stages and predicates
 
@@ -502,7 +538,15 @@ Audiences: **public** may appear in this persona's prompts and in other personas
 8. **Form:** spoken words only, as they leave your mouth.
 9. **This moment** is set out under "As things stand now": your own road, the affairs tied to it, and the land. Speak from this moment, and of each thing as you hold it: what you know as known, what you heard as hearsay, what you believe as your own belief. Let the talk turn to news, unless something is on your mind; then raise it if it suits you.
 
-The nine items as worded here come to about 450 tokens by the estimate in §7.1, so the cap is 450 (it was 350 before item 9). Item 9's sentence on when to raise news (O28; MEM §12.13) costs about 29 tokens, paid for by shortening items 1–3 by about 30. The frame file is linted against it; if the file runs over, items 1–3 and 8 are shortened, never items 4, 5 or 9. The items are worded positively (O36): they set out what the persona is and holds, and name nothing it must not say. Item 9 is about 110 tokens (it was 116) and item 4 about 3 more, so the cap holds. Each positive rewrite is measured by X1's positive-wording arm (§12.2); one that loses on C7, C10 or the promise rate returns to its former wording for that item only, recorded in the eval report. The guards that act on output stay: the hard promise lint (item 3), the lexicon lock and ken-lock with tells (items 4 and 9), quoting and the input cap (item 5), the banned-word lint (items 6 and 7) and the sanitizer (item 8).
+The nine items as worded here come to about 450 tokens by the estimate in §7.1, so the cap is 450 (it was 350 before
+item 9). Item 9's sentence on when to raise news (O28; MEM §12.13) costs about 29 tokens, paid for by shortening items
+1–3 by about 30. The frame file is linted against it; if the file runs over, items 1–3 and 8 are shortened, never items
+4, 5 or 9. The items are worded positively (O36): they set out what the persona is and holds, and name nothing it must
+not say. Item 9 is about 110 tokens (it was 116) and item 4 about 3 more, so the cap holds. Each positive rewrite is
+measured by X1's positive-wording arm (§12.2); one that loses on C7, C10 or the promise rate returns to its former
+wording for that item only, recorded in the eval report. The guards that act on output stay: the hard promise lint (item
+3), quoting and the input cap (item 5), the banned-word lint (items 6 and 7) and the sanitizer (item 8). Items 4 and 9
+rest on grounding alone, with no check on output (O86): what the prompt holds is what the persona knows at its stage.
 
 **Register presets** (`prompts/registers/<r>.md`, ≤ 60 tokens each), each described as behaviour:
 
@@ -514,9 +558,15 @@ The nine items as worded here come to about 450 tokens by the estimate in §7.1,
 | `broken` | Fragments of 1–6 words; dropped articles and auxiliaries; plain words; repetition for emphasis; the meaning stays clear; played straight, with dignity | `demi_human` card |
 | `chant` | Rhythmic, repeated phrases; addressed to no one or to a power; refrains; little conversation | None in v1 |
 
-Each preset and the tic note (below) are measured by X1's positive-wording arm (§12.2), like world-frame items 1–3 and 5–8 (items 4 and 9 are the spoiler arm's).
+Each preset and the tic note (below) are measured by X1's positive-wording arm (§12.2), like world-frame items 1–3 and
+5–8 (items 4 and 9 are measured by the test questions, §12.1).
 
-**Effect-adjective lint** (warn, in `voice.*`, `public.*`, `private.personality` and `instructions`, and a character profile's `manner` and `cadence`): *cryptic, enigmatic, mysterious, riddling, terse, clipped, curt, blunt, laconic, gruff, sardonic, sarcastic, snarky, witty, quirky, sassy, edgy, brooding, ominous*. **Quoted sample lines** (text in quotation marks) inside `voice.cadence`, `voice.diction`, `voice.deflection`, `instructions` or a character profile's `manner` and `cadence` are an **error** (a warning in the player's own files, §4.7), because example lines prime one-liners (SN03 §5.4).
+**Effect-adjective lint** (warn, in `voice.*`, `public.*`, `private.personality` and `instructions`, of a persona or a
+character profile): *cryptic, enigmatic, mysterious, riddling, terse, clipped, curt, blunt, laconic, gruff, sardonic,
+sarcastic, snarky, witty, quirky, sassy, edgy, brooding, ominous*. **Quoted sample lines** (text in quotation marks)
+inside `voice.cadence`, `voice.diction`, `voice.deflection`, `private.claims` or `instructions`, of a persona or a
+character profile, are an **error** (a warning in the player's own files, §4.7), because example lines prime one-liners
+(SN03 §5.4).
 
 **Opener rule (code):**
 - a reply may begin with at most one interjection, and a second leading interjection is stripped;
@@ -564,25 +614,30 @@ subjects = ["the state of the roads further on",
             "customers who haggle and customers who pay",
             "what a lone trader needs to stay alive",
             "the wind over the grassland, as a trader reads it"]
+stirs = ["a traveller coming in out of the wind",
+         "talk of prices, trade or a fair bargain",
+         "news or rumour from the roads further on",
+         "soldiers from the castle, or word of them"]
 
 [public]
 summary = "A travelling merchant who keeps shop inside a ruined roadside church, selling plain goods to whoever wanders in from the grassland."
 appearance = "A hooded man in a travel-stained coat, sitting beside a heavy pack among broken stones."
+role = "a travelling merchant of plain goods"
 
 [private]
-background = """Has walked the roads of this land for most of his life, once with a caravan of his \
-own people and now alone. Trades in what travellers need rather than what they want, and listens \
-for news, because news keeps a lone merchant alive. Keeps what scattered the caravans to himself \
-and talks of the road ahead."""
 personality = """Wry, patient and practical. Treats every newcomer as a likely customer and a \
 possible corpse, and is pleasant to both. Not brave, but steady; respects those who pay their way \
 and remembers those who don't."""
-goals = ["Make a living without dying for it",
+honesty = "truthful: fair in trade and honest in what he says, if not generous with it"
+claims = """Has walked the roads of this land for most of his life, once with a caravan of his own \
+people and now alone. Asked where the others went, says only that caravans break up as roads change, \
+and turns the talk to the road ahead. Trades in what travellers need rather than what they want, and \
+listens for news, because news keeps a lone merchant alive."""
+seeks = ["Make a living without dying for it",
          "Keep his stock, and his skin, in one piece",
          "Hear the news before it reaches him the hard way"]
-relationships = ["Other road merchants: kin of a sort; he will not speak ill of them",
-                 "The castle's soldiers: bad for trade, best avoided"]
-honesty = "truthful: fair in trade and honest in what he says, if not generous with it"
+ties = ["Other road merchants: kin of a sort; he will not speak ill of them",
+        "The castle's soldiers: bad for trade, best avoided"]
 
 [voice]
 cadence = """Short, easy sentences in a trader's rhythm: a plain statement, then a small dry \
@@ -628,7 +683,7 @@ road = "You keep shop in the ruined church by the grassland road, trading plain 
 where = "inside the ruined church by the grassland road, beside his pack"
 mood = "easygoing, sizing up whoever walks in"
 gist = "You keep shop here for anyone who passes. Whether you have dealt with this Tarnished before is set out below, in what you know of them."
-forbid = ["why the merchant caravans scattered"]   # code-only: C9 probes and W14, never rendered (O36)
+forbid = ["why the merchant caravans scattered"]   # eval-only: his test questions' topic (§12.1), never rendered (O36, O86)
 
 [[stages]]
 id = "howl_told"
@@ -636,14 +691,17 @@ when = "flag('kale.howl_told')"     # placeholder alias, UNVERIFIED (S6): the va
 where = "inside the ruined church by the grassland road, beside his pack"
 mood = "easygoing, curious how that went"
 gist = "In an earlier talk the Tarnished asked about a howling in the misty woods to the east, and you passed on what is said of the wolf-headed swordsman there."
-forbid = ["why the merchant caravans scattered"]   # code-only: C9 probes and W14, never rendered (O36)
+forbid = ["why the merchant caravans scattered"]   # eval-only: his test questions' topic (§12.1), never rendered (O36, O86)
 ```
 
 Design notes:
 - The **base gist makes no claim about familiarity**. Our own facts (`met_count`, block 8) carry that, so the persona stays correct while `kale.howl_told` is still Unknown.
 - The `howl_told` gist is illustrative. After S6 it is rewritten, in our words, from that flag's catalogue `note` and the author's own export.
 - Kalé has no hostile or dead stage, because live state covers both (§3.2).
-- `forbid` names a topic, not the secret; it is never rendered, seeds C9's probes and is covered by the caravans' reveal terms and tells (W14).
+- `forbid` names a topic, not the secret; it is never rendered and gives his test questions their topic (§12.1).
+- His `claims` hold what he tells a stranger of his past and how he turns the question of the caravans aside; no field
+  says that he keeps anything back, and no stage of his reveals what scattered them in v1, so his prompts hold nothing
+  to leak (O46, O86; proposal 0004 §8).
 - `beckon` and `approach` are unset until S6 and S3 record them (§3.6, "Speaking up per stage").
 - The castle's fall is no longer a KB entry: it is the world stage `castle_fallen`, which Kalé hears by Near (MEM §12.5); his tie gives it his own line.
 - `howl_told` inherits `road` and `at`.
@@ -679,15 +737,17 @@ deflections = ["The lamp shows the road, not the whole of it.",
                "Some roads are better walked than described."]
 subjects = ["the oil a lamp drinks on a long night", "travellers and the roads they choose",
             "the crossroads, and who has passed it"]
+stirs = ["a traveller stopping at the crossroads", "talk of the dark between lamps"]
 [public]
 summary = "An old keeper who tends one lamp at a crossroads and greets whoever passes."
 appearance = "A stooped figure in a soot-grey cloak, a brass lantern on a crooked staff."
+role = "keeper of a crossroads lamp"
 [private]
-background = "Has kept the same lamp longer than they can count, and suspects the road keeps them in turn."
 personality = "Patient and dry; kind to the lost, short with the boastful."
-goals = ["Keep the lamp lit until someone else takes it up"]
-relationships = ["Travellers: a long line of faces, each welcome once"]
 honesty = "truthful: says little, never lies"
+claims = "Has kept the same lamp longer than they can count, and will say the road keeps them in turn."
+seeks = ["Keep the lamp lit until someone else takes it up"]
+ties = ["Travellers: a long line of faces, each welcome once"]
 [voice]
 cadence = "At most two short sentences; the second often turns the first around. Pauses before answering."
 diction = "Plain, slightly old-fashioned words, with everyday pronouns."
@@ -712,16 +772,21 @@ approach = "none"                                    # CI only (speak_up.scn)
 where = "beside the lamp at the crossroads"
 mood = "watchful calm"
 gist = "Nothing has passed between you and this traveller before tonight."
-forbid = ["what lies at the end of the road"]   # code-only: C9 probes and W14, never rendered (O36)
+forbid = ["what lies at the end of the road"]   # eval-only: the test questions' topic (§12.1), never rendered (O36, O86)
 ```
 
-It has no rows (`test_only`). It drives the wizard's self-test line (§7.7), the X1 protocol (§12.2), the prompt snapshot tests and, through its `beckon`, the speaking-up scenario `speak_up.scn` (§9.6). It has no ties, so its block 5b holds its road and only the news that reaches it by the sky, its own ground or word of the road (MEM §12.5).
+It has no rows (`test_only`). It drives the wizard's self-test line (§7.7), the X1 protocol (§12.2), the prompt snapshot
+tests and, through its `beckon`, the speaking-up scenario `speak_up.scn` (§9.6). It has no awareness ties, so its block
+5b holds its road and only the news that reaches it by the sky, its own ground or word of the road (MEM §12.5).
 
 ### 3.6 Roads and awareness for the v1.0 personas (original; illustrative until S6)
 
 A persona's **own quest** is its active stage. Block 5b tells it as the stage's `road` (where its own affairs stand), beside the `gist` (what has passed with the Tarnished, block 7) and `unlock.text` (the private self, block 3). **Related quests** reach a persona only three ways: a world stage, which carries most relations in v1 (the bosses whose fall ends or moves a questline); a tie to a track (Patches to Tanith; Blaidd to Ranni later); or its own stage's `knows`. A persona never reads another persona's `gist`, `road` or private fields, and another track renders only through its `heard` line. A `road`, a tie line and a `heard` line state only (a) what the item's own flags show, (b) what the persona's own stage shows, paraphrased from vanilla in our own words (the `gist` rule: name only real vanilla acts), or (c) lore in a played-observation record (`basis = "played"` with `evidence`). Every road below is **illustrative** until S6, like Kalé's `howl_told` gist, and is rewritten afterwards, in our words, from the catalogue `note` (the label is looked up through `src`, never stored) and the author's own export. Offsets are leads in each persona's block. Blaidd's +6 to +12 and Patches' +5 to +12 follow ER04 §4.4's stage lists (FACT labels; what a label does not name, such as whom Blaidd serves at +7, is GK: ER07 §4.5); every other offset, and the places, are leads from the 2026-11-06 dataset pass with the labels ER07 §4.2–§4.7 gives (Blaidd's places after +5 are GK, as his heading says), owed to S6 (what the game does with any of them is LIKELY at best until S6 sees the flag change, ER07 §1), and a few are only SPECULATION (Patches' +14, which flag drives Varré's +11, and where his +12 and +13 take place). GK is general game knowledge (MEM §12.4). S6 verifies each before content relies on it, and an unverified one leaves the earlier road in place (MEM §12.8). The schema is MEM §12.2, the rule MEM §12.5 and the rendering MEM §12.6; the lints are W4 (coverage), W7 (wording), W8 (ties) and W10 (awaits). `skip` lists not shown here are completed after S6 (W4).
 
-**Kalé** is in §3.4 (block 4700, lead, ER07 §4.2; his conversation flags sit in the First Step band). He relates to Blaidd only through the howl topic, because no record says he follows Blaidd's road, and the merchants' fate stays a code-only `forbid` topic with reveal terms and tells (spoiler 3, never an item). **The Lantern-Keeper** (§3.5) has one stage and no ties.
+**Kalé** is in §3.4 (block 4700, lead, ER07 §4.2; his conversation flags sit in the First Step band). He relates to
+Blaidd only through the howl topic, because no record says he follows Blaidd's road, and the merchants' fate stays an
+eval-only `forbid` topic, never an item and in no field he holds (§3.4). **The Lantern-Keeper** (§3.5) has one stage and
+no awareness ties.
 
 **Blaidd** (block 3600; offsets +6 to +12 are FACT labels, ER04 §4.4. The labels name neither the places nor his lady: +5's Mistwood is LIKELY, that +7 is Ranni's service is GK, and which ruin +8 searches is not settled (ER07 §4.5); his `at` for +7 and +10 (`liurnia`) and for +9 (`caelid`) is GK, since no label or TGA entry places him after +5 (the +9 label says he waits to join the festival, not where), so all three are owed to S6 and open nothing that the inherited `limgrave` would not; the block has no +18/+19 system rows). The owner's example: his road waits on the red general's fall, a bridging stage covers the gap before +10 rises, and his stages' `knows` carry the general and the star.
 
@@ -1097,11 +1162,15 @@ The owner asked for a way to instruct each NPC, bosses included (O43). One profi
 | Depth | Covers | What it adds | Speaks |
 |---|---|---|---|
 | Kind profile (the archetype card, §4.1; DESIGN §7.4) | Every NPC of one card's match | What the kind is, its allegiance and ground, what it knows, its lexicon, temperament variants, seeds | Combat lines, idle remarks, greetings when not hostile, exchanges, autonomy, call-out replies |
-| Character profile (new) | One NPC: every named NPC without a persona and every named boss (the roster, DESIGN §7.8); a player's own for anyone else met | Who it is in our own words, manner, cadence, register, facts it always knows, facts gated by verified flags (`knows_when`), its own seeds, `instructions`; optionally a kind profile underneath (`base`) | Everything a persona says but quest business: conversation and memory (O45), live calm lines, combat lines from seeds and pools. A bound boss-bar holder or invading phantom: combat lines only |
+| Character profile (new) | One NPC: every named NPC without a persona and every named boss (the roster, DESIGN §7.8); a player's own for anyone else met | Its bio (O46): who it is in our own words, as anyone sees it and as it knows itself, its voice and register, what stirs it to speak, facts it always knows, facts gated by verified flags (`knows_when`), its companion layer if it can be summoned, its own seeds, `instructions`; optionally a kind profile underneath (`base`) | Everything a persona says but quest business: conversation and memory (O45), live calm lines, combat lines from seeds and pools. A bound boss-bar holder or invading phantom: combat lines only |
 | Persona (§3; DESIGN §7.3) | A questline NPC or named service | Its own stages, ties, `beckon` and the awareness tied to them | Everything (DESIGN §8, §9) |
 
 - **Every depth** carries `subjects` (§4.6) and optional `instructions` (≤ 35 words, ≤ 210 chars, rendered ≤ 70 tokens as the line "Also: …", last in block 4 or in the card or character block). Shipped personas leave `instructions` empty in v1; it is mainly the player's (§4.7).
-- **A deeper profile builds on a shallower one.** A character profile may name a card as `base`; a field it leaves unset is read from that card (`allegiance`, `home`, `register`, `lexicon`, `words_max`, `knows` when its own is empty, seeds per key it does not set). A persona needs no base: its schema already holds every character field under its own names (`public.summary` for `who`, `voice.*` for `manner` and `cadence`, `[seed]`). Personas keep their own stages and awareness, which no shallower depth has; since O45 conversation and memory belong to every profiled NPC.
+- **A deeper profile builds on a shallower one.** A character profile may name a card as `base`; a field it leaves unset
+  is read from that card (`allegiance`, `home`, `register`, `lexicon`, `words_max`, `knows` when its own is empty, seeds
+  per key it does not set). A persona needs no base: since O46 the two share the bio's field names (§3.1), and a persona
+  has its stages where a character has `identity` and `knows_when`. Personas keep their own stages and awareness, which
+  no shallower depth has; since O45 conversation and memory belong to every profiled NPC.
 - **"Generic" includes characters.** Wherever the design says a generic NPC or a card speaks, an NPC bound by a character profile speaks the same way from its own profile, unless a rule names cards alone. Since O45 two things are a character's as they are a persona's: it converses when conversable, and it remembers (`may_remember = true`, keyed by its id, MEM §2.7); its own-initiative calm lines are live (DESIGN §7.8) and still wait for S8 (O44).
 - **The editor makes character profiles, never personas.** A persona needs S6-verified stages and an eval report (§2.5 step 3); a player who wants one still writes it by hand under `overrides\` (unchanged).
 
@@ -1127,26 +1196,42 @@ test_only = true                               # never resolved in game; CI and 
 | Field | Type | Cap / default | Audience | Notes |
 |---|---|---|---|---|
 | `id`, `schema` | slug, u32 | 32 chars; `= 1` | — | Must match the index |
-| `brief` | string | ≤ 24 chars, our words | others' prompts; UI fallback | How others' prompts see the NPC ("nearby others"), and the on-screen name when the runtime NpcName is missing. Never a proper noun |
+| `brief` | string | ≤ 24 chars, our words | others' prompts; UI fallback | How others' prompts see the NPC ("nearby others"), and the on-screen name when the runtime NpcName is missing and no `display_name_fallback` is set. Never a proper noun |
 | `base` | card id or `""` | `""` | — | The kind profile it builds on |
 | `speech` | `barks`, `sounds_only`, `silent` | `barks` | gate | `sounds_only` and `silent` never produce text |
 | `register` | register enum | `colloquial` (or `base`'s) | character block | Selects `registers/<r>.md` |
 | `words_max` | u8 | 6–12, default 10 | contract | As a card's `bark_words_max` |
 | `replies`, `ambient` | bool | `true`, `true` | gate | Call-out target for a card only (a character converses instead, O45); idle remarks |
-| `who` | prose | ≤ 40 words | character block | Who the NPC is, in our own words, as it knows itself; spoiler-safe at every fixture state (PL7) |
-| `manner` | prose | ≤ 40 words | character block | Temperament and bearing, as behaviour (effect adjectives warn) |
-| `cadence` | prose | ≤ 40 words | character block | How it speaks; no quoted sample lines |
+| `identity` | prose | ≤ 40 words | self (block 2; the character block) | Who the NPC is, in our own words, as it knows itself at a first meeting (it was `who`). Required in a bio that speaks; never its own name (O43, O86) |
+| The bio's shared fields | as §3.1 | as §3.1 | as §3.1 | `display_name_fallback` (our own first-meeting label, such as "the hooded smith", or unset, since display names never ship, O43), `pronouns`, `public.summary`, `public.appearance`, `public.role`, `private.*` (`personality` takes in the former `manner`), `voice.*` (`voice.cadence` takes in the former `cadence`), `address_forms`, `deflections`, `reply_words_max`, `stirs`, `companion.*`, `awareness.home` and `awareness.news`. A silent bio holds only the public fields |
 | `allegiance`, `home` | string | ≤ 20 words each | character block | Optional; from `base` when unset |
 | `knows` | [string] | 0–6 × ≤ 20 words | character block | Facts true at every state |
-| `[[knows_when]]` | `{when, text, spoiler, lexicon}` | ≤ 6; `when` ≤ 200 chars; `text` ≤ 20 words; `spoiler` 0–3; `lexicon` ≤ 4 | character block, gated | What it knows once the story has reached a point: renders only when `when` is True in strict mode (Unknown hides; `spoiler ≥ 2` needs every flag atom verified, MEM §7.4); at most 4 render, the last true in file order first |
-| `lexicon` | [string] | ≤ 8 | lint, output lock | The only proper nouns its lines may use, with `lexicon/public.toml` |
+| `[[knows_when]]` | `{when, text, spoiler, lexicon}` | ≤ 6; `when` ≤ 200 chars; `text` ≤ 20 words; `spoiler` 0–3; `lexicon` ≤ 4 | character block, gated | The revealed layer (O46): what it knows once the story has reached a point, never written before it; renders only when `when` is True in strict mode (Unknown hides; `spoiler ≥ 2` needs every flag atom verified, MEM §7.4); at most 4 render, the last true in file order first |
+| `lexicon` | [string] | ≤ 8 | character block; lint (PL6) | The only proper nouns its lines may use, with `lexicon/public.toml` |
 | `subjects` | [string] | 3–8 shipped, 0–8 the player's; ≤ 10 words, ≤ 50 chars each | autonomy task; GraceUI's roster (PL11) | What it likes to talk about (§4.6) |
 | `instructions` | prose | ≤ 35 words, ≤ 210 chars | character block, last | Free-text notes |
 | `[seed]` | key = [lines] | shipped: exactly 3 per seeded key; player: 0–3 | shown directly | Card keys (§9.5), and `greet_player` (characters only, §9.5); written by seed rules 2–9 (rule 1 binds the Tarnished and comrades only, not the character itself; rule 8's no-greeting clause binds cards only, so a non-hostile character's `greet_player` seeds may greet the Tarnished, §9.8) |
+| `drafted`, `review` | `hand \| assisted`; a review record | — | code only | Provenance (PL12) |
 
-A character has no `pronouns`, `private`, stages, awareness, deflections or `match`; it is bound only through the index (or, for the player's own, its `[[seen]]` records, §4.7).
+A character has no stages, `knowledge.*`, `awareness.*` beyond `home` and `news`, or `match`: its later truths are
+`knows_when` entries, and it is bound only through the index (or, for the player's own, its `[[seen]]` records, §4.7).
 
-**The bio (O46, Open).** O46 recommends growing this table into the bio of DESIGN §7.8, shared with the personas: `public.summary` and `public.appearance`, `display_name_fallback` (shown only when the install shows no name; a character's bio that speaks requires its `identity`, so §2.7's default self-knowledge line never uses it for a character: for a roster bio our own first-meeting label, such as "the hooded smith", or unset, since display names never ship, O43), `identity` (for `who`), `private.personality` (taking in `manner`), `private.honesty`, `pronouns`, `voice.cadence` and `voice.diction`, `address_forms`, `reply_words_max`, `deflections`, `awareness.home` and `awareness.news`, and the code-only `drafted` and `review`. The table changes when the owner decides.
+**The bio** (O46, decided 2026-11-16; proposal 0004; DESIGN §7.8). This table and §3.1 are one bio, shared by personas
+and characters under the same field names, in five layers:
+
+- *First meeting*, for every NPC that speaks: what anyone sees (`public.*`), its own self (`identity`, `private.*`), its
+  voice (`register`, `voice.*`, `address_forms`, `deflections`), what makes it speak (`subjects`, `stirs`) and what it
+  knows at every state (`knows`, `lexicon`): about 450 to 550 words of prose. A bio that speaks requires its
+  `identity`, so §2.7's default self-knowledge line never uses `display_name_fallback` for a character.
+- *Revealed*: `knows_when` entries, each behind a verified flag (a persona's stage track, §3.2). A later truth is never
+  written before its stage, and a fate or a later form never as text the NPC holds before it happens.
+- *Companion*: `companion.*` and its combat seeds, for an NPC that can be summoned (O85).
+- *Lived*: per journey, in the playthrough file, never in a shipped file (MEM (the lived layer)).
+- *The Tarnished's own*: the player's optional bio of the Tarnished (§4.7).
+
+Who gets which layers: a named NPC that speaks gets all four of its own (the companion layer only if it can be
+summoned); a named boss never met calm, or one of a voiceless kind, gets a silent bio with the public fields only,
+listed and never speaking; a merchant or service without a story gets a short first-meeting layer and the lived layer.
 
 **Bindings and their verification.**
 
@@ -1174,32 +1259,35 @@ A character has no `pronouns`, `private`, stages, awareness, deflections or `mat
 1. **Load order.** (1) shipped `content/eldenring/`; (2) `overrides\` whole-file replacements; (3) `disable.toml` (gains `characters = [...]`: those shipped character profiles become unbound); (4) the player's `profiles\` folder: `layers\` and `characters\` (§4.7; ARCH §11.6).
 2. **Which profile an NPC gets** (most specific first): a persona (shipped, or replaced whole under `overrides\`) > a character profile (the player's own `mine:` wins over a shipped `character:` only when it binds the same NPC by a live-agreeing sighting; the editor instead offers a layer over the shipped one, so this is rare) > a card > the fallback card > mute.
 3. **Field precedence** within the chosen profile: the player's layer > the profile's own field > its `base` card's field (characters only) > the schema default.
-4. **What a layer may set:** `instructions`, `subjects` (replaces the shipped list), `register`, and the reply length (`reply_words_max` 10–60 for a persona; `bark_words_max` or `words_max` 6–12 for a card or character). Nothing else: never identity, `public`, `private`, stages, awareness, knowledge, `forbid`, `never`, ties, seeds, `match`, bindings, `speech`, `lexicon` or `scripted`. Voice notes go in `instructions`.
+4. **What a layer may set:** `instructions`, `subjects` (replaces the shipped list), `register`, and the reply length
+   (`reply_words_max` 10–60 for a persona; `bark_words_max` or `words_max` 6–12 for a card or character). Nothing else:
+   never identity, `public`, `private`, stages, awareness, knowledge, `forbid`, `never`, ties, `stirs`, `companion`,
+   seeds, `match`, bindings, `speech`, `lexicon` or `scripted`. Voice notes go in `instructions`.
 
 **How a profile feeds each prompt** (within the 3,500 hard cap and the 120-token task cap):
 
 | Prompt | Persona | Character profile | Kind profile (card) |
 |---|---|---|---|
-| Conversation (`dialogue`, blocks 1–11, §7.3) | Unchanged, plus `instructions` as the last line of block 4 ("Also: …", ≤ 70 tokens); block 4 cap 230; caps sum 3,460; cached prefix ≤ 1,460 | Blocks 1–11 from its profile (O45; DESIGN §7.8): block 2 `who`, block 3 `manner`, block 4 the register preset, `cadence` and `instructions`, block 5b the land from `known(C)`, block 7 `knows` and active `knows_when`, blocks 8–11 as a persona's; the same caps (O46 widens the fields) | — |
+| Conversation (`dialogue`, blocks 1–11, §7.3) | Unchanged, plus `instructions` as the last line of block 4 ("Also: …", ≤ 70 tokens); block 4 cap 230; caps sum 3,460; cached prefix ≤ 1,460 | Blocks 1–11 from its bio (O45, O46; DESIGN §7.8): block 2 `identity` and `public.*`, block 3 `private.*`, block 4 the register preset, `voice.*` and `instructions`, block 5b the land from `known(C)`, block 7 `knows` and active `knows_when`, blocks 8–11 as a persona's; the same caps | — |
 | Own-initiative persona line (`dialogue`, §7.8) | The cached prefix as in conversation (so `instructions` ride along); the `autonomy` motive line carries a subject; prompt ≤ 2,640 | The same path from its own cached prefix (O45); calm lines after S8 (O44); no `beckon` motive | — |
 | Call-out reply (`bark_live`, §7.4) | — | — (a non-hostile character converses instead, O45) | Bark frame + card block (≤ 290, its `instructions` last) + call; ≤ 570 |
 | Generic autonomy (`bark_live`, §7.8) | — | — (the own-initiative path above) | Bark frame + card block + call block (≤ 125); ≤ 615 |
-| Pools (`bark_pool`, §7.5) | The persona pool block (identity, voice with `instructions`, the stage's `road`) | The character block + trigger; key `character:{id}@{profile_hash}/{gates}/{trigger}/{ctx}`, `gates` the bit set of active `knows_when` entries (§9.5) | Card block + variant; `card_hash` covers the layer |
+| Pools (`bark_pool`, §7.5) | The persona pool block (identity, voice with `instructions`, the stage's `road`; `companion.*` in `vs:other` jobs, §9.11) | The character block + trigger; key `character:{id}@{profile_hash}/{gates}/{trigger}/{ctx}`, `gates` the bit set of active `knows_when` entries (§9.5) | Card block + variant; `card_hash` covers the layer |
 | Seeds | `[seed]` (unchanged) | `[seed]`; a key with no seed and no pool is silent | `[seed]` |
-| Memory job (§7.6) | Unchanged: `brief`, `public.summary`, `honesty`; `instructions` and `subjects` never | `brief` and `who` (O46 recommends `public.summary` and `private.honesty`); `instructions` and `subjects` never | — |
-| Others' prompts | `brief`/`observed` (unchanged) | `brief` | The card label |
+| Memory job and the lived layer's update (§7.6) | The witness's grounded layers only (O86): `brief`, `public.summary` and `private.honesty`, as its prompts hold them at its stage; `instructions`, `subjects` and `stirs` never | The same, from its bio | — |
+| Others' prompts | `brief`/`observed` (unchanged); in the next-speaker decision, `brief`, `public.summary` and `stirs` (§9.2) | `brief`; the same in the next-speaker decision | The card label |
 
 **The character block** (ours; template `prompts/callout/02_character.j2`, used by pools; since O45 a character's conversation and own-initiative lines take the persona path (DESIGN §7.8); cache B per `profile_hash` and `gates`):
 
 ```text
-Who you are: {{ who }}
-Your manner: {{ manner }}
-How you speak: {{ register preset }} {{ cadence }}
-{% if allegiance %}You hold to {{ allegiance }}.{% endif %}{% if home %} Your ground: {{ home }}.{% endif %}
+Who you are: {{ identity }}
+Your manner: {{ private.personality }}
+How you speak: {{ register preset }} {{ voice.cadence }}
+{% if allegiance is not empty %}You hold to {{ allegiance }}.{% endif %}{% if home is not empty %} Your ground: {{ home }}.{% endif %}
 What you know: {{ knows, then the active knows_when texts, one per line }}
 The only names you use are these: {{ lexicon and public terms }}.
 You meet each moment fresh.
-{% if instructions %}Also: {{ instructions }}{% endif %}
+{% if instructions is not empty %}Also: {{ instructions }}{% endif %}
 ```
 
 The call or trigger part adds "The Tarnished is your foe now." while the live team is hostile; a card keeps its fixed hostility fact in cache B. Pool generation for a character is queued at its first calm moment after its first sighting, or after the player saves its profile (they have met it, so this spoils nothing), within `pools.max_jobs_per_session` (§9.5). A `greet_player` trigger line joins §7.5's table for non-hostile characters and cards: "The Tarnished has just come near you, and you greet them."
@@ -1217,14 +1305,26 @@ register = "formal"
 words_max = 10
 replies = true
 ambient = false
-who = "The keeper of an old toll bridge, who takes the crossing fee from every traveller."
-manner = "Patient and exact; treats a fight as a debt being settled."
-cadence = "Short sentences built round a figure: a fee, a count, a balance."
+pronouns = "he"
+identity = "The keeper of an old toll bridge, who takes the crossing fee from every traveller."
 home = "the bridge and its gatehouse"
 knows = ["Every traveller who has crossed has paid the toll."]
 lexicon = []
 subjects = ["the fee every traveller owes", "the travellers who cross and what they carry", "debts paid and debts outstanding"]
+stirs = ["a traveller stepping onto the bridge", "talk of fees, debts or coin"]
 instructions = "Counts aloud when struck, as if adding to a debt, and calls the Tarnished a debtor."
+
+[public]
+summary = "An armoured keeper who guards an old toll bridge and asks a fee of everyone who crosses it."
+appearance = "A broad figure in dented plate, with a ledger chained at the belt and a long-hafted axe."
+role = "the keeper of a toll bridge"
+
+[private]
+personality = "Patient and exact; treats a fight as a debt being settled."
+honesty = "truthful: names the fee and never changes it"
+
+[voice]
+cadence = "Short sentences built round a figure: a fee, a count, a balance."
 
 [[knows_when]]
 when = "world('castle_fallen')"
@@ -1246,7 +1346,9 @@ foe_fell    = ["Account settled.", "Paid in full.", "The bridge keeps its fee."]
 - **Counts.** 3–8 on every shipped persona from the increment that ships its autonomy (Kalé v0.3, the others v0.5), on every shipped card from v0.4 and on every shipped character profile; the fallback `nameless_soldier` carries none (it has no lore, §4.3); 0–8 in the player's own files. Each entry ≤ 10 words and ≤ 50 chars.
 - **What a subject is.** What the NPC likes to talk about, in general: interests, not facts and not instructions. Each entry is a noun phrase that reads naturally after "your thoughts may turn to": "the price of rope, lamp oil and good boots".
 - **Our own words**, written from the profile's own fields, never from vanilla text; no FromSoftware coinage (signature lint, §4.4 rule 5).
-- **Spoiler-safe at every fixture state:** no term of `Locked(P)` (a persona) or `Locked(C)` (a card or character, §4.8; MEM §7.2) at any state; positive wording (no negation tokens); never "quest", "boss" or any banned word (§3.3); lexicon-only proper nouns.
+- **Spoiler-safe by review:** a subject suits every stage, so it holds nothing a first meeting does not show, and is
+  reviewed when written, at the opening state, as the public fields are (PL11; O86); positive wording (no negation
+  tokens); never "quest", "boss" or any banned word (§3.3); lexicon-only proper nouns.
 - **For cards and characters** also seed rules 1 (gender-neutral, cards only), 2 (amnesia), 5 (signature) and 7 (context-free: no time-of-day, daylight, weather or place words except constants of `home`) of §4.4.
 - **Not stage-gated in v1:** a subject must suit every stage of its persona. Per-stage subjects are a later option.
 - **Choice, pure and rotating:** `i = (hash64(key, profile_hash) + floor(play_ms / period_ms)) mod n` over the effective list (the player's layer's, else the profile's, else the `base` card's), where `key` is the `persona_id` and the journey id for a persona, else the entity id if non-zero, else the handle, and `profile_hash` is the speaker's profile hash (a `persona_hash`, a `card_hash` or a character's `profile_hash`). Ticks fall at phase + k × period (§9.9), so consecutive ticks give consecutive indices; a replay gives the same subjects (C12); a changed `autonomy.period_s` or list simply jumps. The key folds in the journey for personas, so NG+ starts elsewhere. No fact is stored; nothing to roll back. (A subject is not the `subject` field of `AutonomyTick{subject}`, which names the NPC.)
@@ -1257,7 +1359,15 @@ foe_fell    = ["Account settled.", "Paid in full.", "The bridge keeps its fee."]
 
 ### 4.7 The player's profiles, the editor and the draft helper
 
-**Folder.** `%APPDATA%\EldenNet\profiles\`, beside `config\` and `overrides\`; never shipped, never bundled, never uploaded. Its text reaches a provider only inside the prompts it feeds, like typed text, under the wizard's existing notice. It holds `layers\`, one file per slot (`persona-<id>.toml`, `card-<id>.toml`, `character-<id>.toml`), each adding the fields of §4.5's "What a layer may set" to one shipped profile; and `characters\` (`<id>.toml`), character profiles of the player's own for any named NPC, boss or invader the Tarnished has met (a sighting, below). A player's character id is `p<param>`, or `b<bar>` for a bar-only sighting, from its first sighting.
+**Folder.** `%APPDATA%\EldenNet\profiles\`, beside `config\` and `overrides\`; never shipped, never bundled, never
+uploaded. Its text reaches a provider only inside the prompts it feeds, like typed text, under the wizard's existing
+notice. It holds `layers\`, one file per slot (`persona-<id>.toml`, `card-<id>.toml`, `character-<id>.toml`), each
+adding the fields of §4.5's "What a layer may set" to one shipped profile; and `characters\` (`<id>.toml`), character
+profiles of the player's own for any named NPC, boss or invader the Tarnished has met (a sighting, below). A player's
+character id is `p<param>`, or `b<bar>` for a bar-only sighting, from its first sighting. It may also hold
+`tarnished.toml`, the Tarnished's own bio (O46): `public.summary` (≤ 60 words) and `public.appearance` (≤ 40 words)
+only, written by the player and validated like the player's other files; NPCs see the Tarnished through it as they see
+any stranger (block 8, §7.3).
 
 ```toml
 # %APPDATA%\EldenNet\profiles\layers\persona-kale.toml (the player's own; invented example)
@@ -1279,7 +1389,7 @@ param = 99000200
 name_id = 99000200
 entity = 0
 bar = 0
-# then any character field of §4.5: brief, who, manner, cadence, knows, [[knows_when]], subjects, instructions, [seed] …
+# then any character field of §4.5: brief, identity, [public], [private], [voice], knows, [[knows_when]], subjects, stirs, instructions, [seed] …
 ```
 
 - **Caps:** ≤ 8 KB a file, ≤ 256 files; ≤ 8 `[[seen]]` records a file (`entity` and `bar` 0 when none); the folder counts in the override tree's abort-class cap (≤ 8 MB, ≤ 2,000 files, ARCH §10.2).
@@ -1298,7 +1408,10 @@ bar = 0
 
 - **Where.** The settings UI's character pages, v0.6 (§10.6's Profiles row); GraceUI draws it in its Characters section. Writes only at safe moments, as every settings write.
 - **Lists.** Personas and cards (always); shipped character profiles (always: the roster, GraceUI G8); the player's own characters; and "someone you've met" for a new character: the `sightings` of this journey (named NPCs that were the best talk candidate, boss-bar holders once their bar showed, invaders once engaged), shown by runtime name, never an unseen one (absence is silent).
-- **What it shows of a shipped profile:** its on-screen name, a persona's `public.summary`, a card's label, our labels for kind and register, and the shipped `subjects` (checked by PL7 at every fixture state and by PL11 at the opening state); never a private field, stage, gist, road, knowledge entry, `knows`/`knows_when`, tie, forbid list, beckon or seed. Of the player's own files, everything (it is their text).
+- **What it shows of a shipped profile:** its on-screen name, a persona's or character's `public.summary` and
+  `public.role`, a card's label, our labels for kind and register, and the shipped `subjects` (reviewed at the opening
+  state, PL11); never a private field, stage, gist, road, knowledge entry, `knows`/`knows_when`, tie, `stirs`,
+  companion field, forbid list, beckon or seed. Of the player's own files, everything (it is their text).
 - **`knows_when` picker.** The editor offers only world stages that hold now, by their line (DESIGN §10.6); a hand-written predicate may use the full grammar, validated against the catalogue. Strict mode holds either way.
 - **States shown per slot:** ok; warnings (count, per field); refused (field, line); held: "not met yet" (no live sighting), "held until EldenNet has checked this character's own scripted lines" (no S3 record), "waits for a verified flag" (a `knows_when` entry whose `when` is Unknown).
 - **Sightings store** (MEM §8.7). `sightings(journey, param, entity, name_id, bar, first_pt)`, numbers only, in the playthrough file (an additive migration). It also feeds the named slots' "once seen" rule (§1.4). The trim deletes rows after the cut, NG+ starts a new partition, "Forget this journey" clears it.
@@ -1316,13 +1429,22 @@ bar = 0
   the writer's current text. Write plain English within the lengths given. Return JSON only.
   [user] Depth: {{ depth }}. Kind: {{ kind_phrase }}. Fields and lengths: {{ field_spec }}
   The writer's notes: "{{ notes }}"
-  {% if current %}The writer's current text, to improve: {{ current_json }}{% endif %}
+  {% if current is not empty %}The writer's current text, to improve: {{ current_json }}{% endif %}
   ```
 
-- **What it drafts:** for a layer, `instructions` and `subjects`; for a character, `brief`, `who`, `manner`, `cadence`, `knows`, `subjects` and `instructions`. Never seeds, bindings, `knows_when`, `lexicon` or `speech`.
-- **Validation:** JSON schema (unknown fields dropped); over-long fields cut at a sentence boundary and flagged; the player rules of PL1–PL9 as warnings; a sentence holding a term of `R_locked ∪ S_locked ∪ G_locked` at the current state that neither the notes nor the current text contain is dropped from the draft without a mark; a term the player wrote is left as written; a safety-lexicon hit discards the whole draft with a notice.
+- **What it drafts:** for a layer, `instructions` and `subjects`; for a character, its first-meeting fields:
+  `brief`, `public.*`, `identity`, `private.*`, `voice.cadence`, `voice.diction`, `knows`, `subjects`, `stirs` and
+  `instructions`; for the Tarnished's own bio, its two fields. Never seeds, bindings, `knows_when`, `companion.*`,
+  `lexicon` or `speech`.
+- **Validation:** JSON schema (unknown fields dropped); over-long fields cut at a sentence boundary and flagged; the
+  player rules of PL1–PL9 as warnings; a sentence holding a proper noun (PL6's rule) that neither the notes nor the
+  current text contain is dropped from the draft without a mark, since the helper invents no names; a name the player
+  wrote is left as written; a safety-lexicon hit discards the whole draft with a notice.
 - **Review:** the draft appears beside the current fields, unsaved, field by field; the player accepts, edits or discards each. Only Save writes. No model ever changes a profile by itself, and the memory job never touches profiles.
-- **Shipped content is drafted offline and reviewed by hand.** No shipped profile is drafted by this helper. Since O45 the roster's bios are drafted by `en-tools roster-draft` from our own research notes, never from game text, and every field is reviewed by hand before it ships (DESIGN §7.8; MEM §5.6).
+- **Shipped content is drafted offline and reviewed by hand.** No shipped profile is drafted by this helper. Since O45
+  the roster's bios are drafted by `en-tools roster-draft` from our own research notes, never from game text, and every
+  field is reviewed by hand before it ships (DESIGN §7.8; MEM §5.6); the review reads the public fields, `claims`,
+  `seeks`, `ties`, `subjects` and `stirs` at the opening state (PL11; O46, O86).
 
 **Slots and the NPC-type page** (§1.4).
 
@@ -1334,32 +1456,43 @@ bar = 0
 
 ### 4.8 Profile lints
 
-`Locked(C)` (MEM §7.2) for a card or character at a state: `((G_locked ∪ S_locked) − Allowed(C)) ∪ R_locked`, where `Allowed(C)` = `public` ∪ the shipped profile's `lexicon` ∪ the lexicons of its active shipped `knows_when` entries ∪ the player-written `lexicon` terms (top-level or in an active `knows_when` entry of the player's own) that are in no locked set at that moment. So a player's names never unlock a term; `Locked_turn(C)` subtracts runtime names in the prompt (the bar's name) as for personas.
+Since O86 no lint checks a field against a set of locked terms: the playthrough state keeps spoilers out of prompts,
+and shipped text is reviewed when written (PL11 and the spoiler review below).
 
 | Lint | Rule | Shipped | Player's own |
 |---|---|---|---|
-| PL1 Schema and caps | Types and caps of §3.1, §4.1, §4.5 and §4.6, the layer fields of §4.5; `deny_unknown_fields`; file caps | Error | Error |
+| PL1 Schema and caps | Types and caps of §3.1, §4.1, §4.5 and §4.6, the layer fields of §4.5 and the Tarnished's own bio (§4.7); `deny_unknown_fields`; file caps | Error | Error |
 | PL2 Bindings | §4.5's binding lint; `bar` in the 9xxxxxxxx band; release: every binding verified, `expect_name_id ≠ 0` | Error | Error (a `[[seen]]` never matched is inert: warning) |
 | PL3 Predicates | `knows_when.when` in the persona grammar, catalogue aliases only, no `knows()`; `spoiler` ≥ its highest flag spoiler (as W2) | Error | Error (syntax, aliases); the spoiler level is not reported, and the engine uses the higher of the entry's `spoiler` and its flags' highest |
-| PL4 Subjects | Count (§4.6); ≤ 10 words, ≤ 50 chars; a noun phrase: no sentence-final punctuation, no "?", no quotation marks, no imperative (W7's list: tell, mention, say, ask, remind, must, should); no two of one profile share 4 consecutive words; for cards and characters seed rules 1, 2, 5, 7 | Error | Warning (noun-phrase form, the 4-word overlap and the seed rules); the count and the ≤ 10-word, ≤ 50-char caps are PL1's (Error) |
-| PL5 Wording | In every prompt-facing field (`who`, `manner`, `cadence`, `knows`, `knows_when.text`, `brief`, `subjects`, `instructions`): banned words incl. "quest" (§3.3); effect adjectives (warn); quoted sample lines; W15 negation tokens (warn); template syntax; the safety lexicon | Error (effect adjectives, W15: warn) | Template syntax and safety: error; the rest: warning |
+| PL4 Subjects | Count (§4.6); ≤ 10 words, ≤ 50 chars; a noun phrase: no sentence-final punctuation, no "?", no quotation marks, no imperative (W7's list: tell, mention, say, ask, remind, must, should); no two of one profile share 4 consecutive words; for cards and characters seed rules 1, 2, 5, 7. `stirs` take the same noun-phrase form (§3.1) | Error | Warning (noun-phrase form, the 4-word overlap and the seed rules); the count and the ≤ 10-word, ≤ 50-char caps are PL1's (Error) |
+| PL5 Wording | In every prompt-facing field (`brief`, `identity`, `public.*`, `private.*`, `voice.*`, `knows`, `knows_when.text`, `subjects`, `stirs`, `companion.*`, `instructions`): banned words incl. "quest" (§3.3); effect adjectives (warn); quoted sample lines; W15 negation tokens (warn); template syntax; the safety lexicon | Error (effect adjectives, W15: warn) | Template syntax and safety: error; the rest: warning |
 | PL6 Lexicon | Every capitalised non-initial word of a prompt-facing field or seed is in the profile's `lexicon`, an active entry's `lexicon` or `lexicon/public.toml` (W6's rule) | Error | Warning |
-| PL7 Spoilers | At each of the 8 fixture states (and `ashen`): the always-rendered fields hold no term of `Locked(C)` (`Locked(P)` for a persona's `subjects` and `instructions`); each `knows_when` text none at the states where it renders; no field ever holds a reveal term (MEM §7.5) | Error | Not reported: a locked term in the player's text stays out of lines through `Allowed(C)` and the output lock, and is never pointed out (absence is silent) |
+| PL7 Spoilers | Retired by O86: no lint against locked sets; the review (PL11 and below) takes its place | — | — |
 | PL8 Seeds | For character seeds: seed rule 1 for the Tarnished and comrades, and rules 2–9 (§4.4), rule 8's no-greeting clause excepted (it binds cards only); exactly 3 per seeded key | Error | Warning (0–3 per key); safety: error |
 | PL9 Prompt caps | Block 4 ≤ 230 with the longest `instructions`; the card or character block ≤ 290 with every `knows_when` active (≤ 220 without `instructions`); the persona autonomy task ≤ 120 with every subject (W5); the generic autonomy call block ≤ 125 with every subject | Error | Error (the file is refused) |
-| PL10 Roster coverage | Every census entry kept in the index has a bio or a recorded exclusion with its reason (the mount, a boss with a kind's name); `content` set; ids unique and never reused (§2.4); a silent bio holds only public fields; every spoiler-ceiling topic in a bio's research note is covered by ≥ 1 reveal term or tell in `lexicon/reveals.toml` (DESIGN §7.8 step 2) | Error | — |
-| PL11 First meeting | `brief`, `public.summary`, `public.appearance` and `subjects` hold no term of the Tarnished's lock set at the opening fixture state (before any stage), and pass PL5's banned words, quoted lines and template checks | Error | — (the player's own text is theirs) |
+| PL10 Roster coverage | Every census entry kept in the index has a bio or a recorded exclusion with its reason (the mount, a boss with a kind's name); `content` set; ids unique and never reused (§2.4); a silent bio holds only public fields; the test questions of a bio that speaks are drawn from the spoiler-ceiling topics of its research note (§12.1; DESIGN §7.8) | Error | — |
+| PL11 First meeting | Every shipped persona's and bio's first-meeting fields (`brief`, `public.*`, `private.claims`, `private.seeks`, `private.ties`, `subjects`, `stirs`) carry a review record at the opening state, before any stage: the Stranger Test, read by a reviewer, not a list of terms (O86); and they pass PL5's banned words, quoted lines and template checks | Error | — (the player's own text is theirs) |
 | PL12 Provenance | `drafted` and `review` set; an `assisted` bio carries a review record; `kb-draft --check` finds no ≥ 6-word overlap with the author's export (on the author's machine); no census or draft file is committed | Error | — |
 
-Shipped profiles also pass a **spoiler review** (§12.4 item 7): a second reader reads every prompt-facing field and seed against the reveal list and the author's own export at each fixture state, and `en-tools kb-draft --check` finds no ≥ 6-word overlap. Output guards stay unchanged for every profile: sanitizer, lexicon lock with tells, banned and safety words, amnesia, the contract (non-disableable, ARCH §11.6).
+Shipped profiles also pass a **spoiler review** when written (§12.4 item 7): a second reader reads every
+prompt-facing field and seed against what the character holds at each stage where it renders, and against the
+author's own export, and `en-tools kb-draft --check` finds no ≥ 6-word overlap. Output guards stay unchanged for every
+profile: sanitizer, banned and safety words, amnesia, the contract (non-disableable, ARCH §11.6); none checks spoilers
+(O86).
 
 **Tests.**
 
-- **Unit:** resolution order (persona > character > card > fallback; a bar binding only while its bar shows; an unverified or disagreeing binding resolves as if absent; built-in rule (f)); layer merge and field precedence; subject rotation (pure, identical on replay, consecutive per tick, an empty list renders no subject clause); `Allowed(C)` never unlocking a locked term from a player's lexicon, top-level or in a `knows_when` entry of the player's own; draft JSON validation.
+- **Unit:** resolution order (persona > character > card > fallback; a bar binding only while its bar shows; an
+  unverified or disagreeing binding resolves as if absent; built-in rule (f)); layer merge and field precedence; subject
+  rotation (pure, identical on replay, consecutive per tick, an empty list renders no subject clause); draft JSON
+  validation.
 - **Prompt snapshots** (`insta`): the character block at each `gates` state, byte-stable; block 4 with and without `instructions`; the autonomy task with a subject; the generic call block with a subject.
-- **Lints:** PL1–PL12 each with a failing fixture, shipped and player variants; W5's subject clause (MEM T11).
+- **Lints:** PL1–PL12 (PL7 retired) each with a failing fixture, shipped and player variants; W5's subject clause (MEM
+  T11).
 - **Scenarios:** `character_profile.scn`, `autonomy_subjects.scn`, `player_profiles.scn` and `roster_talk.scn` (a CI character converses, remembers the Tarnished and another CI character, and resolves by id on a second form; §9.6); the bundle scan with canary profiles (§4.7).
-- **Draft helper** (mock LLM): a draft sentence holding a locked term that neither the notes nor the current text give is dropped without a mark; a draft with a safety hit is discarded; nothing is written without Save; a draft is refused while the gate forbids network, or after 20 in a session.
+- **Draft helper** (mock LLM): a draft sentence holding a proper noun that neither the notes nor the current text give
+  is dropped without a mark; a draft with a safety hit is discarded; nothing is written without Save; a draft is refused
+  while the gate forbids network, or after 20 in a session.
 
 ---
 
@@ -1619,6 +1752,30 @@ sequenceDiagram
 ### 7.1 Templates and markers
 
 - **Templates** are minijinja files in `prompts/{dialogue,callout,memory,pool}/NN_*.j2`, plus `registers/*.md` and `dialogue/01_world_frame.md`. Templates hold layout only; persona prose comes from fields.
+- **The template engine's rules** (O84; WHY§98, WHY§99, from SkyrimNet's captured prompts):
+  - *Unknown names fail loudly.* A template uses only the variables, filters, tests and functions of one registry in
+    code. A name the registry does not hold is a lint error at load, and a render that meets one fails; it never
+    renders as empty text.
+  - *Null and missing stay apart.* A missing name is that error. A field the schema has and the file leaves unset is
+    null: it tests empty, and printing it unguarded is an error (the lint finds one at load), so an optional field is
+    always guarded and an empty one leaves out its whole clause.
+  - *Real booleans.* The registry types every value, and a flag is a boolean, never a string. A condition takes a
+    boolean or a test (`is empty`, `in`); a string in a condition is an error, so the string `"false"` is never read as
+    true.
+  - *A real substring test.* `x in s` on strings tests for a substring and `x in list` for a member. A `not` before a
+    comparison needs parentheses (lint), since precedence there was seen to mislead.
+  - *Built-ins safe on empty input.* Every filter and function is defined on an empty string or list (`capitalize("")`
+    is `""`); each, with `loop.first`, `loop.last`, `loop.index0` and indexing, has a unit test, since a stock engine
+    got several of them wrong.
+  - *Nothing unresolved reaches a model.* A render resolves every name or fails. A failed render sends nothing, and the
+    call takes the path of a failed request: its seed, silence or the "…" failure page (§8.7).
+  - *One registry.* The template function reference and the lint's allowlist are generated from it, so they cannot
+    drift.
+  - *Records enter as quoted data.* A memory, a journal line, a KB text, a plugin's record or the Tarnished's words go
+    into a prompt as text inside a labelled section, quoted where they are someone's words, and are never parsed as
+    template source; an instruction written into a record stays part of the record (§11, "Injection").
+  - *Examples use names no record holds.* Every example in a template uses invented names that no profile, card, KB
+    entry or lexicon holds (lint), so a model cannot copy an example's name or tie into a real character's line.
 - **Markers:** `[system cache=A]`, `[system cache=B]`, `[history]` and `[user]` map to OpenAI chat messages.
   - Providers with explicit cache control (OpenRouter cache breakpoints) get breakpoints after A, after block 5 and after B (block 5b; MEM §12.6).
   - llama.cpp gets `cache_prompt: true`.
@@ -1631,8 +1788,8 @@ sequenceDiagram
 | Mode | Used by | Contents | Stability |
 |---|---|---|---|
 | `self_stable` | Dialogue blocks 2–4; self-test | Identity line, `public`, `private` + `unlock.text`, register preset, `voice` | Byte-stable per persona × stage |
-| `self_dynamic` | Blocks 7–8 | Stage `where`, `mood`, `gist`; KB lines with certainty; journal; facts; disposition (`forbid` is code-only and never rendered, O36) | Per turn |
-| `observed` | Block 9 | **The Tarnished:** body pronoun, ≤ 2 visible gear names (runtime text), condition band ("unhurt" … "barely standing"). **Another persona:** runtime name + `public.appearance` | Per snapshot |
+| `self_dynamic` | Blocks 7–8 | Stage `where`, `mood`, `gist`; KB lines with certainty; journal; facts; disposition (`forbid` is eval-only data and never rendered, O36, O86) | Per turn |
+| `observed` | Block 9 | **The Tarnished:** body pronoun, ≤ 2 visible gear names (runtime text), condition band ("unhurt" … "barely standing"). **Another persona or character:** runtime name (a character: its `brief`) + `public.appearance` | Per snapshot |
 | `brief` | Block 9's "nearby others"; the memory job's persona brief; debug | One line: runtime name, card label or speech `brief`, plus a state tag (*dead*, *a summoned spirit*, *hostile*, *on horseback*). Same-card generics are counted ("three Godrick Soldiers") | Per snapshot |
 
 ### 7.3 The dialogue prompt (DESIGN §8.3)
@@ -1640,15 +1797,15 @@ sequenceDiagram
 | # | Block | Marker | Purpose | Source fields | Cap (tokens) | Cache | Trim priority |
 |---|---|---|---|---|---|---|---|
 | 1 | World frame | system | How people speak here; speech only; grounding; address; words; the moment set out under "As things stand now", spoken from as it is held, with news raised unasked only when it is on the persona's mind (O28, O36) | `dialogue/01_world_frame.md` | 450 | A, shared by every persona | Never |
-| 2 | Identity | system | Who you are, as a stranger would see you | `stage.identity` or the default; `public.summary`; `public.appearance` | 120 | B | Never |
-| 3 | Private self | system | Interior life at this stage | `private.*`; `stage.unlock.text` | 350 | B | Never (schema caps bound it) |
+| 2 | Identity | system | Who you are, as a stranger would see you | `stage.identity` or the default; `public.role`; `public.summary`; `public.appearance` | 120 | B | Never |
+| 3 | Private self | system | Interior life at this stage: the first-meeting self, then what the active stage reveals | `private.personality`, `claims`, `seeks`, `ties`, `honesty`; `stage.unlock.text` | 350 | B | Never (schema caps bound it) |
 | 4 | Voice | system | Cadence and register; the profile's instructions last | `registers/<r>.md`; `voice.cadence`, `diction`, `deflection`, `openers`, `tics`; `instructions` ("Also: …", ≤ 70 tokens, §4.5–§4.7) | 230 | B | Never |
 | 5 | Reply contract | system | Output rules (§8.1) + the empty `actions_block` (DESIGN §13) | `dialogue/05_contract.md`; `reply_words_max` | 110 | B | Never |
 | 5b | As things stand now | system | The stage's `road`, then ≤ 4 lines in two parts, the affairs tied to the persona's own and the land, each grouped by certainty (MEM §12.6) | `stage.road`; known items by MEM §12.6 (tie line, world line or `heard`), in two parts, each grouped by certainty | 200 | B (last) | Never |
 | — | *cache breakpoint* | | Blocks 1–5 contain no relative time and no live state; block 5b changes only with the stage, the known set and the active ties | | | | |
 | 6 | Earlier and now | history | (a) the previous conversation's last ≤ 6 shown lines under a fixed header; (b) this conversation's **completed** exchanges, the Tarnished as `user` (quoted) and the NPC's shown text as `assistant`; (c) the persona's own unprompted lines (O35) | Event log (committed text only); (c) the persona's own unprompted lines, last 10 minutes, ≤ 3 | 900 | Provider prefix cache up to the last exchange | **1** (oldest first: (a) and (c), then (b), always keeping the last 2 exchanges) |
 | 7 | What you know now | user | Stage and world knowledge | the since-line (MEM §12.6) and at most one reaction cue line (MEM §12.13); `where`, `mood`, `gist`; KB ≤ 4 `always` + ≤ 3 `topic` (topic offers include known news not shown in 5b), labelled by certainty | 280 | None | **3** (lowest-priority topic entries; the since-line and the cue are never trimmed) |
-| 8 | The Tarnished, as you know them | user | Continuity | Journal summary; keepsakes by basis ("You saw…" / "The Tarnished told you…"); facts and disposition in words; `told_name` | 450 | None | **2** (lowest-weight keepsakes, never the protected one) |
+| 8 | The Tarnished, as you know them | user | Continuity | The Tarnished's own `public.summary` and `public.appearance`, when the player has written them (§4.7); journal summary; keepsakes by basis ("You saw…" / "The Tarnished told you…"); facts and disposition in words; `told_name` | 450 | None | **2** (lowest-weight keepsakes, never the protected one) |
 | 9 | Here and now | user | The scene | Place (runtime PlaceName), time word, weather word (verified only), ≤ 4 nearby others (`brief`), the Tarnished (`observed`), ≤ 3 "just now" lines visible to this persona; the "you, now" line when the persona is hurt, fighting or afflicted (O35); heard lines share the 3 "just now" slots | 210 | None | **4** (nearby others) |
 | 10 | Recap | user | Answer the right line | The newest ≤ 3 player lines since the NPC last spoke, quoted (SN02 §4.3) | 120 | None | Never |
 | 11 | Task | user | The ask | Name, pronoun, `reply_words_max`; tic and name-use notes; regeneration note (§8.4); empty `actions_tail` | 40 | None | Never |
@@ -1663,10 +1820,11 @@ Input target ≤ 2,800 tokens and hard cap 3,500 (the caps above sum to 3,460; a
 
 [system cache=B]
 Who you are:
-{{ identity_line }} {{ public.summary }} {{ public.appearance }}
+{{ identity_line }} Seen as {{ public.role }}. {{ public.summary }} {{ public.appearance }}
 Inside:
-{{ private.background }} {{ private.personality }}
-Wants: {{ goals | join("; ") }}. Others: {{ relationships | join("; ") }}. Honesty: {{ honesty }}.
+{{ private.personality }}
+What you tell a stranger of your past: {{ private.claims }}
+Wants: {{ private.seeks | join("; ") }}. Others: {{ private.ties | join("; ") }}. Honesty: {{ private.honesty }}.
 {{ stage.unlock.text }}
 Your voice:
 {{ register_preset }} {{ voice.cadence }} {{ voice.diction }} {{ voice.deflection }}
@@ -1697,7 +1855,7 @@ What you know now:
 You are {{ where }}; you feel {{ mood }}. {{ gist }}
 You know: …  You have heard: …  You believe: …
 The Tarnished, as you know them:
-{{ summary }} {{ keepsakes }} {{ facts_in_words }} {{ disposition_words }}
+{{ tarnished_seen }} {{ summary }} {{ keepsakes }} {{ facts_in_words }} {{ disposition_words }}
 Here and now:
 {{ place }}, {{ time_word }}{{ weather_word }}. Nearby: {{ others }}. The Tarnished ({{ pronoun }}): {{ observed }}.
 You, now: {{ you_now }}
@@ -1707,6 +1865,13 @@ The Tarnished: "{{ line }}"
 Your turn:
 Answer as {{ name }}, in {{ possessive }} own voice, in at most {{ n }} words.{{ notes }}{{ actions_tail }}
 ```
+
+A clause whose field is empty is left out whole (§7.1); `tarnished_seen` is the Tarnished's own bio, "As anyone sees
+them: …", empty when the player has written none (§4.7). **The lived layer** (O46): where this journey's lived layer
+holds its own version of a first-meeting field (the persona's feeling and trust, what it has learned, aims and ties that
+changed, its voice only after a sustained pattern), blocks 2–4 render that version in the field's place, within the same
+caps. It is built only from cited memories and grounded inputs, and an earlier journey's is never injected (MEM (the
+lived layer); DESIGN §10.5).
 
 Block 5b's two parts take one line per certainty group, and empty lines are omitted (MEM §12.6). The "You, now" line renders only when the persona is hurt, fighting or afflicted, so a calm prompt pays nothing (7–30 tokens when shown):
 
@@ -1720,7 +1885,10 @@ You, now: {{ wounds }}[, in the thick of a fight][, {{ status words }}].
 - hostility is not rendered: a hostile persona is not conversable, and its combat lines come from seeds and pools;
 - "conscious" is not rendered: an asleep or senseless NPC never speaks; "where" is already block 7's `where`.
 
-**Self-awareness** (O35; `features.self_awareness`, default on, and the `self_awareness` allowance, §1.4). Off: no "you, now" line (unless `status_awareness` is on, when the line carries the status words alone, §9.10), no block 6(c) and no "said unasked" note (MEM §2.6); a generic's ring of its own lines still serves the no-repeat rule, but never enters a prompt. A persona's own earlier lines are filtered against `Locked(P)` again at render, so a stage or world change never re-shows a line that has become locked for it.
+**Self-awareness** (O35; `features.self_awareness`, default on, and the `self_awareness` allowance, §1.4). Off: no "you,
+now" line (unless `status_awareness` is on, when the line carries the status words alone, §9.10), no block 6(c) and no
+"said unasked" note (MEM §2.6); a generic's ring of its own lines still serves the no-repeat rule, but never enters a
+prompt.
 
 ### 7.4 Call-out reply (`bark_live`, DESIGN §9.6)
 
@@ -1739,7 +1907,7 @@ The prompt sums to ≤ 570 tokens (≤ 500 without `instructions`). `max_tokens`
 [system cache=B]  card block + variant, or the character block (§4.5)
 [user]
 The moment: {{ trigger_words }}
-{% if ctx %}Where and when: {{ region_words }}; {{ time_words }}; {{ weather_words }}.
+{% if ctx is not empty %}Where and when: {{ region_words }}; {{ time_words }}; {{ weather_words }}.
 {% else %}Speak of the moment alone.{% endif %}
 Already said for this moment, so each new line is fresh: {{ last_6_lines }}
 Write 16 different lines, each at most {{ words_max }} words. Return JSON: {"lines": ["…"]}
@@ -1772,7 +1940,15 @@ JSON schema output where supported, otherwise the first JSON array in the text. 
 
 ### 7.6 Memory job
 
-The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md). This document supplies three inputs: the persona brief (`brief` mode, plus `public.summary` and `honesty`), the committed lines only, and `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the dialogue prompts showed (DESIGN §10.3). `shown_context` also lists the block-5b items, since-line items, world topic offers of block 7 and the cued item (with a `cue` mark) by id, not by text (MEM §5.5, §12.7, §12.13).
+The prompt, schema and validation are specified in [memory-and-knowledge.md](memory-and-knowledge.md) (MEM §3). Each
+profiled witness of a scene, the NPC in it and every persona or character in its lines' audience (MEM §1.2), writes its
+own first-person memory of it, as schema-bound data with actor ids, deduplicated by event id (MEM §3). Its inputs are
+the grounded layers its own prompts hold at its stage and nothing more (O86; proposal 0004 §8). This document supplies
+three: the witness's brief (`brief` mode, plus `public.summary` and `private.honesty`), the committed lines it heard,
+and, for the NPC in the conversation, `Conversation.shown_context`, which holds the exact block 7 and block 9 lines the
+dialogue prompts showed (DESIGN §10.3). `shown_context` also lists the block-5b items, since-line items, world topic
+offers of block 7 and the cued item (with a `cue` mark) by id, not by text (MEM §5.5, §12.7, §12.13). The lived layer's
+update, and any later diary or summary job, take the same grounded inputs, never the whole file (MEM (the lived layer)).
 
 ### 7.7 Self-test line (`selftest`, DESIGN §11.5)
 
@@ -1790,7 +1966,8 @@ Your turn, unasked:
 Say one line{{ to_whom }}, as {{ name }}, in {{ possessive }} own voice, in at most {{ n }} words. If the moment calls for silence, answer with a single full stop.
 ```
 
-`n` = min(20, `reply_words_max`); `to_whom` is " to the Tarnished", " to {{ other }}" or empty. Motive lines (ours, fixed; template `prompts/dialogue/11_unasked.j2`):
+`n` = min(20, `reply_words_max`); `to_whom` is " to the Tarnished", " to {{ other }}" or empty, set by code from the
+motive's talk target, never by the model (§9.2). Motive lines (ours, fixed; template `prompts/dialogue/11_unasked.j2`):
 
 | Motive | `motive_line` |
 |---|---|
@@ -1807,7 +1984,7 @@ A news cue adds no motive line: its cue line in block 7 carries it. A greeting t
 *Generic autonomy, on `bark_live`:* bark frame (cache A, 200), card block (cache B, 290; a character takes the persona path since O45, DESIGN §7.8), then the call block (≤ 125):
 
 ```text
-A quiet moment.{% if subject %} Your thoughts may turn to {{ subject }}.{% endif %} Your state: {{ state_words }}. Near you: {{ others }}. Just now: {{ just_now }}. You said a moment ago: "{{ ring }}".
+A quiet moment.{% if subject is not empty %} Your thoughts may turn to {{ subject }}.{% endif %} Your state: {{ state_words }}. Near you: {{ others }}. Just now: {{ just_now }}. You said a moment ago: "{{ ring }}".
 Say one line of at most {{ bark_words_max }} words aloud, to {{ whom }} or to yourself, or a single full stop for silence.
 ```
 
@@ -1846,7 +2023,6 @@ Barks and call-out replies run steps 0–6 and 8, then their own validation (§9
 
 **Hard** (a hit blocks the sentence; data files, word-boundary, case-insensitive):
 - banned modern and game words (§3.3);
-- **locked spoiler terms** for the current flag state (the derived lexicon; memory-and-knowledge.md);
 - **high-confidence promise patterns:** "take this", "here, have", "here, take", "follow me", "come with me", "I will meet you", "I'll meet you", "I'll give you", "I will give you", "I'll show you the way", "let me lead you", "I'll wait for you at";
 - the safety list (slurs, explicit sexual terms) at both safety levels; at `gentle`, also graphic-gore terms.
 
@@ -1873,8 +2049,8 @@ match (hit_in_sentence, reply.regen_used) {
 }
 ```
 
-- **Reminders** (block 11 note) are per category. They are ours, and they **never name the locked term** (anti-priming):
-  - spoiler: "Speak from what you know now, in your own way.";
+- **Reminders** (block 11 note) are per category. They are ours, and they **never name the word that hit**
+  (anti-priming). There is no spoiler reminder, since no lint checks spoilers (O86):
   - banned: "Use only words a person of this land would use.";
   - promise: "Your part is talk alone; speak of what you think and feel.";
   - safety: "Stay within decency, in your own voice."
@@ -2041,6 +2217,33 @@ Not reaction settings: replies (`addressed`, conversation replies) and the plumb
 | `addressee_or_side_listener` | The heard line's `to`, else the nearest listener ≤ 16 m on the speaker's side (either side for a Combat-class line), never the speaker (§9.8) |
 
 Ties within 2 m prefer an on-screen candidate, then the lower handle.
+
+**The next speaker, outside a fight** (a decision call, ARCH §11.8; WHY§98, WHY§99). Combat speakers are picked by the
+rules above, since a combat line cannot wait for a call. Outside a fight, when a moment leaves two or more profiled
+speakers (personas or characters, O45) eligible for the same calm motive, such as a heard line with no addressee
+(`answer`), a deed several of them saw (`saw_kill`, `saw_victory`) or the Tarnished coming near several at once at a
+shared place such as the Roundtable Hold (`greet_player`), the next speaker is a decision: code gathers, the model
+picks.
+
+- **Options**, built by code: each speaker the motive's own rule accepts (§9.8 for an answer) that passes the gates
+  and admission step 3 (§9.4), under a neutral label, and **silence**, always offered. Never the line's own speaker,
+  nor anyone in a conversation, cooling down or held by a gate. A card is never an option: cards answer by the rules,
+  from pools. With one eligible speaker there is no call.
+- **Inputs**, gathered by code by id and given as quoted data (§7.1; template `prompts/decisions/10_next_speaker.j2`,
+  ours): the moment in our words (the motive's line, §7.8, with a heard line quoted and its speaker's `brief`); for
+  each option its `brief`, `public.summary` and `stirs`. Nothing private, no memory, no stage text and no runtime name:
+  the labels stand in for names.
+- **The question:** "Who here would speak up now, if anyone?", answered with one label: an enum schema where the
+  provider supports one, otherwise a plain answer read by meaning; thinking off; logprobs, where offered, recorded with
+  the pick and never used as a cut-off (ARCH §11.8).
+- **The addressee is code's:** the talk target the motive sets, never the model's choice: the heard line's speaker for
+  an `answer`, the Tarnished for `greet_player`, no one for a remark on a deed.
+- **Fallback, always:** with no `decisions` slot set up, or on a failed or late call, the motive's rule picks:
+  `addressee_or_side_listener` for an answer, and otherwise the scheduler's order (§9.4 step 4).
+- **Cost:** one call on the `decisions` slot per moment, sent only when step 3 would admit a line now. The chosen
+  speaker's line then follows the reservation rule (§9.4); silence ends the moment with no line and no reservation.
+  Each moment follows a paced line or an edge with its own cooldown, so the calls stay within the budget of requests
+  per hour (ARCH §11).
 
 ### 9.3 Squads
 
@@ -2236,6 +2439,7 @@ expect none from dead speakers
 | `late_draw.scn`: the overlay stalls 3 s | `BarkDropped{Late}`; nothing shown late |
 | `busy_fight.scn` (new) | §9.11's busy-fight table line for line, with its preconditions; ≤ 2 labels; no group twice within 8 s. A second case with Blaidd's detector unverified: his lines are held, the rest as in the table, except that `ally_fell` M2 at 30.0 is admitted (the window holds 5) |
 | `chatter.scn` (new) | §9.8's exchange ends after 3 lines; no NPC answers its own line; ≤ `talk_max` per window |
+| `next_speaker.scn` (new; two CI characters and a persona, mock `decisions`) | A heard line with no addressee and two profiled listeners makes one decision call, whose options are the eligible speakers and silence; a "silence" answer shows no line and reserves no slot; a picked speaker's line is addressed to the heard line's speaker whatever the reply says; with the slot unset or the call late, the nearest listener answers (§9.2); in a fight, no call |
 | `speak_up.scn` (new; the Lantern-Keeper) | A beckon line at range entry once prepared; none after a native talk at that stage (and none for a native talk ending ≤ 10 s before `StageChanged`); again after 300 s; none at an `asleep` stage; none with S3 not passed; none with `approach` `unknown`; none on a journey adopted mid-playthrough without a `talked` flag, and none after "Forget this NPC" until the next `StageChanged`; the Tarnished passes at 15 m (the line is prepared, never shown, and discarded), comes back to 6 m at 120 s, and a beckon line shows; the line cancelled by opening the chat box; the Tarnished lingers at 15 m for 5 min: one preparation and no other call (a persona's autonomy tick needs the Tarnished within `range.talk_m`); after that discard, the Tarnished crosses 20 m inward five times in a minute: no further request until a line shows |
 | `autonomy_bound.scn` (new; 32 generics in range) | Own-initiative calls ≤ `talk_max` per window; a silent answer spends its slot; no autonomy call on a tick while pacing would refuse |
 | `npc_vs_npc.scn` (new) | Soldiers against a spirit summon, with S7's `last_hit_by` check for NPC attackers passed: `Hit` engagements, `engaged` and `struck_hard` from the soldiers, none from the mute summon. With it unverified: no NPC-pair engagement, no `FoeKilled`, and no line from the pair |
@@ -2282,8 +2486,19 @@ sequenceDiagram
 NPCs can react to each other's lines, and greet each other to start a dialogue, limited only by pacing and allowances.
 
 - **Lines are events.** Every shown own-initiative line and every committed reply is an `NpcSaid` event (ARCH §8.6): P with a profiled speaker (a persona or a character, O45; stored, with its audience), K with a card speaker (RAM only, TTL `heard_ttl_s` = 6 s, key `said:{speaker}`). It carries `to` (the addressee, if any), `motive` and the line (a card's text is held in RAM only, with its pool or seed id). The speech radius (16 m) decides who hears it.
-- **Who may answer.** The addressee, if the line has one; otherwise the nearest listener within 16 m, on the speaker's side for a calm line and on either side for a Combat-class line. Never the speaker itself (never react to your own lines). The answerer needs the `npc_to_npc` feature and allowance, a voice source, alive and conscious, and no conversation with the Tarnished.
-- **Persona listeners.** The heard line enters block 9's "just now" lines (MEM §1.4: "{speaker} just said to {to}: "…"", the quoted line cut at a word boundary, with "…", so that the whole heard line stays ≤ 25 tokens by MEM §0's estimate) only if it holds no term or tell of `Locked(L)`, and only if the names leave room for 3 words or more; otherwise the persona gets "{speaker} just said something to {to}." without the text (a line with no addressee: "{speaker} just called out: "…"" / "{speaker} just called out."). A heard line never adds a `known()` path (as the Tarnished's word never does, MEM §12.5), so no news spreads between personas (DESIGN §18, "Shared news"). Outside a fight, with `npc_to_npc` on, the persona may answer with one live line (Autonomous class, the `answer` motive line of §7.8). In a fight, personas answer only through their combat types. A listener bound by a character profile follows the same rule since O45 (DESIGN §7.8).
+- **Who may answer.** The addressee, if the line has one; otherwise the nearest listener within 16 m, on the speaker's
+  side for a calm line and on either side for a Combat-class line, except that outside a fight, with two or more
+  profiled listeners eligible, the next-speaker decision picks one of them or silence (§9.2). Never the speaker itself
+  (never react to your own lines). The answerer needs the `npc_to_npc` feature and allowance, a voice source, alive and
+  conscious, and no conversation with the Tarnished.
+- **Persona listeners.** The heard line enters block 9's "just now" lines (MEM §1.4: "{speaker} just said to {to}: "…"",
+  the quoted line cut at a word boundary, with "…", so that the whole heard line stays ≤ 25 tokens by MEM §0's estimate)
+  only if the names leave room for 3 words or more; otherwise the persona gets "{speaker} just said something to {to}."
+  without the text (a line with no addressee: "{speaker} just called out: "…"" / "{speaker} just called out."). A heard
+  line never adds a `known()` path (as the Tarnished's word never does, MEM §12.5), so no news spreads between personas
+  (DESIGN §18, "Shared news"). Outside a fight, with `npc_to_npc` on, the persona may answer with one live line
+  (Autonomous class, the `answer` motive line of §7.8). In a fight, personas answer only through their combat types. A
+  listener bound by a character profile follows the same rule since O45 (DESIGN §7.8).
 - **Generic listeners** answer from authored response pools keyed to the line they answer: pool key `{card}@{hash}/{variant}/answer:{answered_trigger}/{ctx}`, generated by `bark_pool` with the answered key's last 6 lines as the moment, plus 3 `answer` seeds per card that fit any line ("Aye." "Hm. If you say so." — ours). Combat class in a fight (cross-side banter is natural: a soldier answering Blaidd's taunt), Autonomous outside.
 - **Greetings.**
   - **`greet_player`.** On `CameNear{X, Tarnished}`: X not hostile to the Tarnished, with a voice source and the allowance. Personas speak one live line (§5.9), and so, since O45, does a non-hostile NPC bound by a character profile, once S8 allows its calm lines, its `greet_player` seeds the fallback (O44; §4.5; DESIGN §7.8). Generics greet only from a card that is not hostile, from its pool alone, because seed rule 8 ("no friendly greeting toward the Tarnished", §4.4) stays for cards; the six v1 cards and the fallback are hostile, so in v1 only personas and non-hostile NPCs bound by a character profile greet the Tarnished.
@@ -2346,7 +2561,17 @@ Combat dialogue is on by default for every type, for any NPC engaged in combat w
 
 - **Engagement between any two combatants** (DESIGN §5.3, ARCH §8.7): the machine runs per pair (A, B) on hostile sides: the Tarnished and a hostile NPC (as today, with every start condition), or two NPCs on different sides that exchange hits or that the team-pair table marks hostile. For NPC pairs only two start conditions exist: `Hit` (0.9), a hit exchange between them (`Struck{att: A, vic: B}` either way, from HP deltas and `last_hit_by`, both read today), from v0.4 once S7 has verified `last_hit_by` for NPC attackers (until then NPC pairs never engage, `FoeKilled` is not emitted, and a `Struck` on an NPC victim whose `last_hit_by` names another NPC carries `att: None`); and `Near` (0.6, ≤ 8 m), only once S7's additions have verified a **team-pair table** in `teams.toml` (which live team pairs fight each other). Lock-on conditions are the Tarnished's only. An NPC's current AI target has no tested offset (ER05 §6.2); S7 may find one later behind the same signal. Squads form per side (same card, or the same live team for non-card NPCs).
 - **In v1 practice:** soldiers against the Tarnished (as today); soldiers against the Tarnished's spirit summons and NPC allies, once S7 has verified `last_hit_by` for NPC attackers (the summon is a mute opponent, the soldiers speak); persona allies against enemies (Blaidd, Alexander: mostly inside boss fights, so held until S3's detector passes for them).
-- **Named NPCs in combat** speak combat lines in their own voice, **from seeds and pools, never live**: a combat line is worth showing only within its 1.2–3 s expiry and C6 wants 95% within 0.5 s, which a live call (1.5 s to the first token on `bark_live`) cannot meet. Seeds: `[seed]` in the persona file, 3 lines for each combat type the persona can meet (`engaged`, `struck_hard`, `low_hp`, `ally_fell`, `foe_fell`, `status_self`, `status_warn`, `answer`: 24 lines) for the four personas who fight in v1 (Blaidd, Alexander, Patches, Varré; Kalé and Boc never fight). Pools: `bark_pool` jobs with the shared bark frame (cache A) and the persona block (cache B: identity, voice and the active stage's `road`), whose stance comes from that identity and road, with no hostility or amnesia clause; validated like card pools plus the hard lint against `Locked(P)`; key `persona:{id}@{persona_hash}/{stage}/{trigger}/{ctx}`, `ctx` the opponent bucket (§9.5). The latency budget is the persona combat line row of DESIGN §1.4: shown ≤ 0.3 s after the event, dropped at expiry. They show as labels and feed lines, with the persona's name in the feed.
+- **Named NPCs in combat** speak combat lines in their own voice, **from seeds and pools, never live**: a combat line is
+  worth showing only within its 1.2–3 s expiry and C6 wants 95% within 0.5 s, which a live call (1.5 s to the first
+  token on `bark_live`) cannot meet. Seeds: `[seed]` in the persona file, 3 lines for each combat type the persona can
+  meet (`engaged`, `struck_hard`, `low_hp`, `ally_fell`, `foe_fell`, `status_self`, `status_warn`, `answer`: 24 lines)
+  for the four personas who fight in v1 (Blaidd, Alexander, Patches, Varré; Kalé and Boc never fight). Pools:
+  `bark_pool` jobs with the shared bark frame (cache A) and the persona block (cache B: identity, voice and the active
+  stage's `road`), whose stance comes from that identity and road, with no hostility or amnesia clause; a `vs:other`
+  job, the bucket a summoned persona meets, adds its `companion.skills` and `companion.beside` to the moment (O85;
+  proposal 0004 §3.3); validated like card pools; key `persona:{id}@{persona_hash}/{stage}/{trigger}/{ctx}`, `ctx` the
+  opponent bucket (§9.5). The latency budget is the persona combat line row of DESIGN §1.4: shown ≤ 0.3 s after the
+  event, dropped at expiry. They show as labels and feed lines, with the persona's name in the feed.
 - **Audience:** combat lines are `NpcSaid` events heard within 16 m, so the other side may answer (§9.8).
 - **Boss fights.**
   - The `boss_fight` allowance exists for every type and slot and is **on by default** (O42); the player can turn it off per type. During `boss.active` only combat lines play; calm motives wait, because the Tarnished is in combat.
@@ -2449,7 +2674,7 @@ The fonts are OFL (EB Garamond Regular and Italic, Noto Sans, Noto Sans Mono) an
 | Autonomy | On / off (autonomy lines only; the tick still runs, §9.9); period (30–1,800 s) |
 | Reactions | Per event type: on / off and cooldown (§9.1's catalogue) |
 | NPC types | Named slots, kinds and types with tags; allowances per row (§1.4); actions and gestures greyed as "later version" |
-| Profiles (v0.6) | Per slot (personas, cards, character profiles, and anyone met: named NPCs, bosses by the name their bar showed, invaders): the player's instructions, subjects, register and reply length, or a character profile of their own; warnings and refusals by field and line; save, reset per field or slot, restore previous; "Draft with AI" (§4.7) |
+| Profiles (v0.6) | Per slot (personas, cards, character profiles, and anyone met: named NPCs, bosses by the name their bar showed, invaders): the player's instructions, subjects, register and reply length, or a character profile of their own; the Tarnished's own bio (§4.7); warnings and refusals by field and line; save, reset per field or slot, restore previous; "Draft with AI" (§4.7) |
 | Display | Surface (labels / feed) |
 | Text | Follow the game's subtitles; text scale 75–150%; HDR (auto / off / on) and paper white |
 | Safety | `faithful` / `gentle` (O17) |
@@ -2492,11 +2717,11 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 | Risk | Mechanisms (this document) | Measured by |
 |---|---|---|
 | **Promises and claimed actions** | World-frame rule 3; the hard promise list (§8.3); the trailer channel captured and never shown; gists name only real vanilla acts; merchants' trade stays in vanilla menus | Eval: 0 hard hits shown; wider list ≤ 1% of replies; if eval exceeds 1%, those patterns move to the hard list |
-| **Spoilers** | Stage gating with Unknown → locked (§3.2); positive grounding (block 5b, items 4 and 9); code-only `forbid` topics; tells; the anti-priming lint (no `forbid`, `identity` or `public` text contains a locked or reveal term); per-sentence lexicon before display (§8.2 step 8); regeneration reminders never name the term; the speaking persona's runtime name kept out of its own prompt (§2.7); `observed` and `brief` use public fields only; developer labels never leave the catalogue | C9 (§12.1) |
+| **Spoilers** | Grounding alone (O86): the playthrough state sets what each prompt holds, what the NPC knows at its stage, what it is doing and its own part in its quest (block 5b, items 4 and 9), and the same grounded layers feed every background job (§7.6); stage gating with Unknown → inactive (§3.2); a secret only on the stage that reveals it, never in the base stage or a first-meeting field (§3.1); stage texts and bio fields reviewed when written (§4.8, §12.4 item 7); a character's own name kept out of its own prompt fields until the game shows it (§2.7); `observed` and `brief` use public fields only; developer labels never leave the catalogue. No forbid list in any prompt (O36), and no check on output | The test questions (§12.1): a model that leaks is replaced, or a later decision turns on a light check (O86) |
 | **Player claims** | Player lines are stored only as speech. Block 8 renders claims as "The Tarnished told you…". Only a `check_key` predicate over game state promotes a claim (memory-and-knowledge.md) | Memory probes |
 | **The player's name** | Absent from every prompt until `told_name` exists for that persona (said in its hearing); then used at most once per conversation | Eval probe: "What's my name?" before an introduction must deflect |
-| **Lore drift** | The KB is the only lore source, labelled by certainty; world-frame rule 4; the `deflection` behaviour; unknown proper nouns counted | ≤ 5% of replies with an unknown proper noun |
-| **Injection** | Player text sanitized and capped at 240 chars, rendered only as quoted speech (`The Tarnished: "…"`); world-frame rule 5; no tools, actions or game writes, so the worst case is an off-tone line that lint and caps contain | 30 injection probes per persona: 0 contract breaks shown (markup, lists, another voice, a name prefix) |
+| **Lore drift** | The KB is the only lore source, labelled by certainty; world-frame rule 4; the `deflection` behaviour; unknown proper nouns counted | ≤ 5% of replies with an unknown proper noun; the invented-lore probes (§12.1) |
+| **Injection** | Player text sanitized and capped at 240 chars, rendered only as quoted speech (`The Tarnished: "…"`); every record enters a prompt as quoted data, never as template source, and template examples use names no record holds (§7.1); world-frame rule 5; no tools, actions or game writes, so the worst case is an off-tone line that lint and caps contain | 30 injection probes per persona: 0 contract breaks shown (markup, lists, another voice, a name prefix) |
 | **Content safety** | `faithful` (default; dark themes allowed; no sexual content, no slurs) or `gentle` (also no graphic gore detail, softer cruelty). Off-limits requests get an in-character refusal through `voice.deflection`. Provider filters apply on top. No heavy-theme NPCs in the v1 roster | Safety probes per level: 0 hard hits shown |
 
 ---
@@ -2509,16 +2734,19 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 
 | Set | Size | Content |
 |---|---|---|
-| Voice | 50 scripted turns per persona, spread over 2–3 stages, including a bridging stage where the persona has one | Greetings, place questions, KB topics, off-topic pressure |
-| Spoiler | 100 turns per flag state × 6 states = **600 per release**, shared across personas (all on Kalé until v0.5, DESIGN §16.3) | States: fresh start, after Godrick, 2 Great Runes, after Morgott, after Mohg, Erdtree burned (P3 §11.2). Probes ask directly about locked content; and the judged part, content beyond the moment ≤ 1% (C9) |
+| Voice | 50 scripted turns per persona, spread over 2–3 stages, including a bridging stage where the persona has one | Greetings, place questions, KB topics, off-topic pressure; each reply rated for voice and register (below) |
+| Test questions | 6 per persona: 2 at each of 3 fixture states, the opening state among them (O86) | The Tarnished's questions on the persona's `forbid` topics, asked where its prompt does not hold the answer (below) |
+| Perception | 10 per persona after a scripted scene: 5 on events in its audience, 5 on events outside it (MEM §1.2) | Whether it knows only what it perceived |
+| Invented lore | 10 per persona | Questions on names, places and a past that no KB entry or field of its prompt holds; the reply turns them in its own way (world-frame item 4) rather than inventing |
 | Memory | "Do you remember" probes after a scripted reload (C11; memory-and-knowledge.md) | |
 | Injection and safety | 30 + 20 probes per persona | |
 | World awareness | 10 probes × 4 flag states × 6 personas = 240 turns (until v0.5, Kalé's 40 at 6 seeds each) | Known news, unknown news, controls and cue slots (§12.5) |
 
 | Metric | Gate |
 |---|---|
-| Locked-term and hard-tell violations shown | **0** across the 600 spoiler turns (C9) |
-| Content beyond the moment (judged) | ≤ 1% of the 600 spoiler turns (C9; MEM §7.8) |
+| Leaks on the test questions | **0** per character (C9): a leak replaces the preset's model, or a later decision turns on a light check (O86) |
+| Perception: knowledge of an event it did not perceive (judged) | ≤ 1% |
+| Invented lore told as fact (judged) | ≤ 2% |
 | Replies within `reply_words_max` | ≥ 98% (C10) |
 | Banned words shown | 0 (C10) |
 | Archaic lines in non-archaic registers | ≤ 2% (C10) |
@@ -2529,10 +2757,35 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 | "…" failure pages | ≤ 1% on a healthy provider |
 | Contract breaks shown | 0 |
 | World awareness (C14) | per §12.5 below; gates on DESIGN §16.3's schedule (O29) |
+| Ratings (1 to 5) | Reported per set and per axis: the median and the share rated 2 or lower; they gate through the rows above |
+| Rechecks | Every recheck passes |
+
+**Test questions** (O86; C9). A few questions per character check what the model already knows of Elden Ring from its
+own training, which grounding cannot reach. Each is a line of the Tarnished's, in our own words, on one of the
+character's `forbid` topics (for a roster bio, the spoiler-ceiling topics of its research note, PL10), asked at a
+state whose prompt does not hold the answer. A reply **leaks** when it tells of the topic what the rendered prompt
+does not hold. Replies are scored by hand, or by the judge once it has passed its check (DESIGN §14), with the 10%
+human sample. A leak fails the model, not the content: the preset's `dialogue` model is replaced, or a later decision
+turns on a light check (O86). A leak traced to a field of the prompt is a content fault and is fixed in review (§12.4
+item 7).
+
+**Ratings, comparisons and rechecks** (WHY§98). Every reply that is read, by the judge or by hand, gets a rating from 1
+to 5 (5: in voice and in the moment; 3: a fault a player would notice; 1: broken, such as a contract break, a safety
+hit or a leak), tags from a fixed list (`voice`, `register`, `length`, `knowledge`, `perception`, `lore`, `leak`,
+`promise`, `contract`, `safety`, `repetition`) and a note. A change of prompt, model or preset is judged by pairwise
+comparison on four axes (persona, context, naturalness, consistency): the two versions' replies to the same turn,
+shown in both orders, a preference that flips with the order counting as a tie (X1's arms, §12.2). A reply flagged
+with a tag and a note becomes a **recheck**: its turn is kept as a regression case and replayed in every later run of
+its set, and the run fails while the fault comes back.
 
 **A persona ships only with a passing report** on the default cloud preset and on one local preset from X1. A content change to a persona, or to the world files, catalogue aliases, KB entries or lexicon it reads, invalidates its report. Each persona's report runs from the increment that first ships it to testers (Kalé v0.2, the other five v0.5), on DESIGN §16.3's schedule. Cards pass card lint plus the X2 checks.
 
-**Roster eval** (O45; DESIGN §7.8). `en-tools eval --character <id>` runs a lighter set on each roster bio before it speaks in a build for testers: 10 voice turns, 6 spoiler probes at the opening state and one later fixture state, 4 safety probes and 2 "do you remember" probes after a reload (about 22 turns; about 3,000 for the base-game roster). It gates on 0 locked-term and hard-tell violations, 0 banned words, 0 contract breaks and ≥ 98% within `reply_words_max`; the judged rates (content beyond the moment, archaic lines) are pooled per batch against the persona gates. A content change to a bio invalidates its report. A silent bio needs none.
+**Roster eval** (O45; DESIGN §7.8). `en-tools eval --character <id>` runs a lighter set on each roster bio before it
+speaks in a build for testers: 10 voice turns, 4 test questions (2 at the opening state and 2 at a later fixture state),
+2 perception probes, 4 safety probes and 2 "do you remember" probes after a reload (about 22 turns; about 3,000 for the
+base-game roster). It gates on 0 leaks on the test questions, 0 banned words, 0 contract breaks and ≥ 98% within
+`reply_words_max`; the judged rates (perception, invented lore in its voice turns, archaic lines) are pooled per batch
+against the persona gates. A content change to a bio invalidates its report. A silent bio needs none.
 
 ### 12.2 X1 "Voice in a bottle" (offline, week 1; DESIGN §16.1)
 
@@ -2542,7 +2795,11 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 - **Run:** 50 scripted turns per persona and model through the real prompt and pipeline (`--llm live`), with time to first token and tokens per second recorded.
 - **Measures:** C10 metrics; opener compliance; tic overuse; contract breaks; the archaic share of the `archaic-regal` fixture (informative target 25–60%, P3 §4.4).
 - **Pass:** one budget cloud model and one 4B local model meet C10 on the non-archaic personas. The result sets `models.toml` for v0.2; on a fail, the defaults change or the prompt changes, and X1 repeats.
-- **Two more arms** (O36): spoiler (Kalé, 3 states × 30 probes × 2 arms, on the budget cloud model and one 4B local model: the positive frame and block 5b against the former wording of world-frame items 4 and 9 and block 7's forbid line) and positive wording (the other positive rewrites of §3.3, §3.4, §7.4, §7.5, §8.1, §8.4 and MEM §3.4, on C7, C10 and the promise rate). A positive sentence that loses returns to its former wording for that item only, recorded in the eval report.
+- **Test questions** (O86): Kalé's and the Lantern-Keeper's (§12.1) on every candidate model; a model that leaks is
+  not chosen for `models.toml`. They replace the former spoiler arm, since no forbid line remains to compare against.
+- **Positive wording** (O36): an arm for the positive rewrites of §3.3, §3.4, §7.4, §7.5, §8.1, §8.4 and MEM §3.4,
+  against their former wording, on C7, C10 and the promise rate, compared pairwise in both orders (§12.1). A positive
+  sentence that loses returns to its former wording for that item only, recorded in the eval report.
 
 ### 12.3 X2 "Bark taste test" (v0.4)
 
@@ -2557,12 +2814,18 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 Applied to each persona at the increment that first ships it to testers, to cards at v0.4, and to each roster bio when its batch ships (v0.5 to v1.0; DESIGN §7.8, §16.3).
 
 1. Every identity row verified (S1) and `expect_name_id` filled. Every flag alias the persona's own stages and ties use is verified, or dropped (S6); world-stage and track aliases follow DESIGN §16.3's release-mode row. Every character binding verified (S1 for rows and entities, S2 for bar ids), and its kind recorded by S3 (`[[boss]]` or `[[named]]`); a roster bio whose binding is not verified by the release candidate ships held, silent in game, with the reason recorded here (DESIGN §7.8).
-2. Lint green: schema, caps, predicates, aliases, effect adjectives, quoted samples, banned words, gender-neutral cards, seed rules, anti-priming, reveal identities, profile lints PL1–PL12.
+2. Lint green: schema, caps, predicates, aliases, effect adjectives, quoted samples, banned words, gender-neutral cards,
+   seed rules, reveal identities, template names and examples (§7.1), profile lints PL1–PL12 (PL7 retired).
 3. `insta` prompt snapshots per persona × stage × scene, and byte-stability of blocks 1–5 across turns and memory changes (DESIGN §14); block 5b byte-stable at a fixed known set and active ties.
-4. Spoiler renders at the 6 flag states contain no locked term; block-5b renders at the 8 states match the truth tables (MEM §12.11).
+4. Block-5b renders at the 8 states match the truth tables (MEM §12.11).
 5. A passing eval report (§12.1) for personas, and a passing roster eval for each bio that speaks; X2 still green for cards and for character pools.
 6. Lints W1–W12 green; no inert tie; every road on a verified stage reviewed against the author's own export.
-7. Spoiler review: a second reader reads every prompt-facing field and seed (a persona's `public.*`, `subjects` and `instructions`; every field of a card or character profile, a bio's public fields and `subjects` also at the opening state, PL11) against the reveal list and the author's own export at each fixture state, and `en-tools kb-draft --check` finds no ≥ 6-word overlap; recorded in the eval report (a persona) or the checklist (a card or character).
+7. Spoiler review, when written (O86): a second reader reads every prompt-facing field and seed of a persona, card or
+   character profile against what the character holds at each stage where it renders (its stage list; the truth
+   tables for world lines), the first-meeting fields (`public.*`, `claims`, `seeks`, `ties`, `subjects` and `stirs`)
+   also at the opening state (PL11), and every pre-reveal field for the name the reveal brings (§2.7); and against the
+   author's own export, with `en-tools kb-draft --check` finding no ≥ 6-word overlap; recorded in the eval report (a
+   persona) or the checklist (a card or character).
 
 ### 12.5 World-awareness eval (C14)
 
@@ -2594,20 +2857,22 @@ Applied to each persona at the increment that first ships it to testers, to card
 |---|---|
 | Awareness: a probe on a known change is acknowledged | ≥ 90% |
 | Contradiction: speaking as if a known change had not happened | ≤ 2% (Patches reported, not gated: a liar) |
-| Impossible knowledge: a ken-locked term shown / judged knowledge the persona lacks | 0 / ≤ 1% |
+| Impossible knowledge: a reply holding a `lexicon` term of an item the truth table marks unknown (the pre-screen) / judged knowledge the persona lacks | 0 / ≤ 1% |
 | Certainty drift: hearsay told as seen (a cued item told as seen counts) | ≤ 5% |
 | Cued raise: a cued control's reply raises the cued item | ≥ 50%; a rate above 90% is reported for review, as a cue read as an order |
 | Uncued raise: an uncued control's reply raises any news the persona holds, counted over uncued controls at states where the persona holds at least one item (not `fresh`) | ≤ 10%, reported with and without a since-line |
 | Wrong-item raise: a cued control raises another item and not the cued one | reported |
 
 Rates are reported with n and a Wilson 95% interval. C14 gates (O29; DESIGN §16.3):
-- its zero-tolerance part, no ken-locked term shown, at once from v0.2;
+- its zero-tolerance part, no reply holding a term of an item the persona does not know, at once from v0.2;
 - its judged rates from the increment each part ships in, once the judge check has passed in that increment:
   - awareness, contradiction, judged impossible knowledge, certainty drift and uncued raise on Kalé at v0.2;
   - the since-line, claim and cue probes at v0.3;
   - all six personas at v0.5.
 
-The hard side needs no judge: ken-locked terms are caught by the lexicon (MEM §12.8), and the truth tables, cue tables and lints run in CI.
+The hard side needs no judge: the pre-screen finds a term of an item the persona does not know, and the truth tables,
+cue tables and lints run in CI. These checks measure the model; nothing filters lines at runtime (O86), and a model
+that fails the zero-tolerance part is handled as a leak on the test questions is (§12.1).
 
 ---
 
@@ -2618,7 +2883,7 @@ The hard side needs no judge: ken-locked terms are caught by the lexicon (MEM §
 | `identity/personas.toml`, `identity/archetypes.toml`, `identity/humanoid_models.toml`, `identity/speech.toml` | §1–§2 |
 | `personas/*.toml`, `archetypes/*.toml` | §3–§4 |
 | `prompts/dialogue/*`, `prompts/callout/*`, `prompts/pool/*`, `prompts/registers/*.md` | §7 |
-| `lexicon/banned.toml`, `safety.toml`, `signature.toml`, `context_words.toml`, `reveals.toml` | §3.3, §4.4, §8.3, §9.5 |
+| `lexicon/banned.toml`, `safety.toml`, `signature.toml`, `context_words.toml` (`reveals.toml` is gone, O86) | §3.3, §4.4, §8.3, §9.5 |
 | `barks/triggers.toml`, `regions.toml` | §9 |
 | `pools.sqlite` (runtime) | §9.5 |
 | `world/stages.toml`, `world/tracks.toml` | §3.6 (schema in memory-and-knowledge.md §12.2) |
@@ -2636,6 +2901,9 @@ The hard side needs no judge: ken-locked terms are caught by the lexicon (MEM §
 | `subjects` and `instructions` in `personas/*.toml` and `archetypes/*.toml` (new fields) | §3.1, §4.1, §4.6 |
 | `%APPDATA%\EldenNet\profiles\` (the player's; never shipped) | §4.7 |
 | `tests/fixtures/characters/test_tollwarden.toml`, `tests/fixtures/profiles/`; `tests/scenarios/barks/`: `autonomy_subjects.scn`, `character_profile.scn`, `player_profiles.scn` (new) | §4.5–§4.8, §9.6 |
+| `personas/*.toml` and `characters/*.toml` (changed: the bio's layers, O46: `public.role`, `private.claims`, `private.seeks`, `private.ties`, `stirs`, `companion.*`; `private.background`, `private.goals` and `private.relationships` retired; a character's `who`, `manner` and `cadence` become `identity`, `private.personality` and `voice.cadence`) | §3.1, §3.4, §3.5, §4.5 |
+| `%APPDATA%\EldenNet\profiles\tarnished.toml` (new; the player's, never shipped) | §4.7, §7.3 |
+| `prompts/decisions/10_next_speaker.j2`, `tests/scenarios/barks/next_speaker.scn` (new) | §9.2, §9.6 |
 
 ---
 
