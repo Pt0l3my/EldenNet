@@ -294,13 +294,16 @@ research into the game's data that goes ahead before them (O54).
   - needs: b, c
   - refs: O56, ER08
   - gives: decided 2026-11-08: DataPiler, a tool of its own in a public repository (its decisions DP1 to DP5).
-- e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [waiting]
+- e A dry run: the owner exports from Smithbox and runs `tools/gamedata/smithbox_inspect.py`, which prints counts only [done]
   - needs: c
   - refs: O56, ER08, tools/gamedata/README.md
-  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version.
-- f DataPiler's design, asked of the PandorumLLM session by the owner, with DataPiler's request 0001 [waiting]
+  - gives: whether Smithbox's exports hold what our tools expect, for the owner's game version. Answered without it
+    (2026-11-16): DataPiler's jobs have read the owner's own data through Smithbox since en-0001, so the dry run was
+    never needed.
+- f DataPiler's design, asked of the PandorumLLM session by the owner, with DataPiler's request 0001 [done]
   - needs: d
   - refs: O56, O57, ER08
+  - gives: the answer to request 0001, adopted as DataPiler's design on 2026-11-08 (DataPiler's DP5 and DP6).
 - g The owner creates the empty public DataPiler repository, so its first commit can be pushed [done]
   - needs: d
   - gives: the DataPiler repository, created 2026-11-08; its first commit is on its `design/v0` branch.
@@ -330,10 +333,11 @@ research into the game's data that goes ahead before them (O54).
     numbers resolve), all in the one English item container Smithbox shows, `item_dlc02`. None of the named rows has the
     game's `[ERROR]` placeholder as its name (the owner's count on the local file), so the counts stand. Counts only, so
     nothing for O59's file yet.
-- n DataPiler 0.2.1: placeholder texts no longer count as names, each layer's names checked on its own, the names rows done once `item_dlc02` arrives, and the 0.2.0 run's smaller fixes [waiting]
+- n DataPiler 0.2.1: placeholder texts no longer count as names, each layer's names checked on its own, the names rows done once `item_dlc02` arrives, and the 0.2.0 run's smaller fixes [done]
   - needs: m
   - refs: O56, ER08
-  - gives: offered to the owner; not urgent, as en-0001's counts stand without it.
+  - gives: offered to the owner; not urgent, as en-0001's counts stand without it. Released on 2026-11-08 and kept by
+    every later version (0.2.40 by 2026-11-16).
 - o The roster's first ids: DataPiler's jobs en-0002 to en-0004 separate the named characters from the ordinary enemies, and their ids go to O59's research file [done]
   - needs: m
   - refs: O59, O48, ER08
@@ -427,7 +431,7 @@ Work that can go ahead while S6 waits, and the owner's housekeeping.
 - S7.5.a The owner reviews the design pull requests, EldenNet's and GraceUI's [done]
   - gives: merged by the owner: EldenNet #1 to #3 and GraceUI #1 and #2, the last on 7 November.
 - b The temporary branches left by the history rewrite deleted [waiting]
-- c GitHub Support asked to purge the closed pull request's ref [waiting]
+- c GitHub Support asked to purge the refs of the pull requests that still reach the rewritten history [waiting]
 
 ### S7.6 The public name [waiting]
 
