@@ -902,8 +902,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-16 (GraceUI's feat/host): `graceui.h` with ABI 1's first table (connect, notices;
     the other slots answer "not yet"), the consumers' helper and a first example mod, a second copy idling, and
     the anti-cheat check before anything is returned, a hit leaving notices only (WHY§134 to §139).
-- c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit
+- c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit [done]
   - needs: a
+  - gives: built on 2026-11-16 (GraceUI's feat/host): panels on five layers, draw lists checked and handed over
+    through a triple buffer, textures and faces registered before a mod's first draw list and baked into one
+    atlas, notices in the Grace look, input for a panel through the holder, and world-state providers; a second
+    example mod draws through them in the harness (WHY§140 to §147). The fonts' folder ships from 0.6, as §10 has
+    it; until then notices fall back to Dear ImGui's own font.
 - d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in CI
   - needs: c
 
