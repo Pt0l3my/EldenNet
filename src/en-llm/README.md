@@ -14,9 +14,12 @@ names.
 - **Requests** (`request.hpp`): messages with en-prompt's cache marks, `max_tokens` and temperature from the slot,
   streaming with usage, `response_format` with a JSON schema where the provider takes one, `logprobs`, the reasoning
   switch from `extra_body`, and the quantisation floor in OpenRouter's `provider.quantizations`.
-- **Transport** (`transport.hpp`): an interface the client drives (start, wait, cancel), libcurl behind `EN_WITH_CURL`
-  (HTTP/1.1 keep-alive shared across requests, no redirects, loopback never proxied), and a scripted fake for tests.
-  A WinHTTP transport is later work behind the same interface; until then a Windows build has none, and `chat` says so.
+- **Transport** (`transport.hpp`): an interface the client drives (start, wait, cancel), with two implementations that
+  pass one conformance suite: libcurl behind `EN_WITH_CURL`, and the system's WinHTTP on Windows, which
+  `make_default_transport_factory()` returns there. Both keep HTTP/1.1 connections alive across a factory's
+  transports, follow no redirects, never send loopback through a proxy, and name a failure by its class only (could
+  not connect, timed out, TLS, reset), never with the address, a header or a key. A scripted fake serves the other
+  tests.
 - **Streaming** (`sse.hpp`, `stream.hpp`): our own SSE parser, the reply assembled from its deltas, `<think>` stripped
   (split tags and a lone closing tag too), usage, the finish reason and logprobs recorded.
 - **Errors and health** (`errors.hpp`, `health.hpp`): ARCH §11.2's classes and the client's part of their actions.
@@ -146,6 +149,46 @@ for (const en::llm::LocalEndpoint& e : en::llm::probe_local(*transport, {}, stop
 en::llm::ModelsResult listed = en::llm::list_models(*transport, *config.provider("router"));
 ```
 
+## Transports
+
+Both take the request's connect timeout (3 s unless the request says otherwise, ARCH §11.1) and leave every later wait
+to the client's own deadlines, which cancel the exchange.
+
+**WinHTTP** (`transport_winhttp.cpp`, Windows builds):
+
+- **The library.** The system directory's own `winhttp.dll`, loaded once by its full path and kept for the program's
+  life; its functions are looked up there, and it is never imported by name. A proxy `winhttp.dll` in the game's folder
+  (some overlays and the EAC toggler ship one) would otherwise be bound in its place and see every request, the key's
+  header included. Without it, or with a function missing, there is no transport (the factory is null). The build fails
+  if the tests' import table names `winhttp.dll`.
+- **Sessions.** Each factory opens two and shares them with every transport it opens: one with the system's proxy for
+  remote hosts (WinHTTP's automatic mode, which finds the proxy as the rest of Windows does, on Windows 8.1 and later;
+  its default configuration before), and one that never uses a proxy, for `127.0.0.0/8`, `localhost` and `[::1]`.
+- **TLS** 1.2 or 1.3 only, through the system's certificate store, its checks never weakened. HTTP/1.1, no redirects
+  (a key is never carried to another address), no cookies, no automatic logon with the player's Windows account, and
+  no user agent, as with libcurl.
+- **Timeouts.** Resolving the name and connecting take the request's connect timeout; sending, receiving and waiting
+  for the headers have a safety net of 5 minutes, far beyond the client's longest deadline (a minute).
+- **Exchanges.** Each runs in WinHTTP's asynchronous mode with a driver thread of its own: the status callback only
+  queues what completed, and the driver takes every next step, posts the events and closes the request handle at the
+  end or on `cancel()`, so no call on a handle overlaps its closing. `cancel()` drops the exchange's events at once,
+  and its memory lives until WinHTTP's last notification for the handle (`HANDLE_CLOSING`). `wait()` never calls
+  WinHTTP, so it keeps to its bound.
+- **Keys** go into the request just before it is sent, from one buffer that is cleared at once; WinHTTP holds its own
+  copy for the request's life. A header with a line break, an address with a user name or password, or a scheme other
+  than `http` and `https` fails before anything is sent.
+- **A reply shorter than its Content-Length** fails, as libcurl reports it.
+
+**Under Wine** (and so Proton), whose WinHTTP is its own implementation, three things differ (Wine 9.0), and the tests
+check what Wine does:
+
+- A chunked reply arrives one chunk late: Wine completes a read that ends a chunk only once the next chunk begins. A
+  stream still arrives piece by piece, and the client's thread never waits for it (the driver does).
+- Closing a request does not stop a receive already waiting: a cancelled exchange's connection stays open until the
+  server sends or closes, or the safety net passes. The client sees nothing more of it either way.
+- The automatic proxy mode means no proxy at all, and an IPv6 address in brackets does not resolve (read from Wine's
+  source): give a local server as `localhost` or `127.0.0.1`.
+
 ## The asynchronous handle
 
 `Service` (`service.hpp`) is the handle the core drives (ARCH §2.2's `Llm::spawn` and `LlmHandle`). It is built on
@@ -222,13 +265,15 @@ llm.drain(events);  // Started, Delta, Reset, Ended (.chat or .pick), WarmUpEnde
 
 ## Tests
 
-`cmake --build <build> --target en_llm_tests`, then run `en_llm_tests`. They use invented data and either the fake
-transport on a manual clock (timeouts, cooldowns and the hour run in no time) or, for libcurl, a server bound to
-127.0.0.1.
+`cmake --build <build> --target en_llm_tests`, then run `en_llm_tests` (the Windows build under Wine:
+`WINEPREFIX=<dir> wine64 en_llm_tests.exe`). They use invented data and either the fake transport on a manual clock
+(timeouts, cooldowns and the hour run in no time) or small servers bound to 127.0.0.1 (`tests/local_server.hpp`, on
+POSIX sockets or Winsock), against which one conformance suite (`test_transport.cpp`) runs the real transports:
+libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows.
 The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
 for what must happen.
 
 ## Later
 
-The WinHTTP transport (agent W's part of S8.1.g, still to merge); the handle's pool growing on `reload`; a warm-up
-holds a worker while the model loads (up to 2 minutes).
+The handle's pool growing on `reload`; a warm-up holds a worker while the model loads (up to 2 minutes); for WinHTTP,
+what only Windows itself can show: its proxy settings, TLS with real certificates, and IPv6 loopback.

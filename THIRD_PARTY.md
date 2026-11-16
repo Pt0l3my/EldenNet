@@ -23,6 +23,7 @@ toml++ are downloaded at configure time from their original projects, with their
 
 | Library | Licence | Use |
 |---|---|---|
-| [libcurl](https://curl.se/libcurl/) | curl (MIT-style) | HTTP on Linux and test builds. The Windows build has no transport yet: a WinHTTP one, on the system's own library, is later work (roadmap S8.1) |
+| [libcurl](https://curl.se/libcurl/) | curl (MIT-style) | HTTP on Linux and test builds |
+| WinHTTP | Part of Windows | HTTP on Windows: the system directory's own `winhttp.dll`, loaded by its full path at run time, never imported or shipped |
 
 Each licence was read before adoption, and none carries a clause on AI use.
