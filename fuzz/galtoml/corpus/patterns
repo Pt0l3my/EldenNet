@@ -1,0 +1,29 @@
+0schema = 1
+[[pattern]]
+id = "invented_fn"
+kind = "function"
+section = ".text"
+bytes = "5A 6B ?? 7C 8D 9E"
+expect_matches = 1
+anchor_min = 5
+fn_len = [16, 4096]
+prologue = "3C 4D"
+builds = ["9.8.7.0-ww"]
+provenance = { method = "own-derivation", leads = ["an invented lead"], evidence = "docs/ops/probes/invented.json", date = "2026-11-16" }
+[[pattern]]
+id = "InventedStatic"
+kind = "static"
+section = ".text"
+bytes = "C7 D1 E2 ?? ?? ?? ?? F3"
+capture = { at = 3, kind = "rip_rel32", insn_end = 7 }
+target_section = ".data"
+rtti = "Invented::Holder"
+provenance = { method = "own-derivation", leads = ["an invented lead"], evidence = "docs/ops/probes/invented.json", date = "2026-11-16" }
+[[pattern]]
+id = "invented_idiom"
+kind = "idiom"
+section = ".text"
+bytes = "D5 E6 F7 ?? ?? ?? ?? A8 1F ?? ?? ?? ??"
+expect_matches = [1, 40]
+captures = { slot = { at = 3, kind = "rip_rel32", insn_end = 7, section = ".data", align = 8 }, getter = { at = 9, kind = "rip_rel32", insn_end = 13, section = ".text", function = true } }
+provenance = { method = "own-derivation", leads = ["an invented lead"], evidence = "docs/ops/probes/invented.json", date = "2026-11-16" }
