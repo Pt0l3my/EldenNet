@@ -35,6 +35,16 @@ const char* to_string(FieldType type) noexcept {
   return "u8";
 }
 
+const char* to_string(ArgRegister r) noexcept {
+  switch (r) {
+    case ArgRegister::Rcx: return "rcx";
+    case ArgRegister::Rdx: return "rdx";
+    case ArgRegister::R8: return "r8";
+    case ArgRegister::R9: return "r9";
+  }
+  return "rcx";
+}
+
 const FieldLayout* ClassLayout::field(std::string_view name) const noexcept {
   for (const FieldLayout& f : fields) {
     if (f.name == name) return &f;
@@ -274,6 +284,12 @@ void read_class(const toml::table& t, std::string name, const std::string& path,
   Table c(t, path, errors);
   out.name = std::move(name);
   if (const auto rtti = c.text("rtti", false)) out.rtti = *rtti;
+  if (const auto singleton = c.text("singleton", false)) {
+    if (!toml_read::is_identifier(*singleton, 128)) {
+      errors.add(c.where("singleton"), "must be 1 to 128 letters, digits and _");
+    }
+    out.singleton = *singleton;
+  }
   if (const auto size = c.integer("copy_size", false, 1, kMaxCopySize))
     out.copy_size = static_cast<std::uint32_t>(*size);
   if (const auto stride = c.integer("stride", false, 1, kMaxCopySize)) out.stride = static_cast<std::uint32_t>(*stride);
@@ -343,11 +359,28 @@ TaskLayout read_task(const toml::table& t, Errors& errors) {
     if (const auto index = g.integer("index", true, 0, 4095)) out.group_index = static_cast<std::uint32_t>(*index);
     g.done();
   }
-  if (const auto abi = k.text("register_abi", true)) {
-    const bool ok = abi->size() >= 2 && abi->size() <= 4 && (*abi)[0] == 'v' &&
-                    std::all_of(abi->begin() + 1, abi->end(), [](char c) { return c >= '0' && c <= '9'; });
-    if (!ok) errors.add(k.where("register_abi"), "must be v and a number, such as v1");
-    out.register_abi = *abi;
+  if (const toml::table* abi = k.table("register_abi", true)) {
+    Table a(*abi, k.where("register_abi"), errors);
+    const auto reg = [&](std::string_view key, ArgRegister& to) {
+      const auto name = a.text(key, true);
+      if (!name) return false;
+      for (const ArgRegister r : {ArgRegister::Rcx, ArgRegister::Rdx, ArgRegister::R8, ArgRegister::R9}) {
+        if (*name == to_string(r)) {
+          to = r;
+          return true;
+        }
+      }
+      errors.add(a.where(key), "must be one of rcx, rdx, r8, r9");
+      return false;
+    };
+    const bool t = reg("task", out.register_abi.task);
+    const bool i = reg("instance", out.register_abi.instance);
+    const bool g = reg("group", out.register_abi.group);
+    const RegisterAbi& r = out.register_abi;
+    if (t && i && g && (r.task == r.instance || r.task == r.group || r.instance == r.group)) {
+      errors.add(k.where("register_abi"), "must name three different registers");
+    }
+    a.done();
   }
   const auto slots = k.integer("vtable_slots", true, 1, 64);
   if (slots) out.vtable_slots = static_cast<std::uint32_t>(*slots);
@@ -474,6 +507,10 @@ Expected<Layout, SchemaErrors> load_layout(const BuildProfile& profile, std::str
     }
     if (const auto stride = f.integer("group_stride", true, 1, 256))
       out.group_stride = static_cast<std::uint32_t>(*stride);
+    out.npc_names = read_ids(f, "npc_names", errors);
+    out.place_names = read_ids(f, "place_names", errors);
+    if (out.npc_names.size() > 8) errors.add(f.where("npc_names"), "has more than 8 tables");
+    if (out.place_names.size() > 8) errors.add(f.where("place_names"), "has more than 8 tables");
     out.status = read_status(f, errors).value_or(LayoutStatus::Lead);
     f.done();
     layout.fmg_ = std::move(out);

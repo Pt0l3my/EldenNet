@@ -422,6 +422,12 @@ void read_pattern(const toml::table& t, const std::string& path, Errors& errors,
       out.rtti = *rtti;
     }
   } else if (kind && out.kind == PatternKind::Idiom) {
+    if (const auto suffix = p.text("path_suffix", false)) {
+      const bool printable = !suffix->empty() && suffix->size() <= 64 &&
+                             std::all_of(suffix->begin(), suffix->end(), [](char c) { return c > ' ' && c < 0x7F; });
+      if (!printable) errors.add(p.where("path_suffix"), "must be 1 to 64 printable ASCII characters");
+      out.path_suffix = *suffix;
+    }
     if (const toml::table* captures = p.table("captures", true)) {
       if (captures->empty() || captures->size() > 8) errors.add(p.where("captures"), "must hold 1 to 8 captures");
       for (auto&& [name, node] : *captures) {

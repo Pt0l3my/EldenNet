@@ -68,6 +68,7 @@ struct FieldLayout {
 struct ClassLayout {
   std::string name;
   std::string rtti;                        // the class its objects' vtables must name; empty for none
+  std::string singleton;                   // the name its FD4 singleton's runtime class gives (ARCH §6.2); empty for none
   std::optional<std::uint32_t> copy_size;  // the bytes of one guarded copy of an object
   std::optional<std::uint32_t> stride;     // the step between objects in an array or table
   LayoutStatus status = LayoutStatus::Lead;
@@ -92,10 +93,23 @@ struct ParamLayout {
   std::vector<FieldLayout> fields;
 };
 
+// The registers of register_task's arguments (ARCH §6.4): Windows x64 passes the first four in rcx, rdx, r8 and r9.
+enum class ArgRegister : std::uint8_t { Rcx, Rdx, R8, R9 };
+[[nodiscard]] const char* to_string(ArgRegister r) noexcept;  // "rcx", "rdx", "r8", "r9"
+
+// Which register carries each of register_task's three arguments: data, as the derivation found it (WHY§123), never a
+// fixed order in code. `register_abi = { task = "rcx", instance = "rdx", group = "r8" }`, three different registers.
+struct RegisterAbi {
+  ArgRegister task = ArgRegister::Rcx;
+  ArgRegister instance = ArgRegister::Rdx;
+  ArgRegister group = ArgRegister::R8;
+  friend constexpr bool operator==(const RegisterAbi&, const RegisterAbi&) = default;
+};
+
 struct TaskLayout {
   std::string group_name;  // checked against the game's table on the first tick
   std::uint32_t group_index = 0;
-  std::string register_abi;  // "v1": the argument order S0-A fixes
+  RegisterAbi register_abi;  // the argument registers S0-A fixes
   std::uint32_t vtable_slots = 0;
   std::uint32_t run_slot = 0;
   std::uint32_t object_size = 0;
@@ -105,6 +119,8 @@ struct TaskLayout {
 struct FmgLayout {
   std::string indexing;  // "flat"
   std::uint32_t group_stride = 0;
+  std::vector<std::uint32_t> npc_names;    // the tables of NPC names, in the order they are searched (ARCH §6.9)
+  std::vector<std::uint32_t> place_names;  // the tables of place names, likewise
   LayoutStatus status = LayoutStatus::Lead;
 };
 
