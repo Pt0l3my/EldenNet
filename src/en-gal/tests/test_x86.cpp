@@ -272,6 +272,7 @@ TEST_CASE("x86: what 64-bit mode does not define is refused") {
                           "D5 0A",
                           "D6",
                           "EA",
+                          "F1",
                           "0F 04",
                           "0F 0A",
                           "0F 24 C0",

@@ -8,9 +8,9 @@
 // Where 64-bit processors disagree, or the manuals leave a form undefined, this follows LLVM's disassembler, against
 // which it is tested: a 66 prefix shortens JMP's, Jcc's and XBEGIN's displacement to 16 bits but not CALL's; a REX
 // followed by another prefix is ignored (LLVM prints it alone); 0F 20 to 0F 23 take no SIB or displacement whatever
-// ModRM's mod; 0F B8 is POPCNT with F3 and nothing without it. It is more lenient than LLVM about opcodes a map leaves
-// undefined, whose length it still gives from the map's shape. EVEX's map 4 (APX) and the VIA PadLock opcodes are
-// refused: no compiler we build with emits them.
+// ModRM's mod; 0F B8 is POPCNT with F3 and nothing without it; F1 (INT1, ICEBP) is refused, as LLVM 18 refuses it. It
+// is more lenient than LLVM about opcodes a map leaves undefined, whose length it still gives from the map's shape.
+// EVEX's map 4 (APX) and the VIA PadLock opcodes are refused: no compiler we build with emits them.
 #include "en/gal/x86.hpp"
 
 #include <array>
@@ -77,8 +77,8 @@ constexpr std::array<std::uint16_t, 256> kPrimary = {
     M, M, M, M, X, X, X, 0, M, M, M, M, M, M, M, M,
     // E0
     J8, J8, J8, J8, I8, I8, I8, I8, JZ, JZ, X, J8, 0, 0, 0, 0,
-    // F0: F0, F2, F3 prefixes; F6, F7 checked below
-    S, 0, S, S, 0, 0, M, M, 0, 0, 0, 0, 0, 0, M, M,
+    // F0: F0, F2, F3 prefixes; F1 (INT1) refused, as LLVM does; F6, F7 checked below
+    S, X, S, S, 0, 0, M, M, 0, 0, 0, 0, 0, 0, M, M,
 };
 
 // The two-byte map (0F xx).

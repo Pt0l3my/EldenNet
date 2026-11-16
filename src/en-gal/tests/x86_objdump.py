@@ -114,11 +114,13 @@ def objdump_listing(objdump, path):
         raise SystemExit("llvm-objdump failed on %s: %s" % (os.path.basename(path), out.stderr[-500:]))
     insns = merge_prefixes(parse_objdump(out.stdout))
     lines = []
-    for i, (addr, data, text, _) in enumerate(insns):
+    for i, (addr, data, text, symbol) in enumerate(insns):
+        # The bytes that follow, within the same symbol only: llvm-objdump decodes each symbol on its own, so an
+        # instruction never runs into the next (a sanitizer's data before a function ends with a byte of its own).
         buf = bytearray(data)
         nxt = addr + len(data)
         j = i + 1
-        while len(buf) < 16 and j < len(insns) and insns[j][0] == nxt:
+        while len(buf) < 16 and j < len(insns) and insns[j][0] == nxt and insns[j][3] == symbol:
             buf += insns[j][1]
             nxt += len(insns[j][1])
             j += 1
