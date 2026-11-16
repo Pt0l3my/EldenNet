@@ -16,4 +16,11 @@ endfunction()
 
 en_fuzz_target(sse en_llm)         # en-llm's SSE line parser and stream assembler
 en_fuzz_target(json en_proto)      # en-proto's parse_json with its caps, and read_json
+en_fuzz_target(game en_proto)      # en-proto's JSON forms of the game messages: snapshot, lifecycle, command, feed
 en_fuzz_target(template en_prompt) # en-prompt's template compile from a memory source
+en_fuzz_target(pe en_gal)          # en-gal's PE32+ reader, and the pattern scan over what it reads
+en_fuzz_target(pattern en_gal)     # en-gal's pattern grammar and multi-pattern matcher
+en_fuzz_target(galtoml en_gal)     # en-gal's schemas of gal/'s files: patterns.toml, builds.toml, a layout
+# The layout's build is gated on an invented image, made by the tests' own FakeImage.
+target_sources(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests/fake_image.cpp)
+target_include_directories(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests)

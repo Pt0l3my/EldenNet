@@ -61,17 +61,10 @@ endif()
 add_subdirectory(src/en-prompt)
 add_subdirectory(src/en-proto)
 add_subdirectory(src/en-llm)
+# en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
+# MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
+add_subdirectory(src/en-gal)
 add_subdirectory(src/en-tools)
 if(EN_FUZZ)
   add_subdirectory(fuzz)
-endif()
-
-# en-gal's guarded copy is C++ with structured exception handling (__try/__except, ARCH §2.6), which only an MSVC-like
-# compiler has: the clang-cl build (cmake/clang-cl-xwin.cmake) builds it, and GCC's and Clang's builds on Linux and
-# MinGW-w64's skip it.
-if(MSVC)
-  add_subdirectory(src/en-gal)
-else()
-  message(STATUS "en-gal skipped: its SEH-guarded copy (__try/__except) is built by an MSVC-like compiler only, and "
-    "this build's is ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}; cmake/clang-cl-xwin.cmake builds it")
 endif()

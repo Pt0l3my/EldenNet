@@ -1,0 +1,6 @@
+2schema = 1
+build = "9.8.7.0-ww"
+[class.A]
+copy_size = 0x10
+[class.A.fields]
+x = { off = 0xC, ty = "u64" }
