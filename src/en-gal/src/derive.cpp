@@ -251,6 +251,12 @@ void derive_names(Context& cx, const std::vector<std::uint32_t>& class_objects) 
 
 void derive_fd4(Context& cx) {
   Fd4Result& r = cx.result.fd4;
+  // Every singleton the leads name is reported, missing until found.
+  for (const NamedLead& lead : cx.leads.singletons) {
+    SingletonResult missing;
+    missing.label = lead.label;
+    r.singletons.push_back(std::move(missing));
+  }
   if (cx.text == nullptr) return;
   const std::vector<std::uint32_t> paths = path_strings(cx.img, cx.leads.fd4_path_suffix);
   r.path_strings = paths.size();
@@ -350,6 +356,7 @@ void derive_fd4(Context& cx) {
 
   // The leads' singletons by their names; the others only counted.
   std::set<std::string> listed;
+  r.singletons.clear();
   for (const NamedLead& lead : cx.leads.singletons) {
     listed.insert(lead.name);
     SingletonResult one;

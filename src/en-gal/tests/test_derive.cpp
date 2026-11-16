@@ -402,6 +402,9 @@ TEST_CASE("derive: an image with nothing to find answers missing everywhere, and
   const auto r = en::gal::derive::derive(*image, source, leads(en::gal::test::kSampleLeads));
   CHECK_FALSE(r.fingerprint.has_version);
   CHECK(r.fd4.status == Status::Missing);
+  REQUIRE(r.fd4.singletons.size() == 7);  // each lead reported, missing
+  CHECK(std::all_of(r.fd4.singletons.begin(), r.fd4.singletons.end(),
+                    [](const auto& s) { return s.status == Status::Missing; }));
   CHECK(r.registration.status == Status::Depends);
   CHECK(r.task.status == Status::Missing);
   CHECK(r.group.status == Status::Missing);
