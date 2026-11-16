@@ -74,8 +74,13 @@ cmake --build build-cl
 - It needs `wine64` (Wine 9.0 here; found in `/usr/lib/wine` or on the path, `EN_WINE`), `xvfb-run` (`EN_XVFB_RUN`)
   and Python 3. Without them the harness's tests are left out, with a line saying so; the programs still build.
 - The first test, `fakegame.prefix`, makes the prefix (`EN_WINE_PREFIX`, by default `<build>/wineprefix`, about 700 MB)
-  and turns Wine's crash dialog off: with a display, an unhandled exception would otherwise wait on a dialog for ever.
-  Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and ends with `wineserver -k`.
+  and sets it up for unhandled exceptions (again each time it runs, so an older prefix is brought up to date): no crash
+  dialog (with a display, an unhandled exception would otherwise wait on it for ever) and no JIT debugger. Wine
+  otherwise starts the debugger that `AeDebug` names, `winedbg --auto`, which attaches to a crashing program; a crash
+  that no filter of the program's own ended then exited with status 0 instead of its code in about one run in ten.
+  `AeDebug`'s `Debugger` now names no program, so the process ends with the exception's code, as on a Windows PC with
+  no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
+  with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
 - About 100 s for the clang-cl build's 47 cases and 2 s each; the MinGW build runs 43 (no `__try`, and GCC's own RTTI).
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.

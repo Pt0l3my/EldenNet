@@ -604,10 +604,22 @@ def wineserver(args):
     return server if os.path.exists(server) else "wineserver"
 
 
+def stop_wineserver(args, env):
+    """Ends the prefix's wineserver and every program in it, and waits until the server has gone (`-k` asks it to
+    end; `-w` waits for that), so that no run meets an earlier run's server, or its programs, while it shuts down."""
+    subprocess.run([wineserver(args), "-k"], env=env, check=False, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, timeout=60)
+    try:
+        subprocess.run([wineserver(args), "-w"], env=env, check=False, timeout=60)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("the wineserver did not end within 60 s of wineserver -k")
+
+
 def launch(args, argv, env, timeout, kill_after=None):
     if args.native:
         cmd = argv
     else:
+        stop_wineserver(args, env)  # whatever an earlier run left: each run starts with a server of its own
         cmd = [args.xvfb_run, "-a", "-s", "-screen 0 1024x768x24", args.wine] + argv
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
                             start_new_session=not args.native)
@@ -620,11 +632,26 @@ def launch(args, argv, env, timeout, kill_after=None):
             proc.kill()
         else:
             os.killpg(proc.pid, signal.SIGKILL)
-            subprocess.run([wineserver(args), "-k"], env=env, check=False)
+            stop_wineserver(args, env)
         out, err = proc.communicate()
     if not args.native:
-        subprocess.run([wineserver(args), "-k"], env=env, check=False)
+        stop_wineserver(args, env)
     return proc.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"), killed
+
+
+# The prefix's settings for unhandled exceptions. When no filter of the program's own ends one (MinGW's runtime
+# filter passes an access violation on, MSVC's every exception but C++'s), Wine starts the JIT debugger that AeDebug
+# names, `winedbg --auto` by default, which attaches, prints a backtrace and detaches; the fault is raised again, and
+# the process ended with exit status 0 instead of the exception's code in 14 of 140 such runs. With a debugger that
+# cannot start, Wine ends the process with the exception's code every time, as Windows does on a PC with no JIT
+# debugger. `Auto` 1, or Wine would ask in a message box; and no crash dialog, which on Xvfb would wait for ever.
+AEDEBUG = "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
+SETUP_STEPS = (
+    ["wineboot", "--init"],
+    ["reg", "add", "HKCU\\Software\\Wine\\WineDbg", "/v", "ShowCrashDialog", "/t", "REG_DWORD", "/d", "0", "/f"],
+    ["reg", "add", AEDEBUG, "/v", "Debugger", "/t", "REG_SZ", "/d", "no-jit-debugger-in-tests", "/f"],
+    ["reg", "add", AEDEBUG, "/v", "Auto", "/t", "REG_SZ", "/d", "1", "/f"],
+)
 
 
 def cmd_setup(args):
@@ -632,14 +659,12 @@ def cmd_setup(args):
     if args.native:
         return 0
     os.makedirs(os.path.dirname(os.path.abspath(args.prefix)), exist_ok=True)
-    for argv in (["wineboot", "--init"],
-                 ["reg", "add", "HKCU\\Software\\Wine\\WineDbg", "/v", "ShowCrashDialog", "/t", "REG_DWORD", "/d", "0",
-                  "/f"]):
+    for argv in SETUP_STEPS:
         code, out, err, _ = launch(args, argv, env, timeout=240)
         if code != 0:
-            print("setup step %s failed with %s\n%s\n%s" % (argv[0], code, out, err))
+            print("setup step %s failed with %s\n%s\n%s" % (" ".join(argv[:3]), code, out, err))
             return 1
-    print("prefix ready: crash dialogs off")
+    print("prefix ready: no crash dialog, no JIT debugger")
     return 0
 
 
