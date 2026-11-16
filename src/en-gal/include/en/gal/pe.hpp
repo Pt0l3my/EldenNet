@@ -126,7 +126,8 @@ struct ImageInfo {
   std::uint16_t subsystem = 0;
   std::vector<Section> sections;                // in RVA order (ascending, disjoint virtual ranges)
   std::optional<VersionInfo> version;           // absent when the image has no version resource
-  std::vector<RuntimeFunction> functions;       // the exception directory, sorted and disjoint; empty when it has none
+  std::vector<RuntimeFunction> functions;       // the exception directory, sorted and disjoint, without the entries of
+                                                // no length; empty when it has none
   std::array<DataDirectory, 16> directories{};  // the data directories as the header gives them; zero past its count
 
   // The first section of that name, or null.
@@ -160,6 +161,7 @@ enum class PeProblem : std::uint8_t {
   BadResourceDirectory,   // a resource directory, entry or data entry out of its bounds, or nested otherwise
   BadVersionResource,     // VS_VERSIONINFO malformed, or without its fixed information
   BadExceptionDirectory,  // a function table whose size is not whole entries, out of a section, unsorted or overlapping
+                          // (an entry of no length is left out, not refused)
   TooManyFunctions,       // more function-table entries than the limit
   BadRelocations,         // a base relocation block out of its bounds, or an entry of a type x64 does not use
 };

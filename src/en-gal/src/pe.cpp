@@ -514,8 +514,11 @@ Expected<std::vector<RuntimeFunction>, PeError> read_functions(const ImageInfo& 
       const std::uint64_t e = std::uint64_t{i} * kRuntimeFunctionSize;
       RuntimeFunction fn{bytes::u32(*raw, e).value_or(0), bytes::u32(*raw, e + 4).value_or(0),
                          bytes::u32(*raw, e + 8).value_or(0)};
+      // An entry of no length covers no code and is never found by Windows' unwinder, whose lookup needs begin <= pc
+      // < end; GNU toolchains emit them for empty functions, and the loader never reads the table. It is left out.
+      if (fn.begin == fn.end) continue;
       const std::uint32_t unwind_rva = fn.unwind & ~1u;
-      if (fn.begin >= fn.end || fn.end > image.size_of_image || fn.begin < last_end ||
+      if (fn.begin > fn.end || fn.end > image.size_of_image || fn.begin < last_end ||
           unwind_rva >= image.size_of_image) {
         return Unexpected{at(PeProblem::BadExceptionDirectory, rva + (first + i) * kRuntimeFunctionSize)};
       }

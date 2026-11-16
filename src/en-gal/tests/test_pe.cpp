@@ -267,6 +267,19 @@ TEST_CASE("a malformed function table is refused") {
   CHECK(refusal(built.memory, ImageLayout::Memory, limits).problem == PeProblem::TooManyFunctions);
 }
 
+TEST_CASE("an entry of no length in the function table is left out, as GNU toolchains emit them") {
+  const BuiltImage built = build(sample_spec());
+  const std::uint32_t text = built.rva.at(".text");
+  std::vector<std::byte> bytes = built.memory;
+  put_u32(bytes, built.pdata_rva + 2 * 12 + 4, text + 0x400);  // the third entry, [0x400, 0x500), now [0x400, 0x400)
+  put_u32(bytes, built.pdata_rva + 3 * 12, text + 0x400);      // and the fourth starts where it starts
+  const auto image = read_image(SpanSource(bytes), ImageLayout::Memory);
+  REQUIRE(image.has_value());
+  REQUIRE(image->functions.size() == 5);
+  CHECK(image->functions[2] == RuntimeFunction{text + 0x400, text + 0x1000, image->functions[2].unwind});
+  CHECK(image->function_at(text + 0x400) == &image->functions[2]);
+}
+
 TEST_CASE("bytes the source cannot give are refused as unreadable, and the reader keeps no pointer to them") {
   const BuiltImage built = build(sample_spec());
   const HoleSource headers_hole(built.memory, kOptionalAt + 8, kOptionalAt + 9);
