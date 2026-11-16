@@ -24,6 +24,11 @@ inline constexpr std::string_view kMemory = "memory";
 inline constexpr std::string_view kSelftest = "selftest";
 inline constexpr std::string_view kDraft = "draft";
 inline constexpr std::string_view kDecisions = "decisions";
+// Reserved for later uses (O88; ARCH §11.4): the configuration takes them, so that its files keep their shape when the
+// features arrive, but no request uses them yet; one that names them falls through to dialogue, as an unknown name
+// does.
+inline constexpr std::string_view kActions = "actions";  // NPC actions, after v1 (O31 to O42)
+inline constexpr std::string_view kVision = "vision";    // letting an NPC see the screen; not designed yet
 
 // ---- Messages, as en-prompt hands them over (NPC §7.1's markers), with their cache marks ----
 

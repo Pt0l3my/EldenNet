@@ -10,7 +10,8 @@ names.
 - **Configuration** (`config.hpp`): `providers.toml`, the presets of `models.toml`, the `budget` table of
   `settings.toml` and the keys of `secrets.toml`, each read strictly (an unknown key or a newer schema is an error
   naming the file and line). Keys stay in memory as `Secret`, which prints `<redacted>`; no error, log line or report
-  carries one.
+  carries one. Every slot names its own provider, model and fallback, and a preset may name several providers, so
+  that each use can have a provider of its own (O88); `actions` and `vision` are reserved.
 - **Shared types** (en-proto's `llm.hpp`): the requests, decision calls, results and events the core and en-llm
   share are en-proto's plain data, with their JSON forms; en-llm's headers keep their names (`en::llm::ChatRequest`,
   `DecisionCall`, `LlmEvent` and the rest) with using-declarations.
@@ -76,8 +77,9 @@ pause rules, and the input epoch (pass a `std::stop_token`).
 
 ## Configuration
 
-The keys follow ARCH §11.1. Three are ours, where that schema leaves the choice open: `cache_marks` (how the provider
-takes cache marks), `logprobs` (whether it returns them), and `provider` / `fallback_provider` in `[slots.*]`.
+The keys follow ARCH §11.1. Three were ours, where that schema left the choice open: `cache_marks` (how the provider
+takes cache marks), `logprobs` (whether it returns them), and `provider` / `fallback_provider` in `[slots.*]`, which
+the design took up with O88 as the way each use gets a provider of its own.
 
 ```toml
 # providers.toml (the endpoint and models here are invented)
@@ -112,6 +114,59 @@ router = "<the player's key>"
 A slot without a model borrows one: `decisions` takes `bark_live`'s, every other slot `dialogue`'s. Unknown slot
 names in a request fall through to `dialogue`. `settings.toml` is read for `budget.requests_per_hour` (60 to 3600)
 only; its other tables belong to other modules.
+
+A slot of `providers.toml` that names a model but no `provider` takes the provider its preset gives that slot, or
+gives the slot it would borrow from (`decisions` from `bark_live`, the rest from `dialogue`), or the preset's only
+provider; without a preset, the only provider there is, and otherwise it must name one. A `fallback` without a
+`fallback_provider` takes its model's provider.
+
+### Presets
+
+A preset of `models.toml` (ARCH §11.4) names a model for each slot and the providers its slots use, in one of two
+forms. Each of its providers is matched to a provider of `providers.toml` as it says: by `base_url` where it gives one,
+otherwise as the first of its `kind` and `flavor`. The keys stay with `providers.toml`'s providers, by `key_ref`: a
+preset never holds one, and a `key_ref` or `key` in one is refused.
+
+```toml
+# models.toml (the endpoints and models here are invented)
+schema = 1
+
+# One provider, as the presets have always named it: every slot is on it.
+[preset.one-router]
+provider = { flavor = "openai", kind = "cloud", base_url = "https://router.example.invalid/api/v1" }
+dialogue  = { model = "talker-small", fallback = "talker-large" }
+bark_live = { model = "talker-small" }
+
+# Providers by name (O88): each slot names its own, and a fallback may be on another.
+[preset.two-routers.providers.main]
+flavor = "openai"
+kind = "cloud"
+base_url = "https://router.example.invalid/api/v1"
+
+[preset.two-routers.providers.fast]
+base_url = "https://fast.example.invalid/v1"
+
+[preset.two-routers]
+dialogue  = { provider = "main", model = "talker-small", fallback = "talker-fast", fallback_provider = "fast" }
+bark_live = { provider = "fast", model = "quick-small" }
+decisions = { provider = "fast", model = "quick-small" }
+memory    = { provider = "main", model = "keeper-large" }
+```
+
+A slot may leave out `provider` only when its preset names one provider; `fallback_provider` defaults to the slot's
+own. A name is the preset's own, but may not be the id of another provider of `providers.toml`, which would make it
+stand for two (the same id for the same provider, as the wizard writes it, is fine). Refused, with the file and the
+line: a preset with neither form or with both, a slot (or `all`) naming a provider the preset does not define, a slot
+with no provider in a preset of several, a `fallback_provider` with no `fallback`, and one name for two providers
+(TOML itself refuses a name given twice).
+
+### Reserved slots
+
+`actions` (NPC actions, after v1) and `vision` (letting an NPC see the screen) are reserved (O88): `[slots.actions]`,
+`[slots.vision]` and a preset's `actions` and `vision` are read and checked as every slot is, and their models kept in
+`Config::reserved`, so that the files keep their shape when the features arrive. They have no budget yet, and no
+request uses them: one that names them falls through to `dialogue`, its models and its budget, as an unknown name
+does. A preset's `all` does not reach them.
 
 ## Use
 
@@ -309,6 +364,8 @@ libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows. WinHTTP's words for a f
 The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
 for what must happen.
 
+`test_presets.cpp` takes both forms of a preset's providers, each refusal at its file and line, the reserved slots,
+and each slot's requests reaching its own provider, with its own key, on the fake transport.
 `test_limits.cpp` takes each of ARCH §10.2's caps just under and just over, on the parser and the assembler and through
 the client; `test_r3.cpp` the guards: the threads' stack sizes (where the system reports them: Windows, and Linux with
 glibc), a thread's throw, a worker's request whose client throws, and the caller's callbacks throwing. The transports'

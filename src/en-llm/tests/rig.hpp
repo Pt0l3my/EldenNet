@@ -107,14 +107,18 @@ struct Rig {
   std::unique_ptr<Client> client;
 
   explicit Rig(const std::string& providers = kCloud, const std::string& secrets = kSecrets,
-               std::optional<std::string> settings = std::nullopt) {
+               std::optional<std::string> settings = std::nullopt)
+      : Rig(make_config(providers, secrets, std::move(settings))) {}
+
+  // On a configuration made elsewhere: one with a preset of models.toml, say.
+  explicit Rig(Config config) {
     ClientOptions options;
     options.clock = clock;
     options.log = [this](LogLevel, const std::string& line) {
       std::lock_guard lock(log_mutex_);
       log_.push_back(line);
     };
-    client = std::make_unique<Client>(make_config(providers, secrets, std::move(settings)), server, options);
+    client = std::make_unique<Client>(std::move(config), server, options);
   }
 
   ChatResult chat(const std::string& slot = "dialogue", Purpose purpose = Purpose::Reply, StreamSink* sink = nullptr,

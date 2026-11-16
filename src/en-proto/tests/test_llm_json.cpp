@@ -246,6 +246,18 @@ TEST_CASE("a field left out keeps its default; defaults round-trip too") {
   CHECK(partial.warm_up == WarmUpOutcome{});
 }
 
+TEST_CASE("a request may name a reserved slot, and its JSON form keeps the name") {
+  // The names are en-proto's, beside the slots in use (O88); where such a request goes, for now dialogue, is en-llm's.
+  ChatRequest request;
+  request.slot = std::string(kActions);
+  round_trip(request);
+  CHECK(json(request)["slot"] == "actions");
+  DecisionCall call;
+  call.slot = std::string(kVision);
+  round_trip(call);
+  CHECK(json(call)["slot"] == "vision");
+}
+
 TEST_CASE("malformed JSON is refused, naming the path and the problem") {
   CHECK(refusal<Message>(json::array()) == "Message: must be an object");
   CHECK(refusal<Message>(json{{"role", "narrator"}}) == "Message.role: must be one of system, user, assistant");
