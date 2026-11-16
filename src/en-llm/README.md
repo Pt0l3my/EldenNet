@@ -146,13 +146,89 @@ for (const en::llm::LocalEndpoint& e : en::llm::probe_local(*transport, {}, stop
 en::llm::ModelsResult listed = en::llm::list_models(*transport, *config.provider("router"));
 ```
 
+## The asynchronous handle
+
+`Service` (`service.hpp`) is the handle the core drives (ARCH §2.2's `Llm::spawn` and `LlmHandle`). It is built on
+the blocking client, which keeps each slot's budgets, retries, fallbacks, backup requests, health and provider
+admission; the handle adds the queue, the events, the input epoch and the gate around it.
+
+- **Requests** (`LlmRequest`): the caller's id (non-zero, unique while live), a chat request or a decision call, and,
+  for own-initiative work, the input epoch it was made at (own-initiative dialogue must carry one; a reply never does).
+  `submit` answers `Accepted`, `Full`, `Duplicate`, `Invalid` (named in one log line) or `ShutDown`, and never blocks.
+  A decision call's rule runs once, at submit, on the caller's thread: its key is checked there and stands for it, so
+  no worker runs the caller's code.
+- **Events** (`LlmEvent`): `Started` (the provider and model of the first attempt sent), `Delta`s in order, `Reset`
+  (withdraw the text passed on so far), and exactly one `Ended` per accepted request, with the chat result or the
+  decision's pick, whatever happens to it. Once `cancel` has returned, nothing of that request but its ending is
+  queued. A request the handle ends without running it gets a result made there: no provider, its time the wait since
+  submit, and for a decision call the pick of its rules. One the handle stops while it runs ends with the reason it
+  was stopped for.
+- **Order** (C9): replies > own-initiative dialogue and the decision calls that choose it > `bark_live` > `memory` >
+  `bark_pool` (`priority_of`, now public), first come first served within a priority. Requests start one at a time in
+  that order (until the first attempt is sent, or the client answers without sending), so that a provider's last free
+  connection goes to the request that comes first.
+- **One dialogue request in flight**: a reply cancels own-initiative dialogue and the decision calls that carry an
+  epoch, queued or running, and starts once they have ended; own-initiative work submitted while a reply is live waits
+  for it. `cancel_before_epoch(e)` cancels whatever carries an epoch before `e`.
+- **Busy**: nothing was sent, so the request goes back to its place in the queue and is tried again once another
+  request has ended (or the configuration is reloaded). A live request (`bark_live`, a decision call, own-initiative
+  dialogue) that has not started within its slot's first-token time of being submitted (the local one when the slot's
+  model is on a local provider) ends as `Busy`, so that the core takes its seed or rules; the rest wait as long as
+  they must.
+- **A full queue** (64 live requests, waiting or running): a request that outranks a queued `bark_pool` or `memory`
+  job takes its place, the lowest and newest first. The pool job ends as `Dropped` (a new error class: it is not
+  requeued), the memory job as `Preempted`, so that the core requeues it. Otherwise `submit` answers `Full`. Replies
+  and live requests are never evicted.
+- **The event queue** (C10, 1,024 events): a worker with an event for a full queue waits, so no delta is dropped while
+  its request runs; an ending never waits (it may take the queue past its capacity, by at most one per live request),
+  so no request is left without its end and shutdown never blocks. The core reads with `poll`, `drain` or `wait` (in
+  real time), and `set_notify` registers a callback that the handle's own thread, never the caller's, calls when the
+  queue goes from empty to non-empty.
+- **The gate** (C15): `set_gate_open(false)` closes the client's gate, stops running requests and ends queued ones at
+  once with `GateClosed`; a request submitted while it is closed is accepted and ends at once the same way.
+- **Threads**: a fixed pool of one more worker than the providers' total concurrency (2 to 8), so that a reply always
+  finds a worker from which to take a connection back from a background job, and one dispatcher thread for the start
+  deadlines, the notify callback and the log lines made under the handle's lock. `shutdown` (and the destructor)
+  cancels everything, queues every ending and joins.
+- **Ollama's warm-up** (ARCH §11.3): `warm_up(slot)` sends `POST <root>/api/generate` with `{"model", "keep_alive":
+  "10m"}` and no prompt (`<root>` is the base URL without its `/v1`), from a worker straight to the transport, and
+  returns its id; it ends with one `WarmUpEnded` event (provider, model, success, status, time). It acts only when the
+  slot's model is on a local `ollama` provider, the gate is open, that provider has served no request through the
+  handle for more than 4 minutes and has none in flight, and no warm-up for it is in flight; a warm-up that succeeded
+  counts as serving for that rule. It counts in neither health nor the requests per hour: it generates nothing and
+  costs nothing, and its answer comes from Ollama's own endpoint, not the chat completions whose health the client
+  tracks.
+
+The started event comes from two small additions to the client: `StreamSink::on_attempt`, which tells a sink of each
+attempt as it is sent, and a `Client::decide` that takes an observer for the same.
+
+```cpp
+#include "en/llm/service.hpp"
+
+en::llm::Service llm(en::llm::load_config_dir(dir), en::llm::make_default_transport_factory());
+llm.set_notify([&] { core_wakes.notify_one(); });  // on the handle's thread: keep it short
+
+llm.submit(en::llm::LlmRequest::chat(17, reply));                    // the player asked
+llm.submit(en::llm::LlmRequest::chat(18, own_line, input_epoch));    // an NPC's own line
+llm.submit(en::llm::LlmRequest::decision(19, next_speaker, input_epoch));
+llm.warm_up("dialogue");                                             // on PersonaApproached
+
+// When the player's input epoch moves on:
+llm.cancel_before_epoch(input_epoch);
+
+std::vector<en::llm::LlmEvent> events;
+llm.drain(events);  // Started, Delta, Reset, Ended (.chat or .pick), WarmUpEnded
+```
+
 ## Tests
 
 `cmake --build <build> --target en_llm_tests`, then run `en_llm_tests`. They use invented data and either the fake
 transport on a manual clock (timeouts, cooldowns and the hour run in no time) or, for libcurl, a server bound to
 127.0.0.1.
+The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
+for what must happen.
 
 ## Later
 
-The WinHTTP transport; Ollama's warm-up (ARCH §11.3); the asynchronous
-handle (`submit`, `cancel`, events) the core will drive, built on this blocking client.
+The WinHTTP transport (agent W's part of S8.1.g, still to merge); the handle's pool growing on `reload`; a warm-up
+holds a worker while the model loads (up to 2 minutes).

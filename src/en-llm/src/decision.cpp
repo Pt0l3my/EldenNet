@@ -500,6 +500,10 @@ std::string hash_messages(const std::vector<Message>& messages) {
 }
 
 DecisionPick Client::decide(const DecisionCall& call, std::stop_token stop) {
+  return decide(call, nullptr, std::move(stop));
+}
+
+DecisionPick Client::decide(const DecisionCall& call, StreamSink* observer, std::stop_token stop) {
   validate(call);
   DecisionPick pick;
   pick.task = call.task;
@@ -529,7 +533,8 @@ DecisionPick Client::decide(const DecisionCall& call, std::stop_token stop) {
   };
 
   // Thinking stays off: the provider's reasoning switch goes with every request, and no retry drops it.
-  const ChatResult result = chat(request, nullptr, std::move(stop));
+  // The observer hears of each attempt; the answer's text goes to no sink, since only the pick is passed on.
+  const ChatResult result = run_chat(request, nullptr, observer, std::move(stop));
   pick.latency = result.total;
   pick.provider = result.provider;
   pick.model = result.model;

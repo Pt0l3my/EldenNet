@@ -24,6 +24,8 @@ enum class ErrorClass : std::uint8_t {
   BudgetSpent,        // the requests per hour are spent and this request is not a reply (ARCH §11.4)
   NoHealthyProvider,  // every model of the slot is cooling, disabled or missing
   GateClosed,         // the offline gate is false (ARCH §5.1): nothing goes out
+  Dropped,            // the request queue was full and a higher-priority request took a bark_pool job's place (ARCH
+                      // §1.3, C9): nothing was sent, and the job is not requeued
 };
 
 const char* to_string(ErrorClass e);
