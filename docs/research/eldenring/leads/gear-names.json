@@ -1,0 +1,51 @@
+{
+  "about": "Which text entries hold the gear's names: the weapon names (EquipParamWeapon) and the armour names (EquipParamProtector), each keyed by its row id. Counts only; no name and no row id.",
+  "decision": "EldenNet's game data, gap 3; DESIGN §4.5; WHY§105",
+  "source": {
+    "tool": "DataPiler 0.2.40",
+    "jobs": [
+      "en-0041-gear-names-unused",
+      "en-0042-weapon-names",
+      "en-0043-armour-names"
+    ]
+  },
+  "provenance": {
+    "game_version": "2.7.2.0",
+    "regulation_sha256": "b8cdab84c0772f66811fdc5176a381877ca6657b37d420cc2c1562a90d63870e",
+    "expansion": true,
+    "expansion_source": "owner",
+    "language": "engus",
+    "smithbox_build": "2.2.6.0",
+    "datapiler": "0.2.40",
+    "date": "2026-11-16"
+  },
+  "rule": "A text entry's layer is the earliest that holds it: 0 the base game (11 and 12), 1 the expansion's first layer (321 and 322), 2 its second (421 and 422), in any of the item containers. A row is named when its row id is an entry of the set.",
+  "counts": {
+    "weapons": {
+      "rows": 3636,
+      "named_rows": 2909,
+      "named_per_layer": {
+        "0": 2909
+      },
+      "share_resolved": 0.8,
+      "unused_names_per_layer": {
+        "0": 310,
+        "1": 489,
+        "2": 1
+      }
+    },
+    "armour": {
+      "rows": 838,
+      "named_rows": 641,
+      "named_per_layer": {
+        "0": 641
+      },
+      "share_resolved": 0.764,
+      "unused_names_per_layer": {
+        "0": 2,
+        "1": 22,
+        "2": 1
+      }
+    }
+  }
+}

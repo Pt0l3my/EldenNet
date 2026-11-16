@@ -371,6 +371,9 @@ research into the game's data that goes ahead before them (O54).
   - needs: j
   - refs: O58, DESIGN§7.8
   - gives: the saves S1 and S2 replay from, about 40 to 60 for S2 alone.
+- u The gear's names: which text entries hold the weapon and armour names, checked on the owner's data (DataPiler 0.2.40, jobs en-0041 to en-0043) [done]
+  - refs: DATA§3.1, DESIGN§4.5, WHY§105
+  - gives: 2026-11-16: WeaponName (11) and ProtectorName (12) name 80.0% and 76.4% of the rows by row id, and no row needs the expansion's layers; DESIGN §4.5 lists them, and S2 checks them in game.
 
 ## S7 Open items
 

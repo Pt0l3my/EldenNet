@@ -127,6 +127,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 102 | 2026-11-16 | Wine 9.0 runs the Windows build, and its WinHTTP differs from Windows' in three ways | FACT | #engine #process |
 | 103 | 2026-11-16 | The design on C++: one mapping, the behaviour unchanged, and what the re-base found | METHOD | #engine #graceui #process |
 | 104 | 2026-11-16 | GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap | DECIDED | #graceui |
+| 105 | 2026-11-16 | The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers | FACT | #gamedata #datapiler |
 
 ## Entries
 
@@ -1909,3 +1910,19 @@ checkout), O68, O53
   `Connection: close`; static paths matched byte for byte; RFC 9112's and RFC 6455's strict rules;
   `SO_EXCLUSIVEADDRUSE`; one address shown, `127.0.0.1`, with a redirect for the other two loopback names (GraceUI
   D112, its §7.2 items 19 to 25 and §7.6).
+
+### 105. The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers
+
+`2026-11-16` · FACT · `#gamedata #datapiler` · refs: DESIGN§4.5, DATA§3.1, ER01§8.3, WHY§104
+
+- Source: DataPiler 0.2.40's jobs en-0041 to en-0043 on the owner's install (2.7.2.0, English text, Smithbox
+  2.2.6), counts only (`docs/research/eldenring/leads/gear-names.json`).
+- **Weapons:** 3,636 `EquipParamWeapon` rows; 2,909 (80.0%) find a name by their row id, every one of them in the base
+  table 11. **Armour:** 838 `EquipParamProtector` rows; 641 (76.4%) find one, all in 12. The rest have none, so a
+  piece without a name is left out of block 9, as a missing name is anywhere.
+- **The expansion's layers name no row.** The pattern from the character and place names (310 and 410 above the base
+  table) gives 321 and 421, 322 and 422, but every named row is already in 11 or 12. Those layers hold names no row
+  uses (weapons: 489 only in 321, 1 only in 421; armour: 22 and 1), as the base tables do (310 and 2); what they are is
+  not known, since names never leave the PC. The character names differ: 50 of 213 were only in their expansion layer
+  (en-0005).
+- So ER01's lead for the base tables holds, and DESIGN §4.5 lists them; S2 still checks them in game (gap 3).
