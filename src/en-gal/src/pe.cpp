@@ -38,6 +38,21 @@ const Section* ImageInfo::section_at(std::uint32_t rva) const noexcept {
   return nullptr;
 }
 
+FileSpan ImageInfo::file_span(const Section& s) const noexcept {
+  // The loader ignores PointerToRawData when SizeOfRawData is 0, maps at most the virtual size of the raw data, and
+  // reads nothing past the end of the file: the rest of the section is zeros. A PointerToRawData of 0 marks a section
+  // without raw data, as the specification has it for uninitialised data.
+  if (layout != ImageLayout::File || s.raw_size == 0 || s.raw_offset == 0 || s.raw_offset >= source_size) return {};
+  const std::uint64_t held = std::min<std::uint64_t>({s.raw_size, s.mapped_size(), source_size - s.raw_offset});
+  return FileSpan{s.raw_offset, static_cast<std::uint32_t>(held)};
+}
+
+bool ImageInfo::maps(std::uint32_t rva, std::uint32_t len) const noexcept {
+  if (rva < size_of_headers) return bytes::within(rva, len, size_of_headers);
+  const Section* s = section_at(rva);
+  return s != nullptr && bytes::within(rva - s->rva, len, s->mapped_size());
+}
+
 std::optional<std::uint64_t> ImageInfo::offset_of(std::uint32_t rva, std::uint32_t len) const noexcept {
   if (rva < size_of_headers) {  // the headers lie at the same place in a file and in memory
     if (!bytes::within(rva, len, size_of_headers)) return std::nullopt;
@@ -50,8 +65,27 @@ std::optional<std::uint64_t> ImageInfo::offset_of(std::uint32_t rva, std::uint32
     if (!bytes::within(into, len, s->mapped_size())) return std::nullopt;
     return rva;
   }
-  if (!bytes::within(into, len, s->raw_size)) return std::nullopt;  // past what the file holds of it
-  return std::uint64_t{s->raw_offset} + into;
+  const FileSpan held = file_span(*s);
+  if (!bytes::within(into, len, held.size)) return std::nullopt;  // past what the file holds of it
+  return held.offset + into;
+}
+
+bool read_mapped(const ImageInfo& image, const ByteSource& source, std::uint32_t rva,
+                 std::span<std::byte> dst) noexcept {
+  if (dst.size() > 0xFFFFFFFFu) return false;
+  const auto len = static_cast<std::uint32_t>(dst.size());
+  if (!image.maps(rva, len)) return false;
+  // The headers lie at the same place in a file and in memory, and a mapped image holds every section at its RVA.
+  if (image.layout == ImageLayout::Memory || rva < image.size_of_headers) return source.read(rva, dst);
+  const Section* s = image.section_at(rva);
+  if (s == nullptr) return false;
+  const FileSpan held = image.file_span(*s);
+  const std::uint64_t into = rva - s->rva;
+  const std::uint64_t from_file = into < held.size ? std::min<std::uint64_t>(len, held.size - into) : 0;
+  if (from_file != 0 && !source.read(held.offset + into, dst.first(static_cast<std::size_t>(from_file)))) return false;
+  const std::span<std::byte> zeros = dst.subspan(static_cast<std::size_t>(from_file));
+  std::fill(zeros.begin(), zeros.end(), std::byte{0});
+  return true;
 }
 
 const RuntimeFunction* ImageInfo::function_at(std::uint32_t rva) const noexcept {
@@ -75,7 +109,7 @@ const char* to_string(PeProblem problem) noexcept {
     case PeProblem::BadSizes: return "SizeOfHeaders or SizeOfImage is impossible";
     case PeProblem::TooManySections: return "there are too many sections";
     case PeProblem::BadSectionTable: return "the section table runs past the headers";
-    case PeProblem::BadSection: return "a section is out of order, overlaps another, or runs past the image or file";
+    case PeProblem::BadSection: return "a section is misplaced";
     case PeProblem::BadResourceDirectory: return "the resource directory is malformed";
     case PeProblem::BadVersionResource: return "the version resource is malformed";
     case PeProblem::BadExceptionDirectory: return "the exception directory is malformed";
@@ -85,10 +119,40 @@ const char* to_string(PeProblem problem) noexcept {
   return "the image is malformed";
 }
 
+namespace {
+
+std::string hex(std::uint64_t v) {
+  std::array<char, 24> text{};
+  std::snprintf(text.data(), text.size(), "0x%llx", static_cast<unsigned long long>(v));
+  return std::string(text.data());
+}
+
+}  // namespace
+
+std::string describe_numbers(std::uint32_t rva, std::uint32_t virtual_size, std::uint32_t raw_offset,
+                             std::uint32_t raw_size, std::uint32_t characteristics) {
+  return "va " + hex(rva) + " vsize " + hex(virtual_size) + " raw " + hex(raw_offset) + " rawsize " + hex(raw_size) +
+         " flags " + hex(characteristics);
+}
+
 std::string describe(const PeError& error) {
-  std::array<char, 32> at{};
-  std::snprintf(at.data(), at.size(), "0x%llx", static_cast<unsigned long long>(error.at));
-  return std::string(to_string(error.problem)) + " (at " + at.data() + ")";
+  std::string out = to_string(error.problem);
+  if (error.section) {
+    const SectionFault& f = *error.section;
+    out += ": section " + std::to_string(f.index);
+    switch (f.rule) {
+      case SectionRule::Unaligned: out += " is not aligned to the section alignment, " + hex(f.bound); break;
+      case SectionRule::Overlaps:
+        out += f.index == 0 ? std::string(" starts below the end of the headers, ")
+                            : " starts below the end of section " + std::to_string(f.index - 1) + ", ";
+        out += hex(f.bound);
+        break;
+      case SectionRule::PastImage: out += " ends past the end of the image, " + hex(f.bound); break;
+      case SectionRule::RawWraps: out += "'s raw data ends past 4 GiB"; break;
+    }
+    out += "; " + describe_numbers(f.rva, f.virtual_size, f.raw_offset, f.raw_size, f.characteristics);
+  }
+  return out + " (at " + hex(error.at) + ")";
 }
 
 namespace {
@@ -117,12 +181,13 @@ Expected<std::vector<std::byte>, PeError> fetch(const ByteSource& source, std::u
   return out;
 }
 
-// Copies [rva, rva + len) of the image, where it lies within the headers or one section.
+// Copies [rva, rva + len) of the image as the loader maps it, where it lies within the headers or one section.
 Expected<std::vector<std::byte>, PeError> fetch_rva(const ImageInfo& image, const ByteSource& source, std::uint32_t rva,
                                                     std::uint32_t len, PeProblem otherwise) {
-  const std::optional<std::uint64_t> offset = image.offset_of(rva, len);
-  if (!offset) return Unexpected{at(otherwise, rva)};
-  return fetch(source, *offset, len);
+  if (!image.maps(rva, len)) return Unexpected{at(otherwise, rva)};
+  std::vector<std::byte> out(len);
+  if (!read_mapped(image, source, rva, out)) return Unexpected{at(PeProblem::Unreadable, rva)};
+  return out;
 }
 
 // ---- Sections ----
@@ -137,21 +202,41 @@ std::string section_name(std::span<const std::byte> raw) {
   return name;
 }
 
+// The loader's rules on sections (SectionRule), and nothing more: their virtual ranges ascending, disjoint, aligned
+// and within the image, and no raw range that wraps. Raw ranges are otherwise free: in any order, overlapping, shared,
+// empty, or past the end of the file (file_span reads what the file holds, and the rest maps as zeros). A section of
+// no size at all is let through: nothing of it is ever read.
 Expected<void, PeError> check_sections(const ImageInfo& image, std::uint64_t table_at) {
+  // The loader maps whole pages and rounds SizeOfImage up to them; a section's span is rounded to SectionAlignment.
+  constexpr std::uint32_t kPage = 0x1000;
+  const std::uint64_t image_end =
+      bytes::align_up(image.size_of_image, std::max(image.section_alignment, kPage)).value_or(0);
   std::uint64_t next_free = image.size_of_headers;  // the lowest RVA the next section may start at
   for (std::size_t i = 0; i < image.sections.size(); ++i) {
     const Section& s = image.sections[i];
-    const std::uint64_t where = table_at + std::uint64_t{kSectionHeaderSize} * i;
-    const std::optional<std::uint64_t> span = bytes::align_up(s.mapped_size(), image.section_alignment);
-    if (!span || s.rva < next_free || s.rva % image.section_alignment != 0 ||
-        !bytes::within(s.rva, *span, image.size_of_image)) {
-      return Unexpected{at(PeProblem::BadSection, where)};
+    const auto refuse = [&](SectionRule rule, std::uint64_t bound) {
+      SectionFault f;
+      f.rule = rule;
+      f.index = static_cast<std::uint32_t>(i);
+      f.bound = bound;
+      f.rva = s.rva;
+      f.virtual_size = s.virtual_size;
+      f.raw_offset = s.raw_offset;
+      f.raw_size = s.raw_size;
+      f.characteristics = s.characteristics;
+      PeError e = at(PeProblem::BadSection, table_at + std::uint64_t{kSectionHeaderSize} * i);
+      e.section = f;
+      return Unexpected{e};
+    };
+    if (s.rva % image.section_alignment != 0) return refuse(SectionRule::Unaligned, image.section_alignment);
+    if (s.rva < next_free) return refuse(SectionRule::Overlaps, next_free);
+    // Both below 2^32 and the alignment a power of two of 32 bits: the sum cannot wrap 64 bits.
+    const std::uint64_t end = std::uint64_t{s.rva} + bytes::align_up(s.mapped_size(), image.section_alignment).value_or(0);
+    if (end > image_end) return refuse(SectionRule::PastImage, image_end);
+    if (s.raw_size != 0 && std::uint64_t{s.raw_offset} + s.raw_size > 0xFFFFFFFFu) {
+      return refuse(SectionRule::RawWraps, 0);
     }
-    if (image.layout == ImageLayout::File && s.raw_size != 0 &&
-        !bytes::within(s.raw_offset, s.raw_size, image.source_size)) {
-      return Unexpected{at(PeProblem::BadSection, where)};
-    }
-    next_free = std::uint64_t{s.rva} + *span;
+    next_free = end;
   }
   return {};
 }
@@ -415,16 +500,15 @@ Expected<std::vector<RuntimeFunction>, PeError> read_functions(const ImageInfo& 
   if (size % kRuntimeFunctionSize != 0) return Unexpected{bad};
   const std::uint32_t count = size / kRuntimeFunctionSize;
   if (count > limits.max_functions) return Unexpected{at(PeProblem::TooManyFunctions, rva)};
-  const std::optional<std::uint64_t> offset = image.offset_of(rva, size);
-  if (!offset) return Unexpected{bad};
+  if (!image.maps(rva, size)) return Unexpected{bad};
   std::vector<RuntimeFunction> functions;
   functions.reserve(count);
   constexpr std::uint32_t kChunkEntries = 5461;  // 65,532 bytes a copy
   std::uint32_t last_end = 0;
   for (std::uint32_t first = 0; first < count; first += kChunkEntries) {
     const std::uint32_t n = std::min(kChunkEntries, count - first);
-    const auto raw =
-        fetch(source, *offset + std::uint64_t{first} * kRuntimeFunctionSize, std::uint64_t{n} * kRuntimeFunctionSize);
+    const auto raw = fetch_rva(image, source, rva + first * kRuntimeFunctionSize, n * kRuntimeFunctionSize,
+                               PeProblem::BadExceptionDirectory);
     if (!raw) return Unexpected{raw.error()};
     for (std::uint32_t i = 0; i < n; ++i) {
       const std::uint64_t e = std::uint64_t{i} * kRuntimeFunctionSize;
@@ -442,13 +526,17 @@ Expected<std::vector<RuntimeFunction>, PeError> read_functions(const ImageInfo& 
   return functions;
 }
 
-}  // namespace
+// ---- The headers and the section table ----
 
-Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout layout, const PeLimits& limits) {
-  ImageInfo image;
-  image.layout = layout;
-  image.source_size = source.size();
+struct Headers {
+  std::uint32_t opt_at = 0;
+  std::uint64_t table_at = 0;
+  std::uint32_t section_count = 0;
+};
 
+// The DOS header, the NT headers and the optional header, into `image`'s fields and data directories, with only the
+// checks a safe read of them needs.
+Expected<Headers, PeError> read_headers(const ByteSource& source, const PeLimits& limits, ImageInfo& image) {
   // The DOS header: "MZ", and where the NT headers start.
   if (image.source_size < 64) return Unexpected{at(PeProblem::NoDosHeader, 0)};
   const auto dos = fetch(source, 0, 64);
@@ -464,21 +552,24 @@ Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout la
   if (!head) return Unexpected{head.error()};
   if (bytes::u32(*head, 0).value_or(0) != 0x00004550) return Unexpected{at(PeProblem::NoPeSignature, nt)};
   if (bytes::u16(*head, 4).value_or(0) != kMachineAmd64) return Unexpected{at(PeProblem::NotAmd64, nt + 4)};
-  const std::uint32_t section_count = bytes::u16(*head, 6).value_or(0);
+  Headers h;
+  h.section_count = bytes::u16(*head, 6).value_or(0);
   image.time_date_stamp = bytes::u32(*head, 8).value_or(0);
   const std::uint32_t optional_size = bytes::u16(*head, 20).value_or(0);
   image.characteristics = bytes::u16(*head, 22).value_or(0);
-  if (section_count > limits.max_sections) return Unexpected{at(PeProblem::TooManySections, nt + 6)};
+  if (h.section_count > limits.max_sections) return Unexpected{at(PeProblem::TooManySections, nt + 6)};
 
   // The optional header.
-  const std::uint32_t opt_at = nt + 4 + kFileHeaderSize;
+  h.opt_at = nt + 4 + kFileHeaderSize;
   if (optional_size < kOptionalFixedSize || optional_size > kMaxOptionalHeaderSize) {
     return Unexpected{at(PeProblem::BadOptionalHeader, nt + 20)};
   }
-  if (!bytes::within(opt_at, optional_size, image.source_size)) return Unexpected{at(PeProblem::Unreadable, opt_at)};
-  const auto opt = fetch(source, opt_at, optional_size);
+  if (!bytes::within(h.opt_at, optional_size, image.source_size)) {
+    return Unexpected{at(PeProblem::Unreadable, h.opt_at)};
+  }
+  const auto opt = fetch(source, h.opt_at, optional_size);
   if (!opt) return Unexpected{opt.error()};
-  if (bytes::u16(*opt, 0).value_or(0) != kMagicPe32Plus) return Unexpected{at(PeProblem::NotPe32Plus, opt_at)};
+  if (bytes::u16(*opt, 0).value_or(0) != kMagicPe32Plus) return Unexpected{at(PeProblem::NotPe32Plus, h.opt_at)};
   image.entry_point = bytes::u32(*opt, 16).value_or(0);
   image.image_base = bytes::u64(*opt, 24).value_or(0);
   image.section_alignment = bytes::u32(*opt, 32).value_or(0);
@@ -489,36 +580,24 @@ Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout la
   image.dll_characteristics = bytes::u16(*opt, 70).value_or(0);
   const std::uint32_t directories = bytes::u32(*opt, 108).value_or(0);
   if (directories > 16 || kOptionalFixedSize + 8 * directories > optional_size) {
-    return Unexpected{at(PeProblem::BadOptionalHeader, opt_at + 108)};
+    return Unexpected{at(PeProblem::BadOptionalHeader, h.opt_at + 108)};
   }
   for (std::uint32_t i = 0; i < directories && i < image.directories.size(); ++i) {
     image.directories[i] = DataDirectory{bytes::u32(*opt, kOptionalFixedSize + 8 * i).value_or(0),
                                          bytes::u32(*opt, kOptionalFixedSize + 8 * i + 4).value_or(0)};
   }
-  const auto directory = [&](std::uint32_t index) -> std::pair<std::uint32_t, std::uint32_t> {
-    if (index >= directories) return {0, 0};
-    return {bytes::u32(*opt, kOptionalFixedSize + 8 * index).value_or(0),
-            bytes::u32(*opt, kOptionalFixedSize + 8 * index + 4).value_or(0)};
-  };
+  h.table_at = std::uint64_t{h.opt_at} + optional_size;
+  return h;
+}
 
-  if (!bytes::is_power_of_two(image.section_alignment) || !bytes::is_power_of_two(image.file_alignment) ||
-      image.file_alignment > image.section_alignment) {
-    return Unexpected{at(PeProblem::BadAlignment, opt_at + 32)};
-  }
-  const std::uint64_t table_at = std::uint64_t{opt_at} + optional_size;
-  const std::uint64_t table_end = table_at + std::uint64_t{kSectionHeaderSize} * section_count;
-  if (image.size_of_image == 0 || image.size_of_headers > image.size_of_image ||
-      image.size_of_headers > image.source_size ||
-      (layout == ImageLayout::Memory && image.size_of_image > image.source_size)) {
-    return Unexpected{at(PeProblem::BadSizes, opt_at + 56)};
-  }
-  if (table_end > image.size_of_headers) return Unexpected{at(PeProblem::BadSectionTable, table_at)};
-
-  // The section table.
-  const auto table = fetch(source, table_at, table_end - table_at);
+// The section table's `count` entries at `table_at`, as they stand.
+Expected<std::vector<Section>, PeError> read_table(const ByteSource& source, std::uint64_t table_at,
+                                                   std::uint32_t count) {
+  const auto table = fetch(source, table_at, std::uint64_t{kSectionHeaderSize} * count);
   if (!table) return Unexpected{table.error()};
-  image.sections.reserve(section_count);
-  for (std::uint32_t i = 0; i < section_count; ++i) {
+  std::vector<Section> sections;
+  sections.reserve(count);
+  for (std::uint32_t i = 0; i < count; ++i) {
     const std::uint64_t s = std::uint64_t{i} * kSectionHeaderSize;
     Section section;
     section.name = section_name(std::span<const std::byte>(*table).subspan(static_cast<std::size_t>(s), 8));
@@ -527,15 +606,64 @@ Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout la
     section.raw_size = bytes::u32(*table, s + 16).value_or(0);
     section.raw_offset = bytes::u32(*table, s + 20).value_or(0);
     section.characteristics = bytes::u32(*table, s + 36).value_or(0);
-    image.sections.push_back(std::move(section));
+    sections.push_back(std::move(section));
   }
+  return sections;
+}
+
+}  // namespace
+
+Expected<SectionTable, PeError> read_section_table(const ByteSource& source, const PeLimits& limits) {
+  ImageInfo image;
+  image.source_size = source.size();
+  const auto headers = read_headers(source, limits, image);
+  if (!headers) return Unexpected{headers.error()};
+  auto sections = read_table(source, headers->table_at, headers->section_count);
+  if (!sections) return Unexpected{sections.error()};
+  SectionTable table;
+  table.source_size = image.source_size;
+  table.size_of_image = image.size_of_image;
+  table.size_of_headers = image.size_of_headers;
+  table.section_alignment = image.section_alignment;
+  table.file_alignment = image.file_alignment;
+  table.sections = std::move(*sections);
+  return table;
+}
+
+Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout layout, const PeLimits& limits) {
+  ImageInfo image;
+  image.layout = layout;
+  image.source_size = source.size();
+  const auto headers = read_headers(source, limits, image);
+  if (!headers) return Unexpected{headers.error()};
+  const std::uint64_t table_at = headers->table_at;
+  const auto directory = [&](std::size_t index) {
+    return std::pair{image.directories[index].rva, image.directories[index].size};
+  };
+
+  if (!bytes::is_power_of_two(image.section_alignment) || !bytes::is_power_of_two(image.file_alignment) ||
+      image.file_alignment > image.section_alignment) {
+    return Unexpected{at(PeProblem::BadAlignment, headers->opt_at + 32)};
+  }
+  const std::uint64_t table_end = table_at + std::uint64_t{kSectionHeaderSize} * headers->section_count;
+  if (image.size_of_image == 0 || image.size_of_headers > image.size_of_image ||
+      image.size_of_headers > image.source_size ||
+      (layout == ImageLayout::Memory && image.size_of_image > image.source_size)) {
+    return Unexpected{at(PeProblem::BadSizes, headers->opt_at + 56)};
+  }
+  if (table_end > image.size_of_headers) return Unexpected{at(PeProblem::BadSectionTable, table_at)};
+
+  // The section table, and the loader's rules on it.
+  auto sections = read_table(source, table_at, headers->section_count);
+  if (!sections) return Unexpected{sections.error()};
+  image.sections = std::move(*sections);
   if (const auto checked = check_sections(image, table_at); !checked) return Unexpected{checked.error()};
 
   // The version resource, where there is one.
   if (const auto [rsrc, rsrc_size] = directory(kDirResource); rsrc != 0 && rsrc_size != 0) {
     // Within the image, so that no offset from its root can pass 32 bits.
     if (!bytes::within(rsrc, rsrc_size, image.size_of_image) ||
-        !image.offset_of(rsrc, std::min<std::uint32_t>(rsrc_size, 16))) {
+        !image.maps(rsrc, std::min<std::uint32_t>(rsrc_size, 16))) {
       return Unexpected{at(PeProblem::BadResourceDirectory, rsrc)};
     }
     const auto found = find_version(image, source, rsrc, rsrc_size, limits);
@@ -593,10 +721,9 @@ Expected<std::vector<Fixup>, PeError> read_relocations(const ImageInfo& image, c
 std::optional<bool> is_fragment(const ImageInfo& image, const ByteSource& source,
                                 const RuntimeFunction& function) noexcept {
   if ((function.unwind & 1u) != 0) return true;  // an entry that points at another entry
-  const std::optional<std::uint64_t> offset = image.offset_of(function.unwind, 4);
-  if (!offset) return std::nullopt;
+  if (!image.maps(function.unwind, 4)) return std::nullopt;
   std::array<std::byte, 1> first{};
-  if (!source.read(*offset, first)) return std::nullopt;
+  if (!read_mapped(image, source, function.unwind, first)) return std::nullopt;
   const unsigned flags = std::to_integer<unsigned>(first[0]) >> 3;
   constexpr unsigned kChainInfo = 0x4;  // UNW_FLAG_CHAININFO
   return (flags & kChainInfo) != 0;

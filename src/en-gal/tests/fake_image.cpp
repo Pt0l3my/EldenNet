@@ -207,7 +207,7 @@ BuiltImage build(const FakeImageSpec& spec) {
     sections.push_back(FakeSection{".reloc", kReadOnly, reloc, 0});
     out.reloc_rva = place(static_cast<std::uint32_t>(reloc.size()));
   }
-  out.size_of_image = rva;
+  out.size_of_image = spec.size_of_image.value_or(rva);
 
   // The headers.
   std::vector<std::uint8_t> headers(kHeadersSize, 0);
@@ -242,34 +242,62 @@ BuiltImage build(const FakeImageSpec& spec) {
     put(headers, kOptionalAt + 112 + 8 * 5 + 4, reloc.size(), 4);
   }
   std::uint32_t raw = kHeadersSize;
-  std::vector<std::uint32_t> raws;
+  std::vector<std::uint32_t> raws;      // PointerToRawData as written
+  std::vector<std::uint32_t> raw_sizes;  // SizeOfRawData as written
+  std::vector<std::uint32_t> virtual_sizes;
   for (std::size_t i = 0; i < sections.size(); ++i) {
     const FakeSection& s = sections[i];
     const std::size_t h = kSectionTableAt + 40 * i;
     for (std::size_t c = 0; c < s.name.size() && c < 8; ++c) headers[h + c] = static_cast<std::uint8_t>(s.name[c]);
     const std::uint32_t size = static_cast<std::uint32_t>(s.bytes.size());
-    const std::uint32_t raw_size = align(size, kFileAlign);
-    put(headers, h + 8, s.virtual_size != 0 ? s.virtual_size : size, 4);
+    std::uint32_t raw_size = align(size, kFileAlign);
+    std::uint32_t raw_at = raw_size != 0 ? raw : 0;
+    const auto by_hand =
+        std::find_if(spec.raw.begin(), spec.raw.end(), [&](const FakeRaw& r) { return r.section == i; });
+    if (by_hand != spec.raw.end()) {
+      raw_size = by_hand->raw_size;
+      raw_at = by_hand->raw_offset;
+    } else {
+      raw += raw_size;
+    }
+    virtual_sizes.push_back(s.virtual_size != 0 ? s.virtual_size : size);
+    put(headers, h + 8, virtual_sizes.back(), 4);
     put(headers, h + 12, rvas[i], 4);
     put(headers, h + 16, raw_size, 4);
-    put(headers, h + 20, raw_size != 0 ? raw : 0, 4);
+    put(headers, h + 20, raw_at, 4);
     put(headers, h + 36, s.characteristics, 4);
-    raws.push_back(raw);
-    raw += raw_size;
+    raws.push_back(raw_at);
+    raw_sizes.push_back(raw_size);
     out.rva[s.name] = rvas[i];
   }
 
-  // The file, and the image as mapped.
+  // The file: the headers, then each section's bytes where its PointerToRawData says.
   std::vector<std::uint8_t> file(raw, 0);
-  std::vector<std::uint8_t> memory(out.size_of_image, 0);
   std::copy(headers.begin(), headers.end(), file.begin());
-  std::copy(headers.begin(), headers.end(), memory.begin());
+  // Bytes at or past a given file size are not written at all, so that a raw range may lie far past the file's end.
+  const std::size_t limit = spec.file_size.value_or(0xFFFFFFFFu);
   for (std::size_t i = 0; i < sections.size(); ++i) {
-    std::copy(sections[i].bytes.begin(), sections[i].bytes.end(), file.begin() + raws[i]);
-    const std::size_t mapped = std::min<std::size_t>(
-        sections[i].bytes.size(), sections[i].virtual_size != 0 ? sections[i].virtual_size : sections[i].bytes.size());
-    std::copy(sections[i].bytes.begin(), sections[i].bytes.begin() + static_cast<std::ptrdiff_t>(mapped),
-              memory.begin() + rvas[i]);
+    const std::size_t end = std::min<std::size_t>(std::size_t{raws[i]} + sections[i].bytes.size(), limit);
+    if (raws[i] == 0 || raws[i] >= end) continue;
+    if (file.size() < end) file.resize(end, 0);
+    std::copy_n(sections[i].bytes.begin(), end - raws[i], file.begin() + raws[i]);
+  }
+  if (spec.file_size) file.resize(*spec.file_size, 0);
+
+  // The image as the loader maps the file, written plainly here: each section's raw data (none when SizeOfRawData or
+  // PointerToRawData is 0), at most its virtual size, as far as the file holds it; zeros for the rest.
+  std::vector<std::uint8_t> memory;
+  if (spec.with_memory) {
+    memory.assign(std::max<std::size_t>(rva, out.size_of_image), 0);
+    std::copy(headers.begin(), headers.end(), memory.begin());
+    for (std::size_t i = 0; i < sections.size(); ++i) {
+      if (raws[i] == 0 || raw_sizes[i] == 0) continue;
+      const std::size_t mapped = virtual_sizes[i] != 0 ? virtual_sizes[i] : raw_sizes[i];
+      for (std::size_t k = 0; k < std::min<std::size_t>(raw_sizes[i], mapped); ++k) {
+        if (std::size_t{raws[i]} + k >= file.size() || std::size_t{rvas[i]} + k >= memory.size()) break;
+        memory[rvas[i] + k] = file[raws[i] + k];
+      }
+    }
   }
   out.file.resize(file.size());
   std::transform(file.begin(), file.end(), out.file.begin(), [](std::uint8_t b) { return std::byte{b}; });
