@@ -53,15 +53,17 @@ struct Ctx {
   Ctx sub(std::string inner) const { return Ctx{file, std::move(inner)}; }
 };
 
+// toml++ is built without exceptions in every module (CMakeLists.txt), so its parse answers a result.
 toml::table parse_toml(const std::string& file, std::string_view text, bool secret) {
-  try {
-    return toml::parse(text, file);
-  } catch (const toml::parse_error& e) {
+  toml::parse_result result = toml::parse(text, file);
+  if (!result) {
+    const toml::parse_error& e = result.error();
     const auto line = std::to_string(e.source().begin.line);
     // The parser's description can quote the text it stopped at, which in secrets.toml may be a key.
     if (secret) throw ConfigError(file, "not valid TOML near line " + line);
     throw ConfigError(file, std::string(e.description()) + " (line " + line + ")");
   }
+  return std::move(result).table();
 }
 
 void check_keys(const toml::table& table, std::initializer_list<std::string_view> allowed, const Ctx& ctx) {

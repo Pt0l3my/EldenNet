@@ -41,6 +41,12 @@ endif()
 # harness.py lists a case that needs a path only when it is given.
 set(_en_have "")
 set(_en_set "")
+# The derivation's offline round (part 3): the Windows eldennet-engine.exe, run under Wine on fakegame.exe with the fake
+# game's leads (derive-leads.toml), against what --describe says.
+if(TARGET eldennet-engine)
+  list(APPEND _en_have engine leads)
+  list(APPEND _en_set --set engine=$<TARGET_FILE:eldennet-engine> --set leads=${CMAKE_CURRENT_SOURCE_DIR}/derive-leads.toml)
+endif()
 
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_harness})

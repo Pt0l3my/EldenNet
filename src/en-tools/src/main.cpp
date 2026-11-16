@@ -1,5 +1,6 @@
 // eldennet-engine: runs EldenNet's engine outside the game (roadmap S8.1.a, S8.1.g).
-// Each subcommand lives in its own file: render_prompt.cpp, chat.cpp, decide.cpp, probe.cpp (probe and models).
+// Each subcommand lives in its own file: render_prompt.cpp, chat.cpp, decide.cpp, probe.cpp (probe and models),
+// probe_exe.cpp (the derivation's offline round) and lint.cpp (lint --report).
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -9,6 +10,8 @@ int run_chat(int argc, char** argv);
 int run_decide(int argc, char** argv);
 int run_probe(int argc, char** argv);
 int run_models(int argc, char** argv);
+int run_probe_exe(int argc, char** argv);
+int run_lint(int argc, char** argv);
 
 namespace {
 void usage() {
@@ -19,6 +22,8 @@ void usage() {
       "  decide         ask a decision of a configured slot\n"
       "  probe          find the local model servers on this PC's usual ports\n"
       "  models         list the models each configured provider offers\n"
+      "  probe-exe      read a game's executable file and derive what the game access layer needs (devkit)\n"
+      "  lint           check a numbers-only report (--report)\n"
       "  version        print the version\n",
       stderr);
 }
@@ -35,6 +40,8 @@ int main(int argc, char** argv) {
   if (cmd == "decide") return run_decide(argc - 1, argv + 1);
   if (cmd == "probe") return run_probe(argc - 1, argv + 1);
   if (cmd == "models") return run_models(argc - 1, argv + 1);
+  if (cmd == "probe-exe") return run_probe_exe(argc - 1, argv + 1);
+  if (cmd == "lint") return run_lint(argc - 1, argv + 1);
   if (cmd == "version") {
     std::puts("eldennet-engine 0.0.1");
     return 0;
