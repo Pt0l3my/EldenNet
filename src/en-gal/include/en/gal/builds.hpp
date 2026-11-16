@@ -58,6 +58,20 @@ struct Fingerprint {
   std::uint32_t size_of_image = 0;
 };
 
+// A product name with its symbols removed: the trademark, registered and copyright signs and their like (the Latin-1
+// symbols U+00A1 to U+00BF, U+00D7 and U+00F7; general punctuation U+2010 to U+205E; the letterlike symbols U+2100 to
+// U+214F; arrows, mathematical and technical signs U+2190 to U+23FF; enclosed alphanumerics U+2460 to U+24FF; box
+// drawing, shapes, symbols and dingbats U+2500 to U+27BF) and zero-width characters, with every run of spaces (U+0020,
+// U+00A0, U+2000 to U+200A, U+202F, U+205F, U+3000) made one ASCII space and none at either end. ASCII letters,
+// digits and punctuation, and every other letter, are kept as they are; a byte that is not UTF-8 is kept too.
+[[nodiscard]] std::string without_symbols(std::string_view utf8);
+// How many characters (code points; a byte that is not UTF-8 counts as one) a UTF-8 text holds.
+[[nodiscard]] std::size_t characters(std::string_view utf8) noexcept;
+// Whether two product names are the same once their symbols are removed, so that a trademark sign in the version
+// resource does not fail the gate (ARCH §6.3): a name with U+2122 after it and the name alone agree; "NAME" and
+// "NAME 2", or two names that are only symbols, do not.
+[[nodiscard]] bool same_product_name(std::string_view a, std::string_view b);
+
 // The image's fingerprint, or nothing when it has no version resource or no ProductName.
 [[nodiscard]] std::optional<Fingerprint> fingerprint(const ImageInfo& image);
 

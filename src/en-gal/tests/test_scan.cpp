@@ -303,3 +303,45 @@ TEST_CASE("every section is scanned once, for every pattern in it, and the chunk
   }
   CHECK(std::string(to_string(HitProblem::NearEntry)) == "a hit starts before entry + anchor_min");
 }
+
+TEST_CASE("an idiom may have thousands of hits: every inlined accessor is one, and the scan keeps them all") {
+  // 5117 hits of a short idiom (more than kMaxPatternHits), each in the functions' code; none lands where it must, so
+  // all are rejected, but the pattern resolves: its count is within expect_matches and every hit was examined.
+  Scene scene;
+  scene.text().assign(0x3000, 0x00);
+  constexpr std::string_view kShort = "D5 D5 D5 D5 ?? ?? ?? ??";  // matches at every offset of a run of D5
+  for (std::uint32_t a = 0; a < 0x1400; ++a) scene.text()[a] = 0xD5;
+  const std::uint32_t planted = 0x1400 - 3;  // the last four fixed bytes end the run
+  REQUIRE(planted > kMaxPatternHits);
+  PatternSpec spec;
+  spec.id = "invented_idiom";
+  spec.kind = PatternKind::Idiom;
+  spec.section = ".text";
+  spec.bytes = *parse_pattern(kShort);
+  spec.expect_min = 1;
+  spec.expect_max = kMaxIdiomHits;
+  spec.captures = {IdiomCapture{"slot", Capture{1, 5}, ".data", 8, false}};
+  const PatternResult r = scan_one(scene.build_checked(), spec);
+  CHECK(r.resolved());
+  CHECK(r.count == planted);
+  CHECK(r.hits.size() == planted);
+  CHECK(r.idiom_hits.size() + r.idiom_rejected == planted);
+  // A static's hits are still kept to kMaxPatternHits beside it.
+  PatternSet set;
+  set.patterns.push_back(spec);
+  PatternSpec st = spec;
+  st.id = "invented_static";
+  st.kind = PatternKind::Static;
+  st.capture = Capture{1, 5};
+  st.target_section = ".data";
+  st.expect_max = kMaxPatternHits;
+  set.patterns.push_back(st);
+  const BuiltImage built = scene.build_checked();
+  const SpanSource source(built.memory);
+  const auto image = read_image(source, ImageLayout::Memory);
+  REQUIRE(image.has_value());
+  const ScanReport report = scan_patterns(*image, source, set);
+  CHECK(report.results[0].hits.size() == planted);
+  CHECK(report.results[1].hits.size() == kMaxPatternHits);
+  CHECK(report.results[1].problem == HitProblem::Count);
+}

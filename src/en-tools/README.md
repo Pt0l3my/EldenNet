@@ -48,7 +48,10 @@ build, `gal/leads.toml`, `README-R0.txt` (what the tool reads, writes and never 
 `LICENSE.txt`, `THIRD_PARTY.md`, `THIRD-PARTY-NOTICES.txt` (the three libraries' licences) and `SHA256SUMS`, which
 DataPiler 0.2.41's `probe_exe` step checks the tool and the leads file against before it runs them.
 `EldenNet-devkit-R0b.zip` is the same package with the reader that keeps only the loader's rules on sections, and
-`--sections` (README-R0.txt says how to run it); derive.json's format is unchanged.
+`--sections` (README-R0.txt says how to run it); derive.json's format is unchanged. `EldenNet-devkit-R0c.zip`, for the
+second offline run, carries the kit R0's review asked for (the FD4 finder's path search and its decoding of each hit,
+an idiom's 65,536 hits, tables of wider entries, the product name without symbols, and the diagnostics below) in the
+same folder, `EldenNet-devkit-R0`, with the same command lines, so DataPiler 0.2.41's job runs it unchanged.
 
 **For DataPiler's job (roadmap S7.11.h).** Exit codes:
 
@@ -77,17 +80,38 @@ and decodes `.text` a few times over: here about 3.5 million instructions a seco
 code; with `--static`, each static adds up to 16 passes over `.text`.
 
 **derive.json** (`"report": "derive"`, `"schema": 1`): `complete`; `image` (the fingerprint: file size, image base,
-TimeDateStamp, SizeOfImage, FileVersion and ProductVersion, `region` ww, jp or other, `product_name` matches, differs,
-absent or not_given, the translation, the section table with the usual names or `other`); `fd4` (the path strings and
-their references, the idiom's pattern, captures and hits, part 2's scan's verdict on it, the name layout, the hits
-accepted and refused by reason, and each singleton by label with its static, class object, getter and sites);
-`rtti` (the locators and vtables found, each vtable set's primary and subobject vtables, the task classes' vtables,
-slots and run slot); `register` (the candidates, best first, each with its callee, call sites, argument registers and
-whether they agree, and the first one's pattern); `group` (the index candidates and where they came from); `statics`
-(each static's class vtable, slot, references and pattern); `confirm` (what R1 must confirm, as fixed items with a label
-or a number); `stats` (instructions decoded, bytes that did not decode, base relocations). Every pattern carries its
-length, fixed bytes, where it hit, its function's entry and length, its anchor (at least 5), its matches in `.text` (1)
-and whether part 2's scan resolved it.
+TimeDateStamp, SizeOfImage, FileVersion and ProductVersion, `region` ww, jp or other, `product_name` matches (once
+symbols are removed), differs, absent or not_given, the translation, the section table with the usual names or `other`);
+`fd4` (the path strings and their references, the idiom's pattern, captures and hits, part 2's scan's verdict on it, the
+name layout, the hits accepted and refused by reason, and each singleton by label with its static, class object, getter
+and sites); `rtti` (the locators and vtables found, each vtable set's primary and subobject vtables, the task classes'
+vtables, slots and run slot); `register` (the candidates, best first, each with its callee, call sites, argument
+registers and whether they agree, and the first one's pattern); `group` (the index candidates and where they came from);
+`statics` (each static's class vtable, slot, references and pattern); `confirm` (what R1 must confirm, as fixed items
+with a label or a number); `stats` (instructions decoded, bytes that did not decode, base relocations). Every pattern
+carries its length, fixed bytes, where it hit, its function's entry and length, its anchor (at least 5), its matches in
+`.text` (1) and whether part 2's scan resolved it.
+
+**What R0c changed in derive.json, within schema 1.** DataPiler 0.2.41's guard checks a report against its own copy of
+schema 1's vocabulary, every key and every word: a new key, or a new word such as `matches_without_symbols`, would make
+it refuse the whole report. So R0c adds no key and no word. `product_name` is `matches` when the names agree once
+symbols are removed (the gate compares so too), and every diagnostic below uses schema 1's keys, nested where they say
+what they count. A new key waits for a schema 2 and a DataPiler that reads it.
+
+| Where | What it holds |
+|---|---|
+| `image.names` | `of`: the characters of the version resource's ProductName; `agree`: those left once symbols are removed. Fewer means it matched without them |
+| `fd4.refused` | R0c's finder, by reason: `unreadable` now also counts a hit that does not decode as the idiom (its static, class object or path not a RIP-relative operand, its getter no relative call) |
+| `group` | `references`: instructions addressing the name; `matches`: 8-aligned pointers to it. Each candidate: `length` the stride of its entries (8 for plain pointers), `entries`, `index` (its place), `offset` how far before the name pointer code addresses the entry (its start; 0 where code addresses the name field itself), `encoding`, `value` the index field its entries hold, if one holds its place plus a constant. Tables of two entries or more come first, then code, then lone pointers (`entries` 1), which give no index |
+| `statics[].matches` | Type descriptors of a class or struct of the class's own name, in any namespace (0: no RTTI by that name anywhere) |
+| `stats.sections` | Every executable section, decoded through as `.text` is: `section`, `rva`, `virtual_size`, `instructions`, `undecodable` (bytes stepped over), `entries` (runs of them), `hits` (runs right after an instruction that does not fall through: data after code), `matches` (runs whose first byte is a VEX, EVEX or XOP escape: C4, C5, 62, 8F), `functions` (undecodable bytes inside functions of the exception directory), `path_references` (instructions addressing an FD4 path string) |
+| `stats.fd4.candidates` | Per reference to a path, what the site search found, as `index` and `references` (the count): 0 a site; 1 decoding from the function's entry does not land on the reference; 2 a head whose jump does not pass it; 3 no head but a compare of a RIP-relative quadword with zero before it; 4 no head but a 64-bit load of a `.data` static before it; 5 none of these within 24 instructions before it |
+| `stats.fd4.sets` | The head shapes, largest first (8 at most): `index` (rank), `sites`, `sites_matched` (of them, matched by the idiom) |
+| `stats.fd4.captures` | Where the idiom's sites load their paths, as their references show (16 largest buckets): `capture` path, `at` (the displacement's offset from the site's start) and `insn_end`, `length`, `index` (references into `.rdata` between the jump and it), `slot` (the register it writes, 0 rax to 15 r15), `value` (its opcode: map × 256 + byte; 141 lea, 139 mov from memory, 184 to 191 mov of a 64-bit immediate), `sites` (the count) |
+| `stats.fd4.idiom` | `hits`: the idiom's; `captures`: where R0c's finder found each accepted hit's path, as above but `hits` for the count, and `anchor` (bytes before the hit) for a load hoisted before the head instead of `at` and `insn_end` |
+| `stats.fd4.accepted`, `stats.fd4.refused` | R0's rule over the same hits, for the comparison: no decoding, and the first reference into `.rdata` after the pattern taken for the path |
+| `stats.fd4.names` | Of the accepted hits' class objects: `of` how many, `agree` how many the best name layout reads (with its `offset` and `encoding`, even under half), `fixups` how many have a base relocation in their first 128 bytes (a pointer the file initialises), `unreadable` how many lie past the raw data the file holds of their section (zeros until the game writes them) |
+| `stats.fd4.classes`, `loads`, `calls` | Distinct class objects, statics and getters of the accepted hits |
 
 ## lint --report
 

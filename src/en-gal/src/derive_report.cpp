@@ -1,6 +1,11 @@
 // derive.json (derive.hpp): the derivation's result through the numbers-only writer (report.hpp). Its vocabulary is
 // closed: fixed keys, fixed words, the leads' labels, numbers and patterns of at most 64 bytes. Section names outside
 // the usual ones are written as "other", and no name, string or path read from the executable has a key to go under.
+//
+// The vocabulary is schema 1's as DataPiler 0.2.41's guard holds a copy of it (its derive.py): a key or a word added
+// here would make that guard refuse the whole report. So the diagnostics R0c added (under "stats", and a few counts
+// beside the results) use schema 1's keys only, nested where they say what they count; src/en-tools/README.md lists
+// what each means in its place. A new key waits for a schema 2 and a DataPiler that reads it.
 #include <array>
 #include <string_view>
 
@@ -215,6 +220,12 @@ std::string_view refusal_word(fd4::Refusal r) {
   return i < kRefusal.size() ? kRefusal[i] : "unreadable";
 }
 
+void write_refused(Writer& w, const std::array<std::uint64_t, 9>& refused) {
+  w.begin_object("refused");
+  for (std::size_t i = 0; i < refused.size() && i < kRefusal.size(); ++i) w.number(kRefusal[i], refused[i]);
+  w.end_object();
+}
+
 void write_cut(Writer& w, const Cut& c) {
   w.begin_object("pattern");
   w.pattern("bytes", c.bytes);
@@ -266,6 +277,13 @@ void write_image(Writer& w, const Result& r) {
   }
   w.word("region", f.region);
   w.word("product_name", f.product_name);
+  if (f.product_name_characters != 0) {
+    // The ProductName's characters, and those left once symbols are removed: fewer means it matched without them.
+    w.begin_object("names");
+    w.number("of", f.product_name_characters);
+    w.number("agree", f.product_name_kept);
+    w.end_object();
+  }
   if (f.translation) {
     w.begin_array("translation");
     w.number(f.translation->language);
@@ -334,9 +352,7 @@ void write_fd4(Writer& w, const Fd4Result& r) {
     w.end_object();
   }
   w.number("accepted", r.accepted);
-  w.begin_object("refused");
-  for (std::size_t i = 0; i < r.refused.size() && i < kRefusal.size(); ++i) w.number(kRefusal[i], r.refused[i]);
-  w.end_object();
+  write_refused(w, r.refused);
   w.number("unnamed", r.unnamed);
   w.number("unlisted", r.unlisted);
   w.number("unlisted_ambiguous", r.unlisted_ambiguous);
@@ -423,6 +439,8 @@ void write_group(Writer& w, const GroupResult& g) {
   w.begin_object("group");
   w.word("status", to_string(g.status));
   w.number("strings", g.strings);
+  w.number("references", g.references);
+  w.number("matches", g.pointers);
   w.begin_array("candidates");
   for (const GroupCandidate& c : g.candidates) {
     w.begin_object();
@@ -430,6 +448,10 @@ void write_group(Writer& w, const GroupResult& g) {
     w.word("source", c.source);
     w.number("at", c.at);
     if (c.entries != 0) w.number("entries", c.entries);
+    if (c.stride != 0) w.number("length", c.stride);
+    if (c.name_offset) w.number("offset", *c.name_offset);
+    w.word("encoding", c.wide ? "utf16" : "ascii");
+    if (c.stored_index) w.number("value", *c.stored_index);
     w.end_object();
   }
   w.end_array();
@@ -456,6 +478,95 @@ void write_statics(Writer& w, const std::vector<StaticResult>& statics) {
       w.number("references", s.references);
     }
     if (s.pattern) write_cut(w, *s.pattern);
+    if (!s.module) w.number("matches", s.same_name);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+// One histogram of path loads: each bucket's place from the site's start (or, hoisted, its distance before it), its
+// length, the other references into .rdata before it (index), the register it writes (slot), its opcode (value).
+void write_buckets(Writer& w, std::string_view key, const std::vector<PathBucket>& buckets, std::string_view count) {
+  w.begin_array(key);
+  for (const PathBucket& b : buckets) {
+    w.begin_object();
+    w.word("capture", "path");
+    if (b.hoisted) {
+      w.number("anchor", b.before);
+    } else {
+      w.number("at", b.at);
+      w.number("insn_end", b.insn_end);
+    }
+    w.number("length", b.length);
+    w.number("index", b.ordinal);
+    w.number("slot", b.reg);
+    w.number("value", b.opcode);
+    w.number(count, b.count);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+// The FD4 diagnostics, under stats.fd4.
+void write_fd4_diagnostics(Writer& w, const Fd4Result& r) {
+  const Fd4Diagnostics& g = r.diagnostics;
+  w.begin_object("fd4");
+  w.number("path_references", r.path_references);
+  w.number("sites", r.sites);
+  w.begin_array("candidates");  // per reference to a path, what the site search found, by SiteOutcome
+  for (std::size_t i = 0; i < g.outcomes.size(); ++i) {
+    w.begin_object();
+    w.number("index", i);
+    w.number("references", g.outcomes[i]);
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("sets");  // the head shapes, largest first: their sites, and how many the idiom matches
+  for (std::size_t i = 0; i < g.heads.size(); ++i) {
+    w.begin_object();
+    w.number("index", i);
+    w.number("sites", g.heads[i].first);
+    w.number("sites_matched", g.heads[i].second);
+    w.end_object();
+  }
+  w.end_array();
+  write_buckets(w, "captures", g.site_paths, "sites");
+  w.begin_object("idiom");
+  w.number("hits", r.idiom_hits);
+  write_buckets(w, "captures", g.hit_paths, "hits");
+  w.end_object();
+  w.number("accepted", g.first_reference_accepted);
+  write_refused(w, g.first_reference_refused);
+  w.begin_object("names");
+  w.number("of", g.class_objects);
+  w.number("agree", g.names_best);
+  if (g.best_names && g.names_best != 0) {
+    w.number("offset", g.best_names->offset);
+    w.word("encoding", g.best_names->encoding == fd4::NameEncoding::Ascii ? "ascii" : "utf16");
+  }
+  w.number("fixups", g.class_fixups);
+  w.number("unreadable", g.class_beyond_file);
+  w.end_object();
+  w.number("classes", g.class_objects);
+  w.number("loads", g.statics);
+  w.number("calls", g.getters);
+  w.end_object();
+}
+
+void write_census(Writer& w, const std::vector<SectionCensus>& sections) {
+  w.begin_array("sections");
+  for (const SectionCensus& k : sections) {
+    w.begin_object();
+    w.word("section", section_word(k.name));
+    w.number("rva", k.rva);
+    w.number("virtual_size", k.virtual_size);
+    w.number("instructions", k.instructions);
+    w.number("undecodable", k.undecodable);
+    w.number("entries", k.runs);
+    w.number("hits", k.runs_after_stop);
+    w.number("matches", k.runs_at_escape);
+    w.number("functions", k.in_functions);
+    w.number("path_references", k.path_references);
     w.end_object();
   }
   w.end_array();
@@ -493,6 +604,8 @@ proto::Expected<std::string, report::Problem> write_report(const Result& result)
   w.number("fixups", result.stats.fixups);
   w.number("locators", result.stats.locators);
   w.number("vtables_found", result.stats.vtables);
+  write_census(w, result.stats.sections);
+  write_fd4_diagnostics(w, result.fd4);
   w.end_object();
   return w.finish();
 }

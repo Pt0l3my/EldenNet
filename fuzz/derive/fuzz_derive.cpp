@@ -3,7 +3,9 @@
 // the tests' sample's (invented names). Besides any sanitizer report, a broken property is a finding:
 // - the report the derivation writes always passes the lint (the writer's vocabulary and the lint's agree);
 // - every pattern it reports is of 1 to 64 bytes with 4 fixed, and a static's capture lies within its pattern;
-// - a run that is complete derived the FD4 idiom, the registration and the group.
+// - a run that is complete derived the FD4 idiom, the registration and the group;
+// - every reference to a path has one site-search outcome, a derived idiom an accepted hit, and a table's index lies
+//   within it, at a stride of 8 to 64 (R0c).
 // An exception that escapes is a finding too, so this entry has no ffi_guard (R3 is for the engine's entries).
 #include <cstddef>
 #include <cstdint>
@@ -76,6 +78,15 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     if (s.pattern) check_cut(*s.pattern);
   }
   if (r.fd4.idiom) require(r.fd4.idiom->bytes.size() <= 64, "the idiom within 64 bytes");
+  // R0c's diagnostics: every reference to a path has one outcome, and a derived idiom has an accepted hit.
+  std::uint64_t outcomes = 0;
+  for (const std::uint64_t n : r.fd4.diagnostics.outcomes) outcomes += n;
+  require(outcomes == r.fd4.path_references, "one site-search outcome per reference to a path");
+  require(r.fd4.status != derive::Status::Derived || r.fd4.accepted > 0, "a derived idiom has an accepted hit");
+  for (const auto& g : r.group.candidates) {
+    require(g.source != "pointer_table" || (g.entries >= 1 && g.index < g.entries && g.stride >= 8 && g.stride <= 64),
+            "a table's index lies within it, at a stride of 8 to 64");
+  }
   if (derive::complete(r)) {
     require(r.fd4.status == derive::Status::Derived && r.registration.status == derive::Status::Derived &&
                 r.group.status == derive::Status::Derived,

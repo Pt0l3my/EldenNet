@@ -16,9 +16,11 @@
 extern "C" {
 struct FgSiteRow {
   const std::uint8_t* site;
-  void* const* statik;
+  void* const* statik;  // null for the decoy that has none
   const std::uint8_t* rtclass;
   const char* path;
+  const std::uint8_t* path_load;  // the instruction that loads the path
+  std::uint64_t kind;             // PathKind
 };
 extern const FgSiteRow fg_fd4_site_table[];
 extern const std::uint8_t* const fg_register_call_table[];
@@ -55,11 +57,39 @@ std::uint64_t off(const Obj* obj, const Member* member) {
   return static_cast<std::uint64_t>(reinterpret_cast<const std::byte*>(member) - reinterpret_cast<const std::byte*>(obj));
 }
 
-// The idiom of every FD4-style site (asm.cpp): mov rbx,[rip+static]; test rbx,rbx; jnz +0x21; lea rcx,[rip+class];
-// call getter; mov rdx,rax; mov r8d,site; lea rcx,[rip+path]; call log.
-constexpr const char* kIdiom =
-    "48 8B 1D ?? ?? ?? ?? 48 85 DB 75 21 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 89 C2 41 B8 ?? ?? ?? ?? "
-    "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ??";
+// The idiom every FD4-style site shares (asm.cpp): mov reg,[rip+static] (rbx, rdi, rsi or r12); test reg,reg; jnz;
+// lea rcx,[rip+class]; call getter. The path is loaded after it, in ways of its own (PathKind).
+constexpr const char* kIdiom = "?? 8B ?? ?? ?? ?? ?? ?? 85 ?? 75 ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ??";
+
+// How a site loads its path (asm.cpp's site table): the register it writes, its opcode as x86.hpp gives it (map * 256 +
+// the opcode byte), its length, the other loads into .rdata before it, and whether it comes before the head.
+enum PathKind : std::uint64_t {
+  kPathAfter = 1,     // lea rcx, [rip+path] after the getter's call (the first sites' shape)
+  kPathFormat = 2,    // a format string loaded first, then lea rcx, [rip+path]
+  kPathRdx = 3,       // lea rdx, [rip+path] right after the getter's call
+  kPathPointer = 4,   // mov rcx, [rip+slot], a pointer to the path
+  kPathAbsolute = 5,  // mov rcx, imm64, the path's address
+  kPathHoisted = 6,   // lea rsi, [rip+path] before the head
+  kNotIdiom = 7,      // the decoy: its "static" is read through rsi
+};
+struct PathLoadShape {
+  int reg;
+  int opcode;
+  int length;
+  int ordinal;
+  bool hoisted;
+  const char* form;
+};
+PathLoadShape shape_of(std::uint64_t kind) {
+  switch (kind) {
+    case kPathFormat: return {1, 0x8D, 7, 1, false, "address"};
+    case kPathRdx: return {2, 0x8D, 7, 0, false, "address"};
+    case kPathPointer: return {1, 0x8B, 7, 0, false, "pointer"};
+    case kPathAbsolute: return {1, 0xB9, 10, 0, false, "absolute"};
+    case kPathHoisted: return {6, 0x8D, 7, 0, true, "address"};
+    default: return {1, 0x8D, 7, 0, false, "address"};
+  }
+}
 
 struct AobItem {
   const char* role;
@@ -169,9 +199,21 @@ json image_json(HINSTANCE instance) {
       std::swprintf(key, 64, L"\\StringFileInfo\\%04x%04x\\ProductName", translation[0], translation[1]);
       wchar_t* product = nullptr;
       if (VerQueryValueW(copy.data(), key, reinterpret_cast<void**>(&product), &len) != 0 && product != nullptr) {
-        std::string narrow;
-        for (const wchar_t* c = product; *c != L'\0'; ++c) narrow.push_back(static_cast<char>(*c));
-        image["product_name"] = narrow;
+        std::string utf8;  // the name has a sign outside ASCII (U+2122), and no surrogate
+        for (const wchar_t* c = product; *c != L'\0'; ++c) {
+          const auto u = static_cast<std::uint32_t>(*c);
+          if (u < 0x80) {
+            utf8.push_back(static_cast<char>(u));
+          } else if (u < 0x800) {
+            utf8.push_back(static_cast<char>(0xC0 | (u >> 6)));
+            utf8.push_back(static_cast<char>(0x80 | (u & 0x3F)));
+          } else {
+            utf8.push_back(static_cast<char>(0xE0 | (u >> 12)));
+            utf8.push_back(static_cast<char>(0x80 | ((u >> 6) & 0x3F)));
+            utf8.push_back(static_cast<char>(0x80 | (u & 0x3F)));
+          }
+        }
+        image["product_name"] = utf8;
       }
     }
   }
@@ -192,19 +234,41 @@ int describe(HINSTANCE instance) {
   for (const FgSiteRow* row = fg_fd4_site_table; row->site != nullptr; ++row) {
     const std::string name = fg_rtclass_name(row->rtclass);
     const std::string path = row->path;
-    json site{{"site", rva(row->site)},
-              {"static", rva(row->statik)},
+    const PathLoadShape load = shape_of(row->kind);
+    const std::uint64_t at = rva(row->site);
+    const std::uint64_t insn = rva(row->path_load);
+    json path_load{{"kind", row->kind},       {"insn", insn},           {"form", load.form},
+                   {"reg", load.reg},         {"opcode", load.opcode},  {"length", load.length},
+                   {"ordinal", load.ordinal}, {"hoisted", load.hoisted}};
+    if (load.hoisted) {
+      path_load["before"] = at - insn;
+    } else {
+      path_load["at"] = insn - at + (row->kind == kPathAbsolute ? 2 : load.length - 4);
+      path_load["insn_end"] = insn - at + static_cast<std::uint64_t>(load.length);
+    }
+    json site{{"site", at},
+              {"static", row->statik != nullptr ? rva(row->statik) : 0},
               {"class", rva(row->rtclass)},
               {"path", rva(row->path)},
-              {"path_ok", path.size() >= 14 && path.compare(path.size() - 14, 14, "FD4Singleton.h") == 0}};
+              {"path_ok", path.size() >= 14 && path.compare(path.size() - 14, 14, "FD4Singleton.h") == 0},
+              {"path_load", path_load}};
     if (!matches(row->site, kIdiom)) failures.push_back("fd4 idiom at " + hex(rva(row->site)));
     // The site's own displacements must lead to its static, class and path.
-    // SAFETY: the site is this module's own code, 45 bytes long; the addresses are compared, never followed.
+    // SAFETY: the site and its path's load are this module's own code; the addresses are compared, never followed.
     const std::uint8_t* s = row->site;
-    if (s + 7 + disp_at(s + 3) != reinterpret_cast<const std::uint8_t*>(row->statik) ||
-        s + 19 + disp_at(s + 15) != row->rtclass ||
-        s + 40 + disp_at(s + 36) != reinterpret_cast<const std::uint8_t*>(row->path)) {
+    const std::uint8_t* p = row->path_load;
+    const void* loaded = row->kind == kPathPointer    ? *reinterpret_cast<const void* const*>(p + 7 + disp_at(p + 3))
+                         : row->kind == kPathAbsolute ? *reinterpret_cast<const void* const*>(p + 2)
+                                                      : p + 7 + disp_at(p + 3);
+    if ((row->statik != nullptr && s + 7 + disp_at(s + 3) != reinterpret_cast<const std::uint8_t*>(row->statik)) ||
+        s + 19 + disp_at(s + 15) != row->rtclass || loaded != row->path) {
       failures.push_back("fd4 displacements at " + hex(rva(s)));
+    }
+    if (row->kind == kNotIdiom) {
+      decoys.push_back({{"name", name},
+                        {"sites", json::array({site})},
+                        {"expect", "refused: no idiom, its static is no RIP-relative operand"}});
+      continue;
     }
     sites_by_name[name].push_back(site);
   }
@@ -225,14 +289,11 @@ int describe(HINSTANCE instance) {
     }
   }
   json fd4{{"idiom", kIdiom},
-           {"idiom_length", 45},
+           {"idiom_length", 24},
            {"operands",
             {{"static", {{"at", 3}, {"insn_end", 7}}},
              {"class", {{"at", 15}, {"insn_end", 19}}},
-             {"getter", {{"at", 20}, {"insn_end", 24}}},
-             {"site_id", {{"at", 29}, {"size", 4}}},
-             {"path", {{"at", 36}, {"insn_end", 40}}},
-             {"log", {{"at", 41}, {"insn_end", 45}}}}},
+             {"getter", {{"at", 20}, {"insn_end", 24}}}}},
            {"path_suffix", "FD4Singleton.h"},
            {"name_ptr_off", FG_RTCLASS_NAME_OFF},
            {"name_encoding", "ascii"},

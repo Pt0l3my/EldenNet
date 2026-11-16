@@ -40,6 +40,7 @@ static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
   "  call fg_rtclass_name\n"                             \
   "  mov rdx, rax\n"                                     \
   "  mov r8d, " #site "\n"                               \
+  ".Lpath_" #fn ":\n"                                    \
   "  lea rcx, [rip + " #path "]\n"                       \
   "  call fg_fd4_unset\n"                                \
   "1:\n"                                                 \
@@ -63,7 +64,19 @@ static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
   "  .p2align 3\n"       \
   "  .globl " #label "\n" #label ":\n  .quad 0\n"
 
-#define FG_SITE_ROW(fn, statik, rtclass, path) "  .quad .Lsite_" #fn ", " #statik ", " #rtclass ", " #path "\n"
+// A row of the site table: {idiom start, static, runtime class, path, the path's load, its kind (describe.cpp's
+// PathKind)}.
+#define FG_SITE_ROW_KIND(fn, statik, rtclass, path, kind) \
+  "  .quad .Lsite_" #fn ", " #statik ", " #rtclass ", " #path ", .Lpath_" #fn ", " #kind "\n"
+#define FG_SITE_ROW(fn, statik, rtclass, path) FG_SITE_ROW_KIND(fn, statik, rtclass, path, 1)
+
+// The epilogue every variant shares: the instance (or null) from `reg`, the frame undone.
+#define FG_VARIANT_END(reg, frame, pop) \
+  "1:\n"                                \
+  "  mov rax, " #reg "\n"               \
+  "  add rsp, " #frame "\n"             \
+  pop "  ret\n"                         \
+  "  .seh_endproc\n"
 
 __asm__(
     "  .intel_syntax noprefix\n"
@@ -106,6 +119,7 @@ __asm__(
     FG_RTCLASS(fg_rtclass_duplicata_b, fg_name_duplicata, 0x10)
     FG_RTCLASS(fg_rtclass_strayling, fg_name_strayling, 0x10)
     FG_RTCLASS(fg_rtclass_rockbound, fg_name_rockbound, 0x10)
+    FG_RTCLASS(fg_rtclass_mimic, fg_name_mimic, 0x10)
 
     // ---- Strings and tables in .rdata ----
     "  .section .rdata,\"dr\"\n"
@@ -115,6 +129,10 @@ __asm__(
     "fg_rtclass_table:\n  .quad fg_rtclass_name\n"
     "  .globl fg_fd4_path\n"
     "fg_fd4_path:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.h\"\n"
+    // The variants' words: a log format loaded before the path, and a pointer to the path.
+    "fg_fd4_format:\n  .asciz \"fakegame: %s was asked for before it was set\"\n"
+    "  .p2align 3\n"
+    "fg_fd4_path_slot:\n  .quad fg_fd4_path\n"
     "  .globl fg_fd4_path_decoy\n"
     "fg_fd4_path_decoy:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.hpp\"\n"
     "fg_name_taskloom:\n  .asciz \"TaskLoom\"\n"
@@ -131,6 +149,7 @@ __asm__(
     "fg_name_duplicata:\n  .asciz \"Duplicata\"\n"
     "fg_name_strayling:\n  .asciz \"Strayling\"\n"
     "fg_name_rockbound:\n  .asciz \"Rockbound\"\n"
+    "fg_name_mimic:\n  .asciz \"Mimicry\"\n"
     // Every FD4-style site, for --describe: {idiom start, static, runtime class, path}, then a row of zeros.
     "  .p2align 3\n"
     "  .globl fg_fd4_site_table\n"
@@ -152,7 +171,13 @@ __asm__(
     FG_SITE_ROW(fg_get_duplicata_b, fg_static_duplicata_b, fg_rtclass_duplicata_b, fg_fd4_path)
     FG_SITE_ROW(fg_get_strayling, fg_static_strayling, fg_rtclass_strayling, fg_fd4_path_decoy)
     FG_SITE_ROW(fg_get_rockbound, fg_static_rockbound, fg_rtclass_rockbound, fg_fd4_path)
-    "  .quad 0, 0, 0, 0\n"
+    FG_SITE_ROW_KIND(fg_get_lobby_fmt, fg_static_lobby, fg_rtclass_lobby, fg_fd4_path, 2)
+    FG_SITE_ROW_KIND(fg_get_marks_rdx, fg_static_marks, fg_rtclass_marks, fg_fd4_path, 3)
+    FG_SITE_ROW_KIND(fg_get_gauges_ptr, fg_static_gauges, fg_rtclass_gauges, fg_fd4_path, 4)
+    FG_SITE_ROW_KIND(fg_get_veil_abs, fg_static_veil, fg_rtclass_veil, fg_fd4_path, 5)
+    FG_SITE_ROW_KIND(fg_get_sky_hoist, fg_static_sky, fg_rtclass_sky, fg_fd4_path, 6)
+    FG_SITE_ROW_KIND(fg_not_idiom, 0, fg_rtclass_mimic, fg_fd4_path, 7)
+    "  .quad 0, 0, 0, 0, 0, 0\n"
     // The program's own calls into the registration (each call instruction), for --describe; then a zero.
     "  .globl fg_register_call_table\n"
     "fg_register_call_table:\n"
@@ -185,6 +210,136 @@ __asm__(
     FG_FD4_ACCESSOR(fg_get_duplicata_b, fg_static_duplicata_b, fg_rtclass_duplicata_b, fg_fd4_path, 122)
     FG_FD4_ACCESSOR(fg_get_strayling, fg_static_strayling, fg_rtclass_strayling, fg_fd4_path_decoy, 123)
     FG_FD4_ACCESSOR(fg_get_rockbound, fg_static_rockbound, fg_rtclass_rockbound, fg_fd4_path, 124)
+
+    // ---- The variants of R0c: second sites of five singletons, whose heads (the static's load in another register;
+    // test; jnz; lea rcx, [rip+class]; call getter) keep the idiom's shape while the path is loaded otherwise, and a
+    // decoy whose "static" is no RIP-relative operand. Never called: they are there to be found.
+    // LobbyWarden's: the static in rdi; a format string loaded before the path, as a log call with four arguments
+    // would (mov r9, rax; lea r8, [fmt]; mov edx, site; lea rcx, [path]).
+    FG_FUNC_BEGIN(fg_get_lobby_fmt)
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    ".Lsite_fg_get_lobby_fmt:\n"
+    "  mov rdi, qword ptr [rip + fg_static_lobby]\n"
+    "  test rdi, rdi\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_lobby]\n"
+    "  call fg_rtclass_name\n"
+    "  mov r9, rax\n"
+    "  lea r8, [rip + fg_fd4_format]\n"
+    "  mov edx, 131\n"
+    ".Lpath_fg_get_lobby_fmt:\n"
+    "  lea rcx, [rip + fg_fd4_path]\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rdi, 0x20, "  pop rdi\n")
+    // MarkLedger's: the static in r12; the path in rdx, loaded right after the getter's call.
+    FG_FUNC_BEGIN(fg_get_marks_rdx)
+    "  push r12\n"
+    "  .seh_pushreg r12\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    ".Lsite_fg_get_marks_rdx:\n"
+    "  mov r12, qword ptr [rip + fg_static_marks]\n"
+    "  test r12, r12\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_marks]\n"
+    "  call fg_rtclass_name\n"
+    ".Lpath_fg_get_marks_rdx:\n"
+    "  lea rdx, [rip + fg_fd4_path]\n"
+    "  mov r8, rax\n"
+    "  mov ecx, 132\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(r12, 0x20, "  pop r12\n")
+    // GaugeBoard's: the static in rsi; the path through a pointer to it, read from .rdata.
+    FG_FUNC_BEGIN(fg_get_gauges_ptr)
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    ".Lsite_fg_get_gauges_ptr:\n"
+    "  mov rsi, qword ptr [rip + fg_static_gauges]\n"
+    "  test rsi, rsi\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_gauges]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    ".Lpath_fg_get_gauges_ptr:\n"
+    "  mov rcx, qword ptr [rip + fg_fd4_path_slot]\n"
+    "  mov r8d, 133\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rsi, 0x20, "  pop rsi\n")
+    // VeilKeeper's: the static in rbx; the path by its absolute address, which the loader relocates.
+    FG_FUNC_BEGIN(fg_get_veil_abs)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    ".Lsite_fg_get_veil_abs:\n"
+    "  mov rbx, qword ptr [rip + fg_static_veil]\n"
+    "  test rbx, rbx\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_veil]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    ".Lpath_fg_get_veil_abs:\n"
+    "  movabs rcx, offset fg_fd4_path\n"
+    "  mov r8d, 134\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rbx, 0x20, "  pop rbx\n")
+    // SkyClock's: the path loaded into rsi before the head, the static in rdi.
+    FG_FUNC_BEGIN(fg_get_sky_hoist)
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
+    "  .seh_endprologue\n"
+    ".Lpath_fg_get_sky_hoist:\n"
+    "  lea rsi, [rip + fg_fd4_path]\n"
+    ".Lsite_fg_get_sky_hoist:\n"
+    "  mov rdi, qword ptr [rip + fg_static_sky]\n"
+    "  test rdi, rdi\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_sky]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    "  mov rcx, rsi\n"
+    "  mov r8d, 135\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rdi, 0x28, "  pop rdi\n  pop rsi\n")
+    // The decoy: its "static" is read through rsi (mov rbx, [rsi-0x70000000]), which the idiom's wildcards also match;
+    // read as RIP-relative, as R0's rule read it, the displacement leads outside the image.
+    FG_FUNC_BEGIN(fg_not_idiom)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    ".Lsite_fg_not_idiom:\n"
+    "  mov rbx, qword ptr [rsi - 0x70000000]\n"
+    "  test rbx, rbx\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_mimic]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    "  mov r8d, 136\n"
+    ".Lpath_fg_not_idiom:\n"
+    "  lea rcx, [rip + fg_fd4_path]\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rbx, 0x20, "  pop rbx\n")
 
     // ---- global_hinstance's role: stores the module handle and a check word made from it; answers the old value.
     // Pattern from entry + 5; the static is the third RIP-relative operand.

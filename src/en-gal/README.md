@@ -55,7 +55,8 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   provenance always `own-derivation`; captures within their patterns; ids unique; the caller's required ids present).
   `scan_patterns(image, source, set)` matches each section once, in 1 MiB copies (an unreadable copy is read again page
   by page, on the source's page boundaries, and the pages it cannot read are skipped and counted), and applies the
-  rules: exactly `expect_matches` hits (a range for idioms); a function's hit inside a function of the exception
+  rules: exactly `expect_matches` hits (a range for idioms, up to 65,536 for an idiom whose every inlined accessor is a
+  hit, 4,096 for the other kinds); a function's hit inside a function of the exception
   directory, not a fragment, at `entry + anchor_min` or later (`anchor_min ≥ 5`), ending within it, with its length
   within `fn_len` and its prologue's bytes if given; a static's RIP-relative displacement reaching `target_section`,
   aligned to 8; an idiom's hits kept only where every capture lands in its section, aligned, at a function's start
@@ -65,7 +66,9 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   (the file version and the region joined), the region against the file version's fourth field (0 ww, 1 jp: a lead,
   ER01 §1), the layout path (`layouts/<name>.toml`), a SizeOfImage above 0 (the placeholder before a probe is
   refused), and unique keys and fingerprints. `gate(image, builds)` passes only an exact fingerprint (file version,
-  product name, region, TimeDateStamp, SizeOfImage), and otherwise answers `NoVersion`, `UnknownBuild` or
+  product name, region, TimeDateStamp, SizeOfImage), the product names compared once their symbols are removed
+  (`same_product_name`: a trademark, registered or copyright sign and their like, and zero-width characters, with spaces
+  made one; ASCII and every other letter kept), and otherwise answers `NoVersion`, `UnknownBuild` or
   `FingerprintDiffers` with the fields that differ ("build fingerprint differs (TimeDateStamp)"). A retired build
   passes too. What passes is a `BuildProfile`, which only `gate()` makes (R7).
 - **`layout.hpp`: the layouts** (ARCH §6.3). `load_layout(profile, text, needs, mode)` is the only maker of a `Layout`,
@@ -127,32 +130,50 @@ of any game is in it, and every name it looks for comes from a leads file.
   class hierarchies and base class arrays, and the vtables one pointer after a pointer to a locator, with their slots
   (pointers into code). `find_type_descriptor("Space::Class")` by the decorated name; `derived_from(walk, base)` gives the
   primary and subobject vtables of every class that lists the base (ARCH §6.2's vtable sets).
-- **`fd4.hpp`: the FD4 singleton finder.** `find(img, idiom, config)` matches the idiom's pattern over `.text`, checks
-  each hit's placement as ARCH §6.2 says, names it through the runtime class object's name layout, and indexes by name
-  (two statics behind one name: ambiguous). Where the pattern stops short of the path's load, the path is the first
-  load from `.rdata` in the block the idiom's jump skips. `idiom_from(spec)` builds the idiom from patterns.toml's
+- **`fd4.hpp`: the FD4 singleton finder.** `find(img, idiom, config)` matches the idiom's pattern over `.text`, decodes
+  each hit (its static's, class object's and path's displacements must be RIP-relative operands, and its getter's a
+  relative call, where the captures say: a pattern that wildcards a register's ModRM also matches other addressing
+  forms, which are refused as no idiom), checks its placement as ARCH §6.2 says, names it through the runtime class
+  object's name layout, and indexes by name (two statics behind one name: ambiguous). Where the pattern stops short of
+  the path's load, the path is the load whose string ends with the suffix, of every load in the block the idiom's jump
+  skips (whichever comes first, in whichever register, before or after the getter's call: a RIP-relative address, a
+  RIP-relative pointer to the string, or a 64-bit absolute address), or of the 64 bytes before the hit in its function
+  (a hoisted load); each site keeps where it found it (`Site::path_load`). R0's rule (the first load from `.rdata` in
+  the block, whatever its text, and no decoding of the hit) stays as `Config::first_reference`, for the derivation's
+  comparison only. `idiom_from(spec)` builds the idiom from patterns.toml's
   `fd4_idiom`, by its captures' names (`static`, `class`, `getter`, `path`).
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
-    the leads', TimeDateStamp, SizeOfImage, the section table);
+    the leads' as the gate compares it, once symbols are removed, TimeDateStamp, SizeOfImage, the section table);
   - the FD4 idiom, cut from the sites that load a path ending with the leads' suffix (the closest `mov reg, [rip+x];
-    test reg, reg; jnz` before each load whose jump passes it): the largest group of sites with the same head, their
-    shared bytes, and the captures; the name layout (the offset in the class objects that points at an identifier in
-    `.rdata` for the most of them); the singletons by the leads' names, the rest only counted;
+    test reg, reg; jnz` before each load whose jump passes it, on to the next call after the load): the largest group
+    of sites with the same head, their shared bytes, and the captures (the path's only where every site loads it at
+    the same place); the name layout (the offset in the class objects that points at an identifier in `.rdata` for
+    the most of them); the singletons by the leads' names, the rest only counted. The idiom is `derived` when its
+    sites all match, part 2's scan resolves it and a hit is accepted; without a name layout the singletons are
+    `depends` (R1 names them through the getter, ARCH §6.2 step 3);
   - the vtable sets and the task classes (their slots, how many functions each slot holds across them, and the one slot
     every class fills with its own: the run slot's candidate);
   - `register_task`: the direct calls after a load of the registration's instance, whose arguments a small register
     model follows back to the start of the block (the instance, a 64-bit argument, a 32-bit one), grouped by callee;
-  - the task group's index: its name, as ASCII or UTF-16, in a table of pointers to names, cut where the code addresses
-    the table, or beside a small constant where the code loads it;
-  - each AOB static's class vtable, for R1's search, and, given R1's slot (`Options::static_slots`), a pattern at a
-    reference to it;
+  - the task group's index: its name, as ASCII or UTF-16, in a table of entries holding pointers to names at a stride
+    of 8 to 64 bytes (the stride with the longest run), cut where the code addresses an entry's start, with the name
+    pointer's offset in the entry and an index field the entries may hold; or beside a small constant where the code
+    loads it. A lone pointer (a table of one) is listed last and gives no index;
+  - each AOB static's class vtable, for R1's search, and how many type descriptors carry the class's own name in any
+    namespace; given R1's slot (`Options::static_slots`), a pattern at a reference to it. A static whose class has no
+    RTTI cannot be found offline: its slot is zeros in the file and nothing names it, so R1 finds it by what its
+    instance holds;
   - every pattern cut by `cut.hpp`'s rules: whole instructions, at entry + 5 or later inside a function of the exception
     directory that is no fragment, at most 64 bytes, the RIP-relative and other 32-bit displacements, the branches whose
     targets lie outside the pattern, the relocated bytes and the immediates that do not fit in a signed byte
     wildcarded; unique in `.text`, preferring 20 bytes with 12 fixed and the smaller function; then checked again by
     `scan_patterns` as patterns.toml would hold it;
+  - the diagnostics R0c added: per reference to a path, what the site search found; each head shape's sites; where
+    each site's and each accepted hit's path load sits; R0's rule over the same hits; what the class objects hold in
+    the file; and every executable section decoded through (instructions, bytes that do not decode, their runs and
+    where they start, references to the paths);
   - and the list of what R1 must confirm. `complete(result)` says whether everything R0 can derive was derived.
 - **`report.hpp`: the numbers-only writer and its lint.** A report is one JSON object whose keys all come from its
   kind's closed vocabulary, each with one type of value: whole numbers, booleans, fixed words, labels (`[a-z][a-z0-9_]*`),
@@ -303,7 +324,10 @@ finding) and over 20,000 seeded random byte strings (three kinds no compiler emi
 opcodes a map leaves undefined). The rest (`test_derive.cpp`, `test_report.cpp`) run on an invented program that
 `tests/fake_program.hpp` writes like an assembler (`tests/sample_program.hpp`: FD4-style accessors of a shape of their
 own, class objects that name them at +0x10, RTTI with a second base and a same-named class elsewhere, task classes, a
-registration with its own argument order, a table of UTF-16 group names, statics read by small functions, and decoys):
+registration with its own argument order, a table of UTF-16 group names, statics read by small functions, and decoys;
+and R0c's variants: the path loaded after a format string, into rdx, through a pointer, by its absolute address,
+hoisted before the head or before the getter's call, a decoy that only the idiom's wildcards match, a table of 16-byte
+group entries holding their index, statics without RTTI, and a trademark sign in the product name):
 the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
 labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer

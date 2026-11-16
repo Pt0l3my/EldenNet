@@ -264,6 +264,16 @@ captures = { slot = { at = 3, kind = "rip_rel32", insn_end = 7, section = ".data
   CHECK(idiom->captures[0].function);
   CHECK(idiom->captures[1].align == 8);
   CHECK(set->find("absent") == nullptr);
+
+  // An idiom may expect as many hits as a large game's inlined accessors give, up to 65536; other kinds 4096.
+  std::string many = text;
+  many.replace(many.find("expect_matches = [3, 40]"), 24, "expect_matches = [1, 65536]");
+  const auto wide = parse_patterns(many, kRequired);
+  REQUIRE(wide.has_value());
+  CHECK(wide->find("invented_idiom")->expect_max == kMaxIdiomHits);
+  std::string too_many = text;
+  too_many.replace(too_many.find("expect_matches = 2"), 18, "expect_matches = 4097");
+  CHECK_FALSE(parse_patterns(too_many, kRequired).has_value());
 }
 
 TEST_CASE("patterns.toml refuses what its schema does not allow, every problem with its path") {

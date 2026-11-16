@@ -98,7 +98,10 @@ struct Fingerprint {
   std::array<std::uint16_t, 4> file_version{};
   std::array<std::uint16_t, 4> product_version{};
   std::string_view region = "none";          // ww, jp, other, none
-  std::string_view product_name = "absent";  // matches, differs, absent, not_given
+  std::string_view product_name = "absent";  // matches (once symbols are removed: builds.hpp), differs, absent,
+                                             // not_given
+  std::uint64_t product_name_characters = 0;  // in the version resource's ProductName, when compared
+  std::uint64_t product_name_kept = 0;        // of them, those left once its symbols are removed
   std::optional<Translation> translation;
   std::uint16_t resource_language = 0;
 };
@@ -111,6 +114,46 @@ struct SingletonResult {
   std::uint32_t getter = 0;
   std::uint32_t sites = 0;
   std::optional<fd4::Refusal> refusal;
+};
+
+// Where a path's load sat, and how often (the FD4 diagnostics).
+struct PathBucket {
+  bool hoisted = false;        // before the site's head
+  std::uint32_t at = 0;        // the address field's offset from the site's start (absent when hoisted)
+  std::uint32_t insn_end = 0;  // the load's end, from the site's start (absent when hoisted)
+  std::uint32_t before = 0;    // hoisted: from the load's start to the site's start
+  std::uint32_t length = 0;    // the load's length
+  std::uint32_t ordinal = 0;   // other references into the read-only section met before it
+  std::uint8_t reg = 0;        // the register it writes, 0 (rax) to 15 (r15)
+  std::uint32_t opcode = 0;    // its opcode: map * 256 + the opcode byte (0x8D lea, 0x8B mov, 0xB8 to 0xBF mov imm64)
+  std::uint64_t count = 0;
+};
+
+// Why the site search did or did not find the idiom's head at a reference to a path (the FD4 diagnostics).
+enum class SiteOutcome : std::uint8_t {
+  Site,         // a site: the static's load, its test and a jnz whose jump passes the reference
+  NoLanding,    // decoding from the function's entry does not land on the reference
+  JumpShort,    // such a head before it, whose jump does not pass it
+  CompareForm,  // no such head, but a compare of a RIP-relative quadword with zero before it
+  LoadOnly,     // no such head, but a 64-bit load of a static of the data section before it
+  Nothing,      // none of these within 24 instructions before it
+};
+inline constexpr std::size_t kSiteOutcomes = 6;
+
+struct Fd4Diagnostics {
+  std::array<std::uint64_t, kSiteOutcomes> outcomes{};      // per reference to a path
+  std::vector<std::pair<std::uint64_t, std::uint64_t>> heads;  // per head shape, largest first: sites, matched
+  std::vector<PathBucket> site_paths;                       // the idiom's sites' path loads, as the references show
+  std::vector<PathBucket> hit_paths;                        // the accepted hits' path loads, as the finder found them
+  std::uint64_t first_reference_accepted = 0;               // R0's rule over the same hits
+  std::array<std::uint64_t, 9> first_reference_refused{};
+  std::uint64_t class_objects = 0;    // distinct, of the accepted hits
+  std::uint64_t statics = 0;          // distinct statics of the accepted hits
+  std::uint64_t getters = 0;          // distinct getters of the accepted hits
+  std::uint64_t names_best = 0;       // the class objects the best name layout reads, even under half
+  std::optional<fd4::NameLayout> best_names;
+  std::uint64_t class_fixups = 0;     // class objects with a base relocation in their first 128 bytes
+  std::uint64_t class_beyond_file = 0;  // class objects past the raw data the file holds (zeros once mapped)
 };
 
 struct Fd4Result {
@@ -135,6 +178,7 @@ struct Fd4Result {
   std::uint64_t scan_hits = 0;
   std::uint64_t scan_rejected = 0;
   std::vector<SingletonResult> singletons;  // in the leads' order
+  Fd4Diagnostics diagnostics;
 };
 
 struct VtableSetResult {
@@ -194,14 +238,21 @@ struct RegisterResult {
 struct GroupCandidate {
   std::uint32_t index = 0;
   std::string_view source;  // pointer_table, code_reference
-  std::uint32_t at = 0;     // the table's start, or the referencing instruction
+  std::uint32_t at = 0;     // the table's first name pointer (or its first entry, where code addresses it), or the
+                            // referencing instruction
   std::uint32_t entries = 0;
+  std::uint32_t stride = 0;                  // a table's: bytes from one entry's name pointer to the next's
+  std::optional<std::uint32_t> name_offset;  // how far before an entry's name pointer code addresses the entry
+  bool wide = false;                         // the names are UTF-16
+  std::optional<std::uint32_t> stored_index; // a field of the entries holding position + a constant: its value in ours
 };
 
 struct GroupResult {
   Status status = Status::Missing;
   std::uint64_t strings = 0;
-  std::vector<GroupCandidate> candidates;
+  std::uint64_t references = 0;  // instructions of .text addressing one of the strings
+  std::uint64_t pointers = 0;    // 8-aligned pointers to one of them in initialised data
+  std::vector<GroupCandidate> candidates;  // tables of two entries or more first, then code, then lone pointers
 };
 
 struct StaticResult {
@@ -212,6 +263,7 @@ struct StaticResult {
   std::optional<std::uint32_t> slot;
   std::uint64_t references = 0;
   std::optional<Cut> pattern;
+  std::uint64_t same_name = 0;  // type descriptors of a class or struct of the class's own name, in any namespace
 };
 
 struct ConfirmItem {
@@ -220,12 +272,27 @@ struct ConfirmItem {
   std::optional<std::uint64_t> value;
 };
 
+// One executable section, decoded through as the derivation decodes .text (the decoder's diagnostics).
+struct SectionCensus {
+  std::string name;  // read from the file: kept in memory, the report writes a fixed word for it
+  std::uint32_t rva = 0;
+  std::uint32_t virtual_size = 0;
+  std::uint64_t instructions = 0;
+  std::uint64_t undecodable = 0;      // bytes stepped over
+  std::uint64_t runs = 0;             // runs of them
+  std::uint64_t runs_after_stop = 0;  // runs right after an instruction that does not fall through (data after code)
+  std::uint64_t runs_at_escape = 0;   // runs whose first byte is a VEX, EVEX or XOP escape (C4, C5, 62, 8F)
+  std::uint64_t in_functions = 0;     // undecodable bytes inside functions of the exception directory
+  std::uint64_t path_references = 0;  // instructions addressing one of the FD4 path strings
+};
+
 struct Stats {
   std::uint64_t instructions = 0;
   std::uint64_t undecodable = 0;
   std::uint64_t fixups = 0;
   std::uint64_t locators = 0;
   std::uint64_t vtables = 0;
+  std::vector<SectionCensus> sections;  // every executable section
 };
 
 struct Result {

@@ -39,12 +39,14 @@ The MinGW build links its runtime statically, uses WinHTTP (loaded from the syst
 builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) and the derivation kit but not
 its guarded copy, which needs structured exception handling: `en_gal_tests.exe` runs the portable part's tests. It
 builds `en_gal_game` too, whose tests run on `FakeSys` there as everywhere; `NativeSys` and the test DLL need
-structured exception handling, so they are clang-cl's alone. Its `eldennet-engine.exe` is the program the owner runs
-for the derivation's offline round (R0, O89):
+structured exception handling, so they are clang-cl's alone. Its `eldennet-engine.exe`, like clang-cl's, runs the
+derivation's offline round (R0, O89):
 `eldennet-engine probe-exe <the game's executable> --derive --leads gal/leads.toml --out derive.json`, with the game
 closed (src/en-tools/README.md has its exit codes); `probe-exe <exe> --sections` prints the section table's numbers
 for an executable it refuses. With the tests on, the fake game's harness runs it under Wine on `fakegame.exe`
-(`ctest -R fakegame.probe-exe`).
+(`ctest -R fakegame.probe-exe`). The package the owner runs (R0, R0b, R0c: src/en-tools/README.md) takes
+`eldennet-engine.exe` from the clang-cl Release build; `fakegame.exe` carries R0c's variants of the FD4 idiom and of
+the group table, so the harness checks each of them end to end.
 
 ## The Windows build with clang-cl
 

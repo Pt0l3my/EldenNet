@@ -11,10 +11,19 @@
 namespace fakegame {
 namespace {
 
-// The group table's names (invented). The stand-in for the group where positions are final is Fg_ActorSettle.
-constexpr const char16_t* kGroupNames[kBaseGroups] = {
-    u"Fg_FrameOpen", u"Fg_InputPoll", u"Fg_ScriptStep", u"Fg_ActorThink", u"Fg_ActorMove",
-    u"Fg_ActorSettle", u"Fg_CameraAim", u"Fg_MenuStep", u"Fg_DrawSubmit", u"Fg_FrameClose"};
+// The group table's names (invented), in a static table of 16-byte entries { index, flags, name }, as a game's own
+// table of groups might be laid out (the derivation finds such a table at its stride, R0c). The stand-in for the
+// group where positions are final is Fg_ActorSettle.
+struct GroupRow {
+  std::uint32_t index;
+  std::uint32_t flags;
+  const char16_t* name;
+};
+static_assert(sizeof(GroupRow) == 16);
+constexpr GroupRow kGroupRows[kBaseGroups] = {
+    {0, 1, u"Fg_FrameOpen"},   {1, 1, u"Fg_InputPoll"}, {2, 1, u"Fg_ScriptStep"}, {3, 1, u"Fg_ActorThink"},
+    {4, 1, u"Fg_ActorMove"},   {5, 1, u"Fg_ActorSettle"}, {6, 1, u"Fg_CameraAim"}, {7, 1, u"Fg_MenuStep"},
+    {8, 1, u"Fg_DrawSubmit"}, {9, 1, u"Fg_FrameClose"}};
 constexpr const char16_t* kPreludeNames[] = {u"Fg_Prelude0", u"Fg_Prelude1", u"Fg_Prelude2", u"Fg_Prelude3",
                                              u"Fg_Prelude4", u"Fg_Prelude5", u"Fg_Prelude6", u"Fg_Prelude7"};
 
@@ -90,7 +99,7 @@ void hub_create() {
     FG::GroupEntry& e = h.groups[i];
     e.index = i;
     e.flags = 1;
-    const char16_t* name = i < shift ? kPreludeNames[i] : kGroupNames[i - shift];
+    const char16_t* name = i < shift ? kPreludeNames[i] : kGroupRows[i - shift].name;
     for (std::size_t c = 0; c < 63 && name[c] != u'\0'; ++c) e.name[c] = name[c];
   }
   h.active.assign(h.count, {});
