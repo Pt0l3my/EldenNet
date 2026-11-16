@@ -20,6 +20,8 @@
 
 #include <toml.hpp>
 
+#include "en/proto/toml_check.hpp"
+
 namespace en::llm {
 
 using nlohmann::json;
@@ -54,7 +56,13 @@ struct Ctx {
 };
 
 // toml++ is built without exceptions in every module (CMakeLists.txt), so its parse answers a result.
+// Every text is checked before toml++ reads it (en-proto's toml_check.hpp; WHY§122): toml++ 3.4.0 has traps that are
+// undefined behaviour in a release build, and these files are the player's, edited by hand. The refusal names the line
+// and the rule, never the text.
 toml::table parse_toml(const std::string& file, std::string_view text, bool secret) {
+  if (const std::optional<proto::TomlRefusal> unsafe = proto::unsafe_for_toml(text, proto::TomlText::Player)) {
+    throw ConfigError(file, "line " + std::to_string(unsafe->line) + ": " + unsafe->problem);
+  }
   toml::parse_result result = toml::parse(text, file);
   if (!result) {
     const toml::parse_error& e = result.error();

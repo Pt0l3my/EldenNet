@@ -293,3 +293,23 @@ TEST_CASE("the configuration folder is read with its size cap") {
   }
   fs::remove_all(dir);
 }
+
+TEST_CASE("the player's files are checked before toml++ reads them, and a refusal quotes nothing (WHY\u00A7122)") {
+  ConfigTexts t = providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"https://x.example.invalid\"\n");
+  // toml++ 3.4.0's traps, each undefined behaviour in a release build: refused with the file and the line.
+  t.settings = "budget = { requests_per_hour = 600 }\n[!]\n";
+  CHECK(error_of(t).find("settings.toml: line 2: ") != std::string::npos);
+  t.settings = "x = [1, }]\n";
+  CHECK(error_of(t).find("settings.toml: line 1: ") != std::string::npos);
+  t.settings = "budget = { requests_per_hour = 600 } \xC3\xA9\n";
+  CHECK(error_of(t).find("outside plain ASCII") != std::string::npos);
+  t.settings = std::nullopt;
+  t.secrets = "[keys]\ncloud = \"sk-invented-\xC3\xA9\" \xC3\xA9\n";
+  const std::string secret_error = error_of(t);
+  CHECK(secret_error.find("secrets.toml: line 2: ") != std::string::npos);
+  CHECK(secret_error.find("sk-invented") == std::string::npos);
+  // A letter outside ASCII inside a quoted string, and in a comment, is the player's to write.
+  t.secrets = kSecrets;
+  t.settings = "# r\xC3\xA9glages\nbudget = { requests_per_hour = 700 }\n";
+  CHECK(parse_config(t, no_env).requests_per_hour == 700);
+}
