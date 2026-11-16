@@ -701,7 +701,7 @@ v0.1's testing uses, draw through it.
   - needs: a
 - d Spike S8 and S3's additions, on v0.1's recordings
   - needs: c
-- e What the review left to measure: the fallback copy's cost, hudhook's MinHook in the first build (GraceUI's host since G15), the play-time width, a Proton path
+- e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
 
@@ -730,7 +730,7 @@ v0.1's testing uses, draw through it.
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: hudhook 0.9.3 with its MinHook, Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR fix, DInput and XInput, capture and masking
   - refs: O25, GraceUI:DESIGN§2.2
 - b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
   - refs: GraceUI:DESIGN§13
