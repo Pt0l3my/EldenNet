@@ -65,8 +65,9 @@ endforeach()
 
 # ARCH §2.6. The static CRT (/MT) in every configuration, so that no program needs the Visual C++ runtime (and the
 # splat holds no debug CRT). /EHsc: C++ exceptions on, which R3's ffi_guard depends on; /WX: no warning passes;
-# /Brepro: no timestamps; release builds with ThinLTO and line tables, and a PDB beside each binary; no incremental
-# link. CMake adds /O2 /Ob2 /DNDEBUG to release builds itself.
+# /Brepro: no timestamps; release builds with ThinLTO and line tables, and a PDB beside each binary, which each binary
+# names by its file name alone (/pdbaltpath:%_PDB%), so no build machine's folder is carried in it (WHY§118); no
+# incremental link. CMake adds /O2 /Ob2 /DNDEBUG to release builds itself.
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
 set(CMAKE_C_FLAGS_INIT "${_en_cl_flags} /WX /Brepro")
 set(CMAKE_CXX_FLAGS_INIT "${_en_cl_flags} /EHsc /WX /Brepro")
@@ -74,5 +75,5 @@ set(CMAKE_C_FLAGS_RELEASE_INIT "-flto=thin /Z7 -gline-tables-only")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-flto=thin /Z7 -gline-tables-only")
 foreach(_en_kind IN ITEMS EXE SHARED MODULE)
   set(CMAKE_${_en_kind}_LINKER_FLAGS_INIT "${_en_link_flags} /Brepro /INCREMENTAL:NO")
-  set(CMAKE_${_en_kind}_LINKER_FLAGS_RELEASE_INIT "/DEBUG")
+  set(CMAKE_${_en_kind}_LINKER_FLAGS_RELEASE_INIT "/DEBUG /pdbaltpath:%_PDB%")
 endforeach()
