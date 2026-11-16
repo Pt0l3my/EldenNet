@@ -41,6 +41,21 @@ TEST_CASE("toml check: each of toml++'s traps is refused for gal/ and for the pl
   CHECK(refused_both("x = \"\"\"a\nb\"\"\"\n"));
   CHECK(refused_both("x = '''a'''\n"));
   CHECK(refused_both("x = abc\"def\"\n"));
+  // A word goes on, for toml++, through anything up to a terminator: a quote after any of it is refused, and so is a
+  // control character (en_fuzz_config's finding: "= 2", control characters, then a quote and a letter outside ASCII).
+  CHECK(refused_both("x = 2!'\xC3\xA9'\n"));
+  CHECK(refused_both("x = 2\x03'\xEF\xB5\xBF'\n"));
+  CHECK(refused_both("x = 2\x03\n"));
+  CHECK(refused_both("# a comment \x7F\n"));
+  CHECK(refused_both("x = \"a\x01b\"\n"));
+  // toml++ scans a bare value through '=' and '[' too (en_fuzz_config's second finding: "4=[\"...\xC3\xA9").
+  CHECK(refused_both("sbark_= 4=[\"[p?>>\xC3\xA9>>\n"));
+  CHECK(refused_both("x = 4=[1]\n"));
+  // After a value only a space, a comma, a closing bracket or brace, or a comment.
+  CHECK(refused_both("x = \"a\" b\n"));
+  CHECK(refused_both("x = \"a\"\"b\"\n"));
+  CHECK(refused_both("t = { a = 1, }\n"));
+  CHECK(refused_both("x = [1] 2\n"));
   // An escape of a character outside ASCII is never one.
   CHECK(refused_both("x = \"a\\\xC3\xA9\"\n"));
 }
@@ -62,6 +77,11 @@ TEST_CASE("toml check: what each reader may hold") {
       "esc = \"\\u00A7 and \\\" and \\\\\"\n";
   CHECK_FALSE(refused(plain, TomlText::Gal));
   CHECK_FALSE(refused(plain, TomlText::Player));
+  const std::string nested =
+      "key=\"value\"\nk.\"q\".z = 1\n[[a.b]]\nx = [ [1, 2], [3], [] ]\ny = [\n  1, # one\n  2,\n]\n"
+      "t = { a = { b = 1 }, c = [ { d = 'e' } ], f = {} }\n[ c . \"d\" ]\nn = -1.5e3\n";
+  CHECK_FALSE(refused(nested, TomlText::Gal));
+  CHECK_FALSE(refused(nested, TomlText::Player));
   // A player's string may hold any letter, where it truly opens a string; gal/'s writes \uXXXX.
   const std::string accented = "name = \"Caf\xC3\xA9 \xD0\x96\"\nother = '\xE2\x80\xA6'\n\"cl\xC3\xA9\" = 1\n";
   CHECK_FALSE(refused(accented, TomlText::Player));

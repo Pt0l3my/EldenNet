@@ -47,20 +47,73 @@ constinit std::atomic<std::uint64_t> g_news{0};
 constinit std::atomic<std::uint64_t> g_deletes{0};
 }  // namespace
 
-void* operator new(std::size_t size) {
+namespace {
+
+void count_new() noexcept {
   if (t_armed) g_news.fetch_add(1, std::memory_order_relaxed);
-  void* p = std::malloc(size == 0 ? 1 : size);
+}
+void count_delete(void* p) noexcept {
+  if (p != nullptr && t_armed) g_deletes.fetch_add(1, std::memory_order_relaxed);
+}
+
+void* allocate(std::size_t size) noexcept {
+  count_new();
+  return std::malloc(size == 0 ? 1 : size);
+}
+
+void* allocate(std::size_t size, std::align_val_t alignment) noexcept {
+  count_new();
+  const auto align = static_cast<std::size_t>(alignment);
+#ifdef _WIN32
+  return _aligned_malloc(size == 0 ? 1 : size, align);
+#else
+  void* p = nullptr;
+  return posix_memalign(&p, align, size == 0 ? 1 : size) == 0 ? p : nullptr;
+#endif
+}
+
+void release(void* p) noexcept {
+  count_delete(p);
+  std::free(p);
+}
+
+void release_aligned(void* p) noexcept {
+  count_delete(p);
+#ifdef _WIN32
+  _aligned_free(p);
+#else
+  std::free(p);
+#endif
+}
+
+template <class P>
+P* or_throw(P* p) {
   if (p == nullptr) throw std::bad_alloc();
   return p;
 }
-void* operator new[](std::size_t size) { return ::operator new(size); }
-void operator delete(void* p) noexcept {
-  if (p != nullptr && t_armed) g_deletes.fetch_add(1, std::memory_order_relaxed);
-  std::free(p);
-}
-void operator delete[](void* p) noexcept { ::operator delete(p); }
-void operator delete(void* p, std::size_t) noexcept { ::operator delete(p); }
-void operator delete[](void* p, std::size_t) noexcept { ::operator delete(p); }
+
+}  // namespace
+
+// All twenty forms, so that no memory passes between this program's allocator and a runtime's (a sanitizer's nothrow
+// or aligned new freed here by free() would be a mismatch).
+void* operator new(std::size_t size) { return or_throw(allocate(size)); }
+void* operator new[](std::size_t size) { return or_throw(allocate(size)); }
+void* operator new(std::size_t size, std::align_val_t a) { return or_throw(allocate(size, a)); }
+void* operator new[](std::size_t size, std::align_val_t a) { return or_throw(allocate(size, a)); }
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept { return allocate(size); }
+void* operator new[](std::size_t size, const std::nothrow_t&) noexcept { return allocate(size); }
+void* operator new(std::size_t size, std::align_val_t a, const std::nothrow_t&) noexcept { return allocate(size, a); }
+void* operator new[](std::size_t size, std::align_val_t a, const std::nothrow_t&) noexcept { return allocate(size, a); }
+void operator delete(void* p) noexcept { release(p); }
+void operator delete[](void* p) noexcept { release(p); }
+void operator delete(void* p, std::size_t) noexcept { release(p); }
+void operator delete[](void* p, std::size_t) noexcept { release(p); }
+void operator delete(void* p, const std::nothrow_t&) noexcept { release(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { release(p); }
+void operator delete(void* p, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete[](void* p, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete(void* p, std::size_t, std::align_val_t) noexcept { release_aligned(p); }
+void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { release_aligned(p); }
 
 namespace {
 

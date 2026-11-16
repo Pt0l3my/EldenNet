@@ -299,5 +299,5 @@ TEST_CASE("the task, the provenance and the self-test ids keep to their forms") 
                   "must be flat"));
   CHECK(has_error(refusal(changed("schema = 1", "schema = 2")), "layout.toml: schema", "must be between 1 and 1"));
   CHECK(has_error(refusal(std::string(kSample) + "\n[extra]\nx = 1\n"), "layout.toml", "has an unknown key \"extra\""));
-  CHECK(has_error(refusal("not toml = = 1"), "layout.toml", "is not valid TOML"));
+  CHECK(has_error(refusal("not toml\n"), "layout.toml", "is not valid TOML"));
 }

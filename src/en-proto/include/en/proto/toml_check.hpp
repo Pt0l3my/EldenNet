@@ -16,8 +16,9 @@
 //   array is refused too, which no file of ours needs);
 // - a character outside ASCII stands only in a comment, or (in a player's file) inside a quoted string that opens
 //   where a value or a key may start; gal/'s files write one in a string as \uXXXX;
-// - a quote never follows a bare word's own character (toml++ would read it as part of the word), save after the dot
-//   of a dotted key;
+// - no control character but a tab stands anywhere (TOML allows none, and toml++ scans a bare word through them);
+// - a quote never follows a word's own character, a word being whatever toml++ scans as one bare value (anything up
+//   to a space, a tab, a bracket, a brace, ',', '=' or '#'), save after the dot of a dotted key;
 // - there is no multi-line string;
 // - a '}' never follows '[' or ',' (spaces, tabs, line breaks and comments between them aside), which is never valid;
 // - a bare key or value that starts with a digit has no '-' or ':' after it: no file of ours holds a date or a time.
