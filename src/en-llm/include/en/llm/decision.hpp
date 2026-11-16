@@ -1,7 +1,6 @@
 #pragma once
 // Decision calls (ARCH §11.8): code builds the legal options, the model picks one, and a rules fallback always
 // stands behind it. Our own format over chat completions, on the `decisions` slot.
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -14,73 +13,28 @@
 #include "en/llm/errors.hpp"
 #include "en/llm/message.hpp"
 #include "en/llm/stream.hpp"
+#include "en/proto/llm.hpp"
 
 namespace en::llm {
 
-enum class DecisionKind { Choice, YesNo };
+// The call and its pick are en-proto's (llm.hpp), shared with the core. A call's rules fallback is the key the
+// caller's rules picked from the same state (`rule`), which is checked here like everything else in the call.
+using en::proto::DecidedBy;
+using en::proto::DecisionCall;
+using en::proto::DecisionKind;
+using en::proto::DecisionOption;
+using en::proto::DecisionPick;
+using en::proto::DecisionRecord;
+using en::proto::KeyProbability;
+using en::proto::ReadAs;
+using en::proto::to_string;
 
 inline constexpr std::size_t kMaxOptions = 12;   // EST, as MEM §4.5's gate keeps
 inline constexpr std::size_t kMaxKeyLength = 16;
 
-struct DecisionOption {
-  std::string key;   // short: A, B, … or a neutral label; "none" where picking nothing is legal
-  std::string text;  // one line code wrote from records
-};
-
-// A record the question needs, gathered by code by id; it enters the prompt as quoted data.
-struct DecisionRecord {
-  std::string name;
-  std::string text;
-};
-
-struct DecisionCall {
-  std::string task;                     // "next_speaker" in v1; the recall gate after v1
-  DecisionKind kind = DecisionKind::Choice;
-  std::optional<std::string> subject;   // the profile it is for, if one
-  std::string question;                 // one plain question
-  std::vector<DecisionRecord> state;
-  std::vector<DecisionOption> options;  // Choice only: 2 to 12, unique keys
-  std::function<std::string()> rule;    // the rules fallback: a pure function of the same state, returning a legal key
-  std::vector<Message> messages;        // rendered by en-prompt from prompts/decisions/; empty: the built-in layout
-  std::string slot = std::string(kDecisions);
-};
-
-enum class DecidedBy { Model, Rules };
-enum class ReadAs { Schema, Meaning, YesNo, Rules };
-
-const char* to_string(DecidedBy by);
-const char* to_string(ReadAs read);
-
-struct KeyProbability {
-  std::string key;
-  double probability = 0.0;
-};
-
-struct DecisionPick {
-  std::string key;
-  DecidedBy by = DecidedBy::Rules;
-  ReadAs read = ReadAs::Rules;
-  std::vector<KeyProbability> probabilities;  // from the top-5 logprobs where offered; recorded, never a cut-off
-  bool fallback = false;                      // the rules decided although a model call was wanted
-  bool miss = false;                          // the model answered, but no option or more than one
-  ErrorClass error = ErrorClass::None;        // the call's failure, when that is why the rules decided
-  Millis latency{0};
-  std::string prompt_hash;                    // FNV-1a of the messages: the row keeps it, never the text
-  std::string provider;
-  std::string model;
-  std::string task;
-  std::optional<std::string> subject;
-  std::vector<std::string> option_keys;
-
-  // The pick's probability where logprobs gave one.
-  std::optional<double> probability() const;
-  // The call's one row for the playthrough's decisions table (MEM §8.7): task, subject, option keys, pick, its
-  // probability, model or rules, latency and prompt hash; never the prompt's text or a name.
-  nlohmann::json row() const;
-};
-
 // Throws std::invalid_argument naming what is wrong: no task, no rule, a question missing, 2 to 12 options with
-// unique short keys of letters, digits, '_' or '-' for a choice, none for a yes-or-no question.
+// unique short keys of letters, digits, '_' or '-' for a choice, none for a yes-or-no question, or a rule that is
+// not one of the call's keys.
 void validate(const DecisionCall& call);
 
 // The keys a call may answer: its options' keys, or "yes" and "no".

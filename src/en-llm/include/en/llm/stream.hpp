@@ -1,6 +1,7 @@
 #pragma once
 // From a chat completion's events to the reply: content deltas, `<think>` stripped, the finish reason, usage and
 // logprobs (ARCH §11.1), and the end-of-reply checks behind Empty, Truncated and Refused (ARCH §11.2).
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -9,8 +10,19 @@
 #include <nlohmann/json.hpp>
 
 #include "en/llm/errors.hpp"
+#include "en/proto/llm.hpp"
 
 namespace en::llm {
+
+using en::proto::TokenLogprob;
+using en::proto::TopLogprob;
+using en::proto::Usage;
+
+// ARCH §10.2's caps on a reply, beside the stream's 64 KB lines (sse.hpp): a whole response at most 1 MB, and a stream
+// that passes 16 KB of display text is cancelled. Each event's JSON is held to en-proto's caps (256 KB, 32 deep)
+// before it is parsed (en/proto/json.hpp).
+inline constexpr std::size_t kMaxResponse = std::size_t{1} << 20;
+inline constexpr std::size_t kMaxReplyText = std::size_t{16} << 10;
 
 // Removes `<think>…</think>` from streamed text, tags split across chunks included. A reply that opens with
 // reasoning and only closes it (the template put the opening tag in the prompt) is caught too: the closing tag
@@ -31,23 +43,6 @@ class ThinkFilter {
   std::string held_;
 };
 
-struct Usage {
-  int prompt_tokens = -1;      // -1: not reported
-  int completion_tokens = -1;
-  int cached_tokens = -1;
-};
-
-struct TopLogprob {
-  std::string token;
-  double logprob = 0.0;
-};
-
-struct TokenLogprob {
-  std::string token;
-  double logprob = 0.0;
-  std::vector<TopLogprob> top;
-};
-
 class ReplyAssembler {
  public:
   struct Step {
@@ -55,9 +50,14 @@ class ReplyAssembler {
     bool reset = false;  // the visible text so far was reasoning and is withdrawn
   };
 
-  // One SSE event's data: "[DONE]" or a JSON chunk.
+  // `max_text`: the visible text it keeps (kMaxReplyText unless given). What would take the text past it is cut there,
+  // at a character's boundary, and the reply is over: overflowed() says so, and nothing after it is read.
+  ReplyAssembler() = default;
+  explicit ReplyAssembler(std::size_t max_text) : max_text_(max_text) {}
+
+  // One SSE event's data: "[DONE]" or a JSON chunk. A chunk past en-proto's JSON caps is not parsed: refused() says why.
   Step on_event_data(std::string_view data);
-  // A reply that came as one JSON body (a server that ignored stream: true).
+  // A reply that came as one JSON body (a server that ignored stream: true), held to the same caps.
   Step on_whole_body(std::string_view body);
   // The end of the stream: releases held-back text and trims the reply.
   Step finish();
@@ -74,6 +74,10 @@ class ReplyAssembler {
   const std::string& stream_error_message() const { return stream_error_message_; }
   int bad_chunks() const { return bad_chunks_; }
   bool saw_reasoning() const { return reasoning_chars_ > 0; }
+  // The visible text passed max_text: the stream is to be cancelled, and the text is what fitted.
+  bool overflowed() const { return overflowed_; }
+  // Why a chunk or body was not parsed (past the JSON caps), in our own words; empty when none was refused.
+  const std::string& refused() const { return refused_; }
 
  private:
   Step on_chunk(const nlohmann::json& chunk, bool whole);
@@ -92,6 +96,9 @@ class ReplyAssembler {
   std::string stream_error_message_;
   int bad_chunks_ = 0;
   long reasoning_chars_ = 0;
+  std::size_t max_text_ = kMaxReplyText;
+  bool overflowed_ = false;
+  std::string refused_;
 };
 
 // The class an error object gives: {"error": {"code": 429, ...}} and the like.

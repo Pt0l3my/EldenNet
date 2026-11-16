@@ -10,8 +10,9 @@ void ManualClock::advance_to(TimePoint t) {
 }
 
 std::shared_ptr<Clock> system_clock() {
-  static const auto clock = std::make_shared<SystemClock>();
-  return clock;
+  // Made once with new and never destroyed: no destructor of a static runs at exit (ARCH §1.7).
+  static const std::shared_ptr<Clock>* const clock = new std::shared_ptr<Clock>(std::make_shared<SystemClock>());
+  return *clock;
 }
 
 }  // namespace en::llm

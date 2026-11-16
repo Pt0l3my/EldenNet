@@ -5,9 +5,11 @@
 // The caller (the wizard and the F10 "Find local servers" button) runs them, and never while the offline gate is
 // closed (ARCH §11.4, §5.1). They do not know the gate: the caller checks it before it calls, and stops them with the
 // stop token when the gate closes.
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -44,8 +46,14 @@ struct ProbePort {
   Flavor usual_owner = Flavor::OpenAI;
 };
 
-// ARCH §11.4's order: LM Studio 1234, Ollama 11434, llama.cpp 9931 then the legacy 8080, KoboldCpp 5001.
-const std::vector<ProbePort>& probe_ports();
+// ARCH §11.4's order: LM Studio 1234, Ollama 11434, llama.cpp 9931 then the legacy 8080, KoboldCpp 5001. A constant,
+// so no static object is made or destroyed for it (ARCH §3.1, §1.7).
+inline constexpr std::array<ProbePort, 5> kProbePorts = {{{1234, Flavor::LmStudio},
+                                                         {11434, Flavor::Ollama},
+                                                         {9931, Flavor::LlamaCpp},
+                                                         {8080, Flavor::LlamaCpp},  // llama.cpp's port before 9931
+                                                         {5001, Flavor::KoboldCpp}}};
+constexpr std::span<const ProbePort> probe_ports() { return kProbePorts; }
 
 struct LocalEndpoint {
   int port = 0;

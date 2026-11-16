@@ -14,6 +14,10 @@
 // its caller until the next chunk of a reply arrives, and that holds up only the driver. The exchange's memory (its
 // body, its read buffer, the context the callback sees) lives until WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING, the
 // handle's last notification, as WinHTTP's documentation asks, and until its driver has finished.
+//
+// WinHTTP's calls (the status callback) and the drivers' threads are entries from foreign code: each is noexcept and
+// starts with ffi_guard (R3), and a fault in one trips the transport's component and fails its exchange, which then
+// ends like any other. The drivers run on the net's 2 MB stacks (ARCH §10.2).
 #ifdef _WIN32
 
 #ifndef NOMINMAX
@@ -36,16 +40,19 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
-#include <thread>
 #include <utility>
 #include <vector>
 
+#include "en/llm/thread.hpp"
 #include "en/llm/transport.hpp"
+#include "en/proto/ffi_guard.hpp"
 
 namespace en::llm {
 
 namespace {
+
+using en::proto::Component;
+using en::proto::ffi_guard;
 
 // The client's deadlines end an exchange long before this (ARCH §11.4's longest is a minute): it only stops an
 // exchange that nothing cancels, such as a server that stalls for good, and leaves a model room to load.
@@ -55,6 +62,7 @@ constexpr DWORD kReadBufferSize = 16 * 1024;
 constexpr DWORD kNotifications =
     WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS | WINHTTP_CALLBACK_FLAG_HANDLES | WINHTTP_CALLBACK_FLAG_SECURE_FAILURE;
 constexpr const char* kCannotStart = "the HTTP library could not start a request";
+constexpr const char* kFaulted = "the transport faulted";
 
 // ---- The system's winhttp.dll ----
 
@@ -82,6 +90,9 @@ struct WinHttpApi {
 // other without a warning.
 template <typename Function>
 bool find(HMODULE module, const char* name, Function& function) {
+  // SAFETY: GetProcAddress answers the address of the export `name` of the system's winhttp.dll, as a FARPROC.
+  // `Function` is that export's own type, taken from its declaration in winhttp.h (decltype), so every call through
+  // it matches the function's real signature; a missing export stays null and leaves the transport unbuilt.
   function = reinterpret_cast<Function>(reinterpret_cast<void (*)()>(GetProcAddress(module, name)));
   return function != nullptr;
 }
@@ -513,7 +524,8 @@ struct Exchange {
   std::mutex mutex;
   std::condition_variable wake;
   std::deque<Completion> completions;
-  bool stop = false;  // cancelled: the driver closes the handle and ends
+  bool stop = false;     // cancelled: the driver closes the handle and ends
+  bool faulted = false;  // a fault in the callback lost a completion: the driver fails the exchange
 
   // Guarded by inbox->mutex: once set, nothing more of this exchange reaches the inbox.
   bool dropped = false;
@@ -542,9 +554,16 @@ void stop(Exchange& exchange) {
   exchange.wake.notify_one();
 }
 
-void CALLBACK on_status(HINTERNET, DWORD_PTR context, DWORD status, LPVOID info, DWORD length) {
-  auto* link = reinterpret_cast<std::shared_ptr<Exchange>*>(context);
-  if (link == nullptr) return;
+// The exchange a notification is for: WinHTTP hands back the context configure() set, as an integer.
+std::shared_ptr<Exchange>* link_of(DWORD_PTR context) noexcept {
+  // SAFETY: the context is the value configure() set with WINHTTP_OPTION_CONTEXT_VALUE, and send_request() passed,
+  // for this request handle: the address of a shared_ptr<Exchange> made with new, which only the handle's last
+  // notification (HANDLE_CLOSING) deletes, so it is alive for every notification before that one.
+  return reinterpret_cast<std::shared_ptr<Exchange>*>(context);
+}
+
+// Queues what completed for the exchange's driver; at HANDLE_CLOSING, frees what WinHTTP no longer needs.
+void take_status(std::shared_ptr<Exchange>* link, DWORD status, LPVOID info, DWORD length) {
   if (status == WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING) {
     // The handle's last notification: WinHTTP holds nothing of the exchange any more. Its connection handle, kept
     // open as the request's parent until now, goes too.
@@ -560,13 +579,18 @@ void CALLBACK on_status(HINTERNET, DWORD_PTR context, DWORD status, LPVOID info,
       break;
     case WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE:
     case WINHTTP_CALLBACK_STATUS_SECURE_FAILURE:
+      // SAFETY: for these two notifications WinHTTP's status information is a DWORD: the bytes available, or the
+      // flags of what failed in TLS.
       completion.value = info != nullptr ? *static_cast<const DWORD*>(info) : 0;
       break;
     case WINHTTP_CALLBACK_STATUS_READ_COMPLETE:
       // The bytes are in the exchange's buffer, which no other read uses until the driver has handled this one.
+      // SAFETY: for READ_COMPLETE the status information is that buffer, the one read_data() was given, and
+      // `length` is how many bytes of it the read filled.
       if (info != nullptr && length > 0) completion.data.assign(static_cast<const char*>(info), length);
       break;
     case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
+      // SAFETY: for REQUEST_ERROR the status information is a WINHTTP_ASYNC_RESULT, WinHTTP's own structure.
       completion.value = info != nullptr ? static_cast<const WINHTTP_ASYNC_RESULT*>(info)->dwError
                                          : static_cast<DWORD>(ERROR_WINHTTP_INTERNAL_ERROR);
       break;
@@ -581,6 +605,28 @@ void CALLBACK on_status(HINTERNET, DWORD_PTR context, DWORD status, LPVOID info,
   exchange.wake.notify_one();
 }
 
+// A completion a fault lost would leave the driver waiting for it: the driver is told instead, and fails the exchange.
+void lost_completion(std::shared_ptr<Exchange>* link) noexcept {
+  Exchange& exchange = **link;
+  ffi_guard(Component::LlmTransport, [&] {
+    std::lock_guard lock(exchange.mutex);
+    exchange.faulted = true;
+  });
+  exchange.wake.notify_one();
+}
+
+// WinHTTP's call, on its own threads.
+void CALLBACK on_status(HINTERNET, DWORD_PTR context, DWORD status, LPVOID info, DWORD length) noexcept {
+  const bool taken = ffi_guard(Component::LlmTransport, false, [&] {
+    if (std::shared_ptr<Exchange>* link = link_of(context)) take_status(link, status, info, length);
+    return true;
+  });
+  // HANDLE_CLOSING never throws once it has freed the link, so a fault is always before it.
+  if (!taken) {
+    if (std::shared_ptr<Exchange>* link = link_of(context)) lost_completion(link);
+  }
+}
+
 // Drives one exchange on a thread of its own, from the request sent to its last event: once the request is sent, the
 // only caller of WinHTTP on its handle, closing included.
 class Driver {
@@ -590,6 +636,7 @@ class Driver {
 
  private:
   bool step(Completion& completion);  // false once the exchange has ended
+  void post_fault() noexcept;
   void send_head();
   bool ask_for_data();
   bool end();
@@ -604,25 +651,35 @@ void Driver::run() {
   bool live = true;
   while (live) {
     Completion completion;
+    bool faulted = false;
     {
       std::unique_lock lock(ex.mutex);
-      ex.wake.wait(lock, [&ex] { return ex.stop || !ex.completions.empty(); });
+      ex.wake.wait(lock, [&ex] { return ex.stop || ex.faulted || !ex.completions.empty(); });
       if (ex.stop) break;
-      completion = std::move(ex.completions.front());
-      ex.completions.pop_front();
-    }
-    try {
-      live = step(completion);
-    } catch (...) {  // out of memory, in practice: the exchange fails, not the program
-      live = false;
-      try {
-        post(ex, failed_event(ex.id, "out of memory"));
-      } catch (...) {
+      faulted = ex.faulted;
+      if (!faulted) {
+        completion = std::move(ex.completions.front());
+        ex.completions.pop_front();
       }
     }
+    if (faulted) {  // the callback lost a completion, so no next step can come: the exchange fails now
+      post_fault();
+      break;
+    }
+    // R3: a fault in a step (out of memory, in practice) trips the transport's component and fails the exchange.
+    const std::optional<bool> next =
+        ffi_guard(Component::LlmTransport, std::optional<bool>(), [&] { return std::optional<bool>(step(completion)); });
+    if (!next) post_fault();
+    live = next.value_or(false);
   }
   // No other thread calls WinHTTP on this handle, so nothing overlaps its closing; HANDLE_CLOSING frees the rest.
   winhttp().close_handle(ex.request);
+}
+
+// The exchange's last event after a fault: a failure, so that it ends like any other. If even that cannot be posted,
+// the client's own deadline ends it.
+void Driver::post_fault() noexcept {
+  ffi_guard(Component::LlmTransport, [this] { post(*exchange_, failed_event(exchange_->id, kFaulted)); });
 }
 
 bool Driver::step(Completion& completion) {
@@ -733,6 +790,8 @@ bool configure(const std::shared_ptr<Exchange>& exchange, const HttpRequest& req
   winhttp().set_option(handle, WINHTTP_OPTION_RECEIVE_RESPONSE_TIMEOUT, &headers_wait, sizeof headers_wait);
 
   auto link = std::make_unique<std::shared_ptr<Exchange>>(exchange);
+  // SAFETY: WinHTTP keeps the context as an integer and hands it back to on_status, which turns it back into this
+  // pointer (link_of); the link lives until HANDLE_CLOSING deletes it.
   DWORD_PTR context = reinterpret_cast<DWORD_PTR>(link.get());
   if (!winhttp().set_option(handle, WINHTTP_OPTION_CONTEXT_VALUE, &context, sizeof context)) return false;
   if (winhttp().set_status_callback(handle, &on_status, kNotifications, 0) == WINHTTP_INVALID_STATUS_CALLBACK) {
@@ -825,15 +884,17 @@ int WinHttpTransport::start(const HttpRequest& request) {
   // The body is the exchange's own copy, which lasts until the handle has closed, as WinHTTP needs.
   void* data = exchange->body.empty() ? WINHTTP_NO_REQUEST_DATA : exchange->body.data();
   const auto size = static_cast<DWORD>(exchange->body.size());
-  if (!winhttp().send_request(exchange->request, WINHTTP_NO_ADDITIONAL_HEADERS, 0, data, size, size,
-                              reinterpret_cast<DWORD_PTR>(exchange->context))) {
+  // SAFETY: the same context as configure() set, as the integer WinHTTP takes; on_status turns it back (link_of).
+  const auto context = reinterpret_cast<DWORD_PTR>(exchange->context);
+  if (!winhttp().send_request(exchange->request, WINHTTP_NO_ADDITIONAL_HEADERS, 0, data, size, size, context)) {
     const DWORD error = GetLastError();
     abandon(*exchange);
     return failed_at_start(id, describe(error, 0));
   }
   try {
-    std::thread(drive, exchange).detach();  // the driver holds the exchange until it has finished
-  } catch (const std::system_error&) {
+    // The driver holds the exchange until it has finished, on a thread of the net's stack size (ARCH §10.2).
+    StackThread(Component::LlmTransport, kNetStack, [exchange] { drive(exchange); }).detach();
+  } catch (const std::exception&) {  // the system refused the thread, or its memory
     abandon(*exchange);  // no driver, so this thread may still close the handle
     return failed_at_start(id, kCannotStart);
   }

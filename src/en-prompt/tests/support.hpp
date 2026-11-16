@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <random>
 #include <fstream>
 #include <string>
 #include <system_error>
@@ -27,7 +28,8 @@ class TempTree {
     static std::atomic<unsigned> counter{0};
     const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
     root_ = std::filesystem::temp_directory_path() /
-            ("en-prompt-test-" + std::to_string(stamp) + "-" + std::to_string(counter++));
+            ("en-prompt-test-" + std::to_string(std::random_device{}()) + "-" + std::to_string(stamp) + "-" +
+             std::to_string(counter++));  // its own in every process and every tree
     std::filesystem::create_directories(root_);
   }
   ~TempTree() {

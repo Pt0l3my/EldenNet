@@ -9,6 +9,9 @@
 
 namespace en::llm {
 
+// ARCH §10.2: a stream's line is at most 64 KB.
+inline constexpr std::size_t kMaxSseLine = std::size_t{64} << 10;
+
 struct SseEvent {
   std::string type = "message";
   std::string data;  // the event's data lines joined by "\n"
@@ -18,7 +21,7 @@ struct SseEvent {
 class SseParser {
  public:
   // Lines longer than `max_line` bytes stop the parse (a server sending garbage should not eat memory).
-  explicit SseParser(std::size_t max_line = 4u << 20) : max_line_(max_line) {}
+  explicit SseParser(std::size_t max_line = kMaxSseLine) : max_line_(max_line) {}
 
   // Appends every event the bytes complete. Returns false once a line passed the limit; the parser then stays failed.
   bool feed(std::string_view bytes, std::vector<SseEvent>& out);

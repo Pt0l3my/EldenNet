@@ -16,6 +16,8 @@
 #include <thread>
 #include <vector>
 
+#include "en/proto/ffi_guard.hpp"
+#include "fault_alloc.hpp"
 #include "local_server.hpp"
 #include "rig.hpp"
 
@@ -668,6 +670,37 @@ TEST_CASE("transport: a connection that is never answered ends at the request's 
     CHECK(took < 1500ms);  // not the system's own connect timeout
     if (took >= 250ms) CHECK(contains(lower(o.failed), "time"));  // it waited: a timeout, by name
     CHECK_FALSE(contains(o.failed, "127.0.0.1"));
+  });
+}
+
+TEST_CASE("transport: a callback that throws trips the transport's component, and its request ends at once") {
+  for_each_transport([](const Candidate& candidate) {
+    using en::proto::Component;
+    en::proto::clear_trip(Component::LlmTransport);
+    const std::string text(12000, 'x');
+    std::atomic<int> answered{0};
+    LocalServer server([&](Connection& c, const SeenRequest&) {
+      // Once the request is on its way, the first allocation of a body piece's size on any thread but the server's
+      // fails: inside libcurl's write callback, or WinHTTP's status callback (or the exchange's driver after it).
+      if (answered++ == 0) faults::arm(2000, (16u << 10) + 1);
+      c.send(kStreamHead + sse_content(text) + "data: [DONE]\n\n");
+      return false;
+    });
+    Client client(make_config(local_providers(server.port())), candidate.make());
+    const auto started = SteadyClock::now();
+    const ChatResult broken = client.chat(hello());
+    faults::disarm();
+    REQUIRE(faults::fired());
+    CHECK(broken.error == ErrorClass::Server);
+    CHECK(contains(broken.message, "connection failed"));
+    CHECK(en::proto::tripped(Component::LlmTransport));
+    CHECK(SteadyClock::now() - started < 10s);  // at once, not at the slot's total time
+
+    // The transport goes on: the next request is served whole.
+    const ChatResult next = client.chat(hello());
+    CHECK(next.ok());
+    CHECK(next.text == text);
+    en::proto::clear_trip(Component::LlmTransport);
   });
 }
 

@@ -13,9 +13,12 @@
 
 #include "en/llm/request.hpp"
 #include "en/llm/sse.hpp"
+#include "en/proto/ffi_guard.hpp"
 
 namespace en::llm {
 
+using en::proto::Component;
+using en::proto::ffi_guard;
 using nlohmann::json;
 
 namespace {
@@ -72,12 +75,17 @@ namespace {
 // Only background jobs give way; nothing ever cancels dialogue (ARCH §11.3).
 bool is_preemptible(std::string_view slot) { return slot == kMemory || slot == kBarkPool; }
 
-constexpr std::size_t kMaxErrorBody = 16 * 1024;
-constexpr std::size_t kMaxWholeBody = 4u << 20;
+constexpr std::size_t kMaxErrorBody = 16 * 1024;  // what is kept of an error's body; the rest is not read
 
 Millis since(TimePoint from, TimePoint to) { return std::chrono::duration_cast<Millis>(to - from); }
 
 std::string ms_text(Millis ms) { return std::to_string(ms.count()) + " ms"; }
+
+// A cap in the words of the error that names it: whole MB or KB, as ARCH §10.2 writes them.
+std::string cap_text(std::size_t bytes) {
+  if (bytes >= (std::size_t{1} << 20) && bytes % (std::size_t{1} << 20) == 0) return std::to_string(bytes >> 20) + " MB";
+  return std::to_string(bytes >> 10) + " KB";
+}
 
 // A JSON content type means the server ignored stream: true and sent the whole reply at once.
 bool is_event_stream(const std::vector<HttpHeader>& headers) {
@@ -120,8 +128,9 @@ struct Client::Impl {
     return config;
   }
 
-  void emit(LogLevel level, const std::string& line) const {
-    if (log) log(level, line);
+  // The caller's function, called inside a request: a fault in it loses the line, never the request (R3).
+  void emit(LogLevel level, const std::string& line) const noexcept {
+    if (log) ffi_guard(Component::LlmWorker, [&] { log(level, line); });
   }
 
   bool acquire_slot(const std::string& slot, int limit) {
@@ -246,6 +255,7 @@ class RequestRun {
     bool event_stream = true;
     std::string error_body;
     std::string whole_body;
+    std::size_t received = 0;  // the body's bytes so far, whatever its status: at most kMaxResponse are read
     SseParser sse;
     ReplyAssembler reply;
     bool active = true;
@@ -278,6 +288,7 @@ class RequestRun {
   void on_done(Live& a);
   void on_http_error(Live& a);
   void apply(Live& a, const ReplyAssembler::Step& step);
+  void forward(Live& a, const std::string& delta);
   void end(Live& a, ErrorClass error, std::string message, EndKind kind = EndKind::Normal);
   void fail(Live& a, ErrorClass error, std::string message);
   void apply_health(Live& a);
@@ -602,15 +613,19 @@ void RequestRun::handle(const TransportEvent& event) {
       a->event_stream = is_event_stream(event.headers);
       break;
     case TransportEventKind::Data:
+      a->received += event.data.size();
       if (a->status < 200 || a->status >= 300) {
         if (a->error_body.size() < kMaxErrorBody) a->error_body.append(event.data, 0, kMaxErrorBody - a->error_body.size());
+        // Past the response cap the rest goes unread: what was kept already names the error.
+        if (a->received > kMaxResponse) on_http_error(*a);
+      } else if (a->received > kMaxResponse) {
+        fail(*a, ErrorClass::Server, "the reply passed " + cap_text(kMaxResponse));  // ARCH §10.2
       } else if (!a->event_stream) {
         a->whole_body.append(event.data);
-        if (a->whole_body.size() > kMaxWholeBody) fail(*a, ErrorClass::Server, "the reply passed 4 MB");
       } else {
         std::vector<SseEvent> sse_events;
         if (!a->sse.feed(event.data, sse_events)) {
-          fail(*a, ErrorClass::Server, "a stream line passed 4 MB");
+          fail(*a, ErrorClass::Server, "a stream line passed " + cap_text(kMaxSseLine));  // ARCH §10.2
         } else {
           for (const SseEvent& e : sse_events) {
             apply(*a, a->reply.on_event_data(e.data));
@@ -701,7 +716,18 @@ void RequestRun::on_http_error(Live& a) {
 
 void RequestRun::apply(Live& a, const ReplyAssembler::Step& step) {
   if (step.reset && a.forwarded && sink_ != nullptr) sink_->on_reset();
-  if (step.delta.empty()) return;
+  if (!step.delta.empty()) forward(a, step.delta);
+  if (!a.active) return;
+  // ARCH §10.2's caps, which the assembler keeps: a chunk past the JSON caps breaks the stream, and text past 16 KB
+  // ends it with the text that fitted, the stream cancelled.
+  if (!a.reply.refused().empty()) {
+    fail(a, ErrorClass::Server, a.reply.refused());
+  } else if (a.reply.overflowed()) {
+    fail(a, ErrorClass::Truncated, "the reply passed " + cap_text(kMaxReplyText) + " of text, so the stream was cancelled");
+  }
+}
+
+void RequestRun::forward(Live& a, const std::string& delta) {
   const TimePoint now = c_.clock->now();
   if (!a.first_content_at) {
     a.first_content_at = now;
@@ -718,7 +744,7 @@ void RequestRun::apply(Live& a, const ReplyAssembler::Step& step) {
     }
   }
   if (winner_ == &a && sink_ != nullptr) {
-    sink_->on_delta(step.delta);
+    sink_->on_delta(delta);
     a.forwarded = true;
   }
 }

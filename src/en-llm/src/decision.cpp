@@ -10,6 +10,8 @@
 #include <set>
 #include <stdexcept>
 
+#include "en/proto/json.hpp"
+
 namespace en::llm {
 
 using nlohmann::json;
@@ -197,56 +199,30 @@ std::string quote(const std::string& text) { return json(text).dump(-1, ' ', fal
 
 }  // namespace
 
-const char* to_string(DecidedBy by) { return by == DecidedBy::Model ? "model" : "rules"; }
-
-const char* to_string(ReadAs read) {
-  switch (read) {
-    case ReadAs::Schema: return "schema";
-    case ReadAs::Meaning: return "meaning";
-    case ReadAs::YesNo: return "yes_no";
-    case ReadAs::Rules: return "rules";
-  }
-  return "rules";
-}
-
-std::optional<double> DecisionPick::probability() const {
-  for (const auto& p : probabilities) {
-    if (p.key == key) return p.probability;
-  }
-  return std::nullopt;
-}
-
-json DecisionPick::row() const {
-  const auto p = probability();
-  return json{{"task", task},
-              {"subject", subject ? json(*subject) : json(nullptr)},
-              {"options", option_keys},
-              {"pick", key},
-              {"probability", p ? json(*p) : json(nullptr)},
-              {"by", to_string(by)},
-              {"latency_ms", latency.count()},
-              {"prompt_hash", prompt_hash}};
-}
-
 void validate(const DecisionCall& call) {
   if (call.task.empty()) throw std::invalid_argument("a decision call needs a task");
-  if (!call.rule) throw std::invalid_argument("decision " + call.task + " needs its rules fallback");
+  if (call.rule.empty()) throw std::invalid_argument("decision " + call.task + " needs its rules fallback");
   if (call.messages.empty() && trim(call.question).empty()) {
     throw std::invalid_argument("decision " + call.task + " needs a question");
   }
   if (call.kind == DecisionKind::YesNo) {
     if (!call.options.empty()) throw std::invalid_argument("decision " + call.task + ": a yes-or-no question takes no options");
-    return;
-  }
-  if (call.options.size() < 2) throw std::invalid_argument("decision " + call.task + " needs at least two options");
-  if (call.options.size() > kMaxOptions) throw std::invalid_argument("decision " + call.task + " offers more than 12 options");
-  std::set<std::string> seen;
-  for (const auto& o : call.options) {
-    if (o.key.empty() || o.key.size() > kMaxKeyLength || !std::all_of(o.key.begin(), o.key.end(), key_char)) {
-      throw std::invalid_argument("decision " + call.task + ": option keys are 1 to 16 letters, digits, '_' or '-'");
+  } else {
+    if (call.options.size() < 2) throw std::invalid_argument("decision " + call.task + " needs at least two options");
+    if (call.options.size() > kMaxOptions) throw std::invalid_argument("decision " + call.task + " offers more than 12 options");
+    std::set<std::string> seen;
+    for (const auto& o : call.options) {
+      if (o.key.empty() || o.key.size() > kMaxKeyLength || !std::all_of(o.key.begin(), o.key.end(), key_char)) {
+        throw std::invalid_argument("decision " + call.task + ": option keys are 1 to 16 letters, digits, '_' or '-'");
+      }
+      if (!seen.insert(lower(o.key)).second) throw std::invalid_argument("decision " + call.task + ": two options share key " + o.key);
+      if (trim(o.text).empty()) throw std::invalid_argument("decision " + call.task + ": option " + o.key + " has no text");
     }
-    if (!seen.insert(lower(o.key)).second) throw std::invalid_argument("decision " + call.task + ": two options share key " + o.key);
-    if (trim(o.text).empty()) throw std::invalid_argument("decision " + call.task + ": option " + o.key + " has no text");
+  }
+  // The rules' key stands in for the model whenever it cannot answer, so it must be one the call offers.
+  const std::vector<std::string> keys = legal_keys(call);
+  if (std::find(keys.begin(), keys.end(), call.rule) == keys.end()) {
+    throw std::invalid_argument("the rules of decision " + call.task + " picked a key the call does not offer");
   }
 }
 
@@ -302,12 +278,13 @@ std::optional<std::string> read_schema_answer(std::string_view answer, const Dec
     if (fence != std::string_view::npos) text = text.substr(0, fence);
     text = trim(text);
   }
-  json parsed = json::parse(text, nullptr, /*allow_exceptions=*/false);
+  // Held to en-proto's JSON caps before parsing, as every JSON from outside is (ARCH §10.2).
+  json parsed = en::proto::parse_json(text).value;
   if (parsed.is_discarded()) {
     const std::size_t open = text.find('{');
     const std::size_t close = text.rfind('}');
     if (open == std::string_view::npos || close == std::string_view::npos || close < open) return std::nullopt;
-    parsed = json::parse(text.substr(open, close - open + 1), nullptr, false);
+    parsed = en::proto::parse_json(text.substr(open, close - open + 1)).value;
   }
   std::string value;
   if (parsed.is_object()) {
@@ -519,11 +496,7 @@ DecisionPick Client::decide(const DecisionCall& call, StreamSink* observer, std:
   pick.prompt_hash = hash_messages(request.messages);
 
   auto by_rules = [&](ErrorClass error, bool miss) {
-    std::string key = call.rule();
-    if (std::find(pick.option_keys.begin(), pick.option_keys.end(), key) == pick.option_keys.end()) {
-      throw std::logic_error("the rules of decision " + call.task + " picked a key the call does not offer");
-    }
-    pick.key = std::move(key);
+    pick.key = call.rule;  // one of the call's keys: validate() checked it
     pick.by = DecidedBy::Rules;
     pick.read = ReadAs::Rules;
     pick.fallback = true;

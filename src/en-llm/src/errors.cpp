@@ -2,29 +2,6 @@
 
 namespace en::llm {
 
-const char* to_string(ErrorClass e) {
-  switch (e) {
-    case ErrorClass::None: return "None";
-    case ErrorClass::FirstTokenTimeout: return "FirstTokenTimeout";
-    case ErrorClass::TotalTimeout: return "TotalTimeout";
-    case ErrorClass::RateLimited: return "RateLimited";
-    case ErrorClass::Auth: return "Auth";
-    case ErrorClass::BadRequest: return "BadRequest";
-    case ErrorClass::Server: return "Server";
-    case ErrorClass::Empty: return "Empty";
-    case ErrorClass::Truncated: return "Truncated";
-    case ErrorClass::Refused: return "Refused";
-    case ErrorClass::Cancelled: return "Cancelled";
-    case ErrorClass::Preempted: return "Preempted";
-    case ErrorClass::Busy: return "Busy";
-    case ErrorClass::BudgetSpent: return "BudgetSpent";
-    case ErrorClass::NoHealthyProvider: return "NoHealthyProvider";
-    case ErrorClass::GateClosed: return "GateClosed";
-    case ErrorClass::Dropped: return "Dropped";
-  }
-  return "Unknown";
-}
-
 bool counts_in_health(ErrorClass e) {
   switch (e) {
     case ErrorClass::FirstTokenTimeout:

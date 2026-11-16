@@ -22,7 +22,7 @@ DecisionCall next_speaker() {
   call.options = {{"A", "a weary smith; stirs: iron, debts"},
                   {"B", "a wandering scholar; stirs: old maps"},
                   {"none", "silence"}};
-  call.rule = [] { return std::string("A"); };
+  call.rule = "A";
   return call;
 }
 
@@ -33,7 +33,7 @@ DecisionCall yes_no() {
   call.subject = "persona:invented_smith";
   call.question = "Did the smith hear the bell before the gate closed?";
   call.state = {{"memory", "The bell rang twice at dusk."}};
-  call.rule = [] { return std::string("no"); };
+  call.rule = "no";
   return call;
 }
 
@@ -77,8 +77,14 @@ TEST_CASE("a decision call is checked before anything is sent") {
   CHECK(invalid(next_speaker()).empty());
   CHECK(invalid(yes_no()).empty());
   DecisionCall c = next_speaker();
-  c.rule = nullptr;
+  c.rule.clear();
   CHECK(invalid(c).find("rules fallback") != std::string::npos);
+  c = next_speaker();
+  c.rule = "C";
+  CHECK(invalid(c).find("picked a key the call does not offer") != std::string::npos);
+  DecisionCall y_rule = yes_no();
+  y_rule.rule = "A";  // a yes-or-no question's keys are yes and no
+  CHECK(invalid(y_rule).find("picked a key the call does not offer") != std::string::npos);
   c = next_speaker();
   c.task.clear();
   CHECK(invalid(c).find("task") != std::string::npos);
@@ -320,11 +326,13 @@ TEST_CASE("the rules decide on a miss, on any failure at once, and whenever noth
     CHECK(rig.client->decide(next_speaker()).error == ErrorClass::BudgetSpent);
   }
   {
+    // A rule the call does not offer is refused before anything is sent, even when the model would have answered.
     Rig rig;
+    rig.server->script("model-a", sse_reply({"B"}));
     DecisionCall call = next_speaker();
-    call.rule = [] { return std::string("C"); };
-    rig.client->set_gate_open(false);
-    CHECK_THROWS_AS(rig.client->decide(call), std::logic_error);
+    call.rule = "C";
+    CHECK_THROWS_AS(rig.client->decide(call), std::invalid_argument);
+    CHECK(rig.server->requests().empty());
   }
 }
 

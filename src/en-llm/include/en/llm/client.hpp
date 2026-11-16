@@ -19,34 +19,21 @@
 #include "en/llm/message.hpp"
 #include "en/llm/stream.hpp"
 #include "en/llm/transport.hpp"
+#include "en/proto/llm.hpp"
 
 namespace en::llm {
 
-// Why a request goes out. It decides what happens at the requests-per-hour bound (ARCH §11.4), whether a reply
-// gets a backup request (ARCH §11.2), and, with the slot, the priority on a provider (ARCH §11.3).
-enum class Purpose {
-  Reply,          // the player asked: sent even past the bound
-  OwnInitiative,  // an NPC's own line: past the bound its seed or silence (BudgetSpent)
-  Decision,       // a decision call: past the bound its rules
-  Background,     // pools and memory: past the bound they wait
-};
+// The request, its attempts and its result are en-proto's (llm.hpp), shared with the core.
+using en::proto::AttemptInfo;
+using en::proto::ChatRequest;
+using en::proto::ChatResult;
+using en::proto::Purpose;
+using en::proto::to_string;
 
 // ARCH §11.3's order on a provider, highest first: replies (5) > own-initiative lines and the decision calls that
 // choose them (4) > bark_live (3) > memory (2) > bark_pool (1); selftest and draft rank with own-initiative lines.
 // `slot` is the slot as resolved (Config::slot(name).name).
 int priority_of(std::string_view slot, Purpose purpose);
-
-struct ChatRequest {
-  std::string slot = std::string(kDialogue);  // unknown names fall through to dialogue
-  Purpose purpose = Purpose::Reply;
-  std::vector<Message> messages;
-  std::optional<int> max_tokens;              // at most the slot's budget
-  std::optional<double> temperature;          // the slot's when unset
-  std::optional<nlohmann::json> json_schema;  // the reply is held to it where the provider takes a schema
-  int top_logprobs = 0;                       // where the provider offers logprobs
-};
-
-struct AttemptInfo;
 
 // Receives a reply as it streams, on the thread that called chat().
 class StreamSink {
@@ -59,45 +46,6 @@ class StreamSink {
   virtual void on_attempt(const AttemptInfo&) {}
 };
 
-struct AttemptInfo {
-  std::string provider;
-  std::string model;
-  ErrorClass error = ErrorClass::None;
-  int http_status = 0;
-  bool backup = false;          // started beside a late reply (ARCH §11.2)
-  bool stripped = false;        // sent without the optional fields
-  bool minimal_effort = false;  // sent at the lowest reasoning effort
-  bool lost_race = false;       // cancelled because the other attempt streamed first: no failure
-  Millis sent_at{0};            // from the request's start
-  Millis first_token{-1};       // from its own send; -1 when it never streamed
-  Millis ended_at{0};           // from the request's start
-  std::string message;
-};
-
-struct ChatResult {
-  ErrorClass error = ErrorClass::None;
-  // What went wrong: the client's own words and, for an HTTP error, the server's message cut to 200 bytes with
-  // anything shaped like a credential replaced (never for a rejected key). Never a key. The client's own log lines
-  // carry none of it.
-  std::string message;
-  std::string text;          // the reply, <think> stripped; what streamed so far when it broke after starting
-  std::string raw_text;      // the content exactly as sent, which the decision reader maps logprobs onto
-  std::string finish_reason;
-  std::string provider;      // the attempt that answered, or that failed last
-  std::string model;
-  std::string served_model;  // as the provider named it
-  Usage usage;
-  std::vector<TokenLogprob> logprobs;
-  bool used_schema = false;
-  bool used_logprobs = false;
-  bool streamed = false;     // some text reached the sink (no retry follows that: the caller shows what came)
-  Millis first_token{-1};    // from the request's start to the first visible text
-  Millis total{0};
-  std::vector<AttemptInfo> attempts;
-
-  bool ok() const { return error == ErrorClass::None; }
-};
-
 enum class LogLevel { Debug, Info, Warn };
 using LogFn = std::function<void(LogLevel, const std::string&)>;
 
@@ -107,8 +55,8 @@ struct ClientOptions {
   Millis poll_slice{50};         // the longest a waiting request goes without looking at cancellation
 };
 
-struct DecisionCall;
-struct DecisionPick;
+using en::proto::DecisionCall;
+using en::proto::DecisionPick;
 
 class Client {
  public:

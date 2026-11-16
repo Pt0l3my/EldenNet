@@ -354,7 +354,8 @@ std::string apply_preset(Config& cfg, const std::string& models_text, const std:
   }
   const std::string provider = resolve_preset_provider(preset, cfg, pctx);
   const toml::table* all = get_table(preset, "all", pctx);
-  for (const std::string& slot : known_slots()) {
+  for (const std::string_view name : known_slots()) {
+    const std::string slot(name);
     const toml::table* entry = get_table(preset, slot, pctx);
     const Ctx ectx = pctx.sub(pctx.where + "." + (entry != nullptr ? slot : std::string("all")));
     if (entry == nullptr) entry = all;
@@ -474,14 +475,6 @@ const char* to_string(Flavor f) {
 
 const char* to_string(ProviderKind k) { return k == ProviderKind::Cloud ? "cloud" : "local"; }
 
-const std::vector<std::string>& known_slots() {
-  static const std::vector<std::string> slots = {std::string(kDialogue), std::string(kBarkLive),
-                                                 std::string(kBarkPool), std::string(kMemory),
-                                                 std::string(kSelftest), std::string(kDraft),
-                                                 std::string(kDecisions)};
-  return slots;
-}
-
 SlotBudget default_budget(std::string_view slot) {
   using std::chrono::milliseconds;
   // max_tokens, temperature, first token, first token on a local provider, total, retries, concurrency.
@@ -527,7 +520,9 @@ std::vector<std::string> quantizations_from(std::string_view floor) {
 
 Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
   Config cfg;
-  for (const std::string& slot : known_slots()) cfg.slots[slot] = SlotConfig{slot, default_budget(slot), {}};
+  for (const std::string_view slot : known_slots()) {
+    cfg.slots[std::string(slot)] = SlotConfig{std::string(slot), default_budget(slot), {}};
+  }
   const Keys keys = texts.secrets ? parse_secrets(*texts.secrets) : Keys{};
   if (texts.settings) parse_settings(cfg, *texts.settings);
 

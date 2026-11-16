@@ -6,49 +6,6 @@ namespace en::llm {
 
 using nlohmann::json;
 
-const char* to_string(Role role) {
-  switch (role) {
-    case Role::System: return "system";
-    case Role::User: return "user";
-    case Role::Assistant: return "assistant";
-  }
-  return "user";
-}
-
-Message Message::system(std::string text, bool cache_break) {
-  return Message{Role::System, {Part{std::move(text), cache_break}}};
-}
-
-Message Message::user(std::string text) { return Message{Role::User, {Part{std::move(text), false}}}; }
-
-Message Message::assistant(std::string text) { return Message{Role::Assistant, {Part{std::move(text), false}}}; }
-
-std::string Message::joined() const {
-  std::string out;
-  for (const Part& part : parts) out.append(part.text);
-  return out;
-}
-
-bool Message::has_cache_break() const {
-  for (const Part& part : parts) {
-    if (part.cache_break) return true;
-  }
-  return false;
-}
-
-void normalise(Message& message) {
-  std::vector<Part> kept;
-  kept.reserve(message.parts.size());
-  for (Part& part : message.parts) {
-    if (!part.text.empty()) {
-      kept.push_back(std::move(part));
-    } else if (part.cache_break && !kept.empty()) {
-      kept.back().cache_break = true;
-    }
-  }
-  message.parts = std::move(kept);
-}
-
 namespace {
 
 [[noreturn]] void bad(std::size_t index, const std::string& what) {

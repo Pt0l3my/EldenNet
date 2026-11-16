@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "en/llm/request.hpp"
+#include "en/proto/json.hpp"
 
 namespace en::llm {
 
@@ -18,8 +19,8 @@ using nlohmann::json;
 namespace {
 
 // The flavour checks' answers are small (llama.cpp's props carry its chat templates, some tens of KB); they are parsed
-// whole, so their bound is kept well below a model list's.
-constexpr std::size_t kMaxCheckBody = 512u << 10;
+// whole, so they are held to en-proto's JSON caps (ARCH §10.2), well below a model list's bound.
+constexpr std::size_t kMaxCheckBody = en::proto::kMaxJsonBytes;
 
 std::string ms_text(Millis ms) { return std::to_string(ms.count()) + " ms"; }
 
@@ -277,7 +278,7 @@ HttpRequest local_get(int port, std::string_view path, Millis connect_timeout) {
 }
 
 json parse_check(const Gets::Answer& answer) {
-  return answer.ok(200) ? json::parse(answer.body, nullptr, false) : json();
+  return answer.ok(200) ? en::proto::parse_json(answer.body).value : json();
 }
 
 // Ollama's GET /api/version: {"version": "<its version>"}.
@@ -347,18 +348,12 @@ std::string http_error_text(int status, ErrorClass error) {
 
 std::optional<ModelList> parse_model_list(std::string_view body, const ModelListLimits& limits) {
   if (body.size() > limits.max_body_bytes) return std::nullopt;
+  // Read as it parses, keeping only the ids, so its bound is the list's own; its depth is held to en-proto's cap
+  // before the parser sees it, as every JSON's is (ARCH §10.2).
+  if (!en::proto::within_depth(body, en::proto::kMaxJsonDepth)) return std::nullopt;
   ModelListReader reader(limits);
   if (!json::sax_parse(body.begin(), body.end(), &reader)) return std::nullopt;
   return reader.take();
-}
-
-const std::vector<ProbePort>& probe_ports() {
-  static const std::vector<ProbePort> ports = {{1234, Flavor::LmStudio},
-                                               {11434, Flavor::Ollama},
-                                               {9931, Flavor::LlamaCpp},
-                                               {8080, Flavor::LlamaCpp},  // llama.cpp's port before 9931
-                                               {5001, Flavor::KoboldCpp}};
-  return ports;
 }
 
 std::vector<LocalEndpoint> probe_local(TransportFactory& transports, const ProbeOptions& options, std::stop_token stop) {
@@ -366,7 +361,7 @@ std::vector<LocalEndpoint> probe_local(TransportFactory& transports, const Probe
   const std::unique_ptr<Transport> transport = transports.open();
   if (!transport) return {};
   const std::shared_ptr<Clock> clock = options.clock ? options.clock : system_clock();
-  const std::vector<ProbePort>& ports = probe_ports();
+  const std::span<const ProbePort> ports = probe_ports();
   const std::size_t max_check = std::min(kMaxCheckBody, options.limits.max_body_bytes);
 
   std::vector<PortFindings> found(ports.size());

@@ -1,10 +1,12 @@
 #pragma once
 // Providers, models, slots, presets, the request budget and keys (ARCH §11.1, §11.4, §11.5): the part of the
 // configuration the model client reads.
+#include <array>
 #include <filesystem>
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -16,6 +18,7 @@
 #include "en/llm/clock.hpp"
 #include "en/llm/secret.hpp"
 #include "en/llm/transport.hpp"
+#include "en/proto/llm.hpp"
 
 namespace en::llm {
 
@@ -71,15 +74,19 @@ struct SlotConfig {
   std::vector<ModelRef> models;  // the slot's model first, then its fallback
 };
 
-inline constexpr std::string_view kDialogue = "dialogue";
-inline constexpr std::string_view kBarkLive = "bark_live";
-inline constexpr std::string_view kBarkPool = "bark_pool";
-inline constexpr std::string_view kMemory = "memory";
-inline constexpr std::string_view kSelftest = "selftest";
-inline constexpr std::string_view kDraft = "draft";
-inline constexpr std::string_view kDecisions = "decisions";
+// The slots' names are en-proto's (llm.hpp): the core names the slot a request goes on.
+using en::proto::kBarkLive;
+using en::proto::kBarkPool;
+using en::proto::kDecisions;
+using en::proto::kDialogue;
+using en::proto::kDraft;
+using en::proto::kMemory;
+using en::proto::kSelftest;
 
-const std::vector<std::string>& known_slots();
+// Every slot, in ARCH §11.4's order: a constant, so no static object is made or destroyed for it (ARCH §3.1, §1.7).
+inline constexpr std::array<std::string_view, 7> kKnownSlots = {kDialogue, kBarkLive, kBarkPool, kMemory,
+                                                                kSelftest, kDraft,    kDecisions};
+constexpr std::span<const std::string_view> known_slots() { return kKnownSlots; }
 SlotBudget default_budget(std::string_view slot);
 
 struct Config {

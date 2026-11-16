@@ -49,29 +49,20 @@
 #include "en/llm/decision.hpp"
 #include "en/llm/errors.hpp"
 #include "en/llm/transport.hpp"
+#include "en/proto/llm.hpp"
 
 namespace en::llm {
 
-using RequestId = std::uint64_t;
-using Epoch = std::uint64_t;
-
-enum class RequestKind { Chat, Decision };
-
-// One of the core's requests (ARCH §2.2's `LlmRequest`).
-struct LlmRequest {
-  // The caller's: non-zero, and unique among live requests (accepted, Ended event not yet queued). Reuse an id only
-  // after reading its Ended event.
-  RequestId id = 0;
-  std::variant<ChatRequest, DecisionCall> body;
-  // The player-input epoch own-initiative work was made at (DESIGN §8.9). Own-initiative dialogue must carry it, the
-  // decision call that chooses a line may (and is then own-initiative work too), a reply never does. Whatever carries
-  // one is cancelled by cancel_before_epoch().
-  std::optional<Epoch> epoch;
-
-  RequestKind kind() const;
-  static LlmRequest chat(RequestId id, ChatRequest request, std::optional<Epoch> epoch = std::nullopt);
-  static LlmRequest decision(RequestId id, DecisionCall call, std::optional<Epoch> epoch = std::nullopt);
-};
+// The requests and events are en-proto's (llm.hpp, ARCH §2.2's LlmRequest and LlmEvent), shared with the core. A
+// request that carries an epoch is cancelled by cancel_before_epoch().
+using en::proto::Epoch;
+using en::proto::EventKind;
+using en::proto::LlmEvent;
+using en::proto::LlmRequest;
+using en::proto::RequestId;
+using en::proto::RequestKind;
+using en::proto::to_string;
+using en::proto::WarmUpOutcome;
 
 enum class SubmitResult {
   Accepted,   // exactly one Ended event follows
@@ -81,40 +72,7 @@ enum class SubmitResult {
   ShutDown,   // the handle has shut down
 };
 
-enum class EventKind {
-  Started,      // the request's first attempt was sent: `provider` and `model`
-  Delta,        // the next piece of a chat reply's text: `text`
-  Reset,        // the text passed on so far was reasoning after all: withdraw it
-  Ended,        // the request's one terminal event: `chat` for a chat request, `pick` for a decision call
-  WarmUpEnded,  // a warm-up's one event: `provider`, `model` and `warm_up`
-};
-
 const char* to_string(SubmitResult result);
-const char* to_string(EventKind kind);
-
-struct WarmUpOutcome {
-  bool ok = false;     // the server answered 2xx
-  int status = 0;      // its HTTP status; 0 when none came
-  Millis time{0};      // from the send to the end
-  // None, or why not: Server (no connection, a 5xx), BadRequest (a 4xx, such as a model the server lacks),
-  // TotalTimeout, GateClosed (it closed meanwhile), Cancelled (shutdown), NoHealthyProvider (no transport).
-  ErrorClass error = ErrorClass::None;
-};
-
-struct LlmEvent {
-  EventKind kind = EventKind::Delta;
-  RequestId id = 0;   // the request's; for WarmUpEnded the warm-up's own, from warm_up(), which is not a request id
-  std::string provider;              // Started, WarmUpEnded
-  std::string model;                 // Started, WarmUpEnded
-  std::string text;                  // Delta
-  std::optional<ChatResult> chat;    // Ended, for a chat request
-  std::optional<DecisionPick> pick;  // Ended, for a decision call
-  WarmUpOutcome warm_up;             // WarmUpEnded
-
-  bool terminal() const { return kind == EventKind::Ended || kind == EventKind::WarmUpEnded; }
-  // The outcome's class: the chat result's, the pick's or the warm-up's; None for the other kinds.
-  ErrorClass error() const;
-};
 
 struct ServiceOptions {
   ClientOptions client;               // the clock, the log and the poll slice, which the handle uses too

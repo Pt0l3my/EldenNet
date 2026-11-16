@@ -777,3 +777,32 @@ TEST_CASE("list_models: a list past the body bound is Server, and the request is
   CHECK(r.message == "the model list passed 8 MB");
   CHECK(rig.server.seen[0].cancelled);
 }
+
+// ---- ARCH §10.2's JSON caps on what the probe parses -----------------------------------------------------------
+
+TEST_CASE("probe: a flavour check is parsed up to 256 KB, and an answer past it is not read") {
+  const std::string at_cap = kLlamaProps + std::string((256u << 10) - kLlamaProps.size(), ' ');
+  ProbeRig rig;
+  rig.server.on(models_url(9931), answer(200, list_of({"llama-model"})));
+  rig.server.on(props_url(9931), answer(200, at_cap));
+  rig.server.on(models_url(8080), answer(200, list_of({"legacy-model"})));
+  rig.server.on(props_url(8080), answer(200, at_cap + " "));
+  const auto endpoints = rig.run();
+  REQUIRE(ports_of(endpoints) == std::vector<int>{9931, 8080});
+  CHECK(endpoints[0].flavor == Flavor::LlamaCpp);
+  CHECK(endpoints[0].confirmed);
+  CHECK(endpoints[1].flavor == Flavor::OpenAI);  // its check was too long to read: it stays unconfirmed
+  CHECK_FALSE(endpoints[1].confirmed);
+}
+
+TEST_CASE("a model list nested 32 deep is read; one level deeper is no list, refused before it is parsed") {
+  const auto nested_list = [](std::size_t depth) {
+    // The list itself is 3 deep (the object, its data, an entry); the rest is a field the reader skips.
+    return R"({"data": [{"id": "an-invented-model", "meta": )" + std::string(depth - 3, '[') +
+           std::string(depth - 3, ']') + "}]}";
+  };
+  const auto at_cap = parse_model_list(nested_list(32));
+  REQUIRE(at_cap.has_value());
+  CHECK(at_cap->ids == std::vector<std::string>{"an-invented-model"});
+  CHECK_FALSE(parse_model_list(nested_list(33)).has_value());
+}
