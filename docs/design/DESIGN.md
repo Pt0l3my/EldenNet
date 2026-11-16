@@ -1921,7 +1921,11 @@ bookkeeping stays in code; thinking is a last resort (WHY§99).
 | `decisions` | Decision calls (ARCH §11.8): in v1 the next speaker at a shared place, silence always offered (§9.7); later the recall gate (§10.1); at most 12 options, the top 5 logprobs where offered | 100 | 0 | 1.5 s (3 s local) | 5 s | 0 | The rules fallback |
 
 Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
-that names no `decisions` model uses its `bark_live` model.
+that names no `decisions` model uses its `bark_live` model. Two more slots are reserved (O88): `actions` (NPC actions,
+after v1) and `vision` (letting an NPC see the screen, not yet designed). The files accept them, so that they keep their
+shape, but no request uses them until their features exist; until then a request naming one falls through to
+`dialogue` (ARCH §11.4). Every slot names its own provider, model and fallback, and a preset may name several providers
+(ARCH §11.1, §11.4).
 The `decisions` slot replaces the reserved `meta` slot and `DecisionRequest`. A decision call is our own format over
 chat completions: code builds the legal options and the model picks one, through an enum schema where the provider
 supports one and otherwise a plain answer read by meaning; questions are plain yes or no where they can be;
@@ -1932,7 +1936,8 @@ a rules fallback always stands behind it (ARCH §11.8). Budgets are the same in 
 
 | Preset | dialogue / bark_live | bark_pool | memory |
 |---|---|---|---|
-| **Cloud budget** (OpenRouter, the player's own key) | `google/gemma-4-26b-a4b-it` (fallback `gemma-4-31b-it`) | `deepseek/deepseek-v4-flash` | `qwen/qwen3-235b-a22b-2507` |
+| **Cloud budget** (OpenRouter, the player's own key; the default, offered first, O88) | `google/gemma-4-26b-a4b-it` (fallback `gemma-4-31b-it`) | `deepseek/deepseek-v4-flash` | `qwen/qwen3-235b-a22b-2507` |
+| **Cloud, NanoGPT** (the player's own key, O88) | To be measured (roadmap S8.1.h): `decisions` and `bark_live` need a first token within 1.5 s (ARCH §11.4) | To be measured | To be measured |
 | Local 12 GB | Gemma 4 E4B or Qwen3.5-4B, Q4 | same, at rest | same, at rest |
 | Local 16 GB+ | Qwen3.5-9B Q4 | same | same |
 | 8 GB GPU | Cloud recommended | | |
@@ -1959,8 +1964,13 @@ persona, card or character profile, 8 KB per player profile file; 4 MB per conte
 The wizard opens at the title screen, where the gate's title clause permits its network calls (§3.4):
 1. notices: offline only, save backups, data sent to the provider, AI disclosure;
 2. build, ladder level and capabilities;
-3. a cloud key, or a local probe;
-4. a self-test: TTFT, tokens per second, one Lantern-Keeper line, a JSON check. Results are given in words and figures (P3 §8.6, P2 §8.5): the estimated first page (TTFT + 15 tokens ÷ tokens per second) is "quick" at ≤ 1.6 s, "acceptable" at ≤ 3.0 s and "slow" beyond, matching C5's cloud targets (ARCH §11.7);
+3. a cloud key first, since cloud is the default (O88). The wizard picks the preset by the key's provider where the
+   key's form marks it (OpenRouter's keys begin `sk-or-`), and otherwise asks which provider the key is for, offering
+   OpenRouter first, then NanoGPT; it never tries a key on a provider to learn whose it is, since that would send the
+   key where it does not belong. A local server (the probe) stays one choice away;
+4. a self-test on the chosen preset: TTFT, tokens per second, one Lantern-Keeper line, a JSON check. Results are given
+   in words and figures (P3 §8.6, P2 §8.5): the estimated first page (TTFT + 15 tokens ÷ tokens per second) is "quick"
+   at ≤ 1.6 s, "acceptable" at ≤ 3.0 s and "slow" beyond, matching C5's cloud targets (ARCH §11.7);
 5. an optional bark pre-bake.
 
 The self-test also runs silently at every start, and `eldennet-engine selftest` runs it outside the game.
@@ -2003,7 +2013,7 @@ The self-test also runs silently at every start, and `eldennet-engine selftest` 
 
 | Seam | v1 artefact | Later |
 |---|---|---|
-| Actions | `ACT:` trailer → `npc_intent`; decision calls on the `decisions` slot, with their rules fallback (§11.2; ARCH §11.8); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a build option; empty prompt partials; a `decisions` table, one row per call (ARCH §11.8; MEM §8.7; SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
+| Actions | `ACT:` trailer → `npc_intent`; decision calls on the `decisions` slot, with their rules fallback (§11.2; ARCH §11.8), and the `actions` slot reserved for an act's own calls when actions arrive (O88); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a build option; empty prompt partials; a `decisions` table, one row per call (ARCH §11.8; MEM §8.7; SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
 | Followers | The companion layer every bio carries (§7.8), used in v1.0 by the game's own summons | Characters who travel with the Tarnished, after v1.0, when actions open (O85) |
 | TTS / STT / pad | `SpeechSink` + `PageTiming`; `Line.voice_key`; `InputSource {Typed, Stt, Intent}`; the `tts` allowance | TTS, push-to-talk, intent list |
 | Thoughts | `npc_thought` event type; parser channel reserved | Add to the contract |
@@ -2433,7 +2443,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Sheltered context | The Roundtable (SpEffect 9621) and resting at a grace (flag 9000, once S6 verifies it) waive the two hostile-distance checks, never the boss and combat checks; nearest-persona reach 8 m | No waiver; waive every check | Chat in safe places without weakening the combat and boss checks | §8.1; NPC §5.4; review |
 | Self-test placement | Image checks before registration; game-object tests on the first ticks; failure → inert task | All tests before registration | R1 forbids game-object reads outside the task | ARCH §3.2; review |
 | Text | Hook-free FMG table walk | `GetMessage` call or hook | Reforged hooks it; no calls | ER01 §8.3 |
-| LLM | One OpenAI-compatible client, 7 slots (`draft` serves the profile helper, §7.7; `decisions` the decision calls, §11.2); a retry that never drops the reasoning switch, a backup request, a quantisation floor and a budget of requests per hour (§11.1) | Several SDKs; a retry without the optional body, reasoning switch and all (SkyrimNet 1.2.0) | Industry convergence; a reasoning model whose switch is dropped may spend its whole budget thinking (WHY§98) | ER06 §5.2; WHY§98 |
+| LLM | One OpenAI-compatible client, 7 slots (`draft` serves the profile helper, §7.7; `decisions` the decision calls, §11.2), each with a provider of its own, and `actions` and `vision` reserved (O88); a retry that never drops the reasoning switch, a backup request, a quantisation floor and a budget of requests per hour (§11.1) | Several SDKs; a retry without the optional body, reasoning switch and all (SkyrimNet 1.2.0) | Industry convergence; a reasoning model whose switch is dropped may spend its whole budget thinking (WHY§98) | ER06 §5.2; WHY§98 |
 | Decision calls | Our own format over chat completions: code builds the legal options and the model picks one (an enum schema where supported, else a plain answer read by meaning; plain yes or no questions; logprobs where offered, no hard confidence cut-off; thinking off by default; a rules fallback always); in v1 the next speaker at a shared place, silence always offered, its addressee set by code; later the recall gate | Typed decisions with a 0.70 confidence cut-off; the reserved `meta` slot and `DecisionRequest`; no decisions in v1 | Code gathering the records a question needs reached 93–100%, against 0–25% for a model handed an index; chat read by meaning matched or beat typed decisions, whose cut-off lost about a quarter of right answers (WHY§99, LIKELY) | §9.7, §11.2; ARCH §11.8; WHY§98, WHY§99 |
 | Templates | The template engine fails loudly on unknown names, keeps null and missing apart, has real booleans, a real substring test and built-ins safe on empty strings; the function reference and the lint's allowlist come from one registry; records enter prompts as quoted data | Stock template behaviour | Unresolved variables reached SkyrimNet's model 12 times in the captures, and instructions planted in records were obeyed (WHY§99, LIKELY) | §8.3; NPC §7.1; WHY§99 |
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |

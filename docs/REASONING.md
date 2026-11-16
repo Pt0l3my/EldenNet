@@ -132,6 +132,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 107 | 2026-11-16 | EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open | METHOD | #graceui #design |
 | 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
 | 109 | 2026-11-16 | WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it | METHOD | #engine |
+| 110 | 2026-11-16 | O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows | DECIDED | #engine #design |
 
 ## Entries
 
@@ -2039,3 +2040,32 @@ before they ship.
 - **Tested everywhere.** The wording is a pure function (`winhttp_failure`), built on every system with WinHTTP's codes
   written out and checked against `winhttp.h` on Windows builds; the two transport tests print what they saw when they
   fail. GCC and Clang en_llm 143 cases, Wine 145 (roadmap S8.1.m).
+
+### 110. O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows
+
+`2026-11-16` · DECIDED (folding O88) · `#engine #design` · refs: O88, ARCH§11.1, ARCH§11.4, ARCH§11.7, DESIGN§11.5,
+PAGES§4.5, WHY§108
+
+- **A preset's providers are expectations, not endpoints.** In either form a preset's provider says what it expects (a
+  base URL, else a kind and flavour) and is matched to an entry of `providers.toml`, as the one-provider form always
+  was. The key and every setting of the endpoint (the reasoning switch, concurrency, JSON mode, the floor) stay with
+  that entry, which the player owns and AI › Providers edits, so the wizard writes the entry beside the preset.
+  Rejected: presets that define endpoints of their own, with keys found by the preset's names; they would clash with
+  the player's entry of the same id, keep endpoints off AI › Providers and put reasoning switches in shipped content.
+- **One name, one provider.** TOML refuses a name given twice in a preset; a preset's name that is another entry's id
+  in `providers.toml` is refused too, since it would stand for two. A preset with neither form is now refused, where it
+  used to take the only provider there was.
+- **The reserved slots.** `actions` gets a decision call's tokens and temperature (100, 0), since an act is to be picked
+  as a decision is (DESIGN §13), and no act on failure, as R2 fails closed; its times and retries, and all of
+  `vision`'s budgets, are set with their features. Until then a request naming either falls through to `dialogue`, and
+  a preset's `all` does not reach them.
+- **"Same as dialogue"** (PAGES §4.5). O88's Settings › AI is the AI page's Models. A slot with no model of its own,
+  from the preset or the player, follows Conversation, as the engine's borrowing does, and its row says so until it is
+  changed (Decisions follows Quick lines); a preset's own picks show as picks, since they do not follow a change to
+  Conversation. A `[slots]` entry without a provider takes the one the preset gives that slot.
+- **A key is read, never tried.** The wizard knows OpenRouter's keys by `sk-or-` and asks about any other; trying a key
+  on each provider to see which accepts it would send it where it does not belong.
+- **Measured before shipping.** The 1.5 s first-token rule binds the presets that name their models (the cloud ones),
+  before they ship and whenever a model changes; a local preset's models are the player's, and the self-test measures
+  them. The engine reads both forms and the reserved slots (roadmap S8.1.n): GCC and Clang en_llm 155 cases, Wine 157;
+  NanoGPT's models wait on run 3 (S8.1.h).

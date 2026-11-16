@@ -728,7 +728,9 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - refs: ARCH§11.1, WHY§101, WHY§108
   - gives: run 1 on 2026-11-16 (WHY§108): the home network's llama-server, TLS with real certificates and the tests
     pass, except two WinHTTP checks that real Windows answers differently from Wine (the connect deadline, the TLS
-    failure's wording), being fixed; then a second run, with cancelling and a cloud key.
+    failure's wording), fixed in m; run 2 the same day, with a cloud key: the reply and the backup request work against
+    a real provider, and the cloud decision missed its 1.5 s. Still to run: cancelling a reply part-way, and run 3's
+    timings of NanoGPT's candidate models, which choose `cloud-nanogpt`'s (O88, n; ARCH §11.4).
 - i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
   - needs: e
   - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
@@ -753,9 +755,14 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - gives: built 2026-11-16 on the engine branch (WHY§109): the driver's own connect deadline and TLS failures told by
     phase, the wording a pure function tested on every build; the second Windows package went to the owner the same
     day for run 3, with a step that times NanoGPT's candidate models (O88).
-- n A provider for every use, cloud by default (O88): presets with several providers, a slot per use with `actions` and `vision` reserved, OpenRouter's and NanoGPT's presets with measured models, the wizard leading with a cloud key, and Settings › AI with a row per slot [next]
+- n A provider for every use, cloud by default (O88): presets with several providers, a slot per use with `actions` and `vision` reserved, OpenRouter's and NanoGPT's presets with measured models, the wizard leading with a cloud key, and Settings › AI with a row per slot [done]
   - needs: m
-  - refs: O88, ARCH§11.1, ARCH§11.4, DESIGN§11.5, PAGES§4.5, WHY§108
+  - refs: O88, ARCH§11.1, ARCH§11.4, ARCH§11.7, DESIGN§11.5, PAGES§4.5, WHY§108, WHY§110
+  - gives: folded and built 2026-11-16 (WHY§110): ARCH §11.1 (a provider for every use), §11.4 (`actions` and `vision`
+    reserved, presets in two forms, OpenRouter's `cloud-budget` beside NanoGPT's `cloud-nanogpt`, the 1.5 s rule) and
+    §11.7, DESIGN §11.2, §11.3, §11.5 (the wizard leads with a cloud key) and §13, PAGES §4.5 and §4.6.2 (a row per
+    slot); the engine reads both preset forms and the reserved slots, with GCC and Clang en_llm 155 cases and Wine
+    157. NanoGPT's models wait on run 3's timings (h).
 
 ## S9 The roster pipeline [planned]
 
@@ -1023,7 +1030,7 @@ v0.1's testing uses, draw through it.
 ### S15.1 EldenNet v0.6
 
 - S15.1.a The first-run wizard, the call-out with repeat calls, and the pad gesture
-  - refs: O13, O11
+  - refs: O13, O11, O88, DESIGN§11.5
 - b The compatibility matrix and the patch drill, with the JP build as the "new" one
   - refs: ARCH§12.4, O5
 - c The profile editor, the sightings list and the draft helper

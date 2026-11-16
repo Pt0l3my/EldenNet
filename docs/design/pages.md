@@ -187,6 +187,7 @@ Compatibility, About) meets EldenNet's Settings groups was to be settled with G2
 | `ui.follow_game_subtitles` | Follow the game's subtitle setting | Voice › Text and subtitles | Conversation | Now |
 | `ui.latency_toasts` | Latency toasts | Settings › Developer | Traces | Now |
 | `pools.max_jobs_per_session` | Prepared-line batches per session | AI › Models (Prepared lines) | Combat | Next request |
+| `[slots.<slot>]` `provider`, `model`, `fallback`, `fallback_provider` (`providers.toml`, ARCH §11.1; O88) | Each job's provider, model and fallback | AI › Models (one row per slot) | — | Next request |
 | `safety.level` | Content safety: faithful or gentle (O17) | Behaviour › Conversation | — | Next request |
 | `hotkeys.talk`, `hotkeys.skip_page` | Talk; skip page | Settings › Hotkeys | Conversation | Now |
 | `hotkeys.menu` *new*, *GraceUI's*, replacing `hotkeys.settings` | Open the menu (F5) | Settings › Hotkeys | — | Now |
@@ -203,14 +204,23 @@ Compatibility, About) meets EldenNet's Settings groups was to be settled with G2
 
 The first proposal's `ui.menu.names` is dropped: names are plain only (D39).
 
+**A row per slot** (O88, whose "Settings › AI" is the AI page's Models). AI › Models shows one row for each job slot,
+with its provider, model and fallback: Conversation (`dialogue`), Quick lines (`bark_live`), Prepared lines
+(`bark_pool`), Memory (`memory`), Profile drafts (`draft`), Decisions (`decisions`) and Self-test (`selftest`). A slot
+with no model of its own, from the preset or the player, takes Conversation's provider, model and fallback, and its row
+says so, "Same as Conversation", until it is changed; Decisions follows Quick lines in the same way (ARCH §11.4).
+Without a preset, every row but Conversation starts so. A change writes the slot's `[slots.<slot>]` in
+`providers.toml`, its provider named, and Reset to preset clears it. The reserved slots, `actions` and `vision`, get
+their rows only once their features exist.
+
 **Other sources.** From 1.1, `config\plugins.toml` (each plugin's switch, its Cluster or Detached mode and the order;
 changed only through EldenNet's plugin commands) on Plugins. `providers.toml` (read and write) on AI › Providers (its
-entries) and AI › Models (slot models and the preset); `secrets.toml` **write-only** on AI › Providers (the UI sees set,
-missing or rejected, never a value); `models.toml` (read) on AI › Models; `identity/types.toml` (read) on NPC types;
-persona and bio display fields only (`display_name_fallback`, `public.summary`, `public.role`, `subjects`, the news
-temperament) on Named NPCs; each persona stage's public line, for the stage seen only, on Playthrough; a world stage's
-`line` only for stages that hold, on History › World; `overrides/` and `disable.toml` (read, as relative paths, ids and
-counts) on Content packs.
+entries) and AI › Models (each slot's provider, model and fallback, and the preset); `secrets.toml` **write-only** on
+AI › Providers (the UI sees set, missing or rejected, never a value); `models.toml` (read) on AI › Models;
+`identity/types.toml` (read) on NPC types; persona and bio display fields only (`display_name_fallback`,
+`public.summary`, `public.role`, `subjects`, the news temperament) on Named NPCs; each persona stage's public line, for
+the stage seen only, on Playthrough; a world stage's `line` only for stages that hold, on History › World; `overrides/`
+and `disable.toml` (read, as relative paths, ids and counts) on Content packs.
 View state, never stored: live updates, the journey in view, the rail collapsed, sections open.
 
 **Actions** (each a command, GraceUI §6.6): Pause AI for this session (Home, D15); run the self-test (AI › Self-test,
@@ -293,13 +303,16 @@ dialog and Related card of GraceUI §4.2.4.
 **Models** (`ai.models`; 0.2 read-only, 0.6 writable).
 
 - **Purpose.** Which model does each job, and the preset that sets them all.
-- **Header actions.** The preset (Cloud budget, Local 12 GB, Local 16 GB+, Custom) and Apply · Reset to preset.
+- **Header actions.** The preset (O88: Cloud budget on OpenRouter, the default; Cloud on NanoGPT; Local 12 GB;
+  Local 16 GB+; Custom) and Apply · Reset to preset.
 - **Sections.** **Advice**: EldenNet's advice for this machine in words (an 8 GB GPU is pointed at the cloud); a notice
   when the shipped advice changed in this version; the free-model warning (free models are not advised for prepared
   lines and autonomy, and free presets turn autonomy off, O37). **One card per job slot**, by player label with the
   slot id as a chip: *Conversation* (`dialogue`), *Quick lines* (`bark_live`), *Prepared lines* (`bark_pool`),
-  *Memory* (`memory`), *Self-test* (`selftest`) and, from 0.4, *Decisions* (`decisions`); each with its provider,
-  model (a picker from the provider's model list, or text), fallback model, a health dot and word, and the fixed
+  *Memory* (`memory`), *Self-test* (`selftest`), from 0.4 *Decisions* (`decisions`) and from 0.6 *Profile drafts*
+  (`draft`, with the helper, EldenNet DESIGN §7.7); each with its provider (a picker of the providers on Providers),
+  model (a picker from the provider's model list, or text), fallback model and its provider (a card with no model of
+  its own reads "Same as Conversation" until changed, §4.5; O88), a health dot and word, and the fixed
   budgets read-only (tokens, temperature, first-token and total time, retries: "the same in every preset", EldenNet
   DESIGN §11.2). The **Prepared lines** card also holds `pools.max_jobs_per_session` (its home), the pool's state in
   words (cards ready, generating, paused in a fight; counts cover every type, which are all listed (G5); pool lines are

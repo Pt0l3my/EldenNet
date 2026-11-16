@@ -1796,6 +1796,12 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
   `provider.quantizations`), `quant_floor` keeps every request at that level or above; the client writes it in the
   flavour's own field and keeps it on a retry, as it keeps the reasoning switch (§11.2). Elsewhere it is ignored: a
   local model's quantisation is the file the player loaded (§11.4).
+- **A provider for every use** (O88): a provider is an endpoint with its own key, one `[[provider]]` entry with its
+  `base_url` and `key_ref`, and every slot names its own provider, model and fallback (`provider`, `model`, `fallback`
+  and `fallback_provider`, in `[slots.*]` below or in the preset's entry for the slot, §11.4). That is how each use
+  gets a provider of its own: replies on one, prepared lines on another, decisions on a fast one. A slot that names no
+  provider takes the one its preset gives it, and a fallback that names none takes its model's provider. The reserved
+  slots `actions` and `vision` are written the same way (§11.4).
 
 ```toml
 # %APPDATA%\EldenNet\config\providers.toml
@@ -1819,8 +1825,8 @@ logprobs = true                         # whether decision calls may ask for log
 [slots.dialogue]                        # optional per-slot overrides of the preset's model choice
 model = "google/gemma-4-26b-a4b-it"
 fallback = "google/gemma-4-31b-it"
-# provider = "…" and fallback_provider = "…" name a provider by id: by default the preset's provider, and for the
-# fallback the primary model's
+# provider = "…" and fallback_provider = "…" name a provider by id (O88): by default the one the preset gives this
+# slot, and for the fallback the primary model's
 ```
 
 ### 11.2 Error classes, actions and health
@@ -1885,9 +1891,15 @@ any slot's do.
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
 | `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1; at most 12 options, the top 5 logprobs where offered (§11.1) | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The rules fallback: the task's rule (§11.8) |
+| `actions` | *Reserved* (O88): NPC actions, after v1 (O31 to O42). An act is to be picked as a decision call picks, from options code builds (DESIGN §13) | 100 | 0 | Set with the feature | Set with the feature | Set with the feature | No act: the rules fallback (§11.8) |
+| `vision` | *Reserved* (O88): a later feature that lets an NPC see the screen; none is designed yet | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature |
 
 Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
 that names no `decisions` model uses its `bark_live` model (impl). Budgets are identical in every preset (DESIGN §11.2).
+The reserved slots keep the files and Settings in the shape their features will need (O88): `[slots.actions]`,
+`[slots.vision]` and a preset's `actions` and `vision` are read and checked as every slot's are, but no request uses
+them yet. A request that names one falls through to `dialogue`, as an unknown name does, until its feature exists and
+brings the budgets left open above.
 
 **Requests per hour** (WHY§99). Beside these budgets for each request, `budget.requests_per_hour` (§11.5) bounds what
 the client sends in any rolling hour, retries, backups and decision calls included. At the bound, replies still go out,
@@ -1895,19 +1907,52 @@ since the player asked; own-initiative lines take their seeds or silence, decisi
 jobs wait. One toast says so, and the debug view shows the count. The default, 600 (impl), sits above the 506 an hour
 measured for SkyrimNet outside scenes (WHY§99) and is meant to stop a runaway, not ordinary play.
 
+**Presets** (O88). A preset names a model for each slot and the providers its slots use, in one of two forms. A preset
+of one provider may write it as `provider = { flavor, kind, base_url }`, as the local presets do. A preset may instead
+name its providers, each a table `[preset.<id>.providers.<name>]` with the same three keys, and each slot then names
+its own (`provider = "<name>"`) and, where it differs, its fallback's (`fallback_provider = "<name>"`, by default the
+slot's own); a slot may leave out `provider` only when its preset names one provider. Each of a preset's providers is
+matched to an entry of `providers.toml` as the single one is: by `base_url` where it gives one, otherwise by kind and
+flavour. The keys stay with those entries (`key_ref`, §11.5): a preset never holds one. Refused, with the file and
+line: a preset with neither form or with both, a slot naming a provider its preset does not define, and one name given
+to two providers.
+
+Two cloud presets ship (O88): OpenRouter's, `cloud-budget`, offered first, and NanoGPT's, `cloud-nanogpt`. A preset
+that names its models is measured before it ships, and again whenever a model changes: its `decisions` and `bark_live`
+models must reach a first token within 1.5 s, those slots' first-token budget, which DeepSeek V3.2 through NanoGPT
+missed at 2.9 s (WHY§108). NanoGPT's models are to be measured (run 3's timings, roadmap S8.1.h); OpenRouter's stay
+X1's to confirm or replace (DESIGN §11.3).
+
 ```toml
 # content/eldenring/models.toml (shipped; volatile, ER06 §6)
 schema = 1
+
+[preset.cloud-budget.providers.openrouter]   # OpenRouter's (O88), offered first
+flavor = "openai"
+kind = "cloud"
+base_url = "https://openrouter.ai/api/v1"
+
 [preset.cloud-budget]
-provider = { flavor = "openai", kind = "cloud", base_url = "https://openrouter.ai/api/v1" }
-dialogue  = { model = "google/gemma-4-26b-a4b-it", fallback = "google/gemma-4-31b-it" }
-bark_live = { model = "google/gemma-4-26b-a4b-it" }
-bark_pool = { model = "deepseek/deepseek-v4-flash" }
-memory    = { model = "qwen/qwen3-235b-a22b-2507" }
+dialogue  = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it", fallback = "google/gemma-4-31b-it" }
+bark_live = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it" }
+bark_pool = { provider = "openrouter", model = "deepseek/deepseek-v4-flash" }
+memory    = { provider = "openrouter", model = "qwen/qwen3-235b-a22b-2507" }
 warn_free_tier_for = ["bark_pool"]
 
+[preset.cloud-nanogpt.providers.nanogpt]     # NanoGPT's (O88)
+flavor = "openai"
+kind = "cloud"
+base_url = "https://nano-gpt.com/api/v1"
+
+[preset.cloud-nanogpt]                        # every model to be measured before it ships (roadmap S8.1.h)
+dialogue  = { provider = "nanogpt", model = "…", fallback = "…" }
+bark_live = { provider = "nanogpt", model = "…" }   # a first token within 1.5 s
+bark_pool = { provider = "nanogpt", model = "…" }
+memory    = { provider = "nanogpt", model = "…" }
+decisions = { provider = "nanogpt", model = "…" }   # a first token within 1.5 s
+
 [preset.local-12gb]
-provider = { kind = "local" }           # filled from the probe
+provider = { kind = "local" }           # one provider, filled from the probe
 all = { model_hint = ["gemma-4-e4b", "qwen3.5-4b"], quant = "Q4", background_at_rest_only = true }
 
 [preset.local-16gb]
@@ -2063,8 +2108,8 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 |---|---|---|
 | 1 Notices | The four statements of §4.8 | Acknowledged |
 | 2 Status | Build, ladder level, capability list (§6.8) | Informational |
-| 3 Provider | *Cloud:* a masked key field, written to `secrets.toml`. *Local:* the probe results (§11.4) and a model picker | A key is entered, or a model is picked |
-| 4a Reachability | `GET /v1/models`; the chosen model is listed | HTTP 200 and the model is present |
+| 3 Provider | *Cloud*, first (O88): a masked key field, written to `secrets.toml`. The preset follows the key's provider where the key's form marks it (OpenRouter's keys begin `sk-or-`); otherwise the player says which provider the key is for, OpenRouter first, then NanoGPT. The key is never tried on a provider to learn whose it is. The provider's entry and the preset go to `providers.toml` (§11.1, §11.4). *Local*, one choice away: the probe results (§11.4) and a model picker | A key is entered and its provider known, or a model is picked |
+| 4a Reachability | `GET /v1/models` on each provider the chosen preset uses; its models are listed | HTTP 200 and the models are present |
 | 4b Latency | `selftest` slot: a streamed 32-token reply; measures TTFT and tokens per second | Completes |
 | 4c Voice check | One Lantern-Keeper line through the real `dialogue` pipeline (prompt, sanitizer, lint) | The output passes the lint |
 | 4d JSON check | The `memory` slot returns a 2-field object against a schema | Parses |
