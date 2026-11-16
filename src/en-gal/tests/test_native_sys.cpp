@@ -97,7 +97,7 @@ TEST_CASE("native sys: both copy primitives copy, and fail cleanly on a page tha
     const CopyOutcome bad = sys.copier().copy(sys.no_access_page(), dst);
     if (kind == CopyKind::Rpm && on_wine()) {
       // Wine's ReadProcessMemory on its own process reads through the server, which reads the process's memory file
-      // and so ignores the page's protection: a reserved page reads as zeros (WHY entry of part 4). Windows refuses it.
+      // and so ignores the page's protection: a reserved page reads as zeros (WHY§161). Windows refuses it.
       CHECK(std::all_of(dst.begin(), dst.end(), [](std::byte b) { return b == std::byte{0}; }));
       continue;
     }

@@ -995,7 +995,7 @@ Expected<void, proto::ReadError> ErBackend::render_feed(const GameThread& gt, st
   if (inert_) return Unexpected{proto::ReadError::Inert};
   if (mode_ != ReadMode::Full) return Unexpected{proto::ReadError::Loading};
   // The camera from the last snapshot, and each wanted handle's position, through the address the last walk found it
-  // at, checked again now: its vtable a character's and its handle the same (ARCH §7.4; WHY entry of part 4).
+  // at, checked again now: its vtable a character's and its handle the same (ARCH §7.4; WHY§159).
   reader_.begin_tick();
   out.camera_ok = cam_ok_;
   out.view = cam_;

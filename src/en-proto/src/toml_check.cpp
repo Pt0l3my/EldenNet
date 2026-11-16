@@ -2,7 +2,7 @@
 // that en-llm's readers of the player's files run it too. It follows TOML's own contexts (a key, a table header, the
 // start of a value, a bare value, what follows a value, inside arrays and inline tables) far enough to know where
 // toml++ would scan a bare value, which it does through anything up to a space, a tab, ']', '}', ',', '#' or a line
-// break, quotes and '=' included (en_fuzz_config's two findings, WHY entry of part 4).
+// break, quotes and '=' included (en_fuzz_config's two findings, WHY§163).
 #include "en/proto/toml_check.hpp"
 
 #include <array>
