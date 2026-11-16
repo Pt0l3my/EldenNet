@@ -92,6 +92,15 @@ struct VersionInfo {
   std::uint16_t resource_language = 0;             // the language of the resource entry read
 };
 
+// One of the optional header's data directories.
+struct DataDirectory {
+  std::uint32_t rva = 0;
+  std::uint32_t size = 0;
+  friend constexpr bool operator==(const DataDirectory&, const DataDirectory&) = default;
+};
+
+inline constexpr std::size_t kDirBaseRelocation = 5;  // the index of the base relocation table
+
 // What read_image found. The image itself is not kept: offset_of() says where an RVA's bytes lie in the source.
 struct ImageInfo {
   ImageLayout layout = ImageLayout::File;
@@ -106,9 +115,10 @@ struct ImageInfo {
   std::uint16_t characteristics = 0;
   std::uint16_t dll_characteristics = 0;
   std::uint16_t subsystem = 0;
-  std::vector<Section> sections;           // in RVA order
-  std::optional<VersionInfo> version;      // absent when the image has no version resource
-  std::vector<RuntimeFunction> functions;  // the exception directory, sorted and disjoint; empty when it has none
+  std::vector<Section> sections;                // in RVA order
+  std::optional<VersionInfo> version;           // absent when the image has no version resource
+  std::vector<RuntimeFunction> functions;       // the exception directory, sorted and disjoint; empty when it has none
+  std::array<DataDirectory, 16> directories{};  // the data directories as the header gives them; zero past its count
 
   // The first section of that name, or null.
   [[nodiscard]] const Section* section(std::string_view name) const noexcept;
@@ -138,6 +148,7 @@ enum class PeProblem : std::uint8_t {
   BadVersionResource,     // VS_VERSIONINFO malformed, or without its fixed information
   BadExceptionDirectory,  // a function table whose size is not whole entries, out of a section, unsorted or overlapping
   TooManyFunctions,       // more function-table entries than the limit
+  BadRelocations,         // a base relocation block out of its bounds, or an entry of a type x64 does not use
 };
 
 struct PeError {
@@ -163,6 +174,20 @@ struct PeLimits {
 // Memory layout it is the mapped image, at least SizeOfImage long. Never throws for what the image holds.
 [[nodiscard]] proto::Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout layout,
                                                              const PeLimits& limits = {});
+
+// One place the loader adjusts when it maps the image away from its preferred base: `size` bytes at `rva` (8 for
+// IMAGE_REL_BASED_DIR64, 4 for HIGHLOW).
+struct Fixup {
+  std::uint32_t rva = 0;
+  std::uint8_t size = 0;
+  friend constexpr bool operator==(const Fixup&, const Fixup&) = default;
+};
+
+// The base relocation table's fixups, sorted by RVA; empty when the image has none. A block out of its bounds, or an
+// entry of a type x64 images do not use, is refused as BadRelocations.
+[[nodiscard]] proto::Expected<std::vector<Fixup>, PeError> read_relocations(const ImageInfo& image,
+                                                                            const ByteSource& source,
+                                                                            std::uint32_t max_fixups = 1u << 24);
 
 // Whether the entry's code is a fragment of a larger function: an entry pointing at another one, or unwind information
 // chained to another entry's (UNW_FLAG_CHAININFO). Nothing when its unwind information cannot be read.

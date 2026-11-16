@@ -36,6 +36,11 @@ target_include_directories(en_third_party SYSTEM INTERFACE
   ${EN_DEPS}
   ${EN_DEPS}/tomlplusplus
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/inja)
+# toml++ without exceptions, in every module alike: en-gal may not throw (ARCH §2.4), so a parse answers its error. One
+# setting for all: toml++'s internal reader interface has a virtual function only without exceptions, under the same
+# name either way, so two settings in one program are two different vtables the linker merges into one (it crashed
+# eldennet-engine's probe-exe, the first program to link en-gal and en-llm, in GCC's build).
+target_compile_definitions(en_third_party INTERFACE TOML_EXCEPTIONS=0)
 
 if(MSVC)
   add_compile_options(/W4 /permissive- /utf-8)

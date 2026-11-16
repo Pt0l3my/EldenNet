@@ -21,6 +21,9 @@ en_fuzz_target(template en_prompt) # en-prompt's template compile from a memory 
 en_fuzz_target(pe en_gal)          # en-gal's PE32+ reader, and the pattern scan over what it reads
 en_fuzz_target(pattern en_gal)     # en-gal's pattern grammar and multi-pattern matcher
 en_fuzz_target(galtoml en_gal)     # en-gal's schemas of gal/'s files: patterns.toml, builds.toml, a layout
+en_fuzz_target(x86 en_gal)         # en-gal's x86-64 length decoder (the derivation kit)
+en_fuzz_target(report en_gal)      # en-gal's numbers-only writer and its lint
+en_fuzz_target(derive en_gal)      # en-gal's derivation over arbitrary executables, as probe-exe runs it
 # The layout's build is gated on an invented image, made by the tests' own FakeImage.
 target_sources(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests/fake_image.cpp)
 target_include_directories(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests)

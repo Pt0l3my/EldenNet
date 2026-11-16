@@ -56,3 +56,10 @@ prefix (`EN_WINE_PREFIX`, by default `build-*/wineprefix`) and turns Wine's cras
 its own. On Windows the cases run directly (`--native`). A case may start another program with paths CMake gives it
 (`program="{launcher}"`, `--set launcher=…`), so the DLL's and the launcher's chain cases, early and late, join the
 same table when those parts land.
+
+The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
+Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
+labels) and check derive.json against `--describe`: the fingerprint, the FD4 idiom (byte for byte), the singletons and
+the decoys' verdicts, the registration with its argument registers and call sites, the group's index, the RTTI sets and
+task classes (clang-cl), and, given the AOB statics' slots as R1 would find them, a pattern at each; then the lint's
+refusals of a path, a free string and a long byte run.

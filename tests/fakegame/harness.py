@@ -300,6 +300,16 @@ case("status-file", ["--no-window", "--frames", "10", "--status-file", "{status}
      what="the same lines in a file, for a run with no console (started by a launcher on Windows)")
 case("describe", ["--describe"], check=None, what="describes every invented fact; the file agrees from outside")
 
+# The derivation's offline round (O89): eldennet-engine probe-exe on fakegame.exe must recover what --describe says. Each
+# case runs --describe first, then the tool under Wine (the Windows build R0 runs); cmd_run's probe_exe() does the rest.
+case("probe-exe", [], program="{engine}", needs=("engine", "leads"),
+     what="probe-exe --derive recovers the fingerprint, the FD4 singletons, the RTTI sets, the registration and the "
+          "group, with the decoys refused, and its report lints clean")
+case("probe-exe-slots", [], program="{engine}", needs=("engine", "leads"),
+     what="given R1's slots, probe-exe cuts a unique interior pattern at a reference to each AOB static")
+case("probe-exe-lint", [], program="{engine}", needs=("engine", "leads"),
+     what="lint --report refuses a path, a free string and a byte run longer than a pattern")
+
 
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------
 
@@ -668,6 +678,209 @@ def cmd_setup(args):
     return 0
 
 
+# --- probe-exe: the derivation against --describe ------------------------------------------------------------------
+
+def read_leads(path):
+    """The leads file as {table: {key: value}}: its simple form only (key = "string", key = { k = "v" or true }),
+    read here with no TOML library (CMake may find a Python older than 3.11, which has no tomllib)."""
+    leads = {"": {}}
+    table = ""
+    with open(path, encoding="utf-8") as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            m = re.match(r"^\[([a-z_0-9]+)\]$", line)
+            if m:
+                table = m.group(1)
+                leads.setdefault(table, {})
+                continue
+            key, _, value = (x.strip() for x in line.partition("="))
+            if value.startswith("{"):
+                inner = {}
+                for part in value.strip("{} ").split(","):
+                    k, _, v = (x.strip() for x in part.partition("="))
+                    inner[k] = v.strip('"') if v.startswith('"') else v == "true"
+                leads[table][key] = inner
+            else:
+                leads[table][key] = value.strip('"')
+    return leads
+
+
+def describe_truth(args, env):
+    code, out, err, killed = launch(args, [args.exe, "--describe"], env, 60)
+    lines = [l for l in out.splitlines() if l.startswith("{")]
+    if code != 0 or killed or not lines:
+        raise ValueError("--describe failed: exit %s" % code)
+    return json.loads(lines[0])
+
+
+def run_engine(args, env, argv):
+    """Runs eldennet-engine with paths given as Windows sees them; answers its exit code and output."""
+    code, out, err, killed = launch(args, [args.set_paths["engine"]] + argv, env, 120)
+    if killed:
+        raise ValueError("eldennet-engine timed out")
+    want_bits = 0xFF if not args.native else 0xFFFFFFFF
+    return code & want_bits, out, err
+
+
+def check_derive(d, truth, leads, toolchain, failures):
+    """Every claim of derive.json against --describe."""
+    img, timg = d["image"], truth["image"]
+    need(img["time_date_stamp"] == timg["time_date_stamp"], "TimeDateStamp", failures)
+    need(img["size_of_image"] == timg["size_of_image"], "SizeOfImage", failures)
+    need(".".join(str(v) for v in img.get("file_version", [])) == timg["file_version"], "file version", failures)
+    need(img["region"] == timg["region"] == "ww", "region %s" % img["region"], failures)
+    need(img["product_name"] == "matches", "product name %s" % img["product_name"], failures)
+    need(img.get("translation") == timg["translation"], "translation", failures)
+
+    fd4, tfd4 = d["fd4"], truth["fd4"]
+    need(fd4["status"] == "derived", "fd4 status %s" % fd4["status"], failures)
+    idiom = fd4.get("idiom", {})
+    need(idiom.get("bytes") == tfd4["idiom"], "fd4 idiom %s, wanted %s" % (idiom.get("bytes"), tfd4["idiom"]), failures)
+    caps = {c["capture"]: (c["at"], c["insn_end"]) for c in idiom.get("captures", [])}
+    for name, key in (("static", "static"), ("class", "class"), ("getter", "getter"), ("path", "path")):
+        want = tfd4["operands"][key]
+        need(caps.get(name) == (want["at"], want["insn_end"]), "fd4 capture %s %s" % (name, caps.get(name)), failures)
+    need(idiom.get("scan_resolved") is True, "fd4 idiom not resolved by the scan", failures)
+    names = fd4.get("names", {})
+    need(names.get("offset") == tfd4["name_ptr_off"] and names.get("encoding") == tfd4["name_encoding"],
+         "name layout %s" % names, failures)
+    label_of = {name: label for label, name in leads["singletons"].items()}
+    got = {s["label"]: s for s in fd4["singletons"]}
+    for single in tfd4["singletons"]:
+        s = got.get(label_of.get(single["name"]), {})
+        need(s.get("status") == "derived" and s.get("static") == single["static_rva"] and
+             s.get("class") == single["class_rva"] and s.get("sites") == len(single["sites"]) and
+             s.get("getter") == tfd4["getter_rva"],
+             "singleton %s: %s" % (single["name"], s), failures)
+    want_decoys = {"Duplicata": ("ambiguous", None), "Strayling": ("refused", "path_text"),
+                   "Rockbound": ("refused", "static_section")}
+    for name, (status, refusal) in want_decoys.items():
+        s = got.get(label_of.get(name), {})
+        need(s.get("status") == status and s.get("refusal") == refusal, "decoy %s: %s" % (name, s), failures)
+
+    reg, task = d["register"], truth["task"]
+    need(reg["status"] == "derived", "register status %s" % reg["status"], failures)
+    best = reg["candidates"][0] if reg.get("candidates") else {}
+    abi = task["register_abi"]
+    need(best.get("callee") == task["register_rva"], "register callee %s" % best.get("callee"), failures)
+    need((best.get("instance_register"), best.get("task_register"), best.get("group_register")) ==
+         (abi["instance"], abi["task"], abi["group"]), "register ABI %s" % best, failures)
+    need(best.get("callers") == task["register_call_sites"], "register call sites %s" % best.get("callers"), failures)
+    pat = reg.get("pattern", {})
+    need(pat.get("matches") == 1 and pat.get("scan_resolved") is True and pat.get("entry") == task["register_rva"] and
+         pat.get("anchor", 0) >= 5, "register pattern %s" % pat, failures)
+
+    groups = [c["index"] for c in d["group"].get("candidates", [])]
+    need(task["standin"]["index"] in groups[:1], "group index %s, wanted %s first" % (groups, task["standin"]["index"]),
+         failures)
+
+    rtti = d["rtti"]
+    if toolchain != "clang-cl":
+        need(rtti["locators"] == 0, "MSVC locators in GCC's build: %s" % rtti["locators"], failures)
+        return
+    classes = truth["rtti"]["classes"]
+    sets = {s["label"]: s for s in rtti["sets"]}
+    actors = sorted(c["vtable_rva"] for c in classes if c["actor"] and c["subobject_offset"] == 0)
+    sub = sorted(c["vtable_rva"] for c in classes if c["actor"] and c["subobject_offset"] != 0)
+    need(sets.get("actor", {}).get("primary") == actors and sets["actor"].get("subobject") == sub,
+         "actor set %s, wanted %s and %s" % (sets.get("actor"), actors, sub), failures)
+    player = [c["vtable_rva"] for c in classes if c["name"] == truth["rtti"]["player"]]
+    need(sets.get("player", {}).get("primary") == player, "player set %s" % sets.get("player"), failures)
+    tasks = sorted(c["vtable_rva"] for c in classes if c["bases"] == leads["task"]["base"])
+    t = rtti["task"]
+    need(t.get("vtables") == tasks and t.get("slots_min") == task["vtable_slots"] and t.get("run_slot") ==
+         task["run_slot"], "task classes %s, wanted %s" % (t, tasks), failures)
+    vt = {c["name"]: c["vtable_rva"] for c in classes}
+    for st in d["statics"]:
+        lead = leads["statics"][st["label"]]
+        if "rtti" in lead:
+            need(st.get("vtable") == vt.get(lead["rtti"]), "static %s: vtable %s" % (st["label"], st.get("vtable")),
+                 failures)
+
+
+def probe_exe(args, c, env):
+    failures = []
+    truth = describe_truth(args, env)
+    leads = read_leads(args.set_paths["leads"])
+    as_win = lambda p: windows_path(p, args.native)
+    out = os.path.join(args.work, "derive-%s.json" % args.toolchain)
+    base = ["probe-exe", as_win(args.exe), "--derive", "--out", as_win(out)]
+    if c.name == "probe-exe":
+        code, stdout, stderr = run_engine(args, env, base + ["--leads", as_win(args.set_paths["leads"])])
+        need(code == 1, "exit %s, wanted 1 (the decoys are listed, so it is incomplete)" % code, failures)
+        if os.path.exists(out):
+            with open(out) as f:
+                check_derive(json.load(f), truth, leads, args.toolchain, failures)
+        else:
+            failures.append("no derive.json")
+        lcode, lout, _ = run_engine(args, env, ["lint", "--report", as_win(out)])
+        need(lcode == 0 and "clean" in lout, "lint exit %s: %s" % (lcode, lout.strip()), failures)
+        return failures, stdout + stderr
+    if c.name == "probe-exe-slots":
+        # The leads without the decoys, and the AOB statics' slots as R1 would find them.
+        clean = os.path.join(args.work, "derive-leads-clean.toml")
+        with open(args.set_paths["leads"]) as f:
+            text = "".join(l for l in f if not re.match(r"^(duplicata|strayling|rockbound) ", l))
+        with open(clean, "w") as f:
+            f.write(text)
+        # --describe lists the four AOB statics in this order (describe.cpp's items); the leads' labels follow it.
+        statics = [a for a in truth["aob"] if a["kind"] == "static"]
+        labels = ["hinstance", "save_ledger", "run_warden", "field_plot"]
+        if len(statics) != len(labels):
+            raise ValueError("--describe lists %d AOB statics, not 4" % len(statics))
+        slots = dict(zip(labels, statics))
+        argv = base + ["--leads", as_win(clean)]
+        for label, a in sorted(slots.items()):
+            argv += ["--static", "%s=0x%X" % (label, a["target_rva"])]
+        code, stdout, stderr = run_engine(args, env, argv)
+        want = 0 if args.toolchain == "clang-cl" else 1  # GCC's build has no MSVC RTTI, so its classes stay missing
+        need(code == want, "exit %s, wanted %s" % (code, want), failures)
+        with open(out) as f:
+            d = json.load(f)
+        for st in d["statics"]:
+            a = slots[st["label"]]
+            p = st.get("pattern", {})
+            need(st["status"] == "derived" and st.get("slot") == a["target_rva"] and p.get("target") == a["target_rva"]
+                 and p.get("matches") == 1 and p.get("scan_resolved") is True and p.get("anchor", 0) >= 5,
+                 "static %s: %s" % (st["label"], st), failures)
+            print("static %s: %s at entry + %s (the AOB function's own: %s)" %
+                  (st["label"], p.get("bytes"), p.get("anchor"), p.get("entry") == a["fn_rva"]))
+        lcode, lout, _ = run_engine(args, env, ["lint", "--report", as_win(out)])
+        need(lcode == 0, "lint exit %s: %s" % (lcode, lout.strip()), failures)
+        return failures, stdout + stderr
+    # probe-exe-lint: a report the tool wrote, then the same with a path, a free string and a long byte run.
+    code, stdout, stderr = run_engine(args, env, base + ["--leads", as_win(args.set_paths["leads"])])
+    with open(out) as f:
+        text = f.read()
+    run = " ".join(["90"] * 80)
+    doctored = {
+        "path": text.replace('"label": "task_loom"', '"label": "C:\\\\Games\\\\game.exe"', 1),
+        "free-string": text.replace('"region": "ww"', '"region": "somewhere else"', 1),
+        "byte-run": re.sub(r'"bytes": "[^"]*"', '"bytes": "%s"' % run, text, count=1),
+        "unknown-key": text.replace('"complete":', '"name": "TaskLoom",\n  "complete":', 1),
+    }
+    for kind, bad in doctored.items():
+        need(bad != text, "%s: the doctoring changed nothing" % kind, failures)
+        path = os.path.join(args.work, "derive-%s-%s.json" % (args.toolchain, kind))
+        with open(path, "w") as f:
+            f.write(bad)
+        lcode, lout, _ = run_engine(args, env, ["lint", "--report", as_win(path)])
+        need(lcode == 1 and "refused" in lout, "lint on %s: exit %s: %s" % (kind, lcode, lout.strip()), failures)
+        need("C:" not in lout and "somewhere" not in lout and "TaskLoom" not in lout,
+             "lint on %s quoted a value: %s" % (kind, lout.strip()), failures)
+    ucode, _, uerr = run_engine(args, env, ["probe-exe", as_win(args.exe), "--derive"])
+    need(ucode == 2, "probe-exe without --leads and --out: exit %s, wanted 2" % ucode, failures)
+    mcode, _, merr = run_engine(args, env, base + ["--leads", as_win(os.path.join(args.work, "absent.toml"))])
+    need(mcode == 4 and "absent" not in merr, "a missing leads file: exit %s: %s" % (mcode, merr.strip()), failures)
+    ncode, _, nerr = run_engine(args, env, ["probe-exe", as_win(args.set_paths["leads"]), "--derive", "--out",
+                                            as_win(out + ".x"), "--leads", as_win(args.set_paths["leads"])])
+    need(ncode == 3 and "toml" not in nerr, "a file that is no executable: exit %s: %s" % (ncode, nerr.strip()),
+         failures)
+    return failures, stdout + stderr
+
+
 def cmd_run(args):
     c = next((c for c in CASES if c.name == args.case), None)
     if c is None:
@@ -684,6 +897,21 @@ def cmd_run(args):
     argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
     env = wine_env(args)
     env.update({k: re.sub(r"\{(\w+)\}", as_windows, v) for k, v in c.env.items()})
+    if c.name.startswith("probe-exe"):
+        args.set_paths = paths
+        start = time.monotonic()
+        try:
+            failures, output = probe_exe(args, c, env)
+        except (OSError, ValueError, KeyError, IndexError) as e:
+            failures, output = ["probe-exe: %r" % e], ""
+        print("case %s (%s)" % (c.name, c.what))
+        print("in %.1f s" % (time.monotonic() - start))
+        if failures or args.verbose:
+            print("--- output\n%s" % output[-6000:])
+        for f in failures:
+            print("FAIL: %s" % f)
+        print("PASS" if not failures else "FAILED")
+        return 0 if not failures else 1
     start = time.monotonic()
     code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after)
     elapsed = time.monotonic() - start

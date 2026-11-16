@@ -80,6 +80,7 @@ const char* to_string(PeProblem problem) noexcept {
     case PeProblem::BadVersionResource: return "the version resource is malformed";
     case PeProblem::BadExceptionDirectory: return "the exception directory is malformed";
     case PeProblem::TooManyFunctions: return "the exception directory has too many entries";
+    case PeProblem::BadRelocations: return "the base relocation table is malformed";
   }
   return "the image is malformed";
 }
@@ -490,6 +491,10 @@ Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout la
   if (directories > 16 || kOptionalFixedSize + 8 * directories > optional_size) {
     return Unexpected{at(PeProblem::BadOptionalHeader, opt_at + 108)};
   }
+  for (std::uint32_t i = 0; i < directories && i < image.directories.size(); ++i) {
+    image.directories[i] = DataDirectory{bytes::u32(*opt, kOptionalFixedSize + 8 * i).value_or(0),
+                                         bytes::u32(*opt, kOptionalFixedSize + 8 * i + 4).value_or(0)};
+  }
   const auto directory = [&](std::uint32_t index) -> std::pair<std::uint32_t, std::uint32_t> {
     if (index >= directories) return {0, 0};
     return {bytes::u32(*opt, kOptionalFixedSize + 8 * index).value_or(0),
@@ -550,6 +555,39 @@ Expected<ImageInfo, PeError> read_image(const ByteSource& source, ImageLayout la
     image.functions = std::move(*functions);
   }
   return image;
+}
+
+Expected<std::vector<Fixup>, PeError> read_relocations(const ImageInfo& image, const ByteSource& source,
+                                                       std::uint32_t max_fixups) {
+  const DataDirectory dir = image.directories[kDirBaseRelocation];
+  std::vector<Fixup> fixups;
+  if (dir.rva == 0 || dir.size == 0) return fixups;
+  const PeError bad = at(PeProblem::BadRelocations, dir.rva);
+  const auto table = fetch_rva(image, source, dir.rva, dir.size, PeProblem::BadRelocations);
+  if (!table) return Unexpected{table.error()};
+  // Blocks of {page RVA, block size, entries of 16 bits: a type in the top 4 bits and an offset in the page below}.
+  std::uint64_t at_block = 0;
+  while (at_block + 8 <= table->size()) {
+    const std::uint32_t page = bytes::u32(*table, at_block).value_or(0);
+    const std::uint32_t size = bytes::u32(*table, at_block + 4).value_or(0);
+    if (size < 8 || size % 2 != 0 || !bytes::within(at_block, size, table->size())) return Unexpected{bad};
+    for (std::uint64_t e = at_block + 8; e + 2 <= at_block + size; e += 2) {
+      const std::uint16_t entry = bytes::u16(*table, e).value_or(0);
+      const unsigned type = entry >> 12;
+      const std::uint32_t offset = entry & 0x0FFFu;
+      if (type == 0) continue;  // IMAGE_REL_BASED_ABSOLUTE: padding
+      if (type != 10 && type != 3) return Unexpected{at(PeProblem::BadRelocations, dir.rva + e)};
+      const std::uint8_t width = type == 10 ? 8 : 4;
+      if (!bytes::within(std::uint64_t{page} + offset, width, image.size_of_image)) {
+        return Unexpected{at(PeProblem::BadRelocations, dir.rva + e)};
+      }
+      if (fixups.size() >= max_fixups) return Unexpected{at(PeProblem::BadRelocations, dir.rva + e)};
+      fixups.push_back(Fixup{page + offset, width});
+    }
+    at_block += size;
+  }
+  std::sort(fixups.begin(), fixups.end(), [](const Fixup& a, const Fixup& b) { return a.rva < b.rva; });
+  return fixups;
 }
 
 std::optional<bool> is_fragment(const ImageInfo& image, const ByteSource& source,
