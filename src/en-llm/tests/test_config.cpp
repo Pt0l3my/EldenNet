@@ -1,8 +1,10 @@
 // Configuration and secrets (ARCH §11.1, §11.4, §11.5).
 #include <doctest.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <sstream>
 
 #include "en/llm/config.hpp"
@@ -268,7 +270,10 @@ TEST_CASE("the quantisation floor admits its level and everything above") {
 
 TEST_CASE("the configuration folder is read with its size cap") {
   namespace fs = std::filesystem;
-  const fs::path dir = fs::temp_directory_path() / ("en-llm-config-test-" + std::to_string(std::rand()));
+  // A name of its own in every process: two test runs at once never share a folder (std::rand() is unseeded).
+  const fs::path dir = fs::temp_directory_path() /
+                      ("en-llm-config-test-" + std::to_string(std::random_device{}()) + "-" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
   fs::create_directories(dir);
   auto write = [&](const char* name, const std::string& text) { std::ofstream(dir / name, std::ios::binary) << text; };
   CHECK_THROWS_AS(load_config_dir(dir), ConfigError);  // no providers.toml

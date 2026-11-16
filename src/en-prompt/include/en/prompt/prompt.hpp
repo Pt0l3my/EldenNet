@@ -4,4 +4,5 @@
 #include "en/prompt/errors.hpp"
 #include "en/prompt/messages.hpp"
 #include "en/prompt/registry.hpp"
+#include "en/prompt/source.hpp"
 #include "en/prompt/version.hpp"

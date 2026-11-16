@@ -1,13 +1,13 @@
-// The environment: template names and folders of parts, the render stack with its cycle guard and depth limit, the
-// cache of compiled templates, and the lint.
+// The environment: template names and folders of parts, resolved through its template source, the render stack with
+// its cycle guard and depth limit, the cache of compiled templates, and the lint.
 #include "en/prompt/environment.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <deque>
-#include <fstream>
-#include <iterator>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -18,26 +18,29 @@
 
 namespace en::prompt {
 
-namespace fs = std::filesystem;
 using nlohmann::json;
 
-const std::vector<std::string>& template_extensions() {
-  static const std::vector<std::string> extensions{".j2", ".md", ".prompt"};
-  return extensions;
-}
+namespace {
+
+// A constant, so nothing is built when the library loads or destroyed when it unloads (ARCH §3.1, §1.7).
+constexpr std::array<std::string_view, 3> extension_list{".j2", ".md", ".prompt"};
+
+}  // namespace
+
+std::span<const std::string_view> template_extensions() noexcept { return extension_list; }
 
 namespace detail {
 
 // A template file or a folder of parts, by its name from the root.
 struct Target {
   std::string name;  // '/' between folders; a file's name keeps its extension
-  fs::path path;
   bool folder = false;
 };
 
 class EnvironmentCore {
  public:
-  EnvironmentCore(fs::path root, FunctionRegistry registry, EnvironmentOptions options);
+  EnvironmentCore(std::shared_ptr<const TemplateSource> source, FunctionRegistry registry,
+                  EnvironmentOptions options);
 
   std::vector<Message> render(std::string_view name, const json& context);
   std::vector<Message> render_source(std::string_view source, const json& context, std::string_view name);
@@ -50,7 +53,7 @@ class EnvironmentCore {
   void clear_cache();
 
   const FunctionRegistry& registry() const noexcept { return registry_; }
-  const fs::path& root() const noexcept { return root_; }
+  const TemplateSource& source() const noexcept { return *source_; }
 
  private:
   std::vector<Target> parts_of(const Target& folder) const;
@@ -59,8 +62,7 @@ class EnvironmentCore {
   std::string run(const Compiled& compiled, const json& context);
   std::vector<Message> finish(const std::string& rendered, const std::string& name) const;
 
-  fs::path root_;
-  fs::path canonical_root_;
+  std::shared_ptr<const TemplateSource> source_;
   FunctionRegistry registry_;
   EnvironmentOptions options_;
   std::mutex mutex_;  // guards parser_ while it parses, and cache_
@@ -71,17 +73,18 @@ class EnvironmentCore {
 namespace {
 
 class Frame;
-// The renders in progress on this thread, innermost last. Functions find their render here, so a compiled template,
-// shared by every render, holds no render's state.
-thread_local std::vector<Frame*> frames;
+// The innermost render in progress on this thread, which links to the render it came from, and so on outwards.
+// Functions find their render here, so a compiled template, shared by every render, holds no render's state. A plain
+// pointer, so nothing is built for a thread or destroyed when it ends (ARCH §1.7).
+thread_local Frame* innermost = nullptr;
 
 class Frame final : public RenderHost {
  public:
   Frame(EnvironmentCore& core, std::string name, const json& context)
-      : core_(core), name_(std::move(name)), context_(context) {
-    frames.push_back(this);
+      : core_(core), name_(std::move(name)), context_(context), outer_(innermost) {
+    innermost = this;
   }
-  ~Frame() override { frames.pop_back(); }
+  ~Frame() override { innermost = outer_; }
   Frame(const Frame&) = delete;
   Frame& operator=(const Frame&) = delete;
 
@@ -112,42 +115,25 @@ class Frame final : public RenderHost {
 
   const EnvironmentCore* core() const noexcept { return &core_; }
   const std::string& name() const noexcept { return name_; }
+  const Frame* outer() const noexcept { return outer_; }
 
  private:
   EnvironmentCore& core_;
   std::string name_;
   const json& context_;
+  Frame* outer_;
 };
 
-std::string utf8_name(const fs::path& path) {
-  const std::u8string text = path.u8string();
-  return std::string(text.begin(), text.end());
-}
-
 bool has_template_extension(std::string_view file) {
-  return std::any_of(template_extensions().begin(), template_extensions().end(), [&](const std::string& extension) {
+  const std::span<const std::string_view> extensions = template_extensions();
+  return std::any_of(extensions.begin(), extensions.end(), [&](std::string_view extension) {
     return file.size() > extension.size() && file.substr(file.size() - extension.size()) == extension;
   });
 }
 
-bool is_name_char(char c) {
-  return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.' || c == '/' || c == '\\';
-}
-
-bool inside(const fs::path& root, const fs::path& path) {
-  auto r = root.begin();
-  auto p = path.begin();
-  for (; r != root.end(); ++r, ++p) {
-    if (p == path.end() || *r != *p) return false;
-  }
-  return true;
-}
-
-bool read_file(const fs::path& path, std::string& out) {
-  std::ifstream in(path, std::ios::binary);
-  if (!in) return false;
-  out.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-  return !in.bad();
+// A part's name has no folders, so neither '/' nor '\' (which a file's name may hold on Linux).
+bool is_part_char(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.';
 }
 
 std::string render_message(const std::string& message) {
@@ -207,14 +193,12 @@ void lint_variables(const Compiled& compiled, const json& context, std::vector<F
 
 }  // namespace
 
-RenderHost* current_host() noexcept { return frames.empty() ? nullptr : frames.back(); }
+RenderHost* current_host() noexcept { return innermost; }
 
-EnvironmentCore::EnvironmentCore(fs::path root, FunctionRegistry registry, EnvironmentOptions options)
-    : root_(std::move(root)), registry_(std::move(registry)), options_(options) {
-  std::error_code error;
-  if (!fs::is_directory(root_, error)) throw std::invalid_argument("the template root is not a folder");
-  canonical_root_ = fs::canonical(root_, error);
-  if (error) throw std::invalid_argument("the template root cannot be resolved");
+EnvironmentCore::EnvironmentCore(std::shared_ptr<const TemplateSource> source, FunctionRegistry registry,
+                                 EnvironmentOptions options)
+    : source_(std::move(source)), registry_(std::move(registry)), options_(options) {
+  if (!source_) throw std::invalid_argument("a template source is needed");
   if (options_.max_depth == 0) options_.max_depth = 1;
 
   parser_.set_line_statement(no_line_statement);  // "## Heading" stays text
@@ -235,62 +219,38 @@ EnvironmentCore::EnvironmentCore(fs::path root, FunctionRegistry registry, Envir
 Target EnvironmentCore::resolve(std::string_view raw) const {
   const std::string shown(raw);
   const auto refuse = [&](const std::string& why) { return TemplateError(why, Site{shown}); };
-  if (raw.empty()) throw refuse("a template name is needed");
-  if (!std::all_of(raw.begin(), raw.end(), is_name_char)) {
-    throw refuse("template names use letters, digits, '_', '-', '.' and '/', and '" + shown + "' has another character");
-  }
-  std::string name(raw);
-  std::replace(name.begin(), name.end(), '\\', '/');  // SkyrimNet writes "components\\event_history"
-  while (!name.empty() && name.back() == '/') name.pop_back();
+  const CheckedName checked = check_name(raw);
+  if (!checked.problem.empty()) throw refuse(checked.problem);
+  const std::string& joined = checked.name;
 
-  std::vector<std::string> segments;
-  for (std::size_t start = 0;;) {
-    const std::size_t slash = name.find('/', start);
-    segments.push_back(name.substr(start, slash == std::string::npos ? std::string::npos : slash - start));
-    if (slash == std::string::npos) break;
-    start = slash + 1;
-  }
-  fs::path path = root_;
-  std::string joined;
-  for (const std::string& segment : segments) {
-    if (segment.empty() || segment == "." || segment == "..") {
-      throw refuse("'" + shown + "' must name a template inside the root, without '.', '..' or empty folder names");
-    }
-    path /= segment;
-    joined += (joined.empty() ? "" : "/") + segment;
-  }
-
-  std::error_code error;
   Target target;
-  if (fs::is_directory(path, error)) {
-    target = Target{joined, path, true};
-  } else if (fs::is_regular_file(path, error)) {
+  const TemplateSource::Entry entry = source_->find(joined);
+  if (entry == TemplateSource::Entry::folder) {
+    target = Target{joined, true};
+  } else if (entry == TemplateSource::Entry::file) {
     if (!has_template_extension(joined)) throw refuse("'" + shown + "' is not a template file (.j2, .md or .prompt)");
-    target = Target{joined, path, false};
+    target = Target{joined, false};
   } else {
-    std::vector<Target> found;
-    for (const std::string& extension : template_extensions()) {
-      fs::path candidate = path;
-      candidate += extension;
-      if (fs::is_regular_file(candidate, error)) found.push_back(Target{joined + extension, candidate, false});
+    std::vector<std::string> found;
+    for (const std::string_view extension : template_extensions()) {
+      std::string candidate = joined + std::string(extension);
+      if (source_->find(candidate) == TemplateSource::Entry::file) found.push_back(std::move(candidate));
     }
     if (found.empty()) throw refuse("no template named '" + shown + "' under the root");
-    if (found.size() > 1) {
-      throw refuse("'" + shown + "' is ambiguous: " + found[0].name + " and " + found[1].name + " both exist");
-    }
-    target = found.front();
+    if (found.size() > 1) throw refuse("'" + shown + "' is ambiguous: " + found[0] + " and " + found[1] + " both exist");
+    target = Target{found.front(), false};
   }
   // A link inside the root must not lead out of it.
-  const fs::path real = fs::weakly_canonical(target.path, error);
-  if (error || !inside(canonical_root_, real)) throw refuse("'" + shown + "' leads outside the root");
+  if (source_->leads_outside(target.name)) throw refuse("'" + shown + "' leads outside the root");
   return target;
 }
 
 std::string EnvironmentCore::stack_problem(const Target& target) const {
-  std::vector<const std::string*> chain;
-  for (const Frame* frame : frames) {
+  std::vector<const std::string*> chain;  // this environment's renders on this thread, outermost first
+  for (const Frame* frame = innermost; frame != nullptr; frame = frame->outer()) {
     if (frame->core() == this) chain.push_back(&frame->name());
   }
+  std::reverse(chain.begin(), chain.end());
   for (std::size_t i = 0; i < chain.size(); ++i) {
     if (*chain[i] != target.name) continue;
     std::string path;
@@ -325,20 +285,15 @@ std::vector<Target> EnvironmentCore::parts_of(const Target& folder) const {
     std::uint64_t number = 0;
     std::string letters;  // "05b_world.j2" comes after "05_contract.md"
     std::string file;
-    fs::path path;
   };
+  std::optional<std::vector<std::string>> files = source_->files(folder.name);
+  if (!files) throw TemplateError("the folder cannot be read", Site{folder.name});
+  std::sort(files->begin(), files->end());  // so a folder with two faults names the same one from every source
   std::vector<Entry> entries;
-  std::error_code error;
-  fs::directory_iterator it(folder.path, error);
-  if (error) throw TemplateError("the folder cannot be read", Site{folder.name});
-  for (; it != fs::directory_iterator(); it.increment(error)) {
-    if (error) throw TemplateError("the folder cannot be read", Site{folder.name});
-    std::error_code kind_error;
-    if (!it->is_regular_file(kind_error)) continue;
-    const std::string file = utf8_name(it->path().filename());
+  for (const std::string& file : *files) {
     if (file.empty() || file.front() == '.' || !has_template_extension(file)) continue;
     const Site where{folder.name + "/" + file};
-    if (!std::all_of(file.begin(), file.end(), is_name_char)) {
+    if (!std::all_of(file.begin(), file.end(), is_part_char)) {
       throw TemplateError("part names use letters, digits, '_', '-' and '.'", where);
     }
     std::size_t digits = 0;
@@ -355,18 +310,15 @@ std::vector<Target> EnvironmentCore::parts_of(const Target& folder) const {
                           where);
     }
     // A part may be a link, and a link must not lead out of the root any more than a name may.
-    std::error_code link_error;
-    const fs::path real = fs::weakly_canonical(it->path(), link_error);
-    if (link_error || !inside(canonical_root_, real)) throw TemplateError("the part leads outside the root", where);
-    entries.push_back(Entry{std::stoull(file.substr(0, digits)), file.substr(digits, letters - digits), file,
-                            it->path()});
+    if (source_->leads_outside(where.template_name)) throw TemplateError("the part leads outside the root", where);
+    entries.push_back(Entry{std::stoull(file.substr(0, digits)), file.substr(digits, letters - digits), file});
   }
   if (entries.empty()) throw TemplateError("the folder has no numbered parts", Site{folder.name});
   std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
     return std::tie(a.number, a.letters, a.file) < std::tie(b.number, b.letters, b.file);
   });
   std::vector<Target> parts;
-  for (const Entry& entry : entries) parts.push_back(Target{folder.name + "/" + entry.file, entry.path, false});
+  for (const Entry& entry : entries) parts.push_back(Target{folder.name + "/" + entry.file, false});
   return parts;
 }
 
@@ -383,10 +335,10 @@ std::shared_ptr<const Compiled> EnvironmentCore::load(const Target& file) {
     const std::lock_guard<std::mutex> lock(mutex_);
     if (const auto it = cache_.find(file.name); it != cache_.end()) return it->second;
   }
-  std::string raw;
-  if (!read_file(file.path, raw)) throw TemplateError("the template file cannot be read", Site{file.name});
+  const std::optional<std::string> raw = source_->read(file.name);
+  if (!raw) throw TemplateError("the template file cannot be read", Site{file.name});
   std::vector<Finding> findings;
-  std::shared_ptr<Compiled> compiled = compile_text(file.name, raw, findings);
+  std::shared_ptr<Compiled> compiled = compile_text(file.name, *raw, findings);
   if (!compiled || !findings.empty()) throw error_from(findings);
   const std::lock_guard<std::mutex> lock(mutex_);
   return cache_.emplace(file.name, std::move(compiled)).first->second;
@@ -462,13 +414,13 @@ std::vector<Finding> EnvironmentCore::lint(std::string_view name, const json* co
     const auto [target, check_variables] = queue.front();
     queue.pop_front();
     if (!seen.insert(target.name).second) continue;
-    std::string raw;
-    if (!read_file(target.path, raw)) {
+    const std::optional<std::string> raw = source_->read(target.name);
+    if (!raw) {
       out.push_back({Site{target.name}, "unreadable", "the template file cannot be read"});
       continue;
     }
     std::vector<Finding> findings;
-    const std::shared_ptr<Compiled> compiled = compile_text(target.name, raw, findings);
+    const std::shared_ptr<Compiled> compiled = compile_text(target.name, *raw, findings);
     out.insert(out.end(), findings.begin(), findings.end());
     if (!compiled) continue;
     // Templates reached through render_template get variables the caller chooses, so only the named ones are
@@ -492,8 +444,12 @@ void EnvironmentCore::clear_cache() {
 
 }  // namespace detail
 
-Environment::Environment(fs::path root, FunctionRegistry functions, EnvironmentOptions options)
-    : core_(std::make_unique<detail::EnvironmentCore>(std::move(root), std::move(functions), options)) {}
+Environment::Environment(std::shared_ptr<const TemplateSource> source, FunctionRegistry functions,
+                         EnvironmentOptions options)
+    : core_(std::make_unique<detail::EnvironmentCore>(std::move(source), std::move(functions), options)) {}
+
+Environment::Environment(std::filesystem::path root, FunctionRegistry functions, EnvironmentOptions options)
+    : Environment(std::make_shared<const FolderSource>(std::move(root)), std::move(functions), options) {}
 
 Environment::~Environment() = default;
 Environment::Environment(Environment&&) noexcept = default;
@@ -514,7 +470,7 @@ std::vector<Finding> Environment::lint(std::string_view name, const json* contex
 
 const FunctionRegistry& Environment::functions() const noexcept { return core_->registry(); }
 
-const std::filesystem::path& Environment::root() const noexcept { return core_->root(); }
+const TemplateSource& Environment::source() const noexcept { return core_->source(); }
 
 void Environment::clear_cache() const { core_->clear_cache(); }
 

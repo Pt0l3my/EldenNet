@@ -89,7 +89,7 @@ DecisionCall choice_call(const std::string& rule = "A") {
   call.task = "next_speaker";
   call.question = "Who speaks next?";
   call.options = {{"A", "the first invented speaker"}, {"B", "the second invented speaker"}, {"none", "no one"}};
-  call.rule = [rule] { return rule; };
+  call.rule = rule;
   return call;
 }
 
@@ -106,6 +106,13 @@ long index_of(const std::vector<LlmEvent>& events, RequestId id, EventKind kind)
     if (events[i].id == id && events[i].kind == kind) return static_cast<long>(i);
   }
   return -1;
+}
+
+// The events read so far, as "id:kind" in order, for a check's message.
+std::string event_order(const std::vector<LlmEvent>& events) {
+  std::string out;
+  for (const LlmEvent& e : events) out += std::to_string(e.id) + ":" + to_string(e.kind) + " ";
+  return out;
 }
 
 struct ServiceRig {
@@ -246,14 +253,12 @@ TEST_CASE("service: what submit refuses, and the pool's size") {
   CHECK(rig.chat(1, kDialogue, Purpose::OwnInitiative) == SubmitResult::Invalid);  // without its epoch
   CHECK(rig.chat(1, kDialogue, Purpose::Reply, Epoch{3}) == SubmitResult::Invalid);
   DecisionCall no_rule = choice_call();
-  no_rule.rule = nullptr;
+  no_rule.rule.clear();
   CHECK(rig.service->submit(LlmRequest::decision(1, no_rule)) == SubmitResult::Invalid);
   CHECK(rig.decide(1, std::nullopt, "Z") == SubmitResult::Invalid);  // a key the call does not offer
-  DecisionCall failing = choice_call();
-  failing.rule = []() -> std::string { throw std::runtime_error("an invented failure"); };
-  CHECK(rig.service->submit(LlmRequest::decision(1, failing)) == SubmitResult::Invalid);
+  CHECK(rig.decide(1, std::nullopt, "a") == SubmitResult::Invalid);  // keys are exact: A is offered, a is not
   CHECK(rig.log_count("refused") == 7);
-  CHECK(rig.log_count("invented failure") == 0);
+  CHECK(rig.log_count("picked a key the call does not offer") == 2);
   CHECK(rig.server->requests().empty());
   CHECK_FALSE(rig.service->poll().has_value());  // nothing refused has an event
 
@@ -452,7 +457,13 @@ TEST_CASE("service: a reply cancels own-initiative dialogue and its decision cal
   CHECK(own.chat->message == "a reply comes first: own-initiative work gives way");
   rig.server->set_auto_advance(true);
   CHECK(rig.ended(4).chat->ok());
-  CHECK(rig.ended(3).chat->ok());
+  const LlmEvent bark = rig.ended(3);
+  // This check failed twice in about twenty runs of the suite under heavy load (2026-11-16) and never since: should
+  // it fail again, it says how the call-out ended and in what order the events came.
+  INFO("3 ended: " << to_string(bark.error()) << " / "
+                    << (bark.chat ? bark.chat->message : std::string("no chat")));
+  INFO("events: " << event_order(rig.seen));
+  CHECK(bark.chat->ok());
   CHECK(index_of(rig.seen, 1, EventKind::Ended) < index_of(rig.seen, 4, EventKind::Started));
 }
 

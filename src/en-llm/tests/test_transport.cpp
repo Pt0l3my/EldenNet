@@ -3,7 +3,8 @@
 // stream with the key only in its header, a 429 with Retry-After, cancelling mid-stream, a refused connection. On the
 // transport itself: a GET with no body, two exchanges at once, a chunked stream piece by piece, a stall cancelled,
 // UTF-8 both ways, keep-alive across transports, redirects not followed, loopback past a proxy, cancelling at any
-// moment, a reply cut short, TLS refused, and the connect timeout.
+// moment, a reply cut short, TLS refused, the connect timeout (a handshake never answered too), and a reply slower
+// than it.
 #include <doctest.h>
 
 #include <algorithm>
@@ -16,6 +17,8 @@
 #include <thread>
 #include <vector>
 
+#include "en/proto/ffi_guard.hpp"
+#include "fault_alloc.hpp"
 #include "local_server.hpp"
 #include "rig.hpp"
 
@@ -75,6 +78,11 @@ std::string lower(std::string s) {
 }
 
 bool contains(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
+
+// A duration in whole milliseconds, for a test's message.
+long long whole_ms(SteadyClock::duration d) {
+  return static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(d).count());
+}
 
 std::string local_providers(int port) {
   return "schema = 1\n[[provider]]\nid = \"local\"\nflavor = \"llamacpp\"\nkind = \"local\"\n"
@@ -645,7 +653,11 @@ TEST_CASE("transport: TLS with a server that does not speak it fails, and names 
     auto transport = candidate.make()->open();
     HttpRequest request = post_request(server.port(), "/v1/chat/completions", "{}");
     request.url = "https://127.0.0.1:" + std::to_string(server.port()) + "/v1/chat/completions";
+    const auto started = SteadyClock::now();
     const Outcome o = run_one(*transport, request);
+    const auto took = SteadyClock::now() - started;
+    INFO("failed with: " << o.failed);  // shown if a check fails, so that a run on Windows says what it saw
+    INFO("after: " << whole_ms(took) << " ms");
     REQUIRE_FALSE(o.failed.empty());
     CHECK(o.status == 0);
     const std::string why = lower(o.failed);
@@ -664,10 +676,81 @@ TEST_CASE("transport: a connection that is never answered ends at the request's 
     const auto started = SteadyClock::now();
     const Outcome o = run_one(*transport, request);
     const auto took = SteadyClock::now() - started;
+    INFO("failed with: " << o.failed);  // shown if a check fails, so that a run on Windows says what it saw
+    INFO("after: " << whole_ms(took) << " ms");
     REQUIRE_FALSE(o.failed.empty());
     CHECK(took < 1500ms);  // not the system's own connect timeout
     if (took >= 250ms) CHECK(contains(lower(o.failed), "time"));  // it waited: a timeout, by name
     CHECK_FALSE(contains(o.failed, "127.0.0.1"));
+  });
+}
+
+TEST_CASE("transport: a TLS handshake that is never answered ends at the request's connect timeout") {
+  for_each_transport([](const Candidate& candidate) {
+    // The server takes the handshake's first message for the start of a request, and waits for the rest of it.
+    LocalServer server([](Connection&, const SeenRequest&) { return false; });
+    auto transport = candidate.make()->open();
+    HttpRequest request = get_request(server.port(), "/v1/models");
+    request.url = "https://127.0.0.1:" + std::to_string(server.port()) + "/v1/models";
+    request.connect_timeout = 300ms;
+    const auto started = SteadyClock::now();
+    const Outcome o = run_one(*transport, request);
+    const auto took = SteadyClock::now() - started;
+    INFO("failed with: " << o.failed);  // shown if a check fails, so that a run on Windows says what it saw
+    INFO("after: " << whole_ms(took) << " ms");
+    REQUIRE_FALSE(o.failed.empty());
+    CHECK(took < 1500ms);  // the handshake is part of connecting
+    CHECK(contains(lower(o.failed), "time"));
+    CHECK_FALSE(contains(o.failed, "127.0.0.1"));
+  });
+}
+
+TEST_CASE("transport: the connect timeout ends only the connecting, and a reply slower than it still comes") {
+  for_each_transport([](const Candidate& candidate) {
+    LocalServer server([](Connection& c, const SeenRequest&) {
+      std::this_thread::sleep_for(600ms);  // the request went out long since: its connect timeout is over
+      c.send(reply("200 OK", "application/json", "{\"late\":true}", true));
+      return false;
+    });
+    auto transport = candidate.make()->open();
+    HttpRequest request = get_request(server.port(), "/v1/models");
+    request.connect_timeout = 200ms;
+    const Outcome o = run_one(*transport, request);
+    INFO("failed with: " << o.failed);
+    CHECK(o.done);
+    CHECK(o.status == 200);
+    CHECK(o.data == "{\"late\":true}");
+  });
+}
+
+TEST_CASE("transport: a callback that throws trips the transport's component, and its request ends at once") {
+  for_each_transport([](const Candidate& candidate) {
+    using en::proto::Component;
+    en::proto::clear_trip(Component::LlmTransport);
+    const std::string text(12000, 'x');
+    std::atomic<int> answered{0};
+    LocalServer server([&](Connection& c, const SeenRequest&) {
+      // Once the request is on its way, the first allocation of a body piece's size on any thread but the server's
+      // fails: inside libcurl's write callback, or WinHTTP's status callback (or the exchange's driver after it).
+      if (answered++ == 0) faults::arm(2000, (16u << 10) + 1);
+      c.send(kStreamHead + sse_content(text) + "data: [DONE]\n\n");
+      return false;
+    });
+    Client client(make_config(local_providers(server.port())), candidate.make());
+    const auto started = SteadyClock::now();
+    const ChatResult broken = client.chat(hello());
+    faults::disarm();
+    REQUIRE(faults::fired());
+    CHECK(broken.error == ErrorClass::Server);
+    CHECK(contains(broken.message, "connection failed"));
+    CHECK(en::proto::tripped(Component::LlmTransport));
+    CHECK(SteadyClock::now() - started < 10s);  // at once, not at the slot's total time
+
+    // The transport goes on: the next request is served whole.
+    const ChatResult next = client.chat(hello());
+    CHECK(next.ok());
+    CHECK(next.text == text);
+    en::proto::clear_trip(Component::LlmTransport);
   });
 }
 

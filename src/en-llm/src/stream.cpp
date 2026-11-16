@@ -4,6 +4,7 @@
 #include <array>
 
 #include "en/llm/secret.hpp"
+#include "en/proto/json.hpp"
 
 namespace en::llm {
 
@@ -56,12 +57,23 @@ int int_field(const json& object, const char* key) {
   return it->get<int>();
 }
 
+// The longest prefix of `text` of at most `max` bytes that ends at a character's boundary.
+std::size_t utf8_prefix(std::string_view text, std::size_t max) {
+  if (text.size() <= max) return text.size();
+  std::size_t cut = max;
+  while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;  // never split a character
+  return cut;
+}
+
 std::string utf8_cut(std::string s, std::size_t max) {
   if (s.size() <= max) return s;
-  std::size_t cut = max;
-  while (cut > 0 && (static_cast<unsigned char>(s[cut]) & 0xC0) == 0x80) --cut;  // never split a character
-  s.resize(cut);
+  s.resize(utf8_prefix(s, max));
   return s + "...";
+}
+
+// Why a chunk or body was refused before parsing, in our own words.
+std::string refusal_text(std::string_view what, en::proto::JsonRefusal refusal) {
+  return std::string(what) + " is " + en::proto::describe(refusal);
 }
 
 bool token_char(char c) {
@@ -157,25 +169,35 @@ std::string ThinkFilter::finish() {
 }
 
 ReplyAssembler::Step ReplyAssembler::on_event_data(std::string_view data) {
+  if (overflowed_ || !refused_.empty()) return {};
   if (trim(data) == "[DONE]") {
     done_ = true;
     return {};
   }
-  const json chunk = json::parse(data, nullptr, /*allow_exceptions=*/false);
-  if (chunk.is_discarded() || !chunk.is_object()) {
+  const en::proto::ParsedJson chunk = en::proto::parse_json(data);
+  if (chunk.refusal == en::proto::JsonRefusal::TooLarge || chunk.refusal == en::proto::JsonRefusal::TooDeep) {
+    refused_ = refusal_text("a stream event", chunk.refusal);
+    return {};
+  }
+  if (!chunk.ok() || !chunk.value.is_object()) {
     ++bad_chunks_;
     return {};
   }
-  return on_chunk(chunk, false);
+  return on_chunk(chunk.value, false);
 }
 
 ReplyAssembler::Step ReplyAssembler::on_whole_body(std::string_view body) {
-  const json reply = json::parse(body, nullptr, /*allow_exceptions=*/false);
-  if (reply.is_discarded() || !reply.is_object()) {
+  if (overflowed_ || !refused_.empty()) return {};
+  const en::proto::ParsedJson reply = en::proto::parse_json(body);
+  if (reply.refusal == en::proto::JsonRefusal::TooLarge || reply.refusal == en::proto::JsonRefusal::TooDeep) {
+    refused_ = refusal_text("the reply", reply.refusal);
+    return {};
+  }
+  if (!reply.ok() || !reply.value.is_object()) {
     ++bad_chunks_;
     return {};
   }
-  Step step = on_chunk(reply, true);
+  Step step = on_chunk(reply.value, true);
   done_ = true;
   return step;
 }
@@ -239,6 +261,7 @@ ReplyAssembler::Step ReplyAssembler::on_chunk(const json& chunk, bool whole) {
 }
 
 ReplyAssembler::Step ReplyAssembler::add_content(std::string_view content) {
+  if (overflowed_) return {};
   raw_.append(content);
   ThinkFilter::Output out = think_.feed(content);
   Step step;
@@ -251,10 +274,17 @@ ReplyAssembler::Step ReplyAssembler::add_content(std::string_view content) {
 }
 
 void ReplyAssembler::append_visible(std::string_view text, Step& step) {
+  if (overflowed_) return;
   if (text_.empty()) {  // the reply starts at its first visible character
     const std::size_t first = text.find_first_not_of(" \t\r\n");
     if (first == std::string_view::npos) return;
     text.remove_prefix(first);
+  }
+  const std::size_t room = max_text_ - std::min(max_text_, text_.size());
+  if (text.size() > room) {
+    // ARCH §10.2: the display text stops at its cap, at a character's boundary, and the stream is to be cancelled.
+    text = text.substr(0, utf8_prefix(text, room));
+    overflowed_ = true;
   }
   text_.append(text);
   step.delta.append(text);
@@ -262,6 +292,7 @@ void ReplyAssembler::append_visible(std::string_view text, Step& step) {
 
 ReplyAssembler::Step ReplyAssembler::finish() {
   Step step;
+  if (overflowed_ || !refused_.empty()) return step;
   append_visible(think_.finish(), step);
   while (!text_.empty() && is_space(text_.back())) text_.pop_back();
   return step;
@@ -363,10 +394,10 @@ std::string describe_error_body(std::string_view body, int status) {
   const std::string prefix = "HTTP " + std::to_string(status);
   if (status == 401 || status == 403) return prefix + ": the provider rejected the key";
   std::string message;
-  const json parsed = json::parse(body, nullptr, /*allow_exceptions=*/false);
-  if (!parsed.is_discarded() && parsed.is_object()) {
-    if (auto error = parsed.find("error"); error != parsed.end()) message = error_object_message(*error);
-    if (message.empty()) message = error_object_message(parsed);
+  const en::proto::ParsedJson parsed = en::proto::parse_json(body);
+  if (parsed.ok() && parsed.value.is_object()) {
+    if (auto error = parsed.value.find("error"); error != parsed.value.end()) message = error_object_message(*error);
+    if (message.empty()) message = error_object_message(parsed.value);
   } else {
     message = std::string(body);
   }

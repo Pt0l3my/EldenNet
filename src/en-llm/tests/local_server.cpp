@@ -1,5 +1,7 @@
 #include "local_server.hpp"
 
+#include "fault_alloc.hpp"
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -82,6 +84,8 @@ sockaddr_in loopback_address(int port) {
 int port_of(Socket s) {
   sockaddr_in address{};
   socklen_t length = sizeof address;
+  // SAFETY: the sockets API takes every address as a sockaddr*, with its length; this socket is IPv4, so its address
+  // is a sockaddr_in, and `length` says the whole of it may be written.
   ::getsockname(s, reinterpret_cast<sockaddr*>(&address), &length);
   return ntohs(address.sin_port);
 }
@@ -92,6 +96,7 @@ Socket listen_loopback(int backlog) {
   const Socket s = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s == kNoSocket) throw std::runtime_error("the test server could not open a socket");
   const sockaddr_in address = loopback_address(0);
+  // SAFETY: as in port_of: an IPv4 address passed as the API's sockaddr*, with its own size.
   if (::bind(s, reinterpret_cast<const sockaddr*>(&address), sizeof address) != 0 || ::listen(s, backlog) != 0) {
     close_socket(s);
     throw std::runtime_error("the test server could not listen on 127.0.0.1");
@@ -181,7 +186,10 @@ LocalServer::LocalServer(Handler handler) : impl_(std::make_unique<Impl>()) {
   impl_->handler = std::move(handler);
   impl_->listener = listen_loopback(64);
   impl_->port = port_of(impl_->listener);
-  impl_->acceptor = std::thread([impl = impl_.get()] { impl->accept_loop(); });
+  impl_->acceptor = std::thread([impl = impl_.get()] {
+    faults::exempt_this_thread();
+    impl->accept_loop();
+  });
 }
 
 LocalServer::~LocalServer() {
@@ -210,7 +218,10 @@ void LocalServer::Impl::accept_loop() {
     if (client == kNoSocket) continue;
     std::lock_guard lock(mutex);
     const int number = ++connections;
-    workers.emplace_back([this, client, number] { serve(client, number); });
+    workers.emplace_back([this, client, number] {
+      faults::exempt_this_thread();  // the server keeps serving while a test's fault is armed
+      serve(client, number);
+    });
   }
 }
 
@@ -286,7 +297,10 @@ RawServer::RawServer(std::string text) : impl_(std::make_unique<Impl>()) {
   impl_->text = std::move(text);
   impl_->listener = listen_loopback(16);
   impl_->port = port_of(impl_->listener);
-  impl_->acceptor = std::thread([impl = impl_.get()] { impl->accept_loop(); });
+  impl_->acceptor = std::thread([impl = impl_.get()] {
+    faults::exempt_this_thread();
+    impl->accept_loop();
+  });
 }
 
 RawServer::~RawServer() {
@@ -309,6 +323,7 @@ FullBacklog::FullBacklog() : impl_(std::make_unique<Impl>()) {
   // The one place in the queue, taken by a connection that is never accepted.
   impl_->filler = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   const sockaddr_in address = loopback_address(impl_->port);
+  // SAFETY: as in port_of: an IPv4 address passed as the API's sockaddr*, with its own size.
   if (impl_->filler == kNoSocket ||
       ::connect(impl_->filler, reinterpret_cast<const sockaddr*>(&address), sizeof address) != 0) {
     throw std::runtime_error("the test could not fill the listening queue");

@@ -41,6 +41,15 @@ inline constexpr const char* no_line_statement = "\x1E";
 std::string escape_data(std::string_view text);
 void restore_data(std::string& text);
 
+// A template name in the form every source is asked for: '/' between folders and none at the end, so that
+// "components\\event_history" is "components/event_history"; or, in `problem`, why it names no template, quoting it as
+// written. The one check of names, for a name to render and for a memory source's keys alike (source.cpp).
+struct CheckedName {
+  std::string name;
+  std::string problem;  // empty for a good name
+};
+CheckedName check_name(std::string_view raw);
+
 bool is_space(char c) noexcept;
 std::string_view trim(std::string_view text) noexcept;
 bool is_identifier(std::string_view text) noexcept;

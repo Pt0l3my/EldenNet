@@ -20,12 +20,16 @@
 #include "en/llm/client.hpp"
 #include "en/llm/config.hpp"
 #include "en/llm/message.hpp"
+#include "en/proto/ffi_guard.hpp"
 
 namespace {
 
 std::atomic<bool> g_interrupted{false};
 
-extern "C" void on_interrupt(int) { g_interrupted.store(true); }
+// The system's call, so noexcept and guarded (R3); a lock-free store is all it does, as a signal handler may.
+extern "C" void on_interrupt(int) noexcept {
+  en::proto::ffi_guard(en::proto::Component::Tools, [] { g_interrupted.store(true); });
+}
 
 struct ChatArgs {
   std::string config;

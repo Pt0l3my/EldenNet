@@ -79,7 +79,7 @@ class Call {
 
   // The context of the render this call belongs to.
   const nlohmann::json& context() const;
-  // Renders a template file, or a folder of numbered parts, by name from the environment's root.
+  // Renders a template file, or a folder of numbered parts, by name through the environment's template source.
   std::string render(std::string_view name, const nlohmann::json& context, bool folder_only = false) const;
 
  private:

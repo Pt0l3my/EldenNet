@@ -75,7 +75,7 @@ std::string string_field(const nlohmann::json& j, const char* key) {
 }
 
 // The request file into a call. The command has no code to run as the task's rules, so the file names the key
-// they picked ("rule"), and the call's rule returns it.
+// they picked ("rule"), which is what the call carries (ARCH §11.8).
 en::llm::DecisionCall read_call(const nlohmann::json& j) {
   if (!j.is_object()) throw std::invalid_argument("the request must be a JSON object");
   en::llm::DecisionCall call;
@@ -102,7 +102,7 @@ en::llm::DecisionCall read_call(const nlohmann::json& j) {
   if (const std::string slot = string_field(j, "slot"); !slot.empty()) call.slot = slot;
   const std::string rule = string_field(j, "rule");
   if (rule.empty()) throw std::invalid_argument("\"rule\" (the key the task's rules pick) is required");
-  call.rule = [rule] { return rule; };
+  call.rule = rule;
   return call;
 }
 

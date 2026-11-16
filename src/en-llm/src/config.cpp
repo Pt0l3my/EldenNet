@@ -1,5 +1,9 @@
 // Reading providers.toml, models.toml, settings.toml and secrets.toml (ARCH §11.1, §11.4, §11.5).
 //
+// Every slot names its provider, model and fallback, so that each use can have a provider of its own (O88); a preset
+// of models.toml names the providers its slots use, and each is matched to a provider of providers.toml, which alone
+// holds keys (by reference, into secrets.toml or the environment).
+//
 // Every table the client owns is read strictly: an unknown key is an error, as `deny_unknown_fields` is in the design,
 // and a newer schema is refused. settings.toml belongs mostly to other modules, so only its `budget` table is read
 // here (strictly); the rest of that file is theirs to check. Errors name the file and the line, and never a key's value.
@@ -307,35 +311,78 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
   return p;
 }
 
-// The preset's provider (models.toml says what it expects) is the configured provider that matches it: by base_url
-// where the preset gives one, otherwise by kind and flavour, otherwise the only provider there is.
-std::string resolve_preset_provider(const toml::table& preset, const Config& cfg, const Ctx& ctx) {
-  const toml::table* spec = get_table(preset, "provider", ctx);
-  if (spec == nullptr) {
-    if (cfg.providers.size() == 1) return cfg.providers.front().id;
-    ctx.fail("names no provider, and providers.toml has " + std::to_string(cfg.providers.size()));
+// A provider as a preset gives it (models.toml): what it expects of a providers.toml provider, which holds the
+// endpoint's key. It is matched by base_url where the preset gives one, otherwise as the first provider of its kind
+// and flavour (either may be left out). A preset never holds a key (O88).
+std::string match_provider(const toml::table& spec, const Config& cfg, const Ctx& ctx) {
+  for (const std::string_view secret : {std::string_view("key_ref"), std::string_view("key")}) {
+    if (const toml::node* node = spec.get(secret)) {
+      ctx.fail("a preset never holds a key: keys stay with providers.toml's providers (key_ref)", node);
+    }
   }
-  const Ctx sctx = ctx.sub(ctx.where + ".provider");
-  check_keys(*spec, {"flavor", "kind", "base_url"}, sctx);
-  if (auto url = get_string(*spec, "base_url", sctx)) {
+  check_keys(spec, {"flavor", "kind", "base_url"}, ctx);
+  if (auto url = get_string(spec, "base_url", ctx)) {
     const std::string wanted = normalise_base_url(*url);
     for (const auto& p : cfg.providers) {
       if (p.base_url == wanted) return p.id;
     }
-    ctx.fail("needs a provider with base_url = \"" + wanted + "\" in providers.toml");
+    ctx.fail("needs a provider with base_url = \"" + wanted + "\" in providers.toml", &spec);
   }
   std::optional<ProviderKind> kind;
   std::optional<Flavor> flavor;
-  if (auto k = get_string(*spec, "kind", sctx)) kind = parse_choice(*k, kKinds, "kind", sctx);
-  if (auto f = get_string(*spec, "flavor", sctx)) flavor = parse_choice(*f, kFlavors, "flavor", sctx);
+  if (auto k = get_string(spec, "kind", ctx)) kind = parse_choice(*k, kKinds, "kind", ctx);
+  if (auto f = get_string(spec, "flavor", ctx)) flavor = parse_choice(*f, kFlavors, "flavor", ctx);
   for (const auto& p : cfg.providers) {
     if ((!kind || p.kind == *kind) && (!flavor || p.flavor == *flavor)) return p.id;
   }
-  ctx.fail("needs a matching provider in providers.toml");
+  ctx.fail("needs a matching provider in providers.toml", &spec);
 }
 
-// Returns the provider the preset resolved to, which [slots] overrides then default to.
-std::string apply_preset(Config& cfg, const std::string& models_text, const std::string& preset_id) {
+// One slot's entry in a preset (or its `all`), read before any provider is matched, so that a misspelt key is named
+// first.
+struct PresetEntry {
+  const toml::table* table = nullptr;
+  Ctx ctx;
+  std::optional<std::string> model;
+  std::optional<std::string> fallback;
+  std::optional<std::string> provider;           // a name of the preset's providers (O88)
+  std::optional<std::string> fallback_provider;  // the same, for the fallback: by default the slot's own
+  bool hints = false;                            // model hints only, which the local probe resolves (later work)
+};
+
+PresetEntry read_preset_entry(const toml::table& table, const Ctx& ctx) {
+  check_keys(table,
+             {"model", "fallback", "provider", "fallback_provider", "model_hint", "quant", "background_at_rest_only"},
+             ctx);
+  PresetEntry e;
+  e.table = &table;
+  e.ctx = ctx;
+  e.model = get_string(table, "model", ctx);
+  e.fallback = get_string(table, "fallback", ctx);
+  e.provider = get_string(table, "provider", ctx);
+  e.fallback_provider = get_string(table, "fallback_provider", ctx);
+  get_string(table, "quant", ctx);
+  get_bool(table, "background_at_rest_only", ctx);
+  if (const toml::node* hint = table.get("model_hint")) {
+    if (!hint->is_array()) ctx.fail("model_hint must be a list", hint);
+    e.hints = true;
+  }
+  if (e.fallback_provider && !e.fallback) {
+    ctx.fail("names a fallback_provider but no fallback", table.get("fallback_provider"));
+  }
+  return e;
+}
+
+// What a preset gives the slots, which providers.toml's [slots] overrides default to.
+struct PresetResult {
+  std::optional<std::string> sole;                          // the preset's one provider, where it has one
+  std::map<std::string, std::string, std::less<>> by_slot;  // the provider it gives each slot it places
+};
+
+// Fills the slots (and the reserved slots' models) from the preset. Its providers come in one of two forms (O88): one
+// `provider = { ... }`, or named [preset.<id>.providers.<name>] tables, each slot naming its own; never both, never
+// neither.
+PresetResult apply_preset(Config& cfg, const std::string& models_text, const std::string& preset_id) {
   const Ctx ctx{"models.toml", ""};
   const toml::table root = parse_toml(ctx.file, models_text, false);
   check_keys(root, {"schema", "preset"}, ctx);
@@ -346,54 +393,146 @@ std::string apply_preset(Config& cfg, const std::string& models_text, const std:
   const toml::table& preset = *node->as_table();
   const Ctx pctx = ctx.sub("preset." + preset_id);
   check_keys(preset,
-             {"provider", "all", "warn_free_tier_for", kDialogue, kBarkLive, kBarkPool, kMemory, kSelftest, kDraft,
-              kDecisions},
+             {"provider", "providers", "all", "warn_free_tier_for", kDialogue, kBarkLive, kBarkPool, kMemory,
+              kSelftest, kDraft, kDecisions, kActions, kVision},
              pctx);
   if (const toml::node* warn = preset.get("warn_free_tier_for"); warn != nullptr && !warn->is_array()) {
     pctx.fail("warn_free_tier_for must be a list", warn);  // the wizard's concern; only checked here
   }
-  const std::string provider = resolve_preset_provider(preset, cfg, pctx);
-  const toml::table* all = get_table(preset, "all", pctx);
-  for (const std::string& slot : known_slots()) {
-    const toml::table* entry = get_table(preset, slot, pctx);
-    const Ctx ectx = pctx.sub(pctx.where + "." + (entry != nullptr ? slot : std::string("all")));
-    if (entry == nullptr) entry = all;
-    if (entry == nullptr) continue;
-    check_keys(*entry, {"model", "fallback", "model_hint", "quant", "background_at_rest_only"}, ectx);
-    auto model = get_string(*entry, "model", ectx);
-    auto fallback = get_string(*entry, "fallback", ectx);
-    get_string(*entry, "quant", ectx);
-    get_bool(*entry, "background_at_rest_only", ectx);
-    if (const toml::node* hint = entry->get("model_hint"); hint != nullptr && !hint->is_array()) {
-      ectx.fail("model_hint must be a list", hint);
+
+  std::optional<PresetEntry> all;
+  if (const toml::table* table = get_table(preset, "all", pctx)) {
+    all = read_preset_entry(*table, pctx.sub(pctx.where + ".all"));
+  }
+  std::map<std::string, PresetEntry, std::less<>> own;
+  auto read_own = [&](std::string_view name) {
+    const std::string slot(name);
+    if (const toml::table* table = get_table(preset, slot, pctx)) {
+      own.emplace(slot, read_preset_entry(*table, pctx.sub(pctx.where + "." + slot)));
     }
-    auto& models = cfg.slots[slot].models;
+  };
+  for (const std::string_view name : known_slots()) read_own(name);
+  for (const std::string_view name : reserved_slots()) read_own(name);
+
+  const toml::node* one = preset.get("provider");
+  const toml::node* named = preset.get("providers");
+  if (one != nullptr && named != nullptr) pctx.fail("has both provider = { ... } and providers: use one form", one);
+  if (one == nullptr && named == nullptr) {
+    pctx.fail("names no provider: give it provider = { ... }, or [preset." + preset_id + ".providers.<name>] tables",
+              &preset);
+  }
+  PresetResult result;
+  std::map<std::string, std::string, std::less<>> by_name;  // a name of the preset's: the providers.toml id it matched
+  if (one != nullptr) {
+    if (!one->is_table()) pctx.fail("\"provider\" must be a table", one);
+    result.sole = match_provider(*one->as_table(), cfg, pctx.sub(pctx.where + ".provider"));
+  } else {
+    if (!named->is_table()) {
+      pctx.fail("\"providers\" must be [preset." + preset_id + ".providers.<name>] tables", named);
+    }
+    for (auto&& [key, value] : *named->as_table()) {
+      const std::string name(key.str());
+      const Ctx nctx = pctx.sub(pctx.where + ".providers." + name);
+      if (!valid_id(name)) nctx.fail("a provider's name must be 1 to 64 letters, digits, '_', '-' or '.'", &value);
+      if (!value.is_table()) nctx.fail("must be a table", &value);
+      const std::string id = match_provider(*value.as_table(), cfg, nctx);
+      // One name, one provider. TOML itself refuses a name given twice in a preset; a name that is the id of another
+      // provider in providers.toml would stand for two as well.
+      if (id != name && cfg.provider(name) != nullptr) {
+        nctx.fail("matches providers.toml's \"" + id + "\", but providers.toml has a provider \"" + name +
+                      "\" too: one name for two providers",
+                  &value);
+      }
+      by_name.emplace(name, id);
+    }
+    if (by_name.empty()) pctx.fail("names no provider in its providers table", named);
+    if (by_name.size() == 1) result.sole = by_name.begin()->second;
+  }
+
+  // The providers.toml id a name of the preset's stands for.
+  auto named_provider = [&](const PresetEntry& e, std::string_view key, const std::string& name) -> std::string {
+    if (const auto it = by_name.find(name); it != by_name.end()) return it->second;
+    e.ctx.fail(std::string(key) + " \"" + name + "\" is not a provider the preset defines" +
+                   (one != nullptr ? " (its one provider = { ... } has no name)" : ""),
+               e.table->get(key));
+  };
+  auto primary_provider = [&](const PresetEntry& e) -> std::string {
+    if (e.provider) return named_provider(e, "provider", *e.provider);
+    if (result.sole) return *result.sole;
+    e.ctx.fail("needs provider = \"<name>\": the preset names several providers", e.table);
+  };
+  // Every name is checked, whether or not its entry ends up used.
+  auto check_names = [&](const PresetEntry& e) {
+    if (e.provider) named_provider(e, "provider", *e.provider);
+    if (e.fallback_provider) named_provider(e, "fallback_provider", *e.fallback_provider);
+  };
+  if (all) check_names(*all);
+  for (const auto& [slot, e] : own) check_names(e);
+
+  auto fill = [&](const std::string& slot, const PresetEntry& e, std::vector<ModelRef>& models, bool warn) {
+    const bool has_model = e.model && !e.model->empty();
+    if (!has_model && !e.hints && !e.provider) return;  // nothing to place
+    const std::string id = primary_provider(e);
+    result.by_slot[slot] = id;
     models.clear();
-    if (model && !model->empty()) {
-      models.push_back(ModelRef{provider, *model});
-      if (fallback && !fallback->empty()) models.push_back(ModelRef{provider, *fallback});
-    } else if (entry->get("model_hint") != nullptr) {
+    if (has_model) {
+      models.push_back(ModelRef{id, *e.model});
+      if (e.fallback && !e.fallback->empty()) {
+        const std::string fallback_id =
+            e.fallback_provider ? named_provider(e, "fallback_provider", *e.fallback_provider) : id;
+        models.push_back(ModelRef{fallback_id, *e.fallback});
+      }
+    } else if (e.hints && warn) {
       cfg.warnings.push_back("preset " + preset_id + ": slot " + slot +
                              " names model hints only; the local probe resolves them (later work), or name a model in "
                              "providers.toml [slots." + slot + "]");
     }
+  };
+  for (const std::string_view name : known_slots()) {
+    const std::string slot(name);
+    const auto it = own.find(slot);
+    const PresetEntry* e = it != own.end() ? &it->second : (all ? &*all : nullptr);
+    if (e != nullptr) fill(slot, *e, cfg.slots[slot].models, /*warn=*/true);
   }
-  return provider;
+  // A reserved slot takes its own entry only: `all` is for the slots in use, which it is not yet.
+  for (const std::string_view name : reserved_slots()) {
+    const std::string slot(name);
+    if (const auto it = own.find(slot); it != own.end()) fill(slot, it->second, cfg.reserved[slot], /*warn=*/false);
+  }
+  return result;
 }
 
-void apply_slot_overrides(Config& cfg, const toml::table& slots, const std::optional<std::string>& preset_provider,
-                          const Ctx& file_ctx) {
+// The provider a [slots] override defaults to (ARCH §11.1): the one the preset gives the slot, or gives the slot it
+// would borrow a model from (decisions bark_live's, every other slot dialogue's), or the preset's one provider.
+std::optional<std::string> preset_default(const PresetResult& preset, std::string_view slot) {
+  auto given = [&](std::string_view s) -> std::optional<std::string> {
+    if (const auto it = preset.by_slot.find(s); it != preset.by_slot.end()) return it->second;
+    return std::nullopt;
+  };
+  if (auto id = given(slot)) return id;
+  if (slot == kDecisions) {
+    if (auto id = given(kBarkLive)) return id;
+  }
+  if (auto id = given(kDialogue)) return id;
+  return preset.sole;
+}
+
+void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetResult& preset, const Ctx& file_ctx) {
   for (auto&& [name, value] : slots) {
     const std::string slot(name.str());
     const Ctx ctx = file_ctx.sub("slots." + slot);
-    if (cfg.slots.find(slot) == cfg.slots.end()) ctx.fail("is not a slot (" + std::string(kDialogue) + ", ...)", &value);
+    const bool reserved = is_reserved_slot(slot);
+    if (!reserved && cfg.slots.find(slot) == cfg.slots.end()) {
+      ctx.fail("is not a slot (" + std::string(kDialogue) + ", ...)", &value);
+    }
     if (!value.is_table()) ctx.fail("must be a table", &value);
     const toml::table& table = *value.as_table();
     check_keys(table, {"model", "fallback", "provider", "fallback_provider"}, ctx);
+    const std::optional<std::string> preset_provider = preset_default(preset, slot);
 
     auto provider_for = [&](std::string_view key, const std::optional<std::string>& fallback_to) -> std::string {
       if (auto id = get_string(table, key, ctx)) {
-        if (cfg.provider(*id) == nullptr) ctx.fail("names no provider \"" + *id + "\"");
+        if (cfg.provider(*id) == nullptr) ctx.fail("names no provider \"" + *id + "\"", table.get(key));
         return *id;
       }
       if (fallback_to) return *fallback_to;
@@ -401,7 +540,7 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const std::opti
       ctx.fail("needs " + std::string(key) + " = \"<id>\": providers.toml has several providers");
     };
 
-    auto& models = cfg.slots[slot].models;
+    auto& models = reserved ? cfg.reserved[slot] : cfg.slots[slot].models;
     std::optional<ModelRef> primary = models.empty() ? std::nullopt : std::optional<ModelRef>(models[0]);
     std::optional<ModelRef> fallback = models.size() < 2 ? std::nullopt : std::optional<ModelRef>(models[1]);
     if (auto model = get_string(table, "model", ctx)) {
@@ -474,14 +613,6 @@ const char* to_string(Flavor f) {
 
 const char* to_string(ProviderKind k) { return k == ProviderKind::Cloud ? "cloud" : "local"; }
 
-const std::vector<std::string>& known_slots() {
-  static const std::vector<std::string> slots = {std::string(kDialogue), std::string(kBarkLive),
-                                                 std::string(kBarkPool), std::string(kMemory),
-                                                 std::string(kSelftest), std::string(kDraft),
-                                                 std::string(kDecisions)};
-  return slots;
-}
-
 SlotBudget default_budget(std::string_view slot) {
   using std::chrono::milliseconds;
   // max_tokens, temperature, first token, first token on a local provider, total, retries, concurrency.
@@ -527,7 +658,10 @@ std::vector<std::string> quantizations_from(std::string_view floor) {
 
 Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
   Config cfg;
-  for (const std::string& slot : known_slots()) cfg.slots[slot] = SlotConfig{slot, default_budget(slot), {}};
+  for (const std::string_view slot : known_slots()) {
+    cfg.slots[std::string(slot)] = SlotConfig{std::string(slot), default_budget(slot), {}};
+  }
+  for (const std::string_view slot : reserved_slots()) cfg.reserved[std::string(slot)] = {};
   const Keys keys = texts.secrets ? parse_secrets(*texts.secrets) : Keys{};
   if (texts.settings) parse_settings(cfg, *texts.settings);
 
@@ -548,12 +682,12 @@ Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
   }
   if (cfg.providers.empty()) ctx.fail("names no [[provider]]");
 
-  std::optional<std::string> preset_provider;
+  PresetResult preset;
   if (cfg.preset != "custom") {
     if (!texts.models) throw ConfigError("models.toml", "is needed for preset \"" + cfg.preset + "\"");
-    preset_provider = apply_preset(cfg, *texts.models, cfg.preset);
+    preset = apply_preset(cfg, *texts.models, cfg.preset);
   }
-  if (const toml::table* slots = get_table(root, "slots", ctx)) apply_slot_overrides(cfg, *slots, preset_provider, ctx);
+  if (const toml::table* slots = get_table(root, "slots", ctx)) apply_slot_overrides(cfg, *slots, preset, ctx);
   fill_empty_slots(cfg);
   if (cfg.slots[std::string(kDialogue)].models.empty()) {
     cfg.warnings.push_back("no slot has a model: name one in providers.toml [slots.dialogue] or choose a preset");

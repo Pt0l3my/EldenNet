@@ -1,6 +1,10 @@
 // The asynchronous handle (ARCH §2.2; §1.3's C9, C10 and C15) and Ollama's warm-up (ARCH §11.3). One mutex guards
 // the requests' state and the event queue has its own; the state's is always taken first. Nothing calls out (the
 // notify callback, the log) while holding either: the handle's own dispatcher thread does that.
+//
+// The handle's threads (the workers and the dispatcher, T7–T8) run on 2 MB stacks (ARCH §10.2) and start with
+// ffi_guard (R3, thread.hpp); a request whose client call throws trips the worker's component and ends as BadRequest
+// (ARCH §1.2), and a caller's callback that throws (the log, the notify) loses its call, never the thread.
 #include "en/llm/service.hpp"
 
 #include <algorithm>
@@ -12,16 +16,19 @@
 #include <set>
 #include <stdexcept>
 #include <stop_token>
-#include <thread>
 #include <unordered_map>
 #include <utility>
 
 #include <nlohmann/json.hpp>
 
 #include "en/llm/request.hpp"
+#include "en/llm/thread.hpp"
+#include "en/proto/ffi_guard.hpp"
 
 namespace en::llm {
 
+using en::proto::Component;
+using en::proto::ffi_guard;
 using nlohmann::json;
 
 namespace {
@@ -155,8 +162,7 @@ struct Job {
   RequestId id = 0;
   RequestKind kind = RequestKind::Chat;
   ChatRequest chat;
-  DecisionCall decision;  // its rule gives the key it gave at submit
-  std::string rule_key;
+  DecisionCall decision;  // its rule, checked at submit, is the pick whenever the handle ends it without running it
   std::optional<Epoch> epoch;
   std::string slot;  // as resolved
   int priority = 0;
@@ -234,7 +240,7 @@ struct Service::Impl {
   void signal_notify();
   void signal_notify_locked();
   void call_notify();
-  void log(LogLevel level, const std::string& line) const;
+  void log(LogLevel level, const std::string& line) const noexcept;
   void log_locked(LogLevel level, std::string line);
 
   // Fixed at construction.
@@ -272,8 +278,8 @@ struct Service::Impl {
   std::mutex notify_mutex;  // held while the callback runs, so that set_notify waits for it
   std::function<void()> notify;
 
-  std::vector<std::thread> workers;
-  std::thread dispatcher;
+  std::vector<StackThread> workers;
+  StackThread dispatcher;
   std::once_flag shut;
 };
 
@@ -320,8 +326,9 @@ class JobSink final : public StreamSink {
 
 void Service::Impl::start_threads() {
   try {
-    dispatcher = std::thread([this] { dispatcher_main(); });
-    for (int i = 0; i < worker_count; ++i) workers.emplace_back([this] { worker_main(); });
+    dispatcher = StackThread(Component::LlmWorker, kNetStack, [this] { dispatcher_main(); });
+    workers.reserve(static_cast<std::size_t>(worker_count));
+    for (int i = 0; i < worker_count; ++i) workers.emplace_back(Component::LlmWorker, kNetStack, [this] { worker_main(); });
   } catch (...) {
     shutdown();
     throw;
@@ -338,7 +345,7 @@ void Service::Impl::shutdown() {
       end_pending_warm_ups_locked(ErrorClass::Cancelled);
       work_cv.notify_all();
     }
-    for (std::thread& t : workers) {
+    for (StackThread& t : workers) {
       if (t.joinable()) t.join();
     }
     {
@@ -442,21 +449,9 @@ SubmitResult Service::Impl::prepare(LlmRequest& request, Job& job, std::string& 
   }
   DecisionCall& call = std::get<DecisionCall>(request.body);
   try {
-    validate(call);
+    validate(call);  // its rule among the rest: the key must be one the call offers
   } catch (const std::invalid_argument& e) {
     why = e.what();
-    return SubmitResult::Invalid;
-  }
-  std::string key;
-  try {
-    key = call.rule();
-  } catch (...) {
-    why = "the rules of decision " + call.task + " failed";
-    return SubmitResult::Invalid;
-  }
-  const std::vector<std::string> keys = legal_keys(call);
-  if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
-    why = "the rules of decision " + call.task + " picked a key the call does not offer";
     return SubmitResult::Invalid;
   }
   const SlotConfig& slot = config->slot(call.slot);
@@ -466,10 +461,6 @@ SubmitResult Service::Impl::prepare(LlmRequest& request, Job& job, std::string& 
   job.own_initiative = request.epoch.has_value();
   job.live = true;
   job.start_budget = start_budget(*config, slot);
-  job.rule_key = key;
-  // The rule is a pure function of the call's state (decision.hpp), so its key stands for it: no worker runs the
-  // caller's code, and a pick the handle makes itself needs no call.
-  call.rule = [key] { return key; };
   job.decision = std::move(call);
   return SubmitResult::Accepted;
 }
@@ -550,21 +541,25 @@ std::shared_ptr<Job> Service::Impl::take_locked() {
 
 void Service::Impl::run(const std::shared_ptr<Job>& job) {
   JobSink sink(*this, *job);
-  LlmEvent ended;
-  ended.kind = EventKind::Ended;
-  ended.id = job->id;
-  try {
+  // R3: whatever the client lets out stays on this worker. Its component trips and the request ends as BadRequest
+  // (ARCH §1.2), with its one Ended event like any other.
+  std::optional<LlmEvent> ended = ffi_guard(Component::LlmWorker, std::optional<LlmEvent>(), [&] {
+    LlmEvent e;
+    e.kind = EventKind::Ended;
+    e.id = job->id;
     if (job->kind == RequestKind::Chat) {
-      ended.chat = client.chat(job->chat, &sink, job->token);
+      e.chat = client.chat(job->chat, &sink, job->token);
     } else {
-      ended.pick = client.decide(job->decision, &sink, job->token);
+      e.pick = client.decide(job->decision, &sink, job->token);
     }
-  } catch (...) {
+    return std::optional<LlmEvent>(std::move(e));
+  });
+  if (!ended) {
     // Checked at submit, so this is no request of ours: the class of failure is all the log says.
     log(LogLevel::Warn, "request " + std::to_string(job->id) + " (" + job->slot + "): the client failed; it ends as BadRequest");
     ended = ending(*job, ErrorClass::BadRequest, "the request could not be sent", clock->now());
   }
-  settle(job, std::move(ended));
+  settle(job, std::move(*ended));
 }
 
 // The client has answered. Busy goes back to its place in the queue, unless the request was stopped or its start time
@@ -695,7 +690,7 @@ LlmEvent Service::Impl::ending(const Job& job, ErrorClass error, std::string mes
 DecisionPick Service::Impl::rules_pick(const Job& job, ErrorClass error, TimePoint now) const {
   const DecisionCall& call = job.decision;
   DecisionPick pick;
-  pick.key = job.rule_key;
+  pick.key = call.rule;
   pick.by = DecidedBy::Rules;
   pick.read = ReadAs::Rules;
   pick.fallback = true;
@@ -828,15 +823,18 @@ void Service::Impl::signal_notify_locked() {
 void Service::Impl::call_notify() {
   std::lock_guard lock(notify_mutex);
   if (!notify) return;
-  try {
-    notify();
-  } catch (...) {
+  // The caller's code on the handle's thread: a fault in it trips the worker's component and loses this call only.
+  if (!ffi_guard(Component::LlmWorker, false, [&] {
+        notify();
+        return true;
+      })) {
     log(LogLevel::Warn, "the event notify callback failed; it stays registered");
   }
 }
 
-void Service::Impl::log(LogLevel level, const std::string& line) const {
-  if (log_fn) log_fn(level, line);
+void Service::Impl::log(LogLevel level, const std::string& line) const noexcept {
+  // The caller's function, on the handle's threads and the caller's: a fault in it loses the line, never the thread.
+  if (log_fn) ffi_guard(Component::LlmWorker, [&] { log_fn(level, line); });
 }
 
 void Service::Impl::log_locked(LogLevel level, std::string line) {
@@ -846,32 +844,6 @@ void Service::Impl::log_locked(LogLevel level, std::string line) {
 
 // --- The public surface ---
 
-RequestKind LlmRequest::kind() const {
-  return std::holds_alternative<DecisionCall>(body) ? RequestKind::Decision : RequestKind::Chat;
-}
-
-LlmRequest LlmRequest::chat(RequestId id, ChatRequest request, std::optional<Epoch> epoch) {
-  LlmRequest r;
-  r.id = id;
-  r.body = std::move(request);
-  r.epoch = epoch;
-  return r;
-}
-
-LlmRequest LlmRequest::decision(RequestId id, DecisionCall call, std::optional<Epoch> epoch) {
-  LlmRequest r;
-  r.id = id;
-  r.body = std::move(call);
-  r.epoch = epoch;
-  return r;
-}
-
-ErrorClass LlmEvent::error() const {
-  if (chat) return chat->error;
-  if (pick) return pick->error;
-  return kind == EventKind::WarmUpEnded ? warm_up.error : ErrorClass::None;
-}
-
 const char* to_string(SubmitResult result) {
   switch (result) {
     case SubmitResult::Accepted: return "Accepted";
@@ -879,17 +851,6 @@ const char* to_string(SubmitResult result) {
     case SubmitResult::Duplicate: return "Duplicate";
     case SubmitResult::Invalid: return "Invalid";
     case SubmitResult::ShutDown: return "ShutDown";
-  }
-  return "Unknown";
-}
-
-const char* to_string(EventKind kind) {
-  switch (kind) {
-    case EventKind::Started: return "Started";
-    case EventKind::Delta: return "Delta";
-    case EventKind::Reset: return "Reset";
-    case EventKind::Ended: return "Ended";
-    case EventKind::WarmUpEnded: return "WarmUpEnded";
   }
   return "Unknown";
 }

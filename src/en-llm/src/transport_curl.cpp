@@ -12,10 +12,14 @@
 #include <thread>
 
 #include "en/llm/transport.hpp"
+#include "en/proto/ffi_guard.hpp"
 
 namespace en::llm {
 
 namespace {
+
+using en::proto::Component;
+using en::proto::ffi_guard;
 
 class CurlShare {
  public:
@@ -23,8 +27,9 @@ class CurlShare {
     static std::once_flag once;
     std::call_once(once, [] { curl_global_init(CURL_GLOBAL_DEFAULT); });
     share_ = curl_share_init();
-    curl_share_setopt(share_, CURLSHOPT_LOCKFUNC, &CurlShare::lock);
-    curl_share_setopt(share_, CURLSHOPT_UNLOCKFUNC, &CurlShare::unlock);
+    // Each callback goes through the varargs as exactly the type libcurl reads back (noexcept is not part of it).
+    curl_share_setopt(share_, CURLSHOPT_LOCKFUNC, static_cast<curl_lock_function>(&CurlShare::lock));
+    curl_share_setopt(share_, CURLSHOPT_UNLOCKFUNC, static_cast<curl_unlock_function>(&CurlShare::unlock));
     curl_share_setopt(share_, CURLSHOPT_USERDATA, this);
     curl_share_setopt(share_, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
     curl_share_setopt(share_, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
@@ -37,11 +42,18 @@ class CurlShare {
   CURLSH* get() const { return share_; }
 
  private:
-  static void lock(CURL*, curl_lock_data data, curl_lock_access, void* self) {
-    static_cast<CurlShare*>(self)->mutexes_[static_cast<std::size_t>(data)].lock();
+  // libcurl's calls, so noexcept and guarded (R3).
+  static void lock(CURL*, curl_lock_data data, curl_lock_access, void* self) noexcept {
+    ffi_guard(Component::LlmTransport, [&] {
+      // SAFETY: `self` is the CURLSHOPT_USERDATA the constructor set, this share, which outlives its handle.
+      static_cast<CurlShare*>(self)->mutexes_.at(static_cast<std::size_t>(data)).lock();
+    });
   }
-  static void unlock(CURL*, curl_lock_data data, void* self) {
-    static_cast<CurlShare*>(self)->mutexes_[static_cast<std::size_t>(data)].unlock();
+  static void unlock(CURL*, curl_lock_data data, void* self) noexcept {
+    ffi_guard(Component::LlmTransport, [&] {
+      // SAFETY: as in lock().
+      static_cast<CurlShare*>(self)->mutexes_.at(static_cast<std::size_t>(data)).unlock();
+    });
   }
 
   CURLSH* share_ = nullptr;
@@ -49,19 +61,22 @@ class CurlShare {
 };
 
 // Loopback never goes through a proxy: a local model server's traffic stays on the machine.
-const char* no_proxy_hosts() {
-  static const std::string hosts = [] {
-    std::string list;
-    for (const char* name : {"NO_PROXY", "no_proxy"}) {
-      if (const char* value = std::getenv(name); value != nullptr && *value != '\0') {
-        list = value;
-        break;
-      }
+std::string no_proxy_list() {
+  std::string list;
+  for (const char* name : {"NO_PROXY", "no_proxy"}) {
+    if (const char* value = std::getenv(name); value != nullptr && *value != '\0') {
+      list = value;
+      break;
     }
-    if (!list.empty()) list += ",";
-    return list + "localhost,127.0.0.0/8,::1";
-  }();
-  return hosts.c_str();
+  }
+  if (!list.empty()) list += ",";
+  return list + "localhost,127.0.0.0/8,::1";
+}
+
+const char* no_proxy_hosts() {
+  // Made once with new and never destroyed: no destructor of a static runs at exit (ARCH §1.7).
+  static const std::string* const hosts = new std::string(no_proxy_list());
+  return hosts->c_str();
 }
 
 std::string lower(std::string s) {
@@ -102,8 +117,8 @@ class CurlTransport final : public Transport {
     bool head_sent = false;
   };
 
-  static std::size_t on_header(char* data, std::size_t size, std::size_t count, void* user);
-  static std::size_t on_body(char* data, std::size_t size, std::size_t count, void* user);
+  static std::size_t on_header(char* data, std::size_t size, std::size_t count, void* user) noexcept;
+  static std::size_t on_body(char* data, std::size_t size, std::size_t count, void* user) noexcept;
   void send_head(Exchange& exchange);
   void drain();
   void release(Exchange& exchange);
@@ -145,9 +160,9 @@ int CurlTransport::start(const HttpRequest& request) {
 #if LIBCURL_VERSION_NUM >= 0x075500
   curl_easy_setopt(e, CURLOPT_PROTOCOLS_STR, "http,https");
 #endif
-  curl_easy_setopt(e, CURLOPT_HEADERFUNCTION, &CurlTransport::on_header);
+  curl_easy_setopt(e, CURLOPT_HEADERFUNCTION, static_cast<curl_write_callback>(&CurlTransport::on_header));
   curl_easy_setopt(e, CURLOPT_HEADERDATA, &ex);
-  curl_easy_setopt(e, CURLOPT_WRITEFUNCTION, &CurlTransport::on_body);
+  curl_easy_setopt(e, CURLOPT_WRITEFUNCTION, static_cast<curl_write_callback>(&CurlTransport::on_body));
   curl_easy_setopt(e, CURLOPT_WRITEDATA, &ex);
   if (request.method == "GET") {
     curl_easy_setopt(e, CURLOPT_HTTPGET, 1L);
@@ -200,32 +215,41 @@ void CurlTransport::wait(std::chrono::milliseconds max_wait, std::vector<Transpo
   pending_.clear();
 }
 
-std::size_t CurlTransport::on_header(char* data, std::size_t size, std::size_t count, void* user) {
-  auto* ex = static_cast<Exchange*>(user);
-  const std::size_t n = size * count;
-  const std::string line = trim(std::string_view(data, n));
-  if (line.rfind("HTTP/", 0) == 0) {  // a status line opens a header block (a 100 Continue has its own)
-    const std::size_t space = line.find(' ');
-    ex->status = space == std::string::npos ? 0 : std::atoi(line.c_str() + space + 1);
-    ex->response_headers.clear();
-  } else if (line.empty()) {
-    if (ex->status >= 200) ex->owner->send_head(*ex);
-  } else if (const std::size_t colon = line.find(':'); colon != std::string::npos) {
-    ex->response_headers.push_back(HttpHeader{lower(line.substr(0, colon)), trim(std::string_view(line).substr(colon + 1))});
-  }
-  return n;
+// libcurl's calls, so noexcept and guarded (R3): on a fault the answer is 0 bytes taken, which ends the exchange as a
+// write error (a Failed event), and the transport goes on.
+std::size_t CurlTransport::on_header(char* data, std::size_t size, std::size_t count, void* user) noexcept {
+  return ffi_guard(Component::LlmTransport, std::size_t{0}, [&] {
+    // SAFETY: `user` is the CURLOPT_HEADERDATA start() set, this exchange, which lives until its handle is removed.
+    auto* ex = static_cast<Exchange*>(user);
+    const std::size_t n = size * count;
+    const std::string line = trim(std::string_view(data, n));
+    if (line.rfind("HTTP/", 0) == 0) {  // a status line opens a header block (a 100 Continue has its own)
+      const std::size_t space = line.find(' ');
+      ex->status = space == std::string::npos ? 0 : std::atoi(line.c_str() + space + 1);
+      ex->response_headers.clear();
+    } else if (line.empty()) {
+      if (ex->status >= 200) ex->owner->send_head(*ex);
+    } else if (const std::size_t colon = line.find(':'); colon != std::string::npos) {
+      ex->response_headers.push_back(
+          HttpHeader{lower(line.substr(0, colon)), trim(std::string_view(line).substr(colon + 1))});
+    }
+    return n;
+  });
 }
 
-std::size_t CurlTransport::on_body(char* data, std::size_t size, std::size_t count, void* user) {
-  auto* ex = static_cast<Exchange*>(user);
-  const std::size_t n = size * count;
-  if (!ex->head_sent) ex->owner->send_head(*ex);
-  TransportEvent event;
-  event.exchange = ex->id;
-  event.kind = TransportEventKind::Data;
-  event.data.assign(data, n);
-  ex->owner->pending_.push_back(std::move(event));
-  return n;
+std::size_t CurlTransport::on_body(char* data, std::size_t size, std::size_t count, void* user) noexcept {
+  return ffi_guard(Component::LlmTransport, std::size_t{0}, [&] {
+    // SAFETY: `user` is the CURLOPT_WRITEDATA start() set, this exchange, which lives until its handle is removed.
+    auto* ex = static_cast<Exchange*>(user);
+    const std::size_t n = size * count;
+    if (!ex->head_sent) ex->owner->send_head(*ex);
+    TransportEvent event;
+    event.exchange = ex->id;
+    event.kind = TransportEventKind::Data;
+    event.data.assign(data, n);
+    ex->owner->pending_.push_back(std::move(event));
+    return n;
+  });
 }
 
 void CurlTransport::send_head(Exchange& ex) {
@@ -251,6 +275,8 @@ void CurlTransport::drain() {
     const CURLcode result = message->data.result;
     char* priv = nullptr;
     curl_easy_getinfo(message->easy_handle, CURLINFO_PRIVATE, &priv);
+    // SAFETY: CURLINFO_PRIVATE answers the CURLOPT_PRIVATE start() set, this transport's exchange for that handle;
+    // libcurl hands it back as a char*, which this turns back into the Exchange it points to.
     auto* ex = reinterpret_cast<Exchange*>(priv);
     if (ex == nullptr) continue;
     TransportEvent event;
