@@ -16,4 +16,5 @@ endfunction()
 
 en_fuzz_target(sse en_llm)         # en-llm's SSE line parser and stream assembler
 en_fuzz_target(json en_proto)      # en-proto's parse_json with its caps, and read_json
+en_fuzz_target(game en_proto)      # en-proto's JSON forms of the game messages: snapshot, lifecycle, command, feed
 en_fuzz_target(template en_prompt) # en-prompt's template compile from a memory source
