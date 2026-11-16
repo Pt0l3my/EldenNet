@@ -438,7 +438,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - e A card's bark word cap against a character's word cap [next]
 - f Character keys in the bark pool store [next]
 
-### S7.4 The LLM Jobrunner [active]
+### S7.4 The LLM Jobrunner
 
 - S7.4.a The request and the read-only review of version 1.2 go to the session that builds it [done]
   - gives: a local job runner for running prompt sets on the owner's own model servers; nothing in the reviewed bundle
@@ -448,10 +448,19 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - refs: tools/llmworker
   - gives: superseded on 2026-11-16: from 1.3 this session builds and tests the Jobrunner itself (c), from 1.2's
     reviewed source, so no separate read-only review is needed; 1.3 carries the review's nine fixes.
-- c Version 1.3: a chat tab for each server (images and text files attached), Check servers and a test jobpack, servers by address with Find servers, an update installed from a dropped zip, DataPiler's job cards, and the 1.2 review's nine fixes [active]
+- c Version 1.3: a chat tab for each server (images and text files attached), Check servers and a test jobpack, servers by address with Find servers, an update installed from a dropped zip, DataPiler's job cards, and the 1.2 review's nine fixes [done]
   - needs: a
   - gives: asked by the owner on 2026-11-16, built in a local copy and delivered as a release zip; the owner's
-    addresses and names never enter it.
+    addresses and names never enter it. Followed the same day by 1.3.1 (d) and 1.4 (e).
+- d Version 1.3.1: model-server slots on this PC that are off (Auto, Always or Never), and cards named by the owner's own names [done]
+  - needs: c
+  - gives: the owner's report on 1.3 (2026-11-16): slots that were off showed as dead servers, and one server twice.
+- e Version 1.4: cloud providers (NanoGPT, OpenRouter, any OpenAI-style endpoint) with write-only keys, a spending guard, and a screenshot pasted into Chat [done]
+  - needs: d
+  - gives: delivered as a release zip on 2026-11-16; keys are kept with Windows' DPAPI, which only the owner's run
+    can check (f).
+- f The owner's first run of 1.4: a key kept and used on Windows, and a provider's reported costs [waiting]
+  - needs: e
 
 ### S7.5 GitHub [waiting]
 

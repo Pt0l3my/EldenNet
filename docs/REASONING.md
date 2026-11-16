@@ -135,6 +135,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 110 | 2026-11-16 | O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows | DECIDED | #engine #design |
 | 111 | 2026-11-16 | The clang-cl build with xwin, and the SEH copy: what clang does to `__try`, guard pages, and the pinned CRT | FACT | #engine #gal #build |
 | 112 | 2026-11-16 | The sanitizers and the first fuzz targets on Linux: two test defects, no finding in our code | METHOD | #engine |
+| 113 | 2026-11-16 | Direct3D 12 runs under Wine in the cloud container (vkd3d on Mesa's software Vulkan, on Xvfb); the toolchain saved as a setup script | FACT | #graceui #build #process |
 
 ## Entries
 
@@ -2115,3 +2116,19 @@ PAGES§4.5, WHY§108
 - **The give-way test (S8.1.l):** ThreadSanitizer saw no race in 38 runs of the suite (24 of them four at once), 150 of
   the test alone under load and 600 without the sanitizer; what failed twice is not a race it sees, and S8.1.l stays
   open.
+
+### 113. Direct3D 12 runs under Wine in the cloud container (vkd3d on Mesa's software Vulkan, on Xvfb); the toolchain saved as a setup script
+
+`2026-11-16` · FACT · `#graceui` `#build` `#process` · refs: GraceUI:D85, GraceUI:DESIGN§2.2, WHY§111
+
+- **Direct3D 12 without a GPU** (FACT): a probe of our own, built with clang-cl against the xwin SDK, ran under Wine 9.0
+  on Xvfb with Mesa's software Vulkan (lavapipe, Ubuntu's `mesa-vulkan-drivers`). It created a device, a direct queue
+  and a flip-model swap chain, cleared the back buffer, presented, and read it back. Five frames gave the exact colour
+  cleared. Wine's `d3d12.dll` is vkd3d over that Vulkan driver. So GraceUI's `tools/grace-harness` can run the host's
+  Present hook and Dear ImGui's DX12 backend on Linux, and check the pixels. That answers D85's open question ("WARP in
+  CI: LIKELY") another way, on Linux. Wine reports an invented adapter name, which no file records.
+- **The toolchain as a setup script** (METHOD): the packages and the xwin splat that WHY§111 describes are saved as a
+  cloud environment's setup script, run end to end here twice before saving. It installs LLVM 18, MinGW-w64, Wine,
+  Xvfb and Mesa's Vulkan driver, compiler-rt, libcurl and 7-Zip, then xwin 0.10.0 checked by SHA-256 and the pinned CRT
+  and SDK. It takes about two minutes, and its splat matched the earlier one file for file. A step that fails says so,
+  and the session still starts.
