@@ -193,6 +193,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 168 | 2026-11-16 | The render feed keeps the last walk's addresses between snapshots, checked again at every read | DECIDED | #engine #gal #perf |
 | 169 | 2026-11-16 | What part 4 leaves unbuilt, and why | DECIDED | #engine #gal |
 | 170 | 2026-11-16 | The probe's slot search faults on purpose on the game thread: R1 without a crash reporter, or with the rpm copy | METHOD | #engine #gal |
+| 171 | 2026-11-16 | R0 refused the protected game's executable: the PE reader was stricter than the loader on sections | FACT | #engine #gal |
 
 ## Entries
 
@@ -3175,3 +3176,23 @@ invariant 10, EldenNet ARCH (T3)
 - **What follows**: that is a probe build's business (R1, at the title, O89), never a release's; but under a crash
   reporter's vectored handler (S0-D) those faults are seen first, so R1 should run without one, or with the `rpm` copy
   (WHY§161).
+
+### 171. R0 refused the protected game's executable: the PE reader was stricter than the loader on sections
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, WHY§121
+
+- **Seen**: probe-exe on the owner's executable (about 80 MB, protected) stopped with exit code 3, "a section is out
+  of order, overlaps another, or runs past the image or file (at 0x400)". Behind it, besides the loader's own rules,
+  the reader refused a section whose raw data ran past the end of the file, and one whose span, rounded to the section
+  alignment, passed SizeOfImage unrounded. With the usual NT-header offsets, 0x400 is the entry of a section of index 7
+  or more, not the first. Which rule the game breaks is not known: R0b's line and `--sections` will say, in numbers.
+- **What follows** (engine branch, wip/pefix): the reader keeps only the loader's rules (virtual ranges aligned,
+  ascending, disjoint and within SizeOfImage rounded to the alignment and to 4 KiB; no raw range that wraps). Raw data
+  in any order, overlapping, shared, empty or past the end of the file is read as loaded, zeros past what the file
+  holds. A refusal names the rule, the section's index and its numbers, never its name.
+- **Checked**: 662 of 662 PE files of a fresh Wine prefix's system32 and 53 of our own binaries read. Two Wine DLLs
+  had first been refused for exception-directory entries of no length (GNU toolchains emit them; the loader never
+  reads the table); such entries are now left out. The tidy fake game derives byte for byte as with R0's tool.
+- **Left as it was**: a section of no size is let through (the loader refuses one), an exception directory whose size
+  is not whole entries is still refused, and PointerToRawData is read where it points; the loader is said to round it
+  down to 512 bytes (LIKELY, from public notes on the format), which matters only for an offset off that boundary.
