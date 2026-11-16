@@ -190,19 +190,27 @@ request ends at once like any other, and the transport goes on.
 - **TLS** 1.2 or 1.3 only, through the system's certificate store, its checks never weakened. HTTP/1.1, no redirects
   (a key is never carried to another address), no cookies, no automatic logon with the player's Windows account, and
   no user agent, as with libcurl.
-- **Timeouts.** Resolving the name and connecting take the request's connect timeout; sending, receiving and waiting
-  for the headers have a safety net of 5 minutes, far beyond the client's longest deadline (a minute).
+- **Timeouts.** Resolving the name, connecting and the TLS handshake take the request's connect timeout, as with
+  libcurl: the driver fails an exchange whose request has not started to go out by then (`SENDING_REQUEST`) as a
+  timeout. WinHTTP's own connect timeout is only a backstop, since on Windows it let a refused connect run the system's
+  retries, about 2 s. Sending, receiving and waiting for the headers have a safety net of 5 minutes, far beyond the
+  client's longest deadline (a minute).
 - **Exchanges.** Each runs in WinHTTP's asynchronous mode with a driver thread of its own, on a 2 MB stack (ARCH §10.2):
-  the status callback only queues what completed, and the driver takes every next step, posts the events and closes the
-  request handle at the end or on `cancel()`, so no call on a handle overlaps its closing. `cancel()` drops the
-  exchange's events at once, and its memory lives until WinHTTP's last notification for the handle (`HANDLE_CLOSING`).
-  `wait()` never calls WinHTTP, so it keeps to its bound.
+  the status callback only queues what completed and records how far the exchange got (connected, sending), and the
+  driver takes every next step, posts the events and closes the request handle at the end, on `cancel()` or at the
+  connect deadline, so no call on a handle overlaps its closing. `cancel()` drops the exchange's events at once, and its
+  memory lives until WinHTTP's last notification for the handle (`HANDLE_CLOSING`). `wait()` never calls WinHTTP, so it
+  keeps to its bound.
+- **Failures** are worded by `winhttp_failure()` (`transport_winhttp_failure.cpp`, built on every system, so that the
+  tests check it anywhere): for https, a failure after the connection was made and before the request went out is a
+  TLS failure whatever WinHTTP's code, since Windows may report a server that does not speak TLS with a code that is not
+  about TLS. The connection was made once `CONNECTED_TO_SERVER` came, or if the code is a reset or a malformed reply.
 - **Keys** go into the request just before it is sent, from one buffer that is cleared at once; WinHTTP holds its own
   copy for the request's life. A header with a line break, an address with a user name or password, or a scheme other
   than `http` and `https` fails before anything is sent.
 - **A reply shorter than its Content-Length** fails, as libcurl reports it.
 
-**Under Wine** (and so Proton), whose WinHTTP is its own implementation, three things differ (Wine 9.0), and the tests
+**Under Wine** (and so Proton), whose WinHTTP is its own implementation, four things differ (Wine 9.0), and the tests
 check what Wine does:
 
 - A chunked reply arrives one chunk late: Wine completes a read that ends a chunk only once the next chunk begins. A
@@ -211,6 +219,8 @@ check what Wine does:
   server sends or closes, or the safety net passes. The client sees nothing more of it either way.
 - The automatic proxy mode means no proxy at all, and an IPv6 address in brackets does not resolve (read from Wine's
   source): give a local server as `localhost` or `127.0.0.1`.
+- `CONNECTED_TO_SERVER` comes only once the TLS handshake is done, and a server that does not speak TLS fails with
+  `ERROR_WINHTTP_SECURE_CHANNEL_ERROR`, a TLS code, so its failure says TLS by its code.
 
 ## The asynchronous handle
 
@@ -294,7 +304,8 @@ llm.drain(events);  // Started, Delta, Reset, Ended (.chat or .pick), WarmUpEnde
 `WINEPREFIX=<dir> wine64 en_llm_tests.exe`). They use invented data and either the fake transport on a manual clock
 (timeouts, cooldowns and the hour run in no time) or small servers bound to 127.0.0.1 (`tests/local_server.hpp`, on
 POSIX sockets or Winsock), against which one conformance suite (`test_transport.cpp`) runs the real transports:
-libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows.
+libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows. WinHTTP's words for a failure are checked on every build
+(`test_winhttp_failure.cpp`), with the codes that Windows itself may give, in each phase of an exchange.
 The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
 for what must happen.
 

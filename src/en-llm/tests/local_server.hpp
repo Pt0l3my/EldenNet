@@ -71,7 +71,7 @@ class RawServer {
 };
 
 // A listening socket whose queue is full: a new connection is never answered, as Linux drops its first packet, so the
-// client's connect timeout is what ends it. (Windows may refuse the connection at once instead.)
+// client's connect timeout is what ends it. (Windows refuses it instead, but only after retrying for about 2 s.)
 class FullBacklog {
  public:
   FullBacklog();

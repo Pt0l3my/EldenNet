@@ -4,6 +4,7 @@
 // set, the system's WinHTTP on Windows; tests use a scripted fake on a manual clock, and both real transports pass
 // one conformance suite against a local server.
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -84,6 +85,20 @@ std::shared_ptr<TransportFactory> make_winhttp_transport_factory();
 // The winhttp.dll the WinHTTP transport uses, as a module handle (an HMODULE), loaded on first use and kept for the
 // program's life; null in other builds or where it could not be loaded. For the self-test and the tests.
 void* winhttp_module();
+
+// How far a WinHTTP exchange had got, from its status notifications: not connected yet (resolving the name,
+// connecting), connected (CONNECTED_TO_SERVER) with its request not yet going out, or sending its request
+// (SENDING_REQUEST), which comes after any TLS handshake. Wine reports CONNECTED_TO_SERVER only after the handshake.
+enum class WinHttpPhase { Connecting, Connected, Sending };
+
+// The WinHTTP transport's words for a failure, from WinHTTP's code (an ERROR_WINHTTP_... number), how far the exchange
+// had got, whether its address is https:// and the flags of its SECURE_FAILURE notifications
+// (WINHTTP_CALLBACK_STATUS_FLAG_...). For https, a failure after the connection was made and before the request went
+// out is a TLS failure, whatever the code, as Windows may report a server that does not speak TLS with a code that is
+// not about TLS; the connection was made once CONNECTED_TO_SERVER came, or if the code is a reset or a malformed reply,
+// which need one. A timeout before the request went out is one connecting. Never an address, a header or a key. Pure,
+// and built on every system, so that the tests check it anywhere.
+std::string winhttp_failure(std::uint32_t error, WinHttpPhase phase, bool https, std::uint32_t secure_flags);
 
 // The transport this build has: WinHTTP on Windows, libcurl elsewhere where EN_WITH_CURL is set, otherwise none
 // (null).
