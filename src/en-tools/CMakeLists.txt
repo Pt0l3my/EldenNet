@@ -1,7 +1,7 @@
 # en-tools: the command-line host that runs the engine outside the game.
 file(GLOB EN_TOOLS_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(eldennet-engine ${EN_TOOLS_SOURCES})
-target_link_libraries(eldennet-engine PRIVATE en_prompt en_llm en_gal)
+target_link_libraries(eldennet-engine PRIVATE en_prompt en_llm en_gal en_shell)  # en_shell: the lint's vocabularies
 
 # probe-exe and lint --report as DataPiler's job runs them (tests/cli_test.py), on the derivation tests' invented program,
 # in the Linux builds (the Windows builds run the same tool under Wine on the fake game: tests/fakegame).
