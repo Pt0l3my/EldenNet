@@ -162,6 +162,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 137 | 2026-11-16 | Dear ImGui frees a draw list unused for 60 s of its own time, and its time leaps when frames resume: a notice would allocate during play | FACT | #graceui #overlay |
 | 138 | 2026-11-16 | Two copies of GraceUI share only their two exports: the active copy names the others; an idle one asks only after its own first request | DECIDED | #graceui |
 | 139 | 2026-11-16 | The harness's ABI, copies and anti-cheat scenarios under Wine: a renderer that warms up after the hooks, and two flaky tests made sound | METHOD | #graceui #wine #process |
+| 140 | 2026-11-16 | A panel's draw list is in the panel's own pixels, copied and checked on the mod's thread, and drawn from its triple buffer where it lies: no retire slot | DECIDED | #graceui #overlay #abi |
+| 141 | 2026-11-16 | Dear ImGui 1.93's DX12 backend takes one draw data a frame, honours each command's vertex offset, and grows its buffers itself | FACT | #graceui #overlay |
+| 142 | 2026-11-16 | Dear ImGui 1.93 for a mod's headless panel: its atlas built with ImFontAtlasBuildMain and given its texture id before the first frame; API renames that bite | FACT | #graceui #overlay #abi |
+| 143 | 2026-11-16 | Textures: the registration window ends at a mod's first submit; a later mod's textures are one upload at the next frame; nothing is freed on the present thread | DECIDED | #graceui #overlay |
+| 144 | 2026-11-16 | Faces: warm-up seals the table slot by slot, so a face being written then is late, never lost; a mod's broken font is left out, not thrown | DECIDED | #graceui #overlay |
+| 145 | 2026-11-16 | ThreadSanitizer's runtime defines the global allocation functions: a counting operator new cannot run under it | FACT | #graceui #build #test |
+| 146 | 2026-11-16 | The harness's panels scenario under Wine: what it reads back, its figures, and a frame-cost check that fails under another build's load | METHOD | #graceui #wine #perf |
+| 147 | 2026-11-16 | What S10.4.c leaves to S4 and to the bridge protocol: a panel holder's events, the backend's buffer growth in the game, a mod's untrusted font | METHOD | #graceui #spike #input |
 
 ## Entries
 
@@ -2648,3 +2656,128 @@ invariant 10, EldenNet ARCH (T3)
   could finish its reads before either writer had published, under load; it now waits for the first value.
 - **Noise**: the windowless scenarios end while GraceUI's init thread still looks for a window, and Wine may print a
   "wine client error" line as the process ends; harmless, but count checks by each process's summary line.
+
+### 140. A panel's draw list is in the panel's own pixels, copied and checked on the mod's thread, and drawn from its triple buffer where it lies: no retire slot
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` `#abi` · refs: GraceUI:D137, GraceUI:D76, GraceUI:§2.9, GraceUI:invariant 10
+
+- **The problem**: no slot of ABI 1 tells a mod the display's size, so a list in the display's pixels could not be
+  anchored; and §2.9 gives `std::atomic<std::shared_ptr>` snapshots with a retire slot, which allocate a control block
+  per submission and still need the present thread to hand each list to Dear ImGui's DX12 backend as an ImDrawList.
+- **Choice** (D137): a list is in the panel's own pixels; GraceUI moves it where the anchor puts the panel and clips
+  every command to the panel and the display. `submit` checks the counts before it copies, copies into the panel's
+  back buffer on the mod's thread, checks GraceUI's copy (which the mod can no longer change) and publishes it only if
+  it passes. A triple buffer's back buffer is never the reader's, so the writer grows or frees it on its own thread and
+  no retire slot is needed. The present thread moves the newest list's vertices in place once, then lends its arrays to
+  an ImDrawList of its own (one a panel slot, made at warm-up) for the one `RenderDrawData` that copies them, and takes
+  them back before it returns: it copies, allocates and frees nothing.
+- **Rejected**: copying each list into GraceUI's own ImDrawList every frame (room for 64 panels' largest lists reserved
+  at warm-up, about 32 MiB, or allocation during play).
+- **Seen**: the unit tests' writer thread, whose lists grow and shrink, never hands the reader a list half written,
+  and the reader's side counts no allocation or free; the harness counts none on the present thread over 600 frames
+  with seven panels shown while the example publishes a list every 10 ms.
+
+### 141. Dear ImGui 1.93's DX12 backend takes one draw data a frame, honours each command's vertex offset, and grows its buffers itself
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D137, GraceUI:D119, Dear ImGui 1.93.0 `backends/imgui_impl_dx12.cpp`
+
+- **Read**: `ImGui_ImplDX12_RenderDrawData` advances its frame index at every call and writes that frame's vertex and
+  index buffers, so a second call in one frame would overwrite buffers still in flight (and fall out of step with
+  GraceUI's four frame slots, D119): every layer's lists go in one ImDrawData, in layer order. It reads only the draw
+  data's lists, totals, display position and size and each command's clip, texture id, offsets and count, and asserts
+  that the totals match the lists exactly. It sets `ImGuiBackendFlags_RendererHasVtxOffset` and draws each command from
+  its own `VtxOffset`, which is how D76's per-command vertex ranges reach the GPU unchanged. When a frame's totals
+  exceed its buffers it releases them and makes new ones of the total plus 5,000 vertices (10,000 indices): a Direct3D
+  buffer made on the present thread, without waiting and with none of GraceUI's heap, the first time a larger frame is
+  drawn.
+- **So**: GraceUI composes one draw data a frame from its own lists and Dear ImGui's, and the growth is noted in D137
+  for S4 to measure in the game.
+
+### 142. Dear ImGui 1.93 for a mod's headless panel: its atlas built with ImFontAtlasBuildMain and given its texture id before the first frame; API renames that bite
+
+`2026-11-16` · FACT · `#graceui` `#overlay` `#abi` · refs: GraceUI:D144, GraceUI:D76, examples/hello-panel
+
+- **Seen** (1.93.0, building `examples/hello-panel`): with no backend, `ImGuiBackendFlags_RendererHasTextures` is off,
+  and `NewFrame` asserts that the atlas is built; the obsolete `GetTexDataAsRGBA32` and `Build` are gone with
+  `IMGUI_DISABLE_OBSOLETE_FUNCTIONS`, and `ImFontAtlasBuildMain` (`imgui_internal.h`) builds it. `ImDrawCmd::GetTexID`
+  asserts when a command's texture data has no id, so the mod registers its atlas as a texture and calls `SetTexID` and
+  `SetStatus(ImTextureStatus_OK)` before its first frame.
+- **Renames in 1.93**: `ImDrawFlags_RoundCorners*` became `ImDrawFlags_Round*`, and `AddRect`'s last two parameters
+  were swapped in 1.92.8 (thickness before flags), with the old order deleted; mods' code from earlier versions fails to
+  compile rather than misdraw.
+- **Also**: Dear ImGui's recoverable errors (`IM_ASSERT_USER_ERROR`) assert only while `ConfigErrorRecoveryEnableAssert`
+  is on; with it off, `AddFontFromMemoryTTF` on data stb_truetype cannot parse rolls back and answers null. GraceUI turns
+  it off only while it adds the mods' faces (D139).
+
+### 143. Textures: the registration window ends at a mod's first submit; a later mod's textures are one upload at the next frame; nothing is freed on the present thread
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` · refs: GraceUI:D138, GraceUI:D76, GraceUI:invariant 11, proposal 0001 §4.2
+
+- **The problem**: invariant 11 forbids uploads after load, but §3.16 lets "a late mod" bring its own atlas texture,
+  and D76 names a "registration window" without its bounds.
+- **Choice** (D138): the window runs from connect to the mod's first `submit` (proposal 0001 §4.2: "before the mod's
+  first submission"), within 8 textures and 8 MiB a mod and 64 and 64 MiB in all (EST). Textures registered before
+  warm-up join the atlas's upload; a later mod's go up together at the next frame, on the present queue, never waited
+  on, each drawn once its copy's fence has passed; the upload counter counts each batch. A texture's pixels are freed
+  on a mod's thread once the present thread has copied them; its GPU objects, once its mod has gone, are released by
+  the present thread after the last frame that could draw it (a Direct3D release, none of GraceUI's heap), and its slot
+  is freed on a mod's thread.
+- **Seen**: the harness's late mod's eight textures went up in one upload at the frame after its first submit, and its
+  texture after that submit answered too late.
+
+### 144. Faces: warm-up seals the table slot by slot, so a face being written then is late, never lost; a mod's broken font is left out, not thrown
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` · refs: GraceUI:D139, GraceUI:D80, GraceUI:D121
+
+- **The problem**: a mod may be copying a 4 MiB font on its thread at the moment the present thread warms up; a flag
+  checked by the writer could let a face be answered ok and never be baked.
+- **Choice** (D139): each face slot moves empty, writing, committed by compare-and-swap; warm-up turns every empty or
+  writing slot to sealed, slot by slot, and bakes the committed ones. A writer's commit then fails, the call answers
+  too late, and the writer frees its copy. A mod's file is checked first (an sfnt whose table directory lies within it
+  and names a face's tables; ranges outside the surrogates, bounded), and Dear ImGui's recoverable errors are answered
+  rather than thrown while the mods' faces are added, so a file it cannot parse is left out with one log line instead
+  of turning the render path off (D121).
+- **Rejected**: one atomic count of faces with a closed bit (writers serialised on it, a slow copy holding the others).
+
+### 145. ThreadSanitizer's runtime defines the global allocation functions: a counting operator new cannot run under it
+
+`2026-11-16` · FACT · `#graceui` `#build` `#test` · refs: GraceUI:BUILD.md
+
+- **Seen**: linking a test binary that replaces `operator new` and `delete` (to count allocations per thread) under
+  `-fsanitize=thread` with Clang 18 fails with multiple definitions against `libclang_rt.tsan_cxx`; AddressSanitizer's
+  runtime lets the replacement through.
+- **So**: the counter is compiled out under ThreadSanitizer (counts stay 0 there): the ThreadSanitizer run checks the
+  hand-overs, and the AddressSanitizer and GCC runs check that the reader's side allocates and frees nothing.
+
+### 146. The harness's panels scenario under Wine: what it reads back, its figures, and a frame-cost check that fails under another build's load
+
+`2026-11-16` · METHOD · `#graceui` `#wine` `#perf` · refs: GraceUI:BUILD.md, GraceUI:D137 to D144
+
+- **Scenario**: "panels", a process whose warm-up comes after the second example mod and a mod of the harness's own
+  have registered (nothing is presented until they have): 13 checks, 82 in all across eleven scenarios. It reads back
+  the example's ground, its checker's squares, its own font's ink and its gold line from the shared atlas's glyph
+  table; each layer over the one below where two overlap; anchors after a resize; the checker's refusals through
+  `submit`; a late mod's textures; input through ABI 1 with the player's exit; providers; a disconnect.
+- **Figures** (Mesa's lavapipe on four cores, the GPU idle before each frame): seven panels and the test panel cost
+  GraceUI's own work 232–335 µs median and 525–804 µs p99 over 300 frames in the passing runs, within the 1 ms budget
+  for all panels together; notices alone 98–126 µs median. Most of the panels' cost is the DX12 backend's recording,
+  a call or two a draw command, each a translation to Vulkan here.
+- **Under load**: three runs in a row of each build passed all 82 checks; two other clang-cl runs each failed one
+  frame-cost check alone ("notice allocations" p99 1,546 µs, "panel frames" p99 1,562 µs, their medians as usual, no
+  allocation) while another agent compiled EldenNet (load average 3.5 to 4.8 on 4 cores). A frame-cost check under
+  Wine is a check of the machine as much as of GraceUI: rerun before calling it a failure.
+- **Fuzzing**: the checker's libFuzzer target ran 188,667 inputs in 60 s with AddressSanitizer and UBSan, none failing.
+
+### 147. What S10.4.c leaves to S4 and to the bridge protocol: a panel holder's events, the backend's buffer growth in the game, a mod's untrusted font
+
+`2026-11-16` · METHOD · `#graceui` `#spike` `#input` · refs: GraceUI:D137, GraceUI:D139, GraceUI:D142
+
+- **A panel holder's events** (D142): `request_input` takes the controls from the game for a mod's panel, but what the
+  player types, and the holder's own end, reach the mod only through `poll`, which comes with §6's protocol (0.2); a
+  panel holder in 0.1 gets the masking, the player's exit and Dear ImGui's cursor, nothing else. EldenNet's chat box
+  waits for it, as its increments plan.
+- **For S4**: the DX12 backend's buffer growth on the first larger frame, and the textures' one-batch upload, on a real
+  GPU and under Proton; the atlas's size with every face a session registers (512 x 1,024 in the harness with four
+  faces).
+- **Trust**: stb_truetype, which Dear ImGui bakes with, is not hardened against hostile fonts; GraceUI checks a mod's
+  file's table directory and ranges, and a native mod can crash the game in other ways anyway.
