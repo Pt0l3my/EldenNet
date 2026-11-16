@@ -4,7 +4,9 @@
 // A prompt is a template file (.j2, .md or .prompt) or a folder of numbered parts ("10_identity.j2",
 // "05b_world.j2"), rendered in numeric order and joined. Templates include others by name from the root with
 // render_template(name[, vars]) and render_subcomponent(folder[, mode[, vars]]); a render that returns to a template
-// already being rendered, or nests deeper than the limit, fails.
+// already being rendered, or nests deeper than the limit, fails. Every name resolves through the environment's
+// template source (source.hpp): a folder on disk for the tools, names and texts in memory for the engine's core, with
+// the same results and the same errors.
 //
 // Strictness, at load: an unknown function, a wrong number of arguments, {% include %} and {% extends %}, a 'not'
 // before a comparison without parentheses, a condition that cannot be a boolean, a name such as "a-b" that inja reads
@@ -15,6 +17,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,6 +27,7 @@
 #include "en/prompt/errors.hpp"
 #include "en/prompt/messages.hpp"
 #include "en/prompt/registry.hpp"
+#include "en/prompt/source.hpp"
 
 namespace en::prompt {
 
@@ -39,7 +43,12 @@ struct EnvironmentOptions {
 
 class Environment {
  public:
-  // `root` is the folder template names are resolved from; it must exist. The registry is fixed from here on.
+  // Template names resolve through `source`, which must not be null (std::invalid_argument). The registry is fixed
+  // from here on.
+  explicit Environment(std::shared_ptr<const TemplateSource> source, FunctionRegistry functions = builtin_registry(),
+                       EnvironmentOptions options = {});
+  // The same with a FolderSource on `root`, the folder template names resolve from, which must exist
+  // (std::invalid_argument): the tools' environment.
   explicit Environment(std::filesystem::path root, FunctionRegistry functions = builtin_registry(),
                        EnvironmentOptions options = {});
   ~Environment();
@@ -52,8 +61,8 @@ class Environment {
   // JSON object as its context, into chat messages. Throws TemplateError.
   std::vector<Message> render(std::string_view name, const nlohmann::json& context) const;
 
-  // The same for template source held in memory, named `name` in errors; its render_template calls resolve from
-  // the root. It is not cached.
+  // The same for one template's text, given here and named `name` in errors; its render_template calls resolve
+  // through the source. It is not cached.
   std::vector<Message> render_source(std::string_view source, const nlohmann::json& context,
                                      std::string_view name = "<inline>") const;
 
@@ -63,9 +72,9 @@ class Environment {
   std::vector<Finding> lint(std::string_view name, const nlohmann::json* context = nullptr) const;
 
   const FunctionRegistry& functions() const noexcept;
-  const std::filesystem::path& root() const noexcept;
+  const TemplateSource& source() const noexcept;
 
-  // Forgets compiled templates, after template files change on disk.
+  // Forgets compiled templates, after the source's templates change (a folder's files on disk).
   void clear_cache() const;
 
  private:
@@ -73,6 +82,6 @@ class Environment {
 };
 
 // The file extensions a template may have, in the order a bare name tries them.
-const std::vector<std::string>& template_extensions();
+std::span<const std::string_view> template_extensions() noexcept;
 
 }  // namespace en::prompt

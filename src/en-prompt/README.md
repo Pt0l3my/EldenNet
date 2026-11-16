@@ -10,11 +10,25 @@ design asks for (NPC §7.1, DESIGN §8.3, WHY§98, WHY§99): a prompt never goes
 ```cpp
 #include "en/prompt/prompt.hpp"
 
-const en::prompt::Environment prompts("content");  // template names resolve from this folder
+// The tools: template names resolve from a folder on disk.
+const en::prompt::Environment prompts("content");
 const auto messages = prompts.render("prompts/dialogue", context);  // a folder of parts, or one file
 // Each message has a role, text() and cache() (whether it ends at a cache breakpoint), and its parts: the stretches
 // of text between its breakpoints, for providers with explicit cache control.
+
+// The engine's core, which does no I/O (ARCH §2.3): the content pack's templates, already loaded, by name.
+std::map<std::string, std::string> templates{{"prompts/dialogue/10_frame.j2", frame_text} /* , ... */};
+const en::prompt::Environment core_prompts(
+    std::make_shared<const en::prompt::MemorySource>(std::move(templates)));
 ```
+
+Every name resolves through the environment's template source (`source.hpp`). A `FolderSource` reads a folder: a
+name must lie inside it, and a link that leads out of it is refused. A `MemorySource` holds the names and texts it is
+given, under the same name rules (a key such as `registers\calm.md` is kept as `registers/calm.md`; the folders are
+the ones its names imply), and opens no file. The environment keeps the rules (names, a bare name's extensions,
+folders of parts and their order, composition and its guards), and a source answers only what a name is, which files
+a folder holds and what a file says, so the same templates give the same messages and the same errors from either.
+Another source implements `TemplateSource`; one source may serve several environments and threads.
 
 Every failure is an `en::prompt::TemplateError` that names the template, the line and the column, and the
 `render_template` calls that led there. A failed render returns nothing. `Environment::lint(name, &context)` checks a
@@ -69,7 +83,9 @@ them: filters (`x | upper`: write `upper(x)`), `{% raw %}` and macros. After ren
 
 ## Files
 
-`include/en/prompt/`: `environment.hpp` (rendering, composition, lint), `messages.hpp` (markers and messages),
-`registry.hpp` (functions), `errors.hpp`. `src/compile.cpp` rewrites inja's parsed tree once, at load, so that every
-operator, function, condition, loop and printed value runs through checked code that knows its place in the template;
-`src/builtins.cpp` holds the functions. The tests in `tests/` use invented templates only.
+`include/en/prompt/`: `environment.hpp` (rendering, composition, lint), `source.hpp` (template sources: a folder on
+disk, names and texts in memory), `messages.hpp` (markers and messages), `registry.hpp` (functions), `errors.hpp`.
+`src/compile.cpp` rewrites inja's parsed tree once, at load, so that every operator, function, condition, loop and
+printed value runs through checked code that knows its place in the template; `src/builtins.cpp` holds the functions;
+`src/source.cpp` the sources and the one check of template names. The library holds no object of static storage with
+a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7). The tests in `tests/` use invented templates only.
