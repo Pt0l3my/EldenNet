@@ -498,7 +498,7 @@ def check_file(pe, d, toolchain):
     need(img["size_of_image"] == pe.size_of_image, "SizeOfImage differs", failures)
     ver = pe.version()
     need(ver.get("file_version") == "3.14.15.0" == img.get("file_version"), "file version %s" % ver, failures)
-    need(ver.get("product_name") == "EldenNet Fake Game" == img.get("product_name"), "product name %s" % ver, failures)
+    need(ver.get("product_name") == PRODUCT_NAME == img.get("product_name"), "product name %s" % ver, failures)
     need(ver.get("translation") == [0x0809, 1200] == img.get("translation"), "translation %s" % ver, failures)
     need(img.get("region") == "ww", "region %s" % img.get("region"), failures)
     need([s["name"] for s in img["sections"]] == [s[0] for s in pe.sections], "sections differ", failures)
@@ -525,21 +525,31 @@ def check_file(pe, d, toolchain):
             need(target == item["target_rva"], "%s: capture 0x%X" % (role, target), failures)
             need(pe.section_of(target) == ".data" and target % 8 == 0, "%s: target placement" % role, failures)
 
-    # The FD4 finder (ARCH §6.2): every site the idiom matches, its placement checks, and naming by the class object.
+    # The FD4 finder (ARCH §6.2): every site the idiom matches, its shape and placement checks, its path's load as
+    # --describe gives it (after the head in rcx or rdx, after a format string, through a pointer, by its absolute
+    # address, or hoisted before the head), and naming by the class object.
     fd4 = d["fd4"]
-    listed = sorted(s["site"] for e in fd4["singletons"] + fd4["decoys"] for s in e["sites"])
+    listed = {s["site"]: s for e in fd4["singletons"] + fd4["decoys"] for s in e["sites"]}
     hits = sorted(text_va + m.start() for m in pattern_regex(fd4["idiom"]).finditer(text))
-    need(hits == listed, "fd4 idiom hits %s, listed %s" % (hits, listed), failures)
+    need(hits == sorted(listed), "fd4 idiom hits %s, listed %s" % (hits, sorted(listed)), failures)
     found = {}
     refused = []
     for hit in hits:
-        b = pe.read(hit, 45)
+        b = pe.read(hit, 24)
+        rip_static = (b[2] & 0xC7) == 0x05  # mod 00, r/m 101: RIP-relative
         static = hit + 7 + disp32(b, 3)
         cls = hit + 19 + disp32(b, 15)
         getter = hit + 24 + disp32(b, 20)
-        path = hit + 40 + disp32(b, 36)
+        load = listed.get(hit, {}).get("path_load", {})
+        insn = load.get("insn", 0)
+        if load.get("form") == "pointer":
+            path = pe.u64(insn + 7 + disp32(pe.read(insn, 7), 3)) - pe.image_base
+        elif load.get("form") == "absolute":
+            path = pe.u64(insn + 2) - pe.image_base
+        else:
+            path = insn + 7 + disp32(pe.read(insn, 7), 3)
         path_text = pe.cstr(path) or ""
-        ok = (pe.section_of(static) == ".data" and static % 8 == 0 and pe.section_of(cls) == ".data"
+        ok = (rip_static and pe.section_of(static) == ".data" and static % 8 == 0 and pe.section_of(cls) == ".data"
               and pe.section_of(getter) == ".text" and getter in func_starts and pe.section_of(path) == ".rdata"
               and path_text.endswith(fd4["path_suffix"]))
         need(getter == fd4["getter_rva"], "fd4 site 0x%X: getter 0x%X" % (hit, getter), failures)
@@ -553,8 +563,10 @@ def check_file(pe, d, toolchain):
     want = {e["name"]: e["static_rva"] for e in fd4["singletons"]}
     need(resolved == want, "fd4 resolved %s, wanted %s" % (resolved, want), failures)
     need(ambiguous == ["Duplicata"], "fd4 ambiguous %s" % ambiguous, failures)
-    need(sorted(refused) == ["Rockbound", "Strayling"], "fd4 refused %s" % refused, failures)
+    need(sorted(refused) == ["Mimicry", "Rockbound", "Strayling"], "fd4 refused %s" % refused, failures)
     need(len(want) == 11, "%d singletons, wanted 11" % len(want), failures)
+    kinds = sorted({s["path_load"]["kind"] for s in listed.values()})
+    need(kinds == [1, 2, 3, 4, 5, 6, 7], "fd4 path kinds %s" % kinds, failures)
 
     # The registration's call sites: each a call to the function, after the hub's static was loaded into rdx.
     task = d["task"]
@@ -776,6 +788,53 @@ def run_engine(args, env, argv):
     return code & want_bits, out, err
 
 
+PRODUCT_NAME = "EldenNet Fake Game\u2122"   # fakegame.rc's, with its trademark sign
+
+
+def check_fd4_diagnostics(d, truth):
+    """derive.json's FD4 diagnostics (stats.fd4) against --describe: what the site search found at each reference to
+    the path, where the finder found each accepted site's path, and R0's rule over the same hits."""
+    failures = []
+    tfd4 = truth["fd4"]
+    g = d["stats"]["fd4"]
+    accepted_names = {e["name"] for e in tfd4["singletons"]} | {"Duplicata"}
+    sites = [(e["name"], s) for e in tfd4["singletons"] + tfd4["decoys"] for s in e["sites"]]
+    # Each reference to the path: a site where the path follows the head in code (the first two kinds and rdx), none
+    # where it is hoisted or the "static" is no RIP-relative load; the pointer and the absolute address are no
+    # RIP-relative references to the path. The program's own C++ also names the suffix in a few string literals, which
+    # end with it too: their references find no site either.
+    refs = [s for _, s in sites if s["path_ok"] and s["path_load"]["form"] == "address"]
+    outcome = {c["index"]: c["references"] for c in g.get("candidates", [])}
+    want_sites = sum(1 for s in refs if s["path_load"]["kind"] in (1, 2, 3))
+    total = g.get("path_references", 0)
+    need(total >= len(refs) and outcome.get(0) == want_sites and sum(outcome.values()) == total and
+         outcome.get(5, 0) >= len(refs) - want_sites, "fd4 references %s, outcomes %s" % (total, outcome), failures)
+    # The accepted sites' path loads, bucket by bucket.
+    want = {}
+    for name, s in sites:
+        if name not in accepted_names:
+            continue
+        p = s["path_load"]
+        key = (("anchor", p["before"]),) if p["hoisted"] else (("at", p["at"]), ("insn_end", p["insn_end"]))
+        key += (("length", p["length"]), ("index", p["ordinal"]), ("slot", p["reg"]), ("value", p["opcode"]))
+        want[key] = want.get(key, 0) + 1
+    got = {}
+    for b in g.get("idiom", {}).get("captures", []):
+        key = tuple((k, b[k]) for k in ("anchor", "at", "insn_end", "length", "index", "slot", "value") if k in b)
+        got[key] = b.get("hits")
+    need(got == want, "fd4 path loads %s, wanted %s" % (sorted(got.items()), sorted(want.items())), failures)
+    # R0's rule: the first reference into .rdata taken for the path, and no decoding of the hit.
+    r0 = g.get("refused", {})
+    kinds = [s["path_load"]["kind"] for name, s in sites if name in accepted_names]
+    need(g.get("accepted") == sum(1 for k in kinds if k in (1, 3)) and r0.get("path_text") == 1 + kinds.count(2) +
+         kinds.count(4) and r0.get("no_path") == kinds.count(5) + kinds.count(6) and r0.get("static_section") == 1
+         and r0.get("unreadable") == 1,
+         "fd4 under R0's rule: %s accepted, %s" % (g.get("accepted"), r0), failures)
+    need(d["fd4"]["refused"].get("unreadable") == 1, "fd4 refused %s: the decoy is no idiom" % d["fd4"]["refused"],
+         failures)
+    return failures
+
+
 def check_derive(d, truth, leads, toolchain, failures):
     """Every claim of derive.json against --describe."""
     img, timg = d["image"], truth["image"]
@@ -784,6 +843,9 @@ def check_derive(d, truth, leads, toolchain, failures):
     need(".".join(str(v) for v in img.get("file_version", [])) == timg["file_version"], "file version", failures)
     need(img["region"] == timg["region"] == "ww", "region %s" % img["region"], failures)
     need(img["product_name"] == "matches", "product name %s" % img["product_name"], failures)
+    # It matched once its trademark sign was removed: one character fewer.
+    need(img.get("names") == {"of": len(PRODUCT_NAME), "agree": len(PRODUCT_NAME) - 1}, "product name's characters %s"
+         % img.get("names"), failures)
     need(img.get("translation") == timg["translation"], "translation", failures)
 
     fd4, tfd4 = d["fd4"], truth["fd4"]
@@ -791,9 +853,10 @@ def check_derive(d, truth, leads, toolchain, failures):
     idiom = fd4.get("idiom", {})
     need(idiom.get("bytes") == tfd4["idiom"], "fd4 idiom %s, wanted %s" % (idiom.get("bytes"), tfd4["idiom"]), failures)
     caps = {c["capture"]: (c["at"], c["insn_end"]) for c in idiom.get("captures", [])}
-    for name, key in (("static", "static"), ("class", "class"), ("getter", "getter"), ("path", "path")):
-        want = tfd4["operands"][key]
+    for name in ("static", "class", "getter"):
+        want = tfd4["operands"][name]
         need(caps.get(name) == (want["at"], want["insn_end"]), "fd4 capture %s %s" % (name, caps.get(name)), failures)
+    need("path" not in caps, "fd4 path capture %s: the sites load their paths otherwise" % caps.get("path"), failures)
     need(idiom.get("scan_resolved") is True, "fd4 idiom not resolved by the scan", failures)
     names = fd4.get("names", {})
     need(names.get("offset") == tfd4["name_ptr_off"] and names.get("encoding") == tfd4["name_encoding"],
@@ -811,6 +874,7 @@ def check_derive(d, truth, leads, toolchain, failures):
     for name, (status, refusal) in want_decoys.items():
         s = got.get(label_of.get(name), {})
         need(s.get("status") == status and s.get("refusal") == refusal, "decoy %s: %s" % (name, s), failures)
+    failures += check_fd4_diagnostics(d, truth)
 
     reg, task = d["register"], truth["task"]
     need(reg["status"] == "derived", "register status %s" % reg["status"], failures)
@@ -827,6 +891,11 @@ def check_derive(d, truth, leads, toolchain, failures):
     groups = [c["index"] for c in d["group"].get("candidates", [])]
     need(task["standin"]["index"] in groups[:1], "group index %s, wanted %s first" % (groups, task["standin"]["index"]),
          failures)
+    # The group table's entries are 16 bytes ({ index, flags, name }): found at that stride, with its ten entries and
+    # the index the entry holds.
+    first = (d["group"].get("candidates") or [{}])[0]
+    need((first.get("length"), first.get("entries"), first.get("value"), first.get("encoding")) ==
+         (16, 10, task["standin"]["index"], "utf16"), "group table %s" % first, failures)
 
     rtti = d["rtti"]
     if toolchain != "clang-cl":
