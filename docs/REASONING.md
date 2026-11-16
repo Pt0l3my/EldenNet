@@ -142,6 +142,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 117 | 2026-11-16 | The render half's cost under Wine on software Vulkan, and how it was measured | METHOD | #graceui #overlay #perf |
 | 118 | 2026-11-16 | The engine's release binaries carry the build machine's absolute PDB path; /pdbaltpath removes it | FACT | #engine #build #privacy |
 | 119 | 2026-11-16 | Dear ImGui's and MinHook's licences read for adoption; Dear ImGui's contribution rule on AI prose is not a licence term | FACT | #graceui #licence |
+| 120 | 2026-11-16 | The GAL's types in en-proto: what the design left open, and what C++ took | METHOD | #engine |
+| 121 | 2026-11-16 | en-gal's offline part: the reader, the rules and the schemas, and the choices the design left | METHOD | #engine #gal |
+| 122 | 2026-11-16 | toml++ 3.4.0's traps: a header without a key, non-ASCII where whitespace may stand, `}` for a value, a date, a space and a digit | FACT | #engine #gal |
+| 123 | 2026-11-16 | The fake game: our own stand-in for a game, its invented facts and the choices later parts inherit | DECIDED | #engine #gal #process |
+| 124 | 2026-11-16 | Wine on Xvfb for tests: the crash dialog that waits, the desktop bound to no display, and what reaches Linux | FACT | #engine #build #process |
+| 125 | 2026-11-16 | Assembly whose bytes do not move: clang relaxes every jump at -O0 | FACT | #engine #build |
 
 ## Entries
 
@@ -2236,3 +2242,184 @@ invariant 10, EldenNet ARCH (T3)
   prose. That governs contributions to that project, not use of its code; GraceUI contributes nothing upstream.
 - **Contact details** (METHOD): MinHook's `AUTHORS.txt` holds e-mail addresses, so it is neither fetched nor copied; the
   licence files fetched hold none, and NOTICE names authors without contact details.
+
+### 120. The GAL's types in en-proto: what the design left open, and what C++ took
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§2.2, ARCH§6.4, ARCH§7.1, DESIGN§2.3, O89
+
+- **ResolveParams names its param.** DESIGN §2.3's sketch has only ids, but the core asks for NpcParam rows and for the
+  grace and place-name rows (ARCH §9's Ready export), whose ids overlap; without the param the task cannot answer. How
+  the Ready export pages through every row is still open (part 4 or 5).
+- **RegionKey is a key of regions.toml** (`FixedString<32>`, lower-case letters, digits, `_`), which the task leaves
+  empty: the game knows no regions, and the core maps the block and place to a key in its own copy of the snapshot.
+- **The enums are our own words**, each with `Unknown` (not read): MultiplayRole Host, Cooperator, Invader, Other;
+  LobbyState None, Hosting, Joined, Other; Screen InGame, Loading, Title; HudState as ARCH §6.3 names them; BodyType
+  A, B. The layout's enum tables map the game's raw values to them, so no game value is in the code.
+- **ReadHealth** is, per group, Untested, Ok or Tripped (a failed self-test trips the group), whether phase B passed in
+  this playthrough (ARCH §9's Title → Playthrough needs it), and the faults this tick; with the task's last and p99
+  times. **Capabilities** is the set of groups discovery resolved and phase A passed.
+- **A nested struct's default member initialisers are not usable until the enclosing class is complete**, so a
+  `std::variant` member whose first alternative has them is not default-constructible inside it (GCC and Clang alike):
+  GameCommand puts `Noop` first (a default command does nothing); Lifecycle's `DataReady` has none of its own.
+- **The snapshot is 12.9 KB**, not ARCH §7.1's "about 8 KB": the 16 text slots of 256 bytes and the 32 param rows of 8
+  fields are most of it. Trivially copyable, so C1's copy is one `memcpy`.
+- **JSON forms:** a float that is not finite is `null` and reads back as NaN (a `bearing_deg` without the camera);
+  flag frames are hex strings with trailing zero bytes left out; ReadHealth's groups an object keyed by name.
+- **Expected** is our own `std::expected` without `value()`: its accessors have preconditions, which en-gal's lint is
+  to enforce; it holds a `std::variant`, so it is trivially copyable when both sides are, and never valueless (both
+  sides must move without throwing).
+- **The token** has only a move constructor: no assignment of either kind, so a token cannot be swapped into a
+  variable that outlives its tick by assignment either.
+- Counts: en_proto 42 test cases (26 new) on GCC, Clang, ASan+UBSan, MinGW under Wine and clang-cl under Wine; 6
+  compile-fail tests in every build; `en_fuzz_game` about 2 million inputs in 3 minutes, no finding.
+
+### 121. en-gal's offline part: the reader, the rules and the schemas, and the choices the design left
+
+`2026-11-16` · METHOD · `#engine #gal` · refs: ARCH§6.1, ARCH§6.2, ARCH§6.3, ARCH§10.1, O27, O48, O89
+
+- **Portable, and without exceptions.** en-gal builds with every compiler now; only `reader.cpp` stays clang-cl's.
+  toml++ is built in en-gal with `TOML_EXCEPTIONS=0` (it keeps the setting in an ABI namespace, so en-llm's build with
+  exceptions links beside it).
+- **The reader copies, never points.** It reads through a `ByteSource` (the file offline, `sys`'s guarded image view in
+  game), so the portable part holds no raw address; the gate and discovery take an `ImageInfo` (ARCH §2.2's
+  `ImageView` is `sys`'s source).
+- **A hit in a function's fragment is refused**, as is a hit running past its function's end: ARCH §6.2's rules speak
+  of the containing function, which for a fragment (chained unwind information, or an entry pointing at another) is not
+  the function whose prologue other mods hook. The derivation cuts patterns inside primary functions.
+- **An unreadable 1 MiB copy is read again page by page**, on the source's page boundaries, so only the pages that
+  fail are lost, and counted (`Unscanned` when a pattern then matches too few times).
+- **`expect_matches` above 1** means every hit must resolve to the same function or static (else `Ambiguous`).
+- **The idiom's schema is ours**: ARCH §6.3 shows only functions and statics. An idiom takes `expect_matches` as a
+  range, and named `captures`, each with its target's section, alignment, and whether it must start a function; the
+  path string after the variable gap is the FD4 finder's (part 3).
+- **The region** comes from the file version's fourth field (0 ww, 1 jp; ER01 §1, a lead for S0-A), checked in
+  builds.toml and in the gate. ARCH §6.3's cross-check against the translation's language is not built: the design
+  gives no languages, and the exact fingerprint pins the build anyway.
+- **A layout entry without a `status` is a lead**, so a release build refuses it. `dlvector` and `dlmap` are 16 bytes
+  (two pointers; a pointer and a count) by our own definition, and `off` names where we read them.
+- **The read groups' needs are the caller's** (`LayoutNeeds`), so no class or field name of the game is in the code;
+  part 4 states them.
+- Counts: en_gal 47 test cases on GCC, Clang, ASan+UBSan and MinGW under Wine, 55 on clang-cl under Wine (the 8 of the
+  guarded copy); fuzzing, with ASan and UBSan: `en_fuzz_pe` 3.1 million inputs in three rounds of 2.5 to 3 minutes,
+  `en_fuzz_pattern` 7.2 million in three rounds, and `en_fuzz_galtoml` five findings in toml++ (WHY§122), then 4.3
+  million inputs in 12 minutes with none.
+
+### 122. toml++ 3.4.0's traps: a header without a key, non-ASCII where whitespace may stand, `}` for a value, a date, a space and a digit
+
+`2026-11-16` · FACT · `#engine #gal` · refs: ARCH§10.2, ARCH§12.1, WHY§112
+
+- **Found by `en_fuzz_galtoml`**, each within minutes of the one before, each an assertion in a build without
+  `NDEBUG` (the program aborts: the fuzz build, the Debug sanitizer builds, and clang-cl and MinGW builds with no build
+  type) and undefined behaviour with `NDEBUG`:
+  - `parse_table_header` calls `parse_key()` without checking that a key starts after `[` (`[!]`, `[=]`, `[ \x01]`,
+    `[é]`, `[[ !]]`), and `parse_key()` opens with `TOML_ASSERT_ASSUME(a key starts here)`: `__builtin_assume`,
+    `__assume` or `[[assume]]` with `NDEBUG`. Key-value lines and inline tables check first; only table headers do not.
+    Clang 18 and GCC 13 at `-O2 -DNDEBUG` happen to take the error path today, which no rule promises.
+  - `is_non_ascii_horizontal_whitespace` reaches `TOML_UNREACHABLE` (`__builtin_unreachable` with `NDEBUG`) for every
+    character of its lookup's blocks 0, 5, 7, 11 and 63 that is not whitespace: U+00A1 to U+0499 (Latin-1, Greek,
+    Cyrillic), U+1482 to U+187B, U+1C76 to U+206F, U+2D5A to U+3153 and U+FB06 to U+FEFE, with the few exceptions it
+    names. It runs wherever whitespace may stand: after a key or a value (`schema Ä = 1`, `x = 1 é`), after a
+    backslash in a multi-line basic string, while a key is recorded, and inside a bare value, which toml++ scans quotes
+    and all up to a space, `]`, `}`, `,` or `#` (`x = 0E1"…é`, the fuzzer's fourth input: a quote there opens no
+    string). UBSan reports "execution reached an unreachable program point".
+  - `parse_array` reads a value wherever it finds neither `,` nor `]`, and `parse_value()` opens with
+    `TOML_ASSERT_ASSUME(!is_value_terminator(*cp))`: a `}` there (`[}]`, `[1, }]`) breaks it. Key-value pairs check
+    for a terminator first; arrays do not.
+  - A value whose first ten characters look like a date (`-` at 4 and 7) followed by a space and one digit makes
+    `parse_value` advance over the space and the digit and call its scan again, which assumes it does not start at a
+    terminator (`1979-05-27 7,`, or the fuzzer's `5887-he-0a 6,`).
+- **Probed by hand beside the fuzzer**: some 80 odd values (`1e`, `0x`, `+nan`, `1979-05-27T`, `12:3`, `1__2`, `.5`,
+  `{ a = 1, }`, `[1,,2]`, …) all take toml++'s error paths; only the `}` in an array did not (the date trap needs a
+  space and then a single digit, which the probes missed and the fuzzer found).
+- **en-gal checks before toml++ sees a text** (`toml_read::unsafe_for_toml`, five rules): a line whose first
+  character after spaces and tabs is `[` must go on, after `[` or `[[` and spaces or tabs, with a letter, digit, `_`,
+  `-`, a quote, `]` or the end (it also refuses such a line inside a multi-line array); a character outside ASCII
+  stands only in a comment, and a string writes one as `\uXXXX` (a first version allowed it in strings, and the
+  fuzzer's fourth input went through a quote that toml++ reads as part of a bare value); there is no multi-line string;
+  a `}` never follows `[` or `,` (never valid TOML); and a bare key or value that starts with a digit has no `-` or `:`
+  after it (no dates or times, which gal/'s files never hold, so toml++'s date-time paths are never taken). ARCH §6.3's
+  example `leads = ["ER01 §3.2"]` therefore becomes `leads = ["ER01 \u00A73.2"]` in a real gal/ file. The five inputs
+  are regression seeds in `fuzz/galtoml/corpus/` (`finding-table-header-not-a-key`,
+  `finding-non-ascii-where-whitespace-may-stand`, `finding-brace-where-a-value-must`,
+  `finding-non-ascii-after-a-quote-in-a-value`, `finding-date-space-digit`).
+- **en-llm is exposed to all four**: its `parse_toml` (`src/en-llm/src/config.cpp`) reads the player's settings, models
+  and secrets files with toml++ (with exceptions; an exception does not help against an assertion or an assumption), so
+  a stray `[!]` line, an accented or Cyrillic character after a value or in a mistyped one, `[1, }]` or
+  `1979-05-27 7` in a file the player edits is undefined behaviour in the release DLL. Suggested: the same check
+  before every `toml::parse` in the engine (the scan needs no toml++; a small header both modules may include, since
+  en-llm may not depend on en-gal), its message worded for players, and a fuzz target for en-llm's configuration
+  files (ARCH §12.1 lists "TOML content" among the fuzz stage's parsers). Also worth reporting upstream to toml++. Not
+  done here: outside parts 1 and 2.
+- **A question the main session may put to the owner**: each fuzzing round of a few minutes found the next trap, and
+  the five rules close the four found; a last round of 12 minutes (4.3 million inputs) found nothing more. The rules are
+  ours and narrow gal/'s TOML to what it needs, but they lean on toml++'s internals. Options: (a) keep toml++ with the
+  pre-check, and fuzz it in CI; (b) our own reader of the TOML subset gal/ and the configuration files use (tables,
+  arrays of tables, strings, integers, booleans, arrays, inline tables), a few hundred lines, fuzzed; (c) another
+  library, checked for licence and fuzzed. Recommendation: (a) now, (b) before v0.1 if CI's fuzzing keeps finding
+  traps, since en-llm reads files the player writes.
+
+### 123. The fake game: our own stand-in for a game, its invented facts and the choices later parts inherit
+
+`2026-11-16` · DECIDED · `#engine #gal #process` · refs: ARCH§6.2, ARCH§6.4, ARCH§3.2, O89, O91
+
+- **What it is.** `tests/fakegame/fakegame.exe` (clang-cl and MinGW) and `tests/vehprobe/vehprobe.dll`, roadmap
+  S10.1.a part 8. Every name, path, pattern, offset and value is invented; `fakegame --describe` prints them all as one
+  JSON object, the truth that the derivation kit (part 3) and the GAL's tests (parts 4 and 6) compare with.
+- **Choices later parts inherit.** (1) Its registration ABI is its own: rcx the task, rdx the hub instance, r8d the
+  group, unlike the lead's order, so `register_abi` must be data (which register carries what), not a fixed order in
+  code. (2) Its singletons have invented names (`TaskLoom` stands for CSTask, `ActorRoster` for WorldChrMan, …;
+  `--describe` maps each role), and its stand-in group is `Fg_ActorSettle`, so the GAL must take singleton names, RTTI
+  names and the group's name from `gal/` data, never from code. (3) Its task object is a vtable pointer and 0x18 bytes
+  the hub writes, three slots (0 attach once, 1 run every frame, 2 query every 64th): the probe's slot counts have
+  something to classify. (4) Its enums are invented (screen 1 title, 2 loading, 4 in game; lobby 10, 11, 12; role 2
+  host, 3 guest), so the self-tests read enum ranges from the layout.
+- **The harness's PE checks** (`harness.py`) carry ARCH §6.2's FD4 finder (placements, naming through the class
+  object, ambiguity, refusals) and its RTTI walk (type descriptor, locator with signature 1 and its self RVA, the
+  vtable after the locator's slot, the actor set from the hierarchy) in about 150 lines of Python: a reference the C++
+  derivation kit can be compared with.
+
+### 124. Wine on Xvfb for tests: the crash dialog that waits, the desktop bound to no display, and what reaches Linux
+
+`2026-11-16` · FACT · `#engine #build #process` · refs: WHY§102, WHY§113, ARCH§12.1
+
+- Source: our fake game under Wine 9.0 (Ubuntu's packages) in the cloud container, with `xvfb-run -a`.
+- **The crash dialog.** With a display, an unhandled exception starts winedbg, whose crash dialog waits for a click:
+  the process hangs until killed. `HKCU\Software\Wine\WineDbg` `ShowCrashDialog = 0` (set by `wine reg add` once per
+  prefix) makes it end at once. With no display there is no dialog.
+- **A desktop with no display.** After a Wine command run with no `DISPLAY` (a `reg add`), the next program in the same
+  wineserver session could not create a window (CreateWindowExW answered null) although it had a display; it worked
+  once the wineserver had ended. So the harness runs every Wine command under xvfb-run and ends each case with
+  `wineserver -k` (about 1.5 s per cold start).
+- **What reaches Linux.** A GUI-subsystem program started from Linux gets standard handles from the Unix file
+  descriptors, so its lines reach the pipe. Its exit code reaches Linux as the low 8 bits only (0xC0000005 as 5,
+  0xC0000409 as 9), so a check that needs the whole code reads it from inside (a filter's line) or from a Windows
+  parent (the watcher).
+- **Exceptions.** An access violation (read, write, executing data), a divide by zero, `ud2`, `int3` and a stack
+  overflow each reach the program's unhandled-exception filter with their code; `__fastfail` ends the process past
+  every handler and filter with 0xC0000409. A vectored handler sees an access violation before the frame handler and
+  before the filter; one that ends the process leaves no frame handler a chance (S0-D asks the same on Windows).
+- **The C runtimes' own filters.** Both MSVC's static CRT and MinGW's install an unhandled-exception filter at start,
+  so the first `SetUnhandledExceptionFilter` a game or EldenNet makes replaces one: EldenNet's chained filter (part 6)
+  meets a previous filter even in a game that installs none.
+- **Little stack after a stack overflow.** In the release build a filter that formatted its line with the CRT's
+  `vsnprintf` overflowed the stack again while handling the first overflow, and Wine ended the process with code 1,
+  with no exception reported and no line written (Wine's trace: "stack overflow 2112 bytes"). A filter that builds its
+  line by hand into 80 bytes and calls `WriteFile` works. EldenNet's crash filter (part 6: guarded, chained, no
+  allocation) must also do its work with a few KiB of stack, or hand it to another thread.
+
+### 125. Assembly whose bytes do not move: clang relaxes every jump at -O0
+
+`2026-11-16` · FACT · `#engine #build` · refs: ARCH§6.2, WHY§111
+
+- Source: the fake game's FD4-style sites, AOB functions and registration front, written as file-scope assembly in
+  C++ (`asm.cpp`), built with clang-cl 18 at /Od and /O2 with ThinLTO, and with MinGW-w64's GCC 13 and GNU as.
+- **At -O0 clang assembles with `-mrelax-all`:** every jump it can lengthen gets its long form (`jnz` became
+  `0F 85 rel32` instead of `75 rel8`), so a pattern written in assembly changes with the optimisation level. Short
+  jumps written as bytes (`.byte 0x75, 1f - 2f` between two labels) keep the bytes fixed; with them GNU as and LLVM's
+  assembler gave the same bytes for every pattern, in every build.
+- **Faults the optimiser undoes** (clang-cl /O2 with ThinLTO): `1 / b` becomes a comparison with no division, so a
+  divide by zero needs both operands unknown; a `volatile` local array is cut down to the elements used, so a
+  stack-overflow frame needs its array's address to leave the function. The harness's release run found both.
+- `.seh_proc` gives a leaf function a `.pdata` entry too, so the name getter is "the start of a `.pdata` function"
+  as ARCH §6.2 checks; the module's own unwind data covers the registration front, whose fault is caught by the
+  caller's `__try` through it.
