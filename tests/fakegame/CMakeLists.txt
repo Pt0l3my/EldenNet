@@ -62,6 +62,17 @@ if(TARGET eldennet-launcher)
   list(APPEND _en_set --set launcher=$<TARGET_FILE:eldennet-launcher>)
 endif()
 
+# EldenNet's DLL (part 6): eldennet.dll, and with the probe option probe/eldennet.dll (R1), each installed by a case
+# beside its gal/ and injected by the launcher (clang-cl).
+if(TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
+  list(APPEND _en_have eldennet)
+  list(APPEND _en_set --set eldennet=$<TARGET_FILE:eldennet>)
+  if(TARGET eldennet_probe)
+    list(APPEND _en_have eldennet_probe)
+    list(APPEND _en_set --set eldennet_probe=$<TARGET_FILE:eldennet_probe>)
+  endif()
+endif()
+
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_harness})
 list(JOIN _en_have "," _en_have_list)
