@@ -71,6 +71,12 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Decision.** Keep for development; pick the public name before the v0.6 public test. It must not trade on SkyrimNet's name (SN00 §7) or lean on FromSoftware marks. The `en-` crate prefix keeps a rename cheap.
 
+*Later (2026-11-16):* the public name is EldenNet. Asked again by the roadmap (S7.6.a), the owner answered "EldenNet
+is fine". The rule above against trading on SkyrimNet's name or leaning on FromSoftware's marks gives way to that
+choice for the name itself. Every page and release still says that EldenNet is its own project, not SkyrimNet, and
+that ELDEN RING is FromSoftware's and Bandai Namco's mark, with no affiliation or endorsement. The modules' `en-`
+prefix still keeps a rename cheap, should one ever be asked for.
+
 ## O2
 
 **Process model** · *2026-11-06 · The design's recommended default, accepted by the owner with O1–O24*

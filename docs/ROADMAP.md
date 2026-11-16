@@ -459,8 +459,10 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - needs: d
   - gives: delivered as a release zip on 2026-11-16; keys are kept with Windows' DPAPI, which only the owner's run
     can check (f).
-- f The owner's first run of 1.4: a key kept and used on Windows, and a provider's reported costs [waiting]
+- f The owner's first run of 1.4: a key kept and used on Windows, and a provider's reported costs [done]
   - needs: e
+  - gives: dropped on 2026-11-16 by the owner, who has no use for the cloud providers now: "you can remove that
+    jobrunner cloud one, not interested in that now". The feature stays in 1.4, untried on Windows.
 
 ### S7.5 GitHub [waiting]
 
@@ -469,12 +471,18 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - b The temporary branches left by the history rewrite deleted [done]
   - gives: deleted by the owner on 2026-11-16; both pointed into the clean history, so they exposed nothing.
 - c GitHub Support asked to purge the refs of the pull requests that still reach the rewritten history [waiting]
+  - gives: checked on 2026-11-16: the closed pull requests #1 to #5 still reach 102 commits of the old history.
+    Today's sweep finds nothing in any of their 372 file versions or in any commit's author, committer or message,
+    all from noreply addresses. What remains is the old sweep's `personal.txt`: one word kept as a salted SHA-256
+    hash, with its salt beside it. It cannot be read back, but it can confirm a right guess, so the purge stays
+    worth asking for if that word is easy to guess.
 
 ### S7.6 The public name [waiting]
 
-- S7.6.a The owner picks EldenNet's public name, at any time before the v0.6 public test [waiting]
+- S7.6.a The owner picks EldenNet's public name, at any time before the v0.6 public test [done]
   - refs: O1
-  - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
+  - gives: picked on 2026-11-16: the public name is EldenNet ("EldenNet is fine"; O1's note). The credits keep
+    saying it is its own project, not SkyrimNet, and that the game's name is its makers' mark.
 
 ### S7.7 An interactive showcase of the menu [next]
 

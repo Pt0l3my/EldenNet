@@ -2507,7 +2507,7 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 
 | # | Question | Decision, in brief | Status |
 |---|---|---|---|
-| [O1](../DECISIONS.md#o1) | Project name | Keep "EldenNet" for development; pick the public name before the v0.6 public test | Decided 2026-11-06 |
+| [O1](../DECISIONS.md#o1) | Project name | Keep "EldenNet" for development; pick the public name before the v0.6 public test; on 2026-11-16 the owner kept EldenNet as the public name | Decided 2026-11-06 |
 | [O2](../DECISIONS.md#o2) | Process model | Monolith | Decided 2026-11-06 |
 | [O3](../DECISIONS.md#o3) | Game-access backend | (c) our own GAL | Decided 2026-11-06 |
 | [O4](../DECISIONS.md#o4) | Sources for patterns and offsets | (c) own code; research facts are leads until confirmed | Decided 2026-11-06 |
