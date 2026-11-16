@@ -1992,6 +1992,10 @@ S7.8.d, S7.12.e
 - **A stale phrase (FACT).** GraceUI's PV3 says "EldenNet keeps only its hash" of a paired device's cookie, but since
   D84 the paired devices are in GraceUI's user folder. PV3 is kept as worded; a later pass should correct it.
 
+*Later (2026-11-16):* both open points settled by GraceUI's D115 (roadmap S7.8.e): GraceUI's own settings live on
+GraceUI's own pages, linked from EldenNet's; `ui.menu.home_cards` and `ui.menu.show_world` became EldenNet's
+`ui.home_cards` and `ui.show_world`; PV3 now says GraceUI keeps the paired device's hash, in its user folder.
+
 ### 108. The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes
 
 `2026-11-16` · FACT · `#engine` · refs: ARCH§11.1, ARCH§11.2, WHY§101, WHY§106

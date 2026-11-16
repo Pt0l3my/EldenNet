@@ -517,9 +517,13 @@ into both designs on 2026-11-15 (c); G18 to G20 were decided on 2026-11-16 and f
     are EldenNet's PAGES under their numbers, with pointers left in GraceUI; GraceUI keeps the frame, search, the
     settings row, PV3, PV6, PV7 and the map (WHY§107); 1.1 opens the framework (G18); GraceUI carries nothing
     SkyrimNet-derived (G19).
-- e Where GraceUI's own settings live now that EldenNet's pages are EldenNet's (its menu key, scale and browser view, homed on EldenNet's pages today), and PV3's sentence on paired devices brought to D84
+- e Where GraceUI's own settings live now that EldenNet's pages are EldenNet's (its menu key, scale and browser view, homed on EldenNet's pages today), and PV3's sentence on paired devices brought to D84 [done]
   - needs: d
-  - refs: G20, WHY§107, GraceUI:D79, GraceUI:D84, PAGES§4.5
+  - refs: G20, WHY§107, GraceUI:D79, GraceUI:D84, GraceUI:D115, PAGES§4.5
+  - gives: settled 2026-11-16 by GraceUI's D115: GraceUI's own settings (the menu key, the size, the menu's options,
+    the browser view's server) are homed on GraceUI's own pages at the rail's foot, with links from EldenNet's pages;
+    Home's cards and the World page's switch are EldenNet's (`ui.home_cards`, `ui.show_world`); PV3 says GraceUI keeps
+    the paired device's hash, in its user folder.
 
 ### S7.9 The map (GraceUI proposal 0002)
 

@@ -157,9 +157,10 @@ Keys are EldenNet's `settings.toml` (ARCH §11.5, schema 2) plus the keys GraceU
 `docs/eldennet-changes.md`). Since D84, the menu's and the server's own keys (`hotkeys.menu`, `ui.scale`, `ui.menu.*`
 and `dashboard.*`, marked *GraceUI's* below) are GraceUI's settings, kept in `Game\GraceUI\user\` and migrated out of
 EldenNet's `settings.toml`; the bindings of every registered hotkey, EldenNet's included, are kept by GraceUI too (D77).
-Their rows and homes stay as listed; how GraceUI's own space (D79: Menu, Hotkeys, Browser view, Installed mods,
-Compatibility, About) meets EldenNet's Settings groups was to be settled with G20, and G20's answer, (a), leaves it open
-(WHY§107). Effect timing is ARCH §11.6's: Now, Next moment, Next request, Next launch.
+Since GraceUI's D115 (2026-11-16, roadmap S7.8.e) their homes are the pages of GraceUI's own space at the rail's foot
+(D79: Menu, Hotkeys, Browser view), whose commands go through GraceUI's own space; EldenNet's pages carry only links to
+them, under "Shortcuts on". The two settings that arrange EldenNet's own pages are EldenNet's: `ui.home_cards` and
+`ui.show_world`. Effect timing is ARCH §11.6's: Now, Next moment, Next request, Next launch.
 
 | Key | Player label | Home | Shortcuts on | Effect |
 |---|---|---|---|---|
@@ -182,7 +183,7 @@ Compatibility, About) meets EldenNet's Settings groups was to be settled with G2
 | `pacing.idle_max`, `pacing.talk_max` | Idle remarks per window; talk per window | Behaviour › Pacing | Speaking up | Next moment |
 | `reactions.<id>.on`, `.cooldown_s` (20 ids, NPC §9.1) | Per reaction | Behaviour › Reactions | In battle on Combat; Afflictions on Awareness; To you, Between NPCs and Calm remarks on Speaking up | Next moment |
 | `allow."<kind\|type\|slot>".<key>`, `.reactions.<id>` (EldenNet DESIGN §7.6) | Per allowance | Characters › NPC types | Named NPCs (the slot's row), Combat (`combat`, `boss_fight`), Awareness (`status_reactions`, awareness); Voice › Text-to-speech (a read-only `tts` summary) | Next moment |
-| `ui.scale` *GraceUI's* | Text and menu size | Voice › Text and subtitles | Settings › Menu | Now; in game the atlas rebuilds when the menu closes (D29) |
+| `ui.scale` *GraceUI's* | Text and menu size | GraceUI › Menu | Voice › Text and subtitles (a link) | Now; in game the atlas rebuilds when the menu closes (D29) |
 | `ui.hdr`, `ui.paper_white_nits` | HDR; paper white | Voice › Text and subtitles | — | Now |
 | `ui.follow_game_subtitles` | Follow the game's subtitle setting | Voice › Text and subtitles | Conversation | Now |
 | `ui.latency_toasts` | Latency toasts | Settings › Developer | Traces | Now |
@@ -190,14 +191,14 @@ Compatibility, About) meets EldenNet's Settings groups was to be settled with G2
 | `[slots.<slot>]` `provider`, `model`, `fallback`, `fallback_provider` (`providers.toml`, ARCH §11.1; O88) | Each job's provider, model and fallback | AI › Models (one row per slot) | — | Next request |
 | `safety.level` | Content safety: faithful or gentle (O17) | Behaviour › Conversation | — | Next request |
 | `hotkeys.talk`, `hotkeys.skip_page` | Talk; skip page | Settings › Hotkeys | Conversation | Now |
-| `hotkeys.menu` *new*, *GraceUI's*, replacing `hotkeys.settings` | Open the menu (F5) | Settings › Hotkeys | — | Now |
+| `hotkeys.menu` *new*, *GraceUI's*, replacing `hotkeys.settings` | Open the menu (F5) | GraceUI › Hotkeys | Settings › Hotkeys (a link) | Now |
 | `hotkeys.debug` | Debug view (F11) | Settings › Hotkeys | Settings › Developer | Now |
-| `ui.menu.theme` *new*, *GraceUI's* | Grace or Grace Clear | Settings › Menu | Top bar | Now |
-| `ui.menu.plain_text`, `.reduce_motion`, `.key_hints`, `.pad_glyphs`, `.backdrop`, `.compact_rows` *new*, *GraceUI's* | The menu's own options (D19) | Settings › Menu | — | Now |
-| `ui.menu.show_world` *new*, *GraceUI's* | Show the World page | Settings › Menu | — | Now |
-| `ui.menu.home_cards` *new*, *GraceUI's* | Home's cards, their order and Setup's place | Home › Customise | — | Now |
-| `dashboard.enabled` (on), `dashboard.port` (8642) *new*, *GraceUI's* (G4) | Serve the browser dashboard; its port | Settings › Browser view | — | Now (the server starts, stops or moves) |
-| `dashboard.lan` (off) *new*, *GraceUI's* (G9) | Other devices on your network | Settings › Browser view | — | Now |
+| `ui.menu.theme` *new*, *GraceUI's* | Grace or Grace Clear | GraceUI › Menu | Top bar | Now |
+| `ui.menu.plain_text`, `.reduce_motion`, `.key_hints`, `.pad_glyphs`, `.backdrop`, `.compact_rows` *new*, *GraceUI's* | The menu's own options (D19) | GraceUI › Menu | — | Now |
+| `ui.show_world` *new*, EldenNet's (GraceUI's D115; was `ui.menu.show_world`) | Show the World page | Settings › General | — | Now |
+| `ui.home_cards` *new*, EldenNet's (GraceUI's D115; was `ui.menu.home_cards`) | Home's cards, their order and Setup's place | Home › Customise | — | Now |
+| `dashboard.enabled` (on), `dashboard.port` (8642) *new*, *GraceUI's* (G4) | Serve the browser dashboard; its port | GraceUI › Browser view | Settings (a link) | Now (the server starts, stops or moves) |
+| `dashboard.lan` (off) *new*, *GraceUI's* (G9) | Other devices on your network | GraceUI › Browser view | Settings (a link) | Now |
 | `map.base`, `map.key_opens` (the game's map), `map.glow`, `map.flare_new`, `map.layers`, `map.lore_by_ai` (on) *new* (1.1, D95) | The map's settings: base map, the map key, glow, brighten new things once, the layers shown, Lore notes by AI | Settings › Map | Map | Now |
 | `augur.allow_custom_rules` | Your own event rules | Behaviour › Reactions (a locked "later version" row) | — | — |
 | `debug.panel`, `.record_sessions`, `.record_redact_text`, `.log_level` | Developer options | Settings › Developer | Logs (log level), Workshop (panel) | Now |
@@ -265,8 +266,8 @@ dialog and Related card of GraceUI §4.2.4.
   and the focus order agree at every width; at three columns Recent events takes the full width, so no cell is left
   empty. A custom order may leave a gap; nothing reorders cards to fill it.
 - **Customise** (a drawer): show or hide each card, Setup at the top or the bottom, card order (drag in the browser;
-  "Move up" and "Move down" on the focused card in game). Stored as `ui.menu.home_cards`, whose home is this drawer. A
-  hidden card subscribes to nothing.
+  "Move up" and "Move down" on the focused card in game). Stored as `ui.home_cards` (EldenNet's, GraceUI's D115), whose
+  home is this drawer. A hidden card subscribes to nothing.
 - **Rules.** SP7 on Nearby, Happening now and Recent events; Lines shows only what was displayed. Chat and model text
   only on Lines and Model calls (PV4).
 - **Keys and pad.** Cards are focus targets in reading order; ↑↓ inside a card's rows; A on a title opens its page.
@@ -367,13 +368,13 @@ In v1 NPCs speak in text, so Voice opens with the text that carries their words;
 
 - **Purpose.** How NPC lines appear on screen.
 - **Sections.** **Lines**: `features.labels` (floating labels over speakers, or the feed at the side). **Subtitles**:
-  `ui.follow_game_subtitles`. **Size**: `ui.scale` (75–150%; the menu and every EldenNet text follow it; in game the
-  atlas rebuilds when the menu closes, D29). **HDR**: `ui.hdr` (auto, off, on), `ui.paper_white_nits`. **Preview**:
-  "Show a sample line" (`preview.subtitle`; in game drawn by EldenNet's real surfaces for 3 s after the menu closes;
-  in the browser a drawn sample).
+  `ui.follow_game_subtitles`. **Size**: a link to GraceUI › Menu, the home of `ui.scale` (GraceUI's D115; 75–150%; the
+  menu and every EldenNet text follow it; in game the atlas rebuilds when the menu closes, D29). **HDR**: `ui.hdr`
+  (auto, off, on), `ui.paper_white_nits`. **Preview**: "Show a sample line" (`preview.subtitle`; in game drawn by
+  EldenNet's real surfaces for 3 s after the menu closes; in the browser a drawn sample).
 - **Data.** Reads `settings`. Writes `settings.set`, `preview.subtitle`.
 - **Rules.** The sample line is ours.
-- **Related.** Behaviour › Conversation, Behaviour › Combat, Settings › Menu.
+- **Related.** Behaviour › Conversation, Behaviour › Combat, GraceUI › Menu.
 
 **Text-to-speech** (`voice.tts`; v1.5, a statement page in v1). What v1.5 adds (a voice per persona and card through
 an out-of-process engine, page timing from the audio), and what never comes (cloning the cast's voices). A read-only
@@ -395,7 +396,7 @@ named boss (EldenNet O43, as updated; D67).
   seen them.
 - **Layout.** **Tiles**: People met · Stories seen (met people with a story line shown) · Spoken with this session.
   **World now**: a card with the line of the highest-ranked world stage that holds (SP6) and a link to History › World;
-  absent while `ui.menu.show_world = false`. **Filter bar**: names as shown · status · region (regions entered) · sort
+  absent while `ui.show_world = false`. **Filter bar**: names as shown · status · region (regions entered) · sort
   (last met, first met, name). **Master–detail** (D36). The table: the name as the game shows it (SP3), status, last met
   (a place by its runtime name in a region entered, and play time ago), their story as last seen (shortened), since you
   last spoke (the first note). The detail: the name; **Status** (the word, where and when last met, times met, the
@@ -544,7 +545,7 @@ editable but Forget (D13). Before a playthrough is loaded, each page says "Load 
 - **Contents.** The world stages that hold by verified flags only (SP6), each by its impersonal `line`, in rank order;
   for each, the met NPCs who have heard, with a certainty word. No counts, locked rows, "x of n", "not yet", quest
   tracks or NPC stages (D11). EldenNet's knowledge base itself is never shown (SP1).
-- **Data.** Reads `world`. Shown unless `ui.menu.show_world = false`.
+- **Data.** Reads `world`. Shown unless `ui.show_world = false`.
 - **Related.** Characters › Named NPCs, Behaviour › Speaking up.
 
 #### 4.6.6 Behaviour
@@ -712,19 +713,15 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Header actions.** Run setup again (First light) · Reset all (confirmed) · Copy settings (`settings.toml` holds no
   secret; PV7).
 - **Tabs.** *Settings*: two columns. Left, a navigator card with a search box, then groups. Groups that are homes here:
-  **General** (`enabled`, with "Safety and spoiler rules always apply"), **Hotkeys** (`hotkeys.talk`,
-  `hotkeys.skip_page`, `hotkeys.menu`, `hotkeys.debug`; capture, conflicts, reset; pad chords only if S4 finds one,
-  D33), **Menu** (`ui.menu.theme`, `plain_text`, `reduce_motion`, `key_hints`, `pad_glyphs`, `backdrop`, `compact_rows`,
-  `show_world`; a shortcut to the text size; a note that the browser view is the accessible surface, GraceUI §3.12),
-  **Browser view** (`dashboard.enabled`, `dashboard.port`; the address with Copy address and Open in browser; the
-  server's state; browsers connected, with Disconnect browsers (in game or on this PC); G4; `dashboard.lan` and, while
-  it is on, the network address and Pair a device (in game only); the paired devices with Forget (in game or on this
-  PC), listed whether it is on or off; G9), **Developer** (`debug.panel`, `debug.record_sessions`,
+  **General** (`enabled`, with "Safety and spoiler rules always apply"; `ui.show_world`), **Hotkeys** (`hotkeys.talk`,
+  `hotkeys.skip_page`, `hotkeys.debug`; capture, conflicts, reset; pad chords only if S4 finds one, D33; a link to
+  GraceUI › Hotkeys for the menu key and every mod's bindings), **Developer** (`debug.panel`, `debug.record_sessions`,
   `debug.record_redact_text`, `debug.log_level`, `ui.latency_toasts`). Groups that link out, each sub-item with an
-  outward arrow and no rows: AI (Providers, Models), Voice (Text and subtitles), Characters (NPC types), History
-  (Memories), Behaviour (Conversation, Speaking up, Awareness, Reactions, Pacing). Right, the chosen group's sections.
-  *All settings*: every setting, grouped by category and page, each row a shortcut marked "lives in …"; filters for
-  changed from default and for availability (live, waits on a game check, v1.5, later, off because …).
+  outward arrow and no rows: GraceUI (Menu, Hotkeys, Browser view; its own pages, GraceUI's D115), AI (Providers,
+  Models), Voice (Text and subtitles), Characters (NPC types), History (Memories), Behaviour (Conversation, Speaking up,
+  Awareness, Reactions, Pacing). Right, the chosen group's sections. *All settings*: every setting, grouped by category
+  and page, each row a shortcut marked "lives in …"; filters for changed from default and for availability (live, waits
+  on a game check, v1.5, later, off because …).
 - **Data.** Reads `settings`. Writes `settings.set`, `settings.reset`.
 - **Keys and pad.** The navigator and the content are two scopes; → moves into the content; Enter on a link-out item
   opens its page.
@@ -881,9 +878,9 @@ GraceUI's (D82): GraceUI §4.7. Each row is generated from EldenNet's settings d
 | Spoiler layers, safety rules, context gates | No setting; stated on Settings › General and Docs › Spoilers | — | — |
 | The master switch | Settings › General | Quick switches | 0.6 |
 | Pause AI for the session | Home's header | Quick switches | 0.2 |
-| Hotkeys | Settings › Hotkeys | Conversation | 0.6 |
-| The menu's own options, the theme | Settings › Menu | Top bar (theme) | 0.6 |
-| The browser dashboard (always on, G4) | Settings › Browser view | Home › Status (the address), F11, the launcher's first screen | 0.2 / 0.6 |
+| Hotkeys | Settings › Hotkeys (EldenNet's); GraceUI › Hotkeys (the menu key) | Conversation | 0.6 |
+| The menu's own options, the theme | GraceUI › Menu | Top bar (theme) | 0.6 |
+| The browser dashboard (always on, G4) | GraceUI › Browser view | Home › Status (the address), F11, the launcher's first screen | 0.2 / 0.6 |
 | Developer options, latency toasts, recordings | Settings › Developer | Logs, Traces | 0.2 |
 | Degradation ladder, read groups, capabilities, gate, unknown builds | System › Status › Health | Top bar lamp, Home › Status | 0.2 |
 | Checks waiting on spikes | System › Status › Checks | Row badges everywhere | 0.2 |
@@ -951,7 +948,7 @@ with a page of their own show as statements (G7); everything else is simply abse
 | Settings › player reactions, whisper mode, continuous scenes | Not planned (the Tarnished is silent); scenes adapted as NPC-to-NPC exchanges within pacing | SN06 §7.3; O34 |
 | Settings › General: usage data, automatic content updates | Never (no telemetry; no request but the provider's) | EldenNet DESIGN §1.2 |
 | Settings › Dashboard: language, opening on the targeted NPC, theme presets | English only (O16); a crosshair jump is a possible later nicety; two Grace variants | — |
-| Settings › Dashboard › Web server | Adapted: Settings › Browser view (always on as SkyrimNet's; loopback with a session cookie; other devices only once switched on and paired, G9) | G4, G9, D58–D60 |
+| Settings › Dashboard › Web server | Adapted: GraceUI › Browser view (always on as SkyrimNet's; loopback with a session cookie; other devices only once switched on and paired, G9) | G4, G9, D58–D60 |
 | Settings › Developer: the tool server, agents, analytics | Not planned; log level and recordings in Settings › Developer | — |
 | The setup tutorial, the feature guide | Adapted: First light; Docs › Getting started | D16 |
 
@@ -975,8 +972,8 @@ The first proposal's flavour-named sections map to the new pages so:
 | Augury | Tools › Event monitor (and History › Events for the stored log) |
 | Oracles | AI › Providers, Models, Self-test, Requests |
 | Voice | Voice › Text-to-speech, Speech-to-text |
-| Lettering | Voice › Text and subtitles; Settings › Menu; Settings › Browser view |
-| Bindings | Settings › Hotkeys |
+| Lettering | Voice › Text and subtitles; GraceUI › Menu; GraceUI › Browser view |
+| Bindings | Settings › Hotkeys; GraceUI › Hotkeys (the menu key) |
 | Vigil | System › Status, Performance, Traces, Logs; Content packs; Settings › Developer |
 | Missive | Tools › Bug report |
 | Workshop | Tools › Workshop |
