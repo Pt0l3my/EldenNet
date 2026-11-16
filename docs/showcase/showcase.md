@@ -47,9 +47,9 @@ slug 884a0cd5-2a74-4287-a29b-a99bc5ce0693).
 
 # EldenNet
 
-- updated: 2026-11-15
+- updated: 2026-11-16
 - lede: A mod for Elden Ring on PC, for offline play, that lets the game's characters talk with you in their own words, remember you, and know what is going on around them.
-- status: Design stage: ready for Min's engine
+- status: Building the engine: its core runs
 - facts: Offline, solo play · Dialogue only in version 1 · A cloud model or your own · Spoiler-safe by design · Never writes to your game
 - roadmap-published: https://claude.ai/artifact/1HQVhkTsKhgR1EdkqUijxk
 
@@ -128,11 +128,12 @@ its own.
 - tag: Profiles
 - design: DESIGN§7.7, DESIGN§7.8, O43, O46
 
-Profiles come at three depths. The characters with the longest stories get a persona that follows
-their story step by step; every other named character and named boss gets a character profile, a
-general portrait in our own words; and soldiers, wanderers and their like get a card for their kind.
-The whole base-game roster ships with version 1.0. You can add your own instructions to any profile,
-or write one of your own for a character you have met.
+Profiles come at three depths. Every named character and named boss gets a bio of our own, in layers: what a first
+meeting shows, what later steps of its story reveal once the game confirms them, how it fights beside you if the game
+lets you summon it, and what has passed between you on this journey. The characters with the longest stories follow
+theirs step by step, and soldiers, wanderers and their like get a card for their kind. The whole base-game roster
+ships with version 1.0, the expansion's with version 1.1. You can add your own instructions to any profile, write one
+of your own for a character you have met, or give your own character a short bio that others see as a stranger would.
 
 ### Quest and world awareness
 
@@ -186,13 +187,13 @@ widened by lines prepared ahead in the background, so a fight never waits on a m
 ### Spoilers kept out by what is said, not by bans
 
 - tag: Spoilers
-- design: DESIGN§10.4, O36
+- design: DESIGN§10.4, O36, O86
 
-Each character is told the present as it stands for you, in plain positive terms, rather than handed
-a list of things not to mention, which would only put them in mind. Every line is checked against
-what is still locked for you before it is shown, and a record that has not been verified can hide
-something but never reveal it. The menu keeps the same rule: nothing you have not reached is shown,
-counted or hinted at.
+Each character is told the present as it stands for you, in plain positive terms: what it knows, what it is doing and
+its own part in its story at this point of your journey, rather than a list of things not to mention, which would only
+put them in mind. Its memories are written from the same facts, and a few test questions for each character check what
+the model itself already knows of the game. A record that has not been verified can hide something but never reveal
+it. The menu keeps the same rule: nothing you have not reached is shown, counted or hinted at.
 
 ### An event engine of its own
 
@@ -315,20 +316,18 @@ A key goes in and is never shown again.
 - kind: status
 - nav: Status
 
-**Design stage.** EldenNet itself is not built yet. The design of version 1 and its review rounds
-are done, and so is the design of GraceUI, which is becoming a UI framework other mods can use too.
-Min's engine, SkyrimNet's game-independent core (its language-model layer, speech recognition,
-text to speech, prompt engine and context engine), becomes EldenNet's foundation and comes before
-the build; the structure of the character profile (decision O46) comes before the roster is
-written.
+**Building the engine.** The design of version 1 and its review rounds are done, and so is the design of GraceUI,
+which is becoming a UI framework other mods can use too. EldenNet builds an engine of its own, open source, on
+SkyrimNet's proven logic and structure (decision O84), and its core already runs outside the game: the prompt
+templates, the client that talks to your model, and the calls in which the model picks one of the options code gives
+it. The character profile is settled too, in five layers (decision O46).
 
-Meanwhile the research tools are at work. DataPiler, a small companion tool of our own, reads the
-game's data from the player's own game through the modding tool Smithbox (decisions O54 to O57):
-the numbers by which EldenNet will know each character, and the world map. GraceUI's interactive
-map is being designed, drawn at run time from the player's own game, each map tile checked against
-the game's other zoom levels before it is used.
+Meanwhile the research tools are at work. DataPiler, a small companion tool of our own, reads the game's data from
+the player's own game, through the modding tool Smithbox for now and later through EldenNet's own devkit (decisions
+O54 to O57, O74): the numbers by which EldenNet will know each character, and the world map. GraceUI's interactive
+map of your journey is designed for version 1.1, drawn at run time from your own game.
 
-Then the engine is adopted, the roster is written in batches, and EldenNet's versions follow, from
+Then the engine grows towards the game, the roster is written in batches, and EldenNet's versions follow, from
 v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.
 
 ## Credits {#credits}

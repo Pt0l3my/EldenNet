@@ -729,6 +729,14 @@ this decision, each under its own licence.
 
 **Follows from.** O54, O57; DATA §3 and §4; DESIGN §7.8, §16.1.
 
+*Later (2026-11-16):* the saves are dropped. The owner asked what they were for ("A save for what? isn't EldenNet
+constantly saving its latest state? There is only 1 save in Elden Ring per character which is constant auto save."):
+copies of the game's one save file, kept before each named boss fight and each later form of a roster NPC, so that
+the in-game checks could start at those moments without replaying. Offered keeping them with a helper, putting them on
+hold, or dropping them, the owner chose "Drop it": no prepared saves; the in-game checks run during a normal
+playthrough once EldenNet runs in game, and a check that fails waits for the next chance. The capture plans written
+under (b) stay. Roadmap S6.3.t is dropped.
+
 ## O59
 
 **Where the game's id leads go** · *2026-11-08 · Decided by the owner, as recommended*

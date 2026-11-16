@@ -128,6 +128,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 103 | 2026-11-16 | The design on C++: one mapping, the behaviour unchanged, and what the re-base found | METHOD | #engine #graceui #process |
 | 104 | 2026-11-16 | GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap | DECIDED | #graceui |
 | 105 | 2026-11-16 | The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers | FACT | #gamedata #datapiler |
+| 106 | 2026-11-16 | The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took | METHOD | #engine |
 
 ## Entries
 
@@ -1926,3 +1927,36 @@ checkout), O68, O53
   not known, since names never leave the PC. The character names differ: 50 of 213 were only in their expansion layer
   (en-0005).
 - So ER01's lead for the base tables holds, and DESIGN §4.5 lists them; S2 still checks them in game (gap 3).
+
+### 106. The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§3.1, ARCH§1.7, ARCH§10.1, ARCH§10.2, ARCH§11.8, DESIGN§2.6, WHY§103
+
+- **Static objects.** With `-Werror=global-constructors` and `-Werror=exit-time-destructors` on every module the DLL
+  links (`en_dll_module`), Clang found six: two in en-prompt and four in en-llm. Constants became `constexpr` arrays
+  behind spans; the long-lived ones (the system clock, the no-proxy list) are made once with `new` and never destroyed;
+  and the per-thread render stack became a linked list of frames on the stack under one `thread_local` pointer, since a
+  `new` per thread would leak an object for every thread. The rule against dynamic initialisers is ARCH §3.1 (the brief
+  and the CMake helper had cited §1.6, the mutex: corrected).
+- **A decision call's rules pick is data.** `DecisionCall::rule` is the key the task's rules picked from the same state,
+  computed by en-core when it builds the call. The rules are a pure function of that state, so nothing is lost: no
+  worker runs the caller's code, the call has a JSON form, and en-llm refuses a key the call does not offer before
+  anything is sent.
+- **The JSON caps fit what is parsed whole, not model lists.** 256 KB and 32 deep cover stream events, bodies, error
+  bodies, decision answers and the probe's checks. A provider's model list can be larger (OpenRouter's very likely is),
+  so lists, read as they parse and keeping only their ids, keep their own bounds (1 MB from a local probe, 8 MB from a
+  provider) with the same depth check (ARCH §10.2's row says so).
+- **R3 on the transports, tested.** A transport callback never throws in a test by itself, so the test program alone
+  replaces `operator new` with one that, once armed, fails one allocation of a chosen size on any thread but the test
+  servers'. libcurl and WinHTTP allocate with their own allocators and never meet it; the fault lands in our code inside
+  their callbacks, which trip `LlmTransport` and fail the exchange at once.
+- **2 MB stacks.** `std::thread` cannot set a stack size: `_beginthreadex` with `STACK_SIZE_PARAM_IS_A_RESERVATION` on
+  Windows and `pthread_attr_setstacksize` elsewhere (`StackThread`). The size reads back through
+  `GetCurrentThreadStackLimits`, which Wine reports, and glibc's `pthread_getattr_np`.
+- **Running the suite many times found two test defects.** Two runs at once shared one temporary folder, since an
+  unseeded `std::rand()` gives every process the same name: fixed. The handle's give-way test failed twice in about
+  twenty runs of the suite under heavy load, and in none of about 1,000 since (the test alone and the whole suite, in
+  parallel and in sequence); it now reports how the call-out ended and the order of the events, and roadmap S8.1.l keeps
+  it open.
+- Counts: GCC and Clang, en_proto 15, en_llm 138 and en_prompt 68 test cases; MinGW under Wine, 15, 140 and 68; no
+  warnings.

@@ -153,4 +153,9 @@ index.
 - docs/ROADMAP.md is the one roadmap and open-items list for EldenNet and GraceUI: edit it by hand, never renumber its ids, and rebuild
   docs/roadmap/index.html and docs/showcase/index.html (`python3 -I tools/roadmap/build.py`,
   `python3 -I tools/showcase/build.py`) in the same commit; both `--check` must pass.
+- Oversee the roadmap, don't only add to it (owner, 2026-11-16: "you should not just update roadmap but oversee changes
+  that might backtrack and make older jobs obsolete or merged"). When work lands or a decision replaces, reverses or
+  narrows an earlier plan, check the roadmap and the showcase in the same commit for parts it makes done, superseded,
+  merged, dropped or stale in wording, and mark them as the roadmap's header says (a dropped or superseded part keeps
+  its id and says so). Audit the whole roadmap against the decisions now and then, and after any large change of plan.
 - Keep example content original: personas, archetype cards and prompts are written from our own specs.

@@ -229,7 +229,7 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 
 | Module | Owns | Public surface (sketch) |
 |---|---|---|
-| `en-proto` | Every message that crosses a thread or the adapter boundary. Each has a JSON form through nlohmann/json (`to_json`, `from_json`) | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, the interface `GameBackend`, the token `GameThread`, `PROTO_VERSION`. `LlmRequest`/`LlmEvent` are built for now in en-llm's `service.hpp`, with the request, decision and result types they carry; §2.3 keeps `en-core` off `en-llm` |
+| `en-proto` | Every message that crosses a thread or the adapter boundary. Each has a JSON form through nlohmann/json (`to_json`, `from_json`) | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, the interface `GameBackend`, the token `GameThread`, `PROTO_VERSION`, `ffi_guard` and its components (R3), `parse_json`. Built (S8.1.j): `ffi_guard.hpp` (a constant-initialised tripped flag per component), `llm.hpp` (`LlmRequest`/`LlmEvent` and the request, decision and result types they carry, each with its JSON form; en-llm keeps their names by using-declarations, and §2.3 keeps `en-core` off `en-llm`) and `json.hpp` (§10.2's JSON caps, checked before nlohmann/json parses) |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur(RuleSet, Registry)`, `void Augur::step(const CoreInput&, Mono, const AugurCtx&, EventBatch&)`, the interface `EventSource`, `Expected<RuleSet, std::vector<RuleError>> RuleSet::load(std::span<const RuleFile>, const PredicateCompiler&)`, `Event`, `EventKind` |
 | `en-prompt` (built, O84) | The template engine on inja 3.4, with SkyrimNet's template rules (its message markers and folders of numbered parts) made strict (NPC §7.1): composition with its guards, the function registry and the reference generated from it, lint; template sources (§2.3) | `Environment(std::shared_ptr<const TemplateSource>, FunctionRegistry, EnvironmentOptions)`, with `MemorySource(std::map<std::string, std::string>)` for `en-core` and `FolderSource(root)` for the tools (`Environment(root, …)` builds one), `std::vector<Message> Environment::render(std::string_view name, const nlohmann::json& context) const`, which throws a `TemplateError` naming the template, line and column, `std::vector<Finding> Environment::lint(std::string_view name, const nlohmann::json* context) const`, `FunctionRegistry::add` |
 | `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts (rendered with en-prompt), decision calls (§11.8), sanitizer, lint, ladder policy, bus subscribers | `Core(std::shared_ptr<const ContentPack>, std::shared_ptr<const Settings>)`, `Outputs Core::step(CoreInput, Mono)`, `Expected<ContentPack, std::vector<ContentError>> ContentPack::load(const ContentFs&)`, the interface `CoreTransport`, `WorldView world::derive(const FlagState&, const WorldFacts&, const WorldContent&)`, `KnownSet world::known(PersonaId, const FlagState&, const WorldFacts&, const WorldView&, const WorldSeen&, const ContentPack&)`, `std::optional<Cue> world::cue(PersonaId, StageId, const KnownSet&, const WorldSeen&, const WorldCued&, const PersonaFacts&, const RenderedJournal&, const ContentPack&, Pt)` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; its candidates are what the known set holds, O86) |
@@ -237,7 +237,7 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 | `en-llm` (built, O84) | The OpenAI-compatible client and its transports (libcurl, WinHTTP), SSE parser, slots, health, budgets, decision calls (§11.8), local probes, warm-up, and the asynchronous handle the core drives (WHY§101) | `Service(Config, std::shared_ptr<TransportFactory>, ServiceOptions)`, `SubmitResult Service::submit(LlmRequest)`, and its `cancel(RequestId)`, `cancel_before_epoch(Epoch)`, `poll`, `drain`, `wait`, `set_notify`, `set_gate_open`, `warm_up(slot)`, `reload(Config)` and `shutdown`; the blocking `Client::chat` and `Client::decide` beneath it; `probe_local` (its `LocalEndpoint`s) and `list_models` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `Expected<BuildProfile, GateError> gate(const ImageView&, const Builds&)`, `Expected<Discovery, DiscoveryReport> discover(const SysLayer&, const BuildProfile&)`, `Expected<TaskToken, GalError> install_task(Discovery, TaskWiring)`, `class ErBackend : public GameBackend`, the interface `SysLayer` (§6.4) |
 | `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()` |
-| `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell, `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
+| `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell; its foreign entries start with en-proto's `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
 | `en-launcher` | The launcher program (§4) | CLI only |
 | `en-tools` | The `eldennet-engine` command (built: `render-prompt`, `chat`, `decide`, `probe`, `models`), with the developer tools as its subcommands (§12.3), the replay `GameBackend` | CLI only |
 
@@ -1735,14 +1735,14 @@ running out of memory. The caps keep each of these out of reach.
 | Resource | Cap (impl unless cited) |
 |---|---|
 | Template rendering | The template engine (en-prompt on inja, built, O84; NPC §7.1): nesting depth ≤ 16 (built); output ≤ 64 KB; a bound on render steps |
-| JSON parsing (memory jobs, pools, SSE payloads) | Input ≤ 256 KB; nesting depth ≤ 32 (checked before nlohmann/json parses it) |
-| SSE | Line ≤ 64 KB; total response ≤ 1 MB; a stream that passes 16 KB of display text is cancelled |
+| JSON parsing (memory jobs, pools, SSE payloads) | Input ≤ 256 KB; nesting depth ≤ 32 (checked before nlohmann/json parses it; built: en-proto's `parse_json`, on every JSON en-llm parses). A model list, read as it parses and keeping only its ids, has its own bound: 1 MB from a local probe, 8 MB from a provider, and the same depth |
+| SSE | Line ≤ 64 KB; total response ≤ 1 MB; a stream that passes 16 KB of display text is cancelled and ends as `Truncated` with the text that fitted (built) |
 | Sanitizer and splitter | Input per reply ≤ 16 KB; iterative, never recursive; output 600 bytes per reply and 180 per page (DESIGN §8.4) |
 | Predicate DSL | Expression ≤ 1 KB; parse depth ≤ 32 |
 | Regex | RE2 (linear time), where a pattern comes from content, with `max_mem` at 2 MB for its compiled program and its DFA together; patterns ≤ 1,024 bytes; `std::regex` never on content or player text |
 | Content files | 64 KB per file, 16 KB per persona, card or character profile (DESIGN §11.4); the override tree and the player's `profiles\` together ≤ 8 MB and ≤ 2,000 files; `profiles\` ≤ 256 files of ≤ 8 KB |
 | Core memory | Event FIFO 256; RAM ring 4,096; trackers 256; K store 512; text cache 4,096; param cache 2,048; target ≤ 64 MB resident for all of EldenNet |
-| Threads | Core stack 8 MB; the net's workers 2 MB each; no recursion on T2–T5 |
+| Threads | Core stack 8 MB; the net's workers 2 MB each (built: en-llm's `StackThread` for the handle's workers and dispatcher and WinHTTP's drivers); no recursion on T2–T5 |
 | SQLite | `PRAGMA max_page_count` sized to a 512 MB file cap; `diag.sqlite` rotated at 50 MB (DESIGN §10.5) |
 | In-process ML | None (DESIGN §1.2) |
 
@@ -2082,12 +2082,14 @@ DecisionCall {                          // built by en-core, rendered from promp
   question: one plain question
   state:    [(name, text)]              // the records it needs, gathered by id, quoted as data
   options:  [(key, text)]               // Choice only: short keys (A, B, … or neutral labels), and none; by code
-  rule:     the rules fallback, a pure function of the same state
+  rule:     the key the task's rules pick from the same state (a pure function of it, run by en-core when it
+            builds the call): data, one of the options' keys, checked before anything is sent
 }
 DecisionPick { key, probs: optional [(key, f32)], by: Model | Rules, latency_ms }
 ```
 
-Both are built in en-llm's `decision.hpp` (O84, WHY§100), the pick with how it was read and the call's one row.
+Both are plain data in en-proto's `llm.hpp` (S8.1.j), read and acted on by en-llm's `decision.hpp` (O84, WHY§100),
+the pick with how it was read and the call's one row.
 
 - **Options are built by code.** Only legal options are offered, at most 12 (EST, as MEM §4.5's gate keeps), each a
   short key with one line that code writes from records; the model cannot name an option code did not offer, and
@@ -2240,20 +2242,20 @@ eldennet/
                                                     # configure time, pinned by SHA-256, into the build tree
   src/            each module: CMakeLists.txt, include/en/<name>/*.hpp, src/*.cpp, tests/
     en-proto/     include/en/proto/{snapshot, render, lifecycle, command, ui, llm, db, backend, thread, text,
-                       fixed}.hpp  src/json.cpp
+                       fixed, ffi_guard, json}.hpp  src/{json, llm, ffi_guard}.cpp   (llm, json, ffi_guard built)
     en-augur/     src/{sources/, world, signals, detectors, rules, events, audience, kstore, bus}.cpp
     en-prompt/    src/{environment, source, compile, builtins, messages, registry, text, errors, version}.cpp   (built)
     en-core/      src/{step, transport, identity/, content/, predicates, knowledge/, scheduler, conversation/,
                        barks/, memory/, decisions/, prompts/, sanitize, lint, ladder, gate}.cpp
     en-store/     src/{loop, migrations/, events, facts, journal, rollback, backup}.cpp
     en-llm/       src/{client, config, request, message, transport, transport_curl, transport_winhttp, sse, stream,
-                       errors, health, decision, probe, service, secret, clock, version}.cpp   (built)
+                       errors, health, decision, probe, service, thread, secret, clock, version}.cpp   (built)
     en-gal/       src/{gate, pe, patterns, builds, layout, fd4, rtti, groups, snapshot, flags,
                        text, params, render, backend, task, probe}.cpp  # the offline part: pe, patterns, builds, layout
                   src/reader.cpp                       # raw addresses: GuardedReader and its SEH-guarded copy
                   src/sys/{image, register, fd4, trampoline, boot, process}.cpp   # raw addresses: the Win32 seam
     en-overlay/   src/{surfaces/, fonts, style, input, debug}.cpp  src/abi.cpp   (no hooks: GraceUI's, G15)
-    eldennet/     src/{exports, boot, shell, wiring, watch, recorder, ffi_guard, log}.cpp
+    eldennet/     src/{exports, boot, shell, wiring, watch, recorder, log}.cpp   (ffi_guard: en-proto's)
     en-launcher/  src/{main, discover, vdf, preflight, backup, appid, notices, errors}.cpp  src/win/inject.cpp
     en-tools/     src/{main, render_prompt, chat, decide, probe}.cpp (built)
                   src/{replay, golden, eval, lint, probe_exe, mockllm, bake_pools, selftest, fmg_import,

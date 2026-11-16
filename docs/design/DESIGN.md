@@ -1226,29 +1226,29 @@ The index is loaded at start; a bio loads when its NPC first resolves, and stays
 the playthrough (§10.1). The DLC's entries carry `content = "dlc"` and load from the release that ships them (v1.1,
 O46; earlier for any whose bindings verify in time).
 
-**Cost.** Authoring: about 115 bios with every layer they get, at about 1 hour 10 minutes each (the note 20–30
-minutes, review and seeds 20–30 minutes, its test questions 5–10 minutes, the second reader 10 minutes), and 15–20
-silent bios at about 20 minutes: about 140 hours, an upper estimate, since a boss the game never shows calm holds the
-seen fields only. Captures: about 27–33 hours in game on prepared saves (the S3 records for invasions and hostile
-forms included), plus the play needed to make them: one full playthrough (or NG+ cycle) with a save before each named
-boss fight and each later form (S2 alone needs about 40–60), unless the author's own saves already cover them. Money:
-about 140 drafts of about 4,000 tokens, and a roster eval of about 3,000 turns at about $0.0002 a turn on the
-cloud-budget preset (≈ $0.60 a run, plus the judge): a few dollars per release. At run time the roster adds calls of
-its own: memory jobs from NPC-to-NPC exchanges (MEM §3.1), one open job per NPC and one memory request at a time.
-Since own-initiative lines are ≤ 240 an hour at the defaults (§9.8), exchanges give at most about 240 such jobs an hour
-in the worst case (fewer under MEM §3.1's provisional cap of one exchange-created job per NPC per 10 minutes of play),
-outside the $0.05-an-hour bound for lines; their trigger and cap stay provisional until our own engine's design
-(below). The lived layer's updates run only at quiet moments with new cited memories (MEM §13.2), and a
-next-speaker decision only when pacing would admit a line (§9.7). Conversations follow the player. A character's calm
-line now costs a persona line (≈ $0.0002 instead of ≈ $0.00006), inside the existing worst case of $0.05 an hour.
+**Cost.** Authoring: about 115 bios with every layer they get, at about 1 hour 10 minutes each (the note 20–30 minutes,
+review and seeds 20–30 minutes, its test questions 5–10 minutes, the second reader 10 minutes), and 15–20 silent bios at
+about 20 minutes: about 140 hours, an upper estimate, since a boss the game never shows calm holds the seen fields only.
+Captures: about 27–33 hours of checks in game (the S3 records for invasions and hostile forms included), made during a
+normal playthrough (or NG+ cycle) once EldenNet runs in game, with no prepared saves (O58, as amended on 2026-11-16): a
+check that fails waits for its next chance. Money: about 140 drafts of about 4,000 tokens, and a roster eval of about
+3,000 turns at about $0.0002 a turn on the cloud-budget preset (≈ $0.60 a run, plus the judge): a few dollars per
+release. At run time the roster adds calls of its own: memory jobs from NPC-to-NPC exchanges (MEM §3.1), one open job
+per NPC and one memory request at a time. Since own-initiative lines are ≤ 240 an hour at the defaults (§9.8), exchanges
+give at most about 240 such jobs an hour in the worst case (fewer under MEM §3.1's provisional cap of one
+exchange-created job per NPC per 10 minutes of play), outside the $0.05-an-hour bound for lines; their trigger and cap
+stay provisional until our own engine's design (below). The lived layer's updates run only at quiet moments with new
+cited memories (MEM §13.2), and a next-speaker decision only when pacing would admit a line (§9.7). Conversations follow
+the player. A character's calm line now costs a persona line (≈ $0.0002 instead of ≈ $0.00006), inside the existing
+worst case of $0.05 an hour.
 
-**Schedule risk** (K29). About 170 hours of authoring and capture, plus a playthrough to prepare saves, sit on v1.0's
-critical path. The owner's prerequisites are settled (O84, O46), so what remains ahead of the census is our own work:
-the roster's tools and our own engine. Mitigation: `roster-scan`, `roster-draft`, `roster-verify` and PL10–PL12 are
-built now that O46 is decided; batches by region and hub; drafts from our own notes, so the time goes to review; short
-silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC
-waits for v1.1; and, by the owner's decision (O54), the game's data (its ids and such) is researched and documented
-ahead of the tools.
+**Schedule risk** (K29). About 170 hours of authoring and capture, the captures made during a normal playthrough with no
+prepared saves (O58, as amended on 2026-11-16), sit on v1.0's critical path. The owner's prerequisites are settled (O84,
+O46), so what remains ahead of the census is our own work: the roster's tools and our own engine. Mitigation:
+`roster-scan`, `roster-draft`, `roster-verify` and PL10–PL12 are built now that O46 is decided; batches by region and
+hub; drafts from our own notes, so the time goes to review; short silent bios; captures from v0.4, once the census has
+run; a bio ships held rather than holding the release; the DLC waits for v1.1; and, by the owner's decision (O54), the
+game's data (its ids and such) is researched and documented ahead of the tools.
 
 **Deferred to our own engine's design** (O84; roadmap S8.1.b, S8.1.c). Min's engine arrived on 2026-11-15 as a closed
 DLL, and the owner chose an engine of our own, MIT, following SkyrimNet's proven logic and structure but not its
@@ -1264,8 +1264,10 @@ it is noted where it applies:
 - the basis and rendering of a keepsake drawn from another NPC's line (MEM §2.5, §4.3);
 - context assembly for a non-persona conversation: block caps, cache breakpoints and which knowledge entries a
   character reads; its lived layer renders in block 8, as a persona's does (MEM §13.6);
-- the prompt templates (the template engine's rules: §8.3; NPC §7.1);
-- the LLM client and job slots (§11; its decision calls: ARCH §11.8), and the TTS and STT seams (v1.5, §13);
+- the prompt templates themselves (the template engine is built: en-prompt on inja, with its rules in §8.3 and NPC
+  §7.1; roadmap S8.1.a and S8.1.j);
+- the TTS and STT seams (v1.5, §13); the LLM client, its job slots and the decision calls are built (§11; ARCH
+  §11.8; roadmap S8.1.a, S8.1.g and S8.1.j);
 - the bio's file format (its fields are O46's, above).
 
 Unchanged by it: Augur and its event model (the owner's own event engine), the GAL and identity by verified keys, the
@@ -2370,7 +2372,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | K26 | A binding names the wrong NPC (an overhaul swaps rows; one bar id serves several encounters) | M / M | Verified keys only, with name-id agreement; a bar binding holds only while its bar shows; a mismatch disables that binding; S1, S2 and the boss-bar self-tests; release lint |
 | K27 | The player's profile text leaks into a report, a log or a committed recording | L / M | No text in logs; the bundle carries counts only and scrubs an included recording; the canary scan from v0.6; lint rejects committed recordings holding profile or draft text |
 | K28 | The player's profiles look broken because most kinds wait for S3 | H / L | The editor names the reason; per-kind records are data and grow with content updates; the boss-fight rule cannot be waived, because lines over scripted ones are what O42 forbids |
-| K29 | The roster misses v1.0: about 170 h of authoring and capture, plus a playthrough to prepare saves, after the roster's tools and our own engine (O84; O46 decided 2026-11-16) | H / H | Tools and lints built now that O46 is decided; batches by region and hub; drafts from our own notes; short silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC in v1.1; the game's data researched and documented ahead of the tools (O54; §7.8) |
+| K29 | The roster misses v1.0: about 170 h of authoring and capture, the captures made during a normal playthrough (no prepared saves, O58 as amended), after the roster's tools and our own engine (O84; O46 decided 2026-11-16) | H / H | Tools and lints built now that O46 is decided; batches by region and hub; drafts from our own notes; short silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC in v1.1; the game's data researched and documented ahead of the tools (O54; §7.8) |
 | K30 | A stage-independent bio goes stale once the NPC's story changes it (a later form, a turn to hostility) | M / M | Every form binds the same id, and hostile or bar-holding forms speak combat lines only by rules (a) and (b); the bio holds first-meeting facts; `knows_when` for the land; a stage track once S6 verifies the NPC's block |
 | K31 | A generated bio carries a paraphrase of game text or a lore error | M / M | Drafts read only our own notes; a person edits every field; `kb-draft --check` (≥ 6 words); the second reader; PL10–PL12 |
 | K32 | Our own engine's design changes memory, prompts or context after work is done | M / M | Principles only until it is designed (O84; roadmap S8.1); the GAL, Augur, identity, spoiler layers and pacing do not depend on it; one bio structure (O46) for its context assembly to map |
