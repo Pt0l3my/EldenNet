@@ -2010,3 +2010,10 @@ S7.8.d, S7.12.e
   HTTP is reported by real Windows as a broken connection, not a TLS failure, so the message names no TLS. The fix
   (roadmap S8.1.h): the driver's own connect deadline, and a TLS failure told by how far the exchange got.
 - Not yet tried on Windows: cancelling a reply part-way (Ctrl+C).
+
+*Later (2026-11-16, run 2):* with a valid NanoGPT key the cloud reply went through, and the backup request (ARCH §11.1)
+worked against a real provider: DeepSeek V3.2's first text came at 2,854 ms, the backup on V4.1 Flash had started at 2.5
+s, lost the race and was cancelled, and NanoGPT's own log shows both cancelled requests as cancelled, billed only for
+what they made (2 tokens and none). The cloud decision missed its 1.5 s first-token deadline and the rules picked
+(`FirstTokenTimeout`), while the home network's server decided in 82 ms; so O88's presets measure their decisions model
+before they ship.

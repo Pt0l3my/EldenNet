@@ -1489,3 +1489,34 @@ which is where they are written. *What (a) gives up:* a renderer that the real b
 blueprint turned out to have no UI.
 
 **Follows from.** GraceUI's G13, G19 and G20; O84; WHY§95.
+
+## O88
+
+**Cloud by default, and a provider for every use** · *2026-11-16 · Decided by the owner*
+
+**Question.** The owner, after the first runs on Windows (WHY§108): "our default should be cloud, but we should also add
+providers for each model we use (dialogue, actions, vision, etc.)". The design ships one cloud preset (`cloud-budget`,
+on OpenRouter, ARCH §11.4), its wizard asks for "a cloud key, or a local probe" (DESIGN §11.5), and the built engine
+already lets a slot name its own provider (`provider` and `fallback_provider` in `[slots.*]`, ARCH §11.1); but a preset
+has one provider, and Settings shows none per slot. Left to ask: which cloud provider the default preset is for.
+**Options:** (a) **both, OpenRouter first**: a preset for OpenRouter and one for NanoGPT, the wizard picking by the key
+it is given and offering OpenRouter first; (b) OpenRouter only; (c) NanoGPT only.
+
+**Recommendation.** (a): players with either key start at once. *What it gives up:* two model lists to keep current
+(ER06 §6).
+
+**Decision.** Cloud is the default, and every use has a provider of its own. (1) Every slot (dialogue, call-outs
+`bark_live`, pools `bark_pool`, memory, profile drafts `draft`, decisions, the self-test) names its provider, model and
+fallback, a provider being an endpoint with its own key; a preset may name several providers; Settings › AI shows one
+row per slot, each "same as dialogue" until changed. (2) Slots reserved now for later uses, so the files and the page
+keep their shape when those arrive: `actions` (NPC actions, after v1, O31 to O42) and `vision` (a later feature that
+lets an NPC see the screen; none is designed yet). (3) Two cloud presets ship, OpenRouter's and NanoGPT's, as (a): the
+wizard leads with a cloud key, picks the preset by the key's provider and offers OpenRouter first; a local server stays
+one choice away. Each preset's models are measured before they ship: the decisions slot needs a first token within 1.5
+s, which DeepSeek V3.2 through NanoGPT missed (WHY§108).
+
+**Owner's words.** "our default should be cloud, but we should also add providers for each model we use (dialogue,
+actions, vision, etc.)"; then, asked which cloud provider the default should ship for: "Both, OpenRouter first
+(Recommended)".
+
+**Follows from.** O84; ARCH §11.1 and §11.4; DESIGN §11.5; WHY§108. Folded by roadmap S8.1.n.

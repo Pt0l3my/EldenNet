@@ -2583,3 +2583,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O85](../DECISIONS.md#o85) | A follower system? | (a) later, after v1.0, on the companion layer every bio carries | Decided 2026-11-16 |
 | [O86](../DECISIONS.md#o86) | How strict is spoiler prevention? | (a) grounding only: the playthrough state is the one mechanism; the guards dropped; test questions check the model's own knowledge | Decided 2026-11-15 |
 | [O87](../DECISIONS.md#o87) | How is the interactive showcase of the menu built (G13 asked again)? | (a) from page data: page descriptions with invented sample data, a small renderer, tested in a headless browser, published privately | Decided 2026-11-16 |
+| [O88](../DECISIONS.md#o88) | Which cloud provider is the default, and do uses get providers of their own? | Cloud by default, a provider for every slot, `actions` and `vision` reserved; presets for OpenRouter and NanoGPT, OpenRouter first | Decided 2026-11-16 |

@@ -517,6 +517,9 @@ into both designs on 2026-11-15 (c); G18 to G20 were decided on 2026-11-16 and f
     are EldenNet's PAGES under their numbers, with pointers left in GraceUI; GraceUI keeps the frame, search, the
     settings row, PV3, PV6, PV7 and the map (WHY§107); 1.1 opens the framework (G18); GraceUI carries nothing
     SkyrimNet-derived (G19).
+- e Where GraceUI's own settings live now that EldenNet's pages are EldenNet's (its menu key, scale and browser view, homed on EldenNet's pages today), and PV3's sentence on paired devices brought to D84
+  - needs: d
+  - refs: G20, WHY§107, GraceUI:D79, GraceUI:D84, PAGES§4.5
 
 ### S7.9 The map (GraceUI proposal 0002)
 
@@ -744,6 +747,12 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - l The handle's give-way test failed twice in about twenty runs of the suite under heavy load, and in none of about 1,000 since: find the race, from what the test now reports when it fails
   - needs: j
   - refs: ARCH§11.3, WHY§106
+- m Fold WinHTTP's two findings from the first Windows run: the driver's own connect deadline, and a TLS failure told by how far the exchange got [active]
+  - needs: h
+  - refs: ARCH§11.1, WHY§108
+- n A provider for every use, cloud by default (O88): presets with several providers, a slot per use with `actions` and `vision` reserved, OpenRouter's and NanoGPT's presets with measured models, the wizard leading with a cloud key, and Settings › AI with a row per slot [next]
+  - needs: m
+  - refs: O88, ARCH§11.1, ARCH§11.4, DESIGN§11.5, PAGES§4.5, WHY§108
 
 ## S9 The roster pipeline [planned]
 
