@@ -170,6 +170,30 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 145 | 2026-11-16 | ThreadSanitizer's runtime defines the global allocation functions: a counting operator new cannot run under it | FACT | #graceui #build #test |
 | 146 | 2026-11-16 | The harness's panels scenario under Wine: what it reads back, its figures, and a frame-cost check that fails under another build's load | METHOD | #graceui #wine #perf |
 | 147 | 2026-11-16 | What S10.4.c leaves to S4 and to the bridge protocol: a panel holder's events, the backend's buffer growth in the game, a mod's untrusted font | METHOD | #graceui #spike #input |
+| 148 | 2026-11-16 | Our x86-64 length decoder against LLVM: the choices where processors and LLVM differ | FACT | #engine #gal |
+| 149 | 2026-11-16 | The derivation round's tool: leads, the numbers-only writer, and how each fact is found offline | METHOD | #engine #gal #datapiler #privacy |
+| 150 | 2026-11-16 | probe-exe on fakegame.exe: what R0 recovers, by toolchain | FACT | #engine #gal |
+| 151 | 2026-11-16 | toml++ built two ways in one program: two vtables of one name | FACT | #engine #build |
+| 152 | 2026-11-16 | World-state claims and an input grant: read where the providers write them, fenced on both sides | DECIDED | #graceui #input #overlay |
+| 153 | 2026-11-16 | The window filter follows the bound swap chain's window; a console's window is never the game's | DECIDED | #graceui #input |
+| 154 | 2026-11-16 | The shared atlas has a room, and is baked on GraceUI's own thread, which stays for the session | DECIDED | #graceui #overlay #perf |
+| 155 | 2026-11-16 | Dear ImGui 1.93's atlas: an 8192-pixel limit that asserts, a context made on one thread and used on another, ClearTexData for a legacy atlas | FACT | #graceui #overlay |
+| 156 | 2026-11-16 | GraceUI lets go of a removed or replaced device; the render path stays off until a later version rebuilds | DECIDED | #graceui #overlay |
+| 157 | 2026-11-16 | The review's smaller fixes, and what they leave as it is | DECIDED | #graceui #input #abi |
+| 158 | 2026-11-16 | Under Wine a Unicode folder needs a UTF-8 locale; the fuzzers' coverage needs the rules instrumented | METHOD | #graceui #wine #test |
+| 159 | 2026-11-16 | en-gal in game: the seam, our own labels, and what the design left open | METHOD | #engine #gal |
+| 160 | 2026-11-16 | NativeSys: guard pages are never touched, and the stacks are found by them | DECIDED | #engine #gal |
+| 161 | 2026-11-16 | Wine's ReadProcessMemory on its own process ignores page protection and costs about 0.1 ms a copy | FACT | #engine #gal #wine |
+| 162 | 2026-11-16 | The GAL in the fake game under Wine: what the test DLL finds, and what it costs | FACT | #engine #gal #wine |
+| 163 | 2026-11-16 | One TOML pre-check for the engine, and a quote inside a bare word | DECIDED | #engine #gal #llm |
+| 164 | 2026-11-16 | The layout's schema grows past ARCH §6.3's sketch: registers as data, our own labels for the classes, the game's names as values | DECIDED | #engine #gal |
+| 165 | 2026-11-16 | The SysLayer is narrower than ARCH §6.4's sketch, so that FakeSys tests the code that runs in game | DECIDED | #engine #gal |
+| 166 | 2026-11-16 | The real game's layout is a fresh file; some of ARCH §6.1's fields are placed differently for now | DECIDED | #engine #gal |
+| 167 | 2026-11-16 | The task goes Dormant also when its own reading says the session is not solo | DECIDED | #engine #gal |
+| 168 | 2026-11-16 | The render feed keeps the last walk's addresses between snapshots, checked again at every read | DECIDED | #engine #gal #perf |
+| 169 | 2026-11-16 | What part 4 leaves unbuilt, and why | DECIDED | #engine #gal |
+| 170 | 2026-11-16 | The probe's slot search faults on purpose on the game thread: R1 without a crash reporter, or with the rpm copy | METHOD | #engine #gal |
+| 171 | 2026-11-16 | R0 refused the protected game's executable: the PE reader was stricter than the loader on sections | FACT | #engine #gal |
 
 ## Entries
 
@@ -2781,3 +2805,394 @@ invariant 10, EldenNet ARCH (T3)
   faces).
 - **Trust**: stb_truetype, which Dear ImGui bakes with, is not hardened against hostile fonts; GraceUI checks a mod's
   file's table directory and ranges, and a native mod can crash the game in other ways anyway.
+
+### 148. Our x86-64 length decoder against LLVM: the choices where processors and LLVM differ
+
+`2026-11-16` · FACT · `#engine #gal` · refs: ARCH§6.2, O48, O89
+
+- Source: en-gal's decoder (`x86.hpp`) against llvm-objdump 18 over every instruction of our own binaries, and over
+  20,000 seeded random byte strings each after a symbol of its own (`tests/x86_objdump.py`, `en_gal_x86_check`).
+- **Our binaries: no disagreement.** Every instruction of the build's own `eldennet-engine` and `en_gal_tests`:
+  1,246,712 (GCC, -O0), 1,052,573 (Clang, -O0); and of the Windows binaries (`fakegame.exe`, `eldennet-engine.exe`
+  and `en_gal_tests.exe` from clang-cl, `fakegame.exe`, `eldennet-engine.exe` and `vehprobe.dll` from MinGW):
+  3,069,635, all agreeing (26 bytes LLVM cannot decode, refused alike).
+- **Where LLVM 18 chooses** (we follow it, since compilers never emit these forms): a 66 prefix shortens JMP's
+  (E9), Jcc's (0F 8x) and XBEGIN's displacement to 16 bits but not CALL's (E8); a REX followed by another prefix is
+  printed alone and ignored; a REX before VEX is refused. It refuses 0F 20 to 0F 23 with ModRM's mod other than 11
+  (we follow the manuals: mod is ignored there, no displacement).
+- **Known kinds in random bytes** (counted apart, not findings): opcodes a map leaves undefined, which LLVM refuses
+  and we size by the map's shape; a REX before another prefix, which LLVM decodes in ways of its own (it dropped a 66
+  after one); APX's REX2 (D5) and EVEX map 4, which LLVM 18 already decodes and we refuse. Of 20,000 random strings
+  (seed 1, weighted to prefixes, escapes, VEX, EVEX and XOP): 9,342 agree, 3,464 refused alike, 5,097 undefined
+  opcodes, 2,077 stray REX, 20 APX, no other disagreement.
+- **llvm-objdump's listing:** lone prefixes (`lock`, `data16`, `rex.W`) on lines of their own, to be joined to the next
+  instruction; a vector compare's predicate or a carry-less multiply's selector folded into the mnemonic (`cmpltps`);
+  FMA4's and the VEX blends' fourth register printed from the immediate's high nibble; no RIP target where its comment
+  says something else or the target lies below zero. The checker reads all four.
+
+### 149. The derivation round's tool: leads, the numbers-only writer, and how each fact is found offline
+
+`2026-11-16` · METHOD · `#engine #gal #datapiler #privacy` · refs: O89, O48, O73, O74, O75, ARCH§6.2, ARCH§6.3, ARCH§6.10, DataPiler DP36
+
+- **No name in the code.** What to look for comes from a leads file (names and shapes, never bytes); the code knows
+  none, the tests use invented programs, and only the leads' labels (`[a-z][a-z0-9_]*`) reach derive.json, never a
+  name read from the executable.
+- **Numbers only by construction.** derive.json is written through a writer with a closed vocabulary (whole numbers,
+  booleans, fixed words, labels, patterns of at most 64 bytes in canonical form) and checked by `lint --report` before
+  it is written. The lint reads tokens, not a parsed document: nlohmann/json keeps only the last of a repeated key, so a
+  string could hide behind a later number. The report fuzzer found the writer itself writing a key twice, which the
+  lint refuses; the writer now refuses it too.
+- **The FD4 idiom** is cut from the sites that load a path ending with the suffix: before each load, the closest
+  `mov reg,[rip+x]; test reg,reg; jnz` whose jump passes the load; the largest group of sites with the same head; their
+  shared bytes, a displacement or immediate that differs anywhere wildcarded whole, and the jump kept where its target
+  lies within the pattern. On the fake game it equals the fake game's own idiom, byte for byte. The name layout is the
+  class-object offset that points at an identifier in .rdata for the most of the accepted sites.
+- **register_task** from the direct calls after a load of the hub's static, a small register model following rcx, rdx,
+  r8 and r9 back to the start of the block: the instance, one 64-bit and one 32-bit argument; candidates by callee, the
+  shaped ones first.
+- **The group's index** from a table of pointers to names. The fake game's two name tables lie end to end (8 and 10
+  entries): the run alone gave 13; cut where the code addresses a table (`lea reg,[rip+table]`) it gives 5.
+- **Patterns** cover whole instructions at entry + 5 or later in a primary function, at most 64 bytes, with RIP-relative
+  and other 32-bit displacements, outside branch targets, relocated bytes and immediates beyond a signed byte
+  wildcarded; unique in .text; 20 bytes with 12 fixed preferred, then the smaller function (a first version kept a
+  32-bit stack offset fixed and chose a 71 KB function; now the fake game's four AOB statics are each cut in the fake
+  game's own small function); then checked by part 2's scan as patterns.toml would hold them.
+- **What only R1 can find:** the four AOB statics' slots (their instances exist only at run time); R0 gives their
+  classes' vtables for R1's search, and `--static label=rva` cuts their patterns afterwards. The task's run slot (R0's
+  candidate: the one slot every task class fills with its own function) and object size; the names' layout against
+  the instances' classes; the group's name at the index.
+
+### 150. probe-exe on fakegame.exe: what R0 recovers, by toolchain
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, ARCH§6.2, WHY§123
+
+- clang-cl (Debug): the fingerprint; the FD4 idiom equal to `--describe`'s, name layout +0x18 ASCII, eleven
+  singletons with their statics, class objects, getter and site counts; Duplicata ambiguous, Strayling refused (path),
+  Rockbound refused (static in .rdata); register_task at its entry with rdx, rcx, r8d and its four call sites, a
+  20-byte pattern at entry + 13; the stand-in group's index 5 of 10; the actor set (five primary vtables, one
+  subobject), the player set, the four task classes with three slots and run slot 1, the three AOB statics' classes'
+  vtables. Given the slots: each static's pattern in its own AOB function (entry + 5, + 5, + 8, + 21).
+- MinGW: the same but RTTI (GCC's own RTTI: no locators, as `--describe` says).
+- The tool reads only the file: 0.27 s on the clang-cl fakegame.exe (229,000 instructions); a sweep decodes about
+  3.5 million instructions a second here (1.05 million in 0.3 s on MinGW's 3.5 MB of code), in about twice the
+  file's size of memory.
+
+### 151. toml++ built two ways in one program: two vtables of one name
+
+`2026-11-16` · FACT · `#engine #build` · refs: ARCH§2.4, WHY§121, WHY§122
+
+- Source: `eldennet-engine probe-exe`, the first program to link en-gal (toml++ with `TOML_EXCEPTIONS=0`, part 2) and
+  en-llm (toml++ with exceptions), crashed reading its leads in GCC's build (a memcpy from a bad pointer inside
+  `toml::parse`); Clang's build ran.
+- **Cause:** toml++ 3.4.0 puts its parse functions and its error type in ABI namespaces by the setting (`ex`, `noex`),
+  but not its internal `impl::utf8_reader_interface`, which has a virtual `error()` only without exceptions: two
+  vtables of one name, merged by the linker, so the reader called the wrong slot. Part 2's note ("toml++ keeps either
+  setting in an ABI namespace of its own, so en-llm links beside it") holds for the functions, not for this class.
+- **Fix:** one setting for every module (`en_third_party` defines `TOML_EXCEPTIONS=0`); en-llm's one parse reads the
+  `parse_result` and throws its own `ConfigError` as before. The DLL, which links both, is covered by the same
+  definition. All tests pass in every build after it.
+
+### 152. World-state claims and an input grant: read where the providers write them, fenced on both sides
+
+`2026-11-16` · DECIDED · `#graceui` `#input` `#overlay` · refs: GraceUI:D145, GraceUI:D129, GraceUI:D143, GraceUI:invariant 9
+
+- **The problem** (the review's M1): the input half kept copies of the providers' combined claims, written after the
+  providers' lock was released, so the last provider to apply its copy won, not the last to report: danger could be
+  lost (a holder granted in combat) or stick (every request refused). And a request read the claims, then granted by
+  compare-and-swap, while a provider stored danger, then looked for a holder to close: both can miss each other even
+  with sequentially consistent operations, since it is a check-then-act, not only a reordering.
+- **Choice**: no copies; a request reads the combined word, grants, then reads again behind a full fence and ends the
+  new holder if danger or loading (or input or the overlay off) is found; every writer fences, then reads the newest
+  conditions and ends what they forbid (`Capture::settle`). With a fence on each side, at least one sees the other.
+- **Shown**: a unit test that claims danger inside the request's first read (the interleaving made deterministic), and
+  2,000 two-thread rounds under ThreadSanitizer; in the harness, 3,000 claims from two providers' threads while a third
+  asks for input, ending on danger: no holder left.
+
+### 153. The window filter follows the bound swap chain's window; a console's window is never the game's
+
+`2026-11-16` · DECIDED · `#graceui` `#input` · refs: GraceUI:D146, GraceUI:D120, GraceUI:D125
+
+- **The problem** (M2): the init thread filters the largest visible window of the process at its first look, before
+  the game's window may exist; a mod loader's console (conhost names the console's client as the window's owning
+  process) or a splash window could be taken, leaving input off for the session or the cursor clipped elsewhere.
+- **Choice**: console windows are skipped; at each bind, if the swap chain's top-level window is not the one filtered,
+  GraceUI's own thread filters it. One subclass per window given (four at most), only the newest active; an earlier one
+  passes everything on and is never removed (removing a subclass under another mod's is unsafe).
+- **Shown**: the harness's decoy-window scenario: a larger window of its own made first is filtered first, then the
+  filter moves; F5 posted to the decoy reaches its procedure, F5 posted to the game's does not.
+
+### 154. The shared atlas has a room, and is baked on GraceUI's own thread, which stays for the session
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` `#perf` · refs: GraceUI:D147, GraceUI:D148, GraceUI:D117, GraceUI:D139
+
+- **The problem** (M3): face counts alone let mods ask for more than Dear ImGui's 8192-pixel atlas; the review's probe
+  saw four 128 px faces of a Latin font's whole BMP assert ("Out of texture memory"), turning the overlay off for every
+  mod, and two take 544 ms on the present thread, with 256 MiB of pixels kept for the session.
+- **Choice**: each face's area is estimated when it is registered (the glyphs its font's character map gives its
+  ranges, each a box of (2 × size + 2) by (size + 2)), within a room of 8192 × 4096 estimated pixels, the mods other than
+  EldenNet half of it (EST); past it, `full`. The bake runs on the init thread, which now stays asleep on an event for
+  the session; should Dear ImGui still run out of room, it bakes again with half the mods' faces, then none of theirs.
+  It also fills the atlas's upload buffer and frees the CPU copy; the present thread only records the copy.
+- **Rejected**: an Alpha8 atlas (the DX12 backend's shader would sample it as red, and D107 forbids changing it); a
+  thread made for each job; baking on the present thread within a smaller room (a CJK face would not fit).
+- **For S4**: the bake's time and the atlas's size with EldenNet's real faces; a CJK face of the whole unified block at
+  24 px is about 27 million estimated pixels, so EldenNet registers only the ranges it needs.
+
+### 155. Dear ImGui 1.93's atlas: an 8192-pixel limit that asserts, a context made on one thread and used on another, ClearTexData for a legacy atlas
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D148, GraceUI:D117
+
+- **Seen** in the pinned source: `TexMaxWidth` and `TexMaxHeight` default to 8192; when the packer has grown to them
+  and tried three times, the glyph loader asserts. In static mode every code point of every range is preloaded, but a
+  code point the font maps to glyph 0 is not packed, so a face's cost is its mapped code points, not its ranges.
+- **Seen**: `GImGui` is a plain global in GraceUI's configuration, so a context made on one thread may be used on
+  another once handed over with release and acquire; `CreateContext` keeps an earlier current context current, so a
+  second one needs `SetCurrentContext`. A context whose bake asserted is left as it is (only its atlas's pixels freed):
+  Dear ImGui's state after a failed assertion is not trusted to be torn down.
+- **Seen**: `ImFontAtlas::ClearTexData` is Dear ImGui's own call to free a legacy atlas's CPU copy once a renderer
+  without the texture path has uploaded it; nothing reads the pixels afterwards in GraceUI's use.
+
+### 156. GraceUI lets go of a removed or replaced device; the render path stays off until a later version rebuilds
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` · refs: GraceUI:D149, GraceUI:D150
+
+- **The problem** (L3): Direct3D 12 hands out one device per adapter while a reference lives, so GraceUI's would give a
+  game recovering from a removal the removed device again, and keep a replaced device's memory for the session.
+- **Choice**: on removal (checked each frame) or a bind on another device, the render path turns off, input with it,
+  and everything GraceUI made on the old device, and the device itself, is released at once for a removed device or
+  once its last frame's fence has passed; the queues held for finding the present queue are let go too.
+- **Shown**: the harness's device-change scenario under vkd3d: the old device's references 24 before GraceUI, 58 while
+  it drew, 24 once the game moved to a new device.
+- **Left**: rebuilding on the new device; the mods' texture pixels are freed after their upload, so it would need
+  them registered again, or 64 MiB kept for the session.
+
+### 157. The review's smaller fixes, and what they leave as it is
+
+`2026-11-16` · DECIDED · `#graceui` `#input` `#abi` · refs: GraceUI:D150 to D153
+
+- **Fixed**: hooks live after a failed enable pass everything through (L1); the log reaches the debugger from GraceUI's
+  own thread, never from the thread that wrote it (L2); the render path off turns input off, F5 included (L4); the
+  watchdog hears only frames drawn or with nothing to draw (L5); an answer's size is read once and a command stride
+  bounded at 256 bytes (L6); the fourth way to the present queue takes its reference inside the queue's own call (L7);
+  the render targets' modules are pinned (L8); a request during the first waits 2 s at most (L9); the cursor's
+  confinement is undone by the granting thread when the holder ended meanwhile (L10); nothing goes to a new present
+  queue until the old has drained (L11); a long copy name keeps its end (L12); UTF-8 as an ANSI code page is joined
+  (L13); a holder's panel hidden or removed on another thread ends it, and a leaving mod's slot is not reused before its
+  clean-up (L14).
+- **Left as it is**: a holder closed and another granted within the same microseconds may leave the first's saved clip
+  for the second (Windows drops a clip on a foreground change); an HDR swap chain's colour space, which GraceUI cannot
+  read back, for S4.
+
+### 158. Under Wine a Unicode folder needs a UTF-8 locale; the fuzzers' coverage needs the rules instrumented
+
+`2026-11-16` · METHOD · `#graceui` `#wine` `#test` · refs: GraceUI:BUILD.md
+
+- **Seen**: under the C locale, Wine 9.0 cannot make a folder named in hiragana (`CreateDirectoryW` fails, then
+  `CopyFileW` with error 3); with `LC_ALL=C.UTF-8` it can, and every other scenario passes the same. A Linux file
+  system takes 255 bytes a name, so a name longer than a notice's room in UTF-8 is made of two nested folders.
+- **Seen**: the fuzz targets linked the rules' library without the fuzzer's coverage, so libFuzzer was guided only by
+  the target's own file (coverage 118 for the font target); with `-fsanitize=fuzzer-no-link` on the library, 262.
+- **Figures**: after the fixes both builds passed all 95 harness checks across sixteen scenarios; one MinGW-w64 run
+  failed "notice allocations" alone (p99 1.33 ms, load average about 3 on four cores), and three reruns passed.
+
+### 159. en-gal in game: the seam, our own labels, and what the design left open
+
+`2026-11-16` · METHOD · `#engine #gal` · refs: ARCH§6.1, ARCH§6.3, ARCH§6.4, ARCH§6.6, ARCH§6.7, ARCH§7.3, O48, WHY§123, WHY§164, WHY§165, WHY§168
+
+- **Portable above the seam.** `SysLayer` keeps only what needs Windows (the module and a guarded image view, the copy
+  primitive, the stack table, the clock, the getter fallback, the one registration); discovery, `GuardedReader`'s
+  rules, the groups and the task's cadence are portable and run on Linux over `FakeSys`, a process of byte regions.
+  ARCH §6.4's `singleton()`, `rtti_vtables()` and `param_table()` became en-gal code over that seam (WHY§165).
+- **Our labels, the game's names as data.** `roles.hpp` names 16 items, 35 classes and 97 fields in our words; the
+  layout keys its classes by those labels, with the game's RTTI and singleton names as values. A field is checked by
+  kind, not exact type. `register_abi` is a table of registers (the fake game's own order: rcx task, rdx instance,
+  r8d group; the FakeWorld's: r8, rcx, rdx; WHY§164).
+- **What a group needs** is its items resolved, its fields present with their kinds, its enum tables naming only
+  values the snapshot knows, and its classes' RTTI found; otherwise it is off from the start (NotDiscovered), and a
+  structural one stops registration.
+- **Choices**: ARCH §6.6's three-tick rule counts per item, once a tick (an item's object is copied once a tick and
+  shared by the groups that read it); a list entry that faults stops the walk (a hard fault), one of another class is
+  dropped (soft); a spent budget is never a group's fault; phase A waits up to 8 ticks for a null instance, then fails
+  it; phase B runs on the first full snapshot of a playthrough, which also sends `PlaythroughReady`; flag frames ride
+  on full snapshots only; the render feed re-validates the last walk's addresses per frame (WHY§168).
+
+### 160. NativeSys: guard pages are never touched, and the stacks are found by them
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: WHY§111, ARCH§6.4, ARCH§6.5, R2, R14
+
+- The image view reads only ranges VirtualQuery reports committed, readable and without PAGE_GUARD, so discovery never
+  lifts a guard in the game's image; a refused range falls back to page-by-page reads (part 2's scan).
+- The stack table is filled by walking the process's regions with VirtualQuery: every allocation that holds a guard
+  page is added whole (a thread's stack: reserve, guard, committed top), and in an image only its guard pages. Each
+  thread adds its own stack (GetCurrentThreadStackLimits) as it asks: T1 at construction, the game thread at its first
+  tick. A thread made after the walk is covered only once `refresh_stacks` runs again. No TEB is read.
+- The task object: one block (vtable pointer, `object_size` zeroed bytes, our body's pointer) and a fake vtable of
+  `vtable_slots` entries, each a distinct guarded no-op counting its calls (64 template instances), made read-only
+  once filled; the run slot is `en_task_run`, which runs the body only when `self` is our block, and returns 0 in rax.
+  Never freed (R14). `set_registered` comes before the call: the getter is refused from then on, and nothing retries.
+
+### 161. Wine's ReadProcessMemory on its own process ignores page protection and costs about 0.1 ms a copy
+
+`2026-11-16` · FACT · `#engine #gal #wine` · refs: ARCH§6.5, S0-D, WHY§111
+
+- Measured under Wine 9.0 (`test_native_sys.cpp`, the `gal-rpm` case): ReadProcessMemory(GetCurrentProcess(), ...)
+  answers success, with zeros, for a page reserved with PAGE_NOACCESS, a released region and a guard page, whose guard
+  stays (it does not raise the guard page fault). LIKELY the mechanism: the Wine server reads the process's memory
+  file (/proc/<pid>/mem), which ptrace's rules let past page protection.
+- Its cost there is about 0.1 ms a copy (a snapshot of about 150 copies took about 7 to 15 ms against 0.18 ms with
+  the SEH copy), so the task throttled to 2 Hz (R10), as designed; Windows' cost (ARCH §6.5's "about 1 µs") is S0-D's
+  to measure. The SEH copy under Wine behaves as Windows' (WHY§111).
+- So under Wine the `rpm` setting cannot show a fault on a no-access page; the test injects `Injected` faults instead.
+
+### 162. The GAL in the fake game under Wine: what the test DLL finds, and what it costs
+
+`2026-11-16` · FACT · `#engine #gal #wine` · refs: O89, ARCH§3.2, ARCH§6.2, ARCH§7.2, WHY§123
+
+- `galtest.dll` in `fakegame.exe` (clang-cl, under Wine 9.0 on Xvfb), from gal/ written from `probe-exe --derive`
+  with R1's slots: one discovery pass (113 ms in the Debug build, 6.9 ms in the Release one with ThinLTO; the fake
+  game's image is about 2 MB, the game's about 80) resolves all 16 items (11 singletons by their class objects' names,
+  no getter call; the 4 AOB statics and register_task by derived patterns) and every group; one registration in
+  `Fg_ActorSettle` (index 5) from T1; phase A at the title; `DataReady`; then 4 Hz by time (about one snapshot per 15
+  frames at 60 FPS), a flag frame every fourth (flags 100, 7005 and 4321010 set, group 999 missing), the asked text
+  (two names, one empty) and row; the slot counts: the run slot every frame, the hub's attach once, its query every
+  64th frame; and no allocation or free on the game thread after the first three snapshots.
+- The task's cost there, with 6 characters: Debug p50 27 µs an invocation, p99 159 µs, a build's p99 about 170 µs;
+  Release p50 7 µs, p99 55 µs, a build's p99 90 µs (about 120 copies a snapshot). ARCH §7.2's budgets (mean 0.15 ms,
+  p99 0.5 ms at 32 characters) are S0-B's to measure on the real game.
+- The stack table under Wine holds 2 ranges at T1 (its own stack, and one allocation with a guard page; Wine's thread
+  stacks show no PAGE_GUARD to VirtualQuery), then the game thread's own at its first tick: the per-thread
+  `note_own_stack` is what covers the threads that read, and S0-D should count what the walk finds on Windows.
+- The probe's static-slot search found each AOB static's slot (the slots R1 would give `probe-exe --static`) among 110
+  candidates, with 123 faults caught and up to 3 candidates refused as stacks on the way (WHY§170).
+- The Release build (ThinLTO) passes the same gal cases: the calls under SEH in register.cpp keep their guard.
+- Moving statics (tombstones or released), loading screens, the session going online, injected faults in camera (L3)
+  and world (inert, then no copy), the ReadProcessMemory copy, and a group table shifted since the derivation (the
+  first tick finds `Fg_ActorMove` at index 5 and the layout's name at 6, and goes inert) each behave as ARCH §3.2 and
+  §6.6 to §6.8 say.
+
+### 163. One TOML pre-check for the engine, and a quote inside a bare word
+
+`2026-11-16` · DECIDED · `#engine #gal #llm` · refs: WHY§122, ARCH§11.5, ARCH§12.1
+
+- en-gal's pre-check moved to en-proto (`toml_check.hpp`), which en-gal and en-llm both include, with two sets of rules:
+  gal/'s (ASCII outside comments, as before) and the player's, for providers.toml, models.toml, settings.toml and
+  secrets.toml: a letter outside ASCII may also stand inside a quoted string, where it truly opens one. A refusal names
+  the file, the line and a fixed problem worded for the player; it never quotes the text (a key may be there).
+- New in both: the check follows TOML's contexts far enough to know where toml++ scans a bare value, and refuses a quote
+  inside one (WHY§122's fourth finding reached the trap that way; with the player's rules, that is what lets non-ASCII
+  stand in real strings), control characters, and anything after a value but a terminator or a comment.
+- `en_fuzz_config` drives `parse_config` with four texts. With the first version of the player's rules it found two
+  ways in within minutes, both reaching toml++'s unreachable branch (`is_non_ascii_horizontal_whitespace`): `= 2`,
+  control characters, then a quote and U+FD7F; and `= 4=["`, then `é`. toml++ scans a bare value through anything up to
+  a space, a tab, `]`, `}`, `,`, `#` or a line break, so `=`, `[`, control characters and quotes are all inside it, and
+  what looked like a string opened inside a bare value. The check now follows TOML's contexts (a key, a header, a
+  value's start, a bare value, what follows a value, arrays and inline tables, nested at most 32 deep), refuses control
+  characters (TOML allows none but the tab), a quote inside a bare value, and anything after a value but a terminator
+  or a comment. Both inputs are regression seeds (`fuzz/config/corpus/finding-*`). Then en_fuzz_config ran 5.4 million
+  inputs in 10 minutes and en_fuzz_galtoml 3.6 million in 5 minutes, with no finding. WHY§122's question (keep toml++
+  behind the check, or a reader of our own for the subset) stands, and this round leans toward (b) for the player's
+  files: every fuzzing round so far has found the next way in.
+
+### 164. The layout's schema grows past ARCH §6.3's sketch: registers as data, our own labels for the classes, the game's names as values
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: ARCH§6.2, ARCH§6.3, ARCH§6.9, WHY§123, WHY§149, WHY§159, O48
+
+- **`register_abi` is a table of registers**, `{ task = "rcx", instance = "rdx", group = "r8" }` (three different ones
+  of rcx, rdx, r8 and r9), not ARCH's `"v1"`. Why: WHY§123 found that the ABI must be data, and the derivation reports
+  registers, so a variant name in code would need a table of the game's argument orders in code.
+- **The game's names reach the code only through the layout.** A class may name the FD4 singleton behind it
+  (`singleton = "Name"`); `[fmg]` takes `npc_names` and `place_names`, the tables in search order (ARCH §6.9's DLC
+  order as data); patterns.toml's `fd4_idiom` takes `path_suffix` (ARCH §6.2 step 2's suffix as data). Why: as for
+  the derivation (WHY§149), the code holds no name of the game's.
+- **The classes the code reads are our own labels** (`characters`, `save_data`, `vitals`, ...; roles.hpp), not the
+  game's class names, which appear only as `rtti` and `singleton` values: ARCH §6.3's class table keyed by a game class
+  becomes `[class.character]` with `rtti = "<the class>"`. Fields are checked by kind (any whole-number width, a
+  pointer, a bit, ...), so the layout, not the code, says what the game holds. The patterns' ids are the items' labels:
+  `register_task`, `module_handle`, `save_data`, `game_state`, `field_area`, `fd4_idiom`.
+- **Next**: fold into ARCH §6.3.
+
+### 165. The SysLayer is narrower than ARCH §6.4's sketch, so that FakeSys tests the code that runs in game
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: ARCH§6.4, WHY§159, WHY§160
+
+- ARCH §6.4's `singleton()`, `rtti_vtables()` and `param_table()` are not the seam's: discovery and the readers are
+  portable en-gal code over the image and the copy primitive the seam gives (WHY§159 lists what the seam keeps).
+- **Why**: `FakeSys` then tests the very code that runs in game, in every build; only what needs Windows is left to
+  `NativeSys` (WHY§160).
+- **Next**: fold into ARCH §6.4.
+
+### 166. The real game's layout is a fresh file; some of ARCH §6.1's fields are placed differently for now
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: ARCH§6.1, ARCH§6.3, O89, WHY§164
+
+- The real game's layout is a fresh file; the fake game's (`tests/fakegame/gal-layout.toml.in`) shows every class and
+  field the groups read. The task's `object_size`, the `[selftest]` ids and the `[param.*]` rows are R1's.
+- Placed differently for now, each a choice R1 and S1 confirm: `ride_state` is read from the player's class (ARCH puts
+  it in a ride module); the clock is two fields, `hour` and `minute` (ARCH: one packed u64, whose packing is no fact we
+  hold); `legacy`, `overworld` and the region are left to the core, from the block (regions.toml); the bearing uses the
+  view matrix's third row as forward (S1 confirms the convention); `player_set_len` counts non-null entries (the
+  chr_type filter waits for S1's values).
+
+### 167. The task goes Dormant also when its own reading says the session is not solo
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: ARCH§6.8, ARCH§3.2
+
+- ARCH §6.8 says Dormant while the gate is false. The task cannot see the core's gate, so it also goes Dormant,
+  reading only the session and the lifecycle, whenever its own reading says the session is not solo: a lobby other
+  than None, a role other than Host, or not the player's own world.
+- The core's gate stays the authority.
+
+### 168. The render feed keeps the last walk's addresses between snapshots, checked again at every read
+
+`2026-11-16` · DECIDED · `#engine #gal #perf` · refs: ARCH§6.6, ARCH§7.2, ARCH§7.4, R5, WHY§159
+
+- The feed re-checks, every frame, the addresses the last snapshot's walk found (the character's vtable in the set and
+  its handle unchanged) instead of walking the list every frame. Why: a walk every frame would not fit ARCH §7.2's
+  0.03 ms for the feed.
+- R5 says no instance pointer is kept across ticks; this keeps one between snapshots, for the feed alone, re-validated
+  at every read, and a fault there is no group's fault.
+- **Next**: a decision for the design, in ARCH §6.6 or §7.4.
+
+### 169. What part 4 leaves unbuilt, and why
+
+`2026-11-16` · DECIDED · `#engine #gal` · refs: ARCH§6.7, ARCH§6.9, ARCH§12.1, R1, R2, R3, R4, R14
+
+- ARCH §6.9's text cache: at most 16 look-ups a tick do not need it yet.
+- The C14 atomics in the session: they are the DLL's (part 6); the backend leaves them false.
+- The stall detector: part 6's T1, or the launcher.
+- The `boss_fight_active` cross-check beyond reading the flag.
+- ARCH §6.7's "every npc_param_id resolves" and the flags' catalogue check in phase B: both need the core's catalogue
+  or a large tick; the per-entry row look-ups are available through ResolveParams.
+- The CI greps (R1's, R2's, R3's, R4's and R14's) are still to be written; the test functions of `test_native_sys.cpp`
+  and the fake game's own callbacks would need the tests' folders left out.
+
+### 170. The probe's slot search faults on purpose on the game thread: R1 without a crash reporter, or with the rpm copy
+
+`2026-11-16` · METHOD · `#engine #gal` · refs: O89, S0-D, WHY§161, WHY§162
+
+- **Seen**: the search reads arbitrary candidates (every 8-aligned value of the writable data sections that points
+  outside the image) on the game thread under SEH: in the fake game 110 candidates, 123 copy faults caught and 3
+  refused as stacks over three searches (WHY§162).
+- **What follows**: that is a probe build's business (R1, at the title, O89), never a release's; but under a crash
+  reporter's vectored handler (S0-D) those faults are seen first, so R1 should run without one, or with the `rpm` copy
+  (WHY§161).
+
+### 171. R0 refused the protected game's executable: the PE reader was stricter than the loader on sections
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, WHY§121
+
+- **Seen**: probe-exe on the owner's executable (about 80 MB, protected) stopped with exit code 3, "a section is out
+  of order, overlaps another, or runs past the image or file (at 0x400)". Behind it, besides the loader's own rules,
+  the reader refused a section whose raw data ran past the end of the file, and one whose span, rounded to the section
+  alignment, passed SizeOfImage unrounded. With the usual NT-header offsets, 0x400 is the entry of a section of index 7
+  or more, not the first. Which rule the game breaks is not known: R0b's line and `--sections` will say, in numbers.
+- **What follows** (engine branch, wip/pefix): the reader keeps only the loader's rules (virtual ranges aligned,
+  ascending, disjoint and within SizeOfImage rounded to the alignment and to 4 KiB; no raw range that wraps). Raw data
+  in any order, overlapping, shared, empty or past the end of the file is read as loaded, zeros past what the file
+  holds. A refusal names the rule, the section's index and its numbers, never its name.
+- **Checked**: 662 of 662 PE files of a fresh Wine prefix's system32 and 53 of our own binaries read. Two Wine DLLs
+  had first been refused for exception-directory entries of no length (GNU toolchains emit them; the loader never
+  reads the table); such entries are now left out. The tidy fake game derives byte for byte as with R0's tool.
+- **Left as it was**: a section of no size is let through (the loader refuses one), an exception directory whose size
+  is not whole entries is still refused, and PointerToRawData is read where it points; the loader is said to round it
+  down to 512 bytes (LIKELY, from public notes on the format), which matters only for an offset off that boundary.
