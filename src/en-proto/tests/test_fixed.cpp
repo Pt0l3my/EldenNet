@@ -76,12 +76,12 @@ TEST_CASE("valid_utf8 takes well-formed UTF-8 and nothing else") {
   CHECK(valid_utf8(""));
   CHECK(valid_utf8("plain ASCII"));
   CHECK(valid_utf8("caf\xC3\xA9 \xE2\x82\xAC \xF0\x9F\x8C\x99"));  // two, three and four bytes
-  CHECK_FALSE(valid_utf8("\x80"));                                  // a stray continuation byte
-  CHECK_FALSE(valid_utf8("\xC3"));                                  // cut at the end
-  CHECK_FALSE(valid_utf8("\xC0\xAF"));                              // overlong
-  CHECK_FALSE(valid_utf8("\xE0\x80\xAF"));                          // overlong, three bytes
-  CHECK_FALSE(valid_utf8("\xED\xA0\x80"));                          // a surrogate
-  CHECK_FALSE(valid_utf8("\xF4\x90\x80\x80"));                      // past U+10FFFF
+  CHECK_FALSE(valid_utf8("\x80"));                                 // a stray continuation byte
+  CHECK_FALSE(valid_utf8("\xC3"));                                 // cut at the end
+  CHECK_FALSE(valid_utf8("\xC0\xAF"));                             // overlong
+  CHECK_FALSE(valid_utf8("\xE0\x80\xAF"));                         // overlong, three bytes
+  CHECK_FALSE(valid_utf8("\xED\xA0\x80"));                         // a surrogate
+  CHECK_FALSE(valid_utf8("\xF4\x90\x80\x80"));                     // past U+10FFFF
   CHECK_FALSE(valid_utf8("\xFF"));
   CHECK(valid_utf8("\xF4\x8F\xBF\xBF"));  // U+10FFFF itself
 }
@@ -94,7 +94,7 @@ TEST_CASE("a FixedString takes whole UTF-8 within its capacity, or refuses and k
   CHECK_FALSE(s.try_assign("ninebytes"));  // too long
   CHECK(s == "ember");
   CHECK_FALSE(s.try_assign(std::string_view("a\0b", 3)));  // a NUL
-  CHECK_FALSE(s.try_assign("\xC3"));                        // not UTF-8
+  CHECK_FALSE(s.try_assign("\xC3"));                       // not UTF-8
   CHECK(s == "ember");
   CHECK(FixedString<8>::from("exactly8").has_value());
   CHECK_FALSE(FixedString<8>::from("ninebytes").has_value());

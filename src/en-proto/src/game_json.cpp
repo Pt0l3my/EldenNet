@@ -140,13 +140,12 @@ constexpr std::array kScreens = {Screen::Unknown, Screen::InGame, Screen::Loadin
 constexpr std::array kHuds = {HudState::Unknown, HudState::HideAll, HudState::ShowAll, HudState::PopupMenu,
                               HudState::Default};
 constexpr std::array kBodies = {BodyType::Unknown, BodyType::A, BodyType::B};
-constexpr std::array kStatuses = {Status::Frostbite, Status::Poison,  Status::ScarletRot, Status::Sleep,
+constexpr std::array kStatuses = {Status::Frostbite,  Status::Poison,  Status::ScarletRot, Status::Sleep,
                                   Status::Hemorrhage, Status::Madness, Status::DeathBlight};
-constexpr std::array kParamKinds = {ParamKind::NpcParam, ParamKind::BonfireWarpParam,
-                                    ParamKind::WorldMapPlaceNameParam, ParamKind::SpEffectParam};
-constexpr std::array kGroups = {Group::Session, Group::World,  Group::Combat, Group::Player,
-                                Group::Flags,   Group::Text,   Group::Ui,     Group::Place,
-                                Group::Camera,  Group::Params, Group::Status};
+constexpr std::array kParamKinds = {ParamKind::NpcParam, ParamKind::BonfireWarpParam, ParamKind::WorldMapPlaceNameParam,
+                                    ParamKind::SpEffectParam};
+constexpr std::array kGroups = {Group::Session, Group::World, Group::Combat, Group::Player, Group::Flags, Group::Text,
+                                Group::Ui,      Group::Place, Group::Camera, Group::Params, Group::Status};
 constexpr std::array kGroupStates = {GroupState::Untested, GroupState::Ok, GroupState::Tripped};
 static_assert(kStatuses.size() == kStatusCount && kGroups.size() == kGroupCount);
 
@@ -231,9 +230,8 @@ void read(const json& j, const At& at, Meter& out) {
 
 void read(const json& j, const At& at, Session& out) {
   out = Session{};
-  Fields(j, at)("role", out.role)("is_my_world", out.is_my_world)("lobby", out.lobby)("player_set_len",
-                                                                                       out.player_set_len)(
-      "anticheat", out.anticheat)("ersc_loaded", out.ersc_loaded)
+  Fields(j, at)("role", out.role)("is_my_world", out.is_my_world)("lobby", out.lobby)(
+      "player_set_len", out.player_set_len)("anticheat", out.anticheat)("ersc_loaded", out.ersc_loaded)
       .done();
 }
 
@@ -251,8 +249,8 @@ void read(const json& j, const At& at, Ui& out) {
 
 void read(const json& j, const At& at, Gear& out) {
   out = Gear{};
-  Fields(j, at)("right_weapon", out.right_weapon)("left_weapon", out.left_weapon)("head", out.head)(
-      "chest", out.chest)("hands", out.hands)("legs", out.legs)
+  Fields(j, at)("right_weapon", out.right_weapon)("left_weapon", out.left_weapon)("head", out.head)("chest", out.chest)(
+      "hands", out.hands)("legs", out.legs)
       .done();
 }
 
@@ -261,8 +259,7 @@ void read(const json& j, const At& at, Player& out) {
   Fields(j, at)("handle", out.handle)("level", out.level)("archetype", out.archetype)("body", out.body)("hp", out.hp)(
       "fp", out.fp)("stamina", out.stamina)("runes_held", out.runes_held)("deaths", out.deaths)(
       "play_time_ms", out.play_time_ms)("ng_lvl", out.ng_lvl)("save_slot", out.save_slot)("dead", out.dead)(
-      "riding", out.riding)("locked_on", out.locked_on)("last_hit_by", out.last_hit_by)("throw_state",
-                                                                                        out.throw_state)(
+      "riding", out.riding)("locked_on", out.locked_on)("last_hit_by", out.last_hit_by)("throw_state", out.throw_state)(
       "roundtable", out.roundtable)("statuses", out.statuses)("block", out.block)("pos", out.pos)("gear", out.gear)(
       "boss_flag", out.boss_flag)
       .done();
@@ -304,11 +301,10 @@ void read(const json& j, const At& at, Boss& out) {
 void read(const json& j, const At& at, Chr& out) {
   out = Chr{};
   Fields(j, at)("handle", out.handle)("param", out.param)("model", out.model)("entity", out.entity)("kind", out.kind)(
-      "team", out.team)("hp", out.hp)("dead", out.dead)("last_hit_by", out.last_hit_by)("recv_dmg_type",
-                                                                                         out.recv_dmg_type)(
-      "throw_state", out.throw_state)("dist_m", out.dist_m)("bearing_deg", out.bearing_deg)("on_screen",
-                                                                                            out.on_screen)(
-      "statuses", out.statuses)("asleep", out.asleep)("block", out.block)("pos", out.pos)
+      "team", out.team)("hp", out.hp)("dead", out.dead)("last_hit_by", out.last_hit_by)(
+      "recv_dmg_type", out.recv_dmg_type)("throw_state", out.throw_state)("dist_m", out.dist_m)(
+      "bearing_deg", out.bearing_deg)("on_screen", out.on_screen)("statuses", out.statuses)("asleep", out.asleep)(
+      "block", out.block)("pos", out.pos)
       .done();
 }
 
@@ -437,8 +433,8 @@ void read(const json& j, const At& at, GameCommand& out) {
   Fields(j, at)("set_watch_flags", set_watch_flags)("set_tracked", set_tracked)("resolve_text", resolve_text)(
       "resolve_params", resolve_params)("noop", noop)
       .done();
-  const int kinds = int{set_watch_flags.has_value()} + int{set_tracked.has_value()} +
-                    int{resolve_text.has_value()} + int{resolve_params.has_value()} + int{noop.has_value()};
+  const int kinds = int{set_watch_flags.has_value()} + int{set_tracked.has_value()} + int{resolve_text.has_value()} +
+                    int{resolve_params.has_value()} + int{noop.has_value()};
   if (kinds != 1) {
     fail(at,
          "needs exactly one of \"set_watch_flags\", \"set_tracked\", \"resolve_text\", \"resolve_params\" and "
@@ -565,7 +561,7 @@ void to_json(json& j, const Meter& v) { j = {{"cur", v.cur}, {"max", v.max}}; }
 void from_json(const json& j, Meter& v) { detail::read_root(j, "Meter", v); }
 
 void to_json(json& j, const Session& v) {
-  j = {{"role", to_string(v.role)},           {"is_my_world", v.is_my_world}, {"lobby", to_string(v.lobby)},
+  j = {{"role", to_string(v.role)},          {"is_my_world", v.is_my_world}, {"lobby", to_string(v.lobby)},
        {"player_set_len", v.player_set_len}, {"anticheat", v.anticheat},     {"ersc_loaded", v.ersc_loaded}};
 }
 void from_json(const json& j, Session& v) { detail::read_root(j, "Session", v); }
@@ -585,8 +581,12 @@ void to_json(json& j, const Ui& v) {
 void from_json(const json& j, Ui& v) { detail::read_root(j, "Ui", v); }
 
 void to_json(json& j, const Gear& v) {
-  j = {{"right_weapon", v.right_weapon}, {"left_weapon", v.left_weapon}, {"head", v.head},
-       {"chest", v.chest},               {"hands", v.hands},             {"legs", v.legs}};
+  j = {{"right_weapon", v.right_weapon},
+       {"left_weapon", v.left_weapon},
+       {"head", v.head},
+       {"chest", v.chest},
+       {"hands", v.hands},
+       {"legs", v.legs}};
 }
 void from_json(const json& j, Gear& v) { detail::read_root(j, "Gear", v); }
 
@@ -618,10 +618,7 @@ void to_json(json& j, const Player& v) {
 void from_json(const json& j, Player& v) { detail::read_root(j, "Player", v); }
 
 void to_json(json& j, const Place& v) {
-  j = {{"place_id", or_null(v.place_id)},
-       {"region", text(v.region)},
-       {"legacy", v.legacy},
-       {"overworld", v.overworld}};
+  j = {{"place_id", or_null(v.place_id)}, {"region", text(v.region)}, {"legacy", v.legacy}, {"overworld", v.overworld}};
 }
 void from_json(const json& j, Place& v) { detail::read_root(j, "Place", v); }
 

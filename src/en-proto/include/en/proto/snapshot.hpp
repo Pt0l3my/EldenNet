@@ -62,11 +62,11 @@ using RegionKey = FixedString<32>;
 
 // ---- Enums: our own names; the layout maps the game's raw values to them (ARCH §6.3) ----
 
-enum class MultiplayRole : std::uint8_t { Unknown, Host, Cooperator, Invader, Other };  // PlayerGameData
-enum class LobbyState : std::uint8_t { Unknown, None, Hosting, Joined, Other };          // CSSessionManager
-enum class Screen : std::uint8_t { Unknown, InGame, Loading, Title };                     // CSMenuMan
-enum class HudState : std::uint8_t { Unknown, HideAll, ShowAll, PopupMenu, Default };     // CSFeMan
-enum class BodyType : std::uint8_t { Unknown, A, B };                                     // PlayerGameData
+enum class MultiplayRole : std::uint8_t { Unknown, Host, Cooperator, Invader, Other };
+enum class LobbyState : std::uint8_t { Unknown, None, Hosting, Joined, Other };
+enum class Screen : std::uint8_t { Unknown, InGame, Loading, Title };
+enum class HudState : std::uint8_t { Unknown, HideAll, ShowAll, PopupMenu, Default };
+enum class BodyType : std::uint8_t { Unknown, A, B };
 
 // DESIGN §9.9's seven statuses, and their flag set (bit i is the status of value i). Empty until S8 verifies them.
 enum class Status : std::uint8_t { Frostbite, Poison, ScarletRot, Sleep, Hemorrhage, Madness, DeathBlight };
@@ -119,9 +119,7 @@ struct ReadHealth {
   std::uint32_t task_us_p99 = 0;                  // the 99th percentile of the C13 histogram, µs
 
   [[nodiscard]] constexpr GroupHealth& of(Group g) noexcept { return groups[static_cast<std::size_t>(g)]; }
-  [[nodiscard]] constexpr const GroupHealth& of(Group g) const noexcept {
-    return groups[static_cast<std::size_t>(g)];
-  }
+  [[nodiscard]] constexpr const GroupHealth& of(Group g) const noexcept { return groups[static_cast<std::size_t>(g)]; }
 
   friend constexpr bool operator==(const ReadHealth&, const ReadHealth&) = default;
 };
@@ -144,10 +142,10 @@ struct Meter {
 };
 
 struct Session {
-  MultiplayRole role = MultiplayRole::Unknown;  // PlayerGameData; Unknown at the title, where there is none
-  bool is_my_world = false;                     // PlayerGameData
-  LobbyState lobby = LobbyState::Unknown;       // CSSessionManager
-  std::uint8_t player_set_len = 0;  // WorldChrMan's player set: entries whose chr_type is not an NPC type (DESIGN §3.4)
+  MultiplayRole role = MultiplayRole::Unknown;  // Unknown at the title, where none can be read
+  bool is_my_world = false;
+  LobbyState lobby = LobbyState::Unknown;
+  std::uint8_t player_set_len = 0;  // the player set's entries that are not of an NPC type (DESIGN §3.4)
   bool anticheat = false;           // C14
   bool ersc_loaded = false;         // C14
 
@@ -155,19 +153,19 @@ struct Session {
 };
 
 struct Life {
-  bool main_player = false;                  // WorldChrMan
-  Screen screen = Screen::Unknown;           // CSMenuMan
-  std::optional<std::uint32_t> load_counter;  // CSNowLoadingHelper, an optional item
+  bool main_player = false;
+  Screen screen = Screen::Unknown;
+  std::optional<std::uint32_t> load_counter;  // from an optional item: empty without it
 
   friend constexpr bool operator==(const Life&, const Life&) = default;
 };
 
 struct Ui {
-  HudState hud = HudState::Unknown;            // CSFeMan
-  std::optional<std::uint16_t> banner;         // CSFeMan; empty when 0 or -1
-  std::optional<std::uint32_t> popup_talk_id;  // CSMenuMan's popup; empty when negative
-  bool talk_cam = false;                       // GameMan's talk camera id is not -1
-  bool subtitles_on = false;                   // GameDataMan's settings
+  HudState hud = HudState::Unknown;
+  std::optional<std::uint16_t> banner;         // empty when 0 or -1
+  std::optional<std::uint32_t> popup_talk_id;  // the popup's; empty when negative
+  bool talk_cam = false;                       // the talk camera's id is not -1
+  bool subtitles_on = false;                   // the game's own setting
 
   friend constexpr bool operator==(const Ui&, const Ui&) = default;
 };
@@ -186,32 +184,32 @@ struct Gear {
 
 struct Player {
   ChrHandle handle;
-  std::uint16_t level = 0;      // PlayerGameData
-  std::uint8_t archetype = 0;   // PlayerGameData
+  std::uint16_t level = 0;
+  std::uint8_t archetype = 0;
   BodyType body = BodyType::Unknown;
-  Meter hp, fp, stamina;        // the data module
-  std::uint32_t runes_held = 0;  // PlayerGameData
-  std::uint32_t deaths = 0;      // GameDataMan
-  std::uint64_t play_time_ms = 0;  // GameDataMan, widened
-  std::uint8_t ng_lvl = 0;       // GameDataMan
-  std::uint8_t save_slot = 0;    // GameMan
-  bool dead = false;             // the dead bit
-  bool riding = false;           // ride state 5
+  Meter hp, fp, stamina;  // the data module
+  std::uint32_t runes_held = 0;
+  std::uint32_t deaths = 0;
+  std::uint64_t play_time_ms = 0;  // widened
+  std::uint8_t ng_lvl = 0;
+  std::uint8_t save_slot = 0;
+  bool dead = false;    // the dead bit
+  bool riding = false;  // ride state 5
   std::optional<ChrHandle> locked_on;
   std::optional<ChrHandle> last_hit_by;
   std::uint8_t throw_state = 0;  // the throw module
-  bool roundtable = false;       // SpEffect 9621 in the list
+  bool roundtable = false;       // the Roundtable's effect in the list (ARCH §7.1)
   StatusSet statuses = StatusSet::None;
   BlockId block;
-  std::array<float, 3> pos{};  // Havok, m
+  std::array<float, 3> pos{};  // the physics position, m
   Gear gear;
-  bool boss_flag = false;  // GameDataMan's boss_fight_active, the cross-check
+  bool boss_flag = false;  // the game's boss-fight flag, the cross-check
 
   friend constexpr bool operator==(const Player&, const Player&) = default;
 };
 
 struct Place {
-  std::optional<std::uint32_t> place_id;  // FieldArea; empty when 0 or less
+  std::optional<std::uint32_t> place_id;  // empty when 0 or less
   RegionKey region;                       // regions.toml's key; the core's (see RegionKey)
   bool legacy = false;                    // area < 30
   bool overworld = false;                 // area 60 or 61
@@ -243,18 +241,18 @@ struct Boss {
 
 struct Chr {
   ChrHandle handle;
-  std::uint32_t param = 0;   // its NpcParam row
+  std::uint32_t param = 0;  // its NpcParam row
   std::uint32_t model = 0;
   std::uint32_t entity = 0;
-  std::uint8_t kind = 0;     // chr_type, raw
-  std::uint8_t team = 0;     // the live team
+  std::uint8_t kind = 0;  // the character's type, raw
+  std::uint8_t team = 0;  // the live team
   Meter hp;
   bool dead = false;
   std::optional<ChrHandle> last_hit_by;
   std::int32_t recv_dmg_type = 0;
   std::uint8_t throw_state = 0;
-  float dist_m = 0;          // |pos - player.pos|, computed by us
-  float bearing_deg = 0;     // against the camera's forward; NaN without the camera
+  float dist_m = 0;       // |pos - player.pos|, computed by us
+  float bearing_deg = 0;  // against the camera's forward; NaN without the camera
   bool on_screen = false;
   StatusSet statuses = StatusSet::None;
   std::optional<bool> asleep;  // empty until S8
@@ -319,9 +317,9 @@ struct WorldSnapshot {
   std::optional<Place> place;
   std::optional<Clock> clock;
   Boss boss;
-  FixedVector<Chr, kMaxSnapshotChars> chars;  // nearest first
-  std::optional<FlagFrame> flags;             // every 4th snapshot
-  FixedVector<TextEntry, kMaxNewText> new_text;          // answers to ResolveText
+  FixedVector<Chr, kMaxSnapshotChars> chars;            // nearest first
+  std::optional<FlagFrame> flags;                       // every 4th snapshot
+  FixedVector<TextEntry, kMaxNewText> new_text;         // answers to ResolveText
   FixedVector<ParamRowInfo, kMaxNewParams> new_params;  // answers to ResolveParams
 
   friend bool operator==(const WorldSnapshot&, const WorldSnapshot&) = default;

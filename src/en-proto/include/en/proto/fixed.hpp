@@ -43,9 +43,7 @@ class FixedVector {
 
   // The items, and nothing past them.
   [[nodiscard]] constexpr std::span<T> items() noexcept { return std::span<T>(items_).first(size_); }
-  [[nodiscard]] constexpr std::span<const T> items() const noexcept {
-    return std::span<const T>(items_).first(size_);
-  }
+  [[nodiscard]] constexpr std::span<const T> items() const noexcept { return std::span<const T>(items_).first(size_); }
   constexpr iterator begin() noexcept { return items().begin(); }
   constexpr iterator end() noexcept { return items().end(); }
   constexpr const_iterator begin() const noexcept { return items().begin(); }

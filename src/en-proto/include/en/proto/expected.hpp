@@ -70,8 +70,7 @@ class [[nodiscard]] Expected {
   // A value: `return profile;`.
   template <class U = T>
     requires(std::is_constructible_v<T, U &&> && !std::is_same_v<std::remove_cvref_t<U>, Expected> &&
-             !detail::kIsUnexpected<std::remove_cvref_t<U>> &&
-             !std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>)
+             !detail::kIsUnexpected<std::remove_cvref_t<U>> && !std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>)
   constexpr Expected(U&& value) noexcept(std::is_nothrow_constructible_v<T, U&&>)  // NOLINT: implicit, as std::expected
       : v_(std::in_place_index<0>, std::forward<U>(value)) {}
 
@@ -81,7 +80,7 @@ class [[nodiscard]] Expected {
   constexpr Expected(const Unexpected<G>& error)  // NOLINT: implicit, as std::expected
       : v_(std::in_place_index<1>, error.error()) {}
   template <class G>
-    requires std::is_constructible_v<E, G &&>
+    requires std::is_constructible_v<E, G&&>
   constexpr Expected(Unexpected<G>&& error) noexcept(std::is_nothrow_constructible_v<E, G&&>)  // NOLINT: implicit
       : v_(std::in_place_index<1>, std::move(error).error()) {}
 
@@ -137,7 +136,7 @@ class [[nodiscard]] Expected<void, E> {
   constexpr Expected(const Unexpected<G>& error)  // NOLINT: implicit, as std::expected
       : v_(std::in_place_index<1>, error.error()) {}
   template <class G>
-    requires std::is_constructible_v<E, G &&>
+    requires std::is_constructible_v<E, G&&>
   constexpr Expected(Unexpected<G>&& error) noexcept(std::is_nothrow_constructible_v<E, G&&>)  // NOLINT: implicit
       : v_(std::in_place_index<1>, std::move(error).error()) {}
 

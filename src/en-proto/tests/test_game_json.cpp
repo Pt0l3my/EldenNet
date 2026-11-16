@@ -304,7 +304,8 @@ TEST_CASE("reading refuses what is not the form, with the path and the problem a
   CHECK(refusal<WorldSnapshot>(json{{"chars", chars}}) == "WorldSnapshot.chars: has more than 32 items");
   CHECK(refusal<WorldSnapshot>(json{{"chars", {{{"pos", {1, 2}}}}}}) ==
         "WorldSnapshot.chars[0].pos: must be an array of 3 numbers");
-  CHECK(refusal<WorldSnapshot>(json{{"chars", {{{"dist_m", 1e39}}}}}) == "WorldSnapshot.chars[0].dist_m: is out of range");
+  CHECK(refusal<WorldSnapshot>(json{{"chars", {{{"dist_m", 1e39}}}}}) ==
+        "WorldSnapshot.chars[0].dist_m: is out of range");
   CHECK(refusal<WorldSnapshot>(json{{"chars", {{{"statuses", {"Poison", "Poison"}}}}}}) ==
         "WorldSnapshot.chars[0].statuses[1]: names a member twice");
   CHECK(refusal<WorldSnapshot>(json{{"chars", {{{"team", 256}}}}}) == "WorldSnapshot.chars[0].team: is out of range");
@@ -317,27 +318,29 @@ TEST_CASE("reading refuses what is not the form, with the path and the problem a
   CHECK(refusal<WorldSnapshot>(json{{"clock", {{"h", 24}}}}) == "WorldSnapshot.clock.h: is out of range");
   CHECK(refusal<WorldSnapshot>(json{{"flags", {{"bits", "abc"}}}}) ==
         "WorldSnapshot.flags.bits: must be an even number of hex digits, at most 512");
-  CHECK(refusal<WorldSnapshot>(json{{"flags", {{"valid", "zz"}}}}) == "WorldSnapshot.flags.valid: must hold hex digits only");
+  CHECK(refusal<WorldSnapshot>(json{{"flags", {{"valid", "zz"}}}}) ==
+        "WorldSnapshot.flags.valid: must hold hex digits only");
   CHECK(refusal<WorldSnapshot>(json{{"new_params", {{{"fields", {{1}}}}}}}) ==
         "WorldSnapshot.new_params[0].fields[0]: must be an array of a field's index and its value");
   CHECK(refusal<WorldSnapshot>(json{{"new_text", {{{"text", std::string("a\0b", 3)}}}}}) ==
         "WorldSnapshot.new_text[0].text: holds a NUL");
   CHECK(refusal<Lifecycle>(json::object()) ==
         "Lifecycle: needs exactly one of \"data_ready\", \"playthrough_ready\" and \"group_tripped\"");
-  CHECK(refusal<Lifecycle>(json{{"group_tripped", {{"group", "weather"}}}}).rfind(
-            "Lifecycle.group_tripped.group: must be one of session, world, ", 0) == 0);
+  CHECK(refusal<Lifecycle>(json{{"group_tripped", {{"group", "weather"}}}})
+            .rfind("Lifecycle.group_tripped.group: must be one of session, world, ", 0) == 0);
   CHECK(refusal<Lifecycle>(json{{"playthrough_ready", {{"name", std::string(49, 'n')}}}}) ==
         "Lifecycle.playthrough_ready.name: is longer than 48 bytes");
   CHECK(refusal<GameCommand>(json{{"noop", {{"x", 1}}}}) == "GameCommand.noop: has an unknown field \"x\"");
-  CHECK(refusal<GameCommand>(json{{"noop", json::object()}, {"set_tracked", json::object()}}).rfind(
-            "GameCommand: needs exactly one of", 0) == 0);
+  CHECK(refusal<GameCommand>(json{{"noop", json::object()}, {"set_tracked", json::object()}})
+            .rfind("GameCommand: needs exactly one of", 0) == 0);
   CHECK(refusal<GameCommand>(json{{"set_watch_flags", {{"ids", std::vector<int>(kMaxWatchFlags + 1, 1)}}}}) ==
         "GameCommand.set_watch_flags.ids: has more than 2048 ids");
   CHECK(refusal<GameCommand>(json{{"resolve_text", {{"ids", std::vector<int>(9, 1)}}}}) ==
         "GameCommand.resolve_text.ids: has more than 8 items");
-  CHECK(refusal<GameCommand>(json{{"resolve_params", {{"param", "ItemParam"}}}}).rfind(
-            "GameCommand.resolve_params.param: must be one of NpcParam, ", 0) == 0);
-  CHECK(refusal<RenderFeed>(json{{"heads", {{{"present", 1}}}}}) == "RenderFeed.heads[0].present: must be true or false");
+  CHECK(refusal<GameCommand>(json{{"resolve_params", {{"param", "ItemParam"}}}})
+            .rfind("GameCommand.resolve_params.param: must be one of NpcParam, ", 0) == 0);
+  CHECK(refusal<RenderFeed>(json{{"heads", {{{"present", 1}}}}}) ==
+        "RenderFeed.heads[0].present: must be true or false");
 }
 
 TEST_CASE("fields left out keep their defaults") {
