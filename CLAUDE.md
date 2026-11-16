@@ -84,15 +84,18 @@ index.
   definition, O50).
 - **Quest and world awareness** (O51). Important NPCs know the state of their own quest and of related quests, and
   the stage the world is in (for example, that the star has fallen since Radahn's death).
-- **hudhook pinned at exactly 0.9.3** (O25). Plain MIT, with MinHook under BSD-2 and no AI clause (checked
-  2026-11-06). Change the version only with the owner's approval, after re-reading its licence files. Rules
-  that follow from the pin (DESIGN O25): build it with the `dx12` feature only, use `imgui` only through
-  `hudhook::imgui` and MinHook only through `hudhook::mh`, and never call its eject path. Since GraceUI's G15
-  (2026-11-08) the one overlay, with this pin and its rules, is GraceUI's (`grace-host` in `graceui.dll`): EldenNet
-  links no hudhook or ImGui renderer backend, hooks none of GraceUI's functions, and draws through GraceUI's C ABI
-  (panels and notices; its F11 view on a headless Dear ImGui of its own). Folded into both designs on 2026-11-15
-  (roadmap S7.8.c). v1 hooks nothing of its own; a later hook, on a function GraceUI does not hook, uses one hook
-  library of EldenNet's, each hook after its spike and the owner's approval (O65, DESIGN R12).
+- **C++** (O60). EldenNet and GraceUI's in-game parts are C++20, built on Linux with clang-cl and lld-link against
+  the MSVC SDK and CRT that xwin downloads (pinned), with a MinGW-w64 build whose tests run under Wine; Python stays
+  for the repositories' tools. The design was re-based from Rust on 2026-11-16 (roadmap S8.1.e).
+- **The overlay: Dear ImGui and MinHook, pinned** (O25, as the owner changed it on 2026-11-16 for C++). Dear ImGui
+  1.93.0 (MIT) with its own DX12 and Win32 backends, hooked with MinHook 1.3.4 (BSD-2), replace hudhook 0.9.3; neither
+  carries an AI clause (checked 2026-11-16). Change a version only with the owner's approval, after re-reading its
+  licence files. Since GraceUI's G15 (2026-11-08) the one overlay is GraceUI's (`grace-host` in `graceui.dll`), which
+  alone holds the hooks, MinHook and the ImGui renderer backends, and never unhooks or unloads while the game runs:
+  EldenNet links no hook library or ImGui renderer backend, hooks none of GraceUI's functions, and draws through
+  GraceUI's C ABI (panels and notices; its F11 view on Dear ImGui's core with no backend, at the same version). v1
+  hooks nothing of its own; a later hook, on a function GraceUI does not hook, uses one hook library of EldenNet's,
+  each hook after its spike and the owner's approval (O65, DESIGN R12).
 - **Plugins** (O65–O69, 2026-11-15; [proposal 0001](docs/proposals/0001-plugins.md)). Content plugins (character
   profiles, NPC cards, lore, layers on shipped profiles; data only) from 1.1, checked like EldenNet's own content and
   loaded between the shipped content and the player's overrides; game facts, the spoiler machinery, prompts and event
@@ -110,7 +113,7 @@ index.
   plugin authors. It works with the game closed or running, within safe limits: read-only, no bulk export (counts,
   ids and checks only), never the game's memory, and nothing of the game carried: no files, no text, no keys (taken
   from the user's own game when used, never stored). It shows a disclosure of safe use and of what we condemn (O75).
-  In-game data for research comes from EldenNet itself, built once Min's engine arrives; DataPiler never reads the
+  In-game data for research comes from EldenNet itself, built on our own engine (O84); DataPiler never reads the
   game's memory (O73). The devkit ships as part of EldenNet: its browser tools, viewers (never exporting) and
   command-line tool are on only in Developer mode (O78, O79). Off game, the launcher runs EldenNet's engine and serves
   the dashboard from the saved files once the engine is adopted (O76), and all settings but a short list can be
