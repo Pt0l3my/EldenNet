@@ -1760,15 +1760,15 @@ sequenceDiagram
   `prompts/{dialogue,callout,memory,pool,draft,decisions}/NN_*.j2`, plus `registers/*.md` and
   `dialogue/01_world_frame.md`. Templates hold layout only; persona prose comes from fields.
 - **The template engine's rules** (O84; WHY§98, WHY§99, from SkyrimNet's captured prompts):
-  - *Unknown names fail loudly.* A template uses only the variables, filters, tests and functions of one registry in
-    code. A name the registry does not hold is a lint error at load, and a render that meets one fails; it never
-    renders as empty text.
+  - *Unknown names fail loudly.* A template uses only the variables and functions of one registry in code (inja 3.4 has
+    no filters: a template calls `join(x, "; ")` where another engine would pipe). A name the registry does not hold is
+    a lint error at load, and a render that meets one fails; it never renders as empty text.
   - *Null and missing stay apart.* A missing name is that error. A field the schema has and the file leaves unset is
     null: it tests empty, and printing it unguarded is an error (the lint finds one at load), so an optional field is
     always guarded and an empty one leaves out its whole clause.
   - *Real booleans.* The registry types every value, and a flag is a boolean, never a string. A condition takes a
-    boolean or a test (`is empty`, `in`); a string in a condition is an error, so the string `"false"` is never read as
-    true.
+    boolean or a test (`empty(x)`, `in`), on each side of `and`, `or` and `not`; a string in a condition is an
+    error, so the string `"false"` is never read as true. `default()` replaces only a null, never a missing name.
   - *A real substring test.* `x in s` on strings tests for a substring and `x in list` for a member. A `not` before a
     comparison needs parentheses (lint), since precedence there was seen to mislead.
   - *Built-ins safe on empty input.* Every filter and function is defined on an empty string or list (`capitalize("")`
@@ -1783,7 +1783,11 @@ sequenceDiagram
     template source; an instruction written into a record stays part of the record (§11, "Injection").
   - *Examples use names no record holds.* Every example in a template uses invented names that no profile, card, KB
     entry or lexicon holds (lint), so a model cannot copy an example's name or tie into a real character's line.
-- **Markers:** `[system cache=A]`, `[system cache=B]`, `[history]` and `[user]` map to OpenAI chat messages.
+- **Markers** follow SkyrimNet's conventions: `[ system ]`, `[ user ]` and `[ assistant ]` start chat messages, and
+  `[ cache ]` closing a message marks a cache breakpoint (cache A after the system block, B after block 5b). The
+  history is a component that emits user and assistant messages. A prompt is a folder of numbered parts
+  (`NN_*.j2`) joined in order; an unnumbered file in such a folder is an error. en-prompt's README is the
+  reference (`src/en-prompt/README.md` on the engine branch).
   - Providers with explicit cache control (OpenRouter cache breakpoints) get breakpoints after A, after block 5 and after B (block 5b; MEM §12.6).
   - llama.cpp gets `cache_prompt: true`.
   - Automatic-prefix providers need nothing but the order (ER06 §5.5).
