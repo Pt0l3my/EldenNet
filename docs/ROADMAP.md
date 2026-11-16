@@ -897,8 +897,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     procedure filtered by a subclass, with surrogate pairs and the IME; DirectInput and XInput masked while a
     holder has the controls and until a closing press is released; the holder and the player's exit as pure rules
     (WHY§126 to §133). In game, S4 checks what Wine could not show (WHY§133).
-- b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
+- b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview [done]
   - refs: GraceUI:DESIGN§13
+  - gives: built on 2026-11-16 (GraceUI's feat/host): `graceui.h` with ABI 1's first table (connect, notices;
+    the other slots answer "not yet"), the consumers' helper and a first example mod, a second copy idling, and
+    the anti-cheat check before anything is returned, a hit leaving notices only (WHY§134 to §139).
 - c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit
   - needs: a
 - d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in CI

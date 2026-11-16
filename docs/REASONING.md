@@ -156,6 +156,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 131 | 2026-11-16 | The closing press is often down before any read sees it: masks are armed at the first read after a close, with a 250 ms window | DECIDED | #graceui #input |
 | 132 | 2026-11-16 | The input half's cost under Wine, and how it was measured | METHOD | #graceui #input #perf |
 | 133 | 2026-11-16 | What the harness cannot show of the input half, for S4 | METHOD | #graceui #input #spike |
+| 134 | 2026-11-16 | ABI 1's first table keeps D73's order: typed where the design names a slot's shape, the bridge protocol's four reserved in their places | DECIDED | #graceui #abi |
+| 135 | 2026-11-16 | GraceUI's anti-cheat check runs in the first GraceUI_RequestApi, not on the init thread: connect's first answer must already know it | DECIDED | #graceui #anticheat |
+| 136 | 2026-11-16 | An anti-cheat hit simulated with no anti-cheat software: names a test build is told; Wine's Toolhelp names a process's parent | METHOD | #graceui #anticheat #wine |
+| 137 | 2026-11-16 | Dear ImGui frees a draw list unused for 60 s of its own time, and its time leaps when frames resume: a notice would allocate during play | FACT | #graceui #overlay |
+| 138 | 2026-11-16 | Two copies of GraceUI share only their two exports: the active copy names the others; an idle one asks only after its own first request | DECIDED | #graceui |
+| 139 | 2026-11-16 | The harness's ABI, copies and anti-cheat scenarios under Wine: a renderer that warms up after the hooks, and two flaky tests made sound | METHOD | #graceui #wine #process |
 
 ## Entries
 
@@ -2550,3 +2556,95 @@ invariant 10, EldenNet ARCH (T3)
   away (no composition window then); the IME under Proton (§5.6); F5 free in the default layout; Escape held 1 s and the
   menu key twice in 2 s as the player feels them; camera drift while the mouse is held (EldenNet DESIGN §8.1); the
   cursor's confinement under Proton.
+
+### 134. ABI 1's first table keeps D73's order: typed where the design names a slot's shape, the bridge protocol's four reserved in their places
+
+`2026-11-16` · DECIDED · `#graceui` `#abi` · refs: GraceUI:D131, GraceUI:D132, GraceUI:D73, GraceUI:D109
+
+- **Choice** (D131): `graceui.h`'s `GraceUiApi1` holds all twenty of D73's slots in D73's order. Each slot whose shape
+  the design names is typed now, taking the mod's handle and a struct that starts with its size, so that S10.4.c and d
+  add fields rather than change a slot; `register_pages`, `publish`, `poll` and `answer`, whose shape is §6's bridge
+  protocol (GraceUI 0.2), are `GraceUiReservedSlot`s that keep their place and get their type when built.
+- **Rejected**: declaring only the slots built (the order would then be the increments', not D73's); typing every slot
+  now, the protocol's four included (a guess bound by the append-only check).
+- **The check** (D132): the first header is kept as `src/grace-abi/baseline/graceui-abi1-0.h`, and `check_safety.py`
+  refuses a constant, typedef or export changed, and a struct changed otherwise than by appending; a reserved slot may
+  be typed in its place. Its `--abi-self-test` edits the header seventeen ways to show it. While ABI 1 is a preview, a
+  deliberate break updates the baseline in the same commit, which says why.
+
+### 135. GraceUI's anti-cheat check runs in the first GraceUI_RequestApi, not on the init thread: connect's first answer must already know it
+
+`2026-11-16` · DECIDED · `#graceui` `#anticheat` · refs: GraceUI:D133, GraceUI:D71, GraceUI:D88, EldenNet:ARCH§5.3
+
+- **The problem**: D71 listed the check among the init thread's work, but a mod holds the table, and may connect, the
+  moment the first request returns; the init thread can still be waiting for the game's window. `connect` would then
+  answer ok and change its mind later, the silence D73 forbids.
+- **Choice** (D133): the check runs once, in the first request of the copy that takes the mutex, on the mod's thread,
+  before any table is returned and before the init thread starts. It costs one list of the process's modules and one
+  Toolhelp snapshot of the processes. ARCH §5.3's clauses as they are: a module whose file name starts with
+  `EasyAntiCheat`, or a parent whose image is `start_protected_game.exe`, ASCII letters without their case; a parent
+  that has exited is skipped.
+- **A hit**: the hooks go in as usual (D88), input is off from the start, so every detour and the window filter pass
+  everything to the game (the menu key too), nothing is drawn but notices, `connect` answers inactive (anti-cheat) with
+  a handle and `notice` works; GraceUI shows a notice of its own for 20 s.
+- **Not done here**: no re-check during the session; D81's 60 s re-check and a provider's anti-cheat flag close the
+  server, which comes later.
+
+### 136. An anti-cheat hit simulated with no anti-cheat software: names a test build is told; Wine's Toolhelp names a process's parent
+
+`2026-11-16` · METHOD · `#graceui` `#anticheat` `#wine` · refs: GraceUI:D133, GraceUI:BUILD.md
+
+- **Method**: a test build exports `GraceUI_Test_SetAntiCheatNames`, called before the first request. The harness's
+  "anti-cheat" scenario loads an empty DLL of its own, `grace-harness-shield.dll`, and has the check look for that
+  prefix; "anti-cheat-parent" has it look for `grace-harness.exe`, the image of every scenario's parent. The real
+  gathering (`EnumProcessModules`, a Toolhelp snapshot) runs either way; the real names' matching is unit-tested on
+  Linux. No file in the repository is named after an anti-cheat.
+- **Seen** (FACT, Wine 9.0): `Process32FirstW` and `Process32NextW` report a process's `th32ParentProcessID`, and
+  the parent's `szExeFile` as its image name; both clauses hit, in both builds. Every other scenario runs the real
+  names, and none hit.
+
+### 137. Dear ImGui frees a draw list unused for 60 s of its own time, and its time leaps when frames resume: a notice would allocate during play
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D134, GraceUI:D117, GraceUI:invariant 10
+
+- **Seen** (Dear ImGui 1.93.0, `imgui.cpp`): `NewFrame` deletes a viewport's foreground and background draw lists, and
+  compacts a window's buffers, once they have gone unused for `io.ConfigMemoryCompactTimer` (60 s) of Dear ImGui's own
+  time, and a later `GetForegroundDrawList` makes the list again. GraceUI builds frames only when it has something to
+  draw, and its time step is the real time since the last one: after a quiet spell of a minute, the next notice's frame
+  would free and make the list again, and grow its buffers, on the present thread.
+- **Choice** (D134): `ConfigMemoryCompactTimer` at `FLT_MAX` (a negative value means "compact everything, every
+  frame"), and warm-up ends with one frame built and never submitted, which makes the foreground list and reserves room
+  for the most a frame of notices draws (Dear ImGui reserves four vertices and six indices for every byte of a text
+  before it gives back what it did not draw). The harness counts no allocation and no free over 300 frames of notices
+  coming, changing and going.
+
+### 138. Two copies of GraceUI share only their two exports: the active copy names the others; an idle one asks only after its own first request
+
+`2026-11-16` · DECIDED · `#graceui` · refs: GraceUI:D135, GraceUI:D72, GraceUI:invariant 18
+
+- **The problem**: the active copy must name a second copy in a notice, but the copies have no channel between them
+  besides `GraceUI_Version` and `GraceUI_RequestApi`.
+- **Choice** (D135): at each of its requests the active copy lists the loaded modules and names every other one that
+  exports `GraceUI_RequestApi`, once each, by its name relative to the game's folder (or its file name, "outside the
+  game's folder"), never a path. An idle copy, once its own first request is over, calls every other copy's
+  `GraceUI_RequestApi(1)`, so the active one hears of it at once. Asking only after its own first request has finished
+  means no two copies wait on each other: a request that comes while another thread's first is running waits for it.
+- **Seen**: two copies asked at once from two threads, in the harness: exactly one table, the other idle, named once.
+
+### 139. The harness's ABI, copies and anti-cheat scenarios under Wine: a renderer that warms up after the hooks, and two flaky tests made sound
+
+`2026-11-16` · METHOD · `#graceui` `#wine` `#process` · refs: GraceUI:BUILD.md
+
+- **Scenarios**: six more processes, each one's first request its own: "abi" (the example mod found by name after
+  polling; the table; connect's answers; struct sizes; two mods each way round; disconnect; the unbuilt slots;
+  notices and their allocations), "copies", "found-by-scan", "found-by-path" (run from a folder of its own, as a game's
+  folder), "anti-cheat" and "anti-cheat-parent": 68 checks in all, 43 of them the earlier ones.
+- **Figures**: a frame of up to three notices, the GPU idle before each, costs GraceUI's own work 93–167 µs median and
+  401–683 µs p99 across the last six runs (three of each build), beside 83–118 and 346–518 µs for the test panel alone
+  in the same runs; all six passed all 68 checks.
+- **A flake, fixed**: "example's notice" read three frames after the hooks went in and once saw none, because the
+  renderer warms up over the frames after the hooks (finding the present queue, the atlas's upload); the check now reads
+  up to 60 frames, and saw the notice at the third in each of six runs. Another, in grace-input's unit tests: the torn-read test's reader
+  could finish its reads before either writer had published, under load; it now waits for the first value.
+- **Noise**: the windowless scenarios end while GraceUI's init thread still looks for a window, and Wine may print a
+  "wine client error" line as the process ends; harmless, but count checks by each process's summary line.
