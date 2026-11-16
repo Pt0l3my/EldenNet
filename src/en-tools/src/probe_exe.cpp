@@ -1,15 +1,21 @@
 // eldennet-engine probe-exe: the derivation's offline round R0 (O89; ARCH §6.2, §6.10), part of the EldenNet devkit.
 //
 //   eldennet-engine probe-exe <exe> --derive --leads <leads.toml> --out <derive.json> [--static <label>=<rva>]...
+//   eldennet-engine probe-exe <exe> --sections
 //
 // It reads the executable file and nothing else: never a running process, never the game's memory (O73 to O75). What it
 // finds is written through the numbers-only writer (en-gal's report.hpp), checked again by the lint before it is
 // written, and holds only numbers, fixed words, the leads' labels and patterns of at most 64 bytes: no path, no name or
 // text read from the file, no code beyond those patterns. Its messages never show a path or anything read from the
-// executable (a leads file's problem names the key where it lies).
+// executable (a leads file's problem names the key where it lies; a refused image's, the rule, the section's index
+// and its numbers).
+//
+// --sections is a diagnostic for an executable that is refused: the image's size, the file's size, the section
+// alignment, then one line a section with its index and numbers (en-gal's describe_numbers), read with only the checks
+// a safe read needs. Numbers and fixed words only: no names, no bytes.
 //
 // Exit codes (for DataPiler's job, roadmap S7.11.h):
-//   0  derive.json written; everything the round derives offline was derived
+//   0  derive.json written; everything the round derives offline was derived (--sections: the table printed)
 //   1  derive.json written; something was not derived (each item's status says what)
 //   2  a usage error; nothing written
 //   3  the executable could not be read, is larger than 1 GiB, or is not a PE32+ image for x64; nothing written
@@ -39,6 +45,7 @@ constexpr std::uint64_t kMaxLeadsBytes = 64u << 10;
 constexpr const char* kUsage =
     "usage: eldennet-engine probe-exe <exe> --derive --leads <leads.toml> --out <derive.json>\n"
     "                                 [--static <label>=<rva>]...\n"
+    "       eldennet-engine probe-exe <exe> --sections\n"
     "\n"
     "Reads a game's executable file (never a running game) and writes derive.json: the fingerprint, the FD4\n"
     "singletons, the RTTI vtable sets, the task registration and its argument registers, the task group's index,\n"
@@ -50,9 +57,12 @@ constexpr const char* kUsage =
     "  --out FILE        where derive.json goes (replaced if it exists)\n"
     "  --static L=RVA    a static's slot that the in-game round found (hexadecimal 0x... or decimal), so that a\n"
     "                    pattern is cut at a reference to it; repeatable\n"
+    "  --sections        print the section table's numbers instead, for an executable that is refused: the\n"
+    "                    image's size, the file's size and the section alignment, then one line a section with\n"
+    "                    its index, va, vsize, raw, rawsize and flags; numbers only, no names, no bytes\n"
     "\n"
-    "Exit codes: 0 written and complete; 1 written, something not derived; 2 usage; 3 the executable refused;\n"
-    "4 the leads refused; 5 the report refused (a defect); 6 the output not written.\n"
+    "Exit codes: 0 written and complete (--sections: printed); 1 written, something not derived; 2 usage;\n"
+    "3 the executable refused; 4 the leads refused; 5 the report refused (a defect); 6 the output not written.\n"
     "\n"
     "Safe use. The EldenNet devkit reads your own copy of the game on your own PC, so that you can make and check\n"
     "mods and study your own install. It never changes the game's files, keeps no keys and shares nothing.\n"
@@ -66,6 +76,7 @@ struct Args {
   std::string leads;
   std::string out;
   bool derive = false;
+  bool sections = false;
   std::vector<std::pair<std::string, std::uint32_t>> statics;
 };
 
@@ -122,6 +133,43 @@ bool write_file(const std::string& path, const std::string& text) {
   return true;
 }
 
+// The executable's bytes, read whole; nothing, with its message written, when it cannot be read or is too large.
+std::optional<std::string> read_exe(const std::string& path) {
+  bool too_large = false;
+  std::optional<std::string> exe = read_file(path, kMaxExeBytes, &too_large);
+  if (!exe) {
+    std::fputs(
+        too_large ? "probe-exe: the executable is larger than 1 GiB\n" : "probe-exe: the executable cannot be read\n",
+        stderr);
+  }
+  return exe;
+}
+
+void refused(const en::gal::PeError& error) {
+  std::fprintf(stderr, "probe-exe: the executable is not a PE32+ image for x64: %s\n", en::gal::describe(error).c_str());
+}
+
+// --sections: the section table's numbers, as the table gives them, whether or not read_image accepts them.
+int print_sections(const std::string& path) {
+  const std::optional<std::string> exe = read_exe(path);
+  if (!exe) return 3;
+  const en::gal::SpanSource source(std::as_bytes(std::span<const char>(*exe)));
+  const auto table = en::gal::read_section_table(source);
+  if (!table) {
+    refused(table.error());
+    return 3;
+  }
+  std::printf("probe-exe: image size 0x%x file size 0x%llx section alignment 0x%x\n",
+              static_cast<unsigned>(table->size_of_image), static_cast<unsigned long long>(table->source_size),
+              static_cast<unsigned>(table->section_alignment));
+  for (std::size_t i = 0; i < table->sections.size(); ++i) {
+    const en::gal::Section& s = table->sections[i];
+    std::printf("probe-exe: section %zu %s\n", i,
+                en::gal::describe_numbers(s.rva, s.virtual_size, s.raw_offset, s.raw_size, s.characteristics).c_str());
+  }
+  return 0;
+}
+
 }  // namespace
 
 int run_probe_exe(int argc, char** argv) {
@@ -134,6 +182,8 @@ int run_probe_exe(int argc, char** argv) {
     }
     if (a == "--derive") {
       args.derive = true;
+    } else if (a == "--sections") {
+      args.sections = true;
     } else if (a == "--leads" || a == "--out" || a == "--static") {
       if (i + 1 >= argc) return usage("an option needs a value");
       const std::string v = argv[++i];
@@ -154,6 +204,13 @@ int run_probe_exe(int argc, char** argv) {
     } else {
       return usage("one executable at a time");
     }
+  }
+  if (args.sections) {
+    if (args.derive || !args.leads.empty() || !args.out.empty() || !args.statics.empty()) {
+      return usage("--sections takes no other option");
+    }
+    if (args.exe.empty()) return usage("<exe> is needed");
+    return print_sections(args.exe);
   }
   if (!args.derive) return usage("--derive is the mode built so far (--against gal/ is still to come)");
   if (args.exe.empty() || args.leads.empty() || args.out.empty()) return usage("<exe>, --leads and --out are needed");
@@ -179,19 +236,12 @@ int run_probe_exe(int argc, char** argv) {
   }
 
   // The executable: its bytes, read once, as a file.
-  too_large = false;
-  const std::optional<std::string> exe = read_file(args.exe, kMaxExeBytes, &too_large);
-  if (!exe) {
-    std::fputs(
-        too_large ? "probe-exe: the executable is larger than 1 GiB\n" : "probe-exe: the executable cannot be read\n",
-        stderr);
-    return 3;
-  }
+  const std::optional<std::string> exe = read_exe(args.exe);
+  if (!exe) return 3;
   const en::gal::SpanSource source(std::as_bytes(std::span<const char>(*exe)));
   const auto image = en::gal::read_image(source, en::gal::ImageLayout::File);
   if (!image) {
-    std::fprintf(stderr, "probe-exe: the executable is not a PE32+ image for x64: %s\n",
-                 en::gal::describe(image.error()).c_str());
+    refused(image.error());
     return 3;
   }
 

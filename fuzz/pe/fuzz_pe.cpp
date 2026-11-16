@@ -2,20 +2,24 @@
 // arbitrary bytes. The first byte picks the layout (bit 0: the file or the mapped image), whether the source refuses
 // one 4 KiB page (bit 1: as a guarded copy meets an unreadable page in game) and the scan's chunk size (bit 2: 4 KiB or
 // 1 MiB); the rest is the image. Besides any sanitizer report, a broken property is a finding:
-// - what read_image accepts is consistent: sections in RVA order, disjoint and within SizeOfImage, a file's raw bytes
-//   within the file; the function table sorted, disjoint and within the image, each entry found by function_at; the
-//   product name valid UTF-8; every section's first byte placed where the layout says;
-// - a refusal names a problem describe() can word;
+// - what read_image accepts is consistent: sections in RVA order, aligned, disjoint and within SizeOfImage as the
+//   loader rounds it; what a file holds of each (file_span) within the file and within its raw and mapped sizes; every
+//   section's first and last byte placed where the layout says and read as loaded (zeros past what a file holds); the
+//   section table read alone the same; the function table sorted, disjoint and within the image, each entry found by
+//   function_at; the product name valid UTF-8;
+// - a refusal names a problem describe() can word, a section's with its fault and in at most 192 characters;
 // - the scan's results keep to their pattern's rules: a resolved function's hits lie in its function, at least
 //   anchor_min past its entry; a resolved static's target lies in its section, aligned to 8; an idiom's kept hits'
 //   targets lie in their sections.
 // An exception that escapes is a finding too, so this entry has no ffi_guard (R3 is for the engine's entries).
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "en/gal/patterns.hpp"
@@ -85,22 +89,43 @@ const PatternSet& patterns() {
   return *set;
 }
 
-void check_image(const ImageInfo& image, const ByteSource& source) {
+void check_image(const ImageInfo& image, const ByteSource& source, bool holed) {
+  const std::uint64_t page_or_alignment = std::max<std::uint64_t>(image.section_alignment, 4096);
+  const std::uint64_t image_end = (std::uint64_t{image.size_of_image} + page_or_alignment - 1) / page_or_alignment *
+                                  page_or_alignment;
   std::uint64_t last_end = 0;
   for (const Section& s : image.sections) {
-    require(s.rva >= last_end, "sections in RVA order and disjoint");
-    require(std::uint64_t{s.rva} + s.mapped_size() <= image.size_of_image, "sections within SizeOfImage");
-    if (image.layout == ImageLayout::File && s.raw_size != 0) {
-      require(std::uint64_t{s.raw_offset} + s.raw_size <= image.source_size, "a file's raw bytes within the file");
+    require(s.rva >= last_end && s.rva >= image.size_of_headers, "sections in RVA order and disjoint");
+    require(s.rva % image.section_alignment == 0, "sections aligned");
+    require(std::uint64_t{s.rva} + s.mapped_size() <= image_end, "sections within SizeOfImage, rounded");
+    require(s.raw_size == 0 || std::uint64_t{s.raw_offset} + s.raw_size <= 0xFFFFFFFFu, "no raw range wraps");
+    const FileSpan held = image.file_span(s);
+    if (image.layout == ImageLayout::File) {
+      require(held.offset + held.size <= image.source_size, "what a file holds of a section lies within the file");
+      require(held.size <= s.raw_size && held.size <= s.mapped_size(), "and within its raw and mapped sizes");
+    } else {
+      require(held == FileSpan{}, "a mapped image holds no file span");
     }
     last_end = std::uint64_t{s.rva} + s.mapped_size();
     if (s.mapped_size() > 0) {
       const auto at = image.offset_of(s.rva, 1);
       if (image.layout == ImageLayout::Memory) require(at == s.rva, "a mapped section's bytes at its RVA");
-      if (image.layout == ImageLayout::File && s.raw_size > 0)
-        require(at == s.raw_offset, "a file's at its raw offset");
+      if (image.layout == ImageLayout::File) {
+        require(held.size > 0 ? at == held.offset : !at.has_value(), "a file's at what it holds of the section");
+      }
+      for (const std::uint32_t rva : {s.rva, s.rva + s.mapped_size() - 1}) {
+        std::array<std::byte, 1> b{std::byte{0x5A}};
+        const bool read = read_mapped(image, source, rva, b);
+        require(read || holed, "a section's bytes read as loaded");
+        if (read && image.layout == ImageLayout::File && rva - s.rva >= held.size) {
+          require(b[0] == std::byte{0}, "zeros past what a file holds");
+        }
+      }
     }
   }
+  const auto table = read_section_table(source);
+  require(table.has_value() && table->sections == image.sections && table->size_of_image == image.size_of_image,
+          "the section table read alone is the image's");
   std::uint32_t previous_end = 0;
   for (std::size_t i = 0; i < image.functions.size(); ++i) {
     const RuntimeFunction& f = image.functions[i];
@@ -162,10 +187,14 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
   const auto image = read_image(source, layout);
   if (!image) {
-    require(!describe(image.error()).empty(), "a refusal is worded");
+    const PeError& e = image.error();
+    const std::string text = describe(e);
+    require(!text.empty(), "a refusal is worded");
+    require(e.section.has_value() == (e.problem == PeProblem::BadSection), "a section's refusal has its fault");
+    require(!e.section || text.size() <= 192, "a section's refusal in at most 192 characters");
     return 0;
   }
-  check_image(*image, source);
+  check_image(*image, source, (mode & 2) != 0);
   const ScanReport report = scan_patterns(*image, source, patterns(), ScanOptions{(mode & 4) != 0 ? 4096u : 1u << 20});
   check_scan(*image, report);
   return 0;

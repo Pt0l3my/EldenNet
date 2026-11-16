@@ -52,6 +52,15 @@ struct FakeFunction {
   bool indirect = false;  // its entry points at the entry before it instead (bit 0 of its unwind RVA)
 };
 
+// A section's raw data placed otherwise than a linker places it, as packers and protectors do: by index into
+// FakeImageSpec::sections. Its bytes are written at raw_offset (nowhere when 0), and later sections' bytes over earlier
+// ones' where their ranges meet.
+struct FakeRaw {
+  std::size_t section = 0;
+  std::uint32_t raw_offset = 0;  // PointerToRawData as written
+  std::uint32_t raw_size = 0;    // SizeOfRawData as written
+};
+
 struct FakeImageSpec {
   std::uint64_t image_base = 0x7FF7'0000'0000;
   std::uint32_t time_date_stamp = 0x1234'5678;
@@ -59,11 +68,15 @@ struct FakeImageSpec {
   std::optional<FakeVersion> version;   // adds .rsrc after them
   std::vector<FakeFunction> functions;  // adds .xdata and .pdata after them
   std::vector<std::uint32_t> fixups;    // DIR64 base relocations, by RVA: adds .reloc last
+  std::vector<FakeRaw> raw;             // raw data placed by hand; the others follow the headers, each after the last
+  std::optional<std::uint32_t> file_size;      // the file cut (or padded with zeros) to this length
+  std::optional<std::uint32_t> size_of_image;  // SizeOfImage as written, instead of the last section's aligned end
+  bool with_memory = true;                     // build the mapped image too (false for very large virtual sizes)
 };
 
 struct BuiltImage {
   std::vector<std::byte> file;
-  std::vector<std::byte> memory;
+  std::vector<std::byte> memory;  // as the loader maps the file: each section's raw data the file holds, then zeros
   std::map<std::string, std::uint32_t> rva;  // each section's RVA, by name
   std::uint32_t size_of_image = 0;
   std::uint32_t pdata_rva = 0;
