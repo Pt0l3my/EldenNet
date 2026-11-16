@@ -21,6 +21,12 @@ CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_object
 compiler), which need `llvm-objdump` and Python 3, and `en_tools_cli`, which runs `probe-exe` and `lint --report` on the
 derivation tests' invented program as DataPiler's job runs them.
 
+en-gal now builds three libraries: `en_gal` (offline: the PE reader, patterns, schemas and the derivation kit),
+`en_gal_game` (the part that runs in the game: GuardedReader, discovery, the read groups and the task, portable C++
+over `SysLayer`) and `en_gal_game_probe` (the same with `EN_PROBE`, for the tests and the test DLL; the CMake option
+`EN_PROBE`, off by default, builds it for a probe DLL too). `en_gal_tests` links the probe variant and runs the in-game
+part over `FakeSys`, a process of bytes of the tests' own, in every build.
+
 ## Windows with MinGW-w64, tested under Wine
 
 ```sh
@@ -31,8 +37,10 @@ WINEPREFIX=<dir> wine64 build-win/src/en-llm/en_llm_tests.exe     # and each oth
 
 The MinGW build links its runtime statically, uses WinHTTP (loaded from the system directory by its full path), and
 builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) and the derivation kit but not
-its guarded copy, which needs structured exception handling: `en_gal_tests.exe` runs the portable part's tests. Its
-`eldennet-engine.exe` is the program the owner runs for the derivation's offline round (R0, O89):
+its guarded copy, which needs structured exception handling: `en_gal_tests.exe` runs the portable part's tests. It
+builds `en_gal_game` too, whose tests run on `FakeSys` there as everywhere; `NativeSys` and the test DLL need
+structured exception handling, so they are clang-cl's alone. Its `eldennet-engine.exe` is the program the owner runs
+for the derivation's offline round (R0, O89):
 `eldennet-engine probe-exe <the game's executable> --derive --leads gal/leads.toml --out derive.json`, with the game
 closed (src/en-tools/README.md has its exit codes). With the tests on, the fake game's harness runs it under Wine on
 `fakegame.exe` (`ctest -R fakegame.probe-exe`).
@@ -53,9 +61,11 @@ cmake --build build-cl
 WINEPREFIX=<dir> wine64 build-cl/src/en-gal/en_gal_tests.exe     # and each other test program
 ```
 
-`en_gal_tests.exe` holds the portable part's tests and, in this build alone, the guarded copy's. `ctest -R compile_fail`
-runs R1's compile-fail tests here too. The same `probe-exe` harness cases run here, where the fake game's MSVC RTTI lets
-them check the RTTI walk too.
+`en_gal_tests.exe` holds the portable part's tests and, in this build alone, the guarded copy's. It adds NativeSys's
+tests (the module's image, both copy primitives, the stack table and a guard page left untouched, the calls into "the
+game" under SEH, and the task object driven as a hub would drive it), and builds `tests/galtest/galtest.dll`, which the
+fake game's harness loads into `fakegame.exe` (below). `ctest -R compile_fail` runs R1's compile-fail tests here too.
+The same `probe-exe` harness cases run here, where the fake game's MSVC RTTI lets them check the RTTI walk too.
 
 - `XWIN_ROOT`, a cache variable or in the environment, points elsewhere than `~/.cache/xwin`. The toolchain file
   refuses a splat whose CRT (`crtversion.h`) or SDK differs from the lock.
@@ -92,7 +102,13 @@ cmake --build build-cl
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 100 s for the clang-cl build's 47 cases and 2 s each; the MinGW build runs 43 (no `__try`, and GCC's own RTTI).
+- About 5 minutes for the clang-cl build's 61 cases: 50 of about 2 s each, and the ten `gal-*` cases of part 4, 12 to
+  25 s each, which first write gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as R1
+  would find them) and `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the
+  fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build runs 47 (no `__try`, GCC's own
+  RTTI, and no test DLL).
+- A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
+  `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## Checks: compile-fail tests and CI greps
@@ -148,6 +164,7 @@ CTest replays each corpus once (`en_fuzz_<target>_corpus`), and `--target en_fuz
 | `en_fuzz_x86` | Bytes, decoded at every offset (each from an exact-size copy) and as a sweep | An instruction longer than 15 bytes or than the bytes given; its parts out of order, outside it, or not ending it; a RIP-relative operand without ModRM and a 32-bit displacement; bytes after it changing it; a shorter run not refused as truncated; "truncated" with 15 bytes given |
 | `en_fuzz_report` | A byte for the mode, then a text for the lint, or a run of writer calls (keys and values from the input) | A text the lint accepts that is not one JSON object of words, labels, patterns and whole numbers; a report the writer gives that the lint refuses, or that holds a string offered that is not a word or a label |
 | `en_fuzz_derive` | Two bytes for a static's slot, then an executable, derived with invented leads as probe-exe does | A report the derivation writes that the lint refuses; a pattern outside 1 to 64 bytes with 4 fixed, or a capture outside its pattern; a complete run without its idiom, registration or group |
+| `en_fuzz_config` | Up to four texts split at NUL bytes: providers.toml, models.toml, settings.toml and secrets.toml, through en-llm's `parse_config` | Anything but a `ConfigError` leaving it; an abort (toml++'s assertions, which en-proto's pre-check must keep it from) |
 
 ```sh
 cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O1 -DEN_FUZZ=ON
@@ -159,6 +176,11 @@ mkdir -p build-fuzz/work/sse && build-fuzz/fuzz/en_fuzz_sse build-fuzz/work/sse 
 `en_fuzz_pe` takes `-max_len=65536` so that whole invented images fit; `en_fuzz_galtoml` builds
 `src/en-gal/tests/fake_image.cpp` in, for its gated build. `en_fuzz_derive` takes `-max_len=65536`; its seed is the
 derivation tests' invented program.
+
+`en_fuzz_galtoml` and `en_fuzz_config` found inputs that reach toml++ 3.4.0's assertions, which are undefined behaviour
+in a release build (src/en-gal/README.md lists them). The check is en-proto's `unsafe_for_toml` (toml_check.hpp), run
+before every `toml::parse` in the engine: gal/'s files with gal/'s rules, the player's configuration files with the
+player's (a letter outside ASCII may also stand inside a quoted string).
 
 New inputs go to the first folder, so the committed corpus changes only by hand. A finding is written as
 `crash-<hash>` in the current folder; once it is fixed, it joins the target's `corpus/` under a name that says what it
