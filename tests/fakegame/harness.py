@@ -309,6 +309,12 @@ case("probe-exe-slots", [], program="{engine}", needs=("engine", "leads"),
      what="given R1's slots, probe-exe cuts a unique interior pattern at a reference to each AOB static")
 case("probe-exe-lint", [], program="{engine}", needs=("engine", "leads"),
      what="lint --report refuses a path, a free string and a byte run longer than a pattern")
+case("probe-exe-sections", [], program="{engine}", needs=("engine", "leads"),
+     what="probe-exe --sections prints the section table's numbers, as the file holds them, in numbers and fixed words "
+          "only; a section the loader refuses is named by its rule, index and numbers")
+case("probe-exe-loose", [], program="{engine}", needs=("engine", "leads"),
+     what="a layout the loader accepts (the last section's raw data past the end of the file, SizeOfImage short of "
+          "its alignment) derives as the tidy one")
 
 
 # The game-access layer in game (part 4): galtest.dll, loaded into the fake game, discovers its facts from gal/ files
@@ -894,6 +900,10 @@ def probe_exe(args, c, env):
         lcode, lout, _ = run_engine(args, env, ["lint", "--report", as_win(out)])
         need(lcode == 0, "lint exit %s: %s" % (lcode, lout.strip()), failures)
         return failures, stdout + stderr
+    if c.name == "probe-exe-sections":
+        return probe_exe_sections(args, env, as_win)
+    if c.name == "probe-exe-loose":
+        return probe_exe_loose(args, env, as_win, base, out)
     # probe-exe-lint: a report the tool wrote, then the same with a path, a free string and a long byte run.
     code, stdout, stderr = run_engine(args, env, base + ["--leads", as_win(args.set_paths["leads"])])
     with open(out) as f:
@@ -923,6 +933,115 @@ def probe_exe(args, c, env):
     need(ncode == 3 and "toml" not in nerr, "a file that is no executable: exit %s: %s" % (ncode, nerr.strip()),
          failures)
     return failures, stdout + stderr
+
+
+# DataPiler's shape for a line of the tool's that its job's log shows (its devkit.py), and --sections' two shapes.
+SHOWN_LINE = re.compile(r"(?:probe-exe|lint): [ -~]{1,240}")
+HEX = r"0x[0-9a-f]+"
+SECTIONS_HEAD = re.compile(r"probe-exe: image size (%s) file size (%s) section alignment (%s)" % (HEX, HEX, HEX))
+SECTION_LINE = re.compile(r"probe-exe: section (\d+) va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s)" %
+                          (HEX, HEX, HEX, HEX, HEX))
+
+
+def section_table(data):
+    """(the table's offset, the optional header's offset, each section's (va, vsize, raw, rawsize, flags))."""
+    nt = struct.unpack_from("<I", data, 0x3C)[0]
+    count, opt_size = struct.unpack_from("<H", data, nt + 6)[0], struct.unpack_from("<H", data, nt + 20)[0]
+    at = nt + 24 + opt_size
+    rows = []
+    for i in range(count):
+        vsize, va, rawsize, raw = struct.unpack_from("<IIII", data, at + 40 * i + 8)
+        rows.append((va, vsize, raw, rawsize, struct.unpack_from("<I", data, at + 40 * i + 36)[0]))
+    return at, nt + 24, rows
+
+
+def clean_line(line):
+    return SHOWN_LINE.fullmatch(line) is not None and "/" not in line and "\\" not in line
+
+
+def tool_lines(*outputs):
+    """The tool's own lines: xvfb-run sends a program's standard error to its standard output, with Wine's and X's
+    lines between them."""
+    return [l for o in outputs for l in o.splitlines() if l.startswith("probe-exe: ")]
+
+
+def probe_exe_sections(args, env, as_win):
+    """--sections on fakegame.exe against the file read here; then on a copy whose second section starts inside the
+    first: --derive refuses it with one line naming the rule, the section and its numbers, and --sections still reads."""
+    failures = []
+    with open(args.exe, "rb") as f:
+        data = f.read()
+    at, opt, rows = section_table(data)
+    code, out, err = run_engine(args, env, ["probe-exe", as_win(args.exe), "--sections"])
+    lines = tool_lines(out, err)
+    head = SECTIONS_HEAD.fullmatch(lines[0]) if lines else None
+    need(code == 0 and head is not None and int(head.group(1), 16) == struct.unpack_from("<I", data, opt + 56)[0] and
+         int(head.group(2), 16) == len(data) and int(head.group(3), 16) == struct.unpack_from("<I", data, opt + 32)[0],
+         "--sections: exit %s, head %r" % (code, lines[:1]), failures)
+    need(len(lines) == 1 + len(rows), "--sections: %d lines for %d sections" % (len(lines), len(rows)), failures)
+    for i, (line, row) in enumerate(zip(lines[1:], rows)):
+        m = SECTION_LINE.fullmatch(line)
+        need(m is not None and int(m.group(1)) == i and tuple(int(g, 16) for g in m.groups()[1:]) == row,
+             "--sections: section %d: %r" % (i, line), failures)
+    need(all(clean_line(l) for l in lines), "--sections: a line DataPiler's log would not show", failures)
+    bad = bytearray(data)
+    struct.pack_into("<I", bad, at + 40 + 12, rows[0][0])
+    path = os.path.join(args.work, "overlap-%s.exe" % args.toolchain)
+    with open(path, "wb") as f:
+        f.write(bad)
+    dcode, dout, derr = run_engine(args, env, ["probe-exe", as_win(path), "--derive", "--leads",
+                                               as_win(args.set_paths["leads"]), "--out", as_win(path + ".json")])
+    errs = tool_lines(dout, derr)
+    m = re.fullmatch(r"probe-exe: the executable is not a PE32\+ image for x64: a section is misplaced: section 1 "
+                     r"starts below the end of section 0, (%s); va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s) "
+                     r"\(at (%s)\)" % ((HEX,) * 7), errs[0] if errs else "")
+    need(dcode == 3 and len(errs) == 1 and m is not None and clean_line(errs[0]) and
+         tuple(int(g, 16) for g in m.groups()[1:6]) == (rows[0][0],) + rows[1][1:] and int(m.group(7), 16) == at + 40,
+         "the overlap: exit %s: %r" % (dcode, errs), failures)
+    scode, sout, serr = run_engine(args, env, ["probe-exe", as_win(path), "--sections"])
+    need(scode == 0 and len(tool_lines(sout, serr)) == 1 + len(rows), "--sections on the overlap: exit %s" % scode,
+         failures)
+    return failures, out + err + dout + derr
+
+
+def probe_exe_loose(args, env, as_win, base, out):
+    """fakegame.exe with its last section's SizeOfRawData running 64 KiB past the end of the file and SizeOfImage
+    0x10 short of the last section's alignment, as the loader lets them be: --derive answers as on the file itself,
+    and derive.json differs in those two numbers only."""
+    failures = []
+    with open(args.exe, "rb") as f:
+        data = f.read()
+    at, opt, rows = section_table(data)
+    last = len(rows) - 1
+    loose = bytearray(data)
+    struct.pack_into("<I", loose, at + 40 * last + 16, rows[last][3] + 0x10000)
+    size_of_image = struct.unpack_from("<I", data, opt + 56)[0]
+    struct.pack_into("<I", loose, opt + 56, size_of_image - 0x10)
+    path = os.path.join(args.work, "loose-%s.exe" % args.toolchain)
+    with open(path, "wb") as f:
+        f.write(loose)
+    leads = ["--leads", as_win(args.set_paths["leads"])]
+    tcode, tout, terr = run_engine(args, env, base + leads)
+    loose_out = os.path.join(args.work, "derive-loose-%s.json" % args.toolchain)
+    lcode, lout, lerr = run_engine(args, env, ["probe-exe", as_win(path), "--derive", "--out", as_win(loose_out)] + leads)
+    need(tcode == 1 and lcode == tcode, "exit %s on the loose copy, %s on the file" % (lcode, tcode), failures)
+    if os.path.exists(out) and os.path.exists(loose_out):
+        with open(out) as f:
+            tidy = json.load(f)
+        with open(loose_out) as f:
+            loosed = json.load(f)
+        need(loosed["image"]["size_of_image"] == size_of_image - 0x10 and
+             loosed["image"]["sections"][last]["raw_size"] == rows[last][3] + 0x10000, "the loose copy's image",
+             failures)
+        for d in (tidy, loosed):
+            d["image"].pop("size_of_image")
+            d["image"]["sections"][last].pop("raw_size")
+        need(tidy == loosed, "the loose copy derives other than the file", failures)
+    else:
+        failures.append("no derive.json")
+    kcode, kout, _ = run_engine(args, env, ["lint", "--report", as_win(loose_out)])
+    need(kcode == 0 and "clean" in kout, "lint on the loose copy's report: exit %s" % kcode, failures)
+    return failures, tout + terr + lout + lerr
 
 
 # --- The GAL in game: gal/ from the derivation, and the checks of GALTEST lines -----------------------------------------
