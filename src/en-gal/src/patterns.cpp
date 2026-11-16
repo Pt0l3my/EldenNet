@@ -422,6 +422,12 @@ void read_pattern(const toml::table& t, const std::string& path, Errors& errors,
       out.rtti = *rtti;
     }
   } else if (kind && out.kind == PatternKind::Idiom) {
+    if (const auto suffix = p.text("path_suffix", false)) {
+      const bool printable = !suffix->empty() && suffix->size() <= 64 &&
+                             std::all_of(suffix->begin(), suffix->end(), [](char c) { return c > ' ' && c < 0x7F; });
+      if (!printable) errors.add(p.where("path_suffix"), "must be 1 to 64 printable ASCII characters");
+      out.path_suffix = *suffix;
+    }
     if (const toml::table* captures = p.table("captures", true)) {
       if (captures->empty() || captures->size() > 8) errors.add(p.where("captures"), "must hold 1 to 8 captures");
       for (auto&& [name, node] : *captures) {
@@ -506,11 +512,10 @@ namespace {
 
 constexpr std::uint32_t kPage = 4096;
 
+// The image's bytes at `rva` as the loader maps them (in a file, zeros past what the file holds of a section).
 bool read_rva(const ImageInfo& image, const ByteSource& source, std::uint64_t rva, std::span<std::byte> dst) {
-  if (rva > 0xFFFFFFFFu || dst.size() > 0xFFFFFFFFu) return false;
-  const std::optional<std::uint64_t> offset =
-      image.offset_of(static_cast<std::uint32_t>(rva), static_cast<std::uint32_t>(dst.size()));
-  return offset && source.read(*offset, dst);
+  if (rva > 0xFFFFFFFFu) return false;
+  return read_mapped(image, source, static_cast<std::uint32_t>(rva), dst);
 }
 
 // The target of the displacement at hit + capture.at, which may lie anywhere, even outside the image; nothing when the
@@ -642,9 +647,11 @@ ScanReport scan_patterns(const ImageInfo& image, const ByteSource& source, const
     }
 
     MultiMatcher matcher(patterns, kMaxPatternHits);
+    // A file's section is scanned over the raw data the file holds of it (file_span), a mapped image's whole.
     const bool memory = image.layout == ImageLayout::Memory;
-    const std::uint32_t length = memory ? s->mapped_size() : std::min(s->raw_size, s->mapped_size());
-    const std::uint64_t base = memory ? std::uint64_t{s->rva} : std::uint64_t{s->raw_offset};
+    const FileSpan held = image.file_span(*s);
+    const std::uint32_t length = memory ? s->mapped_size() : held.size;
+    const std::uint64_t base = memory ? std::uint64_t{s->rva} : held.offset;
     const std::uint64_t chunk_size =
         std::max<std::uint64_t>({options.chunk_bytes, 2 * std::uint64_t{matcher.longest()}, kPage});
     const std::uint64_t step = chunk_size - matcher.overlap();

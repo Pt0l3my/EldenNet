@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """eldennet-engine's probe-exe and lint --report, run as DataPiler's job runs them, on the derivation tests' invented
 program (written by en_tools_write_sample): the exit codes and messages of src/en-tools/README.md, derive.json's content,
-and the lint's refusals. Nothing here is a game's.
+the lint's refusals, probe-exe --sections, a refused section's line, and a layout the loader accepts (raw data past the
+end of the file, SizeOfImage short of the last section's alignment) deriving as the tidy one. Nothing here is a game's.
 
     cli_test.py --engine ENGINE --writer WRITER --work DIR
 """
@@ -9,6 +10,7 @@ import argparse
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 
@@ -23,6 +25,53 @@ def need(cond, text):
 def run(engine, *argv):
     out = subprocess.run([engine] + list(argv), capture_output=True, text=True, check=False, timeout=120)
     return out.returncode, out.stdout, out.stderr
+
+
+# DataPiler's shape for a line it shows in a job's log (its devkit.py): the command's prefix, then at most 240 printable
+# ASCII characters, with no path sign.
+SHOWN = re.compile(r"(?:probe-exe|lint): [ -~]{1,240}")
+HEX = r"0x[0-9a-f]+"
+SECTIONS_HEAD = re.compile(r"probe-exe: image size %s file size %s section alignment %s" % (HEX, HEX, HEX))
+SECTION_LINE = re.compile(r"probe-exe: section (\d+) va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s)" %
+                          (HEX, HEX, HEX, HEX, HEX))
+
+
+def table(data):
+    """The section table, read plainly: (where the table starts, the optional header's offset, the sections as
+    (va, vsize, raw, rawsize, flags))."""
+    nt = struct.unpack_from("<I", data, 0x3C)[0]
+    count, opt_size = struct.unpack_from("<H", data, nt + 6)[0], struct.unpack_from("<H", data, nt + 20)[0]
+    opt = nt + 24
+    at = opt + opt_size
+    rows = []
+    for i in range(count):
+        vsize, va, rawsize, raw = struct.unpack_from("<IIII", data, at + 40 * i + 8)
+        flags = struct.unpack_from("<I", data, at + 40 * i + 36)[0]
+        rows.append((va, vsize, raw, rawsize, flags))
+    return at, opt, rows
+
+
+def shown_cleanly(line):
+    return SHOWN.fullmatch(line) is not None and "/" not in line and "\\" not in line
+
+
+def check_sections(engine, exe, data, failures_name):
+    """probe-exe --sections on a file: its lines, numbers and fixed words only, agree with the table read plainly."""
+    code, so, se = run(engine, "probe-exe", exe, "--sections")
+    need(code == 0 and not se, "%s --sections: exit %s %r" % (failures_name, code, se))
+    lines = so.splitlines()
+    _, opt, rows = table(data)
+    size_of_image, align = struct.unpack_from("<I", data, opt + 56)[0], struct.unpack_from("<I", data, opt + 32)[0]
+    need(lines and lines[0] == "probe-exe: image size 0x%x file size 0x%x section alignment 0x%x" %
+         (size_of_image, len(data), align), "%s --sections: the head line %r" % (failures_name, lines[:1]))
+    need(len(lines) == 1 + len(rows), "%s --sections: %d lines for %d sections" % (failures_name, len(lines), len(rows)))
+    for i, (line, row) in enumerate(zip(lines[1:], rows)):
+        m = SECTION_LINE.fullmatch(line)
+        need(m is not None and int(m.group(1)) == i and tuple(int(g, 16) for g in m.groups()[1:]) == row,
+             "%s --sections: section %d's line %r" % (failures_name, i, line))
+    need(all(SECTIONS_HEAD.fullmatch(l) or SECTION_LINE.fullmatch(l) for l in lines) and
+         all(shown_cleanly(l) for l in lines), "%s --sections: a line of another shape" % failures_name)
+    return rows
 
 
 def main():
@@ -103,6 +152,64 @@ def main():
         need(a.work not in so + se, "%s: a path in its messages" % argv[0])
     code, so, _ = run(a.engine, "probe-exe", "--help")
     need(code == 0 and "Safe use" in so and "What we condemn" in so, "probe-exe --help and its disclosure")
+    need("--sections" in so, "probe-exe --help names --sections")
+
+    # --sections: the table's numbers, and nothing else; refused with the other options, and on a file that is no PE.
+    with open(exe, "rb") as f:
+        data = f.read()
+    rows = check_sections(a.engine, exe, data, "the sample")
+    for argv, want in [(["probe-exe", exe, "--sections", "--derive", "--leads", leads, "--out", out], 2),
+                       (["probe-exe", "--sections"], 2),
+                       (["probe-exe", leads, "--sections"], 3)]:
+        code, so, se = run(a.engine, *argv)
+        need(code == want and a.work not in so + se, "%s: exit %s, wanted %s" % (argv[1:], code, want))
+
+    # A section the loader refuses (the second over the first): exit 3, one line naming the rule, the section by index
+    # and its numbers, of the shape DataPiler's log shows; --sections still prints the table.
+    at, opt, _ = table(data)
+    bad = bytearray(data)
+    struct.pack_into("<I", bad, at + 40 + 12, rows[0][0])
+    bad_exe = os.path.join(a.work, "overlap.exe")
+    with open(bad_exe, "wb") as f:
+        f.write(bad)
+    code, so, se = run(a.engine, "probe-exe", bad_exe, "--derive", "--leads", leads, "--out", out + ".bad")
+    errs = se.splitlines()
+    need(code == 3 and len(errs) == 1 and not os.path.exists(out + ".bad"), "the overlap: exit %s %r" % (code, se))
+    m = re.fullmatch(r"probe-exe: the executable is not a PE32\+ image for x64: a section is misplaced: section 1 "
+                     r"starts below the end of section 0, (%s); va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s) "
+                     r"\(at (%s)\)" % (HEX, HEX, HEX, HEX, HEX, HEX, HEX), errs[0] if errs else "")
+    need(m is not None and tuple(int(g, 16) for g in m.groups()[1:6]) == (rows[0][0],) + rows[1][1:] and
+         int(m.group(7), 16) == at + 40, "the overlap's line: %r" % errs)
+    need(bool(errs) and shown_cleanly(errs[0]), "the overlap's line is not one DataPiler's log shows: %r" % errs)
+    check_sections(a.engine, bad_exe, bytes(bad), "the overlap")
+
+    # A layout the loader accepts and the reader once refused: the last section's raw data running past the end of the
+    # file, and SizeOfImage short of its alignment. It derives as the tidy one, but for those two numbers.
+    loose = bytearray(data)
+    last = len(rows) - 1
+    struct.pack_into("<I", loose, at + 40 * last + 16, rows[last][3] + 0x10000)
+    size_of_image = struct.unpack_from("<I", loose, opt + 56)[0]
+    struct.pack_into("<I", loose, opt + 56, size_of_image - 0x10)
+    loose_exe = os.path.join(a.work, "loose.exe")
+    with open(loose_exe, "wb") as f:
+        f.write(loose)
+    tidy_out, loose_out = out + ".tidy", out + ".loose"
+    tcode, _, tse = run(a.engine, "probe-exe", exe, "--derive", "--leads", leads, "--out", tidy_out)
+    lcode, lso, lse = run(a.engine, "probe-exe", loose_exe, "--derive", "--leads", leads, "--out", loose_out)
+    need(tcode == 1 and lcode == 1, "the loose layout: exit %s, the tidy %s: %r %r" % (lcode, tcode, lse, tse))
+    if os.path.exists(tidy_out) and os.path.exists(loose_out):
+        with open(tidy_out) as f:
+            tidy = json.load(f)
+        with open(loose_out) as f:
+            loosed = json.load(f)
+        need(loosed["image"]["size_of_image"] == size_of_image - 0x10 and
+             loosed["image"]["sections"][last]["raw_size"] == rows[last][3] + 0x10000, "the loose layout's image")
+        for d in (tidy, loosed):
+            d["image"].pop("size_of_image")
+            d["image"]["sections"][last].pop("raw_size")
+        need(tidy == loosed, "the loose layout derives other than the tidy one")
+    code, so, _ = run(a.engine, "lint", "--report", loose_out)
+    need(code == 0, "lint on the loose layout's report: exit %s %r" % (code, so))
 
     for f in FAILURES:
         print("FAIL: %s" % f)

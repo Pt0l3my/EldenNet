@@ -46,7 +46,7 @@ probe_record = "docs/ops/probes/9.8.7.0-ww.json"
 
 [task]
 group = { name = "Invented_Group", index = 3 }
-register_abi = "v1"
+register_abi = { task = "rdx", instance = "r9", group = "rcx" }
 vtable_slots = 4
 run_slot = 2
 object_size = 0x40
@@ -54,6 +54,7 @@ status = "confirmed"
 
 [class.Holder]
 rtti = "Invented::Holder"
+singleton = "HolderOne"
 copy_size = 0x100
 status = "confirmed"
 [class.Holder.fields]
@@ -89,6 +90,8 @@ fields = { name_id = { off = 0x0, ty = "i32" }, team = { off = 0x4, ty = "u8" } 
 [fmg]
 indexing = "flat"
 group_stride = 12
+npc_names = [40, 30, 4]
+place_names = [41]
 status = "confirmed"
 
 [dlrf]
@@ -192,8 +195,8 @@ TEST_CASE("a release build refuses leads; a dev build reads them and says so") {
   const auto dev = load_layout(gated(), lead, kNeeds, LayoutMode::Dev);
   REQUIRE(dev.has_value());
   CHECK(dev->has_leads());
-  CHECK(has_error(refusal(changed("indexing = \"flat\"\ngroup_stride = 12\nstatus = \"confirmed\"",
-                                  "indexing = \"flat\"\ngroup_stride = 12\nstatus = \"lead\"")),
+  CHECK(has_error(refusal(changed("place_names = [41]\nstatus = \"confirmed\"",
+                                  "place_names = [41]\nstatus = \"lead\"")),
                   "layout.toml: fmg", "is a lead"));
   CHECK(has_error(refusal(changed("object_size = 0x40\nstatus = \"confirmed\"", "object_size = 0x40")),
                   "layout.toml: task", "is a lead"));
@@ -263,8 +266,25 @@ TEST_CASE("everything the read groups need must be there, with its type") {
 TEST_CASE("the task, the provenance and the self-test ids keep to their forms") {
   CHECK(has_error(refusal(changed("run_slot = 2", "run_slot = 4")), "layout.toml: task.run_slot",
                   "must be below vtable_slots"));
-  CHECK(has_error(refusal(changed("register_abi = \"v1\"", "register_abi = \"x1\"")), "layout.toml: task.register_abi",
-                  "must be v and a number"));
+  const std::string_view abi = "register_abi = { task = \"rdx\", instance = \"r9\", group = \"rcx\" }";
+  CHECK(has_error(refusal(changed(abi, "register_abi = { task = \"rdx\", instance = \"r10\", group = \"rcx\" }")),
+                  "layout.toml: task.register_abi.instance", "must be one of rcx, rdx, r8, r9"));
+  CHECK(has_error(refusal(changed(abi, "register_abi = { task = \"rdx\", instance = \"rdx\", group = \"rcx\" }")),
+                  "layout.toml: task.register_abi", "must name three different registers"));
+  CHECK(has_error(refusal(changed(abi, "register_abi = { task = \"rdx\", instance = \"r9\" }")),
+                  "layout.toml: task.register_abi.group", "is missing"));
+  CHECK(has_error(refusal(changed(abi, "register_abi = \"v1\"")), "layout.toml: task.register_abi", "must be a table"));
+  {
+    const auto layout = load_layout(gated(), std::string(kSample), kNeeds, LayoutMode::Release);
+    REQUIRE(layout.has_value());
+    REQUIRE(layout->task().has_value());
+    CHECK(layout->task()->register_abi == RegisterAbi{ArgRegister::Rdx, ArgRegister::R9, ArgRegister::Rcx});
+    REQUIRE(layout->fmg().has_value());
+    CHECK(layout->fmg()->npc_names == std::vector<std::uint32_t>{40, 30, 4});
+    CHECK(layout->find_class("Holder")->singleton == "HolderOne");
+  }
+  CHECK(has_error(refusal(changed("singleton = \"HolderOne\"", "singleton = \"Holder One\"")),
+                  "layout.toml: class.Holder.singleton", "must be 1 to 128 letters"));
   CHECK(has_error(refusal(changed("derived_from = \"probe\"", "derived_from = \"guess\"")), "layout.toml: derived_from",
                   "must be probe, or the key of the build it came from"));
   CHECK(load_layout(gated(), changed("derived_from = \"probe\"", "derived_from = \"9.8.6.0-ww\""), kNeeds,
@@ -279,5 +299,5 @@ TEST_CASE("the task, the provenance and the self-test ids keep to their forms") 
                   "must be flat"));
   CHECK(has_error(refusal(changed("schema = 1", "schema = 2")), "layout.toml: schema", "must be between 1 and 1"));
   CHECK(has_error(refusal(std::string(kSample) + "\n[extra]\nx = 1\n"), "layout.toml", "has an unknown key \"extra\""));
-  CHECK(has_error(refusal("not toml = = 1"), "layout.toml", "is not valid TOML"));
+  CHECK(has_error(refusal("not toml\n"), "layout.toml", "is not valid TOML"));
 }

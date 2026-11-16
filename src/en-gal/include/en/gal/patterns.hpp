@@ -168,6 +168,7 @@ struct PatternSpec {
   std::string rtti;  // the class its instance must have, checked on the first tick; empty for none
   // An idiom's:
   std::vector<IdiomCapture> captures;
+  std::string path_suffix;  // the FD4 idiom's: the path every site loads ends with this (ARCH §6.2 step 2)
   // Every pattern's:
   std::vector<std::string> builds;  // where it was confirmed
   Provenance provenance;

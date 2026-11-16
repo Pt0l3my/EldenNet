@@ -60,13 +60,12 @@ ImageBytes::ImageBytes(const ImageInfo& image, const ByteSource& source, std::ui
     if (image.layout == ImageLayout::Memory) {
       copy.unreadable = copy_from(source, s.rva, copy.bytes);
     } else {
-      // The raw data, which may be shorter than the mapped size (the rest is zeros once mapped) or longer (padding).
-      const std::uint64_t raw = std::min<std::uint64_t>(s.raw_size, size);
-      if (raw != 0 && bytes::within(s.raw_offset, raw, source.size())) {
+      // The raw data the file holds (file_span), which may be shorter than the mapped size or end before its raw size
+      // (the rest is zeros once mapped), or longer (padding, not mapped).
+      const FileSpan held = image.file_span(s);
+      if (held.size != 0) {
         copy.unreadable =
-            copy_from(source, s.raw_offset, std::span<std::byte>(copy.bytes).first(static_cast<std::size_t>(raw)));
-      } else if (raw != 0) {
-        copy.unreadable = raw;
+            copy_from(source, held.offset, std::span<std::byte>(copy.bytes).first(static_cast<std::size_t>(held.size)));
       }
     }
     copies_.push_back(std::move(copy));

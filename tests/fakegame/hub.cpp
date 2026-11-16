@@ -136,7 +136,8 @@ void hub_run_frame(std::uint64_t frame, float dt) {
     if (auto* loom = static_cast<FG::TaskLoomImp*>(fg_get_taskloom())) ++loom->f.tasks_live;
     if (s.foreign) {
       // SAFETY: the group's UTF-16 name, read as Windows' 16-bit wchar_t for printing.
-      status("task-active group=%u name=%ls foreign=1", group, reinterpret_cast<const wchar_t*>(h.groups[group].name));
+      status("task-active group=%u name=%ls foreign=1 frame=%llu", group,
+             reinterpret_cast<const wchar_t*>(h.groups[group].name), static_cast<unsigned long long>(frame));
     }
   }
   if (auto* loom = static_cast<FG::TaskLoomImp*>(fg_get_taskloom())) loom->f.frame = frame;

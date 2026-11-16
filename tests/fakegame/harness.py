@@ -309,7 +309,59 @@ case("probe-exe-slots", [], program="{engine}", needs=("engine", "leads"),
      what="given R1's slots, probe-exe cuts a unique interior pattern at a reference to each AOB static")
 case("probe-exe-lint", [], program="{engine}", needs=("engine", "leads"),
      what="lint --report refuses a path, a free string and a byte run longer than a pattern")
+case("probe-exe-sections", [], program="{engine}", needs=("engine", "leads"),
+     what="probe-exe --sections prints the section table's numbers, as the file holds them, in numbers and fixed words "
+          "only; a section the loader refuses is named by its rule, index and numbers")
+case("probe-exe-loose", [], program="{engine}", needs=("engine", "leads"),
+     what="a layout the loader accepts (the last section's raw data past the end of the file, SizeOfImage short of "
+          "its alignment) derives as the tidy one")
 
+
+# The game-access layer in game (part 4): galtest.dll, loaded into the fake game, discovers its facts from gal/ files
+# that the harness writes from probe-exe's derive.json (with R1's slots of the AOB statics) and gal-layout.toml.in,
+# registers its task once and reads every group; its GALTEST lines are checked against --describe. Each case first
+# makes gal/ (make_gal); `{galdir}` names it.
+GAL = ["--no-window", "--fps", "60", "--title-frames", "30", "--load-frames", "10"]
+GAL_ENV = {"EN_GALTEST_DIR": "{galdir}"}
+GAL_NEEDS = ("engine", "leads", "galtest", "gallayout")
+case("gal-world", GAL + ["--frames", "900", "--load", "ready:{galtest}"], env=GAL_ENV, needs=GAL_NEEDS,
+     toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "world"),
+     what="the GAL in game: discovery from gal/ data, one registration, every group read at 4 Hz, the stores, the "
+          "probe's slot searches and slot counts, no allocation on the game thread")
+case("gal-window", GAL + ["--frames", "900", "--statics-delay-ms", "1500", "--load", "window:{galtest}"], env=GAL_ENV,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "world"),
+     what="loaded at the window, before the statics: discovery runs on the image, registration waits for the hub")
+case("gal-moves-poison", GAL + ["--frames", "900", "--move-every", "90", "--load", "ready:{galtest}"], env=GAL_ENV,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "moves"),
+     what="every singleton and the main player move, the old places tombstones: re-resolved every tick (R5)")
+case("gal-moves-free", GAL + ["--frames", "900", "--move-every", "90", "--move-mode", "free", "--load",
+                              "ready:{galtest}"], env=GAL_ENV, needs=GAL_NEEDS, toolchains=("clang-cl",),
+     timeout=120, check=lambda r: check_gal(r, "moves"),
+     what="the same with the old places released: nothing stale is ever read")
+case("gal-reload", GAL + ["--frames", "900", "--load-frames", "40", "--reload-every", "240", "--stall-at", "1",
+                          "--stall-ms", "1500", "--load", "ready:{galtest}"],
+     env=GAL_ENV,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "reload"),
+     what="loading screens: the lifecycle subset only while loading (R11), a playthrough each time the world returns; "
+          "a first frame of 1.5 s, and a run that ends loading")
+case("gal-online", GAL + ["--frames", "720", "--online-at", "420", "--load", "ready:{galtest}"], env=GAL_ENV,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "online"),
+     what="the session turns online: Dormant, the session and the lifecycle subset only")
+case("gal-fault-camera", GAL + ["--frames", "720", "--load", "ready:{galtest}"],
+     env=dict(GAL_ENV, EN_GALTEST_FAULT="camera:1"), needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "fault-camera"),
+     what="real faults injected in an optional group: its breaker trips at the third (L3), the rest reads on")
+case("gal-fault-world", GAL + ["--frames", "720", "--load", "ready:{galtest}"],
+     env=dict(GAL_ENV, EN_GALTEST_FAULT="world:1"), needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "fault-world"),
+     what="real faults in a structural group: it trips and the task goes inert (L1), reading nothing more")
+case("gal-rpm", GAL + ["--frames", "900", "--load", "ready:{galtest}"],
+     env=dict(GAL_ENV, EN_GALTEST_COPY="rpm", EN_GALTEST_FAULT="camera:1"), needs=GAL_NEEDS, toolchains=("clang-cl",),
+     timeout=120, check=lambda r: check_gal(r, "rpm"),
+     what="the ReadProcessMemory copy as the setting (S0-D): the same reads, and injected faults trip the camera")
+case("gal-group-shift", GAL + ["--frames", "300", "--shift-groups", "1", "--load", "ready:{galtest}"], env=GAL_ENV,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "group-shift"),
+     what="the group table shifted since the derivation: the first tick finds another name there and goes inert")
 
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------
 
@@ -850,6 +902,10 @@ def probe_exe(args, c, env):
         lcode, lout, _ = run_engine(args, env, ["lint", "--report", as_win(out)])
         need(lcode == 0, "lint exit %s: %s" % (lcode, lout.strip()), failures)
         return failures, stdout + stderr
+    if c.name == "probe-exe-sections":
+        return probe_exe_sections(args, env, as_win)
+    if c.name == "probe-exe-loose":
+        return probe_exe_loose(args, env, as_win, base, out)
     # probe-exe-lint: a report the tool wrote, then the same with a path, a free string and a long byte run.
     code, stdout, stderr = run_engine(args, env, base + ["--leads", as_win(args.set_paths["leads"])])
     with open(out) as f:
@@ -881,6 +937,420 @@ def probe_exe(args, c, env):
     return failures, stdout + stderr
 
 
+# DataPiler's shape for a line of the tool's that its job's log shows (its devkit.py), and --sections' two shapes.
+SHOWN_LINE = re.compile(r"(?:probe-exe|lint): [ -~]{1,240}")
+HEX = r"0x[0-9a-f]+"
+SECTIONS_HEAD = re.compile(r"probe-exe: image size (%s) file size (%s) section alignment (%s)" % (HEX, HEX, HEX))
+SECTION_LINE = re.compile(r"probe-exe: section (\d+) va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s)" %
+                          (HEX, HEX, HEX, HEX, HEX))
+
+
+def section_table(data):
+    """(the table's offset, the optional header's offset, each section's (va, vsize, raw, rawsize, flags))."""
+    nt = struct.unpack_from("<I", data, 0x3C)[0]
+    count, opt_size = struct.unpack_from("<H", data, nt + 6)[0], struct.unpack_from("<H", data, nt + 20)[0]
+    at = nt + 24 + opt_size
+    rows = []
+    for i in range(count):
+        vsize, va, rawsize, raw = struct.unpack_from("<IIII", data, at + 40 * i + 8)
+        rows.append((va, vsize, raw, rawsize, struct.unpack_from("<I", data, at + 40 * i + 36)[0]))
+    return at, nt + 24, rows
+
+
+def clean_line(line):
+    return SHOWN_LINE.fullmatch(line) is not None and "/" not in line and "\\" not in line
+
+
+def tool_lines(*outputs):
+    """The tool's own lines: xvfb-run sends a program's standard error to its standard output, with Wine's and X's
+    lines between them."""
+    return [l for o in outputs for l in o.splitlines() if l.startswith("probe-exe: ")]
+
+
+def probe_exe_sections(args, env, as_win):
+    """--sections on fakegame.exe against the file read here; then on a copy whose second section starts inside the
+    first: --derive refuses it with one line naming the rule, the section and its numbers, and --sections still reads."""
+    failures = []
+    with open(args.exe, "rb") as f:
+        data = f.read()
+    at, opt, rows = section_table(data)
+    code, out, err = run_engine(args, env, ["probe-exe", as_win(args.exe), "--sections"])
+    lines = tool_lines(out, err)
+    head = SECTIONS_HEAD.fullmatch(lines[0]) if lines else None
+    need(code == 0 and head is not None and int(head.group(1), 16) == struct.unpack_from("<I", data, opt + 56)[0] and
+         int(head.group(2), 16) == len(data) and int(head.group(3), 16) == struct.unpack_from("<I", data, opt + 32)[0],
+         "--sections: exit %s, head %r" % (code, lines[:1]), failures)
+    need(len(lines) == 1 + len(rows), "--sections: %d lines for %d sections" % (len(lines), len(rows)), failures)
+    for i, (line, row) in enumerate(zip(lines[1:], rows)):
+        m = SECTION_LINE.fullmatch(line)
+        need(m is not None and int(m.group(1)) == i and tuple(int(g, 16) for g in m.groups()[1:]) == row,
+             "--sections: section %d: %r" % (i, line), failures)
+    need(all(clean_line(l) for l in lines), "--sections: a line DataPiler's log would not show", failures)
+    bad = bytearray(data)
+    struct.pack_into("<I", bad, at + 40 + 12, rows[0][0])
+    path = os.path.join(args.work, "overlap-%s.exe" % args.toolchain)
+    with open(path, "wb") as f:
+        f.write(bad)
+    dcode, dout, derr = run_engine(args, env, ["probe-exe", as_win(path), "--derive", "--leads",
+                                               as_win(args.set_paths["leads"]), "--out", as_win(path + ".json")])
+    errs = tool_lines(dout, derr)
+    m = re.fullmatch(r"probe-exe: the executable is not a PE32\+ image for x64: a section is misplaced: section 1 "
+                     r"starts below the end of section 0, (%s); va (%s) vsize (%s) raw (%s) rawsize (%s) flags (%s) "
+                     r"\(at (%s)\)" % ((HEX,) * 7), errs[0] if errs else "")
+    need(dcode == 3 and len(errs) == 1 and m is not None and clean_line(errs[0]) and
+         tuple(int(g, 16) for g in m.groups()[1:6]) == (rows[0][0],) + rows[1][1:] and int(m.group(7), 16) == at + 40,
+         "the overlap: exit %s: %r" % (dcode, errs), failures)
+    scode, sout, serr = run_engine(args, env, ["probe-exe", as_win(path), "--sections"])
+    need(scode == 0 and len(tool_lines(sout, serr)) == 1 + len(rows), "--sections on the overlap: exit %s" % scode,
+         failures)
+    return failures, out + err + dout + derr
+
+
+def probe_exe_loose(args, env, as_win, base, out):
+    """fakegame.exe with its last section's SizeOfRawData running 64 KiB past the end of the file and SizeOfImage
+    0x10 short of the last section's alignment, as the loader lets them be: --derive answers as on the file itself,
+    and derive.json differs in those two numbers only."""
+    failures = []
+    with open(args.exe, "rb") as f:
+        data = f.read()
+    at, opt, rows = section_table(data)
+    last = len(rows) - 1
+    loose = bytearray(data)
+    struct.pack_into("<I", loose, at + 40 * last + 16, rows[last][3] + 0x10000)
+    size_of_image = struct.unpack_from("<I", data, opt + 56)[0]
+    struct.pack_into("<I", loose, opt + 56, size_of_image - 0x10)
+    path = os.path.join(args.work, "loose-%s.exe" % args.toolchain)
+    with open(path, "wb") as f:
+        f.write(loose)
+    leads = ["--leads", as_win(args.set_paths["leads"])]
+    tcode, tout, terr = run_engine(args, env, base + leads)
+    loose_out = os.path.join(args.work, "derive-loose-%s.json" % args.toolchain)
+    lcode, lout, lerr = run_engine(args, env, ["probe-exe", as_win(path), "--derive", "--out", as_win(loose_out)] + leads)
+    need(tcode == 1 and lcode == tcode, "exit %s on the loose copy, %s on the file" % (lcode, tcode), failures)
+    if os.path.exists(out) and os.path.exists(loose_out):
+        with open(out) as f:
+            tidy = json.load(f)
+        with open(loose_out) as f:
+            loosed = json.load(f)
+        need(loosed["image"]["size_of_image"] == size_of_image - 0x10 and
+             loosed["image"]["sections"][last]["raw_size"] == rows[last][3] + 0x10000, "the loose copy's image",
+             failures)
+        for d in (tidy, loosed):
+            d["image"].pop("size_of_image")
+            d["image"]["sections"][last].pop("raw_size")
+        need(tidy == loosed, "the loose copy derives other than the file", failures)
+    else:
+        failures.append("no derive.json")
+    kcode, kout, _ = run_engine(args, env, ["lint", "--report", as_win(loose_out)])
+    need(kcode == 0 and "clean" in kout, "lint on the loose copy's report: exit %s" % kcode, failures)
+    return failures, tout + terr + lout + lerr
+
+
+# --- The GAL in game: gal/ from the derivation, and the checks of GALTEST lines -----------------------------------------
+
+STATIC_ITEMS = (("hinstance", "module_handle"), ("save_ledger", "save_data"), ("run_warden", "game_state"),
+                ("field_plot", "field_area"))
+WIDE = {"rcx": "rcx", "ecx": "rcx", "rdx": "rdx", "edx": "rdx", "r8": "r8", "r8d": "r8", "r9": "r9", "r9d": "r9"}
+GAL_PROVENANCE = ('provenance = { method = "own-derivation", leads = ["the fake game\'s own leads"], '
+                  'evidence = "docs/ops/probes/fakegame.json", date = "2026-11-16" }')
+
+# The layout template's offsets against --describe's: (class.field of the template, a function of describe's layout).
+def _off(cls, field):
+    return lambda L: L[cls][field]["off"]
+
+TEMPLATE_TRUTH = {
+    "task_hub.group_count": lambda L, T: T["group_table"]["count_off"],
+    "task_hub.groups": lambda L, T: T["group_table"]["ptr_off"],
+    "task_group.name": lambda L, T: T["group_table"]["name_off"],
+    "characters.by_distance": lambda L, T: L["ActorRosterImp"]["near_begin"]["off"],
+    "characters.player_set": lambda L, T: L["ActorRosterImp"]["players"]["off"],
+    "characters.player_set_len": lambda L, T: L["ActorRosterImp"]["player_count"]["off"],
+    "characters.main_player": lambda L, T: L["ActorRosterImp"]["main_player"]["off"],
+    "near_entry.chr": lambda L, T: L["ActorRosterImp"]["near_entry"]["actor"],
+    "near_entry.distance": lambda L, T: L["ActorRosterImp"]["near_entry"]["distance"],
+    "character.on_screen": lambda L, T: L["Actor"]["flags"]["off"],
+    "character.dead": lambda L, T: L["Actor"]["flags"]["off"],
+    "player_character.locked_on": lambda L, T: L["PlayerActor"]["locked_on"]["off"],
+    "player_character.ride_state": lambda L, T: L["PlayerActor"]["mount_state"]["off"],
+    "character_parts.reaction": lambda L, T: L["ActorParts"]["react"]["off"],
+    "reaction.recv_dmg_type": lambda L, T: L["ReactPart"]["recv_dmg_type"]["off"],
+    "grip.throw_state": lambda L, T: L["GripPart"]["throw_state"]["off"],
+    "motion.pos": lambda L, T: L["MotionPart"]["pos"]["off"],
+    "save_data.player_data": lambda L, T: L["SaveLedgerImp"]["hero"]["off"],
+    "save_data.play_time": lambda L, T: L["SaveLedgerImp"]["play_time_ms"]["off"],
+    "settings.show_subtitles": lambda L, T: L["SaveLedgerImp"]["settings_show_subtitles"]["off"],
+    "game_state.talk_cam_id": lambda L, T: L["RunWardenImp"]["talk_cam_param_id"]["off"],
+    "hud.boss_bars": lambda L, T: L["GaugeBoardImp"]["bars"]["off"],
+    "popup.talk_id": lambda L, T: L["MenuDeskImp"]["popup_talk_id"]["off"],
+    "world_clock.minute": lambda L, T: L["SkyClockImp"]["clock"]["off"] + 2,
+    "world_clock.hour": lambda L, T: L["SkyClockImp"]["clock"]["off"] + 4,
+    "view.matrix": lambda L, T: L["EyeRigImp"]["view_matrix"]["off"],
+    "view.fov": lambda L, T: L["EyeRigImp"]["view_fov"]["off"],
+    "view.aspect": lambda L, T: L["EyeRigImp"]["view_aspect"]["off"],
+    "event_flags.map": lambda L, T: L["MarkLedgerImp"]["map_head"]["off"],
+    "event_flags.holder_base": lambda L, T: L["MarkLedgerImp"]["holder"]["off"],
+    "param_store.count": lambda L, T: L["TableVaultImp"]["table_count"]["off"],
+}
+# Fields whose names the template and --describe share, by class: template class -> describe class.
+SAME_NAMES = {"character": "Actor", "character_parts": "ActorParts", "vitals": "VitalsPart",
+              "save_data": "SaveLedgerImp", "player_data": "HeroSheet", "game_state": "RunWardenImp",
+              "field_area": "FieldPlotImp", "session": "LobbyWardenImp", "hud": "GaugeBoardImp", "menus": "MenuDeskImp",
+              "loading": "VeilKeeperImp", "camera": "EyeRigImp", "event_flags": "MarkLedgerImp",
+              "flag_node": "FlagNode", "messages": "PhraseBookImp", "fmg": "PhraseTable", "fmg_group": "PhraseGroup",
+              "param_store": "TableVaultImp", "param_table": "ParamSheet", "param_row": "ParamRowRef"}
+
+
+def template_offsets(text):
+    """{"class.field": off} from the layout template: its [class.X] and [class.X.fields] tables, inline or not."""
+    out = {}
+    cls = None
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        m = re.match(r"^\[class\.(\w+)(?:\.fields)?\]$", line)
+        if m:
+            cls = m.group(1)
+            continue
+        if line.startswith("["):
+            cls = None
+            continue
+        if cls is None:
+            continue
+        for name, off in re.findall(r"(\w+) = \{ off = (0x[0-9A-Fa-f]+)", line):
+            out["%s.%s" % (cls, name)] = int(off, 16)
+    return out
+
+
+def check_template(text, truth):
+    failures = []
+    offs = template_offsets(text)
+    L, T = truth["layout"], truth["task"]
+    checked = 0
+    for key, off in sorted(offs.items()):
+        cls, field = key.split(".")
+        want = None
+        if key in TEMPLATE_TRUTH:
+            want = TEMPLATE_TRUTH[key](L, T)
+        elif cls in SAME_NAMES and field in L.get(SAME_NAMES[cls], {}):
+            want = L[SAME_NAMES[cls]][field]["off"]
+        if want is None:
+            continue
+        checked += 1
+        need(off == want, "template %s at 0x%X, the fake game's at 0x%X" % (key, off, want), failures)
+    need(checked >= 70, "the template's offsets checked: only %d" % checked, failures)
+    return failures
+
+
+def make_gal(args, env):
+    """gal/ for fakegame.exe as the derivation round gives it: probe-exe --derive with the leads (decoys left out) and
+    R1's slots of the AOB statics (from --describe, standing in for the in-game probe), then builds.toml, patterns.toml
+    and layouts/fakegame.toml from derive.json and the template. Answers the folder and --describe's truth."""
+    truth = describe_truth(args, env)
+    leads = read_leads(args.set_paths["leads"])
+    as_win = lambda p: windows_path(p, args.native)
+    clean = os.path.join(args.work, "gal-leads.toml")
+    with open(args.set_paths["leads"]) as f:
+        text = "".join(l for l in f if not re.match(r"^(duplicata|strayling|rockbound) ", l))
+    with open(clean, "w") as f:
+        f.write(text)
+    out = os.path.join(args.work, "gal-derive-%s.json" % args.toolchain)
+    statics = [a for a in truth["aob"] if a["kind"] == "static"]
+    argv = ["probe-exe", as_win(args.exe), "--derive", "--out", as_win(out), "--leads", as_win(clean)]
+    for (label, _), a in zip(STATIC_ITEMS, statics):
+        argv += ["--static", "%s=0x%X" % (label, a["target_rva"])]
+    code, _, _ = run_engine(args, env, argv)
+    if code != 0:
+        raise ValueError("probe-exe --derive: exit %s" % code)
+    with open(out) as f:
+        d = json.load(f)
+    gal = os.path.join(args.work, "gal-%s" % args.toolchain)
+    os.makedirs(os.path.join(gal, "layouts"), exist_ok=True)
+    img = d["image"]
+    version = ".".join(str(v) for v in img["file_version"])
+    key = "%s-%s" % (version, img["region"])
+    with open(os.path.join(gal, "builds.toml"), "w") as f:
+        f.write('schema = 1\n[[build]]\nkey = "%s"\napp = "%s"\nfile_version = "%s"\nproduct_name = "%s"\n'
+                'region = "%s"\ntime_date_stamp = 0x%X\nsize_of_image = 0x%X\nlayout = "layouts/fakegame.toml"\n'
+                'dlrf_name_layout = true\nstatus = "supported"\n'
+                % (key, version, version, leads[""]["product_name"], img["region"], img["time_date_stamp"],
+                   img["size_of_image"]))
+    reg = d["register"]["pattern"]
+    pats = ['schema = 1']
+    pats.append('[[pattern]]\nid = "register_task"\nkind = "function"\nsection = ".text"\nbytes = "%s"\nanchor_min = %d\n'
+                'fn_len = [%d, %d]\n%s' % (reg["bytes"], reg["anchor"], reg["fn_length"], reg["fn_length"],
+                                           GAL_PROVENANCE))
+    for st in d["statics"]:
+        item = dict(STATIC_ITEMS)[st["label"]]
+        p = st["pattern"]
+        pats.append('[[pattern]]\nid = "%s"\nkind = "static"\nsection = ".text"\nbytes = "%s"\n'
+                    'capture = { at = %d, kind = "rip_rel32", insn_end = %d }\ntarget_section = ".data"\n%s'
+                    % (item, p["bytes"], p["capture_at"], p["capture_insn_end"], GAL_PROVENANCE))
+    idiom = d["fd4"]["idiom"]
+    caps = ", ".join('%s = { at = %d, kind = "rip_rel32", insn_end = %d, section = "%s"%s%s }'
+                     % (c["capture"], c["at"], c["insn_end"], c["section"],
+                        ", align = %d" % c["align"] if c["align"] > 1 else "",
+                        ", function = true" if c["function"] else "") for c in idiom["captures"])
+    pats.append('[[pattern]]\nid = "fd4_idiom"\nkind = "idiom"\nsection = ".text"\nbytes = "%s"\n'
+                'expect_matches = [1, 256]\npath_suffix = "%s"\ncaptures = { %s }\n%s'
+                % (idiom["bytes"], leads["fd4"]["path_suffix"], caps, GAL_PROVENANCE))
+    with open(os.path.join(gal, "patterns.toml"), "w") as f:
+        f.write("\n".join(pats) + "\n")
+    best = d["register"]["candidates"][0]
+    with open(args.set_paths["gallayout"]) as f:
+        template = f.read()
+    layout = (template.replace("@BUILD@", key)
+              .replace("@GROUP_INDEX@", str(d["group"]["candidates"][0]["index"]))
+              .replace("@ABI_TASK@", WIDE[best["task_register"]])
+              .replace("@ABI_INSTANCE@", WIDE[best["instance_register"]])
+              .replace("@ABI_GROUP@", WIDE[best["group_register"]])
+              .replace("@SLOTS@", str(d["rtti"]["task"]["slots_min"]))
+              .replace("@RUN_SLOT@", str(d["rtti"]["task"]["run_slot"]))
+              .replace("@OBJECT_SIZE@", "0x%X" % truth["task"]["object_size"])
+              .replace("@NAME_OFF@", "0x%X" % d["fd4"]["names"]["offset"]))
+    with open(os.path.join(gal, "layouts", "fakegame.toml"), "w") as f:
+        f.write(layout)
+    failures = check_template(template, truth)
+    if failures:
+        raise ValueError("the layout template disagrees with --describe: %s" % "; ".join(failures[:5]))
+    return gal, truth
+
+
+SCREEN = {"InGame": 1, "Loading": 2, "Title": 3}
+LOBBY = {"None": 1, "Hosting": 2, "Joined": 3}
+
+
+def check_gal(r, kind):
+    """The GALTEST lines of one run against --describe's truth (r.truth)."""
+    failures = []
+    truth = r.truth
+    disc = r.last("GALTEST", "discovery")
+    status = r.last("GALTEST", "status")
+    world = r.last("GALTEST", "world")
+    stores = r.last("GALTEST", "stores")
+    if not (disc and status and world and stores):
+        return ["no GALTEST discovery, status, world or stores line"]
+    need(r.last("GALTEST", "gate") and r.last("GALTEST", "gate").get("key") == "3.14.15.0-ww", "gate", failures)
+    need(disc["ready"] == "1" and disc["items"] == "16/16" and disc["passes"] == "1", "discovery %s" % disc, failures)
+    need(disc["getter_calls"] == "0" and disc["rtti_missing"] == "0" and int(disc["fd4_names"]) >= 11,
+         "discovery's names and RTTI %s" % disc, failures)
+    need(all(g.endswith(":none") for g in disc["groups"].split(",") if not g.startswith("status:")),
+         "discovery's groups %s" % disc["groups"], failures)
+    # Every item where --describe says it is.
+    rva = {e["label"]: int(e["rva"], 16) for e in r.events("GALTEST", "item")}
+    roles = {"TaskLoom": "task_hub", "ActorRoster": "characters", "LobbyWarden": "session", "MarkLedger": "event_flags",
+             "GaugeBoard": "hud", "MenuDesk": "menus", "VeilKeeper": "loading", "SkyClock": "world_clock",
+             "EyeRig": "camera", "TableVault": "param_store", "PhraseBook": "messages"}
+    for single in truth["fd4"]["singletons"]:
+        need(rva.get(roles[single["name"]]) == single["static_rva"], "item %s" % roles[single["name"]], failures)
+    aob = {a["role"]: a for a in truth["aob"]}
+    for role, item in (("global_hinstance", "module_handle"), ("GameDataMan", "save_data"), ("GameMan", "game_state"),
+                       ("FieldArea", "field_area")):
+        need(rva.get(item) == aob[role]["target_rva"], "item %s" % item, failures)
+    need(rva.get("register_task") == aob["register_task"]["fn_rva"], "item register_task", failures)
+    reg = r.last("GALTEST", "registered")
+    need(reg is not None and reg.get("ok") == "1", "registered %s" % reg, failures)
+    need(len(r.events("FAKEGAME", "register", "group")) == 1, "registered other than once", failures)
+    end = end_of(r)
+    need(end is not None and end.get("foreign_tasks") == "1", "foreign tasks %s" % (end or {}).get("foreign_tasks"),
+         failures)
+    groups = dict(g.lower().split(":") for g in status["groups"].split(","))
+    inv = int(status["invocations"])
+    snaps = int(status["snapshots"])
+    slots = [int(x) for x in status["slot_calls"].split(",")]
+    # The hub runs our task once a frame, from the frame it activated it to the last: counted in frames, so that a slow
+    # machine or a slow first frame changes nothing; and registration came in the run's first half.
+    active = r.last("FAKEGAME", "task-active", "frame")
+    if end is not None and active is not None:
+        frames, first = int(end["frames"]), int(active["frame"])
+        need(first <= frames // 2 and int(end["foreign_runs"]) == frames - first + 1,
+             "our task ran %s times from frame %d to %d" % (end["foreign_runs"], first, frames), failures)
+    else:
+        failures.append("no task-active or end line")
+    if kind == "group-shift":
+        need(status["state"] == "inert" and status["inert_why"] == "group_mismatch" and status["group_found_at"] == "6",
+             "group check %s" % status, failures)
+        need(snaps == 0, "snapshots when inert: %d" % snaps, failures)
+        need(any(re.search(r"^FAKEGAME task-active group=5 name=Fg_ActorMove foreign=1", l) for l in r.lines),
+             "the task joined another group", failures)
+        return failures
+    if kind == "fault-world":
+        need(status["state"] == "inert" and status["inert_why"] == "structural", "inert %s" % status, failures)
+        need(groups["world"] == "tripped" and int(status["fault_copy"]) >= 3, "world's breaker %s" % status, failures)
+        need(int(stores["trip_groups"], 16) & (1 << 1), "a GroupTripped for world", failures)
+        return failures
+    need(status["state"] == "running" and status["group_ok"] == "1", "task %s" % status, failures)
+    # 4 Hz by the clock since the first tick (R10), never more, whatever the frame rate a loaded machine gives. Under
+    # Wine each ReadProcessMemory goes through the server: the builds pass 0.5 ms and the task throttles to 2 Hz, which
+    # the rpm case allows (WHY§161).
+    elapsed = int(status["elapsed_ms"]) / 1000.0
+    built = snaps + int(status["abandoned"])
+    floor = 0.85 * (2 if kind == "rpm" else 4) * elapsed - 3
+    need(elapsed >= 4 and floor <= built <= 4 * elapsed + 2, "%d snapshots in %.1f s" % (built, elapsed), failures)
+    # The run slot every frame since registration; the hub's attach once; its query every 64th frame.
+    # (The status line reads its counters one by one while the game runs: they may differ by a frame or two.)
+    need(abs(slots[1] - inv) <= 2 and slots[0] == 1 and inv // 64 - 1 <= slots[2] <= inv // 64 + 2,
+         "slot calls %s for %d invocations" % (slots, inv), failures)
+    need(status["allocs"] == "0" and status["frees"] == "0", "allocations on the game thread %s/%s" %
+         (status["allocs"], status["frees"]), failures)
+    need(int(status["task_p99"]) < 20000, "task p99 %s us" % status["task_p99"], failures)
+    need(stores["data_ready"] == "1", "DataReady %s" % stores["data_ready"], failures)
+    want_trips = {"fault-camera": 1, "rpm": 1}.get(kind, 0)
+    need(int(stores["trips"]) == want_trips, "trips %s" % stores["trips"], failures)
+    for g, state in groups.items():
+        want = "tripped" if g == "status" or (g == "camera" and want_trips) else "ok"
+        need(state == want, "group %s %s" % (g, state), failures)
+    if want_trips:
+        need(int(stores["trip_groups"], 16) == 1 << 8, "tripped groups 0x%s" % stores["trip_groups"], failures)
+    if kind == "online":
+        need(world["lobby"] == str(LOBBY["Joined"]) and status["mode"] == "dormant" and int(status["dormant"]) >= 4,
+             "online: %s %s" % (world["lobby"], status["mode"]), failures)
+        return failures
+    full = snaps - int(status["loading_only"]) - int(status["dormant"])  # flag frames ride on full snapshots only
+    need(int(status["flag_frames"]) >= full // 4 - 2, "flag frames %s of %d" % (status["flag_frames"], full), failures)
+    # The world's values, as the fake game holds them.
+    want = {"screen": SCREEN["InGame"], "lobby": LOBBY["None"], "role": 1, "player_set": 1, "chars": 6, "dead": 1,
+            "level": 12, "runes": 4321, "slot": 2, "place": 6100100, "hud": 4, "subtitles": 1, "boss_bars": 1}
+    if kind == "reload":
+        # The run ends on a loading screen (frame 871 on), where a snapshot reads the lifecycle subset only (R11): the
+        # last screen may be either, and the session and the world are those the last snapshots that read them saw.
+        want["screen"] = None
+        need(end is not None and end.get("phase") == "loading", "the run ended in %s" % (end or {}).get("phase"),
+             failures)
+        need(world["screen"] in (str(SCREEN["InGame"]), str(SCREEN["Loading"])), "screen %s" % world["screen"],
+             failures)
+    for k, v in want.items():
+        if v is not None:
+            need(world[k] == str(v), "world %s=%s, wanted %s" % (k, world[k], v), failures)
+    need(world["hp"] == "1100/1200", "hp %s" % world["hp"], failures)
+    need(int(world["hour"]) == 9 and int(world["play_ms"]) > 3000, "clock %s:%s, play %s" %
+         (world["hour"], world["minute"], world["play_ms"]), failures)
+    need(int(world["near_param"]) in range(81100, 81700, 100), "near param %s" % world["near_param"], failures)
+    # The stores: the watch list 100, 7005, 4321010 and 999000; the texts and the rows asked for.
+    need(stores["flag_version"] == "9" and stores["flag_valid"] == "0x7", "flags %s" % stores, failures)
+    need(stores["flag_bits"] in ("0x7", "0x5"), "flag bits %s" % stores["flag_bits"], failures)
+    need(stores["texts"] == "3" and stores["text_named"] == "2" and stores["text_empty"] == "1", "texts %s" % stores,
+         failures)
+    need(stores["params"] == "1" and stores["param_name_id"] == "1101", "params %s" % stores, failures)
+    need(int(stores["playthroughs"]) >= (2 if kind == "reload" else 1) and stores["name_len"] == "13",
+         "playthroughs %s, name %s" % (stores["playthroughs"], stores["name_len"]), failures)
+    need(int(status["renders"]) > 100 and int(status["render_present"]) > 100, "render feed %s/%s" %
+         (status["renders"], status["render_present"]), failures)
+    # The probe's slot searches found each AOB static's slot.
+    found = {}
+    for part in stores["slots"].split(","):
+        label, progress, slot = part.split(":")
+        found[label] = int(slot, 16)
+    for role, item in (("GameDataMan", "save_data"), ("GameMan", "game_state"), ("FieldArea", "field_area")):
+        need(found.get(item) == aob[role]["target_rva"], "slot search %s: 0x%X" % (item, found.get(item, 0)), failures)
+    if kind == "reload":
+        need(int(status["loading_only"]) >= 4, "loading snapshots %s" % status["loading_only"], failures)
+    if kind == "moves":
+        need(end is not None and int(end.get("moves", 0)) >= 6, "moves %s" % (end or {}).get("moves"), failures)
+    if kind == "rpm":
+        need(r.last("GALTEST", "boot").get("copy") == "rpm" and int(status["fault_injected"]) >= 3,
+             "rpm %s" % status, failures)
+    return failures
+
+
 def cmd_run(args):
     c = next((c for c in CASES if c.name == args.case), None)
     if c is None:
@@ -896,6 +1366,17 @@ def cmd_run(args):
     argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
     argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
     env = wine_env(args)
+    truth = None
+    if c.name.startswith("gal-"):
+        args.set_paths = paths
+        try:
+            paths["galdir"], truth = make_gal(args, env)
+        except (OSError, ValueError, KeyError, IndexError) as e:
+            print("case %s: making gal/ failed: %r" % (c.name, e))
+            print("FAILED")
+            return 1
+        argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
+        argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
     env.update({k: re.sub(r"\{(\w+)\}", as_windows, v) for k, v in c.env.items()})
     if c.name.startswith("probe-exe"):
         args.set_paths = paths
@@ -920,6 +1401,7 @@ def cmd_run(args):
         with open(paths["status"], encoding="utf-8", errors="replace") as f:
             status_text = f.read()
     result = Result(code, out, err, killed, status_text)
+    result.truth = truth
     failures = []
     if c.kill_after is not None:
         need(killed, "it ended by itself; it should have hung", failures)

@@ -356,6 +356,8 @@ int describe(HINSTANCE instance) {
   const auto* sky = static_cast<const FG::SkyClockImp*>(fg_static_sky);
   const auto* eye = static_cast<const FG::EyeRigImp*>(fg_static_eye);
   const auto* marks = static_cast<const FG::MarkLedgerImp*>(fg_static_marks);
+  const auto* phrases = static_cast<const FG::PhraseBookImp*>(fg_static_phrases);
+  const auto* vault = static_cast<const FG::TableVaultImp*>(fg_static_tables);
   const auto* player = static_cast<const FG::PlayerActor*>(roster->f.main_player);
   auto field = [](std::uint64_t o, const char* ty) { return json{{"off", o}, {"ty", ty}}; };
   json layout{
@@ -442,8 +444,57 @@ int describe(HINSTANCE instance) {
         {"view_matrix", field(offsetof(FG::ViewData, matrix), "f32[16]")},
         {"view_fov", field(offsetof(FG::ViewData, fov), "f32")},
         {"view_aspect", field(offsetof(FG::ViewData, aspect), "f32")}}},
-      {"MarkLedgerImp", {{"divisor", field(off(marks, &marks->divisor), "u32")}}},
+      {"MarkLedgerImp",
+       {{"divisor", field(off(marks, &marks->divisor), "u32")},
+        {"map_head", field(off(marks, &marks->map_head), "ptr")},
+        {"map_count", field(off(marks, &marks->map_count), "u64")},
+        {"holder", field(off(marks, &marks->holder), "ptr")}}},
+      {"FlagNode",
+       {{"size", sizeof(FG::FlagNode)},
+        {"left", field(offsetof(FG::FlagNode, left), "ptr")},
+        {"parent", field(offsetof(FG::FlagNode, parent), "ptr")},
+        {"right", field(offsetof(FG::FlagNode, right), "ptr")},
+        {"key", field(offsetof(FG::FlagNode, key), "u32")},
+        {"mode", field(offsetof(FG::FlagNode, mode), "u32")},
+        {"value", field(offsetof(FG::FlagNode, value), "u64")}}},
+      {"PhraseBookImp",
+       {{"tables", field(off(phrases, &phrases->tables), "ptr")},
+        {"count", field(off(phrases, &phrases->count), "i32")}}},
+      {"PhraseTable",
+       {{"size", sizeof(FG::PhraseTable)},
+        {"group_count", field(offsetof(FG::PhraseTable, group_count), "u32")},
+        {"groups_off", field(offsetof(FG::PhraseTable, groups_off), "u64")},
+        {"offsets_off", field(offsetof(FG::PhraseTable, offsets_off), "u64")}}},
+      {"PhraseGroup",
+       {{"stride", sizeof(FG::PhraseGroup)},
+        {"offset_index", field(offsetof(FG::PhraseGroup, offset_index), "i32")},
+        {"first_id", field(offsetof(FG::PhraseGroup, first_id), "i32")},
+        {"last_id", field(offsetof(FG::PhraseGroup, last_id), "i32")}}},
+      {"TableVaultImp",
+       {{"table_count", field(off(vault, &vault->table_count), "u32")},
+        {"tables", field(off(vault, &vault->tables), "ptr")}}},
+      {"ParamSheet",
+       {{"size", sizeof(FG::ParamSheet)},
+        {"rows", field(offsetof(FG::ParamSheet, rows), "ptr")},
+        {"row_count", field(offsetof(FG::ParamSheet, row_count), "u16")},
+        {"row_size", field(offsetof(FG::ParamSheet, row_size), "u16")}}},
+      {"ParamRowRef",
+       {{"stride", sizeof(FG::ParamRowRef)},
+        {"id", field(offsetof(FG::ParamRowRef, id), "u32")},
+        {"data", field(offsetof(FG::ParamRowRef, data), "ptr")}}},
+      {"NpcRow",
+       {{"size", sizeof(FG::NpcRow)},
+        {"name_id", field(offsetof(FG::NpcRow, name_id), "i32")},
+        {"team", field(offsetof(FG::NpcRow, team), "u8")}}},
   };
+  // The stores' invented contents, by id only (the harness checks what the GAL reads against these).
+  json stores{{"flags", {{"groups", {0, 7, 4321}}, {"set", {100, 4321010}}, {"set_in_world", {7005}},
+                         {"missing_group", 999}}},
+              {"text", {{"tables", FG::kPhraseTables}, {"npc_names", FG::kNpcNameTable},
+                        {"place_names", FG::kPlaceNameTable}, {"npc_ids", {1100, 1101, 1102}},
+                        {"place_ids", {6100100}}, {"no_string", 1103}}},
+              {"params", {{"slot", FG::kNpcSheetSlot}, {"row_size", sizeof(FG::NpcRow)},
+                          {"ids", {81100, 81200, 81300, 81400, 81500, 81600}}}}};
 
   json enums{{"screen_state", {{"1", "Title"}, {"2", "Loading"}, {"4", "InGame"}}},
              {"lobby_state", {{"10", "Solo"}, {"11", "Hosting"}, {"12", "Visiting"}}},
@@ -463,6 +514,7 @@ int describe(HINSTANCE instance) {
            {"task", task},
            {"rtti", rtti},
            {"layout", layout},
+           {"stores", stores},
            {"enums", enums},
            {"self_check", {{"ok", failures.empty()}, {"failures", failures}}}};
   const std::string text = out.dump() + "\n";

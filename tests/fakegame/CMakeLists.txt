@@ -48,6 +48,13 @@ if(TARGET eldennet-engine)
   list(APPEND _en_set --set engine=$<TARGET_FILE:eldennet-engine> --set leads=${CMAKE_CURRENT_SOURCE_DIR}/derive-leads.toml)
 endif()
 
+# The GAL in game (part 4): galtest.dll, loaded into fakegame.exe, discovers the fake game's facts from gal/ files the
+# harness writes from probe-exe's derive.json and gal-layout.toml.in, registers its task and reads every group.
+if(TARGET galtest AND TARGET eldennet-engine)
+  list(APPEND _en_have galtest gallayout)
+  list(APPEND _en_set --set galtest=$<TARGET_FILE:galtest> --set gallayout=${CMAKE_CURRENT_SOURCE_DIR}/gal-layout.toml.in)
+endif()
+
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_harness})
 list(JOIN _en_have "," _en_have_list)
@@ -68,5 +75,5 @@ foreach(_en_case IN LISTS _en_cases)
       --exe $<TARGET_FILE:fakegame> --vehprobe $<TARGET_FILE:vehprobe> ${_en_set}
       --work ${CMAKE_CURRENT_BINARY_DIR}/harness ${_en_runner_args})
   set_tests_properties(fakegame.${_en_case} PROPERTIES
-    FIXTURES_REQUIRED en_wine_prefix RESOURCE_LOCK en_wine TIMEOUT 180)
+    FIXTURES_REQUIRED en_wine_prefix RESOURCE_LOCK en_wine TIMEOUT 240)
 endforeach()

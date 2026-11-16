@@ -73,5 +73,6 @@ add_subdirectory(src/en-tools)
 if(EN_FUZZ)
   add_subdirectory(fuzz)
 endif()
+add_subdirectory(tests/galtest)   # the GAL's test DLL, which the harness loads into the fake game (clang-cl)
 add_subdirectory(tests/fakegame)  # the fake game and its Wine harness (Windows builds with the tests)
 add_subdirectory(tests/vehprobe)  # the vectored-handler DLL the harness loads into it

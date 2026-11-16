@@ -426,27 +426,77 @@ class EyeRigImp {  // CSCamera's role
   ViewData* view = nullptr;  // 0x08
 };
 
-class MarkLedgerImp {  // CSEventFlagMan's role (no flag store yet)
+// The flag store (ARCH §6.9's shape, our own layout): a binary tree of groups (an id's group is id / 1000) under a
+// sentinel head whose parent is the root and to which the leaves point, each node naming its group's block of 125
+// bytes (1,000 flags, the first flag of a byte in its top bit) by an offset from the holder (mode 1) or by address
+// (mode 2).
+struct FlagNode {
+  FlagNode* left;       // 0x00
+  FlagNode* parent;     // 0x08
+  FlagNode* right;      // 0x10
+  std::uint32_t key;    // 0x18: the group
+  std::uint32_t mode;   // 0x1C
+  std::uint64_t value;  // 0x20
+};
+class MarkLedgerImp {  // CSEventFlagMan's role
  public:
   virtual std::uint32_t mark_kind() const;
-  std::uint32_t divisor = 1000;  // 0x08
+  std::uint32_t divisor = 1000;     // 0x08
   std::uint32_t spare = 0;
-  void* tree = nullptr;          // 0x10
+  FlagNode* map_head = nullptr;     // 0x10: the sentinel head
+  std::uint64_t map_count = 0;      // 0x18
+  std::uint8_t* holder = nullptr;   // 0x20: the blocks of mode 1
 };
 
-class TableVaultImp {  // SoloParamRepository's role (no tables)
+// The param tables (our own layout): a table per slot, each a sorted list of row references, each row's bytes.
+struct ParamRowRef {   // stride 0x10
+  std::uint32_t id;    // 0x00
+  std::uint32_t spare;
+  const void* data;    // 0x08
+};
+struct ParamSheet {
+  const ParamRowRef* rows;   // 0x00
+  std::uint16_t row_count;   // 0x08
+  std::uint16_t row_size;    // 0x0A
+  std::uint32_t spare;
+  std::uint64_t spare1;      // to 0x18
+};
+struct NpcRow {              // 0x10 bytes
+  std::int32_t name_id;      // 0x00
+  std::uint8_t team;         // 0x04
+  std::uint8_t spare[11];
+};
+inline constexpr std::uint32_t kNpcSheetSlot = 6;
+class TableVaultImp {  // SoloParamRepository's role
  public:
   virtual std::uint32_t vault_kind() const;
   std::uint32_t table_count = 0;  // 0x08
   std::uint32_t spare = 0;
-  void* tables = nullptr;         // 0x10
+  ParamSheet** tables = nullptr;  // 0x10
 };
 
-class PhraseBookImp {  // MsgRepository's role (no tables)
+// The text tables (our own layout): a header, its groups of consecutive ids, an offset per id (0: none), and the
+// UTF-16 strings, all in one block.
+struct PhraseTable {
+  std::uint32_t spare;        // 0x00
+  std::uint32_t group_count;  // 0x04
+  std::uint64_t groups_off;   // 0x08
+  std::uint64_t offsets_off;  // 0x10
+  std::uint64_t spare1;       // to 0x20
+};
+struct PhraseGroup {          // stride 12
+  std::int32_t offset_index;
+  std::int32_t first_id;
+  std::int32_t last_id;
+};
+inline constexpr std::uint32_t kPhraseTables = 24;
+inline constexpr std::uint32_t kNpcNameTable = 7;
+inline constexpr std::uint32_t kPlaceNameTable = 9;
+class PhraseBookImp {  // MsgRepository's role
  public:
   virtual std::uint32_t phrase_kind() const;
   std::uint64_t spare = 0;    // 0x08
-  void* tables = nullptr;     // 0x10
+  void* tables = nullptr;     // 0x10: kPhraseTables pointers to PhraseTables
   std::int32_t count = 0;     // 0x18
   std::int32_t spare1 = 0;
 };
