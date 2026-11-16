@@ -438,7 +438,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - e A card's bark word cap against a character's word cap [next]
 - f Character keys in the bark pool store [next]
 
-### S7.4 The LLM Jobrunner [active]
+### S7.4 The LLM Jobrunner
 
 - S7.4.a The request and the read-only review of version 1.2 go to the session that builds it [done]
   - gives: a local job runner for running prompt sets on the owner's own model servers; nothing in the reviewed bundle
@@ -448,10 +448,21 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - refs: tools/llmworker
   - gives: superseded on 2026-11-16: from 1.3 this session builds and tests the Jobrunner itself (c), from 1.2's
     reviewed source, so no separate read-only review is needed; 1.3 carries the review's nine fixes.
-- c Version 1.3: a chat tab for each server (images and text files attached), Check servers and a test jobpack, servers by address with Find servers, an update installed from a dropped zip, DataPiler's job cards, and the 1.2 review's nine fixes [active]
+- c Version 1.3: a chat tab for each server (images and text files attached), Check servers and a test jobpack, servers by address with Find servers, an update installed from a dropped zip, DataPiler's job cards, and the 1.2 review's nine fixes [done]
   - needs: a
   - gives: asked by the owner on 2026-11-16, built in a local copy and delivered as a release zip; the owner's
-    addresses and names never enter it.
+    addresses and names never enter it. Followed the same day by 1.3.1 (d) and 1.4 (e).
+- d Version 1.3.1: model-server slots on this PC that are off (Auto, Always or Never), and cards named by the owner's own names [done]
+  - needs: c
+  - gives: the owner's report on 1.3 (2026-11-16): slots that were off showed as dead servers, and one server twice.
+- e Version 1.4: cloud providers (NanoGPT, OpenRouter, any OpenAI-style endpoint) with write-only keys, a spending guard, and a screenshot pasted into Chat [done]
+  - needs: d
+  - gives: delivered as a release zip on 2026-11-16; keys are kept with Windows' DPAPI, which only the owner's run
+    can check (f).
+- f The owner's first run of 1.4: a key kept and used on Windows, and a provider's reported costs [done]
+  - needs: e
+  - gives: dropped on 2026-11-16 by the owner, who has no use for the cloud providers now: "you can remove that
+    jobrunner cloud one, not interested in that now". The feature stays in 1.4, untried on Windows.
 
 ### S7.5 GitHub [waiting]
 
@@ -460,12 +471,18 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - b The temporary branches left by the history rewrite deleted [done]
   - gives: deleted by the owner on 2026-11-16; both pointed into the clean history, so they exposed nothing.
 - c GitHub Support asked to purge the refs of the pull requests that still reach the rewritten history [waiting]
+  - gives: checked on 2026-11-16: the closed pull requests #1 to #5 still reach 102 commits of the old history.
+    Today's sweep finds nothing in any of their 372 file versions or in any commit's author, committer or message,
+    all from noreply addresses. What remains is the old sweep's `personal.txt`: one word kept as a salted SHA-256
+    hash, with its salt beside it. It cannot be read back, but it can confirm a right guess, so the purge stays
+    worth asking for if that word is easy to guess.
 
 ### S7.6 The public name [waiting]
 
-- S7.6.a The owner picks EldenNet's public name, at any time before the v0.6 public test [waiting]
+- S7.6.a The owner picks EldenNet's public name, at any time before the v0.6 public test [done]
   - refs: O1
-  - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
+  - gives: picked on 2026-11-16: the public name is EldenNet ("EldenNet is fine"; O1's note). The credits keep
+    saying it is its own project, not SkyrimNet, and that the game's name is its makers' mark.
 
 ### S7.7 An interactive showcase of the menu [next]
 
@@ -645,11 +662,19 @@ replay harness.
   - needs: d
   - refs: O74
 - f DataPiler imports EldenNet's play recordings [planned]
-  - needs: e, S10.1.a
+  - needs: S10.1.a
   - refs: O73
+  - gives: recordings are numbers-only JSON Lines, so the import needs no read through the devkit (e) (the plan for
+    S10.1.a, 2026-11-16).
 - g DataPiler's replay harness: recordings replayed through EldenNet's engine outside the game, with the owner's model services [planned]
   - needs: f, S8
   - refs: O74
+- h DataPiler runs the derivation's offline round with EldenNet's devkit tool on the game's executable, checks that the result holds only numbers and wildcarded patterns, and packs it to send (DataPiler DP36)
+  - needs: S10.1.a
+  - refs: O89, O73
+- i DataPiler compares the param and text ids and counts that EldenNet read in game with Smithbox's reading of the files, numbers only (DataPiler DP36)
+  - needs: h, S10.1.f
+  - refs: O89, O48
 
 ### S7.12 EldenNet off game (proposal 0002)
 
@@ -735,9 +760,13 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
     failure's wording), fixed in m; run 2 the same day, with a cloud key: the reply and the backup request work against
     a real provider, and the cloud decision missed its 1.5 s. Still to run: cancelling a reply part-way, and run 3's
     timings of NanoGPT's candidate models, which choose `cloud-nanogpt`'s (O88, n; ARCH §11.4).
-- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
+- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs [done]
   - needs: e
-  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
+  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103, WHY§111, WHY§112
+  - gives: built 2026-11-16 on the engine branch: clang-cl and lld-link against xwin's CRT and SDK, pinned in
+    `cmake/xwin.lock`; en-gal's SEH-guarded copy, its ARCH §6.5 sketch corrected (a never-inlined copy, guard pages
+    caught); AddressSanitizer, UBSan and ThreadSanitizer builds and three libFuzzer targets on Linux. Every build and
+    test passes, under Wine for the Windows builds.
 - j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them [done]
   - needs: e
   - refs: ARCH§2.3, ARCH§2.4, ARCH§3.1, ARCH§10.2, DESIGN§2.6, WHY§103, WHY§106
@@ -804,7 +833,8 @@ a batch's captures share a stretch of play.
 The game-access layer, the event engine and the gates are our own and stay as designed (DESIGN §7.8),
 but the code starts on our own engine (O84), so v0.1 follows S8. No LLM yet.
 Since G15, GraceUI's 0.1 Host ships with v0.1 (S10.4): EldenNet's banner and its F11 debug view, which
-v0.1's testing uses, draw through it.
+v0.1's testing uses, draw through it. Since O90 the spikes S1, S2, S6 and S7 run without it (S6 and S7 with a
+development Mark in the launcher), and only S0-E's present-hook half waits on it (S10.1.g).
 
 ### S10.1 The spikes for v0.1, in game
 
@@ -812,14 +842,24 @@ v0.1's testing uses, draw through it.
 - S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73)
   - refs: O73
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
-  - needs: a
-- c Spikes S1 perception, S2 text, S6's core flags, S7 combat, and S0-E's present-hook half, on GraceUI's 0.1 Host [waiting]
-  - needs: a
+  - needs: a, f
+- c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
+  - needs: b
+  - refs: O90
+  - gives: until O90 (2026-11-16) this part ran on GraceUI's 0.1 Host, with S0-E's present-hook half, now g.
 - d Spike S8 and S3's additions, on v0.1's recordings
   - needs: c
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on
+  - needs: a
+  - refs: O89, ARCH§6.2, ARCH§6.10
+- g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
+  - needs: a, S10.4.a
+  - refs: O90, G15
+- h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1)
+  - refs: O89, O90, O91
 
 ### S10.2 EldenNet v0.1
 
@@ -837,8 +877,8 @@ v0.1's testing uses, draw through it.
 - needs: S10.1, S10.2, S10.4
 - S10.3.a Golden events over three routes; no crash in 10 hours and 20 forced fail-closed launches; the unknown-build banner; the task's cost; dormancy in multiplayer
   - refs: DESIGN§16.3, DESIGN§1.3
-- b The read-group self-tests, the matrix's v0.1 rows, and the patch drill if the JP build's layout is ready
-  - refs: ARCH§12.4
+- b The read-group self-tests, the matrix's v0.1 rows (with S0's third-party rows not yet run), and the patch drill if the JP build's layout is ready
+  - refs: ARCH§12.4, O91
 - c Every CI stage but the eval (from v0.2) gating, and signed builds for testers
 - d One hook library in the process, GraceUI's; EldenNet's imports and symbols free of any; two consumers each way round; a second GraceUI copy idling
   - refs: G15, GraceUI:DESIGN§10
@@ -846,8 +886,11 @@ v0.1's testing uses, draw through it.
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking [active]
   - refs: O25, GraceUI:DESIGN§2.2
+  - gives: the render half built on 2026-11-16 (GraceUI's branch feat/host): the build tree with both libraries
+    pinned, the start, the five hooks on the swap chain and the queue, and the render path, passing the harness's
+    checks under Wine on software Vulkan (WHY§113 to §117); the input half next.
 - b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
   - refs: GraceUI:DESIGN§13
 - c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit

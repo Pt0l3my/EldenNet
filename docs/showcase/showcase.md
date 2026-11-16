@@ -49,8 +49,8 @@ slug 884a0cd5-2a74-4287-a29b-a99bc5ce0693).
 
 - updated: 2026-11-16
 - lede: A mod for Elden Ring on PC, for offline play, that lets the game's characters talk with you in their own words, remember you, and know what is going on around them.
-- status: Building the engine: its core runs
-- facts: Offline, solo play · Dialogue only in version 1 · A cloud model or your own · Spoiler-safe by design · Never writes to your game
+- status: Building towards the first test in game
+- facts: Offline, solo play · Dialogue only in version 1 · A cloud model by default, or your own · Spoiler-safe by design · Never writes to your game
 - roadmap-published: https://claude.ai/artifact/1HQVhkTsKhgR1EdkqUijxk
 
 ## What it is {#about}
@@ -88,8 +88,9 @@ carries it.
   characters, held back only by the pacing you set.
 - **Fights have voices**: lines for every fighter on either side, boss fights included, never over
   the game's own lines.
-- **Your model, your choice**: any service or local model server that speaks the common
-  OpenAI-compatible protocol, with ready presets for both.
+- **Your model, your choice**: a cloud service by default, with ready presets for OpenRouter and
+  NanoGPT, or a model server on your own computer; any service that speaks the common
+  OpenAI-compatible protocol works, and each use, from conversation to memory, can have its own.
 - **One menu, in game and in your browser**: GraceUI opens on a hotkey in game, and in a browser on
   the same PC while the game runs.
 - **Text first.** Spoken voices and talking aloud come in version 1.5; actions and gestures in a
@@ -243,7 +244,7 @@ with a notice, instead of guessing.
 GraceUI draws EldenNet's menu and dashboard: the same pages in game on a hotkey, and in your browser
 on the same PC while the game runs. It wears its own dark theme, Grace: warm ash greys lit by a single
 gold light. These are screenshots of the design mock, with placeholder data and invented names; the
-menu itself is built alongside EldenNet's versions.
+menu itself is built alongside EldenNet's versions, starting with the overlay that draws it in game.
 
 ### Home
 
@@ -309,26 +310,34 @@ Allowances only ever narrow what a type may do; the safety and spoiler rules alw
 - from: ai-providers-1280x720.png
 
 Where the model calls go: a cloud service with your own key, or a model server on your own computer.
-A key goes in and is never shown again.
+A key goes in and is never shown again. Since this mock was made, each use (conversation, call-outs,
+memory and the rest) can name a provider of its own, "same as conversation" until you change it
+(decision O88).
 
 ## Where it stands {#status}
 
 - kind: status
 - nav: Status
 
-**Building the engine.** The design of version 1 and its review rounds are done, and so is the design of GraceUI,
-which is becoming a UI framework other mods can use too. EldenNet builds an engine of its own, open source, on
-SkyrimNet's proven logic and structure (decision O84), and its core already runs outside the game: the prompt
+**Building towards the first test in game.** The design of version 1 and its review rounds are done, and so is the
+design of GraceUI, which is becoming a UI framework other mods can use too. EldenNet has an engine of its own, open
+source, built on SkyrimNet's proven logic and structure (decision O84). Its core runs outside the game: the prompt
 templates, the client that talks to your model, and the calls in which the model picks one of the options code gives
-it. The character profile is settled too, in five layers (decision O46).
+it. It now builds for Windows the way the release will, is tested under Wine and with sanitizers and fuzzing, and has
+answered a model server on a home network and a cloud service on Windows. The character profile is settled too, in
+five layers (decision O46).
 
-Meanwhile the research tools are at work. DataPiler, a small companion tool of our own, reads the game's data from
-the player's own game, through the modding tool Smithbox for now and later through EldenNet's own devkit (decisions
-O54 to O57, O74): the numbers by which EldenNet will know each character, and the world map. GraceUI's interactive
-map of your journey is designed for version 1.1, drawn at run time from your own game.
+GraceUI's overlay, the part that draws in game, is being built first. Its drawing half already draws over a test
+program's frames in a harness that runs without the game, at a fraction of a millisecond a frame; its input half
+(keys, pad, and holding the controls while a menu is open) is under way. Beside it, EldenNet's first build for the
+game is planned and started (decisions O89 to O91): it reads the game and records what it sees, with no model and no
+network yet, and is tested against a stand-in game of our own. A short round on the owner's PC, part of it run by
+DataPiler, our companion tool, will find what EldenNet needs to know about the game's build; DataPiler then
+cross-checks EldenNet's findings against what Smithbox reads from the game's files.
 
-Then the engine grows towards the game, the roster is written in batches, and EldenNet's versions follow, from
-v0.1 *Eyes* to v1.0, each one ready for testers, with GraceUI's menu growing beside them.
+Then come the first checks in game, the roster written in batches, and EldenNet's versions, from v0.1 *Eyes* to v1.0,
+each one ready for testers, with GraceUI's menu growing beside them. GraceUI's interactive map of your journey is
+designed for version 1.1, drawn at run time from your own game.
 
 ## Credits {#credits}
 

@@ -133,6 +133,15 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
 | 109 | 2026-11-16 | WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it | METHOD | #engine |
 | 110 | 2026-11-16 | O88 folded: a preset's providers are matched, not defined; the reserved slots; what "same as dialogue" shows | DECIDED | #engine #design |
+| 111 | 2026-11-16 | The clang-cl build with xwin, and the SEH copy: what clang does to `__try`, guard pages, and the pinned CRT | FACT | #engine #gal #build |
+| 112 | 2026-11-16 | The sanitizers and the first fuzz targets on Linux: two test defects, no finding in our code | METHOD | #engine |
+| 113 | 2026-11-16 | Direct3D 12 runs under Wine in the cloud container (vkd3d on Mesa's software Vulkan, on Xvfb); the toolchain saved as a setup script | FACT | #graceui #build #process |
+| 114 | 2026-11-16 | A Direct3D 12 swap chain's GetDevice names the device under Wine and vkd3d-proton, not the queue; the present queue found four ways | FACT | #graceui #overlay |
+| 115 | 2026-11-16 | Dear ImGui 1.93's DX12 backend waits for the GPU on texture uploads; its static atlas mode avoids every upload during play | FACT | #graceui #overlay |
+| 116 | 2026-11-16 | Wine's wined3d on OpenGL hung on Xvfb when a second thread made a DXGI factory; its Vulkan renderer did not | FACT | #graceui #build #wine |
+| 117 | 2026-11-16 | The render half's cost under Wine on software Vulkan, and how it was measured | METHOD | #graceui #overlay #perf |
+| 118 | 2026-11-16 | The engine's release binaries carry the build machine's absolute PDB path; /pdbaltpath removes it | FACT | #engine #build #privacy |
+| 119 | 2026-11-16 | Dear ImGui's and MinHook's licences read for adoption; Dear ImGui's contribution rule on AI prose is not a licence term | FACT | #graceui #licence |
 
 ## Entries
 
@@ -2073,3 +2082,157 @@ PAGES§4.5, WHY§108
   before they ship and whenever a model changes; a local preset's models are the player's, and the self-test measures
   them. The engine reads both forms and the reserved slots (roadmap S8.1.n): GCC and Clang en_llm 155 cases, Wine 157;
   NanoGPT's models wait on run 3 (S8.1.h).
+
+### 111. The clang-cl build with xwin, and the SEH copy: what clang does to `__try`, guard pages, and the pinned CRT
+
+`2026-11-16` · FACT · `#engine #gal #build` · refs: ARCH§2.6, ARCH§6.5, DESIGN§2.6, O60
+
+- **The SEH sketch was unsafe under clang-cl** (ARCH §6.5, corrected): a `memcpy` written inside the `__try` becomes the
+  `llvm.memcpy` intrinsic, which no scope-table entry covers. Probed under Wine: at `/Od` the fault went unhandled; at
+  `/O2` clang deleted the `__except` and the copy always answered success. A never-inlined callee doing the `memcpy` is
+  covered (the tests pass at `/Od` and at `/O2` with ThinLTO; the linked function has one call in its guarded range,
+  under `__C_specific_handler`).
+- **Guard pages.** The sketch's filter (access violation, in-page error) let `STATUS_GUARD_PAGE_VIOLATION` (0x80000001)
+  through, which would end the game; the filter takes it too. Reading a guard page lifts its guard (tested under Wine).
+  LIKELY: reading another thread's stack guard takes that thread's stack growth away, so `GuardedReader` is never
+  pointed into a stack (spike S0-D).
+- **The CRT is 14.43.** MSVC's standard library 14.44 (VS 17.14) refuses a Clang older than 19 (`yvals_core.h`,
+  STL1000); 14.43 (MSVC 14.43.34808) asks for Clang 18. With LLVM pinned at 18 the lock takes CRT 14.43.17.13 and SDK
+  10.0.26100 from manifest 17.14.45, and the static CRT (`/MT`) in every configuration.
+- **Two diagnostics in the whole engine at `/W4 /WX`:** MSVC's CRT marks `getenv` deprecated, so en-llm's `system_env`
+  uses `_dupenv_s` there; and Wine 9.0's `CreateSymbolicLinkW` answers success and makes nothing (MinGW's library never
+  calls it), so en-prompt's link tests check that a link exists before judging it.
+- **Getting xwin** (METHOD): the session's network refuses crates.io's download host, so xwin 0.10.0 came from its own
+  GitHub release archive for x86_64-unknown-linux-musl, checked against the release's SHA-256. Microsoft's licence
+  covers the CRT and SDK; they stay in a cache outside every repository (O60).
+
+### 112. The sanitizers and the first fuzz targets on Linux: two test defects, no finding in our code
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§12.1, ARCH§10.2, WHY§106
+
+- **AddressSanitizer found one defect, in a test:** the R3 test of the net threads' 2 MB stacks registered a notify
+  callback capturing locals declared after the handle, which the dispatcher could call until the handle shut down
+  (stack-use-after-scope); the state now comes first.
+- **ThreadSanitizer could not link `en_llm_tests`:** its static runtime defines every form of `operator new` and
+  `delete` strongly, so a program replacing them clashes; the thread build links the shared runtime, and the tests
+  replace all twenty forms, not six, so no memory passes between their allocator and a runtime's.
+- **No finding in our code or a library's:** the three fuzz targets (SSE frames, the JSON caps, the template compile)
+  took about 3 million inputs in two runs each, and a chunking bug planted in the SSE parser was caught on the seeds at
+  once. nlohmann/json 3.11.3 refuses a number past a double's range (`1e400`), so no infinity reaches the JSON forms.
+- **The give-way test (S8.1.l):** ThreadSanitizer saw no race in 38 runs of the suite (24 of them four at once), 150 of
+  the test alone under load and 600 without the sanitizer; what failed twice is not a race it sees, and S8.1.l stays
+  open.
+
+### 113. Direct3D 12 runs under Wine in the cloud container (vkd3d on Mesa's software Vulkan, on Xvfb); the toolchain saved as a setup script
+
+`2026-11-16` · FACT · `#graceui` `#build` `#process` · refs: GraceUI:D85, GraceUI:DESIGN§2.2, WHY§111
+
+- **Direct3D 12 without a GPU** (FACT): a probe of our own, built with clang-cl against the xwin SDK, ran under Wine 9.0
+  on Xvfb with Mesa's software Vulkan (lavapipe, Ubuntu's `mesa-vulkan-drivers`). It created a device, a direct queue
+  and a flip-model swap chain, cleared the back buffer, presented, and read it back. Five frames gave the exact colour
+  cleared. Wine's `d3d12.dll` is vkd3d over that Vulkan driver. So GraceUI's `tools/grace-harness` can run the host's
+  Present hook and Dear ImGui's DX12 backend on Linux, and check the pixels. That answers D85's open question ("WARP in
+  CI: LIKELY") another way, on Linux. Wine reports an invented adapter name, which no file records.
+- **The toolchain as a setup script** (METHOD): the packages and the xwin splat that WHY§111 describes are saved as a
+  cloud environment's setup script, run end to end here twice before saving. It installs LLVM 18, MinGW-w64, Wine,
+  Xvfb and Mesa's Vulkan driver, compiler-rt, libcurl and 7-Zip, then xwin 0.10.0 checked by SHA-256 and the pinned CRT
+  and SDK. It takes about two minutes, and its splat matched the earlier one file for file. A step that fails says so,
+  and the session still starts.
+
+### 114. A Direct3D 12 swap chain's GetDevice names the device under Wine and vkd3d-proton, not the queue; the present queue found four ways
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D116, GraceUI:D102, GraceUI:DESIGN§2.9
+
+- **GetDevice answers with the device** (FACT): a probe of ours under Wine 9.0 created a swap chain on the second of two
+  direct queues; `IDXGISwapChain::GetDevice` answered `E_NOINTERFACE` for `ID3D12CommandQueue` and the device for
+  `ID3D12Device` and `IUnknown`. Wine 9.0's `d3d12_swapchain_GetDevice` queries the device, and so does vkd3d-proton's
+  `dxgi_vk_swap_chain_GetDevice`, to which DXVK's DXGI swap chain forwards (their source, read). Microsoft's page for
+  `IDXGIDeviceSubObject::GetDevice` says nothing of Direct3D 12, so what Windows answers is not known here (S4).
+- **So the present queue is found four ways, in order** (GraceUI D116): the swap chain's own answer, where a runtime
+  gives the queue; the queue the game names in `ResizeBuffers1`; a direct queue executed inside the original `Present`
+  (OBS's capture does this; neither Wine nor vkd3d-proton executes one there: Wine signals a fence, vkd3d-proton enqueues
+  internally); and the device's only direct queue seen executing, after a whole frame. Two direct queues and no other
+  answer: nothing is drawn until the game names one. The harness checks the last two ways under Wine (the only-queue way
+  draws; with two queues nothing is drawn until `ResizeBuffers1`).
+- **Rejected:** the first queue seen executing (an overlay habit that races the present when a game has two direct
+  queues), an offset into the runtime's swap chain object, and hooking `CreateSwapChain*` (not in D102's list, and
+  GraceUI may start after the swap chain exists).
+
+### 115. Dear ImGui 1.93's DX12 backend waits for the GPU on texture uploads; its static atlas mode avoids every upload during play
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D117, GraceUI:DESIGN§3.16, GraceUI:CLAUDE.md invariants 10, 11
+
+- **The wait** (FACT, its source read): `ImGui_ImplDX12_UpdateTexture` copies through an upload buffer, executes on
+  `InitInfo.CommandQueue` and then `WaitForSingleObject(..., INFINITE)` on its fence; `ImGui_ImplDX12_RenderDrawData`
+  calls it for every texture in `ImDrawData::Textures` whose status is not OK. With the dynamic atlas (1.92 onwards) a
+  new glyph or size can ask for one during play. The backend's header names the way out: `Textures = nullptr`, and the
+  application handles textures itself.
+- **The static mode** (FACT): with `ImGuiBackendFlags_RendererHasTextures` cleared after the backend's `Init`,
+  `ImFontAtlasBuildMain` preloads every glyph range at the font's size, and Dear ImGui sets `ImFontAtlas::Locked` from
+  `NewFrame` to `EndFrame`, so no glyph or size is added during a frame (the nearest bake is scaled). GraceUI uploads the
+  RGBA atlas itself once, on the present queue, polls its fence, and sets the texture's id and status. With
+  `IMGUI_DISABLE_OBSOLETE_FUNCTIONS` the build uses the internal `ImFontAtlasBuildMain` (the obsolete `Build` calls it),
+  and leaves out the CC BY 4.0 table of Japanese characters that `GetGlyphRangesJapanese` holds.
+- **Also seen:** the backend's `CommandQueue` is used only by that texture path; its frame index advances once per
+  `RenderDrawData` (not when the display size is zero), which is why GraceUI's frame slots follow its calls (D119).
+
+### 116. Wine's wined3d on OpenGL hung on Xvfb when a second thread made a DXGI factory; its Vulkan renderer did not
+
+`2026-11-16` · FACT · `#graceui` `#build` `#wine` · refs: GraceUI:D120, GraceUI:BUILD.md, WHY§113
+
+- **The hang** (FACT): in at least two of four harness runs the host's init thread never returned from
+  `CreateDXGIFactory1`. Wine's factory starts wined3d, whose default renderer is OpenGL; a backtrace showed the thread
+  in `wglCreateContextAttribsARB` (wined3d's adapter probe), while the harness's main thread was in `PeekMessage`.
+- **The way round** (FACT): `HKCU\Software\Wine\Direct3D`, `renderer = vulkan` in the prefix; none of seventeen runs
+  since has hung. Direct3D 12 (vkd3d) runs on Vulkan either way; Proton's DXGI (DXVK) does not use wined3d.
+- **For players** (LIKELY): a game run on plain Wine (not Proton) with wined3d on OpenGL could meet the same hang in
+  GraceUI's init thread, which would then never hook: the game would run, without the overlay. S4 is on Proton and
+  Windows; the guide can name the setting if a player reports it.
+- **Method:** `printf 'bt all\ndetach\nquit\n' | WINEPREFIX=... wine64 winedbg <pid>` prints every thread's backtrace of
+  a running Wine process (`winedbg --command "info proc"` lists the pids).
+
+### 117. The render half's cost under Wine on software Vulkan, and how it was measured
+
+`2026-11-16` · METHOD · `#graceui` `#overlay` `#perf` · refs: GraceUI:D119, GraceUI:BUILD.md, GraceUI:CLAUDE.md
+invariant 10, EldenNet ARCH (T3)
+
+- **What is measured** (METHOD): a frame's cost is the Present detour's time less the original `Present`'s; within it,
+  the time inside the runtime's `ExecuteCommandLists` and `Signal` on GraceUI's own submission is counted apart, since
+  Mesa's lavapipe can run the "GPU" work on the submitting thread. The rest is GraceUI's own work. Allocations and frees
+  are counted on the present thread inside the detours, in graceui.dll's own `operator new`/`delete` and Dear ImGui's
+  allocator, in a test build only.
+- **Figures** (FACT; clang-cl Release, eleven runs of 600 frames each, the test panel drawn on 480×270 frames): with
+  the GPU idle before each frame, GraceUI's own work median 98–123 µs, p99 0.37–0.69 ms; the whole detour median
+  116–143 µs, p99 0.61–1.44 ms, the submission calls' p99 being 0.14–1.36 ms of it. Run as a game runs (two frames in
+  flight), the submission calls reached 2.5–4 ms at p99 and the own-work p99 crossed 1 ms in some runs, as lavapipe's
+  threads shared the four cores. Nothing to draw: median 0.5–0.7 µs, p99 1.3–20 µs. The MinGW-w64 build matched (own
+  work median 106 µs, p99 0.57 ms). Allocations and frees after warm-up: 0 and 0 in every run. No frame was skipped
+  for a busy slot.
+- **Instrumented once** (FACT): the slow frames' time was in `ExecuteCommandLists` (0.8–2.9 ms) and occasionally `Signal`
+  (1.4–1.7 ms); Dear ImGui's frame took 6–40 µs, the allocator and list reset 30–240 µs, `RenderDrawData` 14–200 µs.
+- **So** the figures are upper bounds for a real GPU; S4 measures the cost in the game against the 1 ms p99 budget for
+  panels with the menu closed.
+
+### 118. The engine's release binaries carry the build machine's absolute PDB path; /pdbaltpath removes it
+
+`2026-11-16` · FACT · `#engine` `#build` `#privacy` · refs: ARCH§2.6, WHY§111, GraceUI:D123
+
+- **Found** (FACT): `llvm-readobj --coff-debug-directory` on the engine's clang-cl release test program shows
+  `PDBFileName` as the absolute path of the build tree (under the home folder). `-ffile-prefix-map` maps paths inside
+  debug information, not the PDB path lld-link writes into the binary.
+- **The fix** (FACT): `/pdbaltpath:%_PDB%` at link makes it the PDB's file name alone; GraceUI's toolchain file has it,
+  and its graceui.dll names `graceui.pdb`. The engine's `cmake/clang-cl-xwin.cmake` should take the same flag before a
+  binary ships (a one-line change, left to the engine's session).
+
+### 119. Dear ImGui's and MinHook's licences read for adoption; Dear ImGui's contribution rule on AI prose is not a licence term
+
+`2026-11-16` · FACT · `#graceui` `#licence` · refs: GraceUI:D107, GraceUI:NOTICE, EldenNet O25
+
+- **Read in full at the pinned commits** (FACT): Dear ImGui 1.93.0, MIT (Copyright (c) 2014-2026 Omar Cornut);
+  MinHook 1.3.4, BSD 2-Clause (Tsuda Kageyu), with the Hacker Disassembler Engine 64 under BSD 2-Clause (Vyacheslav
+  Patkov). No clause on AI use in either. Dear ImGui's sources also carry stb (MIT or public domain) and two embedded
+  fonts, ProggyClean and ProggyForever (MIT); NOTICE reproduces every text a binary distribution needs.
+- **The one mention of AI** (FACT): Dear ImGui's pull-request template asks contributors not to submit AI-generated
+  prose. That governs contributions to that project, not use of its code; GraceUI contributes nothing upstream.
+- **Contact details** (METHOD): MinHook's `AUTHORS.txt` holds e-mail addresses, so it is neither fetched nor copied; the
+  licence files fetched hold none, and NOTICE names authors without contact details.
