@@ -127,9 +127,9 @@ index.
   O31–O42).
 - **The full roster, with free conversation and memories (2026-11-07).** v1.0 ships our own character bio for every
   named NPC and every named boss (DESIGN O43 as updated): general and stage-independent, in our own words and
-  spoiler-reviewed; stages stay a separate feature (the personas' stage tracks, GraceUI's Playthrough page). Every NPC
-  with a profile holds a free conversation and keeps memories of the player and of other NPCs, and the framework
-  matches the speaker by ID to its data (O45). The bio has five layers (O46, 2026-11-16;
+  spoiler-reviewed; stages stay a separate feature (the personas' stage tracks, the Playthrough page, PAGES §4.6.4).
+  Every NPC with a profile holds a free conversation and keeps memories of the player and of other NPCs, and the
+  framework matches the speaker by ID to its data (O45). The bio has five layers (O46, 2026-11-16;
   [proposal 0004](docs/proposals/0004-character-bio.md)): first meeting, revealed by verified stages, companion
   (used by the game's summons, and by followers after v1.0, O85), lived per journey, and the Tarnished's own. The
   roster is generated after a game scan and research; drafts come from our own notes, never from game text, and

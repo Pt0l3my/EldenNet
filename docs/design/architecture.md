@@ -288,7 +288,7 @@ struct Outputs {
 | `en-gal` | `en-proto`, the Windows SDK's headers (`sys` only), toml++ | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, Dear ImGui, any network library |
 | `en-overlay` | `en-proto`; GraceUI's `graceui-sys` (its header-only C helper and thin C++ wrapper), `grace-draw` and `grace-view`, pinned by tag and commit (GraceUI G15, its §2.7); Dear ImGui's core with no renderer backend, at the version GraceUI pins (1.93.0), for F11's context; the Windows SDK's headers | `en-gal` (it can never reach game memory), `en-core`; since GraceUI's G15, MinHook or any other hook library, an ImGui renderer backend, and GraceUI's `grace-host` and `grace-serve` (GraceUI invariant 16; DESIGN R12) |
 | `eldennet` | All of the above and the Windows SDK (`ReadDirectoryChangesW` for T10). Its queues and its logger are our own (§1.3) | — |
-| `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4) | Every other module of ours |
+| `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4); once it serves the dashboard off game (O76), GraceUI's `grace-serve`, pinned by tag (GraceUI G29, §4.13) | Every other module of ours |
 | `en-tools` | `en-core`, `en-prompt`, `en-augur`, `en-store`, `en-llm`, `en-gal`'s offline part, zstd; doctest for its tests | `en-overlay`, the rest of `en-gal` (`sys`, `reader`, `task`) |
 
 **`en-prompt` inside `en-core`.** `en-prompt` finds every template through a template source of its own
@@ -634,6 +634,18 @@ The dashboard's route (proposal 0001 §6.2) writes into `plugins/pending/` and i
 the game, render or input threads; code never arrives that way. When the game is started another way (a player's own
 loader, §4.10), T10 makes the same checks at boot for anything new in `plugins/`, and a code plugin stays off until the
 player turns it on with `--plugins`.
+
+### 4.13 The dashboard off game (O76; GraceUI G29)
+
+Once EldenNet's engine runs off game in the launcher (O76 (b)), the launcher serves EldenNet's pages (PAGES) to the
+player's browser with the game closed. It serves them through `grace-serve`, the one server library GraceUI publishes
+for hosts outside the game (GraceUI G29 (a), decided by the owner on 2026-11-16, as recommended; its §7.2 item 26),
+never through a server of its own, so every rule of GraceUI's §7.2 and its invariant 4 holds as in the game: loopback
+only; the `Host`, `Origin` and Fetch Metadata checks, the session cookie and the ticket; a strict CSP; only the files
+`graceui.toml` lists. The home-network switch and pairing (GraceUI G9) stay in the game at first, so the launcher opens
+no network listener. `eldennet.dll` links no `grace-serve`: in the game the server is GraceUI's. What the off-game pages
+show, the settings off game and the handover of the address between the launcher and the game are O76 to O79's fold
+(roadmap S7.12.c).
 
 ## 5. The offline and multiplayer gate
 

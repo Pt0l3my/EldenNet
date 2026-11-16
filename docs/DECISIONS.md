@@ -1226,6 +1226,10 @@ game closed (O75), and its pages pass the same spoiler and privacy rules as in t
 
 **Owner's words.** "Launcher runs the engine off game".
 
+*Later (2026-11-16):* GraceUI's G29 decided (a), as recommended: the launcher serves the dashboard off game through
+`grace-serve`, the one server library GraceUI publishes for hosts outside the game, with every rule of GraceUI's §7.2
+and invariant 4, on loopback only; the home-network switch and pairing stay in the game at first (ARCH §4.13).
+
 ## O77
 
 **Which settings change off game?** · *2026-11-15 · Decided by the owner, as recommended*

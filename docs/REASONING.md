@@ -129,6 +129,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 104 | 2026-11-16 | GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap | DECIDED | #graceui |
 | 105 | 2026-11-16 | The gear's names are in WeaponName (11) and ProtectorName (12), by row id; no row needs the expansion's layers | FACT | #gamedata #datapiler |
 | 106 | 2026-11-16 | The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took | METHOD | #engine |
+| 107 | 2026-11-16 | EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open | METHOD | #graceui #design |
+| 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
 
 ## Entries
 
@@ -1960,3 +1962,51 @@ checkout), O68, O53
   it open.
 - Counts: GCC and Clang, en_proto 15, en_llm 138 and en_prompt 68 test cases; MinGW under Wine, 15, 140 and 68; no
   warnings.
+
+### 107. EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open
+
+`2026-11-16` · METHOD · `#graceui #design` · refs: G18, G19, G20, G29, GraceUI D82, D92, PAGES§1, PAGES§2, PAGES§4.5;
+S7.8.d, S7.12.e
+
+- **The cut.** By subsection, never inside one, but for §4.9, which G20 splits itself: what is about EldenNet's content
+  moved to PAGES under GraceUI's numbers (§4.1, §4.2.1, §4.4 to §4.6, §4.8, PV1, PV2, PV4, PV5 and PV8, §4.10 to
+  §4.12; §9.1's spoiler goldens row, §9.2's fixtures; D61). The frame (§4.2.2 to §4.2.5), search (§4.3) and the
+  settings row (§4.7) stayed, as D82 and proposal 0001 §4.10 name them, though they still use EldenNet's space as
+  their example. Every heading and rule id that left stays in GraceUI with a one-line pointer, and the parts GraceUI
+  kept stand in PAGES as pointers under the same numbers, so either document resolves a reference by number.
+- **The map stayed in GraceUI §4.13.** It is GraceUI's own proposal 0002 under its G21 to G27, with D89 to D98 in its
+  log and the framework's map panel kind (D91) at its centre; D92 tied only the Map page's repository to G20, and that
+  page's rail entry and settings rows moved with PAGES §4.2.1 and §4.5. If the owner wants all of EldenNet's spoiler
+  review in EldenNet, the map's content (its layers, lore notes and goldens) can follow in a fold of its own.
+- **Left open by G20 (FACT).** GraceUI's §4.5 deferred to G20 "how GraceUI's own space (D79: Menu, Hotkeys, Browser
+  view, …) meets EldenNet's Settings groups", and (a) does not say. GraceUI's own keys (`hotkeys.menu`, `ui.scale`,
+  `ui.menu.*`, `dashboard.*`; D84) are homed on EldenNet's pages (Settings › Menu, Browser view and Hotkeys; Voice ›
+  Text and subtitles; Home › Customise), while GraceUI §6.9 describes GraceUI's settings in its own space and D81 keeps
+  commands within their space. The homes stay as listed until a design pass or the owner settles it.
+- **Not moved: the protocol schema.** GraceUI §6.5 and §6.6 still list EldenNet's topics and commands, generated in
+  `grace-protocol`; G20 (a) names the pages and their rules, not the schema, so GraceUI §6.1 now says they stay there.
+- **G29's EldenNet side** is ARCH §4.13 and DESIGN §3.2: the launcher links `grace-serve`, `eldennet.dll` never does;
+  the rest of the off-game dashboard waits for O76's fold (S7.12.c).
+- **A stale phrase (FACT).** GraceUI's PV3 says "EldenNet keeps only its hash" of a paired device's cookie, but since
+  D84 the paired devices are in GraceUI's user folder. PV3 is kept as worded; a later pass should correct it.
+
+### 108. The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes
+
+`2026-11-16` · FACT · `#engine` · refs: ARCH§11.1, ARCH§11.2, WHY§101, WHY§106
+
+- Source: the owner's run of the Windows check (roadmap S8.1.h), the MinGW Release build of the engine branch, on
+  2026-11-16; its reports were scrubbed of the user's and the PC's names and the servers' addresses before they left the
+  PC.
+- **Works.** The three test programs: en_proto 15 of 15, en_prompt 68 of 68, en_llm 138 of 140. A llama-server on the
+  home network, through WinHTTP: its model listed, a reply streamed (first text 378 ms, all of it 862 ms) and a decision
+  picked by the model, with its probability, in 85 ms. A cloud provider's model list (623 ids) over HTTPS with real
+  certificates. `probe` found nothing on the PC's usual ports, which was right for that PC.
+- **A cloud key rejected.** NanoGPT answered 401: it takes the key as a Bearer token, which the engine sends, so the key
+  itself was refused. The provider was then off until its configuration changes, and the decision fell back to its
+  rules, both as designed (ARCH §11.2).
+- **Two tests fail on Windows and pass under Wine.** (1) A connect to a listener with a full backlog lasts about 2 s,
+  since Windows retries the connection before it gives up, and WinHTTP's own connect timeout (300 ms in the test) does
+  not cut it short; it ends as "could not connect", not as a timeout. (2) TLS against a server that answers in plain
+  HTTP is reported by real Windows as a broken connection, not a TLS failure, so the message names no TLS. The fix
+  (roadmap S8.1.h): the driver's own connect deadline, and a TLS failure told by how far the exchange got.
+- Not yet tried on Windows: cancelling a reply part-way (Ctrl+C).

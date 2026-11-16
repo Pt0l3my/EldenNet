@@ -424,9 +424,9 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - gives: the needs date from 2026-11-07, before O46 settled the bio the player's own profiles follow (the Tarnished's
     own included) and O86 retired the lints against fixture states (PL7) they assume; SP1's `subjects` came with
     GraceUI's O46 fold on 2026-11-16.
-- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in GraceUI's design [next]
+- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
   - needs: a
-  - refs: GraceUI:DESIGN§4.6
+  - refs: PAGES§4.6
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -492,7 +492,7 @@ Min's engine arrived on 2026-11-15, with no UI, and EldenNet builds its own (O84
 The owner widened GraceUI's scope on 2026-11-08 (G14): a UI framework other modders can use, as
 Magelight UI and PrismaUI are for Skyrim; EldenNet requires it and always ships with it, and its
 menu and dashboard become GraceUI's first user. G15 to G17 were decided on 2026-11-08 and folded
-into both designs on 2026-11-15 (c); what depends on G18 to G20 waits for their answers.
+into both designs on 2026-11-15 (c); G18 to G20 were decided on 2026-11-16 and folded the same day (d).
 
 - S7.8.a A proposal: what the framework changes in GraceUI's and EldenNet's designs, with questions for the owner [done]
   - refs: G14, G1, G10, O25, GraceUI:docs/proposals/0001-ui-framework.md, GraceUI:docs/research/ui-frameworks.md
@@ -510,8 +510,13 @@ into both designs on 2026-11-15 (c); what depends on G18 to G20 waits for their 
   - gives: G15 to G17 and the map's G21 to G27 folded on 2026-11-15: GraceUI's DESIGN (the host, D69 to D101, the map
     section), its notes and invariants 15 to 18, eldennet-changes §11, and EldenNet's DESIGN, ARCH and NPC documents;
     what G18 to G20 decide is folded when the owner answers them (d).
-- d Fold G18 to G20 now that the owner has answered them: EldenNet's pages, SP1 to SP9 and its halves of PV1 to PV8 move to EldenNet (G20) [next]
+- d Fold G18 to G20 now that the owner has answered them: EldenNet's pages, SP1 to SP9 and its halves of PV1 to PV8 move to EldenNet (G20) [done]
   - needs: b
+  - refs: G18, G19, G20, PAGES§1, GraceUI:DESIGN§4, GraceUI:docs/eldennet-changes.md, WHY§107
+  - gives: folded 2026-11-16: GraceUI's §4 content, SP1 to SP9, PV1, PV2, PV4, PV5, PV8, D61, the fixtures and goldens
+    are EldenNet's PAGES under their numbers, with pointers left in GraceUI; GraceUI keeps the frame, search, the
+    settings row, PV3, PV6, PV7 and the map (WHY§107); 1.1 opens the framework (G18); GraceUI carries nothing
+    SkyrimNet-derived (G19).
 
 ### S7.9 The map (GraceUI proposal 0002)
 
@@ -659,9 +664,12 @@ look at, and settings changed off game that apply when EldenNet next loads; and 
   - refs: G29, O76
   - gives: decided 2026-11-16, as recommended: GraceUI publishes its server (our own since G30) as a library for hosts
     outside the game, EldenNet's launcher first.
-- e GraceUI's server for hosts outside the game, folded into both designs as G29 decided [next]
+- e GraceUI's server for hosts outside the game, folded into both designs as G29 decided [done]
   - needs: c, d
-  - refs: G29, O76
+  - refs: G29, O76, GraceUI:DESIGN§7.2, ARCH§4.13
+  - gives: folded 2026-11-16: `grace-serve` is one library for hosts outside the game under every rule of GraceUI's
+    §7.2 (its item 26) and invariant 4, loopback only; G4 widened off game; the launcher serves through it (ARCH
+    §4.13, DESIGN §3.2), with the rest of O76 left to c.
 
 ### S7.13 Spoilers by grounding alone (O86)
 
@@ -712,9 +720,12 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: a
   - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
   - gives: built 2026-11-16 on the engine branch: the WinHTTP transport, loaded by its full path from the system directory, with one conformance suite for it and libcurl, run under Wine; the local probes with the probe and models commands; the asynchronous handle (submit, cancel, the input epoch, events with backpressure, exactly one end per request) and Ollama's warm-up; 125 tests on Linux and 127 under Wine; every command run through the Windows build under Wine (WHY§101).
-- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [waiting]
+- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [active]
   - needs: g
-  - refs: ARCH§11.1, WHY§101
+  - refs: ARCH§11.1, WHY§101, WHY§108
+  - gives: run 1 on 2026-11-16 (WHY§108): the home network's llama-server, TLS with real certificates and the tests
+    pass, except two WinHTTP checks that real Windows answers differently from Wine (the connect deadline, the TLS
+    failure's wording), being fixed; then a second run, with cancelling and a cloud key.
 - i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
   - needs: e
   - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
@@ -864,7 +875,7 @@ v0.1's testing uses, draw through it.
 ### S11.4 GraceUI 0.2
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
-  - refs: G2, GraceUI:DESIGN§4.6
+  - refs: G2, PAGES§4.6
 - b The browser dashboard, always on, on loopback only, with the server's security suite
   - refs: G4, GraceUI:DESIGN§7.2
 - c The server in GraceUI with two spaces and per-space routing; EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
@@ -899,7 +910,7 @@ v0.1's testing uses, draw through it.
 ### S12.2 GraceUI 0.3
 
 - S12.2.a Named NPCs (the pilot) and Playthrough; Conversations and Memories, with Forget
-  - refs: GraceUI:DESIGN§4.6
+  - refs: PAGES§4.6
 - b Home's Nearby; Speaking up for named NPCs; the top bar's Journey
 
 ### S12.3 v0.3's exit checks
@@ -907,7 +918,8 @@ v0.1's testing uses, draw through it.
 - needs: S12.1, S12.2
 - S12.3.a Memory; the trim, world trim, NG+ and cue tests; the since-line, claim and cue probes
   - refs: DESIGN§16.3, MEM§12
-- b Forget's confirmation and backup; GraceUI's spoiler goldens for memories and journeys
+- b Forget's confirmation and backup; the spoiler goldens for memories and journeys
+  - refs: PAGES§5
 
 ## S13 v0.4 War cries [planned]
 
@@ -946,7 +958,7 @@ v0.1's testing uses, draw through it.
 ### S13.3 GraceUI 0.4
 
 - S13.3.a NPC types; Pacing, Reactions, Speaking up, Combat and Awareness; Events; the event monitor
-  - refs: G5, GraceUI:DESIGN§4.6
+  - refs: G5, PAGES§4.6
 - b Home's Happening now and Recent events; settings writable in the browser
 
 ### S13.4 v0.4's exit checks
@@ -988,8 +1000,8 @@ v0.1's testing uses, draw through it.
 - needs: S14.1, S14.2, S14.3
 - S14.4.a Spoilers, voice and world awareness on six personas; release lint on all shipped content
   - refs: DESIGN§16.3
-- b Each new bio's roster eval and checklist; GraceUI's world, roster and Playthrough goldens
-  - refs: NPC§12
+- b Each new bio's roster eval and checklist; the world, roster and Playthrough goldens
+  - refs: NPC§12, PAGES§5
 
 ## S15 v0.6 Threshold [planned]
 
@@ -1072,11 +1084,14 @@ v0.1's testing uses, draw through it.
 - e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone through GraceUI's upload route (G28)
   - needs: S7.10.c
   - refs: O66, O67, G28, docs/proposals/0001-plugins.md
+- f GraceUI 1.1 opens the framework to other modders: the modders' guide, the three example mods, the harness, the C mock, its own release page and a frozen ABI 1
+  - refs: G18, GraceUI:DESIGN§10
+  - gives: G18 (a), decided 2026-11-16: after EldenNet v1.0; ABI 1 is a preview until then.
 
 ### S17.2 v1.5
 
-- S17.2.a Text-to-speech and speech-to-text, with GraceUI's Voice pages
-  - refs: O8, GraceUI:DESIGN§10
+- S17.2.a Text-to-speech and speech-to-text, with the Voice pages
+  - refs: O8, PAGES§4.6.3, GraceUI:DESIGN§10
 
 ### S17.3 Later [idea]
 

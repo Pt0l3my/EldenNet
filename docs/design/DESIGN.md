@@ -14,6 +14,8 @@
 > **Citations:** `ER0n §x` and `SN0n §x` are research notes; `P1 §x` and `J2 G9` point into the process records. LIKELY and SPECULATION keep the research's evidence labels. **RE-needed** facts are settled by the spikes in §16 before code depends on them.
 > **Licence hygiene:** SkyrimNet's author, Min, has approved EldenNet building on SkyrimNet (the owner's decision, 2026-11-07: CLAUDE.md, Licences), so its engine and content may be used and adapted, credited as Min wishes; this design was written before that, from SkyrimNet's ideas and published numbers only (SN00 §7). All example content is original. No FromSoftware text or assets ship; game text is read at runtime from the player's install.
 > **Detail documents:** [architecture.md](architecture.md) expands §2–§6, §11, §14 and §15. [npcs-and-dialogue.md](npcs-and-dialogue.md) expands §7–§9 and §12. [memory-and-knowledge.md](memory-and-knowledge.md) expands §10. The adversarial review, with what it changed and what is still open, is [process/review.md](process/review.md).
+> [pages.md](pages.md) (PAGES) holds EldenNet's menu and dashboard pages, moved from GraceUI's design by its G20 (a) on
+> 2026-11-16 (§12).
 > **How to read it:** §0 is the whole design on one page and §1 the scope and success criteria. Then read the section for your area: start-up and safety §2–§3, game access §4–§5, the event engine §6, NPCs and speech §7–§9, memory §10, LLM and presentation §11–§12. §16 is the delivery plan and §19 indexes the owner's decisions and any question still open, each recorded in full in [docs/DECISIONS.md](../DECISIONS.md). Where a detail document and this one disagree, this one wins.
 
 ---
@@ -383,6 +385,9 @@ A small windowless Win32 program of our own, about 400 lines. It follows the doc
 6. **Stay as the crash watcher** (O71): in the background until the game ends, recording any crash for the next start to explain; then exit. Flags: `--vanilla-offline`, `--no-backup`, `--dll <path>`.
 
 Its first screen states, in plain words: offline only; saves are backed up but not separated (§3.6); typed text goes to the player's chosen provider; the content is AI-generated (J3 §4); and the dashboard's address, which GraceUI serves while the game runs, read from GraceUI's own settings (GraceUI D84). Under Proton the launcher must run inside the game's prefix. S0-C settles the recipe, and the player's own me3 profile is the fallback.
+Off game, once EldenNet's engine runs there (O76), the launcher serves the same pages itself through `grace-serve`, the
+one server library GraceUI publishes for hosts outside the game, under the same rules and on loopback only (GraceUI G29
+(a), 2026-11-16; ARCH §4.13).
 
 ### 3.3 Alternatives evaluated
 
@@ -1050,7 +1055,7 @@ decided, at the level of principle where the design of our own engine (O84) may 
   manner, voice and what the NPC is on a first meeting, in our own words, general and stage-independent, reviewed for
   spoilers like shipped content, and nothing about where its story stands (O43); its later truths only behind stages
   verified in game. The six personas add a stage track to their bio (§7.3); every other named NPC and named boss has a
-  character profile (§7.7). The player sees stages on GraceUI's Characters › Playthrough page, never in a bio.
+  character profile (§7.7). The player sees stages on the Characters › Playthrough page (PAGES §4.6.4), never in a bio.
 - **Free conversation with memories for every NPC with a profile** (O45): it converses when conversable (§8.1) and
   remembers the Tarnished and the other NPCs it deals with (§10.2). Events trigger NPCs to talk through Augur (§6) and
   the motives of §8.9 and §9; pacing, allowances, context gates and the spoiler layers apply unchanged.
@@ -1063,10 +1068,10 @@ decided, at the level of principle where the design of our own engine (O84) may 
 
 | Layer | Fields and caps | Read by |
 |---|---|---|
-| First meeting: seen | `public.summary` ≤ 60 words, `public.appearance` ≤ 40, `public.role` ≤ 20 (what it does: a smith, a knight sworn to a fallen house) | Its own prompts, others' prompts and GraceUI's roster |
+| First meeting: seen | `public.summary` ≤ 60 words, `public.appearance` ≤ 40, `public.role` ≤ 20 (what it does: a smith, a knight sworn to a fallen house) | Its own prompts, others' prompts and the roster page (PAGES §4.6.4) |
 | First meeting: self | `private.personality` ≤ 80; `private.honesty` (truthful, guarded or liar, with ≤ 25 words); `private.claims` ≤ 80 (what it says of its past to a stranger, true or not, with the cover story spelled out, so that a lie holds without the model knowing what it hides); `private.seeks` ≤ 3 × 15 (what it openly says it wants); `private.ties` ≤ 4 × 20 (only the people it names at a first meeting, `"Who: feeling"`, their proper nouns in its lexicon) | Its own prompts only |
 | First meeting: voice | NPC §3.1's voice fields (`register`, `voice.cadence`, `voice.diction`, `voice.deflection`, `address_forms`, `deflections` …), unchanged | Its own prompts |
-| First meeting: speaking up | `subjects` 3–8 (what it likes to talk about, §9.8); `stirs` 2–6 of ≤ 12 words (what makes it speak up unasked: a place, a name, a deed done near it, another's words) | The scheduler and the speaker choice at shared places (§9.7); its own prompts; `subjects` also GraceUI's roster |
+| First meeting: speaking up | `subjects` 3–8 (what it likes to talk about, §9.8); `stirs` 2–6 of ≤ 12 words (what makes it speak up unasked: a place, a name, a deed done near it, another's words) | The scheduler and the speaker choice at shared places (§9.7); its own prompts; `subjects` also the roster page (PAGES §4.6.4) |
 | First meeting: knows | `knows` (true at every state) and `lexicon` | Its own prompts |
 | Revealed | Later truths about its past, aims and ties, each behind a story stage verified in game: `knows_when` entries for a roster NPC, a persona's stages (`stages.unlock.text`, `stages.unlock.kb`) | Its own prompts, once the stage is verified |
 | Companion | `companion.skills` ≤ 60 words (how it fights and what it brings) and `companion.beside` ≤ 40 (what it says and notices fighting beside the Tarnished), with its combat seeds | Its combat lines when the game summons it (§7.1; §7.6 rule (c); O42); followers after v1.0 (O85) |
@@ -1153,7 +1158,7 @@ below):
 | Combat lines | Seeds; pools from the character block (NPC §4.5); when the game summons it, its companion layer | Never live (O42); a boss's once S3 has recorded it |
 | Others' prompts | `brief` | — |
 | The memory job; the lived layer's update | The memory job: `brief`, `public.summary`, `private.honesty`; the update: its first-meeting layer, the revealed entries unlocked for the journey and the memories it cites | Never more than the layers unlocked for the journey (O86); MEM §3.3, §13.3 |
-| GraceUI's roster | `public.summary`, `public.role` and `subjects`; the name from the player's install | The Stranger Test at the opening state (GraceUI D67) |
+| The roster page (PAGES §4.6.4) | `public.summary`, `public.role` and `subjects`; the name from the player's install | The Stranger Test at the opening state (GraceUI D67) |
 
 **Bosses and invaders.** Built-in rules (a) and (b) hold: a bar holder and an invading phantom speak combat lines
 only. A named boss or invader therefore converses only where the game lets the Tarnished meet it calm and not hostile,
@@ -1979,6 +1984,10 @@ The self-test also runs silently at every start, and `eldennet-engine selftest` 
   - settings (F10, safe moments only); debug view (F11, off by default).
 - **Style:** ash-white text with a soft shadow and no box behind subtitles; HDR-safe colours; fades only (120 ms in, 300–400 ms out); scale 75–150%. Pacing is part of the style (§8.5).
 - **Hidden** when `screen != InGame`, `hud == HideAll` (cutscenes, LIKELY), during loading, and while banners show (the chat box excepted).
+- **Menu and dashboard pages** (GraceUI's G20 (a), 2026-11-16): EldenNet's own, in [pages.md](pages.md) (PAGES): the
+  categories and pages with their ids, the home of every setting, help texts and Home's cards, the spoiler rules SP1 to
+  SP9 and EldenNet's privacy rules, with their fixtures and goldens. EldenNet ships them as page data, registers them
+  with GraceUI at start as its space, and GraceUI draws them in both views, in its frame, with its components and theme.
 - **Settings:** master and per-feature switches; pacing (time between lines; lines per window in fights, idle remarks
   and talk); ranges; autonomy; reactions per event type (on, cooldown); NPC types and allowances; profiles (the
   player's own instructions, subjects, character profiles and bio of the Tarnished, §7.7); floating labels; follow the
@@ -1999,7 +2008,7 @@ The self-test also runs silently at every start, and `eldennet-engine selftest` 
 | TTS / STT / pad | `SpeechSink` + `PageTiming`; `Line.voice_key`; `InputSource {Typed, Stt, Intent}`; the `tts` allowance | TTS, push-to-talk, intent list |
 | Thoughts | `npc_thought` event type; parser channel reserved | Add to the contract |
 | Triggers | Augur and bark rule formats; `allow_custom_rules = false` | User rule files |
-| UI | The `UiPort` in the core (player-safe projections: only what the game has shown or what is written to be impersonal, GraceUI SP1, with no lock filter since O86; one validating command entry point; the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space, panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
+| UI | The `UiPort` in the core (player-safe projections: only what the game has shown or what is written to be impersonal, SP1 in PAGES §4.8, with no lock filter since O86; one validating command entry point; the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space (its pages: PAGES, since GraceUI's G20), panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
 | Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3, with EldenNet's own hook library (O65, R12), each hook approved by the owner |
 | Plugins | The plugins layer in the content loader and the `plugin.toml` schema; the code-plugin interface `EldenNet_RequestApi` reserved (O66–O68; [proposal 0001](../proposals/0001-plugins.md)), with its rules set now (WHY§98, WHY§99): a plain C ABI whose structs start with their size, documented threads, reads by id, audiences that truly bound who sees an event, typed error codes, requests that complete exactly once, JSON for queries, ids never reused, the rollback state and a "trimmed to playtime T" event (plugin writes buffered as EldenNet buffers its own), and one request in flight per character | Content plugins in 1.1, installed from the Plugins folder or the dashboard (O67); code plugins after v1.0, with a preview first (O68), run outside the game in one plugin cluster or detached (O70); a hook service for plugins only if one is needed (O69) |
 | Scene or vector memory | The `Recall` interface (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log; recall gathered by code, then the recall gate on the `decisions` slot (§10.1) |
