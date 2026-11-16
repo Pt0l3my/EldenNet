@@ -31,6 +31,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--handled-every` with `--handled-kind seh\|cxx` | Exceptions a game raises and handles itself, which a vectored handler sees first |
 | `--load [boot\|window\|ready\|title\|world:]PATH` | A loader that loads a DLL at one moment (ARCH §3.3's late load) |
 | `--selftest-task` (`--selftest-abi`, `--selftest-object-size`, `--selftest-group`) | EldenNet's T1 and trampoline, in miniature: a task registered from another thread, its slots counted |
+| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F | The player pressing the launcher's Mark, a system hotkey (O90) |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -75,6 +76,24 @@ the flags, text and rows asked for, the slot counts (the run slot every frame, a
 searches' finds, no allocation on the game thread; and, by case, moving statics, loading screens, the session going
 online, an optional group's breaker, a structural group's (inert), the RPM copy, and a group table shifted since the
 derivation (the first tick finds another name and goes inert).
+
+The launcher (part 7) joined it with the `launcher-*` cases: each runs `eldennet-launcher.exe` with `--no-dialogs`
+on a copy of `fakegame.exe` in the case's own folder (`{game}`), with an `%APPDATA%` of its own (`{appdata}`) and
+gal/ (the derivation's for the cases with `galtest.dll`, else a `builds.toml` written from the fake game's own
+fingerprint), after the case's own invented files (saves, a stale record of the appid file, someone else's appid
+file, a crash record of an earlier session, Steam folders with a library list and an app manifest). The fake game's
+arguments follow `--`, with `--status-file`, where galtest's and vehprobe's lines go too (a game started by a launcher
+has no console). The checks read the launcher's `LAUNCHER` lines and the files it leaves: the appid file and its
+record, backups and their manifests, the watcher's crash records (each checked for paths and the user's name), the
+spikes' logs. Eleven cases run in both builds (no DLL: a vanilla start and a crash, the env method, someone else's
+appid file, `--backup-only`, `--cleanup`, `--print-diagnostics`, E02, E05, E08, a usage error); ten more with
+`galtest.dll` in the clang-cl build: injection suspended, at the window and at the title, a crash recorded through
+EldenNet's filter, a game that replaces the filter, `--also vehprobe.dll`, the S0-A, S0-D crash and S0-C loops, and
+`launcher-watch`, where the fake game loads galtest itself and galtest starts the watcher (`--watch <pid>`), whose
+lines the case reads from its log once every process has ended (`settle`). galtest.dll does EldenNet's part of the
+watch block for them (`tests/galtest/watch_client.cpp`): T1's states and the status, a chained crash filter installed
+once the game has started, a crash on the launcher's request, and en-core's slice stepped on its snapshots, whose
+phase, level and gate it reports.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

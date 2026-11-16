@@ -59,6 +59,7 @@ struct Options {
   bool selftest_swapped = false;
   std::uint32_t selftest_object_size = static_cast<std::uint32_t>(FG::kTaskFieldsSize);
   std::int32_t selftest_group = -1;  // -1: the stand-in group
+  std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
   std::wstring status_file;
   std::uint32_t exit_code = 0;
   bool describe = false;

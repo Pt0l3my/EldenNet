@@ -105,14 +105,32 @@ cmake --build build-cl
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 5 minutes for the clang-cl build's 63 cases: 52 of about 2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to
-  25 s each, which first write gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as R1
-  would find them) and `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the
-  fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build runs 49 (no `__try`, GCC's own
-  RTTI, and no test DLL).
+- About 8 minutes for the clang-cl build's 84 cases (21 of them the launcher's, below): 52 of about 2 to 8 s each, and
+  the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive` on `fakegame.exe`
+  (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its offsets checked
+  against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build
+  runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
+
+## The launcher and the core's slice
+
+`src/en-core/` holds the core's v0.1 slice (part 5): the lifecycle without the store, the offline and multiplayer
+gate with its hysteresis, L1, L2 and Dormant; pure, so `en_core_tests` runs in every build. `src/en-launcher/` builds
+`en_launcher_core` everywhere (Steam's library files, the save backups with their BLAKE3 manifests, the appid file and
+its record, launcher.toml, the command line, the texts, the watcher's records and the spikes' tally;
+`en_launcher_tests`) and, in the two Windows builds, `eldennet-launcher.exe` (part 7). The launcher shares en-proto's watch block with
+EldenNet in the game. Its README has the command line and what each step does.
+
+The launcher's end-to-end cases join the fake game's harness (`ctest -R fakegame.launcher`): 11 in both Windows builds
+(no DLL), and 10 more in the clang-cl build with `tests/galtest/galtest.dll` as the DLL, which now also does EldenNet's
+part of the watch block (`watch_client.cpp`) and steps en-core's slice on its snapshots. A case that starts a process
+of its own (the watcher galtest starts) waits for every process of the prefix to end before the next case
+(`settle`). About 3 minutes for the 21 clang-cl cases; the S0 loops and the injections are the longest (10 to 20 s).
+
+In the cross builds CTest lists the unit-test programs too, which it cannot run on Linux: run them under Wine as
+above (`en_core_tests.exe`, `en_launcher_tests.exe` among them).
 
 ## Checks: compile-fail tests and CI greps
 

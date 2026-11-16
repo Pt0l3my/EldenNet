@@ -7,6 +7,11 @@
 //   EN_GALTEST_COPY     seh (default) or rpm: the copy primitive (ARCH §6.5, S0-D)
 //   EN_GALTEST_FAULT    <group>:<every>: the probe's fault injection, from EN_GALTEST_FAULT_AFTER s in the world
 //   EN_GALTEST_FAULT_AFTER  seconds (default 2)
+//   EN_GALTEST_WATCHER  the launcher, started as the watcher (`--watch <pid>` and EN_GALTEST_WATCHER_ARGS) when no
+//                       launcher made a watch block: what EldenNet does under another loader (O71)
+// With the launcher's watch block (part 7), it also does EldenNet's part there (watch_client.hpp): T1's states, the
+// status, a chained crash filter and a crash on request; and it steps en-core's slice (part 5) on its snapshots, as
+// the core thread will, and reports the lifecycle, the gate and the level there and in its GALTEST core lines.
 // Everything it reads and prints belongs to the fake game, whose every fact is invented.
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -30,11 +35,13 @@
 #include <string>
 #include <vector>
 
+#include "en/core/core.hpp"
 #include "en/gal/discovery.hpp"
 #include "en/gal/native_sys.hpp"
 #include "en/gal/probe.hpp"
 #include "en/gal/task.hpp"
 #include "en/proto/ffi_guard.hpp"
+#include "watch_client.hpp"
 
 using namespace en::gal;
 using en::proto::GameCommand;
@@ -170,7 +177,27 @@ struct Summary {
 
 class Io final : public TaskIo {
  public:
-  explicit Io(Summary& s) : s_(s), building_(std::make_unique<en::proto::WorldSnapshot>()) {}
+  explicit Io(Summary& s)
+      : s_(s),
+        building_(std::make_unique<en::proto::WorldSnapshot>()),
+        mail_(std::make_unique<en::proto::WorldSnapshot>()) {}
+
+  // The newest snapshot for the core's stand-in (the reporter thread): copied under a sequence count, retried when
+  // the game thread wrote meanwhile. Answers false when nothing newer than `seen` has been published.
+  bool take(en::proto::WorldSnapshot& out, std::uint64_t& seen) {
+    for (int tries = 0; tries < 8; ++tries) {
+      const std::uint64_t before = mail_seq_.load(std::memory_order_acquire);
+      if (before == seen) return false;
+      if (before % 2 != 0) continue;
+      out = *mail_;
+      std::atomic_thread_fence(std::memory_order_acquire);
+      if (mail_seq_.load(std::memory_order_relaxed) == before) {
+        seen = before;
+        return true;
+      }
+    }
+    return false;
+  }
 
   bool pop_command(GameCommand& out) noexcept override {
     const std::size_t head = head_.load(std::memory_order_relaxed);
@@ -195,6 +222,10 @@ class Io final : public TaskIo {
     }
     s_.published.fetch_add(1, std::memory_order_relaxed);
     const en::proto::WorldSnapshot& w = *building_;
+    // The core's copy (trivially copyable: no allocation on the game thread).
+    mail_seq_.fetch_add(1, std::memory_order_acq_rel);
+    *mail_ = w;
+    mail_seq_.fetch_add(1, std::memory_order_release);
     s_.gap.fetch_add(w.gap ? 1 : 0, std::memory_order_relaxed);
     s_.screen.store(static_cast<std::int64_t>(w.life.screen));
     s_.full.fetch_add(w.player ? 1 : 0, std::memory_order_relaxed);
@@ -252,6 +283,11 @@ class Io final : public TaskIo {
     }
   }
   bool push_lifecycle(const en::proto::Lifecycle& l) noexcept override {
+    const std::size_t lt = life_tail_.load(std::memory_order_relaxed);
+    if (lt - life_head_.load(std::memory_order_acquire) < life_.size()) {
+      life_[lt % life_.size()] = l;
+      life_tail_.store(lt + 1, std::memory_order_release);
+    }
     if (std::holds_alternative<en::proto::Lifecycle::DataReady>(l.payload)) s_.data_ready.fetch_add(1);
     if (const auto* p = std::get_if<en::proto::Lifecycle::PlaythroughReady>(&l.payload)) {
       s_.playthroughs.fetch_add(1);
@@ -281,10 +317,25 @@ class Io final : public TaskIo {
  private:
   Summary& s_;
   std::unique_ptr<en::proto::WorldSnapshot> building_;
+  std::unique_ptr<en::proto::WorldSnapshot> mail_;
+  std::atomic<std::uint64_t> mail_seq_{0};
   std::array<GameCommand, 16> ring_{};
   std::atomic<std::size_t> head_{0};
   std::atomic<std::size_t> tail_{0};
   std::array<std::shared_ptr<const std::vector<std::uint32_t>>, 4> retired_{};
+  std::array<en::proto::Lifecycle, 16> life_{};
+  std::atomic<std::size_t> life_head_{0};
+  std::atomic<std::size_t> life_tail_{0};
+
+ public:
+  // C2 for the core's stand-in: the lifecycle messages, in order.
+  bool pop_lifecycle(en::proto::Lifecycle& out) {
+    const std::size_t h = life_head_.load(std::memory_order_relaxed);
+    if (h == life_tail_.load(std::memory_order_acquire)) return false;
+    out = life_[h % life_.size()];
+    life_head_.store(h + 1, std::memory_order_release);
+    return true;
+  }
 };
 
 // ---- The task, wrapped: the probe's searches and injection, and the allocation watch ----
@@ -296,6 +347,10 @@ struct Probe final : TaskBody {
     }
   }
   void run(const en::proto::GameThread& gt, const FrameCtx& frame) override {
+    if (!thread_named) {
+      thread_named = true;
+      galtest::watch::game_thread(GetCurrentThreadId());
+    }
     const bool warm = task.status().snapshots.load(std::memory_order_relaxed) >= 3;
     t_armed = warm;
     task.run(gt, frame);
@@ -317,6 +372,7 @@ struct Probe final : TaskBody {
   std::atomic<bool> inject_now{false};
   Injection injection;
   bool injected = false;
+  bool thread_named = false;
 };
 
 std::string groups_text(const Discovery& d) {
@@ -355,6 +411,13 @@ DWORD WINAPI t1(void*) noexcept {
     const std::string dir = env("EN_GALTEST_DIR");
     const bool rpm = env("EN_GALTEST_COPY") == "rpm";
     line("boot pid=%lu copy=%s", GetCurrentProcessId(), rpm ? "rpm" : "seh");
+    using IS = en::proto::watch::InitState;
+    if (const std::string watcher = env("EN_GALTEST_WATCHER"); !watcher.empty()) {
+      line("watcher started=%d", galtest::watch::start_watcher(watcher, env("EN_GALTEST_WATCHER_ARGS")) ? 1 : 0);
+    }
+    const bool watched = galtest::watch::attach();
+    line("watch attached=%d", watched ? 1 : 0);
+    galtest::watch::state(IS::Gate);
     // NativeSys and its task live for the life of the process (R14): made here, never destroyed.
     auto* sys = new NativeSys(rpm ? CopyKind::Rpm : CopyKind::Seh);
     line("stacks n=%zu", sys->stacks().size());
@@ -366,11 +429,17 @@ DWORD WINAPI t1(void*) noexcept {
     }
     // The gate, at once; discovery and readiness wait for the game's statics (ARCH §3.2's WaitEngine).
     const std::uint64_t t0 = sys->now_us();
+    const auto stop = [&](IS s) {
+      galtest::watch::ready_ms(static_cast<std::uint32_t>((sys->now_us() - t0) / 1000));
+      galtest::watch::state(s);
+    };
     const auto gated = gate_image(*sys, *builds);
     if (!gated) {
       line("gate failed what=%d", static_cast<int>(gated.error().what));
+      stop(IS::Banner);
       return DWORD{3};
     }
+    galtest::watch::state(IS::Discover);
     line("gate ok key=%s", gated->profile.entry().key.c_str());
     const auto layout = read_file(dir + "\\" + gated->profile.entry().layout);
     if (!layout) {
@@ -385,6 +454,7 @@ DWORD WINAPI t1(void*) noexcept {
     if (!found.last) {
       line("discovery refused problems=%zu", found.last.error().size());
       for (const auto& e : found.last.error()) line("problem %s", describe(e).c_str());
+      stop(IS::Banner);
       return DWORD{4};
     }
     auto* d = new Discovery(std::move(*found.last));
@@ -401,10 +471,14 @@ DWORD WINAPI t1(void*) noexcept {
       line("item label=%s status=%s rva=0x%X sites=%u", roles::info(static_cast<roles::Item>(i)).label.data(),
            to_string(r.items[i].status), r.items[i].rva, r.items[i].sites);
     }
+    galtest::watch::items(static_cast<std::uint32_t>(resolved), static_cast<std::uint32_t>(r.items.size()),
+                          found.passes);
     if (!r.ready) {
       line("not-ready failure=%s", r.failure);
+      stop(IS::Banner);
       return DWORD{5};
     }
+    galtest::watch::state(IS::WaitEngine);
     // Readiness: the task hub's instance non-null (polled every 100 ms for at most 30 s).
     const std::uint64_t hub_rva = *d->address(roles::Item::TaskHub) - d->module_base();
     for (int i = 0; i < 300; ++i) {
@@ -425,9 +499,15 @@ DWORD WINAPI t1(void*) noexcept {
                                     rpm ? 0 : sys->no_access_page()};
       }
     }
+    galtest::watch::install_filter();
+    galtest::watch::state(IS::Register);
     const auto registered = install_task(*sys, *d, *body);
     line("registered ok=%d error=%s", registered ? 1 : 0, registered ? "none" : to_string(registered.error()));
-    if (!registered) return DWORD{6};
+    if (!registered) {
+      stop(IS::Banner);
+      return DWORD{6};
+    }
+    galtest::watch::state(IS::FirstTick);
     // The core's first commands: a watch list, look-ups of text and rows.
     io->push_command(GameCommand{GameCommand::SetWatchFlags{
         9, std::make_shared<const std::vector<std::uint32_t>>(std::vector<std::uint32_t>{100, 7005, 4321010, 999000})}});
@@ -450,8 +530,57 @@ DWORD WINAPI t1(void*) noexcept {
     const double fault_after = env("EN_GALTEST_FAULT_AFTER").empty() ? 2.0 : std::atof(env("EN_GALTEST_FAULT_AFTER").c_str());
     std::uint64_t world_since = 0;
     bool tracked = false;
-    for (;;) {
-      Sleep(500);
+    // The core's stand-in: en-core's slice stepped on the newest snapshot and the lifecycle messages, as T6 will.
+    auto* core = new en::core::Core();
+    auto* latest = new en::proto::WorldSnapshot();
+    std::uint64_t seen = 0;
+    bool terminal = false;
+    std::string core_changes;
+    for (unsigned tick = 1;; ++tick) {
+      Sleep(100);
+      en::proto::Lifecycle life;
+      while (io->pop_lifecycle(life)) {
+        for (const auto& c : core->step(en::core::CoreInput{life}, sys->now_us() / 1000).changes) {
+          core_changes += std::string(core_changes.empty() ? "" : ",") + en::core::to_string(c.what);
+        }
+      }
+      if (io->take(*latest, seen)) {
+        const auto out = core->step(en::core::CoreInput{std::make_unique<en::proto::WorldSnapshot>(*latest)},
+                                    sys->now_us() / 1000);
+        for (const auto& c : out.changes) {
+          core_changes += std::string(core_changes.empty() ? "" : ",") + en::core::to_string(c.what);
+          if (c.what == en::core::Change::What::Phase) core_changes += std::string(":") + en::core::to_string(
+                                                                           static_cast<en::core::Phase>(c.to));
+        }
+      }
+      const en::core::State& cs = core->state();
+      namespace ew = en::proto::watch;
+      galtest::watch::core(static_cast<std::uint32_t>(cs.phase) + 1, static_cast<std::uint32_t>(cs.level) + 1,
+                           cs.banner ? static_cast<std::uint32_t>(*cs.banner) + 1 : 0,
+                           ew::kFlagCore | (cs.gate_open ? ew::kFlagGateOpen : 0u) |
+                               (cs.dormant ? ew::kFlagDormant : 0u) | (cs.badge ? ew::kFlagBadge : 0u));
+      if (!terminal) {
+        const TaskState ts = task->status().state.load();
+        if (ts == TaskState::Running && task->status().snapshots.load() >= 1) {
+          terminal = true;
+          stop(IS::Ready);
+        } else if (ts == TaskState::Inert) {
+          terminal = true;
+          stop(IS::Inert);
+        }
+      }
+      if (galtest::watch::crash_requested()) {
+        line("crash requested=1 thread=init");
+        RaiseException(EXCEPTION_ACCESS_VIOLATION, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+      }
+      if (tick % 5 != 0) continue;
+      line("core phase=%s level=%s gate=%d why=%s dormant=%d badge=%d banner=%s playthroughs=%llu snapshots=%llu "
+           "changes=%s",
+           en::core::to_string(cs.phase), en::core::to_string(cs.level), cs.gate_open ? 1 : 0,
+           en::core::to_string(cs.gate_why), cs.dormant ? 1 : 0, cs.badge ? 1 : 0,
+           cs.banner ? en::core::to_string(*cs.banner) : "none", static_cast<unsigned long long>(cs.playthroughs),
+           static_cast<unsigned long long>(cs.snapshots), core_changes.empty() ? "none" : core_changes.c_str());
+      core_changes.clear();
       const TaskStatus& st = task->status();
       const auto now = sys->now_us();
       if (summary.screen.load() == static_cast<std::int64_t>(en::proto::Screen::InGame)) {
@@ -477,6 +606,9 @@ DWORD WINAPI t1(void*) noexcept {
       const GuardedReader& reader = task->backend().reader();
       const std::uint64_t first = st.first_tick_us.load();
       const std::uint64_t elapsed_ms = first == 0 || now < first ? 0 : (now - first) / 1000;
+      galtest::watch::counts(st.snapshots.load(), reader.faults(FaultKind::Copy) + reader.faults(FaultKind::Injected),
+                             summary.trip_groups.load(), static_cast<std::uint32_t>(st.task_us.percentile_us(990)));
+      if (galtest::watch::attached()) line("watch marks=%u", galtest::watch::marks());
       line("status state=%s inert_why=%s group_ok=%d group_found_at=%d elapsed_ms=%llu invocations=%llu snapshots=%llu "
            "abandoned=%llu "
            "flag_frames=%llu loading_only=%llu dormant=%llu commands=%llu renders=%llu render_present=%llu "

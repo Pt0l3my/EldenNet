@@ -55,6 +55,13 @@ if(TARGET galtest AND TARGET eldennet-engine)
   list(APPEND _en_set --set galtest=$<TARGET_FILE:galtest> --set gallayout=${CMAKE_CURRENT_SOURCE_DIR}/gal-layout.toml.in)
 endif()
 
+# The launcher and its crash watcher (part 7): eldennet-launcher starts the fake game, with galtest.dll as the DLL in
+# the clang-cl build.
+if(TARGET eldennet-launcher)
+  list(APPEND _en_have launcher)
+  list(APPEND _en_set --set launcher=$<TARGET_FILE:eldennet-launcher>)
+endif()
+
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_harness})
 list(JOIN _en_have "," _en_have_list)

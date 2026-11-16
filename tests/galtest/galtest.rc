@@ -1,0 +1,30 @@
+// galtest.dll's version resource: ProductName EldenNet, so that the launcher's pre-flight takes it for ours (ARCH §4.3)
+// when the harness loads it as the DLL. A test DLL, never shipped.
+1 VERSIONINFO
+FILEVERSION 0,0,1,0
+PRODUCTVERSION 0,0,1,0
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x40004
+FILETYPE 0x2
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904B0"
+    BEGIN
+      VALUE "CompanyName", "EldenNet test fixtures"
+      VALUE "FileDescription", "EldenNet's test DLL for the game-access layer and the launcher (tests only)"
+      VALUE "FileVersion", "0.0.1.0"
+      VALUE "InternalName", "galtest"
+      VALUE "LegalCopyright", "MIT licence"
+      VALUE "OriginalFilename", "galtest.dll"
+      VALUE "ProductName", "EldenNet"
+      VALUE "ProductVersion", "0.0.1"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0809, 1200
+  END
+END
