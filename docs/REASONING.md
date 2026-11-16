@@ -125,6 +125,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 100 | 2026-11-16 | The engine's first increment: parts join exactly; two libraries fetched, not vendored; the template root | METHOD | #engine #process |
 | 101 | 2026-11-16 | The engine's second increment: WinHTTP by its full path; the handle's and the probes' choices | DECIDED | #engine #process |
 | 102 | 2026-11-16 | Wine 9.0 runs the Windows build, and its WinHTTP differs from Windows' in three ways | FACT | #engine #process |
+| 103 | 2026-11-16 | The design on C++: one mapping, the behaviour unchanged, and what the re-base found | METHOD | #engine #graceui #process |
+| 104 | 2026-11-16 | GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap | DECIDED | #graceui |
 
 ## Entries
 
@@ -1862,3 +1864,48 @@ checkout), O68, O53
   once, which is why each exchange has a driver thread that alone calls WinHTTP on its handle.
 - **What Wine cannot show** waits for Windows itself (roadmap S8.1.h): the system's proxy, TLS with real
   certificates, IPv6 loopback and cancelling on Windows.
+
+### 103. The design on C++: one mapping, the behaviour unchanged, and what the re-base found
+
+`2026-11-16` · METHOD · `#engine #graceui #process` · refs: O60, O84, O25, G15, ARCH§1.3, ARCH§2.3, ARCH§2.4, WHY§102
+
+- Source: roadmap S8.1.e. Five agents re-based DESIGN, ARCH, NPC, MEM, game data and GraceUI's design from one mapping
+  of Rust terms to C++ ones, changing how things are built and never what they do; the main session reconciled them.
+- **The mapping:** crates became CMake module targets of the same names; `serde` nlohmann/json; `toml` toml++; `tokio`
+  and `reqwest` en-llm's own threads over libcurl and WinHTTP; `crossbeam` bounded queues of our own, a waiting thread
+  woken by one signal; `Result` a small `Expected`; `unsafe` the rule that raw game addresses stay in `en-gal`'s reader
+  and `sys` files (a CI grep and `clang-tidy`); panics no exception across a foreign entry (`ffi_guard`); `clippy`
+  `clang-tidy`; `miri` and `cargo fuzz` the sanitizers and libFuzzer; `cargo deny` `THIRD_PARTY.md` and an allowlist
+  check, with the banned names kept.
+- **Found on the way:** `std::atomic<std::shared_ptr>` is not lock-free in MSVC's library or libstdc++ (both take a
+  lock), and its reader could drop the last copy, so the core-to-overlay hand-off (C6) became a triple buffer the core
+  owns; GCC, and so the MinGW build, has no `__try`, so that build leaves out `en-gal`'s reader and `sys` and the DLL,
+  which only clang-cl builds; Dear ImGui's Win32 backend polls XInput every frame unless built with
+  `IMGUI_IMPL_WIN32_DISABLE_GAMEPAD`, and its DX12 backend uploads textures when the font atlas grows (read in 1.92.6,
+  to confirm in 1.93.0), so GraceUI turns the gamepad code off and bakes the atlas once.
+- **The built engine against the re-based rules** (roadmap S8.1.j): `en-prompt` reads a folder while `en-core` must do
+  no I/O; `LlmRequest` and `LlmEvent` live in `en-llm`, not `en-proto`; the transports' C callbacks have no
+  `ffi_guard`; some local statics have destructors that run at exit; the SSE caps and the net threads' stacks differ
+  from ARCH's.
+- **Left as history:** the design process records (P1 to P3, J1 to J3, the review), the research notes and the
+  proposals keep their Rust wording; decisions changed only by dated notes.
+
+### 104. GraceUI's server is our own: an independent review's reasons, and its correction of the connection cap
+
+`2026-11-16` · DECIDED · `#graceui` · refs: G30, WHY§103
+
+- Source: GraceUI's research note SRV (`docs/research/server-basis.md` there), an independent review the owner asked
+  for; the owner decided G30 the same day, as recommended.
+- **Why our own:** every rule of GraceUI's §7.2 is our code whatever the basis; a library takes over only the head
+  parser and the WebSocket framing, and brings features that must stay off, which is where 2025-26's bugs were (chunked
+  bodies, form parsing, URI decoding, HTTP/2, compression, file serving). civetweb's 2025 fixes sit on an unreleased
+  master; cpp-httplib runs a thread per WebSocket; Crow's 2026 advisories include an authentication bypass on the
+  upgrade; even Boost.Beast, the runner-up (two outside audits, continuous fuzzing), fixed frame-length and
+  `Content-Length` checks in 2026.
+- **The correction:** "two connections at once" holds for WebSockets only; browsers open several HTTP connections and
+  Chrome opens idle ones ahead of need, so plain HTTP gets its own cap and an absolute 5 s deadline for a head (GraceUI
+  D111).
+- **What it asks of our code:** parsers as pure functions, fuzzed on Linux with a chunking differential;
+  `Connection: close`; static paths matched byte for byte; RFC 9112's and RFC 6455's strict rules;
+  `SO_EXCLUSIVEADDRUSE`; one address shown, `127.0.0.1`, with a redirect for the other two loopback names (GraceUI
+  D112, its §7.2 items 19 to 25 and §7.6).

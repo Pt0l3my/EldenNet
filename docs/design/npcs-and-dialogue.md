@@ -13,10 +13,18 @@
 
 ## 0. Conventions
 
-- Paths are relative to `content/eldenring/` unless stated. Every TOML file has `schema = 1` and is parsed with `deny_unknown_fields`. Caps are checked at load. A file that breaks a cap is rejected whole, and the previous version stays live (DESIGN §11.4).
+- Paths are relative to `content/eldenring/` unless stated. Every TOML file has `schema = 1` and is parsed with toml++;
+  a key its schema does not define is an error. Caps are checked at load. A file that breaks a cap is rejected whole,
+  and the previous version stays live (DESIGN §11.4).
 - `en-core` is pure (DESIGN §2.4). Every rule here takes `now` as an input, and every random choice uses a deterministic RNG seeded from event IDs and handles, so replays are identical.
-- "Lint" means `en-tools lint`, which runs in CI and on hot reload. **Error** rejects the file. **Warn** logs the problem and counts it in eval.
-- **Release mode** (`en-tools lint --strict`; from v0.2 on the content each tester build turns on, except world-stage and track aliases still owed to S6, which stay present and silent until v0.5 (MEM §12.12); from v0.5 on all shipped content; DESIGN §16.3) turns every `verified = false` identity row and every unverified flag alias in that content into an error, and W3's `ng = unknown` check with them. Dev builds resolve unverified rows and tag them in the F11 debug view.
+- "Lint" means `eldennet-engine lint`, which runs in CI and on hot reload. **Error** rejects the file. **Warn** logs the
+  problem and counts it in eval. `eldennet-engine` is the command-line tool that the `en-tools` module builds
+  (ARCH §12.3).
+- **Release mode** (`eldennet-engine lint --strict`; from v0.2 on the content each tester build turns on, except
+  world-stage and track aliases still owed to S6, which stay present and silent until v0.5 (MEM §12.12); from v0.5 on
+  all shipped content; DESIGN §16.3) turns every `verified = false` identity row and every unverified flag alias in that
+  content into an error, and W3's `ng = unknown` check with them. Dev builds resolve unverified rows and tag them in the
+  F11 debug view.
 
 ---
 
@@ -264,7 +272,7 @@ since = "0.3.0"
 | Field | Type | Rule |
 |---|---|---|
 | `id` | slug ≤ 32 | The memory key (DESIGN §7.2) |
-| `npc_params[]` | `{param: u32, form: slug, expect_name_id: u32, verified: bool, reveal_stage?: stage id}` | **Every** variant: default, summon, boss and hostile forms. `expect_name_id` is per row, because variants carry different name IDs. It is filled by `en-tools identity-fill` from the player's own params (numbers only, no text). `0` means not filled yet |
+| `npc_params[]` | `{param: u32, form: slug, expect_name_id: u32, verified: bool, reveal_stage?: stage id}` | **Every** variant: default, summon, boss and hostile forms. `expect_name_id` is per row, because variants carry different name IDs. It is filled by `eldennet-engine identity-fill` from the player's own params (numbers only, no text). `0` means not filled yet |
 | `entity_ids[]` | `{id: u32 ≠ 0, verified, note}` | A disambiguator for overhauls that swap rows but keep placements |
 | `flag_block` | `{alias, base, verified}` | The catalogue alias prefix (memory-and-knowledge.md). `base = 0` means unknown |
 | `talk_code` | u16 | Metadata only |
@@ -293,20 +301,20 @@ models = [ { model = 0, label_height_m = 1.9, note = "c0000, shared human model 
 
 The compiled index:
 
-```rust
-pub struct IdentityIndex {
-    by_param:  BTreeMap<u32, RowTarget>,      // persona rows + card match.params
-    by_entity: BTreeMap<u32, PersonaId>,      // non-zero entity IDs only
-    ranges:    Vec<(u32, u32, CardId)>,       // sorted and disjoint (lint)
-    by_model:  BTreeMap<u32, CardId>,
-    humanoid:  BTreeMap<u32, f32>,            // model → label height
-    characters: CharacterIndex,               // §4.5: by row, entity and bar name id; verified bindings only
-    speech:    SpeechTable,                   // §1.3, precedence pre-sorted
-    rows_ok:   BTreeMap<(PersonaId, u32), bool>, // §2.6, per row
-    // BTreeMap, not HashMap: en-core bans std hash maps so iteration replays bit for bit (ARCH §2.4)
-    pack:      PackState,                     // Unchecked | Ok | Failed
-    gen:       u32,                           // bumped on every content reload
-}
+```cpp
+struct IdentityIndex {
+    std::map<std::uint32_t, RowTarget> by_param;     // persona rows + card match.params
+    std::map<std::uint32_t, PersonaId> by_entity;    // non-zero entity IDs only
+    std::vector<std::tuple<std::uint32_t, std::uint32_t, CardId>> ranges;  // lo, hi, card: sorted and disjoint (lint)
+    std::map<std::uint32_t, CardId> by_model;
+    std::map<std::uint32_t, float> humanoid;         // model → label height
+    CharacterIndex characters;                       // §4.5: by row, entity and bar name id; verified bindings only
+    SpeechTable speech;                              // §1.3, precedence pre-sorted
+    std::map<std::pair<PersonaId, std::uint32_t>, bool> rows_ok;  // §2.6, per row
+    // std::map, not std::unordered_map: en-core's iteration order must replay bit for bit (ARCH §2.4)
+    PackState pack;                                  // Unchecked | Ok | Failed
+    std::uint32_t gen = 0;                           // bumped on every content reload
+};
 ```
 
 **Load lints (errors):**
@@ -319,35 +327,41 @@ pub struct IdentityIndex {
 
 ### 2.3 Resolution and caching
 
-```rust
-pub enum Target {
-    Persona { id: PersonaId, row: u8, form: FormId },
-    Character { id: CharacterId, binding: u8 },   // §4.5
-    Card    { id: CardId, variant: u8 },
-    Unresolved,
-}
-pub struct Resolved {
-    target: Target, perceivable: bool, may_speak: bool, may_remember: bool,
-    hint: Hint, path: Path /* Param | Entity | CharParam | CharEntity | CharBar | CardParam | CardRange | CardModel | Fallback | None */,
-    verified: bool,
-}
+```cpp
+struct Target {
+    struct Persona   { PersonaId id; std::uint8_t row; FormId form; };
+    struct Character { CharacterId id; std::uint8_t binding; };          // §4.5
+    struct Card      { CardId id; std::uint8_t variant; };
+    struct Unresolved {};
+    std::variant<Persona, Character, Card, Unresolved> v;
+};
+struct Resolved {
+    Target target; bool perceivable, may_speak, may_remember;
+    // path: Param | Entity | CharParam | CharEntity | CharBar | CardParam | CardRange | CardModel | Fallback | None
+    Hint hint; Path path;
+    bool verified;
+};
 
-fn resolve(ix: &IdentityIndex, c: &Chr, cache: &mut IdCache) -> Resolved {
-    let hostile = teams::is_hostile(c.team);                     // live team (DESIGN §5.3)
-    let key = IdKey { param: c.param, entity: c.entity, model: c.model, bar: c.bar_name_id, // 0 unless a live bar holder
-                      hostile_for_fallback: hostile && ix.humanoid.contains_key(&c.model),
-                      gen: ix.gen };
-    if let Some(r) = cache.get(c.handle, &key) { return r.clone(); }
-    let target = ix.persona_row(c.param).filter(|t| ix.row_ok(t))            // 1. exact npc_param_id
-        .or_else(|| (c.entity != 0).then(|| ix.by_entity.get(&c.entity)).flatten()
-                    .map(|p| persona_by_entity(ix, p, c)))                    // 2. non-zero entity
-        .or_else(|| ix.character_for(c).filter(|t| ix.binding_ok(t, c)))      // 2. then a verified character binding: row, entity or live bar (§4.5)
-        .or_else(|| ix.card_for(c.param, c.model).map(|id| card(ix, id, c)))  // 3. card param, range, model
-        .or_else(|| key.hostile_for_fallback.then(|| card(ix, ix.fallback, c))) // 4. hostile humanoid
-        .unwrap_or(Target::Unresolved);                                        // 5. mute
-    let r = speech::apply(ix, target, c);                // §1.3 precedence + built-in rules
-    cache.put(c.handle, key, r.clone());
-    r
+Resolved resolve(const IdentityIndex& ix, const Chr& c, IdCache& cache) {
+    const bool hostile = teams::is_hostile(c.team);                          // live team (DESIGN §5.3)
+    const IdKey key{.param = c.param, .entity = c.entity, .model = c.model,
+                    .bar = c.bar_name_id,                                    // 0 unless a live bar holder
+                    .hostile_for_fallback = hostile && ix.humanoid.contains(c.model),
+                    .gen = ix.gen};
+    if (auto hit = cache.get(c.handle, key)) return *hit;
+    const Target target = [&]() -> Target {
+        if (auto t = ix.persona_row(c.param); t && ix.row_ok(*t)) return {*t};   // 1. exact npc_param_id
+        if (auto p = ix.by_entity.find(c.entity); c.entity != 0 && p != ix.by_entity.end())
+            return {persona_by_entity(ix, p->second, c)};                         // 2. non-zero entity
+        // 2. then a verified character binding: row, entity or live bar (§4.5)
+        if (auto t = ix.character_for(c); t && ix.binding_ok(*t, c)) return {*t};
+        if (auto id = ix.card_for(c.param, c.model)) return {card(ix, *id, c)};  // 3. card param, range, model
+        if (key.hostile_for_fallback) return {card(ix, ix.fallback, c)};        // 4. hostile humanoid
+        return {Target::Unresolved{}};                                            // 5. mute
+    }();
+    Resolved r = speech::apply(ix, target, c);                               // §1.3 precedence + built-in rules
+    cache.put(c.handle, key, r);
+    return r;
 }
 ```
 
@@ -389,7 +403,8 @@ flowchart LR
 2. **Copy as TOML.** Four buttons put a stub on the clipboard: a `speech.toml` mute entry, a card `match.params` line, a `[[persona]]` stub with `verified = false` and `expect_name_id = 0`, or a character-profile stub for the player's own `profiles\characters` folder with a `[[seen]]` record of this sighting (§4.7).
 3. **Decide the tier.** Mute (the default; it costs nothing) → card (add a row or range) → character profile (a profile file, verified bindings and S3's record of its kind, §4.5) → persona (needs a persona file, an S6 flag log for its stages, and a passing eval, §12).
 4. **Local use:** `%APPDATA%\EldenNet\overrides\identity\…` replaces the whole file (DESIGN §11.4) and hot-reloads.
-5. **Shipping:** a pull request with lint green, rows verified in game, `en-tools identity-fill` run, and an eval report for any new persona.
+5. **Shipping:** a pull request with lint green, rows verified in game, `eldennet-engine identity-fill` run, and an eval
+   report for any new persona.
 
 ### 2.6 Identity-pack check (> 20% mismatch)
 
@@ -1195,7 +1210,7 @@ test_only = true                               # never resolved in game; CI and 
 # A shipped lead looks like { param = 5xxxxxxxx, form = "default", expect_name_id = 0, verified = false }: inert until S1
 ```
 
-**The content** (`characters/<id>.toml`, ≤ 16 KB, `deny_unknown_fields`, no template logic):
+**The content** (`characters/<id>.toml`, ≤ 16 KB, no unknown keys, no template logic):
 
 | Field | Type | Cap / default | Audience | Notes |
 |---|---|---|---|---|
@@ -1241,7 +1256,8 @@ listed and never converses, a voiceless one never speaks, and one of a speaking 
 **Bindings and their verification.**
 
 - **Keys.** A character binds NPCs only through what the GAL identifies:
-  1. `param`: an exact NpcParam row (every form: default, second phase, hostile), with `expect_name_id`, filled by `en-tools identity-fill` (numbers only). The live row's `nameId` must equal it;
+  1. `param`: an exact NpcParam row (every form: default, second phase, hostile), with `expect_name_id`, filled by
+     `eldennet-engine identity-fill` (numbers only). The live row's `nameId` must equal it;
   2. `entity`: a non-zero event entity id, a disambiguator as for personas;
   3. `bar`: the `name_id` of a boss bar (`CSFeMan.boss_bars[i].name_id`). It binds the bar's holder (the bar's `handle` → its `ChrIns`) only while that bar shows, and when `expect_param` is set the holder's row must equal it. A bar id is authored per encounter in the 9xxxxxxxx band (ER05 §6.2, a lead), so it may serve several encounters or phases; that is what the player sees under one name, and each shipped use is reviewed.
 - **Not keys.** Talk codes stay metadata only (DESIGN §7.2, §2.1), because the GAL reads no per-character talk code (only `current_talk_id` while a menu is open) and the datasets disagree (§2), and runtime names are never keys (DESIGN §18 "Identity").
@@ -1400,13 +1416,22 @@ bar = 0
 - **Caps:** ≤ 8 KB a file, ≤ 256 files; ≤ 8 `[[seen]]` records a file (`entity` and `bar` 0 when none); the folder counts in the override tree's abort-class cap (≤ 8 MB, ≤ 2,000 files, ARCH §10.2).
 - **Versions.** `schema` (a newer one is refused with a toast and the editor shows the file read-only; an older one is migrated in memory and written back on the next save), `rev` (lost-update guard between the in-game view and the browser), `base_hash` (when the shipped profile changes in an update, the layer still applies and the editor shows "updated since you wrote this", offering the shipped public text to compare).
 - **Validation.** The watcher (T10, ARCH §11.6) validates each player file alone with PL1–PL9's player rules (§4.8): **errors block** (schema and caps, predicate syntax and unknown aliases, template syntax `{{` `{%` `{#`, the safety lexicon, a binding to a forbidden target); **everything else warns** (lexicon, banned words, effect adjectives, quoted samples, negations, seed rules). A refused file keeps its last good version; every other file loads; the toast and the editor name the file, field and line, never the text.
-- **Save path (one validating entry point).** The settings UI sends `ProfileWrite { target, rev, text }` to the core, which forwards it on C17 (`crossbeam::bounded<ProfileWrite>`, capacity 8; when full the save is refused with "busy, try again"; ARCH §1.3) to T10; T10 validates with the same validator as a hand edit, writes atomically (temp file and rename, keeping the previous version as `<file>.bak`), and returns `Reload::ProfileResult { target, rev, outcome }` on C11 with the reload. Hand edits take the ordinary watcher path. Editor keystrokes never reach the core; only the saved file does.
+- **Save path (one validating entry point).** The settings UI sends `ProfileWrite { target, rev, text }` to the core,
+  which forwards it on C17 (a bounded queue of `ProfileWrite`, capacity 8; when full the save is refused with "busy, try
+  again"; ARCH §1.3) to T10; T10 validates with the same validator as a hand edit, writes atomically (temp file and
+  rename, keeping the previous version as `<file>.bak`), and returns `Reload::ProfileResult { target, rev, outcome }` on
+  C11 with the reload. Hand edits take the ordinary watcher path. Editor keystrokes never reach the core; only the saved
+  file does.
 - **Reset.** Per field (the field is removed from the layer), per slot (the layer file is deleted, after a confirmation), and "restore previous" (the `.bak`). Deleting a player's own character unbinds its NPC.
 - **Effect.** The next request; only that profile's cached prefix is invalidated; its hash changes, retiring its pool lines (regeneration within `pools.max_jobs_per_session`), unless only `subjects` changed: a subjects-only edit invalidates no cached prefix and retires no pool line.
 - **Privacy.**
   - Logs print target, rev, size, field names and codes, never text.
   - The bug-report bundle never includes `profiles\`; it lists only counts per kind (layers, characters), each file's target, schema, rev, size and validation state. A recording it includes (only when ticked) has every player-profile text field, and every draft's notes and reply, replaced by placeholders (ARCH §7.5).
-  - Recordings keep the text in `reload` records, and a draft's notes and reply in its `ui` and `llm` records, otherwise (replay needs them, as for typed text); a `ProfileWrite` keeps target, rev and size only; with `debug.record_redact_text` on they carry the placeholders. `en-tools lint` rejects a committed recording holding player-profile or draft text. Committed fixtures under `tests/fixtures/profiles/` are ours, with canary strings.
+  - Recordings keep the text in `reload` records, and a draft's notes and reply in its `ui` and `llm` records, otherwise
+    (replay needs them, as for typed text); a `ProfileWrite` keeps target, rev and size only; with
+    `debug.record_redact_text` on they carry the placeholders. `eldennet-engine lint` rejects a committed recording
+    holding player-profile or draft text. Committed fixtures under `tests/fixtures/profiles/` are ours, with canary
+    strings.
   - The deterministic bundle scan test (v0.6) gains fixture profiles with canary strings, and a ticked recording made while a canary profile is saved through the editor and drafted: any canary in the bundle fails.
 
 **The profile editor** (EldenNet side).
@@ -1447,8 +1472,8 @@ bar = 0
   wrote is left as written; a safety-lexicon hit discards the whole draft with a notice.
 - **Review:** the draft appears beside the current fields, unsaved, field by field; the player accepts, edits or discards each. Only Save writes. No model ever changes a profile by itself, and the memory job never touches profiles.
 - **Shipped content is drafted offline and reviewed by hand.** No shipped profile is drafted by this helper. Since O45
-  the roster's bios are drafted by `en-tools roster-draft` from our own research notes, never from game text, and every
-  field is reviewed by hand before it ships (DESIGN §7.8; MEM §5.6); the review reads the public fields, `claims`,
+  the roster's bios are drafted by `eldennet-engine roster-draft` from our own research notes, never from game text, and
+  every field is reviewed by hand before it ships (DESIGN §7.8; MEM §5.6); the review reads the public fields, `claims`,
   `seeks`, `ties`, `subjects` and `stirs` at the opening state (PL11; O46, O86).
 
 **Slots and the NPC-type page** (§1.4).
@@ -1466,7 +1491,7 @@ and shipped text is reviewed when written (PL11 and the spoiler review below).
 
 | Lint | Rule | Shipped | Player's own |
 |---|---|---|---|
-| PL1 Schema and caps | Types and caps of §3.1, §4.1, §4.5 and §4.6, the layer fields of §4.5 and the Tarnished's own bio (§4.7); `deny_unknown_fields`; file caps | Error | Error |
+| PL1 Schema and caps | Types and caps of §3.1, §4.1, §4.5 and §4.6, the layer fields of §4.5 and the Tarnished's own bio (§4.7); no unknown keys; file caps | Error | Error |
 | PL2 Bindings | §4.5's binding lint; `bar` in the 9xxxxxxxx band; release: every binding verified, `expect_name_id ≠ 0` | Error | Error (a `[[seen]]` never matched is inert: warning) |
 | PL3 Predicates | `knows_when.when` in the persona grammar, catalogue aliases only, no `knows()`; `spoiler` ≥ its highest flag spoiler (as W2) | Error | Error (syntax, aliases); the spoiler level is not reported, and the engine uses the higher of the entry's `spoiler` and its flags' highest |
 | PL4 Subjects | Count (§4.6); ≤ 10 words, ≤ 50 chars; a noun phrase: no sentence-final punctuation, no "?", no quotation marks, no imperative (W7's list: tell, mention, say, ask, remind, must, should); no two of one profile share 4 consecutive words; for cards and characters seed rules 1, 2, 5, 7. `stirs` take the same noun-phrase form (§3.1) | Error | Warning (noun-phrase form, the 4-word overlap and the seed rules); the count and the ≤ 10-word, ≤ 50-char caps are PL1's (Error) |
@@ -1481,9 +1506,9 @@ and shipped text is reviewed when written (PL11 and the spoiler review below).
 
 Shipped profiles also pass a **spoiler review** when written (§12.4 item 7): a second reader reads every
 prompt-facing field and seed against what the character holds at each stage where it renders, and against the
-author's own export, and `en-tools kb-draft --check` finds no ≥ 6-word overlap. Output guards stay unchanged for every
-profile: sanitizer, banned and safety words, amnesia, the contract (non-disableable, ARCH §11.6); none checks spoilers
-(O86).
+author's own export, and `eldennet-engine kb-draft --check` finds no ≥ 6-word overlap. Output guards stay unchanged for
+every profile: sanitizer, banned and safety words, amnesia, the contract (non-disableable, ARCH §11.6); none checks
+spoilers (O86).
 
 **Tests.**
 
@@ -1491,7 +1516,9 @@ profile: sanitizer, banned and safety words, amnesia, the contract (non-disablea
   unverified or disagreeing binding resolves as if absent; built-in rule (f)); layer merge and field precedence; subject
   rotation (pure, identical on replay, consecutive per tick, an empty list renders no subject clause); draft JSON
   validation.
-- **Prompt snapshots** (`insta`): the character block at each `gates` state, byte-stable; block 4 with and without `instructions`; the autonomy task with a subject; the generic call block with a subject.
+- **Prompt snapshots** (golden files, updated only by `eldennet-engine golden update`): the character block at each
+  `gates` state, byte-stable; block 4 with and without `instructions`; the autonomy task with a subject; the generic
+  call block with a subject.
 - **Lints:** PL1–PL12 (PL7 retired) each with a failing fixture, shipped and player variants; W5's subject clause (MEM
   T11).
 - **Scenarios:** `character_profile.scn`, `autonomy_subjects.scn`, `player_profiles.scn` and `roster_talk.scn` (a CI character converses, remembers the Tarnished and another CI character, and resolves by id on a second form; §9.6); the bundle scan with canary profiles (§4.7).
@@ -1532,20 +1559,25 @@ Mute candidates (a persona at a `mute` stage, a resolved mute with `hint = nothi
 
 ### 5.3 Conversable predicate
 
-```rust
-fn conversable(p: &PersonaView, w: &WorldModel, now: Ms) -> Result<(), NotConversable> {
-    ensure!(p.alive && !p.chr.dead,                                      Dead);
-    ensure!(!p.conscious().is_down(),                                    Asleep);   // asleep or senseless; `unknown` talks (§3.2); toast per §5.9
-    ensure!(p.resolved.may_speak && p.row_ok && w.pack != PackState::Failed, Muted);
-    ensure!(p.allow.dialogue,                                            Muted);    // the resolved allowance (§1.4)
-    ensure!(p.stage.chat == Chat::Allowed,                               Stage(p.stage.chat));
-    ensure!(!teams::is_hostile(p.chr.team),                              Hostile);
-    ensure!(!p.state_bits_set(&[1, 2, 3], VerifiedOnly),                 Hostile);  // ER04 §4.5
-    ensure!(now - p.last_attacked_by_player >= 30_000,                   RecentlyAttacked);
-    ensure!(!w.native_talk_within(p.pos, 8.0),                           NativeTalk);
-    ensure!(p.form != Form::Summon && !w.holds_boss_bar(p.handle),       Busy);
-    ensure!(w.caps.conversation,                                         Unavailable); // DESIGN §4.4
-    Ok(())
+```cpp
+enum class NotConversable { Dead, Asleep, Muted, Stage, Hostile, RecentlyAttacked, NativeTalk, Busy, Unavailable };
+
+// std::nullopt when the persona may talk; otherwise the first check that fails, in this order.
+std::optional<NotConversable> conversable(const PersonaView& p, const WorldModel& w, Ms now) {
+    using enum NotConversable;
+    if (!p.alive || p.chr.dead) return Dead;
+    // asleep or senseless; `unknown` talks (§3.2); toast per §5.9
+    if (p.conscious().is_down()) return Asleep;
+    if (!p.resolved.may_speak || !p.row_ok || w.pack == PackState::Failed) return Muted;
+    if (!p.allow.dialogue) return Muted;                                   // the resolved allowance (§1.4)
+    if (p.stage.chat != Chat::Allowed) return Stage;                       // §5.1's hint names the stage's `chat`
+    if (teams::is_hostile(p.chr.team)) return Hostile;
+    if (p.state_bits_set({1, 2, 3}, VerifiedOnly)) return Hostile;         // ER04 §4.5
+    if (now - p.last_attacked_by_player < 30'000) return RecentlyAttacked;
+    if (w.native_talk_within(p.pos, 8.0)) return NativeTalk;
+    if (p.form == Form::Summon || w.holds_boss_bar(p.handle)) return Busy;
+    if (!w.caps.conversation) return Unavailable;                          // DESIGN §4.4
+    return std::nullopt;
 }
 ```
 
@@ -1553,20 +1585,24 @@ fn conversable(p: &PersonaView, w: &WorldModel, now: Ms) -> Result<(), NotConver
 
 ### 5.4 Safe-context predicate and danger
 
-```rust
-fn safe_context(w: &WorldModel) -> Result<(), Unsafe> {
-    ensure!(w.level >= Level::L3 && w.state == Lifecycle::InWorld,   NotActive); // not dormant or loading
-    ensure!(!w.player.dead && !w.player.riding,                      Player);
-    ensure!(!w.boss.active,                                          Boss);
-    ensure!(!w.player_in_combat,                                     Combat);    // DESIGN §5.3; never waived
-    let sheltered = w.flag_verified("rest") || w.player.roundtable;  // flag 9000 / SpEffect 9621
-    if !sheltered {                                                  // sheltered waives only the distance checks
-        ensure!(!w.engaged_hostile_within(25.0, 0.6),                Hostiles);
-        ensure!(!w.hostile_within(12.0),                             Hostiles);
-        if !w.caps.combat { ensure!(!w.hostile_within(25.0),         Hostiles); } // stricter (DESIGN §4.4)
+```cpp
+enum class Unsafe { NotActive, Player, Boss, Combat, Hostiles, Menu };
+
+// std::nullopt when `safe_context` holds; otherwise the first check that fails, in this order.
+std::optional<Unsafe> safe_context(const WorldModel& w) {
+    using enum Unsafe;
+    if (w.level < Level::L3 || w.state != Lifecycle::InWorld) return NotActive;  // not dormant or loading
+    if (w.player.dead || w.player.riding) return Player;
+    if (w.boss.active) return Boss;
+    if (w.player_in_combat) return Combat;                                 // DESIGN §5.3; never waived
+    const bool sheltered = w.flag_verified("rest") || w.player.roundtable; // flag 9000 / SpEffect 9621
+    if (!sheltered) {                                                      // sheltered waives only the distance checks
+        if (w.engaged_hostile_within(25.0, 0.6)) return Hostiles;
+        if (w.hostile_within(12.0)) return Hostiles;
+        if (!w.caps.combat && w.hostile_within(25.0)) return Hostiles;     // stricter (DESIGN §4.4)
     }
-    ensure!(w.ui.hud == Hud::Default && w.ui.banner.is_none(),      Menu);       // §5.8 before S3
-    Ok(())
+    if (w.ui.hud != Hud::Default || w.ui.banner) return Menu;              // §5.8 before S3
+    return std::nullopt;
 }
 ```
 
@@ -1672,18 +1708,21 @@ stateDiagram-v2
   Ending --> Closed: current page done (closed/retarget) or at once / ConversationEnded
 ```
 
-```rust
-pub struct Conversation {
-    id: ConvId, persona: PersonaId, handle: ChrHandle, opened_at: Ms,
-    state: ConvState, boxed: BoxState /* Shown | Hidden{reason} */, draft: String,
-    queued: Option<String>,                 // one replaceable slot (§6.3)
-    reply: Option<Reply>,                   // req, pages, shown_upto, cut_off, fallback_used, regen_used
-    danger_since: Option<Ms>, far_since: Option<Ms>, last_player_line: Ms,
-    tic_counts: SmallVec<[u8; 3]>, last_opener: Option<u8>, name_uses: u8,
-    shown_context: Vec<ContextLine>,        // block 7/9 lines shown, for the memory job (DESIGN §10.3)
-    opened_by: Opener,                      // Player | Npc(LineId): a persona's line answered within 10 s (§5.9)
-    cue: Option<Cue>, cue_spent: bool,      // reaction cue, offered until a reply carrying it displays (MEM §12.13)
-}
+```cpp
+struct Conversation {
+    ConvId id; PersonaId persona; ChrHandle handle; Ms opened_at;
+    ConvState state; BoxState boxed;            // Shown | Hidden{reason}
+    std::string draft;
+    std::optional<std::string> queued;          // one replaceable slot (§6.3)
+    std::optional<Reply> reply;                 // req, pages, shown_upto, cut_off, fallback_used, regen_used
+    std::optional<Ms> danger_since, far_since; Ms last_player_line;
+    std::array<std::uint8_t, 3> tic_counts{};   // one count per tic (≤ 3, §3.1)
+    std::optional<std::uint8_t> last_opener; std::uint8_t name_uses = 0;
+    std::vector<ContextLine> shown_context;     // block 7/9 lines shown, for the memory job (DESIGN §10.3)
+    Opener opened_by;                           // Player | Npc(LineId): a persona's line answered within 10 s (§5.9)
+    std::optional<Cue> cue;                     // reaction cue, offered until a reply carrying it displays (MEM §12.13)
+    bool cue_spent = false;
+};
 ```
 
 ### 6.2 Timers
@@ -2053,12 +2092,14 @@ Barks and call-out replies run steps 0–6 and 8, then their own validation (§9
 
 ### 8.4 Regeneration and deflection
 
-```rust
-match (hit_in_sentence, reply.regen_used) {
-    (1, false) => { cancel_stream(); reply.regen_used = true;
-                    resend(prompt.with_note(reminder(hit.category))) }      // fresh first-token timer
-    (1, true)  => show_deflection(),                                         // never "nothing" (J3 #8)
-    (n, _) if n >= 2 => end_reply_at_previous_sentence(),                    // in character: they stopped
+```cpp
+if (hit_in_sentence == 1 && !reply.regen_used) {
+    cancel_stream(); reply.regen_used = true;
+    resend(prompt.with_note(reminder(hit.category)));                  // fresh first-token timer
+} else if (hit_in_sentence == 1) {
+    show_deflection();                                                 // never "nothing" (J3 #8)
+} else if (hit_in_sentence >= 2) {
+    end_reply_at_previous_sentence();                                  // in character: they stopped
 }
 ```
 
@@ -2103,12 +2144,18 @@ match (hit_in_sentence, reply.regen_used) {
 
 ### 8.7 Commit on display (DESIGN §8.5, #548)
 
-```rust
+```cpp
 // core → overlay: inside UiModel
-struct PageView { conv: ConvId, reply: ReplyId, idx: u8, speaker: ArcStr, text: ArcStr,
-                  hold_ms: u32, surface: Surface /* LowerThird | HistoryStrip */ }
-// overlay → core
-enum UiEvent { PageShown { conv: ConvId, reply: ReplyId, idx: u8, t_overlay_ms: u64 }, /* … */ }
+struct PageView {
+    ConvId conv; ReplyId reply; std::uint8_t idx;
+    std::shared_ptr<const std::string> speaker, text;
+    std::uint32_t hold_ms; Surface surface;            // LowerThird | HistoryStrip
+};
+// overlay → core: each event is a struct nested in UiEvent (OpenChat, Submit, PageShown …)
+struct UiEvent {
+    struct PageShown { ConvId conv; ReplyId reply; std::uint8_t idx; std::uint64_t t_overlay_ms; };
+    std::variant<PageShown /* , … */> event;
+};
 ```
 
 1. The overlay sends `PageShown` on the **first frame the page is drawn with non-zero opacity**. Duplicate acks are ignored, because the core keeps `shown_upto`.
@@ -2398,18 +2445,22 @@ A changed `card_hash` retires the old lines (kept 30 days for audit, never serve
 
 **Serving algorithm (pure):**
 
-```rust
-fn pick_line(key: &PoolKey, speaker: ChrHandle, squad_last: Option<LineId>, st: &BarkState, rng: &mut Rng)
-    -> Option<LineRef> {
-    let ring = st.ring(key);                                   // last 6 served for this key, all spawns
-    let said = st.said_by(speaker);                            // a speaker repeats a line only once the key is exhausted
-    let ok = |l: &LineRef| !ring.contains(l) && !said.contains(l) && Some(l.id) != squad_last;
-    let gen: Vec<_> = st.generated(key).filter(ok).collect();
-    if !gen.is_empty() { return Some(gen[rng.below(gen.len())]); }
-    let seeds: Vec<_> = st.seeds(key.card, key.trigger).filter(ok).collect();
-    if !seeds.is_empty() { return Some(seeds[rng.below(seeds.len())]); }
-    st.oldest_in_ring(key).filter(|l| !said.contains(l))       // relax the ring first
-        .or_else(|| st.least_recent_said(speaker, key))        // exhausted: the speaker's least recently said line (O31)
+```cpp
+std::optional<LineRef> pick_line(const PoolKey& key, ChrHandle speaker, std::optional<LineId> squad_last,
+                                 const BarkState& st, Rng& rng) {
+    const auto& ring = st.ring(key);                       // last 6 served for this key, all spawns
+    const auto& said = st.said_by(speaker);                // a speaker repeats a line only once the key is exhausted
+    auto ok = [&](const LineRef& l) { return !ring.contains(l) && !said.contains(l) && l.id != squad_last; };
+    auto pick = [&](const auto& lines) -> std::optional<LineRef> {
+        std::vector<LineRef> fit;
+        for (const LineRef& l : lines) if (ok(l)) fit.push_back(l);
+        if (fit.empty()) return std::nullopt;
+        return fit[rng.below(fit.size())];
+    };
+    if (auto l = pick(st.generated(key))) return l;
+    if (auto l = pick(st.seeds(key.card, key.trigger))) return l;
+    if (auto l = st.oldest_in_ring(key); l && !said.contains(*l)) return l;   // relax the ring first
+    return st.least_recent_said(speaker, key);             // exhausted: the speaker's least recently said line (O31)
 }
 ```
 
@@ -2634,7 +2685,7 @@ Positions are fractions of the back buffer (W × H). Sizes are pixels at 1080p a
 | **Toasts** (GraceUI notices) | Top-right: right 0.98 W, top 0.05 H, stacking down with an 8 px gap | 0.24 W, ≤ 3 lines | Noto Sans 18 px | 3 px accent: info `#C8B27A`, warning `#D2A24C`, error `#C98A80` | `#101010` α 0.85 |
 | Banner (L1) and pause badge (GraceUI notices) | Top-right, top 0.02 H | 1 line | Noto Sans 16 px | `#E8E2D0` α 0.8 | `#101010` α 0.6 |
 | Settings (F10) | Centre | 0.42 W × 0.60 H | Noto Sans 18 px | — | `#0C0C0C` α 0.92 |
-| Debug (F11; a panel built on EldenNet's headless Dear ImGui) | Right panel | 0.34 W × H | Noto Sans Mono 14 px | — | α 0.85 |
+| Debug (F11; a panel EldenNet builds on Dear ImGui's core, with no backend) | Right panel | 0.34 W × H | Noto Sans Mono 14 px | — | α 0.85 |
 
 A persona's own-initiative line addressed to the Tarnished uses the lower third as one page, with the speaker's name in muted gold (§5.9).
 
@@ -2706,24 +2757,34 @@ The settings panel captures input like the chat box. Changes are written to `set
 ### 10.7 Scale and HDR
 
 - `ui_scale = (H / 1080) × ui.scale`, with `ui.scale` from 0.75 to 1.5, GraceUI's own setting since GraceUI D84, delivered with the host's display-changed event. Font atlases are baked for the effective sizes at init and rebuilt only when the scale changes, when the settings panel closes. The minimum body size is 16 px.
-- **HDR:** GraceUI's host detects it from the swapchain format and colour space when hudhook starts, and applies these rules to every panel (GraceUI §3.14). In HDR, colours are linearised and scaled by `paper_white_nits / 80`, with a default of 203 nits (the BT.2408 reference white) and an adjustable range of 80–400 (`ui.paper_white_nits`). `ui.hdr = auto | off | on`. The compat matrix's HDR machine verifies it (DESIGN §1.3 C1).
+- **HDR:** GraceUI's host detects it from the swapchain format and colour space when its overlay starts, and applies
+  these rules to every panel (GraceUI §3.14). In HDR, colours are linearised and scaled by `paper_white_nits / 80`, with
+  a default of 203 nits (the BT.2408 reference white) and an adjustable range of 80–400 (`ui.paper_white_nits`).
+  `ui.hdr = auto | off | on`. The compat matrix's HDR machine verifies it (DESIGN §1.3 C1).
 
 ### 10.8 v1.5 seam: TTS and STT (DESIGN §12, §13; O8)
 
-```rust
-pub struct Line { id: LineId, speaker: SpeakerRef, rank: Rank /* Dialogue | Bark */,
-                  pages: SmallVec<[Page; 4]>, voice_key: Option<VoiceKey> }
-pub struct Page { idx: u8, text: ArcStr, chars: u16, ends_with_ellipsis: bool }
-pub struct PageTiming { min_hold_ms: u32, hold_ms: u32, source: TimingSource /* Reading | Audio */ }
-pub trait SpeechSink {
-    fn begin(&mut self, line: &Line);
-    fn page(&mut self, page: &Page) -> PageTiming;   // v1 TextSink: §8.6 formula
-    fn cancel(&mut self, mode: CancelMode /* Now | FinishPage */);
-}
-pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its source (SN06 §7.1 item 10)
+```cpp
+struct Page {
+    std::uint8_t idx; std::shared_ptr<const std::string> text; std::uint16_t chars; bool ends_with_ellipsis;
+};
+struct Line {
+    LineId id; SpeakerRef speaker; Rank rank;                   // Dialogue | Bark
+    std::vector<Page> pages; std::optional<VoiceKey> voice_key;
+};
+struct PageTiming { std::uint32_t min_hold_ms, hold_ms; TimingSource source; };   // Reading | Audio
+class SpeechSink {
+public:
+    virtual ~SpeechSink() = default;
+    virtual void begin(const Line& line) = 0;
+    virtual PageTiming page(const Page& page) = 0;              // v1 TextSink: §8.6 formula
+    virtual void cancel(CancelMode mode) = 0;                   // Now | FinishPage
+};
+enum class InputSource { Typed, Stt, Intent };                  // PlayerSaid carries its source (SN06 §7.1 item 10)
 ```
 
-- **v1:** `TextSink` only, and `voice_key = None` everywhere. The `tts` allowance exists per type and slot and takes effect in v1.5; `dialogue` off turns it off.
+- **v1:** `TextSink` only, and `voice_key` is empty everywhere. The `tts` allowance exists per type and slot and takes
+  effect in v1.5; `dialogue` off turns it off.
 - **v1.5 `TtsSink`:** hold = `max(audio_ms + 250, 2000)`. "Shown" becomes "playback of this page started", through the same `PageShown` ack, so commit-on-display is unchanged.
 - **`voice_key` resolution:** the character's own game voice, made on the player's PC (O62) → persona `voice_key` → card variant → card → body type and age band → default. Keys are stable IDs, never display names (SN06 §7.1 item 6).
 - **STT:** enters as `InputSource::Stt`. Prompts render it like typed text but tag it in history. Push-to-talk, name hints and a pinned language follow later (SN00 row 35).
@@ -2748,7 +2809,8 @@ pub enum InputSource { Typed, Stt, Intent }          // PlayerSaid carries its s
 
 ### 12.1 Per-persona eval gate (DESIGN §14; C9, C10)
 
-`en-tools eval --persona <id> --preset <cloud|local12>` runs against `--llm live` and writes a JSON report (`eval-reports/`, git-ignored; the summary goes into the release notes).
+`eldennet-engine eval --persona <id> --preset <cloud|local12>` runs against `--llm live` and writes a JSON report
+(`eval-reports/`, git-ignored; the summary goes into the release notes).
 
 | Set | Size | Content |
 |---|---|---|
@@ -2798,10 +2860,10 @@ its set, and the run fails while the fault comes back.
 
 **A persona ships only with a passing report** on the default cloud preset and on one local preset from X1. A content change to a persona, or to the world files, catalogue aliases, KB entries or lexicon it reads, invalidates its report. Each persona's report runs from the increment that first ships it to testers (Kalé v0.2, the other five v0.5), on DESIGN §16.3's schedule. Cards pass card lint plus the X2 checks.
 
-**Roster eval** (O45; DESIGN §7.8). `en-tools eval --character <id>` runs a lighter set on each roster bio before it
-speaks in a build for testers: 10 voice turns, 4 test questions (2 at the opening state and 2 at a later fixture state),
-2 perception probes, 4 safety probes and 2 "do you remember" probes after a reload (about 22 turns; about 3,000 for the
-base-game roster). It gates on 0 leaks on the test questions, 0 banned words, 0 contract breaks and ≥ 98% within
+**Roster eval** (O45; DESIGN §7.8). `eldennet-engine eval --character <id>` runs a lighter set on each roster bio before
+it speaks in a build for testers: 10 voice turns, 4 test questions (2 at the opening state and 2 at a later fixture
+state), 2 perception probes, 4 safety probes and 2 "do you remember" probes after a reload (about 22 turns; about 3,000
+for the base-game roster). It gates on 0 leaks on the test questions, 0 banned words, 0 contract breaks and ≥ 98% within
 `reply_words_max`; the judged rates (perception, invented lore in its voice turns, archaic lines) are pooled per batch
 against the persona gates. A content change to a bio invalidates its report. A silent bio needs none.
 
@@ -2834,7 +2896,8 @@ Applied to each persona at the increment that first ships it to testers, to card
 1. Every identity row verified (S1) and `expect_name_id` filled. Every flag alias the persona's own stages and ties use is verified, or dropped (S6); world-stage and track aliases follow DESIGN §16.3's release-mode row. Every character binding verified (S1 for rows and entities, S2 for bar ids), and its kind recorded by S3 (`[[boss]]` or `[[named]]`); a roster bio whose binding is not verified by the release candidate ships held, silent in game, with the reason recorded here (DESIGN §7.8).
 2. Lint green: schema, caps, predicates, aliases, effect adjectives, quoted samples, banned words, gender-neutral cards,
    seed rules, reveal identities, template names and examples (§7.1), profile lints PL1–PL12 (PL7 retired).
-3. `insta` prompt snapshots per persona × stage × scene, and byte-stability of blocks 1–5 across turns and memory changes (DESIGN §14); block 5b byte-stable at a fixed known set and active ties.
+3. Golden prompt snapshots per persona × stage × scene, and byte-stability of blocks 1–5 across turns and memory
+   changes (DESIGN §14); block 5b byte-stable at a fixed known set and active ties.
 4. Block-5b renders at the 8 states match the truth tables (MEM §12.11).
 5. A passing eval report (§12.1) for personas, and a passing roster eval for each bio that speaks; X2 still green for cards and for character pools.
 6. Lints W1–W12 green; no inert tie; every road on a verified stage reviewed against the author's own export.
@@ -2842,12 +2905,14 @@ Applied to each persona at the increment that first ships it to testers, to card
    character profile against what the character holds at each stage where it renders (its stage list; the truth
    tables for world lines), the first-meeting fields (`public.*`, `claims`, `seeks`, `ties`, `subjects` and `stirs`)
    also at the opening state (PL11), and every pre-reveal field for the name the reveal brings (§2.7); and against the
-   author's own export, with `en-tools kb-draft --check` finding no ≥ 6-word overlap; recorded in the eval report (a
-   persona) or the checklist (a card or character).
+   author's own export, with `eldennet-engine kb-draft --check` finding no ≥ 6-word overlap; recorded in the eval report
+   (a persona) or the checklist (a card or character).
 
 ### 12.5 World-awareness eval (C14)
 
-`en-tools eval --set awareness` checks three things: that personas know what the world model says they know, and no more (MEM §12.5, criterion C14 in DESIGN §1.3); and that they raise news unasked only when a reaction cues it (O28, MEM §12.13).
+`eldennet-engine eval --set awareness` checks three things: that personas know what the world model says they know, and
+no more (MEM §12.5, criterion C14 in DESIGN §1.3); and that they raise news unasked only when a reaction cues it (O28,
+MEM §12.13).
 
 - **Set:** 10 original probes per persona at 4 flag states (`fresh`, `after_godrick`, `after_radahn`, `erdtree_burned`), 240 turns in all.
   - Per state, 4 probes ask about changes the persona knows, 2 ask about items it does not know, 2 are unrelated controls, and 2 are **cue slots**.

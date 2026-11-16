@@ -22,7 +22,8 @@
 - **Event IDs** are 64-bit integers assigned by the core, monotonic per playthrough file and never reused (§8.6). Augur's in-RAM `EventId (step seq, index)` maps to one when a P event is persisted.
 - **Profile IDs** are the slugs of `identity/personas.toml` and `identity/characters.toml`, after the alias table (NPC §2.4). Since O45 every NPC with a profile remembers, so in §1–§4 *persona* reads *profiled NPC* wherever the rule names no stage, tie, road or `awareness` field (DESIGN §7.8); memory keys are profile ids.
 - **Tokens** are estimated as `ceil(bytes / 3.6 × 1.15)` (NPC §7.1). Every budget below is in estimated tokens.
-- **Paths** are relative to `content/eldenring/` unless stated. Every TOML file has `schema = 1` and is parsed with `deny_unknown_fields` (NPC §0).
+- **Paths** are relative to `content/eldenring/` unless stated. Every TOML file has `schema = 1` and is parsed
+  strictly: an unknown key is an error (NPC §0).
 - **Three-valued logic:** predicates evaluate to `T`, `F` or `U` (Unknown). §6.5 defines it.
 
 | § | Covers | Expands |
@@ -89,26 +90,37 @@ Cards perceive (barks read K events) but never get audience rows (DESIGN §10.2)
 
 ### 1.3 The `visible_to()` contract
 
-One function decides what a persona may know about any event, whether the event is a RAM K event or a stored P row (SN00 §3 lesson #723; SN04 §4.3). It lives in `en-augur::audience`, which owns audiences.
+One function decides what a persona may know about any event, whether the event is a RAM K event or a stored P row
+(SN00 §3 lesson #723; SN04 §4.3). It lives in `en-augur`'s `audience` file, which owns audiences.
 
-```rust
-pub enum How { Direct, Overheard, Witnessed }
-pub trait HasAudience {                       // implemented by augur::Event and proto::StoredEvent
-    fn journey(&self) -> u16;
-    fn kind(&self) -> EventKindTag;
-    fn audience(&self) -> &[(PersonaId, How)];
-}
-pub struct VisCtx<'a> { pub journey: u16, pub aliases: &'a AliasMap }
+```cpp
+enum class How : std::uint8_t { Direct, Overheard, Witnessed };
+template <class E>                              // satisfied by augur::Event and proto::StoredEvent
+concept HasAudience = requires(const E& e) {
+  { e.journey() } -> std::same_as<std::uint16_t>;
+  { e.kind() } -> std::same_as<EventKindTag>;
+  { e.audience() } -> std::same_as<std::span<const std::pair<PersonaId, How>>>;
+};
+struct VisCtx { std::uint16_t journey; const AliasMap& aliases; };
+template <HasAudience E> class Visible {        // a view: it never outlives the event
+ public:
+  const E& ev() const { return *ev_; }
+  How how;
+ private:
+  Visible(const E& ev, How how) : how(how), ev_(&ev) {}
+  template <HasAudience F> friend std::optional<Visible<F>> visible_to(const F&, PersonaId, const VisCtx&);
+  const E* ev_;
+};
 /// The only constructor of `Visible`. Consumers cannot read an event without it.
-pub fn visible_to<'e, E: HasAudience>(ev: &'e E, p: PersonaId, ctx: &VisCtx) -> Option<Visible<'e, E>>;
-pub struct Visible<'e, E> { ev: &'e E, pub how: How }   // fields private; `ev()` accessor
+template <HasAudience E> std::optional<Visible<E>> visible_to(const E& ev, PersonaId p, const VisCtx& ctx);
 ```
 
 **Rules**, in order:
-1. `ev.journey() == ctx.journey`, else `None`. Earlier journeys are never visible (`remember_past_journeys = false`, §9.4).
+1. `ev.journey() == ctx.journey`, else `std::nullopt`. Earlier journeys are never visible
+   (`remember_past_journeys = false`, §9.4).
 2. `p` is canonicalised through the alias table.
-3. The frozen audience entry for `p` gives `how`; no entry gives `None`.
-4. Reserved kinds (`NpcThought`, `DecisionMade`, intents) return `None` in v1.
+3. The frozen audience entry for `p` gives `how`; no entry gives `std::nullopt`.
+4. Reserved kinds (`NpcThought`, `DecisionMade`, intents) return `std::nullopt` in v1.
 
 There is no positional check, no recomputation and no line of sight. "Forget" (§9.5) deletes audience rows, so it needs no special case here.
 
@@ -123,7 +135,10 @@ There is no positional check, no recomputation and no line of sight. "Forget" (�
 | Facts (§2.2) | P events | per fact |
 | `told_name` validation | `PlayerSaid` | direct, overheard |
 
-**Enforcement.** `Event::audience` is private outside `en-augur`; the store returns rows as `StoredEvent`, and `en-core` reads either kind only through `visible_to`. A unit test runs every consumer over a fixture where a second persona stands 17 m away and asserts that nothing leaks; a CI grep rejects `event_audience` in any SQL outside `en-store::events`.
+**Enforcement.** Nothing outside `en-augur` calls an event's `audience()` (a CI grep, since C++ has no module-private
+members); the store returns rows as `StoredEvent`, and `en-core` reads either kind only through `visible_to`. A unit
+test runs every consumer over a fixture where a second persona stands 17 m away and asserts that nothing leaks; a CI
+grep rejects `event_audience` in any SQL outside `en-store`'s `events` file.
 
 ### 1.4 K events in prompts: at most 3 "just now" lines
 
@@ -192,17 +207,21 @@ lived layer (§13) is built from the journal and versioned beside it; it is not 
 
 ### 2.2 Fact catalogue
 
-`npc_facts` is a **cache of a pure fold** over visible events: `fold_fact(&mut PersonaFacts, &StoredEvent, How)`. The same function runs live and in recomputation, and a property test asserts they agree. A *meeting* is a `ConversationEnded` with at least one committed NPC line, or a `NativeTalkEnded` with the persona; meetings within 10 min of `pt` of the previous one merge (one visit to a shop is one meeting). An unanswered own-initiative line is no meeting.
+`npc_facts` is a **cache of a pure fold** over visible events: `fold_fact(PersonaFacts&, const StoredEvent&, How)`.
+The same function runs live and in recomputation, and a property test asserts they agree. A *meeting* is a
+`ConversationEnded` with at least one committed NPC line, or a `NativeTalkEnded` with the persona; meetings within
+10 min of `pt` of the previous one merge (one visit to a shop is one meeting). An unanswered own-initiative line is no
+meeting.
 
 | Key | Type | Source event (`how`) | Update rule | Words in block 8 (original) |
 |---|---|---|---|---|
-| `met_count` | u32 | meeting (direct) | +1 per merged meeting | 0: "You have never spoken with this Tarnished." · 1: "You have spoken with the Tarnished once before." · 2–4: "…a few times." · ≥ 5: "…many times." |
+| `met_count` | `uint32_t` | meeting (direct) | +1 per merged meeting | 0: "You have never spoken with this Tarnished." · 1: "You have spoken with the Tarnished once before." · 2–4: "…a few times." · ≥ 5: "…many times." |
 | `first_met_pt`, `first_met_place` | pt, place id | first meeting | set once | "You first met at {place}." only if it is not the current place |
 | `last_met_pt`, `last_met_place` | pt, place id | each meeting | overwrite | absence words (DESIGN §5.5): nothing under 1 h of play; "Some time has passed since you two last talked." up to 6 h; "…a long while…" beyond |
-| `seen_count` | u32 | `PersonaSeen` (direct) | +1 | only if `met_count = 0` and ≥ 2: "You have seen this Tarnished pass by, but you have never spoken." |
-| `times_attacked`, `last_attacked_pt` | u32, pt | `PersonaAttacked` (direct) | +1 | 1: "The Tarnished struck you once." · 2–3: "…more than once." · ≥ 4: "…many times." Appends ", only a short while ago" within 10 min |
-| `fought_beside`, `fought_last_boss` | u32, `name_id` | `FoughtBeside` (direct) | +1, overwrite | "You fought beside the Tarnished against {boss}." (≥ 2: "…more than once, most recently against {boss}.") The boss name is the runtime NpcName, already shown on its bar |
-| `seen_player_die` | u32 | `PlayerDied` (witnessed) | +1 | 1: "You have seen the Tarnished fall once, and come back." · ≥ 2: "…more than once…" |
+| `seen_count` | `uint32_t` | `PersonaSeen` (direct) | +1 | only if `met_count = 0` and ≥ 2: "You have seen this Tarnished pass by, but you have never spoken." |
+| `times_attacked`, `last_attacked_pt` | `uint32_t`, pt | `PersonaAttacked` (direct) | +1 | 1: "The Tarnished struck you once." · 2–3: "…more than once." · ≥ 4: "…many times." Appends ", only a short while ago" within 10 min |
+| `fought_beside`, `fought_last_boss` | `uint32_t`, `name_id` | `FoughtBeside` (direct) | +1, overwrite | "You fought beside the Tarnished against {boss}." (≥ 2: "…more than once, most recently against {boss}.") The boss name is the runtime NpcName, already shown on its bar |
+| `seen_player_die` | `uint32_t` | `PlayerDied` (witnessed) | +1 | 1: "You have seen the Tarnished fall once, and come back." · ≥ 2: "…more than once…" |
 | `stage_seen` | stage id | each meeting | overwrite with the active stage | not rendered. Selects the tail header variant (§4.3) and is given to the memory job |
 | `world_seen` | JSON `[[item, certainty], …]` | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `known`) | union, keeping the higher certainty | not rendered. Feeds the Kept path, the since-line, the reaction cue and the memory job (§12.5–§12.7, §12.13) |
 | `world_seen_pt` | pt | meeting (`ConversationEnded` with ≥ 1 committed NPC line and a non-null `known`) | overwrite | not rendered. The pt of the last conversation `world_seen` was folded from; it starts local talk's 6 h window and tells the reaction cue that such a conversation exists (§12.13). A `NativeTalkEnded` never moves it |
@@ -215,31 +234,32 @@ Place names render from the runtime PlaceName cache, or the region phrase of `re
 
 ### 2.3 The journal
 
-```rust
-pub struct Journal {
-    pub version: u32,                         // 0 = none yet
-    pub summary: SafeText,                    // ≤ 120 words, first person, past tense
-    pub keepsakes: ArrayVec<Keepsake, 8>,
-    pub disposition: i8,                      // −2..=2 (§2.4)
-    pub told_name: Option<ToldName>,          // { text ≤ 16 chars, verified: bool, heard: bool }
-    pub as_of_pt: u64,                        // pt of the newest evidence event
-    pub upto_event: i64,                      // the watermark this version covers
-}
-pub struct Keepsake {                         // one witness's own memory of a moment (§3.1)
-    pub id: KeepsakeId,                       // "k1", "k2", … per (journey, profile), never reused
-    pub text: SafeText,                       // ≤ 25 words, ≤ 200 bytes, first person
-    pub basis: Basis,                         // Said | Seen
-    pub kind: MemType,                        // "type": Talk | Deed | Fight | Death; set by code (below)
-    pub emotion: Emotion,                     // the feeling it left; the model picks from the list below
-    pub tags: ArrayVec<Tag, 2>,               // the model picks from the list below
-    pub weight: f32,                          // its importance: 0.0..=1.0 in steps of 0.05
-    pub about: About,                         // Tarnished | SelfNpc | World | Npc(ProfileId) (O45; roadmap S8.1.b)
-    pub actors: SmallVec<[ActorId; 4]>,       // set by code: who the cited events involve (below)
-    pub place: Option<PlaceId>,               // set by code: where the newest cited event happened
-    pub check_key: Option<CheckKey>,          // §2.5; Said only
-    pub refs: SmallVec<[EvRef; 4]>,           // supporting event IDs (64-bit) or context-line IDs
-    pub since_pt: u64, pub updated_pt: u64,
-}
+```cpp
+// FixedVector<T, N>: our own fixed-capacity vector (a count and inline storage for N elements)
+struct Keepsake {                             // one witness's own memory of a moment (§3.1)
+  KeepsakeId id;                              // "k1", "k2", … per (journey, profile), never reused
+  SafeText text;                              // ≤ 25 words, ≤ 200 bytes, first person
+  Basis basis;                                // Said | Seen
+  MemType kind;                               // "type": Talk | Deed | Fight | Death; set by code (below)
+  Emotion emotion;                            // the feeling it left; the model picks from the list below
+  FixedVector<Tag, 2> tags;                   // the model picks from the list below
+  float weight;                               // its importance: 0..1 in steps of 0.05
+  About about;                                // Tarnished | SelfNpc | World | Npc(ProfileId) (O45; roadmap S8.1.b)
+  std::vector<ActorId> actors;                // set by code: who the cited events involve (below)
+  std::optional<PlaceId> place;               // set by code: where the newest cited event happened
+  std::optional<CheckKey> check_key;          // §2.5; Said only
+  std::vector<EvRef> refs;                    // supporting event IDs (64-bit) or context-line IDs
+  std::uint64_t since_pt, updated_pt;
+};
+struct Journal {
+  std::uint32_t version;                      // 0 = none yet
+  SafeText summary;                           // ≤ 120 words, first person, past tense
+  FixedVector<Keepsake, 8> keepsakes;
+  std::int8_t disposition;                    // −2..+2 (§2.4)
+  std::optional<ToldName> told_name;          // { text ≤ 16 chars, bool verified, bool heard }
+  std::uint64_t as_of_pt;                     // pt of the newest evidence event
+  std::int64_t upto_event;                    // the watermark this version covers
+};
 ```
 
 **Writing rules** (prompted in §3.4, enforced in §3.6):
@@ -674,18 +694,24 @@ The summary is never cut mid-sentence; at ≤ 160 tokens it always fits.
 The core is pure, so recall has two phases: what to read, then what to show. Its rule is WHY§99's: code gathers the
 records a call needs, by id, and a model only picks among them.
 
-```rust
-pub struct RecallQuery<'a> { pub persona: PersonaId, pub journey: u16, pub stage: StageId,
-    pub player_lines: &'a [SafeText], pub npc_last: Option<&'a SafeText>, pub place: PlaceRef,
-    pub conv: &'a [SafeText],                 // the conversation so far, its last 6 lines
-    pub present: &'a [ActorId],               // the Tarnished in a conversation, and block 9's nearby others
-    pub named: &'a [ActorId] }                // names in the talk, resolved by code (runtime or told names)
-pub trait Recall: Send {
-    fn plan(&self, q: &RecallQuery) -> SmallVec<[MemQuery; 2]>;        // DbRequests to issue
-    fn select(&self, q: &RecallQuery, got: &MemoryBundle, budget: Tokens) -> RecallOut;
-}
-pub struct JournalRecall;   // v1: plan = [Bundle{persona, journey}] once per conversation; select = §4.3
-pub struct SceneRecall;     // v1.x: plan = the gather and the two searches below; select = the gate's pick
+```cpp
+struct RecallQuery {                          // a view of this turn's data, valid for the call only
+  PersonaId persona; std::uint16_t journey; StageId stage;
+  std::span<const SafeText> player_lines; const SafeText* npc_last; PlaceRef place;   // npc_last: null for none
+  std::span<const SafeText> conv;             // the conversation so far, its last 6 lines
+  std::span<const ActorId> present;           // the Tarnished in a conversation, and block 9's nearby others
+  std::span<const ActorId> named;             // names in the talk, resolved by code (runtime or told names)
+};
+class Recall {
+ public:
+  virtual ~Recall() = default;
+  virtual std::vector<MemQuery> plan(const RecallQuery& q) const = 0;      // DbRequests to issue
+  virtual RecallOut select(const RecallQuery& q, const MemoryBundle& got, Tokens budget) const = 0;
+};
+// v1: plan = [Bundle{persona, journey}] once per conversation; select = §4.3
+class JournalRecall final : public Recall { /* … */ };
+// v1.x: plan = the gather and the two searches below; select = the gate's pick
+class SceneRecall final : public Recall { /* … */ };
 ```
 
 v1's `JournalRecall` sends the journal whole. A v1.x `SceneRecall` reads the reserved `memories` tables (§8.7), filled
@@ -759,7 +785,7 @@ SN04 §9.1 shows that a quest-gated fact must say whether it holds *while* a sta
 ### 5.4 Selection per turn
 
 ```text
-fn select_kb(P, stage, frame, region, last3_player, npc_last, shown_last_turn) -> (always[≤4], topic[≤3]):
+select_kb(P, stage, frame, region, last3_player, npc_last, shown_last_turn) -> (always[≤4], topic[≤3]):
   winners = [winner(key) for key in candidates(P, stage) if winner(key) exists]
   always  = winners where mode = always, sorted by (priority desc, position in P's lists), take 4
   for e in winners where mode = topic:
@@ -784,12 +810,20 @@ Grouped by certainty, `always` first: "You know: …" (fact), "You have heard: �
 ### 5.6 Authoring scale and the drafting aid
 
 - **v1.0 scale:** about 40–60 world entries (regions, places, Great Runes and topic detail; the state of the land is in `world/stages.toml`, §12.4) plus 3–8 per persona, about 90 in all, near P3 §7.5's estimate trimmed to 6 personas.
-- **`en-tools kb-draft --persona boc --export <the player's own FMG export>`** (an addition to DESIGN §2.2's tool list) is offline and deterministic:
+- **`eldennet-engine kb-draft --persona boc --export <the player's own FMG export>`** (an addition to DESIGN §2.2's
+  tool list) is offline and deterministic:
   1. it reads the persona's catalogue block and the aliases' `note`s, the persona file, and the **author's own local export** through `fmg-import`'s database (ARCH §12.3);
   2. it writes a skeleton TOML to the git-ignored `drafts.local/`: keys, `requires` from the block's aliases, `kind`-based `ephemeral`, candidate `topics` and a candidate `lexicon` (proper nouns from the NpcName and PlaceName tables), with every `text` left empty;
   3. it prints the NPC's own lines to the terminal as reference, and never writes them to the draft.
 
-  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never holds game text. There is no runtime generation and no LLM in this drafting aid (SN04 §9.1, SN00 §4 row 16). Shipped profiles were written the same way until O45; the roster's bios are now drafted offline from our own research notes by `en-tools roster-draft`, which never reads game text or the export, and every field is reviewed by hand and checked by `kb-draft --check` before it ships (DESIGN §7.8). The player's profile helper (NPC §4.7) is a different thing: it drafts only the player's own local profiles, on a click and for the player's review, and never feeds shipped content.
+  The author writes every `text` in their own words. A local lint, `kb-draft --check`, flags any committed text
+  sharing a run of ≥ 6 consecutive words with the local export. It runs on the author's machine, because CI never
+  holds game text. There is no runtime generation and no LLM in this drafting aid (SN04 §9.1, SN00 §4 row 16). Shipped
+  profiles were written the same way until O45; the roster's bios are now drafted offline from our own research notes
+  by `eldennet-engine roster-draft`, which never reads game text or the export, and every field is reviewed by hand
+  and checked by `kb-draft --check` before it ships (DESIGN §7.8). The player's profile helper (NPC §4.7) is a
+  different thing: it drafts only the player's own local profiles, on a click and for the player's review, and never
+  feeds shipped content.
 
 ---
 
@@ -880,7 +914,11 @@ note = "Kalé's vanilla talk about the howling has happened."
    quiet_before_ms = 600000              # must not have risen in the 10 min before the mark
    ```
 2. **Record.** A dev build with `debug.record_sessions = true` and the F11 **wide watch** toggle, which watches whole candidate ranges (a persona's 20-flag block, a tile's conversation band) up to the 2,048 cap. The tester plays the script and presses **Mark** (F11) at each step; marks are stored in the recording.
-3. **Check.** `en-tools flag-verify <recording> --script tests/s6/godrick.toml` (an addition to DESIGN §2.2) aligns edges with marks and writes evidence records to `docs/design/spikes/S6/evidence/`. A record holds the build, alias, ID, mark, edge timing, the other IDs that moved within ±5 s and a verdict. It contains no game text and no personal data. For a new persona block, the tool proposes offsets from the wide-watch edges that line up with the marks.
+3. **Check.** `eldennet-engine flag-verify <recording> --script tests/s6/godrick.toml` (an addition to DESIGN §2.2)
+   aligns edges with marks and writes evidence records to `docs/design/spikes/S6/evidence/`. A record holds the build,
+   alias, ID, mark, edge timing, the other IDs that moved within ±5 s and a verdict. It contains no game text and no
+   personal data. For a new persona block, the tool proposes offsets from the wide-watch edges that line up with the
+   marks.
 4. **Review.** A human applies the proposed catalogue patch (`verified = true`, `evidence += [id]`). Release lint requires every verified alias to cite evidence from a supported build family.
 5. **Regression.** The patch-day smoke route (DESIGN §4.6) re-checks 100, 9000, 181 and 9101. A failure blocks the data-only update.
 
@@ -930,25 +968,26 @@ ws        = { " " | "\t" } ;
 
 ### 6.6 Evaluation over the latest flag frame
 
-```rust
-#[derive(Clone, Copy)] pub enum Tri { F, U, T }
-pub struct FlagState { gen: u64, bits: BitArr<2048>, valid: BitArr<2048>, verified: BitArr<2048>, have_frame: bool }
-fn eval(n: &Node, fs: &FlagState, w: &WorldFacts) -> Tri {
-    match n {
-        Node::Flag(i)    => if !fs.have_frame || !fs.verified[*i] || !fs.valid[*i] { Tri::U }
-                            else { Tri::from(fs.bits[*i]) },
-        Node::Runes(0)   => Tri::T,
-        Node::Runes(k)   => eval(&Node::Flag(w.runes_alias[*k]), fs, w),   // runes.ge<k>
-        Node::Journey(k) => Tri::from(w.journey >= *k),
-        Node::Region(r)  => w.region.map_or(Tri::U, |cur| Tri::from(cur == *r)),   // place group down → U
-        Node::Stage(p,s) => eval(&w.stage_when(*p, *s), fs, w),             // "has reached" semantics
-        Node::World(x)   => w.world_view.tri(*x),                           // T, U or F (§12.3)
-        Node::Knows(x)   => w.persona_knows(*x),                            // U when world(x) is U; only where a persona is rendered
-        Node::Not(a)     => match eval(a, fs, w) { Tri::T => Tri::F, Tri::F => Tri::T, Tri::U => Tri::U },
-        Node::And(a, b)  => kleene_and(eval(a, fs, w), eval(b, fs, w)),     // F dominates, then U
-        Node::Or(a, b)   => kleene_or(eval(a, fs, w), eval(b, fs, w)),      // T dominates, then U
-        Node::Const(v)   => Tri::from(*v),
-    }
+```cpp
+enum class Tri : std::uint8_t { F, U, T };
+struct FlagState { std::uint64_t gen; std::bitset<2048> bits, valid, verified; bool have_frame; };
+// Node: its kind, the operands of its atom (i, k, r, p, s, x, v) and its children (a, b)
+Tri eval(const Node& n, const FlagState& fs, const WorldFacts& w) {
+  using enum Node::Kind;
+  switch (n.kind) {
+    case Flag:    return !fs.have_frame || !fs.verified[n.i] || !fs.valid[n.i] ? Tri::U : tri(fs.bits[n.i]);
+    case Runes:   return n.k == 0 ? Tri::T : eval(Node::flag(w.runes_alias[n.k]), fs, w);   // runes.ge<k>
+    case Journey: return tri(w.journey >= n.k);
+    case Region:  return w.region ? tri(*w.region == n.r) : Tri::U;             // place group down → U
+    case Stage:   return eval(w.stage_when(n.p, n.s), fs, w);                   // "has reached" semantics
+    case World:   return w.world_view.tri(n.x);                                 // T, U or F (§12.3)
+    case Knows:   return w.persona_knows(n.x);          // U when world(x) is U; only where a persona is rendered
+    case Not:     return kleene_not(eval(*n.a, fs, w));                         // T → F, F → T, U → U
+    case And:     return kleene_and(eval(*n.a, fs, w), eval(*n.b, fs, w));      // F dominates, then U
+    case Or:      return kleene_or(eval(*n.a, fs, w), eval(*n.b, fs, w));       // T dominates, then U
+    case Const:   return tri(n.v);
+  }
+  return Tri::U;                                                                // not reached
 }
 ```
 
@@ -1046,7 +1085,7 @@ fields.
 
 ### 7.7 Strict mode only
 
-There is no spoiler setting in v1. A `spoilers` key in `settings.toml` is a parse error (`deny_unknown_fields`), and
+There is no spoiler setting in v1. A `spoilers` key in `settings.toml` is a parse error (unknown keys are refused), and
 `flags/catalog.toml`, which every gate reads, cannot be disabled through `overrides/disable.toml` (ARCH §11.6). An
 unverified alias is U, and U always hides (§6.4).
 
@@ -1054,9 +1093,9 @@ unverified alias is U, and U always hides (§6.4).
 
 **Fixture states.** The eight files in `tests/fixtures/flagstates/` (`fresh`, `after_godrick`, `two_runes`,
 `after_morgott`, `after_mohg`, `erdtree_burned`, `after_radahn` and `after_rykard`) list alias values, all verified (NPC
-§12.1). Per state, CI snapshots the rendered prompts per persona × stage (`insta`) and the world truth table (§12.11)
-as golden files; `ashen.toml` serves the block-5b goldens only. The goldens check what each prompt says at each state;
-none is built on a term set.
+§12.1). Per state, CI snapshots the rendered prompts per persona × stage and the world truth table (§12.11) as golden
+files, compared by our own diff and updated by an explicit `eldennet-engine golden update`; `ashen.toml` serves the
+block-5b goldens only. The goldens check what each prompt says at each state; none is built on a term set.
 
 **The test questions** (C9; DESIGN §14; NPC §12.1). The prompt holds nothing a character may not say (§7.1), so what is
 left to test is what the model already knows of Elden Ring from its own training. Each persona gets 6 questions, 2 at
@@ -1103,10 +1142,13 @@ Only metadata is read, never the save's contents. The choice and its reason are 
 ### 8.3 Fingerprint and slot reuse
 
 ```text
-fp8 = hex( blake3::keyed_hash( derive_key("eldennet playthrough fp v1"),
-        steamid64 (u64 LE) ‖ slot (u8) ‖ name_len (u8) ‖ name (raw UTF-16LE code units, NUL-trimmed) ‖
-        archetype (u8) ‖ starting_gift (u8, or 0xFF if the layout does not declare it) ) )[0..8]
+fp8 = hex( keyed_hash( derive_key("eldennet playthrough fp v1"),
+        steamid64 (uint64_t LE) ‖ slot (uint8_t) ‖ name_len (uint8_t) ‖ name (raw UTF-16LE code units, NUL-trimmed) ‖
+        archetype (uint8_t) ‖ starting_gift (uint8_t, or 0xFF if the layout does not declare it) ) )[0..8]
 ```
+
+`keyed_hash` and `derive_key` are BLAKE3's keyed and key-derivation modes, called through its own C implementation
+(`blake3_hasher_init_keyed`, `blake3_hasher_init_derive_key`).
 
 - **Body type** (and voice and appearance) are excluded, because the mirror changes them (ER05 §2). The name, archetype and starting gift are fixed at creation. (DESIGN §10.5's "keepsake" is the game's starting gift, not our memory keepsakes.)
 - `meta` stores `blake3(name)`, the archetype and the gift, never the raw name.
@@ -1123,7 +1165,8 @@ fp8 = hex( blake3::keyed_hash( derive_key("eldennet playthrough fp v1"),
 
 ### 8.5 SQLite settings
 
-`rusqlite` with the bundled SQLite (FTS5 enabled, which the reserved table needs; CI asserts it). One connection per file, owned by T9.
+SQLite's amalgamation (public domain), pinned at adoption and used through its C API, built with FTS5
+(`SQLITE_ENABLE_FTS5`), which the reserved table needs; CI asserts it. One connection per file, owned by T9.
 
 | Pragma | Playthrough | pools | diag |
 |---|---|---|---|
@@ -1405,41 +1448,48 @@ Each cut runs through the silent path (Δ ≤ 5 min) and the **Forget** path (Δ
 
 ## 10. Migration policy
 
-- **Files:** `en-store/src/migrations/{pt,pools,diag}/NNNN_name.sql`, embedded with `include_str!`, numbered from `0001` with no gaps, forward-only. There are no down migrations.
+- **Files:** `src/en-store/src/migrations/{pt,pools,diag}/NNNN_name.sql`, embedded in the build (a CMake step writes
+  them into a generated source), numbered from `0001` with no gaps, forward-only. There are no down migrations.
 - **Version:** `PRAGMA user_version` per file, plus `meta.schema_min_reader`.
 - **Runner** (on T9, at open):
 
-```rust
-fn migrate(db: &mut Connection, path: &Path, set: &[Migration]) -> Result<(), StoreError> {
-    let cur: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-    let top = set.last().map_or(0, |m| m.n);
-    if cur > top { return open_if_reader_ok(db, top); }      // newer file: open only if schema_min_reader ≤ top
-    if cur == top { return Ok(()); }
-    backup_into(db, &path.with_extension(format!("pre-{cur}-{top}.sqlite")))?;   // VACUUM INTO, before anything
-    for m in set.iter().filter(|m| m.n > cur) {
-        let tx = db.transaction_with_behavior(TransactionBehavior::Exclusive)?;
-        tx.execute_batch(m.sql)?;     // SQLite's own parser: comments, quotes and ';' in strings are safe
-        tx.pragma_update(None, "user_version", m.n)?;
-        tx.commit()?;                 // one transaction per migration; a failure leaves the previous version
-    }
-    Ok(())
+```cpp
+Expected<void, StoreError> migrate(sqlite3* db, const std::filesystem::path& path, std::span<const Migration> set) {
+  const auto cur = user_version(db);                   // PRAGMA user_version
+  if (!cur) return Unexpected{cur.error()};
+  const std::uint32_t top = set.empty() ? 0 : set.back().n;
+  if (*cur > top) return open_if_reader_ok(db, top);   // newer file: open only if schema_min_reader ≤ top
+  if (*cur == top) return {};
+  auto pre = path;
+  pre.replace_extension(std::format("pre-{}-{}.sqlite", *cur, top));
+  if (auto r = backup_into(db, pre); !r) return r;     // VACUUM INTO, before anything
+  for (const Migration& m : set) {
+    if (m.n <= *cur) continue;
+    auto tx = Transaction::exclusive(db);  // one transaction per migration; a failure leaves the previous version
+    if (!tx) return Unexpected{tx.error()};
+    // SQLite's own parser: comments, quotes and ';' in strings are safe
+    if (auto r = execute_batch(db, m.sql); !r) return r;
+    if (auto r = set_user_version(db, m.n); !r) return r;
+    if (auto r = tx->commit(); !r) return r;           // an early return rolls the transaction back
+  }
+  return {};
 }
 ```
 
-- **No naive statement splitting.** The whole file goes to SQLite's own statement parsing: `execute_batch` here, and in
-  the C++ engine (O60, O84) `sqlite3_prepare_v2` in a loop on its tail pointer, never a split on `;`. SkyrimNet's
-  runner split on every semicolon and was broken by an apostrophe in a comment (SN04 §3; WHY§98). Lint rejects
-  `BEGIN`, `COMMIT` and `PRAGMA journal_mode` inside migration files, and a CI fixture migration holds a comment with
-  an apostrophe and a string with a semicolon.
+- **No naive statement splitting.** The whole file goes to SQLite's own statement parsing: `execute_batch` calls
+  `sqlite3_prepare_v2` in a loop on its tail pointer, never a split on `;`. SkyrimNet's runner split on every
+  semicolon and was broken by an apostrophe in a comment (SN04 §3; WHY§98). Lint rejects `BEGIN`, `COMMIT` and
+  `PRAGMA journal_mode` inside migration files, and a CI fixture migration holds a comment with an apostrophe and a
+  string with a semicolon.
 - **A backup before migrating**, as above. A failed migration leaves the file at its previous version, and memory stays off for the session with a toast.
-- **64-bit keys:** every key is SQLite `INTEGER` read as `i64`, through the 64-bit accessor (`sqlite3_column_int64`
-  in C++), never a 32-bit one. Handles are stored by bit-cast from `u64`. An id inside JSON (a keepsake's refs, an
-  event payload, `memories.src_events`) is parsed as a 64-bit integer, never through a double. Test fixtures start
-  event IDs at 2³³ and use handles with the high bit set, because toy IDs hide truncation (SN04 §3 migrations 0016,
-  0021).
+- **64-bit keys:** every key is SQLite `INTEGER` read as `int64_t`, through the 64-bit accessor
+  (`sqlite3_column_int64`), never a 32-bit one. Handles are stored by bit-cast from `uint64_t`. An id inside JSON (a
+  keepsake's refs, an event payload, `memories.src_events`) is parsed as a 64-bit integer, never through a double.
+  Test fixtures start event IDs at 2³³ and use handles with the high bit set, because toy IDs hide truncation (SN04 §3
+  migrations 0016, 0021).
 - **Locale-proof numbers** (WHY§98): every number the store writes or reads as text, in SQL, JSON or TOML (weights,
   `conf`, `importance`, ids), uses a `.` decimal point, no digit grouping and the shortest form that reads back
-  exactly, whatever the player's locale: `std::to_chars` and `std::from_chars` in C++, never `printf`, streams or
+  exactly, whatever the player's locale: `std::to_chars` and `std::from_chars`, never `printf`, streams or
   `strtod` under the process locale. CI repeats the store and JSON round-trip tests under a locale with a decimal
   comma.
 - **Reserved tables in `0001`** (`memories`, `memory_actors`, `memories_fts`, `embeddings`, `npc_intents`), so v1.x
@@ -1459,9 +1509,9 @@ fn migrate(db: &mut Connection, path: &Path, set: &[Migration]) -> Result<(), St
 ## 11. Interpretations, additions and conflicts
 
 These follow DESIGN.md. Items 1–5 are possible conflicts and are reported to the lead; items 6–18 are additions that
-change no decision; items 19–21 record the folds of 2026-11-16 (O86, O46 and roadmap S8.1.f). The review resolved items
-1–3 and 6–7 in DESIGN.md (§4.3, §10.3–§10.5) and in ARCH §8.3, and added the new files and tools to DESIGN §2.2 and §15
-([process/review.md](process/review.md)).
+change no decision; items 19–22 record the folds of 2026-11-16 (O86, O46, and roadmap S8.1.f and S8.1.e). The review
+resolved items 1–3 and 6–7 in DESIGN.md (§4.3, §10.3–§10.5) and in ARCH §8.3, and added the new files and tools to
+DESIGN §2.2 and §15 ([process/review.md](process/review.md)).
 
 1. **Developer labels.** DESIGN §10.4 says "developer labels never leave this file" (the catalogue), which implies storing them there. Storing FromSoftware's internal flag names, in Japanese or translated, would put FromSoftware text in the repo, against the hard constraint. The catalogue therefore holds our own `note` and a `src` pointer only (§6.1, §7.6).
 2. **Catalogue group self-test.** DESIGN §4.3 says the `flags` test requires "every catalogue ID's group exists". Applied literally, players without Shadow of the Erdtree could lose named chat if DLC groups are unallocated (SPECULATION). §6.2 applies the hard rule to `core` aliases and a 10% threshold to non-DLC ones, and treats missing DLC aliases as Unknown.
@@ -1472,7 +1522,9 @@ change no decision; items 19–21 record the folds of 2026-11-16 (O86, O46 and r
 7. **SteamID with several folders.** "The newest `ER0000.sl2`" is read as the newest full-size save file of any name, so ERSC's `.co2` and a me3 `savefile` name count, and a save written since the game started wins (§8.2).
 8. **Fingerprint soft-match** for the starting gift's readability, and restoring archived files (§8.3).
 9. **Epochs** (§9.3), so that Keep and later trims compose.
-10. **New files and tools:** `lexicon/public.toml`, `knowledge/aliases.toml`, `tests/s6/*.toml`, `en-tools kb-draft` and `en-tools flag-verify`; the scenario verbs `chat`, `native_talk`, `ng_plus` and the assertions `fact`, `journal`, `prompt`.
+10. **New files and tools:** `lexicon/public.toml`, `knowledge/aliases.toml`, `tests/s6/*.toml`,
+    `eldennet-engine kb-draft` and `eldennet-engine flag-verify`; the scenario verbs `chat`, `native_talk`, `ng_plus`
+    and the assertions `fact`, `journal`, `prompt`.
 11. **Fact semantics:** meetings merge within 10 min; `stage_seen` drives the tail header; `told_name` is stored in the journal version, so rollback restores it.
 12. **`stage(p, s)`** means "has reached stage s" (its `when` holds), not "s is the active stage" (§6.6).
 13. **Overheard introductions count.** DESIGN §8.8 says "in the persona's hearing", so a `told_name` may come from an overheard `PlayerSaid` (§2.8 step G), but only through that persona's own memory job.
@@ -1494,6 +1546,10 @@ change no decision; items 19–21 record the folds of 2026-11-16 (O86, O46 and r
 21. **The lived layer (O46).** §13: one versioned record per journey and NPC, `npc_lived` and lived jobs in the
     `memory` slot. It renders in block 8 within its 450 (§4.2) and leaves out of block 3 what it supersedes (§13.6),
     which DESIGN §8.3 and NPC §7.3 should name.
+22. **The design on C++ (O60, O84; roadmap S8.1.e).** Only the language changed: the sketches are C++20, the store
+    reads SQLite through its C API (§8.5, §10), goldens use our own diff (§7.8), the tools are `eldennet-engine`
+    subcommands, and a CI grep keeps an event's audience inside `en-augur`, as C++ has no module-private members
+    (§1.3).
 
 ---
 
@@ -1675,18 +1731,19 @@ Inheritance runs in file order: a stage that omits `road`, `at`, `hears` or `kno
 
 **Where it runs.** In `en-core`, `knowledge::world::derive` is a pure function called in bus step 1 (ARCH §8.9), right after `FlagState` is rebuilt from the newest processed flag frame (§6.6). Every later step of the same core step (rules, audiences, conversation, memory, UI) reads the same `world_gen`. It never runs on the game thread and emits nothing on the bus.
 
-```rust
-pub struct WorldView {
-    pub world_gen: u64,                          // bumps only when `holds`, `unknown` or an active step changes
-    pub flag_gen: u64,                           // the FlagState it was derived from
-    pub have_frame: bool,                        // false until the session's first processed frame
-    pub holds: BitArr<32>,                       // world stages that hold (T)
-    pub unknown: BitArr<32>,                     // world stages that are U; F and U kept apart
-    pub active: SmallVec<[Option<StepIdx>; 16]>, // per track: persona tracks and world/tracks.toml
-}
-pub fn derive(fs: &FlagState, wf: &WorldFacts, c: &WorldContent) -> WorldView;
-pub fn known(p: PersonaId, fs: &FlagState, wf: &WorldFacts, v: &WorldView, seen: &WorldSeen, c: &ContentPack) -> KnownSet; // ≤ 24; fs and wf evaluate tie `when`s
-pub struct Known { pub item: ItemId, pub certainty: Certainty, pub path: Path, pub own_affairs: bool }
+```cpp
+struct WorldView {
+  std::uint64_t world_gen;                         // bumps only when `holds`, `unknown` or an active step changes
+  std::uint64_t flag_gen;                          // the FlagState it was derived from
+  bool have_frame;                                 // false until the session's first processed frame
+  std::bitset<32> holds;                           // world stages that hold (T)
+  std::bitset<32> unknown;                         // world stages that are U; F and U kept apart
+  FixedVector<std::optional<StepIdx>, 16> active;  // per track: persona tracks and world/tracks.toml (≤ 16, W5)
+};
+WorldView derive(const FlagState& fs, const WorldFacts& wf, const WorldContent& c);
+KnownSet known(PersonaId p, const FlagState& fs, const WorldFacts& wf, const WorldView& v, const WorldSeen& seen,
+               const ContentPack& c);              // ≤ 24; fs and wf evaluate tie `when`s
+struct Known { ItemId item; Certainty certainty; Path path; bool own_affairs; };
 ```
 
 **Algorithm**, on each new flag generation or content version:
@@ -1754,7 +1811,7 @@ king (rumour) and the ashen capital (fact) reach him by Near.
 `known(P)` is a pure function of P's content, P's active stage `s` (with its inherited fields), the flag state and world facts that its ties' `when`s read, the `WorldView` and P's `world_seen` fact. It runs only over items that hold. **Absence is silence:** an item that is F or U, or known by no path, yields nothing, never "not yet".
 
 ```text
-known(P, X) -> Option<(Certainty, Path)>:          # X holds (§12.3); otherwise None
+known(P, X) -> (Certainty, Path) or none:          # X holds (§12.3); otherwise none
   H = s.hears                                       # all | sky | none
   paths = []
   if X ∈ s.knows:                                   paths += (fact, Own)
@@ -1885,8 +1942,8 @@ The caps sum to 3,390 (3,460 since block 4 carries a profile's `instructions`, D
 
 | Change | Where |
 |---|---|
-| `ConversationEnded` gains `known: Option<Vec<(ItemId, Certainty)>>` (the known set's items and certainties at the end of the conversation, ≤ 24 pairs; paths are not stored; ≤ 900 bytes, inside the event's 2,048-byte payload cap) | §1.1, §8.7; ARCH §8.6 |
-| `NpcSaid` gains `cue: Option<ItemId>` (≤ 40 bytes; it was `ConversationEnded.cued` before O31), and `npc_facts` gains `world_cued` (`[[item, pt]]`) and `world_seen_pt` | §1.1, §2.2, §8.7, §12.13; ARCH §8.6 |
+| `ConversationEnded` gains `known`, a `std::optional<std::vector<std::pair<ItemId, Certainty>>>` (the known set's items and certainties at the end of the conversation, ≤ 24 pairs; paths are not stored; ≤ 900 bytes, inside the event's 2,048-byte payload cap) | §1.1, §8.7; ARCH §8.6 |
+| `NpcSaid` gains `cue`, a `std::optional<ItemId>` (≤ 40 bytes; it was `ConversationEnded.cued` before O31), and `npc_facts` gains `world_cued` (`[[item, pt]]`) and `world_seen_pt` | §1.1, §2.2, §8.7, §12.13; ARCH §8.6 |
 | The F11 debug view gains a **World** tab: each world stage with its flags' raw bits, verification and `ng`; each persona's known set with its paths; each persona's `awareness.news`, `world_cued` and the cue that would fire now, or the first condition that fails | DESIGN §14 |
 | Barks and Augur rules may not use `world()` or `knows()` in v1 (a v1.x seam) | §12.10, W1 |
 
@@ -1935,7 +1992,7 @@ context as they were shown (§4.3, block 6c).
 
 **Per persona:** `[awareness]` (`home`, `skip`, `news`, `sleep_leads`, ≤ 6 ties, of which ≤ 3 carry their own lines); per stage, `road` (required on the base stage; inherits), `at` (base; inherits), `hears` where not `all`, `knows` where a stage implies news, `awaits` plus a bridging stage where a road waits on news, and `heard` with `short` only where another persona ties the track. **Once:** `world/stages.toml` (9 entries) and `world/tracks.toml` (Tanith, 2 steps; plus the festival's and Ranni's tracks if S6 finds them, §12.12 item 10).
 
-**Lints** (CI, `en-tools lint`):
+**Lints** (CI, `eldennet-engine lint`):
 
 | Lint | Rule |
 |---|---|
@@ -1987,7 +2044,7 @@ same states (§7.8).
 | T1 Determinism | The same frames give the same `WorldView` and `world_gen` over 10 replays; `derive` reads only the frame and the content |
 | T2 Truth tables | `known(P)` equals `tests/knowledge/expect.toml` exactly (item → `certainty:path` or `none`) for every persona × fixture state |
 | T3 Fold | `world_seen`, `world_seen_pt`, `world_cued` (with pt) and `spoke_pt` folded live equal the recompute after a trim (a property test over random cuts) |
-| T4 Render | `insta` goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned); and of the reaction cue: Kalé (fresh → after_godrick, 1 h: local talk on the castle's fall), Kalé (after_radahn with `slew:radahn` proved and nothing new: the Tarnished's part), Blaidd (after_godrick → after_radahn: own stake on the star) and Alexander (the same, 2 h: local talk on the general's fall), and the cue line gone once a reply carrying it has displayed; block 5b in the three-part form; the "you, now" line; own-initiative task blocks |
+| T4 Render | Goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned); and of the reaction cue: Kalé (fresh → after_godrick, 1 h: local talk on the castle's fall), Kalé (after_radahn with `slew:radahn` proved and nothing new: the Tarnished's part), Blaidd (after_godrick → after_radahn: own stake on the star) and Alexander (the same, 2 h: local talk on the general's fall), and the cue line gone once a reply carrying it has displayed; block 5b in the three-part form; the "you, now" line; own-initiative task blocks |
 | T5 Byte stability | Blocks 1–5 are unchanged by any world change; block 5b changes only when the stage, an active tie or the known set's (item, certainty) pairs change, and is byte-identical otherwise |
 | T6 (withdrawn) | Withdrawn by O86 with the term-set goldens it checked (DESIGN §16.3); T2 and T4 cover who knows what and what renders. The id is not reused |
 | T7 Rollback | Trims at 3 cut points (before Radahn; between Radahn's fall and the star; after both) leave the view and `world_seen` matching the restored flags; a trim before a cued conversation makes its item cue-able again |
@@ -2117,7 +2174,7 @@ About 12 extra aliases and one late-game route over a tester's checkpoint saves 
 **The function.** `knowledge::world::cue` is pure. It runs at each framed turn and when a greeting is prepared, together with the since-line (§12.6), and returns at most one `Cue { item, why }`, where `why` is `Own`, `Told`, `LocalHere` or `LocalHome`:
 
 ```text
-cue(P, conv) -> Option<Cue>:
+cue(P, conv) -> Cue or none:
   require: conv (or, for a greeting, the moment) has a flag frame; and P.world_seen_pt is set
            (this journey holds a ConversationEnded meeting with P whose `known` is not null)  # never at a first meeting
   T   = P.awareness.news                       # close | plain | eager; default plain
@@ -2130,7 +2187,7 @@ cue(P, conv) -> Option<Cue>:
   3. Local: if T = eager and pt_now − P.world_seen_pt ≤ 6 h of play:
             the first X in New whose best path is Near
             -> (X, LocalHere) if s.at ∈ X.regions, else (X, LocalHome)
-  otherwise None
+  otherwise none
 ```
 
 There is no roll. The reactions and the `news` cooldown keep cues apart, and the model chooses. Every input is recorded, so replays are identical (C12).
@@ -2209,7 +2266,7 @@ On your mind: {{ short }}, for it is the talk of your home country.        # Loc
 | Forget this NPC or journey | Its rows go, so `world_cued` is empty and no claim remains | §9.5 |
 | Crash | Each committed page's `NpcSaid` carries its cue, so recovery needs no step | §3.8 |
 | Content update | A newly verified item may be cued at the next meeting, as it appears on the since-line; a changed `awareness.news` applies from the next conversation; `world_cued` holds items, not reactions, so a spent item waits out its cooldown | §12.9 |
-| Migration | Additive; older `NpcSaid` rows read `cue = None` | §10 |
+| Migration | Additive; older `NpcSaid` rows read `cue` as `std::nullopt` | §10 |
 
 **Mid-conversation.**
 - **Before the player's first line.** Nothing is sent, unless the persona spoke first (its greeting may carry the cue).
@@ -2261,7 +2318,10 @@ On your mind: {{ short }}, for it is the talk of your home country.        # Loc
 
 ### 12.14 Speaking up: the motive (O32)
 
-A persona wants to speak to the Tarnished, unasked, when its stage waits on the Tarnished talking with it, the Tarnished is within range, and it is alive and conscious (O32, widened by O39; DESIGN §8.9; NPC §5.9). The motive is the reaction type `stage_talk`, shown to the player as "Quest business". It is a pure function over recorded state, `speak::beckons(P, now) -> Option<Beckon>`:
+A persona wants to speak to the Tarnished, unasked, when its stage waits on the Tarnished talking with it, the
+Tarnished is within range, and it is alive and conscious (O32, widened by O39; DESIGN §8.9; NPC §5.9). The motive is
+the reaction type `stage_talk`, shown to the player as "Quest business". It is a pure function over recorded state,
+`speak::beckons(P, now)`, which returns a `std::optional<Beckon>`:
 
 ```text
 beckons(P, now):

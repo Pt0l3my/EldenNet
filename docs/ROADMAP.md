@@ -638,9 +638,10 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: b, c
   - gives: the event engine, the game-access layer, identity by verified keys, the spoiler
     layers, the gates, pacing and read-only play stay as designed.
-- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
+- e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval [done]
   - needs: a
-  - refs: O60, O84, O25, G15
+  - refs: O60, O84, O25, G15, G30, WHY§103, WHY§104
+  - gives: done 2026-11-16: DESIGN, ARCH, NPC, MEM, game data and GraceUI's design re-based from Rust crates on C++20 modules, with the behaviour, numbers and ids unchanged; the overlay chosen by the owner (Dear ImGui 1.93.0 and MinHook 1.3.4, O25 and G15 as changed); GraceUI's server decided as our own (G30), with an independent review's rules folded in (GraceUI D111 to D114, its §7.6); the core-to-overlay hand-off a triple buffer, so the present thread never waits (ARCH C6).
 - f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98), and the Skyrizz session's measurements (WHY§99): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [done]
   - needs: a
   - refs: WHY§97, WHY§98, WHY§99, O84, O46
@@ -652,6 +653,12 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [waiting]
   - needs: g
   - refs: ARCH§11.1, WHY§101
+- i Build on the designed toolchain: clang-cl and lld-link against the xwin SDK and CRT on Linux (pinned), the SEH reader, sanitizers on the Linux test runs and the first fuzz targets, beside the MinGW build that Wine runs
+  - needs: e
+  - refs: ARCH§12.1, DESIGN§2.1, WHY§102, WHY§103
+- j Bring the built engine to the re-based rules: `en-prompt` takes a template source, so `en-core` does no I/O (ARCH §2.3); `LlmRequest` and `LlmEvent` as plain data in `en-proto` (ARCH §2.2); `ffi_guard` on the transports' callbacks (R3) and a note on each cast (R9); no static with a destructor that runs at exit; the SSE caps and the net threads' stacks as ARCH gives them
+  - needs: e
+  - refs: ARCH§2.3, ARCH§2.4, DESIGN§2.3, WHY§103
 
 ## S9 The roster pipeline [planned]
 
