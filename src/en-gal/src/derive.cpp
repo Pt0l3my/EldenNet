@@ -1026,10 +1026,12 @@ GroupCandidate table_at(Context& cx, const SectionCopy& c, std::uint64_t off, bo
   g.wide = wide;
   g.name_offset = stride > 8 || name_offset.value_or(0) != 0 ? name_offset : std::nullopt;
   g.at = first_ptr + stride * start - name_offset.value_or(0);
-  // A field of every entry holding its position plus a constant: the index the entries may carry.
+  // A field of every entry holding its position plus a constant: the index the entries may carry. Where code addresses
+  // an entry before its name pointer, the entry's own fields are tried; else (code may address the name field itself)
+  // the fields before the name pointer first, the nearest first, then those after it.
   if (stride > 8 && g.entries >= 2) {
     std::vector<std::int64_t> rel;
-    if (name_offset) {
+    if (name_offset && *name_offset > 0) {
       for (std::int64_t r = -static_cast<std::int64_t>(*name_offset); r + 4 <= stride - *name_offset; r += 4)
         if (r < 0 || r >= 8) rel.push_back(r);
     } else {

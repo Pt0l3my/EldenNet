@@ -242,7 +242,7 @@ struct GroupCandidate {
                             // referencing instruction
   std::uint32_t entries = 0;
   std::uint32_t stride = 0;                  // a table's: bytes from one entry's name pointer to the next's
-  std::optional<std::uint32_t> name_offset;  // where code addresses an entry's start: the name pointer's offset in it
+  std::optional<std::uint32_t> name_offset;  // how far before an entry's name pointer code addresses the entry
   bool wide = false;                         // the names are UTF-16
   std::optional<std::uint32_t> stored_index; // a field of the entries holding position + a constant: its value in ours
 };
