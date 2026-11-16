@@ -436,6 +436,8 @@ class Linter {
 
   bool close() {
     if (frames_.empty()) return false;
+    const bool root = frames_.size() == 1;
+    if (root && frames_.back().items < 2) add("", "a report starts with its \"report\" and \"schema\" keys");
     frames_.pop_back();
     if (frames_.empty()) root_closed_ = true;
     return keep_going();

@@ -206,6 +206,9 @@ TEST_CASE("report: the lint refuses every other kind of value or key outside the
       problems(edited("\"report\": \"sample\",\n  \"schema\": 1,", "\"schema\": 1, \"report\": \"sample\",")).size() >=
       1);
   CHECK(problems("[]") == std::vector<std::string>{"a report is one JSON object"});
+  CHECK(problems("{}") == std::vector<std::string>{"a report starts with its \"report\" and \"schema\" keys"});
+  CHECK(problems("{\"report\": \"sample\"}") ==
+        std::vector<std::string>{"a report starts with its \"report\" and \"schema\" keys"});
   CHECK(problems("{\"report\": \"sample\", \"schema\": 1") == std::vector<std::string>{"is not JSON"});
   CHECK(problems(written() + "{}") == std::vector<std::string>{"is not JSON"});
   CHECK(problems("") == std::vector<std::string>{"is not JSON"});
