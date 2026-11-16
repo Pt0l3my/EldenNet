@@ -64,7 +64,7 @@ bool FakeImageSource::read(std::uint64_t offset, std::span<std::byte> dst) const
 }
 
 FakeSys::FakeSys(FakeMemory& mem, std::uint64_t base, std::uint64_t image_size)
-    : mem_(mem), base_(base), image_(mem, base, image_size), copier_(mem) {}
+    : base_(base), image_(mem, base, image_size), copier_(mem) {}
 
 proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, std::uint64_t cls) noexcept {
   if (registration) return proto::Unexpected{SysError::NotInit};

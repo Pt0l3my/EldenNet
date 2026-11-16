@@ -135,7 +135,6 @@ class FakeSys final : public SysLayer {
   std::uint64_t getter_calls = 0;
 
  private:
-  FakeMemory& mem_;
   std::uint64_t base_;
   FakeImageSource image_;
   FakeCopier copier_;

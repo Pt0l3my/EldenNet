@@ -7,6 +7,7 @@
 // than one an invocation and never in a burst after a hitch, with a flag frame on every fourth. Three builds in a row
 // over 0.5 ms throttle it; 60 s with every build at most 0.5 ms end the throttle. Frame counts are never used. Nothing
 // it does on the game thread allocates or blocks after warm-up (R6); an inert task returns after one load.
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -79,6 +80,9 @@ struct TaskStatus {
   std::atomic<std::uint64_t> render_feeds{0};
   std::atomic<std::uint64_t> throttle_entries{0};
   std::atomic<bool> throttled{false};
+  std::array<std::atomic<proto::GroupState>, proto::kGroupCount> groups{};  // each group's state, after every tick
+  std::atomic<ReadMode> mode{ReadMode::Dormant};  // the last snapshot's
+  std::atomic<std::uint64_t> vtable_skips{0};
   Histogram task_us;   // every invocation, µs
   Histogram build_us;  // every snapshot build, µs
 };

@@ -50,6 +50,13 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp)
+if(MSVC)
+  # NativeSys, the platform seam in game (sys/): structured exception handling and Win32, clang-cl only.
+  list(APPEND EN_GAL_GAME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/native_sys.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/register.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/trampoline.cpp)
+endif()
 function(en_gal_game target probe)
   add_library(${target} STATIC ${EN_GAL_GAME_SOURCES})
   en_dll_module(${target})
@@ -87,7 +94,8 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp)
   if(MSVC)
-    list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp)
+    list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sys.cpp)
   endif()
   add_executable(en_gal_tests ${EN_GAL_TESTS})
   target_link_libraries(en_gal_tests PRIVATE en_gal_game_probe en_gal en_doctest)

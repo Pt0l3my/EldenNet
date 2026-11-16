@@ -1,0 +1,303 @@
+# The fake game's layout, for the GAL's tests in game (harness.py's gal cases): every offset and size is the fake
+# game's own (fakegame.hpp), every name invented, and the harness checks each offset against `fakegame --describe`
+# before it uses the file. What the derivation's offline round finds is filled in from its derive.json: @BUILD@, the
+# task group's index, the registration's argument registers, and the task's slots. object_size and the run slot's
+# confirmation are R1's (O89); here --describe gives them.
+schema = 1
+build = "@BUILD@"
+derived_from = "probe"
+probe_record = "docs/ops/probes/fakegame.json"
+
+[task]
+group = { name = "Fg_ActorSettle", index = @GROUP_INDEX@ }
+register_abi = { task = "@ABI_TASK@", instance = "@ABI_INSTANCE@", group = "@ABI_GROUP@" }
+vtable_slots = @SLOTS@
+run_slot = @RUN_SLOT@
+object_size = @OBJECT_SIZE@
+status = "confirmed"
+
+[class.task_hub]
+rtti = "FG::TaskLoomImp"
+singleton = "TaskLoom"
+copy_size = 0x40
+status = "confirmed"
+fields = { group_count = { off = 0x10, ty = "u32", group = "boot" }, groups = { off = 0x18, ty = "ptr", group = "boot" } }
+
+[class.task_group]
+stride = 0x90
+status = "confirmed"
+fields = { name = { off = 0x8, ty = "utf16[64]", group = "boot" } }
+
+[class.characters]
+rtti = "FG::ActorRosterImp"
+singleton = "ActorRoster"
+copy_size = 0x48
+status = "confirmed"
+[class.characters.fields]
+by_distance = { off = 0x10, ty = "dlvector", group = "world" }
+player_set = { off = 0x30, ty = "ptr", group = "session" }
+player_set_len = { off = 0x38, ty = "u32", group = "session" }
+main_player = { off = 0x40, ty = "ptr", group = "world" }
+
+[class.near_entry]
+stride = 0x10
+status = "confirmed"
+fields = { chr = { off = 0x0, ty = "ptr", group = "world" }, distance = { off = 0x8, ty = "f32", group = "world" } }
+
+[class.player_slot]
+stride = 0x10
+status = "confirmed"
+fields = { chr = { off = 0x0, ty = "ptr", group = "session" } }
+
+[class.character]
+rtti = "FG::Actor"
+copy_size = 0x60
+status = "confirmed"
+[class.character.fields]
+entity_id = { off = 0x8, ty = "u32", group = "world" }
+model = { off = 0xC, ty = "u32", group = "world" }
+handle = { off = 0x10, ty = "handle", group = "world" }
+npc_param_id = { off = 0x18, ty = "u32", group = "world" }
+chr_type = { off = 0x1C, ty = "i32", group = "world" }
+block_id = { off = 0x20, ty = "u32", group = "world" }
+team = { off = 0x24, ty = "u8", group = "world" }
+on_screen = { off = 0x25, ty = "bit", bit = 2, group = "world" }
+dead = { off = 0x25, ty = "bit", bit = 6, group = "world" }
+last_hit_by = { off = 0x28, ty = "handle", group = "combat" }
+parts = { off = 0x30, ty = "ptr", group = "world" }
+
+[class.player_character]
+rtti = "FG::PlayerActor"
+copy_size = 0x70
+status = "confirmed"
+fields = { locked_on = { off = 0x60, ty = "handle", group = "combat" }, ride_state = { off = 0x68, ty = "u8", group = "player", enum = "ride" } }
+
+[class.character_parts]
+copy_size = 0x28
+status = "confirmed"
+[class.character_parts.fields]
+vitals = { off = 0x0, ty = "ptr", group = "world" }
+motion = { off = 0x10, ty = "ptr", group = "world" }
+reaction = { off = 0x18, ty = "ptr", group = "combat" }
+grip = { off = 0x20, ty = "ptr", group = "combat" }
+
+[class.vitals]
+copy_size = 0x18
+status = "confirmed"
+[class.vitals.fields]
+max_hp = { off = 0x0, ty = "i32", group = "world" }
+hp = { off = 0x4, ty = "i32", group = "world" }
+max_fp = { off = 0x8, ty = "i32", group = "world" }
+fp = { off = 0xC, ty = "i32", group = "world" }
+max_stamina = { off = 0x10, ty = "i32", group = "world" }
+stamina = { off = 0x14, ty = "i32", group = "world" }
+
+[class.motion]
+copy_size = 0x30
+status = "confirmed"
+fields = { pos = { off = 0x20, ty = "vec3f", group = "world" } }
+
+[class.reaction]
+copy_size = 0x8
+status = "confirmed"
+fields = { recv_dmg_type = { off = 0x4, ty = "i32", group = "combat" } }
+
+[class.grip]
+copy_size = 0x4
+status = "confirmed"
+fields = { throw_state = { off = 0x3, ty = "u8", group = "combat" } }
+
+[class.save_data]
+rtti = "FG::SaveLedgerImp"
+copy_size = 0x28
+status = "confirmed"
+[class.save_data.fields]
+player_data = { off = 0x8, ty = "ptr", group = "player" }
+settings = { off = 0x10, ty = "ptr", group = "ui" }
+death_count = { off = 0x18, ty = "u32", group = "player" }
+ng_level = { off = 0x1C, ty = "u32", group = "player", range = [0, 7] }
+play_time = { off = 0x20, ty = "u32", group = "player" }
+boss_fight = { off = 0x24, ty = "u8", group = "player" }
+
+[class.settings]
+copy_size = 0x10
+status = "confirmed"
+fields = { show_subtitles = { off = 0x5, ty = "u8", group = "ui" } }
+
+[class.player_data]
+copy_size = 0x58
+status = "confirmed"
+[class.player_data.fields]
+level = { off = 0x8, ty = "u32", group = "player", range = [1, 713] }
+runes = { off = 0xC, ty = "u32", group = "player" }
+archetype = { off = 0x10, ty = "u8", group = "player" }
+body = { off = 0x11, ty = "u8", group = "player", enum = "body" }
+keepsake = { off = 0x12, ty = "u8", group = "player" }
+multiplay_role = { off = 0x13, ty = "u8", group = "session", enum = "multiplay_role" }
+is_my_world = { off = 0x14, ty = "u8", group = "session", range = [0, 1] }
+name = { off = 0x18, ty = "utf16[17]", group = "player" }
+gear = { off = 0x40, ty = "array", elem = "item_id", len = 6, stride = 4, group = "player" }
+
+[class.item_id]
+stride = 0x4
+status = "confirmed"
+fields = { id = { off = 0x0, ty = "u32", group = "player" } }
+
+[class.game_state]
+rtti = "FG::RunWardenImp"
+copy_size = 0x18
+status = "confirmed"
+fields = { talk_cam_id = { off = 0x10, ty = "i32", group = "ui" }, save_slot = { off = 0x14, ty = "i32", group = "player", range = [0, 9] } }
+
+[class.field_area]
+rtti = "FG::FieldPlotImp"
+copy_size = 0x20
+status = "confirmed"
+fields = { place_id = { off = 0x1C, ty = "i32", group = "place" } }
+
+[class.session]
+rtti = "FG::LobbyWardenImp"
+singleton = "LobbyWarden"
+copy_size = 0x18
+status = "confirmed"
+fields = { lobby_state = { off = 0x10, ty = "i32", group = "session", enum = "lobby" } }
+
+[class.hud]
+rtti = "FG::GaugeBoardImp"
+singleton = "GaugeBoard"
+copy_size = 0x40
+status = "confirmed"
+[class.hud.fields]
+hud_state = { off = 0x8, ty = "i32", group = "ui", range = [0, 3], enum = "hud" }
+banner_id = { off = 0xC, ty = "i32", group = "ui" }
+boss_bars = { off = 0x10, ty = "array", elem = "boss_bar", len = 3, stride = 0x10, group = "ui" }
+
+[class.boss_bar]
+stride = 0x10
+status = "confirmed"
+fields = { handle = { off = 0x0, ty = "handle", group = "ui" }, name_id = { off = 0x8, ty = "i32", group = "ui" }, damage_taken = { off = 0xC, ty = "i32", group = "ui" } }
+
+[class.menus]
+rtti = "FG::MenuDeskImp"
+singleton = "MenuDesk"
+copy_size = 0x18
+status = "confirmed"
+fields = { screen_state = { off = 0xC, ty = "i32", group = "ui", enum = "screen" }, popup = { off = 0x10, ty = "ptr", group = "ui" } }
+
+[class.popup]
+copy_size = 0x8
+status = "confirmed"
+fields = { talk_id = { off = 0x4, ty = "i32", group = "ui" } }
+
+[class.loading]
+rtti = "FG::VeilKeeperImp"
+singleton = "VeilKeeper"
+copy_size = 0x10
+status = "confirmed"
+fields = { load_counter = { off = 0x8, ty = "u32", group = "ui" } }
+
+[class.world_clock]
+rtti = "FG::SkyClockImp"
+singleton = "SkyClock"
+copy_size = 0x18
+status = "confirmed"
+fields = { minute = { off = 0x12, ty = "u16", group = "place" }, hour = { off = 0x14, ty = "u32", group = "place" } }
+
+[class.camera]
+rtti = "FG::EyeRigImp"
+singleton = "EyeRig"
+copy_size = 0x10
+status = "confirmed"
+fields = { view = { off = 0x8, ty = "ptr", group = "camera" } }
+
+[class.view]
+copy_size = 0x48
+status = "confirmed"
+fields = { matrix = { off = 0x0, ty = "mat4f", group = "camera" }, fov = { off = 0x40, ty = "f32", group = "camera" }, aspect = { off = 0x44, ty = "f32", group = "camera" } }
+
+[class.event_flags]
+rtti = "FG::MarkLedgerImp"
+singleton = "MarkLedger"
+copy_size = 0x28
+status = "confirmed"
+fields = { divisor = { off = 0x8, ty = "u32", group = "flags" }, map = { off = 0x10, ty = "dlmap", group = "flags" }, holder_base = { off = 0x20, ty = "ptr", group = "flags" } }
+
+[class.flag_node]
+copy_size = 0x28
+status = "confirmed"
+[class.flag_node.fields]
+left = { off = 0x0, ty = "ptr", group = "flags" }
+parent = { off = 0x8, ty = "ptr", group = "flags" }
+right = { off = 0x10, ty = "ptr", group = "flags" }
+key = { off = 0x18, ty = "u32", group = "flags" }
+mode = { off = 0x1C, ty = "u32", group = "flags" }
+value = { off = 0x20, ty = "u64", group = "flags" }
+
+[class.messages]
+rtti = "FG::PhraseBookImp"
+singleton = "PhraseBook"
+copy_size = 0x20
+status = "confirmed"
+fields = { tables = { off = 0x10, ty = "ptr", group = "text" }, count = { off = 0x18, ty = "i32", group = "text" } }
+
+[class.fmg]
+copy_size = 0x20
+status = "confirmed"
+fields = { group_count = { off = 0x4, ty = "u32", group = "text" }, groups_off = { off = 0x8, ty = "u64", group = "text" }, offsets_off = { off = 0x10, ty = "u64", group = "text" } }
+
+[class.fmg_group]
+stride = 0xC
+status = "confirmed"
+fields = { offset_index = { off = 0x0, ty = "i32", group = "text" }, first_id = { off = 0x4, ty = "i32", group = "text" }, last_id = { off = 0x8, ty = "i32", group = "text" } }
+
+[class.param_store]
+rtti = "FG::TableVaultImp"
+singleton = "TableVault"
+copy_size = 0x18
+status = "confirmed"
+fields = { count = { off = 0x8, ty = "u32", group = "params" }, tables = { off = 0x10, ty = "ptr", group = "params" } }
+
+[class.param_table]
+copy_size = 0x18
+status = "confirmed"
+fields = { rows = { off = 0x0, ty = "ptr", group = "params" }, row_count = { off = 0x8, ty = "u16", group = "params" }, row_size = { off = 0xA, ty = "u16", group = "params" } }
+
+[class.param_row]
+stride = 0x10
+status = "confirmed"
+fields = { id = { off = 0x0, ty = "u32", group = "params" }, data = { off = 0x8, ty = "ptr", group = "params" } }
+
+[enum.lobby]
+values = { 10 = "None", 11 = "Hosting", 12 = "Joined" }
+[enum.multiplay_role]
+values = { 2 = "Host", 3 = "Cooperator" }
+[enum.screen]
+values = { 1 = "Title", 2 = "Loading", 4 = "InGame" }
+[enum.hud]
+values = { 0 = "HideAll", 1 = "ShowAll", 2 = "PopupMenu", 3 = "Default" }
+[enum.body]
+values = { 0 = "A", 1 = "B" }
+[enum.ride]
+values = { 0 = "OnFoot", 3 = "Riding" }
+
+[param.NpcParam]
+slot = 6
+row_size = 0x10
+status = "confirmed"
+fields = { name_id = { off = 0x0, ty = "i32" }, team = { off = 0x4, ty = "u8" } }
+
+[fmg]
+indexing = "flat"
+group_stride = 12
+npc_names = [7]
+place_names = [9]
+status = "confirmed"
+
+[dlrf]
+name_ptr_off = @NAME_OFF@
+status = "confirmed"
+
+[selftest]
+npc_name_ids = [1100]
+place_name_ids = [6100100]
+npc_param_ids = [81100]

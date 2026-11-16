@@ -11,6 +11,8 @@
 //   a value), whose answers are offsets only: never the bytes, and never a name.
 // Every read is a guarded copy on the game thread within the tick's budget, never into a known stack (WHY§111); the
 // candidates come from the image's own data section, read on T1.
+#include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -33,21 +35,26 @@ class SlotSearch {
   SlotSearch(const SysLayer& sys, const Discovery& discovery, roles::Cls cls, std::size_t max_candidates = 1u << 16);
   // On the game thread: checks up to `copies` candidates (a guarded copy of each one's first 8 bytes, compared with the
   // class's vtables). Answers whether every candidate has been checked.
+  // Nothing it does on the game thread allocates (R6). Its progress and finds may be read from any thread.
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies);
   [[nodiscard]] std::size_t candidates() const noexcept { return slots_.size(); }
-  [[nodiscard]] std::size_t checked() const noexcept { return next_; }
-  [[nodiscard]] std::uint64_t unreadable() const noexcept { return unreadable_; }
-  // The slots (RVAs) whose instance has one of the class's vtables.
-  [[nodiscard]] std::span<const std::uint32_t> found() const noexcept { return found_; }
+  [[nodiscard]] std::size_t checked() const noexcept { return next_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::uint64_t unreadable() const noexcept { return unreadable_.load(std::memory_order_relaxed); }
+  // The slots (RVAs) whose instance has one of the class's vtables, the first kMaxFound.
+  static constexpr std::size_t kMaxFound = 16;
+  [[nodiscard]] std::span<const std::uint32_t> found() const noexcept {
+    return std::span<const std::uint32_t>(found_.data(), found_count_.load(std::memory_order_acquire));
+  }
 
  private:
   const VtableSet& set_;
   std::uint64_t base_ = 0;
   std::vector<std::uint32_t> slots_;
   std::vector<std::uint64_t> values_;
-  std::vector<std::uint32_t> found_;
-  std::size_t next_ = 0;
-  std::uint64_t unreadable_ = 0;
+  std::array<std::uint32_t, kMaxFound> found_{};
+  std::atomic<std::size_t> found_count_{0};
+  std::atomic<std::size_t> next_{0};
+  std::atomic<std::uint64_t> unreadable_{0};
 };
 
 // Searches over one copied object's bytes: the offsets (ascending) where each invariant holds.

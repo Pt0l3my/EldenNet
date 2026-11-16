@@ -92,6 +92,9 @@ void GalTask::run(const GameThread& gt, const FrameCtx& frame) {
     case TaskState::Inert:
       return;
   }
+  for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+    status_.groups[g].store(backend_.book().state(static_cast<proto::Group>(g)), std::memory_order_relaxed);
+  }
   status_.task_us.record(sys_.now_us() - t0);
 }
 
@@ -159,6 +162,8 @@ void GalTask::build(const GameThread& gt, const FrameCtx& frame) {
     if (throttled_ && frame.qpc_now_us - calm_since_us_ >= opts_.calm_to_unthrottle_us) throttled_ = false;
   }
   status_.throttled.store(throttled_, std::memory_order_relaxed);
+  status_.mode.store(backend_.last_mode(), std::memory_order_relaxed);
+  status_.vtable_skips.store(backend_.vtable_skips(), std::memory_order_relaxed);
   snap->seq = seq_;
   snap->mono_ms = frame.qpc_now_us / 1000;
   snap->build = d_.profile().key();

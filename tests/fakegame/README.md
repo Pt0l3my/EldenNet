@@ -22,6 +22,9 @@ offset, enum value and number is invented here, shaped only by what the design d
 | Title, loading and world phases (`--title-frames`, `--load-frames`, `--stay-title`, `--reload-every`), a main player and `--actors` actors with health, positions and a distance-sorted list | The lifecycle and the structural groups' self-tests (ARCH §6.7, §9) |
 | `--move-every` with `--move-mode poison\|free\|keep`: every singleton, the ledger's sheet and the main player move; the old place becomes an `FG::Tombstone`, is released, or stays | Statics that move and torn-down objects (ARCH §6.6, R5) |
 | `--online`, `--online-at` | The session turning online (the gate) |
+| `MarkLedger`'s flag store: a binary tree of three groups (0, 7, 4321) under a sentinel head, blocks of 125 bytes by an offset from a holder (mode 1) or by address (mode 2); flags 100 and 4321010 always set, 7005 while in the world | The flag tree and its blocks (ARCH §6.9) |
+| `PhraseBook`'s 24 text tables, three holding invented strings (ids 1100 to 1102 in table 7, 6100100 in table 9, 500 in table 3), each a header, a group of ids, offsets and UTF-16 strings | The text tables (ARCH §6.9), in a layout of our own |
+| `TableVault`'s param tables: slot 6 holds a row for each actor's `npc_param_id` (81100 to 81600), sorted by id | The param tables (ARCH §6.9) |
 | `--crash av-read\|av-write\|av-exec\|div-zero\|illegal\|stack-overflow\|breakpoint\|fastfail\|terminate` at `--crash-at`, on the game thread or a worker; `--game-filter`, `--game-filter-at`, `--game-filter-result` | A game that crashes, and one that installs (or replaces) its own unhandled-exception filter (S0-D) |
 | `--handled-every` with `--handled-kind seh\|cxx` | Exceptions a game raises and handles itself, which a vectored handler sees first |
 | `--load [boot\|window\|ready\|title\|world:]PATH` | A loader that loads a DLL at one moment (ARCH §3.3's late load) |
@@ -56,6 +59,19 @@ prefix (`EN_WINE_PREFIX`, by default `build-*/wineprefix`) and turns Wine's cras
 its own. On Windows the cases run directly (`--native`). A case may start another program with paths CMake gives it
 (`program="{launcher}"`, `--set launcher=…`), so the DLL's and the launcher's chain cases, early and late, join the
 same table when those parts land.
+
+The game-access layer in game (part 4) joined it with `tests/galtest/galtest.dll`, our own test DLL, which the fake
+game loads (`--load ready:` or `window:`) and which does what EldenNet's T1 and task will do: the gate, discovery with
+its retries, the one registration, the task's reads at 4 Hz, the probe's slot searches and, on request, fault injection
+(`EN_GALTEST_FAULT`) and the ReadProcessMemory copy (`EN_GALTEST_COPY=rpm`). Each `gal-*` case first makes gal/ as the
+derivation round would (`make_gal`): `probe-exe --derive` on `fakegame.exe` with the leads and the AOB statics' slots,
+then builds.toml, patterns.toml and the layout from derive.json and `gal-layout.toml.in`, whose offsets it checks
+against `--describe`; then it runs the fake game with the DLL and checks the `GALTEST` lines: every item where
+`--describe` says, one registration, every group Ok, about one snapshot per 15 frames at 60 FPS, the world's values,
+the flags, text and rows asked for, the slot counts (the run slot every frame, attach once, query every 64th), the slot
+searches' finds, no allocation on the game thread; and, by case, moving statics, loading screens, the session going
+online, an optional group's breaker, a structural group's (inert), the RPM copy, and a group table shifted since the
+derivation (the first tick finds another name and goes inert).
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

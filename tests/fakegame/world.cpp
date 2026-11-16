@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <iterator>
+#include <string>
 #include <new>
 #include <utility>
 
@@ -94,6 +95,7 @@ struct WorldState {
   FG::MotionTask motion_task;
   FG::SettleTask settle_task;
   FG::MenuTask menu_task;
+  std::uint8_t* flag_blocks[3] = {nullptr, nullptr, nullptr};  // groups 0, 7 and 4321
 };
 
 WorldState& state() {
@@ -175,6 +177,100 @@ void free_parts(FG::ActorParts* parts) {
   VirtualFree(parts->react, 0, MEM_RELEASE);
   VirtualFree(parts->grip, 0, MEM_RELEASE);
   VirtualFree(parts, 0, MEM_RELEASE);
+}
+
+// --- The flag store, the text tables and the param tables (invented contents; fakegame.hpp has their layouts) ---
+constexpr std::uint32_t kFlagGroups[3] = {0, 7, 4321};
+constexpr std::uint32_t kFlagsAlways[] = {100, 4321010};
+constexpr std::uint32_t kFlagWorld = 7005;  // set while in the world
+
+void set_flag(std::uint32_t id, bool on) {
+  WorldState& w = state();
+  for (int g = 0; g < 3; ++g) {
+    if (id / 1000 != kFlagGroups[g] || w.flag_blocks[g] == nullptr) continue;
+    std::uint8_t& byte = w.flag_blocks[g][(id % 1000) / 8];
+    const auto bit = static_cast<std::uint8_t>(1u << (7 - id % 8));
+    byte = on ? static_cast<std::uint8_t>(byte | bit) : static_cast<std::uint8_t>(byte & ~bit);
+  }
+}
+
+FG::MarkLedgerImp* make_flag_store() {
+  WorldState& w = state();
+  auto* marks = make<FG::MarkLedgerImp>();
+  auto* holder = static_cast<std::uint8_t*>(alloc_block(125 * 2));
+  auto* own = static_cast<std::uint8_t*>(alloc_block(125));
+  auto* head = make<FG::FlagNode>();
+  auto* n0 = make<FG::FlagNode>();
+  auto* n7 = make<FG::FlagNode>();
+  auto* n4321 = make<FG::FlagNode>();
+  // SAFETY: the block's address kept as a number, as a mode-2 descriptor holds it.
+  const std::uint64_t own_at = reinterpret_cast<std::uintptr_t>(own);
+  *head = FG::FlagNode{n0, n7, n4321, 0, 0, 0};
+  *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 125};
+  *n0 = FG::FlagNode{head, n7, head, 0, 1, 0};
+  *n4321 = FG::FlagNode{head, n7, head, 4321, 2, own_at};
+  marks->map_head = head;
+  marks->map_count = 3;
+  marks->holder = holder;
+  w.flag_blocks[0] = holder;
+  w.flag_blocks[1] = holder + 125;
+  w.flag_blocks[2] = own;
+  for (const std::uint32_t id : kFlagsAlways) set_flag(id, true);
+  return marks;
+}
+
+// One text table: a group of consecutive ids from `first`, each with its string, and one more id with none.
+FG::PhraseTable* make_phrases(std::int32_t first, std::initializer_list<const char16_t*> names) {
+  const auto n = static_cast<std::uint32_t>(names.size());
+  std::size_t strings = 0;
+  for (const char16_t* t : names) strings += 2 * (std::char_traits<char16_t>::length(t) + 1);
+  const std::size_t offsets_off = 0x30;
+  const std::size_t strings_off = offsets_off + 8 * (n + 1);
+  auto* base = static_cast<std::byte*>(alloc_block(strings_off + strings));
+  auto* table = new (base) FG::PhraseTable{0, 1, 0x20, offsets_off, 0};
+  const FG::PhraseGroup group{0, first, first + static_cast<std::int32_t>(n)};
+  std::memcpy(base + 0x20, &group, sizeof group);
+  std::size_t at = strings_off;
+  std::uint32_t i = 0;
+  for (const char16_t* t : names) {
+    const std::int64_t off = static_cast<std::int64_t>(at);
+    std::memcpy(base + offsets_off + 8 * i, &off, 8);
+    const std::size_t len = std::char_traits<char16_t>::length(t);
+    std::memcpy(base + at, t, 2 * len);
+    at += 2 * (len + 1);
+    ++i;
+  }
+  return table;  // the last id's offset stays 0: no string
+}
+
+FG::PhraseBookImp* make_phrase_book() {
+  auto* book = make<FG::PhraseBookImp>();
+  auto** tables = static_cast<FG::PhraseTable**>(alloc_block(sizeof(void*) * FG::kPhraseTables));
+  tables[FG::kNpcNameTable] = make_phrases(1100, {u"Ash Warden", u"Brine Keeper", u"Cinder Monk"});
+  tables[FG::kPlaceNameTable] = make_phrases(6100100, {u"Quiet Vale"});
+  tables[3] = make_phrases(500, {u"Lantern Oil"});
+  book->tables = tables;
+  book->count = static_cast<std::int32_t>(FG::kPhraseTables);
+  return book;
+}
+
+FG::TableVaultImp* make_table_vault() {
+  auto* vault = make<FG::TableVaultImp>();
+  constexpr std::uint32_t kRows = 6;
+  auto* rows = static_cast<FG::ParamRowRef*>(alloc_block(sizeof(FG::ParamRowRef) * kRows));
+  for (std::uint32_t i = 0; i < kRows; ++i) {
+    auto* row = make<FG::NpcRow>();
+    row->name_id = static_cast<std::int32_t>(1100 + (i + 1) % 3);
+    row->team = static_cast<std::uint8_t>(10 + (i + 1) % 3);
+    rows[i] = FG::ParamRowRef{81000 + 100 * (i + 1), 0, row};  // the actors' npc_param_ids (fill_actor)
+  }
+  auto* sheet = make<FG::ParamSheet>();
+  *sheet = FG::ParamSheet{rows, static_cast<std::uint16_t>(kRows), static_cast<std::uint16_t>(sizeof(FG::NpcRow)), 0, 0};
+  auto** tables = static_cast<FG::ParamSheet**>(alloc_block(sizeof(void*) * 8));
+  tables[FG::kNpcSheetSlot] = sheet;
+  vault->tables = tables;
+  vault->table_count = 8;
+  return vault;
 }
 
 void set_screen(std::int32_t screen) {
@@ -278,6 +374,7 @@ void enter(Phase phase, std::uint64_t frame) {
   if (phase == Phase::Loading) despawn();
   w.phase = phase;
   w.phase_frames = 0;
+  set_flag(kFlagWorld, phase == Phase::World);
   switch (phase) {
     case Phase::Title: set_screen(1); break;
     case Phase::Loading: set_screen(2); ++w.stats.loads; break;
@@ -329,7 +426,7 @@ void world_create_singletons() {
   roster->f.players = static_cast<FG::PlayerSlot*>(alloc_block(sizeof(FG::PlayerSlot) * 4));
   fg_static_roster = roster;
   fg_static_lobby = make<FG::LobbyWardenImp>();
-  fg_static_marks = make<FG::MarkLedgerImp>();
+  fg_static_marks = make_flag_store();
   fg_static_gauges = make<FG::GaugeBoardImp>();
   auto* menu = make<FG::MenuDeskImp>();
   menu->popup = make<FG::PopupState>();
@@ -342,8 +439,8 @@ void world_create_singletons() {
   eye->view->fov = 0.9f;
   eye->view->aspect = 16.0f / 9.0f;
   fg_static_eye = eye;
-  fg_static_tables = make<FG::TableVaultImp>();
-  fg_static_phrases = make<FG::PhraseBookImp>();
+  fg_static_tables = make_table_vault();
+  fg_static_phrases = make_phrase_book();
   // The decoys' statics hold objects of their own, so that each would resolve if its site were believed.
   fg_static_duplicata_a = make<FG::Prop>();
   fg_static_duplicata_b = make<FG::Prop>();

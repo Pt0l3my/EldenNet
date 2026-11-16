@@ -3,6 +3,7 @@
 
 #if EN_PROBE
 
+#include <algorithm>
 #include <cstring>
 
 namespace en::gal::probe {
@@ -34,17 +35,23 @@ SlotSearch::SlotSearch(const SysLayer& sys, const Discovery& discovery, roles::C
 }
 
 bool SlotSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies) {
-  for (std::uint32_t n = 0; n < copies && next_ < slots_.size(); ++n, ++next_) {
+  std::size_t next = next_.load(std::memory_order_relaxed);
+  for (std::uint32_t n = 0; n < copies && next < slots_.size(); ++n, ++next) {
     // The group is only the reader's bookkeeping here: no breaker counts the probe's reads.
-    const auto vt = reader.copy<std::uint64_t>(gt, proto::Group::Status, values_[next_]);
+    const auto vt = reader.copy<std::uint64_t>(gt, proto::Group::Status, values_[next]);
     if (!vt) {
-      if (reader.spent()) return false;
-      ++unreadable_;
+      if (reader.spent()) break;
+      unreadable_.fetch_add(1, std::memory_order_relaxed);
       continue;
     }
-    if (set_.contains(*vt)) found_.push_back(slots_[next_]);
+    const std::size_t count = found_count_.load(std::memory_order_relaxed);
+    if (set_.contains(*vt) && count < kMaxFound) {
+      found_[count] = slots_[next];
+      found_count_.store(count + 1, std::memory_order_release);
+    }
   }
-  return next_ >= slots_.size();
+  next_.store(next, std::memory_order_release);
+  return next >= slots_.size();
 }
 
 std::vector<std::uint32_t> vtable_offsets(std::span<const std::byte> obj, const VtableSet& set) {
