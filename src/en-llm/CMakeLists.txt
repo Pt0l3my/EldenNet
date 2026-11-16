@@ -1,6 +1,7 @@
 # en-llm: the model client, job slots and decision calls (ARCH §11, §11.8).
 file(GLOB EN_LLM_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_library(en_llm STATIC ${EN_LLM_SOURCES})
+en_dll_module(en_llm)
 target_include_directories(en_llm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_llm PUBLIC en_third_party)
 if(EN_WITH_CURL)
