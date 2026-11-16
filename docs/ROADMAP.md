@@ -889,11 +889,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking [active]
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking [done]
   - refs: O25, GraceUI:DESIGN§2.2
   - gives: the render half built on 2026-11-16 (GraceUI's branch feat/host): the build tree with both libraries
     pinned, the start, the five hooks on the swap chain and the queue, and the render path, passing the harness's
-    checks under Wine on software Vulkan (WHY§113 to §117); the input half next.
+    checks under Wine on software Vulkan (WHY§113 to §117). The input half followed the same day: the window
+    procedure filtered by a subclass, with surrogate pairs and the IME; DirectInput and XInput masked while a
+    holder has the controls and until a closing press is released; the holder and the player's exit as pure rules
+    (WHY§126 to §133). In game, S4 checks what Wine could not show (WHY§133).
 - b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
   - refs: GraceUI:DESIGN§13
 - c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit

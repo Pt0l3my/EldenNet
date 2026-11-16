@@ -148,6 +148,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 123 | 2026-11-16 | The fake game: our own stand-in for a game, its invented facts and the choices later parts inherit | DECIDED | #engine #gal #process |
 | 124 | 2026-11-16 | Wine on Xvfb for tests: the crash dialog that waits, the desktop bound to no display, and what reaches Linux | FACT | #engine #build #process |
 | 125 | 2026-11-16 | Assembly whose bytes do not move: clang relaxes every jump at -O0 | FACT | #engine #build |
+| 126 | 2026-11-16 | Wine 9.0 on Xvfb hands injected keys to DirectInput, but releases them on X focus and grab events; a scan code alone gives no virtual key | FACT | #graceui #wine #input |
+| 127 | 2026-11-16 | Dear ImGui 1.93's Win32 backend asks the calling thread for keys and the cursor, and its io calls are not thread-safe: GraceUI feeds Dear ImGui itself | FACT | #graceui #overlay #input |
+| 128 | 2026-11-16 | Dear ImGui's 16-bit characters turn every code point past U+FFFF into U+FFFD; its queue takes one change of a key or button a frame | FACT | #graceui #overlay #input |
+| 129 | 2026-11-16 | Wine's DirectInput and XInput as GraceUI hooks them: one GetDeviceState for keyboard and mouse, five XInput DLLs, no pad | FACT | #graceui #wine #input |
+| 130 | 2026-11-16 | The game's window procedure is filtered by a subclass in the window's own character set, not a detour on the game's code | DECIDED | #graceui #overlay #input |
+| 131 | 2026-11-16 | The closing press is often down before any read sees it: masks are armed at the first read after a close, with a 250 ms window | DECIDED | #graceui #input |
+| 132 | 2026-11-16 | The input half's cost under Wine, and how it was measured | METHOD | #graceui #input #perf |
+| 133 | 2026-11-16 | What the harness cannot show of the input half, for S4 | METHOD | #graceui #input #spike |
 
 ## Entries
 
@@ -2423,3 +2431,122 @@ invariant 10, EldenNet ARCH (T3)
 - `.seh_proc` gives a leaf function a `.pdata` entry too, so the name getter is "the start of a `.pdata` function"
   as ARCH §6.2 checks; the module's own unwind data covers the registration front, whose fault is caught by the
   caller's `__try` through it.
+
+### 126. Wine 9.0 on Xvfb hands injected keys to DirectInput, but releases them on X focus and grab events; a scan code alone gives no virtual key
+
+`2026-11-16` · FACT · `#graceui` `#wine` `#input` · refs: GraceUI:BUILD.md, GraceUI:D125, GraceUI:D128
+
+- **Two paths** (FACT, probes of ours): a key injected with `SendInput` reaches DirectInput's keyboard through Wine's
+  low-level hook, and the focused window as `WM_KEYDOWN`; a key injected by scan code alone (`KEYEVENTF_SCANCODE`)
+  reaches the window with virtual key 0, and one by virtual key alone never reaches DirectInput. So the harness injects
+  both.
+- **The resync** (FACT, traced message by message): Wine brings its key state into line with the X server's on X focus
+  and pointer-grab events. A key injected before a click, a focus change or a cursor confinement is released by Wine
+  (a `WM_KEYUP` nobody sent), since the X server never saw it pressed. A click outside the window, where the cursor
+  starts under Xvfb, also gives the desktop the focus, and later keys then reach no window at all.
+- **So** the harness keeps the cursor in the window, lets those events pass before injecting a key, presses a button
+  before a key, and checks a held key with `GetAsyncKeyState`. Real keyboards under Proton come through X events to the
+  focused window and are not resynced this way (LIKELY; S4 on Proton).
+
+### 127. Dear ImGui 1.93's Win32 backend asks the calling thread for keys and the cursor, and its io calls are not thread-safe: GraceUI feeds Dear ImGui itself
+
+`2026-11-16` · FACT · `#graceui` `#overlay` `#input` · refs: GraceUI:D130, GraceUI:D122, GraceUI:invariant 10
+
+- **The backend** (FACT, its source read): `ImGui_ImplWin32_NewFrame` sets the display size from `GetClientRect`,
+  reads the mouse with `GetCursorPos` and the modifiers with `GetKeyState`; its window-procedure handler calls
+  `TrackMouseEvent` and `SetCapture`. `GetKeyState` answers for the calling thread's queue, and `SetCapture` and
+  `TrackMouseEvent` act on the calling thread's windows. The game's present thread need not be its window's.
+- **The core** (FACT): `io.AddKeyEvent` and its kin push onto a vector that `NewFrame` resizes ("FIXME-MULTITHREADING"
+  in `imgui.cpp`), so calling them from the window thread while the present thread runs a frame is a race.
+- **So** (D130): the window procedure's filter queues compact events in a one-producer ring, and the present thread
+  replays them into Dear ImGui before `NewFrame`, in back-buffer pixels, with the modifiers tracked from the events
+  themselves; the backend's `NewFrame` is never called (D122 amended). The backend's key mapper,
+  `ImGui_ImplWin32_KeyEventToImGuiKey`, left non-static for others' use, is called on the present thread.
+
+### 128. Dear ImGui's 16-bit characters turn every code point past U+FFFF into U+FFFD; its queue takes one change of a key or button a frame
+
+`2026-11-16` · FACT · `#graceui` `#overlay` `#input` · refs: GraceUI:D126, GraceUI:D130, GraceUI:§5.6
+
+- **Characters** (FACT, `imgui.cpp` read): `AddInputCharacter` queues the full code point, but `UpdateInputEvents`
+  stores `c <= IM_UNICODE_CODEPOINT_MAX ? c : U+FFFD`, and the maximum is U+FFFF unless `IMGUI_USE_WCHAR32`. Pairing
+  surrogates before Dear ImGui is not enough without it: GraceUI's configuration defines it (D126).
+- **Trickling** (FACT): with `ConfigInputTrickleEventQueue` (the default) a frame processes one change of a key or
+  button and defers the rest, and text after a mouse move waits a frame. A harness that typed a key change, a character
+  and a move every frame grew Dear ImGui's queue past its bound and dropped events at GraceUI's ring. A player types
+  well under one change a frame; the host now hands Dear ImGui at most 64 events a frame while its queue holds fewer than
+  128, and merges consecutive mouse moves (D130).
+- **Focus events** (FACT): `AddFocusEvent(false)` then `(true)` in one frame clears nothing (the last wins, for
+  multi-viewport backends); between holders the host empties Dear ImGui's queue in place and calls `ClearInputKeys` and
+  `ClearInputMouse` itself. `ClearEventsQueue` would free the vector, an allocation on the present thread later.
+
+### 129. Wine's DirectInput and XInput as GraceUI hooks them: one GetDeviceState for keyboard and mouse, five XInput DLLs, no pad
+
+`2026-11-16` · FACT · `#graceui` `#wine` `#input` · refs: GraceUI:D127, EldenNet:ER02§7.2
+
+- **DirectInput** (FACT, a probe under Wine 9.0): a keyboard and a mouse made through one `IDirectInput8W` share one
+  vtable and one `GetDeviceState`; the ANSI interface's `GetDeviceState` is another function. GraceUI reads the function
+  from both devices and hooks each distinct one (one here), on the Unicode interface the game uses (ER02 §7.2); what
+  Windows' `dinput8.dll` shares is for S4.
+- **XInput** (FACT): `xinput1_4`, `xinput1_3`, `xinput9_1_0`, `xinput1_2` and `xinput1_1` all load, each with its own
+  `XInputGetState`; with no pad each answers `ERROR_DEVICE_NOT_CONNECTED` (1167). The harness loads three before GraceUI
+  starts and finds three hooks, and the answers unchanged.
+- **IMM** (FACT): `ImmGetContext` gives the window a context under Wine, and `ImmSetCompositionWindow` reads back with
+  `ImmGetCompositionWindow`, so the composition window's placement is checked in the harness; no IME runs on Xvfb.
+
+### 130. The game's window procedure is filtered by a subclass in the window's own character set, not a detour on the game's code
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` `#input` · refs: GraceUI:D125, GraceUI:D102, GraceUI:research magelight.md
+
+- **Choice** (D125): `SetWindowLongPtrW` on a Unicode window, `SetWindowLongPtrA` on an ANSI one, made once by the init
+  thread after the table's hooks are enabled, passing on through `CallWindowProc`, never removed. The design named "the
+  game's window procedure" in D102's list without saying how; this records how.
+- **Rejected**: a MinHook detour on the procedure (it is the game's code, which GraceUI never writes);
+  `SetWindowSubclass` (only on the window's own thread, and the init thread is not it); a `WH_GETMESSAGE` hook (it cannot
+  keep a sent message from the game). A Unicode subclass on an ANSI window changes what later ANSI subclasses receive;
+  in Magelight's reports, plugins that subclassed in ANSI crashed against its Unicode subclass.
+- **Risks for S4**: another mod restoring the procedure it saw before GraceUI's (GraceUI would be cut out, unseen), and a
+  game that recreates its window (the new one is not filtered: holders then get no characters, though the detours still
+  mask).
+
+### 131. The closing press is often down before any read sees it: masks are armed at the first read after a close, with a 250 ms window
+
+`2026-11-16` · DECIDED · `#graceui` `#input` · refs: GraceUI:D128, GraceUI:invariant 8
+
+- **The problem**: the press that ends a holder (Escape, F5, B) usually reaches the window procedure before the game's
+  next DirectInput or XInput read. Masking only what the last read before the close saw held would let the closing
+  press reach the game at the next read: Escape would open the game's menu, B would dodge.
+- **Choice** (D128): each reader arms its masks at its first read after a close: what is held then and was held at the
+  read before, or all that is held if the close was 250 ms ago or less (EST). A key pressed fresh within those 250 ms
+  is masked until released, the conservative error; after them a fresh press is the game's.
+- **The packet number**: XInput's is the pad's own plus one per grant and per close, so the game reads every change at
+  rest and back; EldenNet NPC §5.5's "bumped once" leaves the return to the real state unread when the numbers meet.
+
+### 132. The input half's cost under Wine, and how it was measured
+
+`2026-11-16` · METHOD · `#graceui` `#input` `#perf` · refs: GraceUI:BUILD.md, GraceUI:invariant 10
+
+- **What**: GraceUI's own work per call, timed inside each filter and detour with the original's time left out, in a
+  test build; 1,000 messages and reads with no holder, then 300 frames of a holder fed input as a player types.
+- **Figures** (Wine 9.0, two runs of each build): with no holder, the window filter 0.2–0.4 µs median and 0.9–2.5 µs
+  p99 per message, `GetDeviceState` 0.5–0.8 and 1.1–3.3 µs per read, `XInputGetState` 0.1–0.2 and 0.2–0.3 µs; with a
+  holder 0.6–0.9 and 1.8–3.3, 0.9–1.2 and 2.0–3.6, 0.1 and 0.3–0.4 µs; the MinGW build the higher figures. A holder's
+  frame, its input fed and Dear ImGui's cursor drawn, the GPU idle before each: GraceUI's own work 94–107 µs median and
+  289–543 µs p99, against 96–108 and 291–441 µs for the test panel alone. No allocation and no free in any of it after
+  warm-up, on any of those threads.
+- **Caveat**: Wine's DirectInput and its message queue are not Windows'; S4 measures in the game.
+
+### 133. What the harness cannot show of the input half, for S4
+
+`2026-11-16` · METHOD · `#graceui` `#input` `#spike` · refs: EldenNet:DESIGN§16.1 (S4), GraceUI:§5.2, GraceUI:D127
+
+- **Pads**: Wine has no pad; the masking, the packet number and the opening press on a pad are checked in the unit tests
+  only. S4: B and Start held at a close never reach the game; LT and RT and the sticks held through a close; Steam
+  Input's own reading (it may bypass XInput).
+- **What the game reads**: whether it reads keys through `GetDeviceData` (buffered), the ANSI interface,
+  `XInputGetStateEx` or raw input (`WM_INPUT`), none of which GraceUI hooks but the last (routed to `DefWindowProc` while
+  a holder takes the device); and whether it calls `TranslateMessage`, without which no `WM_CHAR` arrives (a holder
+  would then need characters made from key-downs).
+- **The window**: whether the game recreates its window, restores its procedure, or takes the IME's input context
+  away (no composition window then); the IME under Proton (§5.6); F5 free in the default layout; Escape held 1 s and the
+  menu key twice in 2 s as the player feels them; camera drift while the mouse is held (EldenNet DESIGN §8.1); the
+  cursor's confinement under Proton.
