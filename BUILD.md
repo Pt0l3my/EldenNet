@@ -16,6 +16,11 @@ build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && buil
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
 
+CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_objects`: every instruction of the build's own
+`eldennet-engine` and `en_gal_tests`; `en_gal_x86_random`: 20,000 seeded random byte strings, assembled by the build's
+compiler), which need `llvm-objdump` and Python 3, and `en_tools_cli`, which runs `probe-exe` and `lint --report` on the
+derivation tests' invented program as DataPiler's job runs them.
+
 ## Windows with MinGW-w64, tested under Wine
 
 ```sh
@@ -25,8 +30,12 @@ WINEPREFIX=<dir> wine64 build-win/src/en-llm/en_llm_tests.exe     # and each oth
 ```
 
 The MinGW build links its runtime statically, uses WinHTTP (loaded from the system directory by its full path), and
-builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) but not its guarded copy,
-which needs structured exception handling: `en_gal_tests.exe` runs the portable part's tests.
+builds en-gal's portable part (the PE reader, the patterns, `builds.toml` and the layouts) and the derivation kit but not
+its guarded copy, which needs structured exception handling: `en_gal_tests.exe` runs the portable part's tests. Its
+`eldennet-engine.exe` is the program the owner runs for the derivation's offline round (R0, O89):
+`eldennet-engine probe-exe <the game's executable> --derive --leads gal/leads.toml --out derive.json`, with the game
+closed (src/en-tools/README.md has its exit codes). With the tests on, the fake game's harness runs it under Wine on
+`fakegame.exe` (`ctest -R fakegame.probe-exe`).
 
 ## The Windows build with clang-cl
 
@@ -45,7 +54,8 @@ WINEPREFIX=<dir> wine64 build-cl/src/en-gal/en_gal_tests.exe     # and each othe
 ```
 
 `en_gal_tests.exe` holds the portable part's tests and, in this build alone, the guarded copy's. `ctest -R compile_fail`
-runs R1's compile-fail tests here too.
+runs R1's compile-fail tests here too. The same `probe-exe` harness cases run here, where the fake game's MSVC RTTI lets
+them check the RTTI walk too.
 
 - `XWIN_ROOT`, a cache variable or in the environment, points elsewhere than `~/.cache/xwin`. The toolchain file
   refuses a splat whose CRT (`crtversion.h`) or SDK differs from the lock.
@@ -135,6 +145,9 @@ CTest replays each corpus once (`en_fuzz_<target>_corpus`), and `--target en_fuz
 | `en_fuzz_pe` | A byte (the layout; an unreadable 4 KiB page or none; 4 KiB or 1 MiB copies), then an image, through en-gal's `read_image` and `scan_patterns` with three invented patterns | An accepted image whose sections, function table, product name or placement disagree with the reader's rules; a refusal it cannot word; a resolved pattern whose hits break ARCH §6.2's rules |
 | `en_fuzz_pattern` | A pattern's text, NUL, a byte for the chunk size, then bytes to search | An accepted pattern outside the grammar's limits, or whose canonical text reads back differently; a refusal pointing outside the text; the matcher, fed in chunks, finding other than a plain search finds, or missing a planted pattern |
 | `en_fuzz_galtoml` | A byte choosing `patterns.toml`, `builds.toml` or a layout (for a build gated on an invented image), then the text | A refusal without its problems, or past the cap; an accepted file breaking its schema's rules (unique ids, own-derivation, captures within patterns, keys, layouts under `layouts/`, fields within their classes, classes named that exist) |
+| `en_fuzz_x86` | Bytes, decoded at every offset (each from an exact-size copy) and as a sweep | An instruction longer than 15 bytes or than the bytes given; its parts out of order, outside it, or not ending it; a RIP-relative operand without ModRM and a 32-bit displacement; bytes after it changing it; a shorter run not refused as truncated; "truncated" with 15 bytes given |
+| `en_fuzz_report` | A byte for the mode, then a text for the lint, or a run of writer calls (keys and values from the input) | A text the lint accepts that is not one JSON object of words, labels, patterns and whole numbers; a report the writer gives that the lint refuses, or that holds a string offered that is not a word or a label |
+| `en_fuzz_derive` | Two bytes for a static's slot, then an executable, derived with invented leads as probe-exe does | A report the derivation writes that the lint refuses; a pattern outside 1 to 64 bytes with 4 fixed, or a capture outside its pattern; a complete run without its idiom, registration or group |
 
 ```sh
 cmake -S . -B build-fuzz -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=-O1 -DEN_FUZZ=ON
@@ -144,7 +157,8 @@ mkdir -p build-fuzz/work/sse && build-fuzz/fuzz/en_fuzz_sse build-fuzz/work/sse 
 ```
 
 `en_fuzz_pe` takes `-max_len=65536` so that whole invented images fit; `en_fuzz_galtoml` builds
-`src/en-gal/tests/fake_image.cpp` in, for its gated build.
+`src/en-gal/tests/fake_image.cpp` in, for its gated build. `en_fuzz_derive` takes `-max_len=65536`; its seed is the
+derivation tests' invented program.
 
 New inputs go to the first folder, so the committed corpus changes only by hand. A finding is written as
 `crash-<hash>` in the current folder; once it is fixed, it joins the target's `corpus/` under a name that says what it
