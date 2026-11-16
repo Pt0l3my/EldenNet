@@ -338,10 +338,12 @@ case("gal-moves-free", GAL + ["--frames", "900", "--move-every", "90", "--move-m
                               "ready:{galtest}"], env=GAL_ENV, needs=GAL_NEEDS, toolchains=("clang-cl",),
      timeout=120, check=lambda r: check_gal(r, "moves"),
      what="the same with the old places released: nothing stale is ever read")
-case("gal-reload", GAL + ["--frames", "900", "--load-frames", "40", "--reload-every", "240", "--load", "ready:{galtest}"],
+case("gal-reload", GAL + ["--frames", "900", "--load-frames", "40", "--reload-every", "240", "--stall-at", "1",
+                          "--stall-ms", "1500", "--load", "ready:{galtest}"],
      env=GAL_ENV,
      needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "reload"),
-     what="loading screens: the lifecycle subset only while loading (R11), a playthrough each time the world returns")
+     what="loading screens: the lifecycle subset only while loading (R11), a playthrough each time the world returns; "
+          "a first frame of 1.5 s, and a run that ends loading")
 case("gal-online", GAL + ["--frames", "720", "--online-at", "420", "--load", "ready:{galtest}"], env=GAL_ENV,
      needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "online"),
      what="the session turns online: Dormant, the session and the lifecycle subset only")
@@ -1254,6 +1256,15 @@ def check_gal(r, kind):
     inv = int(status["invocations"])
     snaps = int(status["snapshots"])
     slots = [int(x) for x in status["slot_calls"].split(",")]
+    # The hub runs our task once a frame, from the frame it activated it to the last: counted in frames, so that a slow
+    # machine or a slow first frame changes nothing; and registration came in the run's first half.
+    active = r.last("FAKEGAME", "task-active", "frame")
+    if end is not None and active is not None:
+        frames, first = int(end["frames"]), int(active["frame"])
+        need(first <= frames // 2 and int(end["foreign_runs"]) == frames - first + 1,
+             "our task ran %s times from frame %d to %d" % (end["foreign_runs"], first, frames), failures)
+    else:
+        failures.append("no task-active or end line")
     if kind == "group-shift":
         need(status["state"] == "inert" and status["inert_why"] == "group_mismatch" and status["group_found_at"] == "6",
              "group check %s" % status, failures)
@@ -1267,13 +1278,13 @@ def check_gal(r, kind):
         need(int(stores["trip_groups"], 16) & (1 << 1), "a GroupTripped for world", failures)
         return failures
     need(status["state"] == "running" and status["group_ok"] == "1", "task %s" % status, failures)
-    # 4 Hz: about one snapshot every 15 invocations at 60 FPS, by time, never more.
-    need(inv >= 500, "invocations %d" % inv, failures)
-    # Under Wine each ReadProcessMemory goes through the server: the builds pass 0.5 ms and the task throttles to 2 Hz
-    # (R10), which the rpm case allows.
-    floor = inv / 30 * 0.85 if kind == "rpm" else inv / 15 * 0.85
-    need(floor <= snaps + int(status["abandoned"]) <= inv / 15 + 3, "snapshots %d for %d invocations" % (snaps, inv),
-         failures)
+    # 4 Hz by the clock since the first tick (R10), never more, whatever the frame rate a loaded machine gives. Under
+    # Wine each ReadProcessMemory goes through the server: the builds pass 0.5 ms and the task throttles to 2 Hz, which
+    # the rpm case allows (WHY§161).
+    elapsed = int(status["elapsed_ms"]) / 1000.0
+    built = snaps + int(status["abandoned"])
+    floor = 0.85 * (2 if kind == "rpm" else 4) * elapsed - 3
+    need(elapsed >= 4 and floor <= built <= 4 * elapsed + 2, "%d snapshots in %.1f s" % (built, elapsed), failures)
     # The run slot every frame since registration; the hub's attach once; its query every 64th frame.
     # (The status line reads its counters one by one while the game runs: they may differ by a frame or two.)
     need(abs(slots[1] - inv) <= 2 and slots[0] == 1 and inv // 64 - 1 <= slots[2] <= inv // 64 + 2,
@@ -1299,7 +1310,13 @@ def check_gal(r, kind):
     want = {"screen": SCREEN["InGame"], "lobby": LOBBY["None"], "role": 1, "player_set": 1, "chars": 6, "dead": 1,
             "level": 12, "runes": 4321, "slot": 2, "place": 6100100, "hud": 4, "subtitles": 1, "boss_bars": 1}
     if kind == "reload":
-        want["screen"] = None  # the run may end loading
+        # The run ends on a loading screen (frame 871 on), where a snapshot reads the lifecycle subset only (R11): the
+        # last screen may be either, and the session and the world are those the last snapshots that read them saw.
+        want["screen"] = None
+        need(end is not None and end.get("phase") == "loading", "the run ended in %s" % (end or {}).get("phase"),
+             failures)
+        need(world["screen"] in (str(SCREEN["InGame"]), str(SCREEN["Loading"])), "screen %s" % world["screen"],
+             failures)
     for k, v in want.items():
         if v is not None:
             need(world[k] == str(v), "world %s=%s, wanted %s" % (k, world[k], v), failures)

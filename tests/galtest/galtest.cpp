@@ -165,7 +165,7 @@ struct Summary {
   std::atomic<std::uint64_t> texts{0}, text_named{0}, text_empty{0}, params{0}, param_name_id{0};
   std::atomic<std::uint64_t> renders{0}, render_present{0};
   std::atomic<std::uint64_t> data_ready{0}, playthroughs{0}, trips{0}, trip_groups{0}, name_len{0};
-  std::atomic<std::uint64_t> published{0}, dropped{0};
+  std::atomic<std::uint64_t> published{0}, dropped{0}, full{0};
 };
 
 class Io final : public TaskIo {
@@ -197,33 +197,40 @@ class Io final : public TaskIo {
     const en::proto::WorldSnapshot& w = *building_;
     s_.gap.fetch_add(w.gap ? 1 : 0, std::memory_order_relaxed);
     s_.screen.store(static_cast<std::int64_t>(w.life.screen));
-    s_.lobby.store(static_cast<std::int64_t>(w.session.lobby));
-    s_.role.store(static_cast<std::int64_t>(w.session.role));
-    s_.player_set.store(w.session.player_set_len);
-    s_.chars.store(static_cast<std::int64_t>(w.chars.size()));
-    std::int64_t dead = 0;
-    for (const auto& c : w.chars) dead += c.dead ? 1 : 0;
-    s_.dead_chars.store(dead);
-    if (!w.chars.empty()) {
-      s_.near_handle.store(static_cast<std::int64_t>(w.chars[0].handle.raw));
-      s_.near_param.store(w.chars[0].param);
+    s_.full.fetch_add(w.player ? 1 : 0, std::memory_order_relaxed);
+    // What a snapshot holds depends on how much it read (backend.hpp's ReadMode): while loading only the lifecycle
+    // subset (R11), so its session and world fields are empty, which means "not read"; at the title or online, the
+    // session too; in the world, solo, everything. Each field is kept from the last snapshot that read it, so a run
+    // that ends on a loading screen still shows the session and the world it left.
+    if (w.life.screen != en::proto::Screen::Loading) {
+      s_.lobby.store(static_cast<std::int64_t>(w.session.lobby));
+      s_.role.store(static_cast<std::int64_t>(w.session.role));
+      s_.player_set.store(w.session.player_set_len);
     }
     if (w.player) {
+      s_.chars.store(static_cast<std::int64_t>(w.chars.size()));
+      std::int64_t dead = 0;
+      for (const auto& c : w.chars) dead += c.dead ? 1 : 0;
+      s_.dead_chars.store(dead);
+      if (!w.chars.empty()) {
+        s_.near_handle.store(static_cast<std::int64_t>(w.chars[0].handle.raw));
+        s_.near_param.store(w.chars[0].param);
+      }
       s_.level.store(w.player->level);
       s_.runes.store(w.player->runes_held);
       s_.hp.store(w.player->hp.cur);
       s_.max_hp.store(w.player->hp.max);
       s_.slot.store(w.player->save_slot);
       s_.play_ms.store(static_cast<std::int64_t>(w.player->play_time_ms));
+      if (w.place && w.place->place_id) s_.place.store(*w.place->place_id);
+      if (w.clock) {
+        s_.hour.store(w.clock->h);
+        s_.minute.store(w.clock->m);
+      }
+      s_.hud.store(static_cast<std::int64_t>(w.ui.hud));
+      s_.subtitles.store(w.ui.subtitles_on ? 1 : 0);
+      s_.boss_bars.store(static_cast<std::int64_t>(w.boss.bars.size()));
     }
-    if (w.place && w.place->place_id) s_.place.store(*w.place->place_id);
-    if (w.clock) {
-      s_.hour.store(w.clock->h);
-      s_.minute.store(w.clock->m);
-    }
-    s_.hud.store(static_cast<std::int64_t>(w.ui.hud));
-    s_.subtitles.store(w.ui.subtitles_on ? 1 : 0);
-    s_.boss_bars.store(static_cast<std::int64_t>(w.boss.bars.size()));
     if (w.flags) {
       s_.flag_frames.fetch_add(1, std::memory_order_relaxed);
       std::uint64_t bits = 0, valid = 0;
@@ -468,13 +475,17 @@ DWORD WINAPI t1(void*) noexcept {
         slots += b;
       }
       const GuardedReader& reader = task->backend().reader();
-      line("status state=%s inert_why=%s group_ok=%d group_found_at=%d invocations=%llu snapshots=%llu abandoned=%llu "
+      const std::uint64_t first = st.first_tick_us.load();
+      const std::uint64_t elapsed_ms = first == 0 || now < first ? 0 : (now - first) / 1000;
+      line("status state=%s inert_why=%s group_ok=%d group_found_at=%d elapsed_ms=%llu invocations=%llu snapshots=%llu "
+           "abandoned=%llu "
            "flag_frames=%llu loading_only=%llu dormant=%llu commands=%llu renders=%llu render_present=%llu "
            "throttled=%d task_p50=%llu task_p99=%llu task_max=%llu build_p99=%llu build_max=%llu copies=%llu "
            "fault_copy=%llu fault_injected=%llu fault_stack=%llu fault_budget=%llu vtable_skips=%llu "
            "slot_calls=%llu,%llu,%llu allocs=%llu frees=%llu groups=%s mode=%s",
            to_string(st.state.load()), to_string(st.inert_why.load()), st.group_ok.load() ? 1 : 0,
-           st.group_found_at.load(), static_cast<unsigned long long>(st.invocations.load()),
+           st.group_found_at.load(), static_cast<unsigned long long>(elapsed_ms),
+           static_cast<unsigned long long>(st.invocations.load()),
            static_cast<unsigned long long>(st.snapshots.load()), static_cast<unsigned long long>(st.abandoned.load()),
            static_cast<unsigned long long>(st.flag_frames.load()), static_cast<unsigned long long>(st.loading_only.load()),
            static_cast<unsigned long long>(st.dormant.load()), static_cast<unsigned long long>(st.commands.load()),
@@ -497,7 +508,7 @@ DWORD WINAPI t1(void*) noexcept {
            to_string(st.mode.load()));
       line("world screen=%lld lobby=%lld role=%lld player_set=%lld chars=%lld dead=%lld near_param=%lld level=%lld "
            "runes=%lld hp=%lld/%lld slot=%lld play_ms=%lld place=%lld hour=%lld minute=%lld hud=%lld subtitles=%lld "
-           "boss_bars=%lld gaps=%lld published=%llu dropped=%llu",
+           "boss_bars=%lld gaps=%lld published=%llu dropped=%llu full=%llu",
            static_cast<long long>(summary.screen.load()), static_cast<long long>(summary.lobby.load()),
            static_cast<long long>(summary.role.load()), static_cast<long long>(summary.player_set.load()),
            static_cast<long long>(summary.chars.load()), static_cast<long long>(summary.dead_chars.load()),
@@ -509,7 +520,7 @@ DWORD WINAPI t1(void*) noexcept {
            static_cast<long long>(summary.hud.load()), static_cast<long long>(summary.subtitles.load()),
            static_cast<long long>(summary.boss_bars.load()), static_cast<long long>(summary.gap.load()),
            static_cast<unsigned long long>(summary.published.load()),
-           static_cast<unsigned long long>(summary.dropped.load()));
+           static_cast<unsigned long long>(summary.dropped.load()), static_cast<unsigned long long>(summary.full.load()));
       line("stores flag_version=%llu flag_bits=0x%llX flag_valid=0x%llX texts=%llu text_named=%llu text_empty=%llu "
            "params=%llu param_name_id=%llu data_ready=%llu playthroughs=%llu name_len=%llu trips=%llu trip_groups=0x%llX "
            "slots=%s",
