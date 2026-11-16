@@ -64,7 +64,7 @@ bool FakeImageSource::read(std::uint64_t offset, std::span<std::byte> dst) const
 }
 
 FakeSys::FakeSys(FakeMemory& mem, std::uint64_t base, std::uint64_t image_size)
-    : base_(base), image_(mem, base, image_size), copier_(mem) {}
+    : base_(base), image_(mem, base, image_size), copier_(mem), mem_(mem) {}
 
 proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, std::uint64_t cls) noexcept {
   if (registration) return proto::Unexpected{SysError::NotInit};
@@ -78,12 +78,14 @@ proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, s
 proto::Expected<void, SysError> FakeSys::register_task(std::uint64_t function, std::uint64_t instance,
                                                        const TaskShape& shape, TaskBody& body) noexcept {
   if (registration) return proto::Unexpected{SysError::Twice};
-  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots || shape.run_slot >= shape.vtable_slots) {
+  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
+      (!shape.every_slot && shape.run_slot >= shape.vtable_slots)) {
     return proto::Unexpected{SysError::BadShape};
   }
   if (fault_register) return proto::Unexpected{SysError::Faulted};
   registration = Registration{function, instance, shape, &body};
   calls_.assign(shape.vtable_slots, 0);
+  block_ = mem_.alloc(8 + std::size_t{shape.object_size} + 8);
   return {};
 }
 
@@ -91,7 +93,7 @@ void FakeSys::tick(std::uint64_t dt_us, bool watch) {
   now_us_ += dt_us;
   drift_ = 0;
   if (!registration) return;
-  ++calls_[registration->shape.run_slot];
+  if (registration->shape.run_slot < calls_.size()) ++calls_[registration->shape.run_slot];
   const FrameCtx frame{now_us_, static_cast<std::uint32_t>(std::min<std::uint64_t>(dt_us, 0xFFFF'FFFF))};
   AllocWatch::armed = watch;
   run_task(*registration->body, frame);

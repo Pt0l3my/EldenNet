@@ -154,6 +154,34 @@ TEST_CASE("native sys: stacks and guard pages are never read (WHY§111)") {
   CHECK((mbi.Protect & PAGE_GUARD) != 0);  // untouched
 }
 
+TEST_CASE("native sys: the rescan leaves out the calling thread's stack; a freed stack range is forgotten (WHY§180)") {
+  NativeSys sys;
+  GuardedReader reader(sys);
+  const auto gt = en::proto::GameThread::issue();
+  reader.begin_tick();
+  const std::uint64_t local = 7;
+  CHECK(reader.copy<std::uint64_t>(gt, en::proto::Group::World, address_of(&local)).error().kind == FaultKind::Stack);
+  sys.rescan_stacks();
+  ULONG_PTR low = 0, high = 0;
+  GetCurrentThreadStackLimits(&low, &high);
+  CHECK_FALSE(sys.stacks().overlaps(low, high - low));
+  // An allocation with a guard page, in the table, then freed and made again without one (the game's object where a
+  // stack was): the read refused at first goes through once the range is found stale.
+  // SAFETY: pages of our own; the guard page is never read.
+  auto* pages = static_cast<std::byte*>(VirtualAlloc(nullptr, 8192, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  REQUIRE(pages != nullptr);
+  DWORD old = 0;
+  REQUIRE(VirtualProtect(pages + 4096, 4096, PAGE_READWRITE | PAGE_GUARD, &old) != 0);
+  sys.refresh_stacks();
+  REQUIRE(sys.stacks().overlaps(address_of(pages), 8));
+  CHECK(reader.copy<std::uint64_t>(gt, en::proto::Group::World, address_of(pages + 4096)).error().kind == FaultKind::Stack);
+  REQUIRE(VirtualProtect(pages + 4096, 4096, PAGE_READWRITE, &old) != 0);  // no guard page: no longer a stack's shape
+  CHECK(reader.copy<std::uint64_t>(gt, en::proto::Group::World, address_of(pages)).has_value());
+  CHECK(reader.stale_stacks() == 1);
+  CHECK_FALSE(sys.stacks().overlaps(address_of(pages), 8));
+  VirtualFree(pages, 0, MEM_RELEASE);
+}
+
 TEST_CASE("native sys: the calls into the game run under SEH, and the task object's trampoline runs our body") {
   // A call that faults is an answer (ARCH §3.2's Register → banner).
   const sys::CallOutcome fault = sys::call_register(address_of(&test_faulting), {1, 2, 3, 4});

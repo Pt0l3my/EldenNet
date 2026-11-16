@@ -21,7 +21,8 @@
 
 namespace en::gal::report {
 
-enum class Type : std::uint8_t { Object, Array, Unsigned, Signed, Boolean, Word, Label, Pattern };
+// Float is a finite number, whole or not (a recording's positions and distances; no derive key takes one).
+enum class Type : std::uint8_t { Object, Array, Unsigned, Signed, Boolean, Word, Label, Pattern, Float };
 
 // One key of a vocabulary: its value's type, an array's element type, and the words a Word (or an array of Words) may
 // take.
@@ -60,12 +61,15 @@ struct Problem {
 // "where: problem".
 [[nodiscard]] std::string describe(const Problem& problem);
 
-// Writes one report, pretty-printed, checking each key against the vocabulary and each value against its key's type.
-// In an object every value takes its key; in an array, none (the array's key gives the element type). The first refusal
-// is kept and every later call is ignored; finish() then answers it, and no text.
+// How the writer lays a report out: pretty-printed, or on one line (a line of a JSON Lines file, such as a recording's).
+enum class Style : std::uint8_t { Pretty, Line };
+
+// Writes one report, pretty-printed or on one line, checking each key against the vocabulary and each value against
+// its key's type. In an object every value takes its key; in an array, none (the array's key gives the element type).
+// The first refusal is kept and every later call is ignored; finish() then answers it, and no text.
 class Writer {
  public:
-  explicit Writer(const Vocabulary& vocabulary);
+  explicit Writer(const Vocabulary& vocabulary, Style style = Style::Pretty);
 
   void begin_object(std::string_view key = {});
   void end_object();
@@ -80,6 +84,9 @@ class Writer {
   void label(std::string_view key, std::string_view label);
   void label(std::string_view l) { label({}, l); }
   void pattern(std::string_view key, const BytePattern& pattern);
+  // A finite number, written with at most 7 significant digits; a NaN or an infinity is refused.
+  void real(std::string_view key, double value);
+  void real(double value) { real({}, value); }
 
   // The text, once every object and array is closed; else the first refusal.
   [[nodiscard]] proto::Expected<std::string, Problem> finish();
@@ -96,7 +103,10 @@ class Writer {
   void refuse(std::string where, std::string problem);
   [[nodiscard]] std::string where(std::string_view key) const;
 
+  void newline(std::size_t indent);
+
   const Vocabulary& vocabulary_;
+  Style style_;
   std::string out_;
   std::vector<Level> levels_;
   std::size_t patterns_ = 0;
@@ -109,5 +119,11 @@ class Writer {
 // key, every value's type, and the counts. Every problem is listed, up to 64.
 [[nodiscard]] proto::Expected<void, std::vector<Problem>> lint(std::string_view text,
                                                                std::span<const Vocabulary* const> vocabularies);
+
+// Checks a JSON Lines file (a recording) line by line: every line that is not empty is one report, of a kind the
+// vocabularies name, at most kMaxReportBytes long, linted as lint() does; every line holds the same kind as the first.
+// A problem's place starts with its line's number ("line 12: b.chars[0].hp: ..."). Up to 64 problems are listed.
+[[nodiscard]] proto::Expected<void, std::vector<Problem>> lint_lines(std::string_view text,
+                                                                     std::span<const Vocabulary* const> vocabularies);
 
 }  // namespace en::gal::report

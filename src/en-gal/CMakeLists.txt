@@ -55,7 +55,8 @@ if(MSVC)
   list(APPEND EN_GAL_GAME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/native_sys.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/register.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/trampoline.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/trampoline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sys/boot.cpp)  # eldennet.dll's load and its crash filter's look-up (part 6)
 endif()
 function(en_gal_game target probe)
   add_library(${target} STATIC ${EN_GAL_GAME_SOURCES})

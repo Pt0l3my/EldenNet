@@ -19,9 +19,11 @@
 #include <vector>
 
 #include "en/gal/fd4.hpp"
+#include "en/gal/image_bytes.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/pe.hpp"
 #include "en/gal/report.hpp"
+#include "en/gal/rtti.hpp"
 #include "en/gal/schema.hpp"
 #include "en/proto/expected.hpp"
 
@@ -316,6 +318,11 @@ struct Options {
 // Derives everything it can from the image (a file's, ImageLayout::File). Never throws for what the image holds.
 [[nodiscard]] Result derive(const ImageInfo& image, const ByteSource& source, const Leads& leads,
                             const Options& options = {});
+
+// The task classes of a base class given by its type descriptor (the leads' `[task] base`, or a base R1 finds in game
+// from the hub's own tasks): the classes deriving from it, their slots, and the run slot's candidate. `base.type_descriptor`
+// is set; the rest of `base` is the caller's.
+[[nodiscard]] TaskResult task_from_base(const rtti::Walk& walk, const ImageBytes& img, std::uint32_t base);
 
 // Whether every fact the round can derive offline was derived.
 [[nodiscard]] bool complete(const Result& result);
