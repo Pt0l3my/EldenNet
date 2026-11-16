@@ -231,7 +231,7 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 |---|---|---|
 | `en-proto` | Every message that crosses a thread or the adapter boundary. Each has a JSON form through nlohmann/json (`to_json`, `from_json`) | `WorldSnapshot`, `RenderFeed`, `Lifecycle`, `GameCommand`, `UiModel`, `UiEvent`, `LlmRequest`/`LlmEvent`, `DbRequest`/`DbResult`, `Capabilities`, `ReadHealth`, `ChrHandle`, `BlockId`, `SafeText`, the interface `GameBackend`, the token `GameThread`, `PROTO_VERSION`. `LlmRequest`/`LlmEvent` are built for now in en-llm's `service.hpp`, with the request, decision and result types they carry; §2.3 keeps `en-core` off `en-llm` |
 | `en-augur` | Sources, world model, signals, detectors, rules, events, audience resolution, the K store, bus ordering | `Augur(RuleSet, Registry)`, `void Augur::step(const CoreInput&, Mono, const AugurCtx&, EventBatch&)`, the interface `EventSource`, `Expected<RuleSet, std::vector<RuleError>> RuleSet::load(std::span<const RuleFile>, const PredicateCompiler&)`, `Event`, `EventKind` |
-| `en-prompt` (built, O84) | The template engine on inja 3.4, with SkyrimNet's template rules (its message markers and folders of numbered parts) made strict (NPC §7.1): composition with its guards, the function registry and the reference generated from it, lint | `Environment(root, FunctionRegistry, EnvironmentOptions)`, `std::vector<Message> Environment::render(std::string_view name, const nlohmann::json& context) const`, which throws a `TemplateError` naming the template, line and column, `std::vector<Finding> Environment::lint(std::string_view name, const nlohmann::json* context) const`, `FunctionRegistry::add` |
+| `en-prompt` (built, O84) | The template engine on inja 3.4, with SkyrimNet's template rules (its message markers and folders of numbered parts) made strict (NPC §7.1): composition with its guards, the function registry and the reference generated from it, lint; template sources (§2.3) | `Environment(std::shared_ptr<const TemplateSource>, FunctionRegistry, EnvironmentOptions)`, with `MemorySource(std::map<std::string, std::string>)` for `en-core` and `FolderSource(root)` for the tools (`Environment(root, …)` builds one), `std::vector<Message> Environment::render(std::string_view name, const nlohmann::json& context) const`, which throws a `TemplateError` naming the template, line and column, `std::vector<Finding> Environment::lint(std::string_view name, const nlohmann::json* context) const`, `FunctionRegistry::add` |
 | `en-core` | Identity and tiers, content loading and validation, predicates, the world view and per-persona knowledge (`knowledge::world`), scheduler, conversation, barks, memory logic, prompts (rendered with en-prompt), decision calls (§11.8), sanitizer, lint, ladder policy, bus subscribers | `Core(std::shared_ptr<const ContentPack>, std::shared_ptr<const Settings>)`, `Outputs Core::step(CoreInput, Mono)`, `Expected<ContentPack, std::vector<ContentError>> ContentPack::load(const ContentFs&)`, the interface `CoreTransport`, `WorldView world::derive(const FlagState&, const WorldFacts&, const WorldContent&)`, `KnownSet world::known(PersonaId, const FlagState&, const WorldFacts&, const WorldView&, const WorldSeen&, const ContentPack&)`, `std::optional<Cue> world::cue(PersonaId, StageId, const KnownSet&, const WorldSeen&, const WorldCued&, const PersonaFacts&, const RenderedJournal&, const ContentPack&, Pt)` (MEM §12.13; `StageId` is the active stage `known()` resolved, whose `at` chooses LocalHere or LocalHome; its candidates are what the known set holds, O86) |
 | `en-store` | SQLite files, migrations, the request loop, backups | `StoreHandle Store::spawn(StoreCfg)`, `Expected<void, Full> StoreHandle::send(DbRequest)`, `BoundedQueue<DbResult>& StoreHandle::results()` |
 | `en-llm` (built, O84) | The OpenAI-compatible client and its transports (libcurl, WinHTTP), SSE parser, slots, health, budgets, decision calls (§11.8), local probes, warm-up, and the asynchronous handle the core drives (WHY§101) | `Service(Config, std::shared_ptr<TransportFactory>, ServiceOptions)`, `SubmitResult Service::submit(LlmRequest)`, and its `cancel(RequestId)`, `cancel_before_epoch(Epoch)`, `poll`, `drain`, `wait`, `set_notify`, `set_gate_open`, `warm_up(slot)`, `reload(Config)` and `shutdown`; the blocking `Client::chat` and `Client::decide` beneath it; `probe_local` (its `LocalEndpoint`s) and `list_models` |
@@ -281,7 +281,7 @@ struct Outputs {
 |---|---|---|
 | `en-proto` | The standard library; nlohmann/json 3.11.3 (each message's JSON form). Our own fixed-capacity `FixedVector` and `FixedString` and the flag sets (an `enum class` with bitwise operators) live here | Anything with I/O, threads, clocks, Win32 or game knowledge |
 | `en-augur` | `en-proto`, nlohmann/json, toml++ 3.4.0 (the rule files), our own `IndexMap` (a vector in insertion order with a hash index beside it) | `en-core`, `en-gal`, `en-store`, `en-llm`, `en-overlay`, any thread or network library, the Windows SDK, `std::filesystem` and file streams, any clock |
-| `en-prompt` (built) | inja 3.4.0 (vendored, MIT), nlohmann/json; the standard library (`std::filesystem` reads its template folder) | Every other module of ours, the Windows SDK, any clock |
+| `en-prompt` (built) | inja 3.4.0 (vendored, MIT), nlohmann/json; the standard library (`std::filesystem` and file streams in its folder source only, for the tools) | Every other module of ours, the Windows SDK, any clock |
 | `en-core` | `en-augur`, `en-proto`, `en-prompt` (the template engine on inja, O84), toml++, nlohmann/json, RE2 (where a pattern comes from content, §10.2), utf8proc (grapheme boundaries), BLAKE3 (its C implementation), GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, any network library, libcurl, WinHTTP, SQLite, the Windows SDK, any clock |
 | `en-store` | `en-proto`, SQLite (its amalgamation, pinned at adoption, through its C API), the standard library's threads (the request loop and C8's queues) | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` (built) | `en-proto`, nlohmann/json, toml++ (its configuration files), libcurl (Linux and test builds, the `EN_WITH_CURL` option), the system's WinHTTP (Windows: loaded at run time by its full path from the system directory, never imported), the standard library's threads | `en-core`, `en-gal`, `en-overlay`, `en-store` |
@@ -291,10 +291,14 @@ struct Outputs {
 | `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4) | Every other module of ours |
 | `en-tools` | `en-core`, `en-prompt`, `en-augur`, `en-store`, `en-llm`, `en-gal`'s offline part, zstd; doctest for its tests | `en-overlay`, the rest of `en-gal` (`sys`, `reader`, `task`) |
 
-**`en-prompt` inside `en-core`.** As built, `en-prompt` reads its templates from a folder, which is how the tools use
-it. `en-core` does no I/O, so it hands `en-prompt` the content pack's templates, already loaded by the content loader,
-through a template source of `en-prompt`'s own; its folder loader is never reached from `en-core` (roadmap S8.1.j
-builds the source). Errors stay inside `en-core` as `TemplateError`, caught where a prompt is built.
+**`en-prompt` inside `en-core`.** `en-prompt` finds every template through a template source of its own
+(`TemplateSource`, built in roadmap S8.1.j), which answers only what a name is (a file, a folder of parts or nothing),
+which files a folder holds and what a file says. The name rules, a folder's parts and their order, and composition stay
+in the environment, so every source gives the same messages and the same errors. The tools use `FolderSource`, which
+reads a folder and refuses a name or a link that leads out of it. `en-core` does no I/O, so it hands `en-prompt` the
+content pack's templates, already loaded by the content loader, in a `MemorySource`, which opens no file (its tests
+render with no file of those names on disk); the folder source is never reached from `en-core`. Errors stay inside
+`en-core` as `TemplateError`, caught where a prompt is built.
 
 Every third-party library is vendored with its licence, or fetched at configure time from its own project, pinned by
 SHA-256, into the build tree, and listed in `THIRD_PARTY.md` (§12.1).
@@ -2238,7 +2242,7 @@ eldennet/
     en-proto/     include/en/proto/{snapshot, render, lifecycle, command, ui, llm, db, backend, thread, text,
                        fixed}.hpp  src/json.cpp
     en-augur/     src/{sources/, world, signals, detectors, rules, events, audience, kstore, bus}.cpp
-    en-prompt/    src/{environment, compile, builtins, messages, registry, text, errors, version}.cpp   (built)
+    en-prompt/    src/{environment, source, compile, builtins, messages, registry, text, errors, version}.cpp   (built)
     en-core/      src/{step, transport, identity/, content/, predicates, knowledge/, scheduler, conversation/,
                        barks/, memory/, decisions/, prompts/, sanitize, lint, ladder, gate}.cpp
     en-store/     src/{loop, migrations/, events, facts, journal, rollback, backup}.cpp
