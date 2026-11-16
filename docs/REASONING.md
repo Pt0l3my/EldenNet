@@ -170,6 +170,17 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 145 | 2026-11-16 | ThreadSanitizer's runtime defines the global allocation functions: a counting operator new cannot run under it | FACT | #graceui #build #test |
 | 146 | 2026-11-16 | The harness's panels scenario under Wine: what it reads back, its figures, and a frame-cost check that fails under another build's load | METHOD | #graceui #wine #perf |
 | 147 | 2026-11-16 | What S10.4.c leaves to S4 and to the bridge protocol: a panel holder's events, the backend's buffer growth in the game, a mod's untrusted font | METHOD | #graceui #spike #input |
+| 148 | 2026-11-16 | Our x86-64 length decoder against LLVM: the choices where processors and LLVM differ | FACT | #engine #gal |
+| 149 | 2026-11-16 | The derivation round's tool: leads, the numbers-only writer, and how each fact is found offline | METHOD | #engine #gal #datapiler #privacy |
+| 150 | 2026-11-16 | probe-exe on fakegame.exe: what R0 recovers, by toolchain | FACT | #engine #gal |
+| 151 | 2026-11-16 | toml++ built two ways in one program: two vtables of one name | FACT | #engine #build |
+| 152 | 2026-11-16 | World-state claims and an input grant: read where the providers write them, fenced on both sides | DECIDED | #graceui #input #overlay |
+| 153 | 2026-11-16 | The window filter follows the bound swap chain's window; a console's window is never the game's | DECIDED | #graceui #input |
+| 154 | 2026-11-16 | The shared atlas has a room, and is baked on GraceUI's own thread, which stays for the session | DECIDED | #graceui #overlay #perf |
+| 155 | 2026-11-16 | Dear ImGui 1.93's atlas: an 8192-pixel limit that asserts, a context made on one thread and used on another, ClearTexData for a legacy atlas | FACT | #graceui #overlay |
+| 156 | 2026-11-16 | GraceUI lets go of a removed or replaced device; the render path stays off until a later version rebuilds | DECIDED | #graceui #overlay |
+| 157 | 2026-11-16 | The review's smaller fixes, and what they leave as it is | DECIDED | #graceui #input #abi |
+| 158 | 2026-11-16 | Under Wine a Unicode folder needs a UTF-8 locale; the fuzzers' coverage needs the rules instrumented | METHOD | #graceui #wine #test |
 
 ## Entries
 
@@ -2781,3 +2792,192 @@ invariant 10, EldenNet ARCH (T3)
   faces).
 - **Trust**: stb_truetype, which Dear ImGui bakes with, is not hardened against hostile fonts; GraceUI checks a mod's
   file's table directory and ranges, and a native mod can crash the game in other ways anyway.
+
+### 148. Our x86-64 length decoder against LLVM: the choices where processors and LLVM differ
+
+`2026-11-16` · FACT · `#engine #gal` · refs: ARCH§6.2, O48, O89
+
+- Source: en-gal's decoder (`x86.hpp`) against llvm-objdump 18 over every instruction of our own binaries, and over
+  20,000 seeded random byte strings each after a symbol of its own (`tests/x86_objdump.py`, `en_gal_x86_check`).
+- **Our binaries: no disagreement.** Every instruction of the build's own `eldennet-engine` and `en_gal_tests`:
+  1,246,712 (GCC, -O0), 1,052,573 (Clang, -O0); and of the Windows binaries (`fakegame.exe`, `eldennet-engine.exe`
+  and `en_gal_tests.exe` from clang-cl, `fakegame.exe`, `eldennet-engine.exe` and `vehprobe.dll` from MinGW):
+  3,069,635, all agreeing (26 bytes LLVM cannot decode, refused alike).
+- **Where LLVM 18 chooses** (we follow it, since compilers never emit these forms): a 66 prefix shortens JMP's
+  (E9), Jcc's (0F 8x) and XBEGIN's displacement to 16 bits but not CALL's (E8); a REX followed by another prefix is
+  printed alone and ignored; a REX before VEX is refused. It refuses 0F 20 to 0F 23 with ModRM's mod other than 11
+  (we follow the manuals: mod is ignored there, no displacement).
+- **Known kinds in random bytes** (counted apart, not findings): opcodes a map leaves undefined, which LLVM refuses
+  and we size by the map's shape; a REX before another prefix, which LLVM decodes in ways of its own (it dropped a 66
+  after one); APX's REX2 (D5) and EVEX map 4, which LLVM 18 already decodes and we refuse. Of 20,000 random strings
+  (seed 1, weighted to prefixes, escapes, VEX, EVEX and XOP): 9,342 agree, 3,464 refused alike, 5,097 undefined
+  opcodes, 2,077 stray REX, 20 APX, no other disagreement.
+- **llvm-objdump's listing:** lone prefixes (`lock`, `data16`, `rex.W`) on lines of their own, to be joined to the next
+  instruction; a vector compare's predicate or a carry-less multiply's selector folded into the mnemonic (`cmpltps`);
+  FMA4's and the VEX blends' fourth register printed from the immediate's high nibble; no RIP target where its comment
+  says something else or the target lies below zero. The checker reads all four.
+
+### 149. The derivation round's tool: leads, the numbers-only writer, and how each fact is found offline
+
+`2026-11-16` · METHOD · `#engine #gal #datapiler #privacy` · refs: O89, O48, O73, O74, O75, ARCH§6.2, ARCH§6.3, ARCH§6.10, DataPiler DP36
+
+- **No name in the code.** What to look for comes from a leads file (names and shapes, never bytes); the code knows
+  none, the tests use invented programs, and only the leads' labels (`[a-z][a-z0-9_]*`) reach derive.json, never a
+  name read from the executable.
+- **Numbers only by construction.** derive.json is written through a writer with a closed vocabulary (whole numbers,
+  booleans, fixed words, labels, patterns of at most 64 bytes in canonical form) and checked by `lint --report` before
+  it is written. The lint reads tokens, not a parsed document: nlohmann/json keeps only the last of a repeated key, so a
+  string could hide behind a later number. The report fuzzer found the writer itself writing a key twice, which the
+  lint refuses; the writer now refuses it too.
+- **The FD4 idiom** is cut from the sites that load a path ending with the suffix: before each load, the closest
+  `mov reg,[rip+x]; test reg,reg; jnz` whose jump passes the load; the largest group of sites with the same head; their
+  shared bytes, a displacement or immediate that differs anywhere wildcarded whole, and the jump kept where its target
+  lies within the pattern. On the fake game it equals the fake game's own idiom, byte for byte. The name layout is the
+  class-object offset that points at an identifier in .rdata for the most of the accepted sites.
+- **register_task** from the direct calls after a load of the hub's static, a small register model following rcx, rdx,
+  r8 and r9 back to the start of the block: the instance, one 64-bit and one 32-bit argument; candidates by callee, the
+  shaped ones first.
+- **The group's index** from a table of pointers to names. The fake game's two name tables lie end to end (8 and 10
+  entries): the run alone gave 13; cut where the code addresses a table (`lea reg,[rip+table]`) it gives 5.
+- **Patterns** cover whole instructions at entry + 5 or later in a primary function, at most 64 bytes, with RIP-relative
+  and other 32-bit displacements, outside branch targets, relocated bytes and immediates beyond a signed byte
+  wildcarded; unique in .text; 20 bytes with 12 fixed preferred, then the smaller function (a first version kept a
+  32-bit stack offset fixed and chose a 71 KB function; now the fake game's four AOB statics are each cut in the fake
+  game's own small function); then checked by part 2's scan as patterns.toml would hold them.
+- **What only R1 can find:** the four AOB statics' slots (their instances exist only at run time); R0 gives their
+  classes' vtables for R1's search, and `--static label=rva` cuts their patterns afterwards. The task's run slot (R0's
+  candidate: the one slot every task class fills with its own function) and object size; the names' layout against
+  the instances' classes; the group's name at the index.
+
+### 150. probe-exe on fakegame.exe: what R0 recovers, by toolchain
+
+`2026-11-16` · FACT · `#engine #gal` · refs: O89, ARCH§6.2, WHY§123
+
+- clang-cl (Debug): the fingerprint; the FD4 idiom equal to `--describe`'s, name layout +0x18 ASCII, eleven
+  singletons with their statics, class objects, getter and site counts; Duplicata ambiguous, Strayling refused (path),
+  Rockbound refused (static in .rdata); register_task at its entry with rdx, rcx, r8d and its four call sites, a
+  20-byte pattern at entry + 13; the stand-in group's index 5 of 10; the actor set (five primary vtables, one
+  subobject), the player set, the four task classes with three slots and run slot 1, the three AOB statics' classes'
+  vtables. Given the slots: each static's pattern in its own AOB function (entry + 5, + 5, + 8, + 21).
+- MinGW: the same but RTTI (GCC's own RTTI: no locators, as `--describe` says).
+- The tool reads only the file: 0.27 s on the clang-cl fakegame.exe (229,000 instructions); a sweep decodes about
+  3.5 million instructions a second here (1.05 million in 0.3 s on MinGW's 3.5 MB of code), in about twice the
+  file's size of memory.
+
+### 151. toml++ built two ways in one program: two vtables of one name
+
+`2026-11-16` · FACT · `#engine #build` · refs: ARCH§2.4, WHY§121, WHY§122
+
+- Source: `eldennet-engine probe-exe`, the first program to link en-gal (toml++ with `TOML_EXCEPTIONS=0`, part 2) and
+  en-llm (toml++ with exceptions), crashed reading its leads in GCC's build (a memcpy from a bad pointer inside
+  `toml::parse`); Clang's build ran.
+- **Cause:** toml++ 3.4.0 puts its parse functions and its error type in ABI namespaces by the setting (`ex`, `noex`),
+  but not its internal `impl::utf8_reader_interface`, which has a virtual `error()` only without exceptions: two
+  vtables of one name, merged by the linker, so the reader called the wrong slot. Part 2's note ("toml++ keeps either
+  setting in an ABI namespace of its own, so en-llm links beside it") holds for the functions, not for this class.
+- **Fix:** one setting for every module (`en_third_party` defines `TOML_EXCEPTIONS=0`); en-llm's one parse reads the
+  `parse_result` and throws its own `ConfigError` as before. The DLL, which links both, is covered by the same
+  definition. All tests pass in every build after it.
+
+### 152. World-state claims and an input grant: read where the providers write them, fenced on both sides
+
+`2026-11-16` · DECIDED · `#graceui` `#input` `#overlay` · refs: GraceUI:D145, GraceUI:D129, GraceUI:D143, GraceUI:invariant 9
+
+- **The problem** (the review's M1): the input half kept copies of the providers' combined claims, written after the
+  providers' lock was released, so the last provider to apply its copy won, not the last to report: danger could be
+  lost (a holder granted in combat) or stick (every request refused). And a request read the claims, then granted by
+  compare-and-swap, while a provider stored danger, then looked for a holder to close: both can miss each other even
+  with sequentially consistent operations, since it is a check-then-act, not only a reordering.
+- **Choice**: no copies; a request reads the combined word, grants, then reads again behind a full fence and ends the
+  new holder if danger or loading (or input or the overlay off) is found; every writer fences, then reads the newest
+  conditions and ends what they forbid (`Capture::settle`). With a fence on each side, at least one sees the other.
+- **Shown**: a unit test that claims danger inside the request's first read (the interleaving made deterministic), and
+  2,000 two-thread rounds under ThreadSanitizer; in the harness, 3,000 claims from two providers' threads while a third
+  asks for input, ending on danger: no holder left.
+
+### 153. The window filter follows the bound swap chain's window; a console's window is never the game's
+
+`2026-11-16` · DECIDED · `#graceui` `#input` · refs: GraceUI:D146, GraceUI:D120, GraceUI:D125
+
+- **The problem** (M2): the init thread filters the largest visible window of the process at its first look, before
+  the game's window may exist; a mod loader's console (conhost names the console's client as the window's owning
+  process) or a splash window could be taken, leaving input off for the session or the cursor clipped elsewhere.
+- **Choice**: console windows are skipped; at each bind, if the swap chain's top-level window is not the one filtered,
+  GraceUI's own thread filters it. One subclass per window given (four at most), only the newest active; an earlier one
+  passes everything on and is never removed (removing a subclass under another mod's is unsafe).
+- **Shown**: the harness's decoy-window scenario: a larger window of its own made first is filtered first, then the
+  filter moves; F5 posted to the decoy reaches its procedure, F5 posted to the game's does not.
+
+### 154. The shared atlas has a room, and is baked on GraceUI's own thread, which stays for the session
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` `#perf` · refs: GraceUI:D147, GraceUI:D148, GraceUI:D117, GraceUI:D139
+
+- **The problem** (M3): face counts alone let mods ask for more than Dear ImGui's 8192-pixel atlas; the review's probe
+  saw four 128 px faces of a Latin font's whole BMP assert ("Out of texture memory"), turning the overlay off for every
+  mod, and two take 544 ms on the present thread, with 256 MiB of pixels kept for the session.
+- **Choice**: each face's area is estimated when it is registered (the glyphs its font's character map gives its
+  ranges, each a box of (2 × size + 2) by (size + 2)), within a room of 8192 × 4096 estimated pixels, the mods other than
+  EldenNet half of it (EST); past it, `full`. The bake runs on the init thread, which now stays asleep on an event for
+  the session; should Dear ImGui still run out of room, it bakes again with half the mods' faces, then none of theirs.
+  It also fills the atlas's upload buffer and frees the CPU copy; the present thread only records the copy.
+- **Rejected**: an Alpha8 atlas (the DX12 backend's shader would sample it as red, and D107 forbids changing it); a
+  thread made for each job; baking on the present thread within a smaller room (a CJK face would not fit).
+- **For S4**: the bake's time and the atlas's size with EldenNet's real faces; a CJK face of the whole unified block at
+  24 px is about 27 million estimated pixels, so EldenNet registers only the ranges it needs.
+
+### 155. Dear ImGui 1.93's atlas: an 8192-pixel limit that asserts, a context made on one thread and used on another, ClearTexData for a legacy atlas
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D148, GraceUI:D117
+
+- **Seen** in the pinned source: `TexMaxWidth` and `TexMaxHeight` default to 8192; when the packer has grown to them
+  and tried three times, the glyph loader asserts. In static mode every code point of every range is preloaded, but a
+  code point the font maps to glyph 0 is not packed, so a face's cost is its mapped code points, not its ranges.
+- **Seen**: `GImGui` is a plain global in GraceUI's configuration, so a context made on one thread may be used on
+  another once handed over with release and acquire; `CreateContext` keeps an earlier current context current, so a
+  second one needs `SetCurrentContext`. A context whose bake asserted is left as it is (only its atlas's pixels freed):
+  Dear ImGui's state after a failed assertion is not trusted to be torn down.
+- **Seen**: `ImFontAtlas::ClearTexData` is Dear ImGui's own call to free a legacy atlas's CPU copy once a renderer
+  without the texture path has uploaded it; nothing reads the pixels afterwards in GraceUI's use.
+
+### 156. GraceUI lets go of a removed or replaced device; the render path stays off until a later version rebuilds
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` · refs: GraceUI:D149, GraceUI:D150
+
+- **The problem** (L3): Direct3D 12 hands out one device per adapter while a reference lives, so GraceUI's would give a
+  game recovering from a removal the removed device again, and keep a replaced device's memory for the session.
+- **Choice**: on removal (checked each frame) or a bind on another device, the render path turns off, input with it,
+  and everything GraceUI made on the old device, and the device itself, is released at once for a removed device or
+  once its last frame's fence has passed; the queues held for finding the present queue are let go too.
+- **Shown**: the harness's device-change scenario under vkd3d: the old device's references 24 before GraceUI, 58 while
+  it drew, 24 once the game moved to a new device.
+- **Left**: rebuilding on the new device; the mods' texture pixels are freed after their upload, so it would need
+  them registered again, or 64 MiB kept for the session.
+
+### 157. The review's smaller fixes, and what they leave as it is
+
+`2026-11-16` · DECIDED · `#graceui` `#input` `#abi` · refs: GraceUI:D150 to D153
+
+- **Fixed**: hooks live after a failed enable pass everything through (L1); the log reaches the debugger from GraceUI's
+  own thread, never from the thread that wrote it (L2); the render path off turns input off, F5 included (L4); the
+  watchdog hears only frames drawn or with nothing to draw (L5); an answer's size is read once and a command stride
+  bounded at 256 bytes (L6); the fourth way to the present queue takes its reference inside the queue's own call (L7);
+  the render targets' modules are pinned (L8); a request during the first waits 2 s at most (L9); the cursor's
+  confinement is undone by the granting thread when the holder ended meanwhile (L10); nothing goes to a new present
+  queue until the old has drained (L11); a long copy name keeps its end (L12); UTF-8 as an ANSI code page is joined
+  (L13); a holder's panel hidden or removed on another thread ends it, and a leaving mod's slot is not reused before its
+  clean-up (L14).
+- **Left as it is**: a holder closed and another granted within the same microseconds may leave the first's saved clip
+  for the second (Windows drops a clip on a foreground change); an HDR swap chain's colour space, which GraceUI cannot
+  read back, for S4.
+
+### 158. Under Wine a Unicode folder needs a UTF-8 locale; the fuzzers' coverage needs the rules instrumented
+
+`2026-11-16` · METHOD · `#graceui` `#wine` `#test` · refs: GraceUI:BUILD.md
+
+- **Seen**: under the C locale, Wine 9.0 cannot make a folder named in hiragana (`CreateDirectoryW` fails, then
+  `CopyFileW` with error 3); with `LC_ALL=C.UTF-8` it can, and every other scenario passes the same. A Linux file
+  system takes 255 bytes a name, so a name longer than a notice's room in UTF-8 is made of two nested folders.
+- **Seen**: the fuzz targets linked the rules' library without the fuzzer's coverage, so libFuzzer was guided only by
+  the target's own file (coverage 118 for the font target); with `-fsanitize=fuzzer-no-link` on the library, 262.
+- **Figures**: after the fixes both builds passed all 95 harness checks across sixteen scenarios; one MinGW-w64 run
+  failed "notice allocations" alone (p99 1.33 ms, load average about 3 on four cores), and three reruns passed.
