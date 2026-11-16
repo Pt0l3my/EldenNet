@@ -78,10 +78,10 @@ known. NPCs who meet the Tarnished see it as they see any stranger. Never shippe
 | A persona (six in v1.0) | Yes | Its stage track | If it can be summoned | Yes |
 | A named NPC that speaks | Yes | `knows_when` once verified | If it can be summoned | Yes |
 | A named boss never met calm, or a voiceless kind | Seen parts only (silent, listed in the roster) | — | — | — |
+| A merchant or service without a story | Yes, short | — | — | Yes |
 
 *Corrected 2026-11-16 (O46's Later note):* a boss never met calm holds the seen parts and never converses; one of a
 voiceless kind never speaks; one of a speaking kind keeps its combat lines (O42, DESIGN §9.10).
-| A merchant or service without a story | Yes, short | — | — | Yes |
 
 ## 5. Size and caps
 

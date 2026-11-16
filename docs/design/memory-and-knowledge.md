@@ -976,11 +976,14 @@ tells, lints against locked sets at fixture states, and the fallback ladder.
 | # | Part | Mechanism | Keeps |
 |---|---|---|---|
 | 1 | Structure | the public/private split; the bio's layers as unlocked (the first meeting at every state, the revealed layer only behind stages verified in game, the lived layer only from what happened, §13; DESIGN §7.8); stage unlocks; KB `requires`; world stages, tracks and `known(P)` (§12) | the NPC is told only what is true for it now |
-| 2 | Positive grounding | block 5b's three parts and world-frame items 4 and 9 set out the present: the NPC's `road` (what it is doing, and what it asks of the Tarnished at that stage), its own affairs and the land as it holds them; nothing names what it must not say (O36) | the model speaks from that moment |
-| 3 | Grounded jobs | every background job reads the same layers as dialogue (§3.3, §13.3) | what an NPC may not know entering a memory and coming back through recall |
-| 4 | Runtime names | names come from the live NpcName row; a character's own name stays out of its own prompt fields until the game has shown it (NPC §2.7) | overlay or prompt text naming someone before the game does |
-| 5 | Review when written | authored text is reviewed at the states where it renders, the bio's public fields under the Stranger Test (§7.5) | authored text that gives away more than its state |
-| 6 | Developer-label firewall | aliases and notes never leave the catalogue; no FromSoftware labels in the repo (§7.6) | label leaks (ER04 §7) |
+| 2 | Positive grounding | block 5b's three parts and world-frame items 4 and 9 set out the present: the NPC's `road` (what it is doing, and what it asks of the Tarnished at that stage), its own affairs and the land as it holds them; nothing names what it must not say (O36); `forbid` is eval-only data, the topics of the test questions (§7.5, §7.8) | the model speaks from that moment |
+| 3 | Runtime names | names come from the live NpcName row; a character's own name stays out of its own prompt fields until the game has shown it (NPC §2.7) | overlay or prompt text naming someone before the game does |
+| 4 | Developer-label firewall | aliases and notes never leave the catalogue; no FromSoftware labels in the repo (§7.6) | label leaks (ER04 §7) |
+
+Two rules hold across the four layers, as DESIGN §10.4 has them. Every background job reads the same layers as
+dialogue (§3.3, §13.3), so what an NPC may not know never enters a memory to come back through recall. Authored text
+is reviewed when it is written, at the states where it renders, the bio's public fields under the Stranger Test (§7.5),
+so it gives away no more than its state.
 
 ### 7.2 Proper nouns and the lexicon
 
@@ -1056,18 +1059,20 @@ as golden files; `ashen.toml` serves the block-5b goldens only. The goldens chec
 none is built on a term set.
 
 **The test questions** (C9; DESIGN §14; NPC §12.1). The prompt holds nothing a character may not say (§7.1), so what is
-left to test is what the model already knows of Elden Ring from its own training. Each character gets a few questions
-(3 to 5, EST) at fixture states where its stage is active and the answer is not yet its to know: on the topics of the
-stage's `stages.forbid` for a persona, and of the later truths its research note lists for a roster bio (DESIGN §7.8).
-They are asked in scripted conversations on each preset's models, and a judge reads each reply with the state's truth
-table and the character's stages up to the active one (DESIGN §14, Judge check). A reply that states what the
-character could not know is a leak. A model that leaks is replaced in the presets, or a light check is switched on
-then, by a later decision; nothing waits for it in the runtime.
+left to test is what the model already knows of Elden Ring from its own training. Each persona gets 6 questions, 2 at
+each of 3 fixture states with the opening state among them, and each roster bio 4, 2 at the opening state and 2 at a
+later one, each asked where its stage is active and the answer is not yet the character's to know: on the topics of
+the stage's `stages.forbid` for a persona, and of the later truths its research note lists for a roster bio (DESIGN
+§7.8). They are asked in scripted conversations on each preset's models, and each reply is scored by hand, or by the
+judge once it has passed its check, with the state's truth table and the character's stages up to the active one
+(DESIGN §14, Judge check). A reply that states what the character could not know is a leak, and the gate is 0 leaks
+(C9). A model that leaks is replaced in the presets, or a light check is switched on then, by a later decision;
+nothing waits for it in the runtime.
 
-- **Before v0.2**, X1 gains a spoiler arm: Kalé, 3 fixture states × 30 probes × 2 arms (the positive frame and block 5b
-  against the former wording of world-frame items 4 and 9 and block 7's forbid line), on the budget cloud model and one
-  4B local model; and a positive-wording arm for the other positive rewrites of prompt text (C7, C10, the promise rate;
-  NPC §12.2).
+- **Before v0.2**, X1 asks Kalé's and the Lantern-Keeper's test questions on every candidate model, and a model that
+  leaks is not chosen for `models.toml`; they replace the former spoiler arm, since no forbid line remains to compare
+  against. A positive-wording arm compares the other positive rewrites of prompt text with their former wording (C7,
+  C10, the promise rate; NPC §12.2).
 
 ---
 
@@ -1437,8 +1442,9 @@ fn migrate(db: &mut Connection, path: &Path, set: &[Migration]) -> Result<(), St
   exactly, whatever the player's locale: `std::to_chars` and `std::from_chars` in C++, never `printf`, streams or
   `strtod` under the process locale. CI repeats the store and JSON round-trip tests under a locale with a decimal
   comma.
-- **Reserved tables in `0001`** (`memories`, `memory_actors`, `memories_fts`, `embeddings`, `decisions`, `npc_intents`),
-  so v1.x recall needs no breaking change (DESIGN §13).
+- **Reserved tables in `0001`** (`memories`, `memory_actors`, `memories_fts`, `embeddings`, `npc_intents`), so v1.x
+  recall needs no breaking change (DESIGN §13). `decisions` is in `0001` too, and v1 writes a row to it for every
+  decision call (ARCH §11.8).
 - **Invalidation by content hash and model fingerprint:**
   - pool lines are keyed by `card_hash`; editing a card retires them, an edit to its `subjects` alone excepted (NPC §4.1, §9.5);
   - embeddings carry `producer`, and rows from another producer are ignored and later deleted (SN04 §3 migration 0028);
@@ -1477,9 +1483,9 @@ change no decision; items 19–21 record the folds of 2026-11-16 (O86, O46 and r
 18. **Item 3 is settled:** ARCH §8.3 already writes `flag:<persona>.<state>`; track blocks follow the same form (`tanith.devouring`).
 19. **Spoilers by grounding alone (O86).** §7 and §12.8 keep grounding, verified-only unlocks, runtime names, review
     when written and the label firewall, and drop the other guards (§7). The memory job's step 4 checks nothing
-    (§3.6), block 8 has no render-time recheck (§4.3), heard lines render as shown (§1.4), W14 and T6 are retired with
-    their ids kept (§12.10, §12.11), and C9 becomes the test questions per character (§7.8). `lexicon` fields stay,
-    for lints and review (§7.2).
+    (§3.6), block 8 has no render-time recheck (§4.3), heard lines render as shown (§1.4), W14 is retired and T6
+    withdrawn, their ids kept (§12.10, §12.11), and C9 becomes the test questions per character (§7.8). `lexicon`
+    fields stay, for lints and review (§7.2).
 20. **Per-witness memories (roadmap S8.1.f; WHY§98, WHY§99).** Each profiled witness of a scene gets a job of its own
     (§3.1); a keepsake gains `emotion` and `tags` (the model's) and `type`, `actors` and `place` (code's), one memory
     per witness and moment (§2.3); `told_name` gains a heard mark (§2.2); recall is gathered in code, searched twice
@@ -1983,7 +1989,7 @@ same states (§7.8).
 | T3 Fold | `world_seen`, `world_seen_pt`, `world_cued` (with pt) and `spoke_pt` folded live equal the recompute after a trim (a property test over random cuts) |
 | T4 Render | `insta` goldens of block 5b per persona × stage × state, and of the since-line for (fresh → after_godrick), (after_godrick → after_radahn) and (after_morgott → erdtree_burned); and of the reaction cue: Kalé (fresh → after_godrick, 1 h: local talk on the castle's fall), Kalé (after_radahn with `slew:radahn` proved and nothing new: the Tarnished's part), Blaidd (after_godrick → after_radahn: own stake on the star) and Alexander (the same, 2 h: local talk on the general's fall), and the cue line gone once a reply carrying it has displayed; block 5b in the three-part form; the "you, now" line; own-initiative task blocks |
 | T5 Byte stability | Blocks 1–5 are unchanged by any world change; block 5b changes only when the stage, an active tie or the known set's (item, certainty) pairs change, and is byte-identical otherwise |
-| T6 (retired) | Retired by O86 with the term-set goldens it checked; T2 and T4 cover who knows what and what renders. The id is not reused |
+| T6 (withdrawn) | Withdrawn by O86 with the term-set goldens it checked (DESIGN §16.3); T2 and T4 cover who knows what and what renders. The id is not reused |
 | T7 Rollback | Trims at 3 cut points (before Radahn; between Radahn's fall and the star; after both) leave the view and `world_seen` matching the restored flags; a trim before a cued conversation makes its item cue-able again |
 | T8 NG+ | After `JourneyChanged`, block 5b shows the base road only and `world_seen`, `world_cued` and `spoke_pt` are empty |
 | T9 Strict | With 310 unverified, `star_fallen` never holds and `knows('star_fallen')` is U; with 9130 and Blaidd's +9 verified T, his +10 unverified and his later offsets verified F, Blaidd's bridging stage is active and `after_star` is not |
@@ -2302,7 +2308,8 @@ only (O86), updated cautiously at quiet moments, and never written to a shipped 
 ### 13.1 What it holds
 
 One versioned record per journey and profiled NPC: a persona, a speaking named NPC, or a merchant or service without a
-story (a silent bio has none; DESIGN §7.8). Every part is in the NPC's first person, in plain words, and cites the
+story (a bio with the seen fields only, a boss's the game never shows calm or one of a voiceless kind, has none;
+DESIGN §7.8). Every part is in the NPC's first person, in plain words, and cites the
 memories behind it.
 
 | Part | Holds | Cap | Tier (§13.5) |

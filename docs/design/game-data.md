@@ -20,7 +20,14 @@ The owner decided on 2026-11-08 (O57) that EldenNet keeps three kinds of game da
 What the game's own files say, read on the owner's PC so that names and text never leave it.
 
 - **Sources.** Smithbox's exports from the owner's install (O55): param CSV (NpcParam, TalkParam and others) and text JSON of the `item` containers, which hold NpcName and PlaceName (ER08 §4.1), read by our own tools with Python's standard library (ER08 §4.2). Smithbox has no file export of map placements or event scripts. Entity and model ids can come only through its loopback server's read calls, which read the maps Smithbox has loaded (ER08 §1, §3.1); O56 gives that route to DataPiler, read calls only and with the game closed. Boss-bar ids have no usable route, since Smithbox gives the event scripts only raw and compressed, and flag blocks have none at all (ER08 §1). Public datasets are leads for cross-checking only (ER08 §2, §6), and the research notes (ER01–ER08) record what is known in our own words.
-- **Tools.** Now: the dry run, `tools/gamedata/smithbox_inspect.py`, which prints counts and checks only (O56's discussion; roadmap S6.3.e). Then DataPiler (O56, decided 2026-11-08), a tool of its own in a repository of its own, which fetches data through Smithbox's local server with read calls only while the game is closed, with guided exports for what the server does not serve, such as the game's text (its decisions DP1–DP5; roadmap S6.3.f–h). After the blueprint and O46: `en-tools roster-scan`, `identity-fill`, `fmg-import` and `kb-draft` (ARCH §12.3; DESIGN §7.8 step 1). `fmg-import` also serves players: it turns an export a player made from their own install into their own text database, DESIGN §4.5's fallback to the in-memory table walk, kept on the player's PC and never shipped (ARCH §12.3; §1.3).
+- **Tools.** Now: the dry run, `tools/gamedata/smithbox_inspect.py`, which prints counts and checks only (O56's
+  discussion; roadmap S6.3.e). Then DataPiler (O56, decided 2026-11-08), a tool of its own in a repository of its own,
+  which fetches data through Smithbox's local server with read calls only while the game is closed, with guided exports
+  for what the server does not serve, such as the game's text (its decisions DP1–DP5; roadmap S6.3.f–h). With the
+  roster's two prerequisites settled (our own engine, O84; the bio, O46): `en-tools roster-scan`, `identity-fill`,
+  `fmg-import` and `kb-draft` (ARCH §12.3; DESIGN §7.8 step 1). `fmg-import` also serves players: it turns an export a
+  player made from their own install into their own text database, DESIGN §4.5's fallback to the in-memory table walk,
+  kept on the player's PC and never shipped (ARCH §12.3; §1.3).
 - **Outputs.** On the owner's PC: the census with names (`roster.local/census.toml`) and every export (`game-export/`), both git-ignored (`.gitignore`, its game-data block), and the text database `fmg-<lang>.db`, kept in application data outside any checkout (ARCH §12.3). Leaving the PC, after the privacy sweep and a numbers-only check: ids, numbers and our slugs, each with a source tag and its provenance (exe and regulation version, DLC installed, language, tool build, date; ER08 §1, §5).
 
 ### 1.2 The framework's data (kind 2)
@@ -60,7 +67,7 @@ What EldenNet reads and detects in the running game, on the player's PC, without
 | **May be committed or shipped** | Research notes in our own words; a few ids cited as examples with their source; numbers-only lead files after the sweep and a numbers-only check (which ids, and where they live before the blueprint: ER08 §7 item 3) | All of it, shipped with EldenNet, once lint passes; only verified entries may speak or unlock | Redacted recordings: `TextEntry.text` as placeholders, and the `new_params` rows (`ResolveParams`' answers and the Ready export's grace and place rows) replaced by rows from a fixture table of our own, as names come from `tests/fixtures/names.toml`, keeping only ids a feature binds (until ARCH §7.5 does this, §3.1 gap 5, no recording that holds `new_params` rows is committed); golden event files and evidence records (numbers only, no game text, no personal data) |
 | **Never** | Game files, FMG text, params as dumps or whole columns, developer labels, keys, Oodle, Smithbox or any part of it, an id list copied from any source (CLAUDE.md, Licences; ER08 §5) | Game text or names, developer labels, whole param columns, anything from fromsoftware-rs or me3 (O47, O48) | An unredacted recording in the repository; the player's name or SteamID (hashed in recordings); the player's store; any upload (DESIGN §1.2, "Never") |
 | **Verified how (O48)** | Never by itself: the tool's own fail-closed checks (strides, versions, matching provenance) prove consistency, not truth, and two readings agreeing never set `verified` (ER08 §4.4) | Through evidence from kind 3, applied by a person; release lint requires it | Self-tests per read group at phase A and B; spikes S0–S8; captures; golden replays; the patch-day smoke route; the identity-pack checks |
-| **When** | Now, before the blueprint (ER08, the dry run, then DataPiler, O56); the census tools after the blueprint and O46 (roadmap S9.1, S9.2) | From v0.1 (`gal/`, core aliases), growing to v1.0, when every binding is verified or its bio held (DESIGN §16.2) | From v0.1 Eyes, the first build; every spike runs on it, so it waits for the blueprint (roadmap S10 follows S8) |
+| **When** | Now (ER08, the dry run, then DataPiler, O56); the census tools now that our own engine is chosen (O84) and O46 decided (roadmap S9.1, S9.2) | From v0.1 (`gal/`, core aliases), growing to v1.0, when every binding is verified or its bio held (DESIGN §16.2) | From v0.1 Eyes, the first build; every spike runs on it, so it waits for our own engine (O84; roadmap S10 follows S8) |
 
 ### 1.5 How one fact moves between them
 
@@ -142,12 +149,16 @@ Every other row presumes these: no world read happens unless the build is known,
 
 The roster's membership (who has a personal name, which name id a first meeting shows, the "Boss" tag) is kind 1 and kind 2 only: it is settled by the census and by review (DESIGN §7.8; ER08 §1). The name text itself is read live from the player's install (N-4; GraceUI D67).
 
+Which bios speak is decided content, not game data (DESIGN §7.8, §9.10; O42): a named boss the game never shows calm
+keeps the seen fields and never converses; one of a voiceless kind never speaks; one of a speaking kind keeps its
+combat lines, once S3 has recorded its kind (C-4).
+
 | Row | Need | Read or detected in play | Framework data | Verified by | Status | Design |
 |---|---|---|---|---|---|---|
 | C-1 | Which roster profile a character is | Resolution step 2: a verified character binding (an exact row with its live name id, or a non-zero entity id) | `identity/characters.toml` | S1 roster captures and `roster-verify`, in batches from v0.4 to the v1.0 release candidate (roadmap S9.2, S14.2, S15.1, S16.1); release lint | **Spike** S1 | DESIGN §7.7, §7.8 |
 | C-2 | Which named boss holds a bar | The bar's `name_id` and its holder's live row (`expect_param`), valid only while the bar shows | bindings `bar`, `bar.expect_param` | S2 roster captures (every named boss's fight once); S2's multi-bar fights (ER05 open question 13) | **Spike** S2 · ER05 §8.4 | DESIGN §7.7, §7.8 |
 | C-3 | Every form of one NPC under one id (reveal rows, hostile and summon forms) | Resolution, per form | bindings per form; the alias table | S1 captures "the forms a reveal or a hostile turn uses"; S1's check of whether a boss's phases use one row or several | **Spike** S1 | DESIGN §7.8, §16.1 (S1) |
-| C-4 | Whether a named boss or invader speaks scripted lines (so its combat lines may play) | S3's per-kind detector (J-11) | `types.toml` `[[boss]]` and `[[named]]` records | S3 records: ≥ 30 lines detected per kind, or `scripted = "none"`, during the S1 and S2 captures | **Spike** S3 · §3.2 risk 1 | DESIGN §7.8, §9.10 |
+| C-4 | Whether a named boss or invader speaks scripted lines (so its combat lines may play); a named boss of a voiceless kind never speaks and needs no record, and one of a speaking kind keeps its combat lines whether or not the game shows it calm (DESIGN §7.8, §9.10) | S3's per-kind detector (J-11) | `types.toml` `[[boss]]` and `[[named]]` records | S3 records: ≥ 30 lines detected per kind, or `scripted = "none"`, during the S1 and S2 captures | **Spike** S3 · §3.2 risk 1 | DESIGN §7.8, §9.10 |
 | C-5 | Whether an overhaul has remapped the roster's rows | Every row binding's live name id (`NpcParam.name_id` through `SoloParamRepository`) | the index | at every start: more than 20% misses quiet every roster bio | **Backed** · ER05 §6.2 | DESIGN §7.8 |
 | C-6 | The player's own character profile, bound from a sighting | The keys recorded at the sighting, compared with the live NPC on every resolution | the player's profile folder | the binding holds only while every recorded key agrees | **Backed** · ER05 §6.2 | DESIGN §7.7 |
 | C-7 | The revealed layer: later truths a bio unlocks by story stages verified in game (`knows_when`; a persona's is its stage track, E-5) | Verified catalogue flags in the frame (E-1), and E-9 for whether the NPC would know of them | `flags/catalog.toml` | S6 | **Spike** S6 | DESIGN §7.8; O46 |
@@ -214,6 +225,8 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | H-8 | Display gates: not loading or dormant, `hud == Default`, no banner, the subtitle band | Lifecycle (A-6); `hud_state`, banner id, `show_subtitles` | — | the `ui` self-test (HUD state 0–3, banner in range); S3's talk-field recordings for the HUD values (S10.1.d); the v0.1 goldens for the banners' meanings | **Spike** S3 · the HUD enum FACT, ER05 §9; that vanilla banners write these fields LIKELY, ER05 §3; the cutscene part is H-10 | DESIGN §8.7, §9.4, §12 |
 | H-9 | Pacing's clock (gaps, windows, cooldowns in play time) | Play time | `[pacing]` | the `player` self-test (play time rising) | **Backed** · ER05 §2 | DESIGN §9.4 |
 | H-10 | A cutscene is playing (presentation hidden, pages held, the chat box closed under the danger rule) | `hud == HideAll` (`hud_state`, every snapshot) | — | none planned: S3 records the talk fields only "during menus, greetings and boss lines" (§3.1 gap 6) | **Gap** · the enum FACT, ER05 §9; its use in cutscenes LIKELY (DESIGN §12); ER00 §7's cutscene question (its S8 row) is carried by no spike in DESIGN §16.1 | DESIGN §12; NPC §10.2 |
+| H-11 | The Tarnished concealed by a crouch, more than 5 m from a viewer: not greeted and not addressed by that viewer | None yet: no crouch state is known in any object the GAL reads, so `crouching` is never sampled (ARCH §8.3) | — | none possible yet: S7's additions name the read (DESIGN §16.1; S13.1.a), but there is no field to verify (§3.1 gap 12) | **Gap** · no source known | DESIGN §6.5, §9.4; ARCH §8.7 |
+| H-12 | The Tarnished concealed by an invisibility effect: not greeted and not addressed | `invisible`: the effect's id in the Tarnished's SpEffect list, the list read for 9621 (D-10) | — | S8 item 8 (the effect's id), S10.1.d and S13.1.b | **Spike** S8 · the list FACT, ER05 §3; the effect's id unknown | DESIGN §6.5, §9.4; ARCH §8.3, §8.7 |
 
 ### 2.9 Combat and boss fights (J)
 
@@ -232,6 +245,8 @@ The roster's membership (who has a personal name, which name id a first meeting 
 | J-11 | Whether an NPC is speaking scripted dialogue now (combat and boss lines) | S3's per-kind detector from the talk fields and the talk-instance leads | `types.toml` `scripted` | S3 per kind (≥ 95% of ≥ 30 lines within 0.3 s; no false report over 10 min), S10.1.d, S13.1.b | **Spike** S3 · §3.2 risk 1; ER00 §7 (S3's open question) | DESIGN §9.4, §9.10 |
 | J-12 | A profiled NPC fighting beside the Tarnished as a summon: its companion layer for its combat lines, and a persona's `FoughtBeside` | Its summon-form row (a persona's, or a roster binding's, C-3), its `chr_type`, a boss victory | `personas.toml` summon rows; summon forms in `identity/characters.toml` | S1 | **Spike** S1 · the gate through an NPC summon is A-7, a gap | DESIGN §6.5, §7.1; O46 |
 | J-13 | An invasion, and a bound invader | The invader class; `player_chr_set`; every gate field through the invasion (A-7): if any flips, EldenNet goes dormant and a bound invader never speaks | built-in rule (b); bindings | S1 for the class and the set's `chr_type` values; the other gate fields: none planned (§3.1 gap 9) | **Spike** S1 · ER05 open question 12; A-7 is a gap | DESIGN §7.6, §3.4 |
+| J-14 | Each person's stance towards each viewer (`enemy`, `ally`, `turned`, `bystander`); `turned` for a live team that differs from its row's team (a charmed foe, a summon on a side not its own) | `team_turned`: the live `team` against the `team` of its NpcParam row (`ResolveParams`); the other stances from J-1, J-3, J-4 and J-9 | `teams.toml` | S7's additions (what `turned` reads), S13.1.a; until then no one reads as turned | **Spike** S7 | DESIGN §6.5; ARCH §8.3, §8.7 |
+| J-15 | An attack from no one in sight: a `Struck` whose source resolves to no one within 20 m is marked `unseen`, and no prompt or memory names its attacker | `last_hit_by` (J-2; J-4 for an NPC victim) against the tracked characters and their distance from the victim | — | golden replays; for an NPC victim, S7's `last_hit_by` check (until then its attacker is unknown, not unseen) | **Backed** · ER05 §8.2 | DESIGN §6.5; ARCH §8.6, §8.7 |
 
 ### 2.10 Status and consciousness (K; S8)
 
@@ -256,7 +271,7 @@ The roster's membership (who has a personal name, which name id a first meeting 
 |---|---|---|---|---|---|---|
 | M-1 | Which playthrough file: SteamID, slot, character fingerprint | The save folder's name; `save_slot` (GameMan); name, archetype and starting gift (PlayerGameData) | — | the `player` self-test (slot 0–9) | **Backed** · ER01 §11, ER05 §2 | DESIGN §10.5; MEM §8.2, §8.3 |
 | M-2 | The rollback clock | Play time | — | the trim test (#825) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.1 |
-| M-3 | The journey number (each bio's lived layer is per journey; earlier journeys are read-only and never injected) | `ng_lvl + 1` | — | the `player` self-test; S6 item 5 for the flags (E-8) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.4 and MEM (the lived layer) |
+| M-3 | The journey number (each bio's lived layer is per journey; earlier journeys are read-only and never injected) | `ng_lvl + 1` | — | the `player` self-test; S6 item 5 for the flags (E-8) | **Backed** · ER05 §2 | DESIGN §10.5; MEM §9.4, §13.7 |
 | M-4 | Audiences: which profiled NPCs saw, heard or witnessed each event | Resolution, radii, the same area, conscious | — | S1 | **Spike** S1 | DESIGN §5.4; MEM §1.2 |
 | M-5 | Facts: met and seen counts, first and last place and play time met, times attacked, fought beside, saw the Tarnished die | `PersonaSeen`, `Struck`, `FoughtBeside`, `PlayerDied`, D-2, M-2 | — | golden replays | **Spike** S1 | DESIGN §10.2; MEM §2.2 |
 
@@ -287,15 +302,18 @@ GraceUI reads only EldenNet's projections (GraceUI invariant 1), so each page ta
 | D Place, time, here and now | 15 | 6 | 4 | 5 |
 | E Quest and world awareness | 10 | 2 | 8 | 0 |
 | F Conversation | 8 | 2 | 6 | 0 |
-| H Speaking up and pacing | 10 | 3 | 6 | 1 |
-| J Combat and boss fights | 13 | 5 | 8 | 0 |
+| H Speaking up and pacing | 12 | 3 | 7 | 2 |
+| J Combat and boss fights | 15 | 6 | 9 | 0 |
 | K Status and consciousness | 3 | 0 | 3 | 0 |
 | L NPC-to-NPC | 4 | 0 | 4 | 0 |
 | M Memory and persistence | 5 | 3 | 2 | 0 |
 | N GraceUI's pages | 10 | 0 | 6 | 4 |
-| **All** | **105** | **29** | **65** | **11** |
+| **All** | **109** | **30** | **67** | **12** |
 
-By spike, the 65 rows wait on: S1 (17), S6 (16), S7 (12), S2 (6), S3 (6), S8 (4) and S0-A to S0-D (4), each row counted under its first-named spike; S2 and S6 share J-10, S0-C and S1 share A-5, and S7 and S1 share L-1. The 11 Gap rows are A-7, D-2, D-3, D-8, D-12, D-15, H-10, N-4, N-5, N-9 and N-10; rows built on them (F-4, F-8, J-12, J-13, N-3) keep their own status and name them (§2.1).
+By spike, the 67 rows wait on: S1 (17), S6 (16), S7 (13), S2 (6), S3 (6), S8 (5) and S0-A to S0-D (4), each row
+counted under its first-named spike; S2 and S6 share J-10, S0-C and S1 share A-5, and S7 and S1 share L-1. The 12 Gap
+rows are A-7, D-2, D-3, D-8, D-12, D-15, H-10, H-11, N-4, N-5, N-9 and N-10; rows built on them (F-4, F-8, J-12,
+J-13, N-3) keep their own status and name them (§2.1).
 
 ---
 
@@ -303,7 +321,11 @@ By spike, the 65 rows wait on: S1 (17), S6 (16), S7 (12), S2 (6), S3 (6), S8 (4)
 
 ### 3.1 Gaps
 
-Needs with no designed live source, or a lead no planned check verifies, and one boundary the design does not yet enforce (gap 5). Each is small, and none needs a new kind of read: gap 11's option (a) adds one field to an object already read. Gaps 3, 4, 6, 7 and 9 close mainly by adding a case to a planned spike's scope; gaps 1, 2, 5, 8 and 10 mainly by a design change; gap 11 by either.
+Needs with no designed live source, or a lead no planned check verifies, and one boundary the design does not yet
+enforce (gap 5). Each is small: gap 11's option (a) adds one field to an object already read, gap 12 one field of the
+Tarnished once S7 finds where the game keeps it, and the rest need no new read. Gaps 3, 4, 6, 7 and 9 close mainly by
+adding a case to a planned spike's scope; gaps 1, 2, 5, 8 and 10 mainly by a design change; gap 11 by either; gap 12
+by S7, whose scope already names it, and then a design change.
 
 1. **Roster names at the title screen** (N-4). GraceUI lists the whole roster from the start, at the title screen too, by the name the player's install shows; a Boss-tagged entry by the name its bar shows (GraceUI G5, G8, D67; its eldennet-changes §9 item 3). The names are NpcName text: for a Boss-tagged entry, the bar binding's `name_id`, which differs from the row's name id (bars use their own band of NpcName ids, set per map in the event scripts, ER05 §6.2); for every other entry, its `expect_name_id`. At the title EldenNet is Dormant, which allows only the `session` and lifecycle reads (DESIGN §4.4; ARCH §5.1), and no planned check shows that the text table can be read before a world loads. **Closes by** a design change: while Dormant at the title, once phase A's `text` self-test has passed, `ResolveText` look-ups of NpcName for those ids are allowed (no world object is read); at L1, with `text` off, or for an id that does not resolve, the roster shows `display_name_fallback`. S2's text check gains a title-screen case: a known NpcName resolves before any world loads. **Roadmap:** S7.1.e (the roster list), folded into DESIGN §4.4, ARCH §6.8 and DESIGN §7.8's GraceUI row; the S2 case in DESIGN §16.1 (S10.1.c).
 2. **"Away" on the Playthrough page** (N-5). GraceUI shows a met NPC as away "when the Tarnished came within speaking range of where they were last met and did not perceive them", a small new record per profiled NPC (GraceUI eldennet-changes §9 item 4). Its "fell" status needs gap 8. EldenNet records the first and last place met as a place, not a position, and has no rule for coming near it. The reads exist (D-1, B-1). **Closes by** a design change: a per-NPC last-seen position and block in the facts (MEM §2.2) and an Augur rule, `CameNear` to that point with the NPC not perceived, that writes the away record; rollback trims it like any fact. **Roadmap:** S7.1.e (the Playthrough projection).
@@ -316,12 +338,29 @@ Needs with no designed live source, or a lead no planned check verifies, and one
 9. **The gate through an NPC summon and an NPC invasion** (A-7; J-12, J-13). The gate needs `multiplay_role == Host`, `is_my_world`, `LobbyState == None` and the set count (DESIGN §3.4). S0-C checks it solo and in ERSC, and S1 checks only which `chr_type` values fill `player_chr_set`; no planned check records the other fields while an NPC invades or an NPC summon fights beside the Tarnished, though the game has an `Invasion` multiplayer state (ER05 §3, SpEffect 9621). If any field flips, EldenNet goes dormant, a bound invader never speaks and `FoughtBeside` never fires. **Closes by** adding to S1's question in DESIGN §16.1 (or S0-C's): record every gate field (role, own world, lobby, the set count) through one NPC invasion and one NPC summon. **Roadmap:** S10.1.c (S1). Risk 7 is the set-count half.
 10. **The invader's announcement** (N-10). GraceUI never shows an invader before the game announces it (SP7), and its spoiler goldens check that an unannounced invader changes no count. EldenNet has no signal for the announcement. **Closes by** a design choice of signal, checked in the same S1 invasion recording as gap 9: for example a banner or message id, if the game raises one, or else the first sighting of the invader class (B-5) within the snapshot's range, which then stands for the announcement. **Roadmap:** S7.1.a (the projections), with S10.1.c for the recording.
 11. **An NPC on horseback** (D-15). NPC §7.2's `brief` tags nearby others *on horseback*, but the GAL reads the ride state for the Tarnished only (DESIGN §4.1, "player only"; the `Chr` struct of §5.2 has no riding field), and the field's values come from one crate's doc comment (ER05 §3). **Closes by** one of two design changes: (a) read the ride module's state for every snapshot character, with a layout entry, the `world` self-test and an S1 check on a mounted NPC; or (b) drop *on horseback* for NPCs from NPC §7.2, keeping it for the Tarnished. **Recommended: (b)** for v1: no research covers an NPC's ride module, and the tag is colour, not a feature. **Roadmap:** S10.1.c for (a); a content fix to NPC §7.2 for (b).
+12. **The Tarnished's crouch** (H-11). A concealed Tarnished is not greeted and not addressed, and crouching more than
+    5 m from a viewer conceals it from that viewer (DESIGN §6.5, §9.4; ARCH §8.7), but no crouch state is known in any
+    object the GAL reads, so `crouching` is never sampled (ARCH §8.3); DESIGN §16.1's S7 row names the read among S7's
+    additions. **Closes by** S7 finding where the game keeps the crouch state, then a layout entry and a self-test case
+    for it (a design change); until then crouching conceals no one, and only a verified invisibility effect does
+    (H-12). **Roadmap:** S13.1.a (S7's additions).
 
 ### 3.2 Risks
 
 Needs that are designed but rest on a spike that may fail. In every case the design fails closed, so a failure costs a feature, never safety or a spoiler.
 
-1. **Scripted lines and native talk, without a hook** (F-2, H-5, H-6, J-11, C-4). S3's observer reads the popup talk id, the talk camera and the HUD state, and its per-kind detector of scripted combat and boss lines adds the talk-instance leads (DESIGN §16.1, S3). Which NPC is talking, and scripted lines that open no menu, may need a talk instance, and without a hook the world talk manager is unmapped (ER05 §9; ER00 §7, S3's open question); no talk-instance read is in the GAL inventory (DESIGN §4.1). If S3 finds no hook-free signal for a kind, that kind's lines stay held: the boss lines of about ten base-game bosses with scripted lines, persona combat lines in their boss forms, and any calm line within 20 m of an unrecorded talker. If the observer fails outright, every persona own-initiative line stays dark; chat is unaffected (DESIGN §8.9). **Closes by** S3 (roadmap S10.1.d on v0.1's recordings, S11.1.b, S13.1.b). If it needs a talk-instance read, that read joins the inventory with its layout entry and self-test (a design change). The hook source `HookTalkInvoke` stays reserved for v1.x, after its own spike and an Arxan review (DESIGN §6.2).
+1. **Scripted lines and native talk, without a hook** (F-2, H-5, H-6, J-11, C-4). S3's observer reads the popup talk
+   id, the talk camera and the HUD state, and its per-kind detector of scripted combat and boss lines adds the
+   talk-instance leads (DESIGN §16.1, S3). Which NPC is talking, and scripted lines that open no menu, may need a talk
+   instance, and without a hook the world talk manager is unmapped (ER05 §9; ER00 §7, S3's open question); no
+   talk-instance read is in the GAL inventory (DESIGN §4.1). If S3 finds no hook-free signal for a kind, that kind's
+   lines stay held: the combat lines of about ten base-game bosses with scripted lines (a named boss of a speaking
+   kind keeps its combat lines even if the game never shows it calm, while one of a voiceless kind never speaks and
+   has none to hold; DESIGN §7.8, §9.10), persona combat lines in their boss forms, and any calm line within 20 m of
+   an unrecorded talker. If the observer fails outright, every persona own-initiative line stays dark; chat is
+   unaffected (DESIGN §8.9). **Closes by** S3 (roadmap S10.1.d on v0.1's recordings, S11.1.b, S13.1.b). If it needs
+   a talk-instance read, that read joins the inventory with its layout entry and self-test (a design change). The
+   hook source `HookTalkInvoke` stays reserved for v1.x, after its own spike and an Arxan review (DESIGN §6.2).
 2. **The sleep signal** (K-3, L-3). Every card's and character's calm own-initiative lines (greetings, idle remarks, exchanges, autonomy, calm status lines) wait on S8's sleep or senseless signal for its kind (O44): the roster's 130-odd NPCs besides the personas, though its bosses and invaders speak only combat lines anyway. If S8 cannot verify it for a kind, those NPCs still converse and speak combat lines, but never speak up calm. The SpEffect walk and the gauges are in the inventory as leads owed to S8; the animation queue that S8 item 5 names for scripted sleepers is not yet in it, and joins it only if S8 needs it (DESIGN §4.1, §9.9, §16.1). **Closes by** S8 (S10.1.d on recordings, S13.1.b in game).
 3. **NPC against NPC** (J-4, L-2). Until S7 verifies `last_hit_by` for NPC attackers and the team-pair table, NPC pairs never engage, `FoeKilled` is not emitted and soldiers say nothing to the Tarnished's summons (DESIGN §9.10). **Closes by** S7's additions (S13.1.a).
 4. **About 140 bindings by capture** (C-1 to C-4). Every roster NPC needs its binding verified in game: about 27–33 hours of captures at prepared saves, plus the play to make the saves (S2 alone needs about 40–60), on v1.0's critical path (K29). Smithbox's file exports give rows and name ids only, and DataPiler's server link may add entity and model leads (§1.1); bar and flag-block leads wait for the captures, with public leads meanwhile (ER08 §1, §6), and every lead still needs its capture (O48). A binding not verified by the release candidate ships held. **Closes by** the captures (S9.2, S14.2, S15.1, S16.1); see §4.
@@ -347,7 +386,14 @@ Needs that are designed but rest on a spike that may fail. In every case the des
 
 ### 3.4 Does the design cover everything?
 
-Not yet in full, though every shortfall is small. Every v1 feature has a designed live source for every piece of game data it needs, apart from the gaps of §3.1: four GraceUI asks that EldenNet's design has yet to fold in (gaps 1 and 2 under S7.1.e, gaps 8 and 10 under S7.1.a), five additions to the scope of S1, S2, S3 and S6 (gaps 3, 4, 6, 7 and 9), one NPC tag with no source (gap 11), and one boundary the recorder does not yet enforce (gap 5, no map row). Of the 105 needs mapped, 29 rest on research FACT and the checks every read shares, 65 wait on a named spike, and 11 are gaps. The spikes that carry the most weight are S1 (identity and the roster's rows), S6 (every world, quest and stage flag), S7 (hostility and engagement) and S3 (native talk and scripted lines); S3 and S8 are the two whose failure would cost the most, and both fail closed (§3.2 risks 1 and 2).
+Not yet in full, though every shortfall is small. Every v1 feature has a designed live source for every piece of game
+data it needs, apart from the gaps of §3.1: four GraceUI asks that EldenNet's design has yet to fold in (gaps 1 and 2
+under S7.1.e, gaps 8 and 10 under S7.1.a), five additions to the scope of S1, S2, S3 and S6 (gaps 3, 4, 6, 7 and 9),
+one NPC tag with no source (gap 11), the Tarnished's crouch, which S7 must find (gap 12), and one boundary the
+recorder does not yet enforce (gap 5, no map row). Of the 109 needs mapped, 30 rest on research FACT and the checks
+every read shares, 67 wait on a named spike, and 12 are gaps. The spikes that carry the most weight are S1 (identity
+and the roster's rows), S6 (every world, quest and stage flag), S7 (hostility and engagement) and S3 (native talk and
+scripted lines); S3 and S8 are the two whose failure would cost the most, and both fail closed (§3.2 risks 1 and 2).
 
 ---
 

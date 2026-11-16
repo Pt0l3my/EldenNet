@@ -272,9 +272,10 @@ research into the game's data that goes ahead before them (O54).
   - gives: decided 2026-11-16, as recommended (proposal 0004): five layers (first meeting, revealed by verified stages,
     companion, lived per journey, the Tarnished's own), the base game's roster in v1.0 and the expansion's in v1.1;
     followers after v1.0 (O85).
-- b Fold O46's five layers into DESIGN §7.8, NPC §3.1, MEM (the lived layer's update job) and the roster pipeline, with GraceUI's roster entries (D67) [planned]
+- b Fold O46's five layers into DESIGN §7.8, NPC §3.1, MEM (the lived layer's update job) and the roster pipeline, with GraceUI's roster entries (D67) [done]
   - needs: a
   - refs: O46, O85, O86, G5
+  - gives: folded 2026-11-16: the bio's fields in NPC §3.1 and DESIGN §7.8; the lived layer as MEM §13; GraceUI's roster shows `public.summary`, `public.role` and `subjects`.
 
 ### S6.3 An early census
 
@@ -613,9 +614,10 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - S7.13.a The owner decides how strict spoiler prevention is (O86) [done]
   - refs: O86, O36
   - gives: decided 2026-11-15: grounding only; a few test questions per character check the model's own knowledge.
-- b Fold O86 into the designs: the guards (locked-term sets, the output lock, reveal terms and tells, PL7's fixture checks, the second reader's reveal list, the fallback ladder) leave DESIGN, ARCH, MEM, NPC and the tests; GraceUI's SP2 is re-cut; every background job is grounded like dialogue [planned]
+- b Fold O86 into the designs: the guards (locked-term sets, the output lock, reveal terms and tells, PL7's fixture checks, the second reader's reveal list, the fallback ladder) leave DESIGN, ARCH, MEM, NPC and the tests; GraceUI's SP2 is re-cut; every background job is grounded like dialogue [done]
   - needs: a
   - refs: O86, O36, G5
+  - gives: folded 2026-11-16: grounding alone (DESIGN §10.4, MEM §7); test questions per character (NPC §12.1, MEM §7.8); GraceUI's SP2 re-cut as "shown, grounded or impersonal".
 
 ## S8 Our own engine, on SkyrimNet's logic (O84) [planned]
 
@@ -638,9 +640,10 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - e Re-base the design on C++ for EldenNet and GraceUI's in-game parts (O60; our own engine is C++, O84), and choose the C++ overlay in place of hudhook (O25, G15) with the owner's approval
   - needs: a
   - refs: O60, O84, O25, G15
-- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98), and the Skyrizz session's measurements (WHY§99): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [planned]
+- f Fold in what SkyrimNet 1.2.0 shows our design lacks (WHY§98), and the Skyrizz session's measurements (WHY§99): the reasoning retry, our own decision format, the backup request, stance and concealment, plugin rollback, the store's traps, a generated function reference, grounded background jobs, per-witness memories, evaluation with test questions on the model's own knowledge [done]
   - needs: a
   - refs: WHY§97, WHY§98, WHY§99, O84, O46
+  - gives: folded 2026-11-16: ARCH §11 (the reasoning retry, the backup request, the quantisation floor, the hourly budget), ARCH §11.8 Decision calls (new), Augur's stance and concealment (ARCH §8), the store's rules, NPC §7.1's template rules, MEM §3 and §4's per-witness memories and recall, DESIGN §13's plugin interface rules, the evaluation in NPC §12.
 
 ## S9 The roster pipeline [planned]
 

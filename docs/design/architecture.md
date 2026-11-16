@@ -257,7 +257,7 @@ pub struct Outputs {
 |---|---|---|
 | `en-proto` | `serde`, `smallvec`, `arrayvec`, `arcstr`, `bitflags` | Anything with I/O, threads, clocks, Win32 or game knowledge |
 | `en-augur` | `en-proto`, `serde`, `toml`, `smallvec`, `indexmap` | `en-core`, `en-gal`, `en-store`, `en-llm`, `en-overlay`, `tokio`, `windows`, `std::fs`, any clock |
-| `en-core` | `en-augur`, `en-proto`, `minijinja`, `toml`, `serde_json`, `regex`, `unicode-segmentation`, `blake3`, GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, `tokio`, `reqwest`, `rusqlite`, `windows`, any clock |
+| `en-core` | `en-augur`, `en-proto`, `inja` (the template engine, O84), `toml`, `serde_json`, `regex`, `unicode-segmentation`, `blake3`, GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, `tokio`, `reqwest`, `rusqlite`, `windows`, any clock |
 | `en-store` | `en-proto`, `rusqlite` (bundled), `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` | `en-proto`, `tokio`, `reqwest` (rustls), `serde_json`, `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, `windows` (`sys` only), `bytemuck`, `toml`, `cc` (build) | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, `imgui`, `tokio` |
@@ -1577,7 +1577,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 
 | Resource | Cap (impl unless cited) |
 |---|---|
-| Template rendering | `minijinja` recursion limit 16; output ≤ 64 KB; fuel limit set |
+| Template rendering | The template engine (`inja`, O84; NPC §7.1): nesting depth ≤ 16; output ≤ 64 KB; a bound on render steps |
 | JSON parsing (memory jobs, pools, SSE payloads) | Input ≤ 256 KB; nesting depth ≤ 32 (checked before `serde_json`) |
 | SSE | Line ≤ 64 KB; total response ≤ 1 MB; a stream that passes 16 KB of display text is cancelled |
 | Sanitizer and splitter | Input per reply ≤ 16 KB; iterative, never recursive; output 600 bytes per reply and 180 per page (DESIGN §8.4) |
@@ -1700,10 +1700,10 @@ any slot's do.
 | `dialogue` | Persona replies; persona own-initiative lines (cancelled by the input epoch, DESIGN §8.9) | 140 | 0.8 | 6 s (10 s local) | 20 s | 0, plus 1 lint regeneration (replies only) | Replies: fallback model once, then "…" and a toast. Own-initiative lines: the seed or silence (DESIGN §8.9) |
 | `bark_live` | Call-out replies; generic autonomy ticks (DESIGN §9.8) | 32 | 0.9 | 1.5 s | 3 s | 0 | Seed |
 | `bark_pool` | Pool batches | 600 | 1.0 | 15 s | 60 s | 1 | Keep seeds |
-| `memory` | Journal job; the lived layer's update (MEM, the lived layer) | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal, or the lived version |
+| `memory` | Journal job; the lived layer's update (MEM §13.8) | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal, or the lived version |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
-| `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1 | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The task's rules (§11.8) |
+| `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1; at most 12 options, the top 5 logprobs where offered (§11.1) | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The rules fallback: the task's rule (§11.8) |
 
 Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
 that names no `decisions` model uses its `bark_live` model (impl). Budgets are identical in every preset (DESIGN §11.2).
@@ -1828,9 +1828,10 @@ rules    = []                   # only rules marked disable_ok = true in their f
 
 - **Not disableable:** `identity/speech.toml` (perceivability, `may_speak` as the voice source, `may_remember`),
   `identity/types.toml`'s kind rules, the binding rule of `identity/characters.toml` (nothing speaks on an unverified
-  binding), the built-in rules (a)–(f) (NPC §1.3), `lexicon/*`, `flags/catalog.toml`, `teams.toml` and the world
-  frame; and, as rules in code, every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines
-  win, the death window, quiet after a conversation, the input epoch, `hud`, banners, loading, dormancy), the
+  binding), the built-in rules (a)–(f) (NPC §1.3), the output guards' word lists (`lexicon/banned.toml` and
+  `lexicon/safety.toml`, NPC §8.3), `flags/catalog.toml`, `teams.toml` and the world frame; and, as rules in code,
+  every context gate of DESIGN §9.4 (alive, conscious, native talk and scripted lines win, the death window, quiet
+  after a conversation, the input epoch, `hud`, banners, loading, dormancy), the
   conversable and safe-context predicates, strict mode, the grounding from the playthrough state (what each NPC knows
   at its stage, the one spoiler mechanism, O86; there is no spoiler setting), and R2 (the action and gesture
   allowances cannot be turned on). These are the safety rules and the grounding, and an attempt is reported as a
@@ -1989,12 +1990,12 @@ the bench runs (WHY§99). Its rule takes the candidate both searches ranked firs
 | Property (`proptest`) | `en-augur`, `en-core` | §8.12; sanitizer (never panics, never shows markup or a trailer, respects caps) |
 | Golden replay | `en-tools` | 3 recorded routes; 10 identical replays (C12) |
 | Scenario | `en-tools` | `.scn` files (§8.12) for barks, gating, interrupts, gate hysteresis, memory (`wren_and_kale`, MEM §2.8), knowledge (`star_falls`, MEM §12.11) and identity (`veiled`, NPC §2.7) |
-| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; grounding renders at 6 flag states (what each state tells the persona, O86); block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4); each decision task's prompt (§11.8) |
+| Prompt snapshot | `en-core` | `insta` per persona × stage × scene; blocks 1–5 byte-stable, 5b at a fixed known set and active ties; grounding renders at 6 flag states (what the persona is told at each state, O86); block-5b renders at the 8 fixture states plus `ashen`, and since-line and reaction-cue renders (MEM §12.11 T4); each decision task's prompt (§11.8) |
 | DB | `en-store` | Every migration, split by SQLite's own parser; trim at 3 cut points, with no id reused after it; realistic ids (above 2³² and 2⁵³) read back exactly; numbers written the same under another locale (§2.2); crash mid-reply; NG+; slot reuse; `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+ |
 | Conformance | `en-core` | A trailer never displays; with `actions` off no non-read command; one row per decision (DESIGN §13) |
 | `FakeSys` | `en-gal` | Discovery over synthetic images; statics moving, nulls, vtable swaps, faults → breakers |
 | Backpressure | `en-core`, `en-augur` | §8.12 |
-| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus a few test questions per character on what the model already knows of the game (O86; a persona's topics are its `stages.forbid`) and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
+| Eval | `en-tools eval` | 50 turns per persona at 2–3 stages, plus test questions on what the model already knows of the game, 6 per persona and 4 per roster bio (O86; a persona's topics are its `stages.forbid`, a roster bio's the later truths its research note lists; NPC §12.1) and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
 | In game | Dev builds | S0-A–S0-E, smoke route, 30 h soak (C1), 20 forced fail-closed launches with `--features probe` fault injection (unknown build, missing pattern, forced read faults) |
 
 ### 12.3 `en-tools` subcommands
