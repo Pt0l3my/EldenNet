@@ -1613,7 +1613,10 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
 
 ### 11.1 Client and provider schema
 
-- **API:** one OpenAI-compatible client over `/v1/chat/completions` with `stream: true`, plus `/v1/models` (ER06 §5.2). Built on `reqwest` with `rustls` and the system root store, HTTP/1.1 keep-alive, a connect timeout of 3 s (impl), and our own SSE parser (`data:` lines, `[DONE]`).
+- **API:** one OpenAI-compatible client over `/v1/chat/completions` with `stream: true`, plus `/v1/models` (ER06 §5.2).
+  Built in C++ as en-llm (O84): libcurl on Linux and in tests, the system's WinHTTP on Windows (later work, S8.1.g),
+  each with the system root store, HTTP/1.1 keep-alive and a connect timeout of 3 s (impl), and our own SSE parser
+  (`data:` lines, `[DONE]`).
 - **Streaming:** `stream_options.include_usage` is requested where supported. Decision calls also ask for `logprobs`
   (the top 5, impl) where the provider offers them (§11.8).
 - **Reasoning:** reasoning is switched off per provider through `extra_body`, and `<think>` is stripped anyway
@@ -1639,10 +1642,14 @@ extra_body = { reasoning = { enabled = false }, provider = { sort = "latency" } 
 max_concurrency = 2                     # cloud 2, local 1 (impl)
 json_mode = "json_schema"               # none | json_object | json_schema
 quant_floor = "fp8"                     # where the provider filters its upstreams by quantisation (impl)
+cache_marks = "breakpoints"             # none | breakpoints | cache_prompt: how the cache marks travel (NPC §7.1)
+logprobs = true                         # whether decision calls may ask for logprobs (§11.8)
 
 [slots.dialogue]                        # optional per-slot overrides of the preset's model choice
 model = "google/gemma-4-26b-a4b-it"
 fallback = "google/gemma-4-31b-it"
+# provider = "…" and fallback_provider = "…" name a provider by id: by default the preset's provider, and for the
+# fallback the primary model's
 ```
 
 ### 11.2 Error classes, actions and health

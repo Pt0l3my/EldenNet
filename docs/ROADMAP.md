@@ -38,18 +38,18 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-15
+- updated: 2026-11-16
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
 approval; GraceUI is a UI framework for Elden Ring mods, of its own, that every EldenNet release
 carries and whose first user is EldenNet's menu and dashboard (G14). This one roadmap covers both.
-The design is done and decided, apart from the bio's structure (O46). Two things wait on the owner:
-Min's engine blueprint, which becomes EldenNet's foundation and comes before the build, and O46,
-which comes before the roster is written. Meanwhile the game's own data (its ids and such) is
-researched and documented (O54). Then the engine is adopted, the roster pipeline starts, and
-EldenNet's increments v0.1 to v1.0 follow, each shippable to testers, with GraceUI's milestones
-beside them. Version 1 stays dialogue-only and read-only towards the game.
+The design is done and decided, the bio's five layers included (O46). EldenNet builds its own
+engine on SkyrimNet's proven logic (O84), and its core runs outside the game: the template
+engine, the model client and the decision calls (S8.1.a). Meanwhile the game's own data (its ids
+and such) is researched and documented (O54). Then the engine grows towards the game, the roster
+pipeline starts, and EldenNet's increments v0.1 to v1.0 follow, each shippable to testers, with
+GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only towards the game.
 
 ## S0 Research [done]
 
@@ -625,8 +625,9 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 
 ### S8.1 Our own engine as EldenNet's foundation
 
-- S8.1.a Design and build the engine's core: the model client and its job slots, decision calls, and the template engine on inja with SkyrimNet's template rules; run it outside the game first; credit SkyrimNet's design
-  - refs: O84, O53, O60
+- S8.1.a Design and build the engine's core: the model client and its job slots, decision calls, and the template engine on inja with SkyrimNet's template rules; run it outside the game first; credit SkyrimNet's design [done]
+  - refs: O84, O53, O60, NPC§7.1, ARCH§11, ARCH§11.8
+  - gives: built 2026-11-16 on the engine branch: en-prompt (the template engine on inja, strict as NPC §7.1 says), en-llm (the client of ARCH §11 with its slots, error classes, health, reasoning retry, backup request and hourly budget, and the decision calls of ARCH §11.8) and the command, with render-prompt, chat and decide; 126 unit tests; a run from template to streamed reply against a local mock; it compiles for Windows.
 - b Design what was deferred: memories of other NPCs and their recall, the memory job for NPC-to-NPC exchanges, keepsakes from another NPC's line, context assembly
   - needs: a
   - refs: DESIGN§7.8, MEM§4.5
@@ -644,6 +645,9 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: a
   - refs: WHY§97, WHY§98, WHY§99, O84, O46
   - gives: folded 2026-11-16: ARCH §11 (the reasoning retry, the backup request, the quantisation floor, the hourly budget), ARCH §11.8 Decision calls (new), Augur's stance and concealment (ARCH §8), the store's rules, NPC §7.1's template rules, MEM §3 and §4's per-witness memories and recall, DESIGN §13's plugin interface rules, the evaluation in NPC §12.
+- g The engine's next increment: the WinHTTP transport for the Windows build, the local probes and `/v1/models`, Ollama's warm-up, and the asynchronous handle (submit, cancel, events) that the core drives
+  - needs: a
+  - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
 
 ## S9 The roster pipeline [planned]
 
@@ -666,7 +670,7 @@ a batch's captures share saves.
 - S9.2.a The census on the author's machine: names stay local, and the index gets ids and numbers only
   - needs: S9.1.a, S8.1.d
   - gives: its leads earlier, from the game-data research (S6.3, O54).
-- b A research note per NPC in our own words, with its reveal terms and tells
+- b A research note per NPC in our own words, with the later truths that give its test questions (O86)
   - needs: a
 - c A draft from each note, every field reviewed by hand, and a second reader's spoiler review at first-meeting level
   - needs: b
@@ -678,8 +682,8 @@ a batch's captures share saves.
 - needs: S8
 - refs: DESIGN§16.2
 
-The game-access layer, the event engine and the gates are unchanged whatever the blueprint says
-(DESIGN §7.8), but the code starts on the adopted foundation, so v0.1 follows S8. No LLM yet.
+The game-access layer, the event engine and the gates are our own and stay as designed (DESIGN §7.8),
+but the code starts on our own engine (O84), so v0.1 follows S8. No LLM yet.
 Since G15, GraceUI's 0.1 Host ships with v0.1 (S10.4): EldenNet's banner and its F11 debug view, which
 v0.1's testing uses, draw through it.
 
@@ -785,7 +789,7 @@ v0.1's testing uses, draw through it.
 - needs: S11.1, S11.3, S11.4
 - S11.5.a Latency, no multiplayer requests, output hygiene, silence, spoilers, voice, the config-file install and world awareness, on the pilot
   - refs: DESIGN§16.3
-- b The pilot's eval report and release checklist; no input leaks; the spoiler goldens; no secret in any log
+- b The pilot's eval report and release checklist; no input leaks; the test questions per character (O86); no secret in any log
   - refs: NPC§12
 
 ## S12 v0.3 Remembrance [planned]
