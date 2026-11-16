@@ -19,3 +19,10 @@
 "\xe8"
 "\x4c\x8b\x0d"
 "\x01\x00\x00\x00"
+# R0c's variants: other registers for the static, a path through a pointer, by its absolute address, a strided table.
+"\x4c\x8b\x25"
+"\x4d\x85\xe4"
+"\x48\x8b\x0d"
+"\x48\xb9"
+"\x48\x8d\x35"
+"\x4c\x8d\x05"

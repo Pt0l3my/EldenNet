@@ -2,6 +2,7 @@
 #include "en/gal/builds.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "toml_reader.hpp"
 
@@ -16,6 +17,63 @@ const char* to_string(Region region) noexcept {
     case Region::Jp: return "jp";
   }
   return "ww";
+}
+
+namespace {
+
+// One code point of UTF-8 at `i`, and its length; a byte that does not start a valid sequence is itself, of length 1.
+std::pair<std::uint32_t, std::size_t> code_point(std::string_view s, std::size_t i) noexcept {
+  const auto b = [&](std::size_t k) { return static_cast<std::uint8_t>(s[k]); };
+  const std::uint8_t c = b(i);
+  std::size_t n = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xE ? 3 : (c >> 3) == 0x1E ? 4 : 0;
+  if (n == 0 || i + n > s.size()) return {c, 1};
+  std::uint32_t cp = n == 1 ? c : n == 2 ? (c & 0x1Fu) : n == 3 ? (c & 0x0Fu) : (c & 0x07u);
+  for (std::size_t k = 1; k < n; ++k) {
+    if ((b(i + k) & 0xC0) != 0x80) return {c, 1};
+    cp = (cp << 6) | (b(i + k) & 0x3Fu);
+  }
+  return {cp, n};
+}
+
+bool symbol(std::uint32_t cp) noexcept {
+  return (cp >= 0xA1 && cp <= 0xBF) || cp == 0xD7 || cp == 0xF7 || (cp >= 0x2010 && cp <= 0x205E) ||
+         (cp >= 0x2100 && cp <= 0x214F) || (cp >= 0x2190 && cp <= 0x23FF) || (cp >= 0x2460 && cp <= 0x24FF) ||
+         (cp >= 0x2500 && cp <= 0x27BF) || (cp >= 0x200B && cp <= 0x200D) || cp == 0x2060 || cp == 0xFEFF;
+}
+
+bool space(std::uint32_t cp) noexcept {
+  return cp == 0x20 || cp == 0xA0 || (cp >= 0x2000 && cp <= 0x200A) || cp == 0x202F || cp == 0x205F || cp == 0x3000;
+}
+
+}  // namespace
+
+std::string without_symbols(std::string_view utf8) {
+  std::string out;
+  bool pending_space = false;
+  for (std::size_t i = 0; i < utf8.size();) {
+    const auto [cp, n] = code_point(utf8, i);
+    if (space(cp)) {
+      pending_space = !out.empty();
+    } else if (!symbol(cp)) {
+      if (pending_space) out += ' ';
+      pending_space = false;
+      out.append(utf8.substr(i, n));
+    }
+    i += n;
+  }
+  return out;
+}
+
+std::size_t characters(std::string_view utf8) noexcept {
+  std::size_t count = 0;
+  for (std::size_t i = 0; i < utf8.size(); ++count) i += code_point(utf8, i).second;
+  return count;
+}
+
+bool same_product_name(std::string_view a, std::string_view b) {
+  if (a == b) return true;
+  const std::string x = without_symbols(a);
+  return !x.empty() && x == without_symbols(b);
 }
 
 namespace {
@@ -175,7 +233,7 @@ Expected<Builds, SchemaErrors> parse_builds(std::string_view text, std::string_v
       read_build(*t, path, errors, entry);
       for (const BuildEntry& other : builds.entries) {
         if (!entry.key.empty() && other.key == entry.key) errors.add(path + ".key", "is not unique");
-        if (other.file_version == entry.file_version && other.product_name == entry.product_name &&
+        if (other.file_version == entry.file_version && same_product_name(other.product_name, entry.product_name) &&
             other.region == entry.region && other.time_date_stamp == entry.time_date_stamp &&
             other.size_of_image == entry.size_of_image) {
           errors.add(path, "has the fingerprint of an earlier build");
@@ -226,7 +284,7 @@ Expected<BuildProfile, GateError> gate(const ImageInfo& image, const Builds& bui
   std::optional<std::uint8_t> closest;
   for (std::size_t i = 0; i < builds.entries.size(); ++i) {
     const BuildEntry& e = builds.entries[i];
-    if (e.file_version != fp->file_version || e.product_name != fp->product_name) continue;
+    if (e.file_version != fp->file_version || !same_product_name(e.product_name, fp->product_name)) continue;
     std::uint8_t differs = 0;
     if (fp->region != e.region) differs |= kDiffersRegion;
     if (fp->time_date_stamp != e.time_date_stamp) differs |= kDiffersTimeDateStamp;

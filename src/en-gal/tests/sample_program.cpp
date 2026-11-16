@@ -249,4 +249,226 @@ Sample build_sample() {
   return s;
 }
 
+// ---- The variants (R0c): the FD4 idiom's path loaded otherwise, a group table of entries with a stride, statics
+// whose classes have no RTTI, and a trademark sign in the product name ----
+
+namespace {
+
+// One accessor of the variants: `head` loads the static into the register whose ModRM and REX bytes it gives
+// (mov reg, [rip+static]; test reg, reg; jnz over the block), then the block: lea rcx, [rip+class]; call getter; then
+// `tail`, the path's load and the log's call, which `tail_bytes` long ends the block; `hoist` loads the path into rsi
+// before the head. Each is a function of .text whose idiom starts at entry + 5 or later.
+struct VariantHead {
+  std::uint8_t rex;
+  std::uint8_t load_modrm;  // mov reg, [rip+x]
+  std::uint8_t test_modrm;  // test reg, reg
+};
+
+template <class Tail>
+void variant(P& p, const std::string& name, const VariantHead& h, const std::string& statik, const std::string& klass,
+             std::uint8_t tail_bytes, Tail&& tail, bool hoist = false) {
+  function(p, name, [&] {
+    p.bytes(P::Text, {0x56, 0x57, 0x53, 0x48, 0x83, 0xEC, 0x20});  // push rsi; push rdi; push rbx; sub rsp, 0x20
+    if (hoist) {
+      p.bytes(P::Text, {0x48, 0x8D, 0x35});  // lea rsi, [rip+path]
+      p.rel32(P::Text, "v_path");
+    }
+    p.bytes(P::Text, {h.rex, 0x8B, h.load_modrm});
+    p.rel32(P::Text, statik);
+    p.bytes(P::Text, {static_cast<std::uint8_t>(h.rex | (h.rex & 0x4 ? 0x1 : 0x0)), 0x85, h.test_modrm});
+    p.bytes(P::Text, {0x75, static_cast<std::uint8_t>(12 + tail_bytes)});
+    p.bytes(P::Text, {0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, klass);
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_getter");
+    tail();
+    p.bytes(P::Text, {0x31, 0xC0, 0x48, 0x83, 0xC4, 0x20, 0x5B, 0x5F, 0x5E, 0xC3});  // xor eax, eax; ...; ret
+  });
+}
+
+}  // namespace
+
+Sample build_variants() {
+  Sample s;
+  P& p = s.program;
+  constexpr VariantHead kRdi{0x48, 0x3D, 0xFF};
+  constexpr VariantHead kRbx{0x48, 0x1D, 0xDB};
+  constexpr VariantHead kR12{0x4C, 0x25, 0xE4};
+
+  // ---- .rdata: the path, a format string, a pointer to the path, names, the group table of entries ----
+  p.label("v_path", P::Rdata);
+  p.ascii(P::Rdata, "variant\\core\\Lone.h");
+  p.label("v_format", P::Rdata);
+  p.ascii(P::Rdata, "early use of %s");
+  for (const char* n : {"Anvil", "Bellows", "Crucible", "Dross", "Ember", "Forge"}) {
+    p.label(std::string("vname_") + n, P::Rdata);
+    p.ascii(P::Rdata, n);
+  }
+  p.align(P::Rdata, 8);
+  p.label("v_path_slot", P::Rdata);
+  p.va64(P::Rdata, "v_path");
+  p.label("v_class_table", P::Rdata);
+  p.va64(P::Rdata, "v_getter");
+  p.label("type_info_vft", P::Rdata);
+  p.va64(P::Rdata, "v_noop");
+  p.u64(P::Rdata, 0);
+  const char* groups[] = {"Va_Open", "Va_Step", "Va_Settle", "Va_Draw", "Va_Close"};
+  for (int i = 0; i < 5; ++i) {
+    p.align(P::Rdata, 2);
+    p.label("vg" + std::to_string(i), P::Rdata);
+    p.utf16(P::Rdata, groups[i]);
+  }
+  // The group table: entries of 16 bytes, { index (its place + 10), flags, name }, after an unrelated word.
+  p.align(P::Rdata, 16);
+  p.u64(P::Rdata, 0x5A5A5A5A);
+  p.label("v_groups", P::Rdata);
+  for (int i = 0; i < 5; ++i) {
+    p.u32(P::Rdata, static_cast<std::uint32_t>(10 + i));
+    p.u32(P::Rdata, 0x100u * static_cast<std::uint32_t>(i));
+    p.va64(P::Rdata, "vg" + std::to_string(i));
+  }
+  p.u64(P::Rdata, 0);
+  p.u64(P::Rdata, 0);
+
+  // ---- .data: statics and class objects ----
+  for (const char* n : {"Anvil", "Bellows", "Crucible", "Dross", "Ember", "Forge"}) {
+    statik(p, P::Data, std::string("vst_") + n);
+  }
+  for (const char* n : {"Anvil", "Bellows", "Crucible", "Dross", "Ember", "Forge"}) {
+    p.align(P::Data, 16);
+    p.label(std::string("vcls_") + n, P::Data);
+    p.va64(P::Data, "v_class_table");
+    p.u64(P::Data, 0x40);
+    p.va64(P::Data, std::string("vname_") + n);
+    p.u64(P::Data, 0);
+  }
+  statik(p, P::Data, "vst_plain");
+  statik(p, P::Data, "vst_moved");
+
+  // ---- .text ----
+  function(p, "v_noop", [&] { p.bytes(P::Text, {0xC3}); });
+  function(p, "v_getter", [&] { p.bytes(P::Text, {0x48, 0x8B, 0x41, 0x10, 0xC3}); });  // mov rax, [rcx+0x10]; ret
+  function(p, "v_log", [&] { p.bytes(P::Text, {0x31, 0xC0, 0xC3}); });
+  // As the sample's: mov edx, site; mov r8, rax; lea rcx, [rip+path]; call log.
+  variant(p, "v_get_anvil", kRdi, "vst_Anvil", "vcls_Anvil", 20, [&] {
+    p.bytes(P::Text, {0xBA, 0x01, 0x20, 0x00, 0x00, 0x49, 0x89, 0xC0, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "v_path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_log");
+  });
+  // The format string first, then the path (in rcx, after another load into .rdata): mov r9, rax; lea r8, [fmt];
+  // mov edx, site; lea rcx, [path]; call log.
+  variant(p, "v_get_bellows", kRbx, "vst_Bellows", "vcls_Bellows", 27, [&] {
+    p.bytes(P::Text, {0x49, 0x89, 0xC1, 0x4C, 0x8D, 0x05});
+    p.rel32(P::Text, "v_format");
+    p.bytes(P::Text, {0xBA, 0x02, 0x20, 0x00, 0x00, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "v_path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_log");
+  });
+  // The path in rdx, at another distance: mov r8, rax; lea rdx, [path]; mov ecx, site; call log.
+  variant(p, "v_get_crucible", kR12, "vst_Crucible", "vcls_Crucible", 20, [&] {
+    p.bytes(P::Text, {0x49, 0x89, 0xC0, 0x48, 0x8D, 0x15});
+    p.rel32(P::Text, "v_path");
+    p.bytes(P::Text, {0xB9, 0x03, 0x20, 0x00, 0x00, 0xE8});
+    p.rel32(P::Text, "v_log");
+  });
+  // Through a pointer to the path: mov rdx, rax; mov rcx, [rip+slot]; call log.
+  variant(p, "v_get_dross", kRdi, "vst_Dross", "vcls_Dross", 15, [&] {
+    p.bytes(P::Text, {0x48, 0x89, 0xC2, 0x48, 0x8B, 0x0D});
+    p.rel32(P::Text, "v_path_slot");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_log");
+  });
+  // Through its absolute address: mov rdx, rax; mov rcx, imm64 (relocated); call log.
+  variant(p, "v_get_ember", kRbx, "vst_Ember", "vcls_Ember", 18, [&] {
+    p.bytes(P::Text, {0x48, 0x89, 0xC2, 0x48, 0xB9});
+    p.va64(P::Text, "v_path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_log");
+  });
+  // Loaded into rsi before the head: mov rdx, rax; mov rcx, rsi; call log.
+  variant(
+      p, "v_get_forge", kRdi, "vst_Forge", "vcls_Forge", 11,
+      [&] {
+        p.bytes(P::Text, {0x48, 0x89, 0xC2, 0x48, 0x89, 0xF1, 0xE8});
+        p.rel32(P::Text, "v_log");
+      },
+      true);
+  // A decoy the idiom's wildcards also match: mov rdi, [rbx+0x10] (no RIP-relative static), then the same head.
+  function(p, "v_not_idiom", [&] {
+    p.bytes(P::Text, {0x56, 0x57, 0x53, 0x48, 0x83, 0xEC, 0x20});
+    p.bytes(P::Text, {0x48, 0x8B, 0xBB, 0x10, 0x00, 0x00, 0x00, 0x48, 0x85, 0xFF, 0x75, 0x0C, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "vcls_Anvil");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "v_getter");
+    p.bytes(P::Text, {0x48, 0x83, 0xC4, 0x20, 0x5B, 0x5F, 0x5E, 0xC3});
+  });
+  // Code that addresses the group table's first entry, and readers of the two statics.
+  function(p, "v_first_group", [&] {
+    p.bytes(P::Text, {0x48, 0x8D, 0x05});  // lea rax, [rip+table]
+    p.rel32(P::Text, "v_groups");
+    p.bytes(P::Text, {0xC3});
+  });
+  for (const char* st : {"vst_plain", "vst_moved"}) {
+    function(p, std::string("v_read_") + st, [&] {
+      p.bytes(P::Text, {0x48, 0x83, 0xEC, 0x28, 0x48, 0x8B, 0x05});  // sub rsp, 0x28; mov rax, [rip+static]
+      p.rel32(P::Text, st);
+      p.bytes(P::Text, {0x48, 0x83, 0xC4, 0x28, 0xC3});
+    });
+  }
+  function(p, "v_moved_kind", [&] { p.bytes(P::Text, {0x31, 0xC0, 0xC3}); });
+  // RTTI only for a class of Moved's name in another namespace; none for Plain's.
+  rtti_class(p, "vmoved", ".?AVMoved@Elsewhere@@", {}, {{0, {"v_moved_kind"}}});
+
+  FakeVersion version;
+  version.product_name = u"VARIANT GAME™";
+  s.built = p.build(version);
+  return s;
+}
+
+// The path loaded before the getter's call, in every site: mov rdi, [rip+static]; test rdi, rdi; jnz; lea rsi, [path];
+// lea rcx, [class]; call getter; mov rdx, rax; mov rcx, rsi; call log.
+Sample build_path_early() {
+  Sample s;
+  P& p = s.program;
+  p.label("e_path", P::Rdata);
+  p.ascii(P::Rdata, "early\\Lone.h");
+  for (const char* n : {"Gorge", "Heath", "Isle"}) {
+    p.label(std::string("ename_") + n, P::Rdata);
+    p.ascii(P::Rdata, n);
+  }
+  p.align(P::Rdata, 8);
+  p.label("e_class_table", P::Rdata);
+  p.va64(P::Rdata, "e_getter");
+  for (const char* n : {"Gorge", "Heath", "Isle"}) statik(p, P::Data, std::string("est_") + n);
+  for (const char* n : {"Gorge", "Heath", "Isle"}) {
+    p.align(P::Data, 16);
+    p.label(std::string("ecls_") + n, P::Data);
+    p.va64(P::Data, "e_class_table");
+    p.u64(P::Data, 0x40);
+    p.va64(P::Data, std::string("ename_") + n);
+    p.u64(P::Data, 0);
+  }
+  function(p, "e_getter", [&] { p.bytes(P::Text, {0x48, 0x8B, 0x41, 0x10, 0xC3}); });
+  function(p, "e_log", [&] { p.bytes(P::Text, {0x31, 0xC0, 0xC3}); });
+  for (const char* n : {"Gorge", "Heath", "Isle"}) {
+    function(p, std::string("e_get_") + n, [&] {
+      p.bytes(P::Text, {0x56, 0x57, 0x48, 0x83, 0xEC, 0x28, 0x48, 0x8B, 0x3D});
+      p.rel32(P::Text, std::string("est_") + n);
+      p.bytes(P::Text, {0x48, 0x85, 0xFF, 0x75, 0x1E, 0x48, 0x8D, 0x35});
+      p.rel32(P::Text, "e_path");
+      p.bytes(P::Text, {0x48, 0x8D, 0x0D});
+      p.rel32(P::Text, std::string("ecls_") + n);
+      p.bytes(P::Text, {0xE8});
+      p.rel32(P::Text, "e_getter");
+      p.bytes(P::Text, {0x48, 0x89, 0xC2, 0x48, 0x89, 0xF1, 0xE8});
+      p.rel32(P::Text, "e_log");
+      p.bytes(P::Text, {0x48, 0x89, 0xF8, 0x48, 0x83, 0xC4, 0x28, 0x5F, 0x5E, 0xC3});
+    });
+  }
+  s.built = p.build();
+  return s;
+}
+
 }  // namespace en::gal::test

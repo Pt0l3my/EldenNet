@@ -2,7 +2,8 @@
 // executable file, with its two leads files, into a folder, for cli_test.py to run eldennet-engine on. Nothing in them
 // is a game's.
 //
-//   en_tools_write_sample <dir>   writes <dir>/sample.exe, <dir>/leads.toml, <dir>/leads-clean.toml, <dir>/slots.txt
+//   en_tools_write_sample <dir>   writes <dir>/sample.exe, <dir>/leads.toml, <dir>/leads-clean.toml, <dir>/slots.txt,
+//                                 and R0c's variants: <dir>/variants.exe and <dir>/leads-variants.toml
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -22,5 +23,9 @@ int main(int argc, char** argv) {
   std::ofstream(dir + "/leads-clean.toml") << en::gal::test::kSampleLeadsClean;
   // The statics' slots, as R1 would find them: label=rva.
   std::ofstream(dir + "/slots.txt") << "ledger=0x" << std::hex << s.program.rva("st_ledger") << "\n";
-  return exe ? 0 : 1;
+  const en::gal::test::Sample v = en::gal::test::build_variants();
+  std::ofstream variants(dir + "/variants.exe", std::ios::binary);
+  for (const std::byte b : v.built.file) variants.put(static_cast<char>(b));
+  std::ofstream(dir + "/leads-variants.toml") << en::gal::test::kVariantLeads;
+  return exe && variants ? 0 : 1;
 }

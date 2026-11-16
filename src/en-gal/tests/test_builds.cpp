@@ -181,6 +181,27 @@ TEST_CASE("the gate passes an exact fingerprint only, and names what differs") {
   CHECK(gate(image_of(nameless, 0x5EED), *builds).error().problem == GateProblem::NoVersion);
 }
 
+TEST_CASE("the gate compares product names once their symbols are removed") {
+  CHECK(without_symbols("INVENTED GAME\xE2\x84\xA2") == "INVENTED GAME");    // U+2122
+  CHECK(without_symbols("\xC2\xAEINVENTED\xC2\xA0 GAME ") == "INVENTED GAME");  // U+00AE, U+00A0 and a space
+  CHECK(without_symbols("INVENTED-GAME 2") == "INVENTED-GAME 2");                 // ASCII is kept as it is
+  CHECK(without_symbols("\xE3\x82\xA2\xE2\x84\xA2") == "\xE3\x82\xA2");        // a letter kept, a sign removed
+  CHECK(characters("INVENTED GAME\xE2\x84\xA2") == 14);
+  CHECK(same_product_name("INVENTED GAME\xE2\x84\xA2", "INVENTED GAME"));
+  CHECK(same_product_name("INVENTED GAME", "INVENTED GAME"));
+  CHECK_FALSE(same_product_name("INVENTED GAME 2", "INVENTED GAME"));
+  CHECK_FALSE(same_product_name("invented game", "INVENTED GAME"));
+  CHECK_FALSE(same_product_name("\xE2\x84\xA2", "\xC2\xAE"));  // two names of symbols alone
+
+  FakeVersion version;
+  version.file_version = {9, 8, 7, 0};
+  version.product_name = u"INVENTED GAME\u2122";
+  const ImageInfo image = image_of(version, 0x5EED);
+  const auto builds = parse_builds("schema = 1\n" + entry("9.8.7.0-ww", "9.8.7.0", "ww", 0x5EED, image.size_of_image));
+  REQUIRE(builds.has_value());
+  CHECK(gate(image, *builds).has_value());
+}
+
 TEST_CASE("a BuildProfile comes only from the gate (R7)") {
   static_assert(!std::is_default_constructible_v<BuildProfile>);
   static_assert(!std::is_constructible_v<BuildProfile, BuildEntry, en::proto::BuildKey>);

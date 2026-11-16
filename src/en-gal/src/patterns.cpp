@@ -363,17 +363,18 @@ void read_pattern(const toml::table& t, const std::string& path, Errors& errors,
       errors.add(p.where("bytes"), describe(parsed.error()));
     }
   }
+  const std::uint32_t most = out.kind == PatternKind::Idiom ? kMaxIdiomHits : kMaxPatternHits;
   if (out.kind == PatternKind::Idiom) {
     out.expect_min = 1;
-    out.expect_max = kMaxPatternHits;
+    out.expect_max = kMaxIdiomHits;
   }
   if (const toml::node* expect = p.node("expect_matches", false)) {
     if (expect->is_array()) {
-      if (const auto r = toml_read::range_of(*expect, p.where("expect_matches"), errors, 1, kMaxPatternHits)) {
+      if (const auto r = toml_read::range_of(*expect, p.where("expect_matches"), errors, 1, most)) {
         out.expect_min = static_cast<std::uint32_t>(r->first);
         out.expect_max = static_cast<std::uint32_t>(r->second);
       }
-    } else if (const auto n = toml_read::integer_of(*expect, p.where("expect_matches"), errors, 1, kMaxPatternHits)) {
+    } else if (const auto n = toml_read::integer_of(*expect, p.where("expect_matches"), errors, 1, most)) {
       out.expect_min = out.expect_max = static_cast<std::uint32_t>(*n);
     }
   }
@@ -646,7 +647,9 @@ ScanReport scan_patterns(const ImageInfo& image, const ByteSource& source, const
       continue;
     }
 
-    MultiMatcher matcher(patterns, kMaxPatternHits);
+    const bool idioms = std::any_of(members.begin(), members.end(),
+                                    [&](std::size_t i) { return set.patterns[i].kind == PatternKind::Idiom; });
+    MultiMatcher matcher(patterns, idioms ? kMaxIdiomHits : kMaxPatternHits);
     // A file's section is scanned over the raw data the file holds of it (file_span), a mapped image's whole.
     const bool memory = image.layout == ImageLayout::Memory;
     const FileSpan held = image.file_span(*s);
@@ -697,7 +700,11 @@ ScanReport scan_patterns(const ImageInfo& image, const ByteSource& source, const
       PatternResult& r = report.results[members[m]];
       const PatternSpec& spec = set.patterns[members[m]];
       r.count = matcher.count(m);
-      for (const std::uint64_t hit : matcher.hits(m)) r.hits.push_back(static_cast<std::uint32_t>(hit));
+      const std::uint32_t kept = spec.kind == PatternKind::Idiom ? kMaxIdiomHits : kMaxPatternHits;
+      for (const std::uint64_t hit : matcher.hits(m)) {
+        if (r.hits.size() >= kept) break;
+        r.hits.push_back(static_cast<std::uint32_t>(hit));
+      }
       if (r.count < spec.expect_min || r.count > spec.expect_max) {
         fail(r, r.count < spec.expect_min && matcher.unscanned() > 0 ? HitProblem::Unscanned : HitProblem::Count, 0);
         continue;

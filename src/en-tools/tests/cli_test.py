@@ -113,6 +113,32 @@ def main():
     need(st["status"] == "derived" and st["pattern"]["matches"] == 1 and st["pattern"]["scan_resolved"],
          "the static's pattern %s" % st)
 
+    # R0c's variants: every accessor accepted whatever its path's load, the decoy refused as no idiom, a table of
+    # 16-byte entries, a product name that matches without its trademark sign, and the diagnostics within schema 1.
+    vexe, vleads = (os.path.join(a.work, n) for n in ("variants.exe", "leads-variants.toml"))
+    vout = os.path.join(a.work, "derive-variants.json")
+    code, so, se = run(a.engine, "probe-exe", vexe, "--derive", "--leads", vleads, "--out", vout)
+    need(code == 1, "probe-exe on the variants: exit %s, wanted 1 (no registration): %s" % (code, se))
+    with open(vout) as f:
+        v = json.load(f)
+    need(v["image"]["product_name"] == "matches" and v["image"]["names"] == {"of": 13, "agree": 12},
+         "the variants' product name %s %s" % (v["image"]["product_name"], v["image"].get("names")))
+    vsingle = {s["label"]: s["status"] for s in v["fd4"]["singletons"]}
+    need(set(vsingle.values()) == {"derived"} and len(vsingle) == 6, "the variants' singletons %s" % vsingle)
+    need(v["fd4"]["refused"]["unreadable"] == 1 and v["fd4"]["idiom"]["scan_resolved"] is True,
+         "the variants' idiom %s" % v["fd4"]["refused"])
+    g = v["group"]["candidates"][0]
+    need((g["length"], g["entries"], g["index"], g["offset"], g["value"], g["encoding"]) == (16, 5, 2, 8, 12, "utf16"),
+         "the variants' group table %s" % g)
+    sf = v["stats"]["fd4"]
+    need(len(sf["idiom"]["captures"]) == 6 and sf["accepted"] == 2 and sf["refused"]["no_path"] == 2,
+         "the variants' diagnostics %s" % sf)
+    need(v["stats"]["sections"][0]["section"] == ".text" and v["stats"]["sections"][0]["path_references"] == 4,
+         "the variants' census %s" % v["stats"]["sections"])
+    need({s["label"]: s["matches"] for s in v["statics"]} == {"moved": 1, "plain": 0}, "the variants' statics")
+    code, so, _ = run(a.engine, "lint", "--report", vout)
+    need(code == 0 and "clean" in so, "lint on the variants' derive.json: exit %s %r" % (code, so))
+
     # The lint refuses what is outside the vocabulary, and quotes none of it.
     with open(out) as f:
         text = f.read()
