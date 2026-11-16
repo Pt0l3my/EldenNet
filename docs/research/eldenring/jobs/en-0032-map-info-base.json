@@ -1,0 +1,200 @@
+{
+ "format": "datapiler-job/1",
+ "id": "en-0032-map-info-base",
+ "title": "The map: the base map's 48 map-information binders unpacked on the PC, to find the areas' colour image (WHY§60)",
+ "needs": "0.2.31",
+ "ops": [
+  {
+   "op": "unpack_game_file",
+   "file": "m60_08_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_08_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_08_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_08_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_09_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_07_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_10_15_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_07_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_11_15_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_08_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_15_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_12_16_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_09_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_10_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_11_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_13_15_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_14_12_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_14_13_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_14_14_02.mapinfotexbnd.dcx"
+  },
+  {
+   "op": "unpack_game_file",
+   "file": "m60_14_15_02.mapinfotexbnd.dcx"
+  }
+ ]
+}

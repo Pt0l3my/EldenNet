@@ -37,7 +37,31 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   (Smithbox as the source our tools read, under ER08's five conditions). O56 (how far our tools go before the
   blueprint: DataPiler, a tool of its own; a dry run first). O57 (three kinds of game data; live tracing for every feature). O58 put to the owner (preparing the live
   checks before the blueprint). O59 (the game's id leads go to a numbers-only research file). O60 (C++ expected, settled at the blueprint).
-- **Open.** O46 (the bio's structure and the v1.0 roster) and O58 (preparing the live checks before the blueprint).
+- **2026-11-15.** O64 (the privacy sweep only in the owner's private repository; EldenNet's history rewritten
+  without it). O58 decided: (b), the live checks prepared now, nothing built.
+- **2026-11-15.** O65–O69 put to the owner with proposal 0001 (plugins) and decided the same day, all as
+  recommended: EldenNet's own hook library for functions GraceUI does not hook; content plugins in 1.1; both install
+  routes; code plugins through a published interface after v1.0; no hook service for plugins at first.
+- **2026-11-15.** O70 decided as the owner designed it (code plugins in one cluster outside the game, or detached;
+  the plugins-stopped pop-up; library clashes caught by the validator); O71 (the launcher stays as the crash watcher)
+  and O72 (a sandbox for plugin hosts, later, as an option) put and decided the same day, as recommended.
+- **2026-11-15.** O73 (in-game data for research comes from EldenNet itself, built once Min's engine arrives) and
+  O74 (the EldenNet devkit, one reader of the game's data of our own, working only while the game runs and
+  shipping nothing of it) put and decided the same day; DataPiler's DP35 makes it the workbench and the replay
+  harness, reading the game through the devkit.
+- **2026-11-15.** O75 (the devkit works with the game closed too, within safe limits and with a disclosure of safe
+  use and of what we condemn), decided by the owner; O76–O79 put with proposal 0002 (the devkit, and EldenNet off
+  game). O76–O79 decided the same day: the launcher runs EldenNet's engine off game (O76, not as recommended), all
+  settings but a short list change off game (O77), the devkit's browser tools include viewers (O78, not as
+  recommended), and the devkit ships as part of EldenNet behind Developer mode (O79).
+- **2026-11-15.** The owner supplied Min's engine (WHY§95); O80–O83 (what EldenNet adopts from it, where it runs, Min's
+  online service, and how API keys reach it) put with proposal 0003.
+- **2026-11-15.** O84 (our own engine, on SkyrimNet's logic and structure, not its prompts; Min's DLL not used), decided
+  by the owner; O80–O83 withdrawn. O85 (a follower system) put with proposal 0004, with O46's revised recommendation.
+- **2026-11-15.** O86 (spoilers by positive grounding alone, the playthrough state telling each NPC what it knows),
+  put and decided the same day, as recommended; O36's guards dropped.
+- **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
+- **Open.** None.
 
 ## O1
 
@@ -263,7 +287,7 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Recorded in.** CLAUDE.md, Owner decisions ("hudhook pinned at exactly 0.9.3"). GraceUI's G10 keeps the one overlay, and every rule here, in EldenNet.
 
-**Later changes.** 2026-11-08: by GraceUI's G15 (a), decided by the owner, the one overlay moves into GraceUI so that any mod can use GraceUI without EldenNet; the pin and every rule here move with it, unchanged, and EldenNet draws its surfaces through GraceUI and links no hook library. The designs are folded in roadmap S7.8.c (GraceUI's proposal 0001).
+**Later changes.** 2026-11-08: by GraceUI's G15 (a), decided by the owner, the one overlay moves into GraceUI so that any mod can use GraceUI without EldenNet; the pin and every rule here move with it, unchanged, and EldenNet draws its surfaces through GraceUI and links no hook library. The designs are folded in roadmap S7.8.c (GraceUI's proposal 0001). 2026-11-15: folded (S7.8.c); GraceUI's DESIGN §2 and its invariants 15 to 18 hold the host, and EldenNet's ARCH and DESIGN its side (GraceUI's eldennet-changes §11).
 
 ## O26
 
@@ -397,6 +421,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Amends.** The prompt as designed: block 7's "Not yours to know" forbid list and world-frame item 9's "no word has reached you" leave the prompt.
 
+*Later (2026-11-15):* simplified by O86. Positive grounding from the playthrough state is the one mechanism; the
+deterministic guards, tells, the output lock and the fallback ladder are dropped.
+
 ## O37
 
 **Autonomy** · *2026-11-07 · Decided by the owner*
@@ -511,13 +538,32 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O46
 
-**The character bio's structure and the v1.0 roster** · *Open since 2026-11-07*
+**The character bio's structure and the v1.0 roster** · *Open since 2026-11-07 · Decided by the owner 2026-11-16, as revised and recommended*
 
 **Question.** What is the structure of the character bio that every named NPC's profile uses, and which NPCs does the v1.0 roster cover? **Options:** (a) **One bio for every named NPC**: the fields in the recommendation, shared by the six personas (their files need no change, since the bio takes the persona schema's names where it has the field) and by every other named NPC and named boss, with a persona's stage track as an optional part that only an NPC with an S6-verified flag block has; (b) two schemas: NPC §4.5's character profile grown with conversation fields, and personas unchanged; (c) a minimal bio (who, manner, cadence and a first-meeting line), with conversation built from it alone.
 
 **Recommendation.** (a), with the base game's roster in v1.0 and the DLC's in v1.1. *Fields and caps* (§7.8): the index (`identity/characters.toml`, code only): `id` (slug ≤ 32, the one key every store uses), `kind` (`named`, `merchant`, `boss`, `invader`; `boss` only for a boss the game never shows calm before its fight, the entries GraceUI tags "Boss" (GraceUI D67); an NPC the game can show calm keeps its calm kind across all its forms), `content` (`base` or `dlc`), `bindings` (an NpcParam row with its `expect_name_id` and `form`; a non-zero entity id; a boss bar's `name_id` with `expect_param`, valid only while that bar shows), each with `verified`; *public* (others' prompts and GraceUI's roster; the Stranger Test at the opening state): `brief` ≤ 24 chars, `public.summary` ≤ 60 words (what a first meeting shows), `public.appearance` ≤ 40 words, `display_name_fallback` ≤ 32 chars (shown only when the install shows no name); *self* (its own prompts only): `identity` ≤ 40 words (required in a roster bio that speaks; a persona's comes from its stages, NPC §2.7), `private.personality` ≤ 80 words, `private.honesty` (truthful, guarded or liar, with ≤ 25 words), `pronouns`; *voice*: `register`, `voice.cadence` ≤ 60 words, `voice.diction` ≤ 40 words, `address_forms` ≤ 3, `reply_words_max` 10–60, `words_max` 6–12, `deflections` 3–5 of ≤ 20 words; *knowledge*: `allegiance` and `home` (≤ 20 words each), `awareness.home` ≤ 3 regions, `knows` ≤ 6 facts true at every state, `knows_when` ≤ 6 entries gated by verified flags, `lexicon` ≤ 8, `subjects` 3–8 (also shown in GraceUI's roster, so held to the Stranger Test at the opening state, PL11), `awareness.news` (`close`, `plain` or `eager`; code only); *lines*: `speech`, `replies`, `ambient`, `base`, seeds (3 per key its kind uses); `instructions`, empty when shipped (the player's layer); *provenance* (code only): `drafted` (`hand` or `assisted`) and `review`. A file stays ≤ 16 KB and renders within the existing block caps. *Never holds:* a stage, fate, later form or reveal; a step or relation the story discloses later; vanilla lines or a close paraphrase of them; its own name in a prompt-facing field (`display_name_fallback`, NPC §3.1, is shown only when the install shows no name, and otherwise fills only NPC §2.7's default self-knowledge line, which a roster bio never uses, since a roster bio that speaks requires its `identity`: a persona's is its pre-reveal name, as today; a roster bio's is our own first-meeting label, such as "the hooded smith", or is left unset, since display names never ship, O43); flags, numbers or aliases in prose; directions or feelings for the model; the word "quest" in any prompt-facing field. *Binding by ID:* a live NPC reaches its bio only through a verified key (§7.2 step 2), and the bio's `id` keys its allowance slot, its journal, facts and claims, its seeds and pools and its roster entry; one id covers every form and reveal row; names never key anything. *The v1.0 roster:* every named NPC (a personal name on its NpcName row: questline characters, services, named merchants and named invaders) and every boss whose bar shows one individual's name, in the base game, about 140 profiles with the six personas; Melina and the mount excepted (O19, rule (f)); a named boss of a voiceless kind (§7.1 F) gets a short silent bio (public fields only), so it is listed and described and never speaks; bosses whose bar shows a kind's name, and nomadic merchants, get no bio and stay mute unless a profile binds them (§7.1). *Why:* one loader, lint set and editor form, and one target for the generator and for whatever Min's blueprint maps; a persona adds its stage track, which needs S6 per NPC, and the fields tied to its story that a bio never holds (NPC §3.1: `private.background`, `private.goals`, `private.relationships`, `knowledge.*`, `awareness.tie`). The DLC waits because its flag research is pre-DLC, verifying its bindings needs saves inside it, and players without it gain nothing; its bios may land earlier if their bindings verify in time. (b) keeps two schemas for one job; (c) is too thin for a free conversation.
 
 **Follows from.** O43 as updated and O45. The owner wants it settled before the profiles are generated (O45).
+
+*Later (2026-11-15):* the owner shared two of SkyrimNet's own bio files (WHY§96) and, asked whether to adopt its ten
+parts made spoiler-safe, answered: "We can take ideas from it, but we should think about what fits Elden Ring, and
+possibly a follower system where these blocks matter more (e.g. skills may not be important until they actually join
+the player)." A revised recommendation, five layers (first meeting, revealed, companion, lived, the Tarnished's own),
+is in [proposal 0004](proposals/0004-character-bio.md); the follower system is put as O85.
+
+**Decision.** (a) as revised in [proposal 0004](proposals/0004-character-bio.md), with its §8: one bio for every named NPC,
+in five layers. *First meeting* (every NPC that speaks): what anyone sees (`summary`, `appearance`, `role`), its own
+self (`personality`, `honesty`, `claims` with the cover story and its deflections, `seeks`, the `ties` it names at a
+first meeting), its voice (NPC §3.1's voice fields), what makes it speak (`subjects`, `stirs`) and what it knows at
+every state. *Revealed*: later truths behind story stages verified in game, as `knows_when` entries or a persona's
+stage track, never written before they happen. *Companion*: `skills` and `beside`, for when it fights beside or travels
+with the Tarnished, used in v1.0 by the game's own summons. *Lived*: what has passed between it and the Tarnished and
+other NPCs, per journey, changed only as its memories justify. *The Tarnished's own*: an optional bio the player
+writes, seen parts only. A speaking NPC's first-meeting layer is about 450 to 550 words of prose; spoilers are kept by
+grounding alone (O86). The roster: the base game's in v1.0 and the expansion's in v1.1, as before.
+
+**Owner's words.** "O46 and O85 as recommended".
 
 ## O47
 
@@ -603,6 +649,16 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 **Waiting.** The blueprint itself; then the owner's decision on what EldenNet adopts, which O45's roster and O46's bio wait for.
 
+*Later (2026-11-15):* the owner supplied Min's engine: FatelessAiEngine 0.2.0, a closed Windows DLL under a binary
+licence, with MIT headers (WHY§95). EldenNet may ship it unmodified inside its releases and builds on its interface;
+it may not change it, so "read, build, run and modify" does not reach the engine itself. What Min gives in a form we
+may adapt (prompts, templates, configuration, the dashboard) follows this decision as written, each under its own
+licence. What EldenNet adopts is put as O80 to O83 ([proposal 0003](proposals/0003-adopting-the-engine.md)).
+
+*Later (2026-11-15):* the owner chose our own engine instead (O84): EldenNet takes SkyrimNet's proven logic and
+structure, not its prompts, and does not use Min's DLL. What Min gives in a form we may adapt stays open to us under
+this decision, each under its own licence.
+
 ## O54
 
 **An early, numbers-only roster census** · *Put 2026-11-07 · Decided by the owner 2026-11-08*
@@ -657,11 +713,15 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 
 ## O58
 
-**Preparing the live checks before the blueprint** · *Open since 2026-11-08*
+**Preparing the live checks before the blueprint** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-08)*
 
 **Question.** Live tracing is verified only in game (DATA §1.4), and every capture waits for the first build, which follows Min's blueprint (DATA §3.2). Should anything be prepared now, without building EldenNet? **Options** (DATA §4): (a) **wait**: prepare nothing until the blueprint, so the capture plans and saves are made when v0.1's spikes start; (b) **prepare now, without building**: write the capture plans in our own words (S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch), and the owner keeps a save before each named boss fight and each later form of a roster NPC as they play (about 40–60 for S2 alone), copies on their own PC, never committed, kept apart from any save they take online; (c) as (b), plus a standalone read-only spike build (the game-access layer, the recorder and the debug view, no model and no network) before the blueprint, so the in-game spikes can run early.
 
 **Recommendation.** (b). It builds nothing, so O54 holds; it serves whatever the blueprint brings, since the game-access layer, Augur and identity by verified keys are unchanged by it (DESIGN §7.8); and it takes the slowest part of the captures, preparing the saves, off the critical path (K29). *What it gives up:* some of the owner's play time, and plans that may need revising once the blueprint is known. (c) would find a failing live source sooner, but with code written before its foundation is known; it stays a later choice if the blueprint is long delayed.
+
+**Decision.** (b): prepare now, without building. The capture plans are written in our own words (S6's expectation scripts, the S1 and S2 capture routes and the checkpoint list, the roster batch by batch), and the owner keeps a save before each named boss fight and each later form of a roster NPC as they play, on their own PC, never committed, kept apart from any save taken online. Nothing of EldenNet is built, so O54 holds.
+
+**Owner's words.** "okay go with O58 option b, prepare now".
 
 **Follows from.** O54, O57; DATA §3 and §4; DESIGN §7.8, §16.1.
 
@@ -783,3 +843,607 @@ the only binding (a player's may not replace it). A full persona with a stage tr
 **Owner's words.** "for Melina, I would go with "b"".
 
 **Follows from.** O19, O43, O45, O62; NPC §1.3; ER04 §10 item 8.
+
+## O64
+
+**Where the privacy sweep lives, and EldenNet's history** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** The privacy and safety sweep (`tools/privsweep`) had been committed to EldenNet, a public repository,
+since 2026-11-06, as a copy of the one in the owner's private Skyrizz repository. A public copy publishes the sweep's
+rules and `personal.txt`, the owner's personal words as single SHA-256 hashes beside their salt, which a list of names
+can test quickly. **Options.** Where it lives: (a) only in the private Skyrizz repository, installed from that checkout
+in every session; (b) a new private repository of its own; (c) unchanged. EldenNet's history: (a) rewritten without
+it, force-pushed, and the old commits purged by GitHub Support; (b) the repository made private; (c) left as it is.
+**Recommendation.** (a) and (a).
+
+**Decision.** (a) and (a). The sweep lives only in the private Skyrizz repository: EldenNet's copy is removed, its one
+allow line of its own (the toolchain's licence notices that ship with DataPiler) moved to Skyrizz's list, and the
+session-start hook installs the sweep from the Skyrizz checkout beside this one, so a session on EldenNet, GraceUI
+or DataPiler needs Skyrizz attached. EldenNet's history was rewritten without `tools/privsweep` on every branch and
+force-pushed the same day; the old commits stay reachable through the closed pull requests until GitHub Support
+purges them, which the owner asks for.
+
+**Owner's words.** "the sweep tool is only supposed to be your cloud drive no? shouldn't upload to public repo"; then
+"Only in private Skyrizz" and "Rewrite and purge".
+
+**Follows from.** The privacy rules of CLAUDE.md; Skyrizz's d414.
+
+## O65
+
+**How EldenNet itself may hook** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** Since GraceUI's G15 the design says EldenNet hooks nothing and links no hook library (DESIGN R12,
+GraceUI's invariant 16), which leaves no way to add the hooks EldenNet's design keeps open for later: the hook-based
+event sources of O49 (ARCH §8.11) and the save redirect of DESIGN §3.6. The evidence rules out two hook libraries on
+one function, not one library per process (WHY§86). **Options:** (a) **its own hook library, for functions GraceUI does
+not hook**: game functions, and system functions GraceUI leaves alone, each installed once after GraceUI's, chained and
+never removed, each needing its spike and the owner's approval before it ships; (b) **a hook service in GraceUI's
+interface**, so one library stays in the process; (c) **decide per feature**, when the first hook is proposed.
+
+**Recommendation.** (a). It matches what the evidence rules out, keeps GraceUI read-only towards the game, and keeps
+EldenNet's features in EldenNet's releases. *What (a) gives up:* a second hook library in the process, which is safe
+only while the two never share a function, so EldenNet's CI checks its targets against GraceUI's published list.
+
+**What each answer changes.** (a): GraceUI's invariant 16 becomes "GraceUI's functions have one owner" (no consumer
+hooks a function GraceUI hooks; EldenNet's own hooks on other functions follow its R12), and R12 is rewritten to match.
+(b): GraceUI's interface gains a hook service and its read-only rule an exception. (c): R12 stays "EldenNet hooks
+nothing".
+
+**Owner's words so far.** "I lay towards (a), but I want to discuss this further" (2026-11-15).
+
+**Decision.** (a). EldenNet may link one hook library of its own and hook game functions, and system functions GraceUI
+does not hook, never a function on GraceUI's published list; each hook is installed once, after GraceUI's `connect`
+has answered, chained and never removed, and each needs its spike and the owner's approval before it ships; the
+library is chosen with the first hook, its licence checked first. GraceUI's invariant 16 becomes "GraceUI's functions
+have one owner", and R12 is rewritten to match.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
+**Follows from.** GraceUI's G15 and the design fold (WHY§84); [proposal 0001](proposals/0001-plugins.md) §2, §3, §12.
+
+## O66
+
+**Content plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** Should players be able to install packs of character profiles, NPC cards, lore and layers on shipped
+profiles that other people made, checked and loaded by EldenNet like its own content, with a manifest and a place
+between EldenNet's shipped content and the player's own overrides? **Options:** (a) **yes, in 1.1**, as proposal 0001
+§5 describes; (b) **in v1.0**; (c) **not planned**: the player's own overrides stay the only way to change content.
+
+**Recommendation.** (a). Content plugins are mostly the layering EldenNet already has (ARCH §11.6), plus a manifest and
+an installer, and they cannot run code: game facts, the spoiler machinery, prompts and event rules stay EldenNet's. In
+1.1 they do not delay v1.0. *What (a) gives up:* players wait one release.
+
+**What each answer changes.** (a) and (b): proposal 0001 §5 joins the design (ARCH §11.6's layers, DESIGN §11.4, the
+Content packs page, GraceUI's D46 amended) and its §10's rows apply; (b) moves it into v1.0's scope. (c): §5 and §6 fall
+away.
+
+**Decision.** (a): content plugins in 1.1, as proposal 0001 §5 describes: character profiles, NPC cards, lore and
+layers on shipped profiles, checked as EldenNet's own content and loaded between the shipped content and the player's
+overrides. Game facts, the spoiler machinery, prompts and event rules stay EldenNet's.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
+**Follows from.** The owner's request for easy plugin installation (2026-11-15); [proposal
+0001](proposals/0001-plugins.md) §4, §5, §12.
+
+## O67
+
+**How plugins are installed** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** **Options:** (a) **both routes**: the Plugins folder (a folder or a `.zip`), checked and installed by
+EldenNet's launcher before the game starts and working with mod managers; and the dashboard's drop zone with an Add
+file button, in the browser only, this PC only (never a paired device) and never for code, applied at once for content
+that reloads live and otherwise at the next start, uninstalling the same way; (b) **the folder only**; (c) **the
+dashboard only**.
+
+**Recommendation.** (a). The folder works with mod managers and without the game running; the dashboard is the quick
+way while playing; one installer and one set of checks serve both (proposal 0001 §6). *What (a) gives up:* GraceUI
+gains an upload route, since its frames are capped at 16 KiB, and its server suite must cover it.
+
+**What each answer changes.** (a): proposal 0001 §6 as written; GraceUI is asked for the upload route (a G-question
+there). (b): §6.2 falls away, and GraceUI needs nothing. (c): §6.1 falls away, and code plugins need another route, or
+none.
+
+**Owner's words so far.** "Or perhaps both routes? what do you think?" (2026-11-15).
+
+**Decision.** (a): both routes into one installer. The Plugins folder (a folder or a `.zip`), installed by the launcher
+before the game starts; and the dashboard's drop zone and Add file, in the browser only, this PC only, never for code.
+Content applies at once where it reloads live, the rest at the next start; uninstalling works the same way. GraceUI is
+asked for the upload route (GraceUI G28). *Later (2026-11-15):* GraceUI's G28 decided (a) the same day: one narrow route
+on the loopback listener, for a space's sensitive file commands, with a one-use ticket (GraceUI §7.2 item 18).
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
+**Follows from.** The owner's request (2026-11-15); [proposal 0001](proposals/0001-plugins.md) §6, §12.
+
+## O68
+
+**Code plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** Should other modders' DLLs be able to use EldenNet's characters, memories, lore, events and model calls
+through a published interface, as SkyrimNet's plugins use SkyrimNet's (WHY§87)? **Options:** (a) **designed now, built
+and opened after v1.0**: `EldenNet_RequestApi` with GraceUI's ABI rules, projections only and never keys, model calls
+within EldenNet's pacing, budget and gates; EldenNet loading enabled code plugins from its Plugins folder once it has
+reached Ready after its gate, each turned on once by the player in the launcher with its hash shown; a player's own
+loader also able to start one; (b) **never**: content plugins only; (c) **with v1.0**.
+
+**Recommendation.** (a). It is what makes EldenNet a framework other mods can build on, as SkyrimNet is, while v1.0
+stays minimal; the interface is re-checked against Min's blueprint when it arrives (O53, O60). *What (a) gives up:* a
+public interface to support for years, and the trust that comes with loading other people's code.
+
+**What each answer changes.** (a): DESIGN §13 gains the seam, and proposal 0001 §7 is designed in ARCH after v1.0.
+(b): §7 and §8 fall away. (c): §7 moves into v1.0's scope.
+
+**Decision.** (a): code plugins through a published interface (`EldenNet_RequestApi`, with GraceUI's ABI rules),
+designed now as a seam, built and opened after v1.0 with a preview first. Projections only, never keys; model calls
+within EldenNet's pacing, budget and gates; EldenNet loads enabled code plugins from its Plugins folder once it has
+reached Ready, each turned on once by the player with its hash shown, and a player's own loader may start one. The
+interface is re-checked against Min's blueprint when it arrives.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
+**Follows from.** The owner's question of 2026-11-15; [proposal 0001](proposals/0001-plugins.md) §7, §12.
+
+**Later changes.** 2026-11-15: O70 moves code plugins out of the game: they run in the plugin cluster by default, or
+detached in a host of their own; only plugins that must draw in game or patch the game run inside it.
+
+## O69
+
+**Hooks for code plugins** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** If a code plugin needs to patch the game, should EldenNet patch it for the plugin, so that two mods never
+patch one function? **Options:** (a) **not at first**: a plugin patches on its own, and the guide tells it never to hook
+a function GraceUI or EldenNet hooks, from lists both publish; (b) **a hook service of EldenNet's**, with O65 (a)'s
+library, one owner per function, a second request for a hooked function refused with the owner's name; (c) **never**.
+
+**Recommendation.** (a). The interface covers what plugins need first, and a hook service is better designed once real
+plugins ask for it. *What (a) gives up:* until then, two plugins could patch one function and break each other.
+
+**What each answer changes.** (a): the guide's rule and EldenNet's published list. (b): EldenNet's interface gains hook
+calls, after code plugins have shipped. (c): the guide forbids patching for EldenNet plugins.
+
+**Decision.** (a): not at first. A code plugin that patches the game does so on its own, never on a function GraceUI
+or EldenNet hooks, from the lists both publish; a hook service may follow once code plugins have shipped and one is
+needed.
+
+**Owner's words.** "all five as recommended" (2026-11-15, answering O65 to O69 together).
+
+**Follows from.** O65, O68; [proposal 0001](proposals/0001-plugins.md) §8, §12.
+
+## O70
+
+**Where code plugins run, and what happens when they stop** · *2026-11-15 · Decided by the owner, as the owner designed
+it*
+
+**Question.** Inside the game process (O68), a code plugin cannot be stopped without stopping the game: a crash in a
+plugin's own code ends the game. The owner asked for validators and safeguards by kind, and then designed the answer
+([proposal 0001](proposals/0001-plugins.md) §13).
+
+**Decision.** One plugin cluster outside the game: one plugin host process, started by EldenNet once it has reached
+Ready, runs every code plugin whose row says Cluster. EldenNet keeps a separate link per plugin, so it knows which one
+made each call and which one failed, and if the cluster crashes, the game and EldenNet stay alive. On the Plugins page,
+a row per plugin with an On/Off switch and, for a code plugin, Cluster or Detached (a host of its own). When plugins
+stop, a pop-up names the plugin, its title in another colour, with whatever else needs reporting, the X at the top
+right, and four choices: Restart plugins; Restart plugins without the plugin; Restart plugins with the plugin detached;
+Ignore (no plugins). The validator checks every plugin before it installs, and catches library clashes against every
+installed plugin, on or off. Plugins that must draw in game or patch the game stay a separate, trusted tier inside it.
+
+**Owner's words.** "would it be possible to design and add another layer for plugins, and run them as one cluster in
+one process. EldenNet would still have link for each plugin and recognise them as separate plugins, and if one acts up
+or crashes, EldenNet would know exactly which one done it. Then in this case the whole cluster would likely crash but
+Elden Ring game and EldenNet would stay alive"; then "make this a pop up UI, stating plugin layer crashes due to plugin
+<title>. and whatever else needs reporting there, then offer a choice to user to close down the pop up window (an usual
+X button at the top right corner), text buttons: "Restart plugins", "Restart plugins without <crashed plugin title in
+different text color>", "Restart plugins with <crashed plugin title in different text color> detached", "Ignore (no
+plugins)""; "a list of plugins in rows, each row would have toggle switch: on/off, cluster (part of cluster), detached
+(its own process)"; and "if a plugin such as that is already installed (even if the plugin is currently switched off)
+the validator would catch incompatibilities" (2026-11-15).
+
+**Amends.** O68's loading: code plugins run outside the game by default.
+
+**Follows from.** O68; [proposal 0001](proposals/0001-plugins.md) §13.
+
+## O71
+
+**The launcher as the crash watcher** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** When the game itself crashes, everything inside it stops, the dashboard's server included, so only
+something outside the game can record what happened. **Options:** (a) **the launcher stays in the background while the
+game runs** and records any crash of the game (the module, the kind of error, the last log lines and events, the
+plugins and mods loaded), and the next start explains it; players who use their own loader get the watcher started by
+EldenNet; (b) **the launcher stays short-lived**, and fault finding after a crash has only EldenNet's own log; (c) **a
+watcher program of its own**, separate from the launcher.
+
+**Recommendation.** (a). Nothing inside the game survives its crash, and the launcher already holds the game's handle.
+A full crash dump, if written, stays on the PC, since it can hold the player's keys and chats; the report a player
+shares is a scrubbed summary. *What (a) gives up:* one small process for the length of a session, and the design's
+"short-lived" launcher.
+
+**What each answer changes.** (a): DESIGN §18's process model and ARCH §1.1 and §4; the watcher's checks join S0-D.
+(b): proposal 0001 §13.7 falls away, and the plugins-stopped pop-up covers only plugin hosts. (c): as (a), with one more
+program to ship and sign.
+
+**Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.7.
+
+**Decision.** (a): the launcher stays in the background while the game runs and records any crash of the game (where it
+happened, the kind of error, the last log lines and events, the plugins and mods loaded), and the next start explains
+it; players who start the game through their own loader get the watcher started by EldenNet. A full crash dump stays on
+the PC; only a scrubbed summary is ever shared.
+
+**Owner's words.** "Launcher stays as watcher (Recommended)".
+
+## O72
+
+**A sandbox for plugin hosts** · *2026-11-15 · Decided by the owner, as recommended (open since 2026-11-15)*
+
+**Question.** Each plugin host could run with reduced rights, the kind of sandbox web browsers use, so that even a
+hostile plugin could not read the player's files, reach the network or touch the game's memory unless its manifest asks
+and the player allows it. **Options:** (a) **later, as an option**: after code plugins ship, a spike checks it on
+Windows and under Proton; (b) **never**; (c) **from the start of code plugins**.
+
+**Recommendation.** (a). It is the strongest protection, but it limits what honest plugins can do and may not work on
+the Steam Deck, so it is better added once real plugins exist. *What (a) gives up:* until then, a hostile plugin can do
+what any program the player runs can.
+
+**What each answer changes.** (a): a spike after code plugins ship, and a field in the manifest. (b): nothing. (c): the
+sandbox becomes part of code plugins' first release, and the spike comes first.
+
+**Follows from.** O70; [proposal 0001](proposals/0001-plugins.md) §13.8.
+
+**Decision.** (a): later, as an option. Once code plugins have shipped, a spike checks Windows' reduced-rights sandbox
+on Windows and under Proton; a plugin's manifest then names what it needs, for the player to allow.
+
+**Owner's words.** "Later, as an option (Recommended)".
+
+## O73
+
+**In-game data for research: EldenNet itself, once Min's engine arrives** · *2026-11-15 · Decided by the owner*
+
+**Question.** The map's spike (S7.9.c), and O48's rule that facts about the game's structures are verified in game,
+need data from the running game: where the player is, and which map pieces and resting places the game counts as
+found. Where should it come from? **Options:** (a) **DataPiler reads the running game from outside**: a read-only
+probe, only while the game runs without anti-cheat, from a closed list of values found by our own scans; (b)
+**EldenNet itself, in the game**: its game-access layer records play sessions as numbers, which DataPiler imports, and
+may later answer DataPiler's queries on the PC; built with v0.1's spikes, after Min's engine (S8, S10.1); (c) **(b)
+brought forward**: a small spike build of the launcher and a recorder before the engine.
+
+**Recommendation.** (c), for (b)'s reasons and sooner: the reads are the code EldenNet's features rely on, its offline
+and anti-cheat gates already apply, and nothing opens the game from outside.
+
+**What each answer changes.** (a): a probe in DataPiler with scans and self-tests of its own. (b): nothing now; v0.1's
+spike and recording build (S10.1.a) gains a recording DataPiler imports (its DP35). (c): that build moves before S8.
+
+**Follows from.** O48, O53; G27; WHY§94.
+
+**Decision.** (b). EldenNet in the game is built once Min's engine arrives (S8, then v0.1's spikes, S10.1). Its
+game-access layer gives the live data: play sessions recorded as numbers only, imported by DataPiler (DP35), and a
+local query later if needed. DataPiler never reads the game's memory itself.
+
+**Owner's words.** "hmm so we need something in-game, a more favourable setup would be EldenNet itself communicating
+with datapiler to get data, correct?" and "EldenNet in the game: we build this once we get Min's engine."
+
+## O74
+
+**The EldenNet devkit: one reader of the game's data of our own** · *2026-11-15 · Decided by the owner, with the
+owner's condition*
+
+**Question.** EldenNet must read the player's own game at run time (the map's tiles and terrain, then text), and the
+research reads it through Smithbox's unpacking. Should one reader of our own serve both, as an EldenNet devkit?
+**Options:** (a) **the devkit**: a C++ library and a command-line tool, published with EldenNet (MIT), reading
+everything from each user's own install and carrying nothing of the game; (b) **the same reader, private** inside
+EldenNet, published later; (c) **no**: the research keeps Smithbox, and EldenNet writes its own run-time reader when
+the map is built.
+
+**Recommendation.** (a): one reader, tested once, for EldenNet in the game, DataPiler on the PC (its DP35) and, later,
+plugin authors, beside the plugin interface's headers and its checker (O68).
+
+**What each answer changes.** (a): a new part of EldenNet, with a design and releases of its own; DataPiler reads
+through it. (b): the same code, unpublished. (c): nothing now.
+
+**Follows from.** O48, O53, O68; G27; WHY§56, WHY§89 to WHY§94.
+
+**Decision.** (a), with the owner's condition: the devkit does nothing unless the game is running, and nothing of the
+game is shipped.
+- It opens the game's files only while the game of the same install is running, and refuses otherwise. It never reads
+  or writes the game's memory: it only sees that the game runs, and reads the files on disk.
+- It carries nothing of the game: no files, no text, no keys. Archives are read with the keys taken from the user's
+  own game when used, never stored or shipped; compression goes through the game's own library, loaded from the game's
+  folder and never copied. What it reads stays on the user's PC; research shares carry numbers only, through
+  DataPiler's guard.
+- First version: what the map needs (the archives, map models, placement files, map textures), then text; the game's
+  data tables later. Its first check: that the archives can be read while the game runs (if the game locks them, the
+  condition is put to the owner again), and that a file read through it matches Smithbox's copy byte for byte.
+
+**Owner's words.** "One game-data reader of our own: could this be EldenNet devkit?" and "yes we go with devkit, but
+without game running it won't do anything, and we still don't ship game related content or files off the game. is
+that okay?"
+
+*Later (2026-11-15):* amended by O75. The devkit works with the game closed too, within the safe limits and with
+the disclosure of [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.3 and §2.4; the first check reads the
+archives with the game closed and, separately, while it runs.
+
+## O75
+
+**The devkit with the game closed, within safe limits and with a disclosure** · *2026-11-15 · Decided by the owner*
+
+**Question.** O74 has the devkit do nothing unless the game is running. That makes every research job start the game,
+keeps the launcher from preparing the map before play or checking the game's files after an update, and leaves the
+devkit unable to read on the PC at all if the game locks its archives while it runs; as a safeguard it is weak, since
+the devkit is open source and other tools unpack the game with it closed. **Options:** (a) **allow it closed, with
+limits**: read-only, no bulk export, nothing of the game shipped and no key stored, never the game's memory, and a
+notice of safe use; (b) **keep O74's condition**.
+
+**Recommendation.** (a): the real risk, sharing the game's content, is the same with the game running or closed, so the
+protection belongs in what the devkit does.
+
+**What each answer changes.** (a): O74's condition is dropped; the launcher can build the map's cache and check an
+update before the game starts; DataPiler's reads need no running game. (b): nothing.
+
+**Follows from.** O74; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.
+
+**Decision.** (a), with a disclosure the owner asked for: the devkit says plainly what safe use is and what we condemn.
+Its limits and the disclosure's draft are in proposal 0002 §2.3 and §2.4.
+
+**Owner's words.** "allow it closed with safe limits and disclosure about safe usage and what is condemned (we make
+that clear)."
+
+## O76
+
+**How does EldenNet's dashboard work off game?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*
+
+**Question.** The owner asked for EldenNet's dashboard in the browser with the game closed: what EldenNet saved, to look
+at, and settings to change, applied when EldenNet next loads ([proposal 0002](proposals/0002-devkit-and-off-game.md)
+§3). **Options:** (a) **the launcher serves GraceUI's pages over page data EldenNet writes** at each save point and on
+exit, already through the spoiler and privacy rules: read-only, plus the settings; (b) the launcher runs EldenNet's
+engine off game to build the pages from the saved files: more complete, heavier, and only once Min's engine is adopted;
+(c) settings only, off game.
+
+**Recommendation.** (a): the pages show exactly what the player saw in the game, with nothing to recompute off game.
+
+**What each answer changes.** (a) and (b): GraceUI's G4 widens to off game while the launcher runs, its server runs
+outside the game (G29), and the launcher serves the dashboard; (a) adds EldenNet's page data at save points and on
+exit. (c): the settings pages only.
+
+**Follows from.** O71; GraceUI G4, G17, G29.
+
+**Decision.** (b). EldenNet's launcher runs EldenNet's engine off game and builds the dashboard's pages from the saved
+files, read-only, with the settings (O77). It comes once Min's engine is adopted (S8): the engine runs outside the game
+in the launcher, as it will in DataPiler's replay harness (its DP35), reads the game's data through the devkit with the
+game closed (O75), and its pages pass the same spoiler and privacy rules as in the game. (a)'s page data is not needed.
+
+**Owner's words.** "Launcher runs the engine off game".
+
+## O77
+
+**Which settings change off game?** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** With the dashboard off game (O76), which settings may be changed there, to apply when EldenNet next loads?
+**Options:** (a) **all but a short list that needs the live game**, each setting marked in the settings index (GraceUI
+D101), secrets write-only as in the game; (b) a chosen few: model providers and keys, voices, features and pacing; (c)
+none: off game is for looking only.
+
+**Recommendation.** (a): the same validator checks a change in or out of the game, so little needs the live game.
+
+**What each answer changes.** (a) and (b): a mark per setting in the settings index; changes written to `settings.toml`
+(ARCH §11.5) and shown as applying at the next load. (c): nothing.
+
+**Follows from.** O76; [proposal 0002](proposals/0002-devkit-and-off-game.md) §3.3.
+
+**Decision.** (a). Every setting may be changed off game but a short list that needs the live game, each marked in the
+settings index (GraceUI D101). A change is checked by the same validator as in the game, written to `settings.toml` and
+applied when EldenNet next loads; secrets stay write-only.
+
+**Owner's words.** "All but a short list (Recommended)".
+
+## O78
+
+**What do the devkit's browser tools show?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*
+
+**Question.** The owner asked for the devkit's tools in the browser, off game. **Options:** (a) **checks and numbers
+only**: a self-test of the install, content plugins checked against the game's ids, research numbers for DataPiler; no
+viewers of the game's assets; (b) also viewers of the game's models, textures and text, in the browser, never exported.
+
+**Recommendation.** (a): viewers would make the devkit an asset browser, which O75's limits avoid; Smithbox is there
+for viewing.
+
+**What each answer changes.** (a): `eldennet-dk serve` with three tools. (b): viewers as well, and a page in the
+disclosure on screenshots and sharing.
+
+**Follows from.** O75; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.5.
+
+**Decision.** (b). The devkit's browser tools show the game's models, textures and text as well, in the browser and
+never exported to files, behind Developer mode (O79). The disclosure (proposal 0002 §2.4) gains a line: the viewers are
+for looking at your own copy, and using them to pass the game's assets on, as images, captures or copies, is among what
+we condemn.
+
+**Owner's words.** "Also asset viewers".
+
+## O79
+
+**Where does the devkit live?** · *2026-11-15 · Decided by the owner, with an addition*
+
+**Question.** **Options:** (a) **a `devkit/` folder in EldenNet's repository**, under EldenNet's design and reasoning
+log, with releases of its own; (b) a repository of its own.
+
+**Recommendation.** (a): one design and one log, and no new repository to keep.
+
+**What each answer changes.** (a): EldenNet's repository holds code from the devkit's first version. (b): a new public
+repository, with the privacy sweep as its gate.
+
+**Follows from.** O74; [proposal 0002](proposals/0002-devkit-and-off-game.md) §2.6.
+
+**Decision.** (a), with the owner's addition. The devkit's code lives in EldenNet's repository, and the devkit ships as
+part of EldenNet, with no releases of its own. The player turns on Developer mode in EldenNet's settings to use its
+features: its browser tools and viewers, and its command-line tool. EldenNet's own uses of the reader (the map's
+run-time read, names at run time) need no Developer mode. Until EldenNet ships, the owner's DataPiler uses development
+builds of the devkit.
+
+**Owner's words.** "Same as EldenNet, and shipped as part of it, in EldenNet, the user can toggle Developer mode to use
+its features."
+
+## O80
+
+**What does EldenNet adopt from Min's engine?** · *2026-11-15 · Withdrawn the same day (O84)*
+
+**Question.** The engine arrived as a closed DLL (WHY§95). **Options:** (a) **everything it offers that EldenNet
+planned to build**: LLM requests and decisions, prompt templates, speech to text, voice detection, text to speech and
+model downloads, behind EldenNet's own seams; (b) language models and templates first, speech later; (c) nothing yet:
+wait for the content store.
+
+**Recommendation.** (a): it replaces EldenNet's planned LLM client, template engine and speech seams with SkyrimNet's
+own behaviour, and EldenNet keeps its context engine, memories, pacing, budgets and deadlines.
+
+**What each answer changes.** (a): ARCH §11 is rewritten around the engine, and DESIGN §13's voice seams name its
+backends (S8). (b): the speech seams stay EldenNet's until a later decision. (c): S8 waits.
+
+**Follows from.** O53, O60; [proposal 0003](proposals/0003-adopting-the-engine.md) §2.
+
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
+## O81
+
+**Where does the engine run?** · *2026-11-15 · Withdrawn the same day (O84)*
+
+**Question.** The engine blocks for seconds when its services are created or released, calls back on its own threads,
+and loads libraries under their upstream names, which another mod's copies could replace inside the game.
+**Options:** (a) **in EldenNet's launcher**, out of the game's process, EldenNet's DLL asking it over a local channel;
+(b) inside the game's process, as the SDK is designed for.
+
+**Recommendation.** (a): a library's fault cannot take the game down, nothing clashes with other mods, blocking calls
+are harmless, and the launcher already runs off game (O70, O71, O76); one local hop per request is small beside a
+model's answer.
+
+**What each answer changes.** (a): the launcher becomes EldenNet's AI host, and a local channel joins the DLL to it.
+(b): the engine's threads and libraries live in the game's process, with the clash and crash risks in WHY§95.
+
+**Follows from.** O70, O71, O76; [proposal 0003](proposals/0003-adopting-the-engine.md) §3.
+
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
+## O82
+
+**Min's online service, fateless.ai?** · *2026-11-15 · Withdrawn the same day (O84)*
+
+**Question.** The engine can sign the player in to fateless.ai, for Fateless's models and cloud speech, paid for by the
+player. **Options:** (a) **an opt-in provider, off by default**, basic scope only; (b) not in v1; (c) offered by
+default. Whatever the answer, EldenNet never creates the engine's telemetry service, and never sends a game file's
+voice to be cloned (O74, O75).
+
+**Recommendation.** (a): players who want Min's service can choose it, as they choose any provider; nothing reaches it
+unless they do.
+
+**What each answer changes.** (a): a provider row in the settings and a sign-in through the engine's device flow. (b)
+and (c): none, or that row on by default.
+
+**Follows from.** O74, O75; [proposal 0003](proposals/0003-adopting-the-engine.md) §4.
+
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
+## O83
+
+**How do API keys reach the engine?** · *2026-11-15 · Withdrawn the same day (O84)*
+
+**Question.** EldenNet keeps keys in `secrets.toml` (DESIGN §11.4); the engine takes them only from a plain-text
+provider file it rewrites at each load. **Options:** (a) **EldenNet writes the engine's provider file from
+`secrets.toml`** at each start, in a folder only the player's Windows account can read, never logged or shown, while
+the owner asks Min for keys in memory; (b) keyless routes only (local servers, and Fateless if O82 allows it) until
+Min adds that.
+
+**Recommendation.** (a): the file sits beside `secrets.toml` with the same protection, so nothing is weaker than
+today's design, and players keep every provider.
+
+**What each answer changes.** (a): a second file with keys in the player's folder, written by EldenNet. (b): only keyless
+providers until then.
+
+**Follows from.** DESIGN §11.4; [proposal 0003](proposals/0003-adopting-the-engine.md) §5.
+
+*Later (2026-11-15):* withdrawn the same day. The owner chose our own engine (O84), so Min's DLL is not adopted and this
+question falls away.
+
+## O84
+
+**EldenNet's own engine, on SkyrimNet's logic** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** Min's engine arrived as a closed DLL that may not be modified (WHY§95), with telemetry built in. Build
+EldenNet on it, or on an engine of its own? **Options:** (a) **our own engine**: MIT, in EldenNet's repository, in
+C++ (O60), on open libraries (inja for templates; later whisper.cpp, ggml and ONNX Runtime for speech), following
+SkyrimNet's proven logic and structure, not its prompts; no telemetry; keys passed from `secrets.toml` in memory;
+(b) Min's DLL, as proposal 0003 set out (O80 to O83); (c) decide later.
+
+**Recommendation.** (a): v1 is text first (DESIGN §0 item 14), so it needs only a model client, decision calls and
+templates, which ARCH §11 had already designed; the engine stays open, testable and free of telemetry, and speech is
+decided at v1.5.
+
+**What each answer changes.** (a): S8 builds our own engine (about 3 to 5 weeks for the model client, decisions and
+templates, EST); proposal 0003's O80 to O83 are withdrawn; Min's DLL is neither used nor shipped. (b): proposal 0003.
+(c): S8 waits.
+
+**Follows from.** O53, O60; WHY§95; [proposal 0003](proposals/0003-adopting-the-engine.md).
+
+**Decision.** (a). EldenNet builds its own engine, MIT, in C++, on open libraries, following SkyrimNet's proven logic
+and structure (its template rules, job slots, decisions, bios' shape, memories' logic) and not its prompts. No
+telemetry. SkyrimNet's design is credited; Min is told, and asked whether source access is planned.
+
+**Owner's words.** "wouldn't it be better if we just build EldenNet on our own dll? this unmodifiable dll seems like a
+serious limitation, I also don't want the telemetry part.", "I am not really interested in using SN prompts, just the
+logic and structure that is proven to work." and "Our own engine (Recommended)".
+
+## O85
+
+**A follower system?** · *2026-11-15 · Decided by the owner 2026-11-16, as recommended*
+
+**Question.** The owner suggested a follower system, where parts of a bio such as skills matter once an NPC joins the
+Tarnished (O46's Later note). v1 is dialogue only, and Elden Ring's own summons already fight beside the Tarnished.
+**Options:** (a) **later, after v1.0, when actions open**: characters who travel with the Tarnished, on the companion
+layer every bio carries from v1.0, first used by the game's own summons ([proposal 0004](proposals/0004-character-bio.md)
+§3.3); (b) designed now, for a v1 release; (c) none: summons only.
+
+**Recommendation.** (a): following needs actions (DESIGN O31 to O42), which are later-version seams; the bio is ready
+for it from v1.0.
+
+**What each answer changes.** (a): the companion layer in O46's bio; a design for followers after v1.0. (b): actions
+brought into a v1 release. (c): the companion layer serves summons only.
+
+**Follows from.** O42, O46; [proposal 0004](proposals/0004-character-bio.md) §3.3.
+
+**Decision.** (a). Followers, characters who travel with the Tarnished, come after v1.0, when actions open; every bio
+carries the companion layer from v1.0, first used by the game's own summons, so followers need no change to it.
+
+**Owner's words.** "O46 and O85 as recommended".
+
+## O86
+
+**Spoilers by grounding alone** · *2026-11-15 · Decided by the owner, as recommended*
+
+**Question.** O36 made positive grounding the way spoilers are kept, and the design kept deterministic guards beside it:
+per-character locked-term sets (`Locked(C)`, `Locked(P)`), an output lock that checks every line, reveal terms and
+tells, spoiler lints at eight fixture states (PL7), a second reader's reveal list, and a fallback ladder; proposal 0004
+§8 added mechanical checks against locked terms. The owner: the playthrough system tracks the world's, the NPCs' and the
+quests' states, so each prompt says exactly what the NPC knows, what it is doing and its own part in its quest at that
+stage. **Options:** (a) **grounding only, simple**: the playthrough state is the one mechanism, in every prompt and
+every memory, diary and lived-layer job; stage texts reviewed when written; a few test questions per character check
+the model's own knowledge of the game, and a model that leaks is replaced, or a light check turned on then; the output
+lock, locked-term sets, tells, reveal lists and fallback ladder dropped, and 0004's mechanical checks a review step;
+(b) (a) plus a cheap per-line check for a short list of major-twist words per questline, the line replaced by an
+in-character deflection on a hit; (c) the current guards kept.
+
+**Recommendation.** (a): what our prompts hold is safe by construction; what remains is the model's own knowledge of
+Elden Ring, which test questions measure and model choice answers, without filters in the runtime.
+
+**What each answer changes.** (a): DESIGN §7.7, §7.8, §8.1, §10.4, §16.2 to §18, ARCH §11.6 and §12.1, MEM §7, NPC §4.7,
+§4.8 and §11, and the tests lose the guards; a character's name stays out of its own prompt fields until the game shows
+it; GraceUI's SP2 lock filter is re-cut. (b): (a) plus one list and one check. (c): nothing.
+
+**Follows from.** O36, O45, O51; [proposal 0004](proposals/0004-character-bio.md) §8; WHY§98.
+
+**Decision.** (a). The playthrough state is the one spoiler mechanism. Folded by roadmap S7.13.b.
+
+**Owner's words.** "the playthrough system will track world state, NPC states, quest states, etc. so our system will
+tell the LLM in prompt what each NPC is exactly supposed to know, what it's currently doing, and it's own part in the
+quest (not necessarily what the player needs to do, but for example what it asks of the player at that stage in the
+quest). so we shouldn't need a very complex and strict spoiler prevention system." and "Grounding only, simple
+(Recommended)".

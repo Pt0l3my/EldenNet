@@ -15,7 +15,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
   in a tool's output), **LIKELY** (strong inference, not yet checked), **SPECULATION** (a guess worth recording),
   **METHOD** (how something is done, and why), **DECIDED** (a pointer to the decision that settled it).
 - **Tags:** `#roster` (the game's characters and their ids), `#datapiler`, `#smithbox`, `#text` (the game's text and
-  its exports), `#maps`, `#voice`, `#lore`, `#graceui`, `#release` (GitHub releases and this session's limits), `#process`.
+  its exports), `#maps`, `#voice`, `#lore`, `#graceui`, `#engine` (Min's engine and what EldenNet takes from it), `#release` (GitHub releases and this session's limits), `#process`.
 - The privacy rules bind it as every file: nothing personal, no paths from the owner's PC, no game text beyond
   names the design already uses. No model identifiers.
 
@@ -92,6 +92,36 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 67 | 2026-11-15 | The game's container holds both level-2 sets; the one that fits levels 0, 3 and 4 is incomplete | FACT | #map #datapiler #graceui |
 | 68 | 2026-11-15 | Level-1 codes do not settle levels 0 and 1; set A is not level 1 at a quarter | FACT | #map #datapiler #graceui |
 | 69 | 2026-11-15 | Every base-map level checked: level 0 is mixed like level 2, level 1 hardly passes | FACT | #map #datapiler #graceui |
+| 70 | 2026-11-15 | Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off | FACT | #map #datapiler #graceui |
+| 71 | 2026-11-15 | The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places | FACT | #map #datapiler #graceui |
+| 72 | 2026-11-15 | The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle | FACT | #map #datapiler #smithbox |
+| 73 | 2026-11-15 | The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet | FACT | #map #datapiler #graceui |
+| 74 | 2026-11-15 | en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3 | FACT | #map #datapiler |
+| 75 | 2026-11-15 | en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left | FACT | #map #datapiler |
+| 76 | 2026-11-15 | Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875 | FACT | #map #datapiler #graceui |
+| 77 | 2026-11-15 | en-0031: at the measured sizes every variant the game draws passes, at every level of every map | FACT | #map #datapiler |
+| 78 | 2026-11-15 | The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion | FACT | #map #datapiler #graceui |
+| 79 | 2026-11-15 | The areas' colour image is very likely the map-information binders, one per kilometre square | LIKELY | #map #datapiler #graceui |
+| 80 | 2026-11-15 | The areas' image ships converted: each map-information square holds the two keys' row numbers | FACT | #map #datapiler #graceui |
+| 81 | 2026-11-15 | The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image) | LIKELY | #map #datapiler #graceui |
+| 82 | 2026-11-15 | Confirmed: the blue channel holds the weather key's rows, the second image the mimicry key's | FACT | #map #datapiler #graceui |
+| 83 | 2026-11-15 | The design fold: proposal 0001's parts adopted by reference, what waits for G18 to G20, and three settlements of the fold's own | DECIDED | #graceui #design |
+| 84 | 2026-11-15 | Under G15 EldenNet links no hook library, so any later hook of its own needs the owner | FACT | #graceui #hooks #design |
+| 85 | 2026-11-15 | Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay | METHOD | #graceui #design |
+| 86 | 2026-11-15 | One owner per hooked function: what the evidence on hook libraries rules out, and what it does not | FACT | #hooks #graceui #design |
+| 87 | 2026-11-15 | SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet | FACT | #plugins #skyrimnet #design |
+| 88 | 2026-11-15 | One plugin cluster: what a shared host can tell apart, and why a library clash needs a check | FACT | #plugins #design |
+| 89 | 2026-11-15 | The terrain's heights are very likely the ground models, stored at three levels of detail | LIKELY | #map #datapiler #graceui |
+| 90 | 2026-11-15 | The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone | FACT | #map #datapiler #graceui |
+| 91 | 2026-11-15 | The expansion, a far view and the underground in the file dictionary, and two jobs to read them | LIKELY | #map #datapiler #graceui |
+| 92 | 2026-11-15 | The expansion, the far view and the underground: what en-0037 and en-0038 show | FACT | #map #datapiler #graceui |
+| 93 | 2026-11-15 | The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters | FACT | #map #datapiler #graceui |
+| 94 | 2026-11-15 | The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand | FACT | #map #datapiler #graceui |
+| 95 | 2026-11-15 | Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint | FACT | #engine #process |
+| 96 | 2026-11-15 | SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player | FACT | #engine #roster |
+| 97 | 2026-11-15 | SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts | FACT | #engine #roster |
+| 98 | 2026-11-15 | What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine | LIKELY | #engine #roster #process |
+| 99 | 2026-11-16 | The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine | LIKELY | #engine #process |
 
 ## Entries
 
@@ -850,6 +880,11 @@ the repositories. Only these derived numbers are kept here.
   coarse height lead for G27's fallback, its key to be found.
   Later the same day: en-0017 found neither of that table's two fields in Smithbox's answer (it may hold no rows, or
   other names); it was left out, as the relief comes from the terrain itself (G27).
+- Later (2026-11-15): the exact fit is WHY§78. On the base map X0 is 7,041 and Z0 16,688 with s = 1 (the first guess
+  was 659 units off across, which the pieces' rectangles allowed); the expansion has its own (7,120 and 16,684); the
+  underground and the dungeons go through the conversion. Of the six groups of conversion rows that spread, two are
+  rows to different maps of one area: grouped by source map and destination map, three spread far (areas 13, 15 and
+  25, 551 m to 3.2 km) and one by 1.2 m.
 
 ### 60. The areas' colour keys: 16 area names and 49 finer areas on the base map, 11 names in the expansion
 
@@ -869,6 +904,8 @@ repositories. Derived numbers only here.
 - **What it gives the map.** If the image is found among the textures, the exact area shapes for the drawn base, the
   masking and the area labels come from it, and its colours checked against where the resting places stand give the
   exact world-to-map fit. Its name is not known yet; en-0018 (the map tiles, counted) is the next step.
+- Later (2026-11-15): found, converted (WHY§80). The game ships the image with each pixel holding the two keys'
+  row ids (red: finer area, green: area name) in 72 squares of 1,024 m at 4 m a pixel, not the keys' colours.
 
 ### 61. The game's map tiles: four sheets, five zoom levels, a variant per revealed piece
 
@@ -912,6 +949,7 @@ Numbers only.
 - **With WHY§59** a world position goes to map units (about one per metre, north up), map units to level-0 pixels,
   and a tile's variant follows the bits of the pieces the player holds. What is still loose is §59's world-to-map
   offset (hundreds of units of slack): it needs anchors from an image.
+- Later (2026-11-15): the offset is settled in WHY§78 (base map x = X − 7,041, y = 16,688 − Z, one unit a metre).
 
 ### 63. A tile's pieces that never meet have a variant each, laid together
 
@@ -1061,3 +1099,700 @@ against level 4), at LEVEL_SCALES from the bottom left.
 - **Level 1 hardly passes.** 38 of 3,698 (1%), at 32 of 806 places, with failing scores near 0 both ways. Either
   level 1's scale or anchor is not three quarters from the bottom left, or it is all of the other drawing.
 - Next: en-0025 lays levels 0 and 1 out unchecked, and level 1's base, to fit their scale against level 3 by image.
+
+### 70. Level 1 sits at the top of its grid; levels 0 and 1 hold an old tile set four columns off
+
+`2026-11-15` · FACT (the offsets), LIKELY (what the old set is) · `#map #datapiler #graceui` · refs: WHY§64, WHY§67,
+WHY§69, DataPiler S80
+
+From the owner's en-0025 images (levels 0 and 1 laid out without the check, shrunk four times), each tile located on
+its own in the level-3 image by normalised cross-correlation (numbers only; the images stay out of every
+repository), and en-0024's check of the other sheets.
+
+- **Two sets at level 0, one scale.** Of level 0's tiles that match level 3 well (0.6 or more), 97 sit where their
+  names put them and 326 sit exactly 128 level-3 pixels further right: 1,024 map units, four level-0 tiles, with no
+  vertical offset. Level 1 shows the same two groups (three level-1 tiles apart). So the container holds a second set
+  of tiles at the same scale whose columns are numbered four apart: an older layout of the same map, LIKELY left
+  behind by a patch. Level 2's odd set is not this shift (WHY§67), and stays left out.
+- **Level 1 sits at the top.** At three quarters of level 0 its tiles match about 12 level-3 pixels lower than a
+  bottom anchor puts them, the same in every row (11 to 13): the 64-pixel gap its 31-tile grid leaves over the map
+  (10.7 level-3 pixels) is at the bottom. Assuming the bottom is why level 1 passed 1% in en-0023; the underground's
+  level 1 (7% in en-0024) has the same grids.
+- **The other sheets (en-0024).** The underground: levels 3 and 4 pass 95% and 96%, level 2 67% and level 0 63%.
+  The expansion passes almost nothing at any level, so its scales or anchors differ from LEVEL_SCALES; sheet 11 has
+  base tiles only. en-0026 re-checks levels 0 and 1 with level 1 lifted and the old set's place measured, and lays
+  out the expansion's levels to fit its geometry.
+- **Later (2026-11-15, WHY§73):** reversed. The tiles that match level 3 four columns further right are today's,
+  as the game's masks name them, and level 3 is the older layout; the tiles that matched it in place are that
+  layout's leftovers. Level 1 at the top of its frame stands.
+
+### 71. The expansion's levels 1 and 2 sit at the top left; level 2 is 2,089 / 10,496 of level 0; the old set fills 960 places
+
+`2026-11-15` · FACT (the fits and counts), SPECULATION (sheet 11) · `#map #datapiler #graceui` · refs: WHY§67,
+WHY§70, DataPiler S81
+
+From the owner's en-0026 images of the expansion's map (sheet 10, every level laid out unchecked; numbers only, the
+images stay out of every repository) and en-0026's check of levels 0 and 1 with the old set's place measured.
+
+- **The expansion's geometry.** Its level 0 is the base map's 41 by 41 tiles. Level 1 is three quarters of it at the
+  top of its 31-tile grid, as on the base map. Level 2 is not a quarter: fitted against level 0 shrunk four times it
+  is 1 / 1.258 of that, so 2,089 of level 0's 10,496 pixels a side (0.199), at the top left of its 9-tile grid
+  (2,304 pixels), with no offset. DataPiler 0.2.31 holds these as the sheet's own scales and anchors.
+- **What the old set adds.** On the base map's level 0, 1,654 variants fail at their own place but match 1,024 map
+  units to the right. At that place, 694 are already covered by today's passing variant of the same code, 485 stand
+  in for today's variant of the same code that fails, 456 add pieces today's passing variants lack, and 19 fill a
+  place with no passing variant: 960 in all. Level 1 has 788 (296, 231, 243 and 18), the underground's level 0 243
+  (188 covered, 55 standing in) and its level 1 146 (109, 37). An overview at levels 0 and 1 now moves them there.
+- **Still open.** The third set, which fails both in place and moved (level 0 2,162, level 1 2,569), and level 2's
+  odd set. Sheet 11's grids (34 by 21, 26 by 17 and 7 by 6 tiles) fit neither table; SPECULATION: a smaller map with
+  its own scales, which its overviews in en-0028 will show.
+- Next: en-0028 re-checks the expansion at its own scales and lays out every sheet's levels 0 to 2 with the old set
+  moved; en-0027 unpacks the game's masks (WHY§72).
+- **Later (2026-11-15, WHY§73):** the expansion's geometry is every sheet's. The variants 0.2.31 moved were today's
+  tiles, moved into the older layout; DataPiler 0.2.32 withdraws the moving.
+- **Later (2026-11-15, WHY§76):** measured on the game's own overviews, level 2 is 0.19875 of level 0 (about
+  2,086 of 10,496 pixels), not 2,089, and level 1 0.74857, not three quarters.
+
+### 72. The game's tile masks are a KRAK-packed binder of four files, one per sheet; DataPiler opens it with the game's Oodle
+
+`2026-11-15` · FACT (the file and its layers), SPECULATION (what a mask holds) · `#map #datapiler #smithbox` · refs:
+WHY§70, WHY§71, DataPiler DP28, S81
+
+From the owner's Smithbox unpack of the game's `menu` folder and the file they uploaded (kept in scratch only).
+
+- **The file.** `menu/71_maptile.mtmskbnd.dcx` sits beside the tiles' own containers. It is a DCX packed with Oodle
+  (KRAK): 5,873 bytes that unpack to 300,712, a BND4 binder of four `.mtmsk` files, `menu_maptile_m00`, `m01`, `m10`
+  and `m11`, one per sheet, in the game's ScaleformMaptile mask folder. Smithbox unpacks it but shows nothing of it.
+  SPECULATION: each mask holds, for every tile place and level, which pieces reveal it: the game's own rule for which
+  variant to draw, which would settle WHY§70's old set and the third set at once.
+- **Opening it.** DataPiler 0.2.31 reads the DCX and BND4 layouts itself (learnt from SoulsFormats, MIT, read only)
+  and loads the game's own `oo2core_6_win64.dll` from the Game folder for KRAK (DP28); the owner's copy is the
+  64-bit library with `OodleLZ_Decompress` among its exports, read without loading it. Its call was checked here
+  against a stand-in library built for the purpose.
+- **The owner's full unpack.** Smithbox unpacked the whole game into DataPiler's folder quickly, but failed to write
+  the same 75 or so files in two runs: patched shaders, two map variants (`m60_42_40_10`, `m60_47_42_10`), a few
+  sounds, one script and the game's two network key files. None is in `menu`; the keys were never written (no such
+  folder), and DataPiler refuses a job that names a key or the regulation.
+- Next: en-0027 unpacks it on the PC; the owner sends the four masks, kept in scratch, to decode their layout.
+- **Later (2026-11-15, WHY§73):** en-0027 opened it on the owner's PC with the game's own Oodle. The four files are
+  `MENU_MapTile_M00.mtmsk` to `M11` in `menu/ScaleForm/maptile/mask`, and the speculation holds: each is an XML
+  list of the pieces that touch each tile.
+
+### 73. The game's masks name today's tiles; levels 3 and 4 are an older layout; one geometry on every sheet
+
+`2026-11-15` · FACT (the masks, counts and fits), LIKELY (why the older layout is there) · `#map #datapiler #graceui` ·
+refs: WHY§63, WHY§67, WHY§70, WHY§71, WHY§72, DataPiler S82
+
+From the four mask files en-0027 unpacked on the owner's PC (kept in scratch only), against the tile lists of en-0019
+and en-0022 and the scores of en-0026 (numbers only), and the owner's en-0021 image of level 2's base tiles.
+
+- **What a mask is.** Each `MENU_MapTile_Mxx.mtmsk` is plain XML: `MapTileMask` entries whose id is level * 10,000 +
+  column * 100 + row, as the tiles' names number them, and whose mask is the pieces that touch that tile, for levels
+  0 to 2 only. The base map has 1,369, 784 and 65 entries, the underground 418, 250 and 26, the expansion 480, 288 and
+  30; sheet 11's 2,434 are all marked as not existing (it has base tiles only).
+- **The game's rule.** At every entry of sheets 0, 1 and 10 every subset of the mask is exported, the mask's own code
+  always. So the game draws the variant whose code is the mask without the pieces not yet revealed, and any other code
+  at a place is not drawn. The base map's level 0 has such leftovers at 877 places (2,319 variants): exactly S77's
+  places with several widest codes, which were never pieces to lay together.
+- **The older layout.** The leftovers fall inside today's masks four columns to the left at level 0 (704, against 636
+  at five) and three at level 1, with no row shift. Against level 3 the image check passed 1,324 leftovers in place and
+  3 of today's variants, while 1,304 of today's passed four columns right. So levels 3 and 4, which have no masks, are
+  an older layout whose ground sits 1,024 map units right of today's, and the leftovers are its tiles: WHY§70's "old
+  set" is today's. LIKELY: the map was laid out anew when the expansion came, and the container kept every file no
+  new one replaced.
+- **One geometry.** Fitting each piece's tile extent at levels 1 and 2 against level 0 gives, on the base map, 0.748
+  (across) and 0.750 (down) at level 1 with the map at the top (offset 88 pixels; 64 expected) and 0.191 and 0.199 at
+  level 2 (offset 189; 215 expected); the expansion, the control, gives about 0.75 and 0.20 (offset 212). Level 2's
+  base tiles on the owner's en-0021 image turn transparent at 8.16 tiles across and 0.84 up: a 2,089-pixel map at the
+  top left of a 9 by 9 frame. So every sheet has the expansion's geometry (WHY§71), and WHY§67's quarter was the older
+  layout's level 2.
+- DataPiler 0.2.32 draws overviews from the masks, adds `in_mask` to the check, uses the one geometry and never takes
+  level 3 or 4 as the reference. en-0028 was withdrawn before it ran; en-0029 re-checks levels 0 to 2 of every sheet
+  and lays them out from the masks.
+- **Later (2026-11-15, WHY§76):** the one geometry holds, with level 1 at 0.74857 and level 2 at 0.19875 of level
+  0, measured to a third of a pixel on the game's own overviews.
+
+### 74. en-0029: today's tiles match at levels 0 and 1 and on the expansion; level 2 met the older layout's level 3
+
+`2026-11-15` · FACT · `#map #datapiler` · refs: WHY§73, DataPiler S82, S83
+
+From en-0029 (DataPiler 0.2.32, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against the
+reference level (level 2; level 2 itself against its nearest level), with `in_mask` from the game's masks.
+
+- **Today's tiles match.** Of the variants the masks name, the base map's level 1 passes 1,982 of 1,982 (median
+  0.961) and level 0 2,312 of 2,873 (0.840); the underground's level 1 326 of 326 and level 0 458 of 519 measured; the
+  expansion's levels 0, 1 and 2 634 of 760, 502 of 502 and 98 of 98. So the one geometry of WHY§73 holds on every
+  sheet. Of the other layout's variants, 31 of 2,296 pass in place on the base map's level 0.
+- **Level 2 met the wrong reference.** On the base map and the underground no variant of level 2 passed (median
+  0.099): as the reference itself it was measured against its nearest level, and level 3, the older layout, tied with
+  level 1 and won as the coarser. The expansion, which has no level 3, passed 98 of 98. DataPiler 0.2.33 measures each
+  level the game draws against its nearest such level (level 0 against level 1), never 3 or 4.
+- **Base tiles score lower** at level 0 (554 of 1,681 pass, median 0.614): unrevealed parchment, whose grain does not
+  scale between levels as the drawing does, compared with level 2 at a fifth. Against level 1 more should pass.
+- Next: en-0030 checks again on 0.2.33. en-0029's overviews, drawn from the masks without any check, show each level
+  as the game draws it.
+
+### 75. en-0030: levels 1 and 2 match on every sheet; level 0 against level 1 drifts from the top left
+
+`2026-11-15` · FACT (the scores, the speed), LIKELY (a scale off by about a thousandth) · `#map #datapiler` · refs:
+WHY§73, WHY§74, DataPiler S83
+
+From en-0030 (DataPiler 0.2.33, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against its
+nearest level the game draws.
+
+- **Levels 1 and 2 match everywhere.** Today's variants pass 1,982 of 1,982 and 737 of 737 on the base map, 326 of 326
+  and 55 of 55 on the underground, 502 of 502 and 98 of 98 on the expansion (medians 0.96 to 1.0); level 2's bases too.
+  The other layout's pass almost none (2% at most). So the masks' tiles and today's geometry hold at levels 1 and 2.
+- **Level 0 drifts.** Against level 1 (cells of 6 level-1 pixels) today's level-0 variants pass 54% on the base map,
+  66% on the underground and 57% on the expansion, fewer than against level 2 in en-0029 (80%, 88%, 83%). On the base
+  map the share falls from the top left: by columns from 70% (0-4) to 30-48% (25-39), by rows from 90% at the top to
+  32-47% low down; en-0029's numbers show the same fall, gentler. LIKELY: level 0 is not exactly 4/3 of level 1 about
+  the top left (a thousandth off moves the far side by some 10 level-1 pixels); the images will say.
+- **Speed.** On the owner's PC en-0030 took about a minute, where checks of this size took about half an hour before
+  0.2.33 (worker processes, Windows' own decoder).
+- Next: fit level 0 against level 1 on en-0029's overviews (each drawn from the masks), then the exact world fit.
+
+### 76. Every level of every map draws whole from the masks; the levels' true sizes are 0.74857 and 0.19875
+
+`2026-11-15` · FACT (the images, the fits), SPECULATION (sheet 11) · `#map #datapiler #graceui` · refs: WHY§71, WHY§73,
+WHY§75, DataPiler S85
+
+From the owner's en-0029 overviews, each drawn from the game's masks with every piece revealed (levels 0 and 1 shrunk
+four times; the images stay in scratch, never in a repository).
+
+- **Whole maps.** Levels 0 to 2 of the base map, the underground and the expansion each show their map fully revealed,
+  with no stray tile and no seam: the Lands Between filling 92% of its canvas at every level, with the dark margin to
+  the right and below; the underground's three cave regions; the Realm of Shadow under its great tree, inside its faded
+  border. Sheet 11 shows only a grey grid with a rough placeholder in one corner, and its masks are all marked as not
+  existing: SPECULATION, an unused or test sheet.
+- **The true sizes.** Matching 128-pixel patches of each level inside the next and fitting each axis by least squares:
+  level 1 is 0.74855 of level 0 on the base map and the expansion (0.74866 on the underground) and level 2 0.19875 on
+  both, level 2 against level 1 0.26545; every offset within half a pixel of the top left, residuals 0.3 pixel over 100
+  to 335 patches. So three quarters (WHY§70) and 2,089 / 10,496 (WHY§71) were near but not exact, and WHY§75's drift
+  is the difference, about 14 level-1 pixels at the far side. DataPiler 0.2.34 holds the measured sizes.
+- Next: en-0031 confirms the check on 0.2.34; then the world-to-map fit at level 0, the map now known tile by tile.
+
+### 77. en-0031: at the measured sizes every variant the game draws passes, at every level of every map
+
+`2026-11-15` · FACT · `#map #datapiler` · refs: WHY§75, WHY§76, DataPiler S85
+
+From en-0031 (DataPiler 0.2.34, numbers only): every variant of levels 0 to 2 of sheets 0, 1 and 10 against its
+nearest drawn level, at the measured sizes.
+
+- **All of today's variants pass:** the base map's 2,873, 1,982 and 737 at levels 0, 1 and 2, the underground's 520,
+  326 and 55, the expansion's 760, 502 and 98 (medians 0.98 to 1.0). Level 0's bases pass as well (1,681 of 1,681 on
+  the base map, median 0.99, where en-0030 had 0.44): the parchment scales with the drawing after all, and only the
+  sizes were off.
+- **The other layout's tiles do not** (0 to 2%; 2 of 20 on the expansion): the masks tell them apart exactly.
+- So the map tiles are settled: which tile the game draws at every place and level (its masks, WHY§73), and where each
+  level lies against level 0 (WHY§76). Next: the world-to-map fit at level 0.
+
+### 78. The world-to-map fit: one transform per open-world sheet; the underground and the dungeons go through the game's conversion
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§59, WHY§62, WHY§76, WHY§77, G21, D97, DataPiler DP21
+
+Measured in scratch on the five map tables (en-0016) and the game's own level-0 overviews (en-0029), which stay out of
+the repositories; only these derived numbers are kept.
+
+- **Map units.** One map unit is one level-0 pixel, from the top left of the sheet's 10,496-pixel frame (WHY§62); a
+  level-1 or level-2 pixel is the unit times 0.74857 or 0.19875, also from the top left (WHY§76). A world position is
+  X = grid x × 256 + position x and Z = grid z × 256 + position z, in metres.
+- **The base map (sheet 0, area 60):** map x = X − 7,041 and map y = 16,688 − Z: one unit a metre, north up. Fitted on
+  the place-name banners drawn into the tiles, each name centred on its banner. Measured the same way, the five
+  banners on this sheet (four names of area 60 and one carried from area 10 by the conversion below) lie −17 to +2
+  units from their names across and within about 20 up and down. All 166 open-world resting places land on drawn land.
+- **The expansion (sheet 10, area 61):** map x = X − 7,120 and map y = 16,684 − Z. Its one place name lies within about
+  10 units of its banner, and all 59 of its open-world resting places land on drawn land.
+- **The underground (sheet 1) and the dungeons have no transform of their own.** A position in any other area is
+  carried onto the open world by `WorldMapLegacyConvParam`, then drawn with a transform above: the base map's for the
+  underground (its sheet shares the base map's frame) and for the dungeons that end in area 60, the expansion's for
+  those that end in 61. The rule that fits: take the rows whose source is the position's own map (its area and both
+  grid numbers, which name a map in a dungeon and a cell in the open world); prefer a row straight onto area 60 or 61;
+  else follow a row to another map and start again (one underground map goes through two other areas). Where one map
+  has rows to the same destination with different offsets (areas 13, 15 and 25, 551 m to 3.2 km apart: pieces of one
+  dungeon placed apart), the nearest base point is used (LIKELY: no check here tells them apart).
+- **Checks.** The three underground place names land on their banners (0, +4 and +36 units across, within about 20 up
+  and down). All 30 underground resting places with a row land on the drawn caves; 118 dungeon resting places land on
+  the base map's pieces and 46 on the expansion's, the sheet each one's display mask names (WHY§59: 284, 32 and 105).
+  Three have no row (two in one underground map, one in area 19); how the game places them is not known.
+- **Precision.** About ±20 units on the base map and the expansion (the banners' own placement is the limit, and the
+  expansion has only one); about ±40 underground, where two paths through the conversion can differ by up to 36 units
+  (a loop of rows does not quite close) and one banner sits 36 units off. A resting place's icon is larger than that
+  at level 0. A few units better would need the game's own icons: one screenshot per sheet at level 0 with resting
+  places showing.
+- The transforms are ours, fitted. The conversion rows are game data: read from the player's install at run time,
+  never committed.
+- Next: EldenNet's map projection and GraceUI's map page (G21) use these: a world position to its sheet, map units
+  and level pixels.
+
+### 79. The areas' colour image is very likely the map-information binders, one per kilometre square
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§60, WHY§78, O48, DataPiler S81
+
+- Smithbox's file dictionary for the game (read as text from an untrusted copy) names 72 files
+  `other/mapinfotex/m6x_XX_ZZ_02.mapinfotexbnd.dcx`: 48 for area 60 and 24 for area 61, one per level-2 cell of the
+  open world (very likely 4 × 4 cells of 256 m, so 1,024 m a side). They fill area 60's cells 8 to 14 across and 7
+  to 16 up, and area 61's 10 to 14 and 8 to 13. Nothing else in the dictionary is named for map names, areas or name
+  textures.
+- So the colour keys' image (WHY§60) is very likely cut into these squares, a texture or more in each binder. A name
+  in a dictionary is a label until the files are read (O48).
+- Jobs en-0032 (the 48) and en-0033 (the 24) unpack them on the owner's PC with DataPiler's unpack step (0.2.31
+  onwards). The inner files stay local, and the owner uploads them as research material. Next: read their textures
+  in scratch, check their colours against the keys and the resting places (WHY§78's transforms), and if they hold,
+  record the areas' shapes.
+- Later (2026-11-15): confirmed in WHY§80. The binders hold the areas' image, converted to the keys' row ids.
+
+### 80. The areas' image ships converted: each map-information square holds the two keys' row numbers
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§60, WHY§78, WHY§79, G21, D97, DataPiler S81
+
+From en-0032 and en-0033 (DataPiler 0.2.34): the 72 binders unpacked on the owner's PC and read in scratch as research
+material. Numbers only here.
+
+- **What a binder holds.** Two uncompressed 256 × 256 images (24-bit BMP), so 4 m a pixel over its square. The colour
+  keys' own definitions call their colours those of "the map image before conversion", and the game ships the image
+  converted. In the first image the red channel holds a row id of the finer-area key (`MapPieceTexParam`: 48 of the
+  base map's 49 values, all 42 of the expansion's) and the green channel a row id of the area-name key
+  (`MapNameTexParam`: 29 of 30, and 31 of 31). The one other value is 0, and 255 (a row of both keys) marks no area.
+  The blue channel holds a third set of numbers that neither key has (24 values on the base map); its meaning is not
+  known.
+- **Placement.** A binder `m6x_XX_ZZ_02` covers world X from 1,024 × XX − 128 to 1,024 × XX + 896 (the 256 m cells
+  are centred on their numbers), and Z likewise, with rows from north to south. So a world position's square is
+  ((X + 128) // 1,024, (Z + 128) // 1,024), and its pixel follows at 4 m.
+- **Check.** Read that way, 224 of the 225 open-world resting places land on a named area, and 93 per cent of them on
+  the main name of their own resting-place sub-category. The other readings (no 128 m shift, or rows south to north)
+  give 160 to 199 and 67 to 76 per cent. Drawn on the game's level-0 overviews through WHY§78's transforms, the area
+  borders follow the map's own cliffs, rivers and coasts on both sheets: an independent check of those transforms.
+- **The second image.** On the base map it is empty (255) but for three quarters of the northernmost square, which
+  holds 0 in both images. On the expansion its red channel holds finer-area ids where the first image has an area (46
+  values, four of them not rows of the expansion's key). Very likely a second layer for places stacked one above
+  another; which layer applies where is not known yet.
+- **What it gives the map.** The exact shapes of the area names (16 on the base map, 11 on the expansion) and of the
+  finer areas, at 4 m, for G21 and D97. They are read from the player's install at run time and never committed, and
+  the names' text comes from the game's own place names, by `mapNameId`, at run time too.
+- Next: the blue channel and the second layer; then GraceUI's map labels from these shapes.
+- Later (2026-11-15): the blue channel and the second image are very likely the weather and mimicry keys (WHY§81).
+
+### 81. The map-information images' other channels: very likely weather (blue) and the Mimic's Veil (second image)
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: WHY§80, O48
+
+From en-0032 and en-0033 (research material, read in scratch) and Smithbox's table definitions (an untrusted copy,
+read as text; labels until the rows are read, O48). Numbers only here.
+
+- **Four keys, not two.** The definitions name four tables keyed by "the map image before conversion": the area names,
+  the finer areas, a weather key (`WeatherLotTexParam`: a weather lottery id) and a mimicry key
+  (`MimicryEstablishmentTexParam`: a per-map mimicry probability id, which decides what the Mimic's Veil turns the
+  player into), each with an expansion twin. The expansion's mimicry key notes that the expansion added choosing the
+  mimicry targets place by place "through the map information image param", so the images carry these keys too.
+- **The blue channel** is a key of its own. Its regions are large and smooth and cross both the name and the
+  finer-area borders: 78 per cent of the base map's land lies in its finer area's main blue value, 98 per cent on the
+  expansion. The base map holds 22 values plus 0 (31 per cent of the land, very likely "none") and 255; the
+  expansion 29. Very likely the weather key's rows.
+- **The second image** is empty on the base map. On the expansion it copies the first image's red value on 89 per cent
+  of the land and differs on 44,568 pixels (11 per cent) in six squares, always by a neighbouring number (92 to 93,
+  50 to 56, 52 to 55, 40 to 42, 47 to 48), most of them rows of neither known key. Very likely the mimicry key's rows:
+  a key the expansion added, laid out on the finer areas with a few splits. It is not a second floor of finer areas:
+  the two expansion resting places on the differing ground read as the first image's finer area.
+- **Heights.** The expansion's weather key holds a border height in metres and separate weather lots for high and low
+  ground (`isUseHeightInfo`, `borderHeight`), so ground stacked above other ground is split by height inside a key's
+  row, not by a second image. The mimicry key's own high and low ids are marked unused, in favour of the multiplayer
+  area.
+- **To confirm:** the two keys' row ids against these values. DataPiler does not read these tables yet: they are not
+  among its params, and a share file may hold their rows whole only under DP21's research label. Either a new DataPiler
+  version or Smithbox's own CSV export, done by hand, would give them.
+- Later (2026-11-15): en-0034 (DataPiler 0.2.36) read the base weather key, 25 rows, then stopped: the owner's
+  Smithbox (2.2.6) names only the five fields the four keys share (the colour and the weather or mimicry id), not the
+  expansion keys' height fields, which come from a newer Smithbox's definitions. So the height split stays a label
+  (O48). en-0035 reads the five shared fields of all four keys.
+- Later (2026-11-15): confirmed by en-0035 (WHY§82): blue is the weather key, the second image the mimicry key.
+
+### 82. Confirmed: the blue channel holds the weather key's rows, the second image the mimicry key's
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: WHY§80, WHY§81, DataPiler S89
+
+From en-0035 (DataPiler 0.2.36): the four keys' rows on the owner's PC, against en-0032's and en-0033's images. Numbers
+only.
+
+- **Weather.** Every blue value of the first image is a row of its sheet's weather key (`WeatherLotTexParam`, and
+  `_m61` on the expansion), on every pixel of land: the base map's 24 values among its key's 25 rows (row 51 unused,
+  row 0 included), the expansion's 30 among its 30.
+- **Mimicry.** Every red value of the expansion's second image is a row of the expansion's mimicry key
+  (`MimicryEstablishmentTexParam_m61`, 48 rows, row 72 unused), on every pixel, the neighbouring numbers of WHY§81
+  included. The base map's mimicry key has one row, 255, with no mimicry id (-1), which is the value its second image
+  holds everywhere but the northernmost square's 0.
+- So the map-information images carry four keys, all rows of the game's own colour-key tables: finer area (red),
+  area name (green), weather (blue) and, on the expansion, mimicry (the second image's red).
+- The expansion keys' height fields (WHY§81) are not in the owner's Smithbox 2.2.6 (en-0035's check: absent), so
+  splitting stacked ground by height stays unverified (O48).
+
+### 83. The design fold: proposal 0001's parts adopted by reference, what waits for G18 to G20, and three settlements of the fold's own
+
+`2026-11-15` · DECIDED · `#graceui #design` · refs: GraceUI G15–G17, G21–G27, GraceUI DESIGN §2.1, §4.13, D69–D101; S7.8.c
+
+- **How.** Proposal 0001's §4 (but §4.10) is part of GraceUI's design by reference, with DESIGN §2 as its binding
+  summary and D69 to D81 and D83 to D88 in §13; proposal 0002's design is GraceUI DESIGN §4.13, with D89 to D98 as its
+  §14.3 and the answers revise them. Where a proposal and the design differ, the design holds.
+- **What waits.** D82 and proposal 0001 §4.10 (EldenNet's pages in EldenNet's repository) wait for G20, so GraceUI's
+  §4, SP1–SP9 and the goldens stay in GraceUI for now; when the framework opens and ABI 1 is frozen waits for G18;
+  SkyrimNet-derived material in GraceUI waits for G19.
+- **Settled by the fold** (GraceUI D99 to D101): the Map is a later-version statement in v1.0's rail (principle 8,
+  G7); a fault in GraceUI's menu turns off the menu alone, never consumers' panels and notices; the settings D84 moves
+  keep their names (`hotkeys.menu`, not proposal 0001's `menu.key`).
+- **EldenNet's side** is GraceUI's eldennet-changes §11, folded into DESIGN, ARCH and NPC the same day; the older items
+  of §1 to §10 (the F10 to F5 change among them) stay S7.1's.
+
+### 84. Under G15 EldenNet links no hook library, so any later hook of its own needs the owner
+
+`2026-11-15` · FACT · `#graceui #hooks #design` · refs: GraceUI invariant 16, G15; DESIGN R12, §3.6, §13; ARCH §8.11; O49
+
+- GraceUI's invariant 16 leaves the process one hook library, GraceUI's MinHook, and no consumer may link one. R12 is
+  now "EldenNet hooks nothing".
+- Two later EldenNet hooks the design keeps as options would need one: O49's hook-based event sources (behind the
+  `hooks` feature, compiled out in v1, already needing a spike and the owner) and the `CreateFileW`-family save
+  redirect of DESIGN §3.6 (deferred to v1.x).
+- So each, when proposed, also needs the owner's decision on how to hook beside GraceUI's MinHook: a hook service in
+  GraceUI's ABI, or an amendment to invariant 16. Nothing in v1 is affected. Recorded in DESIGN R12, §3.6 and §13.
+- Later (2026-11-15): decided by the owner as O65 (a): EldenNet may link one hook library of its own for functions
+  GraceUI does not hook, each hook with its spike and approval; GraceUI's invariant 16 became "GraceUI's functions have
+  one owner", with its published list (GraceUI D102).
+
+### 85. Two of the inventory's suggestions rejected: G1's later HTML spike and its fallbacks stay
+
+`2026-11-15` · METHOD · `#graceui #design` · refs: GraceUI G1, G16, proposal 0001 §4.2; GraceUI DESIGN §10, §11
+
+- The fold's inventory suggested dropping "HTML in game if G1 ever changes" from GraceUI's §10 and "an Ultralight
+  spike" from §11's fallbacks, reading G16 (a) as ruling out HTML in game.
+- Rejected: G16 (a) rules out HTML from other mods in game, but proposal 0001 §4.2 keeps G1's later spike, with its
+  three approvals, for GraceUI's own pages. Both lines stay.
+- Also kept apart: proposal 0001 §6 freezes ABI 1 at 1.0, while G18 (a) publishes a frozen ABI 1 with 1.1. GraceUI's
+  §10 leaves the freeze to G18's answer.
+
+### 86. One owner per hooked function: what the evidence on hook libraries rules out, and what it does not
+
+`2026-11-15` · FACT · `#hooks #graceui #design` · refs: ER02 §7.1, WHY§84, O65, GraceUI invariant 16
+
+- ER02 §7.1: the conflict er-mods-rs names is "two MinHook instances detouring one prologue and corrupting each other's
+  trampolines"; two DXGI Present compositors conflict; hudhook bundles its own MinHook, so a second hudhook-based DLL is
+  exactly that case.
+- So the evidence rules out two hook libraries on one function, and two overlays over one screen and one set of keys.
+  It says nothing against a second library hooking other functions.
+- GraceUI's invariant 16, as folded on 2026-11-15, bans any hook library in a consumer, which is stricter than this.
+  Proposal 0001 (plugins) puts the narrower rule to the owner as O65 (a), with EldenNet's own hooks installed only
+  after `connect` has answered, so that GraceUI's are already in place and the two never patch at the same moment.
+- Later (2026-11-15): O65 decided (a), on this reading.
+
+### 87. SkyrimNet's plugin model: plugins call its published functions, and nothing hooks SkyrimNet
+
+`2026-11-15` · FACT · `#plugins #skyrimnet #design` · refs: SkyrimNet's `PublicAPI.h` (MIT, read in the Skyrizz
+checkout), O68, O53
+
+- SkyrimNet's plugin header (MIT, its licence covering the plugin API headers) is loaded at run time with
+  `LoadLibraryA` and `GetProcAddress`, from an SKSE plugin's data-loaded handler. It names 45 functions.
+- They fall into: versions; actions and their categories, registered from C++; events (registering an event type, and
+  event callbacks); decorators (context for prompts); memories, diaries and world knowledge (read, add, update,
+  delete); actors (names, bios, engagement, related actors, search, marking one busy); recent events and dialogue, the
+  timeline and the player's context; plugin settings; and custom prompts and decisions sent to the model.
+- So a SkyrimNet plugin never patches SkyrimNet: the game's script extender loads it, and it calls SkyrimNet.
+  EldenNet's code plugins would take the same shape (proposal 0001 §7), with GraceUI's ABI rules and EldenNet's
+  projections, re-checked against Min's blueprint when it arrives (O53).
+- Later (2026-11-15): SkyrimNet 1.2.0's header holds 51 function pointers, not 45: the count above left out the
+  named-place functions and the package probe (WHY§97).
+
+### 88. One plugin cluster: what a shared host can tell apart, and why a library clash needs a check
+
+`2026-11-15` · FACT · `#plugins #design` · refs: O70, proposal 0001 §13.2, §13.3
+
+- **Libraries.** Microsoft's account of the DLL search order: when a DLL is found by name and a module of that name is
+  already loaded, Windows uses the loaded one, whichever folder it came from (redirection and manifests aside). So two
+  plugins in one process that ship different versions of one library cannot both have theirs: the reason for the
+  validator's clash check, and for Detached as its way out.
+- **Attribution.** In one host the plugins share memory: a crash in a plugin's own code on its own thread names that
+  plugin, but one plugin can damage memory another then trips over, so a crash elsewhere can only be "most likely".
+  A process per plugin would make every attribution certain; the owner chose one cluster with a per-plugin Detached
+  row instead, which gives certainty where it is wanted.
+- **Limits.** Windows' job limits apply to a process as a whole, so in a cluster memory cannot be capped per plugin;
+  each plugin's processor time can still be measured per thread.
+
+### 89. The terrain's heights are very likely the ground models, stored at three levels of detail
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: G27, WHY§79, WHY§78, O48
+
+- Smithbox's file dictionary (read as text from an untrusted copy) lists, for the open world (area 60), 850 model
+  binders (`mapbnd`) at each of three levels: in the 532 small tiles' folders (`m60_XX_YY_00`, 256 m), the 152 middle
+  squares' (`_01`, 512 m) and the 48 large squares' (`_02`, 1 km, the same 48 as the area image's, WHY§79). Each
+  model's number names its small tile (`423600` for tile 42_36), so every piece of ground is very likely stored three
+  times, at three levels of detail. No file in the dictionary is named for heights or terrain.
+- So the heights G27 needs are very likely the vertices of these ground models, placed by each square's placement file
+  (`msb`); the collision files beside them are a second source, which DataPiler cannot open yet. A name in a
+  dictionary is a label until the files are read (O48).
+- Job en-0036 unpacks one large square (`m60_10_09_02`: 32 models), the middle square inside it holding the tile
+  (`m60_21_18_01`: 10) and that small tile (`m60_42_36_00`: 4), with their three placement files. Next: read the
+  models' vertex positions and the placements in scratch, build a height grid, compare the three levels, and check the
+  heights against the resting places' own (WHY§78's points).
+- Later (2026-11-15): confirmed on one large square by en-0036 (WHY§90): the ground models hold the heights, and the
+  tile numbers in their names alone place them. The placement files were not needed, and were not read.
+
+### 90. The terrain's heights are the ground models: one 1 km square read, its tiles placed by their numbers alone
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§89, WHY§78, O48
+
+- en-0036's 46 models were read in scratch with a reader of our own for the model format (vertex positions and
+  triangle lists; the files stay in scratch). Every piece's vertices are in its small tile's own frame, centred on the
+  tile. Placed by the tile numbers in their names alone, 256 m a tile, the large square's 32 pieces for its 16 tiles
+  meet at every shared edge: over 2,531 samples 2 m apart, the nearest surfaces on the two sides differ by a median
+  0.04 m, and 95% by 0.19 m or less. So the tiles share one vertical datum, and the ground needs no placement offset.
+- Against the resting places' own heights in tile 42_36 (WHY§78's points): open ground agrees to 0.02 m and 1.34 m;
+  two points on structures read 3.6 m and 15.2 m above the ground, since structures are models of their own.
+- The three levels agree. In tile 42_36 the middle level differs from the finest by an rms of 0.01 m (at most 0.35 m),
+  and the coarsest by 0.03 m (at most 0.95 m). The ground's triangle edges are a median 2.0, 2.8 and 2.9 m long at
+  levels 0, 1 and 2 (90% under 2.8, 4.5 and 8.2 m). So the 1 km level is enough for the relief: 32 models and 3.5 MiB
+  unpacked for 16 tiles, against 10 models and 2.0 MiB for 4 tiles at the middle level.
+- Large steps at tile edges are the land itself: overhangs and cliffs, where the topmost surface changes (35 of the 70
+  steps over 1 m meet within 0.5 m on another surface), and one corner where ground at about 170 m falls to a flat
+  floor at −52 m.
+- Gaps: at 4 m a sample, 93.5% of the square has ground, from −52 to 301 m. One tile at the square's edge (40_38) has
+  a single piece, covering 18% of it (the piece's own bounding box says the same, so the reader misses nothing); the
+  others lack 0 to 11%. What lies in the gaps (water, or a structure's own models) is not read yet. Each piece's name
+  carries a two-digit prefix before its tile number; three values occur here.
+- Next, with the spike (S7.9.c): the run-time read of these models from the player's archives, a rule for the gaps,
+  and the rest of the map, the expansion and the underground included, none of it read yet. The collision files stay
+  unread.
+- Later (2026-11-15): the prefix takes 16 values in this square, one per tile, not three (the three above were only the
+  pieces looked at): its first digit is the tile's column in the large square (0 to 3), its second the row plus 4 (4
+  to 7).
+- Later (2026-11-15): pieces can reach past their tile (3 of these 32, by up to 50 m), so the edges were measured
+  again with all pieces together (WHY§92): top-surface steps over 1 m cross 1.0% of the edge samples against 0.2%
+  across the tiles' middles. Tile 40_38's gap stands, and the far view has no ground there either.
+
+### 91. The expansion, a far view and the underground in the file dictionary, and two jobs to read them
+
+`2026-11-15` · LIKELY · `#map #datapiler #graceui` · refs: G27, WHY§89, WHY§90, O48
+
+- Smithbox's file dictionary (the untrusted copy, read as text) gives the expansion's open world (area 61) the same
+  three levels as area 60: 425, 423 and 423 model binders, over 22 large squares of 1 to 58 models each.
+- Both areas also have a second set at levels 10, 11 and 12, numbered like levels 0 to 2: 53 models a level in area 60
+  (four large squares) and 58 in area 61 (one). Perhaps ground that changes with the world's state; not read yet.
+- Each area has a level 99, one map for the whole area: 86 models in area 60 and 17 in area 61, each numbered by a
+  large square after a two-digit kind (80, 81, 90, 91 and 92 occur). Perhaps the land as seen from afar: if so, a
+  coarse relief of the whole map would take a few dozen models.
+- The underground (area 12) is eight maps of 4 to 134 models, numbered without tiles, so where each piece sits is for
+  the maps' placement files to say; three maps have a second placement file, numbered 99. The model numbers start with
+  a two-digit group, and 90 occurs in each of the five largest maps, as in level 99.
+- A job takes at most 64 steps, so the reading is split in two. en-0037 (63 steps): one expansion square whole
+  (`m61_12_10_02`: 50 models, 9 resting places), one of its tiles at the finest level (`m61_48_40_00`: 5), the far-view
+  models for that square and for en-0036's (3), and five placement files. en-0038 (64): one underground map whole
+  (`m12_03_00_00`: 63 models, 6 resting places) and its placement file. Next: WHY§90's checks on the expansion, the far
+  view against level 2, and in the underground the placements and how to tell a floor from a ceiling.
+- Later (2026-11-15): read in WHY§92. The two-digit prefix of an eight-digit model number is its tile's x and z
+  numbers modulo 8 (04 for tile 40_36, 13 for 49_43): 2,758 of the dictionary's 2,768 eight-digit names fit, and the
+  other 10 name no tile of their square.
+
+### 92. The expansion, the far view and the underground: what en-0037 and en-0038 show
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§90, WHY§91, WHY§78, O48
+
+- The placement files were read with a reader of our own (the param lists, the model names, and each part's type,
+  model, position, rotation and scale). In tile 42_36 one resting place and three map points sit exactly (0.00 m) on
+  parts of one type, and the four ground pieces at the tile's origin, so its positions are checked against the
+  owner's own data (O48).
+- The expansion square (`m61_12_10_02`, 50 models, 5.6 MiB): its 1 km placement file puts each piece at its tile's
+  offset from the square's centre, unturned and unscaled, the same as placing by the tile numbers. 7 of its 9 resting
+  places sit within 0.03 m of the ground and 5 of its 9 map points within 0.12 m (the others 0.9 to 30 m off, on
+  structures). Level 2 against level 0 in tile 48_40: rms 0.01 m, at most 0.18 m. Heights −572 to 463 m; ground on 30
+  to 100% of each tile.
+- Its pieces are of two kinds: one per tile numbered under 50 (here a deep floor, −573 to 10 m), and pieces from 50 up
+  (the land above it, −85 to 464 m), which reach up to 133 m into the next tile. Top-surface steps over 1 m cross
+  8.6% of the tile edges' samples against 1.4% of the tiles' middles (the base game: 1.0% against 0.2%). At the larger
+  steps the land stops exactly at a tile edge, and the far view goes on at the land's height across 52 of 72 steps
+  over 50 m: there the land continues in other models (the 1 km placement file also places 4,177 assets).
+- The far view (level 99) is one model per 1 km square, centred on it and placed by its square in the level-99
+  placement file. Against level 2 its nearest surface lies a median 0.4 m away, but 74 m (base game) and 296 m
+  (expansion) at the 95th percentile: coarse at cliffs (2,807 triangles for the base square). It lacks 19% of the
+  base square's ground and adds 12% to the expansion square's where level 2 has none. The second kind (91) covers a
+  third of the base square, so it is no relief by itself; the base square's gap (tile 40_38) has no far view either.
+- The underground map (`m12_03_00_00`, 63 models, 31.5 MiB): 60 pieces sit at the map's origin, two are moved by
+  0.3 m, and one by about 620 m across and 91 m up, turned 42.2° about the vertical (which way is not settled: it
+  meets no other piece's floor either way). Three pieces 16 to 39 km wide are a backdrop; the other 60 lie within 1.7
+  by 1.4 km. Floors and ceilings face opposite ways in the files' winding: 5 of the 6 resting places stand on a
+  floor-facing surface within 0.2 m (the sixth 25.6 m above one, on a structure), with ceilings 58 to 622 m above.
+  In 8 m cells there are up to 34 floor layers (90% at most 7), so the map needs a rule for which floor to show; one
+  tried with triangle centres missed the large ceiling triangles, and the rule stays open. The low-detail groups (90
+  and 91, 1.0 MiB) cover under half of the floors.
+- So level 2 gives the open worlds' ground exactly; where the expansion's land is made of other models, the far view
+  fills it coarsely (or its assets would); the underground is read whole, placed by its placement file, with floors
+  told by their facing. Each model's lower-detail triangle sets were left out this time (level 2 against level 0
+  unchanged). Next, for the spike (S7.9.c): the underground's floor rule, and whether the expansion's assets are worth
+  reading.
+- Later (2026-11-15): the far view's second kind does fill the base square's gap: model 911009 covers 66% of tile
+  40_38's gap, at −39 to 417 m (a median 321 m, where the ground around it lies near 180 m), so the gap is most
+  likely a large structure, kept in its own map and seen from afar only in that kind (LIKELY). "No far view either"
+  above, and in WHY§90's Later line, holds for the first kind only. How the relief shows a structure's footprint is
+  for the spike.
+
+### 93. The underground's floor rule: the topmost floor no steeper than 50°, checked on 250 placed characters
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§92, O48
+
+- In `m12_03_00_00` (en-0038) the placement file places 356 characters (enemies, players and stand-ins) and the map
+  has 6 resting places. 250 of them stand on a map piece's floor-facing surface within 1.5 m below them; the others
+  stand on structures, in water or in the air. Those floors are gentle: 95% at most 14°, the steepest 23°.
+- Rules tried on the pieces' layers under each of them, without its own height (the 3 backdrop pieces and the 13
+  low-detail ones left out): the topmost floor-facing surface picks their floor for 90%; the topmost one no steeper
+  than 40 to 60° for 91% (228 of 250; 93% without the stand-ins), and never one too low; the lowest floor for 82%. A
+  roof test adds nothing: the caves' ceilings lie in the backdrop pieces, over everything.
+- The 22 misses all stand under an upper level, 11 to 74 m above them with a ceiling between: 10 under one piece's
+  flat upper floors (48 and 58 m up), 10 stand-ins under one piece's floor 74 m up, and 2 under overhangs. A relief
+  seen from above shows the upper level there, as a map would; the browser's 3D view could show both.
+- So the rule, for now: the topmost floor-facing surface no steeper than 50°, from the map pieces alone. Jobs en-0039
+  (57 steps: `m12_05_00_00`, `m12_08_00_00`, `m12_09_00_00`) and en-0040 (40: `m12_07_00_00`, `m12_04_00_00`) read
+  five more underground maps whole, to check it there; the two largest (`m12_01`, `m12_02`) would take five more jobs.
+- Later (2026-11-15): it does not hold elsewhere (WHY§94). On the five maps of en-0039 and en-0040 it picks the
+  characters' floor for 91% in one, 41% in a map of stacked levels, and for none in three small maps, where a
+  floor-facing surface about 55 m above everyone, with nothing between, is the rock's outer top. Over all six maps:
+  73% (635 of 873).
+
+### 94. The underground's floor rule, revised: the topmost walkable floor reachable from where the characters stand
+
+`2026-11-15` · FACT · `#map #datapiler #graceui` · refs: G27, WHY§92, WHY§93, O48
+
+- en-0039 and en-0040 read five more underground maps whole (`m12_05`, `m12_08`, `m12_09`, `m12_07` and `m12_04`: 92
+  models, about 117 MB unpacked). The plain rule of WHY§93 fails in four of them (its Later line).
+- The revised rule, our own: a grid of 2 m cells holds each walkable floor layer (floor-facing, no steeper than 50°,
+  from the map pieces alone, the backdrop and low-detail pieces left out), joined to the layers of the four
+  neighbouring cells within a step of 2.9 m. The parts joined to a floor that a placed character or a resting place
+  stands on are the reachable floor, and each cell shows its topmost reachable layer.
+- Tested by seeding with half of each map's characters and checking the other half (454 over six maps): their floor
+  is reached for 99.1%; the rule picks it for 85.9%, a floor above it for 13.7% (an upper level the seeds reach too,
+  a median 71 m higher), one below it for 0.2%, and none for 0.2%. The plain topmost floor on the same grid: 69.6%.
+  In the three small maps the rule goes from none to all (36 characters), in the map of stacked levels from 36% to
+  70%.
+- The reachable floor is 43 to 79% of each map's walkable layers; the rest is rock tops and ledges no one stands on.
+- Where levels stack, the relief shows the upper one, as a map seen from above; the browser's 3D view could show each
+  reachable level. A part with no character and no resting place would not show, and floors joined only by
+  structures (bridges, lifts or stairs made as assets) join only if both sides hold a character; neither was seen to
+  matter here (99.1% reached).
+- At run time EldenNet needs, for each underground map: its pieces, its placement file (for the placements and the
+  seeds) and the resting places' positions, all read from the player's install.
+
+### 95. Min's engine arrived: a closed Windows DLL with an MIT interface, not a source blueprint
+
+`2026-11-15` · FACT · `#engine #process` · refs: O53, O60, O74, O75, S6.1
+
+- On 2026-11-15 the owner supplied the engine Min released to early adopters: FatelessAiEngine 0.2.0. One Windows x64
+  DLL (47 MB) and 22 libraries it loads (ggml for the CPU, Vulkan and CUDA; whisper; parakeet; ONNX Runtime; FFmpeg),
+  MIT headers for a COM-style interface, a host guide and a binary licence: about 304 MB, about 135 MB without the CUDA
+  library, models downloaded on request. It is kept outside the repositories and never committed.
+- The licence: use the DLL and ship it unmodified inside one's own product, with its licence and notices; no
+  modifying, reverse engineering or shipping it on its own; the names not used to promote a product; its online
+  services not granted. The headers are MIT. The FFmpeg libraries are LGPL: separate, replaceable files, their source
+  shipped or offered. So O53's "read, build, run and modify" does not reach the engine itself: EldenNet builds on its
+  interface.
+- It gives: LLM requests with variants, failover, streaming, structured output and typed decisions (four at once by
+  default); prompt templates in Inja with SkyrimNet's additions, the host pushing every template and answering its
+  functions; speech to text (local whisper), voice detection, text to speech (a local model, or Min's cloud); model
+  downloads on request; a sign-in to Min's service; telemetry; tracing.
+- It does not give: a context engine, memories, event history, a content store, pacing, budgets, per-request
+  deadlines, audio playback, game access or a UI. Min says the content store comes next.
+- How it behaves: one engine a process; events arrive on its worker threads; creating, reloading and releasing its
+  services blocks for seconds, so a host calls it only from workers of its own. The host chooses every folder; a log
+  is always written. It contacts Min's service only if the host creates the sign-in or telemetry services (telemetry
+  sends nothing before consent); otherwise only the LLM providers configured, OpenRouter being the default endpoint of
+  a slot that names no provider. Keys come only from a plain-text file the engine rewrites at each load.
+- Next: proposal 0003 (S6.1.b), with O80 to O83 for the owner.
+- Later (2026-11-15): the owner chose our own engine (O84); Min's DLL is not used.
+
+### 96. SkyrimNet's own bio files confirm SN03 §5: ten prose parts, and the same parts empty for the player
+
+`2026-11-15` · FACT · `#engine #roster` · refs: SN03, O46, O84
+
+- The owner shared two of SkyrimNet's character bio files: one NPC's bio and the player's template, kept outside the
+  repositories and never quoted. Each is ten named blocks of prose and nothing else, in the order and with the names
+  SN03 §5.1 records from the older copies; the player's template is the same ten blocks, empty, for the player to fill.
+  So SN03 §5's schema, its audiences and its render modes describe SkyrimNet's current format.
+- The NPC's bio shows the spoiler question plainly: its background and aims state the whole of that character's story,
+  which SkyrimNet trusts the model to hold back. EldenNet's rule (O36) gives an NPC only what is safe to hear now, so
+  the shape is taken and the secrets are not ([proposal 0004](proposals/0004-character-bio.md)).
+- The owner's direction (O46's Later note): ideas from it, a structure that fits Elden Ring, and possibly followers,
+  for whom parts such as skills matter (O85).
+
+### 97. SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts
+
+`2026-11-15` · FACT · `#engine #roster` · refs: SN01 to SN08, WHY§87, WHY§96, O53, O84
+
+- The owner shared SkyrimNet 1.2.0 and its dev tools, kept outside the repositories and read by two agents with Read,
+  Grep and counting scripts only; no binary was run and nothing was copied. In everything readable it is the beta30-rc2
+  behind SN01 to SN08 with a few changes, so those notes still describe it: the 1,507 bios are byte-identical, and the
+  memory, decision, diary and bio-update logic, the configuration, the headers and the record roots are unchanged; 3 of
+  137 prompt files are new and 16 changed.
+- Corrections: a bio's prose is a median 512 words (p10 430, p90 606; unique 518, generic 494), not SN03 §5.1's 570,
+  which counted the tags too; the plugin header holds 51 function pointers at API version 14, not WHY§87's 45.
+- New: a pickpocket event whose audience depends on detection; combat sides from the game's groups, a stance for each
+  person towards the speaker (enemy, ally, turned, bystander), stated as ground truth that outranks the history; a
+  notice of unseen attackers; masks while the player is hidden; outfit descriptions. Speech: PocketTTS (an MIT C++ port)
+  replaces Piper and Kokoro, with voice cloning and 27 voice packs; espeak-ng is gone.
+- SkyrimNet's own spoiler discipline slips: about 3% of public summaries state the character's secret, 100 bios assume
+  the player's deeds, and memories, diaries and bio updates are written with the full bio, so a secret can enter a
+  memory and return for good. No evaluation checks spoilers.
+- Licences: the plugin headers are MIT (Fateless.Ai); SkyrimNet itself carries no licence in either archive and is not
+  open source. EldenNet takes its logic and structure under O53 and O84, copies and ships nothing from either archive,
+  and takes libraries from their original publishers.
+
+### 98. What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine
+
+`2026-11-15` · LIKELY · `#engine #roster #process` · refs: WHY§97, O84, O46, ARCH§11, DESIGN§10.5
+
+- **The client (ARCH §11).** (1) A 400 is retried without `extra_body`, which holds the reasoning switch, so a
+  reasoning model may spend the whole budget thinking: keep the switch, retry at minimal effort, and record it about
+  the model.
+  (2) Decisions are reserved, not designed: our own format over chat completions (an enum schema, probabilities from
+  logprobs where offered, options the engine builds, a rules fallback always, a `decisions` slot). (3) No backup
+  request: start the fallback when a cloud reply's first token is late (about 2.5 s, EST), keep whichever streams
+  first, and add a quantisation floor where a provider offers one.
+- **The world.** (4) A stance towards each viewer, "turned" included, so a charmed foe or a summon is not just "not
+  hostile" (to verify in game). (5) Unseen attackers, and a concealed Tarnished who is not greeted.
+- **Plugins and the store.** (6) The code-plugin interface exposes rollback and promises ids never reused. (7) The C++
+  store avoids SkyrimNet's traps: SQLite's own statement parsing, 64-bit ids, locale-proof numbers. (8) The template
+  function reference and the lint's allowlist are generated from one registry.
+- **Spoilers and memory.** (9) Memory, diary and lived-layer jobs get the same gated layers as dialogue. (10) Public
+  fields, `stirs` and `ties` are checked mechanically against the NPC's locked terms, as well as reviewed. (11) Each
+  witness writes its own first-person memory of a scene, as schema-bound data (place, emotion, importance, tags, type),
+  with actor ids, stamped with the horizon it was written under; recall searches twice and then asks a gate.
+- **Evaluation.** (12) Adopt SkyrimNet's 1-to-5 scale and pairwise comparisons by axis, run in both orders, and add
+  what it lacks: a spoiler check, perception, voice and register, invented lore. (13) In v1, decisions only for the
+  next speaker (silence always offered) and, later, the recall gate.
+- Next: S8.1.f folds these into ARCH §11, MEM and the design; proposal 0004 takes (9) and (10) at once.
+- Later (2026-11-15): O86 keeps spoilers by grounding alone, so (10) becomes a review when fields are written, and
+  (12)'s spoiler check a few test questions per character on the model's own knowledge of the game.
+
+### 99. The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine
+
+`2026-11-16` · LIKELY · `#engine #process` · refs: WHY§97, WHY§98, O68, O84, O86
+
+- Source: the Skyrizz session's reply to our questions (2026-11-16), from its bench runs on local models, captured
+  SkyrimNet payloads and logs, and static reading; Skyrizz has not run in game, and none of it is verified here.
+- **Recall.** Code gathering only the records a question needs reached 93 to 100%, against 0 to 25% when the model
+  was given an index or told the joins. A recall gate picking the right memory among 4 to 12 near misses reached 83 to
+  100%, best when the question named the setup, the matter and the outcome. SkyrimNet writes memories in a background
+  cycle about every five minutes (importance 0.2 or more, one per participant and witness); linked identities make
+  duplicates; diary entries are memory rows; recall keeps up to 12 above a similarity of 0.52.
+- **Decisions.** Typed decisions on a small model never failed to parse (432 requests, 0.04 to 0.15 s) but were weak on
+  subtle readings, and SkyrimNet's 0.70 confidence cut-off lost about a quarter of right answers. Chat on an
+  OpenAI-compatible endpoint matched or beat them (0.10 to 0.32 s); its misses were format, fixed by readers that go by
+  meaning and by plain yes/no questions. Thinking cost 2 to 35 s a step, with rare runaways near 50k tokens.
+- **Templates.** Unresolved variables reached the model 12 times in the captures. Traps seen: `not` binding tighter
+  than `==` and passing a null; JSON at column 0; `capitalize("")` crashing; stock Inja failing 55 of SkyrimNet's
+  1,622 files, with `loop.last`, `loop.index0`, indexing and `in` silently wrong.
+- **Records.** SkyrimNet renders the full profile in every full-mode prompt, with no allow-list. Instructions planted
+  in records were obeyed 10 times in 10, and models copied ties from their own task lines.
+- **Plugins and cost.** An event's audience bounds only characters' own history, not the GameMaster or the speaker
+  picker; the interface passes C++ library types, and its threads and runtime linkage are undocumented. Outside
+  scenes, about 6k input tokens a request and 506 requests an hour; decorator values may be up to 55 s stale.
+- **For our engine** (with WHY§98, in S8.1.f): (1) code gathers the records a call needs, by id, and the model only
+  picks or writes; (2) decisions over chat, read by meaning, with plain yes/no questions, thinking off by default and
+  no hard confidence cut-off; (3) the template engine fails loudly on unknown names, keeps null and missing apart, has
+  real booleans, a real substring test and built-ins safe on empty strings, and nothing unresolved reaches a model;
+  (4) records enter prompts as quoted data, plugin content is validated, and examples use names no record holds (O86
+  stands: no runtime output filter); (5) the lived layer changes only what cited memories justify; (6) the code-plugin
+  interface (O68) has binding audiences, a C ABI, documented threads and reads by id; (7) the next speaker and its
+  addressee are checked by code; (8) a budget of requests per hour, and a bound on how stale a cached value may be.

@@ -40,7 +40,7 @@
 
 | Process | Lifetime | Contains |
 |---|---|---|
-| `eldennet-launcher.exe` | A few seconds per launch, then it exits (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection |
+| `eldennet-launcher.exe` | A launch, then, since O71, the whole session in the background as the crash watcher; it exits when the game does (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection; plugins (§4.12); the crash watcher ([proposal 0001](../proposals/0001-plugins.md) §13.7) |
 | `eldenring.exe` | The game session | `eldennet.dll`: GAL, core, store, net, overlay. All ML is reached over HTTP (DESIGN §2.1) |
 
 No helper process is spawned from inside the game. The out-of-process core stays a seam (`CoreTransport`, §2.2, DESIGN §13).
@@ -49,18 +49,18 @@ No helper process is spawned from inside the game. The out-of-process core stays
 
 | # | Thread | Created by | Owner | Runs | Game memory | May block | Allocation | On panic |
 |---|---|---|---|---|---|---|---|---|
-| T1 | **Init** (transient) | `DllMain` → `CreateThread` | `eldennet::boot`, `en-gal::sys` | Gate, safety, settings, readiness, hook install, discovery, `register_task`, worker spawn (§3) | Image only (PE headers, `.text`/`.rdata`/`.data` scans, static slots). The name getter fallback is the only call into game code | Yes (polls with `Sleep(100)`) | Free | `ffi_guard` → L1 banner if the overlay is up, otherwise a silent exit |
+| T1 | **Init** (transient) | `DllMain` → `CreateThread` | `eldennet::boot`, `en-gal::sys` | Gate, safety, settings, connect to GraceUI, readiness, discovery, `register_task`, worker spawn (§3) | Image only (PE headers, `.text`/`.rdata`/`.data` scans, static slots). The name getter fallback is the only call into game code | Yes (polls with `Sleep(100)`) | Free | `ffi_guard` → L1 banner through GraceUI's `notice` if connected, otherwise a silent exit |
 | T2 | **Game thread** | The game | `en-gal::task` | The one task closure: command drain, render feed, snapshot, flag frame, text and params (§7.3) | **Yes, only here** (R1) | Never | None after warm-up (the first 3 snapshot ticks); retired buffers go back to the core (C5) | `ffi_guard` → task component tripped → the closure returns at once → L1 |
-| T3 | **Present** | The game (D3D12 present path) | `en-overlay` (hudhook render callback) | Draws `UiModel` and the render feed; stamps `LAST_RENDER_QPC` | No | Never | Our code: none after warm-up; ImGui's own buffers reach a steady state | Overlay tripped → draws nothing; capture forced off |
-| T4 | **Window procedure** | The game's window thread | `en-overlay` (hudhook `before_wnd_proc`) | Feeds characters to ImGui; on `WM_ACTIVATEAPP`/`WM_KILLFOCUS` releases capture | No | Never | None | Filter tripped → messages pass through |
-| T5 | **Game input** (one or more) | Whichever game thread calls `GetDeviceState` / `XInputGetState` | `en-overlay::hooks` | Detours zero the keyboard and mouse buffers and neutralise pads while captured; held-key mask (DESIGN §8.1) | No | Never | None | Hook tripped → pure pass-through |
+| T3 | **Present** | The game (D3D12 present path) | GraceUI's hudhook render callback (GraceUI G15); EldenNet's part is `en-overlay`'s `on_present` callback | EldenNet's callback draws `UiModel` and the render feed as panels within GraceUI's budget (0.5 ms p99, GraceUI D71); GraceUI stamps the last render | No | Never | EldenNet's code: none after warm-up | GraceUI suspends a callback over budget for 120 frames; EldenNet's own trip → its panels draw nothing |
+| T4 | **Window procedure** | The game's window thread | GraceUI (its window-procedure filter) | GraceUI pairs characters, places the IME, releases capture on focus loss and hands characters to the holder, EldenNet's chat box among them | No | Never | None | GraceUI's rules |
+| T5 | **Game input** (one or more) | Whichever game thread calls `GetDeviceState` / `XInputGetState` | GraceUI (its DInput and XInput detours) | Zero the keyboard and mouse buffers and neutralise pads while a holder has input; the held-key mask (DESIGN §8.1, applied by GraceUI to every holder) | No | Never | None | GraceUI's rules |
 | T6 | **Core** | T1, after the safety step | `eldennet::shell` running `en-core` | `crossbeam::select!` over C1–C11 and C16 → `Core::step(input, now)` → effects | No | Only on `select!` | Bounded (§10.2) | Subsystem reset after the first panic, disabled after the second (R8). A panic outside a subsystem stops the core: capture released, banner "EldenNet stopped after an internal error" |
 | T7–T8 | **Net** (tokio, 2 workers) | T6 at Ready | `en-llm` | HTTPS and SSE streams; local probes | No | Async I/O | Yes | Caught per request → `LlmEvent::Error(Internal)` |
 | T9 | **Store** | T6 at Ready | `en-store` | One rusqlite connection per open file; migrations; backups | No | Disk I/O | Yes | Store tripped → toast "Memory is off for this session"; P events stay in the RAM ring (§8.9) |
 | T10 | **Watcher** | T6 | `eldennet::watch` (`notify`) | Hot reload with parse and validation (§11.6); saves the player's profile files sent on C17, after the same validation; every 60 s re-checks loaded modules for anti-cheat and `ersc.dll` (C14) | No | Yes | Yes | Hot reload off for the session, with a toast |
 | T11 | **Log writer** | T6 | `tracing-appender` (non-blocking) | Writes rotating logs | No | Disk I/O | Yes | Lines dropped |
 
-No other thread is created. The game's own threads enter our code only through T2–T5. Each of those entries starts with `ffi_guard` (R3).
+No other thread is created by EldenNet. GraceUI, a separate module, starts its own short init thread and its server's threads (GraceUI D71, D81). The game's own threads enter EldenNet's code only through T2 and through GraceUI's `on_present` callback on T3. Each of those entries starts with `ffi_guard` (R3).
 
 ### 1.3 Channels
 
@@ -73,12 +73,12 @@ flowchart LR
   T2 -->|"C5 retire ring (64)"| T6
   T6 -->|"C6 ArcSwap UiModel"| T3
   T3 -->|"C7 UiEvent queue (256)"| T6
-  T4 -->|"C7"| T6
+  T4 -->|"C7: GraceUI's panel input, pulled with poll"| T6
   T6 <-->|"C8 store (1,024 each way)"| T9["T9 store"]
   T6 -->|"C9 requests (64)"| T78["T7-T8 net"]
   T78 -->|"C10 stream events (1,024)"| T6
   T10["T10 watcher"] -->|"C11 reloads (8)"| T6
-  T3 -.->|"C12 capture atomics"| T5["T5 input hooks"]
+  T6 -.->|"C12 GraceUI's input events"| T5["GraceUI's input holder"]
   T10 -.->|"C14 env atomics"| T2
   T6 -.->|"C15 ai_allowed"| T78
 ```
@@ -91,12 +91,12 @@ flowchart LR
 | C4 | Core → task | SPSC ring of `GameCommand` (DESIGN §2.3). Payloads are inline (`SmallVec` within capacity) or an `Arc` the task never drops | 64 | The core keeps an outbox. `SetWatchFlags` and `SetTracked` coalesce, last writer wins. `Resolve*` requests are deduplicated and re-sent if no answer arrives within 2 snapshots (impl) |
 | C5 | Task → core | SPSC ring of `Retired` (`Arc<[u32]>` watch lists replaced by a newer version) | 64 | If full, the task parks the `Arc` in a fixed 4-slot holdback and retries next tick. It never frees memory on the game thread |
 | C6 | Core → overlay | `ArcSwap<UiModel>` | 1 | Latest wins |
-| C7 | Overlay and WndProc → core | `crossbeam::ArrayQueue<UiEvent>` | 256 | `try_push`. On full, typing, page and debug events are dropped and counted. `Submit` and `CloseChat` wait in a one-slot retry cell inside the overlay and are pushed on the next frame |
+| C7 | Overlay → core; since GraceUI's G15 also the chat box's input, which GraceUI's window procedure hands over and T6 pulls with `poll` | `crossbeam::ArrayQueue<UiEvent>` | 256 | `try_push`. On full, typing, page and debug events are dropped and counted. `Submit` and `CloseChat` wait in a one-slot retry cell inside the overlay and are pushed on the next frame |
 | C8 | Core ↔ store | `crossbeam::bounded` (`DbRequest` / `DbResult`) | 1,024 each way | Diagnostics (traces, counters) are dropped first. P events are never dropped: they spill into the core's 4,096-entry RAM ring, with 256 slots reserved for speech (§8.9, DESIGN §6.6) |
 | C9 | Core → net | `tokio::mpsc` via a blocking-safe `try_send` wrapper | 64 | Pool jobs are dropped first and memory jobs requeue. Replies are never dropped; at most one dialogue request is in flight, and a persona's own-initiative request yields: the player's `Submit` and any input epoch cancel it first (DESIGN §6.6, §8.9) |
 | C10 | Net → core | `crossbeam::bounded<LlmEvent>` | 1,024 | The net worker awaits a free slot; backpressure then reaches the HTTP stream. Tokens are never dropped |
 | C11 | Watcher → core | `crossbeam::bounded<Reload>` | 8 | Coalescing: a newer `ContentPack` or `Settings` replaces a queued one |
-| C12 | Overlay ↔ input hooks | Statics: `CAPTURE: AtomicU64` (bit 0 captured, bits 1–63 player-input epoch), `LAST_RENDER_QPC: AtomicU64`, `HELD_MASK: [AtomicU64; 4]` | — | None |
+| C12 | Overlay ↔ GraceUI's input | GraceUI's state since its G15: EldenNet asks with `request_input` and `release_input`, and reads "input granted, refused, lost and free" and "input held by" through `poll`; the player-input epoch stays EldenNet's own atomic (`EPOCH: AtomicU64`), advanced on those events | — | None |
 | C13 | Task → debug and core | Per-group fault counters and a fixed 64-bucket timing histogram, all atomics | — | None; they saturate |
 | C14 | Init and watcher → task | `ANTICHEAT: AtomicBool`, `ERSC_LOADED: AtomicBool` | — | None |
 | C15 | Core → net | `AI_ALLOWED: AtomicBool`. The net checks it before every send, as a second lock behind the core's own gate (C4 criterion, §5) | — | None |
@@ -113,6 +113,7 @@ sequenceDiagram
   participant D as DllMain
   participant I as T1 init
   participant O as en-overlay
+  participant U as GraceUI (graceui.dll)
   participant G as Game thread
   participant C as T6 core
   L->>D: LoadLibraryW (any time)
@@ -123,7 +124,10 @@ sequenceDiagram
   I->>I: settings.toml: enabled? (no → exit, Off)
   I->>C: spawn core, watcher, log writer
   I->>I: readiness 1: main window exists (poll 100 ms)
-  I->>O: install DXGI, D3D12, DInput, XInput hooks (once)
+  I->>O: connect to GraceUI (GraceUI G15; EldenNet hooks nothing)
+  O->>U: find graceui.dll, GraceUI_RequestApi(1), connect
+  U-->>O: ok, inactive (anti-cheat), too_old or refused
+  O->>U: register faces, panels, hotkeys; world-state provider
   alt gate or safety failed
     I->>C: Banner(reason) → L1, init exits
   else
@@ -139,7 +143,8 @@ sequenceDiagram
 ```
 
 - The core is up before the overlay, so the overlay always has a `UiModel` to draw, the banner included.
-- Store and net threads start only on the path that can reach L2. An L1 session never opens a database or a socket.
+- **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.2). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
+- Store and net threads start only on the path that can reach L2. An L1 session never opens a database or a socket; the dashboard's socket is GraceUI's (GraceUI D81).
 - `register_task` is called from T1, a non-main thread, as the game's contract requires (ER01 §3.1).
 
 ### 1.5 Shutdown
@@ -149,10 +154,10 @@ The game never asks a DLL to shut down. EldenNet therefore never relies on a shu
 | Event | What happens |
 |---|---|
 | Quit to the title | Lifecycle `Title` (§9): the conversation ends, P events flush, and the playthrough DB closes. Global DBs stay open |
-| Runtime disable (`enabled = false` while running) | AI paused: the ladder drops to L2 (Observe), speech is dropped and no LLM request is sent. Hooks and the task stay installed (R12). Full **Off** takes effect at the next launch |
+| Runtime disable (`enabled = false` while running) | AI paused: the ladder drops to L2 (Observe), speech is dropped and no LLM request is sent. GraceUI's hooks, EldenNet's connection to them and the task stay installed (R12). Full **Off** takes effect at the next launch |
 | Process exit (any path) | No code runs. Every DB request is one WAL transaction (R14). Speech commits (`PlayerSaid`, and each `NpcSaid` page as it shows) are sent as their own request in the same step. Other writes are coalesced by the core into one request at most every 250 ms (DESIGN §8.5). So a hard kill loses at most ≤ 250 ms of non-speech writes, and a shown line only in the few milliseconds before its own transaction commits. Logs may lose their last buffered lines |
 | Crash of the game | Same as process exit. On the next `PlaythroughReady`, open conversations are closed and queued for memory (DESIGN §10.3) |
-| `FreeLibrary` by a third party | Refused: T1 pins the module with `GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN)` before anything else, because hooks and the task point into our code (impl) |
+| `FreeLibrary` by a third party | Refused: T1 pins the module with `GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN)` before anything else, because GraceUI's callbacks and the task point into our code (impl) |
 
 ### 1.6 Single-instance mutex (R16)
 
@@ -179,7 +184,8 @@ flowchart TB
   STORE["en-store (SQLite)"]
   LLM["en-llm (HTTP/SSE)"]
   GAL["en-gal<br/>gate, discovery, layouts, reader, task"]
-  OVL["en-overlay<br/>hudhook ImGui, input hooks"]
+  OVL["en-overlay<br/>display layer: panels and notices<br/>through GraceUI; F11 on a headless ImGui"]
+  GUI["GraceUI's consumer crates<br/>graceui-sys, grace-protocol,<br/>grace-draw, grace-view (pinned tag)"]
   DLL["eldennet (cdylib)"]
   LAUNCH["en-launcher (bin)"]
   TOOLS["en-tools (bin)"]
@@ -190,6 +196,8 @@ flowchart TB
   LLM --> PROTO
   GAL --> PROTO
   OVL --> PROTO
+  OVL --> GUI
+  CORE --> GUI
   DLL --> CORE & GAL & OVL & STORE & LLM
   TOOLS --> CORE & STORE & LLM
   TOOLS -.->|"offline modules only"| GAL
@@ -208,7 +216,7 @@ The two dotted edges were added here and adopted into DESIGN §2.2 by the review
 | `en-store` | SQLite files, migrations, the request loop, backups | `Store::spawn(StoreCfg) -> StoreHandle`, `StoreHandle::{send(DbRequest) -> Result<(), Full>, results() -> Receiver<DbResult>}` |
 | `en-llm` | The OpenAI-compatible client, SSE parser, slots, health, local probes, warm-up | `Llm::spawn(ProvidersCfg) -> LlmHandle`, `LlmHandle::{submit(LlmRequest) -> Result<(), Full>, cancel(RequestId), events() -> Receiver<LlmEvent>}`, `probe_local() -> Vec<LocalEndpoint>` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `gate(&ImageView, &Builds) -> Result<BuildProfile, GateError>`, `discover(&dyn SysLayer, &BuildProfile) -> Result<Discovery, DiscoveryReport>`, `install_task(Discovery, TaskWiring) -> Result<TaskToken, GalError>`, `struct ErBackend: GameBackend`, `trait SysLayer` (§6.4) |
-| `en-overlay` | hudhook DX12 ImGui, fonts, every surface, input hooks | `Overlay::install(OverlayCfg, Arc<ArcSwap<UiModel>>, RenderFeedReader, UiEventSink) -> Result<OverlayHandle, OverlayError>`, `capture::{set(bool, epoch), state()}` |
+| `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on a headless Dear ImGui (`imgui` 0.12, no backend) submitted as a panel | `Overlay::connect(OverlayCfg, Arc<ArcSwap<UiModel>>, RenderFeedReader, UiEventSink) -> Result<OverlayHandle, ConnectError>`, `input::{request(), release(), epoch()}` |
 | `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell, `ffi_guard` | `#[no_mangle] extern "system" fn DllMain`, `#[no_mangle] static eldennet_instance_marker: u32` |
 | `en-launcher` | The launcher binary (§4) | CLI only |
 | `en-tools` | Developer tools (§12.3), the replay `GameBackend` | CLI only |
@@ -237,11 +245,11 @@ pub struct Outputs {
 |---|---|---|
 | `en-proto` | `serde`, `smallvec`, `arrayvec`, `arcstr`, `bitflags` | Anything with I/O, threads, clocks, Win32 or game knowledge |
 | `en-augur` | `en-proto`, `serde`, `toml`, `smallvec`, `indexmap` | `en-core`, `en-gal`, `en-store`, `en-llm`, `en-overlay`, `tokio`, `windows`, `std::fs`, any clock |
-| `en-core` | `en-augur`, `en-proto`, `minijinja`, `toml`, `serde_json`, `regex`, `unicode-segmentation`, `blake3` | `en-gal`, `en-overlay`, `en-store`, `en-llm`, `tokio`, `reqwest`, `rusqlite`, `windows`, any clock |
+| `en-core` | `en-augur`, `en-proto`, `minijinja`, `toml`, `serde_json`, `regex`, `unicode-segmentation`, `blake3`, GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, `tokio`, `reqwest`, `rusqlite`, `windows`, any clock |
 | `en-store` | `en-proto`, `rusqlite` (bundled), `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` | `en-proto`, `tokio`, `reqwest` (rustls), `serde_json`, `crossbeam` | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, `windows` (`sys` only), `bytemuck`, `toml`, `cc` (build) | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, `imgui`, `tokio` |
-| `en-overlay` | `en-proto`, `hudhook = { version = "=0.9.3", default-features = false, features = ["dx12"] }` (DESIGN O25; `imgui` 0.12 only through the re-export `hudhook::imgui`, MinHook only through hudhook's own FFI module `hudhook::mh`), `windows` 0.62 (hudhook's version, or `hudhook::windows`) | `en-gal` (it can never reach game memory), `en-core` |
+| `en-overlay` | `en-proto`; GraceUI's `graceui-sys`, `grace-draw` and `grace-view`, pinned by tag and commit (GraceUI G15, its §2.7); `imgui` 0.12 with no renderer backend, for F11's headless context; `windows` 0.62 | `en-gal` (it can never reach game memory), `en-core`; since GraceUI's G15, `hudhook`, MinHook or any other hook library, an ImGui renderer backend, and GraceUI's `grace-host` and `grace-serve` (GraceUI invariant 16; DESIGN R12) |
 | `eldennet` | All of the above, `crossbeam`, `arc-swap`, `notify`, `tracing`, `tracing-appender` | — |
 | `en-launcher` | `en-gal` (`offline`), `windows` | Everything else in the workspace |
 | `en-tools` | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-gal` (`offline`), `clap`, `zstd`, `insta`, `proptest` | `en-overlay`, `en-gal` with `sys` |
@@ -254,7 +262,7 @@ pub struct Outputs {
 |---|---|---|---|
 | `en-proto`, `en-augur`, `en-core` | `#![forbid(unsafe_code)]` | `disallowed_methods`: `Instant::now`, `SystemTime::now`, `thread::sleep`, `std::fs::*`, `std::env::var`. `disallowed_types`: `std::collections::HashMap`/`HashSet` (iteration order must replay bit for bit; use `BTreeMap` or `IndexMap` with a fixed hasher) | None |
 | `en-gal` | `#![deny(unsafe_code)]`; `#[allow(unsafe_code)]` only on `mod reader` and `mod sys` | `unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`, `unreachable`, `indexing_slicing`, `arithmetic_side_effects`, `undocumented_unsafe_blocks`, `disallowed_types` (`Mutex`, `RwLock`, `parking_lot::*`) | `reader` (SEH copy), `sys` (image view, trampoline, `register_task`, getter fallback, mutex, module and thread APIs) |
-| `en-overlay` | `#![deny(unsafe_code)]`; `#[allow]` only on `mod hooks` | Same list as `en-gal`, plus `disallowed_methods` for hudhook's eject path (`hudhook::eject`, `hudhook::Hudhook::unapply`, `hudhook::mh::MH_Uninitialize`, `hudhook::mh::MH_DisableHook`, `hudhook::mh::MH_QueueDisableHook`, `hudhook::mh::MhHook::queue_disable`; R12) | `hooks` (hudhook setup, DInput and XInput detours) |
+| `en-overlay` | `#![deny(unsafe_code)]`; `#[allow]` only on `mod abi` | Same list as `en-gal`. Since GraceUI's G15 it holds no hook, so the eject-path list of hudhook's methods is GraceUI's `grace-host`'s (R12) | `abi` (calls across GraceUI's C ABI through `graceui-sys`, the `on_present` callback's entry, slices over its own draw lists) |
 | `eldennet` | `#![deny(unsafe_code)]`; `#[allow(unsafe_code)]` only on `mod exports`, which holds the two `#[unsafe(no_mangle)]` items (`DllMain`, `eldennet_instance_marker`) and **no `unsafe` block**. `DllMain` calls `en_gal::sys::boot::on_attach`, which does the Win32 work | Same list as `en-gal` | None (attributes only) |
 | `en-store`, `en-llm`, `en-tools` | `#![forbid(unsafe_code)]` | `unwrap_used`, `expect_used` (warn in tests) | None |
 | `en-launcher` | `#![deny(unsafe_code)]`; `#[allow]` only on `mod win` | Same list as `en-gal` | `win` (process creation and injection). It runs outside the game process, so R9's in-process list does not cover it |
@@ -266,12 +274,12 @@ Every `unsafe` block carries a `// SAFETY:` note (R9). `exported_private_depende
 | Feature | Crates | Enables | Release CI |
 |---|---|---|---|
 | `probe` | `en-gal`, `eldennet` | In-game invariant search that writes a draft layout (§6.10), plus the fault-injection hooks used by the C1 forced fail-closed launches | Refused |
-| `hooks` | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11). Compiled out in v1 | Refused |
+| `hooks` | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11), and with them EldenNet's own hook library, in `en-gal::hooks` (O65). Compiled out in v1 | Refused |
 | `actions` | `en-proto`, `en-core` | `GameCommand::Action`, executors, prompt partials | Refused |
 | `freeze` | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
 | `offline` | `en-gal` | The safe offline modules only (§2.1) | Allowed (tools and launcher) |
 
-The release job runs `cargo tree -e features` and fails if any of `probe`, `hooks`, `actions` or `freeze` is active in `eldennet`, or if hudhook has any feature but `dx12` (DESIGN O25).
+The release job runs `cargo tree -e features` and fails if any of `probe`, `hooks`, `actions` or `freeze` is active in `eldennet`, or if hudhook appears in its tree at all (GraceUI's G15; GraceUI's release job checks hudhook's `dx12`-only build, DESIGN O25).
 
 ### 2.6 Build profile and target
 
@@ -332,11 +340,11 @@ stateDiagram-v2
   SafetyBanner --> Exit: second copy
   Settings --> Exit: enabled = false (Off)
   Settings --> WaitWindow
-  WaitWindow --> Hooks: window exists
+  WaitWindow --> Connect: window exists
   WaitWindow --> Banner: 120 s
-  WaitWindow_B --> HooksB: window exists
-  HooksB --> Banner
-  Hooks --> ReadyScan
+  WaitWindow_B --> ConnectB: window exists
+  ConnectB --> Banner
+  Connect --> ReadyScan
   ReadyScan --> WaitEngine: readiness items located or skipped
   WaitEngine --> Discover: statics non-null and DLRF names resolve
   WaitEngine --> Banner: 120 s since T1 start
@@ -359,7 +367,8 @@ stateDiagram-v2
 | Safety | Mutex (§1.6). Anti-cheat check (§5.3). Logging starts here, so a second copy never writes to the shared log; gate results buffered until now are flushed | — | Second copy → Exit. Anti-cheat → banner |
 | Settings | Parse `settings.toml` (§11.5). If parsing fails, use the defaults and show a toast later | — | `enabled = false` → Exit (Off) |
 | WaitWindow | Poll every 100 ms for a visible top-level window owned by this PID | 120 s from T1 start | Banner (logged; drawn if the window appears later) |
-| Hooks | `Overlay::install`: DXGI and D3D12 through hudhook, then DInput and XInput through the same MinHook, hudhook's `mh` module (R12). `GetDeviceState` is found through the vtable of a throwaway `IDirectInputDevice8W`, which lives in `dinput8.dll`. `XInputGetState` is hooked in whichever XInput DLL `eldenring.exe` imports (S4) | — | Overlay error → no banner can show. Log it, continue headless at L2 at most |
+| Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 through hudhook, the window procedure, and DInput and XInput through the same MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69) | 30 s (the helper's bound) | A failed connect (`too_old`, `refused`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
+| ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88) | 30 s | No GraceUI → no banner can show; logged, with the launcher's hint |
 | ReadyScan | Scan the image for the two readiness items only: `global_hinstance` (AOB) and the `CSTask` static (FD4 finder, §6.2). This is the earliest scan, done after the window exists | Part of the 120 s | Not found → readiness falls back to "window exists and the `CSTask` static is non-null" (DESIGN §3.1) |
 | WaitEngine | Poll every 100 ms: `global_hinstance` static non-null (if found), then the `CSTask` static non-null and the DLRF name of its runtime class readable | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
 | Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5) | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
@@ -402,8 +411,10 @@ The DLL never assumes which loader it has, never calls a loader export, and need
 | `--backup-only` | Back up saves and exit. Meant for players who start through their own loader (§4.11) |
 | `--cleanup` | Remove a `steam_appid.txt` that this launcher created, if the game is not running, and exit |
 | `--print-diagnostics` | Write the discovery and pre-flight results to the console and to `launcher.log`, and exit |
+| `--no-plugins` | Start with every plugin off, for support (§4.12; the first screen's Start without plugins) |
+| `--plugins` | Check and install what is new in `plugins/`, show the list with the code plugins to turn on, and exit without starting the game: the way to manage plugins for players who start through their own loader (§4.12) |
 
-`--game`, `--backup-only`, `--cleanup` and `--print-diagnostics` are additions to DESIGN's three flags (impl).
+`--game`, `--backup-only`, `--cleanup` and `--print-diagnostics` are additions to DESIGN's three flags (impl); `--no-plugins` and `--plugins` come with plugins in 1.1 (O66, O67).
 
 ### 4.2 Finding the game
 
@@ -422,6 +433,7 @@ The DLL never assumes which loader it has, never calls a loader export, and need
 | No EAC bootstrapper | No process named `start_protected_game.exe` | E04 |
 | The game is not already running | No `eldenring.exe` process | E03 |
 | The DLL exists and is ours | The file exists, and its version resource reads `ProductName = EldenNet` | E08 |
+| GraceUI is installed and fits (GraceUI D83, D88) | `Game\GraceUI\graceui.toml` is readable and every listed file matches its size and SHA-256; its ABI major is one EldenNet speaks and its version at least EldenNet's floor. Otherwise the launcher installs the GraceUI release EldenNet carries, never over a newer one, and over an older major only while the carried release still serves that major (GraceUI D74); outside that window it installs only when the player confirms, after naming the mods GraceUI's last log shows connecting on the older major | E08's manner: what is missing or would stop working, and what to do |
 | The game folder is writable | Only needed for the file method (§4.5) | E06 |
 | Other proxy DLLs | `dinput8.dll`, `winhttp.dll` or `dxgi.dll` next to `eldenring.exe` | Information only: "Other mods detected: …". Never blocks |
 
@@ -458,7 +470,8 @@ sequenceDiagram
   P-->>LA: thread exits (WaitForSingleObject, 30 s)
   LA->>LA: GetExitCodeThread != 0, and the module is listed (Toolhelp32 snapshot)
   LA->>P: VirtualFreeEx, then ResumeThread(main thread)
-  LA->>LA: wait for the window (§4.5), remove steam_appid.txt if ours, exit
+  LA->>LA: wait for the window (§4.5), remove steam_appid.txt if ours
+  LA->>LA: stay as the crash watcher until the game ends (O71), then exit
 ```
 
 - **Absolute path:** the DLL path is absolute, so the game's search order is never used.
@@ -489,6 +502,7 @@ The notices show on the first run, and again whenever their version number chang
 > **Your saves are backed up, not separated.** EldenNet keeps the last 10 copies in `%APPDATA%\EldenNet\save-backups`. It never edits your save.
 > **What you type is sent to the AI provider you choose.** That may be a cloud service or a program on your own PC.
 > **NPC lines are generated by AI.** They are not written by FromSoftware, and they can be wrong.
+> **Your dashboard.** While the game runs, GraceUI serves EldenNet's pages to a browser on this PC at `http://127.0.0.1:%u` (the port is read from GraceUI's own settings; GraceUI D84).
 
 ### 4.9 Proton (placeholder, pending S0-C)
 
@@ -523,6 +537,28 @@ The page is written by us and lives only in our repository and release zip. It n
 6. **If something fails,** EldenNet shows a banner with the reason. Send the bug-report bundle from the settings panel (F10, Diagnostics).
 
 ---
+
+### 4.12 Plugins (from 1.1; O66, O67)
+
+Before the game starts, after the pre-flight checks (§4.3), the launcher looks at `<install>/plugins/`:
+- each new folder holding a `plugin.toml`, and each `.zip` holding one such folder, is checked by [proposal
+  0001](../proposals/0001-plugins.md) §6.3's archive rules and §5.2's manifest; an archive is unpacked into
+  `plugins/<id>/` and then removed; a folder whose files no longer match its manifest is turned off with the reason;
+- nothing installs until its validator passes ([proposal 0001](../proposals/0001-plugins.md) §13.1): it is checked in
+  `plugins/pending/` and moved into place whole, or not at all, and a library clash with any installed code plugin, on
+  or off, is named on both rows with Detached offered as the way out (§13.2);
+- a new content plugin is turned on at the end of the player's order; a new or changed code plugin (after v1.0,
+  O68) stays off until the player turns it on, with its name, version, author, SHA-256 and what it can reach shown,
+  and the answer is kept until the DLL's hash changes; once it is on, a trial run in a throwaway plugin host, outside
+  the game, must pass before the game starts with it (O70);
+- plugins removed on the dashboard are deleted now; if `plugins/` is not writable, the launcher says so in E06's
+  manner and changes nothing;
+- **Start without plugins** starts the game with every plugin off, for support.
+
+The dashboard's route (proposal 0001 §6.2) writes into `plugins/pending/` and is checked by T10 in the game, never on
+the game, render or input threads; code never arrives that way. When the game is started another way (a player's own
+loader, §4.10), T10 makes the same checks at boot for anything new in `plugins/`, and a code plugin stays off until the
+player turns it on with `--plugins`.
 
 ## 5. The offline and multiplayer gate
 
@@ -564,7 +600,7 @@ The net also refuses any request while `AI_ALLOWED` is false. A core bug therefo
 | Init, in the Safety state | T1 | `EnumProcessModules` on our own process: any module whose file name starts with `EasyAntiCheat` (case-insensitive). The parent process (`CreateToolhelp32Snapshot`, `th32ParentProcessID`) has the image name `start_protected_game.exe`. If the parent has already exited, the parent clause is skipped |
 | Every 60 s | T10 | The module clause again; also refreshes `ERSC_LOADED` (a module named `ersc.dll`) |
 
-A hit at init → L1 banner. A later hit → `ANTICHEAT = true` → the gate goes false for the rest of the session, with the banner.
+A hit at init → the L1 banner through GraceUI's notice-only mode: GraceUI makes the same check before it hooks, draws notices only, and answers `connect` with `inactive (anti-cheat)` (GraceUI D88). A later hit → `ANTICHEAT = true` → the gate goes false for the rest of the session, with the banner, and EldenNet withdraws its space from the browser view (GraceUI D81).
 
 ### 5.4 Player-facing texts
 
@@ -1378,7 +1414,7 @@ The world model keeps ≤ 256 trackers and the K store ≤ 512 entries (impl). P
 
 ### 8.11 Reserved hook sources H1–H3
 
-These are compiled out in v1 (cargo feature `hooks`). They implement the same `EventSource` trait and emit into the same kinds, plus the reserved ones. Each **requires a code patch or a game-memory pointer write**, both forbidden in v1 (R2, R12). Each therefore needs its spike and an owner decision before v1.x.
+These are compiled out in v1 (cargo feature `hooks`). They implement the same `EventSource` trait and emit into the same kinds, plus the reserved ones. Each **requires a code patch or a game-memory pointer write**, both forbidden in v1 (R2, R12). Each therefore needs its spike and an owner decision before v1.x. Since GraceUI's G15 they would use EldenNet's own hook library, never on a function GraceUI hooks (O65, R12; WHY§84, WHY§86).
 
 | Source | Hook point (lead) | Would emit | Spike prerequisites |
 |---|---|---|---|
@@ -1495,7 +1531,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 | R9 Lints | Clippy deny-list per crate (§2.4) in CI on the Windows target |
 | R10 Time-based cadence, self-throttle | Simulated frame times of 30, 60 and 144 FPS and 1 s hitches → always 4 Hz, never a burst. Throttle entry and exit tests |
 | R11 Idle while loading | Replay of a recorded loading screen: read counters show the lifecycle subset only |
-| R12 System-DLL hooks only, once | `en-overlay::hooks::install` sits behind a `Once`, and there is no uninstall API. hudhook's eject path uninitialises the shared MinHook and would remove our DInput and XInput detours too, so it never runs. Clippy `disallowed_methods` (§2.4) bans `hudhook::eject`, `hudhook::Hudhook::unapply`, `hudhook::mh::MH_Uninitialize`, `hudhook::mh::MH_DisableHook`, `hudhook::mh::MH_QueueDisableHook` and `hudhook::mh::MhHook::queue_disable`, which match however they are imported. The CI grep backs it up: no `MH_RemoveHook`, no bare `eject(` (`\beject\s*\(`), no `use hudhook::*` and no `hudhook!` macro. A second MinHook fails `licence-files` (any MinHook source outside hudhook 0.9.3), and a known hooking crate also fails `licences` (§12.1). S0-E |
+| R12 GraceUI's functions are GraceUI's; EldenNet's own hooks are few and approved (GraceUI G15; O65) | In v1 EldenNet links no hudhook or other hook library and installs no hook: `cargo deny` bans `hudhook` and every known hooking crate in EldenNet's workspace, the `licence-files` stage fails on any MinHook source, and the release job reads `eldennet.dll`'s import table and symbols for a hook library (`MH_*`, a detours library) and fails on one (GraceUI invariant 16). Once a first hook of EldenNet's own is approved (O65), its one library is allowed in `en-gal::hooks` alone, behind the `hooks` feature: the bans then name that crate as the one exception, and a CI check compares every hook target in the source with GraceUI's published list (GraceUI D102) and fails on a match. The process's overlay and input hooks are GraceUI's, in `graceui.dll`'s `grace-host`, behind a `Once` with no uninstall API; hudhook's eject path, which uninitialises the shared MinHook, never runs, and GraceUI's own clippy and greps ban it (GraceUI §2.2). EldenNet's own hooks follow the same rules: installed once, after `connect` has answered, chained, never removed. S0-E checks GraceUI's in both load orders, on GraceUI's 0.1 Host |
 | R13 Sanitised, capped strings | `UiModel` accepts only `SafeText`, whose constructor runs the sanitizer and the byte cap. `proptest` fuzzing (C7) |
 | R14 Nothing at detach | CI grep: the `DLL_PROCESS_DETACH` path is empty. One DB request = one transaction. Hard-kill tests during a reply |
 | R15 Abort-class failures designed out | The caps in §10.2, each with a test. CI lists every `impl Drop` in the workspace and requires a `// DROP: cannot panic` note |
@@ -1533,7 +1569,7 @@ The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`
 | No healthy provider | L2 | Badge: "AI paused: provider unavailable (F10)" |
 | Slow first token, no reply in 20 s, 401/403, 429, lint twice | — | As in DESIGN §2.7 |
 | Multiplayer | Dormant | Badge: "EldenNet paused (multiplayer)" |
-| Overlay failed to install | L2 at most | Nothing can be drawn. Logged, plus a `launcher.log` hint the next time the launcher runs |
+| Overlay failed to install: since GraceUI's G15, a failed connect to GraceUI (missing, `too_old`, `refused`) | L2 at most | Nothing can be drawn. Logged, plus a `launcher.log` hint the next time the launcher runs (GraceUI D88); with `too_old`, GraceUI's own notice names EldenNet and both versions |
 
 Toasts wait until boss fights end, are rate-limited to one per error class per minute, and show at most 2 at a time.
 
@@ -1646,10 +1682,10 @@ features = { chat = true, barks = true, speak_up = true, callout = true, memory 
 autonomy = { enabled = true, period_s = 120 }           # 30–1800; enabled gates the autonomy motive only, the tick still runs (DESIGN §9.8); free-tier presets write enabled = false
 range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 10–40
 pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
-ui = { scale = 1.0, hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false }   # NPC §10.7
+ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false }   # NPC §10.7; `scale` is GraceUI's own setting since GraceUI D84, and EldenNet's text follows it
 pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
 safety = { level = "faithful" }                          # faithful | gentle (O17)
-hotkeys = { talk = "T", skip_page = "Tab", settings = "F10", debug = "F11" }   # talk default from S4
+hotkeys = { talk = "T", skip_page = "Tab", debug = "F11" }   # talk default from S4; the defaults EldenNet registers with GraceUI, whose Hotkeys page keeps the player's bindings (GraceUI D77, D84); the menu key (F5) is GraceUI's, so `settings` goes, by a migration before v0.6 (deny_unknown_fields)
 augur = { allow_custom_rules = false }
 debug = { panel = false, record_sessions = false, record_redact_text = false, log_level = "info" }
 # tables last: every key above is top-level
@@ -1704,9 +1740,10 @@ openrouter = "<entered in the wizard or by the player>"
 
 **Content layers** (DESIGN §11.4):
 1. `<install>/content/eldenring/…` (shipped);
-2. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped file whole;
-3. `overrides\disable.toml`.
-4. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–3, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded.
+2. `<install>/plugins/<id>/…` (from 1.1, O66): the content plugins that are on, in the player's order (`config\plugins.toml`), each adding or replacing only what [proposal 0001](../proposals/0001-plugins.md) §5.1 allows, a later plugin winning over an earlier one, every conflict shown on the Content packs page;
+3. `%APPDATA%\EldenNet\overrides\…`: the same relative paths, and each file **replaces** the shipped or plugin file whole;
+4. `overrides\disable.toml`.
+5. `%APPDATA%\EldenNet\profiles\…`: the player's own profiles (DESIGN §7.7; NPC §4.7). `layers\` adds fields to one shipped profile after layers 1–4, and `characters\` adds character profiles of the player's own. They are never shipped, bundled or uploaded, and they always win over a plugin's.
 
 ```toml
 # %APPDATA%\EldenNet\overrides\disable.toml
@@ -1722,8 +1759,8 @@ rules    = []                   # only rules marked disable_ok = true in their f
 - **Not hot-reloaded:** `gal/` is read at boot only and is never overridden.
 
 **Hot reload** (on T10):
-1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds, with a 500 ms debounce (DESIGN §11.4).
-2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint. A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
+1. A `notify` watcher covers `config/`, `overrides/` and `profiles/`, plus `content/` in dev builds and `plugins/` from 1.1, with a 500 ms debounce (DESIGN §11.4).
+2. On a change, T10 parses and validates the whole affected layer: schemas, caps, predicates, aliases, template compilation against fixture contexts, and lint; for a plugin also its manifest, the folders and kinds of change §5.1 of proposal 0001 allows, every id, type, flag and term it names, and the locked-term check of its public fields (proposal 0001 §5.4). A player's profile file is validated alone, with NPC §4.8's rules for player files: a refused one keeps its last good version, every other file loads, and the toast and the editor name the file, field and line, never its text.
 3. Success sends `Reload(Arc<ContentPack>)` or `Reload(Arc<Settings>)` over C11. The core swaps it between steps. A save sent on C17 also gets its `Reload::ProfileResult` on C11, saved or refused.
 4. Failure keeps the old version and shows a toast with the file and line.
 
@@ -1770,13 +1807,13 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | `fmt` | Linux | Any diff |
 | `clippy-pure` | Linux: `en-proto`, `en-augur`, `en-core`, `en-store`, `en-llm`, `en-tools` | §2.4 lists |
 | `clippy-win` | Linux via `cargo xwin clippy --target x86_64-pc-windows-msvc` | §2.4 deny lists for `en-gal`, `en-overlay`, `eldennet`, `en-launcher` |
-| `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 backstop (`MH_RemoveHook`, a bare `eject(`, `use hudhook::*`, `hudhook!`); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
+| `greps` | Linux | `ffi_guard` first statement (R3); `GameThread::issue` allowlist (R1); empty detach branch (R14); `IsEnableOnlineMode` anywhere except its absence test; `unsafe` outside the allowed modules; clocks and `HashMap` in pure crates; the R12 backstop (since GraceUI's G15: any `hudhook`, `MH_` or detour symbol in EldenNet's sources); `impl Drop` without its note; `patterns.toml` provenance not `own-derivation` |
 | `test` | Linux | Unit, property, DB, conformance, prompt snapshots (`insta`), golden replay, scenarios, backpressure |
 | `content` | Linux: `en-tools lint` over `content/` and `gal/` | Schemas, caps, predicates, aliases, adjectives, banned words, gender-neutral cards, anti-priming (DESIGN §14), beckon (W13), tells (W14), positive wording (W15, warn), opponent-neutral combat seeds, and `lead` entries in release layouts |
 | `eval` | Linux: `en-tools eval --preset cloud`, on a change to a persona's content, the world files (`world/stages.toml`, `world/tracks.toml`, `regions.toml`), the flag catalogue (`flags/catalog.toml`, an alias's `verified` included), the KB (`knowledge/`), the lexicon (`lexicon/`), a prompt, the sanitizer or a model default, and on release tags; never on every commit. The provider key is a CI secret (from v0.2, DESIGN §16.3) | A set below its gate (NPC §12.1, §12.5); a failed judge check (DESIGN §14) |
-| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
-| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
-| `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled; any hudhook feature but `dx12` (DESIGN O25) |
+| `licences` | `cargo deny check licenses bans sources` with an allowlist (MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unicode-3.0, CC0-1.0, BSL-1.0, MPL-2.0); `[bans]` lists fromsoftware-rs, `from-singleton`, me3 and `dearxan` crates; `sources` allows crates.io only. hudhook declares no `license` field, only a `license-file`, and bundles MinHook as C source, which `cargo deny` cannot see. So `deny.toml` carries a `[[licenses.clarify]]` entry: `crate = "hudhook@0.9.3"`, `expression = "MIT AND BSD-2-Clause"`, and `license-files` for `LICENSE` and `vendor/minhook/LICENSE.txt`, each with the hash `cargo deny` prints for it (an XXH32 value). A hash that no longer matches only voids the clarification, so the hard check of the texts is `licence-files`. The version pin is `=0.9.3` in `en-overlay`'s manifest plus `--locked` builds; as a second net, `[bans]` denies `hudhook:<0.9.3` and `hudhook:>0.9.3`, and by exact name the known hooking crates (`minhook`, `minhook-sys`, `min_hook_rs`, `minhook-detours-rs`, `minhook-detours-sys`, `retour`, `retour-utils`, `detour`, `detour2`, `detour3`, `detours-sys`, `windows-detours`, `ilhook`, `neohook`, `frida-gum`, `dobby-rs`; `cargo deny` matches names exactly and has no wildcards). `licence-files` adds a name pattern for the known hooking families and a MinHook source walk, which catches any C copy of MinHook. A hooking crate under another name is caught when it is adopted, by the licence check every new dependency gets (CLAUDE.md) (R12). Cargo already guarantees one `imgui`, because `imgui-sys` declares `links = "imgui"` (DESIGN O25) *Since GraceUI's G15 (2026-11-08):* hudhook and its MinHook are GraceUI's, so EldenNet's `deny.toml` bans `hudhook`, every known hooking crate and any ImGui renderer backend, and its `[[licenses.clarify]]` entry for hudhook moves to GraceUI's `deny.toml`; `imgui` 0.12 stays allowed without a backend, for F11. Once a first hook of EldenNet's own is approved (O65), its one hook library is the bans' single exception, allowed in `en-gal` behind `hooks`, its licence checked when it is chosen. | Any other licence or source; any hudhook version but 0.9.3; a listed hooking crate |
+| `licence-files` | `en-tools lint --licence-files`: walks every dependency's source folder and fails on any file whose text contains `NON-AI` or `NON AI`. It also compares the SHA-256 of hudhook 0.9.3's `LICENSE` and `vendor/minhook/LICENSE.txt` with values recorded in the repository, fails on MinHook source (`MinHook.h`, or a C definition of `MH_Initialize`) in any package but hudhook 0.9.3, and on any `cargo metadata` package but hudhook whose name matches `(?i)min[-_]?hook\|detour\|retour\|ilhook\|neohook\|frida\|dobby\|kiero`. It also checks that `THIRD_PARTY.md` carries the notice of every licence file it finds in a linked dependency's source, including hudhook's MIT, MinHook's and HDE's BSD-2 and Dear ImGui's MIT inside `imgui-sys` (DESIGN O25) *Since GraceUI's G15:* in EldenNet's tree no package may be hudhook or match the hooking pattern, save the one hook library O65 may allow in `en-gal::hooks`, and hudhook's and MinHook's licence checks are GraceUI's (GraceUI §2.2, GraceUI's proposal 0001 §4.14). | A licence file contradicting `Cargo.toml` metadata (the case in ER00 §7); a changed hudhook or MinHook licence text; a second MinHook, or a hooking crate whose name matches the pattern; a missing third-party notice |
+| `features` | `cargo tree -e features -p eldennet` | `probe`, `hooks`, `actions` or `freeze` enabled; any hudhook at all, since GraceUI's G15 (its `dx12`-only check is GraceUI's) |
 | `build-release` | Two independent runners: `cargo xwin build --release --locked`, pinned toolchain and xwin SDK, `SOURCE_DATE_EPOCH`, `--remap-path-prefix`, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
 | `sign` | Every tester build from v0.1, and release tags | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
 
@@ -1825,10 +1862,11 @@ The wizard opens at the title screen on the first run, or when `providers.toml` 
 | Platform | Windows 10, Windows 11, Proton (Steam Deck or desktop Linux) |
 | Load path | Launcher (early); player's me3 native (late); both (double load → mutex); delayed injector (very late) |
 | Other mods | Seamless Co-op (via the player's me3), Reforged, Convergence, a randomizer, the Steam overlay, another DInput-hooking overlay (S0-E) |
+| GraceUI (GraceUI G15, D83, D88) | Another GraceUI consumer loaded; GraceUI without EldenNet; two copies of GraceUI at two paths; GraceUI listed as a native in a loader; an older GraceUI over a newer one; an installed older major, inside and outside the carried release's support window; another mod's hooking overlay beside GraceUI's; another mod as a second world-state provider |
 | Display | SDR, HDR |
-| Expected | Known builds: L4 with all groups OK and no input leak. Unknown: L1 with zero task registrations and zero reads (C2). ERSC session: Dormant within one snapshot (C4). Double load: one active copy |
+| Expected | Known builds: L4 with all groups OK and no input leak. Unknown: L1 with zero task registrations and zero reads (C2). ERSC session: Dormant within one snapshot (C4). Double load: one active copy. GraceUI rows: one hook library in the process (GraceUI's); a second GraceUI idles; the launcher installs or explains; a failed connect is headless and logged |
 
-Each increment runs the rows its own features touch, with that increment's expectations: from v0.1 the builds (the unknown one included), the load paths (double load included), ERSC through the player's me3, Reforged, Proton, the Steam overlay, another DInput-hooking overlay (the present hook, S0-E), SDR and HDR; from v0.2 the input-leak axis; from v0.4 labels × HDR. The full matrix certifies v0.6.
+Each increment runs the rows its own features touch, with that increment's expectations: from v0.1 the builds (the unknown one included), the load paths (double load included), ERSC through the player's me3, Reforged, Proton, the Steam overlay, another DInput-hooking overlay (the present hook, GraceUI's since its G15, S0-E), the GraceUI rows that need no input (one hook library, a second copy idling, a failed connect, the launcher's install), SDR and HDR; from v0.2 the input-leak axis, across every input holder; from v0.4 labels × HDR. The full matrix certifies v0.6.
 
 ### 12.5 Patch drill
 
@@ -1857,7 +1895,7 @@ eldennet/
                        text, params, render, backend, task, probe}.rs
                   src/reader.rs                        # unsafe: GuardedReader
                   src/sys/{mod, image, seh_copy.c, register, fd4, trampoline, boot, process}.rs
-    en-overlay/   src/{lib, surfaces/, fonts, style, capture}.rs  src/hooks/{mod, dinput, xinput, wndproc}.rs
+    en-overlay/   src/{lib, surfaces/, fonts, style, input, debug}.rs  src/abi.rs   (no hooks: GraceUI's, G15)
     eldennet/     src/{lib, boot, shell, wiring, watch, recorder, ffi_guard}.rs
     en-launcher/  src/{main, discover, vdf, preflight, backup, appid, notices, errors}.rs  src/win/inject.rs
     en-tools/     src/{main, replay, golden, eval, lint, render_prompt, probe_exe, mockllm,
