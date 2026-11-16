@@ -185,7 +185,7 @@ int run_chat(int argc, char** argv) {
 
   auto transport = en::llm::make_default_transport_factory();
   if (!transport) {
-    std::fputs("chat: this build has no HTTP transport (built without libcurl; WinHTTP is later work)\n", stderr);
+    std::fputs("chat: this build has no HTTP transport (no libcurl, or the system's WinHTTP could not be loaded)\n", stderr);
     return 1;
   }
   en::llm::ClientOptions options;

@@ -14,9 +14,12 @@ names.
 - **Requests** (`request.hpp`): messages with en-prompt's cache marks, `max_tokens` and temperature from the slot,
   streaming with usage, `response_format` with a JSON schema where the provider takes one, `logprobs`, the reasoning
   switch from `extra_body`, and the quantisation floor in OpenRouter's `provider.quantizations`.
-- **Transport** (`transport.hpp`): an interface the client drives (start, wait, cancel), libcurl behind `EN_WITH_CURL`
-  (HTTP/1.1 keep-alive shared across requests, no redirects, loopback never proxied), and a scripted fake for tests.
-  A WinHTTP transport is later work behind the same interface; until then a Windows build has none, and `chat` says so.
+- **Transport** (`transport.hpp`): an interface the client drives (start, wait, cancel), with two implementations that
+  pass one conformance suite: libcurl behind `EN_WITH_CURL`, and the system's WinHTTP on Windows, which
+  `make_default_transport_factory()` returns there. Both keep HTTP/1.1 connections alive across a factory's
+  transports, follow no redirects, never send loopback through a proxy, and name a failure by its class only (could
+  not connect, timed out, TLS, reset), never with the address, a header or a key. A scripted fake serves the other
+  tests.
 - **Streaming** (`sse.hpp`, `stream.hpp`): our own SSE parser, the reply assembled from its deltas, `<think>` stripped
   (split tags and a lone closing tag too), usage, the finish reason and logprobs recorded.
 - **Errors and health** (`errors.hpp`, `health.hpp`): ARCH §11.2's classes and the client's part of their actions.
@@ -39,6 +42,20 @@ names.
 What stays with the caller, as ARCH §11.2 assigns it: seeds, toasts, the authored deflection for `Refused`, showing
 the complete sentences of a `Truncated` reply (`complete_sentences`), requeueing a `Preempted` or failed job, the
 pause rules, and the input epoch (pass a `std::stop_token`).
+- **Local probes and model lists** (`probe.hpp`): `probe_local` asks 127.0.0.1 on LM Studio's `:1234`, Ollama's
+  `:11434`, llama.cpp's `:9931` and legacy `:8080` and KoboldCpp's `:5001` for `GET /v1/models`, all at once on one
+  transport (500 ms to connect, 1.5 s for the whole probe, and whatever is late is cancelled). A port counts only if it
+  answers 200 with an OpenAI-style model list. An empty list counts, and so does Ollama's `"data": null`, because a
+  server that is up with nothing loaded is the commonest local mistake and the wizard can only say so if it sees the
+  server. Each port that counts is then asked `GET /api/version` and `GET /props`. Ollama is confirmed only by a
+  `version` string, and llama.cpp only by its props (`default_generation_settings`, `total_slots` and `build_info`); a
+  server that answers as both is taken for neither, and LM Studio and KoboldCpp are never confirmed. An unconfirmed
+  endpoint is `openai`, and its port's usual owner is only a hint. `list_models` sends `GET <base_url>/models` with the
+  provider's headers and its key in its own header, and returns the ids or the error class (401 and 403 are `Auth`),
+  in our own words: never the key or the server's text. Model lists are read as they parse, so memory stays at what is
+  kept, and they are bounded: 1000 ids of at most 256 bytes, ids with control characters left out rather than cut, and
+  at most 1 MB of answer for a probe or 8 MB for a provider. Both are free functions, and the caller runs them only
+  while the offline gate is open.
 
 ## Configuration
 
@@ -112,13 +129,151 @@ breakpoints (a merged message can have several), and must join to its `"content"
 `{"task", "kind": "choice" | "yes_no", "subject", "question", "state": [{"name", "text"}], "options": [{"key", "text"}],
 "rule"}`, where `rule` is the key the task's rules picked, and an optional `messages` rendered by en-prompt.
 
+```text
+eldennet-engine probe  [--json]
+eldennet-engine models --config <dir> [--provider <id>] [--models <models.toml>] [--json]
+```
+
+`probe` needs no configuration. For each port that answered it prints the flavour, whether that was confirmed and how
+many models the server lists; `--json` gives the same as data, with each base URL and the model ids. `models` lists the
+models of every configured provider, or of the one named, or the provider's error class. Both exit 0 once they have
+run, whatever they found, 2 on a usage or configuration error, and 1 when the build has no HTTP transport.
+
+```cpp
+#include "en/llm/probe.hpp"
+
+// Only while the offline gate is open; `stop` ends it at once when the gate closes.
+for (const en::llm::LocalEndpoint& e : en::llm::probe_local(*transport, {}, stop)) {
+  // e.port, e.base_url, e.flavor, e.confirmed, e.hint (shown, never acted on), e.models
+}
+en::llm::ModelsResult listed = en::llm::list_models(*transport, *config.provider("router"));
+```
+
+## Transports
+
+Both take the request's connect timeout (3 s unless the request says otherwise, ARCH §11.1) and leave every later wait
+to the client's own deadlines, which cancel the exchange.
+
+**WinHTTP** (`transport_winhttp.cpp`, Windows builds):
+
+- **The library.** The system directory's own `winhttp.dll`, loaded once by its full path and kept for the program's
+  life; its functions are looked up there, and it is never imported by name. A proxy `winhttp.dll` in the game's folder
+  (some overlays and the EAC toggler ship one) would otherwise be bound in its place and see every request, the key's
+  header included. Without it, or with a function missing, there is no transport (the factory is null). The build fails
+  if the tests' import table names `winhttp.dll`.
+- **Sessions.** Each factory opens two and shares them with every transport it opens: one with the system's proxy for
+  remote hosts (WinHTTP's automatic mode, which finds the proxy as the rest of Windows does, on Windows 8.1 and later;
+  its default configuration before), and one that never uses a proxy, for `127.0.0.0/8`, `localhost` and `[::1]`.
+- **TLS** 1.2 or 1.3 only, through the system's certificate store, its checks never weakened. HTTP/1.1, no redirects
+  (a key is never carried to another address), no cookies, no automatic logon with the player's Windows account, and
+  no user agent, as with libcurl.
+- **Timeouts.** Resolving the name and connecting take the request's connect timeout; sending, receiving and waiting
+  for the headers have a safety net of 5 minutes, far beyond the client's longest deadline (a minute).
+- **Exchanges.** Each runs in WinHTTP's asynchronous mode with a driver thread of its own: the status callback only
+  queues what completed, and the driver takes every next step, posts the events and closes the request handle at the
+  end or on `cancel()`, so no call on a handle overlaps its closing. `cancel()` drops the exchange's events at once,
+  and its memory lives until WinHTTP's last notification for the handle (`HANDLE_CLOSING`). `wait()` never calls
+  WinHTTP, so it keeps to its bound.
+- **Keys** go into the request just before it is sent, from one buffer that is cleared at once; WinHTTP holds its own
+  copy for the request's life. A header with a line break, an address with a user name or password, or a scheme other
+  than `http` and `https` fails before anything is sent.
+- **A reply shorter than its Content-Length** fails, as libcurl reports it.
+
+**Under Wine** (and so Proton), whose WinHTTP is its own implementation, three things differ (Wine 9.0), and the tests
+check what Wine does:
+
+- A chunked reply arrives one chunk late: Wine completes a read that ends a chunk only once the next chunk begins. A
+  stream still arrives piece by piece, and the client's thread never waits for it (the driver does).
+- Closing a request does not stop a receive already waiting: a cancelled exchange's connection stays open until the
+  server sends or closes, or the safety net passes. The client sees nothing more of it either way.
+- The automatic proxy mode means no proxy at all, and an IPv6 address in brackets does not resolve (read from Wine's
+  source): give a local server as `localhost` or `127.0.0.1`.
+
+## The asynchronous handle
+
+`Service` (`service.hpp`) is the handle the core drives (ARCH §2.2's `Llm::spawn` and `LlmHandle`). It is built on
+the blocking client, which keeps each slot's budgets, retries, fallbacks, backup requests, health and provider
+admission; the handle adds the queue, the events, the input epoch and the gate around it.
+
+- **Requests** (`LlmRequest`): the caller's id (non-zero, unique while live), a chat request or a decision call, and,
+  for own-initiative work, the input epoch it was made at (own-initiative dialogue must carry one; a reply never does).
+  `submit` answers `Accepted`, `Full`, `Duplicate`, `Invalid` (named in one log line) or `ShutDown`, and never blocks.
+  A decision call's rule runs once, at submit, on the caller's thread: its key is checked there and stands for it, so
+  no worker runs the caller's code.
+- **Events** (`LlmEvent`): `Started` (the provider and model of the first attempt sent), `Delta`s in order, `Reset`
+  (withdraw the text passed on so far), and exactly one `Ended` per accepted request, with the chat result or the
+  decision's pick, whatever happens to it. Once `cancel` has returned, nothing of that request but its ending is
+  queued. A request the handle ends without running it gets a result made there: no provider, its time the wait since
+  submit, and for a decision call the pick of its rules. One the handle stops while it runs ends with the reason it
+  was stopped for.
+- **Order** (C9): replies > own-initiative dialogue and the decision calls that choose it > `bark_live` > `memory` >
+  `bark_pool` (`priority_of`, now public), first come first served within a priority. Requests start one at a time in
+  that order (until the first attempt is sent, or the client answers without sending), so that a provider's last free
+  connection goes to the request that comes first.
+- **One dialogue request in flight**: a reply cancels own-initiative dialogue and the decision calls that carry an
+  epoch, queued or running, and starts once they have ended; own-initiative work submitted while a reply is live waits
+  for it. `cancel_before_epoch(e)` cancels whatever carries an epoch before `e`.
+- **Busy**: nothing was sent, so the request goes back to its place in the queue and is tried again once another
+  request has ended (or the configuration is reloaded). A live request (`bark_live`, a decision call, own-initiative
+  dialogue) that has not started within its slot's first-token time of being submitted (the local one when the slot's
+  model is on a local provider) ends as `Busy`, so that the core takes its seed or rules; the rest wait as long as
+  they must.
+- **A full queue** (64 live requests, waiting or running): a request that outranks a queued `bark_pool` or `memory`
+  job takes its place, the lowest and newest first. The pool job ends as `Dropped` (a new error class: it is not
+  requeued), the memory job as `Preempted`, so that the core requeues it. Otherwise `submit` answers `Full`. Replies
+  and live requests are never evicted.
+- **The event queue** (C10, 1,024 events): a worker with an event for a full queue waits, so no delta is dropped while
+  its request runs; an ending never waits (it may take the queue past its capacity, by at most one per live request),
+  so no request is left without its end and shutdown never blocks. The core reads with `poll`, `drain` or `wait` (in
+  real time), and `set_notify` registers a callback that the handle's own thread, never the caller's, calls when the
+  queue goes from empty to non-empty.
+- **The gate** (C15): `set_gate_open(false)` closes the client's gate, stops running requests and ends queued ones at
+  once with `GateClosed`; a request submitted while it is closed is accepted and ends at once the same way.
+- **Threads**: a fixed pool of one more worker than the providers' total concurrency (2 to 8), so that a reply always
+  finds a worker from which to take a connection back from a background job, and one dispatcher thread for the start
+  deadlines, the notify callback and the log lines made under the handle's lock. `shutdown` (and the destructor)
+  cancels everything, queues every ending and joins.
+- **Ollama's warm-up** (ARCH §11.3): `warm_up(slot)` sends `POST <root>/api/generate` with `{"model", "keep_alive":
+  "10m"}` and no prompt (`<root>` is the base URL without its `/v1`), from a worker straight to the transport, and
+  returns its id; it ends with one `WarmUpEnded` event (provider, model, success, status, time). It acts only when the
+  slot's model is on a local `ollama` provider, the gate is open, that provider has served no request through the
+  handle for more than 4 minutes and has none in flight, and no warm-up for it is in flight; a warm-up that succeeded
+  counts as serving for that rule. It counts in neither health nor the requests per hour: it generates nothing and
+  costs nothing, and its answer comes from Ollama's own endpoint, not the chat completions whose health the client
+  tracks.
+
+The started event comes from two small additions to the client: `StreamSink::on_attempt`, which tells a sink of each
+attempt as it is sent, and a `Client::decide` that takes an observer for the same.
+
+```cpp
+#include "en/llm/service.hpp"
+
+en::llm::Service llm(en::llm::load_config_dir(dir), en::llm::make_default_transport_factory());
+llm.set_notify([&] { core_wakes.notify_one(); });  // on the handle's thread: keep it short
+
+llm.submit(en::llm::LlmRequest::chat(17, reply));                    // the player asked
+llm.submit(en::llm::LlmRequest::chat(18, own_line, input_epoch));    // an NPC's own line
+llm.submit(en::llm::LlmRequest::decision(19, next_speaker, input_epoch));
+llm.warm_up("dialogue");                                             // on PersonaApproached
+
+// When the player's input epoch moves on:
+llm.cancel_before_epoch(input_epoch);
+
+std::vector<en::llm::LlmEvent> events;
+llm.drain(events);  // Started, Delta, Reset, Ended (.chat or .pick), WarmUpEnded
+```
+
 ## Tests
 
-`cmake --build <build> --target en_llm_tests`, then run `en_llm_tests`. They use invented data and either the fake
-transport on a manual clock (timeouts, cooldowns and the hour run in no time) or, for libcurl, a server bound to
-127.0.0.1.
+`cmake --build <build> --target en_llm_tests`, then run `en_llm_tests` (the Windows build under Wine:
+`WINEPREFIX=<dir> wine64 en_llm_tests.exe`). They use invented data and either the fake transport on a manual clock
+(timeouts, cooldowns and the hour run in no time) or small servers bound to 127.0.0.1 (`tests/local_server.hpp`, on
+POSIX sockets or Winsock), against which one conformance suite (`test_transport.cpp`) runs the real transports:
+libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows.
+The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
+for what must happen.
 
 ## Later
 
-The WinHTTP transport; local probes and `/v1/models` (ARCH §11.4); Ollama's warm-up (ARCH §11.3); the asynchronous
-handle (`submit`, `cancel`, events) the core will drive, built on this blocking client.
+The handle's pool growing on `reload`; a warm-up holds a worker while the model loads (up to 2 minutes); for WinHTTP,
+what only Windows itself can show: its proxy settings, TLS with real certificates, and IPv6 loopback.

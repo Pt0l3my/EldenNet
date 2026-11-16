@@ -6,11 +6,18 @@ namespace en::llm {
 std::shared_ptr<TransportFactory> make_curl_transport_factory() { return nullptr; }
 #endif
 
+#ifndef _WIN32
+std::shared_ptr<TransportFactory> make_winhttp_transport_factory() { return nullptr; }
+void* winhttp_module() { return nullptr; }
+#endif
+
 std::shared_ptr<TransportFactory> make_default_transport_factory() {
-#ifdef EN_WITH_CURL
+#if defined(_WIN32)
+  // The system's own HTTP stack: its proxy settings, certificate store and TLS, with nothing to ship beside it.
+  return make_winhttp_transport_factory();
+#elif defined(EN_WITH_CURL)
   return make_curl_transport_factory();
 #else
-  // The Windows build's WinHTTP transport is later work; it implements the same TransportFactory.
   return nullptr;
 #endif
 }

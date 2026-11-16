@@ -149,4 +149,15 @@ HttpRequest build_chat_request(const ProviderConfig& provider, const json& body)
   return request;
 }
 
+HttpRequest build_models_request(const ProviderConfig& provider) {
+  HttpRequest request;
+  request.method = "GET";
+  request.url = provider.base_url + "/models";
+  request.headers.push_back(HttpHeader{"Accept", "application/json"});
+  for (const HttpHeader& header : provider.headers) request.headers.push_back(header);
+  if (provider.key) request.secret_headers.emplace_back("Authorization", Secret("Bearer " + provider.key->reveal()));
+  for (const auto& [name, value] : provider.secret_headers) request.secret_headers.emplace_back(name, value);
+  return request;
+}
+
 }  // namespace en::llm

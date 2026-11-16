@@ -43,6 +43,14 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
+# with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §1.6 and §1.7. Clang checks both.
+function(en_dll_module target)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${target} PRIVATE -Werror=exit-time-destructors -Werror=global-constructors)
+  endif()
+endfunction()
+
 if(EN_BUILD_TESTS)
   enable_testing()
   add_library(en_doctest INTERFACE)

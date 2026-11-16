@@ -1,6 +1,7 @@
 # en-prompt: the template engine (inja, with SkyrimNet's template rules; NPC §7.1).
 file(GLOB EN_PROMPT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_library(en_prompt STATIC ${EN_PROMPT_SOURCES})
+en_dll_module(en_prompt)
 target_include_directories(en_prompt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_prompt PUBLIC en_third_party)
 # One environment may render on several threads: its cache is guarded and each thread keeps its own render stack.

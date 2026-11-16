@@ -45,6 +45,7 @@ FakeScript connection_failure(Millis at = Millis(20), const std::string& error =
 
 struct Recorded {
   int exchange = 0;
+  std::string method;
   std::string url;
   std::vector<HttpHeader> headers;
   std::string authorization;  // read back from the secret header, for the tests' checks only

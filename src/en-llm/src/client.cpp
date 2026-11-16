@@ -9,6 +9,7 @@
 #include <map>
 #include <mutex>
 #include <stdexcept>
+#include <utility>
 
 #include "en/llm/request.hpp"
 #include "en/llm/sse.hpp"
@@ -55,6 +56,8 @@ Action action_for(std::string_view slot, ErrorClass e) {
   return Action::Return;
 }
 
+}  // namespace
+
 // ARCH §11.3: replies > own-initiative lines and the decisions that choose them > bark_live > memory > bark_pool.
 int priority_of(std::string_view slot, Purpose purpose) {
   if (slot == kDialogue) return purpose == Purpose::Reply ? 5 : 4;
@@ -63,6 +66,8 @@ int priority_of(std::string_view slot, Purpose purpose) {
   if (slot == kBarkPool) return 1;
   return 4;  // decisions, selftest and draft
 }
+
+namespace {
 
 // Only background jobs give way; nothing ever cancels dialogue (ARCH §11.3).
 bool is_preemptible(std::string_view slot) { return slot == kMemory || slot == kBarkPool; }
@@ -188,11 +193,13 @@ namespace {
 
 class RequestRun {
  public:
-  RequestRun(Client::Impl& client, const ChatRequest& request, StreamSink* sink, std::stop_token stop)
+  RequestRun(Client::Impl& client, const ChatRequest& request, StreamSink* sink, StreamSink* observer,
+             std::stop_token stop)
       : c_(client),
         config_(client.snapshot()),
         request_(request),
         sink_(sink),
+        observer_(observer),
         stop_(std::move(stop)),
         slot_(&config_->slot(request.slot)),
         slot_name_(slot_->name),
@@ -285,6 +292,7 @@ class RequestRun {
   std::shared_ptr<const Config> config_;
   const ChatRequest& request_;
   StreamSink* sink_;
+  StreamSink* observer_;  // told of each attempt as it is sent: the sink, or a decision call's observer
   std::stop_token stop_;
   const SlotConfig* slot_;
   std::string slot_name_;
@@ -472,6 +480,7 @@ ErrorClass RequestRun::start(Pick pick, BodyMode mode, bool backup, std::string&
   c_.emit(LogLevel::Debug, "slot " + slot_name_ + ": " + (backup ? "backup request to " : "request to ") +
                                a.provider->id + " / " + a.model);
   attempts_.push_back(std::move(live));
+  if (observer_ != nullptr) observer_->on_attempt(result_.attempts[a.info]);
   return ErrorClass::None;
 }
 
@@ -810,7 +819,11 @@ Client::Client(Config config, std::shared_ptr<TransportFactory> transport, Clien
 Client::~Client() = default;
 
 ChatResult Client::chat(const ChatRequest& request, StreamSink* sink, std::stop_token stop) {
-  RequestRun run(*impl_, request, sink, std::move(stop));
+  return run_chat(request, sink, sink, std::move(stop));
+}
+
+ChatResult Client::run_chat(const ChatRequest& request, StreamSink* sink, StreamSink* observer, std::stop_token stop) {
+  RequestRun run(*impl_, request, sink, observer, std::move(stop));
   return run.run();
 }
 

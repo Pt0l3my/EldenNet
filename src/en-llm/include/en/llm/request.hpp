@@ -38,6 +38,9 @@ nlohmann::json render_messages(const std::vector<Message>& messages, CacheMarks 
 // POST base_url/chat/completions with the body; the key goes into a secret header that only the transport reads.
 HttpRequest build_chat_request(const ProviderConfig& provider, const nlohmann::json& body);
 
+// GET base_url/models (ARCH §11.1) with the provider's headers; the key goes into a secret header, as for chat.
+HttpRequest build_models_request(const ProviderConfig& provider);
+
 // Whether a top-level extra_body key carries the reasoning switch, which no retry drops.
 bool is_reasoning_key(std::string_view key);
 

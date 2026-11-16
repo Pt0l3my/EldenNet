@@ -77,6 +77,7 @@ class FakeSession final : public Transport {
     std::lock_guard lock(s_->mutex);
     Recorded rec;
     rec.exchange = s_->next_exchange++;
+    rec.method = request.method;
     rec.url = request.url;
     rec.headers = request.headers;
     for (const auto& [name, value] : request.secret_headers) {

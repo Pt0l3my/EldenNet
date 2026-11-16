@@ -20,6 +20,7 @@ const char* to_string(ErrorClass e) {
     case ErrorClass::BudgetSpent: return "BudgetSpent";
     case ErrorClass::NoHealthyProvider: return "NoHealthyProvider";
     case ErrorClass::GateClosed: return "GateClosed";
+    case ErrorClass::Dropped: return "Dropped";
   }
   return "Unknown";
 }
