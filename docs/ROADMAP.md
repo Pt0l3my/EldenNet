@@ -467,22 +467,25 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - refs: O1
   - gives: a name that trades neither on SkyrimNet's name nor on the game's marks.
 
-### S7.7 An interactive showcase of the menu [waiting]
+### S7.7 An interactive showcase of the menu [next]
 
 The owner asked on 2026-11-08 for a showcase of the menu to click through in the browser, beside the static
 showcase; the Skyrizz session advised on how its own is built. The owner chose to wait for Min's blueprint,
 and decided the same day that it is part of EldenNet, not GraceUI (G13's later change).
-Min's engine arrived on 2026-11-15, with no UI, and EldenNet builds its own (O84), so the question is due again (c).
+Min's engine arrived on 2026-11-15, with no UI, and EldenNet builds its own (O84), so the question was asked again
+(c): built from page data (O87).
 
 - S7.7.a The owner decides how it is built (G13) [done]
   - refs: G13, GraceUI:DESIGN§2.5
   - gives: decided 2026-11-08: wait for the blueprint; how to build it is asked again once it has arrived.
-- b Build it in EldenNet, test it in a headless browser and publish it privately, linked from the static showcase
+- b Build it in EldenNet from page data, test it in a headless browser and publish it privately, linked from the static showcase [next]
   - needs: a, c
-  - refs: G13, docs/showcase/showcase.md
-- c How it is built, asked again in EldenNet now that Min's engine has arrived, and the owner's answer (G13) [waiting]
+  - refs: G13, O87, docs/showcase/showcase.md
+- c How it is built, asked again in EldenNet now that Min's engine has arrived, and the owner's answer (G13) [done]
   - needs: a
-  - refs: G13, O84, WHY§95
+  - refs: G13, O84, O87, WHY§95
+  - gives: decided 2026-11-16 (O87, as recommended): from page data, with invented sample data and a small renderer,
+    tested in a headless browser and published privately.
 
 ### S7.8 GraceUI as a UI framework for any mod
 

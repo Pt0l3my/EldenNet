@@ -1459,3 +1459,29 @@ tell the LLM in prompt what each NPC is exactly supposed to know, what it's curr
 quest (not necessarily what the player needs to do, but for example what it asks of the player at that stage in the
 quest). so we shouldn't need a very complex and strict spoiler prevention system." and "Grounding only, simple
 (Recommended)".
+
+## O87
+
+**The interactive showcase of the menu, built from page data** · *2026-11-16 · Decided by the owner, as recommended*
+
+**Question.** GraceUI's G13 (2026-11-08): the owner asked for an interactive showcase of the menu, a page to click
+through in the browser beside the static showcase, and chose to wait for Min's blueprint before deciding how it is
+built; the same day it became EldenNet's, not GraceUI's (G13's later change). The blueprint came as a closed engine with
+no UI (WHY§95), EldenNet builds its own (O84), and G19 keeps SkyrimNet-derived material out of GraceUI, so the question
+is asked again, here. **Options:** (a) **from page data**: the menu's page descriptions written now as data, with
+invented sample data, drawn by a small renderer of the shared components into one self-contained page, tested in a
+headless browser (no request outside the page, every page at two widths, no script error, no name of the game's
+characters or places, the spoiler and privacy rules, contrast), published privately and linked from the static showcase;
+(b) the real web app now, against test data; (c) the static mock made clickable by hand; (d) keep waiting until the real
+menu exists.
+
+**Recommendation.** (a): the page descriptions are the one source of the pages (GraceUI's §2.5), and they and the sample
+data carry over into the real menu whatever its code becomes; since G20 (2026-11-16) EldenNet's pages live in EldenNet,
+which is where they are written. *What (a) gives up:* a renderer that the real browser view replaces later.
+
+**Decision.** (a). Built in EldenNet (roadmap S7.7.b); G13's checks stand.
+
+**Owner's words.** "From page data (Recommended)", asked how the interactive showcase should be built now that Min's
+blueprint turned out to have no UI.
+
+**Follows from.** GraceUI's G13, G19 and G20; O84; WHY§95.
