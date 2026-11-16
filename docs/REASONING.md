@@ -131,6 +131,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 106 | 2026-11-16 | The built engine on the re-based rules: what Clang's static-object errors, R3 and the caps took | METHOD | #engine |
 | 107 | 2026-11-16 | EldenNet's pages moved to PAGES: where the fold cut GraceUI's §4, and what G20 left open | METHOD | #graceui #design |
 | 108 | 2026-11-16 | The engine on real Windows, run 1: WinHTTP works over the LAN and over TLS; two transport tests fail where Wine passes | FACT | #engine |
+| 109 | 2026-11-16 | WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it | METHOD | #engine |
 
 ## Entries
 
@@ -2017,3 +2018,24 @@ s, lost the race and was cancelled, and NanoGPT's own log shows both cancelled r
 what they made (2 tokens and none). The cloud decision missed its 1.5 s first-token deadline and the rules picked
 (`FirstTokenTimeout`), while the home network's server decided in 82 ms; so O88's presets measure their decisions model
 before they ship.
+
+### 109. WinHTTP's connect deadline and TLS wording: what Wine shows, and the rules that do not rest on it
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§11.1, WHY§102, WHY§108
+
+- **What Wine 9.0 does** (FACT, checked by experiment while fixing run 1's findings): it reports `CONNECTED_TO_SERVER`
+  only after the TLS handshake, and a handshake with a server that answers in plain HTTP fails as
+  `ERROR_WINHTTP_SECURE_CHANNEL_ERROR`; real Windows named the same case as a broken connection (WHY§108). With
+  WinHTTP's own connect timeout raised to 10 s, the full-backlog case under Wine still ended at 301 ms once the driver
+  kept the deadline.
+- **The connect deadline is ours.** A request that has not begun to go out (`SENDING_REQUEST`) by its connect timeout is
+  closed as `cancel()` closes it and fails as "timed out connecting"; WinHTTP's own timeout stays as a backstop.
+  Resolving the name, connecting and the TLS handshake all count, and so, on a PC that detects a proxy automatically,
+  does that detection: run 3 shows whether a cloud request's 3 s fits it.
+- **TLS by phase, not by code.** For `https`, a failure before the request goes out is a TLS failure whatever its code
+  (`CONNECTION_ERROR`, `INVALID_SERVER_RESPONSE`, the secure codes), worded by the secure flags when a `SECURE_FAILURE`
+  gave them, and a handshake that runs out of time reads "TLS failed: the handshake timed out". So the rule holds
+  whether a system reports the connection before the handshake or after it.
+- **Tested everywhere.** The wording is a pure function (`winhttp_failure`), built on every system with WinHTTP's codes
+  written out and checked against `winhttp.h` on Windows builds; the two transport tests print what they saw when they
+  fail. GCC and Clang en_llm 143 cases, Wine 145 (roadmap S8.1.m).

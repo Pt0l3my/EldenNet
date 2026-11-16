@@ -747,9 +747,12 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
 - l The handle's give-way test failed twice in about twenty runs of the suite under heavy load, and in none of about 1,000 since: find the race, from what the test now reports when it fails
   - needs: j
   - refs: ARCH§11.3, WHY§106
-- m Fold WinHTTP's two findings from the first Windows run: the driver's own connect deadline, and a TLS failure told by how far the exchange got [active]
+- m Fold WinHTTP's two findings from the first Windows run: the driver's own connect deadline, and a TLS failure told by how far the exchange got [done]
   - needs: h
-  - refs: ARCH§11.1, WHY§108
+  - refs: ARCH§11.1, WHY§108, WHY§109
+  - gives: built 2026-11-16 on the engine branch (WHY§109): the driver's own connect deadline and TLS failures told by
+    phase, the wording a pure function tested on every build; the second Windows package went to the owner the same
+    day for run 3, with a step that times NanoGPT's candidate models (O88).
 - n A provider for every use, cloud by default (O88): presets with several providers, a slot per use with `actions` and `vision` reserved, OpenRouter's and NanoGPT's presets with measured models, the wizard leading with a cloud key, and Settings › AI with a row per slot [next]
   - needs: m
   - refs: O88, ARCH§11.1, ARCH§11.4, DESIGN§11.5, PAGES§4.5, WHY§108
