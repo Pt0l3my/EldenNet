@@ -142,6 +142,26 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 117 | 2026-11-16 | The render half's cost under Wine on software Vulkan, and how it was measured | METHOD | #graceui #overlay #perf |
 | 118 | 2026-11-16 | The engine's release binaries carry the build machine's absolute PDB path; /pdbaltpath removes it | FACT | #engine #build #privacy |
 | 119 | 2026-11-16 | Dear ImGui's and MinHook's licences read for adoption; Dear ImGui's contribution rule on AI prose is not a licence term | FACT | #graceui #licence |
+| 120 | 2026-11-16 | The GAL's types in en-proto: what the design left open, and what C++ took | METHOD | #engine |
+| 121 | 2026-11-16 | en-gal's offline part: the reader, the rules and the schemas, and the choices the design left | METHOD | #engine #gal |
+| 122 | 2026-11-16 | toml++ 3.4.0's traps: a header without a key, non-ASCII where whitespace may stand, `}` for a value, a date, a space and a digit | FACT | #engine #gal |
+| 123 | 2026-11-16 | The fake game: our own stand-in for a game, its invented facts and the choices later parts inherit | DECIDED | #engine #gal #process |
+| 124 | 2026-11-16 | Wine on Xvfb for tests: the crash dialog that waits, the desktop bound to no display, and what reaches Linux | FACT | #engine #build #process |
+| 125 | 2026-11-16 | Assembly whose bytes do not move: clang relaxes every jump at -O0 | FACT | #engine #build |
+| 126 | 2026-11-16 | Wine 9.0 on Xvfb hands injected keys to DirectInput, but releases them on X focus and grab events; a scan code alone gives no virtual key | FACT | #graceui #wine #input |
+| 127 | 2026-11-16 | Dear ImGui 1.93's Win32 backend asks the calling thread for keys and the cursor, and its io calls are not thread-safe: GraceUI feeds Dear ImGui itself | FACT | #graceui #overlay #input |
+| 128 | 2026-11-16 | Dear ImGui's 16-bit characters turn every code point past U+FFFF into U+FFFD; its queue takes one change of a key or button a frame | FACT | #graceui #overlay #input |
+| 129 | 2026-11-16 | Wine's DirectInput and XInput as GraceUI hooks them: one GetDeviceState for keyboard and mouse, five XInput DLLs, no pad | FACT | #graceui #wine #input |
+| 130 | 2026-11-16 | The game's window procedure is filtered by a subclass in the window's own character set, not a detour on the game's code | DECIDED | #graceui #overlay #input |
+| 131 | 2026-11-16 | The closing press is often down before any read sees it: masks are armed at the first read after a close, with a 250 ms window | DECIDED | #graceui #input |
+| 132 | 2026-11-16 | The input half's cost under Wine, and how it was measured | METHOD | #graceui #input #perf |
+| 133 | 2026-11-16 | What the harness cannot show of the input half, for S4 | METHOD | #graceui #input #spike |
+| 134 | 2026-11-16 | ABI 1's first table keeps D73's order: typed where the design names a slot's shape, the bridge protocol's four reserved in their places | DECIDED | #graceui #abi |
+| 135 | 2026-11-16 | GraceUI's anti-cheat check runs in the first GraceUI_RequestApi, not on the init thread: connect's first answer must already know it | DECIDED | #graceui #anticheat |
+| 136 | 2026-11-16 | An anti-cheat hit simulated with no anti-cheat software: names a test build is told; Wine's Toolhelp names a process's parent | METHOD | #graceui #anticheat #wine |
+| 137 | 2026-11-16 | Dear ImGui frees a draw list unused for 60 s of its own time, and its time leaps when frames resume: a notice would allocate during play | FACT | #graceui #overlay |
+| 138 | 2026-11-16 | Two copies of GraceUI share only their two exports: the active copy names the others; an idle one asks only after its own first request | DECIDED | #graceui |
+| 139 | 2026-11-16 | The harness's ABI, copies and anti-cheat scenarios under Wine: a renderer that warms up after the hooks, and two flaky tests made sound | METHOD | #graceui #wine #process |
 
 ## Entries
 
@@ -2236,3 +2256,395 @@ invariant 10, EldenNet ARCH (T3)
   prose. That governs contributions to that project, not use of its code; GraceUI contributes nothing upstream.
 - **Contact details** (METHOD): MinHook's `AUTHORS.txt` holds e-mail addresses, so it is neither fetched nor copied; the
   licence files fetched hold none, and NOTICE names authors without contact details.
+
+### 120. The GAL's types in en-proto: what the design left open, and what C++ took
+
+`2026-11-16` · METHOD · `#engine` · refs: ARCH§2.2, ARCH§6.4, ARCH§7.1, DESIGN§2.3, O89
+
+- **ResolveParams names its param.** DESIGN §2.3's sketch has only ids, but the core asks for NpcParam rows and for the
+  grace and place-name rows (ARCH §9's Ready export), whose ids overlap; without the param the task cannot answer. How
+  the Ready export pages through every row is still open (part 4 or 5).
+- **RegionKey is a key of regions.toml** (`FixedString<32>`, lower-case letters, digits, `_`), which the task leaves
+  empty: the game knows no regions, and the core maps the block and place to a key in its own copy of the snapshot.
+- **The enums are our own words**, each with `Unknown` (not read): MultiplayRole Host, Cooperator, Invader, Other;
+  LobbyState None, Hosting, Joined, Other; Screen InGame, Loading, Title; HudState as ARCH §6.3 names them; BodyType
+  A, B. The layout's enum tables map the game's raw values to them, so no game value is in the code.
+- **ReadHealth** is, per group, Untested, Ok or Tripped (a failed self-test trips the group), whether phase B passed in
+  this playthrough (ARCH §9's Title → Playthrough needs it), and the faults this tick; with the task's last and p99
+  times. **Capabilities** is the set of groups discovery resolved and phase A passed.
+- **A nested struct's default member initialisers are not usable until the enclosing class is complete**, so a
+  `std::variant` member whose first alternative has them is not default-constructible inside it (GCC and Clang alike):
+  GameCommand puts `Noop` first (a default command does nothing); Lifecycle's `DataReady` has none of its own.
+- **The snapshot is 12.9 KB**, not ARCH §7.1's "about 8 KB": the 16 text slots of 256 bytes and the 32 param rows of 8
+  fields are most of it. Trivially copyable, so C1's copy is one `memcpy`.
+- **JSON forms:** a float that is not finite is `null` and reads back as NaN (a `bearing_deg` without the camera);
+  flag frames are hex strings with trailing zero bytes left out; ReadHealth's groups an object keyed by name.
+- **Expected** is our own `std::expected` without `value()`: its accessors have preconditions, which en-gal's lint is
+  to enforce; it holds a `std::variant`, so it is trivially copyable when both sides are, and never valueless (both
+  sides must move without throwing).
+- **The token** has only a move constructor: no assignment of either kind, so a token cannot be swapped into a
+  variable that outlives its tick by assignment either.
+- Counts: en_proto 42 test cases (26 new) on GCC, Clang, ASan+UBSan, MinGW under Wine and clang-cl under Wine; 6
+  compile-fail tests in every build; `en_fuzz_game` about 2 million inputs in 3 minutes, no finding.
+
+### 121. en-gal's offline part: the reader, the rules and the schemas, and the choices the design left
+
+`2026-11-16` · METHOD · `#engine #gal` · refs: ARCH§6.1, ARCH§6.2, ARCH§6.3, ARCH§10.1, O27, O48, O89
+
+- **Portable, and without exceptions.** en-gal builds with every compiler now; only `reader.cpp` stays clang-cl's.
+  toml++ is built in en-gal with `TOML_EXCEPTIONS=0` (it keeps the setting in an ABI namespace, so en-llm's build with
+  exceptions links beside it).
+- **The reader copies, never points.** It reads through a `ByteSource` (the file offline, `sys`'s guarded image view in
+  game), so the portable part holds no raw address; the gate and discovery take an `ImageInfo` (ARCH §2.2's
+  `ImageView` is `sys`'s source).
+- **A hit in a function's fragment is refused**, as is a hit running past its function's end: ARCH §6.2's rules speak
+  of the containing function, which for a fragment (chained unwind information, or an entry pointing at another) is not
+  the function whose prologue other mods hook. The derivation cuts patterns inside primary functions.
+- **An unreadable 1 MiB copy is read again page by page**, on the source's page boundaries, so only the pages that
+  fail are lost, and counted (`Unscanned` when a pattern then matches too few times).
+- **`expect_matches` above 1** means every hit must resolve to the same function or static (else `Ambiguous`).
+- **The idiom's schema is ours**: ARCH §6.3 shows only functions and statics. An idiom takes `expect_matches` as a
+  range, and named `captures`, each with its target's section, alignment, and whether it must start a function; the
+  path string after the variable gap is the FD4 finder's (part 3).
+- **The region** comes from the file version's fourth field (0 ww, 1 jp; ER01 §1, a lead for S0-A), checked in
+  builds.toml and in the gate. ARCH §6.3's cross-check against the translation's language is not built: the design
+  gives no languages, and the exact fingerprint pins the build anyway.
+- **A layout entry without a `status` is a lead**, so a release build refuses it. `dlvector` and `dlmap` are 16 bytes
+  (two pointers; a pointer and a count) by our own definition, and `off` names where we read them.
+- **The read groups' needs are the caller's** (`LayoutNeeds`), so no class or field name of the game is in the code;
+  part 4 states them.
+- Counts: en_gal 47 test cases on GCC, Clang, ASan+UBSan and MinGW under Wine, 55 on clang-cl under Wine (the 8 of the
+  guarded copy); fuzzing, with ASan and UBSan: `en_fuzz_pe` 3.1 million inputs in three rounds of 2.5 to 3 minutes,
+  `en_fuzz_pattern` 7.2 million in three rounds, and `en_fuzz_galtoml` five findings in toml++ (WHY§122), then 4.3
+  million inputs in 12 minutes with none.
+
+### 122. toml++ 3.4.0's traps: a header without a key, non-ASCII where whitespace may stand, `}` for a value, a date, a space and a digit
+
+`2026-11-16` · FACT · `#engine #gal` · refs: ARCH§10.2, ARCH§12.1, WHY§112
+
+- **Found by `en_fuzz_galtoml`**, each within minutes of the one before, each an assertion in a build without
+  `NDEBUG` (the program aborts: the fuzz build, the Debug sanitizer builds, and clang-cl and MinGW builds with no build
+  type) and undefined behaviour with `NDEBUG`:
+  - `parse_table_header` calls `parse_key()` without checking that a key starts after `[` (`[!]`, `[=]`, `[ \x01]`,
+    `[é]`, `[[ !]]`), and `parse_key()` opens with `TOML_ASSERT_ASSUME(a key starts here)`: `__builtin_assume`,
+    `__assume` or `[[assume]]` with `NDEBUG`. Key-value lines and inline tables check first; only table headers do not.
+    Clang 18 and GCC 13 at `-O2 -DNDEBUG` happen to take the error path today, which no rule promises.
+  - `is_non_ascii_horizontal_whitespace` reaches `TOML_UNREACHABLE` (`__builtin_unreachable` with `NDEBUG`) for every
+    character of its lookup's blocks 0, 5, 7, 11 and 63 that is not whitespace: U+00A1 to U+0499 (Latin-1, Greek,
+    Cyrillic), U+1482 to U+187B, U+1C76 to U+206F, U+2D5A to U+3153 and U+FB06 to U+FEFE, with the few exceptions it
+    names. It runs wherever whitespace may stand: after a key or a value (`schema Ä = 1`, `x = 1 é`), after a
+    backslash in a multi-line basic string, while a key is recorded, and inside a bare value, which toml++ scans quotes
+    and all up to a space, `]`, `}`, `,` or `#` (`x = 0E1"…é`, the fuzzer's fourth input: a quote there opens no
+    string). UBSan reports "execution reached an unreachable program point".
+  - `parse_array` reads a value wherever it finds neither `,` nor `]`, and `parse_value()` opens with
+    `TOML_ASSERT_ASSUME(!is_value_terminator(*cp))`: a `}` there (`[}]`, `[1, }]`) breaks it. Key-value pairs check
+    for a terminator first; arrays do not.
+  - A value whose first ten characters look like a date (`-` at 4 and 7) followed by a space and one digit makes
+    `parse_value` advance over the space and the digit and call its scan again, which assumes it does not start at a
+    terminator (`1979-05-27 7,`, or the fuzzer's `5887-he-0a 6,`).
+- **Probed by hand beside the fuzzer**: some 80 odd values (`1e`, `0x`, `+nan`, `1979-05-27T`, `12:3`, `1__2`, `.5`,
+  `{ a = 1, }`, `[1,,2]`, …) all take toml++'s error paths; only the `}` in an array did not (the date trap needs a
+  space and then a single digit, which the probes missed and the fuzzer found).
+- **en-gal checks before toml++ sees a text** (`toml_read::unsafe_for_toml`, five rules): a line whose first
+  character after spaces and tabs is `[` must go on, after `[` or `[[` and spaces or tabs, with a letter, digit, `_`,
+  `-`, a quote, `]` or the end (it also refuses such a line inside a multi-line array); a character outside ASCII
+  stands only in a comment, and a string writes one as `\uXXXX` (a first version allowed it in strings, and the
+  fuzzer's fourth input went through a quote that toml++ reads as part of a bare value); there is no multi-line string;
+  a `}` never follows `[` or `,` (never valid TOML); and a bare key or value that starts with a digit has no `-` or `:`
+  after it (no dates or times, which gal/'s files never hold, so toml++'s date-time paths are never taken). ARCH §6.3's
+  example `leads = ["ER01 §3.2"]` therefore becomes `leads = ["ER01 \u00A73.2"]` in a real gal/ file. The five inputs
+  are regression seeds in `fuzz/galtoml/corpus/` (`finding-table-header-not-a-key`,
+  `finding-non-ascii-where-whitespace-may-stand`, `finding-brace-where-a-value-must`,
+  `finding-non-ascii-after-a-quote-in-a-value`, `finding-date-space-digit`).
+- **en-llm is exposed to all four**: its `parse_toml` (`src/en-llm/src/config.cpp`) reads the player's settings, models
+  and secrets files with toml++ (with exceptions; an exception does not help against an assertion or an assumption), so
+  a stray `[!]` line, an accented or Cyrillic character after a value or in a mistyped one, `[1, }]` or
+  `1979-05-27 7` in a file the player edits is undefined behaviour in the release DLL. Suggested: the same check
+  before every `toml::parse` in the engine (the scan needs no toml++; a small header both modules may include, since
+  en-llm may not depend on en-gal), its message worded for players, and a fuzz target for en-llm's configuration
+  files (ARCH §12.1 lists "TOML content" among the fuzz stage's parsers). Also worth reporting upstream to toml++. Not
+  done here: outside parts 1 and 2.
+- **A question the main session may put to the owner**: each fuzzing round of a few minutes found the next trap, and
+  the five rules close the four found; a last round of 12 minutes (4.3 million inputs) found nothing more. The rules are
+  ours and narrow gal/'s TOML to what it needs, but they lean on toml++'s internals. Options: (a) keep toml++ with the
+  pre-check, and fuzz it in CI; (b) our own reader of the TOML subset gal/ and the configuration files use (tables,
+  arrays of tables, strings, integers, booleans, arrays, inline tables), a few hundred lines, fuzzed; (c) another
+  library, checked for licence and fuzzed. Recommendation: (a) now, (b) before v0.1 if CI's fuzzing keeps finding
+  traps, since en-llm reads files the player writes.
+
+### 123. The fake game: our own stand-in for a game, its invented facts and the choices later parts inherit
+
+`2026-11-16` · DECIDED · `#engine #gal #process` · refs: ARCH§6.2, ARCH§6.4, ARCH§3.2, O89, O91
+
+- **What it is.** `tests/fakegame/fakegame.exe` (clang-cl and MinGW) and `tests/vehprobe/vehprobe.dll`, roadmap
+  S10.1.a part 8. Every name, path, pattern, offset and value is invented; `fakegame --describe` prints them all as one
+  JSON object, the truth that the derivation kit (part 3) and the GAL's tests (parts 4 and 6) compare with.
+- **Choices later parts inherit.** (1) Its registration ABI is its own: rcx the task, rdx the hub instance, r8d the
+  group, unlike the lead's order, so `register_abi` must be data (which register carries what), not a fixed order in
+  code. (2) Its singletons have invented names (`TaskLoom` stands for CSTask, `ActorRoster` for WorldChrMan, …;
+  `--describe` maps each role), and its stand-in group is `Fg_ActorSettle`, so the GAL must take singleton names, RTTI
+  names and the group's name from `gal/` data, never from code. (3) Its task object is a vtable pointer and 0x18 bytes
+  the hub writes, three slots (0 attach once, 1 run every frame, 2 query every 64th): the probe's slot counts have
+  something to classify. (4) Its enums are invented (screen 1 title, 2 loading, 4 in game; lobby 10, 11, 12; role 2
+  host, 3 guest), so the self-tests read enum ranges from the layout.
+- **The harness's PE checks** (`harness.py`) carry ARCH §6.2's FD4 finder (placements, naming through the class
+  object, ambiguity, refusals) and its RTTI walk (type descriptor, locator with signature 1 and its self RVA, the
+  vtable after the locator's slot, the actor set from the hierarchy) in about 150 lines of Python: a reference the C++
+  derivation kit can be compared with.
+
+### 124. Wine on Xvfb for tests: the crash dialog that waits, the desktop bound to no display, and what reaches Linux
+
+`2026-11-16` · FACT · `#engine #build #process` · refs: WHY§102, WHY§113, ARCH§12.1
+
+- Source: our fake game under Wine 9.0 (Ubuntu's packages) in the cloud container, with `xvfb-run -a`.
+- **The crash dialog.** With a display, an unhandled exception starts winedbg, whose crash dialog waits for a click:
+  the process hangs until killed. `HKCU\Software\Wine\WineDbg` `ShowCrashDialog = 0` (set by `wine reg add` once per
+  prefix) makes it end at once. With no display there is no dialog.
+- **A desktop with no display.** After a Wine command run with no `DISPLAY` (a `reg add`), the next program in the same
+  wineserver session could not create a window (CreateWindowExW answered null) although it had a display; it worked
+  once the wineserver had ended. So the harness runs every Wine command under xvfb-run and ends each case with
+  `wineserver -k` (about 1.5 s per cold start).
+- **What reaches Linux.** A GUI-subsystem program started from Linux gets standard handles from the Unix file
+  descriptors, so its lines reach the pipe. Its exit code reaches Linux as the low 8 bits only (0xC0000005 as 5,
+  0xC0000409 as 9), so a check that needs the whole code reads it from inside (a filter's line) or from a Windows
+  parent (the watcher).
+- **Exceptions.** An access violation (read, write, executing data), a divide by zero, `ud2`, `int3` and a stack
+  overflow each reach the program's unhandled-exception filter with their code; `__fastfail` ends the process past
+  every handler and filter with 0xC0000409. A vectored handler sees an access violation before the frame handler and
+  before the filter; one that ends the process leaves no frame handler a chance (S0-D asks the same on Windows).
+- **The C runtimes' own filters.** Both MSVC's static CRT and MinGW's install an unhandled-exception filter at start,
+  so the first `SetUnhandledExceptionFilter` a game or EldenNet makes replaces one: EldenNet's chained filter (part 6)
+  meets a previous filter even in a game that installs none.
+- **Little stack after a stack overflow.** In the release build a filter that formatted its line with the CRT's
+  `vsnprintf` overflowed the stack again while handling the first overflow, and Wine ended the process with code 1,
+  with no exception reported and no line written (Wine's trace: "stack overflow 2112 bytes"). A filter that builds its
+  line by hand into 80 bytes and calls `WriteFile` works. EldenNet's crash filter (part 6: guarded, chained, no
+  allocation) must also do its work with a few KiB of stack, or hand it to another thread.
+
+### 125. Assembly whose bytes do not move: clang relaxes every jump at -O0
+
+`2026-11-16` · FACT · `#engine #build` · refs: ARCH§6.2, WHY§111
+
+- Source: the fake game's FD4-style sites, AOB functions and registration front, written as file-scope assembly in
+  C++ (`asm.cpp`), built with clang-cl 18 at /Od and /O2 with ThinLTO, and with MinGW-w64's GCC 13 and GNU as.
+- **At -O0 clang assembles with `-mrelax-all`:** every jump it can lengthen gets its long form (`jnz` became
+  `0F 85 rel32` instead of `75 rel8`), so a pattern written in assembly changes with the optimisation level. Short
+  jumps written as bytes (`.byte 0x75, 1f - 2f` between two labels) keep the bytes fixed; with them GNU as and LLVM's
+  assembler gave the same bytes for every pattern, in every build.
+- **Faults the optimiser undoes** (clang-cl /O2 with ThinLTO): `1 / b` becomes a comparison with no division, so a
+  divide by zero needs both operands unknown; a `volatile` local array is cut down to the elements used, so a
+  stack-overflow frame needs its array's address to leave the function. The harness's release run found both.
+- `.seh_proc` gives a leaf function a `.pdata` entry too, so the name getter is "the start of a `.pdata` function"
+  as ARCH §6.2 checks; the module's own unwind data covers the registration front, whose fault is caught by the
+  caller's `__try` through it.
+
+### 126. Wine 9.0 on Xvfb hands injected keys to DirectInput, but releases them on X focus and grab events; a scan code alone gives no virtual key
+
+`2026-11-16` · FACT · `#graceui` `#wine` `#input` · refs: GraceUI:BUILD.md, GraceUI:D125, GraceUI:D128
+
+- **Two paths** (FACT, probes of ours): a key injected with `SendInput` reaches DirectInput's keyboard through Wine's
+  low-level hook, and the focused window as `WM_KEYDOWN`; a key injected by scan code alone (`KEYEVENTF_SCANCODE`)
+  reaches the window with virtual key 0, and one by virtual key alone never reaches DirectInput. So the harness injects
+  both.
+- **The resync** (FACT, traced message by message): Wine brings its key state into line with the X server's on X focus
+  and pointer-grab events. A key injected before a click, a focus change or a cursor confinement is released by Wine
+  (a `WM_KEYUP` nobody sent), since the X server never saw it pressed. A click outside the window, where the cursor
+  starts under Xvfb, also gives the desktop the focus, and later keys then reach no window at all.
+- **So** the harness keeps the cursor in the window, lets those events pass before injecting a key, presses a button
+  before a key, and checks a held key with `GetAsyncKeyState`. Real keyboards under Proton come through X events to the
+  focused window and are not resynced this way (LIKELY; S4 on Proton).
+
+### 127. Dear ImGui 1.93's Win32 backend asks the calling thread for keys and the cursor, and its io calls are not thread-safe: GraceUI feeds Dear ImGui itself
+
+`2026-11-16` · FACT · `#graceui` `#overlay` `#input` · refs: GraceUI:D130, GraceUI:D122, GraceUI:invariant 10
+
+- **The backend** (FACT, its source read): `ImGui_ImplWin32_NewFrame` sets the display size from `GetClientRect`,
+  reads the mouse with `GetCursorPos` and the modifiers with `GetKeyState`; its window-procedure handler calls
+  `TrackMouseEvent` and `SetCapture`. `GetKeyState` answers for the calling thread's queue, and `SetCapture` and
+  `TrackMouseEvent` act on the calling thread's windows. The game's present thread need not be its window's.
+- **The core** (FACT): `io.AddKeyEvent` and its kin push onto a vector that `NewFrame` resizes ("FIXME-MULTITHREADING"
+  in `imgui.cpp`), so calling them from the window thread while the present thread runs a frame is a race.
+- **So** (D130): the window procedure's filter queues compact events in a one-producer ring, and the present thread
+  replays them into Dear ImGui before `NewFrame`, in back-buffer pixels, with the modifiers tracked from the events
+  themselves; the backend's `NewFrame` is never called (D122 amended). The backend's key mapper,
+  `ImGui_ImplWin32_KeyEventToImGuiKey`, left non-static for others' use, is called on the present thread.
+
+### 128. Dear ImGui's 16-bit characters turn every code point past U+FFFF into U+FFFD; its queue takes one change of a key or button a frame
+
+`2026-11-16` · FACT · `#graceui` `#overlay` `#input` · refs: GraceUI:D126, GraceUI:D130, GraceUI:§5.6
+
+- **Characters** (FACT, `imgui.cpp` read): `AddInputCharacter` queues the full code point, but `UpdateInputEvents`
+  stores `c <= IM_UNICODE_CODEPOINT_MAX ? c : U+FFFD`, and the maximum is U+FFFF unless `IMGUI_USE_WCHAR32`. Pairing
+  surrogates before Dear ImGui is not enough without it: GraceUI's configuration defines it (D126).
+- **Trickling** (FACT): with `ConfigInputTrickleEventQueue` (the default) a frame processes one change of a key or
+  button and defers the rest, and text after a mouse move waits a frame. A harness that typed a key change, a character
+  and a move every frame grew Dear ImGui's queue past its bound and dropped events at GraceUI's ring. A player types
+  well under one change a frame; the host now hands Dear ImGui at most 64 events a frame while its queue holds fewer than
+  128, and merges consecutive mouse moves (D130).
+- **Focus events** (FACT): `AddFocusEvent(false)` then `(true)` in one frame clears nothing (the last wins, for
+  multi-viewport backends); between holders the host empties Dear ImGui's queue in place and calls `ClearInputKeys` and
+  `ClearInputMouse` itself. `ClearEventsQueue` would free the vector, an allocation on the present thread later.
+
+### 129. Wine's DirectInput and XInput as GraceUI hooks them: one GetDeviceState for keyboard and mouse, five XInput DLLs, no pad
+
+`2026-11-16` · FACT · `#graceui` `#wine` `#input` · refs: GraceUI:D127, EldenNet:ER02§7.2
+
+- **DirectInput** (FACT, a probe under Wine 9.0): a keyboard and a mouse made through one `IDirectInput8W` share one
+  vtable and one `GetDeviceState`; the ANSI interface's `GetDeviceState` is another function. GraceUI reads the function
+  from both devices and hooks each distinct one (one here), on the Unicode interface the game uses (ER02 §7.2); what
+  Windows' `dinput8.dll` shares is for S4.
+- **XInput** (FACT): `xinput1_4`, `xinput1_3`, `xinput9_1_0`, `xinput1_2` and `xinput1_1` all load, each with its own
+  `XInputGetState`; with no pad each answers `ERROR_DEVICE_NOT_CONNECTED` (1167). The harness loads three before GraceUI
+  starts and finds three hooks, and the answers unchanged.
+- **IMM** (FACT): `ImmGetContext` gives the window a context under Wine, and `ImmSetCompositionWindow` reads back with
+  `ImmGetCompositionWindow`, so the composition window's placement is checked in the harness; no IME runs on Xvfb.
+
+### 130. The game's window procedure is filtered by a subclass in the window's own character set, not a detour on the game's code
+
+`2026-11-16` · DECIDED · `#graceui` `#overlay` `#input` · refs: GraceUI:D125, GraceUI:D102, GraceUI:research magelight.md
+
+- **Choice** (D125): `SetWindowLongPtrW` on a Unicode window, `SetWindowLongPtrA` on an ANSI one, made once by the init
+  thread after the table's hooks are enabled, passing on through `CallWindowProc`, never removed. The design named "the
+  game's window procedure" in D102's list without saying how; this records how.
+- **Rejected**: a MinHook detour on the procedure (it is the game's code, which GraceUI never writes);
+  `SetWindowSubclass` (only on the window's own thread, and the init thread is not it); a `WH_GETMESSAGE` hook (it cannot
+  keep a sent message from the game). A Unicode subclass on an ANSI window changes what later ANSI subclasses receive;
+  in Magelight's reports, plugins that subclassed in ANSI crashed against its Unicode subclass.
+- **Risks for S4**: another mod restoring the procedure it saw before GraceUI's (GraceUI would be cut out, unseen), and a
+  game that recreates its window (the new one is not filtered: holders then get no characters, though the detours still
+  mask).
+
+### 131. The closing press is often down before any read sees it: masks are armed at the first read after a close, with a 250 ms window
+
+`2026-11-16` · DECIDED · `#graceui` `#input` · refs: GraceUI:D128, GraceUI:invariant 8
+
+- **The problem**: the press that ends a holder (Escape, F5, B) usually reaches the window procedure before the game's
+  next DirectInput or XInput read. Masking only what the last read before the close saw held would let the closing
+  press reach the game at the next read: Escape would open the game's menu, B would dodge.
+- **Choice** (D128): each reader arms its masks at its first read after a close: what is held then and was held at the
+  read before, or all that is held if the close was 250 ms ago or less (EST). A key pressed fresh within those 250 ms
+  is masked until released, the conservative error; after them a fresh press is the game's.
+- **The packet number**: XInput's is the pad's own plus one per grant and per close, so the game reads every change at
+  rest and back; EldenNet NPC §5.5's "bumped once" leaves the return to the real state unread when the numbers meet.
+
+### 132. The input half's cost under Wine, and how it was measured
+
+`2026-11-16` · METHOD · `#graceui` `#input` `#perf` · refs: GraceUI:BUILD.md, GraceUI:invariant 10
+
+- **What**: GraceUI's own work per call, timed inside each filter and detour with the original's time left out, in a
+  test build; 1,000 messages and reads with no holder, then 300 frames of a holder fed input as a player types.
+- **Figures** (Wine 9.0, two runs of each build): with no holder, the window filter 0.2–0.4 µs median and 0.9–2.5 µs
+  p99 per message, `GetDeviceState` 0.5–0.8 and 1.1–3.3 µs per read, `XInputGetState` 0.1–0.2 and 0.2–0.3 µs; with a
+  holder 0.6–0.9 and 1.8–3.3, 0.9–1.2 and 2.0–3.6, 0.1 and 0.3–0.4 µs; the MinGW build the higher figures. A holder's
+  frame, its input fed and Dear ImGui's cursor drawn, the GPU idle before each: GraceUI's own work 94–107 µs median and
+  289–543 µs p99, against 96–108 and 291–441 µs for the test panel alone. No allocation and no free in any of it after
+  warm-up, on any of those threads.
+- **Caveat**: Wine's DirectInput and its message queue are not Windows'; S4 measures in the game.
+
+### 133. What the harness cannot show of the input half, for S4
+
+`2026-11-16` · METHOD · `#graceui` `#input` `#spike` · refs: EldenNet:DESIGN§16.1 (S4), GraceUI:§5.2, GraceUI:D127
+
+- **Pads**: Wine has no pad; the masking, the packet number and the opening press on a pad are checked in the unit tests
+  only. S4: B and Start held at a close never reach the game; LT and RT and the sticks held through a close; Steam
+  Input's own reading (it may bypass XInput).
+- **What the game reads**: whether it reads keys through `GetDeviceData` (buffered), the ANSI interface,
+  `XInputGetStateEx` or raw input (`WM_INPUT`), none of which GraceUI hooks but the last (routed to `DefWindowProc` while
+  a holder takes the device); and whether it calls `TranslateMessage`, without which no `WM_CHAR` arrives (a holder
+  would then need characters made from key-downs).
+- **The window**: whether the game recreates its window, restores its procedure, or takes the IME's input context
+  away (no composition window then); the IME under Proton (§5.6); F5 free in the default layout; Escape held 1 s and the
+  menu key twice in 2 s as the player feels them; camera drift while the mouse is held (EldenNet DESIGN §8.1); the
+  cursor's confinement under Proton.
+
+### 134. ABI 1's first table keeps D73's order: typed where the design names a slot's shape, the bridge protocol's four reserved in their places
+
+`2026-11-16` · DECIDED · `#graceui` `#abi` · refs: GraceUI:D131, GraceUI:D132, GraceUI:D73, GraceUI:D109
+
+- **Choice** (D131): `graceui.h`'s `GraceUiApi1` holds all twenty of D73's slots in D73's order. Each slot whose shape
+  the design names is typed now, taking the mod's handle and a struct that starts with its size, so that S10.4.c and d
+  add fields rather than change a slot; `register_pages`, `publish`, `poll` and `answer`, whose shape is §6's bridge
+  protocol (GraceUI 0.2), are `GraceUiReservedSlot`s that keep their place and get their type when built.
+- **Rejected**: declaring only the slots built (the order would then be the increments', not D73's); typing every slot
+  now, the protocol's four included (a guess bound by the append-only check).
+- **The check** (D132): the first header is kept as `src/grace-abi/baseline/graceui-abi1-0.h`, and `check_safety.py`
+  refuses a constant, typedef or export changed, and a struct changed otherwise than by appending; a reserved slot may
+  be typed in its place. Its `--abi-self-test` edits the header seventeen ways to show it. While ABI 1 is a preview, a
+  deliberate break updates the baseline in the same commit, which says why.
+
+### 135. GraceUI's anti-cheat check runs in the first GraceUI_RequestApi, not on the init thread: connect's first answer must already know it
+
+`2026-11-16` · DECIDED · `#graceui` `#anticheat` · refs: GraceUI:D133, GraceUI:D71, GraceUI:D88, EldenNet:ARCH§5.3
+
+- **The problem**: D71 listed the check among the init thread's work, but a mod holds the table, and may connect, the
+  moment the first request returns; the init thread can still be waiting for the game's window. `connect` would then
+  answer ok and change its mind later, the silence D73 forbids.
+- **Choice** (D133): the check runs once, in the first request of the copy that takes the mutex, on the mod's thread,
+  before any table is returned and before the init thread starts. It costs one list of the process's modules and one
+  Toolhelp snapshot of the processes. ARCH §5.3's clauses as they are: a module whose file name starts with
+  `EasyAntiCheat`, or a parent whose image is `start_protected_game.exe`, ASCII letters without their case; a parent
+  that has exited is skipped.
+- **A hit**: the hooks go in as usual (D88), input is off from the start, so every detour and the window filter pass
+  everything to the game (the menu key too), nothing is drawn but notices, `connect` answers inactive (anti-cheat) with
+  a handle and `notice` works; GraceUI shows a notice of its own for 20 s.
+- **Not done here**: no re-check during the session; D81's 60 s re-check and a provider's anti-cheat flag close the
+  server, which comes later.
+
+### 136. An anti-cheat hit simulated with no anti-cheat software: names a test build is told; Wine's Toolhelp names a process's parent
+
+`2026-11-16` · METHOD · `#graceui` `#anticheat` `#wine` · refs: GraceUI:D133, GraceUI:BUILD.md
+
+- **Method**: a test build exports `GraceUI_Test_SetAntiCheatNames`, called before the first request. The harness's
+  "anti-cheat" scenario loads an empty DLL of its own, `grace-harness-shield.dll`, and has the check look for that
+  prefix; "anti-cheat-parent" has it look for `grace-harness.exe`, the image of every scenario's parent. The real
+  gathering (`EnumProcessModules`, a Toolhelp snapshot) runs either way; the real names' matching is unit-tested on
+  Linux. No file in the repository is named after an anti-cheat.
+- **Seen** (FACT, Wine 9.0): `Process32FirstW` and `Process32NextW` report a process's `th32ParentProcessID`, and
+  the parent's `szExeFile` as its image name; both clauses hit, in both builds. Every other scenario runs the real
+  names, and none hit.
+
+### 137. Dear ImGui frees a draw list unused for 60 s of its own time, and its time leaps when frames resume: a notice would allocate during play
+
+`2026-11-16` · FACT · `#graceui` `#overlay` · refs: GraceUI:D134, GraceUI:D117, GraceUI:invariant 10
+
+- **Seen** (Dear ImGui 1.93.0, `imgui.cpp`): `NewFrame` deletes a viewport's foreground and background draw lists, and
+  compacts a window's buffers, once they have gone unused for `io.ConfigMemoryCompactTimer` (60 s) of Dear ImGui's own
+  time, and a later `GetForegroundDrawList` makes the list again. GraceUI builds frames only when it has something to
+  draw, and its time step is the real time since the last one: after a quiet spell of a minute, the next notice's frame
+  would free and make the list again, and grow its buffers, on the present thread.
+- **Choice** (D134): `ConfigMemoryCompactTimer` at `FLT_MAX` (a negative value means "compact everything, every
+  frame"), and warm-up ends with one frame built and never submitted, which makes the foreground list and reserves room
+  for the most a frame of notices draws (Dear ImGui reserves four vertices and six indices for every byte of a text
+  before it gives back what it did not draw). The harness counts no allocation and no free over 300 frames of notices
+  coming, changing and going.
+
+### 138. Two copies of GraceUI share only their two exports: the active copy names the others; an idle one asks only after its own first request
+
+`2026-11-16` · DECIDED · `#graceui` · refs: GraceUI:D135, GraceUI:D72, GraceUI:invariant 18
+
+- **The problem**: the active copy must name a second copy in a notice, but the copies have no channel between them
+  besides `GraceUI_Version` and `GraceUI_RequestApi`.
+- **Choice** (D135): at each of its requests the active copy lists the loaded modules and names every other one that
+  exports `GraceUI_RequestApi`, once each, by its name relative to the game's folder (or its file name, "outside the
+  game's folder"), never a path. An idle copy, once its own first request is over, calls every other copy's
+  `GraceUI_RequestApi(1)`, so the active one hears of it at once. Asking only after its own first request has finished
+  means no two copies wait on each other: a request that comes while another thread's first is running waits for it.
+- **Seen**: two copies asked at once from two threads, in the harness: exactly one table, the other idle, named once.
+
+### 139. The harness's ABI, copies and anti-cheat scenarios under Wine: a renderer that warms up after the hooks, and two flaky tests made sound
+
+`2026-11-16` · METHOD · `#graceui` `#wine` `#process` · refs: GraceUI:BUILD.md
+
+- **Scenarios**: six more processes, each one's first request its own: "abi" (the example mod found by name after
+  polling; the table; connect's answers; struct sizes; two mods each way round; disconnect; the unbuilt slots;
+  notices and their allocations), "copies", "found-by-scan", "found-by-path" (run from a folder of its own, as a game's
+  folder), "anti-cheat" and "anti-cheat-parent": 68 checks in all, 43 of them the earlier ones.
+- **Figures**: a frame of up to three notices, the GPU idle before each, costs GraceUI's own work 93–167 µs median and
+  401–683 µs p99 across the last six runs (three of each build), beside 83–118 and 346–518 µs for the test panel alone
+  in the same runs; all six passed all 68 checks.
+- **A flake, fixed**: "example's notice" read three frames after the hooks went in and once saw none, because the
+  renderer warms up over the frames after the hooks (finding the present queue, the atlas's upload); the check now reads
+  up to 60 frames, and saw the notice at the third in each of six runs. Another, in grace-input's unit tests: the torn-read test's reader
+  could finish its reads before either writer had published, under load; it now waits for the first value.
+- **Noise**: the windowless scenarios end while GraceUI's init thread still looks for a window, and Wine may print a
+  "wine client error" line as the process ends; harmless, but count checks by each process's summary line.

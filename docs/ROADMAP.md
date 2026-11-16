@@ -839,8 +839,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.1 The spikes for v0.1, in game
 
 - refs: DESIGN§16.1
-- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73)
+- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [active]
   - refs: O73
+  - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Built the same day, on the
+    engine's branch, are en-proto's types for the game-access layer, en-gal's PE reader, patterns and file schemas,
+    and our own fake game with its Wine harness (WHY§120 to §125); the derivation kit and `probe-exe` come next.
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -886,13 +889,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.4 GraceUI 0.1 Host
 
 - refs: G15, GraceUI:DESIGN§2.9, GraceUI:DESIGN§10
-- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking [active]
+- S10.4.a graceui.dll as the host: Dear ImGui 1.93.0's DX12 and Win32 backends with MinHook 1.3.4 (O25 as changed 2026-11-16), Present, the window procedure with the WM_CHAR surrogate pairing, DInput and XInput, capture and masking [done]
   - refs: O25, GraceUI:DESIGN§2.2
   - gives: the render half built on 2026-11-16 (GraceUI's branch feat/host): the build tree with both libraries
     pinned, the start, the five hooks on the swap chain and the queue, and the render path, passing the harness's
-    checks under Wine on software Vulkan (WHY§113 to §117); the input half next.
-- b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview
+    checks under Wine on software Vulkan (WHY§113 to §117). The input half followed the same day: the window
+    procedure filtered by a subclass, with surrogate pairs and the IME; DirectInput and XInput masked while a
+    holder has the controls and until a closing press is released; the holder and the player's exit as pure rules
+    (WHY§126 to §133). In game, S4 checks what Wine could not show (WHY§133).
+- b The anti-cheat check and the notice-only mode, the single-instance guard, and ABI 1 as a preview [done]
   - refs: GraceUI:DESIGN§13
+  - gives: built on 2026-11-16 (GraceUI's feat/host): `graceui.h` with ABI 1's first table (connect, notices;
+    the other slots answer "not yet"), the consumers' helper and a first example mod, a second copy idling, and
+    the anti-cheat check before anything is returned, a hit leaving notices only (WHY§134 to §139).
 - c Panels, checked draw lists, textures at load, faces and glyph tables, notices, and the player's exit
   - needs: a
 - d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in CI
