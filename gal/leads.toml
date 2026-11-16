@@ -1,0 +1,50 @@
+# What the derivation's offline round R0 looks for in the game's executable (eldennet-engine probe-exe --derive; O89).
+# A lead says what to look for, by name and shape, never the bytes (ARCH §6.3, "What a lead may carry"). Every value
+# below is one that EldenNet's own design documents already give, with the section it comes from; where they give
+# nothing, the lead is left out, or marked for the in-game round R1 to find. The labels are ours, and only they reach
+# derive.json. A lead is not a fact: nothing here is relied on until R0's report is reviewed and R1 and the self-tests
+# confirm it (O89, ARCH §6.3 "Lead and confirmed").
+schema = 1
+product_name = "ELDEN RING"         # ARCH §6.3, gal/builds.toml's product_name, which the gate requires
+
+[fd4]
+path_suffix = "FD4Singleton.h"      # ARCH §6.2, the FD4 singleton finder's step 2 (ER01 §4)
+
+# The FD4 singletons by the name the finder indexes them under (ARCH §6.2 step 4), from ARCH §6.1's object inventory:
+# its eleven FD4 singletons, no more.
+[singletons]
+cs_task = "CSTask"                             # ARCH §6.1 CSTask; ER01 §3.2 (CSTaskImp, FD4 singleton "CSTask")
+world_chr_man = "WorldChrMan"                  # ARCH §6.1 WorldChrMan; ER01 §4
+cs_session_manager = "CSSessionManager"        # ARCH §6.1 CSSessionManager; ER01 §4
+cs_event_flag_man = "CSEventFlagMan"           # ARCH §6.1 CSEventFlagMan; ER01 §4, §9
+cs_fe_man = "CSFeMan"                          # ARCH §6.1 CSFeMan
+cs_menu_man = "CSMenuMan"                      # ARCH §6.1 CSMenuMan; ER01 §4
+cs_now_loading_helper = "CSNowLoadingHelper"   # ARCH §6.1 CSNowLoadingHelper, "confirm in S0-A"
+world_area_time = "WorldAreaTime"              # ARCH §6.1 WorldAreaTime; ER01 §4
+cs_camera = "CSCamera"                         # ARCH §6.1 CSCamera, "confirm in S0-A"
+solo_param_repository = "SoloParamRepository"  # ARCH §6.1 SoloParamRepository; ER01 §4, §8.1
+msg_repository = "MsgRepository"               # ARCH §6.1 MsgRepository; ER01 §4, §8.3
+
+[register]
+instance = "cs_task"                # ARCH §6.1: CSTask's instance pointer is passed to register_task (ER01 §3.2)
+
+[task]
+group = "ChrIns_PostPhysics"        # ARCH §3.2 and §6.3 ([task] group, checked on the first tick); DESIGN §0; ER01 §3.2
+# The task base class: the design names none. ARCH §6.4 leaves the task object's shape (vtable_slots, run_slot,
+# object_size) to S0-A, and ER01 §2.1 lists FD4TaskBase in the FD4 task system without its RTTI namespace or a word on
+# whether every task derives from it. probe-exe requires this key, so it holds a marker of ours that no class of the
+# game carries: R0 reports the task `missing`, and R1 must find the task base class, the run slot and the object size
+# (derive.json's confirm list asks for task_run_slot and task_object_size either way). Not a lead: never read it as one.
+base = "EldenNet::R1MustFindTaskBase"
+
+[vtable_sets]
+chr_ins = "CS::ChrIns"              # ARCH §6.2, the RTTI walk: every class that lists CS::ChrIns as a base (ER01 §5.2)
+player_ins = "CS::PlayerIns"        # ARCH §6.2: CS::PlayerIns gets its own set
+
+# The AOB statics of ARCH §6.1 that the design gives a class for. GameMan and FieldArea are left out: ARCH §6.1 makes
+# them AOB statics but no design document gives the RTTI class of their instances, so R1 must find their classes and
+# slots; they join these leads then, and their patterns follow with --static. register_task is derived through
+# [register], not here.
+[statics]
+global_hinstance = { module = true }          # ARCH §6.1 global_hinstance: a static in .data holding the module's base
+game_data_man = { rtti = "CS::GameDataMan" }  # ARCH §6.3, gal/patterns.toml's GameDataMan: rtti checked on the instance

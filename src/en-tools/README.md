@@ -27,6 +27,14 @@ patterns is in it.
 - `--help` prints the options, the exit codes and the devkit's disclosure of safe use and of what we condemn (proposal
   0002 §2.4, a draft for the owner to amend).
 
+**The game's leads** are `gal/leads.toml`: only what the design names, each with its section (ARCH §6.1 to §6.3).
+The design names no task base class, so its `[task] base` holds a marker of ours that matches nothing, and R0 reports
+the task `missing` for R1 to find; GameMan and FieldArea are left out until a design document gives their classes.
+**The R0 package** for the owner, `EldenNet-devkit-R0.zip`, holds `eldennet-engine.exe` from the clang-cl Release
+build, `gal/leads.toml`, `README-R0.txt` (what the tool reads, writes and never does, and the disclosure above),
+`LICENSE.txt`, `THIRD_PARTY.md`, `THIRD-PARTY-NOTICES.txt` (the three libraries' licences) and `SHA256SUMS`, which
+DataPiler 0.2.41's `probe_exe` step checks the tool and the leads file against before it runs them.
+
 **For DataPiler's job (roadmap S7.11.h).** Exit codes:
 
 | Code | Meaning | derive.json |
