@@ -39,6 +39,20 @@ names.
 What stays with the caller, as ARCH §11.2 assigns it: seeds, toasts, the authored deflection for `Refused`, showing
 the complete sentences of a `Truncated` reply (`complete_sentences`), requeueing a `Preempted` or failed job, the
 pause rules, and the input epoch (pass a `std::stop_token`).
+- **Local probes and model lists** (`probe.hpp`): `probe_local` asks 127.0.0.1 on LM Studio's `:1234`, Ollama's
+  `:11434`, llama.cpp's `:9931` and legacy `:8080` and KoboldCpp's `:5001` for `GET /v1/models`, all at once on one
+  transport (500 ms to connect, 1.5 s for the whole probe, and whatever is late is cancelled). A port counts only if it
+  answers 200 with an OpenAI-style model list. An empty list counts, and so does Ollama's `"data": null`, because a
+  server that is up with nothing loaded is the commonest local mistake and the wizard can only say so if it sees the
+  server. Each port that counts is then asked `GET /api/version` and `GET /props`. Ollama is confirmed only by a
+  `version` string, and llama.cpp only by its props (`default_generation_settings`, `total_slots` and `build_info`); a
+  server that answers as both is taken for neither, and LM Studio and KoboldCpp are never confirmed. An unconfirmed
+  endpoint is `openai`, and its port's usual owner is only a hint. `list_models` sends `GET <base_url>/models` with the
+  provider's headers and its key in its own header, and returns the ids or the error class (401 and 403 are `Auth`),
+  in our own words: never the key or the server's text. Model lists are read as they parse, so memory stays at what is
+  kept, and they are bounded: 1000 ids of at most 256 bytes, ids with control characters left out rather than cut, and
+  at most 1 MB of answer for a probe or 8 MB for a provider. Both are free functions, and the caller runs them only
+  while the offline gate is open.
 
 ## Configuration
 
@@ -112,6 +126,26 @@ breakpoints (a merged message can have several), and must join to its `"content"
 `{"task", "kind": "choice" | "yes_no", "subject", "question", "state": [{"name", "text"}], "options": [{"key", "text"}],
 "rule"}`, where `rule` is the key the task's rules picked, and an optional `messages` rendered by en-prompt.
 
+```text
+eldennet-engine probe  [--json]
+eldennet-engine models --config <dir> [--provider <id>] [--models <models.toml>] [--json]
+```
+
+`probe` needs no configuration. For each port that answered it prints the flavour, whether that was confirmed and how
+many models the server lists; `--json` gives the same as data, with each base URL and the model ids. `models` lists the
+models of every configured provider, or of the one named, or the provider's error class. Both exit 0 once they have
+run, whatever they found, 2 on a usage or configuration error, and 1 when the build has no HTTP transport.
+
+```cpp
+#include "en/llm/probe.hpp"
+
+// Only while the offline gate is open; `stop` ends it at once when the gate closes.
+for (const en::llm::LocalEndpoint& e : en::llm::probe_local(*transport, {}, stop)) {
+  // e.port, e.base_url, e.flavor, e.confirmed, e.hint (shown, never acted on), e.models
+}
+en::llm::ModelsResult listed = en::llm::list_models(*transport, *config.provider("router"));
+```
+
 ## Tests
 
 `cmake --build <build> --target en_llm_tests`, then run `en_llm_tests`. They use invented data and either the fake
@@ -120,5 +154,5 @@ transport on a manual clock (timeouts, cooldowns and the hour run in no time) or
 
 ## Later
 
-The WinHTTP transport; local probes and `/v1/models` (ARCH §11.4); Ollama's warm-up (ARCH §11.3); the asynchronous
+The WinHTTP transport; Ollama's warm-up (ARCH §11.3); the asynchronous
 handle (`submit`, `cancel`, events) the core will drive, built on this blocking client.
