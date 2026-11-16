@@ -80,6 +80,9 @@ known. NPCs who meet the Tarnished see it as they see any stranger. Never shippe
 | A named boss never met calm, or a voiceless kind | Seen parts only (silent, listed in the roster) | — | — | — |
 | A merchant or service without a story | Yes, short | — | — | Yes |
 
+*Corrected 2026-11-16 (O46's Later note):* a boss never met calm holds the seen parts and never converses; one of a
+voiceless kind never speaks; one of a speaking kind keeps its combat lines (O42, DESIGN §9.10).
+
 ## 5. Size and caps
 
 A speaking NPC's first-meeting layer: about 450 to 550 words, close to SkyrimNet's median of 570; revealed and companion

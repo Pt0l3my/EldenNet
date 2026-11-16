@@ -122,6 +122,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 97 | 2026-11-15 | SkyrimNet 1.2.0 read: our SN notes stand, with two corrections and a few new parts | FACT | #engine #roster |
 | 98 | 2026-11-15 | What SkyrimNet 1.2.0 shows our design lacks: thirteen points for our own engine | LIKELY | #engine #roster #process |
 | 99 | 2026-11-16 | The Skyrizz session's measurements of SkyrimNet: code gathers, models pick; eight points for our engine | LIKELY | #engine #process |
+| 100 | 2026-11-16 | The engine's first increment: parts join exactly; two libraries fetched, not vendored; the template root | METHOD | #engine #process |
 
 ## Entries
 
@@ -1796,3 +1797,27 @@ checkout), O68, O53
   stands: no runtime output filter); (5) the lived layer changes only what cited memories justify; (6) the code-plugin
   interface (O68) has binding audiences, a C ABI, documented threads and reads by id; (7) the next speaker and its
   addressee are checked by code; (8) a budget of requests per hour, and a bound on how stale a cached value may be.
+
+### 100. The engine's first increment: parts join exactly; two libraries fetched, not vendored; the template root
+
+`2026-11-16` · METHOD · `#engine #process` · refs: O84, NPC§7.1, ARCH§11.1, ARCH§11.8, WHY§99
+
+- Source: building roadmap S8.1.a (en-prompt, en-llm and the `eldennet-engine` command, on the engine branch) and its
+  run against a mock server on 127.0.0.1.
+- **Parts join exactly.** en-prompt keeps a message as parts that join with nothing added: a merged message's later
+  part starts with its own blank line, and a part after a mid-message `[ cache ]` with its own line break. en-llm
+  first put a blank line between parts and read only a message's last mark, so a breakpoint inside a merged message
+  was lost and a part's own break would have doubled. Rejected: a separator added by the client, and moving the marks
+  to message ends (that caches less, or caches changing text). Chosen: one rule in both modules; en-llm reads
+  en-prompt's `parts` list and refuses one that does not join to its `content`, and a provider that takes breakpoints
+  gets the parts as they are.
+- **Two libraries fetched, not vendored.** The sweep flags the contact details in third-party headers (seven authors'
+  e-mails in nlohmann/json and toml++). Workaround: those two are downloaded at configure time from their own
+  projects, pinned by SHA-256, into the build tree; inja and doctest stay vendored with their licences. A sweep run
+  in a pipe reports the last command's status, so a commit tests the sweep's own exit status (`set -o pipefail`).
+- **The template root.** A template name with `.`, `..` or an empty folder name, and a link that leads out of the
+  prompts folder, are refused, for `render-prompt` and for every include.
+- **Measured:** 126 unit tests pass (en-prompt 62, en-llm 64). The mock received both breakpoints as marked parts and
+  the key only in its header; the decision call sent an enum schema, temperature 0 and the top 5 logprobs. With the
+  server stopped, the decision took its rule's pick and the chat command failed with no address in its message. The
+  MinGW-w64 build compiles with no warnings.

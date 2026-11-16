@@ -43,16 +43,36 @@ flowchart LR
 3. **Zero game writes and zero game-code hooks.** No game function is called after task registration. In v1 the only hooks in the process are GraceUI's, in system DLLs (DXGI/D3D12, the window procedure, DirectInput, XInput); EldenNet itself hooks nothing and draws through GraceUI's C ABI (GraceUI G15, O25), so no Arxan neutralisation is needed. A later hook of EldenNet's own, never on a function GraceUI hooks, needs its spike and the owner's approval (O65, R12). A blocking spike confirms this (§3.5).
 4. **One game-thread task:** a time-based 4 Hz snapshot, flags on every 4th snapshot (1 Hz), and a per-frame render feed only while labels show (§5).
 5. **Augur, the event engine, inside the pure core.** Sources feed declarative rules (debounce, hysteresis, cooldown, confidence, dedup and merge, TTL). The rules emit typed events with a frozen audience onto an ordered, synchronous bus. Golden replay tests guard it (§6).
-6. **Profiles at three depths:** *personas* (a bio with a verified stage track) for questline NPCs and named services, *character profiles* (a bio) for every other named NPC and every named boss, and *archetype cards* (kind profiles) for generic humanoids. v1.0 ships one for every named NPC and named boss of the base game, matched to the speaker by ID, and every NPC with a profile can hold a conversation and keeps memories (O43, O45, §7.8). Each carries the subjects its NPC likes to talk about, and the player can add instructions to any of them or write a character profile of their own for any named NPC, boss or invader they have met (O43). Anything unresolved or unbound is mute (§7, §7.7).
+6. **Profiles at three depths:** *personas* (a bio with a verified stage track) for questline NPCs and named services,
+   *character profiles* (a bio) for every other named NPC and every named boss, and *archetype cards* (kind profiles)
+   for generic humanoids. A bio has five layers: what a first meeting shows, later truths revealed by verified stages,
+   a companion layer for fighting beside the Tarnished, a lived layer per journey, and the Tarnished's own, an optional
+   bio the player writes (O46). v1.0 ships one for every named NPC and named boss of the base game, matched to the
+   speaker by ID, and every NPC with a profile can hold a conversation and keeps memories (O43, O45, §7.8). Each carries
+   the subjects its NPC likes to talk about, and the player can add instructions to any of them or write a character
+   profile of their own for any named NPC, boss or invader they have met (O43). Anything unresolved or unbound is mute
+   (§7, §7.7).
 7. **Conversation:** a hotkey and a talk hint, safe-context gating with no world freeze, input blocking with hard release rules, a cache-ordered original prompt, paced pages, and commit only once a line is shown (§8).
 8. **Own-initiative lines:** NPCs start lines themselves for a motive (a fight, an idle remark, a greeting, quest business, news, an NPC-to-NPC answer, a status effect, an autonomy tick). Each motive is an event type with a player setting and a cooldown, per-type allowances say who may act on it, and pacing (a gap, a window, a cooldown per type) is the only limit (O31, O39). Authored seeds give generics and fighting personas a floor that needs no network, background pools extend them, and live calls serve calm persona lines, autonomy and call-outs; an autonomy call offers the NPC one of the subjects it likes to talk about (§9.8). The bottom feed comes first, then floating labels (§9).
-9. **Memory:** an event log with audiences, game facts, claims, and a per-NPC journal (≤ 120-word summary plus ≤ 8 keepsakes), sent whole. No retrieval in v1. Every NPC with a profile remembers the Tarnished and the other NPCs it deals with (O45). Personas also know where their own road stands and the affairs tied to them, and every profiled NPC the state of the land as its ground and the sky show it, derived from verified flags on every flag frame and told in a cached "As things stand now" block (§7.8, §10, §10.6).
-10. **Spoiler control in five layers, gated by event flags.** The prompt sets out the present positively, output is checked against locked terms and tells, and an unverified flag can hide content but never unlock it (§10.4, O36).
+9. **Memory:** an event log with audiences, game facts, claims, and a per-NPC journal (≤ 120-word summary plus ≤ 8
+   keepsakes), sent whole. No retrieval in v1. Every NPC with a profile remembers the Tarnished and the other NPCs it
+   deals with (O45): each profiled witness writes its own memory of a scene, and each speaking NPC keeps a lived layer
+   per journey, changed only as its memories justify (O46). Personas also know where their own road stands and the
+   affairs tied to them, and every profiled NPC the state of the land as its ground and the sky show it, derived from
+   verified flags on every flag frame and told in a cached "As things stand now" block (§7.8, §10, §10.6).
+10. **Spoilers by grounding alone, gated by event flags.** The playthrough state is the one mechanism: every prompt and
+    every background job says what the NPC knows at its stage, what it is doing and its own part in its quest, and
+    nothing more. An unverified flag can hide content but never unlock it, and a few test questions per character check
+    what the model already knows of the game (§10.4, O36, O86).
 11. **Persistence:** one SQLite file per playthrough, keyed by SteamID, slot and character fingerprint, partitioned by journey. Playtime is the rollback clock. The `.sl2` is never touched, and the launcher keeps save backups (§3.6, §10.5).
-12. **One OpenAI-compatible streaming client** with 6 job slots, each with budgets, timeouts and fallbacks. Cloud and local presets are data (§11).
+12. **One OpenAI-compatible streaming client** with 7 job slots, each with budgets, timeouts and fallbacks, and decision
+    calls on its `decisions` slot: code gathers the records and builds the options, and the model picks (ARCH §11.8).
+    Cloud and local presets are data (§11).
 13. **Offline and multiplayer gating in our own code.** EldenNet is active only for a solo host in their own world with no anti-cheat present; otherwise it is dormant (§3.4).
 14. **Text first.** TTS and STT come in v1.5 behind seams. The action seams are frozen and empty; the action and gesture allowances show as later-version seams (§13, O41).
-15. **Spikes first, then chat with one pilot persona before barks.** v1.0 ships 6 personas, 6 cards plus the fallback, and a bio for every named NPC and named boss of the base game, about 140 named profiles, the six personas included; the DLC's follow in v1.1 if O46 keeps them out (§7.8, §16).
+15. **Spikes first, then chat with one pilot persona before barks.** v1.0 ships 6 personas, 6 cards plus the fallback,
+    and a bio for every named NPC and named boss of the base game, about 140 named profiles, the six personas included;
+    the DLC's follow in v1.1 (O46; §7.8, §16).
 
 ---
 
@@ -75,10 +95,10 @@ flowchart LR
 |---|---|---|---|
 | Loading | Own launcher; loader-agnostic DLL; documented use as a player-configured me3 native | Proxy-DLL install | Any me3 code, API or reliance on its behaviour; posting in me3's spaces |
 | Game access | Reads, task registration, SEH-guarded copies | Hook-based event sources; probation mode for unknown builds | Code patching in v1; LLM-chosen flag writes |
-| NPCs | 6 personas, 6 cards plus a fallback card; our own character profile, holding a bio, for every named NPC and named boss of the base game, each able to converse and remember (O43, O45, §7.8); the player's own instructions on any profile and character profiles of their own for any named NPC, boss or invader they have met (§7.7); everything else mute; an NPC-type page with allowances per type and per named slot (§7.6) | The DLC's roster (v1.1, O46); Ranni's stage track; a merchant card; Melina's persona (O63); creature voices told in words | Shipping or uploading game audio, voice samples or voice models (O62) |
+| NPCs | 6 personas, 6 cards plus a fallback card; our own character profile, holding a bio in five layers (O46), for every named NPC and named boss of the base game, each able to converse and remember (O43, O45, §7.8); the player's own instructions on any profile, character profiles of their own for any named NPC, boss or invader they have met, and a bio of the Tarnished (§7.7); everything else mute; an NPC-type page with allowances per type and per named slot (§7.6) | The DLC's roster (v1.1, O46); Ranni's stage track; a merchant card; Melina's persona (O63); creature voices told in words; followers, on the companion layer every bio carries (after v1.0, O85) | Shipping or uploading game audio, voice samples or voice models (O62) |
 | Conversation | Typed one-to-one chat with every NPC that has a profile, when conversable (O45); Steam floating keyboard if S4 passes; personas speak up unasked: greetings, quest business, news on a greeting (§8.9), and other profiled NPCs greet, remark and answer within pacing (§7.8) | Pad intent list (v1.1), STT (v1.5), `@name` addressing | Any online use |
 | Barks | Combat lines for every combatant, either side (boss fights as S3 allows), status reactions in words (after S8), sparse idle lines, NPC-to-NPC exchanges, autonomy on subjects each NPC likes, seeds plus pools, one-line call-out replies; pacing only (O31) | Live combat lines, taunt key, user triggers, NPC acts (O41), a director that breaks silences (§13) | — |
-| Memory | Event log, facts, claims and a journal for every profiled NPC, with memories of the Tarnished and of other NPCs (O45); rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall, diaries; news that travels with play time; shared circles of acquaintance; what Min's blueprint may replace (§7.8) | Telemetry upload |
+| Memory | Event log, facts, claims and a journal for every profiled NPC, with memories of the Tarnished and of other NPCs (O45), each witness writing its own; a lived layer per journey for every NPC that speaks (O46); rollback, NG+ partition; quest and world awareness from verified flags (§10.6) | Scene memories, FTS or vector recall and its recall gate (§10.1), diaries; news that travels with play time; shared circles of acquaintance; what the design of our own engine settles (O84, §7.8) | Telemetry upload |
 | Presentation | Text panels and notices drawn through GraceUI's overlay (GraceUI G15) | TTS (v1.5), in the cast's own voices, made from the player's install on the player's PC (O62); native subtitles and mouth movement (v2) | Shipping game fonts, text or audio |
 | ML | Out of process, over HTTP | Bundled out-of-process TTS binaries | LLM, TTS or STT inside the game process |
 
@@ -94,12 +114,12 @@ flowchart LR
 | C6 | Barks | 100% shown before expiry. ≥ 95% within 0.5 s of the game change. At default pacing (O31): combat lines ≥ 2.5 s apart and ≤ 6 per rolling minute (the death gloat aside), one fighting group never twice within 8 s, ≤ 2 labels visible; the camp of five gives 2–4 lines per fight |
 | C7 | Output hygiene | 0 displayed strings with markup, reasoning, trailer text or over the byte cap (fuzz and replay scans) |
 | C8 | Silence | 0 lines from dead, asleep, muted or voiceless characters (asleep in a fight: measured from S8 on), or from a type whose allowance is off; 0 conversation lines from hostile personas or characters; 0 lines over native talk, a scripted line or a banner; in boss fights, 0 lines from kinds whose scripted-line detector has not passed |
-| C9 | Spoilers | 0 locked-term or hard-tell violations shown in 600 scripted turns over 6 flag states, and ≤ 1% judged to show content beyond the moment |
+| C9 | Spoilers | 0 leaks on the test questions, 6 per persona and 4 per roster bio (NPC §12.1), on the presets' recommended models (§11.3): questions on what the model already knows of the game, from a character's `forbid` topics or the later truths its research note lists (§7.8); a model that leaks is replaced, or a later decision switches on a light check (O86) |
 | C10 | Voice | ≥ 98% of replies within the word cap; 0 banned words shown; non-archaic registers ≤ 2% archaic lines |
 | C11 | Memory | ≥ 80% correct "do you remember" probes after a reload; every shown line survives a hard kill; trim and NG+ tests pass |
 | C12 | Event engine | Golden events over 3 recorded routes stay stable; 10 replays give identical events |
 | C13 | Install | 5 testers reach a first reply within 10 min of reading the README, with a key in hand |
-| C14 | World awareness | Over 240 probes at 4 flag states (NPC §12.5): ≥ 90% acknowledge a known change when asked; ≤ 2% contradict one; 0 shown terms the persona cannot know (MEM §12.8) and ≤ 1% judged to show such knowledge; ≤ 5% hearsay told as seen; a cued item raised on ≥ 50% of cued controls, and any news raised on ≤ 10% of uncued controls after `fresh` (O28); Patches' contradiction rate reported, not gated. Runs and gates from v0.2 on the pilot, widening as content ships (§16.3; O29) |
+| C14 | World awareness | Over 240 probes at 4 flag states (NPC §12.5): ≥ 90% acknowledge a known change when asked; ≤ 2% contradict one; ≤ 1% judged to show knowledge the persona cannot have; ≤ 5% hearsay told as seen; a cued item raised on ≥ 50% of cued controls, and any news raised on ≤ 10% of uncued controls after `fresh` (O28); Patches' contradiction rate reported, not gated. Runs and gates from v0.2 on the pilot, widening as content ships (§16.3; O29) |
 
 ### 1.4 Perceived-latency budget (normative; P3 §1.5, J3 #1)
 
@@ -107,7 +127,7 @@ flowchart LR
 |---|---|---|---|
 | Talk key | Box opens with the target and who can hear | ≤ 50 ms | 100 ms |
 | Enter | After 350 ms with no text, a speaker card **"Kalé …"** | — | — |
-| First page | Lower-third page | 1.6 / 3.0 s cloud; 2.5 / 4.5 s local | First token 6 s (10 s local), then the fallback model once. At 20 s, an uncommitted "…" page and a toast with the cause |
+| First page | Lower-third page | 1.6 / 3.0 s cloud; 2.5 / 4.5 s local | First token 6 s (10 s local), then the fallback model once; on cloud the fallback starts as a backup request once the first token is about 2.5 s late (EST), and whichever streams first is kept (§11.1). At 20 s, an uncommitted "…" page and a toast with the cause |
 | Bark | Feed line or label | ≤ 0.3 s after the event | Dropped at expiry (2–3 s) |
 | Death gloat | Label as the player falls | ≤ 0.5 s | 1.2 s, and never once the death banner (banner 5) shows |
 | Call-out reply | One-line label | 1.5 / 2.5 s | 3 s, then a seed line |
@@ -254,7 +274,7 @@ Dormant is drawn here as a state for brevity. It is implemented as a flag orthog
 | The game crashes | At the next start, the launcher and the dashboard say where it happened and why, in plain words; a plugin found at fault stays off until the player turns it back on (O71) |
 | Unknown build or failed discovery | Banner: "EldenNet inactive: game build 2.x.y.z not supported yet", with the reason, drawn as a GraceUI notice |
 | An optional group tripped | One toast naming the reduced feature |
-| Slow first token | The "Name …" card keeps pulsing; one silent fallback to the backup model |
+| Slow first token | The "Name …" card keeps pulsing; one silent fallback to the backup model, started early on cloud as a backup request (§11.1) |
 | No reply in 20 s | An uncommitted "…" page plus "No answer: provider timed out" |
 | 401/403, 429 | "API key rejected: open settings (F10)"; "Provider rate limit, try again shortly" (60 s cooldown) |
 | Reply blocked twice by lint | An authored deflection line (content, never an invented answer). Showing nothing is not allowed (J3 #8) |
@@ -625,6 +645,13 @@ struct Event {
 
 What the world-awareness work added (no new kind): `ConversationEnded` gained `known` (and `cued`, which has since moved to `NpcSaid.cue`); `npc_facts` gained `world_seen`, `world_seen_pt` and `world_cued`, which `JourneyChanged` empties; the reaction cue is computed by the conversation subscriber with no event of its own (§10.6). O31–O42 added `StageChanged`, `CameNear`, `AutonomyTick`, `FoeKilled` and the status events, widened `NpcSaid`, `Engaged`, `AllyDied` and `Healed` to every combatant, and made `NativeLineHeard` live per verified kind (ARCH §8.6).
 
+**Stance and concealment** (WHY§98; ARCH §8). Augur gives each actor a stance towards each viewer: `enemy`, `ally`,
+`bystander` or `turned`, a live team that differs from the row's team (a charmed foe, a summon), so that a line can tell
+a turned foe from one that is merely not hostile; what "turned" reads is verified in game (S7) before a line relies on
+it. A `Struck` whose source resolves to no one within 20 m is marked unseen, and no line names its attacker. A concealed
+Tarnished (crouching at range, or under an invisibility effect, each once verified in game) is not greeted and not
+addressed, and a conversation the Tarnished opens is untouched (§9.4; ARCH §8.7).
+
 **Recommended later** (not in v1): an arrival remark on `PlaceEntered` (for a companion persona); a grace remark on `GraceLit` or `GraceRested`; a remark on `MountChanged`; an ally's remark on `CritLanded`; a witness remark on `PersonaDied`; reactions to `PersonaAttacked` (after S3 shows how they sit beside the game's own attacked lines); a glance on `PersonaSeen`; `ally_hurt` (an ally warns the Tarnished on `LowHp{subject: Tarnished}`); `StatusBuilding` (the Tarnished's build-up rising, before a status starts); and NPC acts (fleeing, healing, gestures) through the action seams (O41).
 
 **Interrupts** are a property of the event type (J3 §4 (d)):
@@ -682,7 +709,7 @@ The flag rate follows the snapshot count rather than a clock, so the R10 self-th
 | C. Named bosses, D. named invaders, Melina | **Character** (our own bio from v1.0, O43); Melina's conversable only while the Tarnished rests at a site of grace, in EldenNet's chat box (a panel through GraceUI), once she has met them (O63) | A bound boss or invader speaks combat lines in its fights once S3 has recorded its kind (§9.10), and converses and remembers only where the game lets the Tarnished meet it calm and not hostile (O45), never while it holds a bar or invades (built-in rules (a), (b)); Melina is bound by our own profile only (O63); a boss whose bar shows a kind's name stays mute unless a profile binds it; others' combat lines in their fights follow O42 (§9.10) |
 | E. Generic humanoids | **Generic** | Archetype card: barks plus a one-line call-out reply |
 | F. Voiceless (beasts, spirits, golems, Twin Maiden Husks, Goldmask, Torrent) | Mute | Perceived only |
-| Summoned questline NPCs | Important; combat lines only, in its own voice (O42) | `FoughtBeside` recorded |
+| Summoned questline NPCs | Important; combat lines only, in its own voice, from its bio's companion layer (O42, O46; §7.8) | `FoughtBeside` recorded; followers, on the same layer, after v1.0 (O85) |
 | Named friendlies without a shipped bio (overhaul additions; the DLC's before v1.1) | Mute, with the hint line, unless the player's own character profile binds them | Bound: as every profiled NPC, conversation and memory when conversable, greetings, idle remarks, exchanges, autonomy and combat lines (O45, §7.8) |
 | Uncurated hostile humanoids | `nameless_soldier` fallback card | Barks only, no lore |
 
@@ -698,7 +725,9 @@ Identity is curated, never computed (ER04 §1, SN04 §10). `identity/personas.to
 5. otherwise mute, logged to the debug "unknown characters" list with a copy-as-TOML button.
 
 Rules that follow:
-- **Display names** come from the runtime NpcName of the current row. A character's own runtime name never enters its own prompt, and other NPCs' prompts see its `brief` (§7.7).
+- **Display names** come from the runtime NpcName of the current row. A character's own runtime name never enters its
+  own prompt, no prompt field of its own names it until the game has shown that name (O86; NPC §2.7), and other NPCs'
+  prompts see its `brief` (§7.7).
 - **Self-knowledge** comes from the active stage's `identity` line. A reveal variant is therefore prompted as its pre-reveal self until the stage flags agree, and a lint flags any disagreement (J3 #19).
 - **Identity-pack check:** if more than 20% of persona rows' live `nameId`s miss `expect_name_id`, personas switch off with a toast and barks keep running (P1 §4.2).
 - **Memory keys** are profile ids (a `persona_id` or a character profile's `id`, O45), with an alias table for renames.
@@ -710,14 +739,16 @@ Personas are prose in named fields; code owns the order, headers, state and pers
 | Group | Fields |
 |---|---|
 | Header | `register` (`archaic-regal \| formal \| colloquial \| broken \| chant`; ER04 §5), `reply_words_max` (≤ 60, default 40), `address_forms`, `pronouns`, `display_name_fallback` |
-| `public` (the Stranger Test) | `summary`, `appearance` |
-| `private` | `background`, `personality`, `goals[]`, `relationships[]`, `honesty` (`truthful \| guarded \| liar` plus one sentence) |
+| `public` (seen; the Stranger Test) | `summary` (≤ 60 words), `appearance` (≤ 40), `role` (≤ 20: what it does) |
+| `private` (its first-meeting self) | `personality` (≤ 80), `honesty` (`truthful \| guarded \| liar` plus ≤ 25 words), `claims` (≤ 80: what it says of its past to a stranger, true or not, with any cover story spelled out), `seeks[]` (≤ 3 × 15 words: what it openly says it wants), `ties[]` (≤ 4 × 20: `"Who: feeling"`, only the people it names at a first meeting). These replace `background`, `goals[]` and `relationships[]`; what the persona reveals later goes in its stages' `unlock` (O46) |
+| Speaking up | `stirs[]` (2–6, ≤ 12 words each: what makes it speak up unasked, read by the speaker choice at shared places, §9.7) |
+| `[companion]` | Only for a persona the game can summon: `skills` (≤ 60 words: how it fights and what it brings) and `beside` (≤ 40: what it says and notices fighting beside the Tarnished), with its combat seeds (§7.8) |
 | `voice` | `cadence`, `diction`, `deflection`, `openers[]` (≤ 1 per reply), owned `tics[] {text, max_per_conversation}`, written in our own words and never a FromSoftware coinage (J2 #14) |
 | Profile (every depth, §7.7) | `subjects[]` (3–8, ≤ 10 words each: what the persona likes to talk about; one is offered on each autonomy line, §9.8), `instructions` (≤ 35 words, ≤ 210 chars, rendered last in block 4; usually the player's own) |
 | Knowledge | `knowledge.{always[], topics[]}`, `deflections[]` (3–5 authored lines) |
 | `[seed]` | `greet` and `beckon` (3 lines each), and for personas who fight the combat keys of §9.10 (3 each) |
 | `[awareness]` | `home[]` (RegionKeys), `[[tie]]` (≤ 6: `item`, `certainty?`, `when?`, `from?`, `line?`, `spoiler?`, `lexicon?`, `basis = flag \| played`, `evidence[]`), `skip[]`, `news` (`close \| plain \| eager`, O30) and `sleep_leads[]` (open sleep leads, §8.9; all MEM §12.2) |
-| `[[stages]]` | `id`, `when`, `identity?`, `where`, `mood`, `gist` (our own paraphrase of what has passed in vanilla), `road` (≤ 30 words: where the persona's own affairs stand), `at` (RegionKey), `hears = all \| sky \| none`, `knows[]` (world stages this stage implies), `awaits?`, `heard?` and `short?` (for other personas' ties), `unlock{text, kb[]}`, `forbid[]` (topics, never secrets; code-only, never rendered: O36), `chat = allowed \| refuse \| mute`, `beckon?` (≤ 20 words: the stage waits on the Tarnished talking with the persona; S6-verified only, W13), `talked?` (the game's conversation-played flag), `state = awake \| asleep \| senseless \| unknown` (inherits), `approach = none \| native \| unknown` with `approach_m` (from S3; inherits; unset reads `unknown`) |
+| `[[stages]]` | `id`, `when`, `identity?`, `where`, `mood`, `gist` (our own paraphrase of what has passed in vanilla), `road` (≤ 30 words: where the persona's own affairs stand), `at` (RegionKey), `hears = all \| sky \| none`, `knows[]` (world stages this stage implies), `awaits?`, `heard?` and `short?` (for other personas' ties), `unlock{text, kb[]}` (the revealed layer: later truths, never in the base stage), `forbid[]` (the topics of the persona's test questions, never secrets; eval-only data, never rendered: O36, O86), `chat = allowed \| refuse \| mute`, `beckon?` (≤ 20 words: the stage waits on the Tarnished talking with the persona; S6-verified only, W13), `talked?` (the game's conversation-played flag), `state = awake \| asleep \| senseless \| unknown` (inherits), `approach = none \| native \| unknown` with `approach_m` (from S3; inherits; unset reads `unknown`) |
 
 Predicates name catalogue aliases only. `road`, `at`, `hears` and `knows` inherit from the previous stage when omitted; the base stage must set `road` and `at` (NPC §3.2, MEM §12.2). The lint warns on effect adjectives such as "cryptic" or "terse" (SN03 §5.4). Original example (the built-in self-test persona, not a game character):
 
@@ -728,13 +759,16 @@ reply_words_max = 30
 address_forms = ["traveller", "Tarnished"]
 deflections = ["The lamp shows the road, not the whole of it.", "Ask again when the wick is longer."]
 subjects = ["the oil a lamp drinks on a long night", "travellers and the roads they choose", "the crossroads, and who has passed it"]
+stirs = ["a lamp guttering nearby", "a traveller boasting of roads they have not walked"]
 [public]
 summary = "An old keeper who tends one lamp at a crossroads and greets whoever passes."
 appearance = "A stooped figure in a soot-grey cloak, a brass lantern on a crooked staff."
+role = "keeper of the crossroads lamp"
 [private]
-background = "Has kept the same lamp longer than they can count, and suspects the road keeps them in turn."
 personality = "Patient and dry; kind to the lost, short with the boastful."
 honesty = "truthful: says little, never lies"
+claims = "Says they have kept this lamp longer than they can count, and that the road keeps them in turn."
+seeks = ["oil enough to see the lamp through the longest night"]
 [voice]
 cadence = "At most two short sentences; the second often turns the first around. Pauses before answering."
 diction = "Plain, slightly old-fashioned words, with everyday pronouns."
@@ -748,7 +782,7 @@ mood = "watchful calm"
 gist = "Nothing has passed between you and this traveller before tonight."
 road = "You tend one lamp at a crossroads, as you have for longer than you can count, and greet whoever passes."
 at = "limgrave"
-forbid = ["what lies at the end of the road"]
+forbid = ["what lies at the end of the road"]           # eval-only: a test question's topic (O86)
 beckon = "you would like a word about the lamp's oil"   # CI only (speak_up.scn)
 beckon_src = "ci:speak_up"                              # test content (W13)
 state = "awake"
@@ -818,7 +852,7 @@ The NPC-type catalogue is our own content file, `content/eldenring/identity/type
 | `creature` | One per voiceless family entry in `speech.toml` (`creature:troll` …) | Its family range or model | None |
 | `boss` | `boss` (live: holds a boss bar now) | Built-in rule (a) | None, unless a persona or a character profile binds it (its slot governs the voice; combat lines only) |
 | `invader` | `invader` | Built-in rule (b) | None, unless a character profile binds it (combat lines only) |
-| `summon` | `summon:spirit`, `summon:npc` (a non-persona `WhiteSummonNpc`) | Built-in rules (c), (d); `chr_type` | None |
+| `summon` | `summon:spirit`, `summon:npc` (a non-persona `WhiteSummonNpc`) | Built-in rules (c), (d); `chr_type` | None, unless a character profile binds a `summon:npc` (combat lines only, from its companion layer, §7.8) |
 | `mount` | `mount` | `character_id == 8000` | None |
 | — | `unknown` (unresolved): listed, never adjustable | Default entry | None |
 
@@ -851,7 +885,13 @@ Shipped defaults per kind (on ✓, off ✗; "inert" = no voice source in v1 unle
 | `unknown` | ✗, locked | — | — | — | — | — | — | — | — | — | — |
 
 - **What allowances cannot do.** They only narrow. `speech.toml`'s `may_speak` is the voice-source statement and stays non-disableable, so turning `dialogue` on for a creature gives it nothing to say in v1 (only a verified character-profile binding gives a voice, §7.7); unresolved characters stay unperceived (a spoiler layer); Melina's slot is listed under its own conditions (O63); the conversable and safe-context predicates, stage `chat`, every context gate (§9.4), the spoiler layers and R2 stay; `actions` and `gestures` cannot be turned on.
-- **Built-in rules change** (NPC §1.3): (a) a boss-bar holder speaks only combat lines, only while its `boss_fight` allowance holds and the scripted-line gate clears it, and never conversation or calm lines; (c) a persona's `WhiteSummonNpc` row speaks only combat lines (its `combat` allowance), never conversation, and keeps `may_remember`. (b) the invader class is mute unless a verified character profile binds it, and a bound invader speaks only combat lines; (f) no character profile binds a spirit summon or the player's mount (O19), and only our own profile binds Melina (O63). Rules (d) and (e) are unchanged; (e) applies only to an unbound NPC.
+- **Built-in rules change** (NPC §1.3): (a) a boss-bar holder speaks only combat lines, only while its `boss_fight`
+  allowance holds and the scripted-line gate clears it, and never conversation or calm lines; (c) a persona's
+  `WhiteSummonNpc` row, and a summoned NPC bound by a character profile, speaks only combat lines (its `combat`
+  allowance), from its companion layer, never conversation, and keeps `may_remember` (O46). (b) the invader class is
+  mute unless a verified character profile binds it, and a bound invader speaks only combat lines; (f) no character
+  profile binds a spirit summon or the player's mount (O19), and only our own profile binds Melina (O63). Rules (d) and
+  (e) are unchanged; (e) applies only to an unbound NPC.
 - **The page** (F10 → NPC types, v0.6; the file from v0.4): named slots first (personas, then character profiles, ours and the player's, then other seen named NPCs; a profile slot opens its profile in the editor, §7.7), then kinds and their types, each row with its label, tags and allowance toggles; per-type reaction overrides open from the row.
 
 Tags, signals and spikes: NPC §1.4.
@@ -863,30 +903,94 @@ The owner asked for a way to instruct each NPC, bosses included (O43). One profi
 | Depth | Covers | Adds | Files |
 |---|---|---|---|
 | Kind profile | Every NPC of a card's match: the archetype card (§7.4) | What the kind is and knows, temperament variants, seeds | `archetypes/<id>.toml` |
-| Character profile | One NPC: every named NPC without a persona and every named boss (the roster, §7.8); a player's own for anyone else met | Its bio (O46): who it is in our own words, manner, cadence and register, facts it always knows and facts gated by verified flags, its own seeds and instructions; it may name a card as `base` for the fields it leaves unset | `characters/<id>.toml`; bindings in `identity/characters.toml` |
-| Persona | A questline NPC or named service (§7.3) | Its own stages and the awareness tied to them (conversation and memory are every profiled NPC's since O45) | `personas/<id>.toml` |
+| Character profile | One NPC: every named NPC without a persona and every named boss (the roster, §7.8); a player's own for anyone else met | Its bio in five layers (O46, §7.8): its first meeting (what anyone sees, its own self, its voice, what makes it speak, what it knows at every state), later truths behind verified flags (`knows_when`), a companion layer if the game can summon it, and a lived layer per journey; its own seeds and instructions; it may name a card as `base` for the fields it leaves unset | `characters/<id>.toml`; bindings in `identity/characters.toml` |
+| Persona | A questline NPC or named service (§7.3) | The same bio, its revealed layer a stage track: its own stages and the awareness tied to them (conversation and memory are every profiled NPC's since O45) | `personas/<id>.toml` |
 
-Every depth carries `subjects` (3–8 things it likes to talk about, in our own words and spoiler-safe; §9.8) and optional `instructions` (≤ 35 words, ≤ 210 chars, rendered as the line "Also: …" in block 4 or in the card or character block). Detail: NPC §4.5–§4.8.
+Every depth carries `subjects` (3–8 things it likes to talk about, in our own words and spoiler-safe; §9.8) and optional
+`instructions` (≤ 35 words, ≤ 210 chars, rendered as the line "Also: …" in block 4 or in the card or character block);
+personas and character profiles also carry `stirs` (§7.8). Detail: NPC §4.5–§4.8.
 
 - **Bindings.** A character profile binds NPCs only through what the GAL identifies: an exact NpcParam row with its `expect_name_id`, a non-zero entity id, or, for a boss, the `name_id` of the boss bar it holds now, valid only while that bar shows. Talk codes stay metadata (§7.2). Each shipped binding is a lead until S1 (rows, entities) or S2 (bar ids) verifies it, and release lint rejects an unverified one. A player's binding is made from a sighting in their own game and holds only while the live NPC agrees with every key it recorded. **Nothing speaks on an unverified binding**: the NPC resolves as if the profile did not exist.
 - **Voice.** A verified binding is a voice source (§7.5). Since O45 a character converses and remembers as a persona does, from its bio (§7.8): conversation when conversable; live own-initiative lines when calm (greetings, remarks, exchanges, autonomy, news by its `awareness.news`; quest business stays the personas'); combat lines from seeds and pools, never live. A bound boss or invader speaks combat lines only while it holds a bar or invades (NPC §1.3 rules (a), (b)), once S3 has recorded its kind (§9.4, §9.10); until then it is held. Its calm own-initiative lines wait for S8's sleep signal (O44). Melina is bound by our own profile only, and converses only at a site of grace (O63). Its own runtime name never enters its own prompt; other NPCs' prompts see its `brief`, in our words.
 - **Precedence.** An NPC gets a persona, else a verified character profile, else a card, else the fallback. Within a profile, the player's layer wins over the profile's own field, which wins over its `base` card's. Load order: shipped content, `overrides\` (whole files), `disable.toml`, then the player's profiles (ARCH §11.6).
-- **The player's profiles** (`%APPDATA%\EldenNet\profiles\`; never shipped, bundled or uploaded): a *layer* per slot over any shipped profile, which may set only `instructions`, `subjects`, `register` and the reply length; and *character profiles of their own* for any named NPC, boss or invader the Tarnished has met. Each file is validated alone: schema, caps, predicates, template syntax and the safety lexicon block a save; lexicon and wording lints warn, and spoiler checks are silent: a locked term is kept out of lines, never pointed out. The output guards (sanitizer, lexicon lock with tells, banned and safety words) are unchanged, so a player's text can shape a line but never unlock a term (MEM §7.2). The bug-report bundle carries no profile text (§14).
+- **The player's profiles** (`%APPDATA%\EldenNet\profiles\`; never shipped, bundled or uploaded): a *layer* per slot
+  over any shipped profile, which may set only `instructions`, `subjects`, `register` and the reply length; *character
+  profiles of their own* for any named NPC, boss or invader the Tarnished has met; and an optional *bio of the
+  Tarnished*, `public.summary` and `public.appearance` only, through which NPCs see the Tarnished as they see any
+  stranger (O46). Each file is validated alone: schema, caps, predicates, template syntax and the safety lexicon block
+  a save; lexicon and wording lints warn. The player's text is theirs and is never checked for spoilers: it can shape a
+  line, but only verified flags unlock a stage or a revealed entry (O86; NPC §4.7). The output guards (sanitizer,
+  banned and safety words) are unchanged. The bug-report bundle carries no profile text (§14).
 - **The editor** (the settings UI's character pages, v0.6) shows a shipped profile's public text and subjects and the player's own fields, never a private field, stage, knowledge entry or forbid list. Every save goes through the watcher's validator (ARCH §11.6); reset works per field or per slot.
 - **Draft with AI** (v0.6). On the player's click, one call on the `draft` slot (§11.2) turns the player's own notes into a draft of the editable fields, shown for review and saved only by the player. It reads only the notes, the depth, our labels, the field list and, when revising, the player's own current text of that file: no name the notes or that text do not give, no game text, no shipped private field and no memory. Never automatic; at most 20 a session; only while the offline gate allows network (§3.4). Our own roster's bios are drafted offline from our own notes and reviewed by hand (§7.8); this helper never feeds shipped content.
 - **Allowances** narrow profiles as they narrow everything (§7.6); each persona and character profile has its own slot.
-- **Content:** v1.0 ships the six personas, the seven kind profiles and our own character profile for every named NPC and named boss of the base game, each with its subjects (the fallback card and silent bios have none) and each after its spoiler review and bindings check; a bound boss's combat lines play once S3 has recorded it (§7.8, §16.2; O43 as updated 2026-11-07). The system, the player's profiles and the editor ship in v1 (§16.2: v0.3, v0.4, v0.6).
+- **Content:** v1.0 ships the six personas, the seven kind profiles and our own character profile for every named NPC
+  and named boss of the base game, each with its subjects (the fallback card and the bios that hold the seen fields
+  only have none) and each after its spoiler review and bindings check; a bound boss's combat lines play once S3 has
+  recorded it (§7.8, §16.2; O43 as updated 2026-11-07). The system, the player's profiles and the editor ship in v1
+  (§16.2: v0.3, v0.4, v0.6).
 
 ### 7.8 The roster: profiles, conversation and memory for every named NPC
 
-The owner decided on 2026-11-07 that v1.0 ships our own character profile for every named NPC and every named boss (O43 as updated), and that every NPC with a profile holds a free conversation and keeps memories (O45). This section states what is decided, at the level of principle where Min's engine blueprint may change the design (the list at the end). The bio's structure and the roster's exact scope are O46 (Open); this section follows its recommendation, and its field names are O46's, until the owner decides.
+The owner decided on 2026-11-07 that v1.0 ships our own character profile for every named NPC and every named boss
+(O43 as updated), and that every NPC with a profile holds a free conversation and keeps memories (O45); on 2026-11-16
+the owner decided the bio's structure and the roster's scope (O46, as revised in
+[proposal 0004](../proposals/0004-character-bio.md)), with followers after v1.0 (O85). This section states what is
+decided, at the level of principle where the design of our own engine (O84) may still change it (the list at the end).
 
 **What is decided.**
-- **A profile for every named NPC and named boss, from v1.0.** Each holds a *bio*: personality, manner, voice and what the NPC is on a first meeting, in our own words, general and stage-independent, reviewed for spoilers like shipped content, and nothing about where its story stands (O43). The six personas add a stage track to their bio (§7.3); every other named NPC and named boss has a character profile (§7.7). The player sees stages on GraceUI's Characters › Playthrough page, never in a bio.
-- **Free conversation with memories for every NPC with a profile** (O45): it converses when conversable (§8.1) and remembers the Tarnished and the other NPCs it deals with (§10.2). Events trigger NPCs to talk through Augur (§6) and the motives of §8.9 and §9; pacing, allowances, context gates and the spoiler layers apply unchanged.
-- **The roster is generated, then reviewed**, after a game scan and research, which wait for two prerequisites: Min's engine blueprint and the bio's structure (O46).
+- **A profile for every named NPC and named boss, from v1.0.** Each holds a *bio* in five layers (below): personality,
+  manner, voice and what the NPC is on a first meeting, in our own words, general and stage-independent, reviewed for
+  spoilers like shipped content, and nothing about where its story stands (O43); its later truths only behind stages
+  verified in game. The six personas add a stage track to their bio (§7.3); every other named NPC and named boss has a
+  character profile (§7.7). The player sees stages on GraceUI's Characters › Playthrough page, never in a bio.
+- **Free conversation with memories for every NPC with a profile** (O45): it converses when conversable (§8.1) and
+  remembers the Tarnished and the other NPCs it deals with (§10.2). Events trigger NPCs to talk through Augur (§6) and
+  the motives of §8.9 and §9; pacing, allowances, context gates and the spoiler layers apply unchanged.
+- **The roster is generated, then reviewed**, after a game scan and research. The owner's two prerequisites are
+  settled: Min's engine arrived on 2026-11-15 and EldenNet builds its own on SkyrimNet's logic (O84), and the bio's
+  structure was decided on 2026-11-16 (O46).
 
-**Who is in the roster** (O46's recommendation). Every named NPC, meaning an NPC whose NpcName row carries a personal name (questline characters, named services and merchants, named invaders), and every boss whose bar shows one individual's name, in the base game. The mount is excepted (O19; NPC §1.3 rule (f)); Melina is in, with our own profile (O63). A named boss of a voiceless kind (§7.1 F) gets a short silent bio, public fields only: GraceUI lists and describes it, others' prompts see its `brief`, and it never speaks. Bosses whose bar shows a kind's name, and nomadic merchants, get no bio and stay mute unless a profile binds them (§7.1, §9.10; a merchant card is deferred, §1.2). The DLC's roster follows in v1.1 (O46). The census below settles the numbers; the research gives:
+**The bio in five layers** (O46; [proposal 0004](../proposals/0004-character-bio.md); fields, caps and checks in NPC
+§3.1 and §4.5). Authors write prose in named fields, and the templates own every heading and the layout.
+
+| Layer | Fields and caps | Read by |
+|---|---|---|
+| First meeting: seen | `public.summary` ≤ 60 words, `public.appearance` ≤ 40, `public.role` ≤ 20 (what it does: a smith, a knight sworn to a fallen house) | Its own prompts, others' prompts and GraceUI's roster |
+| First meeting: self | `private.personality` ≤ 80; `private.honesty` (truthful, guarded or liar, with ≤ 25 words); `private.claims` ≤ 80 (what it says of its past to a stranger, true or not, with the cover story spelled out, so that a lie holds without the model knowing what it hides); `private.seeks` ≤ 3 × 15 (what it openly says it wants); `private.ties` ≤ 4 × 20 (only the people it names at a first meeting, `"Who: feeling"`, their proper nouns in its lexicon) | Its own prompts only |
+| First meeting: voice | NPC §3.1's voice fields (`register`, `voice.cadence`, `voice.diction`, `voice.deflection`, `address_forms`, `deflections` …), unchanged | Its own prompts |
+| First meeting: speaking up | `subjects` 3–8 (what it likes to talk about, §9.8); `stirs` 2–6 of ≤ 12 words (what makes it speak up unasked: a place, a name, a deed done near it, another's words) | The scheduler and the speaker choice at shared places (§9.7); its own prompts; `subjects` also GraceUI's roster |
+| First meeting: knows | `knows` (true at every state) and `lexicon` | Its own prompts |
+| Revealed | Later truths about its past, aims and ties, each behind a story stage verified in game: `knows_when` entries for a roster NPC, a persona's stages (`stages.unlock.text`, `stages.unlock.kb`) | Its own prompts, once the stage is verified |
+| Companion | `companion.skills` ≤ 60 words (how it fights and what it brings) and `companion.beside` ≤ 40 (what it says and notices fighting beside the Tarnished), with its combat seeds | Its combat lines when the game summons it (§7.1; §7.6 rule (c); O42); followers after v1.0 (O85) |
+| Lived | Per journey, never in a shipped file: its feeling and trust towards the Tarnished and others, what it has learned, aims that changed | Its own prompts, in block 8 (MEM §13.6); updated at quiet moments from its memories (MEM §13.2) |
+| The Tarnished's own | An optional file the player writes: `public.summary` and `public.appearance` only; never shipped | NPCs' prompts, as any stranger's (§7.7) |
+
+- **Never in the first meeting:** a secret is never in the base stage or the first-meeting layer, and a fate or a later
+  form is never written as text an NPC holds before it happens. A liar's `claims` hold its cover story, never the truth
+  it hides.
+- **The lived layer** changes cautiously and only as far as cited memories justify: identity rarely, aims and ties
+  moderately, voice only after a sustained pattern. It is built from grounded inputs only, and a new cycle starts a new
+  journey: earlier journeys stay read-only and are never injected (§10.5).
+- **Personas** keep their schema (§7.3), with `private.claims`, `private.seeks` and `private.ties` in place of NPC
+  §3.1's `private.background`, `private.goals` and `private.relationships`; what a persona reveals later goes in its
+  stages' unlock fields (this replaces O36's "a persona's secrets sit in its private self").
+- **Size.** A speaking NPC's first-meeting layer is about 450 to 550 words of prose (SkyrimNet's median is 512); the
+  revealed and companion layers add what their stages and fights need. A file stays ≤ 16 KB and renders within the
+  block caps (§8.3). The index (`identity/characters.toml`: `id`, `kind`, `content`, `bindings`) and O46's other
+  fields (`brief`, `identity`, `display_name_fallback`, `pronouns`, `allegiance`, `home`, `awareness.*`, the lines and
+  seeds, `instructions` and provenance) are as NPC §4.5 sets them.
+
+**Who is in the roster, and with which layers** (O46). Every named NPC, meaning an NPC whose NpcName row carries a
+personal name (questline characters, named services and merchants, named invaders), and every boss whose bar shows one
+individual's name, in the base game. The mount is excepted (O19; NPC §1.3 rule (f)); Melina is in, with our own
+profile (O63). A persona and every named NPC that speaks get the four NPC layers, the companion layer only if the game
+can summon it; a merchant or service without a story gets a short first-meeting layer and a lived layer. A named boss
+the game never shows calm (`kind = boss`), or one of a voiceless kind (§7.1 F), gets the seen fields only: GraceUI lists
+and describes it, others' prompts see its `brief`, and it never converses; a voiceless one never speaks at all, and one
+of a kind that speaks keeps the combat lines of §9.10 (O42). Bosses whose bar shows a kind's name, and nomadic
+merchants, get no bio and stay mute unless a profile binds them (§7.1, §9.10; a merchant card is deferred, §1.2). The
+DLC's roster follows in v1.1 (O46). The census below settles the numbers; the research gives:
 
 | Group (base game) | Estimate | Source |
 |---|---|---|
@@ -902,42 +1006,87 @@ The owner decided on 2026-11-07 that v1.0 ships our own character profile for ev
 1. The GAL reads each nearby character's handle, NpcParam row, the row's `nameId`, its event entity id and the boss bar it holds (§4, §5.2).
 2. Resolution (§7.2), cached per handle, turns those keys into one **profile id**: a persona's row or entity, else a verified character binding (an exact row whose live `nameId` equals its `expect_name_id`, a non-zero entity, or the bar it holds now), else a card, the fallback or mute. Nothing speaks on an unverified binding.
 3. Whatever chose the speaker (the talk key's target order, §8.1; the scheduler's speaker selection, §9.4; the addressee of another NPC's line, §9.7) hands the core a handle, never a name.
-4. The profile id keys everything EldenNet holds about that NPC: its bio and stage track; its allowance slot (`persona:<id>`, `character:<id>`, `mine:<id>`); its event audiences, facts, journal, claims and `world_seen` for the journey; its cooldown keys; its seeds and pools; its GraceUI roster entry. Every form and reveal row binds the same id, and the alias table carries renames (NPC §2.4). Runtime names are never keys; they come from the player's install, and an NPC's own never enters its own prompt.
+4. The profile id keys everything EldenNet holds about that NPC: its bio and stage track; its allowance slot
+   (`persona:<id>`, `character:<id>`, `mine:<id>`); its event audiences, facts, journal, claims, lived layer and
+   `world_seen` for the journey; its cooldown keys; its seeds and pools; its GraceUI roster entry. Every form and reveal
+   row binds the same id, and the alias table carries renames (NPC §2.4). Runtime names are never keys; they come from
+   the player's install, and an NPC's own never enters its own prompt.
 
-**Grounding for an NPC without a stage track.** Positive grounding (O36) from these, and nothing else:
-- its bio: what it is on a first meeting, facts true at every state, and `knows_when` entries gated by verified world stages;
+**Grounding for an NPC without a stage track.** Grounding from the playthrough state (O36, O86), from these and nothing
+else:
+- its bio: its first-meeting layer, its `knows_when` entries once their verified stages hold, its companion layer when
+  the game summons it, and its lived layer;
 - its memories: the journal, facts and claims about the Tarnished, and keepsakes about other NPCs (below);
 - the land as it stands, by `known(C)`: MEM §12.5's rule with no stage, so the sky over where it stands, its `awareness.home` and the region it stands in now, word of the road (spoiler ≤ 1) and what it held at an earlier meeting;
 - the here and now: block 9's place, time, weather, nearby others, "just now" events and its "you, now" line;
 - its own story's stage only once a stage track exists for it: a flag block the census found, its stages authored and verified by S6, which makes it a persona (in v1.0, the six).
 
-It is never told a story it has not reached: a bio has no stage, fate, later form or reveal, `knows_when` unlocks only on verified flags, and `Locked(C)`, with the reveal terms and tells its research note gives (the pipeline's step 2 below), keeps every other term out of its lines (MEM §7.2).
+It is never told a story it has not reached: its first-meeting layer holds no secret, stage, fate, later form or
+reveal, and `knows_when` unlocks only on verified flags. Every background job that writes about it (the memory job, the
+lived layer's update, any later diary or summary job) reads the same grounded inputs as its dialogue, and no runtime
+filter checks its lines (§10.4; MEM §7).
 
-**Memories with other NPCs** (O45: "memories they make with the player or other NPCs via interactions"). In principle: every shown line is an audience-tagged `NpcSaid` event (O34), and every profiled NPC in its audience may remember it. An NPC-to-NPC exchange in which a profiled NPC spoke or was addressed merges into that NPC's next memory job (MEM §3.1), which may write keepsakes `about` the other NPC by its profile id, as `said` or `seen` (MEM §2.5 today accepts `said` only on a `PlayerSaid` line and renders it as the Tarnished's claim; the basis and rendering of a keepsake drawn from another NPC's line are designed with the rest below). O34's rule stands: a heard line spreads no news, so a keepsake about another NPC is never a world fact and never unlocks a term, and the job's spoiler check applies to it as to any keepsake. How these memories are stored, capped and recalled waits for Min's blueprint (below).
+**Memories with other NPCs** (O45: "memories they make with the player or other NPCs via interactions"). In principle:
+every shown line is an audience-tagged `NpcSaid` event (O34), and every profiled NPC in its audience may remember it,
+each witness writing its own first-person memory (§10.3; MEM §3). An NPC-to-NPC exchange in which a profiled NPC spoke
+or was addressed merges into that NPC's next memory job (MEM §3.1), which may write keepsakes `about` the other NPC by
+its profile id, as `said` or `seen` (MEM §2.5 today accepts `said` only on a `PlayerSaid` line and renders it as the
+Tarnished's claim; the basis and rendering of a keepsake drawn from another NPC's line are designed with the rest
+below). O34's rule stands: a heard line spreads no news, so a keepsake about another NPC is never a world fact and
+never unlocks anything, and the job, grounded like dialogue, writes it as any keepsake. Their caps, and recall across a
+roster of about 140, are designed with our own engine (below; MEM §4).
 
-**How each profiled NPC speaks** (field names O46's; blocks and caps provisional until Min's blueprint, below):
+**How each profiled NPC speaks** (fields O46's; blocks and caps provisional until our own engine's context assembly,
+below):
 
 | Line | From the bio | Rule |
 |---|---|---|
-| Conversation (`dialogue`, §8.3) | Block 2: `identity`, `public.summary`, `public.appearance`; block 3: `private.personality`, `private.honesty`; block 4: register, cadence, diction, address forms, `instructions`; block 5b: the land from `known(C)`, with no road; block 7: `knows`, active `knows_when`, the since-line and at most one cue; blocks 8–11 as a persona's | The same caps (≤ 3,500 tokens; cached prefix ≤ 1,460); conversable and safe context (§8.1); never while it holds a bar or invades |
-| Own-initiative calm lines (greetings, remarks, exchanges, autonomy, news by `awareness.news`) | The persona path (§8.9; NPC §7.8): the cached prefix above plus the motive line; autonomy offers one of its `subjects` | Pacing and allowances; O44 (after S8's sleep signal); quest business needs a stage track |
-| Combat lines | Seeds; pools from the character block (NPC §4.5) | Never live (O42); a boss's once S3 has recorded it |
+| Conversation (`dialogue`, §8.3) | Block 2: `identity`, `public.summary`, `public.appearance`, `public.role`; block 3: `private.personality`, `private.honesty`, `private.claims`, `private.seeks`, `private.ties`; block 4: register, cadence, diction, address forms, `instructions`; block 5b: the land from `known(C)`, with no road; block 7: `knows`, active `knows_when`, the since-line and at most one cue; blocks 8–11 as a persona's, its lived layer in block 8 after the disposition, block 3 leaving out what it supersedes (§8.3; MEM §13.6) | The same caps (≤ 3,500 tokens; cached prefix ≤ 1,460); conversable and safe context (§8.1); never while it holds a bar or invades |
+| Own-initiative calm lines (greetings, remarks, exchanges, autonomy, news by `awareness.news`) | The persona path (§8.9; NPC §7.8): the cached prefix above plus the motive line; autonomy offers one of its `subjects`; the speaker choice at shared places reads its `stirs` (§9.7) | Pacing and allowances; O44 (after S8's sleep signal); quest business needs a stage track |
+| Combat lines | Seeds; pools from the character block (NPC §4.5); when the game summons it, its companion layer | Never live (O42); a boss's once S3 has recorded it |
 | Others' prompts | `brief` | — |
-| The memory job | `brief`, `public.summary`, `private.honesty` | MEM §3.3 |
-| GraceUI's roster | `public.summary` and `subjects`; the name from the player's install | The Stranger Test at the opening state |
+| The memory job; the lived layer's update | The memory job: `brief`, `public.summary`, `private.honesty`; the update: its first-meeting layer, the revealed entries unlocked for the journey and the memories it cites | Never more than the layers unlocked for the journey (O86); MEM §3.3, §13.3 |
+| GraceUI's roster | `public.summary`, `public.role` and `subjects`; the name from the player's install | The Stranger Test at the opening state (GraceUI D67) |
 
-**Bosses and invaders.** Built-in rules (a) and (b) hold: a bar holder and an invading phantom speak combat lines only. A named boss or invader therefore converses only where the game lets the Tarnished meet it calm and not hostile, outside its fight; for most this never happens, and their bios serve their combat lines, others' prompts, the roster and the memory of their fights, which is kept all the same and shows in any conversation it later holds. **The player's own character profiles** use the same bio and the same rules: an NPC with a profile converses and remembers, whoever wrote the profile (§7.7).
+**Bosses and invaders.** Built-in rules (a) and (b) hold: a bar holder and an invading phantom speak combat lines
+only. A named boss or invader therefore converses only where the game lets the Tarnished meet it calm and not hostile,
+outside its fight; for most this never happens. A boss the game never shows calm has the seen fields only (above), so
+its bio serves the roster, others' prompts and, for a kind that speaks, its combat lines (§9.10); an invader's full bio
+serves its combat lines, others' prompts, the roster and the memory of its fights, which is kept all the same and shows
+in any conversation it later holds. **The player's own character profiles** use the same bio and the same rules: an
+NPC with a profile converses and remembers, whoever wrote the profile (§7.7).
 
-**The roster pipeline.** Two prerequisites first, as the owner set them: (1) Min's engine blueprint, and the owner's decision on what EldenNet adopts from it; (2) the bio's structure (O46). Then, per batch of NPCs (a region or a hub, so that a batch's captures share saves):
+**The roster pipeline.** Two prerequisites first, as the owner set them, both now settled: (1) Min's engine blueprint,
+and the owner's decision on what EldenNet adopts from it (O84: an engine of our own); (2) the bio's structure (O46).
+Then, per batch of NPCs (a region or a hub, so that a batch's captures share saves):
 1. **Census** (`en-tools roster-scan`, offline, on the author's machine): from the author's own exports and install data (params through `identity-fill`, names through `fmg-import`'s local database; ARCH §12.3), every NpcParam row with a personal name, its `nameId`, entity ids where known, its flag block if one exists, and each boss encounter's bar name id. It writes `roster.local/census.toml` (git-ignored; names stay there). The committed index gets ids, numbers and our slugs only, every binding a lead (`verified = false`).
-2. **Research** in our own words: one note per NPC under `docs/authoring/roster/` (its kind, where it is first met, what a first meeting shows, its temperament and voice, and its spoiler ceiling: what the story later discloses, named as a topic, never stated), from the research documents and the author's play; never a quoted or close-paraphrased game line. Each spoiler-ceiling topic also becomes reveal terms and tells in `lexicon/reveals.toml` (MEM §7.2), each with its `unlock` or none (then only the game showing the name releases it, per turn). As W14 does for a persona's `forbid`, every topic is covered by at least one reveal term or tell, so `Locked(C)`, PL7, PL11, the output lock and the second reader's reveal list cover it.
-3. **Draft** (`en-tools roster-draft`, offline): one call per NPC on the author's chosen provider turns the note into a draft bio in `drafts.local/roster/` (git-ignored). It reads the note, the schema, our labels and caps, and nothing else: no game text, export, vanilla line or other profile.
-4. **Review:** a person edits and accepts every field and its seeds; `kb-draft --check` finds no run of ≥ 6 words shared with the author's export; the profile lints PL1–PL12 pass (NPC §4.8) and its reveal terms and tells exist (step 2); a second reader does the spoiler review (below). The file records `drafted = "assisted"` and its review id.
+2. **Research** in our own words: one note per NPC under `docs/authoring/roster/` (its kind, where it is first met,
+   what a first meeting shows, its role, what it claims and seeks, the people it names, what stirs it, its temperament
+   and voice, how it fights if the game can summon it, and the later truths the story discloses about it, each named
+   as a topic, never stated), from the research documents and the author's play; never a quoted or close-paraphrased
+   game line. The later truths it lists are the topics of its test questions (§10.4; NPC §12.1), as a persona's
+   `forbid` topics are, and the review reads the bio against them (step 4).
+3. **Draft** (`en-tools roster-draft`, offline): one call per NPC on the author's chosen provider turns the note into a
+   draft bio in `drafts.local/roster/` (git-ignored), every layer the NPC gets included. It reads the note, the schema,
+   our labels and caps, and nothing else: no game text, export, vanilla line or other profile.
+4. **Review:** a person edits and accepts every field and its seeds; `kb-draft --check` finds no run of ≥ 6 words
+   shared with the author's export; the profile lints pass (NPC §4.8); a second reader does the spoiler review
+   (below). The file records `drafted = "assisted"` and its review id.
 5. **Bind:** `identity-fill` fills `expect_name_id`; the S1 and S2 captures verify the bindings (below); S3 records each named boss's kind before its combat lines play.
-6. **Eval:** the roster eval (NPC §12.1) before the bio speaks in a build for testers.
+6. **Eval:** the roster eval (NPC §12.1), its test questions included, before the bio speaks in a build for testers.
 7. **Ship** with its release checklist (NPC §12.4).
 
-**The spoiler review at first-meeting level.** GraceUI lists the roster from the start, at the title screen too (GraceUI G5, G8), so `brief`, `public.summary`, `public.appearance` and `subjects` must hold at the opening fixture state, before any stage: who the NPC appears to be on a first meeting, and, for a boss the game never shows calm before its fight, what the opening of that fight shows; an NPC the game can show calm is described by that meeting, never by a later fight; never its lineage, fate, later form, reveal, story role or a relation the story discloses later (the Stranger Test, NPC §3.1; PL11). Every prompt-facing field and seed must also hold at every fixture state, since a bio is stage-independent (PL7). A second reader reads each bio against the reveal list and the author's own export, and the checklist records the review.
+**The spoiler review at first-meeting level** (a review when the bio is written, not a lint against locked sets; O86).
+GraceUI lists the roster from the start, at the title screen too (GraceUI G5, G8), and its entries show
+`public.summary`, `public.role` and `subjects` (GraceUI D67). So the review reads `brief`, the public fields,
+`subjects`, `stirs`, `claims`, `seeks` and `ties` at the opening state, before any stage: who the NPC appears to be on
+a first meeting, and, for a boss the game never shows calm before its fight, what the opening of that fight shows; an
+NPC the game can show calm is described by that meeting, never by a later fight; never its lineage, fate, later form,
+reveal, story role or a relation the story discloses later (the Stranger Test, NPC §3.1), and never its own name
+before the game shows it. Every other field and seed is read as text the NPC holds at every state, and each
+`knows_when` entry at the stage that unlocks it. A second reader reads each bio against the later truths its research
+note lists and the author's own export, and the checklist records the review; PL11 keeps the first-meeting fields'
+mechanical checks (banned words, quoted lines, template syntax; NPC §4.8).
 
 **Bindings at scale.** About 140 NPCs need a verified key before they speak:
 - **S1 roster captures** (rows and entities, and the forms a reveal or a hostile turn uses): recordings at the author's saves across one full playthrough, about a dozen points, each NPC seen once while F11's unknown-characters list and the sightings record its keys; `en-tools roster-verify` matches the leads to what was seen and writes evidence records to `tests/roster/`, as `flag-verify` does for S6. About 2–4 minutes per NPC on a prepared save: roughly 5–8 hours.
@@ -958,22 +1107,55 @@ tests/roster/                     # S1 and S2 binding evidence records
 roster.local/, drafts.local/roster/   # git-ignored: the census (names stay here) and drafts
 ```
 
-The index is loaded at start; a bio loads when its NPC first resolves, and stays cached. The DLC's entries carry `content = "dlc"` and load from the release that ships them (v1.1 under O46's recommendation, earlier for any whose bindings verify in time).
+The index is loaded at start; a bio loads when its NPC first resolves, and stays cached; its lived layer is kept with
+the playthrough (§10.1). The DLC's entries carry `content = "dlc"` and load from the release that ships them (v1.1,
+O46; earlier for any whose bindings verify in time).
 
-**Cost.** Authoring: about 115 full bios at about 1 hour 10 minutes each (the note 20–30 minutes, review and seeds 20–30 minutes, its reveal terms and tells 5–10 minutes, the second reader 10 minutes) and 15–20 silent bios at about 20 minutes, their reveal terms included: about 140 hours. Captures: about 27–33 hours in game on prepared saves (the S3 records for invasions and hostile forms included), plus the play needed to make them: one full playthrough (or NG+ cycle) with a save before each named boss fight and each later form (S2 alone needs about 40–60), unless the author's own saves already cover them. Money: about 140 drafts of about 4,000 tokens, and a roster eval of about 3,000 turns at about $0.0002 a turn on the cloud-budget preset (≈ $0.60 a run, plus the judge): a few dollars per release. At run time the roster adds one source of calls of its own: memory jobs from NPC-to-NPC exchanges (MEM §3.1), one open job per NPC and one memory request at a time. Since own-initiative lines are ≤ 240 an hour at the defaults (§9.8), exchanges give at most about 240 such jobs an hour in the worst case (fewer under MEM §3.1's provisional cap of one exchange-created job per NPC per 10 minutes of play), outside the $0.05-an-hour bound for lines; their trigger and cap stay provisional until Min's blueprint. Conversations follow the player. A character's calm line now costs a persona line (≈ $0.0002 instead of ≈ $0.00006), inside the existing worst case of $0.05 an hour.
+**Cost.** Authoring: about 115 bios with every layer they get, at about 1 hour 10 minutes each (the note 20–30
+minutes, review and seeds 20–30 minutes, its test questions 5–10 minutes, the second reader 10 minutes), and 15–20
+silent bios at about 20 minutes: about 140 hours, an upper estimate, since a boss the game never shows calm holds the
+seen fields only. Captures: about 27–33 hours in game on prepared saves (the S3 records for invasions and hostile
+forms included), plus the play needed to make them: one full playthrough (or NG+ cycle) with a save before each named
+boss fight and each later form (S2 alone needs about 40–60), unless the author's own saves already cover them. Money:
+about 140 drafts of about 4,000 tokens, and a roster eval of about 3,000 turns at about $0.0002 a turn on the
+cloud-budget preset (≈ $0.60 a run, plus the judge): a few dollars per release. At run time the roster adds calls of
+its own: memory jobs from NPC-to-NPC exchanges (MEM §3.1), one open job per NPC and one memory request at a time.
+Since own-initiative lines are ≤ 240 an hour at the defaults (§9.8), exchanges give at most about 240 such jobs an hour
+in the worst case (fewer under MEM §3.1's provisional cap of one exchange-created job per NPC per 10 minutes of play),
+outside the $0.05-an-hour bound for lines; their trigger and cap stay provisional until our own engine's design
+(below). The lived layer's updates run only at quiet moments with new cited memories (MEM §13.2), and a
+next-speaker decision only when pacing would admit a line (§9.7). Conversations follow the player. A character's calm
+line now costs a persona line (≈ $0.0002 instead of ≈ $0.00006), inside the existing worst case of $0.05 an hour.
 
-**Schedule risk** (K29). About 170 hours of authoring and capture, plus a playthrough to prepare saves, sit on v1.0's critical path, after two prerequisites whose dates EldenNet does not control. Mitigation: `roster-scan`, `roster-draft`, `roster-verify` and PL10–PL12 are built as soon as O46 is decided; batches by region and hub; drafts from our own notes, so the time goes to review; short silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC waits for v1.1; and, by the owner's decision (O54), the game's data (its ids and such) is researched and documented now, before the prerequisites, while the tools themselves wait for the blueprint.
+**Schedule risk** (K29). About 170 hours of authoring and capture, plus a playthrough to prepare saves, sit on v1.0's
+critical path. The owner's prerequisites are settled (O84, O46), so what remains ahead of the census is our own work:
+the roster's tools and our own engine. Mitigation: `roster-scan`, `roster-draft`, `roster-verify` and PL10–PL12 are
+built now that O46 is decided; batches by region and hub; drafts from our own notes, so the time goes to review; short
+silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC
+waits for v1.1; and, by the owner's decision (O54), the game's data (its ids and such) is researched and documented
+ahead of the tools.
 
-**Deferred until Min's blueprint** (not designed now). Min, SkyrimNet's author, has offered the game-agnostic engine core: an LLM layer, TTS, STT, a prompt engine and a context engine. Its blueprint may replace parts of EldenNet's memory, prompt and context design, so these are stated above as principles and designed only after the owner decides what EldenNet adopts. The owner decided on 2026-11-07 that EldenNet's foundation will be based on SkyrimNet, with Min's approval to use and adapt its engine and content (CLAUDE.md, Licences):
-- how memories of other NPCs are stored, capped and recalled, and whether a roster of about 140 needs retrieval (the `Recall` seam, MEM §4.5) or relations between NPCs;
-- the memory job's trigger, evidence and prompt for NPC-to-NPC exchanges;
+**Deferred to our own engine's design** (O84; roadmap S8.1.b, S8.1.c). Min's engine arrived on 2026-11-15 as a closed
+DLL, and the owner chose an engine of our own, MIT, following SkyrimNet's proven logic and structure but not its
+prompts (O84). These parts are stated above as principles and designed with that engine; what is already settled for
+it is noted where it applies:
+- how memories of other NPCs are capped and recalled across a roster of about 140, and relations between NPCs. Settled
+  for it: each witness writes its own memory, as keepsakes with schema-bound fields (`emotion`, `tags`, `type`,
+  `actors`, `place`; MEM §2.3), and recall, after v1, gathers candidates in code and asks a gate behind the `Recall`
+  seam (MEM §4.5);
+- the memory job's trigger, evidence and prompt for NPC-to-NPC exchanges (provisional in MEM §3.1: a job for a witness
+  that overheard ≥ 2 player lines or saw an attack, a death or a boss victory, at most one per NPC per 10 minutes of
+  play);
 - the basis and rendering of a keepsake drawn from another NPC's line (MEM §2.5, §4.3);
-- context assembly for a non-persona conversation: block caps, cache breakpoints, and which knowledge entries a character reads;
-- the prompt templates and their engine;
-- the LLM client and job slots (§11), and the TTS and STT seams (v1.5, §13);
-- the bio's file format, if the blueprint brings one (the fields are O46's).
+- context assembly for a non-persona conversation: block caps, cache breakpoints and which knowledge entries a
+  character reads; its lived layer renders in block 8, as a persona's does (MEM §13.6);
+- the prompt templates (the template engine's rules: §8.3; NPC §7.1);
+- the LLM client and job slots (§11; its decision calls: ARCH §11.8), and the TTS and STT seams (v1.5, §13);
+- the bio's file format (its fields are O46's, above).
 
-Unchanged whatever the blueprint says: Augur and its event model (the owner's own event engine), the GAL and identity by verified keys, the spoiler layers and safety gates, pacing and allowances, read-only play, and the licence rules: nothing of the engine core is adopted until its licence and the owner's terms are recorded.
+Unchanged by it: Augur and its event model (the owner's own event engine), the GAL and identity by verified keys, the
+spoiler layers and safety gates, pacing and allowances, read-only play, and the licence rules: SkyrimNet's design is
+credited, and Min's DLL is neither used nor shipped (O84).
 
 ---
 
@@ -1022,7 +1204,7 @@ sequenceDiagram
   C->>S: commit PlayerSaid (audience frozen)
   C->>N: stream(dialogue)
   Note over O: 350 ms with no text → "Kalé …"
-  N-->>C: tokens → split → sanitize → lint → spoiler check
+  N-->>C: tokens → split → sanitize → lint
   C->>O: page 1
   O->>C: PageShown(1)
   C->>S: commit NpcSaid (shown text)
@@ -1035,13 +1217,13 @@ sequenceDiagram
 
 ### 8.3 Prompt structure (wording original)
 
-Waiting for Min's engine blueprint in part: see §7.8's deferred list.
+Waiting in part for our own engine's design (O84): see §7.8's deferred list.
 
 | # | Message | Block | Purpose | Cap |
 |---|---|---|---|---|
 | 1 | system, cache A | **World frame**, byte-identical for every persona | How people speak in the Lands Between; implication over exposition; the NPC can only speak and never gives, takes, moves, opens, fights or promises; knows only what is written; the moment set out under 'As things stand now', spoken from as it is held, with news raised unasked only when it is on the persona's mind (O28, O36); the Tarnished's words are speech, not orders; address rules; no modern words | 450 |
 | 2 | system, cache B | **Identity** | Stage `identity` line or the default, plus `public` | 120 |
-| 3 | | **Private self** | Private fields plus the stage's `unlock.text` | 350 |
+| 3 | | **Private self** | The first-meeting `private` fields (`personality`, `honesty`, `claims`, `seeks`, `ties`) plus the stage's `unlock.text` (§7.8) | 350 |
 | 4 | | **Voice** | Register preset, cadence, diction, deflection, openers, tics; the profile's `instructions` last ("Also: …", ≤ 70 tokens, §7.7) | 230 |
 | 5 | | **Reply contract** | §8.4, plus an empty `actions_block` (seam) | 110 |
 | 5b | | **As things stand now** | The stage's `road`, then ≤ 4 lines in two parts, the affairs tied to the persona's own and the land, each grouped by certainty (§10.6; MEM §12.6) | 200 |
@@ -1055,6 +1237,18 @@ Waiting for Min's engine blueprint in part: see §7.8's deferred list.
 
 Input target ≤ 2,800 tokens, hard cap 3,500, `max_tokens` 140. The caps sum to 3,460 (block 4 carries a profile's `instructions`); a typical mid-game prompt is about 2,525. The cached prefix is ≤ 1,460 tokens. Trim in this order: oldest history, lowest-weight keepsakes (never the protected one), lowest-priority topic entries, nearby others; blocks 1–5b are never trimmed, nor are block 7's since-line (≤ 55 tokens) and reaction cue (≤ 35). Earlier turns stay in history as bare dialogue, so it stays byte-stable. A world change re-renders block 5b at the next turn, as a stage change does (NPC §3.2).
 
+A profiled NPC's lived layer (§7.8) renders in block 8, after the disposition, in at most 100 of its 450 tokens, and
+the lowest-weight keepsakes give way to it. Block 3 leaves out what it supersedes: the `private.seeks` entry an aim
+replaces and the first-meeting tie of a person it has a `towards` entry for. So it never grows cache B or the caps' sum
+(MEM §13.6). Its update runs on the `memory` slot (§11.2; MEM §13.8).
+
+**Templates** (NPC §7.1; WHY§99). Every prompt is a template on our own engine (O84), whose rules keep a prompt from
+going out half-built: an unknown name fails loudly, null and missing stay apart, booleans are real (the string
+`"false"` is not true), a substring test is a real one and the built-ins are safe on empty strings, so nothing
+unresolved ever reaches a model. The function reference and the lint's allowlist are generated from one registry.
+Records (memories, bios, plugin content) enter prompts as quoted data, never as instructions, and examples use names
+no record holds.
+
 ### 8.4 Output contract, sanitizer and lint
 
 **Contract:** speech only, 1–3 sentences, ≤ `reply_words_max` words. No name prefix, quotes, asterisks, stage directions, lists, emoji or reasoning.
@@ -1064,7 +1258,8 @@ The pipeline runs **per sentence, before display** (P3 §5.5):
 2. capture the **trailer** (`ACT:` / `ACTION:` in any wrapping) as `npc_intent` and never show it (SN07 §11.4-A);
 3. strip markup, bracketed directions, `*…*`, markdown, emoji and control characters;
 4. strip a leading `Name:` and wrapping quotes;
-5. **hard lint:** banned modern words, locked spoiler terms, high-confidence promise patterns ("take this", "here, have", "follow me", "I will meet you", "I'll give you");
+5. **hard lint:** banned modern words, high-confidence promise patterns ("take this", "here, have", "follow me",
+   "I will meet you", "I'll give you");
 6. **soft lint:** strip extra openers; log tic overuse, the wider promise list and unknown proper nouns for eval;
 7. caps: stop after the sentence that passes the cap + 10 words; 600 bytes per reply, 180 per page.
 
@@ -1106,11 +1301,11 @@ On end: write `ConversationEnded` and update facts. Queue a memory job if there 
 | Risk | Guard |
 |---|---|
 | Promises and claimed actions | World-frame honesty rule, hard promise lint, the trailer channel. The stage gist names only real vanilla acts |
-| Spoilers | §10.4. Developer labels never reach prompts |
+| Spoilers | Grounding alone, with no runtime filter (§10.4, O86). Developer labels never reach prompts |
 | Player claims | Stored as speech. The memory job tags them `basis = said`, and code renders them "The Tarnished told you…". Only a `check_key` predicate over game state promotes a claim (P1 §5.9, P2 §5.8) |
-| Player's name | Never in a prompt until the player introduces themselves in the persona's hearing. It is then stored as `told_name`, verified if it matches `PlayerGameData.name` |
+| Player's name | Never in a prompt until the player introduces themselves in the persona's hearing. It is then stored as `told_name`, verified if it matches `PlayerGameData.name` and marked heard if the persona only overheard it; block 8 renders it as told ("They told you their name is …"), asked ("They asked you to call them …", unverified) or heard ("You heard them give their name as …") (MEM §2.2) |
 | Lore drift | The KB is the only lore source; beyond it the NPC deflects or speaks as hearsay. Unknown proper nouns are counted in eval |
-| Injection | Markup stripped, 240-character cap, rendered only as quoted speech. With no actions, the worst case is an off-tone line |
+| Injection | Markup stripped, 240-character cap, rendered only as quoted speech; records enter prompts as quoted data (§8.3). With no actions, the worst case is an off-tone line |
 | Content safety | `faithful` (dark themes yes; sexual content and slurs no) or `gentle`; in-character refusals; no heavy-theme NPCs in the v1 roster |
 
 ### 8.9 Speaking up (named NPCs)
@@ -1234,6 +1429,10 @@ Outside a fight, status lines and answers keep the Autonomous priorities (§9.7)
 - no native talk and no scripted line within 20 m (for persona lines: now or in the last 3 s, §8.9 rule 1), and no NPC within 20 m that may voice scripted lines without a verified detector for its kind: a non-persona `named` NPC, a `merchant`, an `invader`, a `summon:npc`, or a card NPC whose card is not recorded `scripted = "none"` (the fallback card included); creatures, mounts and spirit summons do not count unless S3 records otherwise; unknown → held. Before S3, no persona own-initiative line, and generic lines are suppressed within 15 m of any persona or any non-persona `named`, `merchant`, `summon:npc` or `invader` NPC (every own-initiative line);
 - the speaker is not speaking scripted dialogue: its kind's scripted-line detector is verified and reports it silent for ≥ 1 s, or S3 (or S7's camp recordings) recorded that its kind has no scripted combat lines (`scripted = "none"` in the card file, the persona's form row or `types.toml`'s per-boss entry; default `unknown`); unknown → held (every combat line);
 - for a prepared persona line (§8.9), the request needs the Tarnished within `range.talk_m + 12 m`, and the display of one addressed to the Tarnished needs `range.talk_m`;
+- a greeting or any line addressed to the Tarnished needs the Tarnished not concealed from the speaker (crouching more
+  than 5 m from it, or under an invisibility effect, each once verified in game; §6.5; ARCH §8.7): while it is, no
+  greeting and no line addressed to it starts (a greeting waits until it is not), and a conversation the Tarnished
+  opens is untouched;
 - and the family gates of §9.10 and NPC §9.4.
 
 **Pacing** (O31) is the only limit on how often NPCs speak, in three rules:
@@ -1252,7 +1451,16 @@ Pacing defaults and bounds (`settings.toml` `[pacing]`, in play time; the Pacing
 | `idle_max` | 2 | 0–8 | Idle remarks per window: off 0, sparse 2 (O14's default), normal 4 |
 | `talk_max` | 4 | 0–12 | Talk per window: greetings, quest business, exchanges, autonomy, witness remarks, calm status lines |
 
-**The reservation rule for live calls.** A request that needs a model call (a persona line in the Autonomous class; a generic autonomy tick) is sent only if admission (NPC §9.4, step 3) would admit a line at that moment. Sending it takes one window slot and holds the cooldown key (a **reservation**), so no second call for the same key goes out while the call is in flight or its line waits. When the line displays, its window entry takes the display time and the type's cooldown starts; the gap is checked again at display. A reservation that ends with no line shown (silence, a failure, a timeout, an unshown discard, or a cancellation: an input epoch, native talk or a scripted line within 20 m, a conversation opening, the player's `Submit`) keeps its window slot until the slot ages out from the send time, and releases the cooldown key; autonomy, whose cooldown is its period, records it at send. So model calls per window never exceed the class's cap, and an NPC is prompted only when pacing would let a line through.
+**The reservation rule for live calls.** A request that needs a model call (a persona line in the Autonomous class; a
+generic autonomy tick; a next-speaker decision, which shares one reservation with the line it chooses, §9.7) is sent
+only if admission (NPC §9.4, step 3) would admit a line at that moment. Sending it takes one window slot and holds the
+cooldown key (a **reservation**), so no second call for the same key goes out while the call is in flight or its line
+waits. When the line displays, its window entry takes the display time and the type's cooldown starts; the gap is
+checked again at display. A reservation that ends with no line shown (silence, a failure, a timeout, an unshown
+discard, or a cancellation: an input epoch, native talk or a scripted line within 20 m, a conversation opening, the
+player's `Submit`) keeps its window slot until the slot ages out from the send time, and releases the cooldown key;
+autonomy, whose cooldown is its period, records it at send. So model calls per window never exceed the class's cap,
+and an NPC is prompted only when pacing would let a line through.
 
 Opening any box advances the player-input epoch, which drops pending own-initiative lines (#691). Deadlines are stamped in the overlay's own clock, which drops a late bark at draw time (P2 §2.3, J3 #13).
 
@@ -1284,9 +1492,23 @@ NPCs may greet the Tarnished or each other to start a dialogue, and react to eac
 - **`greet_npc`.** On `CameNear{X, Y}` for two NPCs on the same side (the same card or the same live team), or, once S7 verifies the team-pair table, a pair it marks not hostile, with the Tarnished within `range.hear_m` of X, so the player overhears it; cooldown 300 s per pair. It opens an exchange (below).
 - **One line, several motives.** A persona's greeting carries a news cue when one is armed (O30) and the quest business when `stage_talk` is armed (its task block then renders the `stage_talk` motive line alone, which already says the Tarnished is near, never both lines; NPC §7.8); one line serves all of them, and each motive's cooldown is recorded.
 - **Priority inside `Autonomous`** (0 is highest): `stage_talk` 1, `greet_player` 2, `answer` and calm status lines 3, `saw_kill` and `saw_victory` 4, `greet_npc` 5, `autonomy` 7.
+- **The next speaker at a shared place** (ARCH §11.8; WHY§98, WHY§99). Where several profiled NPCs could speak up at
+  once (a hub such as the Roundtable Hold), the next own-initiative speaker is a decision call on the `decisions` slot
+  (§11.2): code builds the legal options, the NPCs that every gate and pacing would admit now, each with its `stirs`
+  and the motive that armed it, and always offers silence; the model picks one; code takes the line's addressee from
+  its motive's talk target, never from the model. The rules fallback is the priority order above. Answers keep their
+  own rule ("Who may answer", below), and a place with one candidate needs no decision.
 - **Lines are events.** Every shown own-initiative line and every committed reply is an `NpcSaid` event (§6.5): P with a profiled speaker (a persona or a character, O45; stored, with its audience), K with a card speaker (RAM only, TTL `heard_ttl_s` = 6 s, key `said:{speaker}`). It carries `to` (the addressee, if any), `motive` and the line (a card's text is held in RAM only, with its pool or seed id). The speech radius (16 m) decides who hears it.
 - **Who may answer.** The addressee, if the line has one; otherwise the nearest listener within 16 m, on the speaker's side for a calm line and on either side for a Combat-class line. Never the speaker itself (never react to your own lines). The answerer needs the `npc_to_npc` feature and allowance, a voice source, alive and conscious, and no conversation with the Tarnished.
-- **Persona listeners.** The heard line enters block 9's "just now" lines (MEM §1.4: "{speaker} just said to {to}: "…"", the quoted line cut at a word boundary, with "…", so that the whole heard line stays ≤ 25 tokens by MEM §0's estimate) only if it holds no term or tell of `Locked(L)`, and only if the names leave room for 3 words or more; otherwise the persona gets "{speaker} just said something to {to}." without the text (a line with no addressee: "{speaker} just called out: "…"" / "{speaker} just called out."). A heard line never adds a `known()` path (as the Tarnished's word never does, MEM §12.5), so no news spreads between personas (§18, "Shared news"). Outside a fight, with `npc_to_npc` on, the persona may answer with one live line (Autonomous class, the `answer` motive line of NPC §7.8). In a fight, personas answer only through their combat types. A listener bound by a character profile follows the same rule since O45 (§7.8).
+- **Persona listeners.** The heard line enters block 9's "just now" lines (MEM §1.4:
+  "{speaker} just said to {to}: "…"", the quoted line cut at a word boundary, with "…", so that the whole heard line
+  stays ≤ 25 tokens by MEM §0's estimate) only if the names leave room for 3 words or more; otherwise the persona gets
+  "{speaker} just said something to {to}." without the text (a line with no addressee:
+  "{speaker} just called out: "…"" / "{speaker} just called out."). A heard line never adds a `known()` path (as the
+  Tarnished's word never does, MEM §12.5), so no news spreads between personas (§18, "Shared news"). Outside a fight,
+  with `npc_to_npc` on, the persona may answer with one live line (Autonomous class, the `answer` motive line of NPC
+  §7.8). In a fight, personas answer only through their combat types. A listener bound by a character profile follows
+  the same rule since O45 (§7.8).
 - **Generic listeners** answer from authored response pools keyed to the line they answer: pool key `{card}@{hash}/{variant}/answer:{answered_trigger}/{ctx}`, generated by `bark_pool` with the answered key's last 6 lines as the moment, plus 3 `answer` seeds per card that fit any line ("Aye." "Hm. If you say so." — ours). Combat class in a fight (cross-side banter is natural: a soldier answering Blaidd's taunt), Autonomous outside.
 - **Exchanges.** A greeting between NPCs (`greet_npc`) or any heard line can open an exchange; its lines form one group for admission step 2 (NPC §9.4). The player sees it as overheard lines (labels and feed). Native talk and the player's own conversation take precedence (§9.4).
 - **Setting:** `features.npc_to_npc` (default on) and the `npc_to_npc` allowance per type and slot (§7.6).
@@ -1347,9 +1569,26 @@ Combat dialogue is on by default for every type, for any NPC engaged in combat w
 - **The `boss_fight` allowance** exists for every type and slot and is **on by default**; the player can turn it off per type. During `boss.active` only combat lines play; calm motives wait, because the Tarnished is in combat.
 - **The scripted-line rule.** A line in a boss fight needs its speaker's kind and every bar holder's kind to pass the scripted-line gate (§9.4). "Speaking scripted dialogue" is read per NPC from S3's talk observer and the `NativeLineHeard` seam, which goes live as a detector of scripted combat and boss lines, not only talk menus, for each kind S3 verifies (per kind: ≥ 95% of ≥ 30 scripted lines of that kind detected as "speaking" within 0.3 s of their start, and no "speaking" report over 10 min of that kind's combat with no scripted line playing). For a bar holder with no persona, the kind is the boss itself (its NpcParam family), not the `boss` type: each boss is verified, or recorded `scripted = "none"`, on its own, in `types.toml`'s per-boss entries (data only, never a row on the page), and a boss S3 has not recorded stays held. Until S3 verifies a kind, that kind's lines in a boss fight are held: the default is on, and it takes effect kind by kind as the detector passes. Kinds that S3 or S7 recorded as having no scripted combat lines need no detector.
 - **Display.** The existing presentation gates hold: no line over a banner; our lower third sits above the native subtitle band; if a scripted line starts while ours shows, ours fades over 300 ms, and a pending one waits within its expiry or is dropped.
-- **Bosses' own voices.** A boss bar holder with no persona has a voice only when a character profile binds it (§7.7): ours, for every named boss, from v1.0, or the player's own (O43 as updated). It then speaks combat lines only, from its profile's seeds and pools, never live, once S3 has recorded that boss; without a bound profile it says nothing, whatever its allowance (O19 for shipped content). Personas in their boss or hostile forms (Patches in his cave, Blaidd at `mad`, Alexander at the end of his road, Varré at `maze_fight`) speak combat lines in their own voice once S3 has verified their scripted-line detector.
+- **Bosses' own voices.** A boss bar holder with no persona has a voice only when a character profile binds it (§7.7):
+  ours, for every named boss, from v1.0, or the player's own (O43 as updated). It then speaks combat lines only, from
+  its profile's seeds and pools, never live, once S3 has recorded that boss; without a bound profile it says nothing,
+  whatever its allowance (O19 for shipped content). A named boss the game never shows calm keeps the seen fields and
+  never converses, and one of a voiceless kind (§7.1 F) never speaks: our bio for it holds the seen fields only (§7.8).
+  Personas in their boss or hostile forms (Patches in his cave, Blaidd at `mad`, Alexander at the end of his road, Varré
+  at `maze_fight`) speak combat lines in their own voice once S3 has verified their scripted-line detector.
 - **Engagement between any two combatants** (§5.3, ARCH §8.7): the machine runs per pair (A, B) on hostile sides: the Tarnished and a hostile NPC (as today, with every start condition), or two NPCs on different sides that exchange hits or that the team-pair table marks hostile. For NPC pairs only two start conditions exist: `Hit` (0.9), a hit exchange between them (`Struck{att: A, vic: B}` either way, from HP deltas and `last_hit_by`, both read today), from v0.4 once S7 has verified `last_hit_by` for NPC attackers (until then NPC pairs never engage, `FoeKilled` is not emitted, and a `Struck` on an NPC victim whose `last_hit_by` names another NPC carries `att: None`); and `Near` (0.6, ≤ 8 m), only once S7's additions have verified a **team-pair table** in `teams.toml` (which live team pairs fight each other). Lock-on conditions are the Tarnished's only. An NPC's current AI target has no tested offset (ER05 §6.2); S7 may find one later behind the same signal. Squads form per side (same card, or the same live team for non-card NPCs).
-- **Named NPCs in combat** speak combat lines in their own voice, **from seeds and pools, never live**: a combat line is worth showing only within its 1.2–3 s expiry and C6 wants 95% within 0.5 s, which a live call (1.5 s to the first token on `bark_live`) cannot meet. Seeds: `[seed]` in the persona file, 3 lines for each combat type the persona can meet (`engaged`, `struck_hard`, `low_hp`, `ally_fell`, `foe_fell`, `status_self`, `status_warn`, `answer`: 24 lines) for the four personas who fight in v1 (Blaidd, Alexander, Patches, Varré; Kalé and Boc never fight). Pools: `bark_pool` jobs with the shared bark frame (cache A) and the persona block (cache B: identity, voice and the active stage's `road`), whose stance comes from that identity and road, with no hostility or amnesia clause; validated like card pools plus the hard lint against `Locked(P)`; key `persona:{id}@{persona_hash}/{stage}/{trigger}/{ctx}`, `ctx` the opponent bucket (NPC §9.5). The latency budget is the persona combat line row of §1.4: shown ≤ 0.3 s after the event, dropped at expiry. They show as labels and feed lines, with the persona's name in the feed.
+- **Named NPCs in combat** speak combat lines in their own voice, **from seeds and pools, never live**: a combat line
+  is worth showing only within its 1.2–3 s expiry and C6 wants 95% within 0.5 s, which a live call (1.5 s to the first
+  token on `bark_live`) cannot meet. Seeds: `[seed]` in the persona file, 3 lines for each combat type the persona can
+  meet (`engaged`, `struck_hard`, `low_hp`, `ally_fell`, `foe_fell`, `status_self`, `status_warn`, `answer`: 24 lines)
+  for the four personas who fight in v1 (Blaidd, Alexander, Patches, Varré; Kalé and Boc never fight); a summoned NPC
+  speaks from its bio's companion layer, `companion.skills`, `companion.beside` and its combat seeds (§7.8). Pools:
+  `bark_pool` jobs with the shared bark frame (cache A) and the persona block (cache B: identity, voice and the active
+  stage's `road`, and for a summoned NPC its companion layer), whose attitude comes from that identity and road, with
+  no hostility or amnesia clause; validated like card pools, and grounded like every background job (§10.4); key
+  `persona:{id}@{persona_hash}/{stage}/{trigger}/{ctx}`, `ctx` the opponent bucket (NPC §9.5). The latency budget is
+  the persona combat line row of §1.4: shown ≤ 0.3 s after the event, dropped at expiry. They show as labels and feed
+  lines, with the persona's name in the feed.
 - **Audience:** combat lines are `NpcSaid` events heard within 16 m, so the other side may answer (§9.7).
 
 Pacing in a busy fight (default settings; S3 has verified Blaidd's scripted-line detector, and S7 has verified `last_hit_by` for NPC attackers and recorded `scripted = "none"` for the Godrick soldier and Vulgar Militia cards; the Tarnished and Blaidd, a persona ally, against a squad of three Godrick soldiers S1–S3 and a pair of militia M1–M2; ✓ admitted, ✗ refused, with the rule that refused it):
@@ -1373,17 +1612,30 @@ Six lines in the first minute, never closer than 2.5 s, never more than two labe
 
 ### 10.1 The model, and why
 
-Four stores:
+Four stores (MEM §2.1):
 - an **append-only event log** with audience rows (`how`);
 - deterministic **facts**;
 - **claims** (keepsakes with `basis = said`, promotable through `check_key`);
-- a versioned per-NPC **journal** (every profiled NPC, O45): a first-person summary of ≤ 120 words plus ≤ 8 keepsakes of ≤ 25 words, each with `basis`, `weight` and `about`.
+- a versioned per-NPC **journal** (every profiled NPC, O45): a first-person summary of ≤ 120 words plus ≤ 8 keepsakes
+  of ≤ 25 words, each one witness's own memory, with `basis`, `weight` and `about`, an `emotion` and up to 2 `tags`
+  that the model picks from closed lists, and a `type`, `actors` and `place` that code sets from the events it cites
+  (MEM §2.3).
+
+Beside them, a per-NPC **lived layer** for each journey (every profiled NPC that converses, O46; §7.8): its feeling and
+trust, what it has learned and aims that changed, updated at quiet moments from the memories it cites (MEM §13.2). It
+is built from the journal and versioned beside it, not a fifth source of memory (MEM §2.1, §13).
 
 The journal is sent **whole**: no retrieval, no ranking and no embeddings in v1. Why:
-- about 140 profiled NPCs in the base game (§7.8), most met briefly at fixed places (ER06 §5.4); whether the roster needs retrieval waits for Min's blueprint (§7.8);
+- about 140 profiled NPCs in the base game (§7.8), most met briefly at fixed places (ER06 §5.4); whether the roster
+  needs retrieval is designed with our own engine (§7.8);
 - keepsakes keep the callbacks that summaries fade;
 - one strict-JSON job per conversation suits small models;
 - the log keeps the raw material, so scene memories can be backfilled later behind `Recall` (J2 G9, J3 #23).
+
+When recall comes, after v1 (MEM §4.5's `SceneRecall`), code gathers the candidates (the actors present or named; two
+searches, on the player's line and on the conversation), diary entries stay out of it, and a gate on the `decisions`
+slot picks the memory meant or none, its question naming the setup, the matter and the outcome (MEM §4.5; ARCH §11.8).
+Code gathers and the model picks: no model is handed an index or told the joins (WHY§99).
 
 This replaces P1's FTS notes and their tuned weights (J2 #9).
 
@@ -1394,18 +1646,31 @@ This replaces P1's FTS notes and their tuned weights (J2 #9).
 | Event history | Lines said to or near them; deaths, attacks and rests witnessed; `FoughtBeside` | Augur, at emission |
 | Facts | `met_count`, `seen_count`, first and last place and playtime met, `times_attacked`, `fought_beside`, `seen_player_die`, `stage_seen`, `world_seen` (what the persona knew of the land at its meetings; MEM §12.7) and `world_seen_pt` (when that was last recorded; MEM §12.13), `world_cued` (each item a reaction cue has offered it in this journey, with the pt of its last cue, for the `news` cooldown; MEM §12.13), `spoke_pt` (the cooldown keys of its own unprompted lines, folded from its `NpcSaid` events; MEM §2.2), `told_name`, `verified:<key>` | Core, deterministic, immediately |
 | Disposition | −2..+2, shown in words, ±1 at most per conversation (P1 §7.2) | Memory job, bounded by code |
-| Journal | Summary plus keepsakes. The heaviest keepsake about the Tarnished with weight ≥ 0.7 is **protected** from eviction (P1 §7.4) | Memory job, at conversation end |
+| Journal | Summary plus keepsakes. The heaviest keepsake about the Tarnished with weight ≥ 0.7 is **protected** from eviction (P1 §7.4) | Memory job, at conversation end; each profiled witness of a scene in its own job (§10.3) |
+| Lived layer | Its feeling and trust towards the Tarnished and others, what it has learned, aims that changed; per journey, never in a shipped file (§7.8) | The lived layer's update, at quiet moments, changing only what cited memories justify (MEM §13.2, §13.5) |
 
 Cards remember nothing. Their per-handle cooldowns live in RAM and clear on rest, death or loading. Since O45 every NPC with a profile, personas and characters alike, remembers as this table says, keyed by its profile id, and a keepsake may be about another NPC it dealt with (§7.8).
 
 ### 10.3 The memory job
 
 - **Runs** when calm: on cloud after 10 s without combat; on local at the next rest or after 45 s calm.
-- **Input:** persona brief, current journal, committed lines, the "just now", knowledge and "As things stand now" lines that its prompts showed, pending notes from events (no extra call), and the stage gist and `road` with the news new to the persona since its last meeting (MEM §12.7).
-- **Output** (JSON schema where supported, else a strict parse): `{summary, keep[ids], keepsakes[{id|null, text, basis: said|seen, weight, about, refs[], check_key|null}], told_name|null, disposition_delta: -1|0|1}`. `keep` lists unchanged keepsakes by id, so they cost an id rather than a copy and the reply fits the slot's 500 `max_tokens`. `refs` cite numbered evidence lines, which is how code checks `seen`. At most 3 new keepsakes per job (MEM §3.4–§3.5).
+- **One memory per witness:** each profiled NPC in a scene's audience writes its own first-person memory of it, in its
+  own job, as schema-bound data (place, emotion, importance, tags, type) with actor ids, deduplicated by event id, so
+  no scene is remembered twice by one NPC (MEM §2.3). Besides the NPC spoken with, a job is created for one that
+  overheard ≥ 2 of the conversation's player lines, or saw an attack, a death or a boss victory; a job created by a
+  witness alone is at most one per NPC per 10 minutes of play (provisional; MEM §3.1).
+- **Input:** persona brief, current journal, committed lines, the "just now", knowledge and "As things stand now" lines
+  that its prompts showed, pending notes from events (no extra call), and the stage gist and `road` with the news new
+  to the persona since its last meeting (MEM §12.7). These are the grounded inputs of its dialogue and nothing more:
+  only the layers of its bio unlocked for the journey, never a later truth (O86; MEM §3.3).
+- **Output** (JSON schema where supported, else a strict parse): `{summary, keep[ids], keepsakes[{id|null, text,
+  basis: said|seen, weight, about, emotion, tags[], refs[], check_key|null}], told_name|null, disposition_delta:
+  -1|0|1}`. `keep` lists unchanged keepsakes by id, so they cost an id rather than a copy and the reply fits the slot's
+  500 `max_tokens`. `refs` cite numbered evidence lines, which is how code checks `seen`, and code sets each keepsake's
+  `type`, `actors` and `place` from them. At most 3 new keepsakes per job (MEM §3.4–§3.5).
 - **Code validation:**
-  - caps and the spoiler check;
-  - `told_name` only if a committed `PlayerSaid` contains it;
+  - caps;
+  - `told_name` only if a committed `PlayerSaid` contains it, marked heard when the NPC only overheard it (MEM §2.2);
   - `seen` only with a matching audience event, otherwise downgraded to `said`;
   - `check_key` only from a closed list (`slew:<boss>`, `name`, `great_runes>=n`), and promoted when its predicate holds; `slew:<boss>` also needs the persona to know that boss's world stage, so a claim it could not check stays a claim (MEM §2.5, §12.7).
 - **World news is not journalled:** a keepsake about the world that cites only world-news lines (As things stand now, the since-line, a reaction cue or a world topic offer) is dropped, because the world model already holds it (MEM §12.7).
@@ -1416,19 +1681,25 @@ Cards remember nothing. Their per-handle cooldowns live in RAM and clear on rest
 - **Catalogue** (`flags/catalog.toml`): `alias → {id | block + offset, kind (outcome | state), ng (reset | keep | unknown), src[], verified, spoiler 0..3, note}`. Everything else uses aliases. FromSoftware's developer flag labels are FromSoftware text, so they are **never stored in the repo**: the catalogue keeps only our own English `note` and a `src` pointer to where the label can be looked up (ER04 §7, MEM §6.1). Aliases and notes never reach a prompt.
 - **KB entry:** `{key, text ≤ 300 chars, requires, ephemeral, who, region, mode (always | topic), topics[], certainty (fact | rumour | belief), priority, spoiler, lexicon[]}`. Per turn: ≤ 4 `always` + ≤ 3 `topic` entries, by keyword match on the last 3 player lines and the NPC's last line. For one `key`, the highest-priority passing entry wins, so persona overrides replace rumours (SN04 §9.1). World stages are not KB entries and take no `always` slot (§10.6).
 - **Predicates:** `flag()`, `stage()` (a persona or a non-persona track), `boss()`, `world()` (a world stage holds), `knows()` (the persona knows a world stage; KB `requires` only), `runes >= n`, `region()`, `journey >= n`, with `&&`, `||`, `!`.
-- **Five layers** (P3 §7.6):
-  1. structure: the public/private split, stage unlocks, KB `requires`;
-  2. positive grounding: block 5b and world-frame items 4 and 9 set out the present; `forbid` topics are code-only data for the evals (O36);
-  3. a per-sentence spoiler lexicon with tells (multi-word phrases for spoiler ≥ 2 items and reveals), applied before display and on memory output;
-  4. runtime names;
-  5. the developer-label firewall.
-- **Hardening:**
-  - `spoiler ≥ 2` content unlocks only when every flag in its predicate is verified (P2 §7.4);
-  - the lexicon is generated from locked entries plus a reveal list, so it cannot drift from the content;
-  - world-stage lines, track `heard` lines and tie lines carry `lexicon[]` like KB entries, and the terms of news that holds but that a persona does not know are locked for that persona (ken-lock, MEM §12.8);
-  - **anti-priming lint:** no `forbid` entry, stance entry or prompt-facing field may contain a locked term, and no tell is a `public` term (J3 #21);
-  - **C9's judged part** (content beyond the moment ≤ 1%) and a fallback ladder: tells first, then a stance entry, then, as the last resort, the old forbid line for one persona and stage (MEM §7.8).
-- **Unverified flags gate only restrictively.** v1 ships strict mode only.
+- **Spoilers by grounding alone** (O86, simplifying O36). The playthrough state is the one mechanism: each prompt says
+  what the NPC knows at its stage, what it is doing and its own part in its quest (for example, what it asks of the
+  Tarnished at that stage), and the memory job, the lived layer's update, the pool jobs and any later diary or summary
+  job read the same grounded inputs, never more (MEM §7). What a prompt holds is safe by construction, so there is no
+  forbid list in a prompt (O36), no locked-term set, no output lock on model text, no tell or reveal list and no
+  fallback ladder. Its layers (P3 §7.6, as O86 leaves them):
+  1. structure: the public/private split, the bio's first-meeting and revealed layers (§7.8), stage unlocks, KB
+     `requires`;
+  2. positive grounding: block 5b and world-frame items 4 and 9 set out the present (§10.6); `forbid` stays as
+     eval-only data, the topics of each character's test questions;
+  3. runtime names: a character's own name stays out of its own prompt fields until the game has shown it (§7.2);
+  4. the developer-label firewall.
+- **Verified unlocks only:** `spoiler ≥ 2` content unlocks only when every flag in its predicate is verified (P2
+  §7.4), and an unverified flag can hide content but never unlock it. v1 ships strict mode only.
+- **Review, not lint:** authored stage texts, roads, KB entries and bio fields are reviewed when they are written, the
+  public fields by the Stranger Test (§7.8).
+- **The model's own knowledge** is what remains. A few test questions per character check what the model already knows
+  of Elden Ring from its training (C9; NPC §12.1); a model that leaks is replaced, or a later decision switches on a
+  light check.
 
 ### 10.5 Persistence, rollback and NG+
 
@@ -1437,12 +1708,14 @@ Cards remember nothing. Their per-handle cooldowns live in RAM and clear on rest
   - `fp8 = blake3(steamid ‖ slot ‖ name ‖ archetype ‖ starting gift if readable)[..8]` (the starting gift is the game's creation-time keepsake item, not a journal keepsake; MEM §8.3). Body type is excluded because it can change.
   - A new fingerprint in a used slot archives the old file.
 - **Global files:** `pools.sqlite` and `diag.sqlite` (traces, rotated at 50 MB).
-- **Hygiene:** WAL, `synchronous = NORMAL`, 64-bit keys, a numbered migration runner (one transaction each), and a backup at each playthrough start, keeping 3.
+- **Hygiene:** WAL, `synchronous = NORMAL`, 64-bit keys read as 64-bit, locale-proof number formatting, a numbered
+  migration runner (one transaction each, its statements split by SQLite's own statement parsing), tests with
+  realistic ids, and a backup at each playthrough start, keeping 3 (MEM §8, §10; WHY§98).
 - **Rollback clock** = `play_time` (SN04 §13.4):
   - DB ahead by ≤ 5 min: a silent trim (events, journal versions, facts recomputed);
   - further ahead: a modal, *Forget* (default) / *Keep* / *New character*, with writes buffered until the player answers;
   - the trim path has an automated test (#825).
-- **NG+:** journey = `ng_lvl + 1`. Earlier journeys are read-only and never injected.
+- **NG+:** journey = `ng_lvl + 1`. Earlier journeys, their lived layers included, are read-only and never injected.
 - **Player control:** "Forget this NPC" and "Forget this journey".
 
 ### 10.6 Quest and world awareness
@@ -1461,7 +1734,9 @@ Owner requirement (2026-11-06): important NPCs know where their own quest stands
 
   The cue is one fixed line in block 7 ("On your mind: …", ≤ 35 tokens), at most one per reply, offered until a reply carrying it displays; the model may still let it be. Its repetition follows the `news` cooldown (60 s of play per persona and item by default, O30, O31). Without a cue, world-frame item 9 lets the talk turn to the news (MEM §12.13).
 - **Memory:** the journal never copies the world model; facts gain `world_seen`, `world_seen_pt` and `world_cued` (each item's last cue pt); a `slew:<boss>` claim is proved only when the persona knows that boss's fall.
-- **Spoilers:** everything in §10.4 applies. Spoiler ≥ 2 news never spreads as loose word, and the terms of news a persona has not heard are locked for it. Every flag behind a world stage or track is a research lead until S6 verifies it (§16.1, MEM §12.12); in strict mode an unverified one keeps its item silent.
+- **Spoilers:** everything in §10.4 applies. Spoiler ≥ 2 news never spreads as loose word, and news a persona has not
+  heard is never in its prompt. Every flag behind a world stage or track is a research lead until S6 verifies it
+  (§16.1, MEM §12.12); in strict mode an unverified one keeps its item silent.
 - **Content:** 9 world stages (three late ones, the capital's king, the lord of blood and the ashen capital, reach none of the stages authored so far; Boc's Altus and Leyndell stages, due before v0.5, will bring the first and the third to him; MEM §12.4), one non-persona track (up to three if S6 finds the festival's and Ranni's flags), a `road` for every authored stage of the six personas (Alexander's beats after the festival and Boc's after +7, his reveal stage `later_form` among them, are in no label and get stages and roads once S6 finds their offsets, before v0.5: MEM §12.12 item 9; until then the persona keeps an earlier road), ≤ 6 ties each, and a bridging stage wherever a road waits on a world event (NPC §3.6). Related quests in v1: Patches with Tanith (a track tie, once S6 settles which label set her block uses and records where Patches' +11 takes place); Varré with the lord of blood and Boc with the queen once S6 records them; Blaidd with Ranni and Alexander with the festival's host wait for their flags, or for the festival's own flags 9410–9413 (MEM §12.4, §12.12; NPC §3.6).
 - **Profiled NPCs without a stage track** (O45): `known(C)` applies the same rule with no stage, so the sky, their `awareness.home` and where they stand now, word of the road and what they held at an earlier meeting set what they know of the land; their own story's stage enters only once a stage track exists for them (§7.8; MEM §12.5).
 
@@ -1471,15 +1746,27 @@ No new table or thread; speaking up adds `StageChanged` (MEM §12.14). Generic N
 
 ## 11. LLM layer and configuration
 
-Waiting for Min's engine blueprint in part: see §7.8's deferred list.
+Waiting in part for our own engine's design (O84): see §7.8's deferred list. One principle runs through this layer:
+**code gathers, the model picks**. Every model call gets only the records it needs, gathered by code by id;
+bookkeeping stays in code; thinking is a last resort (WHY§99).
 
 ### 11.1 Client
 
-- One OpenAI-compatible `/v1/chat/completions` SSE client (`reqwest` + `rustls`) plus `/v1/models` (ER06 §5.2). Providers are data: `{base_url, key_ref, headers, extra_body}`.
-- Reasoning is switched off per provider, and `<think>` is stripped anyway.
+- One OpenAI-compatible `/v1/chat/completions` SSE client (`reqwest` + `rustls`) plus `/v1/models` (ER06 §5.2).
+  Providers are data: `{base_url, key_ref, headers, extra_body}`, with a quantisation floor where the provider offers
+  one.
+- Reasoning is switched off per provider, and `<think>` is stripped anyway. A rejected request (HTTP 400, 404 or 422)
+  is retried without the optional fields but never without the reasoning switch; a model that refuses reasoning off is
+  retried once at minimal effort, and that is recorded about the model (ARCH §11; WHY§98).
 - **Error classes:** first-token and total timeouts, rate limit, auth, bad request, server, empty, truncated, refused.
 - **Health:** 3 failures → 60 s cooldown → the fallback model. 401/403 disables the provider.
-- **Local GPU priority:** replies (`dialogue`) > own-initiative `dialogue` requests > `bark_live` > `memory` > `bark_pool`; an own-initiative request is cancelled by the input epoch, so it never delays a reply (§8.9, O37). Background jobs pause in combat.
+- **Backup request:** when a cloud reply's first token is late (about 2.5 s, EST), the fallback model starts beside
+  it; whichever streams first is kept, and the other is cancelled (ARCH §11).
+- **Budgets:** a budget of requests per hour beside the per-slot budgets, and a bound on how stale a cached template
+  value may be (ARCH §11; WHY§99).
+- **Local GPU priority:** replies (`dialogue`) > own-initiative `dialogue` requests, each with the decision that chose
+  it > `bark_live` > `memory` > `bark_pool`; an own-initiative request is cancelled by the input epoch, so it never
+  delays a reply (§8.9, O37). Background jobs pause in combat.
 - **Warm-up on approach** for Ollama (P1 §8.1).
 
 ### 11.2 Job slots
@@ -1489,11 +1776,18 @@ Waiting for Min's engine blueprint in part: see §7.8's deferred list.
 | `dialogue` | Persona replies; persona own-initiative lines (cancelled by the input epoch, §8.9) | 140 | 0.8 | 6 s (10 s local) | 20 s | 0, plus 1 lint regeneration (replies only) | Replies: fallback model once, then "…" and a toast. Own-initiative lines: the seed or silence (§8.9) |
 | `bark_live` | Call-out replies; generic autonomy ticks (§9.8) | 32 | 0.9 | 1.5 s | 3 s | 0 | Seed |
 | `bark_pool` | Pool batches | 600 | 1.0 | 15 s | 60 s | 1 | Keep seeds |
-| `memory` | Journal job | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal |
+| `memory` | Journal job; the lived layer's update (MEM §13.8) | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal, or the lived version |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (§7.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
+| `decisions` | Decision calls (ARCH §11.8): in v1 the next speaker at a shared place, silence always offered (§9.7); later the recall gate (§10.1); at most 12 options, the top 5 logprobs where offered | 100 | 0 | 1.5 s (3 s local) | 5 s | 0 | The rules fallback |
 
-Unknown slot names fall through to `dialogue`, and a preset that names no `draft` model uses its `dialogue` model. A reserved `meta` slot (100 tokens, 5 s) waits for `DecisionRequest`. Budgets are the same in every preset (SN00 §3 #4).
+Unknown slot names fall through to `dialogue`; a preset that names no `draft` model uses its `dialogue` model, and one
+that names no `decisions` model uses its `bark_live` model.
+The `decisions` slot replaces the reserved `meta` slot and `DecisionRequest`. A decision call is our own format over
+chat completions: code builds the legal options and the model picks one, through an enum schema where the provider
+supports one and otherwise a plain answer read by meaning; questions are plain yes or no where they can be;
+probabilities come from logprobs where offered, never with a hard confidence cut-off; thinking is off by default; and
+a rules fallback always stands behind it (ARCH §11.8). Budgets are the same in every preset (SN00 §3 #4).
 
 ### 11.3 Recommended defaults (`models.toml`, volatile; ER06 §6)
 
@@ -1514,7 +1808,7 @@ Local probing: LM Studio :1234, Ollama :11434, llama.cpp :9931 (legacy :8080), K
 | `%APPDATA%\EldenNet\config\` | `settings.toml`, `providers.toml`, `secrets.toml` (keys, never logged or bundled) |
 | `<install>/plugins/` | From 1.1 (O66, O67): content plugins, each a folder with its `plugin.toml`, in the player's order (kept in `config\plugins.toml`), loaded after the shipped content and before the overrides; and, after v1.0, code plugins (O68). [Proposal 0001](../proposals/0001-plugins.md) §5 to §7 |
 | `%APPDATA%\EldenNet\overrides\` | Same paths as `content/`: whole-file replacement, plus `disable.toml` (P3 §8.4) |
-| `%APPDATA%\EldenNet\profiles\` | The player's own profiles: `layers\` over shipped profiles and `characters\` of their own (§7.7); never shipped, bundled or uploaded |
+| `%APPDATA%\EldenNet\profiles\` | The player's own profiles: `layers\` over shipped profiles, `characters\` of their own and an optional bio of the Tarnished (§7.7); never shipped, bundled or uploaded |
 
 `settings.toml` (schema 2) also holds pacing, ranges, autonomy, reactions and allowances (ARCH §11.5). A watcher with a 500 ms debounce parses (`deny_unknown_fields`), validates and swaps atomically. On error the old version stays and a toast names the file and line. Caps: 64 KB per file, 16 KB per persona, card or character profile, 8 KB per player profile file; 4 MB per content plugin (EST).
 
@@ -1543,7 +1837,10 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
   - settings (F10, safe moments only); debug view (F11, off by default).
 - **Style:** ash-white text with a soft shadow and no box behind subtitles; HDR-safe colours; fades only (120 ms in, 300–400 ms out); scale 75–150%. Pacing is part of the style (§8.5).
 - **Hidden** when `screen != InGame`, `hud == HideAll` (cutscenes, LIKELY), during loading, and while banners show (the chat box excepted).
-- **Settings:** master and per-feature switches; pacing (time between lines; lines per window in fights, idle remarks and talk); ranges; autonomy; reactions per event type (on, cooldown); NPC types and allowances; profiles (the player's own instructions, subjects and character profiles, §7.7); floating labels; follow the game's subtitles; scale; safety level; hotkeys; provider; "forget" actions; latency toasts.
+- **Settings:** master and per-feature switches; pacing (time between lines; lines per window in fights, idle remarks
+  and talk); ranges; autonomy; reactions per event type (on, cooldown); NPC types and allowances; profiles (the
+  player's own instructions, subjects, character profiles and bio of the Tarnished, §7.7); floating labels; follow the
+  game's subtitles; scale; safety level; hotkeys; provider; "forget" actions; latency toasts.
 - **TTS and STT: v1.5** (O8). Text first gets cadence and content right; lip movement is unavailable (ER03 §5); every v1 budget is met without audio. The seam is `SpeechSink::{begin, page(&Page) -> PageTiming, cancel}`, so a later `TtsSink` supplies timing from audio length without touching the pacing code (J2 G22). STT enters through `InputSource::Stt`.
 
 ---
@@ -1552,14 +1849,15 @@ The self-test also runs silently at every start, and `en-tools selftest` runs it
 
 | Seam | v1 artefact | Later |
 |---|---|---|
-| Actions | `ACT:` trailer → `npc_intent`; `DecisionRequest` (rules backend); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a feature; empty prompt partials; a `decisions` table (SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
+| Actions | `ACT:` trailer → `npc_intent`; decision calls on the `decisions` slot, with their rules fallback (§11.2; ARCH §11.8); an empty `ActionRegistry` with a validator; `GameCommand::Action{…, epoch, deadline}` behind a feature; empty prompt partials; a `decisions` table, one row per call (ARCH §11.8; MEM §8.7; SN07 §11.4); the `actions` and `gestures` allowances, shown as later-version seams (O41) | v2 executors behind deterministic validators |
+| Followers | The companion layer every bio carries (§7.8), used in v1.0 by the game's own summons | Characters who travel with the Tarnished, after v1.0, when actions open (O85) |
 | TTS / STT / pad | `SpeechSink` + `PageTiming`; `Line.voice_key`; `InputSource {Typed, Stt, Intent}`; the `tts` allowance | TTS, push-to-talk, intent list |
 | Thoughts | `npc_thought` event type; parser channel reserved | Add to the contract |
 | Triggers | Augur and bark rule formats; `allow_custom_rules = false` | User rule files |
-| UI | The `UiPort` in the core (player-safe projections, one validating command entry point, the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space, panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
+| UI | The `UiPort` in the core (player-safe projections: only what the game has shown or what is written to be impersonal, GraceUI SP1, with no lock filter since O86; one validating command entry point; the settings export), with GraceUI as its implementation through GraceUI's public C ABI: EldenNet's space, panels, notices and its world-state provider (GraceUI G15–G17, its §2.9) | Other front ends behind the same port |
 | Hook event sources | `EventSource` implementations behind `hooks` | After spikes H1–H3, with EldenNet's own hook library (O65, R12), each hook approved by the owner |
-| Plugins | The plugins layer in the content loader and the `plugin.toml` schema; the code-plugin interface `EldenNet_RequestApi` reserved (O66–O68; [proposal 0001](../proposals/0001-plugins.md)) | Content plugins in 1.1, installed from the Plugins folder or the dashboard (O67); code plugins after v1.0, with a preview first (O68), run outside the game in one plugin cluster or detached (O70); a hook service for plugins only if one is needed (O69) |
-| Scene or vector memory | `trait Recall` (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log |
+| Plugins | The plugins layer in the content loader and the `plugin.toml` schema; the code-plugin interface `EldenNet_RequestApi` reserved (O66–O68; [proposal 0001](../proposals/0001-plugins.md)), with its rules set now (WHY§98, WHY§99): a plain C ABI whose structs start with their size, documented threads, reads by id, audiences that truly bound who sees an event, typed error codes, requests that complete exactly once, JSON for queries, ids never reused, the rollback state and a "trimmed to playtime T" event (plugin writes buffered as EldenNet buffers its own), and one request in flight per character | Content plugins in 1.1, installed from the Plugins folder or the dashboard (O67); code plugins after v1.0, with a preview first (O68), run outside the game in one plugin cluster or detached (O70); a hook service for plugins only if one is needed (O69) |
+| Scene or vector memory | `trait Recall` (v1 `JournalRecall`); reserved empty tables `memories`, `memories_fts`, `embeddings` | Backfill from the event log; recall gathered by code, then the recall gate on the `decisions` slot (§10.1) |
 | Native subtitles | `trait PresentationSink`; `GameCommand::NativeLine`; `NativeLineHeard` event; `NativeLineHeard` live as the scripted-line detector for verified kinds (O42) | v2 after S9; line ids after S10 |
 | Director, freeze | Scheduler class `Directed` (P1, reserved; `Autonomous` is live, §9.4); the `subjects` of every profile (§7.7); the autonomy path, whose task already carries a subject (§9.8); pacing and the reservation rule; `GameCommand::Freeze` | v1.x: the director. After a stretch of silence near the Tarnished it picks one eligible NPC within range by a pure, replayable rule and hands it a subject to talk about, through the autonomy path and within pacing (the owner's idea, 2026-11-07, O30); nothing of it is built in v1. The freeze: a v1.x opt-in after S5 (O9) |
 | Out-of-process core, other backends | `trait CoreTransport`; `GameBackend` | If crash data justifies a sidecar |
@@ -1571,13 +1869,30 @@ Conformance tests check three things: a trailer never displays; with `actions` o
 ## 14. Testing and tooling
 
 - **Headless core on Linux CI:**
-  - unit tests: detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, and the profile cases of NPC §4.8 (resolution, layer merge, subject rotation, `Allowed(C)`, draft validation);
+  - unit tests: detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, the profile
+    cases of NPC §4.8 (resolution, layer merge, subject rotation, draft validation), and the template engine's cases
+    (unknown names, null and missing, booleans, substring tests, empty strings; NPC §7.1);
   - `proptest` sanitizer fuzzing;
-  - DB tests: every migration, trim at 3 cut points, crash mid-reply, NG+, slot reuse.
+  - DB tests: every migration, trim at 3 cut points, crash mid-reply, NG+, slot reuse, all with realistic 64-bit ids.
 - **Replay** (§6.8): `en-tools replay --llm recorded|mock|live`. `en-tools mockllm` serves scripted delays, 429s, `<think>` leaks and trailers.
-- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b at a fixed known set and active ties), spoiler renders at 6 flag states, block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`, since-line renders for 3 state transitions and reaction-cue renders (MEM §12.11 T4), and hand-written who-knows-what truth tables and reaction-cue tables (MEM §12.11 T2, T12, T13); the character block at each `gates` state, block 4 with and without `instructions`, and the autonomy task and generic call block with a subject (NPC §4.8).
-- **Lint:** schemas, caps, predicates, aliases, effect adjectives, banned words, gender-neutral cards, anti-priming, and the profile lints PL1–PL12 (NPC §4.8; PL10–PL12 for the roster, §7.8).
-- **Eval:** 50 scripted turns per persona at 2–3 stages, plus spoiler and memory probes, scored against C9–C11, and the world-awareness set against C14 (NPC §12.5); every set runs and gates on the schedule below (O29). **A persona ships only with a passing report**, and each roster bio that speaks with a passing roster eval (NPC §12.1).
+- **Prompt tests:** `insta` snapshots per persona × stage × scene, a byte-stability assertion for blocks 1–5 (and 5b
+  at a fixed known set and active ties), renders at the 6 flag states (what each prompt holds there, reviewed when it
+  changes), block-5b renders at the 8 fixture states (adding `after_radahn` and `after_rykard`) plus `ashen`,
+  since-line renders for 3 state transitions and reaction-cue renders (MEM §12.11 T4), and hand-written
+  who-knows-what truth tables and reaction-cue tables (MEM §12.11 T2, T12, T13); the character block at each `gates`
+  state, block 4 with and without `instructions`, and the autonomy task and generic call block with a subject (NPC
+  §4.8).
+- **Lint:** schemas, caps, predicates, aliases, effect adjectives, banned words, gender-neutral cards, the profile
+  lints (NPC §4.8; PL10–PL12 for the roster, §7.8), and the template allowlist, generated from the template engine's
+  one registry (NPC §7.1).
+- **Eval:** 50 scripted turns per persona at 2–3 stages, plus memory probes, scored against C10 and C11; test
+  questions on what the model already knows of the game, 6 per persona and 4 per roster bio, against C9's 0 leaks
+  (O86; NPC §12.1); and the world-awareness set
+  against C14 (NPC §12.5). Replies are rated 1 to 5 with tags and notes, compared pairwise by axis (persona, context,
+  naturalness, consistency) in both orders, and probed for perception (knowing only what was perceived), voice and
+  register, and invented lore; a flagged problem is rechecked as a regression test (NPC §12; WHY§98). Every set runs
+  and gates on the schedule below (O29). **A persona ships only with a passing report**, and each roster bio that
+  speaks with a passing roster eval (NPC §12.1).
 - **In game:**
   - F11 debug view: ladder and groups, snapshot table, live events with audiences, scheduler, last prompt and reply (keys redacted), journals, the world view (each world stage with its flags' raw bits and verification) and each persona's known set with its paths, its `awareness.news`, its `world_cued` and the reaction cue that would fire now, or the first condition that fails (MEM §12.13), latency traces, unknown characters;
   - rotating `tracing` logs;
@@ -1586,7 +1901,9 @@ Conformance tests check three things: a trailer never displays; with `actions` o
 - **Schedule (O29).** The owner's rule: "test everything asap that makes sense".
   - Every check runs from the first increment in which the thing it checks exists, on whatever content exists then. A criterion whose content ships later runs and gates on the part that exists, and widens as content ships.
   - **Deterministic checks** gate from that increment: lints, unit, property, DB and conformance tests, truth tables, goldens, scenarios and self-tests. So do **measurements that need no judge**: timings, counters, hand-marked accuracy and a stopwatch.
-  - **Zero-tolerance measures** gate at once, because they need no calibration: 0 crashes, banner mode on an unknown build, 0 requests while gated, 0 unclean strings shown, 0 lines from the silent, 0 locked or ken-locked terms shown, 0 banned words, 0 hard promises, 0 contract breaks, 0 safety hard hits and 0 amnesia lines.
+  - **Zero-tolerance measures** gate at once, because they need no calibration: 0 crashes, banner mode on an unknown
+    build, 0 requests while gated, 0 unclean strings shown, 0 lines from the silent, 0 banned words, 0 hard promises,
+    0 contract breaks, 0 safety hard hits and 0 amnesia lines.
   - **Judge-scored rates** gate from the increment that ships their feature, once the judge check below has passed in that same increment. A failed judge check blocks the exit as a failed rate does, so no increment ships a feature that is neither gated nor measured.
   - **A rate run on fewer personas than its target** keeps its denominator by running each probe at several seeds (Kalé's 40 awareness probes × 6 seeds = 240 replies).
   - **Costly human or hardware runs** (the 30 h soak, the full compatibility matrix, X2's raters) run in each increment on what that increment adds, and the full sweep certifies the release candidate.
@@ -1609,9 +1926,9 @@ eldennet/
   Cargo.toml            # workspace; release: panic = "unwind", lto = "thin"
   crates/  en-proto/ en-augur/ en-core/ en-store/ en-llm/ en-gal/ en-overlay/ eldennet/ en-launcher/ en-tools/
   content/eldenring/
-    prompts/{dialogue,callout,memory,pool,draft}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
+    prompts/{dialogue,callout,memory,pool,draft,decisions}/NN_*.j2  registers/*.md  personas/  archetypes/  characters/
     identity/{personas,archetypes,characters,speech,humanoid_models,types}.toml  flags/catalog.toml  knowledge/{*,aliases}.toml  world/{stages,tracks}.toml
-    lexicon/{banned,safety,signature,context_words,public,reveals}.toml  barks/triggers.toml  augur/*.toml
+    lexicon/{banned,safety,signature,context_words,public}.toml  barks/triggers.toml  augur/*.toml
     teams.toml  regions.toml  models.toml
   gal/      builds.toml  patterns.toml  layouts/{2.7.2.0-ww,2.7.2.1-jp}.toml  derivations/<id>.md
   tests/    scenarios/ fixtures/ recordings/ (redacted, §6.8) golden/ s6/ roster/ knowledge/
@@ -1642,8 +1959,8 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | S3 Talk observer | Talk fields during menus, greetings and boss lines. Adds, per persona × stage: whether a menu-less approach line plays, its radius and delay, and its played flag (→ `approach`, `approach_m`, `approach_played`). Per NPC kind: a detector of scripted combat and boss lines ("this NPC is speaking scripted dialogue now") from the talk fields and the `CSTalkIns` leads, and the kinds with none (→ `scripted = "none"`). Records go to `types.toml` (`[[boss]]`, and `[[named]]` for other non-persona kinds), including every kind a shipped character profile binds (§7.7; the roster's named bosses with scripted lines, each its own kind, §7.8). Joint with S6: when a talk-driven stage flag rises (during, at the end, or after the talk) | ≥ 95% precision over 30 events, else stay fail-closed; per kind (each boss its own kind): ≥ 95% of ≥ 30 scripted lines detected as "speaking" within 0.3 s of their start (recall), and no "speaking" report over 10 min of that kind's combat with no scripted line playing; else that kind stays held | v0.2; it runs on v0.1 recordings; persona own-initiative lines (v0.3, v0.5); boss-fight lines and combat lines of kinds with scripted lines (v0.4 on) |
 | S4 Input | Leaks, held keys, camera drift, a free hotkey, Steam floating keyboard, Proton | No movement while typing for 60 s | v0.2 |
 | S6 Flags | Flags 9000 and 100, boss flags, 180–187, `ng_lvl`, then each persona's block. For world awareness (MEM §12.12): 310 against 9130, 118 against 300–302, 9116 as the start of the ash, which label set Tanith's block 3100 uses and its offsets, each block's stage semantics (exclusive or cumulative) and what the general's fall clears in the game (TGA writes Alexander's +8 and Blaidd's +13 false, a hint only), one NG+ transition that sets `ng` for every alias (the pilot's covers 9101), the stage offsets of Ranni's block 3740 and of the festival host's block 3360, or the festival flags 9410–9413 in their place (MEM §12.12 item 10), and played-observation records for `played` ties (Varré's lord, Boc's path; MEM §12.12 item 8). All are research leads (310's meaning and the ash reading of 9116 are LIKELY; 310's reading, 301, 9116 and the newer persona offsets are recorded in ER07 §2–§4, and ER07 §6 lists what S6 must settle; MEM §12.4 gives each label). Adds, per persona × stage: whether the stage waits on the Tarnished talking with the persona (`beckon_src`) and its conversation-played flag (`talked`); the meanings of Kalé's +17 and Boc's +6 (`state`); the 10 s settle window, with S3 | Every alias used is verified, or dropped; every alias in a world stage or track has `ng = reset`; each `beckon` and `talked` value verified or left unset | v0.1 (core: 9000, 100, boss flags, 180–187, `ng_lvl`), v0.2 (pilot; MEM §12.12 items 1–5 run then too), v0.5 (all); `stage_talk` (v0.3 Kalé, v0.5 the others) |
-| S7 Combat | Engagement accuracy at 3 camps. Adds: NPC-against-NPC engagement: the team-pair table, `last_hit_by` for NPC attackers (an NPC victim's `last_hit_by` naming another NPC; the Tarnished's own `last_hit_by`, which `hit_player` reads from v0.1, is not part of this addition), an AI-target field if one is found; at two scenes (a spirit summon against a camp; an NPC ally against a camp); and which cards voice scripted lines: each of the six shipped cards at a site where it appears (the camps are chosen to cover all six); the fallback card stays `unknown`, so its combat lines are held | ≥ 90% within 1 s; ≤ 5% false; ≥ 90% of NPC-pair engagements within 1 s; ≤ 5% false | v0.1 (fixes J2 #8); NPC-pair engagement (v0.4): `Hit` on the `last_hit_by` check for NPC attackers, `Near` on the team-pair table; each card's combat lines, on its `scripted` record |
-| S8 Status and state | GAL fields for statuses and sleep (leads only: ER05 §3, §6.2): (1) the Tarnished's gauges, `PlayerGameData.resistance_gauges[7]` and `proc_status_timers[7]`: which slot is which status, units, maximum, decay, and whether "active" means timer > 0; (2) the NPC SpEffect walk, `special_effect` entries → `param_id` for every snapshot character: stride, list bound and cost at 32 characters within C3; (3) classification of each status, preferring a `SpEffectParam` field (the `stateInfo` lead) over an id list, which adds `SpEffectParam` rows to `params`; (4) edges at 4 Hz, and whether bursts are better read as an HP burst plus the SpEffect, or the dead bit; (5) sleep and senseless: the sleep ailment on NPCs, resting or lying animation ids (`CSChrTimeActModule.anim_queue`), throw state 4; (6) the optional `status` read group, with its own self-test and breaker; (7) stability under overhauls and ERSC, and on the JP layout | Each verified status: start and end (or burst) edges ≥ 95% within 0.5 s over 20 inductions on the Tarnished and on 2 NPC families, 0 false starts over 30 min of play; the sleep signal ≥ 95% over 20 cases; the NPC walk within C3 at 32 characters | Status awareness and reactions (v0.4); runtime `conscious`; generic calm lines (O44). It runs in week 1 on v0.1's recordings, and in game |
+| S7 Combat | Engagement accuracy at 3 camps. Adds: NPC-against-NPC engagement: the team-pair table, `last_hit_by` for NPC attackers (an NPC victim's `last_hit_by` naming another NPC; the Tarnished's own `last_hit_by`, which `hit_player` reads from v0.1, is not part of this addition), an AI-target field if one is found; at two scenes (a spirit summon against a camp; an NPC ally against a camp); and which cards voice scripted lines: each of the six shipped cards at a site where it appears (the camps are chosen to cover all six); the fallback card stays `unknown`, so its combat lines are held; and the reads behind stance and concealment (§6.5): what `turned` reads (a live team that differs from the row's team: a charmed foe, a summon) and the Tarnished's crouch | ≥ 90% within 1 s; ≤ 5% false; ≥ 90% of NPC-pair engagements within 1 s; ≤ 5% false | v0.1 (fixes J2 #8); NPC-pair engagement (v0.4): `Hit` on the `last_hit_by` check for NPC attackers, `Near` on the team-pair table; each card's combat lines, on its `scripted` record |
+| S8 Status and state | GAL fields for statuses and sleep (leads only: ER05 §3, §6.2): (1) the Tarnished's gauges, `PlayerGameData.resistance_gauges[7]` and `proc_status_timers[7]`: which slot is which status, units, maximum, decay, and whether "active" means timer > 0; (2) the NPC SpEffect walk, `special_effect` entries → `param_id` for every snapshot character: stride, list bound and cost at 32 characters within C3; (3) classification of each status, preferring a `SpEffectParam` field (the `stateInfo` lead) over an id list, which adds `SpEffectParam` rows to `params`; (4) edges at 4 Hz, and whether bursts are better read as an HP burst plus the SpEffect, or the dead bit; (5) sleep and senseless: the sleep ailment on NPCs, resting or lying animation ids (`CSChrTimeActModule.anim_queue`), throw state 4; (6) the optional `status` read group, with its own self-test and breaker; (7) stability under overhauls and ERSC, and on the JP layout; (8) an invisibility effect on the Tarnished, for concealment (§6.5) | Each verified status: start and end (or burst) edges ≥ 95% within 0.5 s over 20 inductions on the Tarnished and on 2 NPC families, 0 false starts over 30 min of play; the sleep signal ≥ 95% over 20 cases; the NPC walk within C3 at 32 characters | Status awareness and reactions (v0.4); runtime `conscious`; generic calm lines (O44). It runs in week 1 on v0.1's recordings, and in game |
 | X1 Voice in a bottle (offline, week 1) | Do candidate models hold the registers and caps with this prompt? | C10 met by one budget cloud model and one 4B local model | v0.2 defaults |
 | X2 Bark taste test | Pools against seeds | Pools ≥ 50% preferred; 0 amnesia | v0.4 |
 | X3 Latency in situ | TTFT and first page in game | C5 met, or the defaults change | v0.2; again at v0.6 on the matrix |
@@ -1654,14 +1971,14 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | Version | Contents | Exit criteria |
 |---|---|---|
 | **v0.1 Eyes** | Launcher, DLL contract, GAL (gate, discovery, layouts, guarded reads, the eleven read groups (`status` off until S8), L1/L2), task, snapshot, session gate, Augur with golden files, banner and debug view (drawn through GraceUI 0.1, the host: GraceUI G15), recording, replay. No LLM. S8 and S3's additions run on recordings; the `status` read group exists, off until S8 passes | C12 (golden events over 3 routes); C2; C1 (0 crashes in 10 h, and the 20 forced fail-closed launches); C3 for the task, overlay and FPS; C4's dormancy; S2, S6's core flags, S7 and S0-E's present-hook half; the read-group self-tests; the v0.1 matrix rows (ARCH §12.4); the patch drill, if the JP layout is ready; every CI stage but `eval` (from v0.2) gating; signed tester builds (§16.3) |
-| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)`, block 5b with Kalé's `road`, and the world part of `Locked(P)` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `en-tools eval` and its CI stage; the 8 fixture states and Kalé's truth tables; positive grounding: block 5b's three parts, world-frame items 1–9 positive, the contract and regeneration notes, `forbid` code-only, tells on spoiler ≥ 2 world items (reveals at v0.5), W14, W15; X1's spoiler and positive-wording arms; C9's judged part on Kalé; the "you, now" line (wounds and fighting); `settings.toml` schema 2 with `range` and the feature switches | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T6, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks; C9's judged part on Kalé; X1's spoiler and positive-wording arms (§16.3) |
-| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (O28, MEM §12.13; Kalé `eager`); the pacing core and the `Autonomous` class; Kalé's own-initiative lines (`greet_player`, a news cue on it, `saw_kill`, `autonomy`; `stage_talk` if his S6 verified a `beckon`), each only if S3 passed and S6 settled his +17 sleep lead; `NpcSaid` widened, `StageChanged`, `CameNear`, `AutonomyTick`; `world_cued` with pt and `spoke_pt`; block 6(c) and the "said unasked" note; the news cooldown (60 s, O30) in place of the once-only records; Kalé's `subjects` and the subject line in his autonomy task; the persona `instructions` field and the player's profile layers for personas, by file (§7.7) | C11; trim test green; world trim, NG+ and cue tests green (MEM §12.11: T3, T4's since-line goldens and Kalé's cue goldens, T7, T8, T10, T11's cue-clause fixtures, T12, T13); C14's since-line, claim and cue probes on Kalé; `wren_and_kale.scn` and Kalé's steps of `star_falls.scn`; `speak_up.scn`; T14; T13 as changed; `autonomy_subjects.scn`'s persona case and `player_profiles.scn`'s layer case; PL1, PL4–PL7 and PL9 on persona files (§16.3) |
-| **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools; the `Combat` and `Ambient` classes on the same pacing; `pacing` and `reactions` keys; `allow` keys and `types.toml` (file); combat for every combatant (NPC pairs by hits, once S7 verifies `last_hit_by` for NPC attackers); generic exchanges (`greet_npc`, `answer`) and the generic ring; generic autonomy; status awareness and reactions as S8 passes; persona combat seeds and pools (lines held per kind until S3's detector passes); boss-fight lines kind by kind; generic calm lines once S8 verifies the sleep or senseless signal (O44), sparse idle remarks (O14) among them; the six cards' `subjects` and the generic subject line; character profiles (`identity/characters.toml`, bindings, resolution, built-in rules (b) and (f), `[[named]]` records, the CI character `test_tollwarden`); card layers and the player's own character profiles, by file (§7.7); character profiles converse and remember (O45) on the CI fixtures, the speaker matched by profile id; the roster index and the first S1 and S2 roster captures once the census may run (after Min's blueprint and O46, §7.8; the game-data research of O54 gives its leads earlier) | C6 at 3 camps; X2; C3's render feed; C7 and C8 for barks and ambient lines; `ambient_walk.scn`; the card checklist and bark scenarios; `busy_fight.scn`, `chatter.scn`, `autonomy_bound.scn`, `boss_lines.scn`, `npc_vs_npc.scn`; `status_edges.scn` if S8 passed; S7's additions; `character_profile.scn`, `autonomy_subjects.scn` and `player_profiles.scn`; PL1–PL9; every shipped card has `scripted` recorded, and a card left `unknown` ships with its combat lines held (the card checklist reports it); S8; `roster_talk.scn`; PL10–PL12 once O46 is decided (§16.3) |
-| **v0.5 Veil** | Verified catalogue, stages, KB, the full lexicon (`public`, `reveals`, the KB's terms), 5 more personas with their `awareness.news` (O30) and `subjects`; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, their truth tables and awareness probes; the other five personas: `beckon`, `state` and `approach` per S6 and S3, combat seeds, greeting and quest-business seeds, cue tables; the roster's first batch of bios, reviewed, linted and bound (§7.8; batches move with the prerequisites) | C9, C10 and C14 on 6 personas; T2, T4, T6, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; release lint on all shipped content; all of S6; the whole `star_falls.scn`; Boc's `veiled` case; the identity-pack check for every persona; each persona's `beckon`, `state` and `approach` values (NPC §3.6) verified, or left unset (`beckon`) or `unknown` (`state`, `approach`); each persona's open sleep leads settled before its own-initiative lines ship; each new bio's roster eval and checklist (§16.3) |
+| **v0.2 First words** | LLM client (config file only), chat box, input capture, gating, fail-closed talk observer, prompt, sanitizer and lint, pages, commit on display. **One pilot persona (Kalé), RAM only**; the world view, `known(P)` and block 5b with Kalé's `road` (`castle_fallen` live, with 9101 and its `ng = reset` from the pilot's S6; the other world stages present and silent until verified); world-frame item 9 with its rule on when to raise news (O28); the identity-pack check; `en-tools eval` and its CI stage; the 8 fixture states and Kalé's truth tables; positive grounding: block 5b's three parts, world-frame items 1–9 positive, the contract and regeneration notes, `forbid` as eval-only test topics, W15; X1's test questions and positive-wording arm (NPC §12.2); Kalé's test questions (C9, O86); the client's reasoning retry, backup request, quantisation floor and requests-per-hour budget (§11.1); the template engine's rules (§8.3); the "you, now" line (wounds and fighting); `settings.toml` schema 2 with `range` and the feature switches | C5 with X3, and C7, on the pilot; C4's 0 requests; C8 for chat; C9 and C10 on Kalé; C13 on the config-file path; C14 on Kalé; Kalé's eval report and release checklist; MEM §12.11 T1, T2, T4 (block 5b), T5, T9 (the star half) and T11, and lints W1–W10 and W12; `veiled.scn`; S0-E's input half, S3, S4 and the pilot's S6; no input leaks; X1's test questions and positive-wording arm (§16.3) |
+| **v0.3 Remembrance** | SQLite, event log, facts, journal, claims, rollback, NG+, crash recovery; one memory per witness (§10.3) and the lived layer's update (§7.8; MEM §13); `world_seen`, the since-line, the memory job's world input and drop rule, claim proof by knowledge; reaction cues (O28, MEM §12.13; Kalé `eager`); the pacing core and the `Autonomous` class; Kalé's own-initiative lines (`greet_player`, a news cue on it, `saw_kill`, `autonomy`; `stage_talk` if his S6 verified a `beckon`), each only if S3 passed and S6 settled his +17 sleep lead; `NpcSaid` widened, `StageChanged`, `CameNear`, `AutonomyTick`; `world_cued` with pt and `spoke_pt`; block 6(c) and the "said unasked" note; the news cooldown (60 s, O30) in place of the once-only records; Kalé's `subjects` and the subject line in his autonomy task; the persona `instructions` field and the player's profile layers for personas, by file (§7.7) | C11; trim test green; world trim, NG+ and cue tests green (MEM §12.11: T3, T4's since-line goldens and Kalé's cue goldens, T7, T8, T10, T11's cue-clause fixtures, T12, T13); C14's since-line, claim and cue probes on Kalé; `wren_and_kale.scn` and Kalé's steps of `star_falls.scn`; `speak_up.scn`; T14; T13 as changed; `autonomy_subjects.scn`'s persona case and `player_profiles.scn`'s layer case; PL1, PL4–PL6 and PL9 on persona files (§16.3) |
+| **v0.4 War cries** | 6 cards with seeds, rules, scheduler, feed then labels, pools; the `Combat` and `Ambient` classes on the same pacing; `pacing` and `reactions` keys; `allow` keys and `types.toml` (file); combat for every combatant (NPC pairs by hits, once S7 verifies `last_hit_by` for NPC attackers); generic exchanges (`greet_npc`, `answer`) and the generic ring; generic autonomy; status awareness and reactions as S8 passes; persona combat seeds and pools (lines held per kind until S3's detector passes); boss-fight lines kind by kind; generic calm lines once S8 verifies the sleep or senseless signal (O44), sparse idle remarks (O14) among them; the six cards' `subjects` and the generic subject line; character profiles (`identity/characters.toml`, bindings, resolution, built-in rules (b) and (f), `[[named]]` records, the CI character `test_tollwarden`); card layers and the player's own character profiles, by file (§7.7); character profiles converse and remember (O45) on the CI fixtures, the speaker matched by profile id; the `decisions` slot and the next-speaker decision, on CI fixtures (§9.7, §11.2); stance, unseen attackers and the concealed Tarnished as S7 and S8 verify their reads (§6.5); the roster index and the first S1 and S2 roster captures once the census may run (after its tools and our own engine, §7.8; the game-data research of O54 gives its leads earlier) | C6 at 3 camps; X2; C3's render feed; C7 and C8 for barks and ambient lines; `ambient_walk.scn`; the card checklist and bark scenarios; `busy_fight.scn`, `chatter.scn`, `autonomy_bound.scn`, `boss_lines.scn`, `npc_vs_npc.scn`; `status_edges.scn` if S8 passed; S7's additions; `character_profile.scn`, `autonomy_subjects.scn` and `player_profiles.scn`; the next-speaker decision's scenario (§16.3); PL1–PL6, PL8 and PL9; every shipped card has `scripted` recorded, and a card left `unknown` ships with its combat lines held (the card checklist reports it); S8; `roster_talk.scn`; PL10–PL12 (§16.3) |
+| **v0.5 Veil** | Verified catalogue, stages, KB, the full lexicon (`public`, the KB's terms), 5 more personas with their `awareness.news` (O30), `subjects` and test questions; all 9 world stages verified or dropped, Tanith's track (and Ranni's and the festival's, if S6 has found their flags), ties, roads and bridging stages for 6 personas, their truth tables and awareness probes; the other five personas: `beckon`, `state` and `approach` per S6 and S3, combat seeds, greeting and quest-business seeds, cue tables; the roster's first batch of bios, reviewed, linted and bound (§7.8; batches move with the prerequisites) | C9, C10 and C14 on 6 personas; T2, T4, T9, T12 and T13 for every persona; W8's track ties, W10's real cases and W11; release lint on all shipped content; all of S6; the whole `star_falls.scn`; Boc's `veiled` case; the identity-pack check for every persona; each persona's `beckon`, `state` and `approach` values (NPC §3.6) verified, or left unset (`beckon`) or `unknown` (`state`, `approach`); each persona's open sleep leads settled before its own-initiative lines ship; each new bio's roster eval and checklist (§16.3) |
 | **v0.6 Threshold** | Wizard, settings, call-out, pad gesture, compat matrix (ERSC via the player's me3, Reforged, Convergence, Proton, HDR, Steam overlay), patch drill using JP as the "new" build; F10 pages: Pacing, Ranges, Autonomy, Reactions, NPC types and allowances; the call-out with repeat calls; the profile editor, the sightings list and the `draft` helper (§7.7); the rest of the base-game roster's bios (§7.8) | C1–C4 on the full matrix; C13 on the wizard path; X3 on the matrix; the patch drill again; C7 and C8 for the call-out; the F10 pages of §12; the bundle scan with profile canaries and `player_profiles.scn`'s save-path checks; each new bio's roster eval and checklist (§16.3) |
 | **v1.0** | 30 h soak; docs (install, loaders, authoring, patching, AI disclosure); signed release; a bio for every named NPC and named boss of the base game, about 140 named profiles, the six personas included (§7.8) | C1–C14 green on the release candidate, with C1's 30 h soak on 3 machines; every base-game bio shipped with its checklist; every binding verified, or the bio held with its reason (§7.8) |
-| **v1.1** (planned) | The DLC's roster, if O46 keeps it out of v1.0 (§7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26); the map of the journey (GraceUI G21–G27, its §4.13; roadmap S7.9.d), on groundwork v1.0 builds anyway: the sightings record and the world stages; content plugins, from the Plugins folder and the dashboard (O66, O67) | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
-| Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; the freeze after S5; code plugins through EldenNet's published interface, a preview first (O68), in the plugin cluster outside the game (O70); a sandbox for plugin hosts, as an option after a spike (O72) | Designed and scheduled when taken up |
+| **v1.1** (planned) | The DLC's roster (O46; §7.8); the gamepad intent list (O11); English names from a non-English install's own English text, if S2 found it (O26); the map of the journey (GraceUI G21–G27, its §4.13; roadmap S7.9.d), on groundwork v1.0 builds anyway: the sightings record and the world stages; content plugins, from the Plugins folder and the dashboard (O66, O67) | Each profile's release checklist (NPC §12.4), its bindings verified by S1 and S2 |
+| Later | The director (§13): after a stretch of silence, one NPC within range is handed a subject through the autonomy path; followers on the companion layer, when actions open (O85); the recall gate (§10.1); the freeze after S5; code plugins through EldenNet's published interface, a preview first (O68), in the plugin cluster outside the game (O70); a sandbox for plugin hosts, as an option after a spike (O72) | Designed and scheduled when taken up |
 
 ### 16.3 Test schedule (O29)
 
@@ -1679,12 +1996,12 @@ Each check runs and gates from the first increment in which the thing it checks 
 | C6 Barks | v0.4 | v0.4 | v0.4, `ambient_walk.scn` included | Barks ship in v0.4. Restated as pacing at the defaults (O31) |
 | C7 Output hygiene | Dialogue: v0.2. Seeds and pools: v0.4. Call-out: v0.6 | v0.2 | v0.2, and each new speech path from the increment it ships in | Already earliest |
 | C8 Silence | Chat: v0.2. Own-initiative persona lines: v0.3. Barks: v0.4. Boss-fight lines: per kind as S3 passes. Ambient: v0.4. Call-out: v0.6 | Only v1.0's "C1–C13 green" | v0.2 for chat; v0.3 for own-initiative persona lines; v0.4 for barks and ambient lines; boss-fight lines per kind as S3 passes; v0.6 for the call-out | Zero-tolerance; it had no increment gate |
-| C9 Spoilers | v0.2: the hard lint with the world part of `Locked(P)`. KB terms: v0.5 | v0.5 | v0.2: all 600 turns on Kalé at the 6 states; the judged part from v0.2. From v0.5 the 600 are shared by the six personas, with KB probes | Zero-tolerance; the fixture states are test data |
+| C9 Spoilers | v0.2: Kalé's test questions. v0.5: the six personas'. Each roster bio's with its roster eval | v0.5 | v0.2 on Kalé, on every model the shipped presets name; each persona and roster bio from the increment that first ships it | A model that leaks is replaced, or a later decision switches on a light check (O86) |
 | C10 Voice | X1 in week 1; in game v0.2 | v0.5 | v0.2 on Kalé and the Lantern-Keeper through the voice set; each persona from the increment it ships in | The other five ship in v0.5 |
 | C11 Memory | v0.3 | v0.3 | v0.3. The probes are scored by the rubric judge, with the persona's journal as the key and a key-term pre-screen beside it; the judge is checked at v0.3 | Survival needs the store |
 | C12 Event engine | v0.1 | v0.1 | v0.1. The goldens grow with each rule set (flag edges for the world view at v0.2, bark rules at v0.4), each change with its `CHANGES.md` entry | Already earliest |
 | C13 Install | Config-file path: v0.2. Wizard: v0.6 | v0.6 | v0.2 on the README and the config-file path; again at v0.6 on the wizard path | Same target; testers install v0.2 anyway |
-| C14 World awareness | v0.2: Kalé, block 5b, `known()`, item 9. v0.3: the since-line, claims, the cue. v0.5: six personas | Reported from v0.5; gating left to O29 | v0.2 on Kalé (40 probes × 6 seeds = 240 replies): 0 ken-locked terms at once; the judged rates after the v0.2 judge check. v0.3 adds the since-line, claim and cue probes, with the judge checked again. v0.5 runs 240 probes over six personas, Patches' contradiction rate reported | Each part moves at the pace its content ships |
+| C14 World awareness | v0.2: Kalé, block 5b, `known()`, item 9. v0.3: the since-line, claims, the cue. v0.5: six personas | Reported from v0.5; gating left to O29 | v0.2 on Kalé (40 probes × 6 seeds = 240 replies): the judged rates after the v0.2 judge check. v0.3 adds the since-line, claim and cue probes, with the judge checked again. v0.5 runs 240 probes over six personas, Patches' contradiction rate reported | Each part moves at the pace its content ships |
 
 **C14 by part** (NPC §12.5)
 
@@ -1692,7 +2009,6 @@ Each check runs and gates from the first increment in which the thing it checks 
 |---|---|---|---|---|
 | Awareness when asked | ≥ 90% of probes the truth table marks known | Judge with the truth table | v0.2 | v0.2, after the judge check |
 | Contradiction | ≤ 2%; Patches reported | Judge | v0.2 | v0.2; Patches from v0.5 |
-| Ken-locked term shown | 0 | Lexicon (`K_locked(P)`) | v0.2 | v0.2, at once |
 | Judged impossible knowledge | ≤ 1% | Judge | v0.2 | v0.2, after the judge check |
 | Certainty drift | ≤ 5% | Judge | v0.2 | v0.2, after the judge check |
 | Uncued raise | ≤ 10% of uncued controls after `fresh` | Judge, with the lexical pre-screen beside it | v0.2 (item 9) | v0.2 without a since-line; from v0.3 also with one |
@@ -1706,12 +2022,13 @@ Each check runs and gates from the first increment in which the thing it checks 
 | Set or metric | Ships | Was | Runs and gates from |
 |---|---|---|---|
 | Voice, 50 turns at 2–3 stages | v0.2 | v0.5 | v0.2 on Kalé; KB topic probes from v0.5 |
-| Spoiler, 600 turns at 6 states | v0.2 | v0.5 | v0.2, all on Kalé |
+| Test questions on what the model already knows of the game, a few per character (O86) | v0.2 | v0.5 (as the spoiler set) | v0.2 on Kalé; each persona as it ships |
+| Ratings 1 to 5 with tags and notes; pairwise comparisons by axis (persona, context, naturalness, consistency) in both orders; perception, voice and register, and invented-lore probes | v0.2 | — | v0.2 on Kalé; a flagged problem is rechecked as a regression test from then on |
 | Memory probes | v0.3 | v0.3 | v0.3, scored as C11 |
 | Injection, 30 per persona (0 contract breaks) | v0.2 | v0.5 | v0.2, at once |
 | Safety, 20 per persona and level (0 hard hits) | v0.2 (`safety.level` in `settings.toml`, ARCH §11.5; both levels' lint lists, NPC §8.3; the F10 panel offers the choice from v0.6) | v0.5 | v0.2 for `faithful` and `gentle`, at once |
 | World awareness | v0.2 | Reported from v0.5 | As C14 |
-| Lint metrics: locked terms 0, within the word cap ≥ 98%, banned words 0, archaic ≤ 2%, hard promises 0, the wider list ≤ 1%, unknown proper nouns ≤ 5%, deflections ≤ 10%, "…" pages ≤ 1%, contract breaks 0 | v0.2 | v0.5 | v0.2 |
+| Lint metrics: within the word cap ≥ 98%, banned words 0, archaic ≤ 2%, hard promises 0, the wider list ≤ 1%, unknown proper nouns ≤ 5%, deflections ≤ 10%, "…" pages ≤ 1%, contract breaks 0 | v0.2 | v0.5 | v0.2 |
 | "What's my name?" before an introduction must deflect | v0.2 | — | v0.2; the `told_name` half at v0.3 |
 | X1 | Week 1 | Week 1 | Unchanged |
 
@@ -1723,15 +2040,15 @@ Each check runs and gates from the first increment in which the thing it checks 
 | Predicates and aliases | v0.1 (Augur `requires`); v0.2 (persona `when`) | The same | v0.1; v0.2 | — |
 | Effect adjectives (warn); banned words in content | v0.2 | The same | v0.2 | — |
 | Gender-neutral cards; seed rules 1–9 | v0.4 | v0.4 | v0.4 | Cards ship in v0.4 |
-| Anti-priming at the 8 fixture states | v0.2 | v0.5 by implication | v0.2 for Kalé; each persona as it ships | The fixtures are test data |
-| Lexicon lint | v0.2 (world-item lexicons); v0.5 (`public.toml`, `reveals.toml`, the KB) | v0.5 | v0.2 on the lexicons that exist; in full at v0.5 | — |
+| Lexicon lint | v0.2 (world-item lexicons); v0.5 (`public.toml`, the KB) | v0.5 | v0.2 on the lexicons that exist; in full at v0.5 | — |
+| Template allowlist and function reference, generated from one registry (NPC §7.1) | v0.2 | — | v0.2 | — |
 | Reveal lints, offline and `identity_lag` | v0.2 (identity resolution; fixture `test_veiled`) | Unscheduled | v0.2 on the fixture; v0.5 on Boc | Boc's rows need S1 and S6 |
 | MEM W1–W7, W9 and W12 | v0.2 | v0.5 | v0.2 | All their subjects ship in v0.2 |
 | W8 Ties | v0.2 (persona ties); v0.5 (track ties) | v0.5 | v0.2; track ties at v0.5 | Tanith's track ships in v0.5 |
 | W10 Awaits | Code v0.2; content v0.5 | v0.5 | v0.2 (its failing fixture); real cases at v0.5 | — |
 | W11 KB | v0.5 | v0.5 | v0.5 | The KB ships in v0.5 |
 | W5 and W7 cue clauses (O28) | v0.3 | — | v0.3 | The cue ships in v0.3 |
-| Profile lints PL1–PL12 (NPC §4.8) | v0.3 (persona `subjects`, `instructions`, layers); v0.4 (cards, character profiles; PL10–PL12 for the roster once O46 is decided, §7.8) | — | v0.3 on persona files; in full at v0.4 | — |
+| Profile lints PL1–PL12 (NPC §4.8; PL7 withdrawn by O86) | v0.3 (persona `subjects`, `instructions`, layers); v0.4 (cards, character profiles; PL10–PL12 for the roster, §7.8) | — | v0.3 on persona files; in full at v0.4 | — |
 | Block budgets: block 5b ≤ 200, frame ≤ 450 | v0.2 | 5b at v0.5 | v0.2 | — |
 | Block 7: since-line ≤ 55, cue ≤ 35, together ≤ 90 | v0.3 | — | v0.3 | — |
 | Release mode (`--strict`) | v0.2 | v1.0 builds only | v0.2 on the content each tester build turns on, world-stage and track aliases owed to S6 excepted (W3's `unknown` check included); all shipped content at v0.5 | Unverified leads stay present but silent by design until S6 ends |
@@ -1744,6 +2061,7 @@ Each check runs and gates from the first increment in which the thing it checks 
 |---|---|---|---|
 | Unit: detectors, identity, layout validation, pattern grammar, predicates, param and FMG parsing on synthetic bytes | v0.1 | CI | v0.1 |
 | Unit: splitter, budgets | v0.2 | CI | v0.2 |
+| Unit: the template engine (unknown names, null and missing, booleans, substring tests, empty strings; NPC §7.1) | v0.2 | — | v0.2 |
 | Unit: scheduler with a simulated clock | v0.3 (the pacing core and `Autonomous`); v0.4 (`Combat`, `Ambient`) | CI | v0.3; v0.4 |
 | Unit: world derivation and `known(P)` truth tables | v0.2 | v0.5 | v0.2 |
 | Unit: the reaction-cue table and journey (MEM §12.11 T12, T13) | v0.3 | — | v0.3 |
@@ -1754,10 +2072,11 @@ Each check runs and gates from the first increment in which the thing it checks 
 | Scenario: gate hysteresis | v0.1 | v0.1 | v0.1 |
 | Scenario: gating, interrupts | v0.2 | v0.2 | v0.2 |
 | Scenario: barks | v0.4 | v0.4 | v0.4 |
+| Scenario: the next-speaker decision (silence offered, the addressee set by code, the rules fallback; §9.7) | v0.4 | — | v0.4 |
 | Prompt snapshots: per persona × stage × scene; blocks 1–5 and 5b byte-stable | v0.2 | v0.2 | v0.2 |
-| Prompt snapshots: spoiler renders at 6 states; block 5b at 8 states plus `ashen` | v0.2 | v0.5 (5b at 2 states in v0.2) | v0.2 for Kalé |
+| Prompt snapshots: renders at the 6 flag states; block 5b at 8 states plus `ashen` | v0.2 | v0.5 (5b at 2 states in v0.2) | v0.2 for Kalé |
 | Prompt snapshots: since-line renders for 3 transitions; cue renders | v0.3; v0.5 (Blaidd's and Alexander's cue renders) | In no exit | v0.3; Blaidd's and Alexander's cue renders at v0.5 |
-| DB: migrations, trims, crash mid-reply, NG+, slot reuse, `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+ | v0.3 | v0.3 | v0.3 |
+| DB: migrations, trims, crash mid-reply, NG+, slot reuse, `world_seen`, `world_seen_pt`, `world_cued` and `spoke_pt` after trim and NG+, the lived layer after trim and NG+, all with realistic 64-bit ids | v0.3 | v0.3 | v0.3 |
 | Conformance: a trailer never displays | v0.2 | The same | v0.2 |
 | Conformance: with `actions` off, no non-read command | v0.1 | The same | v0.1 |
 | Conformance: one row per decision | v0.3 | The same | v0.3 |
@@ -1778,7 +2097,7 @@ Each check runs and gates from the first increment in which the thing it checks 
 | T4 Render: block 5b | v0.2 | 2 states at v0.2, the rest at v0.5 | v0.2, Kalé at 8 states plus `ashen` | — |
 | T4 Render: since-line and cue | v0.3; v0.5 (Blaidd's and Alexander's cue goldens) | In no exit | v0.3: the since-line goldens and Kalé's two cue goldens; Blaidd's and Alexander's cue goldens at v0.5 | Their content is v0.5 |
 | T5 Byte stability | v0.2 | v0.2 | v0.2 | — |
-| T6 Lexicon | v0.2 (Kalé); v0.5 (Boc, Patches) | In no exit | v0.2 for Kalé; v0.5 for Boc and Patches | — |
+| T6 Lexicon | Withdrawn (O86) | In no exit | — | It tested the locked-term sets, which O86 removes |
 | T7 Rollback | v0.3 | v0.3 | v0.3 | — |
 | T8 NG+ | v0.3 | v0.3 | v0.3 | Journeys come with the store |
 | T9 Strict | v0.2 (the star half); v0.5 (Blaidd) | In no exit | v0.2 at once for the star half; v0.5 for Blaidd | Blaidd's content is v0.5 |
@@ -1860,7 +2179,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | CI `eval` stage | — | Missing | Added at v0.2, with those triggers; the provider key is a CI secret |
 | `replay`, `golden check` and `update`, `probe-exe`, `fmg-import`, `flag-verify` | v0.1 | `fmg-import` and `flag-verify` at v0.2 | v0.1 (`fmg-import` for S2, `flag-verify` for S6's core flags) |
 | `mockllm`, `render-prompt`, `identity-fill`, `selftest` | v0.2 | `selftest` at v0.6; `identity-fill` at v0.5 | v0.2 |
-| `roster-scan`, `roster-draft`, `roster-verify` (§7.8) | Once O46 is decided; `roster-verify` with the first captures (from v0.4, once the census has run) | — | From the first roster batch |
+| `roster-scan`, `roster-draft`, `roster-verify` (§7.8) | Now that O46 is decided (2026-11-16); `roster-verify` with the first captures (from v0.4, once the census has run) | — | From the first roster batch |
 | `bake-pools` | v0.4 | v0.4 | v0.4 |
 | CI stages `fmt` to `build-release`, except `eval` | v0.1 | Implicit | v0.1, gating every merge |
 | `sign` | v0.1 | Release tags only | Every tester build from v0.1 (minisign); Authenticode when a certificate exists |
@@ -1880,7 +2199,7 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | K7 | Unreliable talk observer or combat heuristic | M / M | Fail-closed rules, confidence thresholds, S3 and S7; persona own-initiative lines and boss-fight lines stay held until S3 passes |
 | K8 | Typing gets the player killed | M / M | Gating, interrupts, hard input-release rules |
 | K9 | Overhauls change identities | M / M | Identity-pack check, exact keys, fallback card |
-| K10 | Spoilers and lore drift | H / M | Five layers, verified-only unlocks, anti-priming lint, eval |
+| K10 | Spoilers and lore drift | H / M | Grounding from the playthrough state in every prompt and background job (O86), verified-only unlocks, authored text reviewed when written, test questions per character, eval |
 | K11 | Tone misses | M / H | X1 in week 1, tone kit, per-persona eval gate |
 | K12 | Latency, free-tier caps, outages | H / M | Seeds, pools, expiry, fallback, local presets, honest toasts |
 | K13 | Hook and overlay conflicts | M / M | One MinHook, GraceUI's, chained, installed once; EldenNet hooks nothing (R12); published hook list; GraceUI's install-time warning for another overlay (GraceUI D86); compat matrix |
@@ -1892,19 +2211,20 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | K19 | NPCs recite the news like a fact sheet | M / M | ≤ 4 news lines; item 9; topic mode; reaction cues only, one cue line per reply, and the news cooldown per persona and item (60 s by default, so an item may return within a conversation; O28, O30, O31); C14's cued and uncued raise rates and its human sample |
 | K20 | A persona's road contradicts the news (still waiting for a fight that is over) | M / M | `awaits` with a bridging stage (lint W10); stale-safe wording; C14's contradiction probes |
 | K21 | Chatter: NPCs talk too much or over each other | M / M | Pacing at defaults; the heard-line TTL below the answer cooldown; `chatter.scn` and `busy_fight.scn`; X2 extended to exchanges |
-| K22 | Positive grounding leaks what the model knows of the game | M / H | Tells and the lexicon lock on output, C9's judged part, X1's spoiler arm, the fallback ladder (§10.4; MEM §7.8) |
+| K22 | Positive grounding leaks what the model knows of the game | M / H | Test questions per character on the model's own knowledge (C9: 0 leaks over 6 per persona and 4 per roster bio), asked in X1 on every candidate model (NPC §12.2); a model that leaks is replaced, or a later decision switches on a light check (O86; §10.4; MEM §7) |
 | K23 | Status or sleep misread (a wrong status word, a sleeper who talks) | M / M | S8 per status, fail closed, the `status` group's own breaker |
 | K24 | Own-initiative cost or contention | L / M | The reservation rule (≤ 240 calls an hour at defaults), requests that yield to the player, autonomy off on free presets |
-| K25 | A player's own profile text steers lines off tone, towards spoilers or into unsafe text | M / M | Output guards unchanged (sanitizer, lexicon lock and tells, banned and safety words, the contract); a player's names never unlock a term (M §7.2); `instructions` ≤ 35 words, no template syntax; the editor shows every warning; the safety lexicon blocks a save |
+| K25 | A player's own profile text steers lines off tone, towards spoilers or into unsafe text | M / M | Output guards unchanged (sanitizer, banned and safety words, the contract); a player's text never unlocks a stage or a revealed entry, which only verified flags do (O86); `instructions` ≤ 35 words, no template syntax; the editor shows every warning; the safety lexicon blocks a save |
 | K26 | A binding names the wrong NPC (an overhaul swaps rows; one bar id serves several encounters) | M / M | Verified keys only, with name-id agreement; a bar binding holds only while its bar shows; a mismatch disables that binding; S1, S2 and the boss-bar self-tests; release lint |
 | K27 | The player's profile text leaks into a report, a log or a committed recording | L / M | No text in logs; the bundle carries counts only and scrubs an included recording; the canary scan from v0.6; lint rejects committed recordings holding profile or draft text |
 | K28 | The player's profiles look broken because most kinds wait for S3 | H / L | The editor names the reason; per-kind records are data and grow with content updates; the boss-fight rule cannot be waived, because lines over scripted ones are what O42 forbids |
-| K29 | The roster misses v1.0: about 170 h of authoring and capture, plus a playthrough to prepare saves, after two prerequisites (Min's blueprint, O46) whose dates EldenNet does not control | H / H | Tools and lints built as soon as O46 is decided; batches by region and hub; drafts from our own notes; short silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC in v1.1; the game's data researched and documented before the prerequisites (O54; §7.8) |
+| K29 | The roster misses v1.0: about 170 h of authoring and capture, plus a playthrough to prepare saves, after the roster's tools and our own engine (O84; O46 decided 2026-11-16) | H / H | Tools and lints built now that O46 is decided; batches by region and hub; drafts from our own notes; short silent bios; captures from v0.4, once the census has run; a bio ships held rather than holding the release; the DLC in v1.1; the game's data researched and documented ahead of the tools (O54; §7.8) |
 | K30 | A stage-independent bio goes stale once the NPC's story changes it (a later form, a turn to hostility) | M / M | Every form binds the same id, and hostile or bar-holding forms speak combat lines only by rules (a) and (b); the bio holds first-meeting facts; `knows_when` for the land; a stage track once S6 verifies the NPC's block |
 | K31 | A generated bio carries a paraphrase of game text or a lore error | M / M | Drafts read only our own notes; a person edits every field; `kb-draft --check` (≥ 6 words); the second reader; PL10–PL12 |
-| K32 | Min's blueprint changes memory, prompts or context after work is done | M / M | Principles only until the owner decides; the GAL, Augur, identity, spoiler layers and pacing do not depend on it; one bio structure (O46) for a context engine to map |
-| K33 | The roster's named bosses spoil, since it is shown from the start | M / M | First-meeting text only, the Stranger Test at the opening state (PL11), names from the player's install, name order with no region or order of play (GraceUI D67) |
-| K34 | Memories of other NPCs pollute journals or carry spoilers | M / L | A heard line spreads no news (O34); keepsakes pass the spoiler check; `said` and `seen` kept apart; caps; storage and recall after Min's blueprint |
+| K32 | Our own engine's design changes memory, prompts or context after work is done | M / M | Principles only until it is designed (O84; roadmap S8.1); the GAL, Augur, identity, spoiler layers and pacing do not depend on it; one bio structure (O46) for its context assembly to map |
+| K33 | The roster's named bosses spoil, since it is shown from the start | M / M | First-meeting text only, the seen fields alone for a boss the game never shows calm, the Stranger Test at the opening state when each bio is written (§7.8), names from the player's install, name order with no region or order of play (GraceUI D67) |
+| K34 | Memories of other NPCs pollute journals or carry spoilers | M / L | A heard line spreads no news (O34); the memory job reads only grounded inputs (O86); each witness writes its own memory, deduplicated by event id (§10.3); `said` and `seen` kept apart; caps; recall designed with our own engine (§7.8) |
+| K35 | The lived layer drifts an NPC away from its bio (a change of voice, aims or ties that no memory supports) | M / M | It changes only what cited memories justify: identity rarely, aims and ties moderately, voice only after a sustained pattern; grounded inputs only; per journey, never in a shipped file (§7.8; MEM §13.3, §13.5, §13.7) |
 
 ---
 
@@ -1932,14 +2252,14 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Bark floor | Seeds + pools for every combat and idle line, fighting personas' included; live only for call-outs, autonomy ticks and calm persona lines | Pools only; live combat lines | Silent first fights on free and local tiers; a combat line is worth showing only within 1.2–3 s | J3 #7–8; O37, O42 |
 | Pool keys | Combat context-free; idle by region, time, weather | Unkeyed | Wrong time or place in lines | J3 §7 #6 |
 | Ambient | Kept, sparse | Deferred (J2) | Requirement 3 names the environment | J3 #9 |
-| Memory | Journal + keepsakes whole; facts; claims | FTS notes; summary only; embeddings | No recall tuning; callbacks survive | ER06 §5.4; J2 G9 |
+| Memory | Journal + keepsakes whole; facts; claims; each witness writes its own memory of a scene, deduplicated by event id; a lived layer per journey (O46) | FTS notes; summary only; embeddings; one memory per scene, or one per linked identity | No recall tuning; callbacks survive; each NPC keeps its own view, and SkyrimNet's duplicates from linked identities are avoided (WHY§99) | ER06 §5.4; J2 G9; WHY§98, WHY§99 |
 | Claims | Code-validated basis; `check_key`; ±1 disposition | — | Injection-resistant | P1 §5.9 |
-| Spoilers | 5 layers, layer 2 now positive grounding; verified unlocks; derived lexicon with tells; anti-priming; strict only | Strictness setting; forbid lists in the prompt | Reveals cannot be undone; the owner asked to avoid negative prompting (O36), so the output guards carry the weight | J3 #20–21; O36 |
+| Spoilers | Grounding alone: the playthrough state in every prompt and background job; verified unlocks; authored text reviewed when written; a character's name kept out of its own prompt fields until the game shows it; a few test questions per character on the model's own knowledge; strict only | Strictness setting; forbid lists in the prompt; the guards kept beside grounding until O86 (locked-term sets, an output lock, tells, reveal lists, a fallback ladder); a per-line check for major-twist words | Owner decision (O86): what our prompts hold is safe by construction, and what remains is the model's own knowledge of the game, which test questions measure and model choice answers | J3 #20–21; O36, O86 |
 | World awareness | Derived world stages and tracks; a pure per-persona `known(P)`; block 5b in cache B | KB `always` entries only; one ordered world phase; software latches | The KB's always slots were full and per persona; demigods fall in many orders; outcome flags already latch in the save | §10.6; MEM §12; owner requirement 2026-11-06 |
 | News timing | Known at the next flag frame | Rumours that lag by play time per region | The owner asked that NPCs be aware; deterministic and rollback-free; vanilla NPCs also react at the next talk | MEM §12.5 |
 | Claims and knowledge | `slew:<boss>` proved only when the persona knows the boss's fall | Proved by the flag alone | No NPC vouches for news it could not have heard | MEM §2.5, §12.7 |
 | Claim proof and certainty | Knowing the boss's fall at any certainty, hearsay included, proves a `slew:<boss>` claim | Fact certainty only; a third header for claims that fit hearsay | The promoted group says only that the Tarnished's word fits what the persona holds; the persona weighs hearsay by its own character; the no-doer rule governs world lines, not the Tarnished's own claims; a stricter rule would rewrite the verified MEM §2.8 worked example for no gain in v1 | MEM §2.5, §2.8, §12.7 |
-| Shared news | None in v1: news reaches a profiled NPC only by its own paths in `known()`; an NPC-to-NPC exchange may leave a memory of the other NPC, never a world fact | Circles of acquaintance that pass news among NPCs | O34's rule that a heard line spreads no news keeps spoiler control exact; with the roster, circles become worth having, and their design waits for Min's blueprint (§7.8) | §1.2; MEM §12.5; O34, O45 |
+| Shared news | None in v1: news reaches a profiled NPC only by its own paths in `known()`; an NPC-to-NPC exchange may leave a memory of the other NPC, never a world fact | Circles of acquaintance that pass news among NPCs | O34's rule that a heard line spreads no news keeps spoiler control exact; with the roster, circles become worth having, and their design waits for our own engine's (§7.8) | §1.2; MEM §12.5; O34, O45 |
 | Lore in roads and news | A road, tie line or `heard` line states only what its flags or the persona's own vanilla stage show, or lore in a played-observation record (`basis = "played"` with `evidence`); a `played` tie without evidence is inert, and release lint rejects it | A general-knowledge mark on a tie that lowers or hides lines | GK is LIKELY at best (ER07 §5), and content may be no more certain than the research: strict mode applied to lore | NPC §3.6; MEM §12.2, §12.10 W8 |
 | How late the world is tracked | Nine world stages, up to the capital buried in ash (three reach none of the stages authored so far, until Boc's later stages bring two of them to him, MEM §12.4); each stays silent until S6 verifies its flags | Early-game stages only; an owner question | Strict mode keeps an unverified late stage silent, so tracking late costs no safety | §10.6; MEM §12.4, §12.8 |
 | Event clears | A lint-only `clears` list on a world stage names the persona flags the event may clear; W10 checks every bridging stage against it at the fixture state after the event | Trust a persona flag to stay set after the event | TGA's Radahn group writes Alexander +8 and Blaidd +13 false, which is only a hint about the game (ER07 §2.4); no bridging stage may depend on such a flag until S6 records what the game does | MEM §12.2, §12.10 W10 |
@@ -1949,16 +2269,18 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Sheltered context | The Roundtable (SpEffect 9621) and resting at a grace (flag 9000, once S6 verifies it) waive the two hostile-distance checks, never the boss and combat checks; nearest-persona reach 8 m | No waiver; waive every check | Chat in safe places without weakening the combat and boss checks | §8.1; NPC §5.4; review |
 | Self-test placement | Image checks before registration; game-object tests on the first ticks; failure → inert task | All tests before registration | R1 forbids game-object reads outside the task | ARCH §3.2; review |
 | Text | Hook-free FMG table walk | `GetMessage` call or hook | Reforged hooks it; no calls | ER01 §8.3 |
-| LLM | One OpenAI-compatible client, 6 slots (`draft` serves the profile helper, §7.7) | Several SDKs | Industry convergence | ER06 §5.2 |
+| LLM | One OpenAI-compatible client, 7 slots (`draft` serves the profile helper, §7.7; `decisions` the decision calls, §11.2); a retry that never drops the reasoning switch, a backup request, a quantisation floor and a budget of requests per hour (§11.1) | Several SDKs; a retry without the optional body, reasoning switch and all (SkyrimNet 1.2.0) | Industry convergence; a reasoning model whose switch is dropped may spend its whole budget thinking (WHY§98) | ER06 §5.2; WHY§98 |
+| Decision calls | Our own format over chat completions: code builds the legal options and the model picks one (an enum schema where supported, else a plain answer read by meaning; plain yes or no questions; logprobs where offered, no hard confidence cut-off; thinking off by default; a rules fallback always); in v1 the next speaker at a shared place, silence always offered, its addressee set by code; later the recall gate | Typed decisions with a 0.70 confidence cut-off; the reserved `meta` slot and `DecisionRequest`; no decisions in v1 | Code gathering the records a question needs reached 93–100%, against 0–25% for a model handed an index; chat read by meaning matched or beat typed decisions, whose cut-off lost about a quarter of right answers (WHY§99, LIKELY) | §9.7, §11.2; ARCH §11.8; WHY§98, WHY§99 |
+| Templates | The template engine fails loudly on unknown names, keeps null and missing apart, has real booleans, a real substring test and built-ins safe on empty strings; the function reference and the lint's allowlist come from one registry; records enter prompts as quoted data | Stock template behaviour | Unresolved variables reached SkyrimNet's model 12 times in the captures, and instructions planted in records were obeyed (WHY§99, LIKELY) | §8.3; NPC §7.1; WHY§99 |
 | Generic address | One-line, distance-gated call-out (v0.6) | Multi-turn; taunt key | "Simple things"; no typing near foes | J1 #18; J2 #10 |
 | Content size | 6 personas, 6 cards + fallback, and a bio for every named NPC and named boss of the base game: about 140 named profiles, the six personas included (§7.8) | 6 personas and 6 cards only (before O43's update); the DLC's roster in v1.0 | Owner decision (O43, updated); drafts from our own notes make the roster affordable, and review keeps it ours; the DLC waits for its research and saves (O46) | O43, O46; J2 §5 |
 | Order | Chat before barks; X1 in week 1 | Barks first | Core value early | J2 G18 |
 | Overlay library | hudhook pinned at exactly 0.9.3, `dx12` feature only; `imgui` through its re-export, MinHook through its `mh` module; GraceUI's `grace-host` holds it since GraceUI's G15 (2026-11-08), and EldenNet draws through GraceUI | A newer hudhook; kiero plus our own MinHook; our own DX12 hooks | Owner decision (O25). Plain MIT, MinHook BSD-2, no AI clause (checked 2026-11-06); one copy of each library in the process (R12) | ER02 §7.1; ARCH §12.1; GraceUI §2.9 |
 | EldenNet's own hooks | One hook library of EldenNet's, in `en-gal` behind `hooks`, for game functions and system functions GraceUI does not hook; each hook installed once after GraceUI's, never removed, and approved with its spike | A hook service in GraceUI; never hooking | Owner decision (O65): the evidence rules out two libraries on one function, not one library per process (WHY§86) | ER02 §7.1; proposal 0001 §3 |
-| Plugins | Content plugins (data only) from 1.1, checked like EldenNet's own content and loaded between the shipped content and the overrides; code plugins through a published C interface after v1.0, each turned on once by the player; no hook service for plugins at first | The overrides only; code plugins in v1.0 | Owner decisions (O66, O68, O69): content can be shared without the risk of code now, and other mods can build on EldenNet later | Proposal 0001 §4–§8; WHY§87 |
+| Plugins | Content plugins (data only) from 1.1, checked like EldenNet's own content and loaded between the shipped content and the overrides; code plugins through a published C interface after v1.0, each turned on once by the player, its rules set now (§13); no hook service for plugins at first | The overrides only; code plugins in v1.0 | Owner decisions (O66, O68, O69): content can be shared without the risk of code now, and other mods can build on EldenNet later | Proposal 0001 §4–§8; WHY§87 |
 | Plugin installation | The Plugins folder (a folder or a `.zip`) installed by the launcher before the game starts, and the dashboard's drop zone, this PC only; one installer and one set of checks; code never through the browser | The folder only; the dashboard only | Owner decision (O67) | Proposal 0001 §6 |
 | Plugin manifest | `plugin.toml`: id, name, version, kind, EldenNet range, author, licence, summary, and every file with its size and SHA-256; only listed files are read | No manifest | A plugin must say what it is and what it holds, and a half-copied one must be caught | Proposal 0001 §5.2 |
-| Plugin content | Profiles, cards and lore may be added or replaced whole, and fields layered onto shipped profiles; never identity, flags, world stages, the lexicon, event rules, prompts or game layouts; game facts only from EldenNet's verified data | Plugins replacing anything | Game facts are verified by EldenNet (O48), and the spoiler machinery must stay whole | Proposal 0001 §5.1, §5.4 |
+| Plugin content | Profiles, cards and lore may be added or replaced whole, and fields layered onto shipped profiles; never identity, flags, world stages, the lexicon, event rules, prompts or game layouts; game facts only from EldenNet's verified data | Plugins replacing anything | Game facts are verified by EldenNet (O48), and the playthrough state that grounds every prompt must stay whole (O86) | Proposal 0001 §5.1, §5.4 |
 | Plugin archives | `.zip` only, stored or deflated, ≤ 32 MiB and 2,000 entries, ≤ 128 MiB unpacked (EST); no path outside the plugin's folder, no links, no names that differ only in case; a content plugin holds only `.toml` and `.md`; nothing runs while it is checked | Any archive format | A crafted archive is the obvious attack on an installer | Proposal 0001 §6.3 |
 | Plugins' model calls | Within EldenNet's pacing, budget and gates, each shown on AI › Requests with the plugin's name | A budget of their own | The player pays for every call and must see whose it is | Proposal 0001 §7.1 |
 | Where code plugins run | Outside the game: one plugin cluster, a plugin host process EldenNet starts once it has reached Ready, for every row set to Cluster; a host of its own for a row set to Detached; a separate link per plugin; inside the game only for a plugin that must draw in game or patch the game, after a stronger warning | Inside the game (O68's first reading); one process per plugin | Owner decision (O70): a plugin crash stops plugins, never the game or EldenNet, and a crowd of processes is avoided | Proposal 0001 §13.3 |
@@ -1970,22 +2292,25 @@ The memory DB tests of MEM §9.6 run and gate at v0.3, as before.
 | Reaction settings | `settings.toml` schema 2: `[reactions]` on and cooldown per type; the `pacing`, `range` and `autonomy` inline tables; `features.npc_to_npc`, `self_awareness` and `status_awareness`; keys ship with each feature, the F10 pages at v0.6; the safety and spoiler layers and the context gates are not settable | Feature switches and bark density only; a spoiler setting | Owner decision O33 | O33; ARCH §11.5, §11.6; NPC §9.1 |
 | Speaking up | A pure motive from recorded state (`beckon` verified by S6; `StageChanged` and `NativeTalkEnded` with a 10 s settle window, or the game's played flag); one live line with a seed fallback; fail closed before S3 and on unknown consciousness | Greet on every approach; flags alone; let the model decide | Owner decision O32; read-only; nothing invented; never over a native line | O32; §8.9; MEM §12.14 |
 | Autonomy | A per-NPC timer (120 s); an autonomy call on a tick only when pacing would admit a line (the tick itself runs whatever `autonomy.enabled` says, and `stage_talk` uses it too); a call reserves its slot, silence included; each call offers one of the speaker's `subjects`, by a pure rotation | A timer alone; a director that picks speakers (a later seam, §13); news and reactions only | Owner decision O37, and the owner's word that autonomy may turn to what an NPC likes (O30); calls stay within the talk window (≤ 240 an hour at the defaults); the rotation replays bit for bit | O37, O30; §9.8 |
-| NPC-to-NPC | Lines are audience-tagged events; the addressee or the nearest listener on the speaker's side (either side in a fight) answers; a heard line lives 6 s, under the 20 s answer cooldown; generics answer from pools keyed to the line, personas live outside fights; no news spreads | A chain depth; a speaker selector that may pick no one; shared news | Owner decisions O34 and O39; exchanges end by pacing alone | O34, O39; NPC §9.8 |
+| NPC-to-NPC | Lines are audience-tagged events; the addressee or the nearest listener on the speaker's side (either side in a fight) answers; a heard line lives 6 s, under the 20 s answer cooldown; generics answer from pools keyed to the line, personas live outside fights; no news spreads | A chain depth; a speaker selector for answers that may pick no one (the next own-initiative speaker at a shared place is a decision call, §9.7); shared news | Owner decisions O34 and O39; exchanges end by pacing alone | O34, O39; NPC §9.8 |
 | Self-awareness | A persona's own lines in its prompt and memory; a generic's ring of its own lines; a "you, now" line; native lines through `NativeLineHeard` after S10 | History only | Owner decision O35; the ring already exists for variety | O35; MEM §1.4 |
-| Spoiler prompting | Positive grounding: block 5b in three parts and items 4 and 9 set out the present; `forbid` code-only; tells on output; C9's judged part; a three-step fallback | Forbid lists in the prompt; a spoiler setting | Owner decision O36; forbid lists prime small models (J3 #10); the output guards are model-independent | O36; MEM §7 |
+| Spoiler prompting | Positive grounding: block 5b in three parts and items 4 and 9 set out the present; `forbid` eval-only, the topics of each character's test questions; no filter on output (O86) | Forbid lists in the prompt; a spoiler setting; tells on output, C9's judged part and a three-step fallback (kept beside grounding until O86) | Owner decisions O36 and O86; forbid lists prime small models (J3 #10); what a prompt holds is safe by construction | O36, O86; MEM §7 |
 | NPC types | Our own `identity/types.toml` of kinds, types and tags from GAL signals; a slot per persona and per seen named NPC; allowances only narrow | Per-NPC settings only; types from runtime names | Owner decision O38; labels in our words keep the page spoiler-safe | O38; §7.6 |
 | Profiles | Three depths of one system: the archetype card as the kind profile, a character profile for one NPC, the persona; each carries `subjects` and optional `instructions`; a character may build on a card (`base`), and the player's layer goes on top | Per-NPC instructions only; whole-file overrides only; a card per boss | The owner asked to instruct each NPC, bosses included (O43); one schema family, one loader and one lint set; a boss needs one character's facts, not a kind's | O43; §7.7; NPC §4.5 |
 | Bindings | An NpcParam row with its name id, a non-zero entity id, or a live boss bar's name id; each a lead until S1, S2 or a sighting in the player's own game verifies it; nothing speaks on an unverified binding | Talk codes as keys; runtime names; a bar id valid outside its fight | The GAL reads no per-character talk code and the datasets disagree (NPC §2); names fork memories; a bar id is authored per encounter (ER05), so it binds only while its bar shows | O43; §7.2, §7.7 |
-| The player's profiles | `%APPDATA%\EldenNet\profiles\`: a layer per slot (instructions, subjects, register, reply length) and character profiles of their own; each file validated alone by the watcher; lexicon and wording lints warn and spoiler checks stay silent, while schema, caps, predicates, template syntax and the safety lexicon block; output guards unchanged; never bundled or uploaded | Whole-file overrides only; profiles in `settings.toml`; edits to shipped files | A layer survives content updates; one file per slot resets cleanly; the player's text is theirs, and the guards on output keep spoilers and safety where they were | O43; §7.7; ARCH §11.6 |
+| The player's profiles | `%APPDATA%\EldenNet\profiles\`: a layer per slot (instructions, subjects, register, reply length), character profiles of their own and an optional bio of the Tarnished (its seen fields only); each file validated alone by the watcher; lexicon and wording lints warn and no spoiler check applies, while schema, caps, predicates, template syntax and the safety lexicon block; output guards unchanged; never bundled or uploaded | Whole-file overrides only; profiles in `settings.toml`; edits to shipped files | A layer survives content updates; one file per slot resets cleanly; the player's text is theirs, only verified flags unlock a stage or a revealed entry (O86), and the guards on output keep safety where it was | O43, O46, O86; §7.7; ARCH §11.6 |
 | Profile drafting | On the player's click only, one `draft` call turns the player's own notes into a draft of the editable fields, shown for review and saved only by the player; it reads no game text, no name the notes or the player's own text do not give and no shipped private field; ≤ 20 a session | No helper; runtime bio generation; profiles the model updates over time | Our proposal within O43, to make the owner's per-NPC instructions easy to write; it goes beyond SN00 row 16's offline-only drafting by running in game, but only on the player's click, from the player's own notes and text (never game text), and only as a draft the player reviews and saves; row 17's self-updating bios stay dropped: no model changes a profile by itself | O43; §7.7; NPC §4.7 |
 | Roster drafting | `en-tools roster-draft`, offline on the author's machine: one call per NPC turns our own research note into a draft bio; a person edits every field, a second reader does the spoiler review, the lints and the ≥ 6-word overlap check run; no game text, export or vanilla line reaches the model | Hand-writing every bio (MEM §5.6 before O45); runtime generation; drafts from the NPC's own lines (SN00 row 16) | The owner's "we will generate a profile for them" (O45) at about 140 bios; our own notes as the only input keep game text out; review keeps quality and spoilers where hand-writing had them | O45; §7.8; MEM §5.6 |
+| Character bio | Five layers: the first meeting (seen, self, voice, speaking up, knows), later truths revealed by verified stages, companion, lived per journey, and the Tarnished's own; about 450–550 words of first-meeting prose for an NPC that speaks; a secret never in the first meeting, a liar's cover story in its `claims` | O46's draft (no claims, aims or ties, no companion or lived layer); SkyrimNet's ten parts, secrets included | Owner decision (O46, as revised in proposal 0004): models leak and Elden Ring is built on mystery, so an NPC holds only what is safe to hear now; skills matter only beside the Tarnished | O46; proposal 0004; WHY§96, WHY§98 |
+| Followers | After v1.0, when actions open, on the companion layer every bio carries from v1.0 and the game's own summons use first | Designed now for a v1 release; summons only | Owner decision (O85): following needs actions, which are later-version seams | O85; §13 |
 | Free conversation | Every NPC with a profile (personas, the roster's bios and the player's own character profiles) converses when conversable and keeps memories of the Tarnished and of other NPCs; the predicates, built-in rules (a) and (b), gates, pacing and spoiler layers are unchanged | Conversation and memory for personas only (O43 before O45) | Owner decision O45; one rule for every profile, whoever wrote it (the player's own included: our reading of O45) | O45; §7.8 |
-| Speaker data | The speaker's handle resolves through verified keys to one profile id, which keys its bio, stage track, allowance slot, journal, facts, claims, world record, cooldowns, seeds and pools | Runtime names; a key per store | The owner's "match it by ID" (O45); names fork memories and leak reveals ("Identity" above) | O45; §7.2, §7.8 |
-| Grounding without a stage track | Its bio, its memories, the land by `known(C)` over the sky, its home and where it stands now, the here and now, and its own story's stage only once a stage track exists for it | Story facts written into bios; a line that it knows nothing | Positive grounding (O36) with nothing it has not reached; a stage needs S6 | O36, O45; MEM §12.5 |
-| Waiting for Min's blueprint | Memories of other NPCs (storage, caps, recall), exchange-triggered memory jobs, context and prompt assembly for a non-persona conversation, the LLM and voice layers: principles now, design after the owner decides what EldenNet adopts | Designing them now | The blueprint may replace them; Augur, the GAL, identity, the spoiler layers and pacing do not depend on it | O45; §7.8 |
+| Speaker data | The speaker's handle resolves through verified keys to one profile id, which keys its bio, stage track, allowance slot, journal, facts, claims, lived layer, world record, cooldowns, seeds and pools | Runtime names; a key per store | The owner's "match it by ID" (O45); names fork memories and leak reveals ("Identity" above) | O45; §7.2, §7.8 |
+| Grounding without a stage track | Its bio (the first meeting, `knows_when` once verified, the companion layer when summoned, the lived layer), its memories, the land by `known(C)` over the sky, its home and where it stands now, the here and now, and its own story's stage only once a stage track exists for it | Story facts written into bios; a line that it knows nothing | Grounding from the playthrough state (O36, O86) with nothing it has not reached; a stage needs S6 | O36, O45, O86; MEM §12.5 |
+| Waiting for our own engine | Memories of other NPCs (caps, recall), exchange-triggered memory jobs, context and prompt assembly for a non-persona conversation, the voice layers: principles now, designed with the engine; settled for it already: one memory per witness, recall gathered by code, the client's lessons, decision calls and the template engine's rules (§7.8, §8.3, §10, §11) | Designing them all now; Min's DLL | The owner chose an engine of our own on SkyrimNet's logic (O84); Augur, the GAL, identity, the spoiler layers and pacing do not depend on it | O45, O84; §7.8 |
 | Generic calm lines | Every calm line of a card or a character profile waits for S8's sleep or senseless signal for its kind | Idle remarks without the check; generics treated as awake until S8 | Owner decision O44: a sleeper never talks | O44; §8.9, §9.4 |
 | Status effects | Seven statuses of our own as event types from S8's classification; own and witnessed; spoken reactions only; fail closed; sleep feeds "conscious" | HP wording only; build-up events first | Owner decisions O40 and O41 | O40, O41; §9.9 |
 | Combat dialogue | Every combatant; NPC pairs engage by hits once S7 verifies `last_hit_by` for NPC attackers (and by distance once it verifies the team-pair table); persona combat lines seeded and pooled; boss-fight lines on by default, per kind as S3's scripted-line detector passes | Generic barks against the Tarnished only; boss-fight lines off | Owner decision O42 | O42; §9.2, §9.10 |
+| Stance and concealment | A stance per viewer (`enemy`, `ally`, `turned`, `bystander`); an attack with no source within 20 m marked unseen; a concealed Tarnished neither greeted nor addressed; each read verified in game first | "Not hostile" alone; naming any attacker; greeting a hidden Tarnished | A charmed foe or a summon is more than "not hostile"; SkyrimNet 1.2.0 showed both where our design had neither (WHY§98) | §6.5; ARCH §8; WHY§98 |
 | Actions | None in v1; action and gesture allowances shown as seams | Gestures only; full actions | Owner decision O41; R2 | O41; §13 |
 
 ---
