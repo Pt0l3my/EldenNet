@@ -124,8 +124,8 @@ def main():
         for n in sorted(names):
             path = os.path.join(root, n)
             rel = os.path.relpath(path, REPO).replace(os.sep, "/")
-            with open(path, encoding="utf-8") as f:
-                files.append((rel, crlf(f.read())))
+            with open(path, "rb") as f:
+                files.append((rel, f.read()))  # byte for byte: the DLL and lint --gal read these very bytes
     with open(os.path.join(HERE, "README-R1.txt.in"), encoding="utf-8") as f:
         title = "EldenNet, round R1 (package %s)" % label
         readme = (f.read().replace("@LABEL@", label).replace("@UNDERLINE@", "=" * len(title))
