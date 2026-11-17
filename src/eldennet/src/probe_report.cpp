@@ -67,7 +67,7 @@ constexpr std::array<Key, 49> kKeys = {{
     {"hits", Type::Array, Type::Object},
     {"offset", Type::Unsigned},
 }};
-constexpr std::array<Key, 22> kMore = {{
+constexpr std::array<Key, 28> kMore = {{
     {"rose", Type::Unsigned},
     {"still", Type::Unsigned},
     {"other", Type::Unsigned},
@@ -90,6 +90,12 @@ constexpr std::array<Key, 22> kMore = {{
     {"outside", Type::Unsigned},
     {"plain", Type::Unsigned},
     {"inline_text", Type::Unsigned},
+    {"inst_statics", Type::Unsigned},
+    {"inst_null", Type::Unsigned},
+    {"inst_unread", Type::Unsigned},
+    {"inst_unclassed", Type::Unsigned},
+    {"inst_classed", Type::Unsigned},
+    {"inst_matched", Type::Unsigned},
 }};
 
 constexpr std::array<Key, kKeys.size() + kMore.size()> joined() {
@@ -217,6 +223,12 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("agree", f.names.agree);
   w.number("qualified", f.names.qualified);
   if (f.names.offset) w.number("offset", *f.names.offset);
+  w.number("inst_statics", f.names.inst_statics);
+  w.number("inst_null", f.names.inst_null);
+  w.number("inst_unread", f.names.inst_unread);
+  w.number("inst_unclassed", f.names.inst_unclassed);
+  w.number("inst_classed", f.names.inst_classed);
+  w.number("inst_matched", f.names.inst_matched);
   w.begin_array("name_slots");
   for (const ProbeNameSlot& n : f.names.slots) {
     w.begin_object();

@@ -27,11 +27,14 @@
 #if EN_PROBE
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <map>
 #include <set>
 
 #include "en/gal/derive.hpp"
 #include "en/gal/fd4.hpp"
+#include "en/gal/guarded.hpp"
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
@@ -264,6 +267,17 @@ class Round {
     const std::uint64_t t = since_ms();
     derive::Options options;
     for (const auto& [label, slot] : slots_) options.static_slots.emplace_back(label, slot);
+    // O92: one 8-byte read at an instance outside the image (its vtable), on T1 before any call, through the same
+    // crash-guarded copy and plausibility rules as the reader's (ARCH §6.5); a vtable pointer does not change while
+    // its object lives. Refused or faulted: nothing.
+    options.read_instance_word = [this](std::uint64_t address) -> std::optional<std::uint64_t> {
+      if (en::gal::implausible(address, 8, 8, s_.sys->stacks())) return std::nullopt;
+      std::array<std::byte, 8> v{};
+      if (!s_.sys->copier().copy(address, v).copied) return std::nullopt;
+      std::uint64_t out = 0;
+      std::memcpy(&out, v.data(), 8);
+      return out;
+    };
     result_ = derive::derive(*image_, s_.sys->image(), leads_, options);
     ++f_.derive_passes;
     f_.derive_ms = since_ms() - t;
@@ -274,6 +288,12 @@ class Round {
       f_.names.qualified = g.names_qualified;
       f_.names.offset = g.best_names && g.names_best != 0 ? std::optional<std::uint32_t>(g.best_names->offset)
                                                           : std::nullopt;
+      f_.names.inst_statics = g.inst_statics;
+      f_.names.inst_null = g.inst_null;
+      f_.names.inst_unread = g.inst_unread;
+      f_.names.inst_unclassed = g.inst_unclassed;
+      f_.names.inst_classed = g.inst_classed;
+      f_.names.inst_matched = g.inst_matched;
       f_.names.slots.clear();
       for (const derive::NameSlot& n : g.name_slots) {
         f_.names.slots.push_back(en::shell::ProbeNameSlot{n.offset, n.null_ptr, n.to_rdata, n.to_data, n.to_code, n.to_other,
@@ -343,11 +363,12 @@ class Round {
             fd.idiom ? std::optional<std::uint64_t>(fd.idiom_hits) : std::nullopt, count);
       ok = ok && same;
     }
-    // The name layout: read by at least half the class objects.
+    // The name layout: read by at least half the class objects; or, without it, the singletons named by their instances'
+    // RTTI (O92), the registration's instance among them. Either way each singleton has its own check below.
     const bool names = fd.names.has_value() && fd.names_of > 0 && fd.names_agree * 2 >= fd.names_of;
     check("name_layout", "", names ? CheckStatus::Confirmed : CheckStatus::Missing,
           fd.names ? std::optional<std::uint64_t>(fd.names->offset) : std::nullopt);
-    ok = ok && names;
+    ok = ok && (names || (fd.diagnostics.inst_matched > 0 && instance_named()));
     for (const derive::SingletonResult& sr : fd.singletons) {
       check("singleton", sr.label, sr.status == derive::Status::Derived ? CheckStatus::Confirmed : CheckStatus::Missing,
             sr.status == derive::Status::Derived ? std::optional<std::uint64_t>(sr.static_slot) : std::nullopt);

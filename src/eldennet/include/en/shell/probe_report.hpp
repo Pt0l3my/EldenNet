@@ -77,6 +77,9 @@ struct ProbeNames {
   std::uint64_t agree = 0;      // named by the best layout
   std::uint64_t qualified = 0;  // of those, names joined by :: to a namespace
   std::optional<std::uint32_t> offset;  // the best layout's offset
+  // Naming by the instances' RTTI (O92): statics tried, null, unread, not a known vtable, classed, leads named.
+  std::uint64_t inst_statics = 0, inst_null = 0, inst_unread = 0, inst_unclassed = 0, inst_classed = 0,
+                inst_matched = 0;
   std::vector<ProbeNameSlot> slots;
 };
 
