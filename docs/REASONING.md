@@ -219,6 +219,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 194 | 2026-11-16 | settings.toml for v0.1: strict, ARCH §11.5's later tables accepted, three tables of this build's own | DECIDED | #engine #dll #settings |
 | 195 | 2026-11-16 | The DLL's imports, exports and greps | FACT | #engine #dll #ci |
 | 196 | 2026-11-16 | Under Wine, a stack overflow passed on by any DLL's crash filter hangs the process | FACT | #engine #dll #wine #launcher |
+| 197 | 2026-11-17 | R0c into gal/: what became a lead, where it lives, and a lead [task] that holds only its group | DECIDED | #engine #gal #r1 |
+| 198 | 2026-11-17 | R1 calls only on the reviewed leads; its group check had never compared | FACT | #engine #dll #r1 |
+| 199 | 2026-11-17 | The launcher's --probe asks through the watch block; a refusal stops the DLL | DECIDED | #engine #launcher #dll #r1 |
+| 200 | 2026-11-17 | The console polls every 200 ms: a quick step passes it unseen in a Release build | FACT | #engine #launcher #wine |
+| 201 | 2026-11-17 | spike-report reads DESIGN §16.1's pass rules so | DECIDED | #engine #spike |
+| 202 | 2026-11-17 | Replay agrees: en-core's slice answers the same changes on a recording's inputs | FACT | #engine #core #spike |
+| 203 | 2026-11-17 | The R1 package, 0.1.0-spike.1 | METHOD | #engine #r1 #spike |
+| 204 | 2026-11-17 | C1's slot could answer an older snapshot after a newer one | FACT | #engine #dll |
 
 ## Entries
 
@@ -3573,3 +3581,116 @@ invariant 10, EldenNet ARCH (T3)
   crash reporter's filter before ours do not see a stack overflow. The `launcher-eldennet-overflow` case checks it.
 - **Open**: whether Windows does the same (S0-D's crash rows on the owner's PC); galtest's filter (part 7's) still
   passes it on.
+
+### 197. R0c into gal/: what became a lead, where it lives, and a lead [task] that holds only its group
+
+`2026-11-17` · DECIDED · `#engine #gal #r1` · refs: O89, ARCH§6.3, R0c, WHY§180, WHY§183, WHY§184, WHY§185
+
+- **Chosen**: `builds.toml` holds R0c's fingerprint for 2.7.2.0 WW (App 1.17.2, DESIGN's header), `dlrf_name_layout`
+  false; `patterns.toml` holds the FD4 idiom (24 bytes, 7 fixed; captures static at 3, class at 15, getter at 20;
+  `expect_matches = [7151, 7151]`, R0c's count in the first `.text`) with no `builds` (confirmed nowhere), and its
+  note `derivations/fd4_idiom.md`; `layouts/2.7.2.0-ww.toml` holds a lead `[task]` with only the group's name and
+  index 110 (R0c's table of 168 entries of 32 bytes, UTF-16 names at +16; no field of the entries holds an index).
+  Everything else (register_task and its ABI, the task's shape, the statics, the classes) is left out, not guessed.
+- **The schema**: a confirmed `[task]` keeps every key; a lead may hold only its group, and is `partial` then:
+  discovery is never ready with it, `install_task` refuses it, the first tick reads nothing. ARCH §6.3's sketch
+  wants `register_abi`, `vtable_slots`, `run_slot` and `object_size` everywhere, which would have forced placeholders.
+- **The table's shape** (entries, stride, name offset, encoding) has no home in the layout's schema: it is in the
+  layout's comments and the derivation's record; R1's r1-derive.json reports it again as loaded.
+- `lint --gal` checks the folder (each file as its reader reads it, a note per pattern, confirmed builds known);
+  ARCH §6.3's O48 check (no byte string quoted in docs/research/) needs the design branch beside the engine, and waits.
+
+### 198. R1 calls only on the reviewed leads; its group check had never compared
+
+`2026-11-17` · FACT · `#engine #dll #r1` · refs: O89, WHY§193, S10.1.a plan §2
+
+- **Found**: part 6's R1 read the draft layout's `[task] group_index`, a key the layout's schema never had (it is
+  `[task] group = { name, index }`), so the group's index was never compared with the layout's; the fake game's R1
+  case passed with the check `confirmed` on the loaded table alone.
+- **Chosen**: the draft layout is read with `load_layout` in a dev build's mode, and its group's index must equal
+  the loaded table's; an unreadable or refused layout fails the check. And a new check, `fd4_idiom`: the idiom the
+  live image gives must be patterns.toml's, byte for byte and capture for capture, or no call; the live hits are
+  reported beside R0c's count and do not decide. So the one call rests only on derivations a review has seen (O89
+  (a)): the fingerprint (the gate), the idiom, the group's index.
+- **Risk accepted**: if Arxan's image in memory differs from the file where the idiom is cut, R1 refuses and the
+  owner's round costs one more run; that is the safe side.
+
+### 199. The launcher's --probe asks through the watch block; a refusal stops the DLL
+
+`2026-11-17` · DECIDED · `#engine #launcher #dll #r1` · refs: O89, O90, WHY§173, WHY§194, S10.1.a plan §1.2
+
+- **Chosen**: `--probe` writes R1 into the block's `control.probe` (its spare field, the block's version kept: a 0
+  is "no request") before loading anything, and EldenNet answers there at Settings: a probe build accepts and runs R1
+  with the file's other probe settings, `register = "auto"` becoming `"mark"`; a release build, or EldenNet off,
+  refuses and ends T1 (Exit: no normal start, nothing called). No settings.toml is written, so nothing outlives the
+  session. `--probe` brings `--console`, refuses `--no-backup`, `--vanilla-offline` and `--spike`, and makes a failed
+  backup fatal (no "continue without a backup").
+- **The console** tells each step once in plain words (`EldenNet R1: ...`, console only; the log keeps `r1
+  step=<word>`), and the launcher lints both reports when the game ends, with the vocabularies `lint --report` uses.
+- **Not chosen**: a launcher-written settings.toml (it would stay for the next start), or the launcher reading the
+  DLL's version resource to tell a probe build (the block's answer says it, and covers EldenNet turned off).
+
+### 200. The console polls every 200 ms: a quick step passes it unseen in a Release build
+
+`2026-11-17` · FACT · `#engine #launcher #wine` · refs: WHY§199
+
+- **Seen** (the R1 package's own binaries, clang-cl Release, on the fake game under Wine): the console showed
+  `asked`, `press_mark`, `task_confirmed` and `reports_clean`, but not `reading` (the live derivation took under 200
+  ms) or `called` (the first tick came within one poll); and the live derivation's second pass, once the statics'
+  slots were found, logged after `task_confirmed`. The Debug build showed every step.
+- **Chosen**: the harness requires the essential steps in order and allows the two quick ones to be missing. On the
+  real game the derivation takes seconds, so `reading` shows; `called` may not, and need not.
+
+### 201. spike-report reads DESIGN §16.1's pass rules so
+
+`2026-11-17` · DECIDED · `#engine #spike` · refs: DESIGN§16.1, O91, S10.1.a plan §1.2
+
+- S0-A: per load mode (`suspended` early; `window` or `title` late), at least 20 runs (`--need`), each Ready or L1
+  (a banner or inert), none a crash; `both_modes` is `not_measured`, not failed, until both loads have run. The run's
+  mode is now in the launcher's spike log (older logs read `unknown`).
+- S0-B: at least 7,200 s of snapshots, no fault (a snapshot's `faults` are its own tick's, summed), no group tripped,
+  the C13 p99 at the session's end at most 500 µs, no crash.
+- S0-C: "Gate false in every session" read as the gate never left open on a snapshot of a session that is not one's
+  own solo world (the core closes it on the first such snapshot, so its change line follows that snapshot's);
+  connections beyond the PC at most 0; "no online menu" the owner's to observe, never measured, and not counted
+  against the verdict. **Open**: if the design meant the game's own online flag, the rule changes.
+- S0-D: "20/20 caught" read as at least 20 forced faults counted with no crash; a breaker tripped; every s0d-crash
+  run's crash recorded by the watcher.
+- The verdict: `pass` when every measured rule passes, `incomplete` when one is not measured, else `fail`.
+
+### 202. Replay agrees: en-core's slice answers the same changes on a recording's inputs
+
+`2026-11-17` · FACT · `#engine #core #spike` · refs: ARCH§7.5, ARCH§12, WHY§192
+
+- **Seen**: on the DLL's own recording in the harness (clang-cl, the fake game, `launcher-eldennet`) and on four
+  invented sessions written as the DLL's core thread writes them, `replay` stepped the recorded lifecycle messages,
+  banners and snapshots through `en::core::Core` again and answered the recorded changes exactly (what, from, to), in
+  order; one change line removed makes it disagree at that place.
+- **How**: inputs in their recorded order, each stepped at the latest time seen (a snapshot's line carries its own
+  `mono_ms`, the others the step's time; the core's Tick does nothing yet, and a snapshot is judged by its own time);
+  a playthrough's name, never recorded, is a stand-in of its recorded length. If a later core reads more of a
+  snapshot than the recording keeps, replay will say so by disagreeing.
+
+### 203. The R1 package, 0.1.0-spike.1
+
+`2026-11-17` · METHOD · `#engine #r1 #spike` · refs: O89, S10.1.a plan §1.2
+
+- `EldenNet-R1.zip` (`tools/spikepkg/build.py r1`, part 10): the clang-cl Release launcher, the probe DLL and
+  eldennet-engine.exe at the label `0.1.0-spike.1`, gal/ byte for byte as `lint --gal` passed it, README-R1.txt, the
+  licences and SHA256SUMS. Checked: the sums; the help and version under Wine; the owner's steps on the fake game
+  with the package's own binaries (the harness's `launcher-eldennet-probe`, PASS); the privacy sweep (clean).
+- No `fakegame.exe` and no `--selftest` in it: the smoke run (plan §1.2, risk 3) is the S0 package's, spike.2.
+
+### 204. C1's slot could answer an older snapshot after a newer one
+
+`2026-11-17` · FACT · `#engine #dll` · refs: ARCH§1.3, WHY§192, R6
+
+- **Seen**: en_shell_tests' two-thread case of `SnapSlot` failed about once in four runs on a loaded machine (GCC),
+  a snapshot taken whose `seq` was not above the last one's. Part 6's `take()` chose the newest Ready slot by its
+  order at the scan, then claimed it; between the two the writer could overwrite that slot and publish it again,
+  newer than the other slot it had left Ready, and `take()`, still judging the other by the scan's order, kept it,
+  so the next take answered it: older. In game the core would have seen the snapshots' clock go back once (its gate
+  starts its 5 s hold again), and a snapshot taken out of order.
+- **Fixed**: the chosen slot's order is read once it is claimed (the writer cannot touch it then), and the other is
+  claimed before its order is read, so a slot the writer has just published again is never freed unread. 60 runs of
+  the case pass; the DLL's harness cases pass on the fixed build.

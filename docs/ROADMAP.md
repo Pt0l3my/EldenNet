@@ -38,7 +38,7 @@ slug 024a612a-24db-41f3-b91d-c0b13685df61).
 
 # EldenNet's roadmap
 
-- updated: 2026-11-16
+- updated: 2026-11-17
 - refs: DESIGN§0, DESIGN§16, DESIGN§19, GraceUI:DESIGN§0, GraceUI:DESIGN§10, CLAUDE
 
 EldenNet is an LLM-driven NPC framework for Elden Ring, based on SkyrimNet with its author's
@@ -841,9 +841,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - refs: DESIGN§16.1
 - S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [active]
   - refs: O73
-  - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Built the same day, on the
-    engine's branch, are en-proto's types for the game-access layer, en-gal's PE reader, patterns and file schemas,
-    and our own fake game with its Wine harness (WHY§120 to §125); the derivation kit and `probe-exe` come next.
+  - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Parts 1 to 10 of the spike
+    build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
+    to §204); part 10's S0 package and the launcher's smoke run wait for R1's review.
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -855,9 +855,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
-- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [active]
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
+  - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
+    docs/ops/probes/), and R1's package was sent.
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15
