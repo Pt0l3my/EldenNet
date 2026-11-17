@@ -227,6 +227,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 202 | 2026-11-17 | Replay agrees: en-core's slice answers the same changes on a recording's inputs | FACT | #engine #core #spike |
 | 203 | 2026-11-17 | The R1 package, 0.1.0-spike.1 | METHOD | #engine #r1 #spike |
 | 204 | 2026-11-17 | C1's slot could answer an older snapshot after a newer one | FACT | #engine #dll |
+| 205 | 2026-11-17 | Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key | FACT | #graceui #input #perf |
 
 ## Entries
 
@@ -3694,3 +3695,14 @@ invariant 10, EldenNet ARCH (T3)
 - **Fixed**: the chosen slot's order is read once it is claimed (the writer cannot touch it then), and the other is
   claimed before its order is read, so a slot the writer has just published again is never freed unread. 60 runs of
   the case pass; the DLL's harness cases pass on the fixed build.
+
+### 205. Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key
+
+`2026-11-17` · FACT · `#graceui` `#input` `#perf` · refs: GraceUI:D155, WHY§126, WHY§133
+
+- **The cost** (FACT, Wine 9.0 on Xvfb): `GetKeyState` called from GraceUI's window-procedure filter takes about 100 µs
+  a call, sometimes more. Reading Ctrl, Shift and Alt on every key message, for the hotkeys brought into 0.1 (D155),
+  raised the input-cost check's p99 with a holder from about 1.5 µs to 130–250 µs, against its 50 µs budget.
+- **The way round** (DECIDED, GraceUI D155): the filter reads the modifiers only for a fresh press of a key that some
+  hotkey binds, and only while no holder has input; the p99 is back at about 1.5 µs.
+- **For S4** (METHOD): measure `GetKeyState`'s cost on Windows, where it is expected to be far cheaper.
