@@ -32,7 +32,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--handled-every` with `--handled-kind seh\|cxx` | Exceptions a game raises and handles itself, which a vectored handler sees first |
 | `--load [boot\|window\|ready\|title\|world:]PATH` | A loader that loads a DLL at one moment (ARCH §3.3's late load) |
 | `--selftest-task` (`--selftest-abi`, `--selftest-object-size`, `--selftest-group`) | EldenNet's T1 and trampoline, in miniature: a task registered from another thread, its slots counted |
-| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F | The player pressing the launcher's Mark, a system hotkey (O90) |
+| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F, and with `--press-pause-every N` again every N frames | The player pressing the launcher's Mark, a system hotkey (O90), until it is taken |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -110,7 +110,14 @@ R1 in the probe build (`probe/eldennet.dll`, the leads' task base replaced by a 
 reports lint clean, every check confirmed, one call at the Mark with the registers and group `--describe` gives, the
 slot counts (attach once, run every frame, query every 64th), the bytes of our object the hub wrote, the census's base
 class with the run slot, the hinstance's and the statics' slots, the rising play time (with loading screens for it to
-stand still in), no allocation on the game thread, and the live derivation's singletons and statics.
+stand still in), no allocation on the game thread, and the live derivation's singletons and statics. Then R1 as the
+owner runs it (`launcher-eldennet-probe`: `--probe` with no settings.toml, invented saves backed up first, the default
+settle of 10 s, Pause pressed every second from the title until it is taken; the console's six steps in order, the
+reviewed idiom and the layout's group confirmed, the launcher's lint of both reports), and `--probe` with the release
+DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report). The part 9 tools run on what
+these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (the counts as written, and en-core
+stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
+(three early runs passing their rules, each with its load mode, the late load not run).
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

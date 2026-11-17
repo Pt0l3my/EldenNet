@@ -321,7 +321,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
       r.failure = "a required item is missing";
     }
   }
-  if (r.ready && (!d.layout().task() || d.bound().boot_gap())) {
+  if (r.ready && (!d.layout().task() || d.layout().task()->partial || d.bound().boot_gap())) {
     r.ready = false;
     r.failure = "the layout's task, or the task hub's group table, is incomplete";
   }

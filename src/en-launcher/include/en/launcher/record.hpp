@@ -95,6 +95,7 @@ enum class RunOutcome : std::uint8_t {
 
 struct RunResult {
   std::uint32_t run = 0;
+  std::string mode;  // when the DLL was loaded: "suspended", "window", "title", or "vanilla" (spike-report's modes)
   RunOutcome outcome = RunOutcome::NoDll;
   DllStatus status;
   EndKind end = EndKind::Clean;

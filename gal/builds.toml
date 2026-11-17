@@ -1,0 +1,22 @@
+# The builds EldenNet knows (ARCH §6.3; the gate, ARCH §3.2 and R7). Only an exact fingerprint passes: the file version,
+# the product name (compared without symbols such as a trademark sign), the region, TimeDateStamp and SizeOfImage.
+#
+# 2.7.2.0 WW is the design's target (DESIGN's header: App 1.17.2, exe 2.7.2.0). Its fingerprint is the one the
+# derivation's offline round read from the owner's own executable file (R0c, 2026-11-16; the reviewed record is
+# docs/ops/probes/2026-11-16-r0c.md): FileVersion 2.7.2.0, its fourth field 0 (ww), ProductName "ELDEN RING" once its
+# sign is removed, translation 1033 and 1200. Every value here is a lead until the gate passes in game on the owner's
+# PC (R1) and S0-A's 20 launches confirm it (O89; ARCH §6.3 "Lead and confirmed"): dlrf_name_layout stays false until
+# then, and the layout is a lead file.
+schema = 1
+
+[[build]]
+key = "2.7.2.0-ww"
+app = "1.17.2"
+file_version = "2.7.2.0"
+product_name = "ELDEN RING"
+region = "ww"
+time_date_stamp = 0x6AABF7E7      # R0c's image.time_date_stamp, 1789655015
+size_of_image = 0x5DFD600         # R0c's image.size_of_image, 98555392
+layout = "layouts/2.7.2.0-ww.toml"
+dlrf_name_layout = false          # R0c: 217 class objects, none of them named in the file (213 past its raw data)
+status = "supported"

@@ -11,8 +11,8 @@ namespace {
 
 constexpr std::array<std::string_view, 7> kStages = {"start",   "derived",  "waiting", "registered",
                                                      "running", "refused", "failed"};
-constexpr std::array<std::string_view, 7> kItems = {"gate",  "name_layout", "register", "register_abi",
-                                                    "group", "task_shape",  "singleton"};
+constexpr std::array<std::string_view, 8> kItems = {"gate",  "fd4_idiom",  "name_layout", "register",
+                                                    "register_abi", "group", "task_shape",  "singleton"};
 constexpr std::array<std::string_view, 4> kChecks = {"confirmed", "differs", "missing", "not_run"};
 constexpr std::array<std::string_view, 5> kCalls = {"not_called", "waiting_for_mark", "refused", "ok", "faulted"};
 

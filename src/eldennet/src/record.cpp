@@ -1,8 +1,12 @@
 // The recorder's lines (record.hpp).
 #include "en/shell/record.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <variant>
+
+#include <nlohmann/json.hpp>
 
 namespace en::shell {
 
@@ -432,6 +436,197 @@ std::string mark_line(std::uint32_t n, std::uint64_t t) {
   report::Writer w = start(t, "mark");
   w.number("n", n);
   return finish(w);
+}
+
+// ---- Reading back ----
+
+namespace {
+
+using Json = nlohmann::json;
+
+template <std::size_t N>
+std::optional<std::size_t> index_of(const Json& j, std::string_view key, const std::array<std::string_view, N>& words) {
+  const auto it = j.find(key);
+  if (it == j.end() || !it->is_string()) return std::nullopt;
+  const std::string& v = it->get_ref<const std::string&>();
+  for (std::size_t i = 0; i < N; ++i) {
+    if (words[i] == v) return i;
+  }
+  return std::nullopt;
+}
+
+std::uint64_t unsigned_of(const Json& j, std::string_view key, std::uint64_t otherwise = 0) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_number_unsigned() ? it->get<std::uint64_t>() : otherwise;
+}
+
+bool bool_of(const Json& j, std::string_view key) {
+  const auto it = j.find(key);
+  return it != j.end() && it->is_boolean() && it->get<bool>();
+}
+
+template <class T>
+T narrow(std::uint64_t v) {
+  return static_cast<T>(std::min<std::uint64_t>(v, std::numeric_limits<T>::max()));
+}
+
+bool read_snap(const Json& j, RecordedLine& out) {
+  auto s = std::make_unique<proto::WorldSnapshot>();
+  s->seq = unsigned_of(j, "seq");
+  s->mono_ms = unsigned_of(j, "mono_ms");
+  s->gap = bool_of(j, "gap");
+  s->build.index = narrow<std::uint16_t>(unsigned_of(j, "build"));
+  const auto health = j.find("health");
+  if (health == j.end() || !health->is_object()) return false;
+  if (const auto groups = health->find("groups"); groups != health->end() && groups->is_array()) {
+    for (const Json& g : *groups) {
+      const auto at = index_of(g, "group", kGroups);
+      const auto state = index_of(g, "state", kGroupStates);
+      if (!at || !state) return false;
+      proto::GroupHealth& gh = s->health.groups[*at];
+      gh.state = static_cast<proto::GroupState>(*state);
+      gh.phase_b = bool_of(g, "phase_b");
+      gh.faults = narrow<std::uint8_t>(unsigned_of(g, "faults"));
+    }
+  }
+  s->health.task_us_last = narrow<std::uint32_t>(unsigned_of(*health, "task_us_last"));
+  s->health.task_us_p99 = narrow<std::uint32_t>(unsigned_of(*health, "task_us_p99"));
+  if (const auto session = j.find("session"); session != j.end() && session->is_object()) {
+    s->session.role = static_cast<proto::MultiplayRole>(index_of(*session, "role", kRoles).value_or(0));
+    s->session.is_my_world = bool_of(*session, "is_my_world");
+    s->session.lobby = static_cast<proto::LobbyState>(index_of(*session, "lobby", kLobbies).value_or(0));
+    s->session.player_set_len = narrow<std::uint8_t>(unsigned_of(*session, "player_set_len"));
+    s->session.anticheat = bool_of(*session, "anticheat");
+    s->session.ersc_loaded = bool_of(*session, "ersc_loaded");
+  }
+  if (const auto life = j.find("life"); life != j.end() && life->is_object()) {
+    s->life.main_player = bool_of(*life, "main_player");
+    s->life.screen = static_cast<proto::Screen>(index_of(*life, "screen", kScreens).value_or(0));
+    if (life->contains("load_counter")) s->life.load_counter = narrow<std::uint32_t>(unsigned_of(*life, "load_counter"));
+  }
+  if (const auto ui = j.find("ui"); ui != j.end() && ui->is_object()) {
+    s->ui.hud = static_cast<proto::HudState>(index_of(*ui, "hud", kHuds).value_or(0));
+    s->ui.talk_cam = bool_of(*ui, "talk_cam");
+  }
+  if (const auto p = j.find("player"); p != j.end() && p->is_object()) {
+    proto::Player pl;
+    pl.handle.raw = unsigned_of(*p, "handle");
+    pl.level = narrow<std::uint16_t>(unsigned_of(*p, "level"));
+    pl.archetype = narrow<std::uint8_t>(unsigned_of(*p, "archetype"));
+    pl.play_time_ms = unsigned_of(*p, "play_time_ms");
+    pl.deaths = narrow<std::uint32_t>(unsigned_of(*p, "deaths"));
+    pl.ng_lvl = narrow<std::uint8_t>(unsigned_of(*p, "ng_lvl"));
+    pl.save_slot = narrow<std::uint8_t>(unsigned_of(*p, "save_slot"));
+    pl.dead = bool_of(*p, "dead");
+    pl.riding = bool_of(*p, "riding");
+    pl.boss_flag = bool_of(*p, "boss_flag");
+    s->player = pl;
+  }
+  if (const auto chars = j.find("chars"); chars != j.end() && chars->is_array()) out.chars = chars->size();
+  if (const auto flags = j.find("flags"); flags != j.end() && flags->is_object()) {
+    out.flag_frame = true;
+    if (const auto set = flags->find("set"); set != flags->end() && set->is_array()) out.flags = set->size();
+  }
+  out.snap = std::move(s);
+  return true;
+}
+
+bool read_life(const Json& j, RecordedLine& out) {
+  const auto kind = index_of(j, "life_kind", kLife);
+  if (!kind) return false;
+  if (*kind == 0) {
+    proto::Lifecycle::DataReady d;
+    d.build.index = narrow<std::uint16_t>(unsigned_of(j, "build"));
+    unsigned groups = 0;
+    if (const auto caps = j.find("caps"); caps != j.end() && caps->is_array()) {
+      for (const Json& c : *caps) {
+        for (std::size_t g = 0; c.is_string() && g < kGroups.size(); ++g) {
+          if (kGroups[g] == c.get_ref<const std::string&>()) groups |= 1u << g;
+        }
+      }
+    }
+    d.caps.groups = static_cast<proto::GroupSet>(groups);
+    out.life.payload = d;
+  } else if (*kind == 1) {
+    proto::Lifecycle::PlaythroughReady p;
+    p.slot = narrow<std::uint8_t>(unsigned_of(j, "slot"));
+    p.archetype = narrow<std::uint8_t>(unsigned_of(j, "archetype"));
+    p.keepsake = narrow<std::uint8_t>(unsigned_of(j, "keepsake"));
+    p.play_time_ms = unsigned_of(j, "play_time_ms");
+    const std::size_t chars = std::min<std::size_t>(unsigned_of(j, "name_chars"), p.name.capacity());
+    (void)p.name.try_assign(std::string(chars, 'x'));  // the stand-in: the name was never recorded
+    out.life.payload = p;
+  } else {
+    const auto group = index_of(j, "group", kGroups);
+    if (!group) return false;
+    out.life.payload = proto::Lifecycle::GroupTripped{static_cast<proto::Group>(*group)};
+  }
+  return true;
+}
+
+}  // namespace
+
+std::string_view kind_name(RecordedLine::Kind k) noexcept { return kKinds[static_cast<std::size_t>(k)]; }
+std::string_view group_name(proto::Group g) noexcept { return kGroups[static_cast<std::size_t>(g)]; }
+
+std::optional<RecordedLine> read_recorded_line(std::string_view line) {
+  const Json j = Json::parse(line, nullptr, false);
+  if (j.is_discarded() || !j.is_object()) return std::nullopt;
+  const auto report_kind = j.find("report");
+  if (report_kind == j.end() || *report_kind != "recording" || unsigned_of(j, "schema") != 1) return std::nullopt;
+  const auto kind = index_of(j, "k", kKinds);
+  if (!kind || !j.contains("t")) return std::nullopt;
+  RecordedLine out;
+  out.kind = static_cast<RecordedLine::Kind>(*kind);
+  out.t = unsigned_of(j, "t");
+  switch (out.kind) {
+    case RecordedLine::Kind::Header: {
+      const auto gv = j.find("game_version");
+      const auto ev = j.find("en_version");
+      for (std::size_t i = 0; gv != j.end() && gv->is_array() && i < gv->size() && i < 4; ++i) {
+        out.header.game_version[i] = narrow<std::uint16_t>((*gv)[i].is_number_unsigned() ? (*gv)[i].get<std::uint64_t>() : 0);
+      }
+      for (std::size_t i = 0; ev != j.end() && ev->is_array() && i < ev->size() && i < 3; ++i) {
+        out.header.en_version[i] = narrow<std::uint16_t>((*ev)[i].is_number_unsigned() ? (*ev)[i].get<std::uint64_t>() : 0);
+      }
+      out.header.region = kRegions[index_of(j, "region", kRegions).value_or(3)];
+      out.header.spike = kSpikes[index_of(j, "spike", kSpikes).value_or(0)];
+      out.header.probe_build = bool_of(j, "probe_build");
+      out.header.file = unsigned_of(j, "file");
+      return out;
+    }
+    case RecordedLine::Kind::Snap:
+      if (!read_snap(j, out)) return std::nullopt;
+      return out;
+    case RecordedLine::Kind::Life:
+      if (!read_life(j, out)) return std::nullopt;
+      return out;
+    case RecordedLine::Kind::Banner: {
+      const auto reason = index_of(j, "reason", kBanners);
+      if (!reason) return std::nullopt;
+      out.banner = static_cast<core::BannerReason>(*reason);
+      return out;
+    }
+    case RecordedLine::Kind::Change: {
+      const auto what = index_of(j, "what", kChanges);
+      if (!what) return std::nullopt;
+      out.change.what = static_cast<core::Change::What>(*what);
+      out.change.from = narrow<std::uint8_t>(unsigned_of(j, "from"));
+      out.change.to = narrow<std::uint8_t>(unsigned_of(j, "to"));
+      out.change.at = unsigned_of(j, "mono_ms");
+      return out;
+    }
+    case RecordedLine::Kind::Cmd: {
+      const auto cmd = index_of(j, "cmd", kCommands);
+      if (!cmd) return std::nullopt;
+      out.cmd = kCommands[*cmd];
+      return out;
+    }
+    case RecordedLine::Kind::Mark:
+      out.mark = narrow<std::uint32_t>(unsigned_of(j, "n"));
+      return out;
+  }
+  return std::nullopt;
 }
 
 }  // namespace en::shell

@@ -47,7 +47,8 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
 
-A probe build with `probe = { round = "r1" }` runs R1 after Connect instead (below).
+A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
+(below).
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
@@ -105,12 +106,21 @@ With `debug.record_sessions = true`, T6 writes `%APPDATA%\EldenNet\recordings\<d
 plain JSON Lines (no zstd yet: plan §1.3), rotated past 256 MB, flushed every second. Each line is one report of the kind
 `recording` through en-gal's closed-vocabulary writer on one line: `{"report":"recording","schema":1,"t":<mono ms>,
 "k":"header"|"snap"|"life"|"banner"|"change"|"cmd"|"mark",...}`. `eldennet-engine lint --recording` checks a file, and
-DataPiler's guard can check it key by key (O73). Numbers only by construction: there is no free string, so no name,
+DataPiler's guard can check it key by key (O73). `record.hpp`'s `read_recorded_line` reads a line back with the same
+words, into what the tools need (eldennet-engine's rec-stats, replay and spike-report): what en-core's slice reads of a
+snapshot, the lifecycle messages (a playthrough's name a stand-in of its recorded length), the banners, the changes,
+the commands' kinds and the Marks; the rest is counted, not rebuilt. Numbers only by construction: there is no free string, so no name,
 SteamID, path, game text or param value can be written. A text look-up's answer keeps its table, id and whether it was
 found; a param row its param, id and field count; PlaythroughReady its slot, class, keepsake, play time and the name's
 length. Keyed hashes and redacted text wait for S10.2.d.
 
-## R1, the probe round (O89; a probe build with `probe = { round = "r1" }`)
+## R1, the probe round (O89; a probe build with `probe = { round = "r1" }`, or the launcher's `--probe`)
+
+**How the owner starts it.** `eldennet-launcher --probe` writes R1 into the watch block's `control.probe` before it
+loads anything, and EldenNet answers there at Settings: a probe build accepts (`probe.round` becomes `r1`, with the
+file's other probe settings, and `register = "auto"` becomes `"mark"`, so the call waits for the owner's Pause); a
+release build, or EldenNet turned off, refuses and stops at once (T1 ends in Exit: no other start, nothing called).
+The log's `probe asked=r1 accepted=…` line says which. settings.toml's `probe` table still works alone (the tests).
 
 What the owner's offline round R0c left for the game (its report: the FD4 classes unnamed, `register_task` and its ABI,
 the task's base class, run slot and object size, `GameDataMan`'s and `global_hinstance`'s slots, the group index, the
@@ -122,10 +132,14 @@ layout fields). On T1, after the window and `settle_s` seconds:
    +15, +30 and +60 s while the registration's instance is unnamed. Written as `probe\r1-derive.json`, derive.json's
    schema 1, which DataPiler 0.2.41's guard already reads. `global_hinstance`: the data slots holding the module's
    base.
-2. **The checks** before the one call: the gate passed; the name layout read by at least half the class objects;
-   the registration's callee a function with three distinct agreeing argument registers; the group's index found in
-   the loaded table (and equal to the draft layout's `[task] group_index`, where `gal/` has one); the hub's instance
-   non-null. Any check that fails: no call, `stage = "refused"`. Nothing is guessed.
+2. **The checks** before the one call: the gate passed; the FD4 idiom the live image gives the one R0 cut from the
+   file, byte for byte and capture for capture (`gal\patterns.toml`'s `fd4_idiom`, reviewed: check `fd4_idiom`, its
+   value the live hits and its expected R0's count, which does not decide); the name layout read by at least half the
+   class objects; the registration's callee a function with three distinct agreeing argument registers; the group's
+   index found in the loaded table and equal to the gated build's layout's (`[task] group`'s index, read as a dev
+   build reads the file: a lead `[task]` may hold only its group); the hub's instance non-null. Any check that fails,
+   a missing patterns.toml idiom or an unreadable layout included: no call, `stage = "refused"`. Nothing is guessed,
+   and nothing rests on a derivation that was not reviewed (O89 (a)).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -165,5 +179,6 @@ both DLLs with llvm-objdump: `eldennet_instance_marker` their only export, and t
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording
 that lints clean, the session gate, a build the DLL's own gal/ does not know, a simulated anti-cheat module, a second
-copy, a crash and a stack overflow recorded through the DLL's filter, the watcher started under another loader, and
-R1.
+copy, a crash and a stack overflow recorded through the DLL's filter, the watcher started under another loader, R1
+from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
+taken, both reports linted by the launcher), and `--probe` refused by the release DLL.

@@ -137,3 +137,73 @@ TEST_CASE("record: an empty snapshot (the title) lints clean") {
   const proto::WorldSnapshot empty;
   lints(snapshot_line(empty, 1));
 }
+
+TEST_CASE("a recording's lines read back with the writer's words: what the core reads, counts of the rest") {
+  const auto s = full_snapshot();
+  const auto snap = read_recorded_line(snapshot_line(*s, s->mono_ms));
+  REQUIRE(snap.has_value());
+  CHECK(snap->kind == RecordedLine::Kind::Snap);
+  CHECK(snap->t == s->mono_ms);
+  REQUIRE(snap->snap);
+  const proto::WorldSnapshot& r = *snap->snap;
+  CHECK(r.seq == s->seq);
+  CHECK(r.gap == s->gap);
+  CHECK(r.health == s->health);
+  CHECK(r.session == s->session);
+  CHECK(r.life == s->life);
+  CHECK(r.ui.hud == s->ui.hud);
+  REQUIRE(r.player.has_value());
+  CHECK(r.player->play_time_ms == s->player->play_time_ms);
+  CHECK(r.player->level == s->player->level);
+  CHECK(r.player->save_slot == s->player->save_slot);
+  CHECK(snap->chars == s->chars.size());
+  CHECK(r.chars.empty());  // counted, not rebuilt
+  CHECK(snap->flag_frame == s->flags.has_value());
+
+  proto::Lifecycle::PlaythroughReady p;
+  p.slot = 4;
+  p.archetype = 2;
+  p.play_time_ms = 77;
+  REQUIRE(p.name.try_assign("Invented Name"));
+  const auto life = read_recorded_line(lifecycle_line(proto::Lifecycle{p}, 9));
+  REQUIRE(life.has_value());
+  const auto* back = std::get_if<proto::Lifecycle::PlaythroughReady>(&life->life.payload);
+  REQUIRE(back != nullptr);
+  CHECK(back->slot == 4);
+  CHECK(back->archetype == 2);
+  CHECK(back->play_time_ms == 77);
+  CHECK(back->name.size() == p.name.size());   // a stand-in of the same length
+  CHECK(back->name.view() != p.name.view());   // never the name, which was never recorded
+  const auto tripped = read_recorded_line(lifecycle_line(proto::Lifecycle{proto::Lifecycle::GroupTripped{
+                                                             proto::Group::Camera}}, 10));
+  REQUIRE(tripped.has_value());
+  CHECK(std::get<proto::Lifecycle::GroupTripped>(tripped->life.payload).group == proto::Group::Camera);
+
+  const en::core::Change c{en::core::Change::What::GateClosed, 2, 0, 555};
+  const auto change = read_recorded_line(change_line(c, 600));
+  REQUIRE(change.has_value());
+  CHECK(change->change == c);
+  CHECK(change->t == 600);
+  const auto banner = read_recorded_line(banner_line(en::core::BannerReason::Inert, 7));
+  REQUIRE(banner.has_value());
+  CHECK(banner->banner == en::core::BannerReason::Inert);
+  const auto mark = read_recorded_line(mark_line(3, 8));
+  REQUIRE(mark.has_value());
+  CHECK(mark->mark == 3);
+  RecordingHeader h;
+  h.game_version = {9, 8, 7, 0};
+  h.region = "ww";
+  h.spike = "s0b";
+  h.file = 2;
+  const auto header = read_recorded_line(header_line(h, 1));
+  REQUIRE(header.has_value());
+  CHECK(header->header.game_version == h.game_version);
+  CHECK(header->header.spike == "s0b");
+  CHECK(header->header.file == 2);
+  // Not a recording line: another kind, another schema, no JSON.
+  CHECK_FALSE(read_recorded_line(R"({"report":"probe","schema":1,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line(R"({"report":"recording","schema":2,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line("not json").has_value());
+  CHECK(kind_name(RecordedLine::Kind::Snap) == "snap");
+  CHECK(group_name(proto::Group::Camera) == "camera");
+}

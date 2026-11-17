@@ -499,6 +499,25 @@ def with_steam(paths):
     paths["steam"] = steam
 
 
+def check_spike_report_s0a(result):
+    """spike-report s0a over the launcher's own log (--need 3 for the case's three runs): each run's mode is there,
+    the early rules pass, and the late load, not run, leaves the verdict incomplete."""
+    failures = []
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    logs = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.startswith("s0a-")]
+    out = os.path.join(result.paths["case"], "s0a-report.json")
+    code, text, _ = run_engine(result.args, result.env, ["spike-report", "s0a", "--need", "3", "--log",
+                                                         result.as_win(logs[-1]), "--out", result.as_win(out)])
+    need(code == 1 and "verdict=incomplete" in text, "spike-report s0a: exit %s %s" % (code, text[-300:]), failures)
+    if os.path.exists(out):
+        with open(out) as f:
+            rep = json.load(f)
+        rules = {(x["rule"], x.get("mode")): x["status"] for x in rep["rules"]}
+        need(rules.get(("runs_per_mode", "suspended")) == "pass" and rules.get(("ready_or_l1", "suspended")) == "pass"
+             and rules.get(("both_modes", None)) == "not_measured", "spike-report s0a's rules: %s" % rules, failures)
+    return failures
+
+
 def spike_log(result, spike):
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
     names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-")] if os.path.isdir(folder) else []
@@ -720,8 +739,9 @@ def check_spike(spike, runs, **tally):
 case("launcher-spike-s0a", LGAME + ["--dll", "{galtest}", "--spike", "s0a", "--runs", "3", "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
      needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=240,
-     check=check_spike("s0a", 3, ready=3, crashes=0, timeout=0),
-     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes")
+     check=lambda r: check_spike("s0a", 3, ready=3, crashes=0, timeout=0)(r) + check_spike_report_s0a(r),
+     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes; "
+          "spike-report reads the log: three early runs pass their rules, the late load not run yet")
 case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-crash", "--runs", "2",
                                           "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
@@ -756,9 +776,10 @@ EN_PROBE_NEEDS = EN_NEEDS + ("eldennet_probe",)
 EN_ENV = {"ELDENNET_APPDATA": "{appdata}"}
 
 
-def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None):
-    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata}, and `copies` of files
-    (name, source key) beside the game for --also and --load."""
+def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None, then=None):
+    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata} (none when `settings` is
+    None, as on a PC that never had one), `copies` of files (name, source key) beside the game for --also and --load,
+    and `then`, another prepare, last."""
     def prepare(paths):
         folder = os.path.join(paths["case"], "eldennet")
         os.makedirs(folder)
@@ -775,14 +796,17 @@ def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads
             gal_change(os.path.join(folder, "gal"))
         cfg = os.path.join(paths["appdata"], "EldenNet", "config")
         os.makedirs(cfg)
-        with open(os.path.join(cfg, "settings.toml"), "w") as f:
-            f.write(settings)
+        if settings is not None:
+            with open(os.path.join(cfg, "settings.toml"), "w") as f:
+                f.write(settings)
         paths["eldennetdll"] = dll
         paths["endir"] = folder
         for name, key in copies:
             target = os.path.join(paths["case"], name)
             shutil.copy2(paths[key], target)
             paths[name.split(".")[0].replace("-", "_").lower()] = target
+        if then is not None:
+            then(paths)
     return prepare
 
 
@@ -848,6 +872,26 @@ def check_recordings(min_snaps):
             need("Wanderer" not in text and "Test W" not in text, "the character's name was recorded", failures)
             need(not any(w in text for w in ("Ash Warden", "Quiet Vale", "Lantern")), "game text was recorded",
                  failures)
+            # The part 9 tools on the real recording: rec-stats counts what the DLL wrote, and replay steps its inputs
+            # through en-core again and answers the changes the DLL's core answered.
+            stats_out, replay_out = path + ".stats.json", path + ".replay.json"
+            code, _, err = run_engine(result.args, result.env, ["rec-stats", result.as_win(path), "--out",
+                                                                 result.as_win(stats_out)])
+            need(code == 0 and os.path.exists(stats_out), "rec-stats: exit %s %s" % (code, err[-300:]), failures)
+            if code == 0 and os.path.exists(stats_out):
+                with open(stats_out) as f:
+                    st = json.load(f)
+                need(st["snapshots"]["count"] == kinds.count("snap") and st["marks"] == kinds.count("mark") and
+                     st["life"]["data_ready"] == lives.count("data_ready"), "rec-stats' counts: %s" %
+                     {k: st[k] for k in ("snapshots", "marks", "life")}, failures)
+            code, _, err = run_engine(result.args, result.env, ["replay", result.as_win(path), "--out",
+                                                                 result.as_win(replay_out)])
+            agree = False
+            if os.path.exists(replay_out):
+                with open(replay_out) as f:
+                    rp = json.load(f)
+                agree = rp["agree"] and rp["recorded"] == rp["replayed"] > 0
+            need(code == 0 and agree, "replay: exit %s %s" % (code, err[-300:]), failures)
         return failures
     return check
 
@@ -1028,7 +1072,8 @@ def check_r1(result):
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
     need(sum(1 for s in d["statics"] if s["status"] == "derived") == 4, "the statics: %s" %
          [(s["label"], s["status"]) for s in d["statics"]], failures)
-    return failures + want(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
+    # any_line: once the statics' slots are found the derivation runs again, and its line may come after this one.
+    return failures + any_line(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
 
 
 case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
@@ -1041,6 +1086,68 @@ case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      what="R1 in a probe build: the derivation over the live image, the checks, the one call at the Mark (Pause at the "
           "title), the slot counts, the hub census's base class and run slot, the statics' slots, two lint-clean "
           "reports")
+
+
+# R1 as the owner runs it (README-R1.txt): `eldennet-launcher --probe`, with no settings.toml and the save backup made
+# first; the console's steps in plain words; Pause pressed at the title until it is taken (the default settle of 10 s,
+# then the live derivation); the one call; "task confirmed"; a while in the world with loading screens; the game ends
+# and the launcher lints both reports.
+R1_STEPS = ("asked", "reading", "press_mark", "called", "task_confirmed", "reports_clean")
+
+
+def r1_steps(result):
+    return [e.get("step") for e in result.events("LAUNCHER", "r1") if "step" in e]
+
+
+def check_r1_owner(result):
+    failures = check_r1(result)
+    # The console polls the block every 200 ms, so a quick step (reading, called) may pass unseen, as in a Release
+    # build on the fake game; the others are always told, in order, and nothing else is.
+    steps = r1_steps(result)
+    essential = [x for x in steps if x not in ("reading", "called")]
+    need(essential == [x for x in R1_STEPS if x not in ("reading", "called")] and
+         steps == [x for x in R1_STEPS if x in steps], "the console's R1 steps: %s" % steps, failures)
+    plain = [l for l in result.lines if l.startswith("EldenNet R1: ")]
+    need(len(plain) == len(steps) and any("press Pause" in l for l in plain) and
+         any("Task confirmed" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += want(result, "ELDENNET", "probe", asked="r1", accepted=1, probe_build=1)
+    failures += want(result, "ELDENNET", "settings", file=0)
+    failures += want(result, "LAUNCHER", "backup", folders=2, made=2)
+    p = json.load(open(os.path.join(result.paths["appdata"], "EldenNet", "probe", "r1-probe.json")))
+    checks = {c["item"]: c for c in p["checks"]}
+    need(checks.get("fd4_idiom", {}).get("status") == "confirmed", "the idiom's check: %s" % checks.get("fd4_idiom"),
+         failures)
+    need(checks.get("group", {}).get("expected") == checks.get("group", {}).get("value") is not None,
+         "the group's check against the layout: %s" % checks.get("group"), failures)
+    return failures
+
+
+case("launcher-eldennet-probe", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}", "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--reload-every", "360",
+          "--load-frames", "180", frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_owner,
+     what="R1 as the owner runs it: --probe (no settings.toml), the backup first, the console's steps in plain words, "
+          "Pause at the title until taken, the reviewed idiom and the layout's group confirmed, one call, task "
+          "confirmed, and both reports linted clean by the launcher when the game ends")
+case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                 "--probe"] + game("--stay-title", "--press-pause-at", "120",
+                                                                   frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=120,
+     prepare=install_eldennet(None),
+     check=lambda r: (want(r, "ELDENNET", "probe", asked="r1", accepted=0, probe_build=0) +
+                      want(r, "LAUNCHER", "init", state="exit") +
+                      ([] if r1_steps(r) == ["asked", "refused", "reports_missing"] else
+                       ["the console's R1 steps: %s" % r1_steps(r)]) +
+                      any_line(r, "LAUNCHER", "r1", report="r1-probe.json", lint="missing") +
+                      [f"the release DLL went on: {e}" for e in r.events("ELDENNET", "init")
+                       if e.get("state") not in ("pin", "gate", "safety", "settings", "exit")] +
+                      [l for l in r.lines if l.startswith("ELDENNET register")]),
+     what="--probe with the release DLL: it refuses R1 at Settings and stops there, calling nothing; the console says "
+          "so, and no report is left")
 
 
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------

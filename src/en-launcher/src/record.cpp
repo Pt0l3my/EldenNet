@@ -262,6 +262,7 @@ bool passed(w::Spike spike, const Tally& t) noexcept {
 nlohmann::json to_json(const RunResult& r, w::Spike spike) {
   return nlohmann::json{{"spike", w::to_string(spike)},
                         {"run", r.run},
+                        {"mode", r.mode.empty() ? std::string("unknown") : r.mode},
                         {"outcome", to_string(r.outcome)},
                         {"status", status_json(r.status)},
                         {"end", to_string(r.end)},

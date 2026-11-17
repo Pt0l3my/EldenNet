@@ -141,7 +141,7 @@ void run(HMODULE module) {
   s.module = module;
   s.paths = find_paths(module);
   log(Line("boot").num("pid", GetCurrentProcessId()).word("dll", word_of(en::shell::file_name_of(s.paths.dll)))
-          .flag("probe_build", kProbeBuild).num("version_minor", kVersion[1]));
+          .flag("probe_build", kProbeBuild).num("version_minor", kVersion[1]).word("version", kVersionLabel));
 
   // ---- Gate (ARCH §3.2): the mapped headers against gal/builds.toml; the result waits for Safety ----
   s.sys = new en::gal::NativeSys(en::gal::CopyKind::Seh);  // lives for the process (R14)
@@ -199,6 +199,25 @@ void run(HMODULE module) {
           .word("probe", en::shell::to_string(s.settings.probe.round)));
   for (const en::shell::SettingsProblem& p : loaded.problems) {
     log(Line("settings_problem").word("where", p.where.empty() ? "file" : p.where), LogLevel::Warn);
+  }
+  // The launcher's --probe (O89): R1, in a probe build only, with the file's other probe settings, and always at the
+  // Mark (the owner's Pause at the title) unless the file says never. A release build, or EldenNet turned off, refuses.
+  if (block::probe_request() == w::ProbeRequest::R1) {
+    const bool accept = kProbeBuild && s.settings.enabled;
+    if (accept) {
+      s.settings.probe.round = en::shell::ProbeRound::R1;
+      if (s.settings.probe.register_when == en::shell::ProbeRegister::Auto) {
+        s.settings.probe.register_when = en::shell::ProbeRegister::Mark;
+      }
+    }
+    block::probe_answer(accept ? w::ProbeRequest::Accepted : w::ProbeRequest::Refused);
+    log(Line("probe").word("asked", "r1").flag("accepted", accept).flag("probe_build", kProbeBuild)
+            .flag("enabled", s.settings.enabled),
+        accept ? LogLevel::Info : LogLevel::Warn);
+    if (!accept) {
+      finish(w::InitState::Exit);  // the owner asked for R1 alone: no other start, and nothing called
+      return;
+    }
   }
   if (!s.settings.enabled) {
     finish(w::InitState::Exit);  // Off: nothing more this session (ARCH §1.5)

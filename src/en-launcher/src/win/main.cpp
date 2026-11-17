@@ -13,7 +13,10 @@
 #include "en/launcher/backup.hpp"
 #include "en/launcher/exe.hpp"
 #include "en/launcher/steam.hpp"
+#include "en/gal/derive.hpp"
+#include "en/gal/report.hpp"
 #include "en/proto/ffi_guard.hpp"
+#include "en/shell/probe_report.hpp"
 
 #ifndef EN_LAUNCHER_VERSION
 #define EN_LAUNCHER_VERSION "0.0.0"
@@ -207,6 +210,32 @@ Gate gate(const Ctx& c, const fs::path& exe) {
   return g;
 }
 
+// ---- R1's reports (--probe) ----
+
+// After an R1 session: the two reports EldenNet wrote, checked by the lint they must pass before they leave the PC
+// (`eldennet-engine lint --report`, the same vocabularies), each told as a line, and the result to the owner.
+void check_r1_reports(const Paths& p) {
+  const fs::path folder = p.en / L"probe";
+  const gal::report::Vocabulary* kinds[] = {&gal::derive::vocabulary(), &shell::probe_vocabulary()};
+  bool missing = false;
+  bool refused = false;
+  for (const char* name : {"r1-derive.json", "r1-probe.json"}) {
+    const auto text = read_text(folder / name, gal::report::kMaxReportBytes);
+    if (!text) {
+      missing = true;
+      say("r1 report=%s lint=missing", name);
+      continue;
+    }
+    const auto result = gal::report::lint(*text, kinds);
+    refused = refused || !result;
+    say("r1 report=%s lint=%s problems=%zu bytes=%zu", name, result ? "clean" : "refused",
+        result ? std::size_t{0} : result.error().size(), text->size());
+  }
+  const R1Step step = missing ? R1Step::ReportsMissing : refused ? R1Step::ReportsRefused : R1Step::ReportsClean;
+  say("r1 step=%s", r1_word(step));
+  console_line(r1_text(step));
+}
+
 // ---- One start, watched to its end ----
 
 struct Run {
@@ -257,10 +286,18 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   }
   const DWORD pid = s.pi.dwProcessId;
   const InjectAt at = inject_dll ? c.o.inject_at : InjectAt::Suspended;
+  out.result.mode = inject_dll ? to_string(at) : "vanilla";
   say("started ok=1 run=%u mode=%s inject=%d also=%zu", run, inject_dll ? to_string(at) : "vanilla", inject_dll ? 1 : 0,
       c.o.also.size());
   auto wb = WatchBlock::open(pid);
   if (!wb) say("watch_block ok=0 error=%lu", GetLastError());
+  if (wb && inject_dll) {
+    // What EldenNet reads at its start, before anything is loaded: the spike, and R1 (--probe), which it answers.
+    wb->block().control.spike.store(static_cast<std::uint32_t>(c.o.spike), std::memory_order_release);
+    if (c.o.probe) {
+      wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::R1), std::memory_order_release);
+    }
+  }
 
   std::vector<fs::path> dlls;
   for (const auto& a : c.o.also) dlls.push_back(fs::absolute(path_from_utf8(a)));
@@ -324,6 +361,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
 
   WatchPlan plan;
   plan.console = c.o.console;
+  plan.probe = c.o.probe && inject_dll;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;
@@ -333,6 +371,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   plan.appid_value = c.game.appid;
   WatchResult res = watch_game(s.pi.hProcess, pid, *wb, plan);
   if (created && remove_after != RemoveAfter::Never) save_state(c.p, std::nullopt);
+  if (plan.probe) check_r1_reports(c.p);
 
   SessionRecord& rec = res.record;
   rec.launcher_version = EN_LAUNCHER_VERSION;
@@ -429,8 +468,10 @@ int do_start(Ctx& c) {
         back_up_saves(BackupSpec{c.p.saves, c.p.backups, elden_ring_save_files(), 10, local_stamp()});
     say("backup folders=%zu made=%zu unchanged=%zu empty=%zu removed=%zu problems=%zu", b.folders, b.made, b.unchanged,
         b.empty, b.removed, b.problems.size());
-    if (!b.ok() && !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front()))) {
-      return exit_code(ErrorCode::E07);
+    // R1 (--probe) never goes on without a backup: its one call into the game rests on one (O89).
+    if (!b.ok() && (c.o.probe || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
+      if (c.o.probe) say("r1 backup=failed");
+      return c.o.probe ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
     }
   }
 

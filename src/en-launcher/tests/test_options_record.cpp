@@ -125,6 +125,47 @@ TEST_CASE("options: refusals") {
   CHECK(usage_text().find("--spike") != std::string::npos);
 }
 
+TEST_CASE("options: --probe (R1) brings the console, and keeps the backup, EldenNet's DLL and one plain start") {
+  const Options o = parse_ok({"--probe"});
+  CHECK(o.probe);
+  CHECK(o.console);
+  CHECK(o.action == Action::Start);
+  CHECK(parse_ok({"--probe", "--inject-at", "title", "--game", "C:\\G\\fake_game.exe"}).inject_at == InjectAt::Title);
+  const std::string refused = "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike";
+  CHECK(parse_error({"--probe", "--no-backup"}) == refused);
+  CHECK(parse_error({"--probe", "--vanilla-offline"}) == refused);
+  CHECK(parse_error({"--probe", "--spike", "s0b"}) == refused);
+  CHECK(parse_error({"--probe=1"}) == "--probe takes no value");
+  CHECK(parse_error({"--probe", "--backup-only"}) == refused);
+  CHECK_FALSE(parse_ok({}).probe);
+  CHECK(usage_text().find("--probe") != std::string::npos);
+}
+
+TEST_CASE("texts: R1's steps on the console follow EldenNet's answer and T1's state") {
+  using w::InitState;
+  using w::ProbeRequest;
+  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::None, false, 0).has_value());
+  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::Settings, false, 0).has_value());
+  CHECK(r1_step(ProbeRequest::R1, InitState::WaitWindow, false, 0) == R1Step::Refused);  // a DLL without --probe
+  CHECK(r1_step(ProbeRequest::Refused, InitState::Settings, false, 0) == R1Step::Refused);
+  CHECK_FALSE(r1_step(ProbeRequest::Accepted, InitState::WaitWindow, false, 0).has_value());
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::Discover, false, 0) == R1Step::Reading);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::Register, false, 0) == R1Step::PressMark);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 29999) == R1Step::Called);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::Ready, true, 0) == R1Step::Confirmed);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, false, 0) == R1Step::NotCalled);
+  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, true, 0) == R1Step::CallFailed);
+  for (auto st = static_cast<int>(R1Step::Asked); st <= static_cast<int>(R1Step::ReportsMissing); ++st) {
+    const std::string t = r1_text(static_cast<R1Step>(st));
+    CHECK_FALSE(t.empty());
+    CHECK(std::string(r1_word(static_cast<R1Step>(st))).find(' ') == std::string::npos);
+    CHECK(t.find(":\\") == std::string::npos);  // no drive's path; %APPDATA% names the folder
+  }
+  CHECK(r1_text(R1Step::PressMark).find("press Pause") != std::string::npos);
+  CHECK(std::string(r1_word(R1Step::Confirmed)) == "task_confirmed");
+}
+
 TEST_CASE("texts: ARCH §4.7's wording, the ids and the exit codes") {
   CHECK(error_id(ErrorCode::E01) == "E01");
   CHECK(error_id(ErrorCode::E11) == "E11");
@@ -272,6 +313,9 @@ TEST_CASE("spikes: outcomes, the tally and each spike's rule") {
   CHECK(j["spike"] == "s0a");
   CHECK(j["passed"] == false);
   CHECK(to_json(runs[0], w::Spike::S0a)["outcome"] == "ready");
+  CHECK(to_json(runs[0], w::Spike::S0a)["mode"] == "unknown");
+  runs[0].mode = "title";
+  CHECK(to_json(runs[0], w::Spike::S0a)["mode"] == "title");
 }
 
 TEST_CASE("pre-flight: ARCH §4.3's order, Steam's check optional, the DLL's only when injecting") {

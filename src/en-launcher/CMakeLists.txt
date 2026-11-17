@@ -38,9 +38,10 @@ if(WIN32)
   set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc APPEND PROPERTY OBJECT_DEPENDS ${EN_LAUNCHER_MANIFEST})
   add_executable(eldennet-launcher WIN32 ${EN_LAUNCHER_WIN_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc
     ${_en_manifest_source})
-  target_link_libraries(eldennet-launcher PRIVATE en_launcher_core comdlg32 shell32 ole32 advapi32 iphlpapi)
+  # en_shell: R1's report vocabulary, so that the launcher lints the probe's two reports after an R1 session (--probe).
+  target_link_libraries(eldennet-launcher PRIVATE en_launcher_core en_shell comdlg32 shell32 ole32 advapi32 iphlpapi)
   target_compile_definitions(eldennet-launcher PRIVATE UNICODE _UNICODE _WIN32_WINNT=0x0A00
-    EN_LAUNCHER_VERSION="${PROJECT_VERSION}")
+    EN_LAUNCHER_VERSION="${EN_VERSION_LABEL}")
   if(NOT MSVC)
     target_link_options(eldennet-launcher PRIVATE -municode)  # MinGW: the wide entry point, wWinMain
   endif()

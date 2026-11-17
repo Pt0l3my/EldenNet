@@ -2,9 +2,10 @@
 """eldennet-engine's probe-exe and lint --report, run as DataPiler's job runs them, on the derivation tests' invented
 program (written by en_tools_write_sample): the exit codes and messages of src/en-tools/README.md, derive.json's content,
 the lint's refusals, probe-exe --sections, a refused section's line, and a layout the loader accepts (raw data past the
-end of the file, SizeOfImage short of the last section's alignment) deriving as the tidy one. Nothing here is a game's.
+end of the file, SizeOfImage short of the last section's alignment) deriving as the tidy one; and lint --gal, on the
+repository's own gal/ and on invented folders. Nothing here is a game's (the repository's gal/ is read, never changed).
 
-    cli_test.py --engine ENGINE --writer WRITER --work DIR
+    cli_test.py --engine ENGINE --writer WRITER --work DIR [--gal DIR]
 """
 import argparse
 import json
@@ -74,10 +75,222 @@ def check_sections(engine, exe, data, failures_name):
     return rows
 
 
+INVENTED_BUILDS = """schema = 1
+[[build]]
+key = "9.8.7.0-ww"
+app = "4.5.6"
+file_version = "9.8.7.0"
+product_name = "INVENTED GAME"
+region = "ww"
+time_date_stamp = 0x12345678
+size_of_image = 0x40000
+layout = "layouts/9.8.7.0-ww.toml"
+dlrf_name_layout = false
+status = "supported"
+"""
+INVENTED_LAYOUT = """schema = 1
+build = "9.8.7.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/invented.md"
+[task]
+group = { name = "Invented_Group", index = 3 }
+status = "lead"
+"""
+INVENTED_PATTERNS = """schema = 1
+[[pattern]]
+id = "invented_idiom"
+kind = "idiom"
+section = ".text"
+bytes = "?? 8B ?? ?? ?? ?? ?? ?? 85 C0 74 ??"
+path_suffix = "Invented.h"
+captures = { static = { at = 3, kind = "rip_rel32", insn_end = 7, section = ".data", align = 8 } }
+provenance = { method = "own-derivation", leads = ["none"], evidence = "docs/ops/probes/invented.md", date = "2026-11-17" }
+"""
+
+
+def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True):
+    os.makedirs(os.path.join(folder, "layouts"), exist_ok=True)
+    os.makedirs(os.path.join(folder, "derivations"), exist_ok=True)
+    for name, text in (("builds.toml", builds), ("layouts/9.8.7.0-ww.toml", layout), ("patterns.toml", patterns),
+                       ("derivations/invented_idiom.md", "An invented note.\n" if note else None)):
+        path = os.path.join(folder, name)
+        if text is None:
+            if os.path.exists(path):
+                os.remove(path)
+            continue
+        with open(path, "w") as f:
+            f.write(text)
+    return folder
+
+
+def check_gal(a):
+    """lint --gal: the repository's gal/ clean; invented folders refused for each rule, each problem with its file and
+    place, never a value; no builds.toml a usage error."""
+    if a.gal:
+        code, so, se = run(a.engine, "lint", "--gal", a.gal)
+        need(code == 0 and "gal/ is clean" in so, "lint --gal on the repository's gal/: exit %s %r %r" % (code, so, se))
+    base = os.path.join(a.work, "gal-cases")
+    code, so, _ = run(a.engine, "lint", "--gal", write_gal(os.path.join(base, "clean")))
+    need(code == 0 and "patterns 1 (confirmed in no build: 1)" in so, "lint --gal, invented: exit %s %r" % (code, so))
+    cases = [
+        ("no-note", dict(note=False), "patterns.toml: pattern[0]: has no derivation note, derivations/invented_idiom.md"),
+        ("other-build", dict(layout=INVENTED_LAYOUT.replace('build = "9.8.7.0-ww"', 'build = "9.8.7.1-jp"')),
+         "layouts/9.8.7.0-ww.toml: build: is not the build the gate matched"),
+        ("unknown-confirmed", dict(patterns=INVENTED_PATTERNS.replace('path_suffix', 'builds = ["1.2.3.4-jp"]\npath_suffix')),
+         "patterns.toml: pattern[0].builds: names a build builds.toml lacks"),
+        ("bad-build", dict(builds=INVENTED_BUILDS.replace('region = "ww"', 'region = "xx"')), "builds.toml: build[0].region"),
+        ("no-layout", dict(layout=None), "layouts/9.8.7.0-ww.toml: cannot be read"),
+        ("half-task", dict(layout=INVENTED_LAYOUT.replace('status = "lead"', 'vtable_slots = 4')),
+         "task.object_size: is missing"),
+        ("guessed-provenance", dict(patterns=INVENTED_PATTERNS.replace('own-derivation', 'copied')),
+         "patterns.toml: pattern[0].provenance.method"),
+    ]
+    for name, change, problem in cases:
+        folder = write_gal(os.path.join(base, name), **change)
+        code, so, _ = run(a.engine, "lint", "--gal", folder)
+        need(code == 1 and problem in so and "gal/ is refused" in so and "Invented_Group" not in so and
+             folder not in so, "lint --gal, %s: exit %s %r" % (name, code, so))
+    empty = os.path.join(base, "empty")
+    os.makedirs(empty, exist_ok=True)
+    code, so, se = run(a.engine, "lint", "--gal", empty)
+    need(code == 2 and "no builds.toml" in se and empty not in se, "lint --gal on a folder without builds.toml: %s %r" %
+         (code, se))
+
+
+def spike_log(path, spike, runs):
+    """A launcher's spike log (en-launcher's record.cpp: a line per run, then the tally), runs as (mode, outcome, end,
+    record_kept, connections_max). Invented numbers."""
+    with open(path, "w") as f:
+        for i, (mode, outcome, end, kept, conns) in enumerate(runs, 1):
+            f.write(json.dumps({"spike": spike, "run": i, "mode": mode, "outcome": outcome,
+                                "status": {"init": "ready", "phase": 4, "level": 3, "banner": 0, "flags": 10,
+                                           "items_resolved": 16, "items_total": 16, "discovery_passes": 1 + i % 2,
+                                           "ready_ms": 9000 + i * 10, "task_us_p99": 300, "snapshots": 4,
+                                           "faults": 0, "tripped": 0},
+                                "end": end, "exit_code": 0, "record_kept": kept, "crash_filter": kept,
+                                "run_ms": 30000, "connections_max": conns}) + "\n")
+        f.write(json.dumps({"spike": spike, "tally": 1, "runs": len(runs), "passed": True}) + "\n")
+    return path
+
+
+def report_of(a, argv, path):
+    code, so, se = run(a.engine, *(argv + ["--out", path]))
+    data = None
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+        lcode, lso, _ = run(a.engine, "lint", "--report", path)
+        need(lcode == 0 and "clean" in lso, "lint --report on %s: %s %r" % (os.path.basename(path), lcode, lso))
+    return code, so, se, data
+
+
+def rules_of(data):
+    return {(r["rule"], r.get("mode")): r for r in (data or {}).get("rules", [])}
+
+
+def check_spike_tools(a):
+    """rec-stats, replay and spike-report (the plan's part 9) on recordings written as eldennet.dll writes them and on
+    invented spike logs: their numbers, the replay's agreement, each spike's rules and verdict, and a tampered
+    recording refused or disagreeing. Every report lints clean and holds no path."""
+    work = os.path.join(a.work, "spike")
+    os.makedirs(work, exist_ok=True)
+    subprocess.run([a.recordings, work], check=True, timeout=120)
+    rec = {n: os.path.join(work, "%s.ensnap.jsonl" % n) for n in ("s0b", "s0b-slow", "s0c", "s0d")}
+    # rec-stats: the co-op session's numbers.
+    code, _, _, st = report_of(a, ["rec-stats", rec["s0c"]], os.path.join(work, "s0c-stats.json"))
+    need(code == 0 and st and st["snapshots"]["count"] == 74 and st["gate"]["opened"] == 2 and
+         st["gate"]["closed"] == 1 and st["marks"] == 1 and st["life"]["playthrough_ready"] == 1 and
+         st["header"]["spike"] == "s0c" and st["faults"] == 0, "rec-stats on s0c: %s %s" % (code, st))
+    # replay: every recording agrees; one with a change line taken out does not, and says where.
+    for n, path in rec.items():
+        code, _, se, rp = report_of(a, ["replay", path], os.path.join(work, "%s-replay.json" % n))
+        need(code == 0 and rp and rp["agree"] and rp["recorded"] == rp["replayed"] > 0 and "agrees" in se,
+             "replay on %s: %s %r %s" % (n, code, se, rp and {k: rp[k] for k in ("recorded", "replayed", "agree")}))
+    with open(rec["s0c"]) as f:
+        lines = f.read().splitlines(True)
+    closing = [i for i, l in enumerate(lines) if '"what":"gate_closed"' in l]
+    tampered = os.path.join(work, "s0c-tampered.ensnap.jsonl")
+    with open(tampered, "w") as f:
+        f.writelines(l for i, l in enumerate(lines) if i != closing[0])
+    code, _, se, rp = report_of(a, ["replay", tampered], os.path.join(work, "tampered-replay.json"))
+    need(code == 1 and rp and not rp["agree"] and "first_difference" in rp and "disagrees" in se,
+         "replay on a tampered recording: %s %r" % (code, se))
+    # spike-report s0a: 20 runs early and 20 late pass; 19 early fail; early alone is incomplete; a crash fails.
+    ok = [("suspended", "ready", "closed", False, 0)] * 20 + [("title", "banner", "closed", False, 0)] * 20
+    code, so, _, sp = report_of(a, ["spike-report", "s0a", "--log", spike_log(os.path.join(work, "s0a.jsonl"), "s0a",
+                                                                               ok)], os.path.join(work, "s0a.json"))
+    r = rules_of(sp)
+    need(code == 0 and sp["verdict"] == "pass" and r[("runs_per_mode", "suspended")]["value"] == 20 and
+         r[("both_modes", None)]["status"] == "pass" and len(sp["modes"]) == 2 and
+         "verdict=pass" in so, "spike-report s0a: %s %r" % (code, so))
+    for name, runs, verdict in (("short", ok[1:], "fail"), ("early", ok[:20], "incomplete"),
+                                ("crash", ok[:39] + [("title", "banner", "crash", True, 0)], "fail")):
+        code, so, _, sp = report_of(a, ["spike-report", "s0a", "--log",
+                                        spike_log(os.path.join(work, "s0a-%s.jsonl" % name), "s0a", runs)],
+                                    os.path.join(work, "s0a-%s.json" % name))
+        need(code == 1 and sp and sp["verdict"] == verdict, "spike-report s0a %s: %s %s" % (name, code, sp and sp["verdict"]))
+    # s0b: the two hours pass with the session's log; the slow one fails on its p99 and its fault.
+    log_b = spike_log(os.path.join(work, "s0b.jsonl"), "s0b", [("suspended", "ready", "clean", False, 0)])
+    code, so, _, sp = report_of(a, ["spike-report", "s0b", "--recording", rec["s0b"], "--log", log_b],
+                                os.path.join(work, "s0b.json"))
+    need(code == 0 and sp and sp["verdict"] == "pass" and rules_of(sp)[("task_p99_us", None)]["value"] == 310,
+         "spike-report s0b: %s %r" % (code, so))
+    code, _, _, sp = report_of(a, ["spike-report", "s0b", "--recording", rec["s0b-slow"], "--log", log_b],
+                               os.path.join(work, "s0b-slow.json"))
+    r = rules_of(sp)
+    need(code == 1 and sp["verdict"] == "fail" and r[("task_p99_us", None)]["status"] == "fail" and
+         r[("faults", None)]["value"] == 1, "spike-report s0b, slow: %s %s" % (code, sp))
+    # s0c: the gate closed for the co-op visit; no connection; the online menu is the owner's to see. Without the
+    # closing change line, the co-op snapshots count against the gate; a connection fails too.
+    log_c = spike_log(os.path.join(work, "s0c.jsonl"), "s0c", [("suspended", "ready", "clean", False, 0)])
+    code, _, _, sp = report_of(a, ["spike-report", "s0c", "--recording", rec["s0c"], "--log", log_c],
+                               os.path.join(work, "s0c.json"))
+    r = rules_of(sp)
+    need(code == 0 and sp["verdict"] == "pass" and r[("online_menu", None)]["status"] == "not_measured" and
+         sp["gate"]["opened"] == 2, "spike-report s0c: %s %s" % (code, sp))
+    code, _, _, sp = report_of(a, ["spike-report", "s0c", "--recording", tampered, "--log", log_c],
+                               os.path.join(work, "s0c-tampered.json"))
+    need(code == 1 and sp["verdict"] == "fail" and rules_of(sp)[("gate_closed_unless_solo", None)]["value"] == 10,
+         "spike-report s0c, tampered: %s %s" % (code, sp and rules_of(sp)))
+    log_c2 = spike_log(os.path.join(work, "s0c-online.jsonl"), "s0c", [("suspended", "ready", "clean", False, 2)])
+    code, _, _, sp = report_of(a, ["spike-report", "s0c", "--recording", rec["s0c"], "--log", log_c2],
+                               os.path.join(work, "s0c-online.json"))
+    need(code == 1 and sp["verdict"] == "fail" and sp["connections_max"] == 2, "spike-report s0c, online: %s" % code)
+    # s0d: 25 faults caught, camera's breaker tripped, the session clean, and five forced crashes all recorded.
+    log_d = spike_log(os.path.join(work, "s0d.jsonl"), "s0d", [("suspended", "ready", "clean", False, 0)])
+    log_dc = spike_log(os.path.join(work, "s0d-crash.jsonl"), "s0d-crash",
+                       [("suspended", "ready", "crash", True, 0)] * 5)
+    code, _, _, sp = report_of(a, ["spike-report", "s0d", "--recording", rec["s0d"], "--log", log_d, "--log", log_dc],
+                               os.path.join(work, "s0d.json"))
+    r = rules_of(sp)
+    need(code == 0 and sp["verdict"] == "pass" and r[("faults_caught", None)]["value"] == 25 and
+         r[("crashes_recorded", None)]["value"] == 5 and sp["records"] == 5, "spike-report s0d: %s %s" % (code, sp))
+    log_dc2 = spike_log(os.path.join(work, "s0d-crash-lost.jsonl"), "s0d-crash",
+                        [("suspended", "ready", "crash", True, 0)] * 4 + [("suspended", "ready", "crash", False, 0)])
+    code, _, _, sp = report_of(a, ["spike-report", "s0d", "--recording", rec["s0d"], "--log", log_d, "--log",
+                                   log_dc2], os.path.join(work, "s0d-lost.json"))
+    need(code == 1 and sp["verdict"] == "fail", "spike-report s0d, a crash not recorded: %s" % code)
+    # Refusals: a recording with a path in it, a log that is not the launcher's, usage; no path in any message.
+    bad = os.path.join(work, "bad.ensnap.jsonl")
+    with open(bad, "w") as f:
+        f.write(lines[0].replace('"region":"ww"', '"region":"C:\\\\Games"'))
+    junk = os.path.join(work, "junk.jsonl")
+    with open(junk, "w") as f:
+        f.write("not a launcher line\n")
+    for argv, want in ((["rec-stats", bad], 2), (["replay", bad], 2), (["spike-report", "s0b", "--recording", bad], 2),
+                       (["spike-report", "s0a", "--log", junk], 2), (["spike-report", "s9"], 2),
+                       (["rec-stats"], 2), (["spike-report", "s0a", "--need", "0"], 2)):
+        code, so, se = run(a.engine, *argv)
+        need(code == want and work not in so + se and "Games" not in so + se,
+             "%s: exit %s, wanted %s: %r" % (argv[0], code, want, se[-200:]))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--engine", required=True)
     p.add_argument("--writer", required=True)
+    p.add_argument("--gal", help="the repository's gal/ folder, which lint --gal must pass")
+    p.add_argument("--recordings", help="en_tools_write_recording, for rec-stats, replay and spike-report")
     p.add_argument("--work", required=True)
     a = p.parse_args()
     os.makedirs(a.work, exist_ok=True)
@@ -258,6 +471,10 @@ def main():
         need(tidy == loosed, "the loose layout derives other than the tidy one")
     code, so, _ = run(a.engine, "lint", "--report", loose_out)
     need(code == 0, "lint on the loose layout's report: exit %s %r" % (code, so))
+
+    check_gal(a)
+    if a.recordings:
+        check_spike_tools(a)
 
     for f in FAILURES:
         print("FAIL: %s" % f)

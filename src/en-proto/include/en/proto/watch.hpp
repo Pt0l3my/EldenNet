@@ -9,7 +9,8 @@
 // - EldenNet writes its status (the dev console shows it; a spike's run reads its outcome there) and, once, from its
 //   crash filter, the crash record: allocation-free, then it signals `Local\EldenNet.Crash.<pid>` and waits at most
 //   2 s for the watcher's `Local\EldenNet.CrashAck.<pid>`, while the watcher lists the game's modules.
-// - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D) and the
+// - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D; R1 in a probe
+//   build, which EldenNet answers in the same field) and the
 //   Marks: each press of the hotkey, stamped in mono milliseconds (QPC, the recording's clock), which EldenNet's
 //   recorder writes into the recording.
 // Numbers only, and one file name with no folder: nothing personal, no path, no text from the game.
@@ -65,6 +66,12 @@ enum class Spike : std::uint32_t { None, S0a, S0b, S0c, S0d, S0dCrash };
 inline constexpr std::uint32_t kSpikeCount = 6;
 [[nodiscard]] const char* to_string(Spike s) noexcept;  // "none", "s0a", "s0b", "s0c", "s0d", "s0d-crash"
 
+// The launcher's --probe (O89's in-game round R1): asked by the launcher before it loads anything, answered by
+// EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in
+// settings.toml, refuses it and calls nothing.
+enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused };
+[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused"
+
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 
 // The thread that crashed, as EldenNet knows its threads.
@@ -89,7 +96,7 @@ struct Control {
   std::atomic<std::uint32_t> spike;          // Spike
   std::atomic<std::uint32_t> crash_request;  // 1: crash now (s0d-crash; honoured by probe builds only)
   std::atomic<std::uint32_t> watcher_pid;    // the watcher's process id while it watches, else 0
-  std::atomic<std::uint32_t> reserved;
+  std::atomic<std::uint32_t> probe;          // ProbeRequest: the launcher writes R1, EldenNet its answer
 };
 
 // EldenNet's status, field by field (a reader may see one update half done; each field is whole).

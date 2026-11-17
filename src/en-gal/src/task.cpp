@@ -205,7 +205,7 @@ proto::Expected<void, SysError> install_task(SysLayer& sys, const Discovery& dis
   const auto& task = discovery.layout().task();
   const auto function = discovery.address(roles::Item::RegisterTask);
   const auto hub_static = discovery.address(roles::Item::TaskHub);
-  if (!task || !function || !hub_static) return proto::Unexpected{SysError::BadShape};
+  if (!task || task->partial || !function || !hub_static) return proto::Unexpected{SysError::BadShape};
   // The hub's instance, from its static: a read of the image's own data section, on T1 (ARCH §1.2).
   std::array<std::byte, 8> bytes{};
   const std::uint64_t rva = *hub_static - discovery.module_base();

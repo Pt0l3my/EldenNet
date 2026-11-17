@@ -47,18 +47,27 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/watcher.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/alloc_count.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/shell.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_r1.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/win/eldennet.rc)
+  ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_r1.cpp)
 # One DLL per flavour: `release` links en_gal_game, `probe` en_gal_game_probe and brings EN_PROBE (ARCH §2.5).
-function(en_dll target gal)
-  add_library(${target} SHARED ${EN_DLL_SOURCES})
+# Each has its own version resource, configured from win/eldennet.rc.in with the build's label (and, for the probe
+# build, SpecialBuild "probe"); the label is in the log's boot line too.
+function(en_dll target gal special)
+  set(EN_RC_FLAGS 0x0)
+  set(EN_RC_SPECIAL "")
+  if(special)
+    set(EN_RC_FLAGS 0x20)
+    set(EN_RC_SPECIAL "\n      VALUE \"SpecialBuild\", \"probe\"")
+  endif()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/win/eldennet.rc.in ${CMAKE_CURRENT_BINARY_DIR}/${target}.rc @ONLY)
+  add_library(${target} SHARED ${EN_DLL_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/${target}.rc)
   en_dll_module(${target})
   set_target_properties(${target} PROPERTIES OUTPUT_NAME eldennet)
+  target_compile_definitions(${target} PRIVATE EN_DLL_VERSION_LABEL="${EN_VERSION_LABEL}")
   target_link_libraries(${target} PRIVATE en_shell ${gal} en_core en_gal en_proto en_third_party)
 endfunction()
-en_dll(eldennet en_gal_game)
+en_dll(eldennet en_gal_game OFF)
 if(EN_BUILD_TESTS OR EN_PROBE)
-  en_dll(eldennet_probe en_gal_game_probe)
+  en_dll(eldennet_probe en_gal_game_probe ON)
   set_target_properties(eldennet_probe PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/probe
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/probe ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/probe)
 endif()

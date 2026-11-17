@@ -114,6 +114,9 @@ struct TaskLayout {
   std::uint32_t run_slot = 0;
   std::uint32_t object_size = 0;
   LayoutStatus status = LayoutStatus::Lead;
+  // A lead that holds only its group (register_abi, vtable_slots, run_slot and object_size all absent: R1's to find).
+  // Discovery is never ready with it, and install_task refuses it.
+  bool partial = false;
 };
 
 struct FmgLayout {
@@ -164,6 +167,12 @@ enum class LayoutMode : std::uint8_t { Release, Dev };
                                                                 const LayoutNeeds& needs, LayoutMode mode,
                                                                 std::string_view file = "layout.toml");
 
+// The checks load_layout makes, on a layout written for the build `entry` describes, without the gate: what
+// `eldennet-engine lint --gal` runs over gal/ off game. No Layout is made (R7 keeps that to load_layout and the gate's
+// BuildProfile). Empty when the file passes.
+[[nodiscard]] SchemaErrors check_layout(const BuildEntry& entry, std::string_view text, const LayoutNeeds& needs,
+                                        LayoutMode mode, std::string_view file = "layout.toml");
+
 class Layout {
  public:
   [[nodiscard]] const std::string& build() const noexcept { return build_; }
@@ -188,9 +197,16 @@ class Layout {
 
  private:
   Layout() = default;
+  // The one reader, for the build whose key and index are given: load_layout's (from the gate's profile) and
+  // check_layout's (from builds.toml's entry, keeping no Layout).
+  static proto::Expected<Layout, SchemaErrors> read(std::string_view build, proto::BuildKey build_key,
+                                                    std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
+                                                    std::string_view file);
   friend proto::Expected<Layout, SchemaErrors> load_layout(const BuildProfile& profile, std::string_view text,
                                                            const LayoutNeeds& needs, LayoutMode mode,
                                                            std::string_view file);
+  friend SchemaErrors check_layout(const BuildEntry& entry, std::string_view text, const LayoutNeeds& needs,
+                                   LayoutMode mode, std::string_view file);
 
   std::string build_;
   proto::BuildKey build_key_;

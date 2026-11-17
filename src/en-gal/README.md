@@ -77,7 +77,13 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   every copy size within 0x4000; every `to` and `elem` naming a class of the file; each enum table total over the
   range of the fields that use it; what the read groups need (`LayoutNeeds`: fields with their types, enum tables with
   the snapshot enum's names, params) present; and, in a release build, no entry left a `lead` (an entry with no
-  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5).
+  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5). A `[task]` that is a lead may hold
+  only its `group` (the derivation's offline round gives the group's index; `register_abi`, `vtable_slots`,
+  `run_slot` and `object_size` are the in-game round's to find, left out rather than guessed): it is `partial`, and
+  discovery is never ready with it, `install_task` refuses it and the first tick reads nothing (the real game's draft
+  layout, `gal/layouts/2.7.2.0-ww.toml`). A confirmed `[task]`, or a lead with any of those keys, needs them all.
+  `check_layout(entry, text, needs, mode)` makes the same checks for builds.toml's entry without the gate and keeps no
+  `Layout` (R7 still keeps that to `load_layout`): `eldennet-engine lint --gal` runs it.
 
 Every schema problem is reported, up to 64, with where it was and what was wrong, never a value
 (`patterns.toml: pattern[2].capture: lies outside the pattern`); a gal/ file over 256 KiB is refused unread.

@@ -28,7 +28,7 @@ eldennet-launcher [options] [-- game arguments]
 development and tests:
   --inject-at suspended|window|title  --title-wait S  --also PATH
   --appid-method file|env  --remove-after window|exit|never
-  --console  --spike s0a|s0b|s0c|s0d|s0d-crash [--runs N] [--run-timeout S]
+  --console  --probe  --spike s0a|s0b|s0c|s0d|s0d-crash [--runs N] [--run-timeout S]
   --no-dialogs [--yes]  --no-steam-check  --gal DIR  --steam DIR  --appdata DIR
 ```
 
@@ -104,6 +104,22 @@ Marks), on the console the launcher was started from or one of its own, and regi
 own clock) into the block's ring of 32, where EldenNet's recorder takes it into the recording, and kept in the
 session's record. It is retired when GraceUI's Mark arrives.
 
+## R1 with --probe (O89, the owner's in-game round)
+
+`--probe` runs the derivation's in-game round with the probe build of eldennet.dll (src/eldennet/README.md): it brings
+`--console` (the Mark), and goes with a start only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The
+save backup is made first, and with `--probe` a failed one ends the launcher (E07, with no "continue without a
+backup"). Before it loads anything the launcher writes R1 into the watch block's `control.probe`, and EldenNet answers
+there: accepted, or refused (not a probe build, or turned off), when it stops and calls nothing.
+
+The console then tells each step once, in plain words (`EldenNet R1: …`, on the console only), beside the log's
+`r1 step=<word>` (`texts.hpp`'s `R1Step`): `asked` (stay at the title, load no save), `reading` (the live derivation
+and its checks), `press_mark` (the checks passed: press Pause at the title with no save loaded), `called`,
+`task_confirmed` (the game runs our task: load the save and play), or `refused`, `not_called` (a check failed),
+`call_failed`, `no_confirmation` (30 s after the call). When the game ends, the launcher lints both reports in
+`%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses (`r1 report=<name>
+lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
+
 ## The S0 spikes (DESIGN §16.1, the plan's §1.2)
 
 `--spike` tells EldenNet the spike (in the block) and keeps a numbers-only log in `%APPDATA%\EldenNet\spikes\`: a JSON
@@ -129,7 +145,8 @@ a user name or an id.
 
 GraceUI's pre-flight and its install (ARCH §4.3, with GraceUI's host), plugins (§4.12, from 1.1), the dashboard off
 game (§4.13), Proton (§4.9: E11's text is here, raised once S0-C settles the recipe), `--selftest` with the fake game
-for the owner's smoke run (part 10), EldenNet's last log lines in a record (with the DLL, part 6), and signing.
+for the owner's smoke run (the spike package's, docs/design/spikes/README.md), EldenNet's last log lines in a record
+(with the DLL, part 6), and signing.
 
 ## Tests
 
@@ -140,7 +157,8 @@ manifests that name a path, a missing executable, no list; `--game` as a file or
 folders (the manifest's hashes, no duplicate, a changed or vanished file, two in one second, the rotation of 3 over 6,
 folders that are no backup left alone, nothing under the saves touched, a backup folder that cannot be made); the
 appid file (created, used, someone else's, removal only of ours and only while it holds the id) and the state file's
-round trip; `launcher.toml`; the command line and its refusals; the texts and exit codes; records, their JSON and the
+round trip; `launcher.toml`; the command line and its refusals (`--probe`'s among them); R1's steps on the console
+from EldenNet's answer and T1's state; the texts and exit codes; records, their JSON and the
 next start's explanation; the spikes' tally and rules; the pre-flight's order; the gate and the DLL check on invented
 images (en-gal's FakeImage).
 
@@ -151,4 +169,5 @@ E02, E05, E08 and a usage error; with clang-cl and galtest.dll as the DLL, injec
 the title (Ready, the dev console's status, en-core's lifecycle and gate in game, a Mark pressed in the fake game and
 seen in the block), a crash on the game thread recorded through EldenNet's filter, a game that replaces the filter, a
 stand-in crash reporter loaded with `--also`, the S0-A, S0-D crash and S0-C loops, and the watcher started by
-EldenNet under another loader.
+EldenNet under another loader; and with eldennet.dll, R1 as the owner runs it (`--probe`) and `--probe` refused by the
+release DLL.
