@@ -746,6 +746,303 @@ case("launcher-watch", GAL + ["--frames", "720", "--load", "ready:{galtest}", "-
           "makes the block, sees the crash and keeps its record")
 
 
+# --- EldenNet's DLL (part 6): eldennet.dll, injected by the launcher into the fake game -----------------------------------
+# Each case installs the DLL as a player would (`{case}/eldennet/eldennet.dll` with gal/ beside it: the derivation's for
+# the fake game, as make_gal writes it), with an %APPDATA% of the case's own (ELDENNET_APPDATA, the launcher's
+# --appdata), where its settings.toml, its log, its recordings and R1's reports live. Its log lines (`ELDENNET <event>
+# key=value ... t=<ms>`) join the case's lines.
+EN_NEEDS = ("launcher", "engine", "leads", "gallayout", "eldennet")
+EN_PROBE_NEEDS = EN_NEEDS + ("eldennet_probe",)
+EN_ENV = {"ELDENNET_APPDATA": "{appdata}"}
+
+
+def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None):
+    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata}, and `copies` of files
+    (name, source key) beside the game for --also and --load."""
+    def prepare(paths):
+        folder = os.path.join(paths["case"], "eldennet")
+        os.makedirs(folder)
+        dll = os.path.join(folder, "eldennet.dll")
+        shutil.copy2(paths["eldennet_probe" if probe else "eldennet"], dll)
+        shutil.copytree(paths["galdir"], os.path.join(folder, "gal"))
+        with open(os.path.join(paths["work"], "gal-leads.toml")) as f:
+            leads = f.read()
+        if leads_base is not None:
+            leads = re.sub(r'(?m)^base = ".*"$', 'base = "%s"' % leads_base, leads)
+        with open(os.path.join(folder, "gal", "leads.toml"), "w") as f:
+            f.write(leads)
+        if gal_change is not None:
+            gal_change(os.path.join(folder, "gal"))
+        cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+        os.makedirs(cfg)
+        with open(os.path.join(cfg, "settings.toml"), "w") as f:
+            f.write(settings)
+        paths["eldennetdll"] = dll
+        paths["endir"] = folder
+        for name, key in copies:
+            target = os.path.join(paths["case"], name)
+            shutil.copy2(paths[key], target)
+            paths[name.split(".")[0].replace("-", "_").lower()] = target
+    return prepare
+
+
+def unknown_build_for_dll(gal):
+    # builds.toml naming the fake game with another TimeDateStamp, in the DLL's gal/ alone: the launcher's gate passes,
+    # the DLL's refuses.
+    path = os.path.join(gal, "builds.toml")
+    with open(path) as f:
+        text = re.sub(r"time_date_stamp = 0x([0-9A-F]+)",
+                      lambda m: "time_date_stamp = 0x%X" % ((int(m.group(1), 16) + 1) & 0xFFFFFFFF), f.read())
+    with open(path, "w") as f:
+        f.write(text)
+
+
+def any_line(result, source, event, **kv):
+    """Some line of the event holds every key=value given (where `want` reads the last line that has the keys)."""
+    for e in result.events(source, event):
+        if all(e.get(k) == str(v) for k, v in kv.items()):
+            return []
+    return ["no %s %s line with %s" % (source, event, " ".join("%s=%s" % i for i in sorted(kv.items())))]
+
+
+def en_log_is_clean(result):
+    """The DLL's log holds numbers and words only: no path, no user name."""
+    failures = []
+    lines = [l for l in result.lines if l.startswith("ELDENNET ")]
+    need(lines, "no ELDENNET line", failures)
+    text = "\n".join(lines)
+    need(":\\" not in text and "/" not in text and "\\" not in text, "the DLL's log holds a path", failures)
+    need(os.environ.get("USER", "\0") not in text, "the DLL's log holds the user's name", failures)
+    need("redacted" not in text, "the DLL's log redacted something it was given", failures)
+    need("Wanderer" not in text, "the DLL's log holds the character's name", failures)
+    return failures
+
+
+def en_recordings(result):
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "recordings")
+    return sorted(os.path.join(folder, n) for n in os.listdir(folder)) if os.path.isdir(folder) else []
+
+
+def check_recordings(min_snaps):
+    def check(result):
+        failures = []
+        files = en_recordings(result)
+        need(len(files) == 1, "%d recordings" % len(files), failures)
+        for path in files:
+            code, out, _ = run_engine(result.args, result.env, ["lint", "--recording", result.as_win(path)])
+            need(code == 0 and "the recording is clean" in out, "lint --recording: exit %s %s" % (code, out[-400:]),
+                 failures)
+            with open(path, encoding="utf-8") as f:
+                records = [json.loads(l) for l in f if l.strip()]
+            kinds = [r["k"] for r in records]
+            need(kinds and kinds[0] == "header", "the first record is %s" % (kinds[:1],), failures)
+            need(kinds.count("snap") >= min_snaps, "%d snapshots recorded" % kinds.count("snap"), failures)
+            need("life" in kinds and "change" in kinds and "mark" in kinds, "kinds recorded: %s" % sorted(set(kinds)),
+                 failures)
+            lives = [r.get("life_kind") for r in records if r["k"] == "life"]
+            need("data_ready" in lives, "the lifecycle records: %s" % lives, failures)
+            ts = [r["t"] for r in records if r["k"] == "snap"]
+            need(ts == sorted(ts), "the snapshots' times go back", failures)
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            need("Wanderer" not in text and "Test W" not in text, "the character's name was recorded", failures)
+            need(not any(w in text for w in ("Ash Warden", "Quiet Vale", "Lantern")), "game text was recorded",
+                 failures)
+        return failures
+    return check
+
+
+def check_en_ready(where):
+    def check(result):
+        failures = check_lines(("LAUNCHER", "inject", {"dll": "eldennet.dll", "ok": 1}),
+                               ("LAUNCHER", "init", {"state": "ready"}),
+                               ("LAUNCHER", "end", {"kind": "clean", "crash_filter": 0}),
+                               ("ELDENNET", "safety", {"first_copy": 1, "anticheat": 0, "watched": 1, "logging": 1}),
+                               ("ELDENNET", "gate", {"result": "passed"}),
+                               ("ELDENNET", "discovery", {"ready": 1}),
+                               ("ELDENNET", "register", {"ok": 1}),
+                               ("ELDENNET", "first_tick", {"state": "running"}),
+                               ("ELDENNET", "init", {"state": "ready"}),
+                               ("ELDENNET", "connect", {"skipped": 1}))(result)
+        failures += want(result, "LAUNCHER", "status", init="ready", snapshots=(8, 1e9), tripped="0x0")
+        phases = [e.get("to") for e in result.events("ELDENNET", "change") if e.get("what") == "phase"]
+        if where == "world":
+            need("in_world" in phases, "the core's phases: %s" % phases, failures)
+            need(any(e.get("what") == "gate_opened" for e in result.events("ELDENNET", "change")),
+                 "the gate never opened", failures)
+            failures += want(result, "LAUNCHER", "status", flags="0x9")  # the core's, the gate open, not dormant
+        else:
+            need("title" in phases and "in_world" not in phases, "the core's phases: %s" % phases, failures)
+        return failures + en_log_is_clean(result) + no_appid_file(result)
+    return check
+
+
+EN_RECORD = 'schema = 2\ndebug = { record_sessions = true }\n'
+
+case("launcher-eldennet", LGAME + ["--dll", "{eldennetdll}", "--console"] + game("--press-pause-at", "300", frames=900),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(EN_RECORD),
+     check=lambda r: (check_en_ready("world")(r) + check_recordings(20)(r) +
+                      want(r, "ELDENNET", "mark", n=1) + want(r, "LAUNCHER", "mark", n=1) +
+                      want(r, "ELDENNET", "recording", which="first", open=1)),
+     what="eldennet.dll injected into the suspended game: T1 from Pin to Ready, the core in the world with the gate "
+          "open, the dev console's status, a Mark recorded, a numbers-only recording that lints clean, a clean exit")
+case("launcher-eldennet-late", LGAME + ["--dll", "{eldennetdll}", "--console", "--inject-at", "title",
+                                        "--title-wait", "1"] + game("--stay-title", frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(), check=check_en_ready("title"),
+     what="injected at the title (a late load): the window there at once, Ready, the core at the title, Dormant")
+case("launcher-eldennet-online", LGAME + ["--dll", "{eldennetdll}"] + game("--online-at", "600", frames=900),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(),
+     check=lambda r: (any_line(r, "ELDENNET", "change", what="gate_opened") +
+                      any_line(r, "ELDENNET", "change", what="gate_closed", to="not_solo") +
+                      any_line(r, "ELDENNET", "change", what="badge", to="up") +
+                      want(r, "LAUNCHER", "end", kind="clean")),
+     what="the gate: open in a solo world, closed with the badge up when the session turns online")
+case("launcher-eldennet-gate", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=420),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(gal_change=unknown_build_for_dll),
+     check=lambda r: (check_lines(("ELDENNET", "gate", {"result": "unknown_build"}),
+                                  ("ELDENNET", "banner", {"reason": "unknown_build"}),
+                                  ("ELDENNET", "init", {"state": "banner"}),
+                                  ("LAUNCHER", "status", {"init": "banner"}),
+                                  ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+                      any_line(r, "ELDENNET", "change", what="banner", to="unknown_build") +
+                      any_line(r, "ELDENNET", "change", what="level", to="L1") +
+                      (["the DLL registered on an unknown build"] if r.events("ELDENNET", "register") else []) +
+                      en_log_is_clean(r)),
+     what="a build the DLL's gal/ does not know: its own gate refuses it, L1's banner, no task, the game unharmed")
+case("launcher-eldennet-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "--dll", "{eldennetdll}", "--console"] +
+     game(frames=420), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, VEHPROBE_MODE="off"), timeout=180,
+     prepare=install_eldennet(copies=(("EasyAntiCheat_EOS.dll", "vehprobe"),)),
+     check=lambda r: (check_lines(("ELDENNET", "safety", {"anticheat": 1}),
+                                  ("ELDENNET", "banner", {"reason": "anticheat", "detail": "module"}),
+                                  ("LAUNCHER", "status", {"init": "banner"}),
+                                  ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+                      any_line(r, "LAUNCHER", "inject", dll="EasyAntiCheat_EOS.dll", ok=1) +
+                      any_line(r, "ELDENNET", "change", what="banner", to="anticheat") +
+                      (["the DLL registered beside anti-cheat"] if r.events("ELDENNET", "register") else [])),
+     what="a simulated anti-cheat hit (a module named EasyAntiCheat_EOS.dll): the Safety state's check, L1's banner, "
+          "no task")
+case("launcher-eldennet-twice", LGAME + ["--dll", "{eldennetdll}"] +
+     game("--load", "window:{eldennet_copy}", frames=600), program="{launcher}", needs=EN_NEEDS,
+     toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(copies=(("eldennet-copy.dll", "eldennet"),)),
+     check=lambda r: (want(r, "ELDENNET", "init", state="ready") + want(r, "ELDENNET", "second_copy", idle=1) +
+                      want(r, "FAKEGAME", "load", which="first", moment="window", ok=1) +
+                      (["%d copies started" % len(r.events("ELDENNET", "safety"))]
+                       if len(r.events("ELDENNET", "safety")) != 1 else []) +
+                      want(r, "LAUNCHER", "end", kind="clean")),
+     what="two loads (the launcher's and the game's own loader's): the second copy idles behind R16's mutex, writes "
+          "nothing, and the first names it at Ready")
+case("launcher-eldennet-crash", LGAME + ["--dll", "{eldennetdll}"] + game("--crash", "av-read", "--crash-at", "400",
+                                                                          frames=720),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(),
+     check=lambda r: (want(r, "LAUNCHER", "end", kind="crash", exit_code="0xC0000005", crash_filter=1, at_crash=1) +
+                      want(r, "LAUNCHER", "crash", code="0xC0000005", thread="game") +
+                      want(r, "LAUNCHER", "record", kept=1, kind="crash") +
+                      [f for rec in crash_records(r) for f in record_is_clean(rec)] +
+                      (["the record: %s" % crash_records(r)]
+                       if len(crash_records(r)) != 1 or "eldennet.dll" not in crash_records(r)[0]["modules"] or
+                       crash_records(r)[0]["status"]["init"] != "ready" else [])),
+     what="the game crashes on its game thread: eldennet.dll's own filter writes the record into the block and waits "
+          "for the watcher, which keeps a scrubbed record")
+case("launcher-eldennet-overflow", LGAME + ["--dll", "{eldennetdll}"] +
+     game("--crash", "stack-overflow", "--crash-at", "400", frames=720),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(),
+     check=lambda r: (want(r, "LAUNCHER", "end", kind="crash", exit_code="0xC00000FD", crash_filter=1, at_crash=1) +
+                      want(r, "LAUNCHER", "crash", code="0xC00000FD", thread="game") +
+                      want(r, "LAUNCHER", "record", kept=1, kind="crash") +
+                      [f for rec in crash_records(r) for f in record_is_clean(rec)]),
+     what="a stack overflow on the game thread: the DLL's filter, in the little stack left, still writes the record "
+          "(no module look-up) and waits for the watcher")
+case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{eldennetdll}", "--crash", "av-read",
+                                           "--crash-at", "400"],
+     needs=EN_NEEDS, toolchains=("clang-cl",), exit=AV, settle=True, timeout=180, env=EN_ENV,
+     prepare=install_eldennet(copies=(("eldennet/eldennet-launcher.exe", "launcher"),)),
+     check=lambda r: (want(r, "ELDENNET", "safety", watched=1, watcher_started=1) +
+                      want(r, "LAUNCHER", "watch", ok=1, block_created=1) +
+                      want(r, "LAUNCHER", "crash", code="0xC0000005", thread="game") +
+                      want(r, "LAUNCHER", "end", kind="crash", crash_filter=1) +
+                      want(r, "LAUNCHER", "record", kept=1)),
+     what="loaded by another loader (the fake game's own --load): eldennet.dll starts the watcher beside it "
+          "(--watch <pid>), which makes the block, sees the crash through the DLL's filter and keeps its record")
+
+
+def check_r1(result):
+    """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
+    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+    failures = []
+    truth = result.truth
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    reports = {}
+    for name in ("r1-derive.json", "r1-probe.json"):
+        path = os.path.join(folder, name)
+        if not os.path.exists(path):
+            failures.append("no %s" % name)
+            continue
+        code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(path)])
+        need(code == 0, "lint --report %s: exit %s %s" % (name, code, out[-400:]), failures)
+        with open(path) as f:
+            reports[name] = json.load(f)
+    if len(reports) != 2:
+        return failures
+    p, d = reports["r1-probe.json"], reports["r1-derive.json"]
+    task = truth["task"]
+    checks = {(c["item"], c.get("label", "")): c for c in p["checks"]}
+    for item in ("gate", "name_layout", "register", "register_abi", "group", "task_shape"):
+        need(checks.get((item, ""), {}).get("status") == "confirmed", "check %s: %s" % (item, checks.get((item, ""))),
+             failures)
+    need(p["register"]["call"] == "ok" and p["stage"] == "running", "the call: %s, stage %s" %
+         (p["register"]["call"], p["stage"]), failures)
+    need(p["register"]["callee"] == task["register_rva"], "callee 0x%X, truth 0x%X" %
+         (p["register"]["callee"], task["register_rva"]), failures)
+    need(p["register"]["registers"] == [1, 2, 8], "registers %s" % p["register"]["registers"], failures)
+    need(p["register"]["group_index"] == task["standin"]["index"], "group %s" % p["register"]["group_index"], failures)
+    calls = {s["slot"]: s["calls"] for s in p["task"]["slot_calls"]}
+    run, attach, query = task["run_slot"], task["attach_slot"], task["query_slot"]
+    need(calls.get(attach) == 1, "attach slot calls %s" % calls, failures)
+    need(calls.get(run, 0) >= 200 and calls.get(run, 0) >= 30 * calls.get(query, 0) > 0, "slot calls %s" % calls,
+         failures)
+    need(0 < p["task"]["object_written"] <= task["object_size"], "object written %s, size %s" %
+         (p["task"]["object_written"], task["object_size"]), failures)
+    need(p["census"]["done"] and p["census"]["bases"], "the census: %s" % p["census"], failures)
+    if p["census"]["bases"]:
+        need(p["census"]["bases"][0].get("run_slot") == run and p["census"]["bases"][0]["derived"] >= 2,
+             "the census's base: %s" % p["census"]["bases"][0], failures)
+    statics = {a["target_rva"] for a in truth["aob"] if a["kind"] == "static"}
+    need(len(p["hinstance"]["slots"]) == 1 and p["hinstance"]["slots"][0] in statics, "hinstance %s" % p["hinstance"],
+         failures)
+    found = {s["label"]: s["at"] for s in p["statics"]}
+    need(all(len(v) == 1 and v[0] in statics for v in found.values()) and len(found) == 3, "statics %s" % found,
+         failures)
+    need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
+         "the rising search: %s" % p["rising"], failures)
+    need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
+    # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
+    need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
+         "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
+    need(sum(1 for s in d["statics"] if s["status"] == "derived") == 4, "the statics: %s" %
+         [(s["label"], s["status"]) for s in d["statics"]], failures)
+    return failures + want(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
+
+
+case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--title-frames", "540", "--press-pause-at", "300", "--reload-every", "360", "--load-frames", "180",
+          frames=1800),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet('probe = { round = "r1", register = "mark", settle_s = 1 }\n', probe=True,
+                              leads_base="Leads::NoTaskBaseGiven"),
+     check=lambda r: check_r1(r) + want(r, "LAUNCHER", "status", init="ready"),
+     what="R1 in a probe build: the derivation over the live image, the checks, the one call at the Mark (Pause at the "
+          "title), the slot counts, the hub census's base class and run slot, the statics' slots, two lint-clean "
+          "reports")
+
+
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------
 
 class PE:
@@ -1698,7 +1995,7 @@ def launcher_setup(args, env, c, paths):
     os.makedirs(appdata)
     paths.update(case=case_dir, game=game_exe, gamedir=game_dir, appdata=appdata)
     truth = None
-    if "galtest" in c.needs and "gallayout" in c.needs:
+    if "gallayout" in c.needs:
         paths["galdir"], truth = make_gal(args, env)
     else:
         paths["galdir"] = write_builds(os.path.join(case_dir, "gal"), args.exe)
@@ -1910,9 +2207,16 @@ def cmd_run(args):
         if c.settle and os.path.exists(log):
             with open(log, encoding="utf-8", errors="replace") as f:
                 status_text += f.read()
+        en_log = os.path.join(paths["appdata"], "EldenNet", "logs", "eldennet.log")  # eldennet.dll's (part 6)
+        if os.path.exists(en_log):
+            with open(en_log, encoding="utf-8", errors="replace") as f:
+                status_text += f.read()
     result = Result(code, out, err, killed, status_text)
     result.truth = truth
     result.paths = paths
+    result.args = args
+    result.env = env
+    result.as_win = lambda p: windows_path(p, args.native)
     failures = []
     if c.kill_after is not None:
         need(killed, "it ended by itself; it should have hung", failures)

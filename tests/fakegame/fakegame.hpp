@@ -149,8 +149,10 @@ struct TaskLoomFields {       // from +0x08
   std::uint32_t flags;        // 0x14
   GroupEntry* groups;         // 0x18
   std::uint64_t tasks_live;   // 0x20
-  std::uint64_t spare[3];     // 0x28
+  void** live;                // 0x28: every active task, in the order the hub activated it (kMaxLiveTasks)
+  std::uint64_t spare[2];     // 0x30
 };
+inline constexpr std::uint32_t kMaxLiveTasks = 256;
 
 // Every singleton class has a virtual function of its own, so each has a vtable and RTTI.
 class TaskLoomImp {

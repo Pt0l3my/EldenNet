@@ -589,6 +589,45 @@ void derive_fd4(Context& cx) {
 
 // ---- RTTI ----
 
+}  // namespace
+
+TaskResult task_from_base(const rtti::Walk& walk, const ImageBytes& img, std::uint32_t base) {
+  TaskResult task;
+  task.base.type_descriptor = base;
+  const rtti::Set derived = rtti::derived_from(walk, base, true);
+  task.vtables = derived.primary;
+  std::vector<std::uint32_t> slots;
+  for (const std::uint32_t vt : task.vtables) {
+    const auto it = std::lower_bound(walk.vtables.begin(), walk.vtables.end(), vt,
+                                     [](const rtti::Vtable& v, std::uint32_t r) { return v.rva < r; });
+    if (it != walk.vtables.end() && it->rva == vt) slots.push_back(it->slots);
+  }
+  if (!slots.empty()) {
+    task.slots_min = *std::min_element(slots.begin(), slots.end());
+    task.slots_max = *std::max_element(slots.begin(), slots.end());
+    for (std::uint32_t i = 0; i < task.slots_min; ++i) {
+      std::set<std::uint64_t> targets;
+      for (const std::uint32_t vt : task.vtables) targets.insert(img.u64(vt + 8 * i).value_or(0));
+      task.slot_targets.push_back(static_cast<std::uint32_t>(targets.size()));
+    }
+    // The run slot's candidate: the one slot every class fills with a function of its own.
+    std::optional<std::uint32_t> own;
+    std::uint32_t count = 0;
+    for (std::uint32_t i = 0; i < task.slot_targets.size(); ++i) {
+      if (task.vtables.size() >= 2 && task.slot_targets[i] == task.vtables.size()) {
+        own = i;
+        ++count;
+      }
+    }
+    if (count == 1) task.run_slot = own;
+  }
+  task.status = task.vtables.empty() ? Status::Missing : Status::Derived;
+  return task;
+}
+
+namespace {
+
+
 ClassResult class_result(Context& cx, const rtti::Walk& walk, std::string_view cls) {
   ClassResult out;
   const rtti::Found td = rtti::find_type_descriptor(cx.img, cls);
@@ -634,37 +673,11 @@ void derive_rtti(Context& cx) {
   }
 
   TaskResult& task = cx.result.task;
-  task.base = class_result(cx, walk, cx.leads.task_base);
-  if (task.base.type_descriptor != 0 && task.base.status != Status::Ambiguous) {
-    const rtti::Set derived = rtti::derived_from(walk, task.base.type_descriptor, true);
-    task.vtables = derived.primary;
-    std::vector<std::uint32_t> slots;
-    for (const std::uint32_t vt : task.vtables) {
-      const auto it = std::lower_bound(walk.vtables.begin(), walk.vtables.end(), vt,
-                                       [](const rtti::Vtable& v, std::uint32_t r) { return v.rva < r; });
-      if (it != walk.vtables.end() && it->rva == vt) slots.push_back(it->slots);
-    }
-    if (!slots.empty()) {
-      task.slots_min = *std::min_element(slots.begin(), slots.end());
-      task.slots_max = *std::max_element(slots.begin(), slots.end());
-      for (std::uint32_t i = 0; i < task.slots_min; ++i) {
-        std::set<std::uint64_t> targets;
-        for (const std::uint32_t vt : task.vtables) targets.insert(cx.img.u64(vt + 8 * i).value_or(0));
-        task.slot_targets.push_back(static_cast<std::uint32_t>(targets.size()));
-      }
-      // The run slot's candidate: the one slot every class fills with a function of its own.
-      std::optional<std::uint32_t> own;
-      std::uint32_t count = 0;
-      for (std::uint32_t i = 0; i < task.slot_targets.size(); ++i) {
-        if (task.vtables.size() >= 2 && task.slot_targets[i] == task.vtables.size()) {
-          own = i;
-          ++count;
-        }
-      }
-      if (count == 1) task.run_slot = own;
-    }
-    task.status = task.vtables.empty() ? Status::Missing : Status::Derived;
+  const ClassResult base = class_result(cx, walk, cx.leads.task_base);
+  if (base.type_descriptor != 0 && base.status != Status::Ambiguous) {
+    task = task_from_base(walk, cx.img, base.type_descriptor);
   }
+  task.base = base;
 
   for (const StaticLead& lead : cx.leads.statics) {
     StaticResult s;

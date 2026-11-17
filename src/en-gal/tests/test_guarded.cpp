@@ -75,6 +75,35 @@ TEST_CASE("guarded: copies arrive whole, faults are answers with the destination
   CHECK(r.reader.faults(FaultKind::Copy) == 2);
 }
 
+TEST_CASE("guarded: a stack range of a thread that ended is forgotten when a read meets it, and the read goes on") {
+  Rig r;
+  const GameThread gt = GameThread::issue();
+  r.reader.begin_tick();
+  const std::uint64_t old_stack = r.mem.alloc(0x1000);  // a stack once; now the game's object (WHY§190)
+  r.mem.put<std::uint64_t>(old_stack + 0x10, 0x1122334455667788ull);
+  r.sys.own_stack = AddressRange{old_stack, old_stack + 0x1000};
+  r.sys.note_own_stack();
+  CHECK(r.reader.copy<std::uint64_t>(gt, Group::World, old_stack + 0x10).error().kind == FaultKind::Stack);
+  CHECK(r.reader.stale_stacks() == 0);
+  r.sys.stacks_stale = true;  // the SysLayer finds the range no longer a stack
+  const auto v = r.reader.copy<std::uint64_t>(gt, Group::World, old_stack + 0x10);
+  REQUIRE(v.has_value());
+  CHECK(*v == 0x1122334455667788ull);
+  CHECK(r.reader.stale_stacks() == 1);
+  CHECK(r.sys.stacks().size() == 0);
+  CHECK(r.reader.faults(FaultKind::Stack) == 1);
+  // StackRanges::remove takes out every range that overlaps, and keeps the rest in order.
+  StackRanges t;
+  REQUIRE(t.add(AddressRange{0x10000, 0x20000}));
+  REQUIRE(t.add(AddressRange{0x30000, 0x40000}));
+  REQUIRE(t.add(AddressRange{0x50000, 0x60000}));
+  t.remove(AddressRange{0x3F000, 0x51000});
+  REQUIRE(t.size() == 1);
+  CHECK(t.at(0).begin == 0x10000);
+  t.clear();
+  CHECK(t.size() == 0);
+}
+
 TEST_CASE("guarded: the per-tick budget of copies and bytes, and a read off the bound thread") {
   Rig r;
   const GameThread gt = GameThread::issue();

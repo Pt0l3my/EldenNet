@@ -41,11 +41,20 @@ class NativeSys final : public SysLayer {
   [[nodiscard]] std::uint64_t now_us() const noexcept override;
   [[nodiscard]] std::uint32_t thread_id() const noexcept override;
   [[nodiscard]] std::uint64_t slot_calls(std::uint32_t slot) const noexcept override;
+  [[nodiscard]] std::uint64_t task_object() const noexcept override;
+  bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override;
 
   [[nodiscard]] CopyKind copy_kind() const noexcept { return kind_; }
+  // The copy primitive the settings chose (gal.copy): on T1, before the task is registered and reads anything.
+  void set_copy_kind(CopyKind kind) noexcept { kind_ = kind; }
   // Walks the process's memory again for guard pages (the stacks of threads made since); answers how many ranges the
   // table holds.
   std::size_t refresh_stacks() noexcept;
+  // The table made again from nothing, less the calling thread's own stack: on T1 just before the task is registered,
+  // so that the stack of a thread that has ended since the first scan (the launcher's loading thread), or that ends
+  // after it (T1 itself, at Ready), refuses no read of the game's objects placed where it was (WHY§190). The game
+  // never points into T1's stack while it lives. Answers how many ranges the table holds.
+  std::size_t rescan_stacks() noexcept;
   // An address that faults when read, for the probe's fault injection: a page reserved with no access, never freed.
   [[nodiscard]] std::uint64_t no_access_page() noexcept;
 

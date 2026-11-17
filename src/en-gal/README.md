@@ -154,7 +154,8 @@ of any game is in it, and every name it looks for comes from a leads file.
     sites all match, part 2's scan resolves it and a hit is accepted; without a name layout the singletons are
     `depends` (R1 names them through the getter, ARCH §6.2 step 3);
   - the vtable sets and the task classes (their slots, how many functions each slot holds across them, and the one slot
-    every class fills with its own: the run slot's candidate);
+    every class fills with its own: the run slot's candidate; `task_from_base` does the same for a base given by its
+    type descriptor, which R1's census finds in game);
   - `register_task`: the direct calls after a load of the registration's instance, whose arguments a small register
     model follows back to the start of the block (the instance, a 64-bit argument, a 32-bit one), grouped by callee;
   - the task group's index: its name, as ASCII or UTF-16, in a table of entries holding pointers to names at a stride
@@ -177,10 +178,13 @@ of any game is in it, and every name it looks for comes from a leads file.
   - and the list of what R1 must confirm. `complete(result)` says whether everything R0 can derive was derived.
 - **`report.hpp`: the numbers-only writer and its lint.** A report is one JSON object whose keys all come from its
   kind's closed vocabulary, each with one type of value: whole numbers, booleans, fixed words, labels (`[a-z][a-z0-9_]*`),
-  patterns of at most 64 bytes in canonical form, objects and arrays. The `Writer` refuses anything else, and its first
-  refusal leaves no text; `lint(text, vocabularies)` checks a file token by token (a repeated key cannot hide a
-  string), with problems that say where, never what. `derive::write_report` writes derive.json through it, under
-  `derive::vocabulary()`.
+  patterns of at most 64 bytes in canonical form, objects and arrays, and, for a key typed so, finite numbers that need
+  not be whole (`Float`: a recording's positions; no derive key takes one). The `Writer` refuses anything else, and its
+  first refusal leaves no text; it writes pretty-printed or on one line (`Style::Line`, a line of a JSON Lines file).
+  `lint(text, vocabularies)` checks a file token by token (a repeated key cannot hide a string), with problems that say
+  where, never what; `lint_lines` checks a JSON Lines file whose every line is one report of the first line's kind
+  (eldennet.dll's recordings), each problem with its line. `derive::write_report` writes derive.json through it, under
+  `derive::vocabulary()`; eldennet's en_shell holds the `recording` and `probe` vocabularies.
 
 ```cpp
 #include "en/gal/derive.hpp"
@@ -239,7 +243,14 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   committed, readable and no guard page, through the SEH copy; the copy primitive is the SEH copy or
   ReadProcessMemory on our own process (`CopyKind::Rpm`, S0-D's setting); the stack table holds every allocation with
   a guard page (the shape of a thread's stack; in an image, its guard pages alone) and each thread's own stack as it
-  asks (`note_own_stack`, T1 at init and the game thread at its first tick). `register.cpp` holds the two casts of an
+  asks (`note_own_stack`, T1 at init and the game thread at its first tick). A thread that ends leaves its range in the
+  table while the game may reuse its memory (Wine frees an ended thread's stack late, and T1 ends at Ready; WHY§190):
+  `rescan_stacks`, on T1 just before registration, makes the table again without T1's own stack, and a read the table
+  refuses is checked once more (`forget_stale_stacks`, on that rare path alone): a range whose allocation no longer
+  holds a guard page leaves the table and the read goes on (`GuardedReader::stale_stacks` counts them).
+  `set_copy_kind` takes settings' copy primitive on T1, before registration. `sys_boot.hpp` (`src/sys/boot.cpp`) holds
+  what eldennet.dll's load and crash filter need of an address turned into a module: DllMain's `on_attach`, `pin`, and
+  `fault_site` (the faulting module's file name and offset, allocation-free, for the crash record). `register.cpp` holds the two casts of an
   address to a function (R2): `register_task`, called once with the layout's argument registers, and the FD4 getter,
   once per candidate before it, both under SEH. `trampoline.cpp` makes our task object once (a pointer to a read-only
   fake vtable of `vtable_slots` guarded no-ops that count their calls, the run slot `en_task_run`; the layout's
@@ -280,10 +291,21 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   invocation and each build) and the counters, as atomics. `install_task` reads the hub's instance from its static
   through the image and makes the one registration.
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
-  instance has its class's vtable (candidates read on T1 from the image's writable data, checked on the game thread
-  within the tick's budget); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied
-  object's bytes by invariant and answer offsets only; `GuardedReader::inject` makes every n-th read of a group a real
-  fault; `SysLayer::slot_calls` counts the game's calls of each slot.
+  instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
+  game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any
+  discovery); `slots_holding` finds the data slots holding a value (R1's `global_hinstance`: the module's base);
+  `RisingSearch` copies each candidate's instance again a second or more after its last copy and keeps the 32-bit
+  fields that rose by the elapsed milliseconds (within a fifth), with how often each rose, stood still or changed
+  otherwise (a play time stands still at the title and while loading; a candidate that faults is not copied again), for
+  a static whose class has no RTTI; `Census` copies the task hub's instance and what it points at to a depth of three
+  (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),
+  and counts the objects whose first 8 bytes are one of the image's vtables (the hub's own tasks, whose shared class is
+  the task's base); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied object's
+  bytes by invariant and answer offsets only; `GuardedReader::inject` makes every n-th read of a group a real fault;
+  `SysLayer::slot_calls` counts the game's calls of each slot, and `TaskShape::every_slot` (R1, the run slot not yet
+  known) makes every slot count its calls and run the body for our own object; `SysLayer::task_object` gives our
+  object's address, so that R1 can see how much of it the hub wrote. Everything they need on the game thread is
+  allocated on T1.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -339,7 +361,7 @@ copies that fail as an access violation would, released regions, declared stacks
 own, and a hub's tick) and `FakeWorld` (`tests/fake_world.hpp`: an invented game of eleven singletons of invented names,
 a registration of its own argument order, AOB statics, MSVC RTTI with a character base and its subclasses, a flag
 tree, text and param tables, and its gal/ texts). They check the reader's rules, ObjView, the breakers' window and
-the histogram (`test_guarded.cpp`); discovery: every item where the world put it, the getter called once a candidate
+the histogram, and a stale stack range forgotten (`test_guarded.cpp`); discovery: every item where the world put it, the getter called once a candidate
 and refused after registration, the probe round's slot, the retries' times, optional and structural items missing, a
 release build refusing leads (`test_discovery.cpp`); every snapshot field against the world, phase A and phase B, R11's
 copies while loading, statics that move (as tombstones, released, kept), are nulled and repointed (R5), vtable swaps and
@@ -348,9 +370,11 @@ budget's gap, the first tick's group check, the render feed and C5 (`test_backen
 layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stalls (one snapshot an invocation at
 most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
 this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
-(`test_probe.cpp`). The clang-cl build adds NativeSys's (`test_native_sys.cpp`): the module's image, both copy
-primitives, the stack table and a guard page left untouched, the calls under SEH, and the task object driven as a hub
-would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
+(`test_probe.cpp`: the slot searches, the heap slots and the module base's slot, the rising-counter search telling a
+play time from a still field, the hub census to a depth of three past a released object). The clang-cl build adds
+NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
+untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
+under SEH, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
 it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page

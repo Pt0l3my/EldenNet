@@ -112,6 +112,14 @@ class FakeSys final : public SysLayer {
   [[nodiscard]] std::uint64_t slot_calls(std::uint32_t slot) const noexcept override {
     return slot < calls_.size() ? calls_[slot] : 0;
   }
+  [[nodiscard]] std::uint64_t task_object() const noexcept override { return block_; }
+  // A stack range the test marks stale (a thread that ended, its memory the game's: WHY§190) is forgotten on asking.
+  bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override {
+    if (!stacks_stale) return false;
+    stacks_.remove(AddressRange{address, address + len});
+    return !stacks_.overlaps(address, len);
+  }
+  bool stacks_stale = false;
 
   // ---- The test's controls ----
   void set_now_us(std::uint64_t t) noexcept { now_us_ = t; }
@@ -143,6 +151,8 @@ class FakeSys final : public SysLayer {
   mutable std::uint64_t drift_ = 0;
   std::uint32_t thread_ = 1;
   std::vector<std::uint64_t> calls_;
+  FakeMemory& mem_;
+  std::uint64_t block_ = 0;  // our task object, in the fake process, once registered
 };
 
 }  // namespace en::gal::test

@@ -2,6 +2,8 @@
 #include "en/gal/report.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <utility>
@@ -42,6 +44,7 @@ const char* type_name(Type t) noexcept {
     case Type::Word: return "one of its words";
     case Type::Label: return "a label";
     case Type::Pattern: return "a byte pattern";
+    case Type::Float: return "a number";
   }
   return "a value";
 }
@@ -59,14 +62,21 @@ bool good_pattern(const BytePattern& p) noexcept {
 
 // ---- The writer ----
 
-Writer::Writer(const Vocabulary& vocabulary) : vocabulary_(vocabulary) {
+Writer::Writer(const Vocabulary& vocabulary, Style style) : vocabulary_(vocabulary), style_(style) {
   bool kind_ok = is_label(vocabulary_.kind);
-  out_ = "{\n  \"report\": \"";
+  const bool line = style_ == Style::Line;
+  out_ = line ? "{\"report\":\"" : "{\n  \"report\": \"";
   out_ += vocabulary_.kind;
-  out_ += "\",\n  \"schema\": ";
+  out_ += line ? "\",\"schema\":" : "\",\n  \"schema\": ";
   out_ += std::to_string(vocabulary_.schema);
   levels_.push_back(Level{false, nullptr, 2, "", {}});
   if (!kind_ok) refuse("report", "the vocabulary's kind is not a label");
+}
+
+void Writer::newline(std::size_t indent) {
+  if (style_ == Style::Line) return;
+  out_ += "\n";
+  out_.append(2 * indent, ' ');
 }
 
 void Writer::refuse(std::string where, std::string problem) {
@@ -132,15 +142,12 @@ bool Writer::value_start(std::string_view key, Type type, const Key** found) {
   }
   if (found != nullptr) *found = k;
   const bool inline_items = top.array && k != nullptr && scalar(k->element);
-  if (top.items > 0) out_ += inline_items ? ", " : ",";
-  if (!inline_items) {
-    out_ += "\n";
-    out_.append(2 * levels_.size(), ' ');
-  }
+  if (top.items > 0) out_ += inline_items && style_ == Style::Pretty ? ", " : ",";
+  if (!inline_items) newline(levels_.size());
   if (!top.array) {
     out_ += "\"";
     out_ += key;
-    out_ += "\": ";
+    out_ += style_ == Style::Line ? "\":" : "\": ";
   }
   ++top.items;
   return true;
@@ -159,10 +166,7 @@ void Writer::end_object() {
   if (levels_.size() < 2 || levels_.back().array) return refuse("", "end_object without an object open");
   const Level top = levels_.back();
   levels_.pop_back();
-  if (top.items > 0) {
-    out_ += "\n";
-    out_.append(2 * levels_.size(), ' ');
-  }
+  if (top.items > 0) newline(levels_.size());
   out_ += "}";
 }
 
@@ -180,10 +184,7 @@ void Writer::end_array() {
   if (levels_.size() < 2 || !levels_.back().array) return refuse("", "end_array without an array open");
   const Level top = levels_.back();
   levels_.pop_back();
-  if (top.items > 0 && !(top.key != nullptr && scalar(top.key->element))) {
-    out_ += "\n";
-    out_.append(2 * levels_.size(), ' ');
-  }
+  if (top.items > 0 && !(top.key != nullptr && scalar(top.key->element))) newline(levels_.size());
   out_ += "]";
 }
 
@@ -237,11 +238,20 @@ void Writer::pattern(std::string_view key, const BytePattern& p) {
   out_ += "\"";
 }
 
+void Writer::real(std::string_view key, double value) {
+  if (refused_) return;
+  if (!std::isfinite(value)) return refuse(where(key), "is not a finite number");
+  if (!value_start(key, Type::Float, nullptr)) return;
+  char buf[32];
+  const int n = std::snprintf(buf, sizeof buf, "%.7g", value);
+  out_.append(buf, n > 0 ? static_cast<std::size_t>(n) : 0);
+}
+
 Expected<std::string, Problem> Writer::finish() {
   if (!refused_ && !done_ && levels_.size() != 1) refuse("", "an object or array was left open");
   if (refused_) return Unexpected{refusal_};
   if (!done_) {
-    out_ += "\n}\n";
+    out_ += style_ == Style::Line ? "}\n" : "\n}\n";
     done_ = true;
     levels_.clear();
   }
@@ -267,7 +277,10 @@ class Linter {
   bool boolean(bool) { return value(Type::Boolean, nullptr); }
   bool number_integer(json::number_integer_t v) { return value(v >= 0 ? Type::Unsigned : Type::Signed, nullptr); }
   bool number_unsigned(json::number_unsigned_t v) { return number_value(v); }
-  bool number_float(json::number_float_t, const json::string_t&) {
+  bool number_float(json::number_float_t v, const json::string_t&) {
+    const Key* key = nullptr;
+    const std::optional<Type> want = frames_.empty() ? std::nullopt : expected(&key);
+    if (want && *want == Type::Float && std::isfinite(v)) return value(Type::Float, nullptr);
     return value(Type::Object, "a number that is not whole");
   }
   bool string(json::string_t& s) { return string_value(s); }
@@ -284,6 +297,7 @@ class Linter {
 
   [[nodiscard]] std::vector<Problem> take() { return std::move(problems_); }
   [[nodiscard]] bool complete() const noexcept { return root_closed_; }
+  [[nodiscard]] const Vocabulary* kind() const noexcept { return vocabulary_; }
 
  private:
   struct Frame {
@@ -339,7 +353,8 @@ class Linter {
     const std::optional<Type> want = expected(&key);
     if (refusal != nullptr) {
       add(at, refusal);
-    } else if (want && !(*want == type || (*want == Type::Signed && type == Type::Unsigned))) {
+    } else if (want && !(*want == type || (*want == Type::Signed && type == Type::Unsigned) ||
+                         (*want == Type::Float && (type == Type::Unsigned || type == Type::Signed)))) {
       add(at, std::string("must be ") + type_name(*want));
     }
     advance();
@@ -486,6 +501,43 @@ Expected<void, std::vector<Problem>> lint(std::string_view text, std::span<const
   const bool parsed = json::sax_parse(text, &linter, json::input_format_t::json, true, false);
   std::vector<Problem> problems = linter.take();
   if (problems.empty() && (!parsed || !linter.complete())) problems.push_back(Problem{"", "is not one JSON object"});
+  if (!problems.empty()) return Unexpected{std::move(problems)};
+  return {};
+}
+
+Expected<void, std::vector<Problem>> lint_lines(std::string_view text,
+                                                std::span<const Vocabulary* const> vocabularies) {
+  std::vector<Problem> problems;
+  const Vocabulary* first = nullptr;
+  std::size_t number = 0;
+  std::size_t lines = 0;
+  while (!text.empty() && problems.size() < kMaxProblems) {
+    const std::size_t end = text.find('\n');
+    std::string_view line = text.substr(0, end);
+    text = end == std::string_view::npos ? std::string_view{} : text.substr(end + 1);
+    ++number;
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+    if (line.empty()) continue;
+    ++lines;
+    const std::string at = "line " + std::to_string(number);
+    if (line.size() > kMaxReportBytes) {
+      problems.push_back(Problem{at, "is larger than 256 KiB"});
+      continue;
+    }
+    Linter linter(vocabularies);
+    const bool parsed = json::sax_parse(line, &linter, json::input_format_t::json, true, false);
+    std::vector<Problem> found = linter.take();
+    if (found.empty() && (!parsed || !linter.complete())) found.push_back(Problem{"", "is not one JSON object"});
+    if (found.empty() && linter.kind() != nullptr) {
+      if (first == nullptr) first = linter.kind();
+      if (linter.kind() != first) found.push_back(Problem{"report", "is not the kind of the file's first line"});
+    }
+    for (Problem& p : found) {
+      if (problems.size() >= kMaxProblems) break;
+      problems.push_back(Problem{p.where.empty() ? at : at + ": " + p.where, std::move(p.problem)});
+    }
+  }
+  if (problems.empty() && lines == 0) problems.push_back(Problem{"", "holds no line"});
   if (!problems.empty()) return Unexpected{std::move(problems)};
   return {};
 }

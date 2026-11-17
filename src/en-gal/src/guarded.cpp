@@ -24,6 +24,14 @@ bool StackRanges::add(AddressRange r) noexcept {
   return true;
 }
 
+void StackRanges::remove(AddressRange r) noexcept {
+  std::size_t kept = 0;
+  for (std::size_t i = 0; i < n_; ++i) {
+    if (!r_[i].overlaps(r.begin, r.end - r.begin)) r_[kept++] = r_[i];
+  }
+  n_ = kept;
+}
+
 bool StackRanges::overlaps(std::uint64_t at, std::uint64_t len) const noexcept {
   for (std::size_t i = 0; i < n_; ++i) {
     if (r_[i].overlaps(at, len)) return true;
@@ -107,7 +115,11 @@ Expected<void, ReadFault> GuardedReader::copy_into(const proto::GameThread& gt, 
 #else
   (void)group;
 #endif
-  if (const auto why = implausible(address, dst.size(), align, sys_.stacks())) return Unexpected{fail(*why)};
+  if (const auto why = implausible(address, dst.size(), align, sys_.stacks())) {
+    // A range of a thread that has ended (its memory now the game's) is forgotten, and the read goes on (WHY§190).
+    if (*why != FaultKind::Stack || !sys_.forget_stale_stacks(address, dst.size())) return Unexpected{fail(*why)};
+    stale_stacks_.fetch_add(1, std::memory_order_relaxed);
+  }
   ++copies_;
   bytes_ += static_cast<std::uint32_t>(dst.size());
   total_copies_.fetch_add(1, std::memory_order_relaxed);

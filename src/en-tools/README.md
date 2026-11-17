@@ -113,26 +113,34 @@ what they count. A new key waits for a schema 2 and a DataPiler that reads it.
 | `stats.fd4.names` | Of the accepted hits' class objects: `of` how many, `agree` how many the best name layout reads (with its `offset` and `encoding`, even under half), `fixups` how many have a base relocation in their first 128 bytes (a pointer the file initialises), `unreadable` how many lie past the raw data the file holds of their section (zeros until the game writes them) |
 | `stats.fd4.classes`, `loads`, `calls` | Distinct class objects, statics and getters of the accepted hits |
 
-## lint --report
+## lint --report and lint --recording
 
 ```text
 eldennet-engine lint --report <file>
+eldennet-engine lint --recording <file>
 ```
 
 The check every numbers-only report passes before it leaves the PC or is committed (plan §1.2; DataPiler's guard checks
-the same, DP36). It reads the file's `report` key and checks the file against that kind's vocabulary (so far `derive`):
+the same, DP36). `--report` reads the file's `report` key and checks the file against that kind's vocabulary
+(`derive`, which R1's `r1-derive.json` is too, or `probe`, R1's `r1-probe.json`; their vocabularies are en-gal's and
+eldennet's en_shell's):
 every key known and given once, every value of its key's type, strings only as the key's fixed words, labels or
 canonical patterns of at most 64 bytes, no float, no null, at most 64 patterns, nested at most 16 deep, at most 256 KiB.
 So a path, a free string, a name and a byte run longer than a pattern are refused. Exit codes: 0 clean (`lint: the
 report is clean`); 1 refused, each problem on a line of standard output, `lint: <where>: <problem>`, never quoting what
 was there; 2 a usage error, or a file that cannot be read or is larger than 256 KiB.
 
+`--recording` checks eldennet.dll's recording (`*.ensnap.jsonl`, src/eldennet/README.md) the same way, line by line:
+every line one report of the kind `recording`, whose keys may also hold a finite number that is not whole (a
+position, a distance), each problem with its line (`lint: line 12: chars[0].pos: ...`). Exit codes as above, a file
+larger than 512 MiB being 2 (`lint: the recording is clean`, `... is refused`).
+
 ## Tests
 
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's
 content, the static's pattern from a slot, the lint's refusals of a path, a free string, a byte run and a float without
-quoting them, and no path in any message; `--sections` against the table read in Python, a refused section's line
+quoting them, a recording linted clean and one with a path refused at its line, and no path in any message; `--sections` against the table read in Python, a refused section's line
 (its shape, its numbers, and DataPiler's log's shape), and a copy whose last section's raw data runs past the end of
 the file and whose SizeOfImage is short of its alignment, which derives as the file itself does. The Windows builds run the same commands under Wine on `fakegame.exe`
 (`tests/fakegame/`).

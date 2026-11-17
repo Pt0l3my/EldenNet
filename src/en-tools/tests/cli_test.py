@@ -155,6 +155,27 @@ def main():
         need(code == 1 and "refused" in so, "lint on %s: exit %s %r" % (kind, code, so))
         need("Games" not in so and "a place" not in so and "CC CC" not in so, "lint on %s quoted it: %r" % (kind, so))
 
+    # lint --recording: every line a report of the kind "recording" (eldennet.dll's recorder, en_shell's record.hpp),
+    # floats where its keys take them; a path on one line is refused with that line's number, and not quoted.
+    rec_lines = [
+        '{"report":"recording","schema":1,"t":1,"k":"header","ensnap":1,"region":"ww","file":1}',
+        '{"report":"recording","schema":1,"t":2,"k":"snap","seq":1,"chars":[{"handle":7,"dist_m":3.25,'
+        '"pos":[1.5,-2,3]}]}',
+        '{"report":"recording","schema":1,"t":3,"k":"mark","n":1}',
+    ]
+    rec = os.path.join(a.work, "sample.ensnap.jsonl")
+    with open(rec, "w") as f:
+        f.write("\n".join(rec_lines) + "\n")
+    code, so, _ = run(a.engine, "lint", "--recording", rec)
+    need(code == 0 and "the recording is clean" in so, "lint --recording: exit %s %r" % (code, so))
+    code, so, _ = run(a.engine, "lint", "--report", rec)
+    need(code == 1, "lint --report on a recording: exit %s %r" % (code, so))
+    bad_rec = os.path.join(a.work, "bad.ensnap.jsonl")
+    with open(bad_rec, "w") as f:
+        f.write("\n".join([rec_lines[0], rec_lines[1].replace('"seq":1', '"seq":"C:\\\\Games\\\\x.exe"')]) + "\n")
+    code, so, _ = run(a.engine, "lint", "--recording", bad_rec)
+    need(code == 1 and "line 2: seq" in so and "Games" not in so, "lint --recording on a path: exit %s %r" % (code, so))
+
     # Usage and input errors: their exit codes, and no path in their messages.
     cases = [
         (["probe-exe"], 2),
@@ -170,6 +191,7 @@ def main():
         (["lint"], 2),
         (["lint", "--report", os.path.join(a.work, "absent.json")], 2),
         (["lint", "--report", out, "--report", out], 2),
+        (["lint", "--recording", rec, "--report", out], 2),
     ]
     for argv, want in cases:
         code, so, se = run(a.engine, *argv)

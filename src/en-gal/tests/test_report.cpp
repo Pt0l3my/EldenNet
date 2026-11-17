@@ -4,6 +4,8 @@
 #include <doctest.h>
 
 #include <array>
+#include <cstdint>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -222,4 +224,73 @@ TEST_CASE("report: the lint refuses every other kind of value or key outside the
   // A repeated key cannot hide a string behind a later value, as a parsed document would.
   CHECK(problems(edited("\"label\": \"task_loom\"", "\"label\": \"C:\\\\x\", \"label\": \"task_loom\"")) ==
         std::vector<std::string>{"label: is not a label", "label: is a key given twice"});
+}
+
+// ---- A recording's lines: one-line reports, floats, and the JSON Lines lint ----
+
+namespace {
+
+constexpr std::array<Key, 4> kLineKeys = {{
+    {"t", Type::Unsigned},
+    {"k", Type::Word, Type::Object, kColours},
+    {"pos", Type::Array, Type::Float},
+    {"dist", Type::Float},
+}};
+constexpr Vocabulary kLines{"lines", 1, kLineKeys};
+constexpr std::array<const Vocabulary*, 2> kBoth = {&kVocabulary, &kLines};
+
+std::string one_line(std::uint64_t t, double dist) {
+  Writer w(kLines, en::gal::report::Style::Line);
+  w.number("t", t);
+  w.word("k", "red");
+  w.begin_array("pos");
+  w.real(1.5);
+  w.real(-2.0);
+  w.real(1234.567);
+  w.end_array();
+  w.real("dist", dist);
+  auto text = w.finish();
+  REQUIRE(text.has_value());
+  return *text;
+}
+
+}  // namespace
+
+TEST_CASE("a report on one line, with floats, lints clean, and so does a file of them") {
+  const std::string line = one_line(12, 3.25);
+  CHECK(line == "{\"report\":\"lines\",\"schema\":1,\"t\":12,\"k\":\"red\",\"pos\":[1.5,-2,1234.567],\"dist\":3.25}\n");
+  CHECK(lint(line, kBoth).has_value());
+  const std::string file = line + one_line(13, 0.0) + "\n" + one_line(14, 1e-3);
+  CHECK(en::gal::report::lint_lines(file, kBoth).has_value());
+}
+
+TEST_CASE("the writer refuses a float that is not finite, and a float where a whole number goes") {
+  Writer w(kLines, en::gal::report::Style::Line);
+  w.real("dist", std::numeric_limits<double>::quiet_NaN());
+  CHECK_FALSE(w.finish().has_value());
+  Writer x(kLines, en::gal::report::Style::Line);
+  x.real("t", 1.5);
+  CHECK_FALSE(x.finish().has_value());
+}
+
+TEST_CASE("the lint takes a whole number for a float, and refuses a float for a whole number") {
+  CHECK(lint(R"({"report":"lines","schema":1,"dist":3})", kBoth).has_value());
+  const auto bad = lint(R"({"report":"lines","schema":1,"t":3.5})", kBoth);
+  REQUIRE_FALSE(bad.has_value());
+  CHECK(bad.error()[0].where == "t");
+  // derive's and the tests' vocabularies hold no float: a fraction is refused there as before.
+  CHECK_FALSE(lint(R"({"report":"sample","schema":1,"size":1.5})", kKnown).has_value());
+}
+
+TEST_CASE("the JSON Lines lint names each problem's line, and refuses a second kind and an empty file") {
+  const std::string file = one_line(1, 1.0) + R"({"report":"lines","schema":1,"t":"/home/x"})" + "\n" +
+                           R"({"report":"sample","schema":1,"size":1})" + "\n" + "not json\n";
+  const auto out = en::gal::report::lint_lines(file, kBoth);
+  REQUIRE_FALSE(out.has_value());
+  REQUIRE(out.error().size() == 3);
+  CHECK(out.error()[0].where == "line 2: t");
+  CHECK(out.error()[1].where == "line 3: report");
+  CHECK(out.error()[2].where.rfind("line 4", 0) == 0);
+  for (const auto& p : out.error()) CHECK(p.problem.find("/home") == std::string::npos);
+  CHECK_FALSE(en::gal::report::lint_lines("\n\n", kBoth).has_value());
 }
