@@ -231,6 +231,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 206 | 2026-11-17 | R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead | FACT | #gal #r1 #derive #launcher |
 | 207 | 2026-11-17 | R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4) | FACT | #gal #r1 #derive |
 | 208 | 2026-11-17 | R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice) | FACT | #gal #r1 #task |
+| 209 | 2026-11-17 | R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored | FACT | #gal #r1 #task #crash |
 
 ## Entries
 
@@ -3759,3 +3760,22 @@ invariant 10, EldenNet ARCH (T3)
 - **Next** (DECIDED by the owner, 2026-11-17, "Load a save after the call"): run 4 uses the same package; after the
   call the owner loads a character, stands at a Site of Grace for about a minute and quits normally. The launcher has
   backed up the saves. If the task ticks in the world, the probe's census and searches complete R1.
+
+### 209. R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored
+
+`2026-11-17` · FACT · `#gal` `#r1` `#task` `#crash` · refs: WHY§208, engine cab98b7
+
+- **The run** (FACT, spike.4): as run 3, every check passed and `register_task` returned ok at the title screen. The
+  owner then loaded a character and stood at a Site of Grace for several minutes: the task was never invoked (no slot
+  called, nothing of our object written). The title screen was not the reason.
+- **The quit** (FACT): the owner quit to the desktop through the menu and saw nothing wrong, but the launcher's crash
+  record holds an access violation on a thread neither the game's main thread nor ours, in a module the record names
+  `160_E658700.bin`, then exit code 0xC0000409. Runs 1 to 3 (no world loaded) ended clean. The cause is unknown: our
+  registered task at shutdown, or the other DLLs in the game folder (`dinput8.dll`, `dxgi.dll`; O91's third-party rows).
+- **So** (LIKELY): the call returned without making our task run: the group's index, the task object the function
+  expects, or the function itself is not what R1 derived.
+- **Spike.5** (DECIDED by the owner, 2026-11-17, "find where it went"): 2 and 20 s after the call, on T1, the hub's
+  reachable memory is searched breadth first from its instance, three pointers deep, read-only through the
+  crash-guarded copy under the plausibility rules, within 6,000 blocks and 6 MB, for our task object's address; the
+  report gives where it was found (the offsets followed) and the 32-bit words equal to the group's index near it. On the
+  fake game it finds the task one pointer deep. Run 5 stays at the title screen.
