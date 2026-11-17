@@ -230,6 +230,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 205 | 2026-11-17 | Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key | FACT | #graceui #input #perf |
 | 206 | 2026-11-17 | R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead | FACT | #gal #r1 #derive #launcher |
 | 207 | 2026-11-17 | R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4) | FACT | #gal #r1 #derive |
+| 208 | 2026-11-17 | R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice) | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -3742,3 +3743,19 @@ invariant 10, EldenNet ARCH (T3)
   first word read once through the crash-guarded copy with ARCH §6.5's plausibility rules (on T1, before any call), and
   that vtable's class from the RTTI walk; a lead matches its name or its name with Imp, once only. The probe's report
   counts the statics tried, null, unread, unclassed, classed and matched (`inst_*`).
+
+### 208. R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice)
+
+`2026-11-17` · FACT · `#gal` `#r1` `#task` · refs: O89, O92, WHY§207, engine cab98b7
+
+- **The run** (FACT, spike.4, game 2.7.2.0 ww): one derivation pass at 15 s named three of the eleven singletons by
+  their instances' RTTI (CSTask, CSCamera and SoloParamRepository; 219 statics tried: 98 null, 2 unread, 35 of no
+  known class, 84 classed). The registration's function and its three argument registers (task, instance, group in r8,
+  rcx, rdx) and the group's index 110 were confirmed, and every check before the call passed.
+- **The call** (FACT): at the owner's Pause, 46 s after the checks, `register_task` returned ok. The game ran on for 78
+  s at the title screen and exited cleanly; the task was never invoked (no first tick, no slot called, nothing of our
+  object written).
+- **Why** (LIKELY, untested): the group is the characters' post-physics step, and the title screen has no characters.
+- **Next** (DECIDED by the owner, 2026-11-17, "Load a save after the call"): run 4 uses the same package; after the
+  call the owner loads a character, stands at a Site of Grace for about a minute and quits normally. The launcher has
+  backed up the saves. If the task ticks in the world, the probe's census and searches complete R1.
