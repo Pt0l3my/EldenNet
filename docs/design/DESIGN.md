@@ -459,10 +459,15 @@ That is 5 AOB items, 11 singletons and about 65 fields (P1 §2.5, J1 §7.1 #3). 
 
 ### 4.2 Discovery
 
-- **FD4 singleton finder:** our own code, written from the documented idiom (ER01 §4). It matches the `.text` shape `mov reg,[static]; test; jnz; lea rcx,[class]; call get_name; …`, with the static and class in `.data` and a path string in `.rdata` ending in `FD4Singleton.h`. Class names are read from the DLRF runtime class directly, where S0-A confirms its layout. Calling the game's getter is a fallback, used once per candidate at init only, under the SEH guard. Expect 10–15 ms.
+- **FD4 singleton finder:** our own code, written from the documented idiom (ER01 §4). It matches the `.text` shape `mov reg,[static]; test; jnz; lea rcx,[class]; call get_name; …`, with the static and class in `.data` and a path string in `.rdata` ending in `FD4Singleton.h`. Class names are read from the DLRF runtime class directly, where R1 and S0-A confirm its layout; the game writes those names at run time, so they are read in game only (R0c; ARCH §6.2). Calling the game's getter is a fallback, used once per candidate at init only, under the SEH guard. Expect 10–15 ms.
 - **AOB patterns** live in `gal/patterns.toml` with provenance notes. They are anchored inside function bodies (entry+5 or later), because other mods hook prologues (ER01 §4). Every hit is validated by prologue, length, section and RTTI.
 - **RTTI** walks resolve the vtable sets for `ChrIns` subclasses, used by the per-tick compares (ER02 §5).
 - **Sources (owner-decided):** our own derivation. Facts from the research are leads, and each is confirmed in game or by self-tests before use. No fromsoftware-rs or me3 code or data is copied, from any commit.
+- **The derivation round** (O89): on the owner's PC, in two reviewed rounds of our own tools. R0 reads the executable
+  file with the game closed, as a DataPiler job through the devkit's `probe-exe`; R1 runs in game from the launcher's
+  `--probe`, derives again over the live image, checks it against R0's reviewed leads and makes its one call at the
+  owner's Mark. Each returned file holds numbers only and is reviewed, with its derivation notes written, before
+  anything in it is relied on; DataPiler then compares R1's numbers with Smithbox's, numbers only (ARCH §6.2, §6.10).
 
 ### 4.3 Layout profiles, read groups and self-tests
 

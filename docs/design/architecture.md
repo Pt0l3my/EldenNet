@@ -333,7 +333,7 @@ module builds the same with it on or off.
 
 | Option | Modules | Enables | Release CI |
 |---|---|---|---|
-| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | In-game invariant search that writes a draft layout (§6.10), plus the fault-injection hooks used by the C1 forced fail-closed launches | Refused |
+| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | The derivation round's R1 (§6.2, §6.10): the live derivation, the one call at the Mark, the slot counts, the hub census, the statics' slot searches and the invariant searches for a draft layout; the fault injection used by S0-D and the C1 forced fail-closed launches; the launcher's crash request (`s0d-crash`). Built as its own DLL, `probe/eldennet.dll`, and `settings.toml`'s `probe` table is refused by any other (§11.5) | Refused |
 | `hooks` (`EN_HOOKS`) | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11), and with them EldenNet's own hook library, in `en-gal`'s `hooks` (O65). Compiled out in v1 | Refused |
 | `actions` (`EN_ACTIONS`) | `en-proto`, `en-core` | `GameCommand::Action`, executors, prompt partials | Refused |
 | `freeze` (`EN_FREEZE`) | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
@@ -741,33 +741,105 @@ Types are our own. Offsets and copy sizes live in `gal/layouts/<build>.toml` (§
 
 That is 5 AOB items, 11 FD4 singletons and about 65 fields (DESIGN §4.1).
 
+*As built (2026-11-16; WHY§164, §166):* the code reads these under labels of our own (16 items, 35 classes, 97 fields;
+§6.3), and a few fields are placed differently for now, each a choice R1 and S1 confirm: `ride_state` is read from the
+player's class, not a ride module; the clock is two fields, `hour` and `minute` (the packing of one `u64` is no fact we
+hold); `legacy`, `overworld` and the region are left to the core, from the block id (`regions.toml`); the bearing takes
+the view matrix's third row as forward; and `player_set_len` counts the non-null entries until S1 gives the `chr_type`
+values to filter by.
+
 **Group labels.** The boss bars belong to `ui`. The lifecycle subset is `WorldChrMan.main_player` (in `world`) plus the screen state and load counter (in `ui`). The `boss_fight_active` cross-check is in `player`. That keeps exactly the eleven breaker groups of DESIGN §4.3 (DESIGN §4.1 now uses the same labels). `status` is optional, off until S8 passes; its trip turns off status awareness and the runtime sleep signal only (DESIGN O40).
 
 ### 6.2 Discovery
 
-All discovery runs on T1 over the executable image. Sections are copied in 1 MiB chunks through `GuardedReader` (with an overlap of the longest pattern). Unreadable pages are skipped and logged, never touched directly (impl).
+All discovery runs on T1 over the executable image as the loader mapped it, read through the `SysLayer`'s guarded
+image view (§6.4): only ranges that `VirtualQuery` reports committed, readable and without a guard page, so discovery
+never lifts a guard in the game's image (WHY§160). Sections are copied in 1 MiB chunks (with an overlap of the longest
+pattern); a refused chunk is read again page by page, and unreadable pages are skipped and counted, never touched
+directly. Discovery is portable en-gal code over that view, not the seam's, so the tests run the very discovery the
+game runs (§6.4). Items, classes and fields go by labels of our own (`roles.hpp`); the game's names reach the code only
+as values in `gal/` (§6.3; WHY§164).
 
-**AOB items** (`register_task`, `global_hinstance`, `GameDataMan`, `GameMan`, `FieldArea`). All patterns are matched in a single multi-pattern pass over `.text`.
+**Where the facts come from: the derivation round** (O89, decided by the owner on 2026-11-16). No agent ever sees the
+game, so a build's facts are derived on the owner's PC in two reviewed rounds of our own tools, and nothing is relied
+on before its review:
+1. **R0, offline, with the game closed.** A DataPiler job (DataPiler DP36) runs the devkit's `eldennet-engine probe-exe
+   --derive` (§12.3) on the game's executable with `gal/leads.toml` (what to look for: names and shapes under labels
+   of our own, never bytes), checks that the report holds only numbers, offsets, labels and patterns of at most 64
+   bytes with their addresses wildcarded (no code dump, text, param or path), and packs it for the owner to send.
+   DataPiler reads only the file, never the game's memory (O73). The report, `derive.json`, keeps schema 1, whose keys
+   and words DataPiler's guard holds a copy of: a new key needs a schema 2 and a DataPiler that reads it (WHY§188).
+2. **R1, in game, from the launcher.** `eldennet-launcher --probe` (§4.14) runs the probe build of `eldennet.dll`
+   (`EN_PROBE`, §2.5), which derives again over the live image (`ImageLayout::Memory`, where the game has filled what
+   the file leaves empty) and checks the result against what R0's review put in `gal/`: the gate, the FD4 idiom byte
+   for byte and capture for capture, and the task group's index (WHY§198). Only if every check passes does it make its
+   one call into the game, at the owner's first Mark (§4.14), pressed at the title with no save loaded (O89, O90;
+   WHY§193). Its reports are `r1-derive.json` (`derive.json`'s schema 1) and `r1-probe.json` (kind `probe`): the slots
+   the game calls, how much of our task object it wrote, the task's base class from a census of the hub's objects, and
+   the statics' slots.
+3. **Review.** An agent reviews each returned file as data and writes its record in our own words (counts only,
+   `docs/ops/probes/<date>-<round>.md`) and the derivation notes (§6.3) before any lead enters `gal/`. Nothing is
+   `confirmed` until S0-A and the self-tests pass. A static whose slot R1 found has its pattern cut offline afterwards
+   (`probe-exe --static <label>=<rva>`). DataPiler then imports R1's numbers and compares the param and text ids and
+   counts EldenNet read in game with what Smithbox reads from the files, numbers only: a second, independent source for
+   the self-tests and S2 (O89 (4); Smithbox's labels are never facts, O48).
+
+**What the offline round showed** (R0, then R0c on 2026-11-16; their records in `docs/ops/probes/`, WHY§180 to §189):
+- **Names filled at run time.** The FD4 class objects hold no name in the file (zeros past the section's raw data, no
+  relocation), so `dlrf_name_layout` can only be read in game: the singletons are named by R1, and in a release by the
+  class objects once the game has filled them, discovery's retries at +5, +15 and +30 s doubling as the wait for the
+  names (WHY§183, §191).
+- **A group table by stride.** The task group's name sits in a table of entries wider than a pointer; tables are found
+  at strides of 8 to 64 bytes, cut where code addresses an entry's start, and a lone pointer gives no index (WHY§184).
+  Where the table and its entries hold no index field, the index is the entry's place.
+- **A static with no RTTI.** The save-data static (`GameDataMan`) has no type descriptor in any namespace, so nothing
+  singles it out offline: R1 finds its slot by what its instance holds (a counter that rises with the clock and stands
+  still at times, the play time), and `probe-exe --static` then cuts its pattern (WHY§185, §193).
+- **Product names compared without symbols.** The version resource's product name carries a sign the leads' name does
+  not, so the derivation and the gate compare names once symbols are removed (§6.3; WHY§186).
+- **What the decoder steps over** is data in the code section and a second executable section the site search does
+  not read; neither costs the finder a site (WHY§187, §189).
+
+**AOB items** (`register_task`, and the statics `global_hinstance`, `GameDataMan`, `GameMan` and `FieldArea`, whose
+labels in `gal/` are `module_handle`, `save_data`, `game_state` and `field_area`). All patterns are matched in a single
+multi-pattern pass over `.text`.
 1. Each pattern must match exactly `expect_matches` times (default 1).
 2. **Functions:** the hit is mapped to its containing function through the exception directory (`.pdata` `RUNTIME_FUNCTION`). The pattern must sit at `entry + anchor_min` or later, with `anchor_min ≥ 5`, so it is inside the body: other mods hook prologues (ER01 §4). Then the function length (`EndAddress − BeginAddress`) is checked to lie within `fn_len`, and the optional prologue bytes are compared.
 3. **Statics:** the RIP-relative displacement at `capture.at` resolves to an address in `.data`, aligned to 8.
 4. **RTTI, where declared:** on the first tick, the instance's vtable must resolve to the declared RTTI class.
 
 **FD4 singleton finder** (our own code, written from the documented idiom; ER01 §4).
-1. Scan `.text` for the instruction shape `mov reg, [rip+static]; test reg, reg; jnz short; lea rcx, [rip+class]; call getter; …; lea rcx, [rip+path]; call log`. The byte grammar is the `fd4_idiom` entry in `patterns.toml`, from our own derivation in S0-A.
-2. For each hit, check the placement: `static ∈ .data` and 8-aligned, `class ∈ .data`, `getter ∈ .text` (and the start of a `.pdata` function), and `path ∈ .rdata`. Read the path as an ASCII string of ≤ 260 bytes; it must end with `FD4Singleton.h`.
-3. **Name the singleton:** if `builds.toml` says `dlrf_name_layout = true` (S0-A), read the DLRF runtime-class name from the class object at `dlrf.name_ptr_off` (an `.rdata` string of ≤ 128 bytes). Otherwise, call the getter once for this candidate, from T1 under the SEH guard. This is the only game-function call apart from `register_task`, and it never happens after registration (DESIGN §4.2).
+1. Scan `.text` for the accessor's head, `mov reg, [rip+static]; test reg, reg; jnz; lea rcx, [rip+class]; call
+   getter`, which every inlined accessor shares. The byte grammar is the `fd4_idiom` entry in `patterns.toml` (its
+   captures `static`, `class` and `getter`, and its `path_suffix`), cut by the derivation round (O89; R0c: one shape
+   covers almost every site). An idiom has as many hits as the game has inlined accessors, so it may expect up to
+   65,536 (every other pattern 4,096; WHY§182). Each hit is decoded: the static, the class object and the path must be
+   RIP-relative operands and the getter a relative call where the captures say, else the hit is refused as
+   `unreadable` (a wildcarded register byte also matches other addressing forms; WHY§181).
+2. For each hit, check the placement: `static ∈ .data` and 8-aligned, `class ∈ .data`, `getter ∈ .text` (and the start
+   of a `.pdata` function), and `path ∈ .rdata`. The path is not where the head ends: it is the load, of every load in
+   the block the head's jump skips (before or after the getter's call, in any register; a RIP-relative address, a
+   RIP-relative pointer to the string or a 64-bit absolute address), or of the 64 bytes before the head in its function,
+   whose string ends with the suffix (R0c: after the getter's call, with the log's format string loaded first;
+   WHY§180). Read it as an ASCII string of ≤ 260 bytes; it must end with `FD4Singleton.h`.
+3. **Name the singleton:** if `builds.toml` says `dlrf_name_layout = true` (confirmed by R1 and S0-A), read the DLRF
+   runtime-class name from the class object at `dlrf.name_ptr_off` (an `.rdata` string of ≤ 128 bytes). The game
+   writes those names at run time (R0c), so they are read only in game, and discovery's retries are the wait for them.
+   Otherwise, call the getter once for this candidate, from T1 under the SEH guard. This is the only game-function call
+   apart from `register_task`, and it never happens after registration (DESIGN §4.2).
 4. **Index by name.** A name found twice with different statics is ambiguous; that singleton is unresolved and its group fails closed.
 5. **Report** each `{name, static_rva, class_rva}` in the discovery report (log, F11 view, probe tools).
 
 Budget: about 10–15 ms of matching is expected (ER01 §4). A whole discovery pass, including chunk copies, is capped at 500 ms (impl).
 
 **RTTI walk.**
-- Find type descriptors by mangled name (`.?AV<Class>@CS@@`) in `.data`.
+- Find type descriptors by decorated name (`.?AV<Class>@<Space>@@`, from a layout class's `rtti` value) in `.data`.
 - Find the complete-object locators in `.rdata` that reference them: x64 signature 1, image-relative offsets, and a self-RVA check.
 - The vtable starts one pointer after the locator's address slot.
-- Each class's hierarchy descriptor gives its base-class array. Every class that lists `CS::ChrIns` as a base joins the **ChrIns vtable set**, which is kept as a sorted fixed array for binary search. `CS::PlayerIns` gets its own set.
-- Singleton classes declared in the layout (`rtti = "…"`) get one expected vtable each.
+- Each class's hierarchy descriptor gives its base-class array. Every class that lists the `character` class's `rtti`
+  (`CS::ChrIns`) as a base joins the **character vtable set**, which is kept as a sorted fixed array for binary search.
+  The `player_character` class (`CS::PlayerIns`) gets its own set. R0 found both sets in the file (6 classes and 2).
+- Every other layout class with an `rtti` value gets its own vtable and those of the classes deriving from it.
 
 ### 6.3 File schemas (`gal/`, read at boot only)
 
@@ -780,14 +852,20 @@ app              = "1.17.2"
 file_version     = "2.7.2.0"
 product_name     = "ELDEN RING"
 region           = "ww"            # from the 4th version field (0 = ww, 1 = jp; ER01 §1), cross-checked with the translation lang
-time_date_stamp  = 0x00000000      # from our own probe of this exe
-size_of_image    = 0x00000000
+time_date_stamp  = 0x00000000      # from the derivation round's R0 (O89)
+size_of_image    = 0x00000000      # above 0: the placeholder is refused
 layout           = "layouts/2.7.2.0-ww.toml"
-dlrf_name_layout = false           # true once S0-A confirms the class-name layout
+dlrf_name_layout = false           # true once R1 and S0-A confirm the class-name layout (R0c: names written at run time)
 status           = "supported"     # supported | retired (kept for players who block updates)
 ```
 
-The gate requires all of `file_version`, `product_name`, `region`, `time_date_stamp` and `size_of_image` to match. A same-version rebuild therefore stops at L1 with the reason "build fingerprint differs" (J1 #8).
+The gate requires all of `file_version`, `product_name`, `region`, `time_date_stamp` and `size_of_image` to match. A
+same-version rebuild therefore stops at L1 with the reason "build fingerprint differs" and the fields that differ (J1
+#8). Product names are compared once their symbols are removed (trademark, registered and copyright signs and their
+like, and zero-width characters; spaces made one; ASCII and every other letter kept): R0c found the version
+resource's name one symbol longer than the one `builds.toml` holds (WHY§186). Keys and fingerprints are unique, and the region must agree
+with the file version's fourth field. A retired build passes too. What passes is a `BuildProfile`, which only the gate
+makes, and only a `BuildProfile` opens a layout (R7, by type).
 
 ```toml
 # gal/patterns.toml
@@ -801,60 +879,103 @@ expect_matches = 1
 anchor_min     = 5                 # interior anchor: hit ≥ entry + 5
 fn_len         = [0x40, 0x400]     # bounds on the .pdata length
 prologue       = ""                # optional exact bytes at the entry
-builds         = ["2.7.2.0-ww", "2.7.2.1-jp"]   # where it was confirmed
-provenance     = { method = "own-derivation", leads = ["ER01 §3.2"], evidence = "docs/ops/probes/2.7.2.0-ww.json", date = "YYYY-MM-DD" }
+builds         = ["2.7.2.0-ww", "2.7.2.1-jp"]   # where it was confirmed; empty: a lead, confirmed nowhere yet
+provenance     = { method = "own-derivation", leads = ["ER01 §3.2"], evidence = "docs/ops/probes/<date>-<round>.md", date = "YYYY-MM-DD" }
 
 [[pattern]]
-id      = "GameDataMan"
+id      = "save_data"                # the item's label (WHY§164)
 kind    = "static"
 section = ".text"
-bytes   = "<…>"
+bytes   = "<…>"                      # cut offline at R1's slot (probe-exe --static save_data=<rva>)
 capture = { at = 3, kind = "rip_rel32", insn_end = 7 }   # target = hit + insn_end + disp32
 target_section = ".data"
-rtti    = "CS::GameDataMan"         # checked on the first tick, against the instance
-builds  = ["2.7.2.0-ww"]
+# rtti = "<class>"                   # optional, checked on the first tick; none here: the class has no RTTI (R0c)
+builds  = []
 provenance = { method = "own-derivation", leads = ["ER01 §4"], evidence = "…", date = "…" }
+
+[[pattern]]
+id             = "fd4_idiom"
+kind           = "idiom"
+section        = ".text"
+bytes          = "<…>"               # the accessor's head (§6.2)
+expect_matches = [0, 0]              # a range, up to 65,536
+path_suffix    = "FD4Singleton.h"
+captures       = { static = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".data", align = 8 }, class = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".data" }, getter = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".text", function = true } }
+builds         = []
+provenance     = { method = "own-derivation", leads = ["ARCH §6.2", "ER01 §4"], evidence = "…", date = "…" }
 ```
 
 - **Derivation note (DESIGN O27):** every pattern has a short note, `gal/derivations/<id>.md`, in our own words: what was searched for, in which build, how the hit was confirmed, and the evidence file. It is reviewed with each `gal/` change, and lint fails on a pattern without one. It is the record behind `provenance.method = "own-derivation"`, which CI cannot check by itself.
-- **Grammar:** hex byte pairs, `??` for a wildcard byte, whitespace ignored.
+- **Evidence:** the round's reviewed record, `docs/ops/probes/<date>-<round>.md` (counts only, in our own words; the
+  returned files themselves are not committed), as R0's and R0c's are (§6.2).
+- **Grammar:** hex byte pairs, `??` for a wildcard byte, whitespace ignored; 1 to 256 bytes, at least 4 of them fixed.
+  A `gal/` file holds ASCII only outside comments (`\uXXXX` in a string), and passes en-proto's TOML pre-check before
+  toml++ reads it (WHY§163).
 - **Load-time validation:** ids are unique; every required id is present; `capture` lies within the pattern; and `provenance.method` is `own-derivation`. Anything else fails CI and the boot (O4).
-- **What a lead may carry:** a lead says *what* to look for (the function's role, its caller, the singleton's name, the idiom's shape). It never supplies the bytes. Byte strings that the research quotes from fromsoftware-rs's mapper profile, from TGA's table or from other projects are not pasted into `patterns.toml`; every pattern is cut from our own disassembly of the exe in S0-A and recorded with its evidence file (DESIGN §4.2, O4).
+- **What a lead may carry:** a lead says *what* to look for (the function's role, its caller, the singleton's name, the
+  idiom's shape). It never supplies the bytes. Byte strings that the research quotes from fromsoftware-rs's mapper
+  profile, from TGA's table or from other projects are not pasted into `patterns.toml`; every pattern is cut by our own
+  derivation kit from the owner's own executable in the derivation round (§6.2, O89) and recorded with its evidence
+  (DESIGN §4.2, O4). The leads themselves are `gal/leads.toml`, names and shapes under our own labels.
 
 ```toml
 # gal/layouts/2.7.2.0-ww.toml
 schema       = 1
 build        = "2.7.2.0-ww"
 derived_from = "probe"                       # or the key of the previous build
-probe_record = "docs/ops/probes/2.7.2.0-ww.json"
+probe_record = "docs/ops/probes/<date>-<round>.md"   # the reviewed record of the round that gave it
 
 [task]
-group          = { name = "ChrIns_PostPhysics", index = 0 }  # the name is checked on the first tick
-register_abi   = "v1"                        # argument-order variant, fixed by S0-A
-vtable_slots   = 0
-run_slot       = 0
-object_size    = 0x0
+group        = { name = "ChrIns_PostPhysics", index = 0 }  # R0 finds the index, R1 checks it before its call; the name again on the first tick
+register_abi = { task = "rcx", instance = "rdx", group = "r8" }  # a table of registers: three different ones of rcx, rdx, r8, r9 (R1)
+vtable_slots = 0                             # R1: the hub census's base class
+run_slot     = 0                             # R1: the slot the game calls every frame
+object_size  = 0x0                           # R1: how much of our object the game wrote
+status       = "confirmed"                   # a lead [task] may hold its group alone
 
-[class.ChrIns]
-rtti      = "CS::ChrIns"
+[class.character]                            # our own label (roles.hpp), never the game's class name
+rtti      = "CS::ChrIns"                     # the game's class, as a value: the vtable set's base (§6.2)
 copy_size = 0x580                            # lead ER05 §6.2; must cover every field below
-status    = "lead"                           # lead | confirmed
-[class.ChrIns.fields]
-vtable       = { off = 0x0, ty = "ptr" }
-handle       = { off = 0x0, ty = "u64",  group = "world" }
-npc_param_id = { off = 0x0, ty = "u32",  group = "world" }
-team         = { off = 0x0, ty = "u8",   group = "world", range = [0, 78] }
-dead         = { off = 0x0, ty = "bit",  bit = 7, group = "world" }
-last_hit_by  = { off = 0x0, ty = "u64",  group = "combat" }
-modules      = { off = 0x0, ty = "ptr",  to = "ChrModules", group = "world" }
+status    = "lead"                           # lead | confirmed; an entry with no status is a lead
+[class.character.fields]
+handle       = { off = 0x0, ty = "handle", group = "world" }
+npc_param_id = { off = 0x0, ty = "u32",    group = "world" }
+team         = { off = 0x0, ty = "u8",     group = "world", range = [0, 78] }
+dead         = { off = 0x0, ty = "bit",    bit = 7, group = "world" }
+last_hit_by  = { off = 0x0, ty = "handle", group = "combat" }
+parts        = { off = 0x0, ty = "ptr",    to = "character_parts", group = "world" }
 
-[enum.hud_state]  # raw value → snapshot enum
+[class.characters]                           # an item's class: the FD4 singleton behind it, by its runtime class name
+rtti      = "<the game's class>"
+singleton = "<the runtime class's name>"
+copy_size = 0x0
+status    = "lead"
+fields    = { by_distance = { off = 0x0, ty = "dlvector", group = "world" }, main_player = { off = 0x0, ty = "ptr", group = "world" } }
+
+[class.near_entry]                           # an element class: a stride instead of a copy size
+stride = 0x0
+status = "lead"
+fields = { chr = { off = 0x0, ty = "ptr", group = "world" }, distance = { off = 0x0, ty = "f32", group = "world" } }
+
+[enum.hud]                                   # raw value → snapshot enum; a field names it (enum = "hud")
 values = { 0 = "HideAll", 1 = "ShowAll", 2 = "PopupMenu", 3 = "Default" }
 
 [param.NpcParam]
 slot     = 6                                 # lead ER01 §8.1
 row_size = 0x0
+status   = "lead"
 fields   = { name_id = { off = 0x0, ty = "i32" }, team = { off = 0x0, ty = "u8" } }
+
+[fmg]
+indexing     = "flat"
+group_stride = 12
+npc_names    = [428, 328, 18]                # the tables in search order: §6.9's DLC order, as data
+place_names  = [429, 329, 19]
+status       = "lead"
+
+[dlrf]
+name_ptr_off = 0x0                           # the class objects' name layout (R1), with builds.toml's dlrf_name_layout
+status       = "lead"
 
 [selftest]
 npc_name_ids   = []                          # known ids that must give 1–64 printable chars (ids only, never text)
@@ -862,13 +983,31 @@ place_name_ids = []
 npc_param_ids  = []
 ```
 
-- **Field types:** `u8`, `u16`, `u32`, `u64`, `i32`, `f32`, `bool8`, `bit`, `ptr`, `handle`, `vec3f`, `mat4f`, `utf16[n]`, `dlvector`, `dlmap`, `array{elem, len, stride}`.
-- **Validation at boot:**
-  - every `off + size ≤ copy_size`, and `copy_size ≤ 0x4000`;
-  - every `to` and `elem` names a defined class;
-  - every field the groups require is present;
-  - enum tables are total over their `range`.
+- **Our labels, the game's names as values** (decided 2026-11-16, WHY§164). The code reads classes and fields by labels
+  of our own (`roles.hpp`: 16 items, 35 classes, 97 fields); the game's class names appear only as `rtti` values, its
+  runtime class names only as `singleton` values, and its text tables only in `[fmg]`, so the code holds no name of the
+  game's. `register_abi` is a table of registers, not a variant's name, because the derivation reports registers, and a
+  variant in code would need a table of the game's argument orders in code (WHY§123).
+- **Field types:** `u8`, `u16`, `u32`, `u64`, `i32`, `f32`, `bool8`, `bit`, `ptr`, `handle`, `vec3f`, `mat4f`, `utf16[n]`,
+  `dlvector`, `dlmap`, `array{elem, len, stride}`. A group checks a field by its kind (a whole number of any width, a
+  pointer, a bit, a float, ...), not one exact type, so the layout says what the game holds and the reader widens it.
+- **Validation at boot** (`load_layout`, which needs the gate's `BuildProfile`: a layout for another build is refused):
+  - every `off + size` within its class's `copy_size`, or its `stride` for an element class, and `copy_size ≤ 0x4000`;
+  - every `to` and `elem` names a class of the file;
+  - every field the groups require is present with its kind, and every enum table they need names only values the
+    snapshot's enum knows, and the params they read are there;
+  - enum tables are total over the `range` of the fields that use them;
+  - up to 64 problems are reported, each with where it was and what was wrong, never a value; a `gal/` file over
+    256 KiB is refused unread. `eldennet-engine lint --gal` makes the same checks without the gate.
 - **Lead and confirmed:** a release build refuses a layout that has any `lead` entry, so every offset is confirmed before players run it. Dev builds accept leads, with a warning banner.
+- **A lead `[task]` may hold its group alone** (decided 2026-11-17, WHY§197). The offline round gives the group's
+  index, and the rest of `[task]` is the in-game round's to find, so it is left out rather than guessed: such a layout
+  is *partial*, discovery is never ready with it, the task's install refuses it and the first tick reads nothing. A
+  confirmed `[task]`, or a lead with any other key, needs every key. The group table's shape (entries, stride, the name's
+  offset and encoding) has no key: it is in the layout's comments and the round's record, and R1 reports it again as
+  loaded.
+- **The first real layout** (`gal/layouts/2.7.2.0-ww.toml`, from R0c) is a fresh file holding only the lead `[task]`
+  with its group; the fake game's layout shows every class and field the groups read (WHY§166, §197).
 
 ### 6.4 `SysLayer`, `GameBackend` and `GameThread`
 
@@ -902,37 +1041,63 @@ class GameBackend {                                // DESIGN §2.3, unchanged
   and test builds also check, at each read, that it runs on the thread that issued the token (impl).
 
 ```cpp
-// en-gal: the narrow platform seam (DESIGN §4.7). Our own implementation is `NativeSys`; replay and
-// unit tests use `FakeSys` over a byte-buffer "process".
-struct FrameCtx { std::uint64_t qpc_now_us; std::uint32_t dt_us; };
+// en-gal: the narrow platform seam (DESIGN §4.7), as built (2026-11-16, WHY§159, §165). Our own implementation is
+// `NativeSys` (src/en-gal/src/sys/, clang-cl only); the tests use `FakeSys`, a process of byte regions.
+struct FrameCtx { std::uint64_t now_us; std::uint32_t dt_us; };
 class TaskBody {
  public:
   virtual ~TaskBody() = default;
   virtual void run(const GameThread& gt, const FrameCtx& frame) = 0;
 };
+struct TaskShape {                 // the layout's [task] (§6.3)
+  std::uint32_t vtable_slots, run_slot, object_size, group_index;
+  RegisterAbi abi;                 // which register carries the task, the instance and the group
+  bool every_slot;                 // R1 only: the run slot not yet known, every slot counts and runs the body
+};
 class SysLayer {
  public:
   virtual ~SysLayer() = default;
-  // init (register_recurring once)
-  virtual const ImageInfo& image() const = 0;                                         // sections, version, .pdata
-  virtual Expected<StaticSlot, SysError> singleton(std::string_view name) const = 0; // from the FD4 finder
-  virtual Expected<VtableSet, SysError> rtti_vtables(std::string_view cls, bool subclasses) const = 0;
-  virtual Expected<TaskToken, SysError> register_recurring(TaskPhase phase, std::unique_ptr<TaskBody> body) = 0;
-  // game thread
-  virtual Expected<ParamTableView, SysError> param_table(const GameThread& gt, ParamKind which) const = 0;
-  virtual GuardedReader reader(const GameThread& gt) const = 0;
+  // T1, at init
+  virtual std::uint64_t module_base() const noexcept = 0;
+  virtual const ByteSource& image() const noexcept = 0;            // the mapped image; every read a guarded copy
+  virtual Expected<std::uint64_t, SysError> call_getter(std::uint64_t getter, std::uint64_t class_object) noexcept = 0;
+  virtual Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
+                                                 const TaskShape& shape, TaskBody& body) noexcept = 0;
+  // either thread
+  virtual Copier& copier() noexcept = 0;                            // the SEH copy, or ReadProcessMemory (§6.5)
+  virtual StackRanges& stacks() noexcept = 0;                       // the reader is never pointed into these
+  virtual void note_own_stack() noexcept = 0;                       // T1 at init, the game thread at its first tick
+  virtual std::uint64_t now_us() const noexcept = 0;                // QPC in game
+  virtual std::uint32_t thread_id() const noexcept = 0;
+  virtual bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept;   // WHY§190
+  virtual std::uint64_t slot_calls(std::uint32_t slot) const noexcept = 0;                // R1's slot counts
+  virtual std::uint64_t task_object() const noexcept = 0;                                 // R1: what the hub wrote
 };
 ```
 
+- **The seam keeps only what needs the platform:** the main module and a guarded view of its image, the copy primitive,
+  the stack table, the clock, the init-only getter fallback and the one registration. The first sketch's
+  `singleton()`, `rtti_vtables()` and `param_table()` are not the seam's: discovery (§6.2), the RTTI sets and the
+  readers are portable en-gal code over the image and the copy primitive, so `FakeSys` tests the very code that runs in
+  game, in every build, and only what needs Windows is left to `NativeSys` (decided 2026-11-16, WHY§165).
+- `GuardedReader` (§6.5) is en-gal's own, made over the seam's copier and stack table, not handed out by the seam.
+- `call_getter` and `register_task` are refused once the task is registered (`NotInit`); nothing retries.
+
 **Task trampoline.**
 - Our task object is one zeroed block laid out as a C struct: a pointer to a static fake vtable (`vtable_slots`
-  entries, each a guarded no-op), then the layout's `object_size` bytes, then a pointer to our `TaskBody`.
-- The `run_slot` entry is the `extern "C"` function `en_task_run(self, data)`, `noexcept`. It starts with
-  `ffi_guard(Component::Task, …)`, checks the `TASK_INERT` atomic, issues the `GameThread` token, reads QPC and calls
-  `body->run`.
+  entries, each a distinct guarded no-op that counts its calls, made read-only once filled), then the layout's
+  `object_size` bytes, then a pointer to our `TaskBody`.
+- The `run_slot` entry is the `extern "C"` function `en_task_run(self, data)`, `noexcept`, which runs the body only
+  when `self` is our own object and returns 0. It starts with `ffi_guard(Component::Task, …)`, checks the `TASK_INERT`
+  atomic, issues the `GameThread` token (in `task.cpp` alone), reads QPC and calls `body->run`. An exception out of the
+  body trips the guard, and every later call returns at once (R3).
 - The object and its `TaskBody` are never freed: they live for the life of the process and are never unregistered
-  (R14).
-- The `register_task` argument order is the layout's `register_abi`, confirmed in S0-A.
+  (R14). The registered flag is set before the call, so the getter is refused from then on.
+- The `register_task` argument registers are the layout's `register_abi`, found by R1 from the game's own call sites
+  (§6.2) and confirmed in S0-A. Before the call, T1 makes the stack table again without its own stack (§6.5).
+- **In R1 only**, the run slot is not yet known: every slot counts its calls and runs the body for our own object
+  (`every_slot`), slots called on T1 inside the registration do nothing, and the slot counts then show which one the
+  game calls every frame (WHY§193).
 
 ### 6.5 `GuardedReader`
 
@@ -976,6 +1141,17 @@ at `/O2` clang deleted the `__except` and the copy always answered success. Its 
 (`STATUS_GUARD_PAGE_VIOLATION`) through, which would end the game. Reading a guard page lifts its guard, and Windows
 grows a thread's stack through such a page, so `GuardedReader` is never pointed into a thread's stack.
 
+**The stack table, as built** (decided 2026-11-16; WHY§160, §190). `NativeSys` fills a fixed table by walking the
+process's regions with `VirtualQuery`: every allocation holding a guard page is added whole (a thread's stack is
+reserve, guard and committed top), and in an image only its guard pages; each reading thread adds its own stack
+(`GetCurrentThreadStackLimits`), T1 at init and the game thread at its first tick. No TEB is read. A range outlives its
+thread (Wine frees an ended thread's stack late, and T1 ends at Ready), and the game reuses that memory, so T1 makes the
+table again just before the registration, without its own stack, and a read the table refuses is checked once more on
+that rare path alone: a range whose allocation no longer starts there or holds no guard page leaves the table and the
+read goes on (counted as `stale_stacks`). Allocation-free, and on the game thread only after registration, so the table
+has one writer. Under Wine the walk finds no guard page on thread stacks, so the per-thread step is what covers the
+reading threads there; S0-D counts what the walk finds on Windows.
+
 
 ```cpp
 // Pod: trivially copyable, standard layout, every bit pattern valid (integers, floats and arrays of them); each
@@ -1011,14 +1187,15 @@ class GuardedReader {
 - A caught exception, or a failed plausibility check on a structural field, is a **hard fault** for the field's group (§6.7).
 - A vtable mismatch on one list entry is a **soft skip**: the entry is dropped from this snapshot and counted. More than 25% of entries mismatching in one tick is a hard fault for `world` (impl).
 
-**Vectored handlers.** Crash reporters that install vectored exception handlers see the exception before our frame handler (SPECULATION, J1 #9). S0-D tests this. If S0-D fails, the same API switches its copy primitive to `ReadProcessMemory(GetCurrentProcess(), …)`, which raises no exception at all, at a cost of about 1 µs per copy (impl, measured in S0-D).
+**Vectored handlers.** Crash reporters that install vectored exception handlers see the exception before our frame handler (SPECULATION, J1 #9). S0-D tests this. If S0-D fails, the same API switches its copy primitive to `ReadProcessMemory(GetCurrentProcess(), …)`, which raises no exception at all, at a cost of about 1 µs per copy (impl, measured in S0-D). *As built:* the choice is `settings.toml`'s `gal.copy = "seh" | "rpm"` (§11.5), taken on T1 before registration. Under Wine the `rpm` copy answers success with zeros for a no-access, released or guard page and costs about 0.1 ms a copy, so there the task throttles to 2 Hz and the tests inject faults instead (WHY§161). R1's slot search faults on purpose on the game thread, so R1 runs without a crash reporter's vectored handler, or with the `rpm` copy (WHY§170).
 
 **Allocation.** Every scratch buffer is preallocated at registration, sized to the largest `copy_size` per class.
 
 ### 6.6 Per-tick re-resolution and vtable compares (R5)
 
 Each snapshot tick:
-1. Reads every static slot again (8 bytes each). No instance pointer is kept across ticks.
+1. Reads every static slot again (8 bytes each). No instance pointer is kept across ticks, save the render feed's,
+   re-validated at every read (§7.4).
 2. A null `WorldChrMan` or `main_player` means not in the world, or loading; the snapshot then carries only lifecycle fields.
 3. Compares each singleton instance's vtable with its expected RTTI vtable. A mismatch means the object moved or was torn down. The group is skipped for this tick, and it is a hard fault only if it repeats on 3 consecutive ticks while `main_player` is present (impl).
 4. Walks `by_distance` from `begin` to `end`. Each entry is checked: an aligned pointer, element count ≤ 48, and an entry vtable in the ChrIns set.
@@ -1077,6 +1254,10 @@ stateDiagram-v2
 
 - The level is recomputed by the core on every step from `ReadHealth`, provider health and settings.
 - **Dormant** is an orthogonal flag over L2–L4. It is set when the gate is false, while loading and at the title. While it is set, speech is dropped and the task reads only `session` and the lifecycle subset (DESIGN §4.4).
+- **Not solo means dormant, in the task too** (decided 2026-11-16, WHY§167). The task cannot see the core's gate, so it
+  also goes Dormant, reading only the session and the lifecycle, whenever its own reading says the session is not solo:
+  a lobby other than None, a role other than Host, or not the player's own world. The core's gate stays the authority;
+  the task's reading only narrows what it reads, at once, before the core has seen the snapshot.
 - Unknown builds always stop at L1, because probation mode is deferred (O12).
 
 ### 6.9 Text, param and flag formats
@@ -1109,22 +1290,26 @@ The cost is one descent and one 125-byte copy per group, not per flag.
 
 ```mermaid
 flowchart LR
-  A["Patch day: players see the L1 banner (C2)"] --> B["eldennet-engine probe-exe new.exe"]
-  B --> C{"patterns and singletons resolve offline?"}
-  C -->|"yes"| D["dev build with EN_PROBE in game:<br/>invariant search → draft layout"]
-  C -->|"no"| X["re-derive patterns (own derivation),<br/>update patterns.toml"] --> D
-  D --> E["self-tests + smoke route + golden compare"]
+  A["Patch day: players see the L1 banner (C2)"] --> B["R0, offline: DataPiler's job runs<br/>probe-exe --derive on new.exe"]
+  B --> C["review: record and notes;<br/>fingerprint and patterns into gal/ as leads"]
+  C --> D["R1, in game: eldennet-launcher --probe,<br/>checks, then one call at the Mark"]
+  D --> R["review: record; probe-exe --static<br/>cuts the statics' patterns; draft layout"]
+  R --> E["self-tests + smoke route + golden compare"]
   E -->|"pass, no code change"| F["data-only release of gal/"]
   E -->|"code change needed"| G["new DLL release"]
 ```
 
+The derivation round (O89; §6.2) is steps 2 and 3. Each returned file is reviewed, and its record and derivation notes
+written, before anything in it is relied on. A round may take more than one run: on 2.7.2.0 R0 ran three times, its
+reader and its FD4 finder fixed between runs (WHY§171, §180).
+
 | Step | Who and what | Output |
 |---|---|---|
 | 1 | Automatic. The new build's fingerprint is not in `builds.toml`, so the game shows the L1 banner. Pin an issue "Build 2.x.y.z: unsupported, in progress" | — |
-| 2 | `eldennet-engine probe-exe <eldenring.exe> --against gal/` checks the file offline: PE fingerprint, every pattern (match count, function bounds, capture target section), the FD4 idiom hits by name, and the RTTI classes | `probe-exe.json` with a diff against the previous build |
-| 3 | A dev build with the `probe` option (`EN_PROBE`) runs in game. It resolves discovery, then searches for each layout field by invariant: RTTI vtables at object starts; `hp ≤ max_hp` pairs; the ascending float vector; the player's known UTF-16 name; known flag 100 set; the divisor value 1000. It writes `layouts/<new>.draft.toml` and the probe record | Draft layout plus a JSON record (offset, invariant used, sample values) |
+| 2 | **R0, offline, with the game closed.** The owner runs DataPiler's job, which runs `eldennet-engine probe-exe <eldenring.exe> --derive --leads gal/leads.toml --out derive.json` (§12.3) and checks that the report holds numbers only. An agent reviews it as data (`lint --report`, then against en-tools' account of each key): the fingerprint, the FD4 idiom and its sites, the vtable sets and the task classes, the group table, the statics' classes, and the confirm list for R1. Its fingerprint, idiom and group index enter `gal/` as leads, each pattern with its note | `derive.json` (schema 1); `docs/ops/probes/<date>-r0.md`; `gal/` leads |
+| 3 | **R1, in game.** `eldennet-launcher --probe` with the probe build (`EN_PROBE`) at the title, no save loaded (§4.14). It derives over the live image (the FD4 names the game has written, the registration and its registers from the game's call sites, the group table as loaded), checks the reviewed leads (the gate, the idiom byte for byte, the group's index), and makes the one call at the owner's Mark. On the game thread it counts the slots the game calls, measures how much of our object the hub wrote, takes the hub census (the task's base class) and finds the statics' slots (a vtable search, and the rising counter for a static with no RTTI). The launcher lints both reports when the game ends. After review, `probe-exe --static <label>=<rva>` cuts the statics' patterns offline; the layout's fields are then searched by invariant on the instances R1 gave (RTTI vtables at object starts; `hp ≤ max_hp` pairs; the ascending float vector; UTF-16 text; known flag 100 set; the divisor value 1000), in the next in-game run (WHY§193) | `r1-derive.json`, `r1-probe.json`; `docs/ops/probes/<date>-r1.md`; `layouts/<new>.toml` as leads |
 | 4 | Run the self-tests on the draft, then the recorded smoke route (Church of Elleh → Gatefront → camp fight → Kalé → Roundtable). Replay it and compare its events with the golden files (§8.12) | Pass or fail report |
-| 5 | Promote the fields from `lead` to `confirmed`, add the build to `builds.toml`, and keep every earlier profile (N−1 at least, all supported builds by default) | `gal/` changes |
+| 5 | Promote the fields from `lead` to `confirmed`, keep the build's entry in `builds.toml` (its fingerprint came with R0) and add it to each confirmed pattern's `builds`, and keep every earlier profile (N−1 at least, all supported builds by default) | `gal/` changes |
 | 6 | If no code changed, ship a data-only release: a signed zip of `gal/` that replaces `<install>/gal/`. Otherwise ship a new DLL | Release |
 
 ---
@@ -1239,6 +1424,10 @@ struct RenderFeed {
 
 - The overlay projects each head with the swap chain's viewport size, which the overlay knows.
 - It drops any label whose deadline has passed in its own clock (`qpc_us` and its own QPC), and any whose handle is no longer `present`. Deadlines are checked at draw time (DESIGN §9.4).
+- **Between snapshots** (decided 2026-11-16, WHY§168): the feed does not walk the character list every frame, which
+  would not fit its 0.03 ms (§7.2). It keeps the addresses the last snapshot's walk found each tracked character at,
+  and re-checks them at every read: the character's vtable still in the set and its handle unchanged, or the head is
+  not `present`. That is R5's one exception, for the feed alone, and a fault there is no group's fault.
 
 ### 7.5 Recording format (`*.ensnap.zst`)
 
@@ -2271,12 +2460,13 @@ far are marked; the others are added to it as they are built.
 | `decide` (built) | Ask a decision of a configured slot (§11.8) | `--config`, `--request` |
 | `probe` (built) | Find the local model servers on this PC's usual ports (§11.4) | `--json` |
 | `models` (built) | List the models each configured provider offers | `--config`, `--provider`, `--models`, `--json` |
-| `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend` | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` |
+| `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend`. Built for v0.1's slice on the JSON Lines recording (§7.5): the recorded lifecycle messages, banners and snapshots stepped through `Core` again, answering the recorded changes in order, or saying where it disagrees (WHY§202) | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` (built: `--out`) |
 | `golden check\|update` | Compare or rewrite `tests/golden` | `--route <name>` |
 | `eval` | Scripted persona turns and probes against a provider | `--persona`, `--stages`, `--preset <cloud\|local12>`, `--set awareness` (C14, NPC §12.5), `--report out.md` |
-| `lint` | Content and `gal/` validation; `--licence-files` (§12.1); `--profiles <dir>` checks a folder of player profile files with the player's rules (NPC §4.8) | `--strict` (release rules) |
+| `lint` | Content and `gal/` validation; `--licence-files` (§12.1); `--profiles <dir>` checks a folder of player profile files with the player's rules (NPC §4.8); built: `--gal <folder>` (each file as its reader reads it, a note per pattern, confirmed builds known), `--report <file>` (a numbers-only report against its kind's closed vocabulary) and `--recording <file>` (each line of a recording) | `--strict` (release rules) |
+| `rec-stats`, `spike-report` (built) | A recording's lines by kind and its numbers; DESIGN §16.1's S0 pass rules over the launcher's spike logs and recordings, each rule `pass`, `fail` or `not_measured` (WHY§201) | `--out`; `spike-report s0a\|s0b\|s0c\|s0d --log --recording --need` |
 | `render-prompt <template>` (built) | Print the exact prompt: a template file or folder of parts rendered with a JSON context into chat messages, or linted; later for a persona, stage and scene fixture | `--context`, `--root`, `--json`, `--no-merge`, `--lint`, `--list-functions` (built); `--slot`, `--fixture` |
-| `probe-exe <eldenring.exe>` | Offline fingerprint, patterns, FD4 idiom and RTTI check against `gal/` | `--against gal/`, `--json` |
+| `probe-exe <eldenring.exe>` (built) | The derivation round's offline part (R0, O89; §6.2, §6.10): from the executable file and the leads, the fingerprint, the FD4 idiom and the singletons, the vtable sets and task classes, `register_task`, the group table, the statics' classes, every pattern cut and checked as `patterns.toml` would hold it, and the confirm list for R1, into `derive.json` (schema 1, numbers only); `--sections` prints a refused file's section table in numbers | `--derive`, `--leads`, `--out`, `--static <label>=<rva>` (a slot R1 found), `--sections` |
 | `mockllm` | A local SSE server with scripted delays, 429s, `<think>` leaks, trailers and malformed JSON | `--script mock.toml`, `--port` |
 | `bake-pools` | Pre-generate bark pools outside the game | `--cards`, `--providers` |
 | `selftest` | Wizard steps 4a–4e outside the game (§11.7) | `--providers` |
