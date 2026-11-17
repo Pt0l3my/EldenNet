@@ -507,7 +507,7 @@ found the game.
 ---
 ## 4. The EldenNet launcher
 
-`eldennet-launcher.exe` is our own small Win32 program, about 400 lines. It has no main window: notices and errors use `TaskDialogIndirect`. It follows the documented community pattern: start `eldenring.exe` directly so EAC never runs, then inject a DLL into the suspended process (ER02 §2.1, §3.2). No code is taken from any launcher.
+`eldennet-launcher.exe` is our own small Win32 program (en-launcher, §2.3). It has no main window: notices and errors use `TaskDialogIndirect`. It follows the documented community pattern: start `eldenring.exe` directly so EAC never runs, then inject a DLL into the suspended process (ER02 §2.1, §3.2). No code is taken from any launcher.
 
 ### 4.1 Command line
 
