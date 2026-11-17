@@ -108,6 +108,10 @@ void hub_create() {
   auto* loom = new (mem) FG::TaskLoomImp();
   loom->f.group_count = h.count;
   loom->f.groups = h.groups;
+  // The hub's live tasks as a table the hub's instance points at, as a game's hub holds its lists: R1's census of the
+  // hub (part 6) finds the tasks' classes, and their base, from here.
+  loom->f.live = static_cast<void**>(
+      VirtualAlloc(nullptr, sizeof(void*) * FG::kMaxLiveTasks, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
   fg_static_taskloom = loom;
 }
 
@@ -142,7 +146,10 @@ void hub_run_frame(std::uint64_t frame, float dt) {
     slot_of<AttachFn>(s.task, FG::kAttachSlot)(s.task, fg_static_taskloom);
     h.active[group].push_back(s);
     ++h.groups[group].task_count;
-    if (auto* loom = static_cast<FG::TaskLoomImp*>(fg_get_taskloom())) ++loom->f.tasks_live;
+    if (auto* loom = static_cast<FG::TaskLoomImp*>(fg_get_taskloom())) {
+      if (loom->f.live != nullptr && loom->f.tasks_live < FG::kMaxLiveTasks) loom->f.live[loom->f.tasks_live] = s.task;
+      ++loom->f.tasks_live;
+    }
     if (s.foreign) {
       // SAFETY: the group's UTF-16 name, read as Windows' 16-bit wchar_t for printing.
       status("task-active group=%u name=%ls foreign=1 frame=%llu", group,

@@ -76,8 +76,13 @@ class StackRanges {
   static constexpr std::size_t kMax = 256;
   // Adds a range; false when the table is full or the range is empty.
   bool add(AddressRange r) noexcept;
+  // Empties the table, or takes out every range that overlaps `r` (NativeSys's rescan, on T1 before the task is
+  // registered: no reader runs yet).
+  void clear() noexcept { n_ = 0; }
+  void remove(AddressRange r) noexcept;
   [[nodiscard]] bool overlaps(std::uint64_t at, std::uint64_t len) const noexcept;
   [[nodiscard]] std::size_t size() const noexcept { return n_; }
+  [[nodiscard]] AddressRange at(std::size_t i) const noexcept { return i < n_ ? r_[i] : AddressRange{}; }
 
  private:
   std::array<AddressRange, kMax> r_{};
@@ -102,6 +107,9 @@ struct TaskShape {
   std::uint32_t object_size = 0;   // the zeroed bytes after the vtable pointer, which the game's hub owns
   std::uint32_t group_index = 0;   // the group our task joins
   RegisterAbi abi;                 // which register carries the task, the instance and the group
+  // R1 (the probe round, O89): the run slot is not known yet, so every slot counts its calls and runs the body; the
+  // slot counts then say which one the game calls every frame. `run_slot` is ignored.
+  bool every_slot = false;
 };
 
 inline constexpr std::uint32_t kMaxTaskSlots = 64;
@@ -136,6 +144,17 @@ class SysLayer {
   [[nodiscard]] virtual std::uint32_t thread_id() const noexcept = 0;
   // How many times the game called each slot of our fake vtable (the probe's slot counts, R1); 0 past the shape.
   [[nodiscard]] virtual std::uint64_t slot_calls(std::uint32_t slot) const noexcept = 0;
+  // Our task object's address once it is made (its vtable pointer, then the bytes the hub owns), else 0: R1 copies it
+  // back to see how many of those bytes the game's hub wrote.
+  [[nodiscard]] virtual std::uint64_t task_object() const noexcept = 0;
+  // A read the stack table refused, checked again (the game thread, on that rare path alone): each range overlapping it
+  // whose allocation is no longer a stack (a thread that ended, its memory reused by the game: WHY§180) leaves the
+  // table. Answers whether the read no longer overlaps any range. A SysLayer that cannot tell answers false.
+  virtual bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept {
+    (void)address;
+    (void)len;
+    return false;
+  }
 
  protected:
   SysLayer() = default;

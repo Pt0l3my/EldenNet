@@ -15,6 +15,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | A visible top-level window, then a non-null `fg_static_hinstance`, then the statics (`--boot-delay-ms`, `--statics-delay-ms`, `--no-window`) | The game's start as T1 meets it: readiness 1 (the window) and 2 (statics non-null; ARCH §1.4, §3.2) |
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
 | The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
+| The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which R1's census follows to the tasks' classes and their base (part 6) |
 | `fg_register_task`, found by an interior pattern at entry + 7 inside a `.pdata` function, with our own ABI: **rcx the task, rdx the hub instance, r8d the group**; the program's four own call sites load the hub from its static into rdx | `register_task` and its `register_abi` (ARCH §6.2, §6.4). Bad arguments fault in the caller's thread; `--register fault` faults on request, `--register ignore` never runs the task |
 | A task object: a vtable pointer, then 0x18 bytes the hub writes (group, state, hub, a run count), so `object_size` is 0x18; three slots: 0 attach (once, on the game thread), **1 run (`self`, `FrameInfo*`) every frame**, 2 query (every 64th frame) | The task object's shape the derivation must find (`vtable_slots`, `run_slot`, `object_size`) |
 | Seventeen accessors with the FD4 shape (`mov rbx,[rip+static]; test; jnz; lea rcx,[rip+class]; call getter; mov rdx,rax; mov r8d,site; lea rcx,[rip+path]; call log`), the path ending in `FD4Singleton.h`, the class object's name at +0x18 | The FD4 singleton idiom (ARCH §6.2): eleven names (`TaskLoom` for CSTask's role, `ActorRoster` for WorldChrMan's, and so on; `--describe` maps each), two of them with a second site, and three decoys: `Duplicata` (two statics: ambiguous), `Strayling` (path ends in `.hpp`), `Rockbound` (its static is in `.rdata`) |
@@ -94,6 +95,22 @@ lines the case reads from its log once every process has ended (`settle`). galte
 watch block for them (`tests/galtest/watch_client.cpp`): T1's states and the status, a chained crash filter installed
 once the game has started, a crash on the launcher's request, and en-core's slice stepped on its snapshots, whose
 phase, level and gate it reports.
+
+EldenNet's DLL (part 6) joined it with the `launcher-eldennet*` cases (clang-cl): each installs `eldennet.dll` as a
+player would, in `{case}/eldennet/` with gal/ beside it (the derivation's, as `make_gal` writes it, and `leads.toml`),
+and gives it an %APPDATA% of the case's own through `ELDENNET_APPDATA` (the launcher's `--appdata`), with the case's
+settings.toml; the DLL's log (`ELDENNET` lines) joins the case's lines. They check: injected suspended (T1 from Pin to
+Ready, the core in the world with the gate open, the dev console's status, a Mark recorded, a recording that
+`eldennet-engine lint --recording` passes with no name in it, a clean end) and at the title (Dormant there); the
+session gate closing with the badge when the game goes online; a build the DLL's own gal/ does not know (its banner,
+no task); a simulated anti-cheat module (a copy of vehprobe.dll named `EasyAntiCheat_EOS.dll`, loaded with `--also`);
+a second copy loaded by the game's own loader, idle behind R16's mutex and named by the first at Ready; a crash and a
+stack overflow on the game thread recorded through the DLL's own filter; the watcher started by the DLL beside it under another loader; and
+R1 in the probe build (`probe/eldennet.dll`, the leads' task base replaced by a marker as the real game's is): its two
+reports lint clean, every check confirmed, one call at the Mark with the registers and group `--describe` gives, the
+slot counts (attach once, run every frame, query every 64th), the bytes of our object the hub wrote, the census's base
+class with the run slot, the hinstance's and the statics' slots, the rising play time (with loading screens for it to
+stand still in), no allocation on the game thread, and the live derivation's singletons and statics.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

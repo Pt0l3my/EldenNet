@@ -22,6 +22,7 @@ CallOutcome call_getter(std::uint64_t getter, std::uint64_t class_object) noexce
 // Our task object (ARCH §6.4): made once, never freed; 0 when one was made already or memory is short (trampoline.cpp).
 std::uint64_t make_task_object(const TaskShape& shape, TaskBody& body) noexcept;
 std::uint64_t slot_calls(std::uint32_t slot) noexcept;
+std::uint64_t task_object() noexcept;  // the block's address, or 0 before it is made
 std::uint64_t qpc_us() noexcept;
 // The init phase (R2): the getter fallback is refused once register_task has been called.
 bool registered() noexcept;

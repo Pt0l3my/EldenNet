@@ -123,6 +123,48 @@ void NativeSys::note_own_stack() noexcept {
   stacks_.add(AddressRange{low, high});
 }
 
+bool NativeSys::forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept {
+  // Each overlapping range is still a stack if its allocation starts where the range does and holds a guard page.
+  for (;;) {
+    bool removed = false;
+    for (std::size_t i = 0; i < stacks_.size(); ++i) {
+      const AddressRange r = stacks_.at(i);
+      if (!r.overlaps(address, len)) continue;
+      bool stack = false;
+      for (std::uint64_t p = r.begin; p < r.end;) {
+        MEMORY_BASIC_INFORMATION mbi{};
+        // SAFETY: VirtualQuery reads the page tables for this address, not the address.
+        if (VirtualQuery(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(p)), &mbi, sizeof mbi) == 0) break;
+        const auto base = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(mbi.AllocationBase));
+        const auto region = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(mbi.BaseAddress));
+        if (mbi.State == MEM_FREE || base != r.begin) break;
+        if (mbi.State == MEM_COMMIT && (mbi.Protect & PAGE_GUARD) != 0) {
+          stack = true;
+          break;
+        }
+        if (region + mbi.RegionSize <= p) break;
+        p = region + mbi.RegionSize;
+      }
+      if (!stack) {
+        stacks_.remove(r);
+        removed = true;
+        break;
+      }
+    }
+    if (!removed) break;
+  }
+  return !stacks_.overlaps(address, len);
+}
+
+std::size_t NativeSys::rescan_stacks() noexcept {
+  stacks_.clear();
+  (void)refresh_stacks();
+  ULONG_PTR low = 0, high = 0;
+  GetCurrentThreadStackLimits(&low, &high);
+  stacks_.remove(AddressRange{low, high});
+  return stacks_.size();
+}
+
 std::size_t NativeSys::refresh_stacks() noexcept {
   // Every allocation that holds a guard page, whole (the shape of a thread's stack); in an image, its guard pages alone.
   std::uint64_t p = kLowestAddress;
@@ -160,6 +202,7 @@ std::size_t NativeSys::refresh_stacks() noexcept {
 std::uint64_t NativeSys::now_us() const noexcept { return sys::qpc_us(); }
 std::uint32_t NativeSys::thread_id() const noexcept { return GetCurrentThreadId(); }
 std::uint64_t NativeSys::slot_calls(std::uint32_t slot) const noexcept { return sys::slot_calls(slot); }
+std::uint64_t NativeSys::task_object() const noexcept { return sys::task_object(); }
 
 proto::Expected<std::uint64_t, SysError> NativeSys::call_getter(std::uint64_t getter, std::uint64_t class_object) noexcept {
   if (sys::registered()) return proto::Unexpected{SysError::NotInit};  // init only (ARCH §6.2 step 3)
@@ -171,8 +214,8 @@ proto::Expected<std::uint64_t, SysError> NativeSys::call_getter(std::uint64_t ge
 proto::Expected<void, SysError> NativeSys::register_task(std::uint64_t function, std::uint64_t instance,
                                                          const TaskShape& shape, TaskBody& body) noexcept {
   if (sys::registered()) return proto::Unexpected{SysError::Twice};
-  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots || shape.run_slot >= shape.vtable_slots ||
-      shape.object_size > kMaxCopyBytes) {
+  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
+      (!shape.every_slot && shape.run_slot >= shape.vtable_slots) || shape.object_size > kMaxCopyBytes) {
     return proto::Unexpected{SysError::BadShape};
   }
   const std::uint64_t block = sys::make_task_object(shape, body);
