@@ -92,6 +92,9 @@ void game_thread(std::uint32_t tid) noexcept;
 void init_thread(std::uint32_t tid) noexcept;
 [[nodiscard]] en::proto::watch::Spike spike() noexcept;
 [[nodiscard]] bool crash_requested() noexcept;
+// The launcher's --probe: what it asked (R1, before it loaded us), and EldenNet's answer in the same field.
+[[nodiscard]] en::proto::watch::ProbeRequest probe_request() noexcept;
+void probe_answer(en::proto::watch::ProbeRequest answer) noexcept;
 [[nodiscard]] std::uint32_t marks() noexcept;
 [[nodiscard]] std::uint64_t mark_ms(std::uint32_t n) noexcept;  // mark n (from 1), while the ring holds it
 }  // namespace block

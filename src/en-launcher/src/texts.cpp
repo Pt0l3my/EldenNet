@@ -72,4 +72,81 @@ std::vector<Notice> notices() {
   };
 }
 
+const char* r1_word(R1Step s) noexcept {
+  switch (s) {
+    case R1Step::Asked: return "asked";
+    case R1Step::Refused: return "refused";
+    case R1Step::Reading: return "reading";
+    case R1Step::PressMark: return "press_mark";
+    case R1Step::Called: return "called";
+    case R1Step::Confirmed: return "task_confirmed";
+    case R1Step::NoConfirmation: return "no_confirmation";
+    case R1Step::NotCalled: return "not_called";
+    case R1Step::CallFailed: return "call_failed";
+    case R1Step::ReportsClean: return "reports_clean";
+    case R1Step::ReportsRefused: return "reports_refused";
+    case R1Step::ReportsMissing: return "reports_missing";
+  }
+  return "asked";
+}
+
+std::string r1_text(R1Step s) {
+  switch (s) {
+    case R1Step::Asked:
+      return "R1 is on. The game starts now. Stay at the title screen and do not load a save until this window says "
+             "\"task confirmed\".";
+    case R1Step::Refused:
+      return "This eldennet.dll cannot run R1 (it is not the probe build, or EldenNet is turned off in settings.toml), "
+             "so nothing will be called. Quit the game.";
+    case R1Step::Reading:
+      return "EldenNet is reading the game as it is loaded and checking it against the reviewed leads. This takes up "
+             "to two minutes. Stay at the title screen.";
+    case R1Step::PressMark:
+      return "The checks passed. At the title screen, with no save loaded, press Pause once.";
+    case R1Step::Called:
+      return "The call was made. Waiting for the game to run EldenNet's task. Stay at the title screen.";
+    case R1Step::Confirmed:
+      return "Task confirmed. You may now load your save and play for about ten minutes: near NPCs and enemies, rest "
+             "at a grace, fast travel once, then quit the game as usual.";
+    case R1Step::NoConfirmation:
+      return "No confirmation 30 seconds after the call. Do not load a save: quit the game, and send the files.";
+    case R1Step::NotCalled:
+      return "A check did not pass, so EldenNet made no call into the game. Quit the game without loading a save, "
+             "and send the files: the report says which check it was.";
+    case R1Step::CallFailed:
+      return "The call into the game did not complete, and EldenNet stopped there. Quit the game without loading a "
+             "save, and send the files.";
+    case R1Step::ReportsClean:
+      return "Both reports passed the check. Send r1-derive.json and r1-probe.json from %APPDATA%\\EldenNet\\probe.";
+    case R1Step::ReportsRefused:
+      return "A report did not pass the check. Do not send it; send the launcher's console output instead.";
+    case R1Step::ReportsMissing:
+      return "A report is missing from %APPDATA%\\EldenNet\\probe. Send the launcher's console output instead.";
+  }
+  return {};
+}
+
+std::optional<R1Step> r1_step(proto::watch::ProbeRequest answer, proto::watch::InitState init, bool pressed,
+                              std::uint64_t in_first_tick_ms) noexcept {
+  using proto::watch::InitState;
+  using proto::watch::ProbeRequest;
+  if (answer == ProbeRequest::Refused) return R1Step::Refused;
+  if (answer != ProbeRequest::Accepted) {
+    // No answer, but T1 is past Settings: a DLL that does not know --probe, which runs as it always does.
+    const bool past = init != InitState::None && init != InitState::Pin && init != InitState::Gate &&
+                      init != InitState::Safety && init != InitState::Settings;
+    return past ? std::optional<R1Step>(R1Step::Refused) : std::nullopt;
+  }
+  switch (init) {
+    case InitState::Discover: return R1Step::Reading;
+    case InitState::Register: return R1Step::PressMark;
+    case InitState::FirstTick: return in_first_tick_ms >= 30000 ? R1Step::NoConfirmation : R1Step::Called;
+    case InitState::Ready: return R1Step::Confirmed;
+    case InitState::Banner:
+    case InitState::Inert:
+    case InitState::Exit: return pressed ? R1Step::CallFailed : R1Step::NotCalled;
+    default: return std::nullopt;
+  }
+}
+
 }  // namespace en::launcher

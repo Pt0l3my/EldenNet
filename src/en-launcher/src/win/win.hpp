@@ -39,6 +39,9 @@ namespace fs = std::filesystem;
 void open_output(bool console);
 void open_log(const fs::path& logs_dir);
 void say(const char* fmt, ...);
+// A plain sentence for the owner, on the console only (R1's steps, --probe): never in the log, which keeps to say()'s
+// numbers and words.
+void console_line(std::string_view text);
 
 // ---- The context of one launcher run (main.cpp) ----
 
@@ -118,6 +121,7 @@ class WatchBlock {
 // What the watch loop is asked to do beyond watching (a spike's run).
 struct WatchPlan {
   bool console = false;  // status lines and the Mark
+  bool probe = false;    // --probe: R1's steps in plain words (the block's probe request was written before loading)
   proto::watch::Spike spike = proto::watch::Spike::None;
   std::uint32_t run_timeout_s = 0;          // > 0: end the run once T1 stops, or at this limit
   bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 is Ready

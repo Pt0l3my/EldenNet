@@ -5,7 +5,10 @@
 // companion, r1-derive.json, is the derivation run over the live image (derive.json's schema 1, the vocabulary
 // DataPiler's guard already holds), so this report holds only what the derivation does not:
 // - `checks`: what R1 confirmed before its one call into the game, each item `confirmed`, `differs`, `missing` or
-//   `not_run`, with the number found and the number expected (R0's or the draft layout's) where there is one;
+//   `not_run`, with the number found and the number expected (R0's or the draft layout's) where there is one: the
+//   gate, the FD4 idiom against gal/patterns.toml's (its value the live hits, its expected R0's count), the name
+//   layout, the registration and its registers, the group's index against the layout's, the task's shape, and each
+//   singleton;
 // - `hinstance`: the data slots holding the module's base (global_hinstance's slot);
 // - `register`: the call, made only once every check passed and at the title (the first Mark), its registers and group;
 // - `slots`: how often the game called each slot of our task's fake vtable (the run slot is the one called every
@@ -30,7 +33,8 @@ namespace en::shell {
 enum class CheckStatus : std::uint8_t { Confirmed, Differs, Missing, NotRun };
 
 struct ProbeCheck {
-  std::string_view item;                   // gate, name_layout, register, register_abi, group, task_shape, singleton
+  std::string_view item;                   // gate, fd4_idiom, name_layout, register, register_abi, group, task_shape,
+                                           // singleton
   std::string label;                       // the leads' label, where the item takes one
   CheckStatus status = CheckStatus::NotRun;
   std::optional<std::uint64_t> value;      // what R1 found

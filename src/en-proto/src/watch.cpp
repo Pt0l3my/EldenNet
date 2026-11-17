@@ -41,6 +41,20 @@ const char* to_string(InitState s) noexcept {
   return "unknown";
 }
 
+const char* to_string(ProbeRequest p) noexcept {
+  switch (p) {
+    case ProbeRequest::None:
+      return "none";
+    case ProbeRequest::R1:
+      return "r1";
+    case ProbeRequest::Accepted:
+      return "accepted";
+    case ProbeRequest::Refused:
+      return "refused";
+  }
+  return "none";
+}
+
 const char* to_string(Spike s) noexcept {
   switch (s) {
     case Spike::None:

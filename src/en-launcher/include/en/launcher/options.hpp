@@ -34,6 +34,7 @@ struct Options {
   std::optional<AppidMethod> appid_method;  // --appid-method file|env (else launcher.toml's)
   std::optional<RemoveAfter> remove_after;  // --remove-after window|exit|never
   bool console = false;                     // --console: the dev console, its status lines and the Mark on Pause (O90)
+  bool probe = false;                       // --probe: R1 in a probe build of eldennet.dll (O89); implies --console
   bool no_dialogs = false;                  // --no-dialogs: lines instead of dialogs; every question answered no
   bool yes = false;                         // --yes: with --no-dialogs, questions answered yes instead
   bool no_steam_check = false;              // --no-steam-check: the fake game needs no Steam

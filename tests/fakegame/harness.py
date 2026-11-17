@@ -756,9 +756,10 @@ EN_PROBE_NEEDS = EN_NEEDS + ("eldennet_probe",)
 EN_ENV = {"ELDENNET_APPDATA": "{appdata}"}
 
 
-def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None):
-    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata}, and `copies` of files
-    (name, source key) beside the game for --also and --load."""
+def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None, then=None):
+    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata} (none when `settings` is
+    None, as on a PC that never had one), `copies` of files (name, source key) beside the game for --also and --load,
+    and `then`, another prepare, last."""
     def prepare(paths):
         folder = os.path.join(paths["case"], "eldennet")
         os.makedirs(folder)
@@ -775,14 +776,17 @@ def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads
             gal_change(os.path.join(folder, "gal"))
         cfg = os.path.join(paths["appdata"], "EldenNet", "config")
         os.makedirs(cfg)
-        with open(os.path.join(cfg, "settings.toml"), "w") as f:
-            f.write(settings)
+        if settings is not None:
+            with open(os.path.join(cfg, "settings.toml"), "w") as f:
+                f.write(settings)
         paths["eldennetdll"] = dll
         paths["endir"] = folder
         for name, key in copies:
             target = os.path.join(paths["case"], name)
             shutil.copy2(paths[key], target)
             paths[name.split(".")[0].replace("-", "_").lower()] = target
+        if then is not None:
+            then(paths)
     return prepare
 
 
@@ -1041,6 +1045,64 @@ case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      what="R1 in a probe build: the derivation over the live image, the checks, the one call at the Mark (Pause at the "
           "title), the slot counts, the hub census's base class and run slot, the statics' slots, two lint-clean "
           "reports")
+
+
+# R1 as the owner runs it (README-R1.txt): `eldennet-launcher --probe`, with no settings.toml and the save backup made
+# first; the console's steps in plain words; Pause pressed at the title until it is taken (the default settle of 10 s,
+# then the live derivation); the one call; "task confirmed"; a while in the world with loading screens; the game ends
+# and the launcher lints both reports.
+R1_STEPS = ("asked", "reading", "press_mark", "called", "task_confirmed", "reports_clean")
+
+
+def r1_steps(result):
+    return [e.get("step") for e in result.events("LAUNCHER", "r1") if "step" in e]
+
+
+def check_r1_owner(result):
+    failures = check_r1(result)
+    steps = r1_steps(result)
+    need(steps == list(R1_STEPS), "the console's R1 steps: %s" % steps, failures)
+    plain = [l for l in result.lines if l.startswith("EldenNet R1: ")]
+    need(len(plain) == len(R1_STEPS) and any("press Pause" in l for l in plain) and
+         any("Task confirmed" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += want(result, "ELDENNET", "probe", asked="r1", accepted=1, probe_build=1)
+    failures += want(result, "ELDENNET", "settings", file=0)
+    failures += want(result, "LAUNCHER", "backup", folders=2, made=2)
+    p = json.load(open(os.path.join(result.paths["appdata"], "EldenNet", "probe", "r1-probe.json")))
+    checks = {c["item"]: c for c in p["checks"]}
+    need(checks.get("fd4_idiom", {}).get("status") == "confirmed", "the idiom's check: %s" % checks.get("fd4_idiom"),
+         failures)
+    need(checks.get("group", {}).get("expected") == checks.get("group", {}).get("value") is not None,
+         "the group's check against the layout: %s" % checks.get("group"), failures)
+    return failures
+
+
+case("launcher-eldennet-probe", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}", "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--reload-every", "360",
+          "--load-frames", "180", frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_owner,
+     what="R1 as the owner runs it: --probe (no settings.toml), the backup first, the console's steps in plain words, "
+          "Pause at the title until taken, the reviewed idiom and the layout's group confirmed, one call, task "
+          "confirmed, and both reports linted clean by the launcher when the game ends")
+case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                 "--probe"] + game("--stay-title", "--press-pause-at", "120",
+                                                                   frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=120,
+     prepare=install_eldennet(None),
+     check=lambda r: (want(r, "ELDENNET", "probe", asked="r1", accepted=0, probe_build=0) +
+                      want(r, "LAUNCHER", "init", state="exit") +
+                      ([] if r1_steps(r) == ["asked", "refused", "reports_missing"] else
+                       ["the console's R1 steps: %s" % r1_steps(r)]) +
+                      any_line(r, "LAUNCHER", "r1", report="r1-probe.json", lint="missing") +
+                      [f"the release DLL went on: {e}" for e in r.events("ELDENNET", "init")
+                       if e.get("state") not in ("pin", "gate", "safety", "settings", "exit")] +
+                      [l for l in r.lines if l.startswith("ELDENNET register")]),
+     what="--probe with the release DLL: it refuses R1 at Settings and stops there, calling nothing; the console says "
+          "so, and no report is left")
 
 
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------

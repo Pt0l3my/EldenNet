@@ -5,10 +5,12 @@
 //    ABI from the hub's static and the game's own call sites, the group table as loaded, the RTTI sets. Passes at once,
 //    then at +15, +30 and +60 s while the registration's instance is not named. Written as probe\r1-derive.json
 //    (derive.json's schema 1). global_hinstance's slot: the data slots that hold the module's base.
-// 2. The checks before the one call: the gate passed, the name layout read by at least half the class objects, the
-//    registration's callee a function with three agreeing argument registers, the group's index found in the loaded
-//    table (and equal to the draft layout's, where gal/ has one). Any check that fails: no call, and the report says
-//    which. Nothing is guessed.
+// 2. The checks before the one call: the gate passed; the FD4 idiom the live image gives the one R0 cut from the file
+//    (gal/patterns.toml's fd4_idiom, reviewed); the name layout read by at least half the class objects; the
+//    registration's callee a function with three agreeing argument registers; the group's index found in the loaded
+//    table and equal to the one the gated build's layout gives (gal/layouts/, a lead); the hub's instance non-null.
+//    Any check that fails: no call, and the report says which. Nothing is guessed, and nothing rests on a derivation
+//    that was not reviewed (O89 (a)).
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -28,14 +30,14 @@
 #include <map>
 #include <set>
 
-#include <toml.hpp>
-
 #include "en/gal/derive.hpp"
+#include "en/gal/fd4.hpp"
 #include "en/gal/image_bytes.hpp"
+#include "en/gal/layout.hpp"
+#include "en/gal/patterns.hpp"
 #include "en/gal/probe.hpp"
 #include "en/gal/rtti.hpp"
 #include "en/proto/ffi_guard.hpp"
-#include "en/proto/toml_check.hpp"
 #include "en/shell/probe_report.hpp"
 
 namespace eldennet {
@@ -272,19 +274,39 @@ class Round {
             .word("group", derive::to_string(result_.group.status)).flag("written", f_.derive_written));
   }
 
-  // The draft layout's group index, where gal/ has a layout for the gated build (its [task] table).
+  // The layout gal/builds.toml names for the gated build, read as a dev build reads it (leads allowed; only its [task]
+  // table matters here): its group's index, the reviewed lead R1 must find again in the loaded table. Nothing when the
+  // file cannot be read or is refused, which fails the group check: R1 calls only on reviewed leads.
   std::optional<std::uint64_t> draft_group(const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) {
     if (gated == nullptr || !*gated) return std::nullopt;
-    std::wstring rel((*gated)->profile.entry().layout.begin(), (*gated)->profile.entry().layout.end());
+    const std::string& name = (*gated)->profile.entry().layout;
+    std::wstring rel(name.begin(), name.end());  // builds.toml's layout path is ASCII, checked
     std::replace(rel.begin(), rel.end(), L'/', L'\\');
     const std::optional<std::string> text = read_text(s_.paths.gal + L"\\" + rel, 256u << 10);
-    if (!text || en::proto::unsafe_for_toml(*text, en::proto::TomlText::Gal)) return std::nullopt;
-    toml::parse_result parsed = toml::parse(*text, std::string_view{"layout"});
-    if (!parsed) return std::nullopt;
-    if (const auto v = parsed.table()["task"]["group_index"].value<std::int64_t>(); v && *v >= 0) {
-      return static_cast<std::uint64_t>(*v);
+    if (!text) return std::nullopt;
+    en::gal::LayoutNeeds needs;
+    needs.task = true;
+    const auto layout = en::gal::load_layout((*gated)->profile, *text, needs, en::gal::LayoutMode::Dev, "layout");
+    if (!layout || !layout->task()) {
+      log(Line("r1").word("draft_layout", "refused").num("problems", layout ? 0 : layout.error().size()),
+          LogLevel::Warn);
+      return std::nullopt;
     }
-    return std::nullopt;
+    return layout->task()->group_index;
+  }
+
+  // gal/patterns.toml's FD4 idiom, the lead R0 derived from the executable file (its id fd4_idiom).
+  std::optional<en::gal::PatternSpec> lead_idiom() {
+    const std::optional<std::string> text = read_text(s_.paths.gal + L"\\patterns.toml", 256u << 10);
+    if (!text) return std::nullopt;
+    const auto set = en::gal::parse_patterns(*text, {}, "patterns.toml");
+    if (!set) {
+      log(Line("r1").word("patterns", "refused").num("problems", set.error().size()), LogLevel::Warn);
+      return std::nullopt;
+    }
+    const en::gal::PatternSpec* idiom = set->find("fd4_idiom");
+    if (idiom == nullptr || idiom->kind != en::gal::PatternKind::Idiom) return std::nullopt;
+    return *idiom;
   }
 
  public:
@@ -293,8 +315,22 @@ class Round {
  private:
   bool run_checks() {
     bool ok = f_.gate_passed;
-    // The name layout: read by at least half the class objects.
     const derive::Fd4Result& fd = result_.fd4;
+    // The FD4 idiom: the one R0 cut from the file (gal/patterns.toml's, reviewed), byte for byte and capture for
+    // capture, or the derivation over the live image is not the one that was reviewed (O89 (a)), and nothing is called.
+    // The live hits are reported beside the lead's count (where it gives one) for the reviewer; they do not decide.
+    {
+      const std::optional<en::gal::PatternSpec> lead = lead_idiom();
+      const std::optional<en::gal::fd4::Idiom> want = lead ? en::gal::fd4::idiom_from(*lead) : std::nullopt;
+      const bool same = want && fd.idiom && want->bytes == fd.idiom->bytes && want->static_slot == fd.idiom->static_slot &&
+                        want->class_object == fd.idiom->class_object && want->getter == fd.idiom->getter;
+      const std::optional<std::uint64_t> count =
+          lead && lead->expect_min == lead->expect_max ? std::optional<std::uint64_t>(lead->expect_min) : std::nullopt;
+      check("fd4_idiom", "", same ? CheckStatus::Confirmed : want ? CheckStatus::Differs : CheckStatus::Missing,
+            fd.idiom ? std::optional<std::uint64_t>(fd.idiom_hits) : std::nullopt, count);
+      ok = ok && same;
+    }
+    // The name layout: read by at least half the class objects.
     const bool names = fd.names.has_value() && fd.names_of > 0 && fd.names_agree * 2 >= fd.names_of;
     check("name_layout", "", names ? CheckStatus::Confirmed : CheckStatus::Missing,
           fd.names ? std::optional<std::uint64_t>(fd.names->offset) : std::nullopt);
@@ -345,7 +381,7 @@ class Round {
       }
     }
     const std::optional<std::uint64_t> expected = draft_group(gated_);
-    CheckStatus gst = table == nullptr ? CheckStatus::Missing : CheckStatus::Confirmed;
+    CheckStatus gst = table == nullptr || !expected ? CheckStatus::Missing : CheckStatus::Confirmed;
     if (table != nullptr && expected && *expected != table->index) gst = CheckStatus::Differs;
     check("group", "", gst, table != nullptr ? std::optional<std::uint64_t>(table->index) : std::nullopt, expected);
     ok = ok && gst == CheckStatus::Confirmed;

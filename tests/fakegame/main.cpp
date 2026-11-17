@@ -98,7 +98,7 @@ HWND make_window(HINSTANCE instance) {
 }
 
 // --press-pause-at: the player presses and releases Pause, as a key press reaches the system (the launcher's Mark is a
-// system hotkey, O90).
+// system hotkey, O90); with --press-pause-every, again every N frames after (a player pressing until it is taken).
 void press_pause() {
   INPUT in[2] = {};
   in[0].type = INPUT_KEYBOARD;
@@ -265,6 +265,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     } else if (n == L"--selftest-object-size") ok = p.number(o.selftest_object_size);
     else if (n == L"--selftest-group") ok = p.number(o.selftest_group);
     else if (n == L"--press-pause-at") ok = p.number(o.press_pause_at);
+    else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
     else if (n == L"--exit-code") ok = p.number(o.exit_code);
     else if (n == L"--describe") o.describe = true;
@@ -351,7 +352,8 @@ void print_usage() {
       "  --crash-at F  --crash-thread game|worker  --handled-every N  --handled-kind seh|cxx",
       "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
-      "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
+      "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --press-pause-every N",
+      "  --status-file PATH  --exit-code N",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -413,7 +415,11 @@ int run(HINSTANCE instance) {
       ++hitches;
     }
     if (o.game_filter_at == frame) install_game_filter();
-    if (o.press_pause_at == frame) press_pause();
+    if (o.press_pause_at != 0 && frame >= o.press_pause_at &&
+        (frame == o.press_pause_at ||
+         (o.press_pause_every != 0 && (frame - o.press_pause_at) % o.press_pause_every == 0))) {
+      press_pause();
+    }
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {
         crash_on_worker(o.crash);

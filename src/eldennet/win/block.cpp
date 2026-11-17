@@ -179,6 +179,17 @@ w::Spike spike() noexcept {
   return s < w::kSpikeCount ? static_cast<w::Spike>(s) : w::Spike::None;
 }
 
+w::ProbeRequest probe_request() noexcept {
+  const w::Block* b = opened();
+  const std::uint32_t p = b == nullptr ? 0 : b->control.probe.load(std::memory_order_acquire);
+  return p <= static_cast<std::uint32_t>(w::ProbeRequest::Refused) ? static_cast<w::ProbeRequest>(p)
+                                                                   : w::ProbeRequest::None;
+}
+
+void probe_answer(w::ProbeRequest answer) noexcept {
+  if (w::Block* b = opened()) b->control.probe.store(static_cast<std::uint32_t>(answer), std::memory_order_release);
+}
+
 bool crash_requested() noexcept {
   const w::Block* b = opened();
   return b != nullptr && b->control.crash_request.load(std::memory_order_acquire) != 0;
