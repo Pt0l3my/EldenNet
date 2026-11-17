@@ -24,22 +24,21 @@ target_link_libraries(en_launcher_core PUBLIC en_gal en_proto en_third_party)
 if(WIN32)
   enable_language(RC)
   file(GLOB EN_LAUNCHER_WIN_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/win/*.cpp)
-  # The manifest: lld-link embeds a .manifest source itself (CMake passes /MANIFESTINPUT); for MinGW, the resource
-  # script carries it.
+  # The manifest: the resource script embeds launcher.manifest as it stands, in both toolchains. lld-link's own merge
+  # (/MANIFESTINPUT) rewrote its trustInfo with namespaced attributes (ms_asmv1:level), which Windows refuses with a
+  # side-by-side error while Wine accepts them; so lld-link makes no manifest of its own (/MANIFEST:NO).
   set(EN_LAUNCHER_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/src/win/launcher.manifest)
-  if(MSVC)
-    set(EN_LAUNCHER_MANIFEST_RC "")
-    set(_en_manifest_source ${EN_LAUNCHER_MANIFEST})
-  else()
-    set(EN_LAUNCHER_MANIFEST_RC "1 24 \"${EN_LAUNCHER_MANIFEST}\"")
-    set(_en_manifest_source "")
-  endif()
+  set(EN_LAUNCHER_MANIFEST_RC "1 24 \"${EN_LAUNCHER_MANIFEST}\"")
+  set(_en_manifest_source "")
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/win/launcher.rc.in ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc @ONLY)
   set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc APPEND PROPERTY OBJECT_DEPENDS ${EN_LAUNCHER_MANIFEST})
   add_executable(eldennet-launcher WIN32 ${EN_LAUNCHER_WIN_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc
     ${_en_manifest_source})
   # en_shell: R1's report vocabulary, so that the launcher lints the probe's two reports after an R1 session (--probe).
   target_link_libraries(eldennet-launcher PRIVATE en_launcher_core en_shell comdlg32 shell32 ole32 advapi32 iphlpapi)
+  if(MSVC)
+    target_link_options(eldennet-launcher PRIVATE /MANIFEST:NO)
+  endif()
   target_compile_definitions(eldennet-launcher PRIVATE UNICODE _UNICODE _WIN32_WINNT=0x0A00
     EN_LAUNCHER_VERSION="${EN_VERSION_LABEL}")
   if(NOT MSVC)

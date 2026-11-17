@@ -119,6 +119,12 @@ def main():
             fail("eldennet.dll is not the probe build (no SpecialBuild in its version resource)")
         if label.encode("utf-16-le") not in data and label.encode() not in data:
             fail("%s does not carry the label %s" % (name, label))
+        if b"ms_asmv1:" in data:  # a linker-merged manifest Windows refuses with a side-by-side error (spike.1)
+            fail("%s carries a merged manifest with namespaced attributes" % name)
+        if name == "eldennet-launcher.exe":
+            with open(os.path.join(REPO, "src", "en-launcher", "src", "win", "launcher.manifest"), "rb") as f:
+                if f.read().strip() not in data:
+                    fail("eldennet-launcher.exe does not embed launcher.manifest as it stands")
         files.append((name, data))
     for root, _, names in sorted(os.walk(gal)):
         for n in sorted(names):

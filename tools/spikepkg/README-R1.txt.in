@@ -60,6 +60,8 @@ The steps
 
      eldennet-launcher.exe --probe
 
+   In PowerShell (Windows Terminal's default), put .\ in front: .\eldennet-launcher.exe --probe
+
    The first time, it asks where eldenring.exe is if it cannot find it through Steam, and shows its notices.
 
 2. The game starts. At the title screen, do NOT load a save. Wait. The console says, in lines starting with
