@@ -113,11 +113,12 @@ what they count. A new key waits for a schema 2 and a DataPiler that reads it.
 | `stats.fd4.names` | Of the accepted hits' class objects: `of` how many, `agree` how many the best name layout reads (with its `offset` and `encoding`, even under half), `fixups` how many have a base relocation in their first 128 bytes (a pointer the file initialises), `unreadable` how many lie past the raw data the file holds of their section (zeros until the game writes them) |
 | `stats.fd4.classes`, `loads`, `calls` | Distinct class objects, statics and getters of the accepted hits |
 
-## lint --report and lint --recording
+## lint --report, lint --recording and lint --gal
 
 ```text
 eldennet-engine lint --report <file>
 eldennet-engine lint --recording <file>
+eldennet-engine lint --gal <folder>
 ```
 
 The check every numbers-only report passes before it leaves the PC or is committed (plan §1.2; DataPiler's guard checks
@@ -135,12 +136,34 @@ every line one report of the kind `recording`, whose keys may also hold a finite
 position, a distance), each problem with its line (`lint: line 12: chars[0].pos: ...`). Exit codes as above, a file
 larger than 512 MiB being 2 (`lint: the recording is clean`, `... is refused`).
 
+`--gal` checks a gal/ folder before it is committed or packaged (ARCH §6.3): `builds.toml` (required), `patterns.toml`
+and `leads.toml` (each if present) read as the DLL and probe-exe read them, and each build's layout with
+`load_layout`'s checks in a dev build's mode (leads allowed; what the read groups need is the DLL's to check at boot).
+Every pattern needs its derivation note, `derivations/<id>.md` (ARCH §6.3, DESIGN O27), and every build a pattern
+lists as confirmed must be one builds.toml holds. Each problem is printed as `lint: <file>: <where>: <problem>`, never
+with a value; on success one line, `lint: gal/ is clean: builds 1, layouts 1, patterns 1 (confirmed in no build: 1),
+leads.toml read`. Exit codes as above, 2 for a folder without a readable builds.toml. ARCH §6.3's check that no
+pattern holds a byte string quoted in `docs/research/` needs the design branch's research folder beside it, and waits.
+
+## gal/ for the owner's 2.7.2.0 WW (R0c into R1)
+
+The repository's `gal/` now holds what R0c, the second offline run (2026-11-16), gave, each value a lead until R1 and
+S0-A confirm it (ARCH §6.3): `builds.toml`'s fingerprint for 2.7.2.0 WW (App 1.17.2); `patterns.toml`'s FD4 idiom
+(`fd4_idiom`, 24 bytes, 7 fixed, R0c's 7,151 hits, confirmed in no build) with its note
+`derivations/fd4_idiom.md`; and the draft layout `layouts/2.7.2.0-ww.toml`, a `[task]` holding only the group's name
+and index (110: R0c's table of 168 entries of 32 bytes, UTF-16 names at +16), which only R1 reads. The registration,
+the task's shape, the statics, the classes and fields are R1's to find; `leads.toml` is R0's, unchanged but for its
+comments. CTest's `en_tools_cli` runs `lint --gal` on it in the Linux builds.
+
 ## Tests
 
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's
 content, the static's pattern from a slot, the lint's refusals of a path, a free string, a byte run and a float without
-quoting them, a recording linted clean and one with a path refused at its line, and no path in any message; `--sections` against the table read in Python, a refused section's line
+quoting them, a recording linted clean and one with a path refused at its line, `lint --gal` clean on the
+repository's gal/ and on an invented folder and refusing seven invented ones (a pattern without its note, a layout
+for another build, a confirmed build builds.toml lacks, a bad builds.toml, a missing layout, a half-filled lead
+`[task]`, a provenance that is not our own derivation) without quoting them, and no path in any message; `--sections` against the table read in Python, a refused section's line
 (its shape, its numbers, and DataPiler's log's shape), and a copy whose last section's raw data runs past the end of
 the file and whose SizeOfImage is short of its alignment, which derives as the file itself does. The Windows builds run the same commands under Wine on `fakegame.exe`
 (`tests/fakegame/`).

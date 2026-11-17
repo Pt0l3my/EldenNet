@@ -23,7 +23,7 @@ void usage() {
       "  probe          find the local model servers on this PC's usual ports\n"
       "  models         list the models each configured provider offers\n"
       "  probe-exe      read a game's executable file and derive what the game access layer needs (devkit)\n"
-      "  lint           check a numbers-only report (--report)\n"
+      "  lint           check a numbers-only report (--report), a recording (--recording) or gal/ (--gal)\n"
       "  version        print the version\n",
       stderr);
 }

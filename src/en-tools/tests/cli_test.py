@@ -2,9 +2,10 @@
 """eldennet-engine's probe-exe and lint --report, run as DataPiler's job runs them, on the derivation tests' invented
 program (written by en_tools_write_sample): the exit codes and messages of src/en-tools/README.md, derive.json's content,
 the lint's refusals, probe-exe --sections, a refused section's line, and a layout the loader accepts (raw data past the
-end of the file, SizeOfImage short of the last section's alignment) deriving as the tidy one. Nothing here is a game's.
+end of the file, SizeOfImage short of the last section's alignment) deriving as the tidy one; and lint --gal, on the
+repository's own gal/ and on invented folders. Nothing here is a game's (the repository's gal/ is read, never changed).
 
-    cli_test.py --engine ENGINE --writer WRITER --work DIR
+    cli_test.py --engine ENGINE --writer WRITER --work DIR [--gal DIR]
 """
 import argparse
 import json
@@ -74,10 +75,93 @@ def check_sections(engine, exe, data, failures_name):
     return rows
 
 
+INVENTED_BUILDS = """schema = 1
+[[build]]
+key = "9.8.7.0-ww"
+app = "4.5.6"
+file_version = "9.8.7.0"
+product_name = "INVENTED GAME"
+region = "ww"
+time_date_stamp = 0x12345678
+size_of_image = 0x40000
+layout = "layouts/9.8.7.0-ww.toml"
+dlrf_name_layout = false
+status = "supported"
+"""
+INVENTED_LAYOUT = """schema = 1
+build = "9.8.7.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/invented.md"
+[task]
+group = { name = "Invented_Group", index = 3 }
+status = "lead"
+"""
+INVENTED_PATTERNS = """schema = 1
+[[pattern]]
+id = "invented_idiom"
+kind = "idiom"
+section = ".text"
+bytes = "?? 8B ?? ?? ?? ?? ?? ?? 85 C0 74 ??"
+path_suffix = "Invented.h"
+captures = { static = { at = 3, kind = "rip_rel32", insn_end = 7, section = ".data", align = 8 } }
+provenance = { method = "own-derivation", leads = ["none"], evidence = "docs/ops/probes/invented.md", date = "2026-11-17" }
+"""
+
+
+def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True):
+    os.makedirs(os.path.join(folder, "layouts"), exist_ok=True)
+    os.makedirs(os.path.join(folder, "derivations"), exist_ok=True)
+    for name, text in (("builds.toml", builds), ("layouts/9.8.7.0-ww.toml", layout), ("patterns.toml", patterns),
+                       ("derivations/invented_idiom.md", "An invented note.\n" if note else None)):
+        path = os.path.join(folder, name)
+        if text is None:
+            if os.path.exists(path):
+                os.remove(path)
+            continue
+        with open(path, "w") as f:
+            f.write(text)
+    return folder
+
+
+def check_gal(a):
+    """lint --gal: the repository's gal/ clean; invented folders refused for each rule, each problem with its file and
+    place, never a value; no builds.toml a usage error."""
+    if a.gal:
+        code, so, se = run(a.engine, "lint", "--gal", a.gal)
+        need(code == 0 and "gal/ is clean" in so, "lint --gal on the repository's gal/: exit %s %r %r" % (code, so, se))
+    base = os.path.join(a.work, "gal-cases")
+    code, so, _ = run(a.engine, "lint", "--gal", write_gal(os.path.join(base, "clean")))
+    need(code == 0 and "patterns 1 (confirmed in no build: 1)" in so, "lint --gal, invented: exit %s %r" % (code, so))
+    cases = [
+        ("no-note", dict(note=False), "patterns.toml: pattern[0]: has no derivation note, derivations/invented_idiom.md"),
+        ("other-build", dict(layout=INVENTED_LAYOUT.replace('build = "9.8.7.0-ww"', 'build = "9.8.7.1-jp"')),
+         "layouts/9.8.7.0-ww.toml: build: is not the build the gate matched"),
+        ("unknown-confirmed", dict(patterns=INVENTED_PATTERNS.replace('path_suffix', 'builds = ["1.2.3.4-jp"]\npath_suffix')),
+         "patterns.toml: pattern[0].builds: names a build builds.toml lacks"),
+        ("bad-build", dict(builds=INVENTED_BUILDS.replace('region = "ww"', 'region = "xx"')), "builds.toml: build[0].region"),
+        ("no-layout", dict(layout=None), "layouts/9.8.7.0-ww.toml: cannot be read"),
+        ("half-task", dict(layout=INVENTED_LAYOUT.replace('status = "lead"', 'vtable_slots = 4')),
+         "task.object_size: is missing"),
+        ("guessed-provenance", dict(patterns=INVENTED_PATTERNS.replace('own-derivation', 'copied')),
+         "patterns.toml: pattern[0].provenance.method"),
+    ]
+    for name, change, problem in cases:
+        folder = write_gal(os.path.join(base, name), **change)
+        code, so, _ = run(a.engine, "lint", "--gal", folder)
+        need(code == 1 and problem in so and "gal/ is refused" in so and "Invented_Group" not in so and
+             folder not in so, "lint --gal, %s: exit %s %r" % (name, code, so))
+    empty = os.path.join(base, "empty")
+    os.makedirs(empty, exist_ok=True)
+    code, so, se = run(a.engine, "lint", "--gal", empty)
+    need(code == 2 and "no builds.toml" in se and empty not in se, "lint --gal on a folder without builds.toml: %s %r" %
+         (code, se))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--engine", required=True)
     p.add_argument("--writer", required=True)
+    p.add_argument("--gal", help="the repository's gal/ folder, which lint --gal must pass")
     p.add_argument("--work", required=True)
     a = p.parse_args()
     os.makedirs(a.work, exist_ok=True)
@@ -258,6 +342,8 @@ def main():
         need(tidy == loosed, "the loose layout derives other than the tidy one")
     code, so, _ = run(a.engine, "lint", "--report", loose_out)
     need(code == 0, "lint on the loose layout's report: exit %s %r" % (code, so))
+
+    check_gal(a)
 
     for f in FAILURES:
         print("FAIL: %s" % f)

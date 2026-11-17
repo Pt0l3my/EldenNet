@@ -15,6 +15,7 @@ if(EN_BUILD_TESTS AND NOT WIN32)
   if(Python3_Interpreter_FOUND)
     add_test(NAME en_tools_cli
       COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_test.py --engine $<TARGET_FILE:eldennet-engine>
-        --writer $<TARGET_FILE:en_tools_write_sample> --work ${CMAKE_CURRENT_BINARY_DIR}/cli)
+        --writer $<TARGET_FILE:en_tools_write_sample> --work ${CMAKE_CURRENT_BINARY_DIR}/cli
+        --gal ${PROJECT_SOURCE_DIR}/gal)
   endif()
 endif()

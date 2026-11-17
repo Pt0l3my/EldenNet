@@ -347,9 +347,16 @@ void read_param(const toml::table& t, std::string name, const std::string& path,
   p.done();
 }
 
+// [task]. A confirmed one holds every key. A lead may hold only its group (the derivation's offline round gives the
+// group's index, and the in-game round R1 finds the rest): it is `partial` then, and discovery never registers with it.
 TaskLayout read_task(const toml::table& t, Errors& errors) {
   Table k(t, "task", errors);
   TaskLayout out;
+  const toml::node* status = t.get("status");
+  const std::optional<std::string_view> stated = status != nullptr ? status->value<std::string_view>() : std::nullopt;
+  const bool lead = !stated || *stated != "confirmed";
+  const bool full = !lead || k.has("register_abi") || k.has("vtable_slots") || k.has("run_slot") || k.has("object_size");
+  out.partial = !full;
   if (const toml::table* group = k.table("group", true)) {
     Table g(*group, k.where("group"), errors);
     if (const auto name = g.text("name", true)) {
@@ -359,7 +366,7 @@ TaskLayout read_task(const toml::table& t, Errors& errors) {
     if (const auto index = g.integer("index", true, 0, 4095)) out.group_index = static_cast<std::uint32_t>(*index);
     g.done();
   }
-  if (const toml::table* abi = k.table("register_abi", true)) {
+  if (const toml::table* abi = k.table("register_abi", full)) {
     Table a(*abi, k.where("register_abi"), errors);
     const auto reg = [&](std::string_view key, ArgRegister& to) {
       const auto name = a.text(key, true);
@@ -382,13 +389,13 @@ TaskLayout read_task(const toml::table& t, Errors& errors) {
     }
     a.done();
   }
-  const auto slots = k.integer("vtable_slots", true, 1, 64);
+  const auto slots = k.integer("vtable_slots", full, 1, 64);
   if (slots) out.vtable_slots = static_cast<std::uint32_t>(*slots);
-  if (const auto run = k.integer("run_slot", true, 0, 63)) {
+  if (const auto run = k.integer("run_slot", full, 0, 63)) {
     out.run_slot = static_cast<std::uint32_t>(*run);
     if (slots && out.run_slot >= out.vtable_slots) errors.add(k.where("run_slot"), "must be below vtable_slots");
   }
-  if (const auto size = k.integer("object_size", true, 0, kMaxCopySize))
+  if (const auto size = k.integer("object_size", full, 0, kMaxCopySize))
     out.object_size = static_cast<std::uint32_t>(*size);
   out.status = read_status(k, errors).value_or(LayoutStatus::Lead);
   k.done();
@@ -438,15 +445,27 @@ void check_enum_use(const std::vector<FieldLayout>& fields, const std::string& p
 
 Expected<Layout, SchemaErrors> load_layout(const BuildProfile& profile, std::string_view text, const LayoutNeeds& needs,
                                            LayoutMode mode, std::string_view file) {
+  return Layout::read(profile.entry().key, profile.key(), text, needs, mode, file);
+}
+
+SchemaErrors check_layout(const BuildEntry& entry, std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
+                          std::string_view file) {
+  auto layout = Layout::read(entry.key, proto::BuildKey{}, text, needs, mode, file);
+  return layout ? SchemaErrors{} : std::move(layout.error());
+}
+
+Expected<Layout, SchemaErrors> Layout::read(std::string_view build_text, proto::BuildKey build_key,
+                                            std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
+                                            std::string_view file) {
   Errors errors{std::string(file)};
   const std::optional<toml::table> doc = toml_read::parse(text, errors);
   if (!doc) return Unexpected{errors.take()};
   Table root(*doc, "", errors);
   Layout layout;
-  layout.build_key_ = profile.key();
+  layout.build_key_ = build_key;
   (void)root.integer("schema", true, 1, 1);
   if (const auto build = root.text("build", true)) {
-    if (*build != profile.entry().key) errors.add("build", "is not the build the gate matched");  // R7
+    if (*build != build_text) errors.add("build", "is not the build the gate matched");  // R7
     layout.build_ = *build;
   }
   if (const auto from = root.text("derived_from", true)) {
