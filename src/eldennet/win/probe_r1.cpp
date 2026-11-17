@@ -57,6 +57,8 @@ using en::shell::CheckStatus;
 using en::shell::Line;
 using en::shell::LogLevel;
 using en::shell::ProbeCheck;
+using en::shell::ProbeHubHit;
+using en::shell::ProbeHubSearch;
 
 constexpr std::uint32_t kSpanObject = 0x400;  // how much of our object the probe copies back
 
@@ -574,10 +576,84 @@ class Round {
 
   std::uint64_t called_mono_ms() const noexcept { return called_mono_; }
 
+  // WHY§209: the hub's reachable memory searched for our task object, breadth first from the hub's instance, up to three
+  // pointers deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps.
+  void search_hub() {
+    ProbeHubSearch h;
+    h.at_ms = since_ms() - called_ms_;
+    const std::uint64_t target = s_.sys->task_object();
+    const std::uint64_t end = target + f_.object_size;
+    const std::uint64_t image_end = base_ + image_->size_of_image;
+    struct Node {
+      std::uint64_t at;
+      std::vector<std::uint32_t> path;
+    };
+    std::vector<Node> level{Node{instance_, {}}};
+    std::set<std::uint64_t> seen{instance_};
+    std::vector<std::byte> block;
+    constexpr std::uint64_t kMaxNodes = 6000, kMaxBytes = 6u << 20;
+    for (std::uint32_t depth = 0; depth <= 3 && !level.empty() && target != 0; ++depth) {
+      std::vector<Node> next;
+      for (const Node& n : level) {
+        if (h.nodes >= kMaxNodes || h.read_bytes >= kMaxBytes) break;
+        std::uint64_t len = depth == 0 ? 0x1000 : 0x400;
+        const std::uint64_t to_page = 0x1000 - (n.at & 0xFFF);
+        if (len > to_page && to_page >= 0x40) len = to_page;  // one page at a time: a block never crosses into the next
+        if (en::gal::implausible(n.at, len, 8, s_.sys->stacks())) {
+          ++h.refused_reads;
+          continue;
+        }
+        block.assign(static_cast<std::size_t>(len), std::byte{0});
+        ++h.nodes;
+        if (!s_.sys->copier().copy(n.at, block).copied) {
+          ++h.faults;
+          continue;
+        }
+        h.read_bytes += len;
+        for (std::size_t o = 0; o + 8 <= block.size(); o += 8) {
+          std::uint64_t w = 0;
+          std::memcpy(&w, block.data() + o, 8);
+          if (w == target) {
+            ++h.found;
+            if (h.hits.size() < 8) {
+              ProbeHubHit x;
+              x.depth = depth;
+              x.path = n.path;
+              x.path.push_back(static_cast<std::uint32_t>(o));
+              const std::size_t lo = o >= 64 ? o - 64 : 0, hi = std::min(block.size(), o + 72);
+              for (std::size_t k = lo; k + 4 <= hi; k += 4) {
+                std::uint32_t v = 0;
+                std::memcpy(&v, block.data() + k, 4);
+                if (v == f_.group_index) ++x.near_group;
+              }
+              h.hits.push_back(std::move(x));
+            }
+          } else if (w > target && w < end) {
+            ++h.inside;
+          } else if (depth < 3 && (w & 7) == 0 && w >= en::gal::kLowestAddress && w < en::gal::kAddressEnd &&
+                     (w < base_ || w >= image_end) && seen.insert(w).second) {
+            Node m{w, n.path};
+            m.path.push_back(static_cast<std::uint32_t>(o));
+            next.push_back(std::move(m));
+          }
+        }
+      }
+      level = std::move(next);
+    }
+    log(Line("r1").word("stage", "hub_search").num("at_ms", h.at_ms).num("nodes", h.nodes).num("found", h.found)
+            .num("inside", h.inside).num("faults", h.faults));
+    f_.hub_search.push_back(std::move(h));
+  }
+
   void report_loop(R1Body* body) {
     bool confirmed = false;
     called_mono_ = mono_ms() - (since_ms() - called_ms_);
+    std::size_t searches = 0;
     for (;;) {
+      if (body != nullptr && searches < 2 && since_ms() - called_ms_ >= (searches == 0 ? 2000u : 20000u)) {
+        search_hub();
+        ++searches;
+      }
       if (body != nullptr) {
         update(*body);
         if (!confirmed && body->invocations() > 0) {

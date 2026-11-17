@@ -67,7 +67,7 @@ constexpr std::array<Key, 49> kKeys = {{
     {"hits", Type::Array, Type::Object},
     {"offset", Type::Unsigned},
 }};
-constexpr std::array<Key, 28> kMore = {{
+constexpr std::array<Key, 37> kMore = {{
     {"rose", Type::Unsigned},
     {"still", Type::Unsigned},
     {"other", Type::Unsigned},
@@ -96,6 +96,15 @@ constexpr std::array<Key, 28> kMore = {{
     {"inst_unclassed", Type::Unsigned},
     {"inst_classed", Type::Unsigned},
     {"inst_matched", Type::Unsigned},
+    {"hub_search", Type::Array, Type::Object},
+    {"at_ms", Type::Unsigned},
+    {"nodes", Type::Unsigned},
+    {"read_bytes", Type::Unsigned},
+    {"refused_reads", Type::Unsigned},
+    {"inside", Type::Unsigned},
+    {"depth", Type::Unsigned},
+    {"path", Type::Array, Type::Unsigned},
+    {"near_group", Type::Unsigned},
 }};
 
 constexpr std::array<Key, kKeys.size() + kMore.size()> joined() {
@@ -218,6 +227,30 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("copy_faults", f.copy_faults);
   w.number("stack_refused", f.stack_refused);
   w.number("allocations", f.allocations);
+  w.begin_array("hub_search");
+  for (const ProbeHubSearch& h : f.hub_search) {
+    w.begin_object();
+    w.number("at_ms", h.at_ms);
+    w.number("nodes", h.nodes);
+    w.number("read_bytes", h.read_bytes);
+    w.number("faults", h.faults);
+    w.number("refused_reads", h.refused_reads);
+    w.number("found", h.found);
+    w.number("inside", h.inside);
+    w.begin_array("hits");
+    for (const ProbeHubHit& x : h.hits) {
+      w.begin_object();
+      w.number("depth", x.depth);
+      w.begin_array("path");
+      for (const std::uint32_t o : x.path) w.number(o);
+      w.end_array();
+      w.number("near_group", x.near_group);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+  w.end_array();
   w.begin_object("names");
   w.number("of", f.names.of);
   w.number("agree", f.names.agree);

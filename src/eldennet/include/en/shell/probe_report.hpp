@@ -83,6 +83,25 @@ struct ProbeNames {
   std::vector<ProbeNameSlot> slots;
 };
 
+// R1 run 4 (WHY§209): register_task answered ok and the task never ran. After the call, on T1, the hub's reachable
+// memory is searched for our task object's address, read-only and bounded: where it was stored, if anywhere.
+struct ProbeHubHit {
+  std::uint32_t depth = 0;            // pointers followed from the hub's instance
+  std::vector<std::uint32_t> path;    // the offset read at each level, the last the word that held our address
+  std::uint32_t near_group = 0;       // 32-bit words equal to the group's index within 64 bytes of it
+};
+
+struct ProbeHubSearch {
+  std::uint64_t at_ms = 0;            // after the call
+  std::uint64_t nodes = 0;            // blocks read
+  std::uint64_t read_bytes = 0;
+  std::uint64_t faults = 0;           // copies that faulted
+  std::uint64_t refused_reads = 0;    // addresses the plausibility rules refused
+  std::uint64_t found = 0;            // words equal to our object's address
+  std::uint64_t inside = 0;           // words pointing inside our object, past its start
+  std::vector<ProbeHubHit> hits;      // the first eight
+};
+
 struct ProbeFindings {
   std::string_view stage = "start";  // start, derived, waiting, registered, running, refused, failed
   std::uint64_t elapsed_ms = 0;      // since T1's start
@@ -120,6 +139,7 @@ struct ProbeFindings {
   std::uint64_t stack_refused = 0;
   std::uint64_t allocations = 0;  // on the game thread after its first tick (R6)
   ProbeNames names;
+  std::vector<ProbeHubSearch> hub_search;
 };
 
 [[nodiscard]] const gal::report::Vocabulary& probe_vocabulary() noexcept;
