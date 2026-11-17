@@ -212,6 +212,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 187 | 2026-11-16 | The bytes R0 could not decode are no gap of the decoder's | METHOD | #engine #gal |
 | 188 | 2026-11-16 | derive.json's schema 1 is frozen by DataPiler 0.2.41's copy of it | DECIDED | #engine #gal #datapiler |
 | 189 | 2026-11-16 | The executable has a second code section the derivation does not read | SPECULATION | #engine #gal |
+| 190 | 2026-11-16 | A stack range outlives its thread: the reader refused the game's own objects where a stack had been | FACT | #engine #gal #wine |
+| 191 | 2026-11-16 | eldennet.dll's start as built, where it departs from ARCH §3.2 | DECIDED | #engine #dll |
+| 192 | 2026-11-16 | The recorder writes numbers-only JSON Lines, each line a report of the kind "recording" | DECIDED | #engine #dll #datapiler |
+| 193 | 2026-11-16 | R1 in the DLL: the derivation over the live image, then one call at the Mark, then the game thread's searches | DECIDED | #engine #gal #dll #r1 |
+| 194 | 2026-11-16 | settings.toml for v0.1: strict, ARCH §11.5's later tables accepted, three tables of this build's own | DECIDED | #engine #dll #settings |
+| 195 | 2026-11-16 | The DLL's imports, exports and greps | FACT | #engine #dll #ci |
+| 196 | 2026-11-16 | Under Wine, a stack overflow passed on by any DLL's crash filter hangs the process | FACT | #engine #dll #wine #launcher |
 
 ## Entries
 
@@ -3444,3 +3451,125 @@ invariant 10, EldenNet ARCH (T3)
   section of another name; the derivation reads only the first `.text`.
 - **Speculation**: a protection layer's code. R0c's census decodes every executable section and counts references to
   the FD4 paths from each, so the next report says whether anything of ours lives there.
+
+### 190. A stack range outlives its thread: the reader refused the game's own objects where a stack had been
+
+`2026-11-16` · FACT · `#engine #gal #wine` · refs: WHY§111, WHY§160, ARCH§6.5, R4
+
+- **Seen** (eldennet.dll in the fake game, clang-cl, Wine 9.0): the world group tripped after three snapshots, every
+  one with a read of the near list refused as a stack. NativeSys's table, made from every allocation holding a guard
+  page, still held two ranges whose threads had ended: the launcher's loading thread (Wine frees an ended thread's stack
+  late, so it was still mapped at the first scan and at a rescan just before registration) and T1, which ends at Ready.
+  The game's next allocations (its world's objects, made at the first world entry) were placed in that memory. galtest
+  never showed it: its T1 never ends.
+- **Chosen**: NativeSys::rescan_stacks on T1 just before the one call (the table made again, without T1's own stack,
+  which the game never points into); and on the rare path of a refused read, forget_stale_stacks checks each
+  overlapping range again with VirtualQuery and drops one whose allocation no longer starts there or holds no guard
+  page, and the read goes on (counted: `stale_stacks` in the DLL's reads line; 1 in the fake game's runs).
+  Allocation-free, on the game thread only after registration, so the table has one writer.
+- **What follows**: the real game's threads come and go (pools, loaders), so without this the structural groups could
+  trip in S0-B's two hours; its counter is worth watching there. A periodic rescan from another thread would need a
+  double-buffered table; the lazy check needs none.
+
+### 191. eldennet.dll's start as built, where it departs from ARCH §3.2
+
+`2026-11-16` · DECIDED · `#engine #dll` · refs: ARCH§1.4, ARCH§1.6, ARCH§3.2, R16, WHY§172
+
+- R16's mutex is taken at Pin, not in Safety: a second copy loaded by the game's own loader a moment after the
+  launcher's copy (the `launcher-eldennet-twice` case) could otherwise overtake the first while it gates. The second
+  copy still writes nothing but one OutputDebugStringW line.
+- Headless: Connect and ConnectB are logged as skipped (`overlay.connect` stays off); the banner reaches the core as a
+  BootBanner and the status block, and nothing is drawn.
+- The crash filter goes in after WaitEngine (main path) or after WaitWindow (banner path), never earlier (WHY§172):
+  the game's window comes after its C runtime's start.
+- Discover runs before WaitEngine, as galtest did, and ARCH's ReadyScan is not a separate pass: one discovery pass finds
+  the readiness items with the rest, then WaitEngine polls the hub's instance. FD4 names in class objects the game fills
+  at run time make the retries at +5, +15, +30 s the readiness wait for the names (ARCH §3.2's WaitEngine also asks the
+  DLRF name to be readable).
+- T1 ends at Ready (ARCH: Ready → Exit), which is what exposed WHY§190; in R1 it stays as the probe's reporter.
+- C14's atomics are applied by the core thread to each snapshot's session before the core judges it, not by the task
+  (ARCH §1.3 has them read by the task; the task's backend leaves them false, WHY§169).
+
+### 192. The recorder writes numbers-only JSON Lines, each line a report of the kind "recording"
+
+`2026-11-16` · DECIDED · `#engine #dll #datapiler` · refs: ARCH§7.5, O73, S10.1.a plan §1.1, §1.3
+
+- **Chosen**: each record is one line, `{"report":"recording","schema":1,"t":<mono ms>,"k":<kind>,...}`, written through
+  en-gal's closed-vocabulary writer on one line (`Style::Line`, a `Float` type for positions, distances and bearings),
+  so `eldennet-engine lint --recording` and DataPiler's guard check every line by the same rules as derive.json. The
+  header is a `k = "header"` record (game version as four numbers, region, EldenNet's version, the spike, probe build,
+  the file's number); ARCH §7.5's text-valued header fields (`build`, `content_hash`, `seed_root`, `salt`) wait for
+  the keyed hashes. Plain JSON Lines, no zstd (plan §1.3: DataPiler's Python 3.10).
+- **Left out by construction**: text look-ups' answers (table, id and found only), param rows' values (param, id,
+  field count), the character's name (its length), and SteamID (not read). A NaN bearing is left out.
+- **Cost**: about 3.3 KB a snapshot line with the fake game's six characters, so about 47 MB an hour at 4 Hz unzipped
+  (ARCH §7.5's 4 MB is zstd's); a full snapshot (32 characters, every flag of 2,048 set) stays within a line's 256 KiB
+  (en_shell_tests).
+
+### 193. R1 in the DLL: the derivation over the live image, then one call at the Mark, then the game thread's searches
+
+`2026-11-16` · DECIDED · `#engine #gal #dll #r1` · refs: O89, O90, S10.1.a plan §2, R0c, ARCH§6.2, ARCH§6.10, WHY§170
+
+- **Chosen**: R1 reuses part 3's derivation over the mapped image (ImageLayout::Memory): the FD4 class objects the game
+  fills at run time name the 217 singletons, which gives the hub's static and so `register_task`'s candidates and ABI
+  from the game's own call sites; the group table is read as loaded. Its report is derive.json's schema 1
+  (`r1-derive.json`), which DataPiler 0.2.41 already reads; what derive.json has no keys for goes in a second report,
+  `r1-probe.json` (kind `probe`).
+- **The call** only once the gate, the name layout, the registration (a function, three distinct agreeing registers),
+  the group index (in the loaded table, and the draft layout's where there is one) and the hub's instance are confirmed,
+  and at the first Mark (the owner's Pause at the title with no save loaded: no reading of the game's memory from T1
+  can tell the title). The run slot is not known before it, so every slot of the fake vtable counts and runs the body
+  for our own object (TaskShape::every_slot); slots called on T1 inside the call are counted and do nothing. The object
+  is `probe.object_size` (0x800) zeroed bytes, and R1 reports how many the hub wrote.
+- **The base class without a lead**: the hub census follows the hub's instance to the objects it points at (heap and
+  the image's writable data, to a depth of three) and keeps their vtables; the type descriptors their classes list
+  among their bases, by count, are the candidates, each with task_from_base's slots and run slot. In the fake game (its
+  leads' base replaced by a marker, as the real game's are) the first candidate is the task base, with run slot 1.
+- **GameDataMan without RTTI**: the rising-counter search over every heap static of the image (up to 65,536); its rule
+  for a static's slot is one heap static with a field that rose at least twice and stood still at least once (a play
+  time; a process clock never stands still). A field is followed from its first rise, so its still passes must come
+  after it: R1's fast travel should give them if the game's play time stops during a loading screen (LIKELY, not
+  known). If it never stops, no slot is taken automatically, and the hits (slot, offset, rose, still, other) are the
+  reviewer's to read.
+- **Left for the reviewer and the next round**: the layout's fields (the probe's object searches run on instances
+  r1-derive.json gives), and `dlrf_name_layout`, `register_abi`, the group index, the task's shape and the statics'
+  slots into gal/ from the two reports.
+
+### 194. settings.toml for v0.1: strict, ARCH §11.5's later tables accepted, three tables of this build's own
+
+`2026-11-16` · DECIDED · `#engine #dll #settings` · refs: ARCH§11.5, S10.1.a plan §1.1
+
+- Read: `schema` (1 or 2), `enabled`, `debug.record_sessions`, `debug.log_level`; `overlay.connect` (noted and kept off
+  in this build), `gal.copy` (`seh` or `rpm`, S0-D), and in a probe build `probe` (`round`, `register`, `object_size`,
+  `settle_s`, `fault_group`, `fault_every`, `fault_after_s`). ARCH §11.5's tables for later increments are accepted as
+  tables, unread, so that a full file is not refused; any other key, a wrong type or a value out of range refuses the
+  whole file (the defaults, with each problem's place in the log). `probe` in a release build is refused.
+- `ELDENNET_APPDATA` in the environment stands for %APPDATA% (the launcher's `--appdata` for the DLL): only where the
+  DLL's files go, never what it reads of the game.
+
+### 195. The DLL's imports, exports and greps
+
+`2026-11-16` · FACT · `#engine #dll #ci` · refs: ARCH§2.4, ARCH§3.1, ARCH§10.1, ARCH§12.1, R3, R12, R14
+
+- Debug and Release: one export, `eldennet_instance_marker`; imports from kernel32 (the C runtime's and ours) and user32
+  (EnumWindows, GetWindow, GetWindowThreadProcessId, IsWindowVisible). No network, no hook API, nothing into another
+  process. `imports.allow` is the union, reviewed.
+- The eldennet module holds no cast: the EnumWindows search keeps its answer in a thread_local, not behind an LPARAM,
+  and DllMain's start, the pin and the crash filter's module look-up are en-gal's `sys_boot.hpp`.
+
+### 196. Under Wine, a stack overflow passed on by any DLL's crash filter hangs the process
+
+`2026-11-16` · FACT · `#engine #dll #wine #launcher` · refs: O71, S0-D, WHY§172, WHY§179
+
+- **Seen** (clang-cl, Wine 9.0, the launcher watching): the fake game's `--crash stack-overflow` on its game thread,
+  with eldennet.dll or galtest.dll loaded and its filter installed, never ended (killed after 180 s), even with a
+  filter that returned EXCEPTION_CONTINUE_SEARCH at once without doing anything. With no filter of a DLL's (the
+  launcher's vanilla start, or the DLL loaded by the game itself with no watch block, so no filter), Wine printed
+  "Unhandled stack overflow ... starting debugger" and the process ended at once (exit 1). An access violation passed on
+  by the same filter ends as it should (the `launcher-*crash` cases).
+- **Chosen**: for EXCEPTION_STACK_OVERFLOW alone, EldenNet's filter writes its record (without the module look-up),
+  wakes the watcher, waits for it at most 2 s, then ends the process with TerminateProcess and the overflow's code; it
+  does not pass it on. Nothing after it could have run on that stack anyway; the cost on Windows is that WER and a
+  crash reporter's filter before ours do not see a stack overflow. The `launcher-eldennet-overflow` case checks it.
+- **Open**: whether Windows does the same (S0-D's crash rows on the owner's PC); galtest's filter (part 7's) still
+  passes it on.
