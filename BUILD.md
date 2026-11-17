@@ -105,11 +105,11 @@ cmake --build build-cl
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 8 minutes for the clang-cl build's 84 cases (21 of them the launcher's, below): 52 of about 2 to 8 s each, and
-  the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive` on `fakegame.exe`
-  (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its offsets checked
-  against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build
-  runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
+- About 11 minutes for the clang-cl build's 94 cases (21 of them the launcher's, 10 eldennet.dll's, below): 52 of about
+  2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
+  on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
+  offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
+  The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
@@ -131,6 +131,22 @@ of its own (the watcher galtest starts) waits for every process of the prefix to
 
 In the cross builds CTest lists the unit-test programs too, which it cannot run on Linux: run them under Wine as
 above (`en_core_tests.exe`, `en_launcher_tests.exe` among them).
+
+## eldennet.dll
+
+`src/eldennet/` (part 6) builds `en_shell` everywhere (settings.toml as v0.1 reads it, the scrubbed log's lines, the
+channels, the recorder's numbers-only lines, R1's probe report; `en_shell_tests`) and, in the clang-cl build alone,
+`eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe option (R1).
+Its README has the start as built, the threads, the settings, the recorder and R1.
+
+- `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with
+  `llvm-objdump`: `eldennet_instance_marker` their only export, their imports within `src/eldennet/tests/imports.allow`
+  (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 10 cases,
+  about 3 minutes (R1's is the longest, 40 s). Each installs the DLL in its own folder with gal/ beside it and gives it
+  an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s place (development and
+  tests).
+- `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
 
 ## Checks: compile-fail tests and CI greps
 
