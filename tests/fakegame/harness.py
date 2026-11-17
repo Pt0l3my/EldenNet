@@ -499,6 +499,25 @@ def with_steam(paths):
     paths["steam"] = steam
 
 
+def check_spike_report_s0a(result):
+    """spike-report s0a over the launcher's own log (--need 3 for the case's three runs): each run's mode is there,
+    the early rules pass, and the late load, not run, leaves the verdict incomplete."""
+    failures = []
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    logs = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.startswith("s0a-")]
+    out = os.path.join(result.paths["case"], "s0a-report.json")
+    code, text, _ = run_engine(result.args, result.env, ["spike-report", "s0a", "--need", "3", "--log",
+                                                         result.as_win(logs[-1]), "--out", result.as_win(out)])
+    need(code == 1 and "verdict=incomplete" in text, "spike-report s0a: exit %s %s" % (code, text[-300:]), failures)
+    if os.path.exists(out):
+        with open(out) as f:
+            rep = json.load(f)
+        rules = {(x["rule"], x.get("mode")): x["status"] for x in rep["rules"]}
+        need(rules.get(("runs_per_mode", "suspended")) == "pass" and rules.get(("ready_or_l1", "suspended")) == "pass"
+             and rules.get(("both_modes", None)) == "not_measured", "spike-report s0a's rules: %s" % rules, failures)
+    return failures
+
+
 def spike_log(result, spike):
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
     names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-")] if os.path.isdir(folder) else []
@@ -720,8 +739,9 @@ def check_spike(spike, runs, **tally):
 case("launcher-spike-s0a", LGAME + ["--dll", "{galtest}", "--spike", "s0a", "--runs", "3", "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
      needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=240,
-     check=check_spike("s0a", 3, ready=3, crashes=0, timeout=0),
-     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes")
+     check=lambda r: check_spike("s0a", 3, ready=3, crashes=0, timeout=0)(r) + check_spike_report_s0a(r),
+     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes; "
+          "spike-report reads the log: three early runs pass their rules, the late load not run yet")
 case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-crash", "--runs", "2",
                                           "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
@@ -852,6 +872,26 @@ def check_recordings(min_snaps):
             need("Wanderer" not in text and "Test W" not in text, "the character's name was recorded", failures)
             need(not any(w in text for w in ("Ash Warden", "Quiet Vale", "Lantern")), "game text was recorded",
                  failures)
+            # The part 9 tools on the real recording: rec-stats counts what the DLL wrote, and replay steps its inputs
+            # through en-core again and answers the changes the DLL's core answered.
+            stats_out, replay_out = path + ".stats.json", path + ".replay.json"
+            code, _, err = run_engine(result.args, result.env, ["rec-stats", result.as_win(path), "--out",
+                                                                 result.as_win(stats_out)])
+            need(code == 0 and os.path.exists(stats_out), "rec-stats: exit %s %s" % (code, err[-300:]), failures)
+            if code == 0 and os.path.exists(stats_out):
+                with open(stats_out) as f:
+                    st = json.load(f)
+                need(st["snapshots"]["count"] == kinds.count("snap") and st["marks"] == kinds.count("mark") and
+                     st["life"]["data_ready"] == lives.count("data_ready"), "rec-stats' counts: %s" %
+                     {k: st[k] for k in ("snapshots", "marks", "life")}, failures)
+            code, _, err = run_engine(result.args, result.env, ["replay", result.as_win(path), "--out",
+                                                                 result.as_win(replay_out)])
+            agree = False
+            if os.path.exists(replay_out):
+                with open(replay_out) as f:
+                    rp = json.load(f)
+                agree = rp["agree"] and rp["recorded"] == rp["replayed"] > 0
+            need(code == 0 and agree, "replay: exit %s %s" % (code, err[-300:]), failures)
         return failures
     return check
 

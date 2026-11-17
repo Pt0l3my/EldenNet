@@ -12,6 +12,8 @@
 // significant digits; a bearing without the camera (NaN) is left out.
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -45,5 +47,35 @@ struct RecordingHeader {
 
 // The recorder rotates its file past this many bytes (ARCH §7.5, impl).
 inline constexpr std::uint64_t kRecordingRotateBytes = 256ull << 20;
+
+// ---- Reading a recording back (eldennet-engine rec-stats, replay and spike-report; the plan's part 9) ----
+// One line, read with the words the writer uses, into what the tools need: everything en-core's slice reads of a
+// snapshot (its health, session, life, the HUD and the player's slot, class, level, play time and death), the
+// lifecycle messages, the banners, the core's changes, the commands' kinds and the Marks. What the core does not read
+// (characters, flags, texts, params, positions) is counted, not rebuilt. A PlaythroughReady's name was never recorded,
+// only its length: the reader puts a stand-in of that many letters in its place, so that the core tells one
+// playthrough from another as it did in game, by slot, class and name together.
+struct RecordedLine {
+  enum class Kind : std::uint8_t { Header, Snap, Life, Banner, Change, Cmd, Mark };
+  Kind kind = Kind::Header;
+  std::uint64_t t = 0;  // the recorder's mono ms
+  RecordingHeader header;
+  std::unique_ptr<proto::WorldSnapshot> snap;
+  std::size_t chars = 0;    // a snapshot's characters
+  std::size_t flags = 0;    // a snapshot's flags set, when it carried its flag frame
+  bool flag_frame = false;  // it did
+  proto::Lifecycle life;
+  core::BannerReason banner = core::BannerReason::UnknownBuild;
+  core::Change change;
+  std::string_view cmd;  // the command's kind, as the writer names it
+  std::uint32_t mark = 0;
+};
+
+// The line read back, or nothing for one that is not a recording line of schema 1 as the writer writes it (the tools
+// lint a file first, so this is the second check, not the first).
+[[nodiscard]] std::optional<RecordedLine> read_recorded_line(std::string_view line);
+// A recording's kind and group names, as the writer writes them: "snap", "session".
+[[nodiscard]] std::string_view kind_name(RecordedLine::Kind k) noexcept;
+[[nodiscard]] std::string_view group_name(proto::Group g) noexcept;
 
 }  // namespace en::shell

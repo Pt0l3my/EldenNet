@@ -286,6 +286,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   }
   const DWORD pid = s.pi.dwProcessId;
   const InjectAt at = inject_dll ? c.o.inject_at : InjectAt::Suspended;
+  out.result.mode = inject_dll ? to_string(at) : "vanilla";
   say("started ok=1 run=%u mode=%s inject=%d also=%zu", run, inject_dll ? to_string(at) : "vanilla", inject_dll ? 1 : 0,
       c.o.also.size());
   auto wb = WatchBlock::open(pid);

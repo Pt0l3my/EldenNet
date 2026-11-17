@@ -313,6 +313,9 @@ TEST_CASE("spikes: outcomes, the tally and each spike's rule") {
   CHECK(j["spike"] == "s0a");
   CHECK(j["passed"] == false);
   CHECK(to_json(runs[0], w::Spike::S0a)["outcome"] == "ready");
+  CHECK(to_json(runs[0], w::Spike::S0a)["mode"] == "unknown");
+  runs[0].mode = "title";
+  CHECK(to_json(runs[0], w::Spike::S0a)["mode"] == "title");
 }
 
 TEST_CASE("pre-flight: ARCH §4.3's order, Steam's check optional, the DLL's only when injecting") {

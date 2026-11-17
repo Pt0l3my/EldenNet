@@ -36,6 +36,11 @@
 namespace eldennet {
 
 inline constexpr std::array<std::uint16_t, 3> kVersion = {0, 1, 0};
+#ifdef EN_DLL_VERSION_LABEL
+inline constexpr std::string_view kVersionLabel = EN_DLL_VERSION_LABEL;  // EN_VERSION_LABEL: "0.1.0-spike.1"
+#else
+inline constexpr std::string_view kVersionLabel = "dev";
+#endif
 #if EN_PROBE
 inline constexpr bool kProbeBuild = true;
 #else

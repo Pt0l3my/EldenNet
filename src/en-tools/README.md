@@ -1,8 +1,8 @@
 # en-tools: eldennet-engine
 
 The command-line host that runs EldenNet's engine outside the game (ARCH §12.3), C++20, MIT. One program,
-`eldennet-engine`, with a subcommand each: `render-prompt`, `chat`, `decide`, `probe`, `models`, and the devkit's
-`probe-exe` and `lint` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
+`eldennet-engine`, with a subcommand each: `render-prompt`, `chat`, `decide`, `probe`, `models`, the devkit's
+`probe-exe` and `lint`, and the spikes' `rec-stats`, `replay` and `spike-report` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
 
 ## probe-exe: the derivation's offline round (R0, O89)
 
@@ -145,6 +145,58 @@ with a value; on success one line, `lint: gal/ is clean: builds 1, layouts 1, pa
 leads.toml read`. Exit codes as above, 2 for a folder without a readable builds.toml. ARCH §6.3's check that no
 pattern holds a byte string quoted in `docs/research/` needs the design branch's research folder beside it, and waits.
 
+## rec-stats, replay and spike-report (the first in-game build's part 9)
+
+```text
+eldennet-engine rec-stats <recording> [--out FILE]
+eldennet-engine replay <recording> [--out FILE]
+eldennet-engine spike-report s0a|s0b|s0c|s0d [--log FILE]... [--recording FILE]... [--need N] [--out FILE]
+```
+
+Each reads what the owner's PC wrote, numbers and fixed words only: eldennet.dll's recordings (`*.ensnap.jsonl`, linted
+first as `lint --recording` lints them, then read back with en_shell's `read_recorded_line`, the recorder's own words)
+and the launcher's spike logs (`%APPDATA%\EldenNet\spikes\<spike>-<stamp>.jsonl`: a line per run with its load
+`mode`, then the tally). Each writes a numbers-only report through en-gal's writer, of the kinds `rec_stats`, `replay`
+and `spike` (schema 1; `lint --report` checks them), to `--out` or, for rec-stats and replay, to standard output.
+`docs/design/spikes/formats.md` describes the inputs and the reports for DataPiler's importer.
+
+- **rec-stats**: the lines by kind; the header (game version, region, EldenNet's version, the spike, a probe build,
+  the files); the length; the snapshots (count, `gap` flags, intervals over 1 s and over 5 s, the longest, the rate in
+  mHz, the most characters, the flag frames); the task (the snapshots' build times at p50, p99 and the most, and the
+  C13 histogram's p99, last and highest); each group's faults (summed: a snapshot holds its own tick's), whether it
+  tripped and in how many snapshots it was Ok; the lifecycle messages; the core's changes by kind; the gate's openings,
+  closings and time open; the banners; the commands; the Marks.
+- **replay**: the recording's inputs (its lifecycle messages, banners and snapshots, in their order, each at the
+  latest time seen so far) stepped through en-core's v0.1 slice again, and its changes (what, from and to) compared
+  with the changes the recording holds, which the DLL's core answered in game: `agree`, or the first that differs.
+  The name of a playthrough was never recorded, only its length, so a stand-in of that length takes its place (the
+  core tells playthroughs apart by slot, class and name together). Exit 1 when it disagrees: the core or the recorder
+  has a defect, or the file was changed.
+- **spike-report**: DESIGN §16.1's pass rules, each `pass`, `fail` or `not_measured`, with its value and limit:
+  - `s0a` over `--log` files: per load mode (`suspended`, early; `window` or `title`, late), `runs_per_mode` (at least
+    `--need`, 20 by default), `ready_or_l1` (every run Ready or L1: a banner or inert) and `no_crash`; and
+    `both_modes`, not measured until both loads have run. Per mode too: the items resolved (least and most, of how
+    many), the runs by discovery pass (the retries at +5, +15, +30 s) and the time to Ready (p50, most). The
+    third-party rows (O91) are the owner's runs under the same rules, a log each.
+  - `s0b` over the session's recording and its log: `session_length` (at least 7,200 s of snapshots), `faults` (0),
+    `no_trip` (no group tripped), `task_p99_us` (the C13 p99 at the session's end, at most 500), `no_crash`.
+  - `s0c` over each session's recording and the s0c log: `gate_closed_unless_solo` (no snapshot of another world, a
+    lobby, another player or anti-cheat left with the gate open: the core closes it on the first, so its change
+    follows that snapshot's line), `connections` (the game's connections beyond this PC, at most 0), `no_crash`, and
+    `online_menu`, the owner's to see (never measured); the gate's openings, closings and time open.
+  - `s0d` over the session's recording, its log and the s0d-crash log: `faults_caught` (at least `--need` faults
+    caught, 20 by default), `breaker_tripped` (a group's breaker tripped), `no_crash` (the session), and
+    `crashes_recorded` (every forced crash recorded by the watcher).
+
+  The verdict is `pass` when every rule measured passes and none is missing, `incomplete` when one could not be
+  measured from the files given (`online_menu` aside), else `fail`; each rule is a line on standard output
+  (`spike-report: rule=task_p99_us status=pass value=310 limit=500`), then the verdict.
+
+Exit codes: 0 written (replay agreeing; spike-report passing); 1 replay disagreeing, or a spike's verdict `fail` or
+`incomplete`; 2 a usage error, or a file that cannot be read, is too large (a recording 512 MiB, a log 16 MiB) or is
+refused (a recording by the lint, a log line that is not the launcher's); 5 a report refused by its own writer (a
+defect of ours). No message quotes what a file held.
+
 ## gal/ for the owner's 2.7.2.0 WW (R0c into R1)
 
 The repository's `gal/` now holds what R0c, the second offline run (2026-11-16), gave, each value a lead until R1 and
@@ -163,7 +215,12 @@ content, the static's pattern from a slot, the lint's refusals of a path, a free
 quoting them, a recording linted clean and one with a path refused at its line, `lint --gal` clean on the
 repository's gal/ and on an invented folder and refusing seven invented ones (a pattern without its note, a layout
 for another build, a confirmed build builds.toml lacks, a bad builds.toml, a missing layout, a half-filled lead
-`[task]`, a provenance that is not our own derivation) without quoting them, and no path in any message; `--sections` against the table read in Python, a refused section's line
+`[task]`, a provenance that is not our own derivation) without quoting them; rec-stats, replay and spike-report on
+recordings that `en_tools_write_recording` writes as eldennet.dll's core thread does (a solo session of two hours, the
+same with a slow task and a fault, a co-op visit that closes the gate, faults injected until a breaker trips) and on
+invented spike logs: the counts, every replay agreeing and a recording with a change taken out disagreeing at it, each
+spike's rules and verdict passing, failing (19 runs, a crash, a slow p99, a connection, the gate left open, a crash
+not recorded) and incomplete (one load only), and the refusals; and no path in any message; `--sections` against the table read in Python, a refused section's line
 (its shape, its numbers, and DataPiler's log's shape), and a copy whose last section's raw data runs past the end of
 the file and whose SizeOfImage is short of its alignment, which derives as the file itself does. The Windows builds run the same commands under Wine on `fakegame.exe`
 (`tests/fakegame/`).

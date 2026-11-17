@@ -106,7 +106,10 @@ With `debug.record_sessions = true`, T6 writes `%APPDATA%\EldenNet\recordings\<d
 plain JSON Lines (no zstd yet: plan §1.3), rotated past 256 MB, flushed every second. Each line is one report of the kind
 `recording` through en-gal's closed-vocabulary writer on one line: `{"report":"recording","schema":1,"t":<mono ms>,
 "k":"header"|"snap"|"life"|"banner"|"change"|"cmd"|"mark",...}`. `eldennet-engine lint --recording` checks a file, and
-DataPiler's guard can check it key by key (O73). Numbers only by construction: there is no free string, so no name,
+DataPiler's guard can check it key by key (O73). `record.hpp`'s `read_recorded_line` reads a line back with the same
+words, into what the tools need (eldennet-engine's rec-stats, replay and spike-report): what en-core's slice reads of a
+snapshot, the lifecycle messages (a playthrough's name a stand-in of its recorded length), the banners, the changes,
+the commands' kinds and the Marks; the rest is counted, not rebuilt. Numbers only by construction: there is no free string, so no name,
 SteamID, path, game text or param value can be written. A text look-up's answer keeps its table, id and whether it was
 found; a param row its param, id and field count; PlaythroughReady its slot, class, keepsake, play time and the name's
 length. Keyed hashes and redacted text wait for S10.2.d.

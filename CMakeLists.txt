@@ -7,6 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(EN_BUILD_TESTS "Build the unit tests" ON)
+# The version the programs report: eldennet-launcher's log, eldennet-engine version, eldennet.dll's version resource and
+# log. A spike package is labelled 0.1.0-spike.N (the plan's part 10; tools/spikepkg).
+set(EN_VERSION_LABEL "${PROJECT_VERSION}" CACHE STRING "The build's version label")
+if(NOT EN_VERSION_LABEL MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z]+(\\.[0-9]+)?)?$")
+  message(FATAL_ERROR "EN_VERSION_LABEL is a version such as 0.1.0 or 0.1.0-spike.1")
+endif()
 option(EN_WITH_CURL "Build the libcurl transport (Linux and test builds)" ON)
 
 # Header-only libraries (THIRD_PARTY.md). inja and doctest are vendored with their licences; nlohmann/json and toml++

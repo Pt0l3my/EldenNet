@@ -141,7 +141,7 @@ void run(HMODULE module) {
   s.module = module;
   s.paths = find_paths(module);
   log(Line("boot").num("pid", GetCurrentProcessId()).word("dll", word_of(en::shell::file_name_of(s.paths.dll)))
-          .flag("probe_build", kProbeBuild).num("version_minor", kVersion[1]));
+          .flag("probe_build", kProbeBuild).num("version_minor", kVersion[1]).word("version", kVersionLabel));
 
   // ---- Gate (ARCH §3.2): the mapped headers against gal/builds.toml; the result waits for Safety ----
   s.sys = new en::gal::NativeSys(en::gal::CopyKind::Seh);  // lives for the process (R14)

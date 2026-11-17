@@ -114,7 +114,10 @@ stand still in), no allocation on the game thread, and the live derivation's sin
 owner runs it (`launcher-eldennet-probe`: `--probe` with no settings.toml, invented saves backed up first, the default
 settle of 10 s, Pause pressed every second from the title until it is taken; the console's six steps in order, the
 reviewed idiom and the layout's group confirmed, the launcher's lint of both reports), and `--probe` with the release
-DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report).
+DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report). The part 9 tools run on what
+these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (the counts as written, and en-core
+stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
+(three early runs passing their rules, each with its load mode, the late load not run).
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
