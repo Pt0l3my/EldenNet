@@ -911,8 +911,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     atlas, notices in the Grace look, input for a panel through the holder, and world-state providers; a second
     example mod draws through them in the harness (WHY§140 to §147). The fonts' folder ships from 0.6, as §10 has
     it; until then notices fall back to Dear ImGui's own font.
-- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in CI
+- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in the harness [active]
   - needs: c
+  - gives: from 2026-11-17 GraceUI's side is the Grace session's (handover-2026-11-17): a helper that turns Dear
+    ImGui's draw data into GraceUI's draw lists, an example of the banner and the F11 view, and two consumers at once,
+    each way round. F11 comes through GraceUI's hotkeys, brought forward from 0.2 into 0.1. EldenNet's side is the
+    spike plan's part 12, built after them. "In CI" became the harness run in the session: neither repository has
+    workflows, by the owner's choice.
 
 ## S11 v0.2 First words [planned]
 
