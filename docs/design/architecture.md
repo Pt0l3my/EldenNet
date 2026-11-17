@@ -42,10 +42,12 @@
 
 | Process | Lifetime | Contains |
 |---|---|---|
-| `eldennet-launcher.exe` | A launch, then, since O71, the whole session in the background as the crash watcher; it exits when the game does (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection; plugins (§4.12); the crash watcher ([proposal 0001](../proposals/0001-plugins.md) §13.7) |
+| `eldennet-launcher.exe` | A launch, then, since O71, the whole session in the background as the crash watcher; it exits when the game does (§4) | Discovery, pre-flight, backups, `steam_appid.txt`, injection; plugins (§4.12); the crash watcher and the watch block it shares with EldenNet ([proposal 0001](../proposals/0001-plugins.md) §13.7; §4.14); in development, the dev console, the Mark and R1 (O89, O90) |
 | `eldenring.exe` | The game session | `eldennet.dll`: GAL, core, store, net, overlay. All ML is reached over HTTP (DESIGN §2.1) |
 
-No helper process is spawned from inside the game. The out-of-process core stays a seam (`CoreTransport`, §2.2, DESIGN §13).
+No helper process is spawned from inside the game, save one: under another loader, EldenNet starts the crash watcher
+itself, `eldennet-launcher --watch <pid>` beside the DLL (O71; §4.14). The out-of-process core stays a seam
+(`CoreTransport`, §2.2, DESIGN §13).
 
 ### 1.2 Thread inventory
 
@@ -103,7 +105,7 @@ flowchart LR
 | C11 | Watcher → core | A bounded queue of our own of `Reload` | 8 | Coalescing: a newer `ContentPack` or `Settings` replaces a queued one |
 | C12 | Overlay ↔ GraceUI's input | GraceUI's state since its G15: EldenNet asks with `request_input` and `release_input`, and reads "input granted, refused, lost and free" and "input held by" through `poll`; the player-input epoch stays EldenNet's own atomic (`EPOCH`, a `std::atomic<std::uint64_t>`), advanced on those events | — | None |
 | C13 | Task → debug and core | Per-group fault counters and a fixed 64-bucket timing histogram, all atomics | — | None; they saturate |
-| C14 | Init and watcher → task | `ANTICHEAT` and `ERSC_LOADED`, each a `std::atomic<bool>` | — | None |
+| C14 | Init and watcher → task | `ANTICHEAT` and `ERSC_LOADED`, each a `std::atomic<bool>`. *As built (WHY§191):* the core thread joins them to each snapshot's session before the core judges it; the task's own read leaves them false (WHY§169) | — | None |
 | C15 | Core → net | `AI_ALLOWED`: the client's gate, a `std::atomic<bool>` set with `Service::set_gate_open` (built). The net checks it before every send, as a second lock behind the core's own gate (C4 criterion, §5); closing it stops running requests and ends queued ones as `GateClosed` | — | None |
 | C16 | Clock → core | A 100 ms tick (impl): the core's wait on its wake signal ends at the next tick at the latest, so expiry, page pacing and timers advance with no snapshots (title, loading) | — | Ticks coalesce |
 | C17 | Core → watcher | A bounded queue of our own of `ProfileWrite` (`target`, `rev`, the file's text) from the settings UI's profile editor (DESIGN §7.7) | 8 | Never blocks: when full the save is refused with "busy, try again"; the result returns on C11 as `Reload::ProfileResult { target, rev, outcome }` |
@@ -128,8 +130,9 @@ sequenceDiagram
   L->>D: LoadLibraryW (any time)
   D->>D: DisableThreadLibraryCalls, CreateThread(init)
   D-->>L: TRUE (no other work under loader lock)
-  I->>I: pin module, gate (PE version vs gal/builds.toml)
-  I->>I: safety (single-instance mutex, anti-cheat)
+  I->>I: pin module, single-instance mutex (R16)
+  I->>I: gate (PE version vs gal/builds.toml)
+  I->>I: safety (anti-cheat; the launcher's watch block, or the watcher started)
   I->>I: settings.toml: enabled? (no → exit, Off)
   I->>C: spawn core, watcher, log writer
   I->>I: readiness 1: main window exists (poll 100 ms)
@@ -138,11 +141,12 @@ sequenceDiagram
   U-->>O: ok, inactive (anti-cheat), too_old or refused
   O->>U: register faces, panels, hotkeys; world-state provider
   alt gate or safety failed
+    I->>I: crash filter installed
     I->>C: Banner(reason) → L1, init exits
   else
-    I->>I: scan for readiness items (global_hinstance, CSTask static)
-    I->>I: readiness 2: statics non-null, DLRF names resolve (≤ 120 s total)
-    I->>I: discovery: AOBs, FD4 singletons, RTTI (retries +5, +15, +30 s)
+    I->>I: discovery: AOBs, FD4 singletons, RTTI (retries +5, +15, +30 s: also the wait for the names)
+    I->>I: readiness 2: the task hub's instance non-null (≤ 120 s from T1's start)
+    I->>I: crash filter installed (after the game's C runtime has set its own)
     I->>G: register_task(ChrIns_PostPhysics)
     I->>C: spawn store and net
     G->>G: first ticks: group check, phase-A self-tests
@@ -155,6 +159,11 @@ sequenceDiagram
 - **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.2). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
 - Store and net threads start only on the path that can reach L2. An L1 session never opens a database or a socket; the dashboard's socket is GraceUI's (GraceUI D81).
 - `register_task` is called from T1, a non-main thread, as the game's contract requires (ER01 §3.1).
+- **As built** (the first in-game build, 2026-11-16; WHY§191): the mutex is taken at Pin, discovery runs before the
+  readiness wait and finds the readiness items with the rest (no separate scan), and the crash filter goes in only
+  once the game has started (§3.2). The first build is headless: Connect is logged as skipped (`overlay.connect` stays
+  off), and the banner reaches the core and the watch block but is not drawn until GraceUI's part lands (roadmap
+  S10.4.d).
 
 ### 1.5 Shutdown
 
@@ -171,7 +180,7 @@ The game never asks a DLL to shut down. EldenNet therefore never relies on a shu
 ### 1.6 Single-instance mutex (R16)
 
 - Name: `Local\EldenNet.Instance.<pid>`, made per process by the PID.
-- T1 calls `CreateMutexW(NULL, FALSE, name)`. If `GetLastError() == ERROR_ALREADY_EXISTS`, this copy is the second one. It closes the handle, writes one `OutputDebugStringW` line and exits T1. It installs no hooks, spawns no thread and registers no task.
+- T1 calls `CreateMutexW(NULL, FALSE, name)` at Pin, right after pinning the module and before the gate, so that a second copy loaded a moment after the first cannot overtake it while it gates (WHY§191). If `GetLastError() == ERROR_ALREADY_EXISTS`, this copy is the second one. It closes the handle, writes one `OutputDebugStringW` line and exits T1. It writes no log, opens no watch block, installs no hooks, spawns no thread and registers no task.
 - The first copy holds the handle for the life of the process and never closes it.
 - At Ready, the first copy enumerates loaded modules. If another module exports the marker symbol `eldennet_instance_marker`, it shows one toast: "A second copy of EldenNet was loaded and is idle." This happens, for example, when both the launcher and a me3 profile load the DLL.
 
@@ -282,13 +291,13 @@ struct Outputs {
 | `en-proto` | The standard library; nlohmann/json 3.11.3 (each message's JSON form). Our own fixed-capacity `FixedVector` and `FixedString` and the flag sets (an `enum class` with bitwise operators) live here | Anything with I/O, threads, clocks, Win32 or game knowledge |
 | `en-augur` | `en-proto`, nlohmann/json, toml++ 3.4.0 (the rule files), our own `IndexMap` (a vector in insertion order with a hash index beside it) | `en-core`, `en-gal`, `en-store`, `en-llm`, `en-overlay`, any thread or network library, the Windows SDK, `std::filesystem` and file streams, any clock |
 | `en-prompt` (built) | inja 3.4.0 (vendored, MIT), nlohmann/json; the standard library (`std::filesystem` and file streams in its folder source only, for the tools) | Every other module of ours, the Windows SDK, any clock |
-| `en-core` | `en-augur`, `en-proto`, `en-prompt` (the template engine on inja, O84), toml++, nlohmann/json, RE2 (where a pattern comes from content, §10.2), utf8proc (grapheme boundaries), BLAKE3 (its C implementation), GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, any network library, libcurl, WinHTTP, SQLite, the Windows SDK, any clock |
+| `en-core` | `en-augur`, `en-proto`, `en-prompt` (the template engine on inja, O84), toml++, nlohmann/json, RE2 (where a pattern comes from content, §10.2), utf8proc (grapheme boundaries), BLAKE3 (its C implementation, or the launcher's own hash extended to the keyed modes, chosen when the keyed hashes are built; WHY§174), GraceUI's `grace-protocol` (pinned by tag; GraceUI eldennet-changes §2 item 5) | `en-gal`, `en-overlay`, `en-store`, `en-llm`, any network library, libcurl, WinHTTP, SQLite, the Windows SDK, any clock |
 | `en-store` | `en-proto`, SQLite (its amalgamation, pinned at adoption, through its C API), the standard library's threads (the request loop and C8's queues) | `en-core`, `en-gal`, `en-overlay`, `en-llm` |
 | `en-llm` (built) | `en-proto`, nlohmann/json, toml++ (its configuration files), libcurl (Linux and test builds, the `EN_WITH_CURL` option), the system's WinHTTP (Windows: loaded at run time by its full path from the system directory, never imported), the standard library's threads | `en-core`, `en-gal`, `en-overlay`, `en-store` |
 | `en-gal` | `en-proto`, the Windows SDK's headers (`sys` only), toml++ | `en-core`, `en-augur`, `en-store`, `en-llm`, `en-overlay`, Dear ImGui, any network library |
 | `en-overlay` | `en-proto`; GraceUI's `graceui-sys` (its header-only C helper and thin C++ wrapper), `grace-draw` and `grace-view`, pinned by tag and commit (GraceUI G15, its §2.7); Dear ImGui's core with no renderer backend, at the version GraceUI pins (1.93.0), for F11's context; the Windows SDK's headers | `en-gal` (it can never reach game memory), `en-core`; since GraceUI's G15, MinHook or any other hook library, an ImGui renderer backend, and GraceUI's `grace-host` and `grace-serve` (GraceUI invariant 16; DESIGN R12) |
 | `eldennet` | All of the above and the Windows SDK (`ReadDirectoryChangesW` for T10). Its queues and its logger are our own (§1.3) | — |
-| `en-launcher` | `en-gal`'s offline part, the Windows SDK, BLAKE3 (the backup manifests, §4.4); once it serves the dashboard off game (O76), GraceUI's `grace-serve`, pinned by tag (GraceUI G29, §4.13) | Every other module of ours |
+| `en-launcher` | `en-gal`'s offline part (the PE reader and `builds.toml`'s gate) and, through it, `en-proto` (the watch block it shares with EldenNet, §4.14, and `ffi_guard`); nlohmann/json and toml++ (its records and its settings); the Windows SDK; our own BLAKE3 hash (`blake3.cpp`, written from the specification and checked against its published test vectors, for the backup manifests, §4.4), in place of BLAKE3's C implementation, which would have added a C compiler to every build and a third-party target for one function (WHY§174); for `--probe`'s lint of R1's reports, the report vocabularies in `eldennet`'s portable part, `en_shell` (WHY§199); once it serves the dashboard off game (O76), GraceUI's `grace-serve`, pinned by tag (GraceUI G29, §4.13) | Every other module of ours |
 | `en-tools` | `en-core`, `en-prompt`, `en-augur`, `en-store`, `en-llm`, `en-gal`'s offline part, zstd; doctest for its tests | `en-overlay`, the rest of `en-gal` (`sys`, `reader`, `task`) |
 
 **`en-prompt` inside `en-core`.** `en-prompt` finds every template through a template source of its own
@@ -333,7 +342,7 @@ module builds the same with it on or off.
 
 | Option | Modules | Enables | Release CI |
 |---|---|---|---|
-| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | In-game invariant search that writes a draft layout (§6.10), plus the fault-injection hooks used by the C1 forced fail-closed launches | Refused |
+| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | The derivation round's R1 (§6.2, §6.10): the live derivation, the one call at the Mark, the slot counts, the hub census, the statics' slot searches and the invariant searches for a draft layout; the fault injection used by S0-D and the C1 forced fail-closed launches; the launcher's crash request (`s0d-crash`). Built as its own DLL, `probe/eldennet.dll`, and `settings.toml`'s `probe` table is refused by any other (§11.5) | Refused |
 | `hooks` (`EN_HOOKS`) | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11), and with them EldenNet's own hook library, in `en-gal`'s `hooks` (O65). Compiled out in v1 | Refused |
 | `actions` (`EN_ACTIONS`) | `en-proto`, `en-core` | `GameCommand::Action`, executors, prompt partials | Refused |
 | `freeze` (`EN_FREEZE`) | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
@@ -406,27 +415,26 @@ has returned.
 ```mermaid
 stateDiagram-v2
   [*] --> Pin
-  Pin --> Gate
+  Pin --> Exit: second copy (the mutex)
+  Pin --> Gate: first copy
   Gate --> Safety: build known
   Gate --> SafetyBanner: unknown build
-  Safety --> Settings: first copy, no anti-cheat
-  Safety --> Exit: second copy
+  Safety --> Settings: no anti-cheat
   Safety --> WaitWindow_B: anti-cheat present
-  SafetyBanner --> WaitWindow_B: first copy
-  SafetyBanner --> Exit: second copy
-  Settings --> Exit: enabled = false (Off)
+  SafetyBanner --> WaitWindow_B
+  Settings --> Exit: enabled = false (Off), or the launcher's --probe refused (no probe build)
   Settings --> WaitWindow
   WaitWindow --> Connect: window exists
   WaitWindow --> Banner: 120 s
   WaitWindow_B --> ConnectB: window exists
   ConnectB --> Banner
-  Connect --> ReadyScan
-  ReadyScan --> WaitEngine: readiness items located or skipped
-  WaitEngine --> Discover: statics non-null and DLRF names resolve
-  WaitEngine --> Banner: 120 s since T1 start
+  Connect --> Discover
+  Connect --> R1: probe build, R1 asked (§6.2)
   Discover --> Discover: retry at +5, +15, +30 s
-  Discover --> Register: required items resolved
+  Discover --> WaitEngine: required items resolved
   Discover --> Banner: required item missing after +30 s
+  WaitEngine --> Register: the task hub's instance non-null; crash filter installed
+  WaitEngine --> Banner: 120 s since T1 start
   Register --> FirstTick
   Register --> Banner: register call faulted
   FirstTick --> Ready: group check and phase-A tests pass
@@ -438,19 +446,40 @@ stateDiagram-v2
 
 | State | Does | Timeout | Failure → |
 |---|---|---|---|
-| Pin | Pin the module (§1.5); note the QPC start time | — | — |
-| Gate | Read `VS_FIXEDFILEINFO`, `ProductName`, region, `TimeDateStamp` and `SizeOfImage` from the main module's mapped headers; match against `gal/builds.toml` (§6.3) | — | Unknown build → banner path (no task, zero reads, C2) |
-| Safety | Mutex (§1.6). Anti-cheat check (§5.3). Logging starts here, so a second copy never writes to the shared log; gate results buffered until now are flushed | — | Second copy → Exit. Anti-cheat → banner |
-| Settings | Parse `settings.toml` (§11.5). If parsing fails, use the defaults and show a toast later | — | `enabled = false` → Exit (Off) |
+| Pin | Pin the module (§1.5); note the QPC start time; take the mutex (§1.6), here rather than in Safety, so that a second copy loaded a moment later cannot overtake the first while it gates (WHY§191) | — | Second copy → Exit: one `OutputDebugStringW` line, nothing else |
+| Gate | Read `VS_FIXEDFILEINFO`, `ProductName`, region, `TimeDateStamp` and `SizeOfImage` from the main module's mapped headers; match against `gal/builds.toml` (§6.3), the product names compared without symbols | — | Unknown build → banner path (no task, zero reads, C2) |
+| Safety | Anti-cheat check (§5.3). Logging starts here, so a second copy never writes to the shared log; gate results buffered until now are flushed. The launcher's watch block is opened, or, under another loader, the watcher is started (`eldennet-launcher.exe --watch <pid>` beside the DLL) and its block awaited for 3 s (O71; §4.14) | — | Anti-cheat → banner |
+| Settings | Parse `settings.toml` (§11.5). If parsing fails, use the defaults and show a toast later. Answer the launcher's R1 request in the watch block, if any (§4.14) | — | `enabled = false` → Exit (Off). An R1 request to a build that is no probe build, or with EldenNet off → refused, Exit: nothing called |
 | WaitWindow | Poll every 100 ms for a visible top-level window owned by this PID | 120 s from T1 start | Banner (logged; drawn if the window appears later) |
 | Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69) | 30 s (the helper's bound) | A failed connect (`too_old`, `refused`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
 | ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88) | 30 s | No GraceUI → no banner can show; logged, with the launcher's hint |
-| ReadyScan | Scan the image for the two readiness items only: `global_hinstance` (AOB) and the `CSTask` static (FD4 finder, §6.2). This is the earliest scan, done after the window exists | Part of the 120 s | Not found → readiness falls back to "window exists and the `CSTask` static is non-null" (DESIGN §3.1) |
-| WaitEngine | Poll every 100 ms: `global_hinstance` static non-null (if found), then the `CSTask` static non-null and the DLRF name of its runtime class readable | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
-| Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5) | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
-| Register | Build our task object and call `register_task` once from T1 (§6.4) | — | Fault caught by SEH → banner. Nothing else is retried |
+| Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2), the readiness items among them: there is no separate readiness scan (WHY§191). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5); since the game writes the FD4 class objects' names at run time, the retries are also the wait for the names | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
+| WaitEngine | Poll every 100 ms until the task hub's instance (`CSTask`) is non-null. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
+| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4) | — | Fault caught by SEH → banner. Nothing else is retried |
+| R1 | A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
 | FirstTick | Wait for the first tick. On the game thread, the task checks that the group at the layout's index is named `ChrIns_PostPhysics` (§6.3), then runs the phase-A self-tests over ≤ 8 ticks (§6.7) | 30 s for the first tick (impl) | No tick or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
-| Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; T1 exits | — | — |
+| Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; another module exporting `eldennet_instance_marker` is noted as an idle second copy (§1.6); T1 exits | — | — |
+
+On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, raises the
+banner (L1) and ends.
+
+**The crash filter** (O71; as built on 2026-11-16, WHY§172, §196). EldenNet's unhandled-exception filter is what lets the
+watcher record a crash with its place (§4.14).
+- **Installed after the engine wait** (after WaitWindow on the banner path), never in Pin or Safety: the game's C
+  runtime installs a filter of its own while it starts, which does not chain, so a filter an early-loaded DLL installed
+  on T1 would be replaced and a crash on the game thread would reach none of ours (seen in the fake game under Wine). A
+  game that replaces the filter later still leaves the watcher its exit code and its last module list.
+- **Chained** to the filter it replaces, and one record per process: a fault inside the filter, or a second at once,
+  goes straight on. It writes the code, the thread (game, init or other), whether it chained, and the faulting module's
+  file name and offset (no folder) into the watch block, wakes the watcher and waits for it at most 2 s.
+- **A few KB of stack.** It allocates nothing, takes no lock and calls nothing of the C runtime, so it works in the
+  little stack a thread has left after an overflow; after a stack overflow it skips the module look-up too.
+- **A stack overflow ends the process.** For `EXCEPTION_STACK_OVERFLOW` alone the filter, once the watcher has its
+  record, ends the process itself with `TerminateProcess` and the overflow's code, instead of passing it on: under Wine,
+  an overflow passed on by any DLL's filter hung the process for good, and nothing after it could have run on that stack
+  anyway. The cost on Windows is that WER and a crash reporter's filter installed before ours do not see an overflow;
+  whether Windows hangs the same way is S0-D's to show on the owner's PC. Every other exception goes on to the filter
+  before ours.
 
 **Required vs optional items.**
 - **Required:** `register_task`, `CSTask`, `WorldChrMan`, `GameDataMan`, `GameMan` and `CSSessionManager`. They back `boot`, `world`, `player` and `session`.
@@ -470,10 +499,15 @@ stateDiagram-v2
 
 The DLL never assumes which loader it has, never calls a loader export, and needs no initializer symbol.
 
+For S0-A's late mode the launcher loads late too (§4.14; WHY§177): `--inject-at window` once the game's window shows,
+or `title` a fixed `--title-wait` seconds after it (15 by default, to be set to what the owner's game needs), since the
+launcher never reads the game's memory (O73) and cannot see the title from outside; the run's report says where T1
+found the game.
+
 ---
 ## 4. The EldenNet launcher
 
-`eldennet-launcher.exe` is our own small Win32 program, about 400 lines. It has no main window: notices and errors use `TaskDialogIndirect`. It follows the documented community pattern: start `eldenring.exe` directly so EAC never runs, then inject a DLL into the suspended process (ER02 §2.1, §3.2). No code is taken from any launcher.
+`eldennet-launcher.exe` is our own small Win32 program (en-launcher, §2.3). It has no main window: notices and errors use `TaskDialogIndirect`. It follows the documented community pattern: start `eldenring.exe` directly so EAC never runs, then inject a DLL into the suspended process (ER02 §2.1, §3.2). No code is taken from any launcher.
 
 ### 4.1 Command line
 
@@ -491,6 +525,28 @@ The DLL never assumes which loader it has, never calls a loader export, and need
 | `--plugins` | Check and install what is new in `plugins/`, show the list with the code plugins to turn on, and exit without starting the game: the way to manage plugins for players who start through their own loader (§4.12) |
 
 `--game`, `--backup-only`, `--cleanup` and `--print-diagnostics` are additions to DESIGN's three flags (impl); `--no-plugins` and `--plugins` come with plugins in 1.1 (O66, O67).
+
+| Flag (as built, the first in-game build) | Effect |
+|---|---|
+| `--watch <pid>` | Watch a game another loader started, as the crash watcher (§4.14); EldenNet starts the launcher so itself under another loader (O71). Given alone |
+
+**Development and test options** (built 2026-11-16 and 17; WHY§177, §199). They are in every build of the launcher,
+listed apart in `--help`, and none changes anything unless given (§2.5 has no option to compile them out):
+
+| Flag | Effect |
+|---|---|
+| `--inject-at suspended\|window\|title` | When the DLLs load: into the suspended game (the default), once its window shows, or `--title-wait <s>` seconds after it (§3.3) |
+| `--also <path>` | Load a DLL that is not ours before EldenNet's: a stand-in for another mod, such as the tests' stand-in crash reporter with a vectored handler (S0-D, O91) |
+| `--appid-method file\|env`, `--remove-after window\|exit\|never` | `launcher.toml`'s choices for one run (§4.5, pending S0-C) |
+| `--console` | The dev console: EldenNet's status from the watch block every second while it changes, and the development Mark (§4.14, O90) |
+| `--probe` | The derivation round's R1 (O89; §4.14): brings `--console`; refuses `--no-backup`, `--vanilla-offline` and `--spike`; a failed backup ends the launcher |
+| `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14) |
+| `--no-dialogs [--yes]`, `--no-steam-check`, `--gal <dir>`, `--steam <dir>`, `--appdata <dir>` | For the tests and the harness: no task dialogs (an answer given by `--yes`), no Steam check, and other folders for `gal/`, Steam and `%APPDATA%` |
+
+Arguments that are no option (Proton's forwarded `%command%`, §4.9) are set aside and counted; everything after `--`
+goes to the game. Exit codes: 0 done (the game started and ended, whatever its own exit), 1 a spike's runs did not all
+pass its rule, 2 a usage error, 3 nothing could be done, and 11 to 21 the errors E01 to E11 (10 plus the error's
+number).
 
 ### 4.2 Finding the game
 
@@ -519,7 +575,8 @@ The DLL never assumes which loader it has, never calls a loader export, and need
 
 - **Source:** each `%APPDATA%\EldenRing\<SteamID64>\` folder whose name is 17 digits. From each, copy `ER0000.sl2` and `ER0000.sl2.bak` if present (ER01 §11).
 - **Destination:** `%APPDATA%\EldenNet\save-backups\<SteamID64>\<YYYYMMDD-HHMMSS>\`.
-- **Method:** copy to `*.tmp`, check that the sizes match, then rename. Each backup folder gets a `manifest.toml` with sizes and blake3 hashes.
+- **Method:** copy to `*.tmp`, check that its size and BLAKE3 hash match the source's, then rename. Each backup folder gets a `manifest.toml` with sizes and BLAKE3 hashes. The hash is our own (`blake3.cpp`, §2.3), checked against 16 of BLAKE3's published test vectors, whole and fed in pieces.
+- **With `--probe`** a failed backup ends the launcher: no "Continue without a backup" (§4.14).
 - **No duplicates:** if both hashes equal the newest backup's, no new folder is made (impl).
 - **Rotation:** keep the newest 10 folders per SteamID and delete older ones. Deletion happens only after a new backup has succeeded.
 - **Never:** the launcher never writes, moves or renames anything under `%APPDATA%\EldenRing\`.
@@ -542,18 +599,22 @@ sequenceDiagram
   participant LA as Launcher
   participant P as eldenring.exe (suspended)
   LA->>P: CreateProcessW(Game\eldenring.exe, cwd=Game, CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT)
+  LA->>LA: make the watch block, Local\EldenNet.Watch.<pid> (§4.14)
   LA->>P: VirtualAllocEx(len of DLL path, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
   LA->>P: WriteProcessMemory(wide DLL path, NUL-terminated)
   LA->>P: CreateRemoteThread(LoadLibraryW from kernel32, path)
   P-->>LA: thread exits (WaitForSingleObject, 30 s)
-  LA->>LA: GetExitCodeThread != 0, and the module is listed (Toolhelp32 snapshot)
+  LA->>LA: the module is listed (Toolhelp32 snapshot); the exit code only names a failed step
   LA->>P: VirtualFreeEx, then ResumeThread(main thread)
   LA->>LA: wait for the window (§4.5), remove steam_appid.txt if ours
   LA->>LA: stay as the crash watcher until the game ends (O71), then exit
 ```
 
 - **Absolute path:** the DLL path is absolute, so the game's search order is never used.
-- **Failure before resume:** if any step fails, the launcher calls `TerminateProcess` on the suspended game and shows E10. A half-injected game never starts. E10 offers "Start without EldenNet" (the same as `--vanilla-offline`).
+- **Failure before resume:** if any step fails, the launcher calls `TerminateProcess` on the suspended game and shows E10. A half-injected game never starts. E10 offers "Start without EldenNet" (the same as `--vanilla-offline`). A failed late load (`--inject-at window` or `title`) ends the game too (WHY§177).
+- **Which module loaded** is the game's module list's to say: `LoadLibraryW`'s thread exit code is the module handle's low half, which is 0 for a module at a 4 GiB boundary (WHY§177).
+- **Each DLL in turn:** `--also`'s first, then EldenNet's, each by its absolute path on a thread of the game's own.
+- **Closing the game** (a spike's runs): `WM_CLOSE` to its windows, then after 10 s `TerminateProcess` with the code "ENLC" (0x454E4C43), which the records call `closed`, never a crash.
 - **No elevation:** the launcher requests no elevation (`asInvoker` manifest).
 
 ### 4.7 Error texts
@@ -650,6 +711,53 @@ no network listener. `eldennet.dll` links no `grace-serve`: in the game the serv
 show, the settings off game and the handover of the address between the launcher and the game are O76 to O79's fold
 (roadmap S7.12.c).
 
+### 4.14 The crash watcher, the watch block, the Mark and R1 (O71, O89, O90; as built)
+
+**The watch block** (decided 2026-11-16, WHY§173). One page of shared memory, `Local\EldenNet.Watch.<pid>` with two
+events beside it, laid out by en-proto's `watch.hpp` at fixed offsets (checked by `static_assert` in every build, since
+the launcher builds with MinGW-w64 and clang-cl and the DLL with clang-cl). The launcher makes it before it loads
+anything; under another loader, EldenNet's watcher (`--watch <pid>`) makes it. EldenNet writes T1's state, its status
+(the core's phase, level and gate flags, discovery's counts, snapshots, faults, trips, the task's p99) and, from its
+crash filter, the crash record (§3.2); the launcher writes the spike, a crash request (probe builds), R1's request and
+the Marks. Numbers and one module file name only. It lives in en-proto because the DLL may not depend on en-launcher and
+the launcher on nothing of ours but en-gal's offline part (§2.3). Rejected: a pipe (a reader thread on both sides and a
+protocol), a file (no wake-up, and a crash leaves it half written), and the DLL writing the record itself (it must not
+allocate or do I/O in its filter).
+
+**The crash watcher** (O71). While EldenNet's filter waits, the watcher lists the game's modules by file name and
+answers. When the game ends it reads the exit code and keeps a record in `%APPDATA%\EldenNet\crashes\` of any end that
+was not clean: the kind, the codes, EldenNet's last status and crash record, the modules (each name reduced to its file
+name and to letters, digits and `._-+ `), the session's length and the Marks. Numbers, fixed words and module file names
+only: no dump, no path, no user or account name, nothing of the game's or the player's text. A crash EldenNet's filter
+never saw (a fast fail, or a game that replaced the filter) still leaves its exit code and the last module list, taken
+every 5 s. The newest 20 records are kept, and the next start explains the newest one. EldenNet's last log lines join
+the record later.
+
+**The dev console and the development Mark** (O90, decided 2026-11-16). `--console` prints EldenNet's status from the
+block every second while it changes, on the console the launcher was started from or one of its own, and registers
+**Pause** as a system hotkey (`RegisterHotKey`: no hook). Each press is a Mark: numbered from 1, stamped in monotonic
+milliseconds (QPC, the snapshots' own clock) into the block's ring of 32, from which EldenNet's recorder takes it into
+the recording (§7.5), and kept in the session's record. It is retired when GraceUI's Mark (F11, MEM §6.3) arrives. The
+console polls every 200 ms, so a quick step can pass it unseen (WHY§200).
+
+**R1 with `--probe`** (O89; decided 2026-11-17, WHY§199). Before it loads anything, the launcher writes R1 into the
+block's `control.probe` (a spare field: the block's version is kept, and 0 means no request), and EldenNet answers there
+at Settings (§3.2): a probe build accepts and runs R1 with its `settings.toml`'s other `probe` settings, `register =
+"auto"` becoming `"mark"`, so the call waits for the owner's Pause at the title with no save loaded; a release build,
+or EldenNet turned off, refuses and ends T1 with nothing called. No `settings.toml` is written, so nothing outlives the
+session. The console tells each step once in plain words (asked, reading, press the Mark, called, task confirmed, or
+refused, not called, call failed, no confirmation), and when the game ends the launcher lints both reports in
+`%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses. Not chosen: a launcher-written
+`settings.toml` (it would stay for the next start), or the launcher reading the DLL's version resource to tell a probe
+build (the block's answer says it, and covers EldenNet turned off).
+
+**The S0 spikes** (DESIGN §16.1). `--spike` tells EldenNet the spike through the block and keeps a numbers-only log in
+`%APPDATA%\EldenNet\spikes\`, a JSON line per run and the tally, which `eldennet-engine spike-report` reads by DESIGN
+§16.1's pass rules (§12.3; WHY§201). `s0a --runs <n>` starts and loads per `--inject-at`, waits for T1 to stop (Ready,
+a banner or inert) or `--run-timeout`, then closes the game (§4.6); `s0d-crash` asks a probe build for a crash at Ready
+and checks that the watcher recorded it; `s0b`, `s0c` and `s0d` watch one session, `s0c` counting the game's TCP
+connections to anything but this PC every 2 s (the most at once; no address kept).
+
 ## 5. The offline and multiplayer gate
 
 ### 5.1 Predicate
@@ -681,7 +789,7 @@ On the step where the gate turns false, the core:
 4. drops every pending bark and closes the call-out box;
 5. sends `SetTracked{[]}`, so the render feed stops.
 
-The net also refuses any request while `AI_ALLOWED` is false. A core bug therefore still cannot cause traffic (C4). While the gate is false, the GAL task reads only the `session` fields and the lifecycle subset (§7.3).
+The net also refuses any request while `AI_ALLOWED` is false. A core bug therefore still cannot cause traffic (C4). While the gate is false, the GAL task reads only the `session` fields and the lifecycle subset (§7.3). The task cannot see the core's gate, so it also does so whenever its own reading says the session is not solo (§6.8; WHY§167): not solo means dormant, in the task as in the core.
 
 ### 5.3 Anti-cheat check (SPECULATION, cheap)
 
@@ -696,8 +804,16 @@ A hit at init → the L1 banner through GraceUI's notice-only mode: GraceUI make
 
 | Situation | Surface | Text |
 |---|---|---|
-| Gate false in the world | Badge, top right | "EldenNet paused (multiplayer)" (DESIGN §2.7) |
+| Gate false in the world for a reason of the session (`not_solo`: role, world, lobby or player set) | Badge, top right | "EldenNet paused (multiplayer)" (DESIGN §2.7). A loading screen alone never raises it, though the gate closes there too (below) |
 | Waiting to re-activate | Badge | "EldenNet paused (multiplayer)" stays up until the 5 s window completes. No countdown is shown |
+
+*Decided 2026-11-16 (WHY§175):* §5.1's predicate is not clean during a loading screen (neither in a world nor at the
+title), so the gate closes at every loading screen and holds its 5 s again after it; shown as written, the badge would
+follow every fast travel for 5 s. So the badge is up only while in a world with the gate closed for a reason of the
+session, until the gate has held again. The gate itself stays as §5.1 says: speech returns 5 s after each loading
+screen. If that delay is unwanted, a design change would exempt the hold after a loading screen whose session fields
+were clean before it. The gate changes only on snapshots: when the task stops sending them (a hang), it stays as it
+was, and the stall detector (T6: a running task with no snapshot for 5 s) is the place to act, not the gate.
 | Anti-cheat present | Banner | "EldenNet inactive: Easy Anti-Cheat is running. EldenNet only runs offline; start the game with the EldenNet launcher." |
 | `session` group failed | Banner | "EldenNet inactive: it could not confirm this is an offline solo session (game build %s)." |
 
@@ -741,33 +857,105 @@ Types are our own. Offsets and copy sizes live in `gal/layouts/<build>.toml` (§
 
 That is 5 AOB items, 11 FD4 singletons and about 65 fields (DESIGN §4.1).
 
+*As built (2026-11-16; WHY§164, §166):* the code reads these under labels of our own (16 items, 35 classes, 97 fields;
+§6.3), and a few fields are placed differently for now, each a choice R1 and S1 confirm: `ride_state` is read from the
+player's class, not a ride module; the clock is two fields, `hour` and `minute` (the packing of one `u64` is no fact we
+hold); `legacy`, `overworld` and the region are left to the core, from the block id (`regions.toml`); the bearing takes
+the view matrix's third row as forward; and `player_set_len` counts the non-null entries until S1 gives the `chr_type`
+values to filter by.
+
 **Group labels.** The boss bars belong to `ui`. The lifecycle subset is `WorldChrMan.main_player` (in `world`) plus the screen state and load counter (in `ui`). The `boss_fight_active` cross-check is in `player`. That keeps exactly the eleven breaker groups of DESIGN §4.3 (DESIGN §4.1 now uses the same labels). `status` is optional, off until S8 passes; its trip turns off status awareness and the runtime sleep signal only (DESIGN O40).
 
 ### 6.2 Discovery
 
-All discovery runs on T1 over the executable image. Sections are copied in 1 MiB chunks through `GuardedReader` (with an overlap of the longest pattern). Unreadable pages are skipped and logged, never touched directly (impl).
+All discovery runs on T1 over the executable image as the loader mapped it, read through the `SysLayer`'s guarded
+image view (§6.4): only ranges that `VirtualQuery` reports committed, readable and without a guard page, so discovery
+never lifts a guard in the game's image (WHY§160). Sections are copied in 1 MiB chunks (with an overlap of the longest
+pattern); a refused chunk is read again page by page, and unreadable pages are skipped and counted, never touched
+directly. Discovery is portable en-gal code over that view, not the seam's, so the tests run the very discovery the
+game runs (§6.4). Items, classes and fields go by labels of our own (`roles.hpp`); the game's names reach the code only
+as values in `gal/` (§6.3; WHY§164).
 
-**AOB items** (`register_task`, `global_hinstance`, `GameDataMan`, `GameMan`, `FieldArea`). All patterns are matched in a single multi-pattern pass over `.text`.
+**Where the facts come from: the derivation round** (O89, decided by the owner on 2026-11-16). No agent ever sees the
+game, so a build's facts are derived on the owner's PC in two reviewed rounds of our own tools, and nothing is relied
+on before its review:
+1. **R0, offline, with the game closed.** A DataPiler job (DataPiler DP36) runs the devkit's `eldennet-engine probe-exe
+   --derive` (§12.3) on the game's executable with `gal/leads.toml` (what to look for: names and shapes under labels
+   of our own, never bytes), checks that the report holds only numbers, offsets, labels and patterns of at most 64
+   bytes with their addresses wildcarded (no code dump, text, param or path), and packs it for the owner to send.
+   DataPiler reads only the file, never the game's memory (O73). The report, `derive.json`, keeps schema 1, whose keys
+   and words DataPiler's guard holds a copy of: a new key needs a schema 2 and a DataPiler that reads it (WHY§188).
+2. **R1, in game, from the launcher.** `eldennet-launcher --probe` (§4.14) runs the probe build of `eldennet.dll`
+   (`EN_PROBE`, §2.5), which derives again over the live image (`ImageLayout::Memory`, where the game has filled what
+   the file leaves empty) and checks the result against what R0's review put in `gal/`: the gate, the FD4 idiom byte
+   for byte and capture for capture, and the task group's index (WHY§198). Only if every check passes does it make its
+   one call into the game, at the owner's first Mark (§4.14), pressed at the title with no save loaded (O89, O90;
+   WHY§193). Its reports are `r1-derive.json` (`derive.json`'s schema 1) and `r1-probe.json` (kind `probe`): the slots
+   the game calls, how much of our task object it wrote, the task's base class from a census of the hub's objects, and
+   the statics' slots.
+3. **Review.** An agent reviews each returned file as data and writes its record in our own words (counts only,
+   `docs/ops/probes/<date>-<round>.md`) and the derivation notes (§6.3) before any lead enters `gal/`. Nothing is
+   `confirmed` until S0-A and the self-tests pass. A static whose slot R1 found has its pattern cut offline afterwards
+   (`probe-exe --static <label>=<rva>`). DataPiler then imports R1's numbers and compares the param and text ids and
+   counts EldenNet read in game with what Smithbox reads from the files, numbers only: a second, independent source for
+   the self-tests and S2 (O89 (4); Smithbox's labels are never facts, O48).
+
+**What the offline round showed** (R0, then R0c on 2026-11-16; their records in `docs/ops/probes/`, WHY§180 to §189):
+- **Names filled at run time.** The FD4 class objects hold no name in the file (zeros past the section's raw data, no
+  relocation), so `dlrf_name_layout` can only be read in game: the singletons are named by R1, and in a release by the
+  class objects once the game has filled them, discovery's retries at +5, +15 and +30 s doubling as the wait for the
+  names (WHY§183, §191).
+- **A group table by stride.** The task group's name sits in a table of entries wider than a pointer; tables are found
+  at strides of 8 to 64 bytes, cut where code addresses an entry's start, and a lone pointer gives no index (WHY§184).
+  Where the table and its entries hold no index field, the index is the entry's place.
+- **A static with no RTTI.** The save-data static (`GameDataMan`) has no type descriptor in any namespace, so nothing
+  singles it out offline: R1 finds its slot by what its instance holds (a counter that rises with the clock and stands
+  still at times, the play time), and `probe-exe --static` then cuts its pattern (WHY§185, §193).
+- **Product names compared without symbols.** The version resource's product name carries a sign the leads' name does
+  not, so the derivation and the gate compare names once symbols are removed (§6.3; WHY§186).
+- **What the decoder steps over** is data in the code section and a second executable section the site search does
+  not read; neither costs the finder a site (WHY§187, §189).
+
+**AOB items** (`register_task`, and the statics `global_hinstance`, `GameDataMan`, `GameMan` and `FieldArea`, whose
+labels in `gal/` are `module_handle`, `save_data`, `game_state` and `field_area`). All patterns are matched in a single
+multi-pattern pass over `.text`.
 1. Each pattern must match exactly `expect_matches` times (default 1).
 2. **Functions:** the hit is mapped to its containing function through the exception directory (`.pdata` `RUNTIME_FUNCTION`). The pattern must sit at `entry + anchor_min` or later, with `anchor_min ≥ 5`, so it is inside the body: other mods hook prologues (ER01 §4). Then the function length (`EndAddress − BeginAddress`) is checked to lie within `fn_len`, and the optional prologue bytes are compared.
 3. **Statics:** the RIP-relative displacement at `capture.at` resolves to an address in `.data`, aligned to 8.
 4. **RTTI, where declared:** on the first tick, the instance's vtable must resolve to the declared RTTI class.
 
 **FD4 singleton finder** (our own code, written from the documented idiom; ER01 §4).
-1. Scan `.text` for the instruction shape `mov reg, [rip+static]; test reg, reg; jnz short; lea rcx, [rip+class]; call getter; …; lea rcx, [rip+path]; call log`. The byte grammar is the `fd4_idiom` entry in `patterns.toml`, from our own derivation in S0-A.
-2. For each hit, check the placement: `static ∈ .data` and 8-aligned, `class ∈ .data`, `getter ∈ .text` (and the start of a `.pdata` function), and `path ∈ .rdata`. Read the path as an ASCII string of ≤ 260 bytes; it must end with `FD4Singleton.h`.
-3. **Name the singleton:** if `builds.toml` says `dlrf_name_layout = true` (S0-A), read the DLRF runtime-class name from the class object at `dlrf.name_ptr_off` (an `.rdata` string of ≤ 128 bytes). Otherwise, call the getter once for this candidate, from T1 under the SEH guard. This is the only game-function call apart from `register_task`, and it never happens after registration (DESIGN §4.2).
+1. Scan `.text` for the accessor's head, `mov reg, [rip+static]; test reg, reg; jnz; lea rcx, [rip+class]; call
+   getter`, which every inlined accessor shares. The byte grammar is the `fd4_idiom` entry in `patterns.toml` (its
+   captures `static`, `class` and `getter`, and its `path_suffix`), cut by the derivation round (O89; R0c: one shape
+   covers almost every site). An idiom has as many hits as the game has inlined accessors, so it may expect up to
+   65,536 (every other pattern 4,096; WHY§182). Each hit is decoded: the static, the class object and the path must be
+   RIP-relative operands and the getter a relative call where the captures say, else the hit is refused as
+   `unreadable` (a wildcarded register byte also matches other addressing forms; WHY§181).
+2. For each hit, check the placement: `static ∈ .data` and 8-aligned, `class ∈ .data`, `getter ∈ .text` (and the start
+   of a `.pdata` function), and `path ∈ .rdata`. The path is not where the head ends: it is the load, of every load in
+   the block the head's jump skips (before or after the getter's call, in any register; a RIP-relative address, a
+   RIP-relative pointer to the string or a 64-bit absolute address), or of the 64 bytes before the head in its function,
+   whose string ends with the suffix (R0c: after the getter's call, with the log's format string loaded first;
+   WHY§180). Read it as an ASCII string of ≤ 260 bytes; it must end with `FD4Singleton.h`.
+3. **Name the singleton:** if `builds.toml` says `dlrf_name_layout = true` (confirmed by R1 and S0-A), read the DLRF
+   runtime-class name from the class object at `dlrf.name_ptr_off` (an `.rdata` string of ≤ 128 bytes). The game
+   writes those names at run time (R0c), so they are read only in game, and discovery's retries are the wait for them.
+   Otherwise, call the getter once for this candidate, from T1 under the SEH guard. This is the only game-function call
+   apart from `register_task`, and it never happens after registration (DESIGN §4.2).
 4. **Index by name.** A name found twice with different statics is ambiguous; that singleton is unresolved and its group fails closed.
 5. **Report** each `{name, static_rva, class_rva}` in the discovery report (log, F11 view, probe tools).
 
 Budget: about 10–15 ms of matching is expected (ER01 §4). A whole discovery pass, including chunk copies, is capped at 500 ms (impl).
 
 **RTTI walk.**
-- Find type descriptors by mangled name (`.?AV<Class>@CS@@`) in `.data`.
+- Find type descriptors by decorated name (`.?AV<Class>@<Space>@@`, from a layout class's `rtti` value) in `.data`.
 - Find the complete-object locators in `.rdata` that reference them: x64 signature 1, image-relative offsets, and a self-RVA check.
 - The vtable starts one pointer after the locator's address slot.
-- Each class's hierarchy descriptor gives its base-class array. Every class that lists `CS::ChrIns` as a base joins the **ChrIns vtable set**, which is kept as a sorted fixed array for binary search. `CS::PlayerIns` gets its own set.
-- Singleton classes declared in the layout (`rtti = "…"`) get one expected vtable each.
+- Each class's hierarchy descriptor gives its base-class array. Every class that lists the `character` class's `rtti`
+  (`CS::ChrIns`) as a base joins the **character vtable set**, which is kept as a sorted fixed array for binary search.
+  The `player_character` class (`CS::PlayerIns`) gets its own set. R0 found both sets in the file (6 classes and 2).
+- Every other layout class with an `rtti` value gets its own vtable and those of the classes deriving from it.
 
 ### 6.3 File schemas (`gal/`, read at boot only)
 
@@ -780,14 +968,20 @@ app              = "1.17.2"
 file_version     = "2.7.2.0"
 product_name     = "ELDEN RING"
 region           = "ww"            # from the 4th version field (0 = ww, 1 = jp; ER01 §1), cross-checked with the translation lang
-time_date_stamp  = 0x00000000      # from our own probe of this exe
-size_of_image    = 0x00000000
+time_date_stamp  = 0x00000000      # from the derivation round's R0 (O89)
+size_of_image    = 0x00000000      # above 0: the placeholder is refused
 layout           = "layouts/2.7.2.0-ww.toml"
-dlrf_name_layout = false           # true once S0-A confirms the class-name layout
+dlrf_name_layout = false           # true once R1 and S0-A confirm the class-name layout (R0c: names written at run time)
 status           = "supported"     # supported | retired (kept for players who block updates)
 ```
 
-The gate requires all of `file_version`, `product_name`, `region`, `time_date_stamp` and `size_of_image` to match. A same-version rebuild therefore stops at L1 with the reason "build fingerprint differs" (J1 #8).
+The gate requires all of `file_version`, `product_name`, `region`, `time_date_stamp` and `size_of_image` to match. A
+same-version rebuild therefore stops at L1 with the reason "build fingerprint differs" and the fields that differ (J1
+#8). Product names are compared once their symbols are removed (trademark, registered and copyright signs and their
+like, and zero-width characters; spaces made one; ASCII and every other letter kept): R0c found the version
+resource's name one symbol longer than the one `builds.toml` holds (WHY§186). Keys and fingerprints are unique, and the region must agree
+with the file version's fourth field. A retired build passes too. What passes is a `BuildProfile`, which only the gate
+makes, and only a `BuildProfile` opens a layout (R7, by type).
 
 ```toml
 # gal/patterns.toml
@@ -801,60 +995,103 @@ expect_matches = 1
 anchor_min     = 5                 # interior anchor: hit ≥ entry + 5
 fn_len         = [0x40, 0x400]     # bounds on the .pdata length
 prologue       = ""                # optional exact bytes at the entry
-builds         = ["2.7.2.0-ww", "2.7.2.1-jp"]   # where it was confirmed
-provenance     = { method = "own-derivation", leads = ["ER01 §3.2"], evidence = "docs/ops/probes/2.7.2.0-ww.json", date = "YYYY-MM-DD" }
+builds         = ["2.7.2.0-ww", "2.7.2.1-jp"]   # where it was confirmed; empty: a lead, confirmed nowhere yet
+provenance     = { method = "own-derivation", leads = ["ER01 §3.2"], evidence = "docs/ops/probes/<date>-<round>.md", date = "YYYY-MM-DD" }
 
 [[pattern]]
-id      = "GameDataMan"
+id      = "save_data"                # the item's label (WHY§164)
 kind    = "static"
 section = ".text"
-bytes   = "<…>"
+bytes   = "<…>"                      # cut offline at R1's slot (probe-exe --static save_data=<rva>)
 capture = { at = 3, kind = "rip_rel32", insn_end = 7 }   # target = hit + insn_end + disp32
 target_section = ".data"
-rtti    = "CS::GameDataMan"         # checked on the first tick, against the instance
-builds  = ["2.7.2.0-ww"]
+# rtti = "<class>"                   # optional, checked on the first tick; none here: the class has no RTTI (R0c)
+builds  = []
 provenance = { method = "own-derivation", leads = ["ER01 §4"], evidence = "…", date = "…" }
+
+[[pattern]]
+id             = "fd4_idiom"
+kind           = "idiom"
+section        = ".text"
+bytes          = "<…>"               # the accessor's head (§6.2)
+expect_matches = [0, 0]              # a range, up to 65,536
+path_suffix    = "FD4Singleton.h"
+captures       = { static = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".data", align = 8 }, class = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".data" }, getter = { at = 0, kind = "rip_rel32", insn_end = 0, section = ".text", function = true } }
+builds         = []
+provenance     = { method = "own-derivation", leads = ["ARCH §6.2", "ER01 §4"], evidence = "…", date = "…" }
 ```
 
 - **Derivation note (DESIGN O27):** every pattern has a short note, `gal/derivations/<id>.md`, in our own words: what was searched for, in which build, how the hit was confirmed, and the evidence file. It is reviewed with each `gal/` change, and lint fails on a pattern without one. It is the record behind `provenance.method = "own-derivation"`, which CI cannot check by itself.
-- **Grammar:** hex byte pairs, `??` for a wildcard byte, whitespace ignored.
+- **Evidence:** the round's reviewed record, `docs/ops/probes/<date>-<round>.md` (counts only, in our own words; the
+  returned files themselves are not committed), as R0's and R0c's are (§6.2).
+- **Grammar:** hex byte pairs, `??` for a wildcard byte, whitespace ignored; 1 to 256 bytes, at least 4 of them fixed.
+  A `gal/` file holds ASCII only outside comments (`\uXXXX` in a string), and passes en-proto's TOML pre-check before
+  toml++ reads it (WHY§163).
 - **Load-time validation:** ids are unique; every required id is present; `capture` lies within the pattern; and `provenance.method` is `own-derivation`. Anything else fails CI and the boot (O4).
-- **What a lead may carry:** a lead says *what* to look for (the function's role, its caller, the singleton's name, the idiom's shape). It never supplies the bytes. Byte strings that the research quotes from fromsoftware-rs's mapper profile, from TGA's table or from other projects are not pasted into `patterns.toml`; every pattern is cut from our own disassembly of the exe in S0-A and recorded with its evidence file (DESIGN §4.2, O4).
+- **What a lead may carry:** a lead says *what* to look for (the function's role, its caller, the singleton's name, the
+  idiom's shape). It never supplies the bytes. Byte strings that the research quotes from fromsoftware-rs's mapper
+  profile, from TGA's table or from other projects are not pasted into `patterns.toml`; every pattern is cut by our own
+  derivation kit from the owner's own executable in the derivation round (§6.2, O89) and recorded with its evidence
+  (DESIGN §4.2, O4). The leads themselves are `gal/leads.toml`, names and shapes under our own labels.
 
 ```toml
 # gal/layouts/2.7.2.0-ww.toml
 schema       = 1
 build        = "2.7.2.0-ww"
 derived_from = "probe"                       # or the key of the previous build
-probe_record = "docs/ops/probes/2.7.2.0-ww.json"
+probe_record = "docs/ops/probes/<date>-<round>.md"   # the reviewed record of the round that gave it
 
 [task]
-group          = { name = "ChrIns_PostPhysics", index = 0 }  # the name is checked on the first tick
-register_abi   = "v1"                        # argument-order variant, fixed by S0-A
-vtable_slots   = 0
-run_slot       = 0
-object_size    = 0x0
+group        = { name = "ChrIns_PostPhysics", index = 0 }  # R0 finds the index, R1 checks it before its call; the name again on the first tick
+register_abi = { task = "rcx", instance = "rdx", group = "r8" }  # a table of registers: three different ones of rcx, rdx, r8, r9 (R1)
+vtable_slots = 0                             # R1: the hub census's base class
+run_slot     = 0                             # R1: the slot the game calls every frame
+object_size  = 0x0                           # R1: how much of our object the game wrote
+status       = "confirmed"                   # a lead [task] may hold its group alone
 
-[class.ChrIns]
-rtti      = "CS::ChrIns"
+[class.character]                            # our own label (roles.hpp), never the game's class name
+rtti      = "CS::ChrIns"                     # the game's class, as a value: the vtable set's base (§6.2)
 copy_size = 0x580                            # lead ER05 §6.2; must cover every field below
-status    = "lead"                           # lead | confirmed
-[class.ChrIns.fields]
-vtable       = { off = 0x0, ty = "ptr" }
-handle       = { off = 0x0, ty = "u64",  group = "world" }
-npc_param_id = { off = 0x0, ty = "u32",  group = "world" }
-team         = { off = 0x0, ty = "u8",   group = "world", range = [0, 78] }
-dead         = { off = 0x0, ty = "bit",  bit = 7, group = "world" }
-last_hit_by  = { off = 0x0, ty = "u64",  group = "combat" }
-modules      = { off = 0x0, ty = "ptr",  to = "ChrModules", group = "world" }
+status    = "lead"                           # lead | confirmed; an entry with no status is a lead
+[class.character.fields]
+handle       = { off = 0x0, ty = "handle", group = "world" }
+npc_param_id = { off = 0x0, ty = "u32",    group = "world" }
+team         = { off = 0x0, ty = "u8",     group = "world", range = [0, 78] }
+dead         = { off = 0x0, ty = "bit",    bit = 7, group = "world" }
+last_hit_by  = { off = 0x0, ty = "handle", group = "combat" }
+parts        = { off = 0x0, ty = "ptr",    to = "character_parts", group = "world" }
 
-[enum.hud_state]  # raw value → snapshot enum
+[class.characters]                           # an item's class: the FD4 singleton behind it, by its runtime class name
+rtti      = "<the game's class>"
+singleton = "<the runtime class's name>"
+copy_size = 0x0
+status    = "lead"
+fields    = { by_distance = { off = 0x0, ty = "dlvector", group = "world" }, main_player = { off = 0x0, ty = "ptr", group = "world" } }
+
+[class.near_entry]                           # an element class: a stride instead of a copy size
+stride = 0x0
+status = "lead"
+fields = { chr = { off = 0x0, ty = "ptr", group = "world" }, distance = { off = 0x0, ty = "f32", group = "world" } }
+
+[enum.hud]                                   # raw value → snapshot enum; a field names it (enum = "hud")
 values = { 0 = "HideAll", 1 = "ShowAll", 2 = "PopupMenu", 3 = "Default" }
 
 [param.NpcParam]
 slot     = 6                                 # lead ER01 §8.1
 row_size = 0x0
+status   = "lead"
 fields   = { name_id = { off = 0x0, ty = "i32" }, team = { off = 0x0, ty = "u8" } }
+
+[fmg]
+indexing     = "flat"
+group_stride = 12
+npc_names    = [428, 328, 18]                # the tables in search order: §6.9's DLC order, as data
+place_names  = [429, 329, 19]
+status       = "lead"
+
+[dlrf]
+name_ptr_off = 0x0                           # the class objects' name layout (R1), with builds.toml's dlrf_name_layout
+status       = "lead"
 
 [selftest]
 npc_name_ids   = []                          # known ids that must give 1–64 printable chars (ids only, never text)
@@ -862,13 +1099,31 @@ place_name_ids = []
 npc_param_ids  = []
 ```
 
-- **Field types:** `u8`, `u16`, `u32`, `u64`, `i32`, `f32`, `bool8`, `bit`, `ptr`, `handle`, `vec3f`, `mat4f`, `utf16[n]`, `dlvector`, `dlmap`, `array{elem, len, stride}`.
-- **Validation at boot:**
-  - every `off + size ≤ copy_size`, and `copy_size ≤ 0x4000`;
-  - every `to` and `elem` names a defined class;
-  - every field the groups require is present;
-  - enum tables are total over their `range`.
+- **Our labels, the game's names as values** (decided 2026-11-16, WHY§164). The code reads classes and fields by labels
+  of our own (`roles.hpp`: 16 items, 35 classes, 97 fields); the game's class names appear only as `rtti` values, its
+  runtime class names only as `singleton` values, and its text tables only in `[fmg]`, so the code holds no name of the
+  game's. `register_abi` is a table of registers, not a variant's name, because the derivation reports registers, and a
+  variant in code would need a table of the game's argument orders in code (WHY§123).
+- **Field types:** `u8`, `u16`, `u32`, `u64`, `i32`, `f32`, `bool8`, `bit`, `ptr`, `handle`, `vec3f`, `mat4f`, `utf16[n]`,
+  `dlvector`, `dlmap`, `array{elem, len, stride}`. A group checks a field by its kind (a whole number of any width, a
+  pointer, a bit, a float, ...), not one exact type, so the layout says what the game holds and the reader widens it.
+- **Validation at boot** (`load_layout`, which needs the gate's `BuildProfile`: a layout for another build is refused):
+  - every `off + size` within its class's `copy_size`, or its `stride` for an element class, and `copy_size ≤ 0x4000`;
+  - every `to` and `elem` names a class of the file;
+  - every field the groups require is present with its kind, and every enum table they need names only values the
+    snapshot's enum knows, and the params they read are there;
+  - enum tables are total over the `range` of the fields that use them;
+  - up to 64 problems are reported, each with where it was and what was wrong, never a value; a `gal/` file over
+    256 KiB is refused unread. `eldennet-engine lint --gal` makes the same checks without the gate.
 - **Lead and confirmed:** a release build refuses a layout that has any `lead` entry, so every offset is confirmed before players run it. Dev builds accept leads, with a warning banner.
+- **A lead `[task]` may hold its group alone** (decided 2026-11-17, WHY§197). The offline round gives the group's
+  index, and the rest of `[task]` is the in-game round's to find, so it is left out rather than guessed: such a layout
+  is *partial*, discovery is never ready with it, the task's install refuses it and the first tick reads nothing. A
+  confirmed `[task]`, or a lead with any other key, needs every key. The group table's shape (entries, stride, the name's
+  offset and encoding) has no key: it is in the layout's comments and the round's record, and R1 reports it again as
+  loaded.
+- **The first real layout** (`gal/layouts/2.7.2.0-ww.toml`, from R0c) is a fresh file holding only the lead `[task]`
+  with its group; the fake game's layout shows every class and field the groups read (WHY§166, §197).
 
 ### 6.4 `SysLayer`, `GameBackend` and `GameThread`
 
@@ -902,37 +1157,63 @@ class GameBackend {                                // DESIGN §2.3, unchanged
   and test builds also check, at each read, that it runs on the thread that issued the token (impl).
 
 ```cpp
-// en-gal: the narrow platform seam (DESIGN §4.7). Our own implementation is `NativeSys`; replay and
-// unit tests use `FakeSys` over a byte-buffer "process".
-struct FrameCtx { std::uint64_t qpc_now_us; std::uint32_t dt_us; };
+// en-gal: the narrow platform seam (DESIGN §4.7), as built (2026-11-16, WHY§159, §165). Our own implementation is
+// `NativeSys` (src/en-gal/src/sys/, clang-cl only); the tests use `FakeSys`, a process of byte regions.
+struct FrameCtx { std::uint64_t now_us; std::uint32_t dt_us; };
 class TaskBody {
  public:
   virtual ~TaskBody() = default;
   virtual void run(const GameThread& gt, const FrameCtx& frame) = 0;
 };
+struct TaskShape {                 // the layout's [task] (§6.3)
+  std::uint32_t vtable_slots, run_slot, object_size, group_index;
+  RegisterAbi abi;                 // which register carries the task, the instance and the group
+  bool every_slot;                 // R1 only: the run slot not yet known, every slot counts and runs the body
+};
 class SysLayer {
  public:
   virtual ~SysLayer() = default;
-  // init (register_recurring once)
-  virtual const ImageInfo& image() const = 0;                                         // sections, version, .pdata
-  virtual Expected<StaticSlot, SysError> singleton(std::string_view name) const = 0; // from the FD4 finder
-  virtual Expected<VtableSet, SysError> rtti_vtables(std::string_view cls, bool subclasses) const = 0;
-  virtual Expected<TaskToken, SysError> register_recurring(TaskPhase phase, std::unique_ptr<TaskBody> body) = 0;
-  // game thread
-  virtual Expected<ParamTableView, SysError> param_table(const GameThread& gt, ParamKind which) const = 0;
-  virtual GuardedReader reader(const GameThread& gt) const = 0;
+  // T1, at init
+  virtual std::uint64_t module_base() const noexcept = 0;
+  virtual const ByteSource& image() const noexcept = 0;            // the mapped image; every read a guarded copy
+  virtual Expected<std::uint64_t, SysError> call_getter(std::uint64_t getter, std::uint64_t class_object) noexcept = 0;
+  virtual Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
+                                                 const TaskShape& shape, TaskBody& body) noexcept = 0;
+  // either thread
+  virtual Copier& copier() noexcept = 0;                            // the SEH copy, or ReadProcessMemory (§6.5)
+  virtual StackRanges& stacks() noexcept = 0;                       // the reader is never pointed into these
+  virtual void note_own_stack() noexcept = 0;                       // T1 at init, the game thread at its first tick
+  virtual std::uint64_t now_us() const noexcept = 0;                // QPC in game
+  virtual std::uint32_t thread_id() const noexcept = 0;
+  virtual bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept;   // WHY§190
+  virtual std::uint64_t slot_calls(std::uint32_t slot) const noexcept = 0;                // R1's slot counts
+  virtual std::uint64_t task_object() const noexcept = 0;                                 // R1: what the hub wrote
 };
 ```
 
+- **The seam keeps only what needs the platform:** the main module and a guarded view of its image, the copy primitive,
+  the stack table, the clock, the init-only getter fallback and the one registration. The first sketch's
+  `singleton()`, `rtti_vtables()` and `param_table()` are not the seam's: discovery (§6.2), the RTTI sets and the
+  readers are portable en-gal code over the image and the copy primitive, so `FakeSys` tests the very code that runs in
+  game, in every build, and only what needs Windows is left to `NativeSys` (decided 2026-11-16, WHY§165).
+- `GuardedReader` (§6.5) is en-gal's own, made over the seam's copier and stack table, not handed out by the seam.
+- `call_getter` and `register_task` are refused once the task is registered (`NotInit`); nothing retries.
+
 **Task trampoline.**
 - Our task object is one zeroed block laid out as a C struct: a pointer to a static fake vtable (`vtable_slots`
-  entries, each a guarded no-op), then the layout's `object_size` bytes, then a pointer to our `TaskBody`.
-- The `run_slot` entry is the `extern "C"` function `en_task_run(self, data)`, `noexcept`. It starts with
-  `ffi_guard(Component::Task, …)`, checks the `TASK_INERT` atomic, issues the `GameThread` token, reads QPC and calls
-  `body->run`.
+  entries, each a distinct guarded no-op that counts its calls, made read-only once filled), then the layout's
+  `object_size` bytes, then a pointer to our `TaskBody`.
+- The `run_slot` entry is the `extern "C"` function `en_task_run(self, data)`, `noexcept`, which runs the body only
+  when `self` is our own object and returns 0. It starts with `ffi_guard(Component::Task, …)`, checks the `TASK_INERT`
+  atomic, issues the `GameThread` token (in `task.cpp` alone), reads QPC and calls `body->run`. An exception out of the
+  body trips the guard, and every later call returns at once (R3).
 - The object and its `TaskBody` are never freed: they live for the life of the process and are never unregistered
-  (R14).
-- The `register_task` argument order is the layout's `register_abi`, confirmed in S0-A.
+  (R14). The registered flag is set before the call, so the getter is refused from then on.
+- The `register_task` argument registers are the layout's `register_abi`, found by R1 from the game's own call sites
+  (§6.2) and confirmed in S0-A. Before the call, T1 makes the stack table again without its own stack (§6.5).
+- **In R1 only**, the run slot is not yet known: every slot counts its calls and runs the body for our own object
+  (`every_slot`), slots called on T1 inside the registration do nothing, and the slot counts then show which one the
+  game calls every frame (WHY§193).
 
 ### 6.5 `GuardedReader`
 
@@ -976,6 +1257,17 @@ at `/O2` clang deleted the `__except` and the copy always answered success. Its 
 (`STATUS_GUARD_PAGE_VIOLATION`) through, which would end the game. Reading a guard page lifts its guard, and Windows
 grows a thread's stack through such a page, so `GuardedReader` is never pointed into a thread's stack.
 
+**The stack table, as built** (decided 2026-11-16; WHY§160, §190). `NativeSys` fills a fixed table by walking the
+process's regions with `VirtualQuery`: every allocation holding a guard page is added whole (a thread's stack is
+reserve, guard and committed top), and in an image only its guard pages; each reading thread adds its own stack
+(`GetCurrentThreadStackLimits`), T1 at init and the game thread at its first tick. No TEB is read. A range outlives its
+thread (Wine frees an ended thread's stack late, and T1 ends at Ready), and the game reuses that memory, so T1 makes the
+table again just before the registration, without its own stack, and a read the table refuses is checked once more on
+that rare path alone: a range whose allocation no longer starts there or holds no guard page leaves the table and the
+read goes on (counted as `stale_stacks`). Allocation-free, and on the game thread only after registration, so the table
+has one writer. Under Wine the walk finds no guard page on thread stacks, so the per-thread step is what covers the
+reading threads there; S0-D counts what the walk finds on Windows.
+
 
 ```cpp
 // Pod: trivially copyable, standard layout, every bit pattern valid (integers, floats and arrays of them); each
@@ -1011,14 +1303,15 @@ class GuardedReader {
 - A caught exception, or a failed plausibility check on a structural field, is a **hard fault** for the field's group (§6.7).
 - A vtable mismatch on one list entry is a **soft skip**: the entry is dropped from this snapshot and counted. More than 25% of entries mismatching in one tick is a hard fault for `world` (impl).
 
-**Vectored handlers.** Crash reporters that install vectored exception handlers see the exception before our frame handler (SPECULATION, J1 #9). S0-D tests this. If S0-D fails, the same API switches its copy primitive to `ReadProcessMemory(GetCurrentProcess(), …)`, which raises no exception at all, at a cost of about 1 µs per copy (impl, measured in S0-D).
+**Vectored handlers.** Crash reporters that install vectored exception handlers see the exception before our frame handler (SPECULATION, J1 #9). S0-D tests this. If S0-D fails, the same API switches its copy primitive to `ReadProcessMemory(GetCurrentProcess(), …)`, which raises no exception at all, at a cost of about 1 µs per copy (impl, measured in S0-D). *As built:* the choice is `settings.toml`'s `gal.copy = "seh" | "rpm"` (§11.5), taken on T1 before registration. Under Wine the `rpm` copy answers success with zeros for a no-access, released or guard page and costs about 0.1 ms a copy, so there the task throttles to 2 Hz and the tests inject faults instead (WHY§161). R1's slot search faults on purpose on the game thread, so R1 runs without a crash reporter's vectored handler, or with the `rpm` copy (WHY§170).
 
 **Allocation.** Every scratch buffer is preallocated at registration, sized to the largest `copy_size` per class.
 
 ### 6.6 Per-tick re-resolution and vtable compares (R5)
 
 Each snapshot tick:
-1. Reads every static slot again (8 bytes each). No instance pointer is kept across ticks.
+1. Reads every static slot again (8 bytes each). No instance pointer is kept across ticks, save the render feed's,
+   re-validated at every read (§7.4).
 2. A null `WorldChrMan` or `main_player` means not in the world, or loading; the snapshot then carries only lifecycle fields.
 3. Compares each singleton instance's vtable with its expected RTTI vtable. A mismatch means the object moved or was torn down. The group is skipped for this tick, and it is a hard fault only if it repeats on 3 consecutive ticks while `main_player` is present (impl).
 4. Walks `by_distance` from `begin` to `end`. Each entry is checked: an aligned pointer, element count ≤ 48, and an entry vtable in the ChrIns set.
@@ -1077,6 +1370,10 @@ stateDiagram-v2
 
 - The level is recomputed by the core on every step from `ReadHealth`, provider health and settings.
 - **Dormant** is an orthogonal flag over L2–L4. It is set when the gate is false, while loading and at the title. While it is set, speech is dropped and the task reads only `session` and the lifecycle subset (DESIGN §4.4).
+- **Not solo means dormant, in the task too** (decided 2026-11-16, WHY§167). The task cannot see the core's gate, so it
+  also goes Dormant, reading only the session and the lifecycle, whenever its own reading says the session is not solo:
+  a lobby other than None, a role other than Host, or not the player's own world. The core's gate stays the authority;
+  the task's reading only narrows what it reads, at once, before the core has seen the snapshot.
 - Unknown builds always stop at L1, because probation mode is deferred (O12).
 
 ### 6.9 Text, param and flag formats
@@ -1109,22 +1406,26 @@ The cost is one descent and one 125-byte copy per group, not per flag.
 
 ```mermaid
 flowchart LR
-  A["Patch day: players see the L1 banner (C2)"] --> B["eldennet-engine probe-exe new.exe"]
-  B --> C{"patterns and singletons resolve offline?"}
-  C -->|"yes"| D["dev build with EN_PROBE in game:<br/>invariant search → draft layout"]
-  C -->|"no"| X["re-derive patterns (own derivation),<br/>update patterns.toml"] --> D
-  D --> E["self-tests + smoke route + golden compare"]
+  A["Patch day: players see the L1 banner (C2)"] --> B["R0, offline: DataPiler's job runs<br/>probe-exe --derive on new.exe"]
+  B --> C["review: record and notes;<br/>fingerprint and patterns into gal/ as leads"]
+  C --> D["R1, in game: eldennet-launcher --probe,<br/>checks, then one call at the Mark"]
+  D --> R["review: record; probe-exe --static<br/>cuts the statics' patterns; draft layout"]
+  R --> E["self-tests + smoke route + golden compare"]
   E -->|"pass, no code change"| F["data-only release of gal/"]
   E -->|"code change needed"| G["new DLL release"]
 ```
 
+The derivation round (O89; §6.2) is steps 2 and 3. Each returned file is reviewed, and its record and derivation notes
+written, before anything in it is relied on. A round may take more than one run: on 2.7.2.0 R0 ran three times, its
+reader and its FD4 finder fixed between runs (WHY§171, §180).
+
 | Step | Who and what | Output |
 |---|---|---|
 | 1 | Automatic. The new build's fingerprint is not in `builds.toml`, so the game shows the L1 banner. Pin an issue "Build 2.x.y.z: unsupported, in progress" | — |
-| 2 | `eldennet-engine probe-exe <eldenring.exe> --against gal/` checks the file offline: PE fingerprint, every pattern (match count, function bounds, capture target section), the FD4 idiom hits by name, and the RTTI classes | `probe-exe.json` with a diff against the previous build |
-| 3 | A dev build with the `probe` option (`EN_PROBE`) runs in game. It resolves discovery, then searches for each layout field by invariant: RTTI vtables at object starts; `hp ≤ max_hp` pairs; the ascending float vector; the player's known UTF-16 name; known flag 100 set; the divisor value 1000. It writes `layouts/<new>.draft.toml` and the probe record | Draft layout plus a JSON record (offset, invariant used, sample values) |
+| 2 | **R0, offline, with the game closed.** The owner runs DataPiler's job, which runs `eldennet-engine probe-exe <eldenring.exe> --derive --leads gal/leads.toml --out derive.json` (§12.3) and checks that the report holds numbers only. An agent reviews it as data (`lint --report`, then against en-tools' account of each key): the fingerprint, the FD4 idiom and its sites, the vtable sets and the task classes, the group table, the statics' classes, and the confirm list for R1. Its fingerprint, idiom and group index enter `gal/` as leads, each pattern with its note | `derive.json` (schema 1); `docs/ops/probes/<date>-r0.md`; `gal/` leads |
+| 3 | **R1, in game.** `eldennet-launcher --probe` with the probe build (`EN_PROBE`) at the title, no save loaded (§4.14). It derives over the live image (the FD4 names the game has written, the registration and its registers from the game's call sites, the group table as loaded), checks the reviewed leads (the gate, the idiom byte for byte, the group's index), and makes the one call at the owner's Mark. On the game thread it counts the slots the game calls, measures how much of our object the hub wrote, takes the hub census (the task's base class) and finds the statics' slots (a vtable search, and the rising counter for a static with no RTTI). The launcher lints both reports when the game ends. After review, `probe-exe --static <label>=<rva>` cuts the statics' patterns offline; the layout's fields are then searched by invariant on the instances R1 gave (RTTI vtables at object starts; `hp ≤ max_hp` pairs; the ascending float vector; UTF-16 text; known flag 100 set; the divisor value 1000), in the next in-game run (WHY§193) | `r1-derive.json`, `r1-probe.json`; `docs/ops/probes/<date>-r1.md`; `layouts/<new>.toml` as leads |
 | 4 | Run the self-tests on the draft, then the recorded smoke route (Church of Elleh → Gatefront → camp fight → Kalé → Roundtable). Replay it and compare its events with the golden files (§8.12) | Pass or fail report |
-| 5 | Promote the fields from `lead` to `confirmed`, add the build to `builds.toml`, and keep every earlier profile (N−1 at least, all supported builds by default) | `gal/` changes |
+| 5 | Promote the fields from `lead` to `confirmed`, keep the build's entry in `builds.toml` (its fingerprint came with R0) and add it to each confirmed pattern's `builds`, and keep every earlier profile (N−1 at least, all supported builds by default) | `gal/` changes |
 | 6 | If no code changed, ship a data-only release: a signed zip of `gal/` that replaces `<install>/gal/`. Otherwise ship a new DLL | Release |
 
 ---
@@ -1239,6 +1540,10 @@ struct RenderFeed {
 
 - The overlay projects each head with the swap chain's viewport size, which the overlay knows.
 - It drops any label whose deadline has passed in its own clock (`qpc_us` and its own QPC), and any whose handle is no longer `present`. Deadlines are checked at draw time (DESIGN §9.4).
+- **Between snapshots** (decided 2026-11-16, WHY§168): the feed does not walk the character list every frame, which
+  would not fit its 0.03 ms (§7.2). It keeps the addresses the last snapshot's walk found each tracked character at,
+  and re-checks them at every read: the character's vtable still in the set and its handle unchanged, or the head is
+  not `present`. That is R5's one exception, for the feed alone, and a fault there is no group's fault.
 
 ### 7.5 Recording format (`*.ensnap.zst`)
 
@@ -1268,6 +1573,16 @@ struct RenderFeed {
   from `tests/fixtures/names.toml`, a table of our own invented names. `eldennet-engine lint` rejects a committed
   recording with any non-placeholder `text` (impl).
 - **Size:** about 4 MB per hour (DESIGN §5.2). The recorder rotates files at 256 MB (impl).
+- **v0.1's form, as built** (decided 2026-11-16; WHY§192). Until the keyed hashes and redacted text exist (S10.2.d),
+  the recorder writes `<date>-<time>-<pid>-<n>.ensnap.jsonl`: plain JSON Lines, no zstd (DataPiler reads it with
+  Python 3.10's standard library), numbers only by construction. Each line is one report of the kind `recording`
+  through en-gal's closed-vocabulary writer, `{"report":"recording","schema":1,"t":<mono ms>,"k":<kind>,...}`, with the
+  kinds `header`, `snap`, `life`, `banner`, `change`, `cmd` and `mark`, so `eldennet-engine lint --recording` and
+  DataPiler's guard check every line by the same rules as `derive.json`. A text look-up keeps its table, id and whether
+  it was found; a param row its param, id and field count; `PlaythroughReady` its slot, class, keepsake, play time and
+  the name's length; no SteamID is read. The header's text-valued fields (`build`, `content_hash`, `seed_root`,
+  `salt`) wait for the keyed hashes. About 3.3 KB a snapshot line at six characters, so about 47 MB an hour at 4 Hz
+  unzipped; a full snapshot stays within a line's 256 KiB. `replay` steps it through the core again (§12.3).
 
 ---
 
@@ -1730,10 +2045,17 @@ stateDiagram-v2
 | Player died (in InWorld) | `PlayerDied` (§8.6) | End the conversation (reason `death`). For 1.2 s only `player_fell` may fire. Persist `PlayerDied` (DESIGN §2.5) |
 | Rest start / end | `GraceRested` / `RestEnded` (flag 9000; verified in S6) | Start: the context is safe; run queued memory jobs and pool refills. End: clear generic engagements, squads and cooldowns, because the world respawns |
 | Journey change | `player.ng_lvl` changed | New journey partition; earlier journeys become read-only (DESIGN §10.5) |
-| Active → Dormant | Gate `clean` false (§5.1) | §5.2 effects. The badge shows |
+| Active → Dormant | Gate `clean` false (§5.1) | §5.2 effects. The badge shows in the world when the cause is the session, never for a loading screen alone (§5.4) |
 | Dormant → Active | `clean` for 5 s | Badge removed. Barks and chat become available on the next step |
 
 The task sends `Lifecycle` messages for `DataReady`, the playthrough identity (`PlaythroughReady{slot, name, archetype, keepsake, play_time_ms}`, read once) and group trips. Everything else is derived by the core from snapshot fields, so a lost lifecycle message can always be rebuilt (C2).
+
+*v0.1's slice, as built (2026-11-16; WHY§176):* a playthrough is told by `PlaythroughReady`'s slot, name, class and
+keepsake, compared as they are (the store's fp8 is its file name). Loading → InWorld also needs the same character: a
+newer `PlaythroughReady`'s identity, or, without one, the same slot and class; another identity is a new playthrough.
+Until the store is built, Playthrough → InWorld happens on the same step (its `Opened` will gate it). From snapshots the
+core rebuilds `DataReady` (the structural groups Ok in the Gate phase) and a structural trip (Tripped in a snapshot's
+health); a later anti-cheat hit in a snapshot is L1 with its banner, for the session.
 
 ---
 
@@ -2043,6 +2365,15 @@ reactions = { saw_kill = false }
 - `features.barks` is the master switch for generic NPCs' own-initiative lines, `features.speak_up` for named NPCs'. `features.ambient` is gone (`pacing.idle_max`; schema 2 migrates `off` → 0, `sparse` → 2, `normal` → 4).
 - Effective permission for a line = the feature switch ∧ `reactions.T.on` ∧ the speaker's allowance for T (DESIGN §7.6) ∧ a voice source ∧ every gate. Every line, replies and call-out replies included, also needs the speaker's `dialogue` allowance. `overrides/disable.toml` `triggers = [...]` still removes a trigger from content; either switch turns a trigger off.
 - Before the F10 pages ship (v0.6) the README's config-file section documents these keys; each key ships in the increment of its feature (DESIGN §16.2).
+- **v0.1's file, as built** (decided 2026-11-16; WHY§194). The first in-game build reads `schema` (1 or 2), `enabled`,
+  `debug.record_sessions` and `debug.log_level`; `overlay = { connect }` (noted, and kept off until GraceUI's part
+  lands); `gal = { copy = "seh" | "rpm" }` (§6.5, S0-D); and, in a probe build alone, `probe = { round, register,
+  object_size, settle_s, fault_group, fault_every, fault_after_s }` (R1 and S0-D's fault injection). The tables above
+  for later increments are accepted as tables and not read yet, so a full file is not refused; any other key, a wrong
+  type or a value out of range refuses the whole file, and the defaults are used, with each problem's place (never its
+  value) in the log. `probe` in a release build is refused. `ELDENNET_APPDATA` in the environment stands for
+  `%APPDATA%` (the launcher's `--appdata` for the DLL): only where EldenNet's files go, never what it reads of the game.
+  Every player's file passes en-proto's TOML pre-check before toml++ reads it (WHY§163).
 
 ```toml
 # %APPDATA%\EldenNet\config\secrets.toml (keys only)
@@ -2271,12 +2602,13 @@ far are marked; the others are added to it as they are built.
 | `decide` (built) | Ask a decision of a configured slot (§11.8) | `--config`, `--request` |
 | `probe` (built) | Find the local model servers on this PC's usual ports (§11.4) | `--json` |
 | `models` (built) | List the models each configured provider offers | `--config`, `--provider`, `--models`, `--json` |
-| `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend` | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` |
+| `replay <file.ensnap.zst>` | Drive the real `Core` (and Augur) through the replay `GameBackend`. Built for v0.1's slice on the JSON Lines recording (§7.5): the recorded lifecycle messages, banners and snapshots stepped through `Core` again, answering the recorded changes in order, or saying where it disagrees (WHY§202) | `--llm recorded\|mock:<script>\|live:<providers.toml>`, `--out timeline.jsonl` (built: `--out`) |
 | `golden check\|update` | Compare or rewrite `tests/golden` | `--route <name>` |
 | `eval` | Scripted persona turns and probes against a provider | `--persona`, `--stages`, `--preset <cloud\|local12>`, `--set awareness` (C14, NPC §12.5), `--report out.md` |
-| `lint` | Content and `gal/` validation; `--licence-files` (§12.1); `--profiles <dir>` checks a folder of player profile files with the player's rules (NPC §4.8) | `--strict` (release rules) |
+| `lint` | Content and `gal/` validation; `--licence-files` (§12.1); `--profiles <dir>` checks a folder of player profile files with the player's rules (NPC §4.8); built: `--gal <folder>` (each file as its reader reads it, a note per pattern, confirmed builds known), `--report <file>` (a numbers-only report against its kind's closed vocabulary) and `--recording <file>` (each line of a recording) | `--strict` (release rules) |
+| `rec-stats`, `spike-report` (built) | A recording's lines by kind and its numbers; DESIGN §16.1's S0 pass rules over the launcher's spike logs and recordings, each rule `pass`, `fail` or `not_measured` (WHY§201) | `--out`; `spike-report s0a\|s0b\|s0c\|s0d --log --recording --need` |
 | `render-prompt <template>` (built) | Print the exact prompt: a template file or folder of parts rendered with a JSON context into chat messages, or linted; later for a persona, stage and scene fixture | `--context`, `--root`, `--json`, `--no-merge`, `--lint`, `--list-functions` (built); `--slot`, `--fixture` |
-| `probe-exe <eldenring.exe>` | Offline fingerprint, patterns, FD4 idiom and RTTI check against `gal/` | `--against gal/`, `--json` |
+| `probe-exe <eldenring.exe>` (built) | The derivation round's offline part (R0, O89; §6.2, §6.10): from the executable file and the leads, the fingerprint, the FD4 idiom and the singletons, the vtable sets and task classes, `register_task`, the group table, the statics' classes, every pattern cut and checked as `patterns.toml` would hold it, and the confirm list for R1, into `derive.json` (schema 1, numbers only); `--sections` prints a refused file's section table in numbers | `--derive`, `--leads`, `--out`, `--static <label>=<rva>` (a slot R1 found), `--sections` |
 | `mockllm` | A local SSE server with scripted delays, 429s, `<think>` leaks, trailers and malformed JSON | `--script mock.toml`, `--port` |
 | `bake-pools` | Pre-generate bark pools outside the game | `--cards`, `--providers` |
 | `selftest` | Wizard steps 4a–4e outside the game (§11.7) | `--providers` |

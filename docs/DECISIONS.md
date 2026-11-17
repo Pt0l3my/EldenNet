@@ -1572,6 +1572,17 @@ DataPiler job, R1 from EldenNet's launcher and the comparison with Smithbox: "Ye
 **Follows from.** ARCH §6.2, §6.3 and §6.10; DESIGN §4.2 and §16.1 (S0-A); O27, O48, O73 to O75, O84. Roadmap
 S10.1.f, S7.11.h and i.
 
+*Later (2026-11-17):* as built and run, three consequences differ from the question's picture, and the design now
+says so (ARCH §6.2, §6.10, §4.14; roadmap S10.1.h). (1) R0 took three runs on 2.7.2.0 (R0, R0b, R0c), its reader and
+its FD4 finder fixed between them, and showed that some facts can only come from the game: the FD4 class names are
+written at run time, `register_task` has no candidate in the file, and one static has no RTTI (WHY§171, §180 to §189;
+`docs/ops/probes/`). (2) So R1 is not built from R0's drafts alone: it derives again over the live image, and makes
+its one call only where that agrees with what R0's review put in `gal/` (the gate, the FD4 idiom byte for byte, the
+task group's index), at the owner's Mark at the title with no save loaded, the launcher's development Mark of O90
+(WHY§193, §198, §199). (3) A short offline step follows R1: once reviewed, the statics' slots it found have their
+patterns cut from the file (`probe-exe --static`), and the layout's fields are searched by invariant in a later
+in-game run. Steps (3) and (4) of the decision are unchanged.
+
 ## O90
 
 **Spikes before GraceUI's host** · *2026-11-16 · Decided by the owner, as recommended*
@@ -1593,6 +1604,11 @@ GraceUI's Mark arrives. S0-E's present-hook half stays on GraceUI's 0.1 Host (ro
 **Owner's words.** "No, add a launcher Mark (Recommended)".
 
 **Follows from.** DESIGN §14 and §16.1; roadmap S10.1.c and S10.4; GraceUI's G15.
+
+*Later (2026-11-17):* built as decided, behind the launcher's `--console` (ARCH §4.14), and given one more use: R1's
+one call into the game waits for the first Mark, the owner's Pause at the title with no save loaded, since before the
+task is registered nothing EldenNet reads on its init thread can tell the title (O89; WHY§193). DESIGN §14 and §16.1
+now say so.
 
 ## O91
 
