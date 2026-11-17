@@ -863,8 +863,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15
-- h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1)
-  - refs: O89, O90, O91
+- h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
+  - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
+  - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
+    §6.2 to §6.5 and §6.10 (the round, what R0c showed, the schemas and the seam as built), §2.3,
+    §3.2 with the crash filter, §4.1 and §4.14 (the launcher's options, the watch block, the Mark),
+    §5 (not solo means dormant); DESIGN §3.1, §14 and §16.1; dated notes on O89 and O90.
 
 ### S10.2 EldenNet v0.1
 
