@@ -861,7 +861,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
     docs/ops/probes/), and R1's package was sent. R1 run 1 (2026-11-17, spike.2 after spike.1's launcher failed on
     Windows): the idiom and the task group confirmed, the class names not read (9 of 217), so no call; spike.3 sent
-    (WHY§206).
+    (WHY§206). Run 2 showed the names are not in the image at all; the owner chose the instances' RTTI (O92), and
+    spike.4 was sent (WHY§207).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15

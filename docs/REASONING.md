@@ -229,6 +229,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 204 | 2026-11-17 | C1's slot could answer an older snapshot after a newer one | FACT | #engine #dll |
 | 205 | 2026-11-17 | Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key | FACT | #graceui #input #perf |
 | 206 | 2026-11-17 | R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead | FACT | #gal #r1 #derive #launcher |
+| 207 | 2026-11-17 | R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4) | FACT | #gal #r1 #derive |
 
 ## Entries
 
@@ -3726,3 +3727,18 @@ invariant 10, EldenNet ARCH (T3)
   (two such names: ambiguous). `r1-probe.json` gains `names`, per offset 0 to 0x78: where the value points (null,
   `.rdata`, `.data`, code, other, outside the image) and what text it reaches, numbers only. If the names prove to be on
   the heap, the next step is a guarded read of them in the probe.
+
+### 207. R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4)
+
+`2026-11-17` · FACT · `#gal` `#r1` `#derive` · refs: O92, WHY§206, engine 7840217
+
+- **The run** (FACT, spike.3, game 2.7.2.0 ww): as run 1, the idiom, the 7,081 sites and the group at 110 were
+  confirmed, and the probe refused the call: 9 of 217 class objects named, none of them qualified by a namespace.
+- **The numbers** (FACT, `r1-probe.json`'s `names`): at every offset from 0 to 0x78, 48 to 147 of the 217 words were
+  null and 52 to 153 pointed outside the image; at most 13 pointed into `.rdata`, 20 into `.data` and 3 into code, and
+  none of the objects held a name inline. Offset 0 held no pointer into the image at all (127 null, 90 outside), so the
+  objects carry no vtable of the image's there either. The names, if held, are reached through the heap.
+- **So** (DECIDED, O92): spike.4 names a singleton by its instance's class: the static's instance (live `.data`), its
+  first word read once through the crash-guarded copy with ARCH §6.5's plausibility rules (on T1, before any call), and
+  that vtable's class from the RTTI walk; a lead matches its name or its name with Imp, once only. The probe's report
+  counts the statics tried, null, unread, unclassed, classed and matched (`inst_*`).
