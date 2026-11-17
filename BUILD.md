@@ -21,6 +21,11 @@ CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_object
 compiler), which need `llvm-objdump` and Python 3, and `en_tools_cli`, which runs `probe-exe` and `lint --report` on the
 derivation tests' invented program as DataPiler's job runs them.
 
+`en_tools_cli` also runs `lint --gal` on the repository's gal/ (each file read as the DLL and probe-exe read it, each
+build's layout with load_layout's checks in a dev build's mode, a derivation note for every pattern), and the spike
+tools (`rec-stats`, `replay`, `spike-report`) on recordings that `en_tools_write_recording` writes as eldennet.dll's
+core thread does, through en_shell's writers and en-core's slice, with invented spike logs.
+
 en-gal now builds three libraries: `en_gal` (offline: the PE reader, patterns, schemas and the derivation kit),
 `en_gal_game` (the part that runs in the game: GuardedReader, discovery, the read groups and the task, portable C++
 over `SysLayer`) and `en_gal_game_probe` (the same with `EN_PROBE`, for the tests and the test DLL; the CMake option
@@ -105,13 +110,17 @@ cmake --build build-cl
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 11 minutes for the clang-cl build's 94 cases (21 of them the launcher's, 10 eldennet.dll's, below): 52 of about
+- About 12 minutes for the clang-cl build's 95 cases (21 of them the launcher's, 12 eldennet.dll's, below): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
   offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
   The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
+- `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
+  Pause pressed every second from the title until taken), about 65 s; `launcher-eldennet-probe-release` gives
+  `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
+  `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## The launcher and the core's slice
@@ -142,11 +151,38 @@ Its README has the start as built, the threads, the settings, the recorder and R
 - `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with
   `llvm-objdump`: `eldennet_instance_marker` their only export, their imports within `src/eldennet/tests/imports.allow`
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 10 cases,
-  about 3 minutes (R1's is the longest, 40 s). Each installs the DLL in its own folder with gal/ beside it and gives it
-  an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s place (development and
-  tests).
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 12 cases,
+  about 4 minutes (`launcher-eldennet-probe` is the longest, about 65 s). Each installs the DLL in its own folder with
+  gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
+  place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
+- Each DLL's version resource is configured from `src/eldennet/win/eldennet.rc.in`: ProductVersion is the build's
+  label (`EN_VERSION_LABEL`, by default the project's version), and the probe build's carries SpecialBuild "probe"
+  (VS_FF_SPECIALBUILD). The label is in the log's boot line too. `eldennet-launcher --probe` asks the probe build for
+  R1 through the watch block (src/en-launcher/README.md).
+
+## The spike package (part 10)
+
+A spike package is a development build for the owner's PC, labelled `0.1.0-spike.N` and never shipped
+(docs/design/spikes/README.md has its files and the S0 runs). R1's is the first:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.1
+cmake --build build-cl-rel
+python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
+  --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
+```
+
+`EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
+`eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
+
+`build.py` refuses a tree that is not clang-cl, Release, with `EN_PROBE` and a spike label, a DLL that is not the probe
+build, and a text file holding a path of this PC; the zip is the same for the same inputs. Before it leaves: unzip it,
+`sha256sum -c SHA256SUMS`, run `eldennet-launcher.exe --help --no-dialogs` and `eldennet-engine.exe version` under
+Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `--set eldennet_probe=` and
+`--set engine=` pointing at the unzipped files (the owner's steps on the fake game), and sweep it
+(`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
 
 ## Checks: compile-fail tests and CI greps
 
