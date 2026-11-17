@@ -267,6 +267,19 @@ class Round {
     result_ = derive::derive(*image_, s_.sys->image(), leads_, options);
     ++f_.derive_passes;
     f_.derive_ms = since_ms() - t;
+    {  // the name search's numbers, for the reviewer (WHY§206)
+      const auto& g = result_.fd4.diagnostics;
+      f_.names.of = result_.fd4.names_of;
+      f_.names.agree = g.names_best;
+      f_.names.qualified = g.names_qualified;
+      f_.names.offset = g.best_names && g.names_best != 0 ? std::optional<std::uint32_t>(g.best_names->offset)
+                                                          : std::nullopt;
+      f_.names.slots.clear();
+      for (const derive::NameSlot& n : g.name_slots) {
+        f_.names.slots.push_back(en::shell::ProbeNameSlot{n.offset, n.null_ptr, n.to_rdata, n.to_data, n.to_code, n.to_other,
+                                               n.outside, n.plain, n.qualified, n.other_text, n.inline_text});
+      }
+    }
     const auto json = derive::write_report(result_);
     f_.derive_written = json.has_value() && write_text(folder_ + L"\\r1-derive.json", *json);
     log(Line("r1").word("stage", "derive").num("pass", f_.derive_passes).num("ms", f_.derive_ms)

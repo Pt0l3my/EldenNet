@@ -568,6 +568,48 @@ TEST_CASE("derive: accepted sites without a name layout leave the singletons dep
   CHECK_FALSE(it->value.has_value());
 }
 
+TEST_CASE("derive: class names joined by :: to a namespace name the leads by their last part, once only") {
+  // R1 run 1 named 9 of the game's 217 class objects (WHY§206): names with a namespace were not read as names. Three of
+  // the variants' names are rewritten in place: Cr::ible, Bel::er and E::er.
+  const Sample sample = en::gal::test::build_variants();
+  auto bytes = sample.built.file;
+  const SpanSource probe(bytes);
+  const auto image = en::gal::read_image(probe, ImageLayout::File);
+  REQUIRE(image.has_value());
+  const auto rewrite = [&](const char* label, std::string_view text) {
+    const auto off = image->offset_of(sample.program.rva(label), 1);
+    REQUIRE(off.has_value());
+    for (std::size_t i = 0; i < text.size(); ++i) bytes[static_cast<std::size_t>(*off) + i] = std::byte(text[i]);
+  };
+  rewrite("vname_Crucible", "Cr::ible");
+  rewrite("vname_Bellows", "Bel::er");
+  rewrite("vname_Ember", "E::er");
+  std::string text = en::gal::test::kVariantLeads;
+  for (const auto& [from, to] : {std::pair<std::string, std::string>{"\"Crucible\"", "\"ible\""},
+                                 {"\"Bellows\"", "\"er\""}, {"\"Ember\"", "\"er\""}}) {
+    const auto at = text.find(from);
+    REQUIRE(at != std::string::npos);
+    text.replace(at, from.size(), to);
+  }
+  const SpanSource source(bytes);
+  const auto r = en::gal::derive::derive(*image, source, leads(text.c_str()));
+  REQUIRE(r.fd4.names.has_value());
+  CHECK(r.fd4.names_agree == 6);
+  CHECK(r.fd4.diagnostics.names_qualified == 3);
+  CHECK(singleton(r, "crucible").status == Status::Derived);
+  CHECK(singleton(r, "anvil").status == Status::Derived);
+  CHECK(singleton(r, "bellows").status == Status::Ambiguous);
+  CHECK(singleton(r, "ember").status == Status::Ambiguous);
+  // The name search's numbers: at the layout's offset, every class object points into .rdata at a name.
+  const auto slot = std::find_if(r.fd4.diagnostics.name_slots.begin(), r.fd4.diagnostics.name_slots.end(),
+                                 [&](const auto& n) { return n.offset == r.fd4.names->offset; });
+  REQUIRE(slot != r.fd4.diagnostics.name_slots.end());
+  CHECK(slot->to_rdata == 6);
+  CHECK(slot->plain == 3);
+  CHECK(slot->qualified == 3);
+  CHECK(r.fd4.diagnostics.name_slots.size() == 16);
+}
+
 TEST_CASE("derive: a lone pointer to the group's name is no table, and gives no index") {
   // The sample's group table cut to one entry: the other names no longer read as identifiers.
   Loaded l = load();

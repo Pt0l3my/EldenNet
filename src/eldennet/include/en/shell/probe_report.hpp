@@ -65,6 +65,21 @@ struct ProbeStatic {
   std::vector<std::uint32_t> found;  // slots (RVAs)
 };
 
+// The class objects' name search, as numbers only (en-gal's NameSlot): R1 run 1 named 9 of 217 (WHY§206).
+struct ProbeNameSlot {
+  std::uint32_t offset = 0;
+  std::uint64_t null_ptr = 0, to_rdata = 0, to_data = 0, to_code = 0, to_other = 0, outside = 0;
+  std::uint64_t plain = 0, qualified = 0, other_text = 0, inline_text = 0;
+};
+
+struct ProbeNames {
+  std::uint64_t of = 0;         // class objects searched
+  std::uint64_t agree = 0;      // named by the best layout
+  std::uint64_t qualified = 0;  // of those, names joined by :: to a namespace
+  std::optional<std::uint32_t> offset;  // the best layout's offset
+  std::vector<ProbeNameSlot> slots;
+};
+
 struct ProbeFindings {
   std::string_view stage = "start";  // start, derived, waiting, registered, running, refused, failed
   std::uint64_t elapsed_ms = 0;      // since T1's start
@@ -101,6 +116,7 @@ struct ProbeFindings {
   std::uint64_t copy_faults = 0;
   std::uint64_t stack_refused = 0;
   std::uint64_t allocations = 0;  // on the game thread after its first tick (R6)
+  ProbeNames names;
 };
 
 [[nodiscard]] const gal::report::Vocabulary& probe_vocabulary() noexcept;

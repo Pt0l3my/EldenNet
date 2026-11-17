@@ -142,6 +142,22 @@ enum class SiteOutcome : std::uint8_t {
 };
 inline constexpr std::size_t kSiteOutcomes = 6;
 
+// One offset the name search tried in the class objects, as numbers only (R1 run 1 found 9 of 217 named, WHY§206): where
+// the 64-bit value there points, and what text it reaches; and the text held in the object itself at that offset.
+struct NameSlot {
+  std::uint32_t offset = 0;
+  std::uint64_t null_ptr = 0;    // zero
+  std::uint64_t to_rdata = 0;    // into .rdata
+  std::uint64_t to_data = 0;     // into .data
+  std::uint64_t to_code = 0;     // into a code section
+  std::uint64_t to_other = 0;    // into another section of the image
+  std::uint64_t outside = 0;     // non-zero, outside the image (the heap, or not a pointer)
+  std::uint64_t plain = 0;       // in the image: an identifier (ASCII or UTF-16)
+  std::uint64_t qualified = 0;   // in the image: identifiers joined by ::
+  std::uint64_t other_text = 0;  // in the image: other text of four characters or more
+  std::uint64_t inline_text = 0;  // in the object itself: an identifier, plain or qualified, of four characters or more
+};
+
 struct Fd4Diagnostics {
   std::array<std::uint64_t, kSiteOutcomes> outcomes{};      // per reference to a path
   std::vector<std::pair<std::uint64_t, std::uint64_t>> heads;  // per head shape, largest first: sites, matched
@@ -154,6 +170,8 @@ struct Fd4Diagnostics {
   std::uint64_t getters = 0;          // distinct getters of the accepted hits
   std::uint64_t names_best = 0;       // the class objects the best name layout reads, even under half
   std::optional<fd4::NameLayout> best_names;
+  std::uint64_t names_qualified = 0;  // of names_best, the qualified ones (identifiers joined by ::)
+  std::vector<NameSlot> name_slots;   // every offset tried, in order
   std::uint64_t class_fixups = 0;     // class objects with a base relocation in their first 128 bytes
   std::uint64_t class_beyond_file = 0;  // class objects past the raw data the file holds (zeros once mapped)
 };

@@ -279,31 +279,93 @@ std::uint32_t offset_in(const SiteSeq& s, std::size_t index) {
   return off;
 }
 
-// The name layout: the offset in the class objects that points at an identifier in .rdata for the most of them.
+// Identifiers joined by ::, two or more (a class name with its namespace).
+bool is_qualified_text(std::string_view s) {
+  if (s.find("::") == std::string_view::npos) return false;
+  std::size_t from = 0;
+  for (;;) {
+    const std::size_t at = s.find("::", from);
+    if (!is_identifier_text(s.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from)))
+      return false;
+    if (at == std::string_view::npos) return true;
+    from = at + 2;
+  }
+}
+
+bool is_name_text(std::string_view s) { return is_identifier_text(s) || is_qualified_text(s); }
+
+// The name layout: the offset in the class objects that points at a class name in .rdata, an identifier or one joined
+// by :: to its namespace, for the most of them. Every offset's numbers are kept for the report (NameSlot).
 void derive_names(Context& cx, const std::vector<std::uint32_t>& class_objects) {
   Fd4Result& r = cx.result.fd4;
+  Fd4Diagnostics& g = r.diagnostics;
   r.names_of = class_objects.size();
+  g.name_slots.clear();
   std::uint64_t best = 0;
+  std::uint64_t best_qualified = 0;
   for (std::uint32_t off = 0; off < 0x80; off += 8) {
+    NameSlot slot;
+    slot.offset = off;
+    for (const std::uint32_t cls : class_objects) {
+      const std::optional<std::uint64_t> va = cx.img.u64(cls + off);
+      const std::optional<std::uint32_t> rva = va && *va != 0 ? cx.img.rva_of(*va) : std::nullopt;
+      if (!va || *va == 0) {
+        ++slot.null_ptr;
+      } else if (!rva) {
+        ++slot.outside;
+      } else {
+        const std::string_view sec = cx.img.section_name(*rva);
+        ++(sec == kRdata ? slot.to_rdata : sec == kData ? slot.to_data : sec == kText ? slot.to_code : slot.to_other);
+        const std::optional<std::string> a = cx.img.ascii(*rva, 128);
+        const std::optional<std::string> u = cx.img.utf16(*rva, 128);
+        const auto kind = [&](const std::optional<std::string>& t) {
+          return !t ? 0 : is_identifier_text(*t) ? 1 : is_qualified_text(*t) ? 2 : t->size() >= 4 ? 3 : 0;
+        };
+        const int ka = kind(a);
+        const int ku = kind(u);
+        const int k = ka == 1 || ka == 2 ? ka : ku == 1 || ku == 2 ? ku : std::max(ka, ku);  // a name over other text
+        if (k == 1) ++slot.plain;
+        if (k == 2) ++slot.qualified;
+        if (k == 3) ++slot.other_text;
+      }
+      const std::optional<std::string> in = cx.img.ascii(cls + off, 64);
+      const std::optional<std::string> in16 = cx.img.utf16(cls + off, 64);
+      if ((in && in->size() >= 4 && is_name_text(*in)) || (in16 && in16->size() >= 4 && is_name_text(*in16)))
+        ++slot.inline_text;
+    }
+    g.name_slots.push_back(slot);
     for (const fd4::NameEncoding enc : {fd4::NameEncoding::Ascii, fd4::NameEncoding::Utf16}) {
       std::uint64_t n = 0;
+      std::uint64_t q = 0;
       for (const std::uint32_t cls : class_objects) {
         const std::optional<std::uint64_t> va = cx.img.u64(cls + off);
         const std::optional<std::uint32_t> rva = va ? cx.img.rva_of(*va) : std::nullopt;
         if (!rva || cx.img.section_name(*rva) != kRdata) continue;
         const std::optional<std::string> name = fd4::class_name(cx.img, cls, fd4::NameLayout{off, enc});
-        if (name && is_identifier_text(*name)) ++n;
+        if (name && is_name_text(*name)) {
+          ++n;
+          if (is_qualified_text(*name)) ++q;
+        }
       }
       if (n > best) {
         best = n;
+        best_qualified = q;
         r.names = fd4::NameLayout{off, enc};
       }
     }
   }
   r.names_agree = best;
-  r.diagnostics.names_best = best;
-  r.diagnostics.best_names = r.names;
+  g.names_best = best;
+  g.names_qualified = best_qualified;
+  g.best_names = r.names;
   if (best == 0 || 2 * best < class_objects.size()) r.names.reset();
+}
+
+// A lead's name as a found name gives it: the same, or the last part of a qualified one (CS::CSTask for CSTask).
+bool names_lead(std::string_view found, std::string_view lead) {
+  if (found == lead) return true;
+  return found.size() > lead.size() + 2 && found.substr(found.size() - lead.size()) == lead &&
+         found.substr(found.size() - lead.size() - 2, 2) == "::";
 }
 
 // The class objects as the file holds them: with a base relocation in their first 128 bytes (a pointer the file
@@ -532,17 +594,26 @@ void derive_fd4(Context& cx) {
     listed.insert(lead.name);
     SingletonResult one;
     one.label = lead.label;
-    const auto it = std::find_if(found.singletons.begin(), found.singletons.end(),
-                                 [&](const fd4::Singleton& s) { return s.name == lead.name; });
+    auto it = std::find_if(found.singletons.begin(), found.singletons.end(),
+                           [&](const fd4::Singleton& s) { return s.name == lead.name; });
+    bool several = false;
+    if (it == found.singletons.end()) {
+      const auto pred = [&](const fd4::Singleton& s) { return names_lead(s.name, lead.name); };
+      it = std::find_if(found.singletons.begin(), found.singletons.end(), pred);
+      several = it != found.singletons.end() && std::count_if(found.singletons.begin(), found.singletons.end(), pred) > 1;
+    }
     if (it != found.singletons.end()) {
-      one.status = it->ambiguous ? Status::Ambiguous : Status::Derived;
+      listed.insert(it->name);
+      one.status = it->ambiguous || several ? Status::Ambiguous : Status::Derived;
       one.static_slot = it->static_slot;
       one.class_object = it->class_object;
       one.getter = it->getter;
       one.sites = it->sites;
     } else {
       const auto refused = std::find_if(found.sites.begin(), found.sites.end(),
-                                        [&](const fd4::Site& s) { return s.refused && s.name == lead.name; });
+                                        [&](const fd4::Site& s) {
+                                          return s.refused && s.name && names_lead(*s.name, lead.name);
+                                        });
       if (refused != found.sites.end()) {
         one.status = Status::Refused;
         one.refusal = refused->refused;

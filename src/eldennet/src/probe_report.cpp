@@ -67,7 +67,7 @@ constexpr std::array<Key, 49> kKeys = {{
     {"hits", Type::Array, Type::Object},
     {"offset", Type::Unsigned},
 }};
-constexpr std::array<Key, 9> kMore = {{
+constexpr std::array<Key, 22> kMore = {{
     {"rose", Type::Unsigned},
     {"still", Type::Unsigned},
     {"other", Type::Unsigned},
@@ -77,6 +77,19 @@ constexpr std::array<Key, 9> kMore = {{
     {"copy_faults", Type::Unsigned},
     {"stack_refused", Type::Unsigned},
     {"allocations", Type::Unsigned},
+    {"names", Type::Object},
+    {"of", Type::Unsigned},
+    {"agree", Type::Unsigned},
+    {"qualified", Type::Unsigned},
+    {"name_slots", Type::Array, Type::Object},
+    {"null_ptr", Type::Unsigned},
+    {"to_rdata", Type::Unsigned},
+    {"to_data", Type::Unsigned},
+    {"to_code", Type::Unsigned},
+    {"to_other", Type::Unsigned},
+    {"outside", Type::Unsigned},
+    {"plain", Type::Unsigned},
+    {"inline_text", Type::Unsigned},
 }};
 
 constexpr std::array<Key, kKeys.size() + kMore.size()> joined() {
@@ -199,6 +212,29 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("copy_faults", f.copy_faults);
   w.number("stack_refused", f.stack_refused);
   w.number("allocations", f.allocations);
+  w.begin_object("names");
+  w.number("of", f.names.of);
+  w.number("agree", f.names.agree);
+  w.number("qualified", f.names.qualified);
+  if (f.names.offset) w.number("offset", *f.names.offset);
+  w.begin_array("name_slots");
+  for (const ProbeNameSlot& n : f.names.slots) {
+    w.begin_object();
+    w.number("offset", n.offset);
+    w.number("null_ptr", n.null_ptr);
+    w.number("to_rdata", n.to_rdata);
+    w.number("to_data", n.to_data);
+    w.number("to_code", n.to_code);
+    w.number("to_other", n.to_other);
+    w.number("outside", n.outside);
+    w.number("plain", n.plain);
+    w.number("qualified", n.qualified);
+    w.number("other", n.other_text);
+    w.number("inline_text", n.inline_text);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
   return w.finish();
 }
 
