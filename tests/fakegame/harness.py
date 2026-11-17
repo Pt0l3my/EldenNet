@@ -1072,7 +1072,8 @@ def check_r1(result):
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
     need(sum(1 for s in d["statics"] if s["status"] == "derived") == 4, "the statics: %s" %
          [(s["label"], s["status"]) for s in d["statics"]], failures)
-    return failures + want(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
+    # any_line: once the statics' slots are found the derivation runs again, and its line may come after this one.
+    return failures + any_line(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
 
 
 case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
@@ -1100,10 +1101,14 @@ def r1_steps(result):
 
 def check_r1_owner(result):
     failures = check_r1(result)
+    # The console polls the block every 200 ms, so a quick step (reading, called) may pass unseen, as in a Release
+    # build on the fake game; the others are always told, in order, and nothing else is.
     steps = r1_steps(result)
-    need(steps == list(R1_STEPS), "the console's R1 steps: %s" % steps, failures)
+    essential = [x for x in steps if x not in ("reading", "called")]
+    need(essential == [x for x in R1_STEPS if x not in ("reading", "called")] and
+         steps == [x for x in R1_STEPS if x in steps], "the console's R1 steps: %s" % steps, failures)
     plain = [l for l in result.lines if l.startswith("EldenNet R1: ")]
-    need(len(plain) == len(R1_STEPS) and any("press Pause" in l for l in plain) and
+    need(len(plain) == len(steps) and any("press Pause" in l for l in plain) and
          any("Task confirmed" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
     for name in ("r1-derive.json", "r1-probe.json"):
         failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
