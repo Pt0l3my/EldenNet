@@ -47,7 +47,7 @@ slug 884a0cd5-2a74-4287-a29b-a99bc5ce0693).
 
 # EldenNet
 
-- updated: 2026-11-16
+- updated: 2026-11-17
 - lede: A mod for Elden Ring on PC, for offline play, that lets the game's characters talk with you in their own words, remember you, and know what is going on around them.
 - status: Building towards the first test in game
 - facts: Offline, solo play · Dialogue only in version 1 · A cloud model by default, or your own · Spoiler-safe by design · Never writes to your game
@@ -327,13 +327,13 @@ it. It now builds for Windows the way the release will, is tested under Wine and
 answered a model server on a home network and a cloud service on Windows. The character profile is settled too, in
 five layers (decision O46).
 
-GraceUI's overlay, the part that draws in game, is being built first. Its drawing half already draws over a test
-program's frames in a harness that runs without the game, at a fraction of a millisecond a frame; its input half
-(keys, pad, and holding the controls while a menu is open) is under way. Beside it, EldenNet's first build for the
-game is planned and started (decisions O89 to O91): it reads the game and records what it sees, with no model and no
-network yet, and is tested against a stand-in game of our own. A short round on the owner's PC, part of it run by
-DataPiler, our companion tool, will find what EldenNet needs to know about the game's build; DataPiler then
-cross-checks EldenNet's findings against what Smithbox reads from the game's files.
+GraceUI's overlay, the part that draws in game, has its host built and reviewed: it draws over a test program's
+frames and handles keys and the pad in a harness that runs without the game, and other mods can connect to it and draw
+panels through its public interface. EldenNet's first build for the game is built too (decisions O89 to O91): its
+launcher, which backs up your saves and starts the game offline; the part that reads the game, read-only and guarded;
+its recorder; and a crash watcher that keeps no dump. It is tested against a stand-in game of our own. A short round
+on the owner's PC, run by DataPiler, our companion tool, has read what EldenNet needs from the game's program file, and
+the first round inside the game is under way.
 
 Then come the first checks in game, the roster written in batches, and EldenNet's versions, from v0.1 *Eyes* to v1.0,
 each one ready for testers, with GraceUI's menu growing beside them. GraceUI's interactive map of your journey is
