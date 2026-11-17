@@ -228,6 +228,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 203 | 2026-11-17 | The R1 package, 0.1.0-spike.1 | METHOD | #engine #r1 #spike |
 | 204 | 2026-11-17 | C1's slot could answer an older snapshot after a newer one | FACT | #engine #dll |
 | 205 | 2026-11-17 | Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key | FACT | #graceui #input #perf |
+| 206 | 2026-11-17 | R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead | FACT | #gal #r1 #derive #launcher |
 
 ## Entries
 
@@ -3706,3 +3707,22 @@ invariant 10, EldenNet ARCH (T3)
 - **The way round** (DECIDED, GraceUI D155): the filter reads the modifiers only for a fresh press of a key that some
   hotkey binds, and only while no holder has input; the p99 is back at about 1.5 µs.
 - **For S4** (METHOD): measure `GetKeyState`'s cost on Windows, where it is expected to be far cheaper.
+
+### 206. R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead
+
+`2026-11-17` · FACT · `#gal` `#r1` `#derive` `#launcher` · refs: O89, WHY§180, WHY§189, engine 92b368b
+
+- **The manifest** (FACT): package 0.1.0-spike.1's launcher did not start on Windows ("side-by-side configuration is
+  incorrect"). lld-link, given `launcher.manifest` as a source, merged it with its own and wrote the trustInfo with
+  namespaced attributes (`ms_asmv1:level`), which Windows refuses and Wine accepts. Since spike.2 the resource script
+  embeds the file as written and lld-link makes none (`/MANIFEST:NO`); the packager refuses a merged manifest.
+- **The run** (FACT, spike.2, game 2.7.2.0 ww): the gate passed; the live image gave R0's FD4 idiom byte for byte
+  (7,151 hits, as expected), 7,081 accepted sites over 217 class objects, and the task group at index 110, as R0 found.
+  The name search named 9 of the 217 (offset 0x68, ASCII into `.rdata`) over four passes from 17 to 77 s, under the
+  half it needs, so every singleton stayed unnamed and the probe refused the call, as designed.
+- **Why** (LIKELY, untested): the search took a name only as a plain identifier in `.rdata`; a class name joined to its
+  namespace by `::` would be refused, and one held outside the image (the heap) is not read at all.
+- **Spike.3** (DECIDED): names joined by `::` count, and a lead matches a name exactly or as its last part, once only
+  (two such names: ambiguous). `r1-probe.json` gains `names`, per offset 0 to 0x78: where the value points (null,
+  `.rdata`, `.data`, code, other, outside the image) and what text it reaches, numbers only. If the names prove to be on
+  the heap, the next step is a guarded read of them in the probe.
