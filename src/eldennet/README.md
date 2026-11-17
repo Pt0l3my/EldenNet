@@ -42,7 +42,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
 10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
     installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
-11. **Register**: the stack table made again without T1's own stack (WHY§180), then the one call into the game.
+11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game.
 12. **FirstTick**: at most 30 s for the task to pass the group check and phase A; else Inert and its banner.
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
@@ -78,7 +78,7 @@ the thread (game, init or other), whether it chained, and the faulting module's 
 `fault_site`: no folder); then it wakes the watcher and waits for it at most 2 s. It allocates nothing and calls
 nothing of the C runtime; after a stack overflow it skips the module look-up too, so it works in the few KB a thread
 has left then, and ends the process itself with the overflow's code instead of passing it on (under Wine, passing it
-on hung the process for good, with any filter of a DLL's; WHY§186). Every other exception goes on to the filter before
+on hung the process for good, with any filter of a DLL's; WHY§196). Every other exception goes on to the filter before
 ours.
 
 ## Settings (ARCH §11.5, as far as v0.1 goes)

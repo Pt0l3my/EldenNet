@@ -52,7 +52,7 @@ class NativeSys final : public SysLayer {
   std::size_t refresh_stacks() noexcept;
   // The table made again from nothing, less the calling thread's own stack: on T1 just before the task is registered,
   // so that the stack of a thread that has ended since the first scan (the launcher's loading thread), or that ends
-  // after it (T1 itself, at Ready), refuses no read of the game's objects placed where it was (WHY§180). The game
+  // after it (T1 itself, at Ready), refuses no read of the game's objects placed where it was (WHY§190). The game
   // never points into T1's stack while it lives. Answers how many ranges the table holds.
   std::size_t rescan_stacks() noexcept;
   // An address that faults when read, for the probe's fault injection: a page reserved with no access, never freed.

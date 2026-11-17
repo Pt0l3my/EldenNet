@@ -79,7 +79,7 @@ TEST_CASE("guarded: a stack range of a thread that ended is forgotten when a rea
   Rig r;
   const GameThread gt = GameThread::issue();
   r.reader.begin_tick();
-  const std::uint64_t old_stack = r.mem.alloc(0x1000);  // a stack once; now the game's object (WHY§180)
+  const std::uint64_t old_stack = r.mem.alloc(0x1000);  // a stack once; now the game's object (WHY§190)
   r.mem.put<std::uint64_t>(old_stack + 0x10, 0x1122334455667788ull);
   r.sys.own_stack = AddressRange{old_stack, old_stack + 0x1000};
   r.sys.note_own_stack();

@@ -244,7 +244,7 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   ReadProcessMemory on our own process (`CopyKind::Rpm`, S0-D's setting); the stack table holds every allocation with
   a guard page (the shape of a thread's stack; in an image, its guard pages alone) and each thread's own stack as it
   asks (`note_own_stack`, T1 at init and the game thread at its first tick). A thread that ends leaves its range in the
-  table while the game may reuse its memory (Wine frees an ended thread's stack late, and T1 ends at Ready; WHY§180):
+  table while the game may reuse its memory (Wine frees an ended thread's stack late, and T1 ends at Ready; WHY§190):
   `rescan_stacks`, on T1 just before registration, makes the table again without T1's own stack, and a read the table
   refuses is checked once more (`forget_stale_stacks`, on that rare path alone): a range whose allocation no longer
   holds a guard page leaves the table and the read goes on (`GuardedReader::stale_stacks` counts them).

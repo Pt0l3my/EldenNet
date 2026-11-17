@@ -154,7 +154,7 @@ TEST_CASE("native sys: stacks and guard pages are never read (WHY§111)") {
   CHECK((mbi.Protect & PAGE_GUARD) != 0);  // untouched
 }
 
-TEST_CASE("native sys: the rescan leaves out the calling thread's stack; a freed stack range is forgotten (WHY§180)") {
+TEST_CASE("native sys: the rescan leaves out the calling thread's stack; a freed stack range is forgotten (WHY§190)") {
   NativeSys sys;
   GuardedReader reader(sys);
   const auto gt = en::proto::GameThread::issue();

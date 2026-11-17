@@ -148,7 +148,7 @@ class SysLayer {
   // back to see how many of those bytes the game's hub wrote.
   [[nodiscard]] virtual std::uint64_t task_object() const noexcept = 0;
   // A read the stack table refused, checked again (the game thread, on that rare path alone): each range overlapping it
-  // whose allocation is no longer a stack (a thread that ended, its memory reused by the game: WHY§180) leaves the
+  // whose allocation is no longer a stack (a thread that ended, its memory reused by the game: WHY§190) leaves the
   // table. Answers whether the read no longer overlaps any range. A SysLayer that cannot tell answers false.
   virtual bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept {
     (void)address;

@@ -6,7 +6,7 @@
 // before it; guarded (one record per process, a second fault inside it passes straight on); allocation-free and within
 // a few KB of stack (after a stack overflow the C runtime cannot even format: nothing of it is called, and the module
 // look-up is skipped); it writes the record into the block, wakes the watcher and waits for it at most 2 s. A stack
-// overflow alone is not passed on: the process ends in the filter with its code (WHY§186).
+// overflow alone is not passed on: the process ends in the filter with its code (WHY§196).
 #include <array>
 
 #include "dll.hpp"
@@ -69,7 +69,7 @@ LONG WINAPI crash_filter(EXCEPTION_POINTERS* ep) noexcept {
         }
       }
       // A stack overflow leaves no stack for whatever would handle it after us: the process ends here with its code,
-      // as it would end anyway (WHY§186: under Wine, passing it on hung the process for good).
+      // as it would end anyway (WHY§196: under Wine, passing it on hung the process for good).
       if (ep != nullptr && ep->ExceptionRecord != nullptr &&
           ep->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW) {
         TerminateProcess(GetCurrentProcess(), EXCEPTION_STACK_OVERFLOW);

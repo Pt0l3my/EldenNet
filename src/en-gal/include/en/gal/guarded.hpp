@@ -96,7 +96,7 @@ class GuardedReader {
     return faults_[static_cast<std::size_t>(k)].load(std::memory_order_relaxed);
   }
   [[nodiscard]] std::uint64_t total_copies() const noexcept { return total_copies_.load(std::memory_order_relaxed); }
-  // Stack ranges found stale and forgotten (a thread that ended; WHY§180).
+  // Stack ranges found stale and forgotten (a thread that ended; WHY§190).
   [[nodiscard]] std::uint64_t stale_stacks() const noexcept { return stale_stacks_.load(std::memory_order_relaxed); }
 
 #if EN_PROBE

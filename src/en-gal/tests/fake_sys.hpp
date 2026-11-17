@@ -113,7 +113,7 @@ class FakeSys final : public SysLayer {
     return slot < calls_.size() ? calls_[slot] : 0;
   }
   [[nodiscard]] std::uint64_t task_object() const noexcept override { return block_; }
-  // A stack range the test marks stale (a thread that ended, its memory the game's: WHY§180) is forgotten on asking.
+  // A stack range the test marks stale (a thread that ended, its memory the game's: WHY§190) is forgotten on asking.
   bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override {
     if (!stacks_stale) return false;
     stacks_.remove(AddressRange{address, address + len});

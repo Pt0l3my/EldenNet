@@ -273,7 +273,7 @@ void run(HMODULE module) {
   enter(w::InitState::Register);
   // The stack table made again, without T1's own stack: threads that ended since the first scan (the launcher's
   // loading thread), and T1 itself once it ends at Ready, leave memory the game reuses for its own objects, which a
-  // stale range would refuse as a stack (WHY§180).
+  // stale range would refuse as a stack (WHY§190).
   const std::size_t stacks = s.sys->rescan_stacks();
   auto* task = new en::gal::GalTask(*s.sys, *d, task_io(*s.io));  // lives for the process
   auto* body = new Body(*task, s);

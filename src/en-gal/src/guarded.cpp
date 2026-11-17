@@ -116,7 +116,7 @@ Expected<void, ReadFault> GuardedReader::copy_into(const proto::GameThread& gt, 
   (void)group;
 #endif
   if (const auto why = implausible(address, dst.size(), align, sys_.stacks())) {
-    // A range of a thread that has ended (its memory now the game's) is forgotten, and the read goes on (WHY§180).
+    // A range of a thread that has ended (its memory now the game's) is forgotten, and the read goes on (WHY§190).
     if (*why != FaultKind::Stack || !sys_.forget_stale_stacks(address, dst.size())) return Unexpected{fail(*why)};
     stale_stacks_.fetch_add(1, std::memory_order_relaxed);
   }

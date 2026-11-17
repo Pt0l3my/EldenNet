@@ -200,7 +200,7 @@ class Round {
     }
     R1Body* body = prepare();
     block::install_filter();
-    (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§180)
+    (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§190)
     enter_state(w::InitState::Register);
     en::gal::TaskShape shape;
     shape.vtable_slots = f_.vtable_slots;
