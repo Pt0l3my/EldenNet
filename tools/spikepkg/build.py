@@ -49,7 +49,7 @@ def disclosure():
     with open(DISCLOSURE_SOURCE, encoding="utf-8") as f:
         src = f.read()
     start = src.index('"Safe use.')
-    end = src.index(";", start)
+    end = src.index('";', start) + 1  # the literal's own end: the text holds semicolons of its own
     parts = re.findall(r'"((?:[^"\\]|\\.)*)"', src[start:end])
     text = "".join(parts).replace("\\n", "\n").replace("\\'", "'").replace('\\"', '"')
     return "\n".join("  " + line if line else "" for line in text.rstrip("\n").split("\n"))
