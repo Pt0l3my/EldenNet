@@ -843,7 +843,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: O73
   - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Parts 1 to 10 of the spike
     build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
-    to §204); part 10's S0 package and the launcher's smoke run wait for R1's review.
+    to §204); part 10's S0 package and the launcher's smoke run wait for R1's review. Parts 11 (Augur v0.1 with golden
+    files) and 12 (en-overlay on GraceUI's ABI 1 preview) started on 2026-11-20, after the layering fix (WHY§211).
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -920,13 +921,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     atlas, notices in the Grace look, input for a panel through the holder, and world-state providers; a second
     example mod draws through them in the harness (WHY§140 to §147). The fonts' folder ships from 0.6, as §10 has
     it; until then notices fall back to Dear ImGui's own font.
-- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in the harness [active]
+- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in the harness [done]
   - needs: c
   - gives: from 2026-11-17 GraceUI's side is the Grace session's (handover-2026-11-17): a helper that turns Dear
     ImGui's draw data into GraceUI's draw lists, an example of the banner and the F11 view, and two consumers at once,
     each way round. F11 comes through GraceUI's hotkeys, brought forward from 0.2 into 0.1. EldenNet's side is the
     spike plan's part 12, built after them. "In CI" became the harness run in the session: neither repository has
-    workflows, by the owner's choice.
+    workflows, by the owner's choice. Done on 2026-11-20 (GraceUI feat/host f51bcc7, D155, D156): hotkeys and a first
+    `poll`, the header-only helper `graceui_imgui.hpp`, the example `hello-debug-view` beside `hello-notice`, each
+    loaded before and after GraceUI, 106 harness checks passing on both toolchains; what EldenNet must do is GraceUI's
+    `docs/eldennet-changes.md` §17 and §18. EldenNet's part 12 started the same day.
 
 ## S11 v0.2 First words [planned]
 

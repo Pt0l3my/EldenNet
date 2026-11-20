@@ -232,6 +232,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 207 | 2026-11-17 | R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4) | FACT | #gal #r1 #derive |
 | 208 | 2026-11-17 | R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice) | FACT | #gal #r1 #task |
 | 209 | 2026-11-17 | R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored | FACT | #gal #r1 #task #crash |
+| 210 | 2026-11-20 | Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it | FACT | #wine #ci #graceui |
+| 211 | 2026-11-20 | The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering | DECIDED | #layering #launcher #build |
 
 ## Entries
 
@@ -3779,3 +3781,28 @@ invariant 10, EldenNet ARCH (T3)
   crash-guarded copy under the plausibility rules, within 6,000 blocks and 6 MB, for our task object's address; the
   report gives where it was found (the offsets followed) and the 32-bit words equal to the group's index near it. On the
   fake game it finds the task one pointer deep. Run 5 stays at the title screen.
+
+### 210. Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it
+
+`2026-11-20` · FACT · `#wine` `#ci` `#graceui` · refs: WHY§113, engine e3b2670
+
+- **The failure** (FACT): after the container's restart on 2026-11-20 every Wine process, in an old prefix or a fresh
+  one, printed "free(): invalid pointer" and aborted before running anything; the fake game's prefix set-up failed, so
+  every harness case was not run. Wine, glibc and our builds had not changed; the environment had: it now sets
+  `TMPDIR=/tmp`.
+- **The cause** (FACT, gdb): Wine 9.0's `ntdll.so` frees, during `__wine_main`, a pointer into the environment strings
+  at the top of the stack, which is `TMPDIR`'s value; with the variable unset the same command runs.
+- **The way round** (DECIDED): EldenNet's harness drops `TMPDIR` from the environment it gives Wine (`wine_env`), and
+  hand runs use `env -u TMPDIR`. Grace was told the same day, for GraceUI's harness.
+
+### 211. The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering
+
+`2026-11-20` · DECIDED · `#layering` `#launcher` `#build` · refs: ARCH§2.3, engine 1c30a02
+
+- **The problem** (FACT): to lint R1's two reports after a probe session, the launcher linked `en_shell`, and through it
+  en-core, which ARCH §2.3 does not allow: the launcher may link only its own core, en-gal and en-proto.
+- **The change** (DECIDED): R1's probe report, its findings and closed vocabulary, moved from the shell into en-gal's
+  offline part as `en::gal::probe`, beside the derivation report it pairs with; the probe settings stay in the shell.
+- **The guard** (DECIDED): `cmake/link_rules.cmake` checks every module's links at configure time, following links
+  through other libraries, and stops with the chain that breaks a rule; `tests/linkrules` holds one clean case and five
+  that must be refused (through another library, a deep chain, a link-only dependency, a condition, an alias).
