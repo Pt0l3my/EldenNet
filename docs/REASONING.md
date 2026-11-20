@@ -266,6 +266,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 241 | 2026-11-20 | A mod's panel that takes input gets no characters through ABI 1 | FACT | #graceui #abi |
 | 242 | 2026-11-20 | A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook | METHOD | #graceui #overlay |
 | 243 | 2026-11-20 | Under Wine 9 the process's handle count and private bytes read 0 | FACT | #graceui #wine |
+| 244 | 2026-11-20 | ABI 1.1's input flag is appended after the reserved word, not renamed from it | METHOD | #graceui #abi |
+| 245 | 2026-11-20 | graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events | FACT | #graceui #abi |
+| 246 | 2026-11-20 | A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED | FACT | #graceui #input |
 
 ## Entries
 
@@ -4277,3 +4280,28 @@ invariant 10, EldenNet ARCH (T3)
 
 - (FACT) GetProcessHandleCount and GetProcessMemoryInfo's PrivateUsage answer 0 under Wine 9, so a leak check on them
   means nothing in the harness. GraceUI's spike reader shows them and does not judge them; on Windows they are real.
+
+### 244. ABI 1.1's input flag is appended after the reserved word, not renamed from it
+
+`2026-11-20` · METHOD · `#graceui` `#abi` · refs: GraceUI:D176, GraceUI:D109
+
+- (METHOD) ABI 1's append-only check (GraceUI's tools/check_safety.py, against the 1.0 baseline) refused renaming
+  GraceUiInputRequest's reserved word to `flags`. The flag is appended after it, with a second reserved word, so a
+  1.0 request (24 bytes) reads `flags` as 0 by its size.
+
+### 245. graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D176, GraceUI:D169
+
+- (FACT) Found by the spike observer's typing test in GraceUI's harness: its panel received 0 of 10 characters. The
+  wrapper now asks at ABI 1.1's size where `has_cap("holder-events")`, and reads a space's `GRACEUI_FULL` as "nothing
+  waiting". That holds because GraceUI hands out a holder's events and hotkeys before a space's. EldenNet's vendored
+  graceui-sys must be re-vendored from 0.2.1 or later before the chat box uses it.
+
+### 246. A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED
+
+`2026-11-20` · FACT · `#graceui` `#input` · refs: GraceUI:D176
+
+- (FACT) Danger or a loss of focus could end a holder between its grant and `HolderMail::enable`, so its close routine
+  found nothing to end and the mod was never told. Fixed by a check after enable, fenced (seq_cst) against `closed()`'s
+  fence, posting the end once. Found by review, not by a test: the window is too narrow to hit reliably.

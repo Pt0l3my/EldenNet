@@ -1121,7 +1121,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
     and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
     Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
-    for a D-entry of GraceUI's, for S4's second round after R1.
+    for a D-entry of GraceUI's, for S4's second round after R1. Built the same day in GraceUI 0.2.1 (feat/foundations
+    2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
 ### S11.5 v0.2's exit checks
 
