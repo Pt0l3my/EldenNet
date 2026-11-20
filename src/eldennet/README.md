@@ -187,7 +187,14 @@ layout fields). On T1, after the window and `settle_s` seconds:
    register, which argument the base holds, displacement, width), the callee-saved registers they were moved to, and
    their compares with an immediate (the value kept from 0 to 65,536), with memory or another register, and tests.
    An instruction whose effect on the registers it does not model ends the tracking, and the report says where
-   (`modelled_to`). `r1-probe.json`'s `callee_code` holds it (`register.callee` already holds the RVA).
+   (`modelled_to`). `r1-probe.json`'s `callee_code` holds it (`register.callee` already holds the RVA). Since spike.7
+   (WHY§235: run 6's callee was a 93-byte wrapper of one branch and two calls) the summary knows what each register
+   holds along the flow (where two paths meet a register keeps only what both agree on), and gives at every call and
+   tail jump which of the callee's arguments rcx, rdx, r8 and r9 hold (`pass`), and for each branch before the first
+   call the compare or test that set its flags, with its operands' kinds and its condition (`guard`); then each callee
+   it calls directly or tail-jumps to (up to eight) is summarised the same way with those arguments followed in
+   (`callee_code.inner`: their `args` are the wrapper's). Just before the call, T1 walks the hub's reachable memory as
+   the hub search does and keeps the blocks' bytes on our heap (within the walk's 6 MiB) for the diffs below.
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -199,19 +206,29 @@ layout fields). On T1, after the window and `settle_s` seconds:
    over the heap statics (a field rising by the clock and standing still at times: the play time's static, which has
    no RTTI); and each RTTI-classed static's slot.
    On T1, 2 and 20 s after the call: the **hub search** (spike.5, WHY§209: the hub's reachable memory, three pointers
-   deep, `hub_search`) and the **whole-memory search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery
-   calls committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack
-   nor T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack
-   overlaps it), within 8 GiB and 30 s (`stopped` says which cap, if any, ended it), for the 8-aligned words equal to
-   our task object's address and those pointing inside it. Each of the first 16 hits gives its region's kind (private,
-   mapped, image) and protection, an image's module (ours, the game's or another, by kind, never by name), its section
-   (by its characteristics) and RVA, and the 32-bit words equal to the group's index within 64 bytes. **Our own copies
-   are counted apart** (`own_found`, `own_inside`, hits with `own`): a region is ours when its allocation base is our
-   module's, our task's block's (VirtualAlloc's), or one of the DLL's own heap's. The probe DLL's operator new
-   allocates from a heap of its own (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its
-   copies, its state) lies there, and the search walks that heap (`HeapWalk`) for its regions' and large blocks'
-   allocation bases; `own_known` is false when the heap could not be made or walked, and then the heap's copies count
-   as the game's. While the task has not run, T1 also reads how much of our object the hub wrote (`object_written`).
+   deep, `hub_search`), the **hub diff** (spike.7, WHY§235, `hub_diff`: that walk compared with the one kept from before
+   the call, block by block by path: the blocks compared, re-pointed, gone and new, the 8-byte words that changed, and
+   for the first 32 of them their path and the old and new value's kind: zero, a small integer up to 65,536 with its
+   value, the group's index, our task object, our vtable, our module, the game's image with its section's kind and RVA,
+   the heap, or other; a new pointer's block fresh when the walk before the call never reached it, a word whose 32-bit
+   half is the group's index marked; at 20 s each word steady when it held the same new value at 2 s, the steady ones
+   listed first), and the **whole-memory search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
+   committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
+   T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
+   it), within 64 GiB and 30 s since spike.7 (run 6's 8 GiB cap left 2 of 10.6 GiB unread; `stopped` says which cap, if
+   any, ended it, and `committed_bytes` the process's committed total, past a cap too), for the 8-aligned words equal to
+   our task object's address and those pointing inside it, and since spike.7 those equal to our fake vtable's address
+   (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
+   apart, with how many different slots the game's words name. Each side keeps up to eight hits of each kind, each
+   giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
+   game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
+   to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
+   `own`): a region is ours when its allocation base is our module's, our task's block's or our vtable's
+   (VirtualAlloc's), or one of the DLL's own heap's. The probe DLL's operator new allocates from a heap of its own
+   (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its copies, its state) lies there,
+   and the search walks that heap (`HeapWalk`) for its regions' and large blocks' allocation bases; `own_known` is
+   false when the heap could not be made or walked, and then the heap's copies count as the game's. While the task
+   has not run, T1 also reads how much of our object the hub wrote (`object_written`).
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
    counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
    classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'

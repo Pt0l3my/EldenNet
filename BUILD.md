@@ -148,7 +148,9 @@ cmake --build build-cl
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
 - `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
-  Pause pressed every second from the title until taken), about 65 s; `launcher-eldennet-probe-release` gives
+  Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
+  its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7);
+  `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
@@ -231,11 +233,17 @@ A spike package is a development build for the owner's PC, labelled `0.1.0-spike
 
 ```sh
 cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.5
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.7 -DPython3_EXECUTABLE=/usr/local/bin/python3
 cmake --build build-cl-rel
 python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
   --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
 ```
+
+Since spike.6 the probe DLL's operator new allocates from a heap of its own (`win/alloc_count.cpp`), so that R1's
+whole-memory search tells the probe's own copies of our task's address apart from the game's; the release DLL is
+unchanged. Since spike.7 each search reads every readable committed region within 64 GiB and 30 s (on the fake game
+under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's, our vtable's and its slots'
+addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
 `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
