@@ -113,14 +113,171 @@ TEST_CASE("view: anything that is not a word of ours is written as '?', and a lo
   CHECK(only_ours(lines));
 }
 
-TEST_CASE("view: eight changes fill the list within its lines") {
+namespace {
+
+ViewEvent event(const char* kind, const char* cls, EventFrom from, std::uint64_t at_ms) {
+  ViewEvent e;
+  e.kind = kind;
+  e.cls = cls;
+  e.from = from;
+  e.radius = "witness";
+  e.at_ms = at_ms;
+  return e;
+}
+
+std::size_t line_of(const ViewLines& lines, const std::string& text) {
+  for (std::size_t i = 0; i < lines.size(); ++i) {
+    if (std::string(lines[i].text.data()).find(text) != std::string::npos) return i;
+  }
+  return lines.size();
+}
+
+}  // namespace
+
+TEST_CASE("view: full lists of events and changes fit within its lines and its panel") {
   ViewStatus s = sample();
   s.changes.clear();
-  for (int i = 0; i < 8; ++i) (void)s.changes.try_push_back(ViewChange{"phase", "loading", 100u * static_cast<unsigned>(i)});
+  for (std::size_t i = 0; i < kViewChanges; ++i) {
+    (void)s.changes.try_push_back(ViewChange{"phase", "loading", 100u * static_cast<unsigned>(i)});
+  }
+  for (std::size_t i = 0; i < kViewEvents; ++i) {
+    (void)s.events.try_push_back(event("ConversationStarted", "P", EventFrom::World, 100u * i));
+  }
   ViewLines lines;
   view_lines(s, lines);
-  CHECK(lines.size() <= kViewLines);
+  CHECK(lines.size() == kViewLines);  // kViewLines is sized for exactly this
   CHECK(std::string(lines[lines.size() - 1].text.data()).find("phase loading") != std::string::npos);
+  std::size_t marked = 0;
+  for (const ViewLine& l : lines) marked += l.marked ? 1 : 0;
+  CHECK(marked == kViewEvents);
+  // Every line of Dear ImGui's own 13 px font, kViewLineGap apart, inside the panel with its 8 px padding.
+  CHECK(8.0f + static_cast<float>(kViewLines) * 13.0f + static_cast<float>(kViewLines - 1) * kViewLineGap + 8.0f <=
+        kViewHeight);
+  // A mark inside its line's first two cells, left of the text (8 px of padding, 7 px a cell) and within the line.
+  CHECK(kViewMarkX >= 8.0f);
+  CHECK(kViewMarkX + kViewMarkSize <= 8.0f + 2 * 7.0f);
+  CHECK(kViewMarkY + kViewMarkSize <= 13.0f);
+}
+
+TEST_CASE("view: Augur's events, the newest first, with their kind, class, subject, reason, merges and audience") {
+  ViewStatus s = sample();
+  ViewEvent place = event("PlaceEntered", "P", EventFrom::World, 2000);
+  place.reason = "place";
+  place.reason_number = true;
+  place.number = 6100100;
+  ViewEvent gate = event("GateChanged", "T", EventFrom::Lifecycle, 4000);
+  gate.radius = "none";
+  gate.reason = "active";
+  ViewEvent struck = event("Struck", "K", EventFrom::World, 15800);
+  struck.subject = "mute";
+  struck.reason = "hard";
+  struck.count = 3;
+  struck.merged = true;
+  ViewEvent heard = event("NativeTalkStarted", "T", EventFrom::World, 16000);
+  heard.subject = "persona";
+  heard.subject_id = true;
+  heard.id = 12;
+  heard.reason = "popup";
+  heard.audience = 3;
+  heard.first = ViewAudienceRow{12, "direct"};
+  for (const ViewEvent& e : {gate, place, struck, heard}) (void)s.events.try_push_back(e);
+  s.events_seen = 41;
+  ViewLines lines;
+  view_lines(s, lines);
+  const std::string text = all_text(lines);
+  CHECK(text.find("Augur's events (41 seen)") != std::string::npos);
+  CHECK(lines[line_of(lines, "Augur's events")].heading);
+  const std::size_t h = line_of(lines, "NativeTalkStarted");
+  const std::size_t k = line_of(lines, "Struck");
+  const std::size_t p = line_of(lines, "PlaceEntered");
+  const std::size_t g = line_of(lines, "GateChanged");
+  REQUIRE(g < lines.size());
+  CHECK(h < k);  // the newest first
+  CHECK(k < p);
+  CHECK(p < g);
+  CHECK(g < line_of(lines, "en-core's changes"));  // the changes second
+  CHECK(std::string(lines[h].text.data()) ==
+        "  0.3 s   NativeTalkStarted   T  persona:12  popup           aud witness 3 p12.direct +2");
+  CHECK(std::string(lines[k].text.data()) ==
+        "  0.5 s   Struck              K  mute        hard x3 merged  aud witness 0");
+  CHECK(std::string(lines[p].text.data()) ==
+        "  14.3 s  PlaceEntered        P  none        place 6100100   aud witness 0");
+  CHECK(std::string(lines[g].text.data()) ==
+        "  12.3 s  GateChanged         T  none        active          aud none 0");
+  // Each event's line marked with its source; no other line is.
+  CHECK(lines[h].marked);
+  CHECK(lines[h].from == EventFrom::World);
+  CHECK(lines[g].marked);
+  CHECK(lines[g].from == EventFrom::Lifecycle);
+  std::size_t marked = 0;
+  for (const ViewLine& l : lines) marked += l.marked ? 1 : 0;
+  CHECK(marked == 4);
+  CHECK(only_ours(lines));
+}
+
+TEST_CASE("view: an event's words are checked again, and its line is cut at the line's end") {
+  ViewStatus s = sample();
+  ViewEvent e = event("Struck: Lantern\xC3\xA9", "K", EventFrom::Other, 1000);
+  e.subject = "C:\\Users\\someone";
+  const std::string long_word(400, 'x');
+  e.reason = long_word.c_str();
+  e.audience = 16;
+  e.first = ViewAudienceRow{4000000000u, "direct"};
+  (void)s.events.try_push_back(e);
+  ViewLines lines;
+  view_lines(s, lines);
+  const std::string text = all_text(lines);
+  CHECK(text.find("Struck?") != std::string::npos);
+  CHECK(text.find(':') == std::string::npos);
+  CHECK(text.find('\\') == std::string::npos);
+  CHECK(text.find("\xC3") == std::string::npos);
+  for (const ViewLine& l : lines) CHECK(std::strlen(l.text.data()) < kViewLineBytes);
+  CHECK(only_ours(lines));
+  // No event yet: "none yet" under its heading.
+  ViewStatus empty = sample();
+  view_lines(empty, lines);
+  const std::size_t heading = line_of(lines, "Augur's events (0 seen)");
+  REQUIRE(heading + 1 < lines.size());
+  CHECK(std::string(lines[heading + 1].text.data()) == "  none yet");
+  CHECK_FALSE(lines[heading + 1].marked);
+}
+
+TEST_CASE("view: the newest ring keeps the last N, the newest last in its copy, and counts every one") {
+  NewestRing<int, 3> ring;
+  en::proto::FixedVector<int, 3> out;
+  ring.copy_to(out);
+  CHECK(ring.size() == 0);
+  CHECK(ring.seen() == 0);
+  CHECK(out.size() == 0);
+  ring.push(1);
+  ring.push(2);
+  CHECK(ring.size() == 2);
+  CHECK(ring.newest(0) == 2);
+  CHECK(ring.newest(1) == 1);
+  ring.copy_to(out);
+  REQUIRE(out.size() == 2);
+  CHECK(out[0] == 1);
+  CHECK(out[1] == 2);
+  for (int i = 3; i <= 10; ++i) ring.push(i);
+  CHECK(ring.size() == 3);
+  CHECK(ring.seen() == 10);
+  CHECK(ring.newest(0) == 10);
+  CHECK(ring.newest(2) == 8);
+  ring.copy_to(out);
+  REQUIRE(out.size() == 3);
+  CHECK(out[0] == 8);
+  CHECK(out[1] == 9);
+  CHECK(out[2] == 10);
+  // The view's own rings: constant-initialised (the DLL keeps them constinit), each the size of its list.
+  static constinit EventRing events{};
+  static constinit ChangeRing changes{};
+  for (std::uint64_t i = 0; i < 25; ++i) events.push(event("Struck", "K", EventFrom::World, i));
+  ViewStatus s;
+  events.copy_to(s.events);
+  changes.copy_to(s.changes);
+  CHECK(s.events.size() == kViewEvents);
+  CHECK(events.seen() == 25);
+  CHECK(s.changes.size() == 0);
 }
 
 TEST_CASE("view: put_word") {

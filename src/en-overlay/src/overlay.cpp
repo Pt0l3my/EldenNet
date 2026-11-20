@@ -227,7 +227,7 @@ GraceUiStatus Overlay::world(std::uint32_t flags) noexcept {
 }
 
 // One frame of the view, in the panel's own pixels (D137, D156): a window filling the panel, the ribbon on its first
-// line (PAGES SP8), headings in gold and the rest in ink.
+// line (PAGES SP8), headings in gold and the rest in ink, each event's line after a square of its source's colour.
 bool Overlay::build(const ViewStatus& status) {
   ImGui::SetCurrentContext(imgui_);
   view_lines(status, lines_);
@@ -238,6 +238,7 @@ bool Overlay::build(const ViewStatus& status) {
   ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
   ImGui::SetNextWindowSize(ImVec2(kViewWidth, kViewHeight));
   ImGui::PushStyleColor(ImGuiCol_WindowBg, colour(kViewGround));
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, kViewLineGap));
   ImGui::Begin("eldennet-debug-view", nullptr,
                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                    ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing);
@@ -252,11 +253,18 @@ bool Overlay::build(const ViewStatus& status) {
       ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0.0f, at.y - 2.0f), ImVec2(kViewWidth, at.y + h + 2.0f),
                                                 ImGui::GetColorU32(colour(kViewRibbon)));
     }
+    if (l.marked) {
+      const ImVec2 at = ImGui::GetCursorScreenPos();
+      ImGui::GetWindowDrawList()->AddRectFilled(
+          ImVec2(kViewMarkX, at.y + kViewMarkY), ImVec2(kViewMarkX + kViewMarkSize, at.y + kViewMarkY + kViewMarkSize),
+          ImGui::GetColorU32(colour(kViewMarks[static_cast<std::size_t>(l.from) % kViewMarks.size()])));
+    }
     ImGui::PushStyleColor(ImGuiCol_Text, l.heading ? gold : ink);
     ImGui::TextUnformatted(l.text.data());
     ImGui::PopStyleColor();
   }
   ImGui::End();
+  ImGui::PopStyleVar();
   ImGui::PopStyleColor();
   ImGui::Render();
   return list_.build(*ImGui::GetDrawData(), kViewWidth, kViewHeight);

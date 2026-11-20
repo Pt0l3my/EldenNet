@@ -6,6 +6,8 @@
 #include <cmath>
 #include <string_view>
 
+#include "en/augur/words.hpp"
+
 namespace en::augur {
 
 namespace {
@@ -21,15 +23,6 @@ struct Overloaded : F... {
 template <class... F>
 Overloaded(F...) -> Overloaded<F...>;
 
-constexpr std::array<std::string_view, 3> kClasses = {"P", "K", "T"};
-constexpr std::array<std::string_view, 3> kHows = {"direct", "overheard", "witnessed"};
-constexpr std::array<std::string_view, 7> kSources = {"lifecycle", "snapshot_diff", "flag_watch", "pipeline",
-                                                      "timer",     "hook",          "subscriber"};
-constexpr std::array<std::string_view, 3> kOutcomes = {"Victory", "Death", "Left"};
-constexpr std::array<std::string_view, 4> kVias = {"Hit", "LockClosing", "Near", "LockOnly"};
-constexpr std::array<std::string_view, 2> kWhys = {"Timeout", "Distance"};
-constexpr std::array<std::string_view, 5> kLevels = {"Starting", "L1", "L2", "L3", "L4"};
-constexpr std::array<std::string_view, 3> kSides = {"tarnished", "card", "team"};
 struct InterruptWord {
   InterruptSet bit;
   std::string_view word;
@@ -43,11 +36,6 @@ constexpr std::array<InterruptWord, 7> kInterruptWords = {{
     {InterruptSet::OwnLinesExceptPlayerFell, "own_lines_except_player_fell"},
     {InterruptSet::OwnLinesWithin20m, "own_lines_within_20m"},
 }};
-
-template <std::size_t N>
-std::string_view word(const std::array<std::string_view, N>& words, std::size_t i) {
-  return i < N ? words[i] : std::string_view("?");
-}
 
 J opt_actor(const std::optional<ActorRef>& a, const HandleNamer& name) {
   return a ? J(actor_text(*a, name)) : J(nullptr);
@@ -67,7 +55,7 @@ J payload_json(const EventKind& kind, const HandleNamer& name) {
           },
           [&](const BossFightStarted& e) { return J{{"bars", bars_json(e.bars, name)}}; },
           [&](const BossFightEnded& e) {
-            return J{{"outcome", word(kOutcomes, static_cast<std::size_t>(e.outcome))}, {"bars", bars_json(e.bars, name)}};
+            return J{{"outcome", to_string(e.outcome)}, {"bars", bars_json(e.bars, name)}};
           },
           [&](const NativeTalkStarted& e) {
             return J{{"persona", e.persona ? J(e.persona->index) : J(nullptr)},
@@ -89,17 +77,17 @@ J payload_json(const EventKind& kind, const HandleNamer& name) {
           [&](const Healed& e) { return J{{"subject", actor_text(e.subject, name)}, {"frac", r3(e.frac)}}; },
           [&](const Engaged& e) {
             return J{{"subject", actor_text(e.subject, name)}, {"opponent", actor_text(e.opponent, name)},
-                     {"via", word(kVias, static_cast<std::size_t>(e.via))}, {"squad", e.squad}};
+                     {"via", to_string(e.via)}, {"squad", e.squad}};
           },
           [&](const Disengaged& e) {
             return J{{"subject", actor_text(e.subject, name)}, {"opponent", actor_text(e.opponent, name)},
-                     {"fled", e.fled}, {"why", word(kWhys, static_cast<std::size_t>(e.why))}};
+                     {"fled", e.fled}, {"why", to_string(e.why)}};
           },
           [&](const AllyDied& e) {
             J w = J::array();
             for (const ChrHandle h : e.witnesses) w.push_back(name(h));
             return J{{"victim", actor_text(e.victim, name)},
-                     {"side", std::string(word(kSides, static_cast<std::size_t>(e.side.kind))) + ":" +
+                     {"side", std::string(to_string(e.side.kind)) + ":" +
                                   std::to_string(e.side.value)},
                      {"witnesses", w}};
           },
@@ -108,7 +96,7 @@ J payload_json(const EventKind& kind, const HandleNamer& name) {
           [&](const JourneyChanged& e) { return J{{"ng_lvl", e.ng_lvl}}; },
           [&](const GateChanged& e) { return J{{"active", e.active}}; },
           [&](const GroupTripped& e) { return J{{"group", proto::to_string(e.group)}}; },
-          [&](const LadderChanged& e) { return J{{"to", word(kLevels, static_cast<std::size_t>(e.to))}}; },
+          [&](const LadderChanged& e) { return J{{"to", to_string(e.to)}}; },
           [&](const auto&) { return J::object(); },  // kinds with no field, and those v0.1 never emits
       },
       kind);
@@ -169,16 +157,16 @@ nlohmann::ordered_json event_json(const Event& ev, const HandleNamer& name) {
   j["t"] = ev.t_mono_ms;
   j["t_play"] = ev.t_play_ms;
   j["kind"] = kind_name(ev.kind);
-  j["class"] = word(kClasses, static_cast<std::size_t>(ev.event_class));
+  j["class"] = to_string(ev.event_class);
   j["rule"] = ev.rule ? J(*ev.rule) : J(nullptr);
-  j["source"] = word(kSources, static_cast<std::size_t>(ev.source));
+  j["source"] = to_string(ev.source);
   j["subject"] = opt_actor(ev.subject, name);
   j["object"] = opt_actor(ev.object, name);
   j["key"] = ev.key ? J(key_names(*ev.key, name)) : J(nullptr);
   j["conf"] = r3(ev.confidence);
   J aud = J::array();
   for (const AudienceEntry& a : ev.audience) {
-    aud.push_back(J::array({a.persona.index, word(kHows, static_cast<std::size_t>(a.how))}));
+    aud.push_back(J::array({a.persona.index, to_string(a.how)}));
   }
   j["audience"] = aud;
   j["count"] = ev.count;

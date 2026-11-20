@@ -80,7 +80,8 @@ spikes.
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
   snapshots, faults, the groups tripped, the task's p99), records the Marks, logs each change and a status line every
-  10 s, and notes a stall (a running task with no snapshot for 5 s; WHY§175). A probe build honours the launcher's
+  10 s (with `events=`, how many of Augur's events there have been), hands each change and each of Augur's events of
+  the step to the F11 view's rings, and notes a stall (a running task with no snapshot for 5 s; WHY§175). A probe build honours the launcher's
   crash request (S0-D's `s0d-crash`) on this thread.
 - **T10, the watcher**, repeats the anti-cheat module check every 60 s and notes `ersc.dll` (C14). Hot reload waits
   for content.
@@ -111,10 +112,11 @@ After each wake, once T1 has published the connection:
   never asked for, and the launcher's Pause stays the Mark (`marks source=launcher bound=0`; registered on T6,
   `mark_hotkey status=11 bound=0`).
 - **The F11 view** (`debug.panel = true`; PAGES SP8, off by default): `poll`'s F11 presses open and close it; while it
-  is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…`).
-  It shows T1's state and discovery's items, en-core's phase, level, banner and gate, the task's snapshots, p99 and
-  read mode, each read group's state, the groups tripped, the faults by kind, the Marks, GraceUI's version and the last
-  changes; no game text (en-overlay's README).
+  is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…
+  events=…`, the events it lists). It shows T1's state and discovery's items, en-core's phase, level, banner and gate,
+  the task's snapshots, p99 and read mode, each read group's state, the groups tripped, the faults by kind, the Marks,
+  GraceUI's version, Augur's last ten events with their audiences (each mapped on T6 to en-augur's words, `words.hpp`:
+  no handle, key or name) and en-core's last five changes; no game text (en-overlay's README).
 - **EldenNet's pages** (en-overlay's space, PAGES; GraceUI D169): registered by T1 at the connect (`connect … pages=0`
   when GraceUI took it; both views on the main path, the game's alone on the banner path). T6 keeps the space from its
   first wake, its logs stream fed from every line T11 writes (a tail ring of 256, T11 to T6), and, connected, fills its
@@ -324,8 +326,10 @@ copy, a crash and a stack overflow recorded through the DLL's filter, the watche
 from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
 taken, both reports linted by the launcher), and `--probe` refused by the release DLL. Without GraceUI, each logs
 `connect ok=0 outcome=absent installed=0 looks=1`: the look ends at once. With a test build of GraceUI (CMake's
-`EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), four cases more (`fakegame.launcher-eldennet-graceui*`):
+`EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), seven cases more (`fakegame.launcher-eldennet-graceui*`;
+the spike run's and EldenNet's pages' beside these):
 GraceUI loaded after EldenNet, by its own look, on the main path (the pre-flight, the connect, F11's view drawn on the
 game's Direct3D 12 frame and hidden again, the world-state provider, and the Mark handed over to GraceUI's hotkey);
 GraceUI loaded before it, on the banner path (the banner as one notice, F11's view); another mod holding Pause in
-GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; and the anti-cheat's notice-only mode.
+GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; the anti-cheat's notice-only mode; and
+Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame.

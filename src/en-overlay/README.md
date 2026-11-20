@@ -44,7 +44,7 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    failed to install"): the DLL logs one line.
 3. Connected, with `debug.panel` on: the view's Dear ImGui context (headless, `graceui::imgui::prepare`, Dear ImGui's
    own bitmap font), its atlas registered as a texture before any submit (EldenNet's registration window), a hidden
-   panel on the panel layer at the display's top left (24, 24; 680 by 420), and F11 registered as the hotkey
+   panel on the panel layer at the display's top left (24, 24; 680 by 500), and F11 registered as the hotkey
    `debug-view` (D155). A step that fails leaves the view off (the report names it: `no_caps`, `atlas`, `panel`,
    `hotkey`) and the connection as it is. F11 taken first, by another mod's hotkey or the menu key, registers unbound
    (`GRACEUI_UNBOUND` with its id, D164): a success, the view made all the same (`unbound` in the report, and the DLL
@@ -76,10 +76,23 @@ Its first line is a ribbon, "EldenNet developer view (F11 closes it)" (PAGES SP8
 label; T1's state and discovery's items and passes; en-core's phase, level and banner, the gate (open or closed, and
 why), Dormant and the badge; the task's snapshots, its p99 and read mode; each read group's state from the newest
 snapshot (`ok`, `untested`, `tripped`, with its hard faults), the groups C2 reported tripped, the copies and the faults
-by kind; the Marks and who stamps them; GraceUI's version; and the last eight of en-core's changes, the newest first,
-with their ages. It holds no game text: every word is the name of one of our own enums or a word of the view's own, each
-checked again as it is written (letters, digits and `_.+-`; anything else `?`), and the rest are numbers. "The last
-events" are en-core's changes until en-augur's events (part 11) join them.
+by kind; the Marks and who stamps them; GraceUI's version; then two lists, each the newest first with its ages:
+
+- **Augur's events** (DESIGN §14's "live events with audiences"; roadmap S10.2.d), the last ten, under a heading with
+  how many there have been: each line a square of its source's colour (blue the lifecycle's, green the world's, amber
+  EldenNet's own pipeline, none in v0.1), its age, its kind, its class (`P`, `K`, `T`), its subject (`player`, `mute`,
+  `persona:<index>`, `card:<index>`, `none`), its reason (Augur's `reason`, en-augur's `words.hpp`: `place 6100100`,
+  `hard`, `Victory`, `active`, ...), a K event's merges (`x3 merged`), and its audience: the radius, how many rows, the
+  first row (`p12.direct`) and how many more (`+2`). An event never shows a handle, a key, a name, an HP fraction or a
+  distance;
+- **en-core's changes**, the last five: the ladder's and the lifecycle's moves (DESIGN §14's "ladder"), kept beside
+  Augur's lifecycle events because they hold what those leave out (the gate's reason, the banner, the badge).
+
+T6 keeps both lists in rings of fixed size (`NewestRing`), which the DLL fills after each step of the core and copies
+into the view's status, a fixed snapshot: nothing is allocated for them, on T6 or on GraceUI's present thread. The view
+holds no game text: every word is the name of one of our own enums (Augur's among them) or a word of the view's own,
+each checked again as it is written (letters, digits and `_.+-`; anything else `?`), and the rest are numbers. It is 32
+lines of Dear ImGui's own 13 px font, 2 px apart, in a panel of 680 by 500.
 
 ## The world-state claims (`world.hpp`)
 
@@ -125,8 +138,10 @@ game's own text entry is not read in v0.1.
 
 ## Tests
 
-`en_overlay_tests` (doctest): in every build, the view's lines (every section, the newest change first with its age,
-nothing but our words and numbers whatever the status holds, a long word cut), the world-state claims, and the space:
+`en_overlay_tests` (doctest): in every build, the view's lines (every section, the newest event and the newest change
+first with their ages, each event's columns and its square's source, full lists within the view's lines and its panel,
+nothing but our words and numbers whatever the status holds, a long word cut), the newest ring (the last N, the newest
+last in its copy, every push counted), the world-state claims, and the space:
 its generated page data (the ids, the rail, the increment, GraceUI 0.2.5's checks met), settings.set and settings.reset
 with each refusal, a secret's status alone, what is published and when, the logs stream's batches and ring, the words
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
@@ -152,4 +167,6 @@ topic back and sends commands, and each page's in-game structure (`--dump`) matc
 
 End to end, the fake game's harness runs eldennet.dll with a test build of GraceUI under Wine with Direct3D 12
 (`tests/fakegame/README.md`), `launcher-eldennet-graceui-pages` among its cases: F5's menu on EldenNet's pages, a
-setting changed from it, and a browser on GraceUI's server reading the topics and sending commands.
+setting changed from it, and a browser on GraceUI's server reading the topics and sending commands; and
+`launcher-eldennet-graceui-events`: the fake game's world and the lifecycle raising Augur's events, and the view's
+squares of both colours counted on the game's frame.

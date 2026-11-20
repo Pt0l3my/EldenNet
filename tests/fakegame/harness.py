@@ -1167,7 +1167,7 @@ case("launcher-eldennet-spike-s0e-alone", LGAME + ["--also", "{vehprobe}", "--co
 # its swap chain and draws, presses F11 and Pause into its window, and reports what GraceUI's test exports say
 # (--grace-report): EldenNet's connection, its notices by key, the panels made, shown and drawn, the world-state
 # providers, and the pixels of the F11 view's ground read back from the frame. The view's place and ground are
-# en-overlay's (src/en-overlay/include/en/overlay/view.hpp): at 24, 24, 680 by 420, ground (22, 28, 38); the probe keeps
+# en-overlay's (src/en-overlay/include/en/overlay/view.hpp): at 24, 24, 680 by 500, ground (22, 28, 38); the probe keeps
 # left of the notices at the top right.
 GRACE_NEEDS = EN_NEEDS + ("graceui",)
 EN_PANEL = 'schema = 2\ndebug = { panel = true, record_sessions = true }\n'
@@ -1316,6 +1316,44 @@ def check_graceui_anticheat(r):
             en_log_is_clean(r))
 
 
+# Augur's events in F11's view (roadmap S10.2.d): the fake game's world raises Augur's events (its place entered, the
+# boss bar's fight, the talk popup's native talk at frames 600 to 659, and the lifecycle's own), and the view, opened at
+# frame 720, lists them, each line after a square of its source's colour (en-overlay's view.hpp: kViewMarks, 6 by 6
+# pixels at panel x 9, 4 below the line's top). Two more probes count those squares in the panel's mark column: the
+# world's green and the lifecycle's blue; each square is 36 pixels, so each count is a number of lines drawn.
+EVENT_MARK_PX = 36
+MARKS_RECT = "30,24,46,524"
+WORLD_PROBE = MARKS_RECT + ",80,190,110"
+LIFE_PROBE = MARKS_RECT + ",90,140,210"
+VIEW_EVENTS = 10  # en-overlay's kViewEvents
+
+
+def check_graceui_events(r):
+    failures = []
+    # Before F11 and after it again: no square on the frame.
+    failures += want_grace(r, 660, shown=0, probe2=(0, 0), probe3=(0, 0))
+    failures += want_grace(r, 900, shown=0, probe2=(0, 0), probe3=(0, 0))
+    # Open: the ground over most of the probe, and squares of both colours, whole squares, at most the list's ten.
+    failures += want_grace(r, 780, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA))
+    line = next((e for e in r.events("FAKEGAME", "grace") if e.get("frame") == "780"), {})
+    world = int(line.get("probe2", "0") or 0)
+    life = int(line.get("probe3", "0") or 0)
+    need(world >= EVENT_MARK_PX, "no world event drawn: probe2=%s" % world, failures)
+    need(life >= EVENT_MARK_PX, "no lifecycle event drawn: probe3=%s" % life, failures)
+    need(world % EVENT_MARK_PX == 0 and life % EVENT_MARK_PX == 0,
+         "the squares are not whole: probe2=%s probe3=%s" % (world, life), failures)
+    need((world + life) // EVENT_MARK_PX <= VIEW_EVENTS, "more than %d events drawn" % VIEW_EVENTS, failures)
+    # The DLL's side: the view opened with events in it, and the status lines (every 10 s) count Augur's events.
+    opened = [e for e in r.events("ELDENNET", "view") if e.get("open") == "1"]
+    need(len(opened) == 1 and int(opened[0].get("events", "0")) >= 1,
+         "the view's open line: %s" % [e.get("_rest", e) for e in opened], failures)
+    seen = [int(e["events"]) for e in r.events("ELDENNET", "status") if "events" in e]
+    need(bool(seen) and max(seen) >= 1, "the status lines' events: %s" % seen, failures)
+    return (check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "view": "ready"}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            failures + any_line(r, "ELDENNET", "view", presses=1, open=0) + en_log_is_clean(r))
+
+
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
 # danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down twice to
 # System › Status and Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
@@ -1462,6 +1500,15 @@ case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"
           "pre-flight, the connect on T1, the F11 view on Dear ImGui's core shown and hidden through GraceUI's hotkey "
           "and drawn on the game's frame, the world-state provider, and the Mark on GraceUI's hotkey once the "
           "launcher's console hands its ring over")
+case("launcher-eldennet-graceui-events", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--press-f11-at", "720,840", "--grace-report", "660,780,900", "--grace-probe", VIEW_PROBE,
+          "--grace-probe", WORLD_PROBE, "--grace-probe", LIFE_PROBE, frames=960),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui),
+     check=check_graceui_events,
+     what="Augur's events in F11's view: the fake game's world and the lifecycle raise Augur's events, and the view "
+          "opened lists them, the newest first, each after a square of its source's colour, which two more probes "
+          "count on the game's frame")
 case("launcher-eldennet-graceui-before", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "360", "--grace-report", "300,460", "--grace-probe", VIEW_PROBE, frames=540),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
