@@ -929,7 +929,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
     replay built in parts 6 and 9. Still to join (found by S10.1.i's fold): the F11 view shows en-core's changes, not
-    Augur's events with their audiences, which DESIGN §14's F11 list asks for.
+    Augur's events with their audiences, which DESIGN §14's F11 list asks for. Joined on 2026-11-20 (engine 2f2f843):
+    Augur's last ten events with their audiences, then en-core's last five changes, checked on the fake game with
+    GraceUI's test build (WHY§272).
 
 ### S10.3 v0.1's exit checks
 

@@ -294,6 +294,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 269 | 2026-11-20 | A range-for over a member of a temporary nlohmann::json dangles in C++20 | FACT | #engine |
 | 270 | 2026-11-20 | One body per topic: GraceUI's components read fixed fields, so a page with two lists needs two topics | FACT | #graceui #pages |
 | 271 | 2026-11-20 | GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it | FACT | #graceui #pages |
+| 272 | 2026-11-20 | F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour | DECIDED | #engine #augur #overlay #test |
 
 ## Entries
 
@@ -4644,3 +4645,21 @@ invariant 10, EldenNet ARCH (T3)
   topic the browser watched first reached the menu only at the mod's next change, and a static status never would
   have. Since GraceUI 0.2.6 the registry keeps a topic's newest state while any view watches it, and the menu's
   subscription is answered at once.
+
+### 272. F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#overlay` `#test` · refs: DESIGN§14, ARCH§2.2, ARCH§2.3, ARCH§8, S10.2.d, engine 2f2f843
+
+- (DECIDED) The view shows Augur's last ten events, newest first: kind, class, subject kind and index, a reason word
+  with at most one number (a place's id, a count, a slot), merges, the audience (radius, rows, first row), and the
+  age. Never an HP fraction, a distance, a handle or a name. en-core's last five changes follow, under DESIGN §14's
+  "ladder": they hold what Augur's lifecycle events leave out (the gate's reason, the banner, the badge). One
+  vocabulary, en-augur's `words.hpp`, serves the golden files and the view. T6 keeps both lists in fixed rings and
+  hands the view a fixed snapshot.
+- (METHOD) Each event's line starts with a 6 × 6 square in its source's colour (lifecycle, world, EldenNet's own):
+  GraceUI's test exports read pixels, not text, so a square of a known colour lets the fake game count events drawn,
+  by source.
+- (DECIDED) The words are mapped in the DLL, since en-overlay depends on en-proto alone (ARCH §2.3).
+- (FACT) On the fake game with GraceUI 0.2.5's test build (`launcher-eldennet-graceui-events`), F11 showed the ring
+  full: five world events and five lifecycle events, none before F11 or after it closed. Replaying the case's
+  recording gives the same 11 events, the view holding the last ten.
