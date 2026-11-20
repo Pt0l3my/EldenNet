@@ -1,5 +1,5 @@
 // SHA-256 against NIST's examples, and GraceUI's pre-flight on invented GraceUI folders (graceui.hpp): every file
-// matching graceui.toml, and each way it can fail.
+// matching graceui.toml, a graceui.toml as GraceUI's own manifest.py writes it (D165), and each way it can fail.
 #include <doctest.h>
 
 #include <cstring>
@@ -180,6 +180,72 @@ TEST_CASE("graceui.toml: what it must hold, each refusal in fixed words") {
   CHECK(refused("graceui = [") == "graceui.toml is not valid TOML");
   CHECK(refused(std::string(kGraceTomlMaxBytes + 1, ' ')) == "graceui.toml is too large");
   CHECK(std::string(to_string(GraceCheck::HashDiffers)) == "hash_differs");
+}
+
+// graceui-manifest.toml (beside this file, compiled in by CMakeLists.txt) is what GraceUI's own writer,
+// tools/release/manifest.py at GraceUI 3f1352b (D165), wrote for an invented GraceUI folder of these three files:
+//   python3 -I tools/release/manifest.py write FOLDER --released 2026-11-20
+// Its form is the one every GraceUI build now lays out (`GraceUI/` beside `bin/`): a comment, `graceui`, `abi`,
+// `protocol`, `caps` (empty), `released`, a blank line, then `[files]` in the order of their names.
+namespace {
+
+const unsigned char kManifestFixture[] = {
+#include "graceui_manifest.inc"
+};
+const std::string kFixtureDll = "MZ an invented graceui.dll for EldenNet's launcher tests, not a DLL\n";
+const std::string kFixtureLicence = "An invented licence for EldenNet's launcher tests.\n";
+const std::string kFixtureNotice = "An invented notice for EldenNet's launcher tests.\n";
+
+std::string manifest_fixture() {
+  return std::string(reinterpret_cast<const char*>(kManifestFixture), sizeof kManifestFixture);
+}
+
+}  // namespace
+
+TEST_CASE("GraceUI's pre-flight: a graceui.toml written by GraceUI's own manifest.py (D165)") {
+  const std::string text = manifest_fixture();
+  REQUIRE(text.find("protocol = [") != std::string::npos);  // the committed fixture, D165's keys and all
+  REQUIRE(text.find("caps = []") != std::string::npos);
+  REQUIRE(text.find("released = \"") != std::string::npos);
+  auto m = read_graceui_toml(text);
+  REQUIRE(m);
+  CHECK(m->version == std::array<std::uint16_t, 3>{0, 1, 0});
+  CHECK(m->abi_major == 1);
+  CHECK(m->abi_minor == 0);
+  REQUIRE(m->files.size() == 3);
+  CHECK(m->files[0].name == "LICENSE.txt");
+  CHECK(m->files[1].name == "NOTICE.txt");
+  CHECK(m->files[2].name == "graceui.dll");
+  CHECK(m->files[2].size == kFixtureDll.size());
+  CHECK(to_hex(m->files[2].sha256) == sha_hex(kFixtureDll));
+
+  // The folder it was written for, checked as the launcher checks Game\GraceUI\ before the game starts.
+  Folder f;
+  f.put("graceui.dll", kFixtureDll);
+  f.put("LICENSE.txt", kFixtureLicence);
+  f.put("NOTICE.txt", kFixtureNotice);
+  write_file(f.grace / "graceui.toml", text);
+  const GraceReport r = check_graceui(f.grace);
+  CHECK(r.result == GraceCheck::Ok);
+  CHECK(r.files == 3);
+  CHECK(r.checked == 3);
+  f.put("NOTICE.txt", "An invented notice for EldenNet's launcher tests!\n");
+  CHECK(check_graceui(f.grace).result == GraceCheck::HashDiffers);
+}
+
+TEST_CASE("graceui.toml: D165's protocol, caps and released are GraceUI's, never a reason to fail") {
+  // EldenNet's pre-flight reads the version, the ABI and the files (ARCH §4.3); the bridge protocol is not used in
+  // game in v0.1 and the release date names nothing it checks, so the three are accepted whatever they hold.
+  const std::string files = "[files]\n\"graceui.dll\" = { size = 3, sha256 = \"" + std::string(64, 'a') + "\" }\n";
+  const auto reads = [&](const std::string& head) { return static_cast<bool>(read_graceui_toml(head + files)); };
+  const std::string base = "graceui = \"0.6.2\"\nabi = [1, 4]\n";
+  CHECK(reads(base));
+  CHECK(reads(base + "protocol = [1, 4]\ncaps = [\"monitor.decisions\", \"playthrough\"]\n" +
+              "released = \"2027-03-01\"\n"));
+  CHECK(reads(base + "protocol = [2, 0]\ncaps = []\nreleased = \"2026-11-20\"\n"));
+  CHECK(reads(base + "protocol = \"1.4\"\ncaps = \"none\"\nreleased = 20261120\n"));
+  CHECK(reads("# GraceUI's version file (DESIGN \u00a72.7, D52): a comment with a character outside ASCII\n" + base +
+              "\n"));
 }
 
 TEST_CASE("E12: GraceUI's pre-flight, in E08's manner") {

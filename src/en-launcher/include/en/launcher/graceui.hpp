@@ -6,9 +6,11 @@
 // shown in game (headless, L2 at most; ARCH §10.3) until GraceUI is installed again. Installing the GraceUI release
 // EldenNet carries waits until EldenNet carries one (D53).
 //
-// graceui.toml's form is GraceUI's DESIGN §2.7 (D52): `graceui = "a.b.c"`, `abi = [major, minor]`, and a `[files]`
-// table of `"relative/name" = { size = N, sha256 = "<64 hex digits>" }`; its other keys (protocol, caps, released) are
-// GraceUI's, accepted and not read here.
+// graceui.toml's form is GraceUI's DESIGN §2.7 (D52), as GraceUI's own writer, tools/release/manifest.py, lays it out
+// in every build's `GraceUI/` folder (D165): `graceui = "a.b.c"`, `abi = [major, minor]`, and a `[files]` table of
+// `"relative/name" = { size = N, sha256 = "<64 hex digits>" }`. Its other keys, `protocol`, `caps` and `released`, are
+// GraceUI's: accepted whatever they hold and not read here, since nothing EldenNet checks before the start rests on
+// them (ARCH §4.3; the bridge protocol is the browser view's, not v0.1's).
 #include <array>
 #include <cstdint>
 #include <filesystem>
