@@ -236,6 +236,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 211 | 2026-11-20 | The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering | DECIDED | #layering #launcher #build |
 | 212 | 2026-11-20 | GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio | METHOD | #graceui #tokens #contrast |
 | 213 | 2026-11-20 | nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4 | FACT | #graceui #protocol #perf |
+| 214 | 2026-11-20 | grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as it arrives, so a client that never ends its head is refused at once; everything else waits for the whole head, then Host first | METHOD | #graceui #server #security |
 
 ## Entries
 
@@ -3830,3 +3831,15 @@ invariant 10, EldenNet ARCH (T3)
 - **Next** (DECIDED): a risk for S4 to measure on the player's hardware (GraceUI D159, §11). If it stays over, the ways
   out are a faster parser behind grace-protocol (yyjson, MIT, first) or `publish` checking the body's syntax and passing
   its bytes through; the second amends D55 and touches EldenNet's T6, so the two sessions agree it first.
+
+### 214. grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as it arrives, so a client that never ends its head is refused at once; everything else waits for the whole head, then Host first
+
+`2026-11-20` · METHOD · `#graceui` `#server` `#security` · refs: GraceUI:D158, GraceUI:DESIGN§7.2, G29, GraceUI feat/foundations 630639d
+
+- (METHOD, the Grace session) grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as
+  it arrives, rather than waiting for the whole head. A client that never ends its head (bare-LF line endings) is then
+  refused at once instead of holding a connection until the 5 s head deadline. Everything else waits for the whole
+  head, then Host is checked first (421), as SRV §5.2 advises (D158).
+- (DECIDED, D158; for EldenNet's launcher as a host of the same library, G29) the session cookie and the ticket are 32
+  random bytes written as 43 characters of base64url; the loopback origin is always `http://127.0.0.1:PORT`, with
+  `localhost` and `[::1]` redirected there by 307.

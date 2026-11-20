@@ -976,9 +976,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     commands; a generator for checked C++ types and web/src/protocol.ts; grace-protocol on nlohmann/json 3.12.0; golden
     frames, round trips and a clean fuzzer. EldenNet's own topics and commands join the schema as its pages are built
     (S11.4). A risk for S4 to measure: the bridge's budget for EldenNet's largest payload (WHY§213).
-- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed [active]
-  - refs: GraceUI:DESIGN§7.2, GraceUI:DESIGN§7.6, G30
-- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint
+- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed [done]
+  - refs: GraceUI:DESIGN§7.2, GraceUI:DESIGN§7.6, G30, GraceUI:D158
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 630639d): grace_serve_core, pure: an incremental head
+    parser, the response writer with §7.2 item 10's headers on every response, the Host, Origin, Fetch Metadata and
+    cookie checks, the WebSocket handshake with our own SHA-1 and Base64, and a strict RFC 6455 frame codec; 48 unit
+    cases under the sanitizers, a chunking differential, the RFC vectors and two clean fuzzers. For EldenNet's launcher
+    as a later host (G29): the cookie and ticket are 32 random bytes in base64url, and the loopback origin is always
+    http://127.0.0.1:PORT, localhost and [::1] redirected there (WHY§214).
+- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint [active]
   - needs: f
   - refs: GraceUI:DESIGN§2.5, GraceUI:DESIGN§6.9, GraceUI:D79, GraceUI:D115
 - i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6)
