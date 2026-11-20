@@ -215,6 +215,7 @@ def check_spike_tools(a):
     code, _, se, rp = report_of(a, ["replay", tampered], os.path.join(work, "tampered-replay.json"))
     need(code == 1 and rp and not rp["agree"] and "first_difference" in rp and "disagrees" in se,
          "replay on a tampered recording: %s %r" % (code, se))
+    check_golden_tools(a, work, rec["s0c"])
     # spike-report s0a: 20 runs early and 20 late pass; 19 early fail; early alone is incomplete; a crash fails.
     ok = [("suspended", "ready", "closed", False, 0)] * 20 + [("title", "banner", "closed", False, 0)] * 20
     code, so, _, sp = report_of(a, ["spike-report", "s0a", "--log", spike_log(os.path.join(work, "s0a.jsonl"), "s0a",
@@ -283,6 +284,55 @@ def check_spike_tools(a):
         code, so, se = run(a.engine, *argv)
         need(code == want and work not in so + se and "Games" not in so + se,
              "%s: exit %s, wanted %s: %r" % (argv[0], code, want, se[-200:]))
+
+
+def check_golden_tools(a, work, recording):
+    """replay --events and golden (part 11) on a recording written as eldennet.dll writes it, and on an invented
+    scenario: the events in the golden files' form, update then check, a golden file changed by hand or without its
+    CHANGES.md entry refused with our own diff, a scenario's failed expectation, and usage errors. No path in any
+    message."""
+    events = os.path.join(work, "s0c-events.jsonl")
+    code, _, se, rp = report_of(a, ["replay", recording, "--events", events], os.path.join(work, "s0c-replay2.json"))
+    need(code == 0 and rp and rp["events"] > 0 and os.path.exists(events), "replay --events: %s %r" % (code, se))
+    if os.path.exists(events):
+        with open(events) as f:
+            lines = f.read().splitlines()
+        head = json.loads(lines[0])
+        kinds = {k["event"]: k["count"] for k in rp["event_kinds"]}
+        need(head["golden"] == 1 and head["events"] == rp["events"] == len(lines) - 1 and
+             kinds.get("GateChanged", 0) == 3 and kinds.get("DataReady") == 1,
+             "replay's events: %r %r" % (head, kinds))
+    gold = os.path.join(work, "golden")
+    os.makedirs(gold, exist_ok=True)
+    target, changes = os.path.join(gold, "s0c.events.jsonl"), os.path.join(gold, "CHANGES.md")
+    with open(changes, "w") as f:
+        f.write("# changes\n")
+    code, so, se = run(a.engine, "golden", "update", recording, "--golden", target)
+    hash_ = re.search(r"fnv1a64:[0-9a-f]{16}", so)
+    need(code == 0 and hash_ and "a new golden file" in so, "golden update: %s %r %r" % (code, so, se))
+    code, so, se = run(a.engine, "golden", "check", recording, "--golden", target)
+    need(code == 1 and "CHANGES.md has no entry" in se, "golden check without its entry: %s %r" % (code, se))
+    if hash_:
+        with open(changes, "a") as f:
+            f.write("- `s0c` %s: invented\n" % hash_.group(0))
+    code, so, se = run(a.engine, "golden", recording, "--golden", target)
+    need(code == 0 and "agree" in so, "golden check: %s %r %r" % (code, so, se))
+    with open(target) as f:
+        text = f.read()
+    with open(target, "w") as f:
+        f.write(text.replace('"kind":"GateChanged"', '"kind":"GateOpened"', 1))
+    code, so, se = run(a.engine, "golden", "check", recording, "--golden", target)
+    need(code == 1 and so.startswith("@@ golden line") and "-" in so and "differ" in se,
+         "golden check on a changed file: %s %r" % (code, so[:200]))
+    scn = os.path.join(work, "unmet.scn")
+    with open(scn, "w") as f:
+        f.write("route unmet\nat 0 spawn s1 team=6 pos=40,0,0\nexpect event Engaged subject=s1\n")
+    code, so, se = run(a.engine, "golden", "update", scn, "--golden", os.path.join(gold, "unmet.events.jsonl"))
+    need(code == 1 and "line 3: no Engaged matched" in se and not os.path.exists(os.path.join(gold, "unmet.events.jsonl")),
+         "golden update with an unmet expectation: %s %r" % (code, se))
+    for argv in (["golden"], ["golden", "x.txt"], ["golden", "check", recording, "--frob"]):
+        code, so, se = run(a.engine, *argv)
+        need(code == 2 and work not in so + se, "%s: exit %s %r" % (argv, code, se[-200:]))
 
 
 def main():

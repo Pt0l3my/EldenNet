@@ -1,6 +1,7 @@
 // eldennet-engine: runs EldenNet's engine outside the game (roadmap S8.1.a, S8.1.g).
 // Each subcommand lives in its own file: render_prompt.cpp, chat.cpp, decide.cpp, probe.cpp (probe and models),
-// probe_exe.cpp (the derivation's offline round), lint.cpp (lint) and spike.cpp (rec-stats, replay, spike-report).
+// probe_exe.cpp (the derivation's offline round), lint.cpp (lint), spike.cpp (rec-stats, replay, spike-report) and
+// golden.cpp (golden, over lib/: the scenario DSL and the golden runner).
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -19,6 +20,7 @@ int run_lint(int argc, char** argv);
 int run_rec_stats(int argc, char** argv);
 int run_replay(int argc, char** argv);
 int run_spike_report(int argc, char** argv);
+int run_golden(int argc, char** argv);
 
 namespace {
 void usage() {
@@ -32,7 +34,8 @@ void usage() {
       "  probe-exe      read a game's executable file and derive what the game access layer needs (devkit)\n"
       "  lint           check a numbers-only report (--report), a recording (--recording) or gal/ (--gal)\n"
       "  rec-stats      what a recording holds, as a numbers-only report\n"
-      "  replay         step a recording's inputs through the core again, and compare its changes\n"
+      "  replay         step a recording's inputs through the core (and Augur) again, and compare its changes\n"
+      "  golden         run a scenario or a recording through Augur and compare with its golden file\n"
       "  spike-report   DESIGN 16.1's pass rules for S0-A to S0-D over spike logs and recordings\n"
       "  version        print the version\n",
       stderr);
@@ -55,6 +58,7 @@ int main(int argc, char** argv) {
   if (cmd == "rec-stats") return run_rec_stats(argc - 1, argv + 1);
   if (cmd == "replay") return run_replay(argc - 1, argv + 1);
   if (cmd == "spike-report") return run_spike_report(argc - 1, argv + 1);
+  if (cmd == "golden") return run_golden(argc - 1, argv + 1);
   if (cmd == "version") {
     std::puts("eldennet-engine " EN_ENGINE_VERSION);
     return 0;

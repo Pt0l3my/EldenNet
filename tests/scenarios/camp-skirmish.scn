@@ -1,0 +1,56 @@
+# A camp skirmish (synthetic, invented): the Tarnished locks on a sentry that closes in, trades blows with it, lands a
+# critical hit and kills it in sight of two others; one charges and is left behind beyond 30 m; the third follows and
+# stands near until its engagement times out. Our own route, names and numbers.
+route camp-skirmish
+seed 11
+step 250
+end 40000
+
+at 0     spawn player hp=1000/1000 pos=0,0,0
+at 0     place 61001
+at 0     spawn ash team=6 pos=24,0,0 hp=500/500
+at 0     spawn briar team=6 pos=27,3,0 hp=500/500
+at 0     spawn cinder team=6 pos=26,-4,0 hp=300/300
+at 6000  lock ash
+at 6000  move ash to=10,0,0 over=2000
+at 8500  move player to=6,0,0 over=1000
+at 9000  hit player -> ash dmg=60
+at 9500  hit ash -> player dmg=90
+at 9750  hit player -> ash dmg=60
+at 10000 hit player -> ash dmg=200
+at 10500 hit player -> ash dmg=80
+at 10750 throw player 3
+at 10750 throw ash 4
+at 11250 throw player 0
+at 11250 throw ash 0
+at 11250 unlock
+at 11250 kill ash by=player
+at 12000 move briar to=9,2,0 over=1500
+at 14000 hit briar -> player dmg=120
+at 15000 move player to=50,0,0 over=1500
+at 17000 place 61002
+at 18000 move cinder to=46,0,0 over=2000
+at 21000 heal player amount=300
+at 33000 ride on
+at 36000 ride off
+
+# What the route must show (ARCH §8.4, §8.7): the lock, then the lock while closing, raising the engagement across 0.6.
+expect event Engaged subject=ash via=LockOnly conf=0.3 within 6000..6000
+expect event Engaged subject=ash via=LockClosing conf=0.6 within 6250..8000
+expect count 2 Engaged subject=ash
+# Hits merge per pair over 2.5 s; the third's 64% within 3 s turns hard, a salient change, re-emitted as merged.
+expect event Struck subject=ash att=player hard=false count=1 within 9000..9000
+expect event Struck subject=ash att=player hard=true merged=true count=3 within 10000..10000
+expect count 2 Struck subject=ash
+expect event Struck subject=player att=ash within 9500..9500
+expect event LowHp subject=ash within 10500..10500
+expect event CritLanded subject=ash within 10750..10750
+expect event AllyDied victim=ash witnesses=[cinder,briar] within 11250..11250
+expect no Disengaged subject=ash
+expect event Engaged subject=briar via=Near
+expect event Disengaged subject=briar why=Distance fled=true within 15000..17000
+expect event Engaged subject=cinder via=Near squad=2
+expect event Healed subject=player within 21000..21000
+expect event Disengaged subject=cinder why=Timeout fled=false within 27000..28000
+expect event PlaceEntered place_id=61002 prev=61001 within 19000..19000
+expect count 2 MountChanged

@@ -138,7 +138,7 @@ TEST_CASE("record: an empty snapshot (the title) lints clean") {
   lints(snapshot_line(empty, 1));
 }
 
-TEST_CASE("a recording's lines read back with the writer's words: what the core reads, counts of the rest") {
+TEST_CASE("a recording's lines read back with the writer's words: what the core and Augur read, counts of the rest") {
   const auto s = full_snapshot();
   const auto snap = read_recorded_line(snapshot_line(*s, s->mono_ms));
   REQUIRE(snap.has_value());
@@ -157,8 +157,38 @@ TEST_CASE("a recording's lines read back with the writer's words: what the core 
   CHECK(r.player->level == s->player->level);
   CHECK(r.player->save_slot == s->player->save_slot);
   CHECK(snap->chars == s->chars.size());
-  CHECK(r.chars.empty());  // counted, not rebuilt
   CHECK(snap->flag_frame == s->flags.has_value());
+  // What Augur reads (part 11): the characters, the Tarnished's combat fields, the UI, the place, the boss and flags.
+  CHECK(r.ui == s->ui);
+  CHECK(r.place.has_value() == s->place.has_value());
+  if (s->place) CHECK(r.place->place_id == s->place->place_id);  // the region key is never recorded
+  CHECK(r.clock == s->clock);
+  CHECK(r.boss.bars == s->boss.bars);
+  CHECK(r.flags == s->flags);
+  const auto near = [](float a, float b) { return std::isnan(a) ? std::isnan(b) : std::fabs(a - b) <= 1e-5f * (1 + std::fabs(a)); };
+  proto::Player pa = *r.player, pb = *s->player;
+  CHECK(near(pa.pos[0], pb.pos[0]));
+  CHECK(near(pa.pos[1], pb.pos[1]));
+  CHECK(near(pa.pos[2], pb.pos[2]));
+  pa.pos = pb.pos;
+  CHECK(pa == pb);
+  REQUIRE(r.chars.size() == s->chars.size());
+  for (std::size_t i = 0; i < r.chars.size(); ++i) {
+    CAPTURE(i);
+    proto::Chr a = r.chars[i], b = s->chars[i];
+    CHECK(near(a.dist_m, b.dist_m));
+    CHECK(near(a.bearing_deg, b.bearing_deg));
+    for (std::size_t k = 0; k < 3; ++k) CHECK(near(a.pos[k], b.pos[k]));
+    a.dist_m = b.dist_m;
+    a.bearing_deg = b.bearing_deg;
+    a.pos = b.pos;
+    a.asleep = b.asleep;  // never recorded (S8)
+    if (std::isnan(b.bearing_deg)) {
+      CHECK(a.handle == b.handle);
+    } else {
+      CHECK(a == b);
+    }
+  }
 
   proto::Lifecycle::PlaythroughReady p;
   p.slot = 4;

@@ -5,6 +5,7 @@
 // v0.1 emits only what its sources can produce (the module's README lists which, and why the others wait). The kinds a
 // later source emits are here already, so that a rule file naming one is checked against the same catalogue; their
 // helper types are the smallest the catalogue names (a later part widens them, never renames them).
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -315,7 +316,19 @@ using EventKind =
 
 inline constexpr std::size_t kKindCount = std::variant_size_v<EventKind>;
 
-// The kinds' names, as rule files and golden files write them ("PlaceEntered", ...), by the variant's index.
+// The kinds' names, as rule files, golden files and reports write them, by the variant's index.
+inline constexpr std::array<std::string_view, kKindCount> kKindNames = {
+    "PlaceEntered",      "GraceRested",       "RestEnded",         "GraceLit",          "FlagChanged",
+    "BossFightStarted",  "BossFightEnded",    "PersonaSeen",       "PersonaApproached", "PersonaAttacked",
+    "PersonaDied",       "FoughtBeside",      "NativeTalkStarted", "NativeTalkEnded",   "StageChanged",
+    "PlayerDied",        "MountChanged",      "Struck",            "LowHp",             "Healed",
+    "Engaged",           "Disengaged",        "AllyDied",          "CritLanded",        "KilledNear",
+    "IdleNear",          "FoeKilled",         "StatusStarted",     "StatusEnded",       "StatusBurst",
+    "CameNear",          "AutonomyTick",      "PlayerSaid",        "NpcSaid",           "CalloutSent",
+    "CalloutReplied",    "ConversationStarted", "ConversationEnded", "DataReady",       "PlaythroughReady",
+    "LoadingStarted",    "LoadingEnded",      "TitleReached",      "JourneyChanged",    "GateChanged",
+    "GroupTripped",      "LadderChanged",     "NativeLineHeard",   "NpcThought",        "DecisionMade"};
+
 [[nodiscard]] std::string_view kind_name(std::size_t index) noexcept;
 [[nodiscard]] inline std::string_view kind_name(const EventKind& k) noexcept { return kind_name(k.index()); }
 // The index of a kind by its name, or nothing.

@@ -49,12 +49,13 @@ struct RecordingHeader {
 inline constexpr std::uint64_t kRecordingRotateBytes = 256ull << 20;
 
 // ---- Reading a recording back (eldennet-engine rec-stats, replay and spike-report; the plan's part 9) ----
-// One line, read with the words the writer uses, into what the tools need: everything en-core's slice reads of a
-// snapshot (its health, session, life, the HUD and the player's slot, class, level, play time and death), the
-// lifecycle messages, the banners, the core's changes, the commands' kinds and the Marks. What the core does not read
-// (characters, flags, texts, params, positions) is counted, not rebuilt. A PlaythroughReady's name was never recorded,
-// only its length: the reader puts a stand-in of that many letters in its place, so that the core tells one
-// playthrough from another as it did in game, by slot, class and name together.
+// One line, read with the words the writer uses, into what the tools need: a snapshot as en-core's slice and Augur
+// read it (its health, session, life, UI, the Tarnished, the place, the clock, the boss bars, the characters and the
+// flag frame; part 11), the lifecycle messages, the banners, the core's changes, the commands' kinds and the Marks.
+// What the recording never held stays empty: the text look-ups' text and the param rows' values (counted only), a
+// region key, and a bearing without the camera (NaN). Floats come back as written, to 7 significant digits. A
+// PlaythroughReady's name was never recorded, only its length: the reader puts a stand-in of that many letters in its
+// place, so that the core tells one playthrough from another as it did in game, by slot, class and name together.
 struct RecordedLine {
   enum class Kind : std::uint8_t { Header, Snap, Life, Banner, Change, Cmd, Mark };
   Kind kind = Kind::Header;

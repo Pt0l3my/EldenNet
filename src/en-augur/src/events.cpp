@@ -10,18 +10,6 @@ namespace en::augur {
 
 namespace {
 
-constexpr std::array<std::string_view, kKindCount> kKindNames = {
-    "PlaceEntered",      "GraceRested",       "RestEnded",         "GraceLit",          "FlagChanged",
-    "BossFightStarted",  "BossFightEnded",    "PersonaSeen",       "PersonaApproached", "PersonaAttacked",
-    "PersonaDied",       "FoughtBeside",      "NativeTalkStarted", "NativeTalkEnded",   "StageChanged",
-    "PlayerDied",        "MountChanged",      "Struck",            "LowHp",             "Healed",
-    "Engaged",           "Disengaged",        "AllyDied",          "CritLanded",        "KilledNear",
-    "IdleNear",          "FoeKilled",         "StatusStarted",     "StatusEnded",       "StatusBurst",
-    "CameNear",          "AutonomyTick",      "PlayerSaid",        "NpcSaid",           "CalloutSent",
-    "CalloutReplied",    "ConversationStarted", "ConversationEnded", "DataReady",       "PlaythroughReady",
-    "LoadingStarted",    "LoadingEnded",      "TitleReached",      "JourneyChanged",    "GateChanged",
-    "GroupTripped",      "LadderChanged",     "NativeLineHeard",   "NpcThought",        "DecisionMade"};
-
 constexpr float kInterruptEngagedM = 25.0f;
 
 }  // namespace

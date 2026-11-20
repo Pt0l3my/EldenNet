@@ -207,7 +207,7 @@ std::optional<Fire> detect(const DetectorSpec& spec, Mono debounce_ms, DetState&
 }
 
 void on_loading(const DetectorSpec& spec, DetState& st) noexcept {
-  st.cand = false;
+  // A candidate waits on: a boss fight's end, debounced, still matures on the loading screen that follows it.
   if (spec.kind == DetectorKind::EnterRadius) {
     st.armed = true;
     st.inside = false;

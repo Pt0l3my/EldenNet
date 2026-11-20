@@ -35,7 +35,9 @@
 
 #include "en/core/core.hpp"
 #include "en/gal/report.hpp"
+#include "en/augur/events.hpp"
 #include "en/shell/record.hpp"
+#include "golden_run.hpp"
 
 namespace {
 
@@ -45,7 +47,6 @@ using report::Type;
 using en::shell::RecordedLine;
 using Json = nlohmann::json;
 
-constexpr std::uintmax_t kMaxRecordingBytes = 512ull << 20;
 constexpr std::uintmax_t kMaxLogBytes = 16ull << 20;
 
 // ---- The reports' vocabulary: one key table, three kinds ----
@@ -148,7 +149,11 @@ constexpr std::array<Key, 73> kKeys = {{
     {"items_min", Type::Unsigned},
     {"items_max", Type::Unsigned},
 }};
-constexpr std::array<Key, 10> kMoreKeys = {{
+constexpr std::array<Key, 13> kMoreKeys = {{
+    // replay: Augur's events (part 11)
+    {"events", Type::Unsigned},
+    {"event_kinds", Type::Array, Type::Object},
+    {"event", Type::Word, Type::Object, en::augur::kKindNames},
     {"items_total", Type::Unsigned},
     {"passes", Type::Array, Type::Unsigned},
     {"ready_ms_p50", Type::Unsigned},
@@ -217,34 +222,9 @@ void each_line(std::string_view text, F&& f) {
   }
 }
 
-// A recording, linted first (the same check as lint --recording), then read back line by line.
+// A recording: the golden runner's loader (lint first, then each line read back).
 std::optional<std::vector<RecordedLine>> load_recording(const std::string& path, const char* cmd) {
-  const auto text = read_file(path, kMaxRecordingBytes);
-  if (!text) {
-    std::fprintf(stderr, "%s: a recording cannot be read, or is larger than 512 MiB\n", cmd);
-    return std::nullopt;
-  }
-  const report::Vocabulary* kinds[] = {&en::shell::recording_vocabulary()};
-  if (const auto linted = report::lint_lines(*text, kinds); !linted) {
-    for (const auto& p : linted.error()) std::fprintf(stderr, "%s: %s\n", cmd, report::describe(p).c_str());
-    std::fprintf(stderr, "%s: the recording is refused by the lint\n", cmd);
-    return std::nullopt;
-  }
-  std::vector<RecordedLine> out;
-  bool bad = false;
-  each_line(*text, [&](std::string_view line) {
-    auto r = en::shell::read_recorded_line(line);
-    if (!r) {
-      bad = true;
-      return;
-    }
-    out.push_back(std::move(*r));
-  });
-  if (bad) {
-    std::fprintf(stderr, "%s: a line of the recording could not be read back\n", cmd);
-    return std::nullopt;
-  }
-  return out;
+  return en::tools::load_recording(path, cmd);
 }
 
 std::uint64_t percentile(std::vector<std::uint64_t> v, unsigned per_mille) {
@@ -465,6 +445,7 @@ struct Common {
   std::vector<std::string> logs;
   std::vector<std::string> recordings;
   std::optional<std::string> out;
+  std::optional<std::string> events;  // replay: Augur's events, in the golden files' form
   std::uint32_t need = 20;
 };
 
@@ -475,6 +456,8 @@ std::optional<Common> parse(int argc, char** argv, const char* cmd, bool spike) 
     const bool more = i + 1 < argc;
     if (a == "--out" && more && !c.out) {
       c.out = argv[++i];
+    } else if (!spike && a == "--events" && more && !c.events && std::string_view(cmd) == "replay") {
+      c.events = argv[++i];
     } else if (spike && a == "--log" && more) {
       c.logs.emplace_back(argv[++i]);
     } else if (spike && a == "--recording" && more) {
@@ -517,7 +500,7 @@ int run_rec_stats(int argc, char** argv) {
 int run_replay(int argc, char** argv) {
   const auto c = parse(argc, argv, "replay", false);
   if (!c || c->positional.size() != 1) {
-    std::fputs("usage: eldennet-engine replay <recording> [--out FILE]\n", stderr);
+    std::fputs("usage: eldennet-engine replay <recording> [--out FILE] [--events FILE]\n", stderr);
     return 2;
   }
   const auto lines = load_recording(c->positional[0], "replay");
@@ -529,12 +512,19 @@ int run_replay(int argc, char** argv) {
   std::uint64_t snaps = 0, life = 0, banners = 0;
   std::uint64_t now = 0;
   en::core::State last;
+  en::tools::Run augur_run;  // Augur's events, which en-core's step answers too (part 11)
+  if (core.augur().rules()) augur_run.rules_hash = core.augur().rules()->hash();
+  std::array<std::uint64_t, en::augur::kKindCount> by_kind{};
   const auto step = [&](en::core::CoreInput in) {
     en::core::Outputs out = core.step(std::move(in), now);
     last = out.state;
     for (const en::core::Change& ch : out.changes) {
       replayed.push_back(ch);
       if (ch.what == en::core::Change::What::Phase && ch.to < entered.size()) ++entered[ch.to];
+    }
+    for (en::augur::Event& e : out.events) {
+      ++by_kind[e.kind.index()];
+      augur_run.events.push_back(std::move(e));
     }
   };
   for (const RecordedLine& l : *lines) {
@@ -590,6 +580,16 @@ int run_replay(int argc, char** argv) {
     r.end_object();
   }
   r.end_array();
+  r.number("events", augur_run.events.size());
+  r.begin_array("event_kinds");
+  for (std::size_t k = 0; k < by_kind.size(); ++k) {
+    if (by_kind[k] == 0) continue;
+    r.begin_object();
+    r.word("event", en::augur::kKindNames[k]);
+    r.number("count", by_kind[k]);
+    r.end_object();
+  }
+  r.end_array();
   r.begin_object("final");
   r.word("phase", kPhases[static_cast<std::size_t>(last.phase)]);
   r.word("level", kLevels[static_cast<std::size_t>(last.level)]);
@@ -597,8 +597,16 @@ int run_replay(int argc, char** argv) {
   r.number("playthroughs", last.playthroughs);
   r.end_object();
   if (!write_out(c->out, r.finish(), "replay")) return 5;
-  std::fprintf(stderr, "replay: %s: %zu changes recorded, %zu replayed\n", differs ? "disagrees" : "agrees",
-               recorded.size(), replayed.size());
+  if (c->events) {
+    // The golden files' form (handles h1, h2, ...), so that a recording's events can become a route's golden file.
+    std::ofstream f(*c->events, std::ios::binary | std::ios::trunc);
+    if (!f || !(f << en::tools::golden_text("recording", "recording", augur_run))) {
+      std::fputs("replay: the events file cannot be written\n", stderr);
+      return 2;
+    }
+  }
+  std::fprintf(stderr, "replay: %s: %zu changes recorded, %zu replayed, %zu events\n", differs ? "disagrees" : "agrees",
+               recorded.size(), replayed.size(), augur_run.events.size());
   return differs ? 1 : 0;
 }
 

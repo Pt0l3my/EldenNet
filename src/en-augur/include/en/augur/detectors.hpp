@@ -83,7 +83,7 @@ struct DetState {
 [[nodiscard]] std::optional<Fire> detect(const DetectorSpec& spec, Mono debounce_ms, DetState& st, Mono t,
                                          const Value& x);
 
-// A loading screen re-arms enter_radius (ARCH §8.4) and cancels any candidate.
+// A loading screen re-arms enter_radius (ARCH §8.4); a candidate waits on.
 void on_loading(const DetectorSpec& spec, DetState& st) noexcept;
 
 }  // namespace en::augur
