@@ -996,7 +996,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     answer and poll's watched, unwatched and command events, callable from any thread of a mod's, a command unanswered
     in 10 s answered internal; the server started on GraceUI's thread while a space asks for the browser view, never in
     notice-only mode. EldenNet's steps for T6 are GraceUI's docs/eldennet-changes.md §23, its status lamp §24. Next: the
-    menu showing a mod's space.
+    menu showing a mod's space. GraceUI's D170 the same day (c781a85), from EldenNet's part 12 second run: no Direct3D DLL
+    imported, the imports reviewed, and graceui-sys's installed set on the by-name path (WHY§231, §232).
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]

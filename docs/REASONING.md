@@ -4083,6 +4083,8 @@ invariant 10, EldenNet ARCH (T3)
   applies only when nothing answered).
 - (DECIDED) en-overlay reports `installed` as graceui-sys's word or a find by name; the harness's `-before` and
   `-unbound` cases check `installed=1`. Passed to the Grace session; the workaround goes when graceui-sys sets it.
+- *Later (2026-11-20):* fixed in graceui-sys at GraceUI c781a85 (D170): the by-name branch sets `installed = 1`.
+  EldenNet's workaround goes when it re-vendors graceui-sys from c781a85 or later.
 
 ### 232. Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window
 
@@ -4098,6 +4100,10 @@ invariant 10, EldenNet ARCH (T3)
 - (DECIDED) The harness loads GraceUI with the launcher's `--also` into the suspended process; EldenNet itself loads
   GraceUI only after the window (T1's WaitWindow), so it is not affected. Passed to the Grace session: delay-loading
   Direct3D's DLLs would spare an early-loading mod.
+- *Later (2026-11-20):* GraceUI c781a85 (D170): graceui.dll imports no Direct3D DLL. CreateDXGIFactory1,
+  D3D12CreateDevice and D3DCompile are bound on GraceUI's init thread after the game's window, from the module the game
+  loaded or else from System32 alone; its imports are checked against a reviewed list. An early load no longer pulls
+  in dxgi.
 
 ### 233. The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted
 
