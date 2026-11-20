@@ -7,8 +7,8 @@ GraceUI's ABI 1 preview (GraceUI 0.1, `feat/foundations` at 3f1352b; GraceUI's `
 and §20, D131 to D156, D164 and D165). Later increments add EldenNet's own surfaces (subtitles, the chat box, the
 call-out box) as panels.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 32ab1ed, GraceUI
-0.2.3): its look
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 8d45b20, GraceUI
+0.2.5): its look
 for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach

@@ -319,6 +319,13 @@ GRACEUI_API uint32_t GraceUI_Test_GetMenu(GraceUiTestMenu* out);
  * GraceUI's own thread has loaded its space (at its first wake after the first request) or for no such key. One store
  * holds it for the menu and the browser's views alike (D169). Read it while GraceUI is idle. */
 GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_t capacity);
+/* Where the menu's last layout drew an element (§5.5), named as GraceUiTestMenu.focused names it ("setting:ui.scale",
+ * "rail:graceui.mods"): out[0..3] its row, out[4..7] its control (x, y, width, height in the display's pixels; the
+ * control is the row for an element with none). Answers 1, or 0 if it was not drawn. Safe while GraceUI is busy. */
+GRACEUI_API uint32_t GraceUI_Test_GetMenuBounds(const char* name, float* out);
+/* The anti-cheat module re-check's interval while the browser view's server runs (§7.2 item 1), in milliseconds; 0
+ * keeps 60 s. With GraceUI_Test_SetAntiCheatNames after the first request, a test makes a re-check find a module. */
+GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);
 /* A topic of GraceUI's own space other than its settings ("graceui.mods", D181) as JSON text, as the space last published
  * it, NUL-terminated; answers its length, or 0 before it is first published, for no such topic, or if it does not fit.
  * A copy kept under a lock: safe to read while GraceUI's thread is busy. */

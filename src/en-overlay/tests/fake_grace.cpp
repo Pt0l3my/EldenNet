@@ -265,8 +265,18 @@ GraceUiStatus register_pages(GraceUiConsumer me, const GraceUiSpaceDesc* space) 
   const std::string settings = text_of(space->settings, space->settings_length);
   const nlohmann::json p = nlohmann::json::parse(pages, nullptr, false);
   const nlohmann::json s = nlohmann::json::parse(settings, nullptr, false);
-  if (p.is_discarded() || s.is_discarded() || !p.is_object() || p.value("space", "") != g.id || !s.is_object()) {
+  if (p.is_discarded() || s.is_discarded() || !p.is_object() || p.value("space", "") != g.id || !s.is_object() ||
+      g.id == "graceui") {
     return GRACEUI_REFUSED;
+  }
+  // GraceUI 0.2.5's (D183): no topic named "pages", and a destructive action only with its confirmation's text.
+  for (const nlohmann::json& t : p.value("topics", nlohmann::json::array())) {
+    if (t.value("id", "") == "pages") return GRACEUI_REFUSED;
+  }
+  for (const nlohmann::json& page : p.value("pages", nlohmann::json::array())) {
+    for (const nlohmann::json& a : page.value("actions", nlohmann::json::array())) {
+      if (a.value("tone", "") == "destructive" && a.value("confirm", "").empty()) return GRACEUI_REFUSED;
+    }
   }
   g.space_views = space->views;
   g.space_version = space->version;
@@ -287,6 +297,15 @@ GraceUiStatus publish(GraceUiConsumer me, const char* frame, uint64_t length) {
     const nlohmann::json pages = nlohmann::json::parse(g.space_pages);
     for (const nlohmann::json& t : pages["topics"]) {
       declared = declared || (t.value("id", "") == f.value("topic", "") && t.value("shape", "") == shape);
+    }
+  }
+  // GraceUI 0.2.5's (D183): the settings topic's schema and description, if sent, are the registered ones.
+  if (declared && f.value("topic", "") == "settings" && f.contains("body") && f["body"].is_object()) {
+    const nlohmann::json registered = nlohmann::json::parse(g.space_settings);
+    const nlohmann::json& body = f["body"];
+    if ((body.contains("schema") && body["schema"] != registered["schema"]) ||
+        (body.contains("description") && body["description"] != registered["settings"])) {
+      declared = false;
     }
   }
   if (length > GRACEUI_FRAME_TO_PAGE_MAX || !declared || f.value("space", "") != g.id) {
