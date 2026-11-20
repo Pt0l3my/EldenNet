@@ -18,6 +18,7 @@
 #include <string>
 
 #include "dll.hpp"
+#include "en/augur/words.hpp"
 #include "en/gal/guarded.hpp"
 #include "en/overlay/overlay.hpp"
 #include "en/overlay/space.hpp"
@@ -49,9 +50,50 @@ struct OverlayLink {
 
 namespace {
 
-// The core's newest changes, for the view (T6 alone): a ring of the last kViewChanges.
-constinit std::array<en::overlay::ViewChange, en::overlay::kViewChanges> g_changes{};
-constinit std::size_t g_changes_seen = 0;
+// The core's newest changes and Augur's newest events, for the view (T6 alone): rings of the last kViewChanges and
+// kViewEvents, which fill_view copies into the view's fixed status (nothing allocated, here or on the present thread).
+constinit en::overlay::ChangeRing g_changes{};
+constinit en::overlay::EventRing g_events{};
+
+en::overlay::EventFrom from_of(en::augur::SourceId s) noexcept {
+  switch (s) {
+    case en::augur::SourceId::Lifecycle: return en::overlay::EventFrom::Lifecycle;
+    case en::augur::SourceId::SnapshotDiff:
+    case en::augur::SourceId::FlagWatch:
+    case en::augur::SourceId::Timer:
+    case en::augur::SourceId::Hook: return en::overlay::EventFrom::World;
+    case en::augur::SourceId::Pipeline:
+    case en::augur::SourceId::Subscriber: break;
+  }
+  return en::overlay::EventFrom::Other;
+}
+
+// An event as the view lists it: Augur's words and numbers only (words.hpp), never a handle, a key or a name.
+en::overlay::ViewEvent view_event(const en::augur::Event& ev) noexcept {
+  namespace a = en::augur;
+  en::overlay::ViewEvent v;
+  v.kind = a::kind_word(ev.kind);
+  v.cls = a::to_string(ev.event_class);
+  v.from = from_of(ev.source);
+  if (ev.subject) {
+    v.subject = a::to_string(ev.subject->kind);
+    v.subject_id = ev.subject->kind == a::ActorRef::Kind::Persona || ev.subject->kind == a::ActorRef::Kind::Card;
+    v.id = ev.subject->id;
+  }
+  const a::Reason r = a::reason(ev);
+  v.reason = r.word;
+  v.reason_number = r.has_number;
+  v.number = r.number;
+  v.count = ev.count;
+  v.merged = ev.merged;
+  v.radius = a::to_string(ev.radius);
+  v.audience = static_cast<std::uint32_t>(ev.audience.size());
+  if (!ev.audience.empty()) {
+    v.first = en::overlay::ViewAudienceRow{ev.audience.front().persona.index, a::to_string(ev.audience.front().how)};
+  }
+  v.at_ms = ev.t_mono_ms;
+  return v;
+}
 
 
 const char* how_word(std::uint32_t how) noexcept {
@@ -127,11 +169,9 @@ void fill_view(const Shell& s, const en::core::Core& core, const en::proto::Worl
   v.marks = block::marks();
   v.mark_source = w::to_string(block::mark_source());
   v.graceui_version = o.graceui_version();
-  v.changes.clear();
-  const std::size_t n = g_changes_seen < en::overlay::kViewChanges ? g_changes_seen : en::overlay::kViewChanges;
-  for (std::size_t i = g_changes_seen - n; i < g_changes_seen; ++i) {
-    (void)v.changes.try_push_back(g_changes[i % en::overlay::kViewChanges]);
-  }
+  g_events.copy_to(v.events);
+  v.events_seen = g_events.seen();
+  g_changes.copy_to(v.changes);
   v.now_ms = mono_ms();
 }
 
@@ -341,9 +381,12 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
 }
 
 void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept {
-  g_changes[g_changes_seen % en::overlay::kViewChanges] = en::overlay::ViewChange{what, to, at_ms};
-  ++g_changes_seen;
+  g_changes.push(en::overlay::ViewChange{what, to, at_ms});
 }
+
+void overlay_event(const en::augur::Event& ev) noexcept { g_events.push(view_event(ev)); }
+
+std::uint64_t overlay_events_seen() noexcept { return g_events.seen(); }
 
 void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest, std::uint64_t tripped,
                   std::uint64_t now) noexcept {
@@ -442,7 +485,9 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
     for (std::uint32_t i = 0; i < step.marks; ++i) {
       if (block::add_own_mark(now) == 0) log(Line("mark").flag("taken", false).word("why", "not_handed_over"));
     }
-    if (step.view_presses != 0) log(Line("view").num("presses", step.view_presses).flag("open", o.view_open()));
+    if (step.view_presses != 0) {
+      log(Line("view").num("presses", step.view_presses).flag("open", o.view_open()).num("events", view.events.size()));
+    }
     if (step.refused != GRACEUI_OK && step.refused != link->refused) {
       log(Line("view").word("refused", "submit_or_panel").num("status", step.refused), LogLevel::Warn);
     }

@@ -173,6 +173,10 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
                   std::uint64_t now) noexcept;
 // T6: one of the core's changes, by its words (static ones: an enum's name), for the view's list.
 void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept;
+// T6: one of Augur's events of the step, for the view's list, as Augur's words write it (no name, no handle).
+void overlay_event(const en::augur::Event& ev) noexcept;
+// T6: how many of Augur's events the view's list has taken, for the status line.
+std::uint64_t overlay_events_seen() noexcept;
 
 // ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
 unsigned long init_main(void* module) noexcept;
