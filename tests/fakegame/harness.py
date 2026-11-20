@@ -1425,8 +1425,8 @@ def check_grace_report(word, standin):
     """grace-spike's report in the run's folder: schema 1 lines, the header naming the spike and its connect, state
     lines, GraceUI hooked once and drawing, the mods connected (EldenNet's among them where it runs), the stand-in
     patched and its Present called where it is loaded; nothing like a path in it. (The fake game's own GraceUI report
-    reads GraceUI's test state with graceui_test.h as vendored, 3f1352b's, which GraceUI 0.2.1 refuses as too small,
-    so its counters there read 0: the observer's report has them, from GraceUI's own build.)"""
+    reads GraceUI's test state with graceui_test.h as vendored; a package's GraceUI older than the vendored header
+    refuses that size, so its counters then read 0: the observer's report has them, from GraceUI's own build.)"""
     def check(r):
         failures = []
         path = os.path.join(r.paths["appdata"], "EldenNet", "spikes", "%s-1" % word, "graceui-spike.jsonl")

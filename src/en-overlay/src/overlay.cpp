@@ -36,9 +36,7 @@ Found find(std::uint32_t timeout_ms) noexcept {
   f.how = f.api ? sys.how : 0;
   f.attempts = sys.attempts;
   f.version = f.api ? sys.version : 0;
-  // graceui-sys at 3f1352b returns from its by-name look before it sets `installed`, which stays 0 there; a module
-  // named graceui.dll that answered is installed by D164's own words.
-  f.installed = sys.installed != 0 || f.how == GRACEUI_SYS_BY_NAME;
+  f.installed = sys.installed != 0;  // graceui-sys's own word, set on its by-name look too since GraceUI c781a85 (D170)
   f.ms = GetTickCount64() - start;
   return f;
 }
@@ -262,6 +260,8 @@ Overlay::Step Overlay::step(const ViewStatus& status) {
   GraceUiStatus polled = GRACEUI_OK;
   bool toggle = false;
   while ((polled = api_.poll(me_, event)) == GRACEUI_OK && event.kind != GRACEUI_EVENT_NONE) {
+    // Every kind but a hotkey's is passed over, whatever it is: the display's (GRACEUI_EVENT_DISPLAY, after warm-up and
+    // each change, D180) and any later kind alike. Polling goes on until GraceUI has nothing waiting.
     if (event.kind != GRACEUI_EVENT_HOTKEY) continue;
     if (event.hotkey_id != 0 && event.hotkey_id == view_hotkey_) {
       out.view_presses += event.count;

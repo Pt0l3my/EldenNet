@@ -57,7 +57,8 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-3f1352b, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the connection's
+32ab1ed (GraceUI 0.2.3, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
+configured. `en_overlay_tests.exe` runs the connection's
 tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines and the
 world-state claims.
 

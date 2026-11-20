@@ -150,11 +150,65 @@ class Api {
     return table_->register_hotkey(consumer, &in, &id);
   }
   // The mod's next event: GRACEUI_OK with one, its kind GRACEUI_EVENT_NONE once nothing is waiting. Never waits.
+  // Hotkeys, and from GraceUI 0.2.1 a holder's events (D176): with no buffer, the space's events wait for a poll that
+  // has one (below). GraceUI gives a holder's events and hotkeys before a space's, so a space's event that needs a
+  // buffer (GRACEUI_FULL, kept) means nothing else waits.
   GraceUiStatus poll(GraceUiConsumer consumer, GraceUiEvent& event) const noexcept {
+    if (!has_cap(GRACEUI_CAP_HOLDER_EVENTS)) {
+      return poll(consumer, event, nullptr, 0);
+    }
     event = GraceUiEvent{};
     event.size = sizeof event;
+    const GraceUiStatus status = table_->poll(consumer, &event);
+    if (status == GRACEUI_FULL) {
+      event = GraceUiEvent{};
+      event.size = sizeof event;
+      return GRACEUI_OK;  // kind GRACEUI_EVENT_NONE: the space's event waits for a poll with a buffer
+    }
+    return status;
+  }
+  // The same, with `buffer` for a space's event's frame (D169): GRACEUI_FRAME_FROM_PAGE_MAX bytes always suffice;
+  // GRACEUI_FULL with event.frame_length the size needed when they do not, the event kept for the next call.
+  GraceUiStatus poll(GraceUiConsumer consumer, GraceUiEvent& event, char* buffer, std::uint64_t capacity) const noexcept {
+    event = GraceUiEvent{};
+    // A GraceUI before 0.2 knows only the event's first four fields: it is handed that much, and gives hotkeys alone.
+    event.size = buffer != nullptr && has_cap(GRACEUI_CAP_PAGES) ? sizeof event : 16u;
+    event.frame = buffer;
+    event.frame_capacity = buffer != nullptr ? capacity : 0;
     return GRACEUI_API1_COVERS(table_, poll) && has_cap(GRACEUI_CAP_HOTKEYS) ? table_->poll(consumer, &event)
                                                                              : GRACEUI_NOT_YET;
+  }
+
+  // ---- A space (D169; has_cap(GRACEUI_CAP_PAGES)): its page data and settings description as JSON, its frames.
+  GraceUiStatus register_pages(GraceUiConsumer consumer, std::uint32_t views, std::uint32_t version,
+                               std::string_view pages, std::string_view settings,
+                               std::string_view increment) const noexcept {
+    if (!GRACEUI_API1_COVERS(table_, register_pages) || !has_cap(GRACEUI_CAP_PAGES)) {
+      return GRACEUI_NOT_YET;
+    }
+    GraceUiSpaceDesc in{};
+    in.size = sizeof in;
+    in.views = views;
+    in.version = version;
+    in.pages = pages.data();
+    in.pages_length = pages.size();
+    in.settings = settings.data();
+    in.settings_length = settings.size();
+    in.increment = increment.data();
+    in.increment_length = increment.size();
+    return table_->register_pages(consumer, &in);
+  }
+  // A state or rows frame of the mod's own space.
+  GraceUiStatus publish(GraceUiConsumer consumer, std::string_view frame) const noexcept {
+    return GRACEUI_API1_COVERS(table_, publish) && has_cap(GRACEUI_CAP_PAGES)
+               ? table_->publish(consumer, frame.data(), frame.size())
+               : GRACEUI_NOT_YET;
+  }
+  // The result frame of the command whose event gave `reply`.
+  GraceUiStatus answer(GraceUiConsumer consumer, std::uint64_t reply, std::string_view frame) const noexcept {
+    return GRACEUI_API1_COVERS(table_, answer) && has_cap(GRACEUI_CAP_PAGES)
+               ? table_->answer(consumer, reply, frame.data(), frame.size())
+               : GRACEUI_NOT_YET;
   }
 
  private:

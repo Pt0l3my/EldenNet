@@ -39,7 +39,7 @@ struct Found {
   std::uint32_t attempts = 0;  // looks made
   std::uint32_t version = 0;   // the GraceUI found: GraceUI_Version(), or 0
   bool installed = false;      // at the last look, a module named graceui.dll was loaded or GraceUI\graceui.dll lay
-                               // in the game's folder (graceui-sys's own word, GraceUI D51, D164)
+                               // in the game's folder (graceui-sys's own word, GraceUI D51, D164, D170)
   std::uint64_t ms = 0;        // how long the look took
 };
 

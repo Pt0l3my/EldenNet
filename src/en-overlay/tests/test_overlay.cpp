@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 1, 0));
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 3));  // GraceUI 0.2.3: ABI 1.2 and the pages (D169, D181)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -280,6 +280,38 @@ TEST_CASE("overlay: the Mark's hotkey on Pause, at once or later, its presses co
   CHECK(p->mark_registered());
   h.press("mark");
   CHECK(p->step(status()).marks == 1);
+}
+
+TEST_CASE("overlay: poll passes over the display's event and any kind it does not use, and goes on") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, options(true, true), r);
+  REQUIRE(o != nullptr);
+  g.display();  // GraceUI 0.2.2's, after warm-up (D180)
+  g.press("mark");
+  GraceUiEvent later{};
+  later.size = sizeof later;
+  later.kind = 77;  // a kind of a later GraceUI's
+  g.events.push_back(later);
+  g.display();
+  g.press("debug-view");
+  const Overlay::Step s = o->step(status());
+  CHECK(s.marks == 1);
+  CHECK(s.view_presses == 1);
+  CHECK(o->view_open());
+  CHECK(g.events.empty());  // everything waiting was taken
+  CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);  // asked at ABI 1.2's size
+
+  // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.
+  fake::Grace h;
+  h.caps = {"notices", "panels", "textures", "world-state", "hotkeys"};
+  auto p = connect(h, options(false, true), r);
+  REQUIRE(p != nullptr);
+  h.display();
+  h.press("mark");
+  CHECK(p->step(status()).marks == 1);
+  CHECK(h.poll_sizes.count(16u) == 1);
+  CHECK(h.events.size() == 1);  // the display's, which an event of 0.1's size never gets
 }
 
 TEST_CASE("overlay: a hotkey another mod took registers unbound, with its id (GraceUI D164)") {

@@ -91,10 +91,10 @@ TEST_CASE("GraceUI's pre-flight: every listed file matches, the ABI and the floo
   f.put("graceui.dll", kDll);
   f.put("fonts/NotoSans-Regular.ttf", kFont);
   f.put("user/settings.toml", "not listed: GraceUI's own, at run time (D84)");
-  f.manifest("0.1.0", "[1, 0]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
+  f.manifest("0.2.3", "[1, 2]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
   const GraceReport r = check_graceui(f.grace);
   CHECK(r.result == GraceCheck::Ok);
-  CHECK(r.version == std::array<std::uint16_t, 3>{0, 1, 0});
+  CHECK(r.version == std::array<std::uint16_t, 3>{0, 2, 3});
   CHECK(r.abi_major == 1);
   CHECK(r.files == 2);
   CHECK(r.checked == 2);
@@ -118,7 +118,7 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
   SUBCASE("a file missing, of another size, or another hash") {
     Folder f;
     f.put("graceui.dll", kDll);
-    f.manifest("0.1.0", "[1, 0]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
+    f.manifest("0.2.3", "[1, 2]", Folder::entry("graceui.dll", kDll) + Folder::entry("fonts/NotoSans-Regular.ttf", kFont));
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::FileMissing);
     CHECK(r.file == "fonts/NotoSans-Regular.ttf");
@@ -142,10 +142,10 @@ TEST_CASE("GraceUI's pre-flight: each way it fails, named without a path") {
     GraceReport r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::AbiMajor);
     CHECK(graceui_problem(r) == "this GraceUI speaks ABI 2, and EldenNet needs ABI 1");
-    f.manifest("0.0.9", "[1, 0]", Folder::entry("graceui.dll", kDll));
+    f.manifest("0.2.2", "[1, 2]", Folder::entry("graceui.dll", kDll));
     r = check_graceui(f.grace);
     CHECK(r.result == GraceCheck::TooOld);
-    CHECK(graceui_problem(r) == "this GraceUI is version 0.0.9, and EldenNet needs 0.1.0 or newer");
+    CHECK(graceui_problem(r) == "this GraceUI is version 0.2.2, and EldenNet needs 0.2.3 or newer");
   }
 }
 
@@ -209,9 +209,9 @@ TEST_CASE("GraceUI's pre-flight: a graceui.toml written by GraceUI's own manifes
   REQUIRE(text.find("released = \"") != std::string::npos);
   auto m = read_graceui_toml(text);
   REQUIRE(m);
-  CHECK(m->version == std::array<std::uint16_t, 3>{0, 1, 0});
+  CHECK(m->version == std::array<std::uint16_t, 3>{0, 2, 3});  // GraceUI 32ab1ed's manifest.py, at EldenNet's floor
   CHECK(m->abi_major == 1);
-  CHECK(m->abi_minor == 0);
+  CHECK(m->abi_minor == 2);
   REQUIRE(m->files.size() == 3);
   CHECK(m->files[0].name == "LICENSE.txt");
   CHECK(m->files[1].name == "NOTICE.txt");

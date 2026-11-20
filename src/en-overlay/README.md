@@ -7,7 +7,8 @@ GraceUI's ABI 1 preview (GraceUI 0.1, `feat/foundations` at 3f1352b; GraceUI's `
 and §20, D131 to D156, D164 and D165). Later increments add EldenNet's own surfaces (subtitles, the chat box, the
 call-out box) as panels.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3f1352b): its look
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 32ab1ed, GraceUI
+0.2.3): its look
 for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
@@ -31,12 +32,12 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    the game's folder, which it loads, again every 250 ms for at most 30 s. With `GRACEUI_SYS_STOP_IF_ABSENT` (GraceUI
    D164), when nothing answers, no copy is installed in the game's folder and no module is named `graceui.dll`, nothing
    can answer later, and the look ends at once: a start without GraceUI is not held up 30 s. The rule is graceui-sys's
-   own, and `installed` in the log is its word for it, but for a GraceUI found by its name, which graceui-sys at 3f1352b
-   leaves at 0 (its by-name look returns before it sets it): that one is 1, as D164 defines it. Both load orders work:
+   own, and `installed` in the log is its word for it, on its by-name look too since GraceUI c781a85 (D170; en-overlay's
+   own reading of a find by name, WHY§231, is gone). Both load orders work:
    GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
    loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
-   (0.1.0, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
+   (0.2.3, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
    through `notice` alone, D88); or a failed connect, `absent`, `too_old`, `duplicate_id`, `inactive` (the overlay
    could not start or turned itself off), `refused` or `not_yet`, which leave EldenNet headless (ARCH §10.3's "Overlay

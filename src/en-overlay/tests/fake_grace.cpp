@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <string_view>
 
 namespace fake {
@@ -55,13 +56,28 @@ GraceUiStatus poll(GraceUiConsumer me, GraceUiEvent* event) {
   ++g.polls;
   if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
   if (g.poll_status != GRACEUI_OK) return g.poll_status;
-  if (event == nullptr || event->size < sizeof(GraceUiEvent)) return GRACEUI_REFUSED;
-  if (g.events.empty()) {
-    event->kind = GRACEUI_EVENT_NONE;
+  // GraceUI takes any event from its first size (16 bytes, GraceUI 0.1's) and fills what that size holds; an event
+  // smaller than 0.2's never gets the protocol's kinds, nor one smaller than ABI 1.2's the display's (D169, D180).
+  if (event == nullptr || event->size < 16) return GRACEUI_REFUSED;
+  const std::uint32_t size = event->size;
+  ++g.poll_sizes[size];
+  for (auto it = g.events.begin(); it != g.events.end(); ++it) {
+    if (it->kind == GRACEUI_EVENT_DISPLAY && size < sizeof(GraceUiEvent)) continue;
+    GraceUiEvent e = *it;
+    g.events.erase(it);
+    if (size >= sizeof(GraceUiEvent)) {
+      char* frame = event->frame;
+      const std::uint64_t capacity = event->frame_capacity;
+      *event = e;
+      event->frame = frame;
+      event->frame_capacity = capacity;
+    } else {
+      std::memcpy(static_cast<void*>(event), &e, 16);
+    }
+    event->size = size;
     return GRACEUI_OK;
   }
-  *event = g.events.front();
-  g.events.pop_front();
+  event->kind = GRACEUI_EVENT_NONE;
   return GRACEUI_OK;
 }
 
@@ -220,7 +236,10 @@ GraceUiStatus set_world_state(GraceUiConsumer me, const GraceUiWorldState* state
 }
 
 GraceUiStatus log_line(GraceUiConsumer, uint32_t, const char*, uint64_t) { return GRACEUI_NOT_YET; }
-GraceUiStatus reserved(GraceUiConsumer, const void*) { return GRACEUI_NOT_YET; }
+GraceUiStatus register_pages(GraceUiConsumer, const GraceUiSpaceDesc*) { return GRACEUI_NOT_YET; }
+GraceUiStatus publish(GraceUiConsumer, const char*, uint64_t) { return GRACEUI_NOT_YET; }
+GraceUiStatus answer(GraceUiConsumer, uint64_t, const char*, uint64_t) { return GRACEUI_NOT_YET; }
+GraceUiStatus set_caret(GraceUiConsumer, const GraceUiCaret*) { return GRACEUI_OK; }
 
 }  // namespace
 
@@ -230,10 +249,10 @@ Grace::Grace() {
   table.has_cap = &has_cap;
   table.connect = &connect;
   table.disconnect = &disconnect;
-  table.register_pages = &reserved;
-  table.publish = &reserved;
+  table.register_pages = &register_pages;
+  table.publish = &publish;
   table.poll = &poll;
-  table.answer = &reserved;
+  table.answer = &answer;
   table.register_texture = &register_texture;
   table.register_face = &register_face;
   table.glyph_table = &glyph_table;
@@ -247,6 +266,7 @@ Grace::Grace() {
   table.notice = &notice;
   table.set_world_state = &set_world_state;
   table.log = &log_line;
+  table.set_caret = &set_caret;
 }
 
 Grace::~Grace() {
@@ -270,6 +290,19 @@ void Grace::press(const std::string& action, std::uint32_t count) {
       events.push_back(e);
     }
   }
+}
+
+void Grace::display() {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = GRACEUI_EVENT_DISPLAY;
+  e.display_width = 1920;
+  e.display_height = 1080;
+  e.ui_scale = 1.25f;
+  e.ui_scale_default = 1.25f;
+  e.scale = 1.25f;
+  e.content_scale = 1.0f;
+  events.push_back(e);
 }
 
 std::uint64_t Grace::panel_of(const std::string&) const { return panels.size() == 1 ? panels.begin()->first : 0; }
