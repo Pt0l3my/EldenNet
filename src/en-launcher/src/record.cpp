@@ -253,6 +253,9 @@ bool passed(w::Spike spike, const Tally& t) noexcept {
     case w::Spike::S0b:
     case w::Spike::S0c:
     case w::Spike::S0d:
+    case w::Spike::S0e:
+    case w::Spike::S0eAlone:
+    case w::Spike::S4:
     case w::Spike::None:
       return t.crashes == 0 && t.start_failed == 0 && t.inject_failed == 0;
   }

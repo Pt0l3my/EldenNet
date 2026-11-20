@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 
+#include "en/launcher/spikes.hpp"
 #include "en/launcher/texts.hpp"
 #include "win.hpp"
 
@@ -31,47 +32,37 @@ std::wstring quote(const std::wstring& arg) {
   return out;
 }
 
-// The launcher's environment with SteamAppId and SteamGameId set (ARCH §4.5's env method), as a block.
-std::wstring environment_with_appid(std::uint32_t appid) {
-  std::wstring block;
+// The game's environment as a block (spikes.hpp's game_environment over the launcher's own): SteamAppId and
+// SteamGameId for ARCH §4.5's env method, and ELDENNET_SPIKE_DIR in an observer's run, never left over from the
+// launcher's own environment otherwise.
+std::wstring environment_block(const GameEnvironment& edit) {
+  std::vector<std::wstring> entries;
   LPWCH env = GetEnvironmentStringsW();
-  for (const wchar_t* p = env; p != nullptr && *p != L'\0'; p += std::wcslen(p) + 1) {
-    const std::wstring entry(p);
-    const auto starts = [&](const wchar_t* name) {
-      return CompareStringOrdinal(entry.c_str(), static_cast<int>(std::min(entry.size(), std::wcslen(name))), name, -1,
-                                  TRUE) == CSTR_EQUAL;
-    };
-    if (starts(L"SteamAppId=") || starts(L"SteamGameId=")) continue;
+  for (const wchar_t* p = env; p != nullptr && *p != L'\0'; p += std::wcslen(p) + 1) entries.emplace_back(p);
+  if (env != nullptr) FreeEnvironmentStringsW(env);
+  std::wstring block;
+  for (const std::wstring& entry : game_environment(entries, edit)) {
     block += entry;
     block.push_back(L'\0');
   }
-  if (env != nullptr) FreeEnvironmentStringsW(env);
-  const std::wstring id = std::to_wstring(appid);
-  block += L"SteamAppId=" + id;
   block.push_back(L'\0');
-  block += L"SteamGameId=" + id;
-  block.push_back(L'\0');
-  block.push_back(L'\0');
+  if (block.size() == 1) block.push_back(L'\0');  // an empty block is two NULs
   return block;
 }
 
 }  // namespace
 
-Started start_game(const fs::path& exe, const std::vector<std::string>& args, bool env_appid, std::uint32_t appid) {
+Started start_game(const fs::path& exe, const std::vector<std::string>& args, const GameEnvironment& env_edit) {
   Started s;
   std::wstring cmd = quote(exe.wstring());
   for (const std::string& a : args) cmd += L" " + quote(widen(a));
-  std::wstring env;
-  DWORD flags = CREATE_SUSPENDED;
-  if (env_appid) {
-    env = environment_with_appid(appid);
-    flags |= CREATE_UNICODE_ENVIRONMENT;
-  }
+  std::wstring env = environment_block(env_edit);
+  const DWORD flags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
   STARTUPINFOW si{};
   si.cb = sizeof si;
   const std::wstring dir = exe.parent_path().wstring();
-  if (!CreateProcessW(exe.c_str(), cmd.data(), nullptr, nullptr, FALSE, flags, env_appid ? env.data() : nullptr,
-                      dir.c_str(), &si, &s.pi)) {
+  if (!CreateProcessW(exe.c_str(), cmd.data(), nullptr, nullptr, FALSE, flags, env.data(), dir.c_str(), &si,
+                      &s.pi)) {
     s.error = GetLastError();
     s.pi = PROCESS_INFORMATION{};
   }

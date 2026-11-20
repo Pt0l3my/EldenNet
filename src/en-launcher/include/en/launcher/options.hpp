@@ -41,7 +41,7 @@ struct Options {
   std::optional<std::string> gal;           // --gal DIR: the gal/ folder (else beside the launcher)
   std::optional<std::string> steam;         // --steam DIR: Steam's folder (else the registry's)
   std::optional<std::string> appdata;       // --appdata DIR: in place of %APPDATA%
-  proto::watch::Spike spike = proto::watch::Spike::None;  // --spike s0a|s0b|s0c|s0d|s0d-crash
+  proto::watch::Spike spike = proto::watch::Spike::None;  // --spike s0a|s0b|s0c|s0d|s0d-crash|s0e|s0e_alone|s4
   std::uint32_t runs = 1;                                 // --runs N (s0a, s0d-crash)
   std::uint32_t run_timeout_s = 180;                      // --run-timeout S: a run's limit to reach a terminal state
   std::uint32_t watch_pid = 0;                            // --watch PID
