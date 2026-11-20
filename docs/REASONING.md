@@ -286,6 +286,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 261 | 2026-11-20 | A test export that read GraceUI's thread's state without a lock crashed a full harness run | LIKELY | #graceui #harness |
 | 262 | 2026-11-20 | GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened | FACT | #graceui #settings |
 | 263 | 2026-11-20 | A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high | METHOD | #graceui #input |
+| 264 | 2026-11-20 | An independent review given the code and the rules found GraceUI's faults at the joins between modules | FACT | #graceui #security |
+| 265 | 2026-11-20 | A space's settings publications are held to its registration, and a secret's value is masked rather than refused | DECIDED | #graceui #security |
 
 ## Entries
 
@@ -4553,3 +4555,23 @@ invariant 10, EldenNet ARCH (T3)
   chord's order by splitting `register_hotkey`'s `pad_chord` word: the key's bit in the low 16, the anchor's in the
   high 16 (EldenNet's chord: `XINPUT_GAMEPAD_BACK | (XINPUT_GAMEPAD_DPAD_UP << 16)`). GraceUI has refused to read that
   word until now (`not_yet`), so no mod can have relied on it.
+
+### 264. An independent review given the code and the rules found GraceUI's faults at the joins between modules
+
+`2026-11-20` · FACT · `#graceui` `#security` · refs: GraceUI:D183, S11.2.q
+
+- (FACT) One read-only reviewer, given the code and the rules but not our conclusions, probed a live grace-dev on
+  loopback. It found the server's wire layer sound: Host, Origin, Fetch Metadata, the cookie and ticket, the CSP and
+  headers, static files, HTTP and WebSocket framing, the bridge's routing, the settings store, and the web app's text
+  and secrets. It also found six faults in the layers the server's own tests do not reach: a world-state flag wired
+  only to a log line, a rule kept only by the page lint, a reserved id never reserved, and others.
+- (METHOD) Review the joins between modules, not only each module, and give the reviewer the code, not our
+  conclusions.
+
+### 265. A space's settings publications are held to its registration, and a secret's value is masked rather than refused
+
+`2026-11-20` · DECIDED · `#graceui` `#security` · refs: GraceUI:D183, GraceUI's invariant 5
+
+- (DECIDED) `publish` on settings must send the registered schema and description or none; a mismatch is refused. A
+  secret's value in a publication is replaced by "set" or "" with one log line rather than refusing the frame, so a
+  mod's mistake costs it nothing visible and leaks nothing. EldenNet publishes secrets' status only.
