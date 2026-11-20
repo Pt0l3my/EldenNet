@@ -580,7 +580,7 @@ listed apart in `--help`, and none changes anything unless given (§2.5 has no o
 | `--appid-method file\|env`, `--remove-after window\|exit\|never` | `launcher.toml`'s choices for one run (§4.5, pending S0-C) |
 | `--console` | The dev console: EldenNet's status from the watch block every second while it changes, and the development Mark (§4.14, O90) |
 | `--probe` | The derivation round's R1 (O89; §4.14): brings `--console`; refuses `--no-backup`, `--vanilla-offline` and `--spike`; a failed backup ends the launcher |
-| `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14) |
+| `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14). *2026-11-20 (WHY§249 to §251):* also `s0e`, `s0e_alone` and `s4`, the runs of GraceUI's observer (S0-E's present-hook half and S4), each one watched session in its own folder `spikes\<word>-<n>`, named to the game as `ELDENNET_SPIKE_DIR`; with `s0e` and `s4` EldenNet stops at Register and makes no call into the game (§3.2), `s0e_alone` loads no eldennet.dll (no `--dll`), and `--probe` goes with none of them (§4.14) |
 | `--no-dialogs [--yes]`, `--no-steam-check`, `--gal <dir>`, `--steam <dir>`, `--appdata <dir>` | For the tests and the harness: no task dialogs (an answer given by `--yes`), no Steam check, and other folders for `gal/`, Steam and `%APPDATA%` |
 
 Arguments that are no option (Proton's forwarded `%command%`, §4.9) are set aside and counted; everything after `--`
@@ -1699,7 +1699,7 @@ class AugurCtx {
   virtual Subject classify(const Chr& chr) const = 0;
   virtual bool eval(PredicateId pred, const EvalScope& at) const = 0;  // compiled `requires` (DESIGN §10.4)
   virtual bool persona_may_perceive(PersonaId id) const = 0;           // alive and not muted at the current stage
-  // deterministic: blake3(seed_root ‖ ev ‖ salt)
+  // deterministic: blake3(seed_root ‖ ev ‖ salt); as built in v0.1, splitmix64's finaliser (below)
   virtual std::uint64_t rng(EventId ev, std::uint32_t salt) const = 0;
  protected:
   ~AugurCtx() = default;
@@ -1715,6 +1715,12 @@ class Augur {
   CooldownTable cooldowns_; DedupTable dedup_; std::vector<std::unique_ptr<EventSource>> sources_;
 };
 ```
+
+*2026-11-20, as built (part 11; WHY§223):* `AugurCtx::rng` is en-core's `AugurView::rng` (`src/en-core/src/core.cpp`,
+declared in `en/core/core.hpp`), splitmix64's finaliser over the seed root, the event's step and index, and the salt:
+deterministic and the same in every build. The seed root is 0 until the store's playthrough key exists, and BLAKE3
+replaces the finaliser with it; no v0.1 rule draws from it. en-augur links no BLAKE3, which is en-launcher's (§8.12's
+FNV-1a hashes).
 
 ### 8.2 Sources
 
