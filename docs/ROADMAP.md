@@ -1038,9 +1038,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     files, the cookie and ticket, and per-space routing (Server::add_space, SpacePort); the security suite, 35 cases
     over real loopback sockets with two spaces, passing under the sanitizers and under Wine; graceui.toml a shared
     golden the server's reader parses. How EldenNet's launcher links it (G29): GraceUI's docs/eldennet-changes.md §22.
-- j The fake host for any space, grace-dev, on fixtures and scripted time
+- j The fake host for any space, grace-dev, on fixtures and scripted time [done]
   - needs: h, i
   - refs: GraceUI:DESIGN§9.2
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 0ca834c, D168): grace-dev serves spaces on the real
+    grace-serve (the built-in ones and an author's folder, each checked as register_pages checks), with a settings
+    store, fixture topics, every command answered once, and scripted time; `--dump` prints a page's in-game structure
+    without Windows. EldenNet previews its own pages with it (GraceUI's docs/eldennet-changes.md §26).
 - k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build [done]
   - needs: e, f, h
   - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
