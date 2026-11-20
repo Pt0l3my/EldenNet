@@ -62,10 +62,19 @@ inline constexpr std::uint32_t kInitStateCount = 16;
   return s == InitState::Ready || s == InitState::Inert || s == InitState::Banner || s == InitState::Exit;
 }
 
-// The S0 spikes (DESIGN §16.1) the launcher runs, told to EldenNet so it can do its part.
-enum class Spike : std::uint32_t { None, S0a, S0b, S0c, S0d, S0dCrash };
-inline constexpr std::uint32_t kSpikeCount = 6;
-[[nodiscard]] const char* to_string(Spike s) noexcept;  // "none", "s0a", "s0b", "s0c", "s0d", "s0d-crash"
+// The spikes (DESIGN §16.1) the launcher runs, told to EldenNet so it can do its part: S0-A to S0-D, then S0-E's
+// present-hook half and S4 (input), whose measurements are GraceUI's observer's (roadmap S10.1.g, S11.1.a). Append
+// only: the words are numbers in the block.
+enum class Spike : std::uint32_t { None, S0a, S0b, S0c, S0d, S0dCrash, S0e, S0eAlone, S4 };
+inline constexpr std::uint32_t kSpikeCount = 9;
+// "none", "s0a", "s0b", "s0c", "s0d", "s0d-crash", "s0e", "s0e_alone", "s4"
+[[nodiscard]] const char* to_string(Spike s) noexcept;
+// S0-E and S4: GraceUI's observer measures, the launcher gives the run a folder of its own for the observer's report
+// (ELDENNET_SPIKE_DIR), and EldenNet makes no call into the game (it stops at Register). With s0e_alone the launcher
+// loads no eldennet.dll at all, only the --also DLLs.
+[[nodiscard]] constexpr bool observer_run(Spike s) noexcept {
+  return s == Spike::S0e || s == Spike::S0eAlone || s == Spike::S4;
+}
 
 // The launcher's --probe (O89's in-game round R1): asked by the launcher before it loads anything, answered by
 // EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in

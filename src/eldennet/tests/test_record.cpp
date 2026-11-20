@@ -230,6 +230,16 @@ TEST_CASE("a recording's lines read back with the writer's words: what the core 
   CHECK(header->header.game_version == h.game_version);
   CHECK(header->header.spike == "s0b");
   CHECK(header->header.file == 2);
+  // The spike runs of GraceUI's observer (S0-E, S4) are words of the header, and their banner one of the reasons.
+  for (const char* word : {"s0e", "s0e_alone", "s4"}) {
+    h.spike = word;
+    const auto spiked = read_recorded_line(header_line(h, 1));
+    REQUIRE(spiked.has_value());
+    CHECK(spiked->header.spike == word);
+  }
+  const auto spike_banner = read_recorded_line(banner_line(en::core::BannerReason::SpikeRun, 7));
+  REQUIRE(spike_banner.has_value());
+  CHECK(spike_banner->banner == en::core::BannerReason::SpikeRun);
   // Not a recording line: another kind, another schema, no JSON.
   CHECK_FALSE(read_recorded_line(R"({"report":"probe","schema":1,"t":1,"k":"mark","n":1})").has_value());
   CHECK_FALSE(read_recorded_line(R"({"report":"recording","schema":2,"t":1,"k":"mark","n":1})").has_value());

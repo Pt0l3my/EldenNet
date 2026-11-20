@@ -289,6 +289,18 @@ TEST_CASE("T1's banners: L1, the banner kept, the gate's effects off; the texts"
   CHECK(banner_text(BannerReason::TaskTripped, "", "") ==
         "EldenNet stopped reading the game after an error. Your game is not affected.");
   CHECK(banner_text(BannerReason::NotStarted, "", "") == "EldenNet inactive: the game did not finish starting");
+  CHECK(banner_text(BannerReason::SpikeRun, "2.0.0.1", "s0e") == "Spike run: EldenNet makes no call into the game");
+  CHECK(std::string(to_string(BannerReason::SpikeRun)) == "spike_run");
+}
+
+TEST_CASE("a spike run's banner (S0-E, S4): L1 at once, as any of T1's banners") {
+  Core core;
+  auto o = core.step(CoreInput{BootBanner{BannerReason::SpikeRun, "s4"}}, 10);
+  CHECK(o.state.phase == Phase::Banner);
+  CHECK(o.state.level == Level::L1);
+  CHECK(o.state.banner == BannerReason::SpikeRun);
+  CHECK(core.banner_detail() == "s4");
+  CHECK_FALSE(o.ai_allowed);
 }
 
 TEST_CASE("a structural trip is L1 for the session; an optional one changes neither level nor gate") {

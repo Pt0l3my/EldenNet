@@ -83,6 +83,12 @@ const char* to_string(Spike s) noexcept {
       return "s0d";
     case Spike::S0dCrash:
       return "s0d-crash";
+    case Spike::S0e:
+      return "s0e";
+    case Spike::S0eAlone:
+      return "s0e_alone";
+    case Spike::S4:
+      return "s4";
   }
   return "unknown";
 }
