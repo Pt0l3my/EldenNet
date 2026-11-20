@@ -277,6 +277,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 252 | 2026-11-20 | ABI 1 never had the display-changed event that GraceUI's design promised | FACT | #graceui #abi |
 | 253 | 2026-11-20 | Dear ImGui bakes a face at a whole-pixel size, so GraceUI rounds a scaled face's size itself | FACT | #graceui #fonts |
 | 254 | 2026-11-20 | A rise in a frame-cost median after a change with nothing per-frame was the machine's: measure old and new alternately | METHOD | #graceui #ci |
+| 255 | 2026-11-20 | The owner's package for S0-E and S4: one run file each, GraceUI copied into the game's folder, F11's view switched on | DECIDED | #engine #launcher #graceui #spike |
+| 256 | 2026-11-20 | EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml | FACT | #engine #graceui #harness |
+| 257 | 2026-11-20 | Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz | FACT | #privsweep #graceui |
 
 ## Entries
 
@@ -4439,3 +4442,38 @@ invariant 10, EldenNet ARCH (T3)
 - (METHOD) When the harness's "menu frame cost" medians rose about 25% after a change with nothing per-frame in it,
   the previous commit was built apart and measured alternately with the new one. The medians were the same, so the rise
   was the machine's, not the change's.
+
+### 255. The owner's package for S0-E and S4: one run file each, GraceUI copied into the game's folder, F11's view switched on
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#graceui` `#spike` · refs: S10.1.g, S11.1.a, WHY§249, engine def31b4
+
+- (DECIDED) `tools/spikepkg/build.py --kind s0e-s4` packs the launcher, the release eldennet.dll, `gal\`, GraceUI's
+  test build (here 0.2.2 at f5c16a2), grace-spike.dll, grace-standin.dll and one `.cmd` file per run (A1 to A4, A0, B).
+  Each file runs `cd /d "%~dp0"` and adds `--console`, so the launcher's lines show. The package leaves out GraceUI's
+  `user\` folder (D179's kept settings) and refuses a `graceui.toml` that lists one.
+- (DECIDED) The README asks the owner to copy `GraceUI\` into the game's own `Game` folder (A3, A4 and B have EldenNet
+  load it from there, as a release will), to be deleted afterwards, and to switch on F11's view (`debug.panel`), which
+  is off by default.
+- (METHOD) A harness case whose program reads relative paths now names its start folder: Wine maps it to its drive,
+  as cmd.exe's `cd /d "%~dp0"` does on the owner's PC.
+
+### 256. EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml
+
+`2026-11-20` · FACT · `#engine` `#graceui` `#harness` · refs: GraceUI:D175, engine 672cae3
+
+- (FACT) GraceUI 0.2.1 appended fields to `GraceUiTestState` (D175), and `GraceUI_Test_GetState` refuses a smaller
+  size. The fake game, reading through EldenNet's vendored `graceui_test.h` (3f1352b), saw zeros, and
+  `launcher-eldennet-graceui-spike-s0e` failed on that alone. `graceui_test.h` is re-vendored at 2131839 with its
+  SHA-256 pin. The rest of graceui-sys stays at 3f1352b until S11.4.
+- (METHOD) `launcher-eldennet-graceui` expected GraceUI 0.1.0 and ABI 1.0 by name. It now reads both from the GraceUI
+  folder's own `graceui.toml`, so a newer GraceUI under test is not a failure.
+
+### 257. Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz
+
+`2026-11-20` · FACT · `#privsweep` `#graceui` · refs: Skyrizz c7920ee
+
+- (FACT) In the package's zip, privsweep's `email` rule matched byte runs in NotoSans-Regular.ttf and
+  NotoSansMono-Regular.ttf (in their `glyf` and `GPOS` tables; their `name` tables hold no `@`). GraceUI downloads its
+  fonts at configure time, so no push had swept them, and this package was their first upload.
+- (DECIDED) An allow line in Skyrizz's `tools/privsweep/allow.txt` covers those two files' strings view only, under a
+  `GraceUI/fonts/` path. A later font change is swept and reviewed again.
