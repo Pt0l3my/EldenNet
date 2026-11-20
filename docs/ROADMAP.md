@@ -984,10 +984,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     cases under the sanitizers, a chunking differential, the RFC vectors and two clean fuzzers. For EldenNet's launcher
     as a later host (G29): the cookie and ticket are 32 random bytes in base64url, and the loopback origin is always
     http://127.0.0.1:PORT, localhost and [::1] redirected there (WHY§214).
-- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint [active]
+- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint [done]
   - needs: f
-  - refs: GraceUI:DESIGN§2.5, GraceUI:DESIGN§6.9, GraceUI:D79, GraceUI:D115
-- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6)
+  - refs: GraceUI:DESIGN§2.5, GraceUI:DESIGN§6.9, GraceUI:D79, GraceUI:D115, GraceUI:D160
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 23430fa): page data as protocol types; a space as one TOML
+    file (GraceUI's own six pages and eight settings, and an invented demo space using every setting type);
+    tools/pages/build.py, which checks a space against the schema and by the page lint and writes the fixtures. EldenNet
+    writes its space in the same form and lints it from a pinned GraceUI (GraceUI's docs/eldennet-changes.md §19, for
+    S11.4.a).
+- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6) [active]
   - needs: f, g
   - refs: G4, G17, G29, GraceUI:DESIGN§7.2
 - j The fake host for any space, grace-dev, on fixtures and scripted time
