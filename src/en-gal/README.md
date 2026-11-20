@@ -327,7 +327,18 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   within a cap of bytes and of time, for the words equal to an address or pointing into the object there, the regions
   whose allocation base the caller names as its own counted apart, and an image hit's section read from its headers by
   its characteristics (`section_kind`). Both fill `probe_report.hpp`'s structures. NativeSys's `region_at` (probe
-  builds) is the VirtualQuery behind the search.
+  builds) is the VirtualQuery behind the search. Spike.7 (WHY§235) follows the task past the wrapper run 6 found:
+  `summarise_callee` knows what each register holds along the flow (where paths meet a register keeps only what both
+  agree on, and code no known path reaches holds nothing), maps the arguments into every call and tail jump (`pass`),
+  reads each branch's flag test before the first call (`guards`: the compare or test, past moves that set no flag, with
+  its operands' kinds: a register and the argument it holds, a memory operand's base and displacement, a RIP-relative
+  slot, an immediate), and takes an entry state, so that each callee of the wrapper is summarised with the wrapper's
+  arguments followed into it (`entry_at`); `search_memory` also counts the words equal to our fake vtable's address and
+  to its slots', reads up to 64 GiB (the time cap the bound) and walks past a cap for the committed total; and
+  `walk_hub`, `search_walk` and `diff_hub` (`probe_hub.cpp`) keep spike.5's walk of the hub's reachable memory, search
+  it, and compare two walks block by block by path, each changed word's old and new value by kind (zero, a small
+  integer, the group's index, our task, our vtable, our module, the game's image with its section and RVA, the heap,
+  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -400,7 +411,14 @@ bound, a virtual call on an argument's object, a refusal path that returns throu
 immediate past the bound, an instruction it does not model, the 4 KiB bound and bytes that do not decode; and the
 whole-memory search over regions of the test's own: the game's copies in its image, heap and a mapped view, ours in our
 module, heap and task block, a guard page, an execute-only page and a stack never read, a page that faults, a range
-kept out, both caps, and its copies counted as the game's when our heap's regions are not known). The clang-cl build adds
+kept out, both caps, and its copies counted as the game's when our heap's regions are not known; spike.7's on code of
+our own: a wrapper's arguments mapped into two calls and a tail jump through the registers that keep them, a flag of
+the instance tested before a branch past both calls, an inner callee summarised with the wrapper's arguments (the task
+and its vtable kept in the hub, the group compared with a bound), two paths that disagree, a call reached only through
+a jump the summary cannot follow, a compare found past a move and a byte register's high half; the hub walked, searched
+and diffed over memory of the test's own (each kind of value, a fresh block, a block found again by another path, a
+path re-pointed, a block gone, the caps, and a later diff's steady words first); and the search for our vtable's and
+slots' copies, ours apart, with the committed total past a cap). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
 under SEH, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what

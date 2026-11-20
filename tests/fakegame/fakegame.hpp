@@ -18,7 +18,10 @@
 
 // --- Offsets that asm.cpp's assembly uses (each checked against the C++ layout with a static_assert) -------------------
 #define FG_LOOM_GROUP_COUNT_OFF 0x10  // FG::TaskLoomImp: the number of task groups (the registration front's bound)
+#define FG_LOOM_FLAGS_OFF 0x14        // FG::TaskLoomImp: its flags, of which the registration's wrapper tests one
+#define FG_LOOM_CLOSED 0x01           // the flag: while set, the wrapper hands every task to fg_register_closed
 #define FG_LOOM_LAST_TASK_OFF 0x30    // FG::TaskLoomImp: the last task registered, which the registration keeps there
+#define FG_LOOM_LAST_VTABLE_OFF 0x38  // FG::TaskLoomImp: that task's vtable, which the registration keeps too
 #define FG_GROUP_BOUND 0x200          // the registration refuses a group index at or past it, before the count
 #define FG_WARDEN_SAVE_SLOT_OFF 0x14  // FG::RunWardenImp: the save slot
 #define FG_PLOT_PLACE_OFF 0x1C        // FG::FieldPlotImp: the place id
@@ -83,8 +86,12 @@ void* fg_save_ledger_swap(void* instance);        // swaps the SaveLedger static
 std::int32_t fg_run_warden_slot();                // the save slot through the RunWarden static, or -1
 std::int64_t fg_field_plot_place();               // the place id through the FieldPlot static, or 0
 
-// The task registration: our own invented ABI, (task in rcx, the hub instance in rdx, the group index in r8d).
+// The task registration: our own invented ABI, (task in rcx, the hub instance in rdx, the group index in r8d). A
+// wrapper (spike.7's shape, WHY§235): it tests the hub's closed flag, then calls fg_register_keep with the hub in rcx,
+// the group in edx and the task in r8, or, while the hub is closed, tail-jumps to fg_register_closed.
 void fg_register_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);
+// The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
+void fg_register_keep(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 // The program's own call sites into it: four tasks, each {task, group}, registered in order.
 struct FgBootTask {
   FG::TaskUnit* task;
@@ -96,6 +103,7 @@ void fg_boot_register_tasks(const FgBootTask* tasks);  // exactly four entries
 // Called from the assembly (defined in C++).
 void fg_fd4_unset(const char* path, const char* name, std::uint32_t site);  // a singleton used before it was set
 void fg_hub_enqueue(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
+void fg_register_closed(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);  // counted, never queued
 void fg_register_rejected(std::uint32_t reason);  // 1 hub, 2 group, 3 task; it faults, as a game given bad input would
 }
 
@@ -148,12 +156,14 @@ struct GroupEntry {           // stride 0x90
 struct TaskLoomFields {       // from +0x08
   std::uint64_t frame;        // 0x08
   std::uint32_t group_count;  // 0x10 (FG_LOOM_GROUP_COUNT_OFF)
-  std::uint32_t flags;        // 0x14
+  std::uint32_t flags;        // 0x14 (FG_LOOM_FLAGS_OFF): FG_LOOM_CLOSED, never set by the program itself
   GroupEntry* groups;         // 0x18
   std::uint64_t tasks_live;   // 0x20
   void** live;                // 0x28: every active task, in the order the hub activated it (kMaxLiveTasks)
   void* last_task;            // 0x30 (FG_LOOM_LAST_TASK_OFF): written by the registration itself (R1's callee summary)
-  std::uint64_t spare;        // 0x38
+  void* last_vtable;          // 0x38 (FG_LOOM_LAST_VTABLE_OFF): that task's vtable, as a hub might cache it
+  void** run_fns;             // 0x40: each active task's run slot, in the order of `live`, as a hub might cache them
+  std::uint64_t spare;        // 0x48
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
 

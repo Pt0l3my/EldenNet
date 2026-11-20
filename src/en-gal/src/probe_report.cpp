@@ -1,6 +1,8 @@
 // R1's probe report (probe_report.hpp).
 #include "en/gal/probe_report.hpp"
 
+#include <algorithm>
+
 namespace en::gal::probe {
 
 using report::Key;
@@ -14,11 +16,18 @@ constexpr std::array<std::string_view, 8> kItems = {"gate",  "fd4_idiom",  "name
                                                     "register_abi", "group", "task_shape",  "singleton"};
 constexpr std::array<std::string_view, 4> kChecks = {"confirmed", "differs", "missing", "not_run"};
 constexpr std::array<std::string_view, 5> kCalls = {"not_called", "waiting_for_mark", "refused", "ok", "faulted"};
-constexpr std::array<std::string_view, 4> kForms = {"direct", "register", "memory", "rip"};
+// A call's form (tail: a direct jump out of the function), and a flag test's operand's (spike.7).
+constexpr std::array<std::string_view, 6> kForms = {"direct", "register", "memory", "rip", "tail", "immediate"};
 constexpr std::array<std::string_view, 4> kRegions = {"private", "mapped", "image", "other"};
 constexpr std::array<std::string_view, 3> kModules = {"ours", "game", "other"};
 constexpr std::array<std::string_view, 5> kSections = {"header", "code", "rdata", "data", "other"};
 constexpr std::array<std::string_view, 3> kStops = {"done", "bytes_cap", "time_cap"};
+constexpr std::array<std::string_view, 17> kConds = {"o", "no", "b",  "ae", "e", "ne", "be", "a", "s",
+                                                     "ns", "p", "np", "l", "ge", "le", "g", "other"};
+constexpr std::array<std::string_view, 4> kOps = {"cmp", "test", "other", "none"};
+constexpr std::array<std::string_view, 3> kPoints = {"object", "vtable", "slot"};
+constexpr std::array<std::string_view, 9> kValues = {"zero", "small", "group", "task", "vtable",
+                                                     "ours", "game", "heap", "other"};
 
 constexpr std::array<Key, 49> kKeys = {{
     {"stage", Type::Word, Type::Object, kStages},
@@ -161,14 +170,58 @@ constexpr std::array<Key, 48> kSpike6 = {{
     {"module", Type::Word, Type::Object, kModules},
     {"section", Type::Word, Type::Object, kSections},
 }};
+// Spike.7 (WHY§235): the arguments mapped into the callee's calls, its flag tests and inner callees; the vtable's and
+// slots' search; the hub's memory compared across the call.
+constexpr std::array<Key, 39> kSpike7 = {{
+    {"reached", Type::Boolean},
+    {"pass", Type::Array, Type::Object},
+    {"from", Type::Unsigned},
+    {"first_word", Type::Boolean},
+    {"guard", Type::Array, Type::Object},
+    {"cond", Type::Word, Type::Object, kConds},
+    {"op", Type::Word, Type::Object, kOps},
+    {"op_at", Type::Unsigned},
+    {"operands", Type::Array, Type::Object},
+    {"inner", Type::Array, Type::Object},
+    {"site", Type::Unsigned},
+    {"tail", Type::Boolean},
+    {"committed_bytes", Type::Unsigned},
+    {"vtable_found", Type::Unsigned},
+    {"own_vtable_found", Type::Unsigned},
+    {"slot_found", Type::Unsigned},
+    {"own_slot_found", Type::Unsigned},
+    {"slot_distinct", Type::Unsigned},
+    {"own_slot_distinct", Type::Unsigned},
+    {"points_to", Type::Word, Type::Object, kPoints},
+    {"hub_diff", Type::Array, Type::Object},
+    {"before_blocks", Type::Unsigned},
+    {"after_blocks", Type::Unsigned},
+    {"compared", Type::Unsigned},
+    {"moved", Type::Unsigned},
+    {"gone", Type::Unsigned},
+    {"new_blocks", Type::Unsigned},
+    {"new_bytes", Type::Unsigned},
+    {"changed", Type::Unsigned},
+    {"steady_words", Type::Unsigned},
+    {"capped", Type::Boolean},
+    {"kept_bytes", Type::Unsigned},
+    {"words", Type::Array, Type::Object},
+    {"old", Type::Object},
+    {"new", Type::Object},
+    {"steady", Type::Boolean},
+    {"kind", Type::Word, Type::Object, kValues},
+    {"fresh", Type::Boolean},
+    {"group_half", Type::Boolean},
+}};
 
-constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size();
+constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size();
 constexpr std::array<Key, kKeyCount> joined() {
   std::array<Key, kKeyCount> out{};
   std::size_t n = 0;
   for (const Key& k : kKeys) out[n++] = k;
   for (const Key& k : kMore) out[n++] = k;
   for (const Key& k : kSpike6) out[n++] = k;
+  for (const Key& k : kSpike7) out[n++] = k;
   return out;
 }
 constexpr std::array<Key, kKeyCount> kAll = joined();
@@ -189,8 +242,40 @@ void optional_number(report::Writer& w, std::string_view key, const std::optiona
   if (v) w.number(key, static_cast<std::uint64_t>(*v));
 }
 
-void write_callee(report::Writer& w, const CalleeCode& c) {
-  w.begin_object("callee_code");
+void write_pass(report::Writer& w, const std::vector<PassedArg>& pass) {
+  w.begin_array("pass");
+  for (const PassedArg& p : pass) {
+    w.begin_object();
+    w.number("reg", p.reg);
+    w.number("from", p.from);
+    w.boolean("first_word", p.first_word);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+void write_operand(report::Writer& w, const Operand& o) {
+  w.begin_object();
+  switch (o.form) {
+    case OperandForm::Register: w.word("form", "register"); break;
+    case OperandForm::Memory: w.word("form", "memory"); break;
+    case OperandForm::Rip: w.word("form", "rip"); break;
+    case OperandForm::Immediate: w.word("form", "immediate"); break;
+  }
+  optional_number(w, "reg", o.reg);
+  optional_number(w, "from", o.from);
+  if (o.form == OperandForm::Register) w.boolean("first_word", o.first_word);
+  optional_number(w, "base", o.base);
+  optional_number(w, "base_arg", o.base_arg);
+  optional_number(w, "index", o.index);
+  if (o.form == OperandForm::Memory) w.signed_number("disp", o.disp);
+  optional_number(w, "target", o.target);
+  optional_number(w, "imm", o.imm);
+  w.end_object();
+}
+
+// A summary's fields, in the object the caller opened.
+void write_code(report::Writer& w, const CalleeCode& c) {
   w.boolean("read", c.read);
   w.number("extent", c.extent);
   w.number("bytes", c.bytes);
@@ -212,6 +297,8 @@ void write_callee(report::Writer& w, const CalleeCode& c) {
     optional_number(w, "index", k.index);
     if (k.form == CallForm::Memory) w.signed_number("disp", k.disp);
     optional_number(w, "vtable_of", k.vtable_of);
+    w.boolean("reached", k.reached);
+    write_pass(w, k.pass);
     w.end_object();
   }
   w.end_array();
@@ -221,6 +308,21 @@ void write_callee(report::Writer& w, const CalleeCode& c) {
     w.begin_object();
     w.number("offset", b.offset);
     w.signed_number("to", b.to);
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("guard");
+  for (const CalleeGuard& g : c.guards) {
+    w.begin_object();
+    w.number("offset", g.offset);
+    w.signed_number("to", g.to);
+    w.word("cond", kConds[std::min<std::size_t>(g.cond, kConds.size() - 1)]);
+    w.word("op", kOps[static_cast<std::size_t>(g.op)]);
+    optional_number(w, "op_at", g.op_at);
+    if (g.width != 0) w.number("width", g.width);
+    w.begin_array("operands");
+    for (const Operand& o : g.operands) write_operand(w, o);
+    w.end_array();
     w.end_object();
   }
   w.end_array();
@@ -239,6 +341,7 @@ void write_callee(report::Writer& w, const CalleeCode& c) {
       w.signed_number("disp", s.disp);
       w.boolean("rip", s.rip);
       w.number("width", s.width);
+      w.boolean("first_word", s.first_word);
       w.end_object();
     }
     w.end_array();
@@ -259,6 +362,21 @@ void write_callee(report::Writer& w, const CalleeCode& c) {
     w.end_object();
   }
   w.end_array();
+}
+
+void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner) {
+  w.begin_object("callee_code");
+  write_code(w, c);
+  w.begin_array("inner");
+  for (const InnerCallee& i : inner) {
+    w.begin_object();
+    w.number("rva", i.rva);
+    w.number("site", i.site);
+    w.boolean("tail", i.tail);
+    write_code(w, i.code);
+    w.end_object();
+  }
+  w.end_array();
   w.end_object();
 }
 
@@ -267,6 +385,7 @@ void write_memory(report::Writer& w, const MemorySearch& m) {
   w.number("at_ms", m.at_ms);
   w.number("ms", m.ms);
   w.number("regions", m.regions);
+  w.number("committed_bytes", m.committed_bytes);
   w.number("read_regions", m.read_regions);
   w.number("read_bytes", m.read_bytes);
   w.number("unread_bytes", m.unread_bytes);
@@ -278,10 +397,18 @@ void write_memory(report::Writer& w, const MemorySearch& m) {
   w.number("inside", m.inside);
   w.number("own_found", m.own_found);
   w.number("own_inside", m.own_inside);
+  w.number("vtable_found", m.vtable_found);
+  w.number("own_vtable_found", m.own_vtable_found);
+  w.number("slot_found", m.slot_found);
+  w.number("own_slot_found", m.own_slot_found);
+  w.number("slot_distinct", m.slot_distinct);
+  w.number("own_slot_distinct", m.own_slot_distinct);
   w.begin_array("hits");
   for (const MemoryHit& h : m.hits) {
     w.begin_object();
     w.boolean("own", h.own);
+    w.word("points_to", kPoints[static_cast<std::size_t>(h.points_to)]);
+    optional_number(w, "slot", h.slot);
     w.number("offset", h.offset);
     w.word("region", kRegions[static_cast<std::size_t>(h.region)]);
     w.number("protect", h.protect);
@@ -289,6 +416,48 @@ void write_memory(report::Writer& w, const MemorySearch& m) {
     if (h.section != SectionKind::None) w.word("section", kSections[static_cast<std::size_t>(h.section) - 1]);
     optional_number(w, "rva", h.rva);
     w.number("near_group", h.near_group);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_value(report::Writer& w, std::string_view key, const WordValue& v) {
+  w.begin_object(key);
+  w.word("kind", kValues[static_cast<std::size_t>(v.kind)]);
+  optional_number(w, "value", v.value);
+  optional_number(w, "offset", v.offset);
+  if (v.section != SectionKind::None) w.word("section", kSections[static_cast<std::size_t>(v.section) - 1]);
+  optional_number(w, "rva", v.rva);
+  if (v.fresh) w.boolean("fresh", *v.fresh);
+  if (v.group_half) w.boolean("group_half", true);
+  w.end_object();
+}
+
+void write_diff(report::Writer& w, const HubDiff& d) {
+  w.begin_object();
+  w.number("at_ms", d.at_ms);
+  w.number("before_blocks", d.before_blocks);
+  w.number("after_blocks", d.after_blocks);
+  w.number("compared", d.compared);
+  w.number("moved", d.moved);
+  w.number("gone", d.gone);
+  w.number("new_blocks", d.new_blocks);
+  w.number("new_bytes", d.new_bytes);
+  w.number("changed", d.changed);
+  optional_number(w, "steady_words", d.steady_words);
+  w.boolean("capped", d.capped);
+  w.number("kept_bytes", d.kept_bytes);
+  w.begin_array("words");
+  for (const DiffWord& x : d.words) {
+    w.begin_object();
+    w.number("depth", x.depth);
+    w.begin_array("path");
+    for (const std::uint32_t o : x.path) w.number(o);
+    w.end_array();
+    write_value(w, "old", x.before);
+    write_value(w, "new", x.after);
+    if (x.steady) w.boolean("steady", *x.steady);
     w.end_object();
   }
   w.end_array();
@@ -459,9 +628,12 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   }
   w.end_array();
   w.end_object();
-  if (f.callee_code) write_callee(w, *f.callee_code);
+  if (f.callee_code) write_callee(w, *f.callee_code, f.callee_inner);
   w.begin_array("memory_search");
   for (const MemorySearch& m : f.memory_search) write_memory(w, m);
+  w.end_array();
+  w.begin_array("hub_diff");
+  for (const HubDiff& d : f.hub_diff) write_diff(w, d);
   w.end_array();
   return w.finish();
 }

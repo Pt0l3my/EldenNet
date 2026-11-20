@@ -11,7 +11,10 @@
 //    table and equal to the one the gated build's layout gives (gal/layouts/, a lead); the hub's instance non-null.
 //    Any check that fails: no call, and the report says which. Nothing is guessed, and nothing rests on a derivation
 //    that was not reviewed (O89 (a)). The callee's summary, from the live image (WHY§227): its calls, its branches
-//    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee).
+//    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee);
+//    since spike.7 (WHY§235) the arguments in each call, each branch's flag test, and each callee it calls (or
+//    tail-jumps to) summarised in turn with the arguments followed in. Just before the call, the hub's reachable
+//    memory (spike.5's walk) is kept on our heap.
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -22,9 +25,10 @@
 // 5. On T1 every 2 s, probe\r1-probe.json (probe_report.hpp): the checks, the call, the counts, and, once the census is
 //    done, the base classes the hub's objects share with each one's derived classes' slots and run slot. Once statics'
 //    slots are found, the derivation runs again with them, so that r1-derive.json carries a pattern at each.
-// 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227): the hub's reachable memory, then every readable committed
-//    region of the process, searched for our task object's address (ours counted apart), and, while the task has not
-//    run, how much of our object the hub wrote.
+// 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227, WHY§235): the hub's reachable memory walked again, searched
+//    for our task object's address and compared with the walk kept from before the call; then every readable
+//    committed region of the process searched for our task object's address, our fake vtable's and its slots' (ours
+//    counted apart); and, while the task has not run, how much of our object the hub wrote.
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
@@ -37,6 +41,8 @@
 #include <optional>
 #include <set>
 #include <span>
+#include <utility>
+#include <vector>
 
 #include "en/gal/derive.hpp"
 #include "en/gal/fd4.hpp"
@@ -66,6 +72,7 @@ using en::shell::Line;
 using en::shell::LogLevel;
 
 constexpr std::uint32_t kSpanObject = 0x400;  // how much of our object the probe copies back
+constexpr std::size_t kMaxInner = 8;          // the callee's callees summarised (WHY§235)
 
 // The probe's body on the game thread (every slot of our fake vtable runs it for our own object).
 class R1Body final : public en::gal::TaskBody {
@@ -214,6 +221,7 @@ class Round {
     R1Body* body = prepare();
     block::install_filter();
     (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§190)
+    keep_hub();
     enter_state(w::InitState::Register);
     en::gal::TaskShape shape;
     shape.vtable_slots = f_.vtable_slots;
@@ -234,6 +242,7 @@ class Round {
       block::state(w::InitState::Banner);
       return report_loop(nullptr);
     }
+    read_vtable();
     enter_state(w::InitState::FirstTick);
     report_loop(body);
   }
@@ -584,102 +593,138 @@ class Round {
 
   std::uint64_t called_mono_ms() const noexcept { return called_mono_; }
 
-  // WHY§209: the hub's reachable memory searched for our task object, breadth first from the hub's instance, up to three
-  // pointers deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps.
-  void search_hub() {
-    probe::HubSearch h;
-    h.at_ms = since_ms() - called_ms_;
-    const std::uint64_t target = s_.sys->task_object();
-    const std::uint64_t end = target + f_.object_size;
-    const std::uint64_t image_end = base_ + image_->size_of_image;
-    struct Node {
-      std::uint64_t at;
-      std::vector<std::uint32_t> path;
-    };
-    std::vector<Node> level{Node{instance_, {}}};
-    std::set<std::uint64_t> seen{instance_};
-    std::vector<std::byte> block;
-    constexpr std::uint64_t kMaxNodes = 6000, kMaxBytes = 6u << 20;
-    for (std::uint32_t depth = 0; depth <= 3 && !level.empty() && target != 0; ++depth) {
-      std::vector<Node> next;
-      for (const Node& n : level) {
-        if (h.nodes >= kMaxNodes || h.read_bytes >= kMaxBytes) break;
-        std::uint64_t len = depth == 0 ? 0x1000 : 0x400;
-        const std::uint64_t to_page = 0x1000 - (n.at & 0xFFF);
-        if (len > to_page && to_page >= 0x40) len = to_page;  // one page at a time: a block never crosses into the next
-        if (en::gal::implausible(n.at, len, 8, s_.sys->stacks())) {
-          ++h.refused_reads;
-          continue;
-        }
-        block.assign(static_cast<std::size_t>(len), std::byte{0});
-        ++h.nodes;
-        if (!s_.sys->copier().copy(n.at, block).copied) {
-          ++h.faults;
-          continue;
-        }
-        h.read_bytes += len;
-        for (std::size_t o = 0; o + 8 <= block.size(); o += 8) {
-          std::uint64_t w = 0;
-          std::memcpy(&w, block.data() + o, 8);
-          if (w == target) {
-            ++h.found;
-            if (h.hits.size() < 8) {
-              probe::HubHit x;
-              x.depth = depth;
-              x.path = n.path;
-              x.path.push_back(static_cast<std::uint32_t>(o));
-              const std::size_t lo = o >= 64 ? o - 64 : 0, hi = std::min(block.size(), o + 72);
-              for (std::size_t k = lo; k + 4 <= hi; k += 4) {
-                std::uint32_t v = 0;
-                std::memcpy(&v, block.data() + k, 4);
-                if (v == f_.group_index) ++x.near_group;
-              }
-              h.hits.push_back(std::move(x));
-            }
-          } else if (w > target && w < end) {
-            ++h.inside;
-          } else if (depth < 3 && (w & 7) == 0 && w >= en::gal::kLowestAddress && w < en::gal::kAddressEnd &&
-                     (w < base_ || w >= image_end) && seen.insert(w).second) {
-            Node m{w, n.path};
-            m.path.push_back(static_cast<std::uint32_t>(o));
-            next.push_back(std::move(m));
-          }
-        }
-      }
-      level = std::move(next);
+  // Spike.5's walk of the hub's reachable memory (WHY§209): breadth first from the hub's instance, up to three pointers
+  // deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps; pointers
+  // into the image are not followed, nor, after the call, those into our task's block.
+  probe::HubWalkSpec hub_walk_spec() const {
+    probe::HubWalkSpec spec;
+    spec.instance = instance_;
+    spec.image_base = base_;
+    spec.image_end = base_ + image_->size_of_image;
+    spec.own_image = own_image();
+    if (const std::uint64_t task = s_.sys->task_object(); task != 0) {
+      spec.keep = en::gal::AddressRange{task, task + 16 + f_.object_size};
     }
+    return spec;
+  }
+
+  // Our module's mapped range: the regions from its base that VirtualQuery gives the same allocation base.
+  en::gal::AddressRange own_image() const {
+    const std::uint64_t base = en::gal::sys::boot::address_of_module(s_.module);
+    std::uint64_t end = base;
+    for (std::size_t n = 0; base != 0 && n < 256; ++n) {
+      const std::optional<probe::MemoryRegion> r = s_.sys->region_at(end);
+      if (!r || r->allocation_base != base || r->base != end || r->size == 0) break;
+      end = r->base + r->size;
+    }
+    return en::gal::AddressRange{base, end};
+  }
+
+  // WHY§235: just before the call, the hub's reachable memory, kept on our heap (within the walk's 6 MiB) for the diffs.
+  void keep_hub() {
+    before_ = probe::walk_hub(*s_.sys, hub_walk_spec());
+    log(Line("r1").word("stage", "hub_kept").num("blocks", before_.blocks.size()).num("bytes", before_.bytes.size())
+            .flag("capped", before_.capped));
+  }
+
+  // WHY§235: our fake vtable's address (our object's first word) and its slots' (our module's thunks), read back from
+  // our own memory after the call, for the whole-memory search and the diff's kinds.
+  void read_vtable() {
+    const std::uint64_t at = s_.sys->task_object();
+    std::array<std::byte, 8> v{};
+    if (at == 0 || !s_.sys->copier().copy(at, v).copied) return;
+    std::memcpy(&vtable_, v.data(), 8);
+    std::vector<std::byte> t(std::size_t{8} * f_.vtable_slots);
+    if (vtable_ == 0 || t.empty() || !s_.sys->copier().copy(vtable_, t).copied) return;
+    thunks_.assign(f_.vtable_slots, 0);
+    for (std::size_t i = 0; i < thunks_.size(); ++i) std::memcpy(&thunks_[i], t.data() + 8 * i, 8);
+  }
+
+  // WHY§209: the hub's reachable memory searched for our task object; WHY§235: and compared with the walk kept from
+  // before the call, block by block by path (the second diff against the first's changes, for their steadiness).
+  void search_hub() {
+    const std::uint64_t at_ms = since_ms() - called_ms_;
+    const std::uint64_t target = s_.sys->task_object();
+    const probe::HubWalk walk = probe::walk_hub(*s_.sys, hub_walk_spec());
+    probe::HubSearch h = probe::search_walk(walk, target, target + f_.object_size, f_.group_index);
+    h.at_ms = at_ms;
     log(Line("r1").word("stage", "hub_search").num("at_ms", h.at_ms).num("nodes", h.nodes).num("found", h.found)
             .num("inside", h.inside).num("faults", h.faults));
     f_.hub_search.push_back(std::move(h));
+    if (before_.blocks.empty()) return;
+    probe::DiffSpec spec;
+    spec.group_index = f_.group_index;
+    if (target != 0) spec.task = en::gal::AddressRange{target, target + 16 + f_.object_size};
+    if (vtable_ != 0) spec.vtable = en::gal::AddressRange{vtable_, vtable_ + 8 * thunks_.size()};
+    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
+    spec.game_base = base_;
+    for (const en::gal::Section& sec : image_->sections) {
+      spec.game_sections.push_back(
+          probe::SectionSpan{sec.rva, sec.mapped_size(), probe::section_kind_of(sec.characteristics)});
+    }
+    spec.query = [this](std::uint64_t a) { return s_.sys->region_at(a); };
+    spec.earlier = f_.hub_diff.empty() ? nullptr : &first_changes_;
+    probe::DiffResult r = probe::diff_hub(before_, walk, spec);
+    r.diff.at_ms = at_ms;
+    log(Line("r1").word("stage", "hub_diff").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
+            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
+    if (f_.hub_diff.empty()) {
+      first_changes_ = std::move(r.changed);
+    } else {
+      before_ = probe::HubWalk{};  // the last diff: what was kept is let go
+      first_changes_.clear();
+    }
+    f_.hub_diff.push_back(std::move(r.diff));
+  }
+
+  // The code at `rva` as the live image holds it: within its function of the exception directory (its length the
+  // extent), or up to the 4 KiB bound, never past its section.
+  std::pair<std::vector<std::byte>, std::uint32_t> code_at(std::uint32_t rva) const {
+    std::uint32_t extent = 0;
+    const auto fn = std::lower_bound(image_->functions.begin(), image_->functions.end(), rva,
+                                     [](const en::gal::RuntimeFunction& r, std::uint32_t at) { return r.begin < at; });
+    if (fn != image_->functions.end() && fn->begin == rva) extent = fn->length();
+    std::uint32_t len = extent != 0 ? std::min(extent, probe::kCalleeBound) : probe::kCalleeBound;
+    for (const en::gal::Section& sec : image_->sections) {
+      if (sec.contains(rva)) len = std::min(len, sec.rva + sec.mapped_size() - rva);
+    }
+    std::vector<std::byte> code(len);
+    if (!s_.sys->image().read(rva, code)) code.clear();
+    return {std::move(code), extent};
   }
 
   // WHY§227: what the callee does with its arguments, from the live image (the code the call runs), decoded within its
-  // function of the exception directory, or up to its first return, and at most 4 KiB; no call is followed.
+  // function of the exception directory, or up to its first return, and at most 4 KiB; no call is followed. WHY§235:
+  // then each callee it calls directly or tail-jumps to, one level deeper, with the arguments its call site passes.
   void summarise_callee() {
     if (f_.callee == 0) return;
-    std::uint32_t extent = 0;
-    const auto fn = std::lower_bound(image_->functions.begin(), image_->functions.end(), f_.callee,
-                                     [](const en::gal::RuntimeFunction& r, std::uint32_t at) { return r.begin < at; });
-    if (fn != image_->functions.end() && fn->begin == f_.callee) extent = fn->length();
-    std::uint32_t len = extent != 0 ? std::min(extent, probe::kCalleeBound) : probe::kCalleeBound;
-    for (const en::gal::Section& sec : image_->sections) {
-      if (sec.contains(f_.callee)) len = std::min(len, sec.rva + sec.mapped_size() - f_.callee);
-    }
-    std::vector<std::byte> code(len);
-    if (!s_.sys->image().read(f_.callee, code)) code.clear();
+    const auto [code, extent] = code_at(f_.callee);
     f_.callee_code = probe::summarise_callee(code, f_.callee, extent);
     const probe::CalleeCode& c = *f_.callee_code;
     log(Line("r1").word("stage", "callee").num("bytes", c.bytes).num("instructions", c.instructions)
             .num("calls", c.call_count).num("branches", c.branch_count).flag("returns_early", c.returns_early));
+    for (const probe::CalleeCall& k : c.calls) {
+      if (f_.callee_inner.size() >= kMaxInner) break;
+      if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail)) continue;
+      const auto [inner, inner_extent] = code_at(*k.target);
+      probe::InnerCallee in{*k.target, k.offset, k.form == probe::CallForm::Tail,
+                            probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k))};
+      log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("bytes", in.code.bytes)
+              .num("calls", in.code.call_count).num("branches", in.code.branch_count));
+      f_.callee_inner.push_back(std::move(in));
+    }
   }
 
   // WHY§227: every committed, readable region of the process searched for our task object's address, on T1, through
-  // the crash-guarded copy, within 8 GiB and 30 s; never a known stack, nor T1's own. Ours counted apart: our module,
-  // and the regions of the DLL's own heap (alloc_count.cpp) and of our task's block.
+  // the crash-guarded copy, within 64 GiB (WHY§235: run 6's 8 GiB cap left 2 GiB unread) and 30 s; never a known
+  // stack, nor T1's own. Since spike.7 our fake vtable's and its slots' addresses too. Ours counted apart: our module,
+  // and the regions of the DLL's own heap (alloc_count.cpp), of our task's block and of our vtable's.
   void search_memory() {
     probe::MemorySearchSpec spec;
     spec.target = s_.sys->task_object();
     spec.object_bytes = std::uint64_t{8} + f_.object_size;
+    spec.vtable = vtable_;
+    spec.slots = thunks_;
     spec.group_index = f_.group_index;
     spec.game_base = base_;
     spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
@@ -688,6 +733,7 @@ class Round {
     spec.own_known = n.has_value();
     if (n) spec.own_bases.assign(bases.begin(), bases.begin() + static_cast<std::ptrdiff_t>(*n));
     spec.own_bases.push_back(spec.target);  // our task's block is an allocation of its own (VirtualAlloc's)
+    if (vtable_ != 0) spec.own_bases.push_back(vtable_);  // and so is our vtable
     ULONG_PTR low = 0, high = 0;
     GetCurrentThreadStackLimits(&low, &high);
     spec.skip.push_back(en::gal::AddressRange{low, high});
@@ -696,7 +742,9 @@ class Round {
         probe::search_memory(*s_.sys, [this](std::uint64_t a) { return s_.sys->region_at(a); }, spec);
     m.at_ms = at;
     log(Line("r1").word("stage", "memory_search").num("at_ms", m.at_ms).num("ms", m.ms).num("read_mb", m.read_bytes >> 20)
-            .num("found", m.found).num("inside", m.inside).num("own_found", m.own_found).flag("own_known", m.own_known)
+            .num("committed_mb", m.committed_bytes >> 20).num("found", m.found).num("inside", m.inside)
+            .num("own_found", m.own_found).num("vtable_found", m.vtable_found).num("slot_found", m.slot_found)
+            .flag("own_known", m.own_known)
             .word("stopped", m.stopped == probe::SearchStop::Done    ? "done"
                              : m.stopped == probe::SearchStop::Bytes ? "bytes_cap"
                                                                      : "time_cap"));
@@ -773,6 +821,10 @@ class Round {
   en::gal::RegisterAbi abi_;
   std::uint64_t called_ms_ = 0;
   std::uint64_t called_mono_ = 0;
+  probe::HubWalk before_;                         // the hub's reachable memory just before the call (WHY§235)
+  std::vector<probe::ChangedWord> first_changes_;  // the first diff's changes, for the second's steadiness
+  std::uint64_t vtable_ = 0;                      // our fake vtable's address, read back after the call
+  std::vector<std::uint64_t> thunks_;             // its slots'
 };
 
 }  // namespace

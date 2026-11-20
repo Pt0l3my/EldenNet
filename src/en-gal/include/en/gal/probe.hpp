@@ -10,7 +10,9 @@
 //   searches over one copied object's bytes (offsets of a vtable, of a (max, current) pair, of a known UTF-16 text, of
 //   a value), whose answers are offsets only: never the bytes, and never a name.
 // - On T1, for R1's spike.6 (WHY§227): the registration's callee summarised from its code, and the whole process
-//   searched for our task object's address, numbers and kinds only.
+//   searched for our task object's address, numbers and kinds only; for spike.7 (WHY§235), the arguments followed into
+//   the callee's own callees, our vtable's and slots' addresses searched too, and the hub's reachable memory kept from
+//   before the call and compared after it.
 // Every read is a guarded copy on the game thread within the tick's budget, never into a known stack (WHY§111); the
 // candidates come from the image's own data section, read on T1.
 #include <array>
@@ -200,14 +202,30 @@ class Census {
 
 inline constexpr std::uint32_t kCalleeBound = 4096;  // bytes of the callee decoded at most
 
+// What rcx, rdx, r8 and r9 hold at a function's entry: one of the summary's arguments (`from`: 1, 2, 8 or 9; 0 none),
+// or the first word of that argument's object. A function summarised on its own holds its own arguments.
+struct EntryArg {
+  std::uint8_t from = 0;
+  bool first_word = false;
+};
+using EntryState = std::array<EntryArg, 4>;
+inline constexpr EntryState kOwnArguments = {{{1, false}, {2, false}, {8, false}, {9, false}}};
+// The entry state of the function a call (or a tail jump) reaches: its rcx, rdx, r8 and r9 as the call's `pass` says.
+[[nodiscard]] EntryState entry_at(const CalleeCall& call) noexcept;
+
 // What the code at `rva` does, decoded with en-gal's decoder from its first byte and following no call: within its
 // function (`extent`, its length in the exception directory, at most kCalleeBound), or, with no extent, up to its first
-// return. `code` holds its bytes from `rva` on, as the image holds them. The arguments rcx, rdx, r8 and r9 are followed
-// through the moves between registers (64- and 32-bit), and a register loaded from [argument + 0] holds that argument's
-// object's first word (its vtable, for a virtual call); before the first call each argument's stores to memory, its
-// moves to callee-saved registers, and its compares and tests are kept, in address order. An instruction whose effect
-// on the registers the summary does not model ends the tracking (`modelled_to`): nothing is guessed past it.
-[[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent);
+// return. `code` holds its bytes from `rva` on, as the image holds them. The arguments rcx, rdx, r8 and r9 (as `entry`
+// gives them) are followed through the moves between registers (64- and 32-bit), and a register loaded from
+// [argument + 0] holds that argument's object's first word (its vtable, for a virtual call). What each register holds
+// is known along the flow (spike.7): where two paths meet, a register keeps what it holds only when both agree, and
+// code no known path reaches holds nothing. Before the first call (in address order) each argument's stores to memory,
+// its moves to callee-saved registers, and its compares and tests are kept, and each conditional branch's flag test
+// (`guards`); at every call and tail jump, which argument each of rcx, rdx, r8 and r9 holds (`pass`). An instruction
+// whose effect on the registers the summary does not model clears them all on its path, and the first before the first
+// call is reported (`modelled_to`): nothing is guessed past it.
+[[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
+                                          const EntryState& entry = kOwnArguments);
 
 // One region of the process's address space, as VirtualQuery describes it (NativeSys::region_at in game; a test's
 // list otherwise).
@@ -237,23 +255,99 @@ using RegionQuery = std::function<std::optional<MemoryRegion>(std::uint64_t at)>
 struct MemorySearchSpec {
   std::uint64_t target = 0;        // our task object's address
   std::uint64_t object_bytes = 0;  // its length: a word in (target, target + object_bytes) points inside it
+  std::uint64_t vtable = 0;        // our fake vtable's address (0: not searched)
+  std::vector<std::uint64_t> slots;  // its slots' addresses, by index (our module's thunks)
   std::uint32_t group_index = 0;
   std::uint64_t game_base = 0;     // the game's module (its allocation base)
   std::uint64_t own_base = 0;      // ours
-  // The allocation bases of our own memory besides our module: our heap's regions and large blocks, our task's block.
+  // The allocation bases of our own memory besides our module: our heap's regions and large blocks, our task's block,
+  // our vtable's.
   std::vector<std::uint64_t> own_bases;
   bool own_known = false;          // whether `own_bases` holds our heap's
   std::vector<AddressRange> skip;  // never read (the calling thread's stack)
-  std::uint64_t max_bytes = 8ull << 30;
+  std::uint64_t max_bytes = 64ull << 30;  // far past a game's size (run 6: 10.6 GiB): the time cap is the bound
   std::uint64_t max_us = 30'000'000;
 };
 
 // Every committed, searchable region from the lowest user address up, read through the crash-guarded copy in chunks of
 // at most kMaxCopyBytes (a chunk that faults, or that a known stack or `skip` overlaps, is read again page by page,
 // skipping those pages), never past the caps, counting the 8-aligned words equal to our object's address and those
-// pointing inside it, ours apart (a region is ours when its allocation base is our module's or one of `own_bases`).
-// The search's own buffer is never read. Run on T1; it allocates up front only.
+// pointing inside it, equal to our vtable's and equal to one of its slots', ours apart (a region is ours when its
+// allocation base is our module's or one of `own_bases`). Past a cap the regions are still walked, unread, for the
+// process's committed total. The search's own buffer is never read. Run on T1; it allocates up front only.
 [[nodiscard]] MemorySearch search_memory(SysLayer& sys, const RegionQuery& query, const MemorySearchSpec& spec);
+
+// ---- Spike.7 (WHY§235): the hub's reachable memory before and after the call ----
+
+// One block the walk read: `len` bytes at `address`, reached from the hub's instance through `depth` pointers, the
+// offset of each in its block in `path`; its bytes at `at` in the walk's buffer when `read`.
+struct HubBlock {
+  std::uint64_t address = 0;
+  std::uint32_t len = 0;
+  std::uint32_t depth = 0;
+  std::array<std::uint32_t, 3> path{};
+  std::uint64_t at = 0;
+  bool read = false;
+};
+struct HubWalkSpec {
+  std::uint64_t instance = 0;
+  std::uint64_t image_base = 0, image_end = 0;  // pointers into the game's image are not followed
+  AddressRange own_image{};                     // nor into our module's
+  AddressRange keep{};                          // nor into this range (our task object), which the search counts
+  std::uint32_t max_depth = 3;
+  std::uint64_t max_blocks = 6000;
+  std::uint64_t max_bytes = 6u << 20;
+};
+struct HubWalk {
+  std::vector<HubBlock> blocks;  // breadth first, each address once
+  std::vector<std::byte> bytes;  // every read block's bytes, kept in the caller's heap
+  std::uint64_t read_bytes = 0;
+  std::uint64_t faults = 0;
+  std::uint64_t refused = 0;     // addresses the plausibility rules refused
+  bool capped = false;           // the cap of blocks or bytes stopped it
+};
+// Spike.5's walk (WHY§209), its blocks kept: breadth first from the hub's instance (a page, then 1 KiB per block, never
+// across a page), every 8-aligned word in user space outside both images and `keep` followed, to `max_depth` pointers,
+// within the caps; every read a guarded copy under the reader's plausibility rules. Run on T1.
+[[nodiscard]] HubWalk walk_hub(SysLayer& sys, const HubWalkSpec& spec);
+// The walk's words equal to `target` and pointing into [target, end), as the hub search reports them (spike.5).
+[[nodiscard]] HubSearch search_walk(const HubWalk& walk, std::uint64_t target, std::uint64_t end,
+                                    std::uint32_t group_index);
+
+// A word that changed across the call: the block of the walk before it, the word's offset in it, its new value.
+struct ChangedWord {
+  std::uint32_t block = 0;
+  std::uint32_t offset = 0;
+  std::uint64_t value = 0;
+};
+struct SectionSpan {
+  std::uint32_t rva = 0;
+  std::uint32_t size = 0;
+  SectionKind kind = SectionKind::Other;
+};
+struct DiffSpec {
+  std::uint32_t group_index = 0;
+  AddressRange task{};    // our task object's block
+  AddressRange vtable{};  // our fake vtable
+  std::uint64_t own_base = 0;   // our module (its allocation base)
+  std::uint64_t game_base = 0;  // the game's
+  std::vector<SectionSpan> game_sections;  // the game's sections, by RVA, of the kinds their characteristics give
+  RegionQuery query;                       // what a pointer of no other kind points into (heap or other)
+  const std::vector<ChangedWord>* earlier = nullptr;  // an earlier diff's changes: each word's steadiness is read
+};
+struct DiffResult {
+  HubDiff diff;
+  std::vector<ChangedWord> changed;  // every changed word, at most kMaxChangedWords, for a later diff's steadiness
+};
+inline constexpr std::size_t kMaxChangedWords = 1u << 16;
+inline constexpr std::size_t kMaxDiffWords = 32;
+// The two walks compared block by block: an after-block is the before-block of its path when the path still leads to
+// the same address, else the before-block at its address (reached by another path), else new. Words are compared over
+// the shorter of the two; the first kMaxDiffWords changed words are described (with `earlier`, the steady ones first:
+// those that held the same new value at the earlier diff), each value's kind classified by `spec`.
+[[nodiscard]] DiffResult diff_hub(const HubWalk& before, const HubWalk& after, const DiffSpec& spec);
+// The kind of section characteristics name (code, read-only data, writable data, other), as section_kind reads them.
+[[nodiscard]] SectionKind section_kind_of(std::uint32_t characteristics) noexcept;
 
 #endif
 

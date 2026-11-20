@@ -1195,55 +1195,141 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
 
 def check_r1_callee(p, task):
-    """Spike.6 (WHY§227): the callee's summary, from the live image, shows what the fake registration does before its
-    first call: it keeps the task (moved to a callee-saved register) in the hub's instance, and compares the group with
-    a fixed bound; four direct calls, four branches before the first, every path through a call."""
+    """Spike.6 and spike.7 (WHY§227, WHY§235): the callee's summary, from the live image, shows the fake registration as
+    the wrapper it is: one flag test of the hub (a byte of the instance at the guard's offset, against its bit), one
+    branch past its one call, the arguments mapped into that call (the hub in rcx, the group in edx, the task in r8) and
+    into the tail jump the other way; and one level deeper, the work keeping the task (moved to a callee-saved register)
+    and the task's vtable in the hub, comparing the group with a fixed bound, and passing all three on to the queue."""
     failures = []
     c = p.get("callee_code")
     if c is None:
         return ["no callee_code in r1-probe.json"]
     task_reg, instance_reg, group_reg = p["register"]["registers"]
-    args = {a["reg"]: a for a in c["args"]}
+
+    def passed(k):
+        return {(a["reg"], a["from"]) for a in k.get("pass", []) if not a["first_word"]}
+
     need(c["read"] and not c["cut"] and not c["undecodable"] and c["bytes"] == c["extent"] > 0,
          "the callee's bytes: %s" % {k: c.get(k) for k in ("read", "cut", "undecodable", "bytes", "extent")}, failures)
-    need(c["call_count"] == 4 and len(c["call_sites"]) == 4 and
-         all(k["form"] == "direct" and "target" in k for k in c["call_sites"]) and
-         c["first_call"] == c["call_sites"][0]["offset"], "the callee's calls: %s" % c["call_sites"], failures)
-    need(c["branch_count"] == 4 and not c["returns_early"] and "modelled_to" not in c,
-         "the callee's branches: %s, returns early %s, modelled to %s" %
+    calls = [k for k in c["call_sites"] if k["form"] == "direct"]
+    tails = [k for k in c["call_sites"] if k["form"] == "tail"]
+    need(c["call_count"] == 1 and len(calls) == 1 and calls[0].get("target") == task["register_work_rva"] and
+         c["first_call"] == calls[0]["offset"], "the wrapper's call: %s" % c["call_sites"], failures)
+    need(len(tails) == 1 and tails[0].get("target") == task["register_closed_rva"],
+         "the wrapper's tail jump: %s" % c["call_sites"], failures)
+    need(c["branch_count"] == 1 and not c["returns_early"] and "modelled_to" not in c,
+         "the wrapper's branches: %s, returns early %s, modelled to %s" %
          (c["branches"], c["returns_early"], c.get("modelled_to")), failures)
+    guard = c.get("guard", [])
+    ops = guard[0]["operands"] if len(guard) == 1 else []
+    need(len(guard) == 1 and guard[0]["op"] == "test" and guard[0]["cond"] == "ne" and guard[0].get("width") == 1 and
+         calls and guard[0]["to"] > calls[0]["offset"] and len(ops) == 2 and ops[0]["form"] == "memory" and
+         ops[0].get("base_arg") == instance_reg and ops[0].get("disp") == task["register_guard"]["off"] and
+         ops[1]["form"] == "immediate" and ops[1].get("imm") == task["register_guard"]["bit"],
+         "the wrapper's guard: %s" % guard, failures)
+    need(calls and calls[0]["reached"] and {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(calls[0]),
+         "the arguments into the work: %s" % (calls[0] if calls else None), failures)
+    need(tails and tails[0]["reached"] and {(1, task_reg), (2, instance_reg), (8, group_reg)} <= passed(tails[0]),
+         "the arguments into the tail jump: %s" % (tails[0] if tails else None), failures)
+    inner = {i["rva"]: i for i in c.get("inner", [])}
+    work, closed = inner.get(task["register_work_rva"], {}), inner.get(task["register_closed_rva"], {})
+    need(work and not work["tail"] and calls and work["site"] == calls[0]["offset"] and work["read"] and
+         not work["cut"] and closed and closed["tail"], "the inner summaries: %s" %
+         [(i["rva"], i["site"], i["tail"]) for i in c.get("inner", [])], failures)
+    args = {a["reg"]: a for a in work.get("args", [])}
     t, g = args.get(task_reg, {}), args.get(group_reg, {})
-    stores = t.get("stores", [])
-    need(len(stores) == 1 and stores[0]["base_arg"] == instance_reg and stores[0]["disp"] == task["register_keeps_off"]
-         and stores[0]["width"] == 8 and stores[0]["via"] in t.get("saved", []) and not stores[0]["rip"],
-         "the task's store: %s" % t, failures)
+    keeps = [x for x in t.get("stores", []) if not x["first_word"]]
+    vtables = [x for x in t.get("stores", []) if x["first_word"]]
+    need(len(keeps) == 1 and keeps[0]["base_arg"] == instance_reg and keeps[0]["disp"] == task["register_keeps_off"]
+         and keeps[0]["width"] == 8 and keeps[0]["via"] in t.get("saved", []) and not keeps[0]["rip"],
+         "the task's store, one level deeper: %s" % t, failures)
+    need(len(vtables) == 1 and vtables[0]["base_arg"] == instance_reg and
+         vtables[0]["disp"] == task["register_keeps_vtable_off"] and vtables[0]["width"] == 8,
+         "the task's vtable's store, one level deeper: %s" % t, failures)
     need(any(k.get("imm") == task["register_bound"] for k in g.get("compares", [])) and g.get("compared_other") == 1
-         and g.get("saved"), "the group's bound: %s" % g, failures)
+         and g.get("saved"), "the group's bound, one level deeper: %s" % g, failures)
     need(t.get("tested") == 1 and args.get(instance_reg, {}).get("compared_other") == 1,
-         "the task's null test and the hub's compare: %s" % c["args"], failures)
+         "the task's null test and the hub's compare, one level deeper: %s" % work.get("args"), failures)
+    need(work.get("call_count") == 4 and work.get("branch_count") == 4 and len(work.get("guard", [])) == 4 and
+         not work.get("returns_early") and "modelled_to" not in work,
+         "the work's calls and branches: %s" % {k: work.get(k) for k in ("call_count", "branch_count", "guard")},
+         failures)
+    queue = [k for k in work.get("call_sites", []) if k["form"] == "direct"]
+    need(queue and {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(queue[0]),
+         "the arguments into the queue: %s" % (queue[0] if queue else None), failures)
     return failures
 
 
-def check_r1_memory(p):
-    """Spike.6 (WHY§227): two whole-memory searches after the call, each complete within its caps, each finding our
-    task's address in the fake game's own memory (the hub's last_task and its tables: private regions) and, counted
-    apart, in ours (our module's data, and the probe's own copies in its heap, told apart by the heap)."""
+def check_r1_memory(p, task):
+    """Spike.6 and spike.7 (WHY§227, WHY§235): two whole-memory searches after the call, each complete within its caps,
+    each finding our task's address in the fake game's own memory (the hub's last_task and its tables: private
+    regions), our vtable's in the hub's last_vtable and our run slot's in the hub's table of run slots, and, counted
+    apart, ours (our module's data, the probe's own heap, our vtable itself), with the process's committed total."""
     failures = []
     ms = p.get("memory_search", [])
     need(len(ms) == 2 and ms[0]["at_ms"] >= 2000 and ms[1]["at_ms"] >= 20000, "the memory searches: %s" %
          [(m["at_ms"], m["stopped"]) for m in ms], failures)
+    slots = p["register"]["vtable_slots"]
     for m in ms:
         game = [h for h in m["hits"] if not h["own"]]
         ours = [h for h in m["hits"] if h["own"]]
-        need(m["stopped"] == "done" and m["own_known"] and m["read_bytes"] > 0 and m["regions"] >= m["read_regions"] > 0,
+        need(m["stopped"] == "done" and m["own_known"] and m["read_bytes"] > 0 and m["regions"] >= m["read_regions"] > 0
+             and m["committed_bytes"] >= m["read_bytes"] + m["unread_bytes"],
              "the memory search's walk: %s" % {k: v for k, v in m.items() if k != "hits"}, failures)
-        need(m["found"] >= 2 and any(h["offset"] == 0 and h["region"] == "private" for h in game),
-             "the game's copies: %s of %s" % (m["found"], game), failures)
+        need(m["found"] >= 2 and any(h["points_to"] == "object" and h["offset"] == 0 and h["region"] == "private"
+                                     for h in game), "the game's copies: %s of %s" % (m["found"], game), failures)
         need(m["own_found"] >= 2 and
              any(h["region"] == "image" and h.get("module") == "ours" and h.get("section") == "data" for h in ours) and
              any(h["region"] == "private" for h in ours), "our own copies: %s of %s" % (m["own_found"], ours), failures)
+        need(m["vtable_found"] >= 1 and any(h["points_to"] == "vtable" and h["region"] == "private" for h in game),
+             "the game's copies of our vtable: %s of %s" % (m["vtable_found"], game), failures)
+        need(m["slot_found"] >= 1 and m["slot_distinct"] == 1 and
+             any(h["points_to"] == "slot" and h.get("slot") == task["run_slot"] for h in game),
+             "the game's copies of our slots: %s, %s distinct, of %s" % (m["slot_found"], m["slot_distinct"], game),
+             failures)
+        need(m["own_vtable_found"] >= 1 and m["own_slot_found"] >= slots and m["own_slot_distinct"] == slots,
+             "our own copies of our vtable and slots: %s" %
+             {k: m[k] for k in ("own_vtable_found", "own_slot_found", "own_slot_distinct")}, failures)
         need(all(("module" in h) == (h["region"] == "image") for h in m["hits"]), "hits' modules: %s" % m["hits"],
              failures)
+    return failures
+
+
+def check_r1_diff(p, task):
+    """Spike.7 (WHY§235): the hub's reachable memory kept just before the call and compared with the same walk 2 and 20 s
+    after it: the hub's last_task now our task's address (not followed into, so fresh), its last_vtable our vtable, its
+    table of run slots our run slot (in our module), and at 20 s those changes steady and the hub's frame not."""
+    failures = []
+    ds = p.get("hub_diff", [])
+    need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000, "the hub's diffs: %s" %
+         [d.get("at_ms") for d in ds], failures)
+    if len(ds) != 2:
+        return failures
+    for d in ds:
+        head = {k: v for k, v in d.items() if k != "words"}
+        need(not d["capped"] and d["kept_bytes"] > 0 and d["compared"] > 0 and d["new_blocks"] >= 1 and
+             d["changed"] >= 5 and len(d["words"]) == min(32, d["changed"]), "the diff: %s" % head, failures)
+        words = {tuple(w["path"]): w for w in d["words"]}
+        last = words.get((task["register_keeps_off"],), {})
+        need(last.get("depth") == 0 and last.get("new", {}).get("kind") == "task" and
+             last["new"].get("fresh") is True and last.get("old", {}).get("kind") in ("heap", "game"),
+             "the hub's last task: %s" % last, failures)
+        vt = words.get((task["register_keeps_vtable_off"],), {})
+        need(vt.get("new", {}).get("kind") == "vtable" and vt["new"].get("fresh") is True and
+             vt.get("old", {}).get("kind") == "game" and vt["old"].get("section") == "rdata",
+             "the hub's last vtable: %s" % vt, failures)
+        runs = [w for w in d["words"] if w["depth"] == 1 and w["path"][0] == task["hub_run_fns_off"]]
+        need(len(runs) == 1 and runs[0]["old"]["kind"] == "zero" and runs[0]["new"]["kind"] == "ours" and
+             "rva" in runs[0]["new"], "the hub's run slots: %s" % runs, failures)
+    first, later = ds
+    need("steady_words" not in first and all("steady" not in w for w in first["words"]),
+         "the first diff's steadiness: %s" % first.get("steady_words"), failures)
+    words = {tuple(w["path"]): w for w in later["words"]}
+    frame = words.get((8,), {})
+    need(later.get("steady_words", 0) >= 4 and words.get((task["register_keeps_off"],), {}).get("steady") is True and
+         frame.get("steady") is False and later["words"][0].get("steady") is True,
+         "the later diff's steadiness: %s steady, the last task %s, the frame %s" %
+         (later.get("steady_words"), words.get((task["register_keeps_off"],)), frame), failures)
     return failures
 
 
@@ -1297,7 +1383,7 @@ def check_r1(result):
     need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
-    failures += check_r1_callee(p, task) + check_r1_memory(p)
+    failures += check_r1_callee(p, task) + check_r1_memory(p, task) + check_r1_diff(p, task)
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
