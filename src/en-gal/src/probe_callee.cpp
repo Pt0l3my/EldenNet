@@ -967,6 +967,8 @@ Operand form_constant(std::uint64_t v) {
   return o;
 }
 
+void fill_form(Form& f, const Instruction& in, std::span<const std::byte> b, std::uint64_t at, const Regs& regs);
+
 Form form_of(const Decoded& d, std::span<const std::byte> code, std::uint32_t rva, const State& st) {
   using C = InsnClass;
   const Instruction& in = d.insn;
@@ -984,6 +986,18 @@ Form form_of(const Decoded& d, std::span<const std::byte> code, std::uint32_t rv
     }
   }
   if (in.encoding != x86::Encoding::Legacy) return f;
+  fill_form(f, in, b, at, regs);
+  // A register the instruction only writes holds nothing of interest before it: what it held is not shown.
+  if ((f.cls == C::Mov || f.cls == C::MovExt || f.cls == C::Lea || f.cls == C::Pop) && !f.operands.empty() &&
+      f.operands[0].form == OperandForm::Register) {
+    f.operands[0].from.reset();
+    f.operands[0].first_word = false;
+  }
+  return f;
+}
+
+void fill_form(Form& f, const Instruction& in, std::span<const std::byte> b, std::uint64_t at, const Regs& regs) {
+  using C = InsnClass;
   const std::uint8_t op = in.opcode;
   const std::uint8_t sub = static_cast<std::uint8_t>((in.modrm >> 3) & 7);
   const std::uint8_t w = width_of(in, false);
@@ -1006,9 +1020,9 @@ Form form_of(const Decoded& d, std::span<const std::byte> code, std::uint32_t rv
       const bool byte_src = (op & 1) == 0;
       f.operands = {reg(false), rm(byte_src, byte_src ? 1 : 2)};
     }
-    return f;
+    return;
   }
-  if (in.map != 0) return f;
+  if (in.map != 0) return;
   if (op < 0x40 && (op & 7) < 6) {  // add, or, adc, sbb, and, sub, xor, cmp
     static constexpr std::array<C, 8> kArith = {C::Add, C::Or, C::Other, C::Other, C::And, C::Sub, C::Xor, C::Cmp};
     f.cls = kArith[op >> 3];
@@ -1021,7 +1035,7 @@ Form form_of(const Decoded& d, std::span<const std::byte> code, std::uint32_t rv
     } else {
       f.operands = {form_register(kRax, width, in, byte_form, regs), imm(width)};
     }
-    return f;
+    return;
   }
   if (op >= 0x50 && op <= 0x57) {
     f.cls = C::Push;
@@ -1115,7 +1129,6 @@ Form form_of(const Decoded& d, std::span<const std::byte> code, std::uint32_t rv
       f.operands = {rm(false, 8)};
     }
   }
-  return f;
 }
 
 }  // namespace
@@ -1138,6 +1151,7 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
   std::vector<Decoded> decoded;
   std::size_t at = 0;
   bool ended = false;  // the function's end, or with no extent its first return
+  std::uint64_t past = 0;  // with no extent: the furthest a branch or jump decoded so far goes
   while (at < limit) {
     const auto insn = x86::decode(code.subspan(at, std::min<std::size_t>(x86::kMaxLength, limit - at)));
     if (!insn) {
@@ -1148,8 +1162,17 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
       break;
     }
     decoded.push_back(Decoded{static_cast<std::uint32_t>(at), *insn});
+    const std::size_t from = at;
     at += insn->length;
-    if (extent == 0 && insn->flow == Flow::Return) {  // no function's end known: up to the first return
+    if (extent != 0) continue;
+    // No function's end known: up to its first return, or (spike.8) its first jump out of the flow, where no branch or
+    // jump decoded so far goes past it (a tail jump's padding is the next function's, never its own).
+    if (insn->flow == Flow::Branch || insn->flow == Flow::Jump) {
+      const auto to = x86::branch_target(*insn, code.subspan(from, insn->length), std::uint64_t{rva} + from);
+      if (to && *to >= rva) past = std::max<std::uint64_t>(past, *to - rva);
+    }
+    const bool leaves = insn->flow == Flow::Return || insn->flow == Flow::Jump || insn->flow == Flow::JumpIndirect;
+    if (insn->flow == Flow::Return || (leaves && past < at)) {
       ended = true;
       break;
     }

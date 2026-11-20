@@ -1128,6 +1128,7 @@ TEST_CASE("probe: a value loaded from a global is followed through a lazily made
   CHECK(c.forms[2].operands[1].imm == std::optional<std::uint64_t>(0x20));
   CHECK(c.forms[3].operands[1].from == std::optional<std::uint8_t>(8));
   CHECK(c.forms[4].operands[0].width == 4);
+  CHECK_FALSE(c.forms[5].operands[0].from.has_value());  // rcx held our instance before; it is only written here
   CHECK(c.forms[5].operands[1].form == probe::OperandForm::Rip);
   CHECK(c.forms[5].operands[1].target == std::optional<std::uint32_t>(kSingletonSlot));
   CHECK(c.forms[6].cls == C::Test);
@@ -1277,6 +1278,13 @@ TEST_CASE("probe: a table one level deeper, a jump through a register, and loads
     CHECK(c.forms[1].cls == probe::InsnClass::Jmp);
     REQUIRE(c.forms[1].operands.size() == 1);
     CHECK(c.forms[1].operands[0].reg == std::optional<std::uint8_t>(0));
+    // With no extent the function ends at that jump, where no branch goes past it: what follows is another's.
+    std::vector<std::byte> more = code;
+    for (const int b : {0x53, 0x48, 0x8B, 0xD9, 0xC3}) more.push_back(std::byte{static_cast<std::uint8_t>(b)});
+    const probe::CalleeCode leaf = probe::summarise_callee(more, kWrapperRva, 0);
+    CHECK(leaf.bytes == 10);
+    CHECK(leaf.instructions == 2);
+    CHECK_FALSE(leaf.first_ret.has_value());
   }
   SUBCASE("a jump through a RIP-relative slot, a 16-bit load, a segment's and three loads deep") {
     const std::vector<std::byte> code = code_of({

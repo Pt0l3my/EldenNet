@@ -231,7 +231,9 @@ inline constexpr EntryState kOwnArguments = {{{1, false}, {2, false}, {8, false}
 // from a RIP-relative slot or from [base + index*scale + disp], with what base and index hold, at most 3 loads deep),
 // moved as an argument is; a call's rax holds its result, and a 64-bit store of a register holding a result (or
 // nothing known) to a RIP-relative slot makes it, and every register holding that result, hold the slot's value.
-// Every other write clears it. A jump through memory or a register is a tail call site (TailMemory, TailRegister); each
+// Every other write clears it. With no extent, decoding also ends at the first jump (direct, or through memory or a
+// register) that no branch or jump decoded before it goes past: a tail jump's padding is the next function's. A jump
+// through memory or a register is a tail call site (TailMemory, TailRegister); each
 // guard's register operand that holds no argument gives its `source`; the first 64 instructions are given as forms
 // (`forms`), those no known path reaches marked `unreached`.
 [[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
