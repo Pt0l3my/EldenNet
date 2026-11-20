@@ -980,9 +980,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures [done]
   - refs: G3, GraceUI:DESIGN§9.2
   - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
-- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [active]
+- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [done]
   - needs: i, l, S10.4
-  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:D169, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
+  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:D169, GraceUI:D171, GraceUI:D174, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
   - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
     input holder with its close routine; harness screenshots, the frame cost and the atlas size, for S4 and the
     owner's look review. The page is GraceUI > Menu (ui.scale, ui.menu.theme: GraceUI's own settings, GraceUI:D115), agreed by
@@ -1000,6 +1000,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     notice-only mode. EldenNet's steps for T6 are GraceUI's docs/eldennet-changes.md §23, its status lamp §24. Next: the
     menu showing a mod's space. GraceUI's D170 the same day (c781a85), from EldenNet's part 12 second run: no Direct3D DLL
     imported, the imports reviewed, and graceui-sys's installed set on the by-name path (WHY§231, §232).
+    The menu showing every mod's space done the same day (GraceUI feat/foundations 430e8d4 to 0fc1033, D171): F5's
+    menu shows every space registered for the game's view, mods' first and GraceUI's own last, with GraceUI's
+    categories at a mod's rail's foot and a switcher from two mods' spaces; it watches the open space's settings topic
+    as a view does, and its commands reach the mod with a reply handle and the 10 s deadline, a refusal's words shown
+    under the row. Harness scenarios menu, pages and menu-space. With it GraceUI 0.2.0 is complete (D174) but for d,
+    the owner's look review (WHY§237 to §239).
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
@@ -1040,18 +1046,23 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     files, the cookie and ticket, and per-space routing (Server::add_space, SpacePort); the security suite, 35 cases
     over real loopback sockets with two spaces, passing under the sanitizers and under Wine; graceui.toml a shared
     golden the server's reader parses. How EldenNet's launcher links it (G29): GraceUI's docs/eldennet-changes.md §22.
+    Since D172 (protocol 1.1) an empty batch past a gap clears a stream in every view, and since D173 a destructive
+    command without its confirmation is refused (WHY§238, §239).
 - j The fake host for any space, grace-dev, on fixtures and scripted time [done]
   - needs: h, i
   - refs: GraceUI:DESIGN§9.2
   - gives: built on 2026-11-20 (GraceUI feat/foundations 0ca834c, D168): grace-dev serves spaces on the real
     grace-serve (the built-in ones and an author's folder, each checked as register_pages checks), with a settings
     store, fixture topics, every command answered once, and scripted time; `--dump` prints a page's in-game structure
-    without Windows. EldenNet previews its own pages with it (GraceUI's docs/eldennet-changes.md §26).
+    without Windows. EldenNet previews its own pages with it (GraceUI's docs/eldennet-changes.md §26). GraceUI's own
+    pages have invented sample states for it (fixtures/graceui/topics.json).
 - k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build [done]
   - needs: e, f, h
   - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
   - gives: built on 2026-11-20 (GraceUI feat/foundations 356572e, D166): the browser view, which a real Chromium under
-    Wine loaded from graceui.dll's own server and drew the demo space with, no request outside its origin.
+    Wine loaded from graceui.dll's own server and drew the demo space with, no request outside its origin. Since
+    D172 and D173: a refusal's words (result.detail), cleared streams, confirmations for destructive commands, and
+    pages joining in their increment (GraceUI 0.2 shows Menu, Browser view and About).
 - l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell [done]
   - needs: e, h
   - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3, GraceUI:D162
@@ -1082,7 +1093,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G2, G20, PAGES§4.6, GraceUI:D163
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
-    `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39).
+    `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
+    0.2.0 (2026-11-20) the same space shows in F5's menu too (D171), and EldenNet follows protocol 1.1 (D172) and
+    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

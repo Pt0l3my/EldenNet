@@ -259,6 +259,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 234 | 2026-11-20 | R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap | DECIDED | #gal #r1 #task |
 | 235 | 2026-11-20 | R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task | FACT | #gal #r1 #task |
 | 236 | 2026-11-20 | R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call | DECIDED | #gal #r1 #task |
+| 237 | 2026-11-20 | grace-input's record of the last close lost the holder, so a close by the menu key or the player's exit skipped the host's close bookkeeping | FACT | #graceui #input |
+| 238 | 2026-11-20 | GraceUI, not the space, enforces a destructive command's confirmation | DECIDED | #graceui #protocol |
+| 239 | 2026-11-20 | A stream is cleared by an empty batch past a gap, with no message kind of its own | METHOD | #graceui #protocol |
 
 ## Entries
 
@@ -4193,3 +4196,28 @@ invariant 10, EldenNet ARCH (T3)
   found the game's one copy each of our vtable and one run slot, and diffed 7 changed words (the task and vtable
   pointers fresh, the group's counts), 6 of them steady at 20 s and the frame counter not. Each search read about
   90 MB in about 50 ms.
+
+### 237. grace-input's record of the last close lost the holder, so a close by the menu key or the player's exit skipped the host's close bookkeeping
+
+`2026-11-20` · FACT · `#graceui` `#input` · refs: GraceUI:D171, GraceUI's invariants 7 and 17
+
+- (FACT) grace-input packed a close's reason into the byte that held the holder's phase, so `last_close().holder`
+  always read as not holding. The window procedure's menu-key path hands that holder to the host's close bookkeeping,
+  which therefore skipped it: no "no longer holds input" line and no cursor restore after a close by the menu key or
+  the player's exit. Found when the menu's close had to stop a mod's watch (D171); `last_close()` now gives the holder
+  as it held, with tests.
+
+### 238. GraceUI, not the space, enforces a destructive command's confirmation
+
+`2026-11-20` · DECIDED · `#graceui` `#protocol` · refs: GraceUI:D173, GraceUI:DESIGN§7.3
+
+- (DECIDED) The destructive actions are read from the space's own page data, and a command for one without
+  `"confirm": true` is refused (`confirm_required`) by the server for browsers and by the registry for the menu. A mod
+  cannot forget the confirmation, and EldenNet may rely on it.
+
+### 239. A stream is cleared by an empty batch past a gap, with no message kind of its own
+
+`2026-11-20` · METHOD · `#graceui` `#protocol` · refs: GraceUI:D161, GraceUI:D172
+
+- (METHOD) The sequence numbering already says "start over" at a gap, so an empty `rows` batch past a gap clears the
+  stream in every view, and a view that held rows never shows one twice (protocol 1.1).
