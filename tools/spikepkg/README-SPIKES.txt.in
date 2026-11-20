@@ -98,7 +98,8 @@ In the game:
   1. At the title screen, check that GraceUI's notice "GraceUI spike: recording" and EldenNet's banner ("Spike run:
      EldenNet makes no call into the game") both show.
   2. Load a save.
-  3. Press F5: GraceUI's menu opens. Look round it for a few seconds, then press F5 again to close it.
+  3. Press F5: GraceUI's menu opens, with GraceUI's own pointer (a gold-edged arrow). Look round it for a few seconds,
+     then press F5 again to close it.
   4. Press F11: EldenNet's view opens. Press F11 again to close it.
   5. If the Steam overlay shows in this game (Shift+Tab), open it and close it again, and note whether GraceUI's notice
      is still drawn afterwards.
@@ -124,8 +125,8 @@ With EldenNet, injected early; EldenNet loads GraceUI.
      stand still once the menu is open, and must not start walking again when it closes.
   6. If you have a pad: open GraceUI's menu with F5, then press B twice (the first goes back to the list on the left,
      the second closes the menu): the Tarnished must not dodge or roll.
-  7. Once: in GraceUI's menu, on the Menu page, set Interface scale to 1.50, close the menu and open it again. Then set
-     it back.
+  7. Once: in GraceUI's menu, on the Menu page, set Menu size to 1.50 (the left and right arrow keys change it), close
+     the menu and open it again. Then set it back to its default, 1.25 (R resets it).
   8. Quit from the game's own menu.
 
 If you have them, the Steam floating keyboard and Proton are rows of their own: tell us what happened.
