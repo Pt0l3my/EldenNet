@@ -295,6 +295,11 @@ WordValue classify_value(std::uint64_t v, const DiffSpec& spec) {
   } else if (v <= kSmall) {
     x.kind = ValueKind::Small;
     x.value = v;
+  } else if (const std::uint64_t low = v & 0xFFFF'FFFF'FFFFull;
+             (v >> 48) != 0 && spec.task.begin != 0 && low >= spec.task.begin && low < spec.task.end) {
+    x.kind = ValueKind::TaskTagged;  // spike.9: our task's address under a high-bit tag
+    x.tag = static_cast<std::uint32_t>(v >> 48);
+    if (low != spec.task.begin) x.offset = low - spec.task.begin;
   } else if (into(spec.task)) {
     x.kind = ValueKind::Task;
     if (v != spec.task.begin) x.offset = v - spec.task.begin;
@@ -329,8 +334,11 @@ WordValue classify_value(std::uint64_t v, const DiffSpec& spec) {
   return x;
 }
 
-TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockReader& read) {
+TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockReader& read, TableAddresses* found) {
   TableRead r;
+  TableAddresses none;
+  TableAddresses& at = found != nullptr ? *found : none;
+  at = TableAddresses{};
   if (!shape.matched || !read) return r;
   const auto word = [&](std::uint64_t at) -> std::optional<std::uint64_t> {
     std::array<std::byte, 8> b{};
@@ -342,6 +350,8 @@ TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockR
   if (single && shape.hop && *single != 0) single = word(*single + static_cast<std::uint64_t>(*shape.hop));
   if (!single) return r;
   r.singleton = kind(*single);
+  at.singleton = *single;
+  if (*single != 0) at.singleton_first = word(*single).value_or(0);
   r.is_instance = *single != 0 && *single == spec.instance;
   for (const auto& [lead, instance] : spec.leads) {
     if (*single != 0 && instance == *single) {
@@ -370,15 +380,32 @@ TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockR
   if (spec.group_index >= count) return r;
   const std::uint64_t entry = word_at(entries, std::size_t{spec.group_index} * 8);
   r.entry = kind(entry);
+  at.entry = entry;
   if (entry == 0) return r;
   const std::optional<std::uint64_t> first = word(entry);
   if (!first) return r;
   r.entry_vtable = kind(*first);
+  at.entry_first = *first;
   if (!shape.slot_disp || *first == 0) return r;
   if (const std::optional<std::uint64_t> fn = word(*first + static_cast<std::uint64_t>(*shape.slot_disp))) {
     r.slot_value = kind(*fn);
   }
   return r;
+}
+
+void match_lead(ClassMatch& m, std::string_view cls, std::span<const std::string> names) {
+  m.match = LeadMatch::None;
+  m.lead.reset();
+  for (std::size_t i = 0; i < names.size(); ++i) {
+    const std::string_view name = names[i];
+    if (name.empty()) continue;
+    const bool imp = cls.size() == name.size() + 3 && cls.substr(0, name.size()) == name && cls.substr(name.size()) == "Imp";
+    if (cls == name || imp) {
+      m.match = imp ? LeadMatch::Imp : LeadMatch::Name;
+      m.lead = static_cast<std::uint32_t>(i);
+      return;
+    }
+  }
 }
 
 }  // namespace en::gal::probe

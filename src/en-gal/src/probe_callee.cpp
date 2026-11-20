@@ -38,13 +38,26 @@ std::optional<std::uint8_t> arg_index(std::uint8_t reg) noexcept {
 
 // What a register holds, as far as the summary follows it: an argument's value, or the first word of the object an
 // argument points at (its vtable, for a virtual call); since spike.8 also the value an inner summary was entered with in
-// rcx to r9 (Entry), a value loaded from memory (Loaded, a source of the summary's table), or a call's result.
+// rcx to r9 (Entry), a value loaded from memory (Loaded, a source of the summary's table), or a call's result; since
+// spike.9 a followed value (our task's, the group entry's, or one read from either) changed by an instruction.
 struct Held {
-  enum class Kind : std::uint8_t { None, Value, Deref, Entry, Loaded, Result };
+  enum class Kind : std::uint8_t { None, Value, Deref, Entry, Loaded, Result, Modified };
   Kind kind = Kind::None;
   std::uint8_t arg = 0;   // Value, Deref, Entry: into kArgs
-  std::uint16_t id = 0;   // Loaded: the source's index; Result: the call's offset
+  std::uint16_t id = 0;   // Loaded: the source's index; Result: the call's offset; Modified: the change's index
   friend bool operator==(const Held&, const Held&) = default;
+};
+
+// A followed value changed by an instruction (spike.9): what it held before, the instruction's class and offset, and
+// what it was changed by (an immediate, a register, or memory: neither).
+struct Mod {
+  Held origin;
+  InsnClass op = InsnClass::Other;
+  std::uint32_t at = 0;
+  std::optional<std::uint64_t> imm;
+  bool large = false;
+  std::optional<std::uint8_t> by;
+  std::uint8_t width = 8;
 };
 using Regs = std::array<Held, 16>;
 
@@ -73,9 +86,29 @@ class Sources {
     switch (h.kind) {
       case Held::Kind::Deref: return 1;
       case Held::Kind::Loaded: return list_[h.id].level;
+      case Held::Kind::Modified: return level(mods_[h.id].origin);
       default: return 0;
     }
   }
+  // The change a modifying instruction makes (spike.9): the same change of the same value is the same, its offset the
+  // first in address order; a change of a change of a change is not followed, nor past the table's size.
+  std::optional<std::uint16_t> intern_mod(Mod m) {
+    if (m.origin.kind == Held::Kind::Modified && mods_[m.origin.id].origin.kind == Held::Kind::Modified) {
+      return std::nullopt;
+    }
+    for (std::size_t i = 0; i < mods_.size(); ++i) {
+      Mod& o = mods_[i];
+      if (o.origin == m.origin && o.op == m.op && o.imm == m.imm && o.large == m.large && o.by == m.by &&
+          o.width == m.width) {
+        o.at = std::min(o.at, m.at);
+        return static_cast<std::uint16_t>(i);
+      }
+    }
+    if (mods_.size() >= kMaxSources) return std::nullopt;
+    mods_.push_back(m);
+    return static_cast<std::uint16_t>(mods_.size() - 1);
+  }
+  [[nodiscard]] const Mod& mod(std::uint16_t id) const noexcept { return mods_[id]; }
   // The source a load makes, or nothing past kMaxLevels loads deep or past the table's size.
   std::optional<std::uint16_t> intern(Src s) {
     s.level = s.rip ? 1 : static_cast<std::uint8_t>(1 + std::max(level(s.base), level(s.index)));
@@ -107,6 +140,18 @@ class Sources {
       case Held::Kind::Deref: o.kind = Source::Kind::FirstWord; o.from = kArgs[h.arg]; return o;
       case Held::Kind::Entry: o.kind = Source::Kind::Entry; o.from = kArgs[h.arg]; return o;
       case Held::Kind::Loaded: break;
+      case Held::Kind::Modified: {
+        const Mod& m = mods_[h.id];
+        o.kind = Source::Kind::Modified;
+        o.at = m.at;
+        o.width = m.width;
+        o.op = m.op;
+        o.imm = m.imm;
+        o.large = m.large;
+        o.by = m.by;
+        o.origin.push_back(describe(m.origin));
+        return o;
+      }
       default: return o;
     }
     const Src& s = list_[h.id];
@@ -130,6 +175,7 @@ class Sources {
 
  private:
   std::vector<Src> list_;
+  std::vector<Mod> mods_;
 };
 
 // What the registers hold before an instruction, along the flow: `reached` once a known path from the entry leads there.
@@ -220,6 +266,12 @@ constexpr bool vector_only(std::uint8_t op) noexcept {
          op == 0xEF || (op >= 0xFA && op <= 0xFE);
 }
 
+// Map 1 (0F) and VEX map 1 stores of a vector register to memory (movups, movlps, movhps, movaps, movntps, movdqa and
+// movdqu, movq, movntdq), which read nothing at their address.
+constexpr bool vector_store(std::uint8_t op) noexcept {
+  return op == 0x11 || op == 0x13 || op == 0x17 || op == 0x29 || op == 0x2B || op == 0x7F || op == 0xD6 || op == 0xE7;
+}
+
 // An instruction that writes no flag, passed over to find the one that set a branch's: moves, loads of addresses and of
 // immediates, pushes and pops, nops, conditional moves, and the vector moves.
 bool flags_untouched(const Instruction& in) noexcept {
@@ -241,13 +293,20 @@ bool flags_untouched(const Instruction& in) noexcept {
   return false;
 }
 
+// What a value is, as the field reads follow it (spike.9): our task's (the task argument, a value loaded from it, or one
+// of those changed), the group entry's (the same from the entry), or neither.
+enum class Follow : std::uint8_t { None, Task, Entry };
+
 class Summariser {
  public:
-  // `end`: the function's length, when the exception directory gives it (a jump past it is a tail jump), else 0.
-  Summariser(std::uint32_t rva, std::uint32_t end, CalleeCode& out, Sources& sources)
-      : rva_(rva), end_(end), out_(out), sources_(sources) {
+  // `end`: the function's length, when the exception directory gives it, or with none the bytes decoded (a jump past it
+  // is a tail jump). `task`: our task's argument, into kArgs; `entry`: which of rcx to r9 hold the group's entry.
+  Summariser(std::uint32_t rva, std::uint32_t end, CalleeCode& out, Sources& sources,
+             std::optional<std::uint8_t> task = std::nullopt, std::array<bool, 4> entry = {})
+      : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(entry) {
     out_.args.resize(kArgs.size());
     for (std::size_t i = 0; i < kArgs.size(); ++i) out_.args[i].reg = kArgs[i];
+    following_ = task_.has_value() || std::find(entry_.begin(), entry_.end(), true) != entry_.end();
   }
 
   // One instruction's effect on `regs`, nothing recorded (the passes over the flow).
@@ -271,12 +330,278 @@ class Summariser {
       }
     }
     if (in.flow == Flow::Return && !out_.first_ret) out_.first_ret = at;
+    const Planned p = plan_read();
     effect();
+    if (p.follow != Follow::None) add_read(p);
   }
 
   [[nodiscard]] bool called() const noexcept { return called_; }
 
  private:
+  // ---- The field reads (spike.9) ----
+
+  // What a value is, as the reads follow it.
+  [[nodiscard]] Follow follows(const Held& h, int depth = 0) const noexcept {
+    if (depth > 8) return Follow::None;
+    switch (h.kind) {
+      case Held::Kind::Value:
+      case Held::Kind::Deref:
+        return task_ && h.arg == *task_ ? Follow::Task : Follow::None;
+      case Held::Kind::Entry:
+        return entry_[h.arg] ? Follow::Entry : Follow::None;
+      case Held::Kind::Loaded: {
+        const Src& s = sources_.at(h.id);
+        return s.rip || !s.base_reg ? Follow::None : follows(s.base, depth + 1);
+      }
+      case Held::Kind::Modified:
+        return follows(sources_.mod(h.id).origin, depth + 1);
+      default:
+        return Follow::None;
+    }
+  }
+
+  // The instruction's memory read at a followed base, planned before its effect: what its base holds, and, where it
+  // loads a register, which (the value's uses are followed), else how it uses the field in place.
+  struct Planned {
+    Follow follow = Follow::None;
+    Mem mem;
+    Held base;
+    std::uint8_t width = 0;
+    std::optional<std::uint8_t> dest;
+    bool direct = false;
+    FieldUse use;
+  };
+  [[nodiscard]] Planned plan_read() {
+    Planned p;
+    const Instruction& in = *in_;
+    if (!following_ || !reached_ || !in.has_modrm || in.mod() == 3 || in.rip_relative) return p;
+    const bool legacy = in.encoding == x86::Encoding::Legacy;
+    const std::uint8_t op = in.opcode;
+    const std::uint8_t sub = static_cast<std::uint8_t>((in.modrm >> 3) & 7);
+    if (legacy && in.map == 0 && op == 0x8D) return p;  // lea reads no memory (its base's use is a change: modify)
+    p.mem = memory_operand(in, bytes_);
+    if (!p.mem.base) return p;
+    p.base = regs_[*p.mem.base & 15];
+    use(p.base, use_at(UseKind::Base));  // a value read before, the base of this one
+    p.follow = follows(p.base);
+    if (p.follow == Follow::None) return p;
+    p.width = width_of(in, false);
+    const auto direct = [&](UseKind k, std::uint8_t width) {
+      p.direct = true;
+      p.width = width;
+      p.use = use_at(k);
+    };
+    if (legacy && in.map == 0) {
+      switch (op) {
+        case 0x8B: p.dest = in.reg(); return p;
+        case 0x63: p.dest = in.reg(); p.width = 4; return p;
+        case 0x8A: p.dest = byte_reg(in.reg(), in); p.width = 1; return p;
+        case 0x88: case 0x89: case 0x8F: p.follow = Follow::None; return p;  // stores, not reads
+        case 0xC6: case 0xC7:
+          if (sub == 0) p.follow = Follow::None;
+          else direct(UseKind::Other, width_of(in, op == 0xC6));
+          return p;
+        case 0x38: case 0x39: case 0x3A: case 0x3B: direct(UseKind::ComparedOther, width_of(in, (op & 1) == 0)); return p;
+        case 0x80: case 0x81: case 0x83:
+          if (sub == 7) {
+            direct(UseKind::Compared, width_of(in, op == 0x80));
+            immediate_use(p.use, p.width);
+          } else {
+            direct(UseKind::Other, width_of(in, op == 0x80));
+          }
+          return p;
+        case 0x84: case 0x85: direct(UseKind::Tested, width_of(in, op == 0x84)); return p;
+        case 0xF6: case 0xF7: direct(sub <= 1 ? UseKind::Tested : UseKind::Other, width_of(in, op == 0xF6)); return p;
+        case 0xFF:
+          direct(sub == 2 || sub == 3 || sub == 4 || sub == 5 ? UseKind::Called : UseKind::Other, sub >= 2 ? 8 : p.width);
+          return p;
+        default:
+          direct(UseKind::Other, op < 0x40 && (op & 1) == 0 ? 1 : p.width);
+          return p;
+      }
+    }
+    if (legacy && in.map == 1) {
+      if (op == 0xB6 || op == 0xBE || op == 0xB7 || op == 0xBF) {
+        p.dest = in.reg();
+        p.width = (op & 1) == 0 ? 1 : 2;
+        return p;
+      }
+      if (vector_store(op) || op == 0xC3 || (op >= 0x90 && op <= 0x9F)) {  // a vector's store, movnti's or setcc's
+        p.follow = Follow::None;
+        return p;
+      }
+      if (op == 0xB1 || op == 0xC1) {  // cmpxchg, xadd: they read and write it
+        direct(UseKind::Other, p.width);
+        return p;
+      }
+      direct(UseKind::Other, 0);
+      return p;
+    }
+    if (in.encoding == x86::Encoding::Vex && in.map == 1 && vector_store(op)) {
+      p.follow = Follow::None;
+      return p;
+    }
+    direct(UseKind::Other, 0);
+    return p;
+  }
+
+  // A load or an in-place use of a followed field, kept in its list; a loaded value is mapped to it for its uses.
+  void add_read(const Planned& p) {
+    const bool task = p.follow == Follow::Task;
+    std::vector<FieldRead>& list = task ? out_.task_reads : out_.entry_reads;
+    ++(task ? out_.task_read_count : out_.entry_read_count);
+    Held value;
+    if (p.dest) value = regs_[*p.dest & 15];
+    if (list.size() >= kMaxFieldReads) return;
+    FieldRead r;
+    r.offset = at_;
+    r.disp = p.mem.disp;
+    r.width = p.width;
+    r.base = static_cast<std::uint8_t>(*p.mem.base & 15);
+    r.base_src = sources_.describe(p.base);
+    r.index = p.mem.index;
+    if (p.mem.index) r.scale = p.mem.scale;
+    r.direct = p.direct;
+    if (p.direct) {
+      r.uses.push_back(p.use);
+      r.use_count = 1;
+    }
+    list.push_back(std::move(r));
+    const bool known = value.kind == Held::Kind::Loaded || value.kind == Held::Kind::Deref;
+    if (known && std::none_of(reads_.begin(), reads_.end(), [&](const ReadOf& o) { return o.value == value; })) {
+      reads_.push_back(ReadOf{value, !task, list.size() - 1});
+    }
+  }
+
+  // The read whose value a register holds (or holds changed), if any.
+  FieldRead* read_of(const Held& h, int depth = 0) {
+    if (h.kind == Held::Kind::None || depth > 4) return nullptr;
+    for (const ReadOf& o : reads_) {
+      if (o.value == h) return &(o.entry ? out_.entry_reads : out_.task_reads)[o.index];
+    }
+    if (h.kind == Held::Kind::Modified) return read_of(sources_.mod(h.id).origin, depth + 1);
+    return nullptr;
+  }
+  [[nodiscard]] FieldUse use_at(UseKind k) const {
+    FieldUse u;
+    u.kind = k;
+    u.offset = at_;
+    return u;
+  }
+  // A use of the value a register holds, kept with its read, in the recording pass.
+  void use(const Held& h, FieldUse u) {
+    if (!recording_ || !reached_) return;
+    FieldRead* r = read_of(h);
+    if (r == nullptr) return;
+    ++r->use_count;
+    if (r->uses.size() < kMaxFieldUses) r->uses.push_back(std::move(u));
+  }
+  void immediate_use(FieldUse& u, std::uint8_t width) const {
+    u.imm = small_immediate(*in_, bytes_, width);
+    u.large = !u.imm && x86::immediate(*in_, bytes_).has_value();
+  }
+  // A store of the register `reg` to the instruction's memory operand: its value's use, and a task store where it holds
+  // our task, a value read from it, or one of those changed.
+  void stored(std::uint8_t reg, std::uint8_t width) {
+    if (!recording_ || !reached_ || !following_) return;
+    const Held h = regs_[reg & 15];
+    const Mem m = memory_operand(*in_, bytes_);
+    FieldUse u = use_at(UseKind::Stored);
+    u.base = m.base;
+    if (m.base) u.base_src = sources_.describe(regs_[*m.base & 15]);
+    u.index = m.index;
+    u.rip = m.rip;
+    u.disp = m.disp;
+    if (m.rip) {
+      const auto slot = x86::rip_target(*in_, bytes_, std::uint64_t{rva_} + at_);
+      u.disp = slot ? static_cast<std::int64_t>(*slot) : 0;
+    }
+    u.width = width;
+    if (follows(h) == Follow::Task) {
+      ++out_.task_store_count;
+      if (out_.task_stores.size() < kMaxTaskStores) {
+        TaskStore s;
+        s.offset = at_;
+        s.via = static_cast<std::uint8_t>(reg & 15);
+        s.value = sources_.describe(h);
+        s.base = u.base;
+        s.base_src = u.base_src;
+        s.index = u.index;
+        s.disp = u.disp;
+        s.rip = u.rip;
+        s.width = width;
+        out_.task_stores.push_back(std::move(s));
+      }
+    }
+    use(h, std::move(u));
+  }
+  // The followed values in rcx to r9 at a call or a tail jump, passed.
+  void passed_uses(std::optional<std::uint32_t> target) {
+    for (const std::uint8_t r : kArgs) {
+      FieldUse u = use_at(UseKind::Passed);
+      u.reg = r;
+      u.target = target;
+      use(regs_[r], std::move(u));
+    }
+  }
+  // dst changed by an instruction of class `op`: a followed value stays followed, as changed; anything else is cleared.
+  void modify(std::uint8_t dst, InsnClass op, std::uint8_t width, std::optional<std::uint64_t> imm, bool large,
+              std::optional<std::uint8_t> by) {
+    change(regs_[dst & 15], dst, op, width, imm, large, by);
+  }
+  // dst := `h` changed (`h` the value dst held, or for a lea its base's).
+  void change(const Held h, std::uint8_t dst, InsnClass op, std::uint8_t width, std::optional<std::uint64_t> imm,
+              bool large, std::optional<std::uint8_t> by) {
+    if (following_ && width >= 4 && follows(h) != Follow::None) {
+      if (op != InsnClass::Lea) {  // a lea's base is used as one, which plan_read does not see (it reads nothing)
+        FieldUse u = use_at(UseKind::Changed);
+        u.op = op;
+        use(h, std::move(u));
+      }
+      const auto id = sources_.intern_mod(Mod{h, op, at_, imm, large, by, width});
+      if (id) {
+        regs_[dst & 15] = Held{Held::Kind::Modified, 0, *id};
+        return;
+      }
+    }
+    kill(dst);
+  }
+  // lea reg, [base + index*scale + disp] (spike.9): from a followed base, a change of it by the displacement (or by the
+  // index), and a use of it as a base; [base] alone, a copy; anything else clears reg.
+  void lea() {
+    const Instruction& in = *in_;
+    const Mem m = memory_operand(in, bytes_);
+    const std::uint8_t dst = in.reg();
+    if (m.rip || !m.base) return kill(dst);
+    const Held base = regs_[*m.base & 15];
+    use(base, use_at(UseKind::Base));
+    if (!following_ || follows(base) == Follow::None) return kill(dst);
+    const std::uint8_t width = width_of(in, false);
+    if (!m.index && m.disp == 0) {
+      if (width == 8) {
+        regs_[dst & 15] = base;
+      } else {
+        kill(dst);
+      }
+      return;
+    }
+    const bool small = !m.index && m.disp >= 0 && static_cast<std::uint64_t>(m.disp) <= kImmBound;
+    change(base, dst, InsnClass::Lea, width,
+           small ? std::optional<std::uint64_t>(static_cast<std::uint64_t>(m.disp)) : std::nullopt,
+           !m.index && !small, m.index ? std::optional<std::uint8_t>(*m.index & 15) : std::nullopt);
+  }
+  // The same by the instruction's immediate, read at `width`, or by a register.
+  void modify_imm(std::uint8_t dst, InsnClass op, std::uint8_t width) {
+    FieldUse u;
+    immediate_use(u, width);
+    modify(dst, op, width, u.imm, u.large, std::nullopt);
+  }
+  void modify_reg(std::uint8_t dst, InsnClass op, std::uint8_t width, std::uint8_t by) {
+    if (op == InsnClass::Xor && (by & 15) == (dst & 15)) return kill(dst);  // xor r, r: zero
+    if (op == InsnClass::And && (by & 15) == (dst & 15)) return;           // and r, r: unchanged
+    if (op == InsnClass::Or && (by & 15) == (dst & 15)) return;
+    modify(dst, op, width, std::nullopt, false, by & 15);
+  }
   void begin(std::uint32_t at, const Instruction& in, std::span<const std::byte> bytes, bool recording, bool reached) {
     at_ = at;
     in_ = &in;
@@ -317,7 +642,8 @@ class Summariser {
   void copy(std::uint8_t dst, std::uint8_t src, std::uint8_t width) {
     Held h = regs_[src & 15];
     const bool narrow = h.kind == Held::Kind::Value ||
-                        (h.kind == Held::Kind::Loaded && sources_.at(h.id).width <= 4);
+                        (h.kind == Held::Kind::Loaded && sources_.at(h.id).width <= 4) ||
+                        (h.kind == Held::Kind::Modified && sources_.mod(h.id).width <= 4);
     if (width < 4 || (width == 4 && !narrow)) h = Held{};
     regs_[dst & 15] = h;
     if (h.kind == Held::Kind::Value && keep() && callee_saved(dst & 15)) {
@@ -338,7 +664,9 @@ class Summariser {
     std::vector<PassedSource> p;
     for (const std::uint8_t r : kArgs) {
       const Held& h = regs_[r];
-      if (h.kind == Held::Kind::Entry || h.kind == Held::Kind::Loaded) p.push_back(PassedSource{r, sources_.describe(h)});
+      if (h.kind == Held::Kind::Entry || h.kind == Held::Kind::Loaded || h.kind == Held::Kind::Modified) {
+        p.push_back(PassedSource{r, sources_.describe(h), false});
+      }
     }
     return p;
   }
@@ -358,6 +686,7 @@ class Summariser {
 
   // ---- What is kept before the first call ----
   void store(std::uint8_t reg, std::uint8_t width) {
+    stored(reg, width);
     forward(reg, width);
     const Held& h = regs_[reg & 15];
     if (!is_argument(h) || !keep()) return;
@@ -405,6 +734,9 @@ class Summariser {
   }
 
   void compare_imm(std::uint8_t reg, std::uint8_t width) {
+    FieldUse u = use_at(UseKind::Compared);
+    immediate_use(u, width);
+    use(regs_[reg & 15], std::move(u));
     const auto arg = value(reg);
     if (!arg || !keep()) return;
     auto& compares = out_.args[*arg].compares;
@@ -412,9 +744,11 @@ class Summariser {
     compares.push_back(ArgCompare{at_, static_cast<std::uint8_t>(reg & 15), small_immediate(*in_, bytes_, width)});
   }
   void compare_other(std::uint8_t reg) {
+    use(regs_[reg & 15], use_at(UseKind::ComparedOther));
     if (const auto arg = value(reg); arg && keep()) ++out_.args[*arg].compared_other;
   }
   void tested(std::uint8_t reg) {
+    use(regs_[reg & 15], use_at(UseKind::Tested));
     if (const auto arg = value(reg); arg && keep()) ++out_.args[*arg].tested;
   }
 
@@ -455,18 +789,30 @@ class Summariser {
         out_.calls.push_back(std::move(c));
       }
       called_ = true;
+      passed_uses(in.flow == Flow::Call ? direct_target() : std::nullopt);
+      if (in.flow == Flow::CallIndirect && in.mod() == 3) use(regs_[in.rm()], use_at(UseKind::Called));
     }
     // The volatile registers are the callee's to change; the callee-saved ones keep what they held. rax holds its result.
     for (const std::uint8_t r : {0, 1, 2, 8, 9, 10, 11}) kill(static_cast<std::uint8_t>(r));
     regs_[kRax] = Held{Held::Kind::Result, 0, static_cast<std::uint16_t>(at_)};
   }
 
-  // A direct jump out of the function: before its entry, or past its end where the exception directory gives one.
+  // A direct call's or jump's target, as an RVA.
+  [[nodiscard]] std::optional<std::uint32_t> direct_target() const {
+    const auto to = x86::branch_target(*in_, bytes_, std::uint64_t{rva_} + at_);
+    if (!to || *to > 0xFFFF'FFFFull) return std::nullopt;
+    return static_cast<std::uint32_t>(*to);
+  }
+
+  // A direct jump out of the function: before its entry, or past its end where the exception directory gives one, or
+  // (spike.9) with none, past the code decoded.
   void tail() {
     const auto to = x86::branch_target(*in_, bytes_, std::uint64_t{rva_} + at_);
     if (!to || *to > 0xFFFF'FFFFull) return;
     const bool out = *to < rva_ || (end_ != 0 && *to >= std::uint64_t{rva_} + end_);
-    if (!out || out_.calls.size() >= kMaxCalls) return;
+    if (!out) return;
+    passed_uses(static_cast<std::uint32_t>(*to));
+    if (out_.calls.size() >= kMaxCalls) return;
     CalleeCall c;
     c.offset = at_;
     c.form = CallForm::Tail;
@@ -480,6 +826,8 @@ class Summariser {
   // A jump through a register or memory (spike.8): it leaves the function, a tail call through a pointer.
   void tail_indirect() {
     const Instruction& in = *in_;
+    passed_uses(std::nullopt);
+    if (in.mod() == 3) use(regs_[in.rm()], use_at(UseKind::Called));
     if (out_.calls.size() >= kMaxCalls) return;
     CalleeCall c;
     c.offset = at_;
@@ -521,28 +869,44 @@ class Summariser {
     if (op < 0x40 && (op & 7) < 6) {  // add, or, adc, sbb, and, sub, xor, cmp
       const bool cmp = (op >> 3) == 7;
       const bool byte_form = (op & 1) == 0;
+      // Spike.9: add, or, and, sub and xor keep a followed value followed, as changed (adc and sbb clear it).
+      static constexpr std::array<InsnClass, 8> kChange = {InsnClass::Add, InsnClass::Or,  InsnClass::Other,
+                                                           InsnClass::Other, InsnClass::And, InsnClass::Sub,
+                                                           InsnClass::Xor, InsnClass::Cmp};
+      const InsnClass change = byte_form ? InsnClass::Other : kChange[op >> 3];
+      const std::uint8_t width = width_of(in, byte_form);
       switch (op & 7) {
         case 0: case 1:  // r/m, r
           if (cmp) {
             compare_other(r8(byte_form, in.reg()));
             if (reg_form) compare_other(r8(byte_form, in.rm()));
           } else if (reg_form) {
-            kill(r8(byte_form, in.rm()));
+            if (change == InsnClass::Other) {
+              kill(r8(byte_form, in.rm()));
+            } else {
+              modify_reg(in.rm(), change, width, in.reg());
+            }
           }
           return true;
         case 2: case 3:  // r, r/m
           if (cmp) {
             compare_other(r8(byte_form, in.reg()));
             if (reg_form) compare_other(r8(byte_form, in.rm()));
-          } else {
+          } else if (change == InsnClass::Other) {
             kill(r8(byte_form, in.reg()));
+          } else if (reg_form) {
+            modify_reg(in.reg(), change, width, in.rm());
+          } else {
+            modify(in.reg(), change, width, std::nullopt, false, std::nullopt);  // by memory
           }
           return true;
         default:  // al or eax, imm
           if (cmp) {
             compare_imm(kRax, width_of(in, (op & 7) == 4));
-          } else {
+          } else if (change == InsnClass::Other) {
             kill(kRax);
+          } else {
+            modify_imm(kRax, change, width);
           }
           return true;
       }
@@ -562,8 +926,11 @@ class Summariser {
           load(in.reg(), 4);
         }
         return true;
-      case 0x69: case 0x6B: case 0x8D:  // imul, lea: write reg
+      case 0x69: case 0x6B:  // imul: writes reg
         kill(in.reg());
+        return true;
+      case 0x8D:  // lea: writes reg; spike.9: [followed + disp] or [followed + index*scale + disp] is a change of it
+        lea();
         return true;
       case 0x8A:  // mov r8, r/m8
         kill(byte_reg(in.reg(), in));
@@ -574,7 +941,14 @@ class Summariser {
         if (sub == 7) {
           if (reg_form) compare_imm(r8(op == 0x80, in.rm()), width_of(in, op == 0x80));
         } else if (reg_form) {
-          kill(r8(op == 0x80, in.rm()));
+          static constexpr std::array<InsnClass, 8> kGroup = {InsnClass::Add, InsnClass::Or,  InsnClass::Other,
+                                                              InsnClass::Other, InsnClass::And, InsnClass::Sub,
+                                                              InsnClass::Xor, InsnClass::Cmp};
+          if (op == 0x80 || kGroup[sub] == InsnClass::Other) {
+            kill(r8(op == 0x80, in.rm()));
+          } else {
+            modify_imm(in.rm(), kGroup[sub], width_of(in, false));
+          }
         }
         return true;
       case 0x84: case 0x85:  // test r/m, r
@@ -588,6 +962,7 @@ class Summariser {
           kill(r8(op == 0x86, in.reg()));
           kill(r8(op == 0x86, in.rm()));
         } else {
+          stored(r8(op == 0x86, in.reg()), width_of(in, op == 0x86));  // spike.9: it stores the register too
           kill(r8(op == 0x86, in.reg()));
         }
         return true;
@@ -621,7 +996,16 @@ class Summariser {
       case 0x99: kill(kRdx); return true;  // cqo
       case 0xA8: case 0xA9: tested(kRax); return true;  // test al or eax, imm
       case 0xC0: case 0xC1: case 0xD0: case 0xD1: case 0xD2: case 0xD3:  // shifts and rotates
-        if (reg_form) kill(r8((op & 1) == 0, in.rm()));
+        if (!reg_form) return true;
+        if ((op & 1) == 0 || sub < 4 || sub == 6) {  // a byte's, or a rotate: cleared
+          kill(r8((op & 1) == 0, in.rm()));
+        } else if (op == 0xC1) {
+          modify_imm(in.rm(), InsnClass::Shift, width_of(in, false));
+        } else if (op == 0xD1) {
+          modify(in.rm(), InsnClass::Shift, width_of(in, false), 1, false, std::nullopt);
+        } else {
+          modify(in.rm(), InsnClass::Shift, width_of(in, false), std::nullopt, false, std::uint8_t{1});  // by cl
+        }
         return true;
       case 0xC6: case 0xC7:  // mov r/m, imm
         if (sub != 0) return false;
@@ -691,11 +1075,23 @@ class Summariser {
         return true;
       case 0xBA:  // bt, bts, btr, btc r/m, imm
         if (sub < 4) return false;
-        if (sub > 4 && reg_form) kill(in.rm());
+        // Spike.9: a bit set, cleared or flipped in a followed value (a tag) changes it: class other, by the bit's number.
+        if (sub > 4 && reg_form) {
+          FieldUse bit;
+          immediate_use(bit, 1);
+          modify(in.rm(), InsnClass::Other, width_of(in, false), bit.imm, bit.large, std::nullopt);
+        }
+        return true;
+      case 0xAB: case 0xB3: case 0xBB:  // bts, btr, btc r/m, r
+        if (reg_form) modify(in.rm(), InsnClass::Other, width_of(in, false), std::nullopt, false, in.reg());
         return true;
       case 0xB1:  // cmpxchg
+        if (!reg_form) stored(in.reg(), width_of(in, false));  // spike.9: it may store the register
         kill(kRax);
         if (reg_form) kill(in.rm());
+        return true;
+      case 0xC3:  // movnti m, r: a store
+        if (!reg_form) stored(in.reg(), width_of(in, false));
         return true;
       case 0xC1:  // xadd
         kill(in.reg());
@@ -743,10 +1139,20 @@ class Summariser {
     regs_[reg & 15] = h;
   }
 
+  struct ReadOf {
+    Held value;
+    bool entry = false;
+    std::size_t index = 0;
+  };
+
   std::uint32_t rva_;
   std::uint32_t end_;
   CalleeCode& out_;
   Sources& sources_;
+  std::optional<std::uint8_t> task_;
+  std::array<bool, 4> entry_{};
+  bool following_ = false;
+  std::vector<ReadOf> reads_;  // the loaded values of the reads, each with its read (the first that loaded it)
   Regs regs_{};
   bool recording_ = false;
   bool reached_ = false;
@@ -1136,13 +1542,29 @@ void fill_form(Form& f, const Instruction& in, std::span<const std::byte> b, std
 EntryState entry_at(const CalleeCall& call) noexcept {
   EntryState e{};
   for (const PassedArg& p : call.pass) {
-    if (const auto i = arg_index(p.reg)) e[*i] = EntryArg{p.from, p.first_word};
+    if (const auto i = arg_index(p.reg)) e[*i] = EntryArg{p.from, p.first_word, false};
   }
   return e;
 }
 
+EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept {
+  EntryState e = entry_at(call);
+  for (const PassedSource& p : call.pass_src) {
+    const auto to = arg_index(p.reg);
+    const auto from = p.source.kind == Source::Kind::Entry ? arg_index(p.source.from) : std::nullopt;
+    if (to && from && parent[*from].entry && e[*to].from == 0) e[*to].entry = true;
+  }
+  return e;
+}
+
+EntryState group_entry_at(const CalleeCall& site) noexcept {
+  EntryState e = entry_at(site);
+  if (e[0].from == 0) e[0].entry = true;
+  return e;
+}
+
 CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
-                            const EntryState& entry) {
+                            const EntryState& entry, std::uint8_t task) {
   CalleeCode out;
   out.read = !code.empty();
   out.extent = extent;
@@ -1185,7 +1607,9 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
 
   // What each instruction's registers hold along the flow, to a fixed point: a register only ever loses what it holds.
   Sources sources;
-  Summariser s(rva, extent, out, sources);
+  std::array<bool, 4> entries{};
+  for (std::size_t i = 0; i < kArgs.size(); ++i) entries[i] = entry[i].entry && entry[i].from == 0;
+  Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), entries);
   std::vector<State> states(decoded.size());
   if (!decoded.empty()) {
     states[0].reached = true;
@@ -1407,6 +1831,14 @@ Table match_table(const CalleeCode& wrapper, std::span<const InnerCallee> inner,
   for (const CalleeCall& c : tc.calls) {
     if (c.form == CallForm::TailMemory && !c.rip && c.reached && c.vtable_src && same_source(*c.vtable_src, *value)) {
       t.slot_disp = c.disp;
+      t.site = c.offset;
+      break;
+    }
+    // Spike.9 (run 8's): a direct jump with the entry in rcx, to the group's own function.
+    const auto rcx = std::find_if(c.pass_src.begin(), c.pass_src.end(), [](const PassedSource& p) { return p.reg == 1; });
+    if (c.form == CallForm::Tail && c.reached && c.target && rcx != c.pass_src.end() &&
+        same_source(rcx->source, *value)) {
+      t.target = c.target;
       t.site = c.offset;
       break;
     }
