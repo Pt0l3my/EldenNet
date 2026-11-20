@@ -177,7 +177,17 @@ layout fields). On T1, after the window and `settle_s` seconds:
    index found in the loaded table and equal to the gated build's layout's (`[task] group`'s index, read as a dev
    build reads the file: a lead `[task]` may hold only its group); the hub's instance non-null. Any check that fails,
    a missing patterns.toml idiom or an unreadable layout included: no call, `stage = "refused"`. Nothing is guessed,
-   and nothing rests on a derivation that was not reviewed (O89 (a)).
+   and nothing rests on a derivation that was not reviewed (O89 (a)). Then the **callee's summary** (spike.6,
+   WHY§227), from the live image, the code the call runs: decoded with en-gal's decoder from its RVA within its
+   function of the exception directory (or up to its first return), at most 4 KiB, following no call; its instructions
+   and bytes, every call with its target RVA or its form (through a register, through memory with its base, or through
+   a RIP-relative slot, and whether the base holds an argument's object's first word: a virtual call on it), the
+   conditional branches before the first call, whether some path returns through no call, and for rcx, rdx, r8 and r9
+   (followed through moves between registers, 64- and 32-bit) their stores to memory before the first call (base
+   register, which argument the base holds, displacement, width), the callee-saved registers they were moved to, and
+   their compares with an immediate (the value kept from 0 to 65,536), with memory or another register, and tests.
+   An instruction whose effect on the registers it does not model ends the tracking, and the report says where
+   (`modelled_to`). `r1-probe.json`'s `callee_code` holds it (`register.callee` already holds the RVA).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -188,6 +198,20 @@ layout fields). On T1, after the window and `settle_s` seconds:
    the hub's instance points at, to a depth of three, the image's writable data included); the **rising-counter search**
    over the heap statics (a field rising by the clock and standing still at times: the play time's static, which has
    no RTTI); and each RTTI-classed static's slot.
+   On T1, 2 and 20 s after the call: the **hub search** (spike.5, WHY§209: the hub's reachable memory, three pointers
+   deep, `hub_search`) and the **whole-memory search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery
+   calls committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack
+   nor T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack
+   overlaps it), within 8 GiB and 30 s (`stopped` says which cap, if any, ended it), for the 8-aligned words equal to
+   our task object's address and those pointing inside it. Each of the first 16 hits gives its region's kind (private,
+   mapped, image) and protection, an image's module (ours, the game's or another, by kind, never by name), its section
+   (by its characteristics) and RVA, and the 32-bit words equal to the group's index within 64 bytes. **Our own copies
+   are counted apart** (`own_found`, `own_inside`, hits with `own`): a region is ours when its allocation base is our
+   module's, our task's block's (VirtualAlloc's), or one of the DLL's own heap's. The probe DLL's operator new
+   allocates from a heap of its own (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its
+   copies, its state) lies there, and the search walks that heap (`HeapWalk`) for its regions' and large blocks'
+   allocation bases; `own_known` is false when the heap could not be made or walked, and then the heap's copies count
+   as the game's. While the task has not run, T1 also reads how much of our object the hub wrote (`object_written`).
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
    counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
    classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'
@@ -214,7 +238,8 @@ library's or renderer backend's name; no `IsEnableOnlineMode`; `en_dll_module` o
 greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLLs with llvm-objdump:
 `eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
 network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
-C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings).
+C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap and its
+walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording

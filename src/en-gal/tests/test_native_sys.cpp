@@ -182,6 +182,53 @@ TEST_CASE("native sys: the rescan leaves out the calling thread's stack; a freed
   VirtualFree(pages, 0, MEM_RELEASE);
 }
 
+TEST_CASE("native sys: the regions VirtualQuery describes, and the whole-memory search over this process (WHY§227)") {
+  NativeSys sys;
+  // SAFETY: pages of our own: a "task" block, a page that holds its address, and a page with no access.
+  auto* task = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  auto* holder = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  auto* closed = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS));
+  REQUIRE((task != nullptr && holder != nullptr && closed != nullptr));
+  const std::uint64_t at = address_of(task);
+  std::memcpy(holder + 0x40, &at, sizeof at);
+  const auto r = sys.region_at(address_of(holder) + 0x10);
+  REQUIRE(r.has_value());
+  CHECK(r->base == address_of(holder));
+  CHECK(r->allocation_base == address_of(holder));
+  CHECK(r->committed);
+  CHECK(r->kind == probe::RegionKind::Private);
+  CHECK(r->protect == PAGE_READWRITE);
+  CHECK(probe::searchable(*r));
+  const auto image = sys.region_at(sys.module_base());
+  REQUIRE(image.has_value());
+  CHECK(image->kind == probe::RegionKind::Image);
+  CHECK(image->allocation_base == sys.module_base());
+  CHECK_FALSE(probe::searchable(*sys.region_at(address_of(closed))));
+  CHECK_FALSE(sys.region_at(kAddressEnd).has_value());
+
+  probe::MemorySearchSpec spec;
+  spec.target = at;
+  spec.object_bytes = 0x100;
+  spec.game_base = sys.module_base();
+  spec.own_bases = {at};
+  spec.own_known = true;
+  ULONG_PTR low = 0, high = 0;
+  GetCurrentThreadStackLimits(&low, &high);
+  spec.skip.push_back(AddressRange{low, high});
+  const probe::MemorySearch m =
+      probe::search_memory(sys, [&](std::uint64_t a) { return sys.region_at(a); }, spec);
+  CHECK(m.stopped == probe::SearchStop::Done);
+  CHECK(m.found >= 1);
+  CHECK(m.read_bytes > 0);
+  CHECK(m.unread_bytes >= 4096);  // the page with no access, never touched
+  bool held = false;
+  for (const probe::MemoryHit& h : m.hits) held = held || (!h.own && h.region == probe::RegionKind::Private && h.offset == 0);
+  CHECK(held);
+  VirtualFree(closed, 0, MEM_RELEASE);
+  VirtualFree(holder, 0, MEM_RELEASE);
+  VirtualFree(task, 0, MEM_RELEASE);
+}
+
 TEST_CASE("native sys: the calls into the game run under SEH, and the task object's trampoline runs our body") {
   // A call that faults is an answer (ARCH §3.2's Register → banner).
   const sys::CallOutcome fault = sys::call_register(address_of(&test_faulting), {1, 2, 3, 4});
