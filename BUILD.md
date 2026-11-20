@@ -139,7 +139,7 @@ cmake --build build-cl
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 16 minutes for the clang-cl build's 104 cases (21 of them the launcher's, 21 eldennet.dll's, five of those with
+- About 17 minutes for the clang-cl build's 107 cases (21 of them the launcher's, 25 eldennet.dll's, eight of those with
   GraceUI, below): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
@@ -151,8 +151,12 @@ cmake --build build-cl
   Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
   its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
   forms, the sources, the tail function's table read before and after the call, the call's answer and the control
-  diff; `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
-  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-release` gives
+  diff, and since spike.9 the group's function with the task's and the entry's reads and the task's tagged store, the
+  rack's and the shelf's classes, the tagged search and the diffs from the rack and the shelf;
+  `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
+  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-gate` on one
+  whose hub runs only tasks of the game's kind (`--task-gate`: the call answers 1, the shelf keeps our task under a tag
+  and the task never runs, as in R1 run 8); `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The runs of GraceUI's observer (S0-E's present-hook half and S4, roadmap S10.1.g and S11.1.a; EldenNet's side):
@@ -229,9 +233,9 @@ Its README has the start as built, the threads, the settings, the recorder and R
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 16 cases,
-  about 6 minutes, and with `EN_GRACEUI_DIR` five more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
-  `launcher-eldennet-probe-gap` are the longest, about 65 s each). Each installs the DLL in its own folder with
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 17 cases,
+  about 7 minutes, and with `EN_GRACEUI_DIR` eight more with GraceUI (`launcher-eldennet-probe`,
+  `launcher-eldennet-probe-gap` and `launcher-eldennet-probe-gate` are the longest, about 65 s each). Each installs the DLL in its own folder with
   gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
   place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
@@ -247,7 +251,7 @@ A spike package is a development build for the owner's PC, labelled `0.1.0-spike
 
 ```sh
 cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.8 -DPython3_EXECUTABLE=/usr/local/bin/python3
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.9 -DPython3_EXECUTABLE=/usr/local/bin/python3
 cmake --build build-cl-rel
 python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
   --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
@@ -260,7 +264,11 @@ under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's
 addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
 Since spike.8 the hub is walked at the Mark too, 2 s before that walk, for a control diff (three walks' blocks kept at
 most), the call's answer is kept, and the tail function's table is read just before the call and 2 s after it, through
-the same crash-guarded copy; every summary's instructions are given as forms (no bytes).
+the same crash-guarded copy; every summary's instructions are given as forms (no bytes). Since spike.9 the group's own
+function (the tail function's direct jump) and its callees are summarised with the entry and our task followed in (16
+summaries at most), the walk and its diffs start from the table's singleton and the group's entry too (three walks'
+blocks at most per root, the fake game's report about 113 KB), the searches count our object's and vtable's addresses
+under a high-bit tag, and the singleton's and the entry's RTTI classes are matched to the leads' names.
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
 `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.

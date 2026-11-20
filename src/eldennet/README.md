@@ -221,7 +221,21 @@ layout fields). On T1, after the window and `settle_s` seconds:
    the table (`table.before`: the singleton's kind and whether it is CSTask's instance or a named singleton's, the
    entries from 0 to the bound that are set, the group's entry, its first word and the word its final jump reads, a
    game function there summarised one level deeper, `depth` 2), and makes the call at once; then it compares the two
-   walks (`hub_diff_control`) and lets the first go.
+   walks (`hub_diff_control`) and lets the first go. Since spike.9 (WHY§248: run 8's tail function moves the task into
+   rdx and jumps directly to a function of the group's own, with the entry in rcx) a direct jump past a function's
+   decoded code is a tail jump, the table's `target` is that jump's, and **the group's function** is summarised from
+   the image at once (`depth` 2, `parent` the tail function, `entry_src` the jump's known values, rcx `holds_entry`),
+   with its own direct callees and tail jumps one level further (`depth` 3), 16 summaries at most; in every summary each
+   load from our task (the registers' first) or from the group's entry, or from a value loaded from either, is listed
+   (`task_reads`, `entry_reads`: offset, field offset, width, the base's source, and what the value is then used for:
+   compared with an immediate or otherwise, tested, stored with its base and displacement, passed to a call, called
+   through, used as a base, changed), and each store of the task, of a value read from it, or of either changed (a
+   tagged pointer: Source's `modified`) is listed with its base's source and displacement (`task_stores`). The walk
+   and its diffs start from two more roots, read from the table at the Mark: the singleton and the group's entry (each
+   diff's `root`: task_hub, singleton, group_entry; their controls in `hub_diff_controls`), each root within the same
+   bound of three walks; and just before the call the singleton's and the entry's **classes** are read through their
+   first words by the RTTI walk and matched to the leads' names as O92 does (`singleton_class`, `entry_class`: the
+   lead's index where the innermost name is the lead's or it with Imp; numbers only).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -242,7 +256,9 @@ layout fields). On T1, after the window and `settle_s` seconds:
    the heap, or other; a new pointer's block fresh when the walk before the call never reached it, a word whose 32-bit
    half is the group's index marked; at 20 s each word steady when it held the same new value at 2 s, the steady ones
    listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
-   in the control listed before those in it), at 2 s the table read again (`table.after`), and the **whole-memory
+   in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
+   inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
+   (`table.after`), and the **whole-memory
    search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
@@ -250,7 +266,9 @@ layout fields). On T1, after the window and `settle_s` seconds:
    any, ended it, and `committed_bytes` the process's committed total, past a cap too), for the 8-aligned words equal to
    our task object's address and those pointing inside it, and since spike.7 those equal to our fake vtable's address
    (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
-   apart, with how many different slots the game's words name. Each side keeps up to eight hits of each kind, each
+   apart, with how many different slots the game's words name, and since spike.9 the words whose low 48 bits equal our
+   object's or our vtable's address while their high 16 bits are not zero (`tagged_found`, `vtable_tagged_found`,
+   ours apart; `tagged_hits`, each with its `tag`). Each side keeps up to eight hits of each kind, each
    giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
    game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
    to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
