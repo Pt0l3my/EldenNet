@@ -160,6 +160,27 @@ struct Parser {
     out = static_cast<T>(n);
     return true;
   }
+  // A list of numbers separated by commas: "300,420".
+  template <class T>
+  bool numbers(std::vector<T>& out) {
+    std::wstring v;
+    if (!value(v)) return false;
+    out.clear();
+    std::size_t start = 0;
+    for (std::size_t i = 0; i <= v.size(); ++i) {
+      if (i < v.size() && v[i] != L',') continue;
+      const std::wstring part = v.substr(start, i - start);
+      wchar_t* end = nullptr;
+      const unsigned long long n = std::wcstoull(part.c_str(), &end, 0);
+      if (part.empty() || end == nullptr || *end != L'\0' || part[0] == L'-') {
+        error = "not a list of numbers for " + narrow(name) + ": " + narrow(v);
+        return false;
+      }
+      out.push_back(static_cast<T>(n));
+      start = i + 1;
+    }
+    return true;
+  }
   template <class E, std::size_t N>
   bool choice(E& out, const wchar_t* const (&names)[N], const E (&values)[N]) {
     std::wstring v;
@@ -267,6 +288,22 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--press-pause-at") ok = p.number(o.press_pause_at);
     else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
+    else if (n == L"--d3d12") o.d3d12 = true;
+    else if (n == L"--press-f11-at") ok = p.numbers(o.press_f11_at);
+    else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
+    else if (n == L"--grace-probe") {
+      std::vector<std::uint32_t> v;
+      ok = p.numbers(v);
+      if (ok && v.size() != 7) {
+        error = "--grace-probe is x0,y0,x1,y1,r,g,b";
+        ok = false;
+      }
+      if (ok) {
+        o.grace_probe = true;
+        for (int k = 0; k < 4; ++k) o.grace_probe_rect[k] = v[static_cast<std::size_t>(k)];
+        for (int k = 0; k < 3; ++k) o.grace_probe_colour[k] = v[static_cast<std::size_t>(4 + k)];
+      }
+    }
     else if (n == L"--exit-code") ok = p.number(o.exit_code);
     else if (n == L"--describe") o.describe = true;
     else if (n == L"--verbose") o.verbose = true;
@@ -354,6 +391,7 @@ void print_usage() {
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
       "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --press-pause-every N",
       "  --status-file PATH  --exit-code N",
+      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -375,6 +413,7 @@ int run(HINSTANCE instance) {
   } else {
     status("window none");
   }
+  if (o.d3d12 && window != nullptr && !present_start(window)) return 4;
   world_publish_hinstance(instance);
   (void)fg_get_rockbound();  // a singleton asked for before it is set: the idiom's log path runs once (fd4_unset=1)
   load_dlls(LoadMoment::Window);
@@ -418,7 +457,14 @@ int run(HINSTANCE instance) {
     if (o.press_pause_at != 0 && frame >= o.press_pause_at &&
         (frame == o.press_pause_at ||
          (o.press_pause_every != 0 && (frame - o.press_pause_at) % o.press_pause_every == 0))) {
-      press_pause();
+      if (o.d3d12 && window != nullptr) {
+        press_key_into(window, VK_PAUSE, 0x45);  // into the window GraceUI filters (EldenNet's Mark on its hotkey)
+      } else {
+        press_pause();
+      }
+    }
+    for (const std::uint64_t at : o.press_f11_at) {
+      if (at == frame && window != nullptr) press_key_into(window, VK_F11, 0x57);
     }
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {
@@ -441,6 +487,10 @@ int run(HINSTANCE instance) {
       load_dlls(LoadMoment::World);
     }
     hub_run_frame(frame, static_cast<float>(dt_s > 0.25 ? 0.25 : dt_s));
+    if (o.d3d12) present_frame();
+    for (const std::uint64_t at : o.grace_report_at) {
+      if (at == frame) grace_report(frame);
+    }
     if (period > 0.0) {
       const double until = start + period;
       for (double t = now_s(); t < until; t = now_s()) {

@@ -13,6 +13,7 @@ Under Wine the process's exit status keeps only the low 8 bits of the Windows ex
 Every name and number the cases check is the fake game's own, invented (README.md).
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -907,7 +908,8 @@ def check_en_ready(where):
                                ("ELDENNET", "register", {"ok": 1}),
                                ("ELDENNET", "first_tick", {"state": "running"}),
                                ("ELDENNET", "init", {"state": "ready"}),
-                               ("ELDENNET", "connect", {"skipped": 1}))(result)
+                               ("ELDENNET", "connect", {"ok": 0, "outcome": "absent", "installed": 0, "looks": 1}))(
+                                   result)
         failures += want(result, "LAUNCHER", "status", init="ready", snapshots=(8, 1e9), tripped="0x0")
         phases = [e.get("to") for e in result.events("ELDENNET", "change") if e.get("what") == "phase"]
         if where == "world":
@@ -1016,6 +1018,165 @@ case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{
      what="loaded by another loader (the fake game's own --load): eldennet.dll starts the watcher beside it "
           "(--watch <pid>), which makes the block, sees the crash through the DLL's filter and keeps its record")
 
+
+
+# --- GraceUI with eldennet.dll (part 12): a test build of GraceUI (EN_GRACEUI_DIR: graceui.dll with its test exports,
+# and its fonts) installed in the fake game's GraceUI folder as GraceUI's release lays it out (its D51), with a
+# graceui.toml of each file's size and SHA-256 (its D52), which the launcher's pre-flight checks. The fake game presents
+# on Direct3D 12 (--d3d12), so that GraceUI's overlay binds its swap chain and draws, presses F11 and Pause into its
+# window, and reports what GraceUI's test exports say (--grace-report): EldenNet's connection, its notices by key, the
+# panels made, shown and drawn, the world-state providers, and the pixels of the F11 view's ground read back from the
+# frame. The view's place and ground are en-overlay's (src/en-overlay/include/en/overlay/view.hpp): at 24, 24, 680 by
+# 420, ground (22, 28, 38); the probe keeps left of the notices at the top right.
+GRACE_NEEDS = EN_NEEDS + ("graceui",)
+EN_PANEL = 'schema = 2\ndebug = { panel = true, record_sessions = true }\n'
+VIEW_PROBE = "30,60,640,440,22,28,38"
+VIEW_AREA = (640 - 30) * (440 - 60)
+
+
+def install_graceui(paths):
+    """GraceUI's folder beside the fake game: graceui.dll, its fonts and a graceui.toml listing them."""
+    source = os.path.dirname(paths["graceui"])
+    folder = os.path.join(paths["gamedir"], "GraceUI")
+    os.makedirs(folder)
+    files = [("graceui.dll", paths["graceui"])]
+    fonts = os.path.join(source, "fonts")
+    if os.path.isdir(fonts):
+        files += [("fonts/" + n, os.path.join(fonts, n)) for n in sorted(os.listdir(fonts))]
+    lines = ['graceui = "0.1.0"', "abi = [1, 0]", 'released = "2026-11-20"', "[files]"]
+    for rel, path in files:
+        target = os.path.join(folder, *rel.split("/"))
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        shutil.copy2(path, target)
+        with open(target, "rb") as f:
+            data = f.read()
+        lines.append('"%s" = { size = %d, sha256 = "%s" }' % (rel, len(data), hashlib.sha256(data).hexdigest()))
+    with open(os.path.join(folder, "graceui.toml"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+    paths["gracedll"] = os.path.join(folder, "graceui.dll")
+
+
+def any_line_kv(result, source, event, kv):
+    """any_line, with the values in a dictionary: for a key named as one of its parameters (`source`)."""
+    for e in result.events(source, event):
+        if all(e.get(k) == str(v) for k, v in kv.items()):
+            return []
+    return ["no %s %s line with %s" % (source, event, " ".join("%s=%s" % i for i in sorted(kv.items())))]
+
+
+def want_grace(result, frame, **kv):
+    """The fake game's report of GraceUI's state at `frame`: each key equal to a string, a number within (lo, hi), or
+    a callable that answers whether the value is right."""
+    line = next((e for e in result.events("FAKEGAME", "grace") if e.get("frame") == str(frame)), None)
+    if line is None:
+        return ["no FAKEGAME grace line at frame %d" % frame]
+    failures = []
+    for key, value in kv.items():
+        got = line.get(key)
+        if callable(value):
+            ok = got is not None and value(got)
+        elif isinstance(value, tuple):
+            ok = got is not None and re.match(r"^-?[0-9.]+$", got) and value[0] <= float(got) <= value[1]
+        else:
+            ok = got == str(value)
+        need(ok, "FAKEGAME grace frame=%d %s=%s, wanted %s" % (frame, key, got, getattr(value, "__name__", value)),
+             failures)
+    return failures
+
+
+def check_graceui_main(r):
+    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok", "version": "0.1.0", "abi": "1.0"}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "how": "path",
+                                                 "installed": 1, "graceui": "0.1.0", "view": "ready", "mark": 1,
+                                                 "world": 1}),
+                        ("ELDENNET", "init", {"state": "ready"}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            # Connected, at the title or in the world: the panel made and hidden, the atlas registered, EldenNet a
+            # world-state provider, no banner (the main path has none).
+            want_grace(r, 360, found=1, eldennet=1, notice_only=0, panels=1, shown=0, textures=(1, 8), providers=1,
+                       banner="none", window_filter=1, presents=(100, 1e9),
+                       caps=lambda c: all(w in c.split("_") for w in ("notices", "world-state", "hotkeys", "panels",
+                                                                       "textures")),
+                       probe=(0, VIEW_AREA // 100)) +
+            # F11 (frame 420): GraceUI's hotkey, through poll; one list before the panel shows, then a list every wake;
+            # GraceUI drew it on the game's frame: its ground read back over most of the probe.
+            want_grace(r, 480, shown=1, submitted=(2, 1e9), refused=0, panel_frames=(1, 1e9),
+                       probe=(VIEW_AREA // 2, VIEW_AREA)) +
+            any_line(r, "ELDENNET", "view", presses=1, open=1) +
+            # F11 again (frame 600): hidden, nothing of it on the frame.
+            want_grace(r, 660, shown=0, refused=0, probe=(0, VIEW_AREA // 100)) +
+            any_line(r, "ELDENNET", "view", presses=1, open=0) +
+            # The Mark: GraceUI's hotkey on Pause, the launcher's console handing its ring over, then Pause (frame 540)
+            # stamped by EldenNet, which the launcher's record takes from the ring.
+            any_line_kv(r, "ELDENNET", "marks", {"source": "eldennet"}) +
+            any_line_kv(r, "LAUNCHER", "mark", {"hotkey": "pause", "released": 1, "source": "eldennet"}) +
+            want(r, "ELDENNET", "mark", n=1) + any_line_kv(r, "LAUNCHER", "mark", {"n": 1, "source": "eldennet"}) +
+            (["%d Marks for one press" % len(r.events("ELDENNET", "mark"))]
+             if len([e for e in r.events("ELDENNET", "mark") if "n" in e]) != 1 else []) +
+            en_log_is_clean(r))
+
+
+def check_graceui_before(r):
+    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok"}),
+                        ("ELDENNET", "gate", {"result": "unknown_build"}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "banner", "how": "name",
+                                                 "view": "ready"}),
+                        ("ELDENNET", "notice", {"what": "banner", "reason": "unknown_build", "status": 0}),
+                        ("ELDENNET", "init", {"state": "banner"}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            any_line(r, "LAUNCHER", "inject", dll="graceui.dll", ok=1) +
+            # The banner: one notice under EldenNet's key, duration 0, in the warning tone, with the build's number.
+            want_grace(r, 300, found=1, eldennet=1, notice_only=0,
+                       banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet", banner_tone=1,
+                       badge="none", shown=0) +
+            # F11 on the banner path too (frame 360): the view shows L1 and why.
+            want_grace(r, 460, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
+                       banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet") +
+            any_line(r, "ELDENNET", "view", presses=1, open=1) +
+            (["the DLL registered on an unknown build"] if r.events("ELDENNET", "register") else []) +
+            en_log_is_clean(r))
+
+
+def check_graceui_anticheat(r):
+    text = "EldenNet_inactive:_Easy_Anti-Cheat_is_running._EldenNet_only_runs_offline;_start_the_game_with_the_" \
+           "EldenNet_launcher."
+    return (check_lines(("ELDENNET", "safety", {"anticheat": 1}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "notices_only", "path": "banner"}),
+                        ("ELDENNET", "notice", {"what": "banner", "reason": "anticheat", "status": 0}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            # GraceUI's own check found the same module before it hooked: notices only, and EldenNet's banner among
+            # them; no panel, no hotkey, no provider.
+            want_grace(r, 300, found=1, eldennet=1, notice_only=1, banner=text, panels=0, shown=0, providers=0) +
+            (["the DLL registered beside anti-cheat"] if r.events("ELDENNET", "register") else []) +
+            en_log_is_clean(r))
+
+
+case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
+          "--grace-probe", VIEW_PROBE, frames=960),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui),
+     check=check_graceui_main,
+     what="GraceUI installed in the game's folder and loaded after EldenNet, by EldenNet's own look: the launcher's "
+          "pre-flight, the connect on T1, the F11 view on Dear ImGui's core shown and hidden through GraceUI's hotkey "
+          "and drawn on the game's frame, the world-state provider, and the Mark on GraceUI's hotkey once the "
+          "launcher's console hands its ring over")
+case("launcher-eldennet-graceui-before", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--press-f11-at", "360", "--grace-report", "300,460", "--grace-probe", VIEW_PROBE, frames=540),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, gal_change=unknown_build_for_dll, then=install_graceui),
+     check=check_graceui_before,
+     what="GraceUI loaded before EldenNet (the launcher's --also), found by its name, on the banner path (a build the "
+          "DLL's gal/ does not know): ConnectB, the banner as one notice under EldenNet's key, and F11's view")
+case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "--dll", "{eldennetdll}",
+                                                     "--console"] +
+     game("--d3d12", "--grace-report", "300", frames=420),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=dict(EN_ENV, VEHPROBE_MODE="off"),
+     timeout=200, prepare=install_eldennet(EN_PANEL, copies=(("EasyAntiCheat_EOS.dll", "vehprobe"),),
+                                           then=install_graceui),
+     check=check_graceui_anticheat,
+     what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
+          "connect answers inactive (anti-cheat), and the banner goes through notice alone")
 
 def check_r1(result):
     """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
@@ -1521,6 +1682,10 @@ SETUP_STEPS = (
     ["reg", "add", "HKCU\\Software\\Wine\\WineDbg", "/v", "ShowCrashDialog", "/t", "REG_DWORD", "/d", "0", "/f"],
     ["reg", "add", AEDEBUG, "/v", "Debugger", "/t", "REG_SZ", "/d", "no-jit-debugger-in-tests", "/f"],
     ["reg", "add", AEDEBUG, "/v", "Auto", "/t", "REG_SZ", "/d", "1", "/f"],
+    # Wine's DXGI factory starts wined3d, whose OpenGL renderer hung on Xvfb in GraceUI's harness; with its Vulkan
+    # renderer (Mesa's lavapipe, as Direct3D 12 uses) it did not (GraceUI's BUILD.md). Only the GraceUI cases' fake game
+    # (--d3d12) makes a DXGI factory.
+    ["reg", "add", "HKCU\\Software\\Wine\\Direct3D", "/v", "renderer", "/t", "REG_SZ", "/d", "vulkan", "/f"],
 )
 
 

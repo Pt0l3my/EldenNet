@@ -61,11 +61,32 @@ struct Options {
   std::int32_t selftest_group = -1;  // -1: the stand-in group
   std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
   std::uint64_t press_pause_every = 0;  // and again every this many frames after it; 0 once
+  // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that
+  // GraceUI's overlay binds it and draws; --press-f11-at presses F11 at each frame listed, the window in front and
+  // holding the focus (GraceUI's hotkey, D155); --grace-report reads graceui.dll's test exports at each frame listed
+  // and, with --d3d12, counts the pixels of --grace-probe's colour in its rectangle on the frame just presented.
+  bool d3d12 = false;
+  std::vector<std::uint64_t> press_f11_at;
+  std::vector<std::uint64_t> grace_report_at;
+  bool grace_probe = false;
+  std::uint32_t grace_probe_rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
+  std::uint32_t grace_probe_colour[3] = {0, 0, 0};
   std::wstring status_file;
   std::uint32_t exit_code = 0;
   bool describe = false;
   bool verbose = false;
 };
+
+// --- GraceUI in the fake game (present.cpp) ------------------------------------------------------------------------------
+// The Direct3D 12 device, queue and flip-model swap chain on the window, d3d12.dll and dxgi.dll loaded by name only
+// with --d3d12; false (with a status line) if they cannot be made.
+bool present_start(HWND window);
+// One frame: the back buffer cleared to the fake game's colour, then presented.
+void present_frame();
+// F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
+void press_key_into(HWND window, unsigned vk, unsigned scan);
+// What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.
+void grace_report(std::uint64_t frame);
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);
