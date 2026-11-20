@@ -12,6 +12,7 @@
 #include "en/launcher/appid.hpp"
 #include "en/launcher/backup.hpp"
 #include "en/launcher/exe.hpp"
+#include "en/launcher/graceui.hpp"
 #include "en/launcher/steam.hpp"
 #include "en/gal/derive.hpp"
 #include "en/gal/probe_report.hpp"
@@ -452,6 +453,18 @@ int do_start(Ctx& c) {
       proxy_list.empty() ? "none" : proxy_list.c_str());
   if (const auto e = preflight_failure(facts, !c.o.no_steam_check, inject_dll)) return fail(*e);
   if (!proxies.empty()) tell("Other mods detected", "Other mods detected: " + proxy_list + ".");
+  // GraceUI (ARCH §4.3; GraceUI D83, D88): Game\GraceUI\graceui.toml readable, every listed file matching its size and
+  // SHA-256, the ABI major EldenNet speaks and a version at least its floor. What fails is told in E12, and the game
+  // starts all the same: EldenNet runs headless until GraceUI is installed again. A development run (R1's --probe, a
+  // spike) is headless by design (O90), so it only logs the check.
+  if (inject_dll) {
+    const GraceReport gr = check_graceui(exe->parent_path() / L"GraceUI");
+    say("preflight graceui=%s version=%u.%u.%u abi=%u.%u files=%zu checked=%zu", to_string(gr.result), gr.version[0],
+        gr.version[1], gr.version[2], gr.abi_major, gr.abi_minor, gr.files, gr.checked);
+    if (gr.result != GraceCheck::Ok && !c.o.probe && c.o.spike == proto::watch::Spike::None) {
+      tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
+    }
+  }
   for (const auto& a : c.o.also) {
     std::error_code ec;
     if (!fs::is_regular_file(path_from_utf8(a), ec)) {

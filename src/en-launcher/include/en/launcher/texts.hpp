@@ -1,5 +1,5 @@
 #pragma once
-// What the launcher says to the player (ARCH §4.7, §4.8): the errors E01 to E11 in their original wording, the
+// What the launcher says to the player (ARCH §4.7, §4.8): the errors E01 to E12 in their original wording, the
 // first-screen notices, and the explanation of a crash recorded in the last session (O71). Each error has an exit
 // code of its own, 10 + its number, for scripts and the tests.
 #include <cstdint>
@@ -12,7 +12,8 @@
 
 namespace en::launcher {
 
-enum class ErrorCode : std::uint8_t { E01 = 1, E02, E03, E04, E05, E06, E07, E08, E09, E10, E11 };
+// E12 (part 12): GraceUI's pre-flight (ARCH §4.3), told in E08's manner, and the game starts all the same.
+enum class ErrorCode : std::uint8_t { E01 = 1, E02, E03, E04, E05, E06, E07, E08, E09, E10, E11, E12 };
 
 [[nodiscard]] constexpr int exit_code(ErrorCode e) noexcept { return 10 + static_cast<int>(e); }
 [[nodiscard]] std::string error_id(ErrorCode e);  // "E01"

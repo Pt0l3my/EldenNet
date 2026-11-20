@@ -40,6 +40,10 @@ std::string error_text(ErrorCode e, std::string_view s, std::uint32_t code) {
              "Start the game without EldenNet instead?";
     case ErrorCode::E11:
       return "This launcher must run inside the game's Proton prefix. See the Proton notes in the install guide.";
+    case ErrorCode::E12:
+      return "GraceUI, which shows EldenNet in the game, is missing or damaged: " + str +
+             ". The game starts, and EldenNet runs with nothing shown in the game. Copy the GraceUI folder from "
+             "EldenNet's download into the game's folder again (see the install guide).";
   }
   return {};
 }

@@ -81,7 +81,23 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   if (plan.console) {
     hotkey = RegisterHotKey(nullptr, kMarkHotkey, MOD_NOREPEAT, VK_PAUSE) != 0;
     say("mark hotkey=pause registered=%d", hotkey ? 1 : 0);
+    if (hotkey) {
+      w::launcher_holds(b.marks);
+      if (w::mark_source(b.marks) != w::MarkSource::Launcher) {
+        // EldenNet's own Mark took the ring first (GraceUI's hotkey on Pause): the key is its.
+        UnregisterHotKey(nullptr, kMarkHotkey);
+        hotkey = false;
+        say("mark hotkey=pause released=1 source=%s", w::to_string(w::mark_source(b.marks)));
+      }
+    }
   }
+  std::uint32_t marks_seen = b.marks.count.load(std::memory_order_acquire);
+  const auto own_mark = [&](std::uint64_t at) {
+    const std::uint32_t n = w::add_mark(b.marks, at);
+    marks_seen = n;
+    r.record.marks.push_back(at);
+    say("mark n=%u mono_ms=%llu", n, static_cast<unsigned long long>(at));
+  };
   const std::uint64_t t0 = mono_ms();
   std::uint64_t modules_at = 0;
   std::uint64_t last_print = 0;
@@ -135,10 +151,28 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     }
     MSG msg;
     while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
-      if (msg.message == WM_HOTKEY && msg.wParam == kMarkHotkey) {
-        const std::uint32_t n = w::add_mark(b.marks, now);
-        r.record.marks.push_back(now);
-        say("mark n=%u mono_ms=%llu", n, static_cast<unsigned long long>(now));
+      if (msg.message == WM_HOTKEY && msg.wParam == kMarkHotkey && hotkey) own_mark(now);
+    }
+    // EldenNet's own Mark, GraceUI's hotkey on Pause (part 12), asks for the ring: the key goes, the presses already
+    // queued are the launcher's last, and the ring is handed over (watch.hpp's MarkSource). From then on EldenNet alone
+    // stamps Marks, and the session's record takes them from the ring.
+    if (w::mark_source(b.marks) == w::MarkSource::Asked) {
+      if (hotkey) {
+        UnregisterHotKey(nullptr, kMarkHotkey);
+        hotkey = false;
+        while (PeekMessageW(&msg, nullptr, WM_HOTKEY, WM_HOTKEY, PM_REMOVE)) {
+          if (msg.wParam == kMarkHotkey) own_mark(now);
+        }
+      }
+      w::launcher_hands_over(b.marks);
+      say("mark hotkey=pause released=1 source=%s", w::to_string(w::mark_source(b.marks)));
+    }
+    if (w::mark_source(b.marks) == w::MarkSource::EldenNet) {
+      for (const std::uint32_t n = b.marks.count.load(std::memory_order_acquire); marks_seen < n;) {
+        ++marks_seen;
+        const std::uint64_t at = b.marks.mono_ms[(marks_seen - 1) % w::kMarkRing].load(std::memory_order_relaxed);
+        r.record.marks.push_back(at);
+        say("mark n=%u mono_ms=%llu source=eldennet", marks_seen, static_cast<unsigned long long>(at));
       }
     }
     if (!window_seen && main_window(pid) != nullptr) {

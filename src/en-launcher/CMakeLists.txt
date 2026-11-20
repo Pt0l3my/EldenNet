@@ -1,14 +1,16 @@
 # en-launcher: eldennet-launcher.exe, our own launcher and crash watcher (ARCH §4, O5, O71; the first in-game build,
 # part 7). Two parts:
 # - en_launcher_core, portable and tested on Linux: Steam's KeyValues and the game's discovery, the save backups with
-#   their BLAKE3 manifests, the appid file and the launcher's state, launcher.toml, the command line, the texts, the
-#   watcher's records and the S0 spikes' tally.
+#   their BLAKE3 manifests, GraceUI's pre-flight (graceui.toml, with our own SHA-256), the appid file and the
+#   launcher's state, launcher.toml, the command line, the texts, the watcher's records and the S0 spikes' tally.
 # - eldennet-launcher (Windows builds): processes, injection, the watch block, the dev console and the Mark (src/win/).
 # It depends on en-gal's offline part only (the PE reader, builds.toml's gate and R1's report vocabularies; ARCH §2.3),
 # and through it on en-proto, whose watch block it shares with EldenNet in the game: never on en-core, en_shell or any
 # other module of ours, which the link rules below refuse when the build is configured.
 set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/blake3.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/sha256.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/graceui.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/vdf.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/steam.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/backup.cpp
