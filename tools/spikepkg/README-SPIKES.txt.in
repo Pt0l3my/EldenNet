@@ -8,8 +8,8 @@ small observer of GraceUI's writes a report of numbers, which you send back to u
 game in any of these runs: it starts, shows its banner and goes no further. Nothing in this package is for playing with
 yet.
 
-Built from EldenNet's engine branch at commit @COMMIT@ and from GraceUI @GRACE_VERSION@ at commit @GRACE_COMMIT@ (its
-test build), with clang-cl (Release). Never shared: a test build for you alone, labelled @LABEL@.
+Built from EldenNet at commit @COMMIT@ and from GraceUI @GRACE_VERSION@ at commit @GRACE_COMMIT@ (its test build),
+with clang-cl (Release). Never shared: a test build for you alone, labelled @LABEL@.
 
 
 How long it takes
