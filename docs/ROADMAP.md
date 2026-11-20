@@ -964,11 +964,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
   - refs: G1
-- e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [active]
+- e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108
-- f The bridge protocol: one schema, generated C++ and TypeScript types with a drift check, grace-protocol's round trips, golden frames and a frame fuzzer
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
+    contrast, type-minimum and no-loop checks, web/src/tokens.css and the grace-tokens header; 0.1's notices draw from
+    the header, and the 106 harness checks still pass (D157 on GraceUI's working branch; WHY§212).
+- f The bridge protocol: one schema, generated C++ and TypeScript types with a drift check, grace-protocol's round trips, golden frames and a frame fuzzer [active]
   - refs: GraceUI:DESIGN§6, GraceUI:D108, GraceUI:D55
-- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed
+- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed [active]
   - refs: GraceUI:DESIGN§7.2, GraceUI:DESIGN§7.6, G30
 - h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint
   - needs: f

@@ -234,6 +234,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 209 | 2026-11-17 | R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored | FACT | #gal #r1 #task #crash |
 | 210 | 2026-11-20 | Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it | FACT | #wine #ci #graceui |
 | 211 | 2026-11-20 | The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering | DECIDED | #layering #launcher #build |
+| 212 | 2026-11-20 | GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio | METHOD | #graceui #tokens #contrast |
 
 ## Entries
 
@@ -3806,3 +3807,12 @@ invariant 10, EldenNet ARCH (T3)
 - **The guard** (DECIDED): `cmake/link_rules.cmake` checks every module's links at configure time, following links
   through other libraries, and stops with the chain that breaks a rule; `tests/linkrules` holds one clean case and five
   that must be refused (through another library, a deep chain, a link-only dependency, a condition, an alias).
+
+### 212. GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio
+
+`2026-11-20` · METHOD · `#graceui` `#tokens` `#contrast` · refs: GraceUI:D157, GraceUI:DESIGN§3.3, GraceUI feat/foundations 2ae00d0
+
+- (METHOD, the Grace session) DESIGN §3.3's contrast table rounds each ratio twice, to 0.01 and then to 0.1, so eight
+  cells sit 0.1 above the ratio rounded once (11.3479 is written 11.4). The tokens reproduce the table within 0.06,
+  which `tools/tokens/test_build.py` checks; the thresholds (invariant 13's 4.5:1 and the others) are checked on the
+  unrounded ratio (D157).
