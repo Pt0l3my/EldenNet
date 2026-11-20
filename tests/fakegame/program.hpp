@@ -65,7 +65,11 @@ struct Options {
   // GraceUI's overlay binds it and draws; --press-f11-at presses F11 at each frame listed, the window in front and
   // holding the focus (GraceUI's hotkey, D155); --grace-report reads graceui.dll's test exports at each frame listed
   // and, with --d3d12, counts the pixels of --grace-probe's colour in its rectangle on the frame just presented.
+  // --grace-take-pause stands in for another mod: at boot, before the window, the fake game finds the GraceUI already
+  // loaded (the launcher's --also) through graceui-sys, connects and registers Pause as a hotkey of its own, so that
+  // EldenNet's Mark, asked for later, registers unbound (GraceUI D164).
   bool d3d12 = false;
+  bool grace_take_pause = false;
   std::vector<std::uint64_t> press_f11_at;
   std::vector<std::uint64_t> grace_report_at;
   bool grace_probe = false;
@@ -87,6 +91,8 @@ void present_frame();
 void press_key_into(HWND window, unsigned vk, unsigned scan);
 // What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.
 void grace_report(std::uint64_t frame);
+// --grace-take-pause: another mod's connection to GraceUI and its hotkey on Pause, with one status line.
+void grace_take_pause();
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);

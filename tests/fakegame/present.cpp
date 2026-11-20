@@ -1,8 +1,9 @@
 // The fake game's GraceUI parts (program.hpp; part 12): a Direct3D 12 swap chain it presents every frame, so that
 // GraceUI's overlay binds it and draws on it, as a game's would be; F11 pressed into its window; and a report of what a
 // test build of GraceUI says through its test exports (graceui_test.h), with a count of one colour's pixels in a
-// rectangle of the frame just presented, read back after GraceUI drew on it. Our own code, written for this fixture;
-// nothing in it is a game's or GraceUI's.
+// rectangle of the frame just presented, read back after GraceUI drew on it; and, standing in for another mod, a
+// connection of its own with a hotkey on Pause. Our own code, written for this fixture; nothing in it is a game's or
+// GraceUI's.
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
@@ -10,6 +11,7 @@
 #include <cstring>
 #include <string>
 
+#include "graceui_sys.hpp"
 #include "graceui_test.h"
 #include "program.hpp"
 
@@ -272,6 +274,27 @@ void press_key_into(HWND window, unsigned vk, unsigned scan) {
   }
   const UINT up = SendInput(1, &in[1], sizeof(INPUT));
   status("pressed key=0x%02X sent=%u focus=%d", vk, down + up, GetFocus() == window ? 1 : 0);
+}
+
+void grace_take_pause() {
+  // Only the GraceUI already loaded (the launcher's --also, into the suspended process): loading it here, on the main
+  // thread before the window, loads Direct3D's DLLs, which graceui.dll imports, and under Wine 9 that load hung when
+  // eldennet.dll's threads were running (dxgi.dll's own load hung the same way).
+  GraceUiSysFound found{};
+  found.size = sizeof found;
+  const graceui::Api api(graceui_sys_find_once(0, &found));
+  if (!api) {
+    status("grace_other found=0 installed=%u", found.installed);
+    return;
+  }
+  GraceUiConnectAnswer answer{};
+  const GraceUiStatus connected = api.connect(
+      graceui::Mod{"fakegame-other", "Another mod", GRACEUI_VERSION_PACK(1, 0, 0), 0, "hotkeys"}, answer);
+  std::uint32_t id = 0;
+  const GraceUiStatus hotkey = connected == GRACEUI_OK
+                                   ? api.register_hotkey(answer.consumer, "pause", "Pause", VK_PAUSE, 0, id)
+                                   : GRACEUI_NOT_CONNECTED;
+  status("grace_other found=1 connect=%u hotkey=%u id=%u", connected, hotkey, id);
 }
 
 void grace_report(std::uint64_t frame) {

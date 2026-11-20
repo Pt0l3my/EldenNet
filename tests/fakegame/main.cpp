@@ -289,6 +289,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
     else if (n == L"--d3d12") o.d3d12 = true;
+    else if (n == L"--grace-take-pause") o.grace_take_pause = true;
     else if (n == L"--press-f11-at") ok = p.numbers(o.press_f11_at);
     else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
     else if (n == L"--grace-probe") {
@@ -392,6 +393,7 @@ void print_usage() {
       "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --press-pause-every N",
       "  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b",
+      "  --grace-take-pause",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -401,6 +403,7 @@ int run(HINSTANCE instance) {
   timeBeginPeriod(1);
   status("boot pid=%lu toolchain=%s product=fakegame version=3.14.15.0", GetCurrentProcessId(), kToolchain);
   load_dlls(LoadMoment::Boot);
+  if (o.grace_take_pause) grace_take_pause();
   if (o.selftest_task) selftest_start(g_game_thread);
   if (o.game_filter) install_game_filter();
   if (o.boot_delay_ms != 0) Sleep(o.boot_delay_ms);

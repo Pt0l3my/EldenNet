@@ -75,16 +75,19 @@ if(TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
   endif()
 endif()
 
-# GraceUI with EldenNet (part 12): a test build of GraceUI (its graceui.dll with GRACEUI_TEST_EXPORTS, and its fonts\
-# beside it), built from GraceUI's own repository as its BUILD.md says, which a case installs in the fake game's GraceUI
-# folder with a graceui.toml of its files; the fake game presents on Direct3D 12 and reads GraceUI's test exports.
-set(EN_GRACEUI_DIR "" CACHE PATH "The bin folder of a GraceUI test build (graceui.dll with its test exports, fonts\\)")
-if(EN_GRACEUI_DIR AND EXISTS ${EN_GRACEUI_DIR}/graceui.dll AND TARGET eldennet AND TARGET eldennet-launcher
-   AND TARGET eldennet-engine)
+# GraceUI with EldenNet (part 12): the GraceUI folder of a test build of GraceUI (GRACEUI_TEST_EXPORTS), built from
+# GraceUI's own repository as its BUILD.md says, which lays it out beside bin/ (graceui.dll, LICENSE.txt, NOTICE.txt
+# and the graceui.toml listing them; GraceUI D165). A case installs that folder as it is in the fake game's folder;
+# the fake game presents on Direct3D 12 and reads GraceUI's test exports.
+set(EN_GRACEUI_DIR "" CACHE PATH "The GraceUI folder of a GraceUI test build (graceui.dll with its test exports and \
+graceui.toml)")
+if(EN_GRACEUI_DIR AND EXISTS ${EN_GRACEUI_DIR}/graceui.dll AND EXISTS ${EN_GRACEUI_DIR}/graceui.toml
+   AND TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
   list(APPEND _en_have graceui)
   list(APPEND _en_set --set graceui=${EN_GRACEUI_DIR}/graceui.dll)
 elseif(EN_GRACEUI_DIR)
-  message(STATUS "The GraceUI cases are left out: EN_GRACEUI_DIR holds no graceui.dll, or the DLL is not built")
+  message(STATUS "The GraceUI cases are left out: EN_GRACEUI_DIR holds no graceui.dll and graceui.toml (GraceUI's "
+                 "GraceUI folder, beside its bin), or the DLL is not built")
 endif()
 
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)

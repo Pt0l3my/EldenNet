@@ -36,6 +36,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--d3d12`: a Direct3D 12 device, queue and flip-model swap chain (960 by 540) on the window, cleared and presented every frame; `d3d12.dll` and `dxgi.dll` loaded by name with this option alone | A game's swap chain, which GraceUI's overlay binds and draws on (part 12) |
 | `--press-f11-at F,F…`: F11 pressed and released into the window at each frame listed, the cursor in it and the window in front and holding the focus (as GraceUI's harness found Wine needs); with `--d3d12`, `--press-pause-at` presses Pause the same way | The player pressing GraceUI's hotkeys: F11 for EldenNet's debug view, Pause for its Mark |
 | `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b`: at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; and, with `--d3d12`, the pixels within 3 of the colour in the rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
+| `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -123,19 +124,26 @@ stepped again on its inputs answering the DLL's own changes), and `spike-report 
 (three early runs passing their rules, each with its load mode, the late load not run).
 
 GraceUI joined it with part 12 (`launcher-eldennet-graceui*`, clang-cl, with a test build of GraceUI, GraceUI's own
-`GRACEUI_TEST_EXPORTS` build, named by CMake's `EN_GRACEUI_DIR`; without it the cases are left out). Each installs
-GraceUI as its release lays itself out, `game/GraceUI/` with `graceui.dll`, its `fonts/` and a `graceui.toml` of each
-file's size and SHA-256, and runs the fake game with `--d3d12`, under Wine with Mesa's lavapipe (the prefix's set-up
-gives wined3d its Vulkan renderer, as GraceUI's BUILD.md does). `launcher-eldennet-graceui`: GraceUI loaded after
-EldenNet, by EldenNet's own look, on the main path: the launcher's pre-flight passes; EldenNet connects (the view
-ready, the Mark's hotkey registered, a world-state provider); F11 shows the view, whose ground the fake game reads back
-over most of its rectangle, and F11 again hides it; and the launcher's console hands its Pause over, so the Pause
-pressed into the window is a Mark of EldenNet's own, which the launcher's record takes from the ring.
-`launcher-eldennet-graceui-before`: GraceUI loaded before EldenNet (the launcher's `--also`), found by its name, on the
-banner path of a build the DLL's gal/ does not know: the banner as one notice under EldenNet's key, in the warning tone
-with the build's number, and F11's view there too. `launcher-eldennet-graceui-anticheat`: the simulated anti-cheat
-module beside GraceUI: GraceUI's own check puts it in the notice-only mode, and EldenNet's banner is a notice with
-nothing else (no panel, no provider).
+`GRACEUI_TEST_EXPORTS` build, whose `GraceUI` folder CMake's `EN_GRACEUI_DIR` names; without it the cases are left out).
+Each installs that folder as it is, as GraceUI's build lays it out beside its `bin` (GraceUI D165): `game/GraceUI/` with
+`graceui.dll`, `LICENSE.txt`, `NOTICE.txt` and the `graceui.toml` GraceUI's `tools/release/manifest.py` wrote of each
+file's size and SHA-256, so the launcher's pre-flight checks GraceUI's own version file, and runs the fake game with
+`--d3d12`, under Wine with Mesa's lavapipe (the prefix's set-up gives wined3d its Vulkan renderer, as GraceUI's BUILD.md
+does). `launcher-eldennet-graceui`: GraceUI loaded after EldenNet, by EldenNet's own look, on the main path: the
+launcher's pre-flight passes; EldenNet connects (the view ready, the Mark's hotkey registered, a world-state provider);
+F11 shows the view, whose ground the fake game reads back over most of its rectangle, and F11 again hides it; and the
+launcher's console hands its Pause over, so the Pause pressed into the window is a Mark of EldenNet's own, which the
+launcher's record takes from the ring. `launcher-eldennet-graceui-before`: GraceUI loaded before EldenNet (the
+launcher's `--also`), found by its name, on the banner path of a build the DLL's gal/ does not know: the banner as one
+notice under EldenNet's key, in the warning tone with the build's number, and F11's view there too.
+`launcher-eldennet-graceui-unbound`: GraceUI loaded before EldenNet, and the fake game, as another mod would, connected
+to it at boot with Pause as its own hotkey (`--grace-take-pause`): EldenNet's Mark registers unbound (`mark=1
+mark_bound=0`, GraceUI D164), EldenNet never asks for the ring (`marks source=launcher bound=0`), the launcher keeps its
+Pause, and the Pause pressed is the launcher's own Mark (`mark n=1` with no source), which EldenNet's recorder reads
+from the ring. (Loading GraceUI from the fake game's main thread at boot instead hung under Wine 9 in the load of
+`dxgi.dll`, which `graceui.dll` imports, while eldennet.dll's threads ran; the launcher's `--also` loads it into the
+suspended process.) `launcher-eldennet-graceui-anticheat`: the simulated anti-cheat module beside GraceUI: GraceUI's own
+check puts it in the notice-only mode, and EldenNet's banner is a notice with nothing else (no panel, no provider).
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our
