@@ -149,7 +149,7 @@ TEST_CASE("backpressure: 50% snapshot loss at random gives the dense run's event
       }
       auto sparse = run_core(sim->steps);
       REQUIRE(sparse);
-      const augur::HandleNamer namer = [&](augur::ChrHandle h) { return names.names[h.raw]; };
+      const augur::HandleNamer namer = [&](augur::ChrHandle h) { return name_of(names.names, h.raw); };
       const auto key_of = [&](const augur::Event& e) {
         const auto j = augur::event_json(e, namer);
         return j["kind"].dump() + j["subject"].dump() + j["object"].dump() + j["key"].dump();

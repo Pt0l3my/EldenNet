@@ -455,13 +455,29 @@ proto::ReadHealth healthy() {
 
 }  // namespace
 
+void set_name(Names& names, std::uint64_t handle, const std::string& name) {
+  const auto it = std::lower_bound(names.begin(), names.end(), handle,
+                                   [](const auto& e, std::uint64_t h) { return e.first < h; });
+  if (it != names.end() && it->first == handle) {
+    it->second = name;
+  } else {
+    names.insert(it, {handle, name});
+  }
+}
+
+std::string name_of(const Names& names, std::uint64_t handle) {
+  const auto it = std::lower_bound(names.begin(), names.end(), handle,
+                                   [](const auto& e, std::uint64_t h) { return e.first < h; });
+  return it != names.end() && it->first == handle ? it->second : std::string("unnamed");
+}
+
 proto::Expected<Simulated, ScnError> simulate(const Scenario& sc, unsigned drop_percent, std::uint64_t drop_seed) {
   Simulated out;
   World w;
   w.player.name = "player";
   w.player.handle = kPlayerHandle;
   w.player.present = true;
-  out.names[kPlayerHandle] = "player";
+  set_name(out.names, kPlayerHandle, "player");
   Rng rng{drop_seed ^ (sc.seed * 0x2545F4914F6CDD1Dull)};
   // The lifecycle messages a session starts with: DataReady, then the playthrough (an invented stand-in for a name).
   proto::Capabilities caps;
@@ -479,7 +495,7 @@ proto::Expected<Simulated, ScnError> simulate(const Scenario& sc, unsigned drop_
     for (; next < sc.actions.size() && sc.actions[next].at <= t; ++next) {
       if (const auto e = apply(w, sc.actions[next], t)) return proto::Unexpected{ScnError{sc.actions[next].line, *e}};
     }
-    for (const Actor& a : w.actors) out.names[a.handle] = a.name;
+    for (const Actor& a : w.actors) set_name(out.names, a.handle, a.name);
     for (Actor* a : [&] {
            std::vector<Actor*> all{&w.player};
            for (Actor& x : w.actors) all.push_back(&x);
@@ -584,11 +600,8 @@ proto::Expected<Simulated, ScnError> simulate(const Scenario& sc, unsigned drop_
 }
 
 std::vector<std::string> check_expects(const Scenario& sc, const std::vector<augur::Event>& events,
-                                       const std::map<std::uint64_t, std::string>& names) {
-  const augur::HandleNamer namer = [&](augur::ChrHandle h) {
-    const auto it = names.find(h.raw);
-    return it != names.end() ? it->second : std::string("unnamed");
-  };
+                                       const Names& names) {
+  const augur::HandleNamer namer = [&](augur::ChrHandle h) { return name_of(names, h.raw); };
   std::vector<nlohmann::ordered_json> js;
   js.reserve(events.size());
   for (const augur::Event& e : events) js.push_back(augur::event_json(e, namer));

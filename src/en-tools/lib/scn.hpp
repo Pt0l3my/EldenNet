@@ -16,9 +16,9 @@
 // boss <name> on|off, talk on|off, ng <n>, session solo|coop, title, load [over=<ms>] [revive], wait,
 // drop_snapshots <n>.
 #include <cstdint>
-#include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "en/augur/events.hpp"
@@ -67,9 +67,15 @@ struct Step {
   core::CoreInput input;
 };
 
+// Handle → the scenario's name for it, in handle order (a vector: it moves without throwing in every standard library,
+// as an Expected's value must).
+using Names = std::vector<std::pair<std::uint64_t, std::string>>;
+void set_name(Names& names, std::uint64_t handle, const std::string& name);
+[[nodiscard]] std::string name_of(const Names& names, std::uint64_t handle);  // "unnamed" for a handle never named
+
 struct Simulated {
   std::vector<Step> steps;
-  std::map<std::uint64_t, std::string> names;  // handle → the scenario's name for it
+  Names names;
 };
 
 // The scenario played: the lifecycle messages at 0, then a snapshot every `step` ms to `end`. `drop_percent` drops
@@ -79,6 +85,6 @@ struct Simulated {
 
 // The expectations against the events, each failure as a line ("scn: line 12: expected ... ").
 [[nodiscard]] std::vector<std::string> check_expects(const Scenario& s, const std::vector<augur::Event>& events,
-                                                     const std::map<std::uint64_t, std::string>& names);
+                                                     const Names& names);
 
 }  // namespace en::tools

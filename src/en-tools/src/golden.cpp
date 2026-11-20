@@ -85,7 +85,7 @@ int run_golden(int argc, char** argv) {
   std::string route;
   std::vector<en::tools::Step> steps;
   std::optional<en::tools::Scenario> scenario;
-  std::map<std::uint64_t, std::string> names;
+  en::tools::Names names;
   if (ends_with(*input, ".scn")) {
     const auto text = en::tools::read_file(*input, 256 * 1024);
     if (!text) {
