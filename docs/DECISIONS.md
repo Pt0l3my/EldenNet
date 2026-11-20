@@ -1655,3 +1655,26 @@ instances' RTTI; the read is the crash-guarded copy under ARCH §6.5's plausibil
 **Owner's words.** "RTTI of instances (Recommended)".
 
 **Follows from.** O89; ARCH §6.2, §6.5; WHY§206, WHY§207.
+
+## O93
+
+**EldenNet's in-game text at GraceUI's larger default size** · *2026-11-20 · Decided by the owner, as recommended*
+
+**Question.** At the owner's request in the look review (S11.2.d), GraceUI's `ui.scale` now defaults to 1.25, not 1.0
+(GraceUI's D177). EldenNet's in-game text follows that one setting: NPC §10.7's `ui_scale = (H / 1080) × ui.scale`.
+So, unchanged, the subtitles, the chat box and the call-out box would be a quarter larger than designed by default.
+Should EldenNet's text grow with the menu's default?
+**Options:** (a) keep EldenNet's sizes as designed at the new default, dividing by 1.25, so that only the menu is larger
+by default while a change of the setting still scales both; (b) let EldenNet's text grow with the menu's default.
+
+**Recommendation.** (a): the owner asked for a larger menu, and EldenNet's sizes (NPC §10's layout table) were chosen
+for the game's own look at 1080p.
+
+**Decision.** (a). EldenNet's sizes are those of NPC's layout table at `ui.scale` equal to GraceUI's default:
+`ui_scale = (H / 1080) × ui.scale / 1.25`, with 1.25 taken as GraceUI's default (the default the connect reports, or
+1.25 when it reports none). GraceUI's other first-run defaults (G6's 1.35 on a Steam Deck) scale EldenNet's text
+with the menu, as any change of the setting does.
+
+**Owner's words.** "Keep text as designed (Recommended)".
+
+**Follows from.** GraceUI's D177, G6; NPC §10.7; S11.2.d.
