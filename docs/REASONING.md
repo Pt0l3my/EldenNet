@@ -252,6 +252,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 227 | 2026-11-20 | R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee | FACT | #gal #r1 #task |
 | 228 | 2026-11-20 | Cinzel publishes static faces only at Regular, Bold and Black, so GraceUI's 500 and 600 weights take Regular and Bold; of the faces, EB Garamond and Noto Sans Mono carry the arrows U+2190 to U+2193 | FACT | #graceui #fonts |
 | 229 | 2026-11-20 | Under Wine on lavapipe a full-screen overlay's frame-cost p99 is the software renderer's: GraceUI's menu holds its 1 ms present-thread budget at 640x360 and is measured at 1920x1080, the game's run settling it | METHOD | #graceui #perf #wine |
+| 230 | 2026-11-20 | en-overlay takes GraceUI's own rules: GRACEUI_UNBOUND is a success with an id, an unbound Mark leaves the launcher's Pause in place, and graceui-sys's STOP_IF_ABSENT replaces our own early stop | DECIDED | #engine #graceui #dll |
+| 231 | 2026-11-20 | graceui-sys at 3f1352b leaves installed at 0 for a GraceUI found by its name; en-overlay reads a find by name as installed until it is fixed | FACT | #graceui #engine |
+| 232 | 2026-11-20 | Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window | FACT | #wine #graceui #ci |
+| 233 | 2026-11-20 | The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted | METHOD | #engine #launcher #graceui |
 
 ## Entries
 
@@ -3881,6 +3885,8 @@ invariant 10, EldenNet ARCH (T3)
   without GraceUI (every harness case without it, and R1's) is not held up 30 s. Both load orders still work: before,
   found by its name; after, loaded from the game's folder by EldenNet itself.
 - Not covered: a copy under another name loaded later from another folder, which GraceUI's packaging rules out.
+- *Later (2026-11-20):* graceui-sys holds this rule now, as `GRACEUI_SYS_STOP_IF_ABSENT` (GraceUI D164); en-overlay
+  passes the flag instead of its own check (WHY§230).
 
 ### 217. The development Mark changes hands through the watch block, on Pause: the launcher lets its key go when EldenNet's GraceUI hotkey is registered
 
@@ -4054,3 +4060,51 @@ invariant 10, EldenNet ARCH (T3)
 - (FACT) GraceUI's menu page at 1920×1080: 2,752 vertices, 6,612 indices and 4 commands, laid out and tessellated in
   0.06 to 0.3 ms on GraceUI's own thread; its atlas 1024×2048, baked in 25 to 41 ms at warm-up; no allocation on the
   present thread.
+
+### 230. en-overlay takes GraceUI's own rules: GRACEUI_UNBOUND is a success with an id, an unbound Mark leaves the launcher's Pause in place, and graceui-sys's STOP_IF_ABSENT replaces our own early stop
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#dll` · refs: GraceUI:D164, GraceUI:D155, GraceUI:D136, WHY§216, WHY§217, engine d953b14
+
+- (DECIDED) `register_hotkey`'s `GRACEUI_UNBOUND` (11) is a success that carries an id. F11 unbound: the view is made
+  all the same, logged at Warn, keeping the id so that a binding on GraceUI's Hotkeys page (0.6) opens it; there is
+  no other way to the view in v0.1. The Mark unbound: registered with its id, and eldennet.dll asks the launcher for
+  Pause only for a bound Mark, so the launcher's Pause stays the Mark; a harness case checks it.
+- (DECIDED) `find` calls `graceui_sys_find(GRACEUI_SYS_LOAD | GRACEUI_SYS_STOP_IF_ABSENT, …)`; en-overlay's own early
+  stop is gone, with the same behaviour.
+- Not followed in v0.1: a binding made after connect (GraceUI 0.1 has no Hotkeys page).
+
+### 231. graceui-sys at 3f1352b leaves installed at 0 for a GraceUI found by its name; en-overlay reads a find by name as installed until it is fixed
+
+`2026-11-20` · FACT · `#graceui` `#engine` · refs: GraceUI:D164, engine 10a3b0d
+
+- (FACT) `graceui_sys_find_once` returns from its by-name branch before it sets `found->installed`, which
+  `graceui_sys_find` zeroed, so a GraceUI loaded before EldenNet (the launcher's `--also`) reports `installed=0`. D164
+  defines `installed` as 1 when a module named `graceui.dll` was loaded. Nothing is decided by it there (the stop rule
+  applies only when nothing answered).
+- (DECIDED) en-overlay reports `installed` as graceui-sys's word or a find by name; the harness's `-before` and
+  `-unbound` cases check `installed=1`. Passed to the Grace session; the workaround goes when graceui-sys sets it.
+
+### 232. Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window
+
+`2026-11-20` · FACT · `#wine` `#graceui` `#ci` · refs: WHY§210, engine 533df70
+
+- (FACT) The fake game, standing in for another mod, loaded `GraceUI\graceui.dll` itself at boot, before its window,
+  with the launcher and eldennet.dll's threads running: 3 runs of 4 hung for ever inside `LoadLibraryW(L"dxgi.dll")`,
+  before any GraceUI code (graceui.dll imports dxgi, d3d12 and D3DCOMPILER_47); alone, 6 runs of 6 passed in under
+  0.1 s.
+- (LIKELY) A lock-order inversion in Wine between the loader lock (dxgi's and wined3d's attach, which bring up the
+  display driver) and the USER side, where EldenNet's T1 polls `EnumWindows` every 100 ms. After the game's first
+  window the driver is up, so later loads never hang. Unknown on Windows (SPECULATION: not expected).
+- (DECIDED) The harness loads GraceUI with the launcher's `--also` into the suspended process; EldenNet itself loads
+  GraceUI only after the window (T1's WaitWindow), so it is not affected. Passed to the Grace session: delay-loading
+  Direct3D's DLLs would spare an early-loading mod.
+
+### 233. The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted
+
+`2026-11-20` · METHOD · `#engine` `#launcher` `#graceui` · refs: GraceUI:D165, GraceUI:D52, ARCH§4.3, engine 4334a8d
+
+- (METHOD) `src/en-launcher/tests/graceui-manifest.toml` is what GraceUI's `tools/release/manifest.py` at 3f1352b wrote
+  for an invented folder of three files of ours, whose bytes the test holds. CMake reads it as hex into a generated
+  `.inc`, so the Windows tests under Wine read the committed bytes with no path. The test checks the folder it lists
+  and accepts `protocol`, `caps` and `released` with other values: the pre-flight reads only the version, the ABI and
+  the files (ARCH §4.3), and never fails on the rest.

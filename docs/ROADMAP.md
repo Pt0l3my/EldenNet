@@ -852,7 +852,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     end under Wine with GraceUI's test build on Direct3D 12 (WHY§215 to §221). Part 11 built the same day (engine
     47fd54a): en-augur v0.1, pure and game-neutral, run in every core step with 25 shipped rule files; the `.scn`
     scenario language, `eldennet-engine golden` and three synthetic routes with golden files; `replay` driving Augur
-    from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226).
+    from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226). Part 12 moved to
+    GraceUI 3f1352b the same day: an unbound hotkey answered as such, the helper's stop-if-absent, GraceUI's own
+    folder and graceui.toml (WHY§230 to §233).
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
