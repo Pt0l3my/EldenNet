@@ -807,6 +807,7 @@ struct HubWorld {
     spec.instance = kHub;
     spec.image_base = kGame;
     spec.image_end = kGame + 0x3000;
+    spec.own_image = AddressRange{kMine, kMine + 0x2000};
     spec.keep = AddressRange{kTask, kTask + kTaskBytes};
     return probe::walk_hub(sys, spec);
   }
@@ -846,7 +847,7 @@ TEST_CASE("probe: the hub's memory before and after the call, compared block by 
   w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x18, HubWorld::kGame + 0x2010);
   w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x20, HubWorld::kFresh);
   const probe::HubWalk after = w.walk();
-  CHECK(after.faults == 2);  // our two slots, in our module's unmapped code
+  CHECK(after.faults == 0);  // our two slots, in our module: not followed
 
   // The hub search over the walk: our task's address where the hub kept it, not followed into.
   const probe::HubSearch h = probe::search_walk(after, HubWorld::kTask, HubWorld::kTask + 0x808, HubWorld::kGroup);
@@ -860,7 +861,7 @@ TEST_CASE("probe: the hub's memory before and after the call, compared block by 
   const probe::DiffResult r = probe::diff_hub(before, after, spec);
   const probe::HubDiff& d = r.diff;
   CHECK(d.before_blocks == 4);
-  CHECK(d.after_blocks == 6);  // and our two slots, which fault
+  CHECK(d.after_blocks == 6);
   CHECK(d.compared == 4);      // the last task's block found again through the table
   CHECK(d.moved == 0);
   CHECK(d.gone == 0);

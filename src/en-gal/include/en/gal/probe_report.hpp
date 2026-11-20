@@ -274,7 +274,7 @@ struct MemorySearch {
 enum class ValueKind : std::uint8_t { Zero, Small, Group, Task, Vtable, Ours, Game, Heap, Other };
 struct WordValue {
   ValueKind kind = ValueKind::Other;
-  std::optional<std::uint64_t> value;   // Small: the value, 1 to 65,536
+  std::optional<std::uint64_t> value;   // Small, Group: the value, 1 to 65,536
   std::optional<std::uint64_t> offset;  // Task, Vtable: how far into ours it points, when not at the start
   SectionKind section = SectionKind::None;  // Game: the section's kind, by its characteristics
   std::optional<std::uint32_t> rva;     // Game, Ours

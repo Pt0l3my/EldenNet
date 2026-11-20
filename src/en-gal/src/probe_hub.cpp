@@ -87,7 +87,8 @@ HubWalk walk_hub(SysLayer& sys, const HubWalkSpec& spec) {
       if (depth >= spec.max_depth) continue;
       for (std::size_t o = 0; o + 8 <= dst.size(); o += 8) {
         const std::uint64_t v = word_at(dst, o);
-        const bool kept_out = v >= spec.keep.begin && v < spec.keep.end;
+        const bool kept_out = (v >= spec.keep.begin && v < spec.keep.end) ||
+                              (v >= spec.own_image.begin && v < spec.own_image.end);
         if (!kept_out && (v & 7) == 0 && v >= kLowestAddress && v < kAddressEnd &&
             (v < spec.image_base || v >= spec.image_end) && seen.insert(v).second) {
           Pending m{v, n.path};
@@ -252,6 +253,7 @@ class Differ {
       x.kind = ValueKind::Zero;
     } else if (v == spec_.group_index) {
       x.kind = ValueKind::Group;
+      if (v <= kSmall) x.value = v;
     } else if (v <= kSmall) {
       x.kind = ValueKind::Small;
       x.value = v;

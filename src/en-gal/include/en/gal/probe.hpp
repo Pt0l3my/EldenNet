@@ -292,7 +292,8 @@ struct HubBlock {
 struct HubWalkSpec {
   std::uint64_t instance = 0;
   std::uint64_t image_base = 0, image_end = 0;  // pointers into the game's image are not followed
-  AddressRange keep{};                          // nor pointers into this range (our task object), which the search counts
+  AddressRange own_image{};                     // nor into our module's
+  AddressRange keep{};                          // nor into this range (our task object), which the search counts
   std::uint32_t max_depth = 3;
   std::uint64_t max_blocks = 6000;
   std::uint64_t max_bytes = 6u << 20;
@@ -306,7 +307,7 @@ struct HubWalk {
   bool capped = false;           // the cap of blocks or bytes stopped it
 };
 // Spike.5's walk (WHY§209), its blocks kept: breadth first from the hub's instance (a page, then 1 KiB per block, never
-// across a page), every 8-aligned word in user space outside the image and `keep` followed, to `max_depth` pointers,
+// across a page), every 8-aligned word in user space outside both images and `keep` followed, to `max_depth` pointers,
 // within the caps; every read a guarded copy under the reader's plausibility rules. Run on T1.
 [[nodiscard]] HubWalk walk_hub(SysLayer& sys, const HubWalkSpec& spec);
 // The walk's words equal to `target` and pointing into [target, end), as the hub search reports them (spike.5).
