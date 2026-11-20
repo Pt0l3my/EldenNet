@@ -69,6 +69,18 @@ threads (GraceUI D71, D81). The game's own threads enter EldenNet's code only th
 `on_present` callback on T3, and WinHTTP's own threads only through en-llm's status callback, which queues what
 completed for the exchange's driver (WHY§102). Each of those entries is `noexcept` and starts with `ffi_guard` (R3).
 
+**GraceUI's calls, as built** (the first in-game build's part 12, 2026-11-20; WHY§216 to §218, §230). T1 alone looks
+for GraceUI and connects (§1.4, §3.2), and makes, with `debug.panel`, the F11 view's context, atlas, panel and hotkey,
+and the Mark's hotkey when it is asked for then. Once T1 has published the connection, T6 alone calls GraceUI, after
+each wake (at most every 100 ms): the banner and the pause badge as notices (`notice`), the world-state claims when
+they change (`set_world_state`), `poll` until nothing waits (each hotkey event names its presses since the last: an
+odd count of F11's toggles the view, and each of the Mark's is stamped), the view's frame while it is open (built on Dear ImGui's core, then `submit`;
+`show_panel` after the first list, `hide_panel` to close), and `register_mark` when the launcher's console asks for
+the Mark later. `poll` answering not connected or inactive ends it: nothing more is called. v0.1 registers no
+`on_present` callback, so none of EldenNet's code runs on T3; GraceUI draws on T3 the lists T6 submitted. The chat
+box's typing (GraceUI 0.2.1's holder events, D176, ABI 1.1) and the display's scale (0.2.2's display event, D180, ABI
+1.2; O93) will reach EldenNet through the same `poll` on T6 (WHY§241, §245, §252).
+
 ### 1.3 Channels
 
 ```mermaid
@@ -156,14 +168,41 @@ sequenceDiagram
 ```
 
 - The core is up before the overlay, so the overlay always has a `UiModel` to draw, the banner included.
-- **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.2). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
+- **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.3). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
 - Store and net threads start only on the path that can reach L2. An L1 session never opens a database or a socket; the dashboard's socket is GraceUI's (GraceUI D81).
 - `register_task` is called from T1, a non-main thread, as the game's contract requires (ER01 §3.1).
 - **As built** (the first in-game build, 2026-11-16; WHY§191): the mutex is taken at Pin, discovery runs before the
   readiness wait and finds the readiness items with the rest (no separate scan), and the crash filter goes in only
   once the game has started (§3.2). The first build is headless: Connect is logged as skipped (`overlay.connect` stays
   off), and the banner reaches the core and the watch block but is not drawn until GraceUI's part lands (roadmap
-  S10.4.d).
+  S10.4.d). *2026-11-20:* that last sentence is superseded by part 12 (the next item): `overlay.connect` is on by
+  default, and the banner is drawn as a GraceUI notice.
+- **The connect, as built** (part 12, 2026-11-20, on GraceUI's ABI 1 preview; WHY§215, §216, §221, §230 to §232).
+  - **The look** is graceui-sys's own, `graceui_sys_find(GRACEUI_SYS_LOAD | GRACEUI_SYS_STOP_IF_ABSENT)` (GraceUI
+    D164): a module named `graceui.dll`, an export scan, then `GraceUI\graceui.dll` in the game's folder, which
+    EldenNet loads, again every 250 ms for at most 30 s; but when nothing answers, no copy is installed there and none
+    is loaded, nothing can answer later, and the look ends at once, so a start without GraceUI is not held up 30 s.
+    Both load orders work: GraceUI loaded before EldenNet is found by its name, and one installed but not yet loaded
+    is loaded by EldenNet. graceui-sys at 3f1352b leaves `installed` at 0 for a GraceUI found by its name, so
+    en-overlay reports a find by name as installed until it re-vendors from GraceUI c781a85 (WHY§231). EldenNet loads
+    GraceUI only after WaitWindow: under Wine 9 a load before the game's first window could hang in `dxgi.dll`'s load
+    (WHY§232; GraceUI c781a85 imports no Direct3D DLL since).
+  - **`connect`** as `eldennet` (its id and its space's), with its version, its floor (GraceUI 0.1.0, in en-proto's
+    `graceui_pin.hpp` beside the GraceUI commit graceui-sys is vendored from) and the caps it uses: `notices world-state
+    hotkeys`, with `panels textures` for the view. `ok` connects; `inactive` for the anti-cheat with a handle is the
+    notice-only mode (the banner through `notice` alone, D88); `too_old`, `duplicate_id`, `inactive` otherwise,
+    `refused`, `not_yet` and no GraceUI leave EldenNet headless, with one log line (`connect ok=… outcome=… how=…
+    looks=… installed=… graceui=… view=… mark=… mark_bound=… world=…`), and the start goes on. Then the F11 view, with
+    `debug.panel` only (WHY§218), and the Mark's hotkey when asked for (§4.14). No face is registered yet: the view
+    draws with Dear ImGui's own bitmap font, whose atlas is registered as a texture before any submit.
+  - `overlay.connect = false` skips it (`connect skipped=1 why=off`). In a run of GraceUI's observer (`--spike s0e` or
+    `s4`) the connect runs as usual, and T1 stops at Register (§3.2; WHY§249).
+  - **A notice may go unseen.** The player may quiet EldenNet's notices on GraceUI's Installed mods page (GraceUI G32,
+    D181); a quiet mod's notice is still answered `ok` and kept on that page, not drawn over the game (WHY§260). So
+    EldenNet never relies on a notice being seen: the banner's reason is also in the log and the watch block's status,
+    and, once they exist, in EldenNet's own pages.
+  - The chat box and O93's scaled text raise the floor when they land: a holder's events need GraceUI 0.2.1 (D176) and
+    the display at connect 0.2.2 (D180), and graceui-sys is re-vendored from 0.2.1 or later first (WHY§245, §252).
 
 ### 1.5 Shutdown
 
@@ -245,7 +284,7 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 | `en-store` | SQLite files, migrations, the request loop, backups | `StoreHandle Store::spawn(StoreCfg)`, `Expected<void, Full> StoreHandle::send(DbRequest)`, `BoundedQueue<DbResult>& StoreHandle::results()` |
 | `en-llm` (built, O84) | The OpenAI-compatible client and its transports (libcurl, WinHTTP), SSE parser, slots, health, budgets, decision calls (§11.8), local probes, warm-up, and the asynchronous handle the core drives (WHY§101) | `Service(Config, std::shared_ptr<TransportFactory>, ServiceOptions)`, `SubmitResult Service::submit(LlmRequest)`, and its `cancel(RequestId)`, `cancel_before_epoch(Epoch)`, `poll`, `drain`, `wait`, `set_notify`, `set_gate_open`, `warm_up(slot)`, `reload(Config)` and `shutdown`; the blocking `Client::chat` and `Client::decide` beneath it; `probe_local` (its `LocalEndpoint`s) and `list_models` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `Expected<BuildProfile, GateError> gate(const ImageView&, const Builds&)`, `Expected<Discovery, DiscoveryReport> discover(const SysLayer&, const BuildProfile&)`, `Expected<TaskToken, GalError> install_task(Discovery, TaskWiring)`, `class ErBackend : public GameBackend`, the interface `SysLayer` (§6.4) |
-| `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()` |
+| `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel. Built (the first in-game build's part 12, 2026-11-20, on GraceUI's ABI 1 preview; WHY§215 to §221, §230, §231): through `graceui-sys` alone, its headers vendored unmodified from GraceUI 3f1352b, each checked by SHA-256 at configure time (`graceui_test.h`, the harness's, from 2131839, WHY§256), and Dear ImGui's core fetched at GraceUI's pin, in the Windows builds only, compiled as GraceUI's `gu_imgui_core` is; the banner (key 1) and the pause badge (key 2) as notices, replaced in place and withdrawn by an empty text; the world-state claims, danger and a game menu as v0.1's stand-ins (the player dead, a boss bar or a lock-on, in a world; the HUD's pop-up menu state) until NPC §5.4's `safe_context` and §5.8's menu read; F11's view (`debug.panel` only, SP8: its ribbon first, then EldenNet's status in our own words and numbers, no game text; it takes no input in GraceUI 0.1, D142), a panel of 680 × 420 at (24, 24), shown only after its first list; and the Mark's hotkey (§4.14). A hotkey another mod took first is registered unbound (`GRACEUI_UNBOUND`, a success with an id): F11's view is made all the same, and an unbound Mark leaves the launcher's Pause the Mark. Two parts: the view's lines and the claims are pure, in every build; the connection is the Windows builds', tested under Wine against a fake GraceUI of our own and end to end with GraceUI's test build. Not yet: faces, panels for the surfaces, `on_present`, input | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()`. Built: `find()` (T1), `Overlay* Overlay::connect(const graceui::Api&, const Options&, Report&)` (T1), then on T6 `banner(text)`, `badge(text)`, `world(flags)`, `step(status)` (the poll, the view's frame) and `register_mark()` |
 | `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell; its foreign entries start with en-proto's `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
 | `en-launcher` | The launcher program (§4) | CLI only |
 | `en-tools` | The `eldennet-engine` command (built: `render-prompt`, `chat`, `decide`, `probe`, `models`), with the developer tools as its subcommands (§12.3), the replay `GameBackend` | CLI only |
@@ -437,6 +476,7 @@ stateDiagram-v2
   WaitEngine --> Banner: 120 s since T1 start
   Register --> FirstTick
   Register --> Banner: register call faulted
+  Register --> Banner: a run of GraceUI's observer (S0-E, S4): no call
   FirstTick --> Ready: group check and phase-A tests pass
   FirstTick --> Inert: tests fail, or no tick in 30 s
   Inert --> Banner
@@ -451,17 +491,17 @@ stateDiagram-v2
 | Safety | Anti-cheat check (§5.3). Logging starts here, so a second copy never writes to the shared log; gate results buffered until now are flushed. The launcher's watch block is opened, or, under another loader, the watcher is started (`eldennet-launcher.exe --watch <pid>` beside the DLL) and its block awaited for 3 s (O71; §4.14) | — | Anti-cheat → banner |
 | Settings | Parse `settings.toml` (§11.5). If parsing fails, use the defaults and show a toast later. Answer the launcher's R1 request in the watch block, if any (§4.14) | — | `enabled = false` → Exit (Off). An R1 request to a build that is no probe build, or with EldenNet off → refused, Exit: nothing called |
 | WaitWindow | Poll every 100 ms for a visible top-level window owned by this PID | 120 s from T1 start | Banner (logged; drawn if the window appears later) |
-| Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69) | 30 s (the helper's bound) | A failed connect (`too_old`, `refused`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
-| ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88) | 30 s | No GraceUI → no banner can show; logged, with the launcher's hint |
+| Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69). *As built (part 12, 2026-11-20):* graceui-sys's look with its stop-if-absent rule, then `connect`, the F11 view with `debug.panel` and the Mark's hotkey when asked for; no face and no surface's panel yet, and the world-state claims are T6's to send (§1.2, §1.4; WHY§216, §218, §230) | 30 s (the helper's bound); at once when no GraceUI is installed or loaded (GraceUI D164) | A failed connect (`too_old`, `duplicate_id`, `inactive`, `refused`, `not_yet`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
+| ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88). *As built:* after the crash filter, as Connect does it; the banner is one notice in the warning tone, under EldenNet's key 1, sent by T6 (WHY§221) | 30 s; at once when absent | No GraceUI → no banner can show; logged, with the launcher's hint |
 | Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2), the readiness items among them: there is no separate readiness scan (WHY§191). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5); since the game writes the FD4 class objects' names at run time, the retries are also the wait for the names | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
 | WaitEngine | Poll every 100 ms until the task hub's instance (`CSTask`) is non-null. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
-| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4) | — | Fault caught by SEH → banner. Nothing else is retried |
+| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4). *As built (2026-11-20; WHY§249):* in a run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, read from the watch block), T1 stops at the start of Register, before the task is made or anything called (`register skipped=1 why=spike`), raises the `spike_run` banner ("Spike run: EldenNet makes no call into the game") and ends at L1; T6, T10, T11, the connect, F11's view and the recorder run on, and nothing waits for the task. Discovery's and WaitEngine's guarded reads have run before the stop. A probe build sets R1 aside in such a run | — | Fault caught by SEH → banner. Nothing else is retried |
 | R1 | A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
 | FirstTick | Wait for the first tick. On the game thread, the task checks that the group at the layout's index is named `ChrIns_PostPhysics` (§6.3), then runs the phase-A self-tests over ≤ 8 ticks (§6.7) | 30 s for the first tick (impl) | No tick or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
 | Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; another module exporting `eldennet_instance_marker` is noted as an idle second copy (§1.6); T1 exits | — | — |
 
-On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, raises the
-banner (L1) and ends.
+On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, connects
+(ConnectB), raises the banner (L1) and ends.
 
 **The crash filter** (O71; as built on 2026-11-16, WHY§172, §196). EldenNet's unhandled-exception filter is what lets the
 watcher record a crash with its place (§4.14).
