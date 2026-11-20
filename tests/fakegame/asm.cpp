@@ -9,6 +9,7 @@
 #include "fakegame.hpp"
 
 static_assert(offsetof(FG::TaskLoomFields, group_count) + 8 == FG_LOOM_GROUP_COUNT_OFF);
+static_assert(offsetof(FG::TaskLoomFields, last_task) + 8 == FG_LOOM_LAST_TASK_OFF);
 static_assert(offsetof(FG::RunWardenFields, save_slot) + 8 == FG_WARDEN_SAVE_SLOT_OFF);
 static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
 
@@ -417,8 +418,10 @@ __asm__(
     "  .seh_endproc\n"
 
     // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group. It checks the
-    // hub against its static, the group against the hub's count and the task against null, then queues the task.
-    // Anything else is refused by fg_register_rejected, which faults (a game given bad arguments would not check).
+    // hub against its static, the group against a fixed bound (an immediate) and the hub's count and the task against
+    // null, keeps the task in the hub's last_task field, then queues the task. R1's callee summary is checked against
+    // these (the harness). Anything else is refused by fg_register_rejected, which faults (a game given bad arguments
+    // would not check).
     FG_FUNC_BEGIN(fg_register_task)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
@@ -436,12 +439,16 @@ __asm__(
     "  cmp rax, rsi\n"
     "  .byte 0x75, 4f - 5f\n"
     "5:\n"
+    "  cmp edi, " FG_XSTR(FG_GROUP_BOUND) "\n"
+    "  .byte 0x73, 6f - 2f\n"
+    "2:\n"
     "  cmp edi, dword ptr [rsi + " FG_XSTR(FG_LOOM_GROUP_COUNT_OFF) "]\n"
     "  .byte 0x73, 6f - 7f\n"
     "7:\n"
     "  test rbx, rbx\n"
     "  .byte 0x74, 8f - 9f\n"
     "9:\n"
+    "  mov qword ptr [rsi + " FG_XSTR(FG_LOOM_LAST_TASK_OFF) "], rbx\n"
     "  mov r8, rbx\n"
     "  mov edx, edi\n"
     "  mov rcx, rsi\n"

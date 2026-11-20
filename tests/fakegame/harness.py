@@ -1178,6 +1178,59 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
      what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
 
+def check_r1_callee(p, task):
+    """Spike.6 (WHY§227): the callee's summary, from the live image, shows what the fake registration does before its
+    first call: it keeps the task (moved to a callee-saved register) in the hub's instance, and compares the group with
+    a fixed bound; four direct calls, four branches before the first, every path through a call."""
+    failures = []
+    c = p.get("callee_code")
+    if c is None:
+        return ["no callee_code in r1-probe.json"]
+    task_reg, instance_reg, group_reg = p["register"]["registers"]
+    args = {a["reg"]: a for a in c["args"]}
+    need(c["read"] and not c["cut"] and not c["undecodable"] and c["bytes"] == c["extent"] > 0,
+         "the callee's bytes: %s" % {k: c.get(k) for k in ("read", "cut", "undecodable", "bytes", "extent")}, failures)
+    need(c["call_count"] == 4 and len(c["call_sites"]) == 4 and
+         all(k["form"] == "direct" and "target" in k for k in c["call_sites"]) and
+         c["first_call"] == c["call_sites"][0]["offset"], "the callee's calls: %s" % c["call_sites"], failures)
+    need(c["branch_count"] == 4 and not c["returns_early"] and "modelled_to" not in c,
+         "the callee's branches: %s, returns early %s, modelled to %s" %
+         (c["branches"], c["returns_early"], c.get("modelled_to")), failures)
+    t, g = args.get(task_reg, {}), args.get(group_reg, {})
+    stores = t.get("stores", [])
+    need(len(stores) == 1 and stores[0]["base_arg"] == instance_reg and stores[0]["disp"] == task["register_keeps_off"]
+         and stores[0]["width"] == 8 and stores[0]["via"] in t.get("saved", []) and not stores[0]["rip"],
+         "the task's store: %s" % t, failures)
+    need(any(k.get("imm") == task["register_bound"] for k in g.get("compares", [])) and g.get("compared_other") == 1
+         and g.get("saved"), "the group's bound: %s" % g, failures)
+    need(t.get("tested") == 1 and args.get(instance_reg, {}).get("compared_other") == 1,
+         "the task's null test and the hub's compare: %s" % c["args"], failures)
+    return failures
+
+
+def check_r1_memory(p):
+    """Spike.6 (WHY§227): two whole-memory searches after the call, each complete within its caps, each finding our
+    task's address in the fake game's own memory (the hub's last_task and its tables: private regions) and, counted
+    apart, in ours (our module's data, and the probe's own copies in its heap, told apart by the heap)."""
+    failures = []
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and ms[0]["at_ms"] >= 2000 and ms[1]["at_ms"] >= 20000, "the memory searches: %s" %
+         [(m["at_ms"], m["stopped"]) for m in ms], failures)
+    for m in ms:
+        game = [h for h in m["hits"] if not h["own"]]
+        ours = [h for h in m["hits"] if h["own"]]
+        need(m["stopped"] == "done" and m["own_known"] and m["read_bytes"] > 0 and m["regions"] >= m["read_regions"] > 0,
+             "the memory search's walk: %s" % {k: v for k, v in m.items() if k != "hits"}, failures)
+        need(m["found"] >= 2 and any(h["offset"] == 0 and h["region"] == "private" for h in game),
+             "the game's copies: %s of %s" % (m["found"], game), failures)
+        need(m["own_found"] >= 2 and
+             any(h["region"] == "image" and h.get("module") == "ours" and h.get("section") == "data" for h in ours) and
+             any(h["region"] == "private" for h in ours), "our own copies: %s of %s" % (m["own_found"], ours), failures)
+        need(all(("module" in h) == (h["region"] == "image") for h in m["hits"]), "hits' modules: %s" % m["hits"],
+             failures)
+    return failures
+
+
 def check_r1(result):
     """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
     object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
@@ -1228,6 +1281,7 @@ def check_r1(result):
     need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
+    failures += check_r1_callee(p, task) + check_r1_memory(p)
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)

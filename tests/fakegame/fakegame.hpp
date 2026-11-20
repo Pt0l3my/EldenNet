@@ -18,6 +18,8 @@
 
 // --- Offsets that asm.cpp's assembly uses (each checked against the C++ layout with a static_assert) -------------------
 #define FG_LOOM_GROUP_COUNT_OFF 0x10  // FG::TaskLoomImp: the number of task groups (the registration front's bound)
+#define FG_LOOM_LAST_TASK_OFF 0x30    // FG::TaskLoomImp: the last task registered, which the registration keeps there
+#define FG_GROUP_BOUND 0x200          // the registration refuses a group index at or past it, before the count
 #define FG_WARDEN_SAVE_SLOT_OFF 0x14  // FG::RunWardenImp: the save slot
 #define FG_PLOT_PLACE_OFF 0x1C        // FG::FieldPlotImp: the place id
 #define FG_RTCLASS_NAME_OFF 0x18      // a runtime-class object: its name pointer (DLRF's role; ARCH §6.2 step 3)
@@ -150,7 +152,8 @@ struct TaskLoomFields {       // from +0x08
   GroupEntry* groups;         // 0x18
   std::uint64_t tasks_live;   // 0x20
   void** live;                // 0x28: every active task, in the order the hub activated it (kMaxLiveTasks)
-  std::uint64_t spare[2];     // 0x30
+  void* last_task;            // 0x30 (FG_LOOM_LAST_TASK_OFF): written by the registration itself (R1's callee summary)
+  std::uint64_t spare;        // 0x38
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
 
