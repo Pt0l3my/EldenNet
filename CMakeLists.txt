@@ -66,7 +66,8 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper) and the ABI header it includes,
 # vendored unmodified from GraceUI at 3f1352b with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md), and
-# graceui_test.h, the test build's exports, which the fake game reads in the tests alone. Each file is checked against
+# graceui_test.h, the test build's exports, which the fake game reads in the tests alone (from GraceUI at 2131839,
+# GraceUI 0.2.1, since its test state gained D175's fields). Each file is checked against
 # its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
@@ -74,7 +75,7 @@ foreach(pin IN ITEMS
     "graceui_sys.h|b76946029472afb2e7006cfc57da6463c50b23dcf41144927a4a1e1822d6f7a7"
     "graceui_sys.hpp|b718314c6d4b0c8b2112c9658e53a328d7da5e45c1a8af4bee1d262ee8835250"
     "graceui_imgui.hpp|b7b66dd74af0cf8600f407447d70df8dd7e1f8aa0df887924922bbd9e2f33c02"
-    "graceui_test.h|ea411ec987829f6fccee6a6bc57cb65d7b1d9419689c914718a3667ca36b8640")
+    "graceui_test.h|bce62f08c8a5abd939c231d106cc05b920059046f08ba2070dc94a670cc32ff4")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
