@@ -1027,7 +1027,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
-  - refs: G1
+  - refs: G1, GraceUI:D177
+  - gives: first answers on 2026-11-20 from screenshots: a larger default size (GraceUI's D177, ui.scale 1.25) and a
+    slider's margin, built in GraceUI c4ada9f; GraceUI's G31 (the pointer) and G32 (quieting a mod's notices) put to
+    the owner. It stays waiting until the owner has looked at the new screenshots.
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
