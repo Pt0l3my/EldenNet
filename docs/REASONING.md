@@ -258,6 +258,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 233 | 2026-11-20 | The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted | METHOD | #engine #launcher #graceui |
 | 234 | 2026-11-20 | R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap | DECIDED | #gal #r1 #task |
 | 235 | 2026-11-20 | R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task | FACT | #gal #r1 #task |
+| 236 | 2026-11-20 | R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call | DECIDED | #gal #r1 #task |
 
 ## Entries
 
@@ -4160,3 +4161,35 @@ invariant 10, EldenNet ARCH (T3)
 - **Next** (DECIDED): spike.7 reads all memory (a cap far past the process's size), also searches for our vtable's
   and slots' addresses, diffs the hub's reachable memory before and after the call, and summarises the two inner
   callees with the arguments followed into them.
+
+### 236. R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§235, WHY§234, WHY§227, engine bddcaa7
+
+- **The flow** (DECIDED, METHOD): `summarise_callee` now tracks what each register holds along the control flow, to a
+  fixed point: where paths meet a register keeps only what they agree on, unreached code holds nothing, and an
+  unmodelled instruction clears its path. Spike.6 read in address order, which could carry one path's register into
+  another's. Byte registers 4 to 7 without REX are read as ah to bh.
+- **The mapping and the guard** (DECIDED): each call and tail jump gives which of the function's arguments (or the
+  first word of one, its vtable) are in rcx, rdx, r8 and r9 there (`pass`). Each conditional branch before the first
+  call (up to 8) gives its condition, its target and the instruction that set its flags (cmp, test, other or none),
+  with its operands as kinds: a register and the argument it holds, a memory operand (base, the argument in it,
+  displacement), a RIP-relative slot's RVA, an immediate up to 65,536 (`callee_code.guard`).
+- **The inner callees** (DECIDED): each direct call's and tail jump's target (up to 8, one level) is summarised with the
+  call site's mapping as its entry state, so its stores, saves, compares and calls read in the wrapper's arguments
+  (`callee_code.inner`).
+- **The search** (DECIDED): caps 64 GiB and 30 s, the time the bound; regions past a cap are still walked unread, so
+  `committed_bytes` is the process's total. Besides our object it counts words equal to our fake vtable's address and
+  to any of its slot thunks', the game's and ours apart, with how many distinct slots each side names.
+- **The diff** (DECIDED): just before the call T1 makes spike.5's walk of the hub (same bounds) and keeps the blocks'
+  bytes on its own heap; at 2 and 20 s it walks again and compares block by block, by path (else by address, else new).
+  `hub_diff` gives the changed 8-byte words (up to 32, with path, depth, and each value's kind: zero, small, group,
+  task, vtable, ours, game with section and RVA, heap, other; `fresh` for a pointer to a block not reached before), the
+  blocks moved, gone and new. My choice beyond the brief: the 20 s diff marks a word `steady` when it held the same new
+  value at 2 s and lists those first, so that per-frame counters do not crowd out what a registration leaves.
+- **The fake game** (FACT, clang-cl Release, Wine 9.0): its registration is now a wrapper of run 6's shape (a byte
+  test of a flag on the hub, then one call that keeps the task, else a tail jump). R1 read the guard as a byte test of
+  [instance + 0x14] against 1, mapped the task from r8 through rbx to the store at [instance + 0x30] one level deeper,
+  found the game's one copy each of our vtable and one run slot, and diffed 7 changed words (the task and vtable
+  pointers fresh, the group's counts), 6 of them steady at 20 s and the frame counter not. Each search read about
+  90 MB in about 50 ms.

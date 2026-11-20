@@ -879,7 +879,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the call returned ok, and our task was nowhere in the hub's reachable memory; spike.6 searches all memory and
     summarises the callee (WHY§227). Spike.6 sent on 2026-11-20 (engine fbf4c8b; WHY§234). Run 6: the callee is a
     wrapper handing the group and the task to two inner calls, and 8 of 10.6 GiB held no copy of our task; spike.7
-    follows them (WHY§235).
+    follows them (WHY§235). Spike.7 sent on 2026-11-20 (engine bddcaa7; WHY§236).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15
