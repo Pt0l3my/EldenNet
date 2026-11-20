@@ -1,6 +1,7 @@
 #pragma once
 // The fake game's own parts, shared between its files: the options, the status lines, the task hub, the world, the
 // faults on request, the self-test and --describe (README.md).
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -66,7 +67,8 @@ struct Options {
   // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that
   // GraceUI's overlay binds it and draws; --press-f11-at presses F11 at each frame listed, the window in front and
   // holding the focus (GraceUI's hotkey, D155); --grace-report reads graceui.dll's test exports at each frame listed
-  // and, with --d3d12, counts the pixels of --grace-probe's colour in its rectangle on the frame just presented.
+  // and, with --d3d12, counts the pixels of each --grace-probe's colour in its rectangle on the frame just presented
+  // (at most three probes, reported as probe, probe2 and probe3).
   // --grace-take-pause stands in for another mod: at boot, before the window, the fake game finds the GraceUI already
   // loaded (the launcher's --also) through graceui-sys, connects and registers Pause as a hotkey of its own, so that
   // EldenNet's Mark, asked for later, registers unbound (GraceUI D164).
@@ -82,9 +84,12 @@ struct Options {
   };
   std::vector<KeyPress> press_keys;
   std::vector<std::uint64_t> grace_report_at;
-  bool grace_probe = false;
-  std::uint32_t grace_probe_rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
-  std::uint32_t grace_probe_colour[3] = {0, 0, 0};
+  struct Probe {
+    std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
+    std::uint32_t colour[3] = {0, 0, 0};
+  };
+  static constexpr std::size_t kProbes = 3;
+  std::vector<Probe> grace_probes;
   std::wstring status_file;
   std::uint32_t exit_code = 0;
   bool describe = false;

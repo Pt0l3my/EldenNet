@@ -342,10 +342,15 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
         error = "--grace-probe is x0,y0,x1,y1,r,g,b";
         ok = false;
       }
+      if (ok && o.grace_probes.size() == Options::kProbes) {
+        error = "--grace-probe is given at most three times";
+        ok = false;
+      }
       if (ok) {
-        o.grace_probe = true;
-        for (int k = 0; k < 4; ++k) o.grace_probe_rect[k] = v[static_cast<std::size_t>(k)];
-        for (int k = 0; k < 3; ++k) o.grace_probe_colour[k] = v[static_cast<std::size_t>(4 + k)];
+        Options::Probe probe;
+        for (int k = 0; k < 4; ++k) probe.rect[k] = v[static_cast<std::size_t>(k)];
+        for (int k = 0; k < 3; ++k) probe.colour[k] = v[static_cast<std::size_t>(4 + k)];
+        o.grace_probes.push_back(probe);
       }
     }
     else if (n == L"--exit-code") ok = p.number(o.exit_code);
@@ -435,7 +440,7 @@ void print_usage() {
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
       "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --press-pause-at F",
       "  --press-pause-every N  --status-file PATH  --exit-code N",
-      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b",
+      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b (up to 3 times)",
       "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);

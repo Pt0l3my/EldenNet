@@ -19,7 +19,7 @@ namespace fakegame {
 
 namespace {
 
-constexpr UINT kWidth = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 420 at 24, 24)
+constexpr UINT kWidth = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 500 at 24, 24)
 constexpr UINT kHeight = 540;
 constexpr UINT kBuffers = 2;
 constexpr float kClear[4] = {16 / 255.0f, 40 / 255.0f, 32 / 255.0f, 1.0f};  // the fake game's own ground
@@ -361,13 +361,18 @@ void grace_report(std::uint64_t frame) {
     std::snprintf(server_part, sizeof server_part, " server=%u port=%u spaces=%u pending=%u", server.running,
                   server.port, server.spaces, server.pending);
   }
-  char tail[160] = "";
+  char tail[240] = "";
   const Options& o = options();
-  std::uint64_t matching = 0;
-  std::uint64_t area = 0;
-  if (o.grace_probe && probe(o.grace_probe_rect, o.grace_probe_colour, matching, area)) {
-    std::snprintf(tail, sizeof tail, " probe=%llu probe_area=%llu", static_cast<unsigned long long>(matching),
-                  static_cast<unsigned long long>(area));
+  std::size_t at = 0;
+  for (std::size_t i = 0; i < o.grace_probes.size() && at < sizeof tail; ++i) {
+    std::uint64_t matching = 0;
+    std::uint64_t area = 0;
+    if (!probe(o.grace_probes[i].rect, o.grace_probes[i].colour, matching, area)) continue;
+    const std::string n = i == 0 ? "" : std::to_string(i + 1);  // probe, probe2, probe3
+    const int k = std::snprintf(tail + at, sizeof tail - at, " probe%s=%llu probe%s_area=%llu", n.c_str(),
+                                static_cast<unsigned long long>(matching), n.c_str(),
+                                static_cast<unsigned long long>(area));
+    if (k > 0) at += static_cast<std::size_t>(k);
   }
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
