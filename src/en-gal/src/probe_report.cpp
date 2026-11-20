@@ -14,6 +14,11 @@ constexpr std::array<std::string_view, 8> kItems = {"gate",  "fd4_idiom",  "name
                                                     "register_abi", "group", "task_shape",  "singleton"};
 constexpr std::array<std::string_view, 4> kChecks = {"confirmed", "differs", "missing", "not_run"};
 constexpr std::array<std::string_view, 5> kCalls = {"not_called", "waiting_for_mark", "refused", "ok", "faulted"};
+constexpr std::array<std::string_view, 4> kForms = {"direct", "register", "memory", "rip"};
+constexpr std::array<std::string_view, 4> kRegions = {"private", "mapped", "image", "other"};
+constexpr std::array<std::string_view, 3> kModules = {"ours", "game", "other"};
+constexpr std::array<std::string_view, 5> kSections = {"header", "code", "rdata", "data", "other"};
+constexpr std::array<std::string_view, 3> kStops = {"done", "bytes_cap", "time_cap"};
 
 constexpr std::array<Key, 49> kKeys = {{
     {"stage", Type::Word, Type::Object, kStages},
@@ -105,15 +110,190 @@ constexpr std::array<Key, 37> kMore = {{
     {"path", Type::Array, Type::Unsigned},
     {"near_group", Type::Unsigned},
 }};
+// Spike.6 (WHY§227): the callee's summary and the whole-memory search.
+constexpr std::array<Key, 48> kSpike6 = {{
+    {"callee_code", Type::Object},
+    {"read", Type::Boolean},
+    {"extent", Type::Unsigned},
+    {"bytes", Type::Unsigned},
+    {"instructions", Type::Unsigned},
+    {"cut", Type::Boolean},
+    {"undecodable", Type::Boolean},
+    {"first_call", Type::Unsigned},
+    {"first_ret", Type::Unsigned},
+    {"returns_early", Type::Boolean},
+    {"modelled_to", Type::Unsigned},
+    {"call_count", Type::Unsigned},
+    {"call_sites", Type::Array, Type::Object},
+    {"form", Type::Word, Type::Object, kForms},
+    {"target", Type::Unsigned},
+    {"base", Type::Unsigned},
+    {"index", Type::Unsigned},
+    {"disp", Type::Signed},
+    {"vtable_of", Type::Unsigned},
+    {"branch_count", Type::Unsigned},
+    {"branches", Type::Array, Type::Object},
+    {"to", Type::Signed},
+    {"args", Type::Array, Type::Object},
+    {"reg", Type::Unsigned},
+    {"stores", Type::Array, Type::Object},
+    {"via", Type::Unsigned},
+    {"base_arg", Type::Unsigned},
+    {"rip", Type::Boolean},
+    {"width", Type::Unsigned},
+    {"saved", Type::Array, Type::Unsigned},
+    {"compares", Type::Array, Type::Object},
+    {"imm", Type::Unsigned},
+    {"compared_other", Type::Unsigned},
+    {"tested", Type::Unsigned},
+    {"memory_search", Type::Array, Type::Object},
+    {"regions", Type::Unsigned},
+    {"read_regions", Type::Unsigned},
+    {"unread_bytes", Type::Unsigned},
+    {"stack_bytes", Type::Unsigned},
+    {"stopped", Type::Word, Type::Object, kStops},
+    {"own_known", Type::Boolean},
+    {"own_found", Type::Unsigned},
+    {"own_inside", Type::Unsigned},
+    {"own", Type::Boolean},
+    {"region", Type::Word, Type::Object, kRegions},
+    {"protect", Type::Unsigned},
+    {"module", Type::Word, Type::Object, kModules},
+    {"section", Type::Word, Type::Object, kSections},
+}};
 
-constexpr std::array<Key, kKeys.size() + kMore.size()> joined() {
-  std::array<Key, kKeys.size() + kMore.size()> out{};
-  for (std::size_t i = 0; i < kKeys.size(); ++i) out[i] = kKeys[i];
-  for (std::size_t i = 0; i < kMore.size(); ++i) out[kKeys.size() + i] = kMore[i];
+constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size();
+constexpr std::array<Key, kKeyCount> joined() {
+  std::array<Key, kKeyCount> out{};
+  std::size_t n = 0;
+  for (const Key& k : kKeys) out[n++] = k;
+  for (const Key& k : kMore) out[n++] = k;
+  for (const Key& k : kSpike6) out[n++] = k;
   return out;
 }
-constexpr std::array<Key, kKeys.size() + kMore.size()> kAll = joined();
+constexpr std::array<Key, kKeyCount> kAll = joined();
+// One key, one type: a name given twice would be read as its first entry alone.
+constexpr bool unique_names() {
+  for (std::size_t i = 0; i < kAll.size(); ++i) {
+    for (std::size_t j = i + 1; j < kAll.size(); ++j) {
+      if (kAll[i].name == kAll[j].name) return false;
+    }
+  }
+  return true;
+}
+static_assert(unique_names(), "a key of the probe vocabulary is given twice");
 constexpr report::Vocabulary kVocabulary{"probe", 1, kAll};
+
+template <class T>
+void optional_number(report::Writer& w, std::string_view key, const std::optional<T>& v) {
+  if (v) w.number(key, static_cast<std::uint64_t>(*v));
+}
+
+void write_callee(report::Writer& w, const CalleeCode& c) {
+  w.begin_object("callee_code");
+  w.boolean("read", c.read);
+  w.number("extent", c.extent);
+  w.number("bytes", c.bytes);
+  w.number("instructions", c.instructions);
+  w.boolean("cut", c.cut);
+  w.boolean("undecodable", c.undecodable);
+  optional_number(w, "first_call", c.first_call);
+  optional_number(w, "first_ret", c.first_ret);
+  w.boolean("returns_early", c.returns_early);
+  optional_number(w, "modelled_to", c.modelled_to);
+  w.number("call_count", c.call_count);
+  w.begin_array("call_sites");
+  for (const CalleeCall& k : c.calls) {
+    w.begin_object();
+    w.number("offset", k.offset);
+    w.word("form", kForms[static_cast<std::size_t>(k.form)]);
+    optional_number(w, "target", k.target);
+    optional_number(w, "base", k.base);
+    optional_number(w, "index", k.index);
+    if (k.form == CallForm::Memory) w.signed_number("disp", k.disp);
+    optional_number(w, "vtable_of", k.vtable_of);
+    w.end_object();
+  }
+  w.end_array();
+  w.number("branch_count", c.branch_count);
+  w.begin_array("branches");
+  for (const CalleeBranch& b : c.branches) {
+    w.begin_object();
+    w.number("offset", b.offset);
+    w.signed_number("to", b.to);
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("args");
+  for (const ArgUse& a : c.args) {
+    w.begin_object();
+    w.number("reg", a.reg);
+    w.begin_array("stores");
+    for (const ArgStore& s : a.stores) {
+      w.begin_object();
+      w.number("offset", s.offset);
+      w.number("via", s.via);
+      optional_number(w, "base", s.base);
+      optional_number(w, "base_arg", s.base_arg);
+      optional_number(w, "index", s.index);
+      w.signed_number("disp", s.disp);
+      w.boolean("rip", s.rip);
+      w.number("width", s.width);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("saved");
+    for (const std::uint8_t r : a.saved) w.number(r);
+    w.end_array();
+    w.begin_array("compares");
+    for (const ArgCompare& k : a.compares) {
+      w.begin_object();
+      w.number("offset", k.offset);
+      w.number("via", k.via);
+      optional_number(w, "imm", k.imm);
+      w.end_object();
+    }
+    w.end_array();
+    w.number("compared_other", a.compared_other);
+    w.number("tested", a.tested);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_memory(report::Writer& w, const MemorySearch& m) {
+  w.begin_object();
+  w.number("at_ms", m.at_ms);
+  w.number("ms", m.ms);
+  w.number("regions", m.regions);
+  w.number("read_regions", m.read_regions);
+  w.number("read_bytes", m.read_bytes);
+  w.number("unread_bytes", m.unread_bytes);
+  w.number("stack_bytes", m.stack_bytes);
+  w.number("faults", m.faults);
+  w.word("stopped", kStops[static_cast<std::size_t>(m.stopped)]);
+  w.boolean("own_known", m.own_known);
+  w.number("found", m.found);
+  w.number("inside", m.inside);
+  w.number("own_found", m.own_found);
+  w.number("own_inside", m.own_inside);
+  w.begin_array("hits");
+  for (const MemoryHit& h : m.hits) {
+    w.begin_object();
+    w.boolean("own", h.own);
+    w.number("offset", h.offset);
+    w.word("region", kRegions[static_cast<std::size_t>(h.region)]);
+    w.number("protect", h.protect);
+    if (h.module != ModuleKind::None) w.word("module", kModules[static_cast<std::size_t>(h.module) - 1]);
+    if (h.section != SectionKind::None) w.word("section", kSections[static_cast<std::size_t>(h.section) - 1]);
+    optional_number(w, "rva", h.rva);
+    w.number("near_group", h.near_group);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
 
 }  // namespace
 
@@ -279,6 +459,10 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   }
   w.end_array();
   w.end_object();
+  if (f.callee_code) write_callee(w, *f.callee_code);
+  w.begin_array("memory_search");
+  for (const MemorySearch& m : f.memory_search) write_memory(w, m);
+  w.end_array();
   return w.finish();
 }
 

@@ -17,7 +17,12 @@
 //   slot counts and run slot (the task's base class);
 // - `rising`: the data slots whose instance holds a 32-bit field rising with the clock (the play time's static, which
 //   has no RTTI), with how often it rose and stood still;
-// - `statics`: each RTTI-classed static's slot, found as the data slot whose instance has the class's vtable.
+// - `statics`: each RTTI-classed static's slot, found as the data slot whose instance has the class's vtable;
+// - `hub_search` (spike.5): where in the hub's reachable memory our task object's address was found;
+// - `callee_code` (spike.6): the registration's callee as its code reads: its calls, its branches before the first
+//   call, and what it does with each argument register before it;
+// - `memory_search` (spike.6): every word of the process equal to our task's address, or pointing into it, after the
+//   call, ours counted apart.
 // It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
 // session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
 // (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
@@ -106,6 +111,100 @@ struct HubSearch {
   std::vector<HubHit> hits;      // the first eight
 };
 
+// R1 run 5 (WHY§227): register_task answered ok, the task never ran, and the hub's memory held nowhere our address. So
+// spike.6 summarises the callee from the live image (probe.hpp's summarise_callee: the code the call runs, decoded from
+// its RVA within its function or 4 KiB, no call followed) and searches the whole process for our address after the call
+// (probe.hpp's search_memory). Offsets are from the callee's entry; registers by number, 0 rax to 15 r15.
+enum class CallForm : std::uint8_t { Direct, Register, Memory, Rip };
+struct CalleeCall {
+  std::uint32_t offset = 0;
+  CallForm form = CallForm::Direct;
+  std::optional<std::uint32_t> target;    // a direct call's RVA, or the slot a RIP-relative one reads
+  std::optional<std::uint8_t> base;       // a register call's register, or a memory call's base
+  std::optional<std::uint8_t> index;      // a memory call's index register
+  std::int64_t disp = 0;                  // a memory call's displacement
+  std::optional<std::uint8_t> vtable_of;  // the argument whose object's first word the base holds (a virtual call on it)
+};
+struct CalleeBranch {
+  std::uint32_t offset = 0;
+  std::int64_t to = 0;  // the target, from the entry
+};
+// A store of an argument (or of a register holding it) to memory, before the first call.
+struct ArgStore {
+  std::uint32_t offset = 0;
+  std::uint8_t via = 0;                  // the register stored
+  std::optional<std::uint8_t> base;      // the address's base register (none: RIP-relative or absolute)
+  std::optional<std::uint8_t> base_arg;  // the argument the base register holds, if it holds one
+  std::optional<std::uint8_t> index;
+  std::int64_t disp = 0;                 // the displacement; RIP-relative: the slot's RVA
+  bool rip = false;
+  std::uint8_t width = 0;                // bytes stored
+};
+// A compare of an argument with an immediate, before the first call: the value kept only if 0 to 65,536.
+struct ArgCompare {
+  std::uint32_t offset = 0;
+  std::uint8_t via = 0;
+  std::optional<std::uint64_t> imm;
+};
+struct ArgUse {
+  std::uint8_t reg = 0;                // 1 rcx, 2 rdx, 8 r8, 9 r9 (and their 32-bit forms)
+  std::vector<ArgStore> stores;        // the first 8
+  std::vector<std::uint8_t> saved;     // the callee-saved registers it was moved to
+  std::vector<ArgCompare> compares;    // with an immediate, the first 8
+  std::uint32_t compared_other = 0;    // compares with memory, a register, or an immediate past the bound
+  std::uint32_t tested = 0;            // TEST with itself or an immediate (a null or flag check)
+};
+struct CalleeCode {
+  bool read = false;                    // the image gave the bytes
+  std::uint32_t extent = 0;             // the function's length in the exception directory, or 0
+  std::uint32_t bytes = 0;              // decoded
+  std::uint32_t instructions = 0;
+  bool cut = false;                     // the 4 KiB bound ended it before the function's end
+  bool undecodable = false;             // decoding stopped at bytes that do not decode
+  std::optional<std::uint32_t> first_call;
+  std::optional<std::uint32_t> first_ret;
+  bool returns_early = false;           // a path from the entry reaches a return through no call
+  std::optional<std::uint32_t> modelled_to;  // the first instruction before the first call whose effect on the
+                                             // registers the summary does not model: tracking stops there
+  std::uint32_t call_count = 0;
+  std::vector<CalleeCall> calls;        // the first 32
+  std::uint32_t branch_count = 0;       // conditional branches before the first call
+  std::vector<CalleeBranch> branches;   // the first 32
+  std::vector<ArgUse> args;             // rcx, rdx, r8, r9
+};
+
+enum class RegionKind : std::uint8_t { Private, Mapped, Image, Other };
+enum class ModuleKind : std::uint8_t { None, Ours, Game, Other };
+enum class SectionKind : std::uint8_t { None, Header, Code, Rdata, Data, Other };
+struct MemoryHit {
+  bool own = false;                     // in our module, our heap or our task's own block
+  std::uint64_t offset = 0;             // 0: the word is our object's address; else how far into it the word points
+  RegionKind region = RegionKind::Other;
+  std::uint32_t protect = 0;            // the region's protection, as VirtualQuery gives it
+  ModuleKind module = ModuleKind::None; // an image's
+  SectionKind section = SectionKind::None;
+  std::optional<std::uint32_t> rva;     // in our module or the game's
+  std::uint32_t near_group = 0;         // 32-bit words equal to the group's index within 64 bytes of it
+};
+enum class SearchStop : std::uint8_t { Done, Bytes, Time };
+struct MemorySearch {
+  std::uint64_t at_ms = 0;        // after the call
+  std::uint64_t ms = 0;           // how long it took
+  std::uint64_t regions = 0;      // committed regions met
+  std::uint64_t read_regions = 0;
+  std::uint64_t read_bytes = 0;
+  std::uint64_t unread_bytes = 0; // committed but not read: no access, guard, uncached or write-combined, past user space
+  std::uint64_t stack_bytes = 0;  // in a known thread stack, or kept out (the search's own buffer)
+  std::uint64_t faults = 0;       // pages whose copy faulted
+  SearchStop stopped = SearchStop::Done;
+  bool own_known = false;         // our heap's regions were known, so its copies count as ours
+  std::uint64_t found = 0;        // words equal to our object's address, outside ours
+  std::uint64_t inside = 0;       // words pointing inside it, past its start, outside ours
+  std::uint64_t own_found = 0;
+  std::uint64_t own_inside = 0;
+  std::vector<MemoryHit> hits;    // the game's first, then ours: 16 in all
+};
+
 struct Findings {
   std::string_view stage = "start";  // start, derived, waiting, registered, running, refused, failed
   std::uint64_t elapsed_ms = 0;      // since T1's start
@@ -144,6 +243,8 @@ struct Findings {
   std::uint64_t allocations = 0;  // on the game thread after its first tick (R6)
   Names names;
   std::vector<HubSearch> hub_search;
+  std::optional<CalleeCode> callee_code;  // written as `callee_code`: `register.callee` already holds its RVA
+  std::vector<MemorySearch> memory_search;
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;

@@ -9,18 +9,23 @@
 //   §2: the AOB statics' slots, which R0 cannot find offline and `probe-exe --static` then cuts patterns at), and pure
 //   searches over one copied object's bytes (offsets of a vtable, of a (max, current) pair, of a known UTF-16 text, of
 //   a value), whose answers are offsets only: never the bytes, and never a name.
+// - On T1, for R1's spike.6 (WHY§227): the registration's callee summarised from its code, and the whole process
+//   searched for our task object's address, numbers and kinds only.
 // Every read is a guarded copy on the game thread within the tick's budget, never into a known stack (WHY§111); the
 // candidates come from the image's own data section, read on T1.
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
 
 #include "en/gal/discovery.hpp"
 #include "en/gal/guarded.hpp"
+#include "en/gal/probe_report.hpp"
 #include "en/gal/sys.hpp"
 
 namespace en::gal::probe {
@@ -190,6 +195,65 @@ class Census {
 [[nodiscard]] std::vector<std::uint32_t> utf16_offsets(std::span<const std::byte> obj, std::u16string_view text);
 // - A 32-bit value (such as the flag divisor), at 4-aligned offsets.
 [[nodiscard]] std::vector<std::uint32_t> u32_offsets(std::span<const std::byte> obj, std::uint32_t value);
+
+// ---- Spike.6 (WHY§227): the callee as its code reads, and the whole process searched for our task ----
+
+inline constexpr std::uint32_t kCalleeBound = 4096;  // bytes of the callee decoded at most
+
+// What the code at `rva` does, decoded with en-gal's decoder from its first byte and following no call: within its
+// function (`extent`, its length in the exception directory, at most kCalleeBound), or, with no extent, up to its first
+// return. `code` holds its bytes from `rva` on, as the image holds them. The arguments rcx, rdx, r8 and r9 are followed
+// through the moves between registers (64- and 32-bit), and a register loaded from [argument + 0] holds that argument's
+// object's first word (its vtable, for a virtual call); before the first call each argument's stores to memory, its
+// moves to callee-saved registers, and its compares and tests are kept, in address order. An instruction whose effect
+// on the registers the summary does not model ends the tracking (`modelled_to`): nothing is guessed past it.
+[[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent);
+
+// One region of the process's address space, as VirtualQuery describes it (NativeSys::region_at in game; a test's
+// list otherwise).
+struct MemoryRegion {
+  std::uint64_t base = 0;
+  std::uint64_t size = 0;
+  std::uint64_t allocation_base = 0;
+  std::uint32_t protect = 0;  // the PAGE_* value
+  bool committed = false;
+  RegionKind kind = RegionKind::Other;
+};
+// Windows's page protections, as VirtualQuery gives them.
+inline constexpr std::uint32_t kPageNoAccess = 0x01, kPageReadOnly = 0x02, kPageReadWrite = 0x04,
+                               kPageWriteCopy = 0x08, kPageExecute = 0x10, kPageExecuteRead = 0x20,
+                               kPageExecuteReadWrite = 0x40, kPageExecuteWriteCopy = 0x80, kPageGuard = 0x100,
+                               kPageNoCache = 0x200, kPageWriteCombine = 0x400;
+// Whether the search reads a region: committed, readable, and neither a guard page, no-access, uncached nor
+// write-combined (device memory, slow to read, never where a pointer of ours is kept).
+[[nodiscard]] bool searchable(const MemoryRegion& r) noexcept;
+// The region at `at` or the first after it; nothing past the last.
+using RegionQuery = std::function<std::optional<MemoryRegion>(std::uint64_t at)>;
+
+// The kind of the section holding `rva` in an image whose first page (its headers, as a copy holds them) is `headers`:
+// read by its characteristics alone, never by its name.
+[[nodiscard]] SectionKind section_kind(std::span<const std::byte> headers, std::uint64_t rva) noexcept;
+
+struct MemorySearchSpec {
+  std::uint64_t target = 0;        // our task object's address
+  std::uint64_t object_bytes = 0;  // its length: a word in (target, target + object_bytes) points inside it
+  std::uint32_t group_index = 0;
+  std::uint64_t game_base = 0;     // the game's module (its allocation base)
+  std::uint64_t own_base = 0;      // ours
+  // The allocation bases of our own memory besides our module: our heap's regions and large blocks, our task's block.
+  std::vector<std::uint64_t> own_bases;
+  bool own_known = false;          // whether `own_bases` holds our heap's
+  std::vector<AddressRange> skip;  // never read (the calling thread's stack)
+  std::uint64_t max_bytes = 8ull << 30;
+  std::uint64_t max_us = 30'000'000;
+};
+
+// Every committed, searchable region from the lowest user address up, read through the crash-guarded copy in chunks of
+// at most kMaxCopyBytes (a chunk that faults, or that a known stack or `skip` overlaps, is read again page by page,
+// skipping those pages), never past the caps, counting the 8-aligned words equal to our object's address and those
+// pointing inside it, ours apart (a region is ours when its allocation base is our module's or one of `own_bases`).
+// The search's own buffer is never read. Run on T1; it allocates up front only.
+[[nodiscard]] MemorySearch search_memory(SysLayer& sys, const RegionQuery& query, const MemorySearchSpec& spec);
 
 #endif
 

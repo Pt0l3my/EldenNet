@@ -317,7 +317,17 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   `SysLayer::slot_calls` counts the game's calls of each slot, and `TaskShape::every_slot` (R1, the run slot not yet
   known) makes every slot count its calls and run the body for our own object; `SysLayer::task_object` gives our
   object's address, so that R1 can see how much of it the hub wrote. Everything they need on the game thread is
-  allocated on T1.
+  allocated on T1. Spike.6 (WHY§227) adds two of T1's: `summarise_callee`, the registration's callee as its code reads
+  (decoded from its RVA within its function or up to its first return, at most 4 KiB, no call followed: its calls and
+  their forms, its branches before the first call, whether a path returns through no call, and each argument
+  register's stores, moves to callee-saved registers, compares and tests before the first call, followed through moves
+  between registers until an instruction it does not model), and `search_memory`, every committed and searchable
+  region (`searchable`: readable, not a guard page, no-access, uncached or write-combined) read through the copy
+  primitive in chunks of `kMaxCopyBytes`, page by page where one faults or a stack or a kept-out range overlaps it,
+  within a cap of bytes and of time, for the words equal to an address or pointing into the object there, the regions
+  whose allocation base the caller names as its own counted apart, and an image hit's section read from its headers by
+  its characteristics (`section_kind`). Both fill `probe_report.hpp`'s structures. NativeSys's `region_at` (probe
+  builds) is the VirtualQuery behind the search.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -384,7 +394,13 @@ layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stal
 most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
 this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
 (`test_probe.cpp`: the slot searches, the heap slots and the module base's slot, the rising-counter search telling a
-play time from a still field, the hub census to a depth of three past a released object). The clang-cl build adds
+play time from a still field, the hub census to a depth of three past a released object; the callee's summary on code
+of our own, hand-assembled: an argument kept in a callee-saved register and stored into another, a compare with a
+bound, a virtual call on an argument's object, a refusal path that returns through no call, a RIP-relative store, an
+immediate past the bound, an instruction it does not model, the 4 KiB bound and bytes that do not decode; and the
+whole-memory search over regions of the test's own: the game's copies in its image, heap and a mapped view, ours in our
+module, heap and task block, a guard page, an execute-only page and a stack never read, a page that faults, a range
+kept out, both caps, and its copies counted as the game's when our heap's regions are not known). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
 under SEH, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
