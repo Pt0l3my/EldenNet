@@ -399,10 +399,22 @@ void print_usage() {
   for (const char* line : kUsage) status("usage %s", line);
 }
 
+// The launcher's spike folder for GraceUI's observer (ELDENNET_SPIKE_DIR, S0-E and S4): whether the variable is set
+// and whether the folder it names exists, never the path.
+void report_spike_dir() {
+  wchar_t dir[1024] = {};
+  const DWORD n = GetEnvironmentVariableW(L"ELDENNET_SPIKE_DIR", dir, 1024);
+  const bool set = n > 0 && n < 1024;
+  const DWORD attributes = set ? GetFileAttributesW(dir) : INVALID_FILE_ATTRIBUTES;
+  const bool exists = attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+  status("spike_dir set=%d exists=%d", set ? 1 : 0, exists ? 1 : 0);
+}
+
 int run(HINSTANCE instance) {
   const Options& o = g_options;
   timeBeginPeriod(1);
   status("boot pid=%lu toolchain=%s product=fakegame version=3.14.15.0", GetCurrentProcessId(), kToolchain);
+  report_spike_dir();
   load_dlls(LoadMoment::Boot);
   if (o.grace_take_pause) grace_take_pause();
   if (o.selftest_task) selftest_start(g_game_thread);
@@ -516,12 +528,12 @@ int run(HINSTANCE instance) {
            st.body_ok ? 1 : 0);
   }
   status("end frames=%llu phase=%s builtin_runs=%llu foreign_tasks=%u foreign_runs=%llu foreign_us_max=%llu "
-         "rejected=%u ignored=%u moves=%u loads=%u poisoned=%u freed=%u hitches=%u handled=%u fd4_unset=%u "
+         "live=%llu rejected=%u ignored=%u moves=%u loads=%u poisoned=%u freed=%u hitches=%u handled=%u fd4_unset=%u "
          "frame_ms_max=%.1f frame_ms_mean=%.2f exit=%u",
          static_cast<unsigned long long>(frame), phase_name(world_phase()),
          static_cast<unsigned long long>(hs.builtin_runs), hs.foreign_tasks,
          static_cast<unsigned long long>(hs.foreign_runs), static_cast<unsigned long long>(hs.foreign_us_max),
-         hs.rejected, hs.ignored, ws.moves, ws.loads, ws.poisoned, ws.freed, hitches, handled_count(), ws.fd4_unset,
+         static_cast<unsigned long long>(hs.live), hs.rejected, hs.ignored, ws.moves, ws.loads, ws.poisoned, ws.freed, hitches, handled_count(), ws.fd4_unset,
          max_ms,
          frame > 1 ? sum_ms / static_cast<double>(frame - 1) : 0.0, o.exit_code);
   status_flush();

@@ -139,6 +139,7 @@ HubStats hub_stats() {
   AcquireSRWLockShared(&h.lock);
   HubStats s = h.stats;
   ReleaseSRWLockShared(&h.lock);
+  if (const auto* loom = static_cast<const FG::TaskLoomImp*>(fg_get_taskloom())) s.live = loom->f.tasks_live;
   return s;
 }
 

@@ -374,6 +374,9 @@ case("gal-group-shift", GAL + ["--frames", "300", "--shift-groups", "1", "--load
 # files (saves, a stale record, Steam folders). Every name, number and file here is invented, the app id excepted:
 # it is the launcher's own constant, which it writes into the fake game's folder.
 APPID = "1245620"
+# ELDENNET_SPIKE_DIR as an earlier run might have left it in the launcher's own environment: only an observer's run
+# (S0-E, S4) gives the game the variable, naming its own folder.
+LEFTOVER_SPIKE_DIR = {"ELDENNET_SPIKE_DIR": "C:\\no-such-folder\\spike"}
 LBASE = ["--no-dialogs", "--appdata", "{appdata}", "--gal", "{galdir}"]
 LGAME = LBASE + ["--no-steam-check", "--game", "{game}", "--no-backup"]
 GALTEST_ENV = {"EN_GALTEST_DIR": "{galdir}", "EN_GALTEST_STATUS": "{status}"}
@@ -519,8 +522,10 @@ def check_spike_report_s0a(result):
 
 
 def spike_log(result, spike):
+    """The spike's newest log (`<word>-<stamp>.jsonl`; an observer's run's folder, `<word>-<n>`, is no log)."""
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
-    names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-")] if os.path.isdir(folder) else []
+    names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-") and n.endswith(".jsonl")
+             and os.path.isfile(os.path.join(folder, n))] if os.path.isdir(folder) else []
     if not names:
         return None
     with open(os.path.join(folder, names[-1]), encoding="utf-8") as f:
@@ -528,7 +533,8 @@ def spike_log(result, spike):
 
 
 def check_vanilla(result):
-    failures = check_lines(("LAUNCHER", "started", {"ok": 1, "mode": "vanilla", "inject": 0}),
+    failures = check_lines(("LAUNCHER", "started", {"ok": 1, "mode": "vanilla", "inject": 0, "eldennet": 0}),
+                           ("FAKEGAME", "spike_dir", {"set": 0, "exists": 0}),
                            ("LAUNCHER", "appid", {"removal": "removed", "at": "window"}),
                            ("LAUNCHER", "end", {"kind": "clean", "exit_code": "0x00000000", "crash_filter": 0}),
                            ("LAUNCHER", "run", {"outcome": "game_ended", "record": 0}),
@@ -582,16 +588,17 @@ def check_backup_only(result):
 
 # The launcher on the fake game, with no DLL (both builds).
 case("launcher-vanilla", LGAME + ["--vanilla-offline"] + game(), program="{launcher}", needs=LNEEDS,
-     prepare=with_old_crash, check=check_vanilla, timeout=120,
+     prepare=with_old_crash, check=check_vanilla, timeout=120, env=LEFTOVER_SPIKE_DIR,
      what="starts the fake game offline with no DLL: the appid file made, removed once the window shows, a clean "
-          "end watched; the last session's crash record explained and marked so")
+          "end watched; the last session's crash record explained and marked so; the launcher's own "
+          "ELDENNET_SPIKE_DIR not passed on")
 case("launcher-vanilla-crash", LGAME + ["--vanilla-offline"] + game("--crash", "av-read", "--crash-at", "60"),
      program="{launcher}", needs=LNEEDS, check=check_vanilla_crash, timeout=120,
      what="a crash with no EldenNet in the game: the watcher keeps a record from the exit code and the module list")
 case("launcher-env", LGAME + ["--vanilla-offline", "--appid-method", "env"] + game(), program="{launcher}",
-     needs=LNEEDS, timeout=120,
+     needs=LNEEDS, timeout=120, env=LEFTOVER_SPIKE_DIR,
      check=check_lines(("LAUNCHER", "appid", {"method": "env"}), ("LAUNCHER", "end", {"kind": "clean"}),
-                       files=no_appid_file),
+                       ("FAKEGAME", "spike_dir", {"set": 0, "exists": 0}), files=no_appid_file),
      what="the SteamAppId method (pending S0-C): no file written in the game's folder")
 case("launcher-foreign-appid", LGAME + ["--vanilla-offline"] + game(), program="{launcher}", needs=LNEEDS,
      prepare=with_foreign_appid, timeout=120,
@@ -750,8 +757,9 @@ case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-
      want(r, "LAUNCHER", "crash", thread="init"),
      what="--spike s0d-crash --runs 2: a crash asked for at the title each run, every one recorded by the watcher")
 case("launcher-spike-s0c", LGAME + ["--dll", "{galtest}", "--spike", "s0c"] + game(frames=300), program="{launcher}",
-     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=180,
-     check=check_spike("s0c", 1, crashes=0),
+     needs=LGAL_NEEDS, toolchains=("clang-cl",), env=dict(GALTEST_ENV, **LEFTOVER_SPIKE_DIR), timeout=180,
+     check=lambda r: (check_spike("s0c", 1, crashes=0)(r) + want(r, "FAKEGAME", "spike_dir", set=0, exists=0) +
+                      (["an S0-C run made a spike folder"] if r.events("LAUNCHER", "spike_dir") else [])),
      what="--spike s0c: one watched session, the game's connections counted (none), the tally kept")
 case("launcher-watch", GAL + ["--frames", "720", "--load", "ready:{galtest}", "--crash", "av-read", "--crash-at", "400"],
      needs=LGAL_NEEDS, toolchains=("clang-cl",), exit=AV, settle=True, timeout=180,
@@ -1018,6 +1026,127 @@ case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{
           "(--watch <pid>), which makes the block, sees the crash through the DLL's filter and keeps its record")
 
 
+# --- The runs of GraceUI's observer (S0-E's present-hook half, S4): EldenNet's side ---------------------------------------
+# `--spike s0e|s4`: the launcher makes the run's folder (spikes\<word>-<n>) before the game starts and names it in the
+# game's ELDENNET_SPIKE_DIR (the fake game says only whether it is set and whether the folder exists); eldennet.dll
+# stops at the start of Register with the spike_run banner and calls nothing (the fake hub's live tasks stay the
+# program's own four, and no registration from outside reaches it), and runs on as a stopped start does. `--spike s0e_alone` loads the --also DLLs alone.
+def spike_folders(result):
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    return sorted(n for n in os.listdir(folder) if os.path.isdir(os.path.join(folder, n))) if os.path.isdir(folder) \
+        else []
+
+
+def no_call(r):
+    """The fake game's registration never reached from outside: the hub's live tasks are the program's own four, and
+    no registration of a task of ours was accepted, ignored, refused or faulted."""
+    return (want(r, "FAKEGAME", "end", foreign_tasks=0, live=4, rejected=0, ignored=0) +
+            (["the fake game's registration was called"] if r.events("FAKEGAME", "register") else []))
+
+
+def check_spike_folder(word):
+    def check(r):
+        failures = check_lines(("LAUNCHER", "begin", {"spike": word}),
+                               ("LAUNCHER", "spike_dir", {"spike": word, "n": 1, "made": 1}),
+                               ("FAKEGAME", "spike_dir", {"set": 1, "exists": 1}))(r)
+        need(spike_folders(r) == ["%s-1" % word], "the spike folders: %s" % spike_folders(r), failures)
+        lines = "\n".join(l for l in r.lines if l.startswith("LAUNCHER "))
+        need(":\\" not in lines and "\\" not in lines and "spikes" not in lines and "no-such-folder" not in lines,
+             "the launcher's lines hold a path", failures)
+        return failures + check_spike(word, 1, crashes=0)(r)
+    return check
+
+
+def check_en_spike(word, grace=False):
+    def check(r):
+        failures = check_spike_folder(word)(r) + check_lines(
+            ("LAUNCHER", "started", {"ok": 1, "inject": 1, "eldennet": 1}),
+            ("LAUNCHER", "inject", {"dll": "eldennet.dll", "ok": 1}),
+            ("ELDENNET", "safety", {"spike": word, "watched": 1}),
+            ("ELDENNET", "gate", {"result": "passed"}),
+            ("ELDENNET", "discovery", {"ready": 1}),
+            ("ELDENNET", "register", {"skipped": 1, "why": "spike", "spike": word}),
+            ("ELDENNET", "banner", {"reason": "spike_run", "detail": word}),
+            ("ELDENNET", "init", {"state": "banner"}),
+            ("LAUNCHER", "status", {"init": "banner"}),
+            ("LAUNCHER", "run", {"outcome": "banner"}),
+            ("LAUNCHER", "end", {"kind": "clean", "crash_filter": 0, "init": "banner"}))(r)
+        failures += any_line(r, "ELDENNET", "init", state="register")
+        failures += any_line(r, "ELDENNET", "change", what="banner", to="spike_run")
+        failures += any_line(r, "ELDENNET", "change", what="level", to="L1")
+        failures += any_line(r, "ELDENNET", "status", level="L1", phase="banner")  # T6 runs on after T1 stopped
+        need(not any("ok" in e for e in r.events("ELDENNET", "register")), "the DLL registered its task", failures)
+        need(not r.events("ELDENNET", "first_tick"), "the DLL waited for a first tick", failures)
+        failures += no_call(r)
+        if grace:
+            failures += want(r, "ELDENNET", "connect", ok=1, outcome="connected", path="main", installed=1)
+            failures += any_line(r, "ELDENNET", "notice", what="banner", reason="spike_run", status=0)
+        else:
+            failures += want(r, "ELDENNET", "connect", ok=0, outcome="absent", installed=0)
+        return failures + en_log_is_clean(r)
+    return check
+
+
+def check_spike_recording(word):
+    """The recorder runs in the stopped start: its header carries the word, its banner line the spike_run reason, and
+    the file lints clean; rec-stats counts the banner."""
+    def check(r):
+        failures = []
+        files = en_recordings(r)
+        need(len(files) == 1, "%d recordings" % len(files), failures)
+        for path in files:
+            code, out, _ = run_engine(r.args, r.env, ["lint", "--recording", r.as_win(path)])
+            need(code == 0 and "the recording is clean" in out, "lint --recording: exit %s %s" % (code, out[-400:]),
+                 failures)
+            with open(path, encoding="utf-8") as f:
+                records = [json.loads(l) for l in f if l.strip()]
+            need(records and records[0]["k"] == "header" and records[0].get("spike") == word,
+                 "the header: %s" % records[:1], failures)
+            need([x.get("reason") for x in records if x["k"] == "banner"] == ["spike_run"],
+                 "the banners recorded: %s" % [x for x in records if x["k"] == "banner"], failures)
+            need(not any(x["k"] in ("snap", "life") for x in records), "a snapshot or a lifecycle line was recorded",
+                 failures)
+            stats_out = path + ".stats.json"
+            code, _, err = run_engine(r.args, r.env, ["rec-stats", r.as_win(path), "--out", r.as_win(stats_out)])
+            need(code == 0 and os.path.exists(stats_out), "rec-stats: exit %s %s" % (code, err[-300:]), failures)
+            if code == 0 and os.path.exists(stats_out):
+                with open(stats_out) as f:
+                    st = json.load(f)
+                need(st["header"]["spike"] == word and st["banners"] == [{"reason": "spike_run", "count": 1}],
+                     "rec-stats: %s" % {k: st.get(k) for k in ("header", "banners")}, failures)
+        return failures
+    return check
+
+
+case("launcher-eldennet-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
+     game(frames=900), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, **LEFTOVER_SPIKE_DIR), timeout=180, prepare=install_eldennet(EN_RECORD),
+     check=lambda r: check_en_spike("s0e")(r) + check_spike_recording("s0e")(r),
+     what="S0-E with the release DLL: the run's folder made and named in the game's environment (the launcher's own "
+          "variable replaced), the DLL stopped at Register with the spike_run banner and no call into the game, "
+          "T6 and the recorder running on, a clean end")
+case("launcher-eldennet-spike-s4", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s4"] + game(frames=900),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
+     prepare=install_eldennet(), check=check_en_spike("s4"),
+     what="S4 (input), as S0-E: its own folder, no call into the game, the banner")
+case("launcher-eldennet-spike-s0e-alone", LGAME + ["--also", "{vehprobe}", "--console", "--spike", "s0e_alone"] +
+     game(frames=300), program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, VEHPROBE_MODE="pass", VEHPROBE_LOG="{status}"), timeout=180, prepare=install_eldennet(),
+     check=lambda r: (check_spike_folder("s0e_alone")(r) +
+                      check_lines(("LAUNCHER", "preflight", {"dll": "none"}),
+                                  ("LAUNCHER", "started", {"ok": 1, "inject": 1, "also": 1, "eldennet": 0}),
+                                  ("LAUNCHER", "inject", {"dll": "vehprobe.dll", "ok": 1}),
+                                  ("VEHPROBE", "installed", {"mode": "pass"}),
+                                  ("LAUNCHER", "run", {"outcome": "game_ended"}),
+                                  ("LAUNCHER", "end", {"kind": "clean", "init": "none"}))(r) +
+                      (["eldennet.dll was loaded"] if any(e.get("dll") == "eldennet.dll"
+                                                          for e in r.events("LAUNCHER", "inject")) else []) +
+                      (["an ELDENNET line"] if any(l.startswith("ELDENNET ") for l in r.lines) else []) +
+                      want(r, "FAKEGAME", "end", foreign_tasks=0, live=4)),
+     what="S0-E's baseline: the --also DLL alone (a stand-in for GraceUI's observer), no eldennet.dll in the process, "
+          "the run's folder named in the game's environment")
+
+
 
 # --- GraceUI with eldennet.dll (part 12): the GraceUI folder of a test build of GraceUI (EN_GRACEUI_DIR: graceui.dll
 # with its test exports, LICENSE.txt, NOTICE.txt and the graceui.toml GraceUI's build writes of each file's size and
@@ -1193,6 +1322,20 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
      check=check_graceui_anticheat,
      what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
+case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s0e"] +
+     game("--d3d12", "--press-f11-at", "480", "--grace-report", "420,600", "--grace-probe", VIEW_PROBE, frames=720),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui),
+     check=lambda r: (check_en_spike("s0e", grace=True)(r) +
+                      # The spike run's banner: one notice under EldenNet's key, in the banners' tone; F11's view on it.
+                      want_grace(r, 420, found=1, eldennet=1, notice_only=0,
+                                 banner="Spike_run:_EldenNet_makes_no_call_into_the_game", banner_tone=1, badge="none",
+                                 shown=0) +
+                      want_grace(r, 600, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
+                                 banner="Spike_run:_EldenNet_makes_no_call_into_the_game") +
+                      any_line(r, "ELDENNET", "view", presses=1, open=1)),
+     what="S0-E with GraceUI installed: the connect on T1, the spike_run banner as GraceUI's notice, F11's view, and "
+          "still no call into the game")
 
 def check_r1_callee(p, task, gap=False):
     """Spike.6 to spike.8 (WHY§227, WHY§235, WHY§240): the callee's summary, from the live image, shows the fake

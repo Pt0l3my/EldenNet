@@ -121,6 +121,7 @@ struct HubStats {
   std::uint64_t foreign_us_max = 0;
   std::uint32_t rejected = 0;
   std::uint32_t ignored = 0;
+  std::uint64_t live = 0;  // the hub's live tasks (TaskLoomFields.tasks_live): the program's own and any registered
 };
 HubStats hub_stats();
 std::uint32_t group_count();
