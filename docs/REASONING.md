@@ -263,6 +263,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 238 | 2026-11-20 | GraceUI, not the space, enforces a destructive command's confirmation | DECIDED | #graceui #protocol |
 | 239 | 2026-11-20 | A stream is cleared by an empty batch past a gap, with no message kind of its own | METHOD | #graceui #protocol |
 | 240 | 2026-11-20 | R1 run 7: the wrapper hands the group and the task to a tail-called function that bounds the group by 168 and refuses through a null test; all readable memory held no copy of our task, its vtable or a slot | FACT | #gal #r1 #task |
+| 241 | 2026-11-20 | A mod's panel that takes input gets no characters through ABI 1 | FACT | #graceui #abi |
+| 242 | 2026-11-20 | A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook | METHOD | #graceui #overlay |
+| 243 | 2026-11-20 | Under Wine 9 the process's handle count and private bytes read 0 | FACT | #graceui #wine |
 
 ## Entries
 
@@ -4250,3 +4253,27 @@ invariant 10, EldenNet ARCH (T3)
   as forms (no bytes), models a jump through memory or a register as a tail call, reads the singleton's global and the
   entries before and after the call (which groups are non-null, and group 110's), compares the singleton with CSTask's
   instance, and makes a control diff of the hub over the same interval before the call.
+
+### 241. A mod's panel that takes input gets no characters through ABI 1
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D77, GraceUI:D175
+
+- (FACT) GraceUI feeds the input holder's keys and characters to its own Dear ImGui context. ABI 1's events for a mod
+  are hotkeys and the protocol's only. A mod that needs typed text (EldenNet's chat box, S11.4.c) needs an input event
+  that ABI 1 has still to gain. Found when the S4 spike's typing panel had to count characters from the test build's
+  counter instead.
+
+### 242. A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook
+
+`2026-11-20` · METHOD · `#graceui` `#overlay` · refs: GraceUI:D86, GraceUI:D175
+
+- (METHOD) Loaded before GraceUI, an overlay that swaps the swap chain's Present slot makes GraceUI's read of its
+  target return the overlay's own Present: GraceUI hooks that function, and both run. Loaded after, the overlay's slot
+  calls dxgi's Present, which GraceUI's hook already covers. Shown with grace-standin.dll in the harness, both orders.
+
+### 243. Under Wine 9 the process's handle count and private bytes read 0
+
+`2026-11-20` · FACT · `#graceui` `#wine` · refs: GraceUI:D175, WHY§210
+
+- (FACT) GetProcessHandleCount and GetProcessMemoryInfo's PrivateUsage answer 0 under Wine 9, so a leak check on them
+  means nothing in the harness. GraceUI's spike reader shows them and does not judge them; on Windows they are real.

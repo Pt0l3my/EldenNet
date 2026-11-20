@@ -884,7 +884,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     held no copy of our task; spike.8 reads that table and the call's return value (WHY§240).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
-  - refs: O90, G15
+  - refs: O90, G15, GraceUI:D175
+  - gives: planned with the Grace session on 2026-11-20 and run beside R1, independent of our task. GraceUI's side
+    built the same day (GraceUI feat/spikes 4dade85, D175): grace-spike.dll, an observer that connects as a mod and
+    writes a report of numbers into the folder the launcher names; read-only counters in graceui.dll's test build;
+    grace-standin.dll, our own stand-in for another overlay, patching Present before or after GraceUI; and a reader
+    with the pass rules. The owner's runs A1 to A4 (both load orders, injected early and late) and A0 (GraceUI alone).
+    EldenNet's side: the launcher's spike words s0e, s0e_alone and s4, the spike folder in the game's environment,
+    and eldennet.dll making no call into the game in these runs (WHY§241 to §243).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -972,6 +979,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - refs: DESIGN§16.1
 - S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
+  - refs: GraceUI:D175
+  - gives: GraceUI's side built on 2026-11-20 with S10.1.g's (run B: 60 s of typing in the observer's panel, a held
+    key across the menu's open, a pad's close). Until R1 gets our task running, the movement row is the owner's word
+    and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
+    measures it once the task runs.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
 - c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
   - refs: NPC§12.2, ARCH§12.3
@@ -1104,7 +1116,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
 - c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
   - refs: G17, GraceUI:DESIGN§10
-  - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20.
+  - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20. The chat box needs typed
+    characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first.
 
 ### S11.5 v0.2's exit checks
 
