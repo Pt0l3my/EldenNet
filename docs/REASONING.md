@@ -262,6 +262,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 237 | 2026-11-20 | grace-input's record of the last close lost the holder, so a close by the menu key or the player's exit skipped the host's close bookkeeping | FACT | #graceui #input |
 | 238 | 2026-11-20 | GraceUI, not the space, enforces a destructive command's confirmation | DECIDED | #graceui #protocol |
 | 239 | 2026-11-20 | A stream is cleared by an empty batch past a gap, with no message kind of its own | METHOD | #graceui #protocol |
+| 240 | 2026-11-20 | R1 run 7: the wrapper hands the group and the task to a tail-called function that bounds the group by 168 and refuses through a null test; all readable memory held no copy of our task, its vtable or a slot | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -4221,3 +4222,31 @@ invariant 10, EldenNet ARCH (T3)
 
 - (METHOD) The sequence numbering already says "start over" at a gap, so an empty `rows` batch past a gap clears the
   stream in every view, and a view that held rows never shows one twice (protocol 1.1).
+
+### 240. R1 run 7: the wrapper hands the group and the task to a tail-called function that bounds the group by 168 and refuses through a null test; all readable memory held no copy of our task, its vtable or a slot
+
+`2026-11-20` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§235, WHY§236, engine bddcaa7
+
+- **The wrapper** (FACT, spike.7, game 2.7.2.0 ww, no other mods): its one branch (offset 25, to 73, past both calls)
+  is a `jne` on a 64-bit `test rcx, rcx` at offset 22, where rcx holds none of its arguments (loaded in its first 22
+  bytes). Its first call is passed rdx, r8 and r9 unchanged, its second none of them. At offset 88 it tail-jumps to RVA 0xEB5D20 with rdx (the group) and r8 (the task) restored from rdi and rbx;
+  our rcx (CSTask's instance, by R1's reading) is never used.
+- **The tail function** (FACT): 32 bytes, 10 instructions, no call: `cmp edx, 168` and `ja` to offset 29, then a
+  64-bit test of rcx (again none of our arguments) and `je` to 29, and a return at 31 that both branches reach. The
+  path that does not branch leaves by an instruction spike.7 does not count (a jump through memory or a register).
+  The two inner calls are short: 33 bytes with one call, and 29 bytes with one call.
+- **The search and the diff** (FACT): at 2 and 22 s, 8.6 of 10.7 GB committed, read in about 1 to 1.5 s, stopped
+  `done` (the 2 GB unread are what the rules skip: no-access, guard and device memory, and stacks). Not one copy of our object's,
+  our vtable's or a slot's address but EldenNet's own. The hub diff (4,405 blocks, 4 MB kept) changed 64 and then 132
+  words, none of them our task, vtable, module or the group's index; 12 steady at 20 s, all heap pointers replacing
+  pointers into the game's data, three entries 32 bytes apart.
+- **The call** (FACT): NativeSys calls register_task as a function returning nothing, so "ok" only means it returned
+  without a fault; the return value was never kept.
+- **So** (LIKELY): the wrapper is a static helper that uses a singleton of its own (lazily made, rcx loaded from a
+  global), and the tail function looks up an entry by group in it (bounded by 168) and returns, likely 0, when the
+  entry is null; otherwise it jumps on through the entry. Nothing kept our task, so the entry for group 110 was most
+  likely null, or the function is not FD4's register_task at all.
+- **Next** (DECIDED): spike.8 keeps the call's return value, lists the wrapper's and the tail function's instructions
+  as forms (no bytes), models a jump through memory or a register as a tail call, reads the singleton's global and the
+  entries before and after the call (which groups are non-null, and group 110's), compares the singleton with CSTask's
+  instance, and makes a control diff of the hub over the same interval before the call.
