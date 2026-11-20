@@ -1201,10 +1201,23 @@ def want_grace(result, frame, **kv):
     return failures
 
 
+def graceui_version(r):
+    """The version and ABI the GraceUI folder under test declares, read from its graceui.toml (GraceUI's D52), as the
+    launcher's pre-flight and the connect report them: ("0.2.1", "1.1")."""
+    with open(os.path.join(os.path.dirname(r.paths["graceui"]), "graceui.toml"), encoding="utf-8") as f:
+        text = f.read()
+    version = re.search(r'^graceui = "([0-9.]+)"$', text, re.M)
+    abi = re.search(r"^abi = \[([0-9]+), ([0-9]+)\]$", text, re.M)
+    if not version or not abi:
+        raise ValueError("graceui.toml without its graceui and abi lines")
+    return version.group(1), "%s.%s" % (abi.group(1), abi.group(2))
+
+
 def check_graceui_main(r):
-    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok", "version": "0.1.0", "abi": "1.0"}),
+    version, abi = graceui_version(r)
+    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok", "version": version, "abi": abi}),
                         ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "how": "path",
-                                                 "installed": 1, "graceui": "0.1.0", "view": "ready", "mark": 1,
+                                                 "installed": 1, "graceui": version, "view": "ready", "mark": 1,
                                                  "mark_bound": 1, "world": 1}),
                         ("ELDENNET", "init", {"state": "ready"}),
                         ("LAUNCHER", "end", {"kind": "clean"}))(r) +
