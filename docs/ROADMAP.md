@@ -942,7 +942,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     workflows, by the owner's choice. Done on 2026-11-20 (GraceUI feat/host f51bcc7, D155, D156): hotkeys and a first
     `poll`, the header-only helper `graceui_imgui.hpp`, the example `hello-debug-view` beside `hello-notice`, each
     loaded before and after GraceUI, 106 harness checks passing on both toolchains; what EldenNet must do is GraceUI's
-    `docs/eldennet-changes.md` §17 and §18. EldenNet's part 12 started the same day.
+    `docs/eldennet-changes.md` §17 and §18. EldenNet's part 12 started the same day. From part 12's run, GraceUI's D164
+    and D165 (feat/foundations 3f1352b, 2026-11-20): GRACEUI_UNBOUND for a hotkey that did not bind, graceui-sys's
+    installed flag and STOP_IF_ABSENT, and GraceUI's build writing graceui.toml; EldenNet moves its pin there
+    (eldennet-changes §20).
 
 ## S11 v0.2 First words [planned]
 
