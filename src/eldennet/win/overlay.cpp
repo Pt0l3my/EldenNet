@@ -30,6 +30,7 @@ struct OverlayLink {
   std::optional<en::core::BannerReason> banner;
   bool badge = false;
   std::uint32_t world = 0xFFFFFFFFu;
+  bool mark_tried = false;  // the Mark's hotkey asked for once on T6 (a GraceUI without hotkeys answers not_yet)
   bool mark_asked = false;
   bool marks_ours = false;
   bool lost = false;
@@ -202,9 +203,10 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
 
     // The Mark: GraceUI's hotkey on Pause, once a console holds Pause (or debug.panel asked for it at connect), and the
     // ring asked for until it is EldenNet's.
-    if (!o.mark_registered() && block::mark_source() == w::MarkSource::Launcher) {
+    if (!o.mark_registered() && !link->mark_tried && block::mark_source() == w::MarkSource::Launcher) {
+      link->mark_tried = true;
       const GraceUiStatus st = o.register_mark();
-      log(Line("mark_hotkey").num("status", st));
+      log(Line("mark_hotkey").num("status", st), st == GRACEUI_OK ? LogLevel::Info : LogLevel::Warn);
     }
     if (o.mark_registered() && !link->marks_ours) {
       link->marks_ours = block::take_marks();
