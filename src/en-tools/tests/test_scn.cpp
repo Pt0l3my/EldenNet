@@ -97,7 +97,7 @@ TEST_CASE("the three routes: their expectations hold, and each golden file agree
     CHECK(changes.find(augur::hash_text(augur::fnv1a64(golden))) != std::string::npos);
     // No handle of a session and no name in a golden file: handles are h1, h2, ...; names are the scenario's only in
     // the expectations.
-    for (const char* name : {"#ash", "briar", "cinder", "warden", "keeper", "howl", "yelp", "#4096", "#1000"}) {
+    for (const char* name : {"#ash", "briar", "cinder", "bulwark", "ravener", "howl", "yelp", "#4096", "#1000"}) {
       CHECK(golden.find(name) == std::string::npos);
     }
   }

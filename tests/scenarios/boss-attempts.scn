@@ -7,44 +7,44 @@ end 70000
 
 at 0     spawn player hp=1000/1000 pos=0,0,0
 at 0     place 62001
-at 2000  spawn warden team=7 pos=12,0,0 hp=3000/3000 param=91001
-at 2000  boss warden on
-at 4000  hit warden -> player dmg=420
-at 6000  hit warden -> player dmg=420
-at 8000  kill player by=warden
+at 2000  spawn bulwark team=7 pos=12,0,0 hp=3000/3000 param=91001
+at 2000  boss bulwark on
+at 4000  hit bulwark -> player dmg=420
+at 6000  hit bulwark -> player dmg=420
+at 8000  kill player by=bulwark
 at 8250  banner 5
-at 9500  boss warden off
+at 9500  boss bulwark off
 at 10000 banner none
-at 10000 despawn warden
+at 10000 despawn bulwark
 at 10500 load over=3000 revive
-at 16000 spawn warden team=7 pos=12,0,0 hp=3000/3000 param=91001
-at 16000 boss warden on
-at 17000 hit player -> warden dmg=900
-at 19000 hit player -> warden dmg=900
-at 21000 hit player -> warden dmg=900
-at 23000 kill warden by=player
+at 16000 spawn bulwark team=7 pos=12,0,0 hp=3000/3000 param=91001
+at 16000 boss bulwark on
+at 17000 hit player -> bulwark dmg=900
+at 19000 hit player -> bulwark dmg=900
+at 21000 hit player -> bulwark dmg=900
+at 23000 kill bulwark by=player
 at 23250 banner 1
-at 24000 boss warden off
+at 24000 boss bulwark off
 at 25500 banner none
-at 26000 despawn warden
+at 26000 despawn bulwark
 at 40000 place 62002
-at 44000 spawn keeper team=7 pos=15,0,0 hp=2000/2000 param=91002
-at 44000 boss keeper on
+at 44000 spawn ravener team=7 pos=15,0,0 hp=2000/2000 param=91002
+at 44000 boss ravener on
 at 47000 move player to=-60,0,0 over=3000
-at 50000 boss keeper off
-at 50000 despawn keeper
+at 50000 boss ravener off
+at 50000 despawn ravener
 at 64000 ng 1
 
 # What the route must show (ARCH §8.5, §8.6, §9): one PlayerDied from the dead bit, the death count and banner 5;
 # each fight's outcome as soon as its evidence shows, and Left only once 10 s pass without any.
-expect count 1 PlayerDied killer=warden in_boss=true
+expect count 1 PlayerDied killer=bulwark in_boss=true
 expect event BossFightStarted key=boss:1 within 2000..2000
-expect event Struck subject=player att=warden hard=true within 4000..4000
+expect event Struck subject=player att=bulwark hard=true within 4000..4000
 expect event BossFightEnded outcome=Death key=boss_end:1 within 10500..10500
 expect event LoadingStarted within 10500..10500
 expect event LoadingEnded within 13500..14000
 expect event BossFightEnded outcome=Victory key=boss_end:2 within 25000..25000
-expect event LowHp subject=warden
+expect event LowHp subject=bulwark
 expect no AllyDied
 expect event BossFightEnded outcome=Left key=boss_end:3 source=timer within 60000..60000
 expect count 3 BossFightStarted

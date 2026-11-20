@@ -102,6 +102,7 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
+include(cmake/embed_files.cmake)  # en_embed_files: text files built in (Augur's rule files)
 include(cmake/link_rules.cmake)  # en_link_rule: ARCH §2.3's rules on the link graph, checked at configure time
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or

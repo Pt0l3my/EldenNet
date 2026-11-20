@@ -5,12 +5,9 @@
 #include <cmath>
 #include <span>
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -18,6 +15,7 @@
 #include "en/augur/bus.hpp"
 #include "en/augur/golden.hpp"
 #include "en/augur/rules.hpp"
+#include "shipped.hpp"
 
 namespace en::augur::test {
 
@@ -80,17 +78,7 @@ inline WorldFacts facts() {
 
 inline std::vector<RuleFile> shipped_files() {
   std::vector<RuleFile> out;
-  std::vector<std::filesystem::path> paths;
-  for (const auto& e : std::filesystem::directory_iterator(EN_AUGUR_CONTENT)) {
-    if (e.path().extension() == ".toml") paths.push_back(e.path());
-  }
-  std::sort(paths.begin(), paths.end());
-  for (const auto& p : paths) {
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    out.push_back(RuleFile{p.filename().string(), ss.str(), false});
-  }
+  for (const ShippedFile& f : shipped_texts()) out.push_back(RuleFile{std::string(f.name), std::string(f.text), false});
   return out;
 }
 
