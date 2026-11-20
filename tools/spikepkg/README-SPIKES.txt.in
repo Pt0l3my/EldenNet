@@ -126,7 +126,8 @@ With EldenNet, injected early; EldenNet loads GraceUI.
   6. If you have a pad: open GraceUI's menu with F5, then press B twice (the first goes back to the list on the left,
      the second closes the menu): the Tarnished must not dodge or roll.
   7. Once: in GraceUI's menu, on the Menu page, set Menu size to 1.50 (the left and right arrow keys change it), close
-     the menu and open it again. Then set it back to its default, 1.25 (R resets it).
+     the menu and open it again. Then set it back to its default, 1.25 (R resets it): GraceUI keeps its settings from
+     one session to the next.
   8. Quit from the game's own menu.
 
 If you have them, the Steam floating keyboard and Proton are rows of their own: tell us what happened.
@@ -180,7 +181,8 @@ What it never does
 
   - It never goes online, and the game cannot reach FromSoftware's servers without Easy Anti-Cheat.
   - It never changes your saves or the game's files (steam_appid.txt aside, which it removes; the GraceUI folder in
-    the game's folder is the one you copied there).
+    the game's folder is the one you copied there). GraceUI keeps its own settings, such as Menu size, in its
+    folder's user\settings.json.
   - It never calls into the game in these runs: EldenNet's banner says so. GraceUI, its observer and the stand-in
     never read or write the game's memory and never call the game's code.
   - It never keeps what you type: the typing test shows it on screen only, and the report counts it.
