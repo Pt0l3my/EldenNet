@@ -980,7 +980,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
 - b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [active]
   - needs: i, l, S10.4
-  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
+  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:D169, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
   - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
     input holder with its close routine; harness screenshots, the frame cost and the atlas size, for S4 and the
     owner's look review. The page is GraceUI > Menu (ui.scale, ui.menu.theme: GraceUI's own settings, GraceUI:D115), agreed by
@@ -992,6 +992,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     vertices and 4 commands, the present thread's own work a median of 0.15 ms at 1920×1080 and under 1 ms at p99 at
     640×360 (WHY§229); screenshots went to the owner for the look review (d). Next: the ABI's protocol slots
     (register_pages, publish, answer, poll's protocol kinds), mapped onto grace-serve's SpacePort.
+    The protocol slots and the server in graceui.dll done the same day (GraceUI 959d4ec, D169): register_pages, publish,
+    answer and poll's watched, unwatched and command events, callable from any thread of a mod's, a command unanswered
+    in 10 s answered internal; the server started on GraceUI's thread while a space asks for the browser view, never in
+    notice-only mode. EldenNet's steps for T6 are GraceUI's docs/eldennet-changes.md §23, its status lamp §24. Next: the
+    menu showing a mod's space.
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
@@ -1035,9 +1040,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - j The fake host for any space, grace-dev, on fixtures and scripted time
   - needs: h, i
   - refs: GraceUI:DESIGN§9.2
-- k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build
+- k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build [done]
   - needs: e, f, h
   - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 356572e, D166): the browser view, which a real Chromium under
+    Wine loaded from graceui.dll's own server and drew the demo space with, no request outside its origin.
 - l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell [done]
   - needs: e, h
   - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3, GraceUI:D162
