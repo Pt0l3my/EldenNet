@@ -101,6 +101,8 @@ cmake --build build-cl
 
 - It needs `wine64` (Wine 9.0 here; found in `/usr/lib/wine` or on the path, `EN_WINE`), `xvfb-run` (`EN_XVFB_RUN`)
   and Python 3. Without them the harness's tests are left out, with a line saying so; the programs still build.
+- Wine 9.0 aborts at start-up ("free(): invalid pointer") when `TMPDIR` is set. The harness starts Wine without it; run
+  any Wine command of your own as `env -u TMPDIR wine64 …` (WHY§210).
 - The first test, `fakegame.prefix`, makes the prefix (`EN_WINE_PREFIX`, by default `<build>/wineprefix`, about 700 MB)
   and sets it up for unhandled exceptions (again each time it runs, so an older prefix is brought up to date): no crash
   dialog (with a display, an unhandled exception would otherwise wait on it for ever) and no JIT debugger. Wine
