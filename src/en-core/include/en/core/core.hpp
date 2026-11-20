@@ -63,6 +63,7 @@ enum class BannerReason : std::uint8_t {
   Inert,            // the first tick's group check or a phase-A test failed, or no tick in 30 s
   SessionFailed,    // the `session` group failed its self-test or tripped
   TaskTripped,      // the task or a structural group tripped
+  SpikeRun,         // a spike run of GraceUI's observer (S0-E, S4): T1 stops at Register and calls nothing
 };
 
 [[nodiscard]] const char* to_string(Phase p) noexcept;         // "gate", "banner", "ready", "title", ...

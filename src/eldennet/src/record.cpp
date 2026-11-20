@@ -8,6 +8,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "en/proto/watch.hpp"
+
 namespace en::shell {
 
 namespace report = gal::report;
@@ -18,7 +20,8 @@ namespace {
 
 constexpr std::array<std::string_view, 7> kKinds = {"header", "snap", "life", "banner", "change", "cmd", "mark"};
 constexpr std::array<std::string_view, 4> kRegions = {"ww", "jp", "other", "none"};
-constexpr std::array<std::string_view, 6> kSpikes = {"none", "s0a", "s0b", "s0c", "s0d", "s0d-crash"};
+constexpr std::array<std::string_view, 9> kSpikes = {"none", "s0a",       "s0b", "s0c", "s0d",
+                                                     "s0d-crash", "s0e", "s0e_alone", "s4"};
 constexpr std::array<std::string_view, 11> kGroups = {"session", "world", "combat", "player", "flags", "text",
                                                       "ui",      "place", "camera", "params", "status"};
 constexpr std::array<std::string_view, 3> kGroupStates = {"Untested", "Ok", "Tripped"};
@@ -32,9 +35,12 @@ constexpr std::array<std::string_view, 7> kStatuses = {"Frostbite", "Poison",  "
 constexpr std::array<std::string_view, 4> kParams = {"NpcParam", "BonfireWarpParam", "WorldMapPlaceNameParam",
                                                      "SpEffectParam"};
 constexpr std::array<std::string_view, 3> kLife = {"data_ready", "playthrough_ready", "group_tripped"};
-constexpr std::array<std::string_view, 8> kBanners = {"unknown_build",     "anticheat",        "not_started",
+constexpr std::array<std::string_view, 9> kBanners = {"unknown_build",     "anticheat",        "not_started",
                                                       "discovery_failed",  "register_faulted", "inert",
-                                                      "session_failed",    "task_tripped"};
+                                                      "session_failed",    "task_tripped",     "spike_run"};
+// In en-proto's and en-core's order: the header's spike is the watch block's word, a banner's reason the core's.
+static_assert(kSpikes.size() == proto::watch::kSpikeCount);
+static_assert(kBanners.size() == static_cast<std::size_t>(core::BannerReason::SpikeRun) + 1);
 constexpr std::array<std::string_view, 6> kChanges = {"phase", "gate_opened", "gate_closed", "level", "banner", "badge"};
 constexpr std::array<std::string_view, 5> kCommands = {"noop", "set_watch_flags", "set_tracked", "resolve_text",
                                                        "resolve_params"};

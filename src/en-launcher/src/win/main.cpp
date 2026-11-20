@@ -13,6 +13,7 @@
 #include "en/launcher/backup.hpp"
 #include "en/launcher/exe.hpp"
 #include "en/launcher/graceui.hpp"
+#include "en/launcher/spikes.hpp"
 #include "en/launcher/steam.hpp"
 #include "en/gal/derive.hpp"
 #include "en/gal/probe_report.hpp"
@@ -245,12 +246,47 @@ struct Run {
   bool start_vanilla = false;  // E10's "Start without EldenNet" was chosen
 };
 
+// An observer's run (S0-E, S4): its folder, spikes\<word>-<n>, made before the game starts, for GraceUI's observer's
+// report (spikes.hpp). The log names the word and the number only.
+struct SpikeFolder {
+  std::optional<fs::path> path;
+  DWORD error = 0;
+};
+SpikeFolder make_spike_folder(const Ctx& c) {
+  std::vector<std::string> names;
+  std::error_code ec;
+  fs::create_directories(c.p.spikes, ec);
+  for (fs::directory_iterator it(c.p.spikes, ec), end; !ec && it != end; it.increment(ec)) {
+    if (it->is_directory(ec)) names.push_back(narrow(it->path().filename().wstring()));
+  }
+  const std::string name = next_spike_folder(c.o.spike, names);
+  const fs::path folder = c.p.spikes / widen(name);
+  ec.clear();
+  const bool made = fs::create_directory(folder, ec) && !ec;
+  say("spike_dir spike=%s n=%s made=%d", w::to_string(c.o.spike), name.substr(name.rfind('-') + 1).c_str(),
+      made ? 1 : 0);
+  if (!made) return SpikeFolder{std::nullopt, ec ? static_cast<DWORD>(ec.value()) : DWORD{ERROR_ALREADY_EXISTS}};
+  return SpikeFolder{folder, 0};
+}
+
 Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::string& build, bool inject_dll,
              AppidMethod method, RemoveAfter remove_after) {
   Run out;
   out.result.run = run;
   const std::string started_stamp = local_stamp();
   const std::uint64_t t0 = mono_ms();
+  // eldennet.dll among the DLLs: every injecting start but s0e_alone, which loads the --also DLLs alone.
+  const bool ours = inject_dll && c.o.spike != w::Spike::S0eAlone;
+  GameEnvironment env;
+  if (inject_dll && w::observer_run(c.o.spike)) {
+    const SpikeFolder folder = make_spike_folder(c);
+    if (!folder.path) {
+      out.result.outcome = RunOutcome::StartFailed;
+      out.error_exit = fail(ErrorCode::E09, "the spike's folder could not be made", folder.error);
+      return out;
+    }
+    env.spike_dir = folder.path->wstring();
+  }
 
   // Starting without EAC (ARCH §4.5).
   bool env_appid = method == AppidMethod::Env;
@@ -277,7 +313,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
     save_state(c.p, std::nullopt);
   };
 
-  const Started s = start_game(exe, c.o.game_args, env_appid, c.game.appid);
+  if (env_appid) env.appid = c.game.appid;
+  const Started s = start_game(exe, c.o.game_args, env);
   if (!s.ok()) {
     say("started ok=0 error=%lu", s.error);
     drop_appid();
@@ -288,8 +325,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   const DWORD pid = s.pi.dwProcessId;
   const InjectAt at = inject_dll ? c.o.inject_at : InjectAt::Suspended;
   out.result.mode = inject_dll ? to_string(at) : "vanilla";
-  say("started ok=1 run=%u mode=%s inject=%d also=%zu", run, inject_dll ? to_string(at) : "vanilla", inject_dll ? 1 : 0,
-      c.o.also.size());
+  say("started ok=1 run=%u mode=%s inject=%d also=%zu eldennet=%d", run, inject_dll ? to_string(at) : "vanilla",
+      inject_dll ? 1 : 0, c.o.also.size(), ours ? 1 : 0);
   auto wb = WatchBlock::open(pid);
   if (!wb) say("watch_block ok=0 error=%lu", GetLastError());
   if (wb && inject_dll) {
@@ -302,7 +339,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
 
   std::vector<fs::path> dlls;
   for (const auto& a : c.o.also) dlls.push_back(fs::absolute(path_from_utf8(a)));
-  if (inject_dll) dlls.push_back(dll_path(c));
+  if (ours) dlls.push_back(dll_path(c));
   const auto load_all = [&]() -> std::optional<Injected> {
     for (const fs::path& d : dlls) {
       const Injected inj = inject(s.pi.hProcess, pid, d);
@@ -392,7 +429,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   } else if (w::terminal(res.last_init)) {
     r.outcome = outcome_of(res.last_init);
   } else {
-    r.outcome = res.last_init == w::InitState::None && inject_dll ? RunOutcome::NoDll : RunOutcome::GameEnded;
+    r.outcome = res.last_init == w::InitState::None && ours ? RunOutcome::NoDll : RunOutcome::GameEnded;
   }
   r.status = rec.status;
   r.end = rec.kind;
@@ -443,15 +480,16 @@ int do_start(Ctx& c) {
   facts.eac_running = running(processes, "start_protected_game.exe");
   facts.game_running = running(processes, narrow(exe->filename().wstring()));
   const fs::path dll = dll_path(c);
-  facts.dll_ours = !inject_dll || is_ours(dll);
+  const bool ours = inject_dll && c.o.spike != w::Spike::S0eAlone;  // s0e_alone: the --also DLLs alone
+  facts.dll_ours = !ours || is_ours(dll);
   const auto proxies = proxy_dlls_beside(files_in(exe->parent_path()));
   std::string proxy_list;
   for (const auto& px : proxies) proxy_list += (proxy_list.empty() ? "" : ",") + px;
   say("preflight steam=%d steam_checked=%d eac=%d game_running=%d dll_ours=%d dll=%s other_mods=%s",
       facts.steam_running ? 1 : 0, c.o.no_steam_check ? 0 : 1, facts.eac_running ? 1 : 0, facts.game_running ? 1 : 0,
-      facts.dll_ours ? 1 : 0, inject_dll ? dll_label(dll).c_str() : "none",
+      facts.dll_ours ? 1 : 0, ours ? dll_label(dll).c_str() : "none",
       proxy_list.empty() ? "none" : proxy_list.c_str());
-  if (const auto e = preflight_failure(facts, !c.o.no_steam_check, inject_dll)) return fail(*e);
+  if (const auto e = preflight_failure(facts, !c.o.no_steam_check, ours)) return fail(*e);
   if (!proxies.empty()) tell("Other mods detected", "Other mods detected: " + proxy_list + ".");
   // GraceUI (ARCH §4.3; GraceUI D83, D88): Game\GraceUI\graceui.toml readable, every listed file matching its size and
   // SHA-256, the ABI major EldenNet speaks and a version at least its floor. What fails is told in E12, and the game

@@ -112,7 +112,8 @@ struct Tally {
 };
 [[nodiscard]] Tally tally(std::span<const RunResult> runs) noexcept;
 // DESIGN §16.1's rule for the launcher's part of each spike: s0a, every run reaching Ready or L1 (a banner, inert),
-// none crashing; s0d-crash, every forced crash recorded; s0b, s0c and s0d, the session not crashing.
+// none crashing; s0d-crash, every forced crash recorded; s0b, s0c and s0d, the session not crashing; s0e, s0e_alone
+// and s4 likewise (their measurements are GraceUI's observer's report).
 [[nodiscard]] bool passed(proto::watch::Spike spike, const Tally& t) noexcept;
 [[nodiscard]] nlohmann::json to_json(const RunResult& r, proto::watch::Spike spike);
 [[nodiscard]] nlohmann::json to_json(const Tally& t, proto::watch::Spike spike);

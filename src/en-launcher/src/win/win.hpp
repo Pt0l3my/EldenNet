@@ -19,6 +19,7 @@
 #include "en/launcher/config.hpp"
 #include "en/launcher/options.hpp"
 #include "en/launcher/record.hpp"
+#include "en/launcher/spikes.hpp"
 #include "en/launcher/texts.hpp"
 #include "en/proto/watch.hpp"
 
@@ -82,9 +83,10 @@ struct Started {
   DWORD error = 0;
   [[nodiscard]] bool ok() const { return pi.hProcess != nullptr; }
 };
-// The game, suspended, in its own folder; with the appid in its environment for the env method. No handles inherited.
-[[nodiscard]] Started start_game(const fs::path& exe, const std::vector<std::string>& args, bool env_appid,
-                                 std::uint32_t appid);
+// The game, suspended, in its own folder, with the launcher's environment as `env` edits it (spikes.hpp: the appid for
+// the env method, the spike folder in an observer's run). No handles inherited.
+[[nodiscard]] Started start_game(const fs::path& exe, const std::vector<std::string>& args,
+                                 const GameEnvironment& env);
 
 struct Injected {
   bool ok = false;

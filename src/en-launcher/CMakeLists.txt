@@ -2,7 +2,8 @@
 # part 7). Two parts:
 # - en_launcher_core, portable and tested on Linux: Steam's KeyValues and the game's discovery, the save backups with
 #   their BLAKE3 manifests, GraceUI's pre-flight (graceui.toml, with our own SHA-256), the appid file and the
-#   launcher's state, launcher.toml, the command line, the texts, the watcher's records and the S0 spikes' tally.
+#   launcher's state, launcher.toml, the command line, the texts, the watcher's records, the S0 spikes' tally, and the
+#   observer's runs' folder and the game's environment (S0-E, S4).
 # - eldennet-launcher (Windows builds): processes, injection, the watch block, the dev console and the Mark (src/win/).
 # It depends on en-gal's offline part only (the PE reader, builds.toml's gate and R1's report vocabularies; ARCH §2.3),
 # and through it on en-proto, whose watch block it shares with EldenNet in the game: never on en-core, en_shell or any
@@ -19,6 +20,7 @@ set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/options.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/texts.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/spikes.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/exe.cpp)
 add_library(en_launcher_core STATIC ${EN_LAUNCHER_CORE_SOURCES})
 target_include_directories(en_launcher_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

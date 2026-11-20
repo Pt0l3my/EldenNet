@@ -93,6 +93,8 @@ const char* to_string(BannerReason r) noexcept {
       return "session_failed";
     case BannerReason::TaskTripped:
       return "task_tripped";
+    case BannerReason::SpikeRun:
+      return "spike_run";
   }
   return "unknown";
 }
@@ -144,6 +146,8 @@ std::string banner_text(BannerReason r, std::string_view build, std::string_view
       return out;
     case BannerReason::TaskTripped:
       return "EldenNet stopped reading the game after an error. Your game is not affected.";
+    case BannerReason::SpikeRun:
+      return "Spike run: EldenNet makes no call into the game";
   }
   return out;
 }
