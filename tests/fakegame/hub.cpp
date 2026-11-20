@@ -242,29 +242,44 @@ extern "C" void fg_hub_enqueue(FG::TaskLoomImp* loom, std::uint32_t group, FG::T
   }
 }
 
+std::uint32_t FG::Rack::TaskLoomImp::shelf_kind() const { return 0x501; }
+std::uint32_t FG::TaskRackImp::rack_kind() const { return 0x502; }
+
 // The registration's rack (spike.8's shape, WHY§240), made by its first call: the memory, then a shelf for each of the
 // hub's groups, but the stand-in group's with --table-gap (there the registration answers 0 and keeps nothing).
 extern "C" void* fg_rack_alloc() {
-  static_assert(offsetof(FG::TaskRack, shelves) == FG_RACK_SHELVES_OFF);
-  return VirtualAlloc(nullptr, sizeof(FG::TaskRack), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  return VirtualAlloc(nullptr, sizeof(FG::TaskRackImp), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 }
 
 extern "C" void* fg_rack_build(void* memory, FG::TaskLoomImp* hub) {
-  auto* rack = static_cast<FG::TaskRack*>(memory);
+  auto* rack = new (memory) FG::TaskRackImp();
   const std::uint32_t groups = hub != nullptr ? hub->f.group_count : 0;
   static_assert(fakegame::kBaseGroups + 8 <= FG::kRackGroups, "every group of the hub has a shelf's place");
-  auto* shelves = static_cast<FG::TaskShelf*>(
+  auto* shelves = static_cast<std::byte*>(
       VirtualAlloc(nullptr, sizeof(FG::TaskShelf) * FG::kRackGroups, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
   for (std::uint32_t g = 0; g < groups && g < FG::kRackGroups && shelves != nullptr; ++g) {
     if (options().table_gap && g == fakegame::standin_group()) continue;
-    shelves[g].vtable = fg_shelf_vtable;
-    shelves[g].group = g;
-    rack->shelves[g] = &shelves[g];
-    ++rack->shelves_made;
+    auto* shelf = new (shelves + sizeof(FG::TaskShelf) * g) FG::TaskShelf();
+    shelf->s.group = g;
+    rack->r.shelves[g] = shelf;
+    ++rack->r.shelves_made;
   }
-  status("rack shelves=%llu gap=%d", static_cast<unsigned long long>(rack->shelves_made),
-         options().table_gap ? 1 : 0);
+  status("rack shelves=%llu gap=%d gate=%d", static_cast<unsigned long long>(rack->r.shelves_made),
+         options().table_gap ? 1 : 0, options().task_gate ? 1 : 0);
   return rack;
+}
+
+// Spike.9 (R1 run 8's reading, WHY§248): a shelf offers the hub each task it took, with whether its kind is the game's.
+// The hub takes it to the work as before, unless --task-gate is on and the kind is not the game's: then the hub runs
+// only tasks of the game's kind, and this one stays on the shelf's list under its tag, never run (R1's object holds
+// zero there), as in run 8.
+extern "C" void fg_shelf_offer(void* shelf, FG::TaskUnit* task, std::uint32_t awake, FG::TaskLoomImp* hub) {
+  const auto* s = static_cast<const FG::TaskShelf*>(shelf);
+  if (options().task_gate && awake == 0) {
+    status("register gated=%u kept=%u", s->s.group, s->s.count);  // gated: the group
+    return;
+  }
+  fg_register_keep(hub, s->s.group, task);
 }
 
 extern "C" void fg_register_rejected(std::uint32_t reason) {

@@ -22,9 +22,17 @@
 #define FG_LOOM_LAST_TASK_OFF 0x30    // FG::TaskLoomImp: the last task registered, which the registration keeps there
 #define FG_LOOM_LAST_VTABLE_OFF 0x38  // FG::TaskLoomImp: that task's vtable, which the registration keeps too
 #define FG_GROUP_BOUND 0x200          // the registration refuses a group index at or past it, before the count
-#define FG_RACK_SHELVES_OFF 0x10      // FG::TaskRack: its table of shelves, one per group (spike.8's shape, WHY§240)
+#define FG_RACK_SHELVES_OFF 0x10      // FG::TaskRackImp: its table of shelves, one per group (spike.8's shape, WHY§240)
 #define FG_RACK_BOUND 31              // the tail function answers 0 for a group past it (entries 0 to 31)
-#define FG_SHELF_REGISTER_OFF 0x10    // a shelf's vtable: its register slot (the third)
+// A shelf (the group's entry, spike.9's shape, WHY§248): its fields, and those of a task it reads.
+#define FG_SHELF_COUNT_OFF 0x0C       // FG::Rack::TaskLoomImp: how many tasks its list holds
+#define FG_SHELF_SEEN_OFF 0x18        // the last task's hub field, as the shelf read it
+#define FG_SHELF_ITEMS_OFF 0x20       // its list of tasks, each a pointer under a tag
+#define FG_SHELF_ITEMS 8              // the list's length
+#define FG_TASK_HUB_OFF 0x10          // a task's hub field (FG::TaskFields::hub, at +0x08 + 0x08)
+#define FG_TASK_KIND_OFF 0x20         // a task's kind (FG::TaskFields::kind): the game's own tasks hold FG_TASK_KIND
+#define FG_TASK_KIND 0x51             // the kind the shelf compares, and with --task-gate the only one the hub runs
+#define FG_TASK_TAG 0x7E01000000000000  // the high-bit tag the shelf keeps a task's pointer under (high 16: 0x7E01)
 #define FG_WARDEN_SAVE_SLOT_OFF 0x14  // FG::RunWardenImp: the save slot
 #define FG_PLOT_PLACE_OFF 0x1C        // FG::FieldPlotImp: the place id
 #define FG_RTCLASS_NAME_OFF 0x18      // a runtime-class object: its name pointer (DLRF's role; ARCH §6.2 step 3)
@@ -94,12 +102,14 @@ std::int64_t fg_field_plot_place();               // the place id through the Fi
 // fg_register_rack with the rack in rcx, the group in edx, the task in r8 and the hub it was given in r9.
 std::uint64_t fg_register_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);
 // The tail function, a leaf of no unwind data: past FG_RACK_BOUND, or where the rack's shelf for the group is null, it
-// answers 0; else it jumps through the shelf's vtable to its register slot, fg_shelf_register.
+// answers 0; else (R1 run 8's shape, WHY§248) it moves the task into rdx and jumps directly to fg_shelf_take, the
+// shelf in rcx and the hub still in r9.
 std::uint64_t fg_register_rack(void* rack, std::uint32_t group, FG::TaskUnit* task, FG::TaskLoomImp* hub);
-// A shelf's register slot: the work with the hub in rcx, the group in edx and the task in r8; answers 1.
-std::uint64_t fg_shelf_register(void* shelf, std::uint32_t group, FG::TaskUnit* task, FG::TaskLoomImp* hub);
-extern const void* const fg_shelf_vtable[3];  // in .rdata: two slots answering 0, then fg_shelf_register
-extern void* fg_static_rack;                  // FG::TaskRack*: the registration's own singleton, made lazily
+// The group's own function: it reads two fields of the task (its hub field, kept on the shelf, and its kind, compared
+// with FG_TASK_KIND), keeps the task in the shelf's list as a pointer under FG_TASK_TAG, and offers it to the hub
+// (fg_shelf_offer, with whether its kind is the game's); answers 1.
+std::uint64_t fg_shelf_take(void* shelf, FG::TaskUnit* task, FG::TaskUnit* same_task, FG::TaskLoomImp* hub);
+extern void* fg_static_rack;                  // FG::TaskRackImp*: the registration's own singleton, made lazily
 // The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
 void fg_register_keep(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 // The program's own call sites into it: four tasks, each {task, group}, registered in order.
@@ -115,6 +125,9 @@ void fg_fd4_unset(const char* path, const char* name, std::uint32_t site);  // a
 void fg_hub_enqueue(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 void* fg_rack_alloc();                               // the rack's memory, zeroed
 void* fg_rack_build(void* memory, FG::TaskLoomImp* hub);  // a shelf for each group of the hub's (but the gap's)
+// The hub's side of a shelf's take (spike.9): the work, with the hub the registration was given, unless --task-gate
+// is on and the task's kind is not the game's (`awake` 0), when the hub never runs it.
+void fg_shelf_offer(void* shelf, FG::TaskUnit* task, std::uint32_t awake, FG::TaskLoomImp* hub);
 void fg_register_rejected(std::uint32_t reason);  // 1 hub, 2 group, 3 task; it faults, as a game given bad input would
 }
 
@@ -123,7 +136,8 @@ namespace FG {
 // --- The task interface (the game's own task base; ARCH §6.4's "task object shape") -----------------------------------
 // A task is an object whose first field is a vtable pointer. The hub calls slot 0 once, on the game thread, when it
 // activates the task; slot 1 every frame of the task's group; slot 2 every 64th frame. It writes the fields below
-// into every task it holds, so a task object is at least 0x20 bytes: the vtable pointer, then 0x18 bytes the hub owns.
+// into every task it holds (but the kind, which the game's own tasks hold from when they are made), so a task object
+// is at least 0x28 bytes: the vtable pointer, then 0x20 bytes the hub owns.
 struct FrameInfo {
   std::uint64_t frame;  // 0x00: the frame's number
   float dt;             // 0x08: seconds since the previous frame
@@ -132,15 +146,17 @@ struct FrameInfo {
 struct TaskFields {
   std::uint32_t group;   // +0x08: written at registration
   std::uint32_t state;   // +0x0C: 1 queued, 2 active
-  void* hub;             // +0x10: written at registration
+  void* hub;             // +0x10: written at registration (FG_TASK_HUB_OFF)
   std::uint64_t runs;    // +0x18: incremented after every run
+  std::uint32_t kind;    // +0x20: FG_TASK_KIND in the game's own tasks; a shelf compares it (FG_TASK_KIND_OFF)
+  std::uint32_t spare;   // +0x24
 };
 inline constexpr std::uint32_t kTaskSlots = 3;
 inline constexpr std::uint32_t kAttachSlot = 0;
 inline constexpr std::uint32_t kRunSlot = 1;
 inline constexpr std::uint32_t kQuerySlot = 2;
 inline constexpr std::uint32_t kQueryEvery = 64;
-inline constexpr std::size_t kTaskFieldsSize = sizeof(TaskFields);  // the bytes after the vtable pointer: 0x18
+inline constexpr std::size_t kTaskFieldsSize = sizeof(TaskFields);  // the bytes after the vtable pointer: 0x20
 
 class TaskUnit {
  public:
@@ -150,7 +166,7 @@ class TaskUnit {
   virtual void attach(void* hub);                // slot 0
   virtual void run(const FrameInfo* frame) = 0;  // slot 1
   virtual std::uint32_t query();                 // slot 2
-  TaskFields t{};
+  TaskFields t{0, 0, nullptr, 0, FG_TASK_KIND, 0};  // the game's own: of the game's kind from the start
 
  protected:
   ~TaskUnit() = default;  // tasks live as long as the program
@@ -178,18 +194,34 @@ struct TaskLoomFields {       // from +0x08
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
 
-// The registration's own singleton (spike.8's shape, WHY§240): a shelf per group, each an object whose vtable's third
-// slot keeps a task. Made by the registration's first call; with --table-gap the stand-in group has no shelf.
+// The registration's own singleton (spike.8's shape, WHY§240): a shelf per group. Made by the registration's first call;
+// with --table-gap the stand-in group has no shelf. Since spike.9 (WHY§248) each shelf is an object of a class of the
+// rack's own, whose list keeps the tasks it took, each under a high-bit tag. Its class's innermost name is the hub's
+// (FG::Rack::TaskLoomImp), so R1, naming classes as O92 does, matches it to the hub's lead; the rack's matches none.
 inline constexpr std::uint32_t kRackGroups = FG_RACK_BOUND + 1;
-struct TaskShelf {
-  const void* const* vtable;  // fg_shelf_vtable
-  std::uint32_t group;
-  std::uint32_t spare;
+struct ShelfFields {                      // from +0x08
+  std::uint32_t group;                    // 0x08
+  std::uint32_t count;                    // 0x0C (FG_SHELF_COUNT_OFF)
+  std::uint64_t spare;                    // 0x10
+  void* seen;                             // 0x18 (FG_SHELF_SEEN_OFF): the last task's hub field, as read
+  std::uint64_t items[FG_SHELF_ITEMS];    // 0x20 (FG_SHELF_ITEMS_OFF): tagged pointers
 };
-struct TaskRack {
-  std::uint64_t made_frame;          // 0x00
-  std::uint64_t shelves_made;        // 0x08
-  TaskShelf* shelves[kRackGroups];   // 0x10 (FG_RACK_SHELVES_OFF)
+namespace Rack {
+class TaskLoomImp {
+ public:
+  virtual std::uint32_t shelf_kind() const;
+  ShelfFields s{};
+};
+}  // namespace Rack
+using TaskShelf = Rack::TaskLoomImp;
+struct RackFields {                       // from +0x08
+  std::uint64_t shelves_made;             // 0x08
+  TaskShelf* shelves[kRackGroups];        // 0x10 (FG_RACK_SHELVES_OFF)
+};
+class TaskRackImp {
+ public:
+  virtual std::uint32_t rack_kind() const;
+  RackFields r{};
 };
 
 // Every singleton class has a virtual function of its own, so each has a vtable and RTTI.
