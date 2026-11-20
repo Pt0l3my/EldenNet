@@ -12,7 +12,8 @@
 // - The launcher writes its requests (the spike under way; a crash on request in a probe build, for S0-D; R1 in a probe
 //   build, which EldenNet answers in the same field) and the
 //   Marks: each press of the hotkey, stamped in mono milliseconds (QPC, the recording's clock), which EldenNet's
-//   recorder writes into the recording.
+//   recorder writes into the recording. Once EldenNet's own Mark is bound, a GraceUI hotkey on the same key (part 12),
+//   the launcher hands the ring over (`Marks::source`): one writer at a time, EldenNet's after the hand-over.
 // Numbers only, and one file name with no folder: nothing personal, no path, no text from the game.
 #include <array>
 #include <atomic>
@@ -74,6 +75,19 @@ enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused };
 
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 
+// Who stamps the Marks (O90; part 12), one writer at a time: the launcher, with its Pause registered as a system hotkey
+// (`--console`), until EldenNet's own Mark, a GraceUI hotkey on the same key, is bound; EldenNet then asks, the launcher
+// lets its key go and hands the ring over, and from then on EldenNet alone adds Marks. With nobody holding the key
+// (no console), EldenNet takes the ring at once.
+enum class MarkSource : std::uint32_t {
+  None,      // nobody stamps Marks yet
+  Launcher,  // the launcher's Pause, a system hotkey (RegisterHotKey), stamps them
+  Asked,     // EldenNet's GraceUI Mark is bound and asks for the ring: the launcher is to let its key go
+  EldenNet,  // the launcher let its key go (or never held it): EldenNet's GraceUI Mark stamps them
+};
+inline constexpr std::uint32_t kMarkSourceCount = 4;
+[[nodiscard]] const char* to_string(MarkSource s) noexcept;  // "none", "launcher", "asked", "eldennet"
+
 // The thread that crashed, as EldenNet knows its threads.
 enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other };
 [[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other"
@@ -128,10 +142,11 @@ struct Crash {
   std::array<char, kModuleNameBytes> module;  // that module's file name, no folder: ASCII, '?' for anything else
 };
 
-// The Marks (O90): mark n (from 1) is at mono_ms[(n - 1) % kMarkRing]; `count` is written after it.
+// The Marks (O90): mark n (from 1) is at mono_ms[(n - 1) % kMarkRing]; `count` is written after it, by the one writer
+// `source` names (MarkSource).
 struct Marks {
   std::atomic<std::uint32_t> count;
-  std::atomic<std::uint32_t> reserved;
+  std::atomic<std::uint32_t> source;  // MarkSource
   std::array<std::atomic<std::uint64_t>, kMarkRing> mono_ms;
 };
 
@@ -169,7 +184,16 @@ void set_module_name(Crash& c, const wchar_t* name, std::size_t length) noexcept
   return frequency == 0 ? 0 : (counter / frequency) * 1000 + (counter % frequency) * 1000 / frequency;
 }
 
-// Adds a Mark; answers its number (from 1).
+// Adds a Mark; answers its number (from 1). Only the writer `source` names calls it.
 std::uint32_t add_mark(Marks& m, std::uint64_t at_ms) noexcept;
+
+// The hand-over (MarkSource). The launcher, once its hotkey is registered: `launcher_holds`. EldenNet, once its own
+// Mark is bound: `eldennet_asks`, which answers true when the ring is EldenNet's at once (nobody held the key), and
+// false when the launcher must first let its key go (Asked) or when there is nothing to ask (already Asked or
+// EldenNet's). The launcher, seeing Asked: unregister its key, take the presses already queued, then `launcher_hands_over`.
+[[nodiscard]] MarkSource mark_source(const Marks& m) noexcept;
+void launcher_holds(Marks& m) noexcept;
+[[nodiscard]] bool eldennet_asks(Marks& m) noexcept;
+void launcher_hands_over(Marks& m) noexcept;
 
 }  // namespace en::proto::watch

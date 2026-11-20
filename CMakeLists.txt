@@ -37,6 +37,54 @@ en_fetch(https://raw.githubusercontent.com/marzer/tomlplusplus/v3.4.0/toml.hpp
 en_fetch(https://raw.githubusercontent.com/marzer/tomlplusplus/v3.4.0/LICENSE
   tomlplusplus/LICENSE 529bc3900a9571e49db285b0df432397e70b881cc3bf48de6667ae74ff4b06d8)
 
+# Dear ImGui 1.93.0's core, for the F11 view (en-overlay; DESIGN O25, ARCH §2.3): the very pin GraceUI uses (its
+# cmake/third_party.cmake at GraceUI f51bcc7): tag v1.93.0's commit, from its own project, each file by its SHA-256, the
+# core alone and no backend. Only the Windows builds build en-overlay's connection and the view, so only they fetch it.
+if(WIN32)
+  set(EN_IMGUI_COMMIT c1aaac65e896a45f81f47a4d68f9959e0f86c859)  # ocornut/imgui, tag v1.93.0
+  set(EN_IMGUI_DIR ${EN_DEPS}/imgui-1.93.0)
+  foreach(pin IN ITEMS
+      "LICENSE.txt|173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+      "imconfig.h|fa91f606da783669ffd485f3f9e0cd0d92cddeac459efce4c2b9327cce7a3233"
+      "imgui.h|314462301948fbd5673f5ead6f9a53acf54767cbee57e186e69f8f8b022c7094"
+      "imgui.cpp|9542082a1eaeffcab7b3d8069e707839ce1714d167005e9f273ac9f656b415ed"
+      "imgui_draw.cpp|fff3bb04ca11e32041144e83a37b89ec92f4d5c62d681eb7ef29ee6cd7663e84"
+      "imgui_internal.h|61bc50172d907cc931159cdce48fbff1db616cda33251c9c3469e316056939e6"
+      "imgui_tables.cpp|36635c1cf2ad1b7c88cdced456cceba3a1d02266d78a63d77e9cce92f4d48d61"
+      "imgui_widgets.cpp|d2d388f711688f6a5ce1ae3b30168c1bf4f954ead40235b0b2b9667452850c93"
+      "imstb_rectpack.h|889b396795202d1457560a797a7242e96f6f132d4b88ca2d69be58bf05e1771f"
+      "imstb_textedit.h|a985f5fa0ed97353d493b497961e9eef52082edcd045cf6954b69990ec9d0741"
+      "imstb_truetype.h|c51a0f7e7ea760f2366bd3752635ec58e21fccfec4a832501639990ba6ce0528")
+    string(REPLACE "|" ";" pin "${pin}")
+    list(GET pin 0 _en_path)
+    list(GET pin 1 _en_sha256)
+    en_fetch(https://raw.githubusercontent.com/ocornut/imgui/${EN_IMGUI_COMMIT}/${_en_path}
+      imgui-1.93.0/${_en_path} ${_en_sha256})
+  endforeach()
+endif()
+
+# GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper) and the ABI header it includes,
+# vendored unmodified from GraceUI at f51bcc7 with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md), and
+# graceui_test.h, the test build's exports, which the fake game reads in the tests alone. Each file is checked against
+# its SHA-256 here, so that an edit is caught when the build is configured.
+foreach(pin IN ITEMS
+    "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
+    "graceui.h|8bce8e76e52ea18bab93a0c875498cae8aec1b7681fdcb6012e35498fe9de828"
+    "graceui_sys.h|8550e39fa2a8423dac207d1d2bf90cdbd18ff24a01afa1a0575ca8a2afcadb00"
+    "graceui_sys.hpp|3a7368257232039e71e1442ce8eb40c0b818f012d148477fc5442934ac0cf288"
+    "graceui_imgui.hpp|b7b66dd74af0cf8600f407447d70df8dd7e1f8aa0df887924922bbd9e2f33c02"
+    "graceui_test.h|ea411ec987829f6fccee6a6bc57cb65d7b1d9419689c914718a3667ca36b8640")
+  string(REPLACE "|" ";" pin "${pin}")
+  list(GET pin 0 _en_path)
+  list(GET pin 1 _en_sha256)
+  file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
+  if(NOT _en_have STREQUAL _en_sha256)
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI f51bcc7's (SHA-256 ${_en_have})")
+  endif()
+endforeach()
+add_library(en_graceui_sys INTERFACE)
+target_include_directories(en_graceui_sys SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys)
+
 add_library(en_third_party INTERFACE)
 target_include_directories(en_third_party SYSTEM INTERFACE
   ${EN_DEPS}
@@ -77,6 +125,10 @@ add_subdirectory(src/en-core)   # the core's v0.1 slice: the lifecycle, the gate
 # en-gal's portable part builds with every compiler; its SEH-guarded copy (__try/__except, ARCH §2.6) only with an
 # MSVC-like one, the clang-cl build (cmake/clang-cl-xwin.cmake): src/en-gal/CMakeLists.txt chooses.
 add_subdirectory(src/en-gal)
+# en-overlay (part 12): GraceUI's ABI 1 through graceui-sys. Its pure part (the F11 view's lines, the world-state
+# claims) builds everywhere; the connection, the notices, the hotkeys and the view on Dear ImGui's core in the Windows
+# builds.
+add_subdirectory(src/en-overlay)
 add_subdirectory(src/eldennet)  # eldennet.dll (part 6) and its portable shell, en_shell, which en-tools' lint reads
 add_subdirectory(src/en-tools)
 add_subdirectory(src/en-launcher)  # eldennet-launcher and its crash watcher (part 7)
