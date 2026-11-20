@@ -74,7 +74,8 @@ The steps
 4. Within a few seconds the console says "Task confirmed." Then, and only then, load your save.
 
    If it says anything else instead (a check did not pass, the call did not complete, or no confirmation after 30
-   seconds), do not load a save: quit the game from the title screen and go to step 7. That is a useful result too.
+   seconds), do not load a save: wait one more minute at the title screen, then quit the game from the title screen
+   and go to step 7. That is a useful result too.
 
 5. Play for about ten minutes: go near NPCs and enemies, rest at a grace, and fast travel once (the loading screen
    matters to one of the measurements).
@@ -118,6 +119,7 @@ What it does
     also looks through all of the game's memory, read-only and for at most 30 seconds each time, for where the game
     kept EldenNet's task or the parts of it; it reports only counts and the kinds of memory it found them in, never
     what the memory holds.
+  - Just before the call and 2 s after it, it reads the table that code looks the group up in: which entries are set.
   - Every two seconds it writes the two reports into %APPDATA%\EldenNet\probe. They hold only numbers (offsets,
     sizes, counts) and our own labels: no names, no text, no paths, nothing of your character or your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was

@@ -193,13 +193,32 @@ layout fields). On T1, after the window and `settle_s` seconds:
    tail jump which of the callee's arguments rcx, rdx, r8 and r9 hold (`pass`), and for each branch before the first
    call the compare or test that set its flags, with its operands' kinds and its condition (`guard`); then each callee
    it calls directly or tail-jumps to (up to eight) is summarised the same way with those arguments followed in
-   (`callee_code.inner`: their `args` are the wrapper's). Just before the call, T1 walks the hub's reachable memory as
-   the hub search does and keeps the blocks' bytes on our heap (within the walk's 6 MiB) for the diffs below.
+   (`callee_code.inner`: their `args` are the wrapper's). Since spike.8 (WHY§240: run 7's wrapper tail-jumps to a
+   function that bounds the group by 168, tests a register loaded from none of its arguments and leaves through a jump
+   through memory) a register also holds a value loaded from memory (a RIP-relative slot, or [base + index*scale +
+   disp] with what base and index hold, at most 3 loads deep), a call's result stored to a RIP-relative slot holds that
+   slot's value, an inner summary's rcx to r9 that hold no argument hold their entry values, and each guard operand that
+   holds no argument gives its `source`; a jump through memory or a register is a tail call site (`tail_memory`,
+   `tail_register`, with the base's source and `vtable_src`); every call site gives the known values in rcx to r9 that
+   are no argument (`pass_src`); with no extent a function ends at a jump out that no branch goes past; and the first 64
+   instructions of each summary are given as `forms` (offset, length, class and each operand's kind: a register with
+   its width and the argument it holds, memory, a RIP-relative slot with its section, an immediate up to 65,536 or
+   `large`; those no known path reaches `unreached`), no bytes. The tail function's **table** is matched against run
+   7's reading (`table`: the wrapper's rcx loaded from a slot S, directly or through one load, and the tail function's
+   null-tested value loaded from [entry rcx + group*8 + disp], or one level deeper; else `matched: false` and the first
+   shape that failed). At the Mark T1 walks the hub's reachable memory as the hub search does (the control walk), waits
+   2 s and walks it again, keeping the blocks' bytes on our heap (within the walk's 6 MiB) for the diffs below, reads
+   the table (`table.before`: the singleton's kind and whether it is CSTask's instance or a named singleton's, the
+   entries from 0 to the bound that are set, the group's entry, its first word and the word its final jump reads, a
+   game function there summarised one level deeper, `depth` 2), and makes the call at once; then it compares the two
+   walks (`hub_diff_control`) and lets the first go.
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
    running the probe's body for our object (TaskShape's `every_slot`), in the derived registers and group. The status
-   block's `ready` is "task confirmed" once the game has called a slot.
+   block's `ready` is "task confirmed" once the game has called a slot. Since spike.8 rax as the call left it is kept,
+   as a kind (`register.returned`: zero, small with its value, ours, the game's, heap, our task's block, other) with its
+   low byte (`returned_low`).
 4. **On the game thread**, within the reader's budget: the slot counts (the run slot is the one called every frame);
    how much of our object the hub wrote (one past its last non-zero byte); the **hub census** (the vtables of the objects
    the hub's instance points at, to a depth of three, the image's writable data included); the **rising-counter search**
@@ -212,7 +231,9 @@ layout fields). On T1, after the window and `settle_s` seconds:
    value, the group's index, our task object, our vtable, our module, the game's image with its section's kind and RVA,
    the heap, or other; a new pointer's block fresh when the walk before the call never reached it, a word whose 32-bit
    half is the group's index marked; at 20 s each word steady when it held the same new value at 2 s, the steady ones
-   listed first), and the **whole-memory search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
+   listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
+   in the control listed before those in it), at 2 s the table read again (`table.after`), and the **whole-memory
+   search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
    it), within 64 GiB and 30 s since spike.7 (run 6's 8 GiB cap left 2 of 10.6 GiB unread; `stopped` says which cap, if
