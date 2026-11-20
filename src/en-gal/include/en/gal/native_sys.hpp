@@ -38,8 +38,9 @@ class NativeSys final : public SysLayer {
   [[nodiscard]] const ByteSource& image() const noexcept override;
   [[nodiscard]] proto::Expected<std::uint64_t, SysError> call_getter(std::uint64_t getter,
                                                                      std::uint64_t class_object) noexcept override;
-  [[nodiscard]] proto::Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
-                                                              const TaskShape& shape, TaskBody& body) noexcept override;
+  [[nodiscard]] proto::Expected<std::uint64_t, SysError> register_task(std::uint64_t function, std::uint64_t instance,
+                                                                       const TaskShape& shape,
+                                                                       TaskBody& body) noexcept override;
   [[nodiscard]] Copier& copier() noexcept override;
   [[nodiscard]] StackRanges& stacks() noexcept override { return stacks_; }
   void note_own_stack() noexcept override;

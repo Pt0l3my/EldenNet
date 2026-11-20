@@ -338,7 +338,18 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   `walk_hub`, `search_walk` and `diff_hub` (`probe_hub.cpp`) keep spike.5's walk of the hub's reachable memory, search
   it, and compare two walks block by block by path, each changed word's old and new value by kind (zero, a small
   integer, the group's index, our task, our vtable, our module, the game's image with its section and RVA, the heap,
-  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not.
+  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not. Spike.8 (WHY§240) reads the
+  tail function run 7 found: `summarise_callee` also follows values loaded from memory (a RIP-relative slot, or
+  [base + index*scale + disp] with what base and index hold, at most 3 loads deep; a call's result stored to a
+  RIP-relative slot holds that slot's value, and an inner summary's rcx to r9 that hold no argument their entry
+  values), gives each guard operand's source, models a jump through memory or a register as a tail call site, ends a
+  function with no extent at its first jump out that no branch goes past, and gives each summary's first 64
+  instructions as forms (class and operand kinds, no bytes; `mark_sections` fills a RIP-relative slot's section);
+  `match_table` checks a wrapper and its tail function against run 7's shapes (the wrapper's rcx at its tail jump, or
+  past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
+  its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
+  `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
+  the call left it.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -418,10 +429,18 @@ and its vtable kept in the hub, the group compared with a bound), two paths that
 a jump the summary cannot follow, a compare found past a move and a byte register's high half; the hub walked, searched
 and diffed over memory of the test's own (each kind of value, a fresh block, a block found again by another path, a
 path re-pointed, a block gone, the caps, and a later diff's steady words first); and the search for our vtable's and
-slots' copies, ours apart, with the committed total past a cap). The clang-cl build adds
+slots' copies, ours apart, with the committed total past a cap; spike.8's on code of our own: a wrapper of run 7's
+shape whose singleton, loaded from a global on one path and made and stored there on the other, reaches its tail jump
+on both, its guard's source and its forms; a tail function whose null test reads [entry rcx + group*8] and whose jump
+through the entry's vtable is a tail call through memory, the padding after it unreached, and the table's shapes
+matched (one level deeper too) or the first that failed named; a jump through a register loaded from a global, one
+through a RIP-relative slot, loads not followed (16-bit, a segment's, a fourth level) and a function with no extent
+ending at its jump out; the table's reads over memory of the test's own (the entries to the bound, the group's entry,
+its vtable and slot, no entry, no singleton yet, a hop and an array, the instance); and the control diff's words
+marked and ordered). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
-under SEH, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
+under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
 it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page

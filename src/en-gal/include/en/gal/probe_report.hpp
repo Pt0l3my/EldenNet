@@ -25,7 +25,11 @@
 // - `memory_search` (spike.6): every word of the process equal to our task's address, or pointing into it, after the
 //   call, ours counted apart; since spike.7 also those equal to our vtable's and its slots' addresses, and the
 //   process's committed total;
-// - `hub_diff` (spike.7): the hub's reachable memory before the call against the same walk 2 and 20 s after it.
+// - `hub_diff` (spike.7): the hub's reachable memory before the call against the same walk 2 and 20 s after it;
+// - since spike.8 (WHY§240): the call's return value (`register.returned`), each summarised function's instructions
+//   as forms (`forms`: classes and operand kinds, no bytes), jumps through memory or a register as tail call sites,
+//   where a tested register's value came from (`source`), the table the tail function reads, read before and after
+//   the call (`table`), and a control diff of the hub over the same interval before the call (`hub_diff_control`).
 // It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
 // session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
 // (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
@@ -121,7 +125,39 @@ struct HubSearch {
 // R1 run 6 (WHY§235): the callee is a wrapper of one branch and two calls. Spike.7 maps the arguments into each call
 // (`pass`), reads the flag test before each branch (`guards`), and summarises each callee of the wrapper in turn with
 // the wrapper's arguments followed into it (InnerCallee): an inner summary's `args` are the wrapper's.
-enum class CallForm : std::uint8_t { Direct, Register, Memory, Rip, Tail };  // Tail: a direct jump out of the function
+enum class RegionKind : std::uint8_t { Private, Mapped, Image, Other };
+enum class ModuleKind : std::uint8_t { None, Ours, Game, Other };
+enum class SectionKind : std::uint8_t { None, Header, Code, Rdata, Data, Other };
+
+// R1 run 7 (WHY§240): the wrapper tail-jumps to a function that bounds the group, tests a register loaded from none of
+// its arguments, and leaves through a jump spike.7 did not count. Spike.8 models a jump through memory or a register as
+// a tail call (TailMemory, TailRegister), and follows what a register holds past the arguments: a value loaded from a
+// RIP-relative slot or from [base + index*scale + disp] (Source), at most 3 levels.
+enum class CallForm : std::uint8_t { Direct, Register, Memory, Rip, Tail, TailMemory, TailRegister };
+// What a register holds, as the report describes it (spike.8): an argument, the first word of its object, the value a
+// function was entered with in one of rcx to r9 that holds no argument (an inner summary's), or a value loaded from
+// memory, with what the load's base and index held, to at most 3 loads deep.
+struct Source {
+  enum class Kind : std::uint8_t { None, Argument, FirstWord, Entry, Rip, Memory };
+  Kind kind = Kind::None;
+  std::uint8_t from = 0;        // Argument, FirstWord: the argument (1, 2, 8, 9); Entry: the register
+  std::uint32_t at = 0;         // Rip, Memory: the load's offset (of the loads that made it, the first in address order)
+  std::uint32_t target = 0;     // Rip: the slot's RVA
+  std::optional<std::uint8_t> base;   // Memory: the registers
+  std::optional<std::uint8_t> index;
+  std::uint8_t scale = 1;
+  std::int64_t disp = 0;
+  std::uint8_t width = 8;       // Rip, Memory: bytes loaded
+  std::vector<Source> base_src;   // Memory: what the base held (at most one)
+  std::vector<Source> index_src;  // and the index
+};
+// Whether two descriptions name the same value (the load's offset aside).
+[[nodiscard]] bool same_source(const Source& a, const Source& b) noexcept;
+// A register at a call holding a known value that is no argument (spike.8).
+struct PassedSource {
+  std::uint8_t reg = 0;
+  Source source;
+};
 // A register holding one of the summarised function's arguments at a call (or a tail jump).
 struct PassedArg {
   std::uint8_t reg = 0;     // 1 rcx, 2 rdx, 8 r8, 9 r9: the register at the call
@@ -138,6 +174,13 @@ struct CalleeCall {
   std::optional<std::uint8_t> vtable_of;  // the argument whose object's first word the base holds (a virtual call on it)
   bool reached = false;                   // the flow from the entry reaches it, so `pass` is known
   std::vector<PassedArg> pass;            // rcx, rdx, r8 and r9 at the call, those that hold an argument
+  // Spike.8: a tail jump through a RIP-relative slot (`target` its RVA); what a memory or register call's base holds
+  // when it is no argument; the object whose first word it holds when that object's value is known (a virtual call on
+  // a value loaded from memory); rcx, rdx, r8 and r9 holding known values that are no argument.
+  bool rip = false;
+  std::optional<Source> base_src;
+  std::optional<Source> vtable_src;
+  std::vector<PassedSource> pass_src;
 };
 struct CalleeBranch {
   std::uint32_t offset = 0;
@@ -156,6 +199,31 @@ struct Operand {
   std::int64_t disp = 0;
   std::optional<std::uint32_t> target;   // a RIP-relative operand's slot (RVA)
   std::optional<std::uint64_t> imm;      // an immediate, as the operand's width reads it, kept from 0 to 65,536
+  // Spike.8, in the forms: a register's or memory operand's width in bytes (0 where the form gives none), whether a
+  // byte register is ah, ch, dh or bh (`reg` then names rax to rbx), an index's scale, a RIP-relative slot's section
+  // (by its characteristics, filled from the image), and an immediate past 65,536 (`large`, its value not kept).
+  std::uint8_t width = 0;
+  bool high = false;
+  std::uint8_t scale = 0;
+  SectionKind section = SectionKind::None;
+  bool large = false;
+  // A guard's register operand holding no argument: where its value came from; a guard's memory operand whose base holds
+  // no argument: what the base holds (spike.8).
+  std::optional<Source> source;
+  std::optional<Source> base_src;
+};
+// An instruction's class, as R1's forms name it (spike.8): no bytes and no opcode beyond it.
+enum class InsnClass : std::uint8_t {
+  Mov, MovExt, Lea, Cmp, Test, Jcc, Jmp, Call, Ret, Push, Pop, Xor, Add, Sub, And, Or, Shift, Imul, Nop, Int3, Other
+};
+struct Form {
+  std::uint32_t offset = 0;
+  std::uint8_t length = 0;
+  InsnClass cls = InsnClass::Other;
+  std::uint8_t cond = 16;          // a Jcc's condition, as CalleeGuard's
+  std::optional<std::int64_t> to;  // a relative branch's, jump's or call's target, from the entry
+  bool unreached = false;          // no known path from the entry reaches it (padding after a return or a jump)
+  std::vector<Operand> operands;   // as the instruction names them (Intel's order), for the classes that have them
 };
 enum class GuardOp : std::uint8_t { Compare, Test, Other, None };
 // A conditional branch before the first call, with the instruction that set its flags (the nearest before it, past
@@ -213,6 +281,8 @@ struct CalleeCode {
   std::vector<CalleeBranch> branches;   // the first 32
   std::vector<CalleeGuard> guards;      // the first 8 of those branches, each with its flags' instruction
   std::vector<ArgUse> args;             // rcx, rdx, r8, r9 (of the wrapper, for an inner summary)
+  std::vector<Form> forms;              // spike.8: the first 64 instructions, as forms
+  bool forms_dropped = false;           // left out so that the report stays within its size
 };
 // A callee of the summarised function (a direct call's target, or a tail jump's), summarised in turn with the
 // arguments its call site passes it: its `args` are the wrapper's (spike.7, WHY§235).
@@ -221,11 +291,11 @@ struct InnerCallee {
   std::uint32_t site = 0;  // the call's (or jump's) offset in the wrapper
   bool tail = false;
   CalleeCode code;
+  // Spike.8: one more level, the function the tail function's table entry leads to (its `site` the tail function's
+  // jump): 2; else 1, and not written.
+  std::uint32_t depth = 1;
 };
 
-enum class RegionKind : std::uint8_t { Private, Mapped, Image, Other };
-enum class ModuleKind : std::uint8_t { None, Ours, Game, Other };
-enum class SectionKind : std::uint8_t { None, Header, Code, Rdata, Data, Other };
 // What a word the search counts points at (spike.7): our object (or into it), our fake vtable, or one of its slots.
 enum class PointsTo : std::uint8_t { Object, Vtable, Slot };
 struct MemoryHit {
@@ -287,6 +357,7 @@ struct DiffWord {
   WordValue before;
   WordValue after;
   std::optional<bool> steady;           // the later diff: the word held the same new value at the earlier one
+  std::optional<bool> in_control;       // spike.8: the same path's word changed in the control diff, before the call
 };
 struct HubDiff {
   std::uint64_t at_ms = 0;
@@ -301,7 +372,43 @@ struct HubDiff {
   std::optional<std::uint64_t> steady_words;  // the later diff: changed words holding the earlier diff's new value
   bool capped = false;                  // a walk met its cap of blocks or bytes
   std::uint64_t kept_bytes = 0;         // the bytes kept from before the call
-  std::vector<DiffWord> words;          // the first 32 (in the later diff, the steady ones first)
+  std::optional<std::uint64_t> in_control_words;  // spike.8: changed words whose path's word changed in the control too
+  std::vector<DiffWord> words;          // the first 32 (in the later diff, the steady ones first; since spike.8 those
+                                        // not in the control before those in it)
+};
+
+// Spike.8 (WHY§240): the table the tail function reads, when the wrapper's and the tail function's shapes match run 7's
+// reading (probe.hpp's match_table): the wrapper's rcx at its tail jump loaded from a RIP-relative slot (the singleton's
+// global), directly or through one [reg + d] load, and the tail function's null-tested register loaded from
+// [entry rcx + group*8 + disp], or the same one level deeper. Read before the call and 2 s after it.
+struct TableRead {
+  std::uint64_t at_ms = 0;               // after the call (before it: 0)
+  bool read = false;                     // the singleton and the entries were read
+  std::optional<WordValue> singleton;    // *S (through the hop), when it could be read
+  bool is_instance = false;              // CSTask's instance, as R1 passes it
+  std::optional<std::uint32_t> singleton_lead;  // a named singleton's instance: its index in the leads' singletons
+  std::uint32_t entries = 0;             // read: 0 to the bound
+  std::uint32_t nonzero = 0;
+  std::vector<std::uint32_t> nonzero_at;  // their indices
+  std::optional<WordValue> entry;        // the group's
+  std::optional<WordValue> entry_vtable; // its first word
+  std::optional<WordValue> slot_value;   // the word at [first word + slot_disp]: the function the final jump reaches
+};
+struct Table {
+  bool matched = false;
+  std::string_view failed;                // when not matched: wrapper_tail, wrapper_rcx, tail_summary, tail_bound,
+                                          // tail_null_test
+  std::uint32_t singleton_slot = 0;       // S's RVA
+  std::optional<std::int64_t> hop;        // rcx = [*S + hop]
+  bool via_guard = false;                 // read on the path past the wrapper's null test of rcx, where the paths
+                                          // into the tail jump disagree on rcx
+  std::optional<std::int64_t> array;      // the entries at [singleton + array] (one level deeper)
+  std::int64_t disp = 0;                  // entry i at table + disp + i*8
+  std::uint32_t bound = 0;                // the group's bound, from the tail function's compare
+  std::optional<std::int64_t> slot_disp;  // the final jump goes through [entry's first word + slot_disp]
+  std::uint32_t rva = 0;                  // the tail function
+  std::optional<std::uint32_t> site;      // its final jump
+  std::optional<TableRead> before, after;
 };
 
 struct Findings {
@@ -321,6 +428,8 @@ struct Findings {
   std::uint32_t group_index = 0;
   std::uint32_t object_size = 0;
   std::uint32_t vtable_slots = 0;
+  std::optional<WordValue> returned;   // spike.8: rax as the call left it, as a kind
+  std::optional<std::uint8_t> returned_low;  // its low byte (a bool's answer sets al alone)
   // On the game thread.
   std::uint64_t first_tick_ms = 0;  // from the call to the first tick
   std::uint64_t invocations = 0;
@@ -346,6 +455,8 @@ struct Findings {
   std::vector<InnerCallee> callee_inner;  // written as `callee_code.inner`
   std::vector<MemorySearch> memory_search;
   std::vector<HubDiff> hub_diff;
+  std::optional<HubDiff> hub_diff_control;  // spike.8: the hub's walk at the Mark against the walk 2 s later
+  std::optional<Table> table;               // spike.8
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;

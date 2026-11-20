@@ -105,6 +105,7 @@ __asm__(
     FG_STATIC(fg_static_field_plot)
     FG_STATIC(fg_static_hinstance)
     FG_STATIC(fg_hinstance_check)
+    FG_STATIC(fg_static_rack)
     "  .globl fg_save_ledger_ready\n"
     "fg_save_ledger_ready:\n  .byte 0\n"
     FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
@@ -130,6 +131,9 @@ __asm__(
     "  .globl fg_static_rockbound\n"
     "fg_static_rockbound:\n  .quad 0\n"
     "fg_rtclass_table:\n  .quad fg_rtclass_name\n"
+    // A shelf's vtable (the registration's rack, spike.8): two slots answering 0, then the one that keeps a task.
+    "  .globl fg_shelf_vtable\n"
+    "fg_shelf_vtable:\n  .quad fg_shelf_none, fg_shelf_none, fg_shelf_register\n"
     "  .globl fg_fd4_path\n"
     "fg_fd4_path:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.h\"\n"
     // The variants' words: a log format loaded before the path, and a pointer to the path.
@@ -419,10 +423,11 @@ __asm__(
     "  ret\n"
     "  .seh_endproc\n"
 
-    // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group. A wrapper of the
-    // shape R1 run 6 found (WHY§235): it keeps its arguments in callee-saved registers, tests a flag of the hub, and
-    // either calls the work with the hub in rcx, the group in edx and the task in r8, or, past that call, tail-jumps to
-    // fg_register_closed with its own arguments as it was given them. R1's callee summary is checked against it.
+    // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group; it answers 1 when
+    // the task was kept, else 0. A wrapper of the shape R1 run 7 found (WHY§240): it keeps its arguments in callee-saved
+    // registers, loads its own singleton (the rack) from fg_static_rack and, while that is null, makes it with two calls
+    // and stores it there; then, where both ways meet, it tail-jumps to fg_register_rack with the rack in rcx, the group
+    // in edx, the task in r8 and the hub it was given in r9. R1's callee summary is checked against it.
     FG_FUNC_BEGIN(fg_register_task)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
@@ -436,24 +441,67 @@ __asm__(
     "  mov rbx, rcx\n"
     "  mov rsi, rdx\n"
     "  mov edi, r8d\n"
-    "  test byte ptr [rsi + " FG_XSTR(FG_LOOM_FLAGS_OFF) "], " FG_XSTR(FG_LOOM_CLOSED) "\n"
-    "  .byte 0x75, 3f - 1f\n"
+    "  mov rcx, qword ptr [rip + fg_static_rack]\n"
+    "  test rcx, rcx\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  call fg_rack_alloc\n"
+    "  mov rcx, rax\n"
+    "  mov rdx, rsi\n"
+    "  call fg_rack_build\n"
+    "  mov rcx, rax\n"
+    "  mov qword ptr [rip + fg_static_rack], rax\n"
     "1:\n"
-    "  mov r8, rbx\n"
     "  mov edx, edi\n"
-    "  mov rcx, rsi\n"
-    "  call fg_register_keep\n"
+    "  mov r8, rbx\n"
+    "  mov r9, rsi\n"
     "  add rsp, 0x20\n"
     "  pop rdi\n"
     "  pop rsi\n"
     "  pop rbx\n"
-    "  ret\n"
+    "  .byte 0xE9\n"  // jmp fg_register_rack, always in its long form
+    "  .long fg_register_rack - 3f\n"
     "3:\n"
-    "  add rsp, 0x20\n"
-    "  pop rdi\n"
-    "  pop rsi\n"
-    "  pop rbx\n"
-    "  jmp fg_register_closed\n"  // in another object: always its long form
+    "  .seh_endproc\n"
+
+    // ---- The tail function (run 7's shape): the group bounded, the rack's shelf for it loaded and tested for null (0
+    // answered), else a jump through the shelf's vtable to its register slot, the shelf in rcx and the rest as given. A
+    // leaf with no unwind data, so R1 reads it up to its first return; the two traps after the jump are padding no path
+    // reaches.
+    "  .p2align 4, 0xcc\n"
+    "  .globl fg_register_rack\n"
+    "fg_register_rack:\n"
+    "  cmp edx, " FG_XSTR(FG_RACK_BOUND) "\n"
+    "  .byte 0x77, 1f - 2f\n"
+    "2:\n"
+    "  mov rcx, qword ptr [rcx + rdx*8 + " FG_XSTR(FG_RACK_SHELVES_OFF) "]\n"
+    "  test rcx, rcx\n"
+    "  .byte 0x74, 1f - 3f\n"
+    "3:\n"
+    "  mov rax, qword ptr [rcx]\n"
+    "  jmp qword ptr [rax + " FG_XSTR(FG_SHELF_REGISTER_OFF) "]\n"
+    "  int3\n"
+    "  int3\n"
+    "1:\n"
+    "  xor eax, eax\n"
+    "  ret\n"
+
+    // ---- A shelf's slots: its register slot calls the work with the hub the registration was given, and answers 1;
+    // the others answer 0.
+    FG_FUNC_BEGIN(fg_shelf_register)
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
+    "  .seh_endprologue\n"
+    "  mov rcx, r9\n"
+    "  call fg_register_keep\n"
+    "  mov eax, 1\n"
+    "  add rsp, 0x28\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+    FG_FUNC_BEGIN(fg_shelf_none)
+    "  .seh_endprologue\n"
+    "  xor eax, eax\n"
+    "  ret\n"
     "  .seh_endproc\n"
 
     // ---- The work, with the hub in rcx, the group in edx and the task in r8. It checks the hub against its static,

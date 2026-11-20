@@ -98,8 +98,9 @@ class FakeSys final : public SysLayer {
   [[nodiscard]] const ByteSource& image() const noexcept override { return image_; }
   [[nodiscard]] proto::Expected<std::uint64_t, SysError> call_getter(std::uint64_t getter,
                                                                      std::uint64_t class_object) noexcept override;
-  [[nodiscard]] proto::Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
-                                                              const TaskShape& shape, TaskBody& body) noexcept override;
+  [[nodiscard]] proto::Expected<std::uint64_t, SysError> register_task(std::uint64_t function, std::uint64_t instance,
+                                                                       const TaskShape& shape,
+                                                                       TaskBody& body) noexcept override;
   [[nodiscard]] Copier& copier() noexcept override { return copier_; }
   [[nodiscard]] StackRanges& stacks() noexcept override { return stacks_; }
   void note_own_stack() noexcept override { stacks_.add(own_stack); }
@@ -134,6 +135,7 @@ class FakeSys final : public SysLayer {
   };
   std::optional<Registration> registration;
   bool fault_register = false;  // the call into the game faults (ARCH §3.2's Register → banner)
+  std::uint64_t register_answer = 0;  // rax as the call leaves it
   bool registered_after = false;
   // Runs the registered task's run slot once, `dt_us` after the last tick, as the game's hub would; with `watch` the
   // allocation watch is armed for it.

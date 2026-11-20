@@ -16,12 +16,14 @@ namespace en::gal::sys {
 
 namespace {
 
-using RegisterFn = void (*)(std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t);
+// rax is kept (R1 spike.8, WHY§240): a registration may answer whether it kept the task. One that answers nothing
+// leaves rax as its last instruction did, which the caller reads as a number only.
+using RegisterFn = std::uint64_t (*)(std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t);
 using GetterFn = std::uint64_t (*)(std::uint64_t);
 
 // The calls, each in a frame of its own (clang's SEH covers the calls a __try makes; WHY§111).
-__declspec(noinline) void invoke_register(RegisterFn fn, const std::uint64_t* args) {
-  fn(args[0], args[1], args[2], args[3]);
+__declspec(noinline) std::uint64_t invoke_register(RegisterFn fn, const std::uint64_t* args) {
+  return fn(args[0], args[1], args[2], args[3]);
 }
 __declspec(noinline) std::uint64_t invoke_getter(GetterFn fn, std::uint64_t class_object) { return fn(class_object); }
 
@@ -35,7 +37,7 @@ CallOutcome call_register(std::uint64_t function, const std::array<std::uint64_t
   const std::uint64_t* a = args.data();
   CallOutcome out;
   __try {
-    invoke_register(fn, a);
+    out.answer = invoke_register(fn, a);
     out.ok = true;
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     out.ok = false;

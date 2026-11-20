@@ -736,9 +736,17 @@ TEST_CASE("probe: where paths disagree a register holds nothing, and code no kno
         0xC3,                          // 7: ret
     });
     const probe::CalleeCode c = probe::summarise_callee(code, 0x2000, static_cast<std::uint32_t>(code.size()));
-    REQUIRE(c.calls.size() == 1);
-    CHECK_FALSE(c.calls[0].reached);
-    CHECK(c.calls[0].pass.empty());
+    REQUIRE(c.calls.size() == 2);
+    CHECK(c.calls[0].form == probe::CallForm::TailRegister);  // since spike.8, a tail call through a register
+    CHECK(c.calls[0].reached);
+    CHECK(c.calls[0].base == std::optional<std::uint8_t>(0));
+    CHECK(c.call_count == 1);
+    CHECK_FALSE(c.calls[1].reached);
+    CHECK(c.calls[1].pass.empty());
+    REQUIRE(c.forms.size() == 3);  // the call and the return after it are no known path's: padding
+    CHECK_FALSE(c.forms[0].unreached);
+    CHECK(c.forms[1].unreached);
+    CHECK(c.forms[2].unreached);
   }
   SUBCASE("a flag test past moves, and a byte register's high half") {
     const std::vector<std::byte> code = code_of({
@@ -1014,4 +1022,451 @@ TEST_CASE("probe: the whole-memory search counts our vtable's and slots' copies 
   REQUIRE(text.has_value());
   const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
   CHECK(report::lint(*text, known).has_value());
+}
+
+// ---- Spike.8 (WHY§240): the values loaded from memory, jumps through memory or a register, the forms, the table ----
+
+namespace {
+
+// A wrapper of run 7's shape, of our own ABI (instance rcx, group rdx, task r8): it keeps the task in rbx and the group
+// in edi, loads its own singleton from a global and, while that is null, makes it with two calls and stores it there,
+// then tail-jumps with the singleton in rcx, the group in edx and the task in r8. Our instance is never used.
+constexpr std::uint32_t kWrapperRva = 0x400000, kSingletonSlot = 0x480000, kTailRva = 0x400100;
+std::vector<std::byte> lazy_wrapper() {
+  return code_of({
+      0x48, 0x89, 0x5C, 0x24, 0x08,              //  0: mov [rsp+8], rbx
+      0x57,                                      //  5: push rdi
+      0x48, 0x83, 0xEC, 0x20,                    //  6: sub rsp, 0x20
+      0x49, 0x8B, 0xD8,                          // 10: mov rbx, r8          (the task)
+      0x8B, 0xFA,                                // 13: mov edi, edx         (the group)
+      0x48, 0x8B, 0x0D, 0xEA, 0xFF, 0x07, 0x00,  // 15: mov rcx, [rip+S]     (S: 0x480000)
+      0x48, 0x85, 0xC9,                          // 22: test rcx, rcx
+      0x75, 0x1C,                                // 25: jne 55              (past both calls)
+      0xB9, 0x40, 0x00, 0x00, 0x00,              // 27: mov ecx, 0x40
+      0xE8, 0x00, 0x00, 0x00, 0x00,              // 32: call 37             (the memory)
+      0x48, 0x8B, 0xC8,                          // 37: mov rcx, rax
+      0xE8, 0x00, 0x00, 0x00, 0x00,              // 40: call 45             (the singleton, made)
+      0x48, 0x8B, 0xC8,                          // 45: mov rcx, rax
+      0x48, 0x89, 0x05, 0xC9, 0xFF, 0x07, 0x00,  // 48: mov [rip+S], rax     (rax and rcx now hold S's value)
+      0x8B, 0xD7,                                // 55: mov edx, edi         (both paths meet)
+      0x4C, 0x8B, 0xC3,                          // 57: mov r8, rbx
+      0x48, 0x8B, 0x5C, 0x24, 0x30,              // 60: mov rbx, [rsp+0x30]
+      0x48, 0x83, 0xC4, 0x20,                    // 65: add rsp, 0x20
+      0x5F,                                      // 69: pop rdi
+      0xE9, 0xB5, 0x00, 0x00, 0x00,              // 70: jmp 0x400100         (the tail function)
+  });
+}
+
+// The tail function of run 7's shape (32 bytes, 10 instructions): the group bounded by 168, the entry for it loaded
+// from [singleton + group*8], tested for null (0 answered), else a jump through its vtable's slot at 0x18.
+std::vector<std::byte> tail_function() {
+  return code_of({
+      0x81, 0xFA, 0xA8, 0x00, 0x00, 0x00,  //  0: cmp edx, 168
+      0x0F, 0x87, 0x11, 0x00, 0x00, 0x00,  //  6: ja 29
+      0x48, 0x8B, 0x0C, 0xD1,              // 12: mov rcx, [rcx + rdx*8]
+      0x48, 0x85, 0xC9,                    // 16: test rcx, rcx
+      0x74, 0x08,                          // 19: je 29
+      0x48, 0x8B, 0x01,                    // 21: mov rax, [rcx]
+      0xFF, 0x60, 0x18,                    // 24: jmp [rax + 0x18]
+      0x66, 0x90,                          // 27: nop                    (no path reaches it)
+      0x31, 0xC0,                          // 29: xor eax, eax
+      0xC3,                                // 31: ret
+  });
+}
+
+const probe::PassedSource* passed_source(const probe::CalleeCall& c, std::uint8_t reg) {
+  for (const probe::PassedSource& p : c.pass_src) {
+    if (p.reg == reg) return &p;
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+TEST_CASE("probe: a value loaded from a global is followed through a lazily made singleton to the tail jump") {
+  const std::vector<std::byte> code = lazy_wrapper();
+  const probe::CalleeCode c = probe::summarise_callee(code, kWrapperRva, static_cast<std::uint32_t>(code.size()));
+  CHECK_FALSE(c.modelled_to.has_value());
+  CHECK(c.call_count == 2);
+  REQUIRE(c.guards.size() == 1);
+  const probe::CalleeGuard& g = c.guards[0];
+  CHECK(g.op == probe::GuardOp::Test);
+  CHECK(g.width == 8);
+  REQUIRE(g.operands.size() == 2);
+  CHECK_FALSE(g.operands[0].from.has_value());  // none of the arguments: our instance is lost at 15
+  REQUIRE(g.operands[0].source.has_value());
+  CHECK(g.operands[0].source->kind == probe::Source::Kind::Rip);
+  CHECK(g.operands[0].source->target == kSingletonSlot);
+  CHECK(g.operands[0].source->at == 15);
+  CHECK(g.operands[0].source->width == 8);
+  REQUIRE(c.calls.size() == 3);
+  const probe::CalleeCall& tail = c.calls[2];
+  CHECK(tail.form == probe::CallForm::Tail);
+  CHECK(tail.target == std::optional<std::uint32_t>(kTailRva));
+  CHECK(passes(tail, 2, 2));  // the group
+  CHECK(passes(tail, 8, 8));  // the task
+  CHECK(holds_none(tail, 1));
+  // rcx holds S's value on both paths: loaded on the one, stored there (the call's result moved first) on the other.
+  const probe::PassedSource* rcx = passed_source(tail, 1);
+  REQUIRE(rcx != nullptr);
+  CHECK(rcx->source.kind == probe::Source::Kind::Rip);
+  CHECK(rcx->source.target == kSingletonSlot);
+  CHECK(rcx->source.at == 15);  // of the loads and stores that make it, the first
+  // The calls before the store pass nothing of S.
+  CHECK(passed_source(c.calls[1], 1) == nullptr);
+  // The forms: classes and operands, no bytes.
+  REQUIRE(c.forms.size() == 20);
+  using C = probe::InsnClass;
+  CHECK(c.forms[0].cls == C::Mov);
+  REQUIRE(c.forms[0].operands.size() == 2);
+  CHECK(c.forms[0].operands[0].form == probe::OperandForm::Memory);
+  CHECK(c.forms[0].operands[0].base == std::optional<std::uint8_t>(4));
+  CHECK(c.forms[0].operands[0].disp == 8);
+  CHECK(c.forms[0].operands[0].width == 8);
+  CHECK(c.forms[1].cls == C::Push);
+  CHECK(c.forms[2].cls == C::Sub);
+  CHECK(c.forms[2].operands[1].imm == std::optional<std::uint64_t>(0x20));
+  CHECK(c.forms[3].operands[1].from == std::optional<std::uint8_t>(8));
+  CHECK(c.forms[4].operands[0].width == 4);
+  CHECK_FALSE(c.forms[5].operands[0].from.has_value());  // rcx held our instance before; it is only written here
+  CHECK(c.forms[5].operands[1].form == probe::OperandForm::Rip);
+  CHECK(c.forms[5].operands[1].target == std::optional<std::uint32_t>(kSingletonSlot));
+  CHECK(c.forms[6].cls == C::Test);
+  CHECK(c.forms[7].cls == C::Jcc);
+  CHECK(c.forms[7].cond == 5);
+  CHECK(c.forms[7].to == std::optional<std::int64_t>(55));
+  CHECK(c.forms[9].cls == C::Call);
+  CHECK(c.forms[9].to == std::optional<std::int64_t>(37));
+  CHECK(c.forms[19].cls == C::Jmp);
+  CHECK(c.forms[19].to == std::optional<std::int64_t>(0x100));
+  CHECK(std::none_of(c.forms.begin(), c.forms.end(), [](const probe::Form& f) { return f.unreached; }));
+  // The sections, from the image's.
+  probe::CalleeCode marked = c;
+  const std::array<probe::SectionSpan, 2> sections = {probe::SectionSpan{0x1000, 0x7F000, probe::SectionKind::Code},
+                                                      probe::SectionSpan{0x480000, 0x1000, probe::SectionKind::Data}};
+  probe::mark_sections(marked, sections);
+  CHECK(marked.forms[5].operands[1].section == probe::SectionKind::Data);
+}
+
+TEST_CASE("probe: the tail function's null test reads its table, and its jump through the entry's vtable is a tail call") {
+  const std::vector<std::byte> wrapper_code = lazy_wrapper();
+  const probe::CalleeCode wrapper =
+      probe::summarise_callee(wrapper_code, kWrapperRva, static_cast<std::uint32_t>(wrapper_code.size()));
+  const std::vector<std::byte> code = tail_function();
+  const probe::CalleeCode t = probe::summarise_callee(code, kTailRva, 0, probe::entry_at(wrapper.calls[2]));
+  CHECK(t.bytes == 32);
+  CHECK(t.instructions == 10);
+  CHECK(t.call_count == 0);
+  CHECK(t.returns_early);
+  REQUIRE(t.guards.size() == 2);
+  CHECK(t.guards[0].op == probe::GuardOp::Compare);
+  CHECK(t.guards[0].operands[0].from == std::optional<std::uint8_t>(2));
+  CHECK(t.guards[0].operands[1].imm == std::optional<std::uint64_t>(168));
+  const probe::Operand& tested = t.guards[1].operands[0];
+  REQUIRE(tested.source.has_value());
+  const probe::Source& v = *tested.source;
+  CHECK(v.kind == probe::Source::Kind::Memory);
+  CHECK(v.at == 12);
+  CHECK(v.base == std::optional<std::uint8_t>(1));
+  REQUIRE(v.base_src.size() == 1);
+  CHECK(v.base_src[0].kind == probe::Source::Kind::Entry);  // the value the tail function was entered with in rcx
+  CHECK(v.base_src[0].from == 1);
+  CHECK(v.index == std::optional<std::uint8_t>(2));
+  REQUIRE(v.index_src.size() == 1);
+  CHECK(v.index_src[0].kind == probe::Source::Kind::Argument);
+  CHECK(v.index_src[0].from == 2);  // the wrapper's group
+  CHECK(v.scale == 8);
+  CHECK(v.disp == 0);
+  // The jump through the entry's vtable: a tail call through memory, its base the entry's first word.
+  REQUIRE(t.calls.size() == 1);
+  const probe::CalleeCall& j = t.calls[0];
+  CHECK(j.form == probe::CallForm::TailMemory);
+  CHECK(j.offset == 24);
+  CHECK(j.reached);
+  CHECK(j.base == std::optional<std::uint8_t>(0));
+  CHECK(j.disp == 0x18);
+  CHECK_FALSE(j.vtable_of.has_value());
+  REQUIRE(j.vtable_src.has_value());
+  CHECK(probe::same_source(*j.vtable_src, v));
+  REQUIRE(j.base_src.has_value());
+  CHECK(j.base_src->kind == probe::Source::Kind::Memory);
+  CHECK(j.base_src->disp == 0);
+  CHECK(passes(j, 2, 2));
+  CHECK(passes(j, 8, 8));
+  REQUIRE(passed_source(j, 1) != nullptr);
+  CHECK(probe::same_source(passed_source(j, 1)->source, v));  // the entry, as its own function's this
+  // The padding after the jump is no path's.
+  REQUIRE(t.forms.size() == 10);
+  CHECK(t.forms[7].cls == probe::InsnClass::Nop);
+  CHECK(t.forms[7].unreached);
+  CHECK_FALSE(t.forms[8].unreached);
+  CHECK(t.forms[8].cls == probe::InsnClass::Xor);
+  CHECK(t.forms[9].cls == probe::InsnClass::Ret);
+  CHECK(t.forms[2].operands[1].scale == 8);
+  CHECK(t.forms[2].operands[1].index == std::optional<std::uint8_t>(2));
+
+  // The shapes match run 7's reading.
+  const std::vector<probe::InnerCallee> inner = {probe::InnerCallee{kTailRva, 70, true, t, 1}};
+  const probe::Table m = probe::match_table(wrapper, inner, 2);
+  CHECK(m.matched);
+  CHECK(m.singleton_slot == kSingletonSlot);
+  CHECK_FALSE(m.hop.has_value());
+  CHECK_FALSE(m.array.has_value());
+  CHECK(m.disp == 0);
+  CHECK(m.bound == 168);
+  CHECK(m.slot_disp == std::optional<std::int64_t>(0x18));
+  CHECK(m.site == std::optional<std::uint32_t>(24));
+  CHECK(m.rva == kTailRva);
+  // A singleton made and not stored where it is loaded from: the paths disagree on rcx, and the shape is read on the
+  // path past the null test, which reaches the jump with rcx as it was loaded.
+  std::vector<std::byte> unstored = wrapper_code;
+  const std::array<int, 7> nop7 = {0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00};  // in the store's place
+  for (std::size_t i = 0; i < nop7.size(); ++i) unstored[48 + i] = std::byte{static_cast<std::uint8_t>(nop7[i])};
+  const probe::CalleeCode w2 = probe::summarise_callee(unstored, kWrapperRva, static_cast<std::uint32_t>(unstored.size()));
+  REQUIRE(w2.calls.size() == 3);
+  CHECK(passed_source(w2.calls[2], 1) == nullptr);
+  const probe::Table m2 = probe::match_table(w2, inner, 2);
+  CHECK(m2.matched);
+  CHECK(m2.via_guard);
+  CHECK(m2.singleton_slot == kSingletonSlot);
+  CHECK_FALSE(m.via_guard);
+  // Each shape that fails is named.
+  CHECK(probe::match_table(wrapper, {}, 2).failed == "wrapper_tail");
+  CHECK(probe::match_table(wrapper, inner, 8).failed == "tail_bound");  // the group is not in r8
+  probe::CalleeCode untested = t;
+  untested.guards.pop_back();
+  const std::vector<probe::InnerCallee> plain = {probe::InnerCallee{kTailRva, 70, true, untested, 1}};
+  CHECK(probe::match_table(wrapper, plain, 2).failed == "tail_null_test");
+}
+
+TEST_CASE("probe: a table one level deeper, a jump through a register, and loads that are not followed") {
+  SUBCASE("the entries' table at [singleton + 0x20]") {
+    const std::vector<std::byte> code = code_of({
+        0x83, 0xFA, 0x1F,                    //  0: cmp edx, 31
+        0x77, 0x13,                          //  3: ja 24
+        0x48, 0x8B, 0x41, 0x20,              //  5: mov rax, [rcx + 0x20]
+        0x48, 0x8B, 0x4C, 0xD0, 0x10,        //  9: mov rcx, [rax + rdx*8 + 0x10]
+        0x48, 0x85, 0xC9,                    // 14: test rcx, rcx
+        0x74, 0x05,                          // 17: je 24
+        0x48, 0x8B, 0x01,                    // 19: mov rax, [rcx]
+        0xFF, 0x20,                          // 22: jmp [rax]
+        0x31, 0xC0,                          // 24: xor eax, eax
+        0xC3,                                // 26: ret
+    });
+    probe::EntryState e{};
+    e[1] = probe::EntryArg{2, false};
+    const probe::CalleeCode t = probe::summarise_callee(code, kTailRva, 0, e);
+    REQUIRE(t.guards.size() == 2);
+    REQUIRE(t.guards[1].operands[0].source.has_value());
+    const probe::Source& v = *t.guards[1].operands[0].source;
+    REQUIRE(v.base_src.size() == 1);
+    CHECK(v.base_src[0].kind == probe::Source::Kind::Memory);
+    CHECK(v.base_src[0].disp == 0x20);
+    CHECK(v.disp == 0x10);
+    const std::vector<std::byte> wrapper_code = lazy_wrapper();
+    const probe::CalleeCode w =
+        probe::summarise_callee(wrapper_code, kWrapperRva, static_cast<std::uint32_t>(wrapper_code.size()));
+    const std::vector<probe::InnerCallee> inner = {probe::InnerCallee{kTailRva, 70, true, t, 1}};
+    const probe::Table m = probe::match_table(w, inner, 2);
+    CHECK(m.matched);
+    CHECK(m.array == std::optional<std::int64_t>(0x20));
+    CHECK(m.disp == 0x10);
+    CHECK(m.bound == 31);
+    CHECK(m.slot_disp == std::optional<std::int64_t>(0));
+  }
+  SUBCASE("a function pointer loaded from a global, jumped to") {
+    const std::vector<std::byte> code = code_of({
+        0x48, 0x8B, 0x05, 0x00, 0x10, 0x00, 0x00,  // 0: mov rax, [rip + 0x1000]   (0x401007)
+        0x48, 0xFF, 0xE0,                          // 7: jmp rax
+    });
+    const probe::CalleeCode c = probe::summarise_callee(code, kWrapperRva, static_cast<std::uint32_t>(code.size()));
+    REQUIRE(c.calls.size() == 1);
+    CHECK(c.calls[0].form == probe::CallForm::TailRegister);
+    CHECK(c.calls[0].base == std::optional<std::uint8_t>(0));
+    REQUIRE(c.calls[0].base_src.has_value());
+    CHECK(c.calls[0].base_src->kind == probe::Source::Kind::Rip);
+    CHECK(c.calls[0].base_src->target == 0x401007);
+    CHECK(passes(c.calls[0], 1, 1));
+    REQUIRE(c.forms.size() == 2);
+    CHECK(c.forms[1].cls == probe::InsnClass::Jmp);
+    REQUIRE(c.forms[1].operands.size() == 1);
+    CHECK(c.forms[1].operands[0].reg == std::optional<std::uint8_t>(0));
+    // With no extent the function ends at that jump, where no branch goes past it: what follows is another's.
+    std::vector<std::byte> more = code;
+    for (const int b : {0x53, 0x48, 0x8B, 0xD9, 0xC3}) more.push_back(std::byte{static_cast<std::uint8_t>(b)});
+    const probe::CalleeCode leaf = probe::summarise_callee(more, kWrapperRva, 0);
+    CHECK(leaf.bytes == 10);
+    CHECK(leaf.instructions == 2);
+    CHECK_FALSE(leaf.first_ret.has_value());
+  }
+  SUBCASE("a jump through a RIP-relative slot, a 16-bit load, a segment's and three loads deep") {
+    const std::vector<std::byte> code = code_of({
+        0x66, 0x8B, 0x01,                          //  0: mov ax, [rcx]          (writes part of rax)
+        0x65, 0x48, 0x8B, 0x14, 0x25, 0x58, 0x00, 0x00, 0x00,  //  3: mov rdx, gs:[0x58]
+        0x4C, 0x8B, 0x41, 0x08,                    // 12: mov r8, [rcx+8]        (one)
+        0x4D, 0x8B, 0x40, 0x10,                    // 16: mov r8, [r8+0x10]      (two)
+        0x4D, 0x8B, 0x40, 0x18,                    // 20: mov r8, [r8+0x18]      (three)
+        0x4D, 0x8B, 0x48, 0x20,                    // 24: mov r9, [r8+0x20]      (four: not followed)
+        0xFF, 0x25, 0x00, 0x20, 0x00, 0x00,        // 28: jmp [rip + 0x2000]
+    });
+    const probe::CalleeCode c = probe::summarise_callee(code, kWrapperRva, static_cast<std::uint32_t>(code.size()));
+    REQUIRE(c.calls.size() == 1);
+    const probe::CalleeCall& j = c.calls[0];
+    CHECK(j.form == probe::CallForm::TailMemory);
+    CHECK(j.rip);
+    CHECK(j.target == std::optional<std::uint32_t>(kWrapperRva + 34 + 0x2000));
+    CHECK(holds_none(j, 1) == false);  // rcx, untouched
+    CHECK(passed_source(j, 2) == nullptr);  // gs:[0x58] is not followed
+    const probe::PassedSource* r8 = passed_source(j, 8);
+    REQUIRE(r8 != nullptr);
+    CHECK(r8->source.disp == 0x18);
+    REQUIRE(r8->source.base_src.size() == 1);
+    CHECK(r8->source.base_src[0].disp == 0x10);
+    REQUIRE(r8->source.base_src[0].base_src.size() == 1);
+    CHECK(r8->source.base_src[0].base_src[0].disp == 8);
+    CHECK(r8->source.base_src[0].base_src[0].base_src[0].kind == probe::Source::Kind::Argument);
+    CHECK(passed_source(j, 9) == nullptr);  // a fourth load deep holds nothing
+    CHECK(holds_none(j, 9));
+  }
+}
+
+TEST_CASE("probe: the table's reads: the singleton, the entries to the bound, the group's entry, its vtable and slot") {
+  FakeMemory mem;
+  constexpr std::uint64_t kGame = 0x0000'0001'4000'0000ull, kSingleton = 0x0000'0002'0000'0000ull;
+  constexpr std::uint64_t kEntry = 0x0000'0002'0001'0000ull, kInstance = 0x0000'0002'0002'0000ull;
+  mem.map(kGame, std::vector<std::byte>(0x490000));
+  mem.map(kSingleton, std::vector<std::byte>(0x1000));
+  mem.map(kEntry, std::vector<std::byte>(0x100));
+  mem.put<std::uint64_t>(kGame + kSingletonSlot, kSingleton);
+  mem.put<std::uint64_t>(kSingleton + 0x10 + 8 * 3, kEntry + 0x80);  // another group's
+  mem.put<std::uint64_t>(kSingleton + 0x10 + 8 * 110, kEntry);
+  mem.put<std::uint64_t>(kSingleton + 0x10 + 8 * 168, kEntry + 0x40);
+  mem.put<std::uint64_t>(kSingleton + 0x10 + 8 * 169, kEntry + 0x40);  // past the bound: not read
+  mem.put<std::uint64_t>(kEntry, kGame + 0x300000);                     // its vtable, in the game's rdata
+  mem.put<std::uint64_t>(kGame + 0x300000 + 0x18, kGame + 0x1234);       // its slot, the game's code
+  Regions rs;
+  rs.list = {probe::MemoryRegion{kGame, 0x490000, kGame, probe::kPageReadOnly, true, probe::RegionKind::Image},
+             probe::MemoryRegion{kSingleton, 0x1000, kSingleton, probe::kPageReadWrite, true, probe::RegionKind::Private},
+             probe::MemoryRegion{kEntry, 0x1000, kEntry, probe::kPageReadWrite, true, probe::RegionKind::Private}};
+  probe::Table shape;
+  shape.matched = true;
+  shape.singleton_slot = kSingletonSlot;
+  shape.disp = 0x10;
+  shape.bound = 168;
+  shape.slot_disp = 0x18;
+  probe::TableReadSpec spec;
+  spec.module_base = kGame;
+  spec.group_index = 110;
+  spec.instance = kInstance;
+  spec.leads = {{4, kInstance}, {7, kSingleton}};
+  spec.kinds.game_base = kGame;
+  spec.kinds.game_sections = {probe::SectionSpan{0x1000, 0x2FF000, probe::SectionKind::Code},
+                              probe::SectionSpan{0x300000, 0x180000, probe::SectionKind::Rdata},
+                              probe::SectionSpan{0x480000, 0x10000, probe::SectionKind::Data}};
+  spec.kinds.query = rs.query();
+  const probe::BlockReader read = [&](std::uint64_t at, std::span<std::byte> out) { return mem.read(at, out); };
+  const probe::TableRead r = probe::read_table(shape, spec, read);
+  CHECK(r.read);
+  REQUIRE(r.singleton.has_value());
+  CHECK(r.singleton->kind == probe::ValueKind::Heap);
+  CHECK_FALSE(r.is_instance);
+  CHECK(r.singleton_lead == std::optional<std::uint32_t>(7));
+  CHECK(r.entries == 169);
+  CHECK(r.nonzero == 3);
+  CHECK(r.nonzero_at == std::vector<std::uint32_t>{3, 110, 168});
+  REQUIRE(r.entry.has_value());
+  CHECK(r.entry->kind == probe::ValueKind::Heap);
+  REQUIRE(r.entry_vtable.has_value());
+  CHECK(r.entry_vtable->kind == probe::ValueKind::Game);
+  CHECK(r.entry_vtable->section == probe::SectionKind::Rdata);
+  CHECK(r.entry_vtable->rva == std::optional<std::uint32_t>(0x300000));
+  REQUIRE(r.slot_value.has_value());
+  CHECK(r.slot_value->section == probe::SectionKind::Code);
+  CHECK(r.slot_value->rva == std::optional<std::uint32_t>(0x1234));
+
+  SUBCASE("no entry for the group") {
+    mem.put<std::uint64_t>(kSingleton + 0x10 + 8 * 110, 0);
+    const probe::TableRead g = probe::read_table(shape, spec, read);
+    CHECK(g.read);
+    CHECK(g.nonzero_at == std::vector<std::uint32_t>{3, 168});
+    REQUIRE(g.entry.has_value());
+    CHECK(g.entry->kind == probe::ValueKind::Zero);
+    CHECK_FALSE(g.entry_vtable.has_value());
+  }
+  SUBCASE("a singleton not yet made, and a shape that did not match") {
+    mem.put<std::uint64_t>(kGame + kSingletonSlot, 0);
+    const probe::TableRead z = probe::read_table(shape, spec, read);
+    CHECK_FALSE(z.read);
+    REQUIRE(z.singleton.has_value());
+    CHECK(z.singleton->kind == probe::ValueKind::Zero);
+    CHECK(z.entries == 0);
+    probe::Table no;
+    CHECK_FALSE(probe::read_table(no, spec, read).singleton.has_value());
+  }
+  SUBCASE("through a hop and an array, the instance itself") {
+    mem.put<std::uint64_t>(kGame + kSingletonSlot, kInstance - 0x40);
+    mem.map(kInstance - 0x1000, std::vector<std::byte>(0x2000));
+    mem.put<std::uint64_t>(kInstance - 0x40 + 0x40, kInstance);  // the hop: [*S + 0x40]
+    mem.put<std::uint64_t>(kInstance + 0x20, kSingleton);         // the array: [singleton + 0x20]
+    probe::Table deep = shape;
+    deep.hop = 0x40;
+    deep.array = 0x20;
+    const probe::TableRead h = probe::read_table(deep, spec, read);
+    CHECK(h.is_instance);
+    CHECK(h.singleton_lead == std::optional<std::uint32_t>(4));
+    CHECK(h.read);
+    CHECK(h.nonzero == 3);
+  }
+}
+
+TEST_CASE("probe: a control diff before the call marks the words that change on their own") {
+  HubWorld w;
+  const probe::HubWalk before = w.walk();
+  // The walk 2 s before it: the same memory but the frame counter.
+  probe::HubWalk control = before;
+  std::uint64_t frame = 599;
+  std::memcpy(control.bytes.data() + control.blocks[0].at + 8, &frame, 8);
+  const probe::DiffSpec spec = w.diff_spec();
+  const probe::DiffResult c = probe::diff_hub(control, before, spec);
+  CHECK(c.diff.changed == 1);
+  REQUIRE(c.changed.size() == 1);
+  CHECK(c.changed[0].after_block == 0);
+  CHECK(c.changed[0].offset == 8);
+  // The call.
+  w.mem.put<std::uint64_t>(HubWorld::kHub + 0x08, 601);
+  w.mem.put<std::uint64_t>(HubWorld::kHub + 0x30, HubWorld::kTask);
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x08, 5);
+  const probe::HubWalk after = w.walk();
+  probe::DiffSpec s = spec;
+  s.control = &c.changed;
+  const probe::DiffResult r = probe::diff_hub(before, after, s);
+  CHECK(r.diff.changed == 3);
+  CHECK(r.diff.in_control_words == std::optional<std::uint64_t>(1));
+  REQUIRE(r.diff.words.size() == 3);
+  CHECK(r.diff.words[0].path == std::vector<std::uint32_t>{0x30});  // not in the control: first
+  CHECK(r.diff.words[0].in_control == std::optional<bool>(false));
+  CHECK(r.diff.words[2].path == std::vector<std::uint32_t>{0x08});  // the frame: last
+  CHECK(r.diff.words[2].in_control == std::optional<bool>(true));
+  SUBCASE("and later, the steady words not in the control come first") {
+    w.mem.put<std::uint64_t>(HubWorld::kHub + 0x08, 1700);
+    w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x08, 6);  // moving, not in the control
+    probe::DiffSpec s2 = s;
+    s2.earlier = &r.changed;
+    const probe::HubDiff d2 = probe::diff_hub(before, w.walk(), s2).diff;
+    REQUIRE(d2.words.size() == 3);
+    CHECK(d2.words[0].path == std::vector<std::uint32_t>{0x30});
+    CHECK(d2.words[0].steady == std::optional<bool>(true));
+    CHECK(d2.words[1].path == std::vector<std::uint32_t>{0x18, 0x00, 0x08});
+    CHECK(d2.words[1].in_control == std::optional<bool>(false));
+    CHECK(d2.words[2].in_control == std::optional<bool>(true));
+  }
+  probe::Findings f;
+  f.hub_diff.push_back(r.diff);
+  f.hub_diff_control = c.diff;
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"in_control\": true") != std::string::npos);
+  CHECK(text->find("\"hub_diff_control\": {") != std::string::npos);
 }

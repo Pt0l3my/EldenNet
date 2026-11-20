@@ -13,8 +13,10 @@
 //    that was not reviewed (O89 (a)). The callee's summary, from the live image (WHY§227): its calls, its branches
 //    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee);
 //    since spike.7 (WHY§235) the arguments in each call, each branch's flag test, and each callee it calls (or
-//    tail-jumps to) summarised in turn with the arguments followed in. Just before the call, the hub's reachable
-//    memory (spike.5's walk) is kept on our heap.
+//    tail-jumps to) summarised in turn with the arguments followed in; since spike.8 (WHY§240) the instructions as
+//    forms, the values loaded from memory followed, and the tail function's table matched against run 7's reading. At
+//    the Mark the hub's reachable memory (spike.5's walk) is walked, again 2 s later and kept on our heap, and the two
+//    compared (the control diff); then, at once, the table is read and the call made.
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -26,9 +28,10 @@
 //    done, the base classes the hub's objects share with each one's derived classes' slots and run slot. Once statics'
 //    slots are found, the derivation runs again with them, so that r1-derive.json carries a pattern at each.
 // 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227, WHY§235): the hub's reachable memory walked again, searched
-//    for our task object's address and compared with the walk kept from before the call; then every readable
-//    committed region of the process searched for our task object's address, our fake vtable's and its slots' (ours
-//    counted apart); and, while the task has not run, how much of our object the hub wrote.
+//    for our task object's address and compared with the walk kept from before the call (each changed word marked when
+//    the control diff changed it too); then every readable committed region of the process searched for our task
+//    object's address, our fake vtable's and its slots' (ours counted apart); and, while the task has not run, how much
+//    of our object the hub wrote. At 2 s the table is read again (WHY§240).
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
@@ -221,7 +224,10 @@ class Round {
     R1Body* body = prepare();
     block::install_filter();
     (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§190)
+    control_walk();                 // WHY§240: the hub at the Mark, and 2 s later
+    (void)s_.sys->rescan_stacks();
     keep_hub();
+    read_table(true);
     enter_state(w::InitState::Register);
     en::gal::TaskShape shape;
     shape.vtable_slots = f_.vtable_slots;
@@ -234,15 +240,25 @@ class Round {
     called_ms_ = since_ms();
     f_.register_status = called ? "ok" : "faulted";
     f_.stage = called ? "registered" : "failed";
-    log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
-            .num("slots", f_.vtable_slots).num("object_size", f_.object_size));
-    write_report();
+    control_diff();
     if (!called) {
+      log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
+              .num("slots", f_.vtable_slots).num("object_size", f_.object_size));
+      write_report();
       push_banner(s_, en::core::BannerReason::RegisterFaulted, en::gal::to_string(called.error()));
       block::state(w::InitState::Banner);
       return report_loop(nullptr);
     }
     read_vtable();
+    // WHY§240: rax as the call left it, as a kind (a registration's bool answer sets al alone).
+    probe::DiffSpec kinds = kinds_spec();
+    kinds.group_index = 0;
+    f_.returned = probe::classify_value(*called, kinds);
+    f_.returned_low = static_cast<std::uint8_t>(*called & 0xFF);
+    log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
+            .num("slots", f_.vtable_slots).num("object_size", f_.object_size)
+            .word("returned", returned_word(f_.returned->kind)).num("returned_low", *f_.returned_low));
+    write_report();
     enter_state(w::InitState::FirstTick);
     report_loop(body);
   }
@@ -623,8 +639,121 @@ class Round {
   // WHY§235: just before the call, the hub's reachable memory, kept on our heap (within the walk's 6 MiB) for the diffs.
   void keep_hub() {
     before_ = probe::walk_hub(*s_.sys, hub_walk_spec());
+    kept_ms_ = since_ms();
     log(Line("r1").word("stage", "hub_kept").num("blocks", before_.blocks.size()).num("bytes", before_.bytes.size())
             .flag("capped", before_.capped));
+  }
+
+  // WHY§240: at the Mark, the same walk 2 s before the one kept for the call (A, then B): what the hub changes on its
+  // own over the interval. Three walks' blocks at most are ever kept: A is let go once A and B are compared.
+  void control_walk() {
+    control_ = probe::walk_hub(*s_.sys, hub_walk_spec());
+    control_ms_ = since_ms();
+    log(Line("r1").word("stage", "hub_control").num("blocks", control_.blocks.size()).num("bytes", control_.bytes.size())
+            .flag("capped", control_.capped));
+    Sleep(2000);
+  }
+  void control_diff() {
+    if (control_.blocks.empty() || before_.blocks.empty()) return;
+    probe::DiffResult r = probe::diff_hub(control_, before_, kinds_spec());
+    r.diff.at_ms = kept_ms_ > control_ms_ ? kept_ms_ - control_ms_ : 0;  // the interval A to B
+    log(Line("r1").word("stage", "hub_diff_control").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
+            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
+    control_changes_ = std::move(r.changed);
+    f_.hub_diff_control = std::move(r.diff);
+    control_ = probe::HubWalk{};
+  }
+
+  // The diff's classification of values: our task's block, our vtable, our module, the game's image by its sections,
+  // what any other pointer points into.
+  probe::DiffSpec kinds_spec() const {
+    probe::DiffSpec spec;
+    spec.group_index = f_.group_index;
+    if (const std::uint64_t target = s_.sys->task_object(); target != 0) {
+      spec.task = en::gal::AddressRange{target, target + 16 + f_.object_size};
+    }
+    if (vtable_ != 0) spec.vtable = en::gal::AddressRange{vtable_, vtable_ + 8 * thunks_.size()};
+    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
+    spec.game_base = base_;
+    spec.game_sections = sections();
+    spec.query = [this](std::uint64_t a) { return s_.sys->region_at(a); };
+    return spec;
+  }
+  std::vector<probe::SectionSpan> sections() const {
+    std::vector<probe::SectionSpan> out;
+    for (const en::gal::Section& sec : image_->sections) {
+      out.push_back(probe::SectionSpan{sec.rva, sec.mapped_size(), probe::section_kind_of(sec.characteristics)});
+    }
+    return out;
+  }
+  static const char* returned_word(probe::ValueKind k) noexcept {
+    switch (k) {
+      case probe::ValueKind::Zero: return "zero";
+      case probe::ValueKind::Small: return "small";
+      case probe::ValueKind::Task: return "task";
+      case probe::ValueKind::Ours: return "ours";
+      case probe::ValueKind::Game: return "game";
+      case probe::ValueKind::Heap: return "heap";
+      default: return "other";
+    }
+  }
+
+  // WHY§240: the tail function's table, when its shapes matched, read through the crash-guarded copy under the reader's
+  // plausibility rules on T1: just before the call, and 2 s after it. Where the group's entry leads through its vtable
+  // to a function of the game's code, that function is summarised one level deeper (once).
+  void read_table(bool before) {
+    if (!f_.table || !f_.table->matched) return;
+    probe::TableReadSpec spec;
+    spec.module_base = base_;
+    spec.group_index = f_.group_index;
+    spec.instance = instance_;
+    for (const derive::SingletonResult& sr : result_.fd4.singletons) {
+      if (sr.status != derive::Status::Derived) continue;
+      std::array<std::byte, 8> v{};
+      std::uint64_t inst = 0;
+      if (!s_.sys->image().read(sr.static_slot, v)) continue;
+      std::memcpy(&inst, v.data(), 8);
+      for (std::size_t i = 0; i < leads_.singletons.size(); ++i) {
+        if (leads_.singletons[i].label == sr.label && inst != 0) {
+          spec.leads.emplace_back(static_cast<std::uint32_t>(i), inst);
+        }
+      }
+    }
+    spec.kinds = kinds_spec();
+    spec.kinds.group_index = 0;
+    const probe::BlockReader read = [this](std::uint64_t at, std::span<std::byte> out) {
+      if (en::gal::implausible(at, out.size(), 1, s_.sys->stacks())) return false;
+      return s_.sys->copier().copy(at, out).copied;
+    };
+    probe::TableRead r = probe::read_table(*f_.table, spec, read);
+    r.at_ms = before ? 0 : since_ms() - called_ms_;
+    log(Line("r1").word("stage", before ? "table_before" : "table_after").flag("read", r.read)
+            .num("entries", r.entries).num("nonzero", r.nonzero)
+            .word("entry", r.entry ? returned_word(r.entry->kind) : "none"));
+    if (r.slot_value && r.slot_value->kind == probe::ValueKind::Game &&
+        r.slot_value->section == probe::SectionKind::Code && r.slot_value->rva && f_.table->site) {
+      summarise_deeper(*r.slot_value->rva);
+    }
+    (before ? f_.table->before : f_.table->after) = std::move(r);
+  }
+
+  // The function the table's entry leads to, summarised with the arguments the tail function's jump passes it.
+  void summarise_deeper(std::uint32_t rva) {
+    if (deeper_) return;
+    for (const probe::InnerCallee& t : f_.callee_inner) {
+      if (!t.tail || t.depth != 1 || t.rva != f_.table->rva) continue;
+      for (const probe::CalleeCall& k : t.code.calls) {
+        if (k.offset != *f_.table->site) continue;
+        deeper_ = true;
+        const auto [code, extent] = code_at(rva);
+        probe::InnerCallee in{rva, k.offset, true, probe::summarise_callee(code, rva, extent, probe::entry_at(k)), 2};
+        probe::mark_sections(in.code, sections());
+        log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("depth", 2)
+                .num("bytes", in.code.bytes).num("calls", in.code.call_count));
+        f_.callee_inner.push_back(std::move(in));
+        return;
+      }
+    }
   }
 
   // WHY§235: our fake vtable's address (our object's first word) and its slots' (our module's thunks), read back from
@@ -652,18 +781,9 @@ class Round {
             .num("inside", h.inside).num("faults", h.faults));
     f_.hub_search.push_back(std::move(h));
     if (before_.blocks.empty()) return;
-    probe::DiffSpec spec;
-    spec.group_index = f_.group_index;
-    if (target != 0) spec.task = en::gal::AddressRange{target, target + 16 + f_.object_size};
-    if (vtable_ != 0) spec.vtable = en::gal::AddressRange{vtable_, vtable_ + 8 * thunks_.size()};
-    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
-    spec.game_base = base_;
-    for (const en::gal::Section& sec : image_->sections) {
-      spec.game_sections.push_back(
-          probe::SectionSpan{sec.rva, sec.mapped_size(), probe::section_kind_of(sec.characteristics)});
-    }
-    spec.query = [this](std::uint64_t a) { return s_.sys->region_at(a); };
+    probe::DiffSpec spec = kinds_spec();
     spec.earlier = f_.hub_diff.empty() ? nullptr : &first_changes_;
+    spec.control = f_.hub_diff_control ? &control_changes_ : nullptr;
     probe::DiffResult r = probe::diff_hub(before_, walk, spec);
     r.diff.at_ms = at_ms;
     log(Line("r1").word("stage", "hub_diff").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
@@ -673,6 +793,7 @@ class Round {
     } else {
       before_ = probe::HubWalk{};  // the last diff: what was kept is let go
       first_changes_.clear();
+      control_changes_.clear();
     }
     f_.hub_diff.push_back(std::move(r.diff));
   }
@@ -700,6 +821,7 @@ class Round {
     if (f_.callee == 0) return;
     const auto [code, extent] = code_at(f_.callee);
     f_.callee_code = probe::summarise_callee(code, f_.callee, extent);
+    probe::mark_sections(*f_.callee_code, sections());
     const probe::CalleeCode& c = *f_.callee_code;
     log(Line("r1").word("stage", "callee").num("bytes", c.bytes).num("instructions", c.instructions)
             .num("calls", c.call_count).num("branches", c.branch_count).flag("returns_early", c.returns_early));
@@ -708,11 +830,17 @@ class Round {
       if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail)) continue;
       const auto [inner, inner_extent] = code_at(*k.target);
       probe::InnerCallee in{*k.target, k.offset, k.form == probe::CallForm::Tail,
-                            probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k))};
+                            probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k)), 1};
+      probe::mark_sections(in.code, sections());
       log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("bytes", in.code.bytes)
               .num("calls", in.code.call_count).num("branches", in.code.branch_count));
       f_.callee_inner.push_back(std::move(in));
     }
+    // WHY§240: the table the tail function reads, when the shapes are run 7's; read just before the call.
+    f_.table = probe::match_table(c, f_.callee_inner, f_.registers[2]);
+    log(Line("r1").word("stage", "table").flag("matched", f_.table->matched)
+            .word("failed", f_.table->matched ? "none" : f_.table->failed).hex("slot", f_.table->singleton_slot)
+            .num("bound", f_.table->bound));
   }
 
   // WHY§227: every committed, readable region of the process searched for our task object's address, on T1, through
@@ -775,6 +903,7 @@ class Round {
     std::size_t searches = 0;
     for (;;) {
       if (body != nullptr && searches < 2 && since_ms() - called_ms_ >= (searches == 0 ? 2000u : 20000u)) {
+        if (searches == 0) read_table(false);
         search_hub();
         search_memory();
         if (body->invocations() == 0) object_from_t1();
@@ -795,8 +924,25 @@ class Round {
     }
   }
 
+  // Within the report's 256 KiB: past it, the forms of the inner summaries that are not tail jumps are left out, then
+  // every inner summary's, then the wrapper's (each marked forms_dropped).
   void write_report() {
-    const auto text = probe::write_report(f_);
+    auto text = probe::write_report(f_);
+    for (int pass = 0; !text && pass < 3 && f_.callee_code; ++pass) {
+      probe::Findings g = f_;
+      for (probe::InnerCallee& in : g.callee_inner) {
+        if ((pass >= 1 || !in.tail) && !in.code.forms.empty()) {
+          in.code.forms.clear();
+          in.code.forms_dropped = true;
+        }
+      }
+      if (pass == 2 && !g.callee_code->forms.empty()) {
+        g.callee_code->forms.clear();
+        g.callee_code->forms_dropped = true;
+      }
+      text = probe::write_report(g);
+      if (text) log(Line("r1").word("report", "forms_dropped").num("pass", pass), LogLevel::Warn);
+    }
     if (!text) {
       log(Line("r1").word("report", "refused").word("where", "probe_report"), LogLevel::Error);
       return;
@@ -823,6 +969,11 @@ class Round {
   std::uint64_t called_mono_ = 0;
   probe::HubWalk before_;                         // the hub's reachable memory just before the call (WHY§235)
   std::vector<probe::ChangedWord> first_changes_;  // the first diff's changes, for the second's steadiness
+  probe::HubWalk control_;                        // WHY§240: the same walk at the Mark, 2 s before
+  std::vector<probe::ChangedWord> control_changes_;  // the control diff's changes, for each later diff's in_control
+  std::uint64_t control_ms_ = 0;
+  std::uint64_t kept_ms_ = 0;
+  bool deeper_ = false;                           // the table's function summarised one level deeper
   std::uint64_t vtable_ = 0;                      // our fake vtable's address, read back after the call
   std::vector<std::uint64_t> thunks_;             // its slots'
 };

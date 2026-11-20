@@ -16,8 +16,10 @@ constexpr std::array<std::string_view, 8> kItems = {"gate",  "fd4_idiom",  "name
                                                     "register_abi", "group", "task_shape",  "singleton"};
 constexpr std::array<std::string_view, 4> kChecks = {"confirmed", "differs", "missing", "not_run"};
 constexpr std::array<std::string_view, 5> kCalls = {"not_called", "waiting_for_mark", "refused", "ok", "faulted"};
-// A call's form (tail: a direct jump out of the function), and a flag test's operand's (spike.7).
-constexpr std::array<std::string_view, 6> kForms = {"direct", "register", "memory", "rip", "tail", "immediate"};
+// A call's form (tail: a direct jump out of the function; since spike.8 tail_memory and tail_register, jumps through
+// memory or a register), and a flag test's operand's (spike.7). An operand's form is written by its own words below.
+constexpr std::array<std::string_view, 8> kForms = {"direct", "register", "memory", "rip",
+                                                    "tail", "tail_memory", "tail_register", "immediate"};
 constexpr std::array<std::string_view, 4> kRegions = {"private", "mapped", "image", "other"};
 constexpr std::array<std::string_view, 3> kModules = {"ours", "game", "other"};
 constexpr std::array<std::string_view, 5> kSections = {"header", "code", "rdata", "data", "other"};
@@ -28,6 +30,13 @@ constexpr std::array<std::string_view, 4> kOps = {"cmp", "test", "other", "none"
 constexpr std::array<std::string_view, 3> kPoints = {"object", "vtable", "slot"};
 constexpr std::array<std::string_view, 9> kValues = {"zero", "small", "group", "task", "vtable",
                                                      "ours", "game", "heap", "other"};
+// Spike.8 (WHY§240): what a register holds, an instruction's class, and the table's first shape that failed.
+constexpr std::array<std::string_view, 6> kSrcs = {"none", "argument", "first_word", "entry", "rip", "memory"};
+constexpr std::array<std::string_view, 21> kClasses = {"mov", "movx", "lea",   "cmp",  "test", "jcc", "jmp",
+                                                       "call", "ret", "push", "pop", "xor",  "add", "sub",
+                                                       "and", "or",  "shift", "imul", "nop",  "int3", "other"};
+constexpr std::array<std::string_view, 5> kFails = {"wrapper_tail", "wrapper_rcx", "tail_summary", "tail_bound",
+                                                    "tail_null_test"};
 
 constexpr std::array<Key, 49> kKeys = {{
     {"stage", Type::Word, Type::Object, kStages},
@@ -214,7 +223,54 @@ constexpr std::array<Key, 39> kSpike7 = {{
     {"group_half", Type::Boolean},
 }};
 
-constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size();
+// Spike.8 (WHY§240): the call's return value, the forms, the sources, the table, the control diff.
+constexpr std::array<Key, 38> kSpike8 = {{
+    {"returned", Type::Object},
+    {"returned_low", Type::Unsigned},
+    {"source", Type::Object},
+    {"src", Type::Word, Type::Object, kSrcs},
+    {"load_at", Type::Unsigned},
+    {"scale", Type::Unsigned},
+    {"base_src", Type::Object},
+    {"index_src", Type::Object},
+    {"vtable_src", Type::Object},
+    {"pass_src", Type::Array, Type::Object},
+    {"high", Type::Boolean},
+    {"large", Type::Boolean},
+    {"forms", Type::Array, Type::Object},
+    {"forms_dropped", Type::Boolean},
+    {"length", Type::Unsigned},
+    {"class", Type::Word, Type::Object, kClasses},
+    {"unreached", Type::Boolean},
+    {"in_control", Type::Boolean},
+    {"in_control_words", Type::Unsigned},
+    {"hub_diff_control", Type::Object},
+    {"table", Type::Object},
+    {"matched", Type::Boolean},
+    {"failed", Type::Word, Type::Object, kFails},
+    {"singleton_slot", Type::Unsigned},
+    {"hop", Type::Signed},
+    {"array", Type::Signed},
+    {"bound", Type::Unsigned},
+    {"slot_disp", Type::Signed},
+    {"before", Type::Object},
+    {"after", Type::Object},
+    {"singleton", Type::Object},
+    {"is_instance", Type::Boolean},
+    {"singleton_lead", Type::Unsigned},
+    {"entries", Type::Unsigned},
+    {"nonzero", Type::Unsigned},
+    {"nonzero_at", Type::Array, Type::Unsigned},
+    {"entry", Type::Object},
+    {"entry_vtable", Type::Object},
+}};
+constexpr std::array<Key, 2> kSpike8More = {{
+    {"slot_value", Type::Object},
+    {"via_guard", Type::Boolean},
+}};
+
+constexpr std::size_t kKeyCount =
+    kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size() + kSpike8.size() + kSpike8More.size();
 constexpr std::array<Key, kKeyCount> joined() {
   std::array<Key, kKeyCount> out{};
   std::size_t n = 0;
@@ -222,6 +278,8 @@ constexpr std::array<Key, kKeyCount> joined() {
   for (const Key& k : kMore) out[n++] = k;
   for (const Key& k : kSpike6) out[n++] = k;
   for (const Key& k : kSpike7) out[n++] = k;
+  for (const Key& k : kSpike8) out[n++] = k;
+  for (const Key& k : kSpike8More) out[n++] = k;
   return out;
 }
 constexpr std::array<Key, kKeyCount> kAll = joined();
@@ -254,6 +312,39 @@ void write_pass(report::Writer& w, const std::vector<PassedArg>& pass) {
   w.end_array();
 }
 
+// What a register holds (spike.8), nested to the source's depth.
+void write_source(report::Writer& w, std::string_view key, const Source& s) {
+  w.begin_object(key);
+  w.word("src", kSrcs[static_cast<std::size_t>(s.kind)]);
+  switch (s.kind) {
+    case Source::Kind::Argument:
+    case Source::Kind::FirstWord:
+      w.number("from", s.from);
+      break;
+    case Source::Kind::Entry:
+      w.number("reg", s.from);
+      break;
+    case Source::Kind::Rip:
+      w.number("load_at", s.at);
+      w.number("target", s.target);
+      w.number("width", s.width);
+      break;
+    case Source::Kind::Memory:
+      w.number("load_at", s.at);
+      optional_number(w, "base", s.base);
+      if (!s.base_src.empty()) write_source(w, "base_src", s.base_src.front());
+      optional_number(w, "index", s.index);
+      if (!s.index_src.empty()) write_source(w, "index_src", s.index_src.front());
+      if (s.index) w.number("scale", s.scale);
+      w.signed_number("disp", s.disp);
+      w.number("width", s.width);
+      break;
+    case Source::Kind::None:
+      break;
+  }
+  w.end_object();
+}
+
 void write_operand(report::Writer& w, const Operand& o) {
   w.begin_object();
   switch (o.form) {
@@ -263,15 +354,43 @@ void write_operand(report::Writer& w, const Operand& o) {
     case OperandForm::Immediate: w.word("form", "immediate"); break;
   }
   optional_number(w, "reg", o.reg);
+  if (o.high) w.boolean("high", true);
   optional_number(w, "from", o.from);
-  if (o.form == OperandForm::Register) w.boolean("first_word", o.first_word);
+  if (o.first_word) w.boolean("first_word", true);
+  if (o.source) write_source(w, "source", *o.source);
   optional_number(w, "base", o.base);
   optional_number(w, "base_arg", o.base_arg);
+  if (o.base_src) write_source(w, "base_src", *o.base_src);
   optional_number(w, "index", o.index);
+  if (o.index && o.scale != 0) w.number("scale", o.scale);
   if (o.form == OperandForm::Memory) w.signed_number("disp", o.disp);
   optional_number(w, "target", o.target);
+  if (o.section != SectionKind::None) w.word("section", kSections[static_cast<std::size_t>(o.section) - 1]);
+  if (o.width != 0) w.number("width", o.width);
   optional_number(w, "imm", o.imm);
+  if (o.large) w.boolean("large", true);
   w.end_object();
+}
+
+void write_forms(report::Writer& w, const CalleeCode& c) {
+  if (c.forms_dropped) w.boolean("forms_dropped", true);
+  w.begin_array("forms");
+  for (const Form& f : c.forms) {
+    w.begin_object();
+    w.number("offset", f.offset);
+    w.number("length", f.length);
+    w.word("class", kClasses[static_cast<std::size_t>(f.cls)]);
+    if (f.cls == InsnClass::Jcc) w.word("cond", kConds[std::min<std::size_t>(f.cond, kConds.size() - 1)]);
+    if (f.to) w.signed_number("to", *f.to);
+    if (f.unreached) w.boolean("unreached", true);
+    if (!f.operands.empty()) {
+      w.begin_array("operands");
+      for (const Operand& o : f.operands) write_operand(w, o);
+      w.end_array();
+    }
+    w.end_object();
+  }
+  w.end_array();
 }
 
 // A summary's fields, in the object the caller opened.
@@ -293,12 +412,25 @@ void write_code(report::Writer& w, const CalleeCode& c) {
     w.number("offset", k.offset);
     w.word("form", kForms[static_cast<std::size_t>(k.form)]);
     optional_number(w, "target", k.target);
+    if (k.rip) w.boolean("rip", true);
     optional_number(w, "base", k.base);
     optional_number(w, "index", k.index);
-    if (k.form == CallForm::Memory) w.signed_number("disp", k.disp);
+    if ((k.form == CallForm::Memory || k.form == CallForm::TailMemory) && !k.rip) w.signed_number("disp", k.disp);
     optional_number(w, "vtable_of", k.vtable_of);
+    if (k.base_src) write_source(w, "base_src", *k.base_src);
+    if (k.vtable_src) write_source(w, "vtable_src", *k.vtable_src);
     w.boolean("reached", k.reached);
     write_pass(w, k.pass);
+    if (!k.pass_src.empty()) {
+      w.begin_array("pass_src");
+      for (const PassedSource& p : k.pass_src) {
+        w.begin_object();
+        w.number("reg", p.reg);
+        write_source(w, "source", p.source);
+        w.end_object();
+      }
+      w.end_array();
+    }
     w.end_object();
   }
   w.end_array();
@@ -362,6 +494,7 @@ void write_code(report::Writer& w, const CalleeCode& c) {
     w.end_object();
   }
   w.end_array();
+  write_forms(w, c);
 }
 
 void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner) {
@@ -373,6 +506,7 @@ void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<Inne
     w.number("rva", i.rva);
     w.number("site", i.site);
     w.boolean("tail", i.tail);
+    if (i.depth != 1) w.number("depth", i.depth);
     write_code(w, i.code);
     w.end_object();
   }
@@ -434,8 +568,8 @@ void write_value(report::Writer& w, std::string_view key, const WordValue& v) {
   w.end_object();
 }
 
-void write_diff(report::Writer& w, const HubDiff& d) {
-  w.begin_object();
+void write_diff(report::Writer& w, const HubDiff& d, std::string_view key = {}) {
+  w.begin_object(key);
   w.number("at_ms", d.at_ms);
   w.number("before_blocks", d.before_blocks);
   w.number("after_blocks", d.after_blocks);
@@ -448,6 +582,7 @@ void write_diff(report::Writer& w, const HubDiff& d) {
   optional_number(w, "steady_words", d.steady_words);
   w.boolean("capped", d.capped);
   w.number("kept_bytes", d.kept_bytes);
+  optional_number(w, "in_control_words", d.in_control_words);
   w.begin_array("words");
   for (const DiffWord& x : d.words) {
     w.begin_object();
@@ -458,9 +593,50 @@ void write_diff(report::Writer& w, const HubDiff& d) {
     write_value(w, "old", x.before);
     write_value(w, "new", x.after);
     if (x.steady) w.boolean("steady", *x.steady);
+    if (x.in_control) w.boolean("in_control", *x.in_control);
     w.end_object();
   }
   w.end_array();
+  w.end_object();
+}
+
+void write_read(report::Writer& w, std::string_view key, const TableRead& r) {
+  w.begin_object(key);
+  w.number("at_ms", r.at_ms);
+  w.boolean("read", r.read);
+  if (r.singleton) write_value(w, "singleton", *r.singleton);
+  w.boolean("is_instance", r.is_instance);
+  optional_number(w, "singleton_lead", r.singleton_lead);
+  w.number("entries", r.entries);
+  w.number("nonzero", r.nonzero);
+  w.begin_array("nonzero_at");
+  for (const std::uint32_t i : r.nonzero_at) w.number(i);
+  w.end_array();
+  if (r.entry) write_value(w, "entry", *r.entry);
+  if (r.entry_vtable) write_value(w, "entry_vtable", *r.entry_vtable);
+  if (r.slot_value) write_value(w, "slot_value", *r.slot_value);
+  w.end_object();
+}
+
+void write_table(report::Writer& w, const Table& t) {
+  w.begin_object("table");
+  w.boolean("matched", t.matched);
+  if (!t.matched) {
+    if (!t.failed.empty()) w.word("failed", t.failed);
+    w.end_object();
+    return;
+  }
+  w.number("singleton_slot", t.singleton_slot);
+  if (t.hop) w.signed_number("hop", *t.hop);
+  if (t.via_guard) w.boolean("via_guard", true);
+  if (t.array) w.signed_number("array", *t.array);
+  w.signed_number("disp", t.disp);
+  w.number("bound", t.bound);
+  w.number("rva", t.rva);
+  optional_number(w, "site", t.site);
+  if (t.slot_disp) w.signed_number("slot_disp", *t.slot_disp);
+  if (t.before) write_read(w, "before", *t.before);
+  if (t.after) write_read(w, "after", *t.after);
   w.end_object();
 }
 
@@ -504,6 +680,8 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   w.number("group_index", f.group_index);
   w.number("object_size", f.object_size);
   w.number("vtable_slots", f.vtable_slots);
+  if (f.returned) write_value(w, "returned", *f.returned);
+  optional_number(w, "returned_low", f.returned_low);
   w.end_object();
   w.begin_object("task");
   w.number("first_tick_ms", f.first_tick_ms);
@@ -635,6 +813,8 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   w.begin_array("hub_diff");
   for (const HubDiff& d : f.hub_diff) write_diff(w, d);
   w.end_array();
+  if (f.hub_diff_control) write_diff(w, *f.hub_diff_control, "hub_diff_control");
+  if (f.table) write_table(w, *f.table);
   return w.finish();
 }
 

@@ -1194,69 +1194,130 @@ case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_e
      what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
           "connect answers inactive (anti-cheat), and the banner goes through notice alone")
 
-def check_r1_callee(p, task):
-    """Spike.6 and spike.7 (WHY§227, WHY§235): the callee's summary, from the live image, shows the fake registration as
-    the wrapper it is: one flag test of the hub (a byte of the instance at the guard's offset, against its bit), one
-    branch past its one call, the arguments mapped into that call (the hub in rcx, the group in edx, the task in r8) and
-    into the tail jump the other way; and one level deeper, the work keeping the task (moved to a callee-saved register)
-    and the task's vtable in the hub, comparing the group with a fixed bound, and passing all three on to the queue."""
+def check_r1_callee(p, task, gap=False):
+    """Spike.6 to spike.8 (WHY§227, WHY§235, WHY§240): the callee's summary, from the live image, shows the fake
+    registration as the wrapper of R1 run 7's shape it is: rcx loaded from the rack's static (none of its arguments),
+    tested for null and branched on past its two calls (which make the rack and store it there), and, where both ways
+    meet, a tail jump to the tail function with the rack in rcx, the group in edx, the task in r8 and the hub in r9. One
+    level deeper the tail function bounds the group, tests the rack's shelf for it (loaded from [entry rcx + group*8 +
+    the shelves' offset]) and jumps through the shelf's vtable, a tail call through memory; one more level, read from the
+    table (but where the group has no shelf), the shelf's register slot calls the work with the hub, the group and the
+    task. Every summary's instructions are given as forms, the padding after the tail function's jump unreached."""
     failures = []
     c = p.get("callee_code")
     if c is None:
         return ["no callee_code in r1-probe.json"]
     task_reg, instance_reg, group_reg = p["register"]["registers"]
+    rack = task["register_rack"]
+    callee = p["register"]["callee"]
 
     def passed(k):
         return {(a["reg"], a["from"]) for a in k.get("pass", []) if not a["first_word"]}
+
+    def src(k, reg):
+        return next((x["source"] for x in k.get("pass_src", []) if x["reg"] == reg), {})
+
+    def same(a, b):  # two sources, their loads' offsets aside
+        drop = lambda v: {k: (drop(x) if isinstance(x, dict) else x) for k, x in v.items() if k != "load_at"}
+        return drop(a) == drop(b)
 
     need(c["read"] and not c["cut"] and not c["undecodable"] and c["bytes"] == c["extent"] > 0,
          "the callee's bytes: %s" % {k: c.get(k) for k in ("read", "cut", "undecodable", "bytes", "extent")}, failures)
     calls = [k for k in c["call_sites"] if k["form"] == "direct"]
     tails = [k for k in c["call_sites"] if k["form"] == "tail"]
-    need(c["call_count"] == 1 and len(calls) == 1 and calls[0].get("target") == task["register_work_rva"] and
-         c["first_call"] == calls[0]["offset"], "the wrapper's call: %s" % c["call_sites"], failures)
-    need(len(tails) == 1 and tails[0].get("target") == task["register_closed_rva"],
+    need(c["call_count"] == 2 and [k.get("target") for k in calls] == [rack["alloc_rva"], rack["build_rva"]] and
+         c["first_call"] == calls[0]["offset"], "the wrapper's calls: %s" % c["call_sites"], failures)
+    need(len(tails) == 1 and tails[0].get("target") == rack["tail_rva"] and tails[0]["reached"],
          "the wrapper's tail jump: %s" % c["call_sites"], failures)
     need(c["branch_count"] == 1 and not c["returns_early"] and "modelled_to" not in c,
          "the wrapper's branches: %s, returns early %s, modelled to %s" %
          (c["branches"], c["returns_early"], c.get("modelled_to")), failures)
     guard = c.get("guard", [])
     ops = guard[0]["operands"] if len(guard) == 1 else []
-    need(len(guard) == 1 and guard[0]["op"] == "test" and guard[0]["cond"] == "ne" and guard[0].get("width") == 1 and
-         calls and guard[0]["to"] > calls[0]["offset"] and len(ops) == 2 and ops[0]["form"] == "memory" and
-         ops[0].get("base_arg") == instance_reg and ops[0].get("disp") == task["register_guard"]["off"] and
-         ops[1]["form"] == "immediate" and ops[1].get("imm") == task["register_guard"]["bit"],
-         "the wrapper's guard: %s" % guard, failures)
-    need(calls and calls[0]["reached"] and {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(calls[0]),
-         "the arguments into the work: %s" % (calls[0] if calls else None), failures)
-    need(tails and tails[0]["reached"] and {(1, task_reg), (2, instance_reg), (8, group_reg)} <= passed(tails[0]),
-         "the arguments into the tail jump: %s" % (tails[0] if tails else None), failures)
-    inner = {i["rva"]: i for i in c.get("inner", [])}
-    work, closed = inner.get(task["register_work_rva"], {}), inner.get(task["register_closed_rva"], {})
-    need(work and not work["tail"] and calls and work["site"] == calls[0]["offset"] and work["read"] and
-         not work["cut"] and closed and closed["tail"], "the inner summaries: %s" %
-         [(i["rva"], i["site"], i["tail"]) for i in c.get("inner", [])], failures)
-    args = {a["reg"]: a for a in work.get("args", [])}
-    t, g = args.get(task_reg, {}), args.get(group_reg, {})
-    keeps = [x for x in t.get("stores", []) if not x["first_word"]]
-    vtables = [x for x in t.get("stores", []) if x["first_word"]]
-    need(len(keeps) == 1 and keeps[0]["base_arg"] == instance_reg and keeps[0]["disp"] == task["register_keeps_off"]
-         and keeps[0]["width"] == 8 and keeps[0]["via"] in t.get("saved", []) and not keeps[0]["rip"],
-         "the task's store, one level deeper: %s" % t, failures)
-    need(len(vtables) == 1 and vtables[0]["base_arg"] == instance_reg and
-         vtables[0]["disp"] == task["register_keeps_vtable_off"] and vtables[0]["width"] == 8,
-         "the task's vtable's store, one level deeper: %s" % t, failures)
-    need(any(k.get("imm") == task["register_bound"] for k in g.get("compares", [])) and g.get("compared_other") == 1
-         and g.get("saved"), "the group's bound, one level deeper: %s" % g, failures)
-    need(t.get("tested") == 1 and args.get(instance_reg, {}).get("compared_other") == 1,
-         "the task's null test and the hub's compare, one level deeper: %s" % work.get("args"), failures)
-    need(work.get("call_count") == 4 and work.get("branch_count") == 4 and len(work.get("guard", [])) == 4 and
-         not work.get("returns_early") and "modelled_to" not in work,
-         "the work's calls and branches: %s" % {k: work.get(k) for k in ("call_count", "branch_count", "guard")},
-         failures)
-    queue = [k for k in work.get("call_sites", []) if k["form"] == "direct"]
-    need(queue and {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(queue[0]),
-         "the arguments into the queue: %s" % (queue[0] if queue else None), failures)
+    slot = {"src": "rip", "target": rack["slot_rva"], "width": 8}
+    need(len(guard) == 1 and guard[0]["op"] == "test" and guard[0]["cond"] == "ne" and guard[0].get("width") == 8 and
+         len(calls) == 2 and guard[0]["to"] > calls[1]["offset"] and len(ops) == 2 and
+         all(o["form"] == "register" and o.get("reg") == 1 and "from" not in o and
+             same(o.get("source", {}), slot) for o in ops), "the wrapper's guard: %s" % guard, failures)
+    need(tails and {(2, group_reg), (8, task_reg), (9, instance_reg)} <= passed(tails[0]) and
+         same(src(tails[0], 1), slot), "the arguments into the tail jump: %s" % (tails[0] if tails else None), failures)
+    forms = c.get("forms", [])
+    rips = [f for f in forms if f["class"] == "mov" and any(o["form"] == "rip" and o.get("target") == rack["slot_rva"]
+                                                            and o.get("section") == "data" for o in f["operands"])]
+    need(len(forms) == c["instructions"] and not any(f.get("unreached") for f in forms) and len(rips) == 2 and
+         forms[-1]["class"] == "jmp" and forms[-1].get("to") == rack["tail_rva"] - callee and
+         [f["offset"] for f in forms if f["class"] == "call"] == [k["offset"] for k in calls],
+         "the wrapper's forms: %s" % forms, failures)
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    tail = inner.get((rack["tail_rva"], 1), {})
+    need((rack["alloc_rva"], 1) in inner and (rack["build_rva"], 1) in inner and tail and tail["tail"] and tails and
+         tail["site"] == tails[0]["offset"], "the inner summaries: %s" %
+         [(i["rva"], i["site"], i["tail"], i.get("depth")) for i in c.get("inner", [])], failures)
+    tg = tail.get("guard", [])
+    entry = tg[1]["operands"][0].get("source", {}) if len(tg) == 2 and tg[1]["operands"] else {}
+    need(tail.get("extent") == 0 and tail.get("returns_early") and tail.get("call_count") == 0 and
+         tail.get("branch_count") == 2 and len(tg) == 2 and tg[0]["op"] == "cmp" and tg[0]["cond"] == "a" and
+         tg[0]["operands"][0].get("from") == group_reg and tg[0]["operands"][1].get("imm") == rack["bound"] and
+         tg[1]["op"] == "test" and tg[1].get("width") == 8, "the tail function's guards: %s" % tg, failures)
+    need(entry.get("src") == "memory" and entry.get("base_src") == {"src": "entry", "reg": 1} and
+         entry.get("index_src") == {"src": "argument", "from": group_reg} and entry.get("scale") == 8 and
+         entry.get("disp") == rack["shelves_off"] and entry.get("width") == 8,
+         "the tail function's tested value: %s" % entry, failures)
+    jumps = [k for k in tail.get("call_sites", []) if k["form"] == "tail_memory"]
+    need(len(jumps) == 1 and jumps[0]["reached"] and jumps[0].get("base") == 0 and
+         jumps[0].get("disp") == rack["shelf_slot_off"] and same(jumps[0].get("vtable_src", {}), entry) and
+         {(2, group_reg), (8, task_reg), (9, instance_reg)} <= passed(jumps[0]) and same(src(jumps[0], 1), entry),
+         "the tail function's jump: %s" % jumps, failures)
+    tforms = tail.get("forms", [])
+    need(len(tforms) == tail.get("instructions") and [f["class"] for f in tforms if f.get("unreached")] ==
+         ["int3", "int3"] and tforms[-1]["class"] == "ret", "the tail function's forms: %s" % tforms, failures)
+    deeper = inner.get((rack["shelf_register_rva"], 2))
+    if gap:
+        need(deeper is None, "a summary one more level deeper, with no shelf: %s" % deeper, failures)
+    else:
+        work = [k for k in (deeper or {}).get("call_sites", []) if k["form"] == "direct"]
+        need(deeper is not None and deeper["tail"] and jumps and deeper["site"] == jumps[0]["offset"] and
+             deeper["call_count"] == 1 and len(work) == 1 and work[0].get("target") == task["register_work_rva"] and
+             {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(work[0]) and deeper.get("forms"),
+             "the shelf's register slot, one more level: %s" % deeper, failures)
+    return failures
+
+
+def check_r1_table(p, task, gap=False):
+    """Spike.8 (WHY§240): the rack the tail function reads, matched to run 7's shapes and read just before the call and
+    2 s after it: the rack on the heap (not the hub), an entry for each of the hub's groups up to the bound (with
+    --table-gap none for the stand-in group), the group's shelf with its vtable in the game's rdata and its register
+    slot in its code; and the call's return value, 1 (0 with the gap)."""
+    failures = []
+    rack = task["register_rack"]
+    group = p["register"]["group_index"]
+    t = p.get("table", {})
+    need(t.get("matched") and t.get("singleton_slot") == rack["slot_rva"] and "hop" not in t and "array" not in t and
+         t.get("disp") == rack["shelves_off"] and t.get("bound") == rack["bound"] and t.get("rva") == rack["tail_rva"]
+         and t.get("slot_disp") == rack["shelf_slot_off"], "the table's shape: %s" %
+         {k: v for k, v in t.items() if k not in ("before", "after")}, failures)
+    groups = [g["index"] for g in task["groups"]]
+    shelves = [g for g in groups if not (gap and g == group)]
+    for key in ("before", "after"):
+        r = t.get(key, {})
+        need(r.get("read") and r.get("singleton", {}).get("kind") == "heap" and not r.get("is_instance") and
+             "singleton_lead" not in r and r.get("entries") == rack["bound"] + 1 and
+             r.get("nonzero_at") == shelves and r.get("nonzero") == len(shelves),
+             "the table %s the call: %s" % (key, r), failures)
+        if gap:
+            need(r.get("entry") == {"kind": "zero"} and "entry_vtable" not in r and "slot_value" not in r,
+                 "the group's entry %s the call, with no shelf: %s" % (key, r), failures)
+        else:
+            need(r.get("entry", {}).get("kind") == "heap" and
+                 r.get("entry_vtable") == {"kind": "game", "section": "rdata", "rva": rack["shelf_vtable_rva"]} and
+                 r.get("slot_value") == {"kind": "game", "section": "code", "rva": rack["shelf_register_rva"]},
+                 "the group's entry %s the call: %s" % (key, r), failures)
+    need(t.get("before", {}).get("at_ms") == 0 and t.get("after", {}).get("at_ms", 0) >= 2000,
+         "the table's reads' times: %s" % [t.get(k, {}).get("at_ms") for k in ("before", "after")], failures)
+    want_returned = {"kind": "zero"} if gap else {"kind": "small", "value": 1}
+    need(p["register"].get("returned") == want_returned and p["register"].get("returned_low") == (0 if gap else 1),
+         "the call's return value: %s, low byte %s" % (p["register"].get("returned"),
+                                                       p["register"].get("returned_low")), failures)
     return failures
 
 
@@ -1295,6 +1356,22 @@ def check_r1_memory(p, task):
     return failures
 
 
+def check_r1_control(p, ds):
+    """Spike.8 (WHY§240): the control diff, the same walk at the Mark and 2 s later, changed the hub's frame alone, and in
+    each diff across the call the frame is marked in_control and listed after the words that are not."""
+    failures = []
+    ctl = p.get("hub_diff_control", {})
+    need(ctl and 1900 <= ctl.get("at_ms", 0) <= 6000 and not ctl["capped"] and ctl["compared"] > 0 and
+         [w["path"] for w in ctl["words"]] == [[8]] and "in_control_words" not in ctl,
+         "the control diff: %s" % ctl, failures)
+    for d in ds:
+        frame = {tuple(w["path"]): w for w in d["words"]}.get((8,), {})
+        need(d.get("in_control_words") == 1 and frame.get("in_control") is True and d["words"][-1] == frame and
+             all(w.get("in_control") is False for w in d["words"][:-1]),
+             "the diff's control marks: %s" % [(w["path"], w.get("in_control")) for w in d["words"]], failures)
+    return failures
+
+
 def check_r1_diff(p, task):
     """Spike.7 (WHY§235): the hub's reachable memory kept just before the call and compared with the same walk 2 and 20 s
     after it: the hub's last_task now our task's address (not followed into, so fresh), its last_vtable our vtable, its
@@ -1330,14 +1407,11 @@ def check_r1_diff(p, task):
          frame.get("steady") is False and later["words"][0].get("steady") is True,
          "the later diff's steadiness: %s steady, the last task %s, the frame %s" %
          (later.get("steady_words"), words.get((task["register_keeps_off"],)), frame), failures)
-    return failures
+    return failures + check_r1_control(p, ds)
 
 
-def check_r1(result):
-    """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
-    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
-    failures = []
-    truth = result.truth
+def r1_reports(result, failures):
+    """R1's two reports, each linted by the engine; None unless both are there."""
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
     reports = {}
     for name in ("r1-derive.json", "r1-probe.json"):
@@ -1349,7 +1423,16 @@ def check_r1(result):
         need(code == 0, "lint --report %s: exit %s %s" % (name, code, out[-400:]), failures)
         with open(path) as f:
             reports[name] = json.load(f)
-    if len(reports) != 2:
+    return reports if len(reports) == 2 else None
+
+
+def check_r1(result):
+    """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
+    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+    failures = []
+    truth = result.truth
+    reports = r1_reports(result, failures)
+    if reports is None:
         return failures
     p, d = reports["r1-probe.json"], reports["r1-derive.json"]
     task = truth["task"]
@@ -1383,7 +1466,8 @@ def check_r1(result):
     need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
-    failures += check_r1_callee(p, task) + check_r1_memory(p, task) + check_r1_diff(p, task)
+    failures += (check_r1_callee(p, task) + check_r1_table(p, task) + check_r1_memory(p, task) +
+                 check_r1_diff(p, task))
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
@@ -1450,6 +1534,51 @@ case("launcher-eldennet-probe", LBASE + ["--no-steam-check", "--game", "{game}",
      what="R1 as the owner runs it: --probe (no settings.toml), the backup first, the console's steps in plain words, "
           "Pause at the title until taken, the reviewed idiom and the layout's group confirmed, one call, task "
           "confirmed, and both reports linted clean by the launcher when the game ends")
+# Spike.8's second case (WHY§240): the registration's rack holds no shelf for the stand-in group (--table-gap), so the
+# call answers 0 and the task never runs, as in R1 run 7. R1's report says so, and the run ends as run 7's did.
+def check_r1_gap(result):
+    failures = []
+    reports = r1_reports(result, failures)
+    if reports is None:
+        return failures
+    p = reports["r1-probe.json"]
+    task = result.truth["task"]
+    checks = {(c["item"], c.get("label", "")): c for c in p["checks"]}
+    need(all(checks.get((item, ""), {}).get("status") == "confirmed"
+             for item in ("gate", "fd4_idiom", "register", "register_abi", "group")),
+         "the checks: %s" % [(c["item"], c["status"]) for c in p["checks"]], failures)
+    need(p["register"]["call"] == "ok" and p["stage"] == "registered" and p["task"]["invocations"] == 0 and
+         not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
+         "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
+    failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, gap=True)
+    ds = p.get("hub_diff", [])
+    need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
+         "the hub's diffs, with nothing kept: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]] for d in ds],
+         failures)
+    failures += check_r1_control(p, ds)
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["vtable_found"] == 0 and
+                              m["slot_found"] == 0 and m["own_found"] >= 2 for m in ms),
+         "the memory searches, with nothing kept: %s" %
+         [{k: m.get(k) for k in ("stopped", "found", "vtable_found", "slot_found", "own_found")} for m in ms], failures)
+    steps = r1_steps(result)
+    need("task_confirmed" not in steps and steps[:1] == ["asked"] and "press_mark" in steps and
+         steps[-1:] == ["reports_clean"], "the console's R1 steps: %s" % steps, failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += any_line(result, "FAKEGAME", "rack", gap="1")
+    return failures + any_line(result, "ELDENNET", "r1", stage="table_after") + en_log_is_clean(result)
+
+
+case("launcher-eldennet-probe-gap", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}", "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--table-gap",
+          frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_gap,
+     what="R1 as the owner runs it, on a fake game whose registration table holds no entry for the group (R1 run 7's "
+          "end): the call answers 0, the table read before and after it shows the group's entry null and the others "
+          "set, the task never runs, and both reports lint clean when the game ends")
 case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                                  "--probe"] + game("--stay-title", "--press-pause-at", "120",
                                                                    frames=600),

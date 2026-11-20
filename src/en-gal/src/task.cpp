@@ -214,7 +214,9 @@ proto::Expected<void, SysError> install_task(SysLayer& sys, const Discovery& dis
   std::memcpy(&instance, bytes.data(), sizeof instance);
   if (instance == 0) return proto::Unexpected{SysError::Unreadable};
   const TaskShape shape{task->vtable_slots, task->run_slot, task->object_size, task->group_index, task->register_abi};
-  return sys.register_task(*function, instance, shape, body);
+  const auto called = sys.register_task(*function, instance, shape, body);  // what it answers is R1's alone
+  if (!called) return proto::Unexpected{called.error()};
+  return {};
 }
 
 }  // namespace en::gal

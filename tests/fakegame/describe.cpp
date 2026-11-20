@@ -315,7 +315,7 @@ int describe(HINSTANCE instance) {
       {"FieldArea", "static", fn_bytes(fg_field_plot_place), 5,
        "4C 8B 15 ?? ?? ?? ?? 31 C0 4D 85 D2 74 04 49 63 42 1C", 3, 7, &fg_static_field_plot, "57 48 83 EC 20"},
       {"register_task", "function", fn_bytes(fg_register_task), 7,
-       "48 89 CB 48 89 D6 44 89 C7 F6 46 14 01 75 ?? 49 89 D8 89 FA 48 89 F1 E8 ?? ?? ?? ??", 0, 0, nullptr,
+       "48 89 CB 48 89 D6 44 89 C7 48 8B 0D ?? ?? ?? ?? 48 85 C9 75 ?? E8 ?? ?? ?? ??", 0, 0, nullptr,
        "53 56 57 48 83 EC 20"},
   };
   json aob = json::array();
@@ -350,15 +350,28 @@ int describe(HINSTANCE instance) {
   json task{
       {"register_rva", fn_rva(fg_register_task)},
       {"register_abi", {{"task", "rcx"}, {"instance", "rdx"}, {"group", "r8d"}}},
-      {"register_returns", "nothing"},
+      {"register_returns", "1 when the task was kept, else 0"},
       {"register_bound", FG_GROUP_BOUND},               // the work compares the group with it, an immediate
       {"register_keeps_off", FG_LOOM_LAST_TASK_OFF},    // where in the hub the work stores the task
       {"register_keeps_vtable_off", FG_LOOM_LAST_VTABLE_OFF},  // and the task's vtable
-      // The registration is a wrapper (spike.7): its guard tests the hub's flag at `off` against `bit`, and while it is
-      // clear it calls the work (the hub in rcx, the group in edx, the task in r8); else it tail-jumps to `closed`.
-      {"register_guard", {{"off", FG_LOOM_FLAGS_OFF}, {"bit", FG_LOOM_CLOSED}}},
+      // The registration is a wrapper of R1 run 7's shape (spike.8): it loads its rack from the static at `slot_rva`
+      // (making it with `alloc` and `build` while it is null) and tail-jumps to `tail`, which bounds the group by
+      // `bound`, tests the rack's shelf at `shelves_off` + group*8 and jumps through the shelf's vtable at
+      // `shelf_slot_off` to `shelf_register`, which calls the work (the hub in rcx, the group in edx, the task in r8).
+      // With --table-gap the stand-in group has no shelf (`gap`), and the registration answers 0.
+      {"register_rack",
+       {{"slot_rva", rva(&fg_static_rack)},
+        {"alloc_rva", fn_rva(fg_rack_alloc)},
+        {"build_rva", fn_rva(fg_rack_build)},
+        {"tail_rva", fn_rva(fg_register_rack)},
+        {"bound", FG_RACK_BOUND},
+        {"shelves_off", FG_RACK_SHELVES_OFF},
+        {"shelf_slot_off", FG_SHELF_REGISTER_OFF},
+        {"shelf_register_rva", fn_rva(fg_shelf_register)},
+        {"shelf_vtable_rva", rva(fg_shelf_vtable)},
+        {"gap", options().table_gap},
+        {"made", fg_static_rack != nullptr}}},
       {"register_work_rva", fn_rva(fg_register_keep)},
-      {"register_closed_rva", fn_rva(fg_register_closed)},
       {"hub_run_fns_off", 8 + offsetof(FG::TaskLoomFields, run_fns)},
       {"register_call_sites", calls},
       {"register_thread", "any; the hub queues the task and activates it on the game thread"},

@@ -75,8 +75,8 @@ proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, s
   return *answer;
 }
 
-proto::Expected<void, SysError> FakeSys::register_task(std::uint64_t function, std::uint64_t instance,
-                                                       const TaskShape& shape, TaskBody& body) noexcept {
+proto::Expected<std::uint64_t, SysError> FakeSys::register_task(std::uint64_t function, std::uint64_t instance,
+                                                                const TaskShape& shape, TaskBody& body) noexcept {
   if (registration) return proto::Unexpected{SysError::Twice};
   if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
       (!shape.every_slot && shape.run_slot >= shape.vtable_slots)) {
@@ -86,7 +86,7 @@ proto::Expected<void, SysError> FakeSys::register_task(std::uint64_t function, s
   registration = Registration{function, instance, shape, &body};
   calls_.assign(shape.vtable_slots, 0);
   block_ = mem_.alloc(8 + std::size_t{shape.object_size} + 8);
-  return {};
+  return register_answer;
 }
 
 void FakeSys::tick(std::uint64_t dt_us, bool watch) {

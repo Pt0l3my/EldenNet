@@ -149,8 +149,10 @@ cmake --build build-cl
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
 - `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
   Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
-  its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7);
-  `launcher-eldennet-probe-release` gives
+  its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
+  forms, the sources, the tail function's table read before and after the call, the call's answer and the control
+  diff; `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
+  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
@@ -215,9 +217,9 @@ Its README has the start as built, the threads, the settings, the recorder and R
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 12 cases,
-  about 4 minutes, and with `EN_GRACEUI_DIR` four more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` is
-  the longest, about 65 s). Each installs the DLL in its own folder with
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 13 cases,
+  about 5 minutes, and with `EN_GRACEUI_DIR` four more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
+  `launcher-eldennet-probe-gap` are the longest, about 65 s each). Each installs the DLL in its own folder with
   gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
   place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
@@ -233,7 +235,7 @@ A spike package is a development build for the owner's PC, labelled `0.1.0-spike
 
 ```sh
 cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.7 -DPython3_EXECUTABLE=/usr/local/bin/python3
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.8 -DPython3_EXECUTABLE=/usr/local/bin/python3
 cmake --build build-cl-rel
 python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
   --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
@@ -244,6 +246,9 @@ whole-memory search tells the probe's own copies of our task's address apart fro
 unchanged. Since spike.7 each search reads every readable committed region within 64 GiB and 30 s (on the fake game
 under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's, our vtable's and its slots'
 addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
+Since spike.8 the hub is walked at the Mark too, 2 s before that walk, for a control diff (three walks' blocks kept at
+most), the call's answer is kept, and the tail function's table is read just before the call and 2 s after it, through
+the same crash-guarded copy; every summary's instructions are given as forms (no bytes).
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
 `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
