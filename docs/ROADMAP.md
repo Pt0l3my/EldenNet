@@ -948,16 +948,43 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.2 GraceUI 0.2 Foundations (0.1 before G15)
 
-- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures
+- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures [done]
   - refs: G3, GraceUI:DESIGN§9.2
-- b For spike S4: one settings page drawn in game by GraceUI's host
-  - needs: a, S10.4
-  - refs: G15, GraceUI:DESIGN§2.9
-- c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip
-  - needs: b
+  - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
+- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu)
+  - needs: i, l, S10.4
+  - refs: G15, G20, GraceUI:D115, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
+  - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
+    input holder with its close routine; harness screenshots, the frame cost and the atlas size, for S4 and the
+    owner's look review. The page is GraceUI > Menu (ui.scale, ui.menu.theme: GraceUI's own settings, GraceUI:D115), agreed by
+    the two sessions on 2026-11-20 in place of Behaviour > Pacing, an EldenNet page since G20; S4 checks input, which
+    either page serves.
+- c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
+  - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
   - refs: G1
+- e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [active]
+  - refs: GraceUI:DESIGN§3.15, GraceUI:D108
+- f The bridge protocol: one schema, generated C++ and TypeScript types with a drift check, grace-protocol's round trips, golden frames and a frame fuzzer
+  - refs: GraceUI:DESIGN§6, GraceUI:D108, GraceUI:D55
+- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed
+  - refs: GraceUI:DESIGN§7.2, GraceUI:DESIGN§7.6, G30
+- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint
+  - needs: f
+  - refs: GraceUI:DESIGN§2.5, GraceUI:DESIGN§6.9, GraceUI:D79, GraceUI:D115
+- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6)
+  - needs: f, g
+  - refs: G4, G17, G29, GraceUI:DESIGN§7.2
+- j The fake host for any space, grace-dev, on fixtures and scripted time
+  - needs: h, i
+  - refs: GraceUI:DESIGN§9.2
+- k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build
+  - needs: e, f, h
+  - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
+- l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell
+  - needs: e, h
+  - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3
 
 ### S11.3 EldenNet v0.2
 
@@ -975,11 +1002,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S11.4 GraceUI 0.2
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
-  - refs: G2, PAGES§4.6
-- b The browser dashboard, always on, on loopback only, with the server's security suite
+  - needs: S11.2.h
+  - refs: G2, G20, PAGES§4.6
+  - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format.
+- b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
+  - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
-- c The server in GraceUI with two spaces and per-space routing; EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
+  - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
+- c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
   - refs: G17, GraceUI:DESIGN§10
+  - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20.
 
 ### S11.5 v0.2's exit checks
 
