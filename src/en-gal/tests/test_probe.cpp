@@ -1883,8 +1883,10 @@ TEST_CASE("probe: a class's innermost name against the leads' names, and the tab
   rcx.source.kind = probe::Source::Kind::Memory;
   rcx.holds_entry = true;
   g.entry_src.push_back(rcx);
+  g.code.trimmed = true;  // past 256 KiB a summary is trimmed, and summaries are left out
   f.callee_code = probe::CalleeCode{};
   f.callee_inner.push_back(g);
+  f.inner_dropped = 3;
   const auto text = probe::write_report(f);
   REQUIRE(text.has_value());
   const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
@@ -1893,4 +1895,6 @@ TEST_CASE("probe: a class's innermost name against the leads' names, and the tab
   CHECK(text->find("\"holds_entry\": true") != std::string::npos);
   CHECK(text->find("\"parent\": ") != std::string::npos);
   CHECK(text->find("\"target\": ") != std::string::npos);
+  CHECK(text->find("\"trimmed\": true") != std::string::npos);
+  CHECK(text->find("\"inner_dropped\": 3") != std::string::npos);
 }

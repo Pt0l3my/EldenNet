@@ -278,7 +278,7 @@ constexpr std::array<std::string_view, 3> kRoots = {"task_hub", "singleton", "gr
 constexpr std::array<std::string_view, 3> kMatches = {"none", "name", "imp"};
 constexpr std::array<std::string_view, 9> kUses = {"compared", "compared_other", "tested", "stored", "passed",
                                                    "called",   "base",           "changed", "other"};
-constexpr std::array<Key, 29> kSpike9 = {{
+constexpr std::array<Key, 31> kSpike9 = {{
     {"root", Type::Word, Type::Object, kRoots},
     {"hub_diff_controls", Type::Array, Type::Object},
     {"tag", Type::Unsigned},
@@ -308,6 +308,8 @@ constexpr std::array<Key, 29> kSpike9 = {{
     {"use", Type::Word, Type::Object, kUses},
     {"origin", Type::Object},
     {"by", Type::Unsigned},
+    {"trimmed", Type::Boolean},
+    {"inner_dropped", Type::Unsigned},
 }};
 
 constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size() + kSpike8.size() +
@@ -483,6 +485,7 @@ void write_operand(report::Writer& w, const Operand& o) {
 
 void write_forms(report::Writer& w, const CalleeCode& c) {
   if (c.forms_dropped) w.boolean("forms_dropped", true);
+  if (c.trimmed) w.boolean("trimmed", true);
   w.begin_array("forms");
   for (const Form& f : c.forms) {
     w.begin_object();
@@ -619,9 +622,11 @@ void write_code(report::Writer& w, const CalleeCode& c) {
   write_forms(w, c);
 }
 
-void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner) {
+void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner,
+                  std::uint32_t dropped) {
   w.begin_object("callee_code");
   write_code(w, c);
+  if (dropped != 0) w.number("inner_dropped", dropped);
   w.begin_array("inner");
   for (const InnerCallee& i : inner) {
     w.begin_object();
@@ -964,7 +969,7 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   }
   w.end_array();
   w.end_object();
-  if (f.callee_code) write_callee(w, *f.callee_code, f.callee_inner);
+  if (f.callee_code) write_callee(w, *f.callee_code, f.callee_inner, f.inner_dropped);
   w.begin_array("memory_search");
   for (const MemorySearch& m : f.memory_search) write_memory(w, m);
   w.end_array();

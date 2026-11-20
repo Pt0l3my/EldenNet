@@ -343,6 +343,7 @@ struct CalleeCode {
   std::vector<ArgUse> args;             // rcx, rdx, r8, r9 (of the wrapper, for an inner summary)
   std::vector<Form> forms;              // spike.8: the first 64 instructions, as forms
   bool forms_dropped = false;           // left out so that the report stays within its size
+  bool trimmed = false;                 // spike.9: its call sites, branches and guards left out for the same reason
   // Spike.9: the loads from our task and from the group's entry (the first 16 of each), and the stores of our task or
   // of a value read from it (the first 16), with how many there were.
   std::uint32_t task_read_count = 0;
@@ -554,6 +555,7 @@ struct Findings {
   std::optional<HubDiff> hub_diff_control;  // spike.8: the hub's walk at the Mark against the walk 2 s later
   std::optional<Table> table;               // spike.8
   std::vector<HubDiff> hub_diff_controls;   // spike.9: the same for the singleton's and the group entry's walks
+  std::uint32_t inner_dropped = 0;          // spike.9: inner summaries left out so that the report stays within its size
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;

@@ -1053,10 +1053,14 @@ class Round {
 
   // Within the report's 256 KiB: past it, the summaries' forms are left out (each marked forms_dropped), pass by pass:
   // first the wrapper's callees that are not its tail jump and (spike.9) the group function's callees, then the tail
-  // function's, then the wrapper's, and last the group's own function's.
+  // function's, then the wrapper's, and last the group's own function's. Spike.9: past that, the group function's
+  // callees' call sites, branches and guards (`trimmed`; their reads and stores kept), then those callees past the
+  // first four, then all of them (`inner_dropped`), and last the group's own function trimmed. Each pass keeps the
+  // earlier ones' cuts.
   void write_report() {
     auto text = probe::write_report(f_);
-    for (int pass = 0; !text && pass < 4 && f_.callee_code; ++pass) {
+    constexpr int kPasses = 8;
+    for (int pass = 0; !text && pass < kPasses && f_.callee_code; ++pass) {
       probe::Findings g = f_;
       for (probe::InnerCallee& in : g.callee_inner) {
         const int rank = in.depth == 2 ? 3 : in.depth == 1 && in.tail ? 1 : 0;
@@ -1064,10 +1068,18 @@ class Round {
           in.code.forms.clear();
           in.code.forms_dropped = true;
         }
+        if ((in.depth == 3 && pass >= 4) || (in.depth == 2 && pass >= 7)) trim(in.code);
       }
       if (pass >= 2 && !g.callee_code->forms.empty()) {
         g.callee_code->forms.clear();
         g.callee_code->forms_dropped = true;
+      }
+      if (pass >= 5) {
+        std::size_t kept = 0;
+        const std::size_t keep = pass == 5 ? 4 : 0;
+        const auto before = g.callee_inner.size();
+        std::erase_if(g.callee_inner, [&](const probe::InnerCallee& in) { return in.depth == 3 && kept++ >= keep; });
+        g.inner_dropped = static_cast<std::uint32_t>(before - g.callee_inner.size());
       }
       text = probe::write_report(g);
       if (text) log(Line("r1").word("report", "forms_dropped").num("pass", pass), LogLevel::Warn);
@@ -1077,6 +1089,14 @@ class Round {
       return;
     }
     (void)write_text(folder_ + L"\\r1-probe.json", *text);
+  }
+  // A summary's call sites, branches and guards left out (their counts kept), its reads and stores kept.
+  static void trim(probe::CalleeCode& c) {
+    if (c.calls.empty() && c.branches.empty() && c.guards.empty()) return;
+    c.calls.clear();
+    c.branches.clear();
+    c.guards.clear();
+    c.trimmed = true;
   }
 
   Shell& s_;
