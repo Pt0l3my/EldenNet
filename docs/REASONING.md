@@ -249,6 +249,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 224 | 2026-11-20 | Under 50% snapshot loss Augur invents no event and fires none earlier; brief states and per-hit events are what differ | FACT | #engine #augur #test |
 | 225 | 2026-11-20 | A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged | DECIDED | #engine #augur #spike #datapiler |
 | 226 | 2026-11-20 | Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish | FACT | #engine #augur #perf #build |
+| 227 | 2026-11-20 | R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -4011,3 +4012,22 @@ invariant 10, EldenNet ARCH (T3)
 - **Also seen** (FACT, build): during the run, `/root/.local/bin/python3.10`, the Python CMake had cached for the
   harness, vanished: it was a link into a scratch folder that the session removed while freeing disk. Trees configured
   before need `-DPython3_EXECUTABLE=/usr/local/bin/python3` (3.13); the harness runs on it unchanged.
+
+### 227. R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee
+
+`2026-11-20` · FACT · `#gal` `#r1` `#task` · refs: WHY§208, WHY§209, engine 4edc9cf
+
+- **The run** (FACT, spike.5, game 2.7.2.0 ww): the owner removed the other DLLs from the game's folder
+  (`other_mods=none`, 130 modules against 176 to 179 before). Six singletons named by their instances' RTTI, every
+  check passed, and at the Mark `register_task` (callee RVA 0xEB5680, task r8, instance rcx, group rdx, index 110)
+  returned ok. The task was never invoked; the exit was clean.
+- **The search** (FACT): 2 and 20 s after the call, breadth first from CSTask's instance three pointers deep, about
+  4,600 blocks and 4.1 MB read (about 120 faults, one refused): our object's address found nowhere, and nothing pointing
+  inside it.
+- **So** (LIKELY): the call kept our task nowhere the hub reaches: the callee is not the registration, an argument's
+  meaning is wrong (the group's index, the task object's form), or the task went somewhere the search does not reach.
+  Whether run 4's crash on quit was ours stays open; run 5, with no other mods and no world loaded, ended clean.
+- **Next** (DECIDED): spike.6 adds, with no new call into the game, a summary of the callee from the live image (its
+  calls, its branches before the first call, what it does with each argument register: stores, moves, compares with
+  small immediates) and a search of every readable committed region of the process for our task's address after the
+  call, our own copies counted apart.
