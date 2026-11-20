@@ -21,7 +21,11 @@ import signal
 import struct
 import subprocess
 import sys
+import threading
 import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages"))
+import browser  # noqa: E402  (tests/pages/browser.py: a browser of the tests' own, for GraceUI's server)
 
 AV = 0xC0000005
 
@@ -33,11 +37,16 @@ class Case:
     given with --set name=PATH, as Windows sees it), what must come back, and what the case stands for. A case that
     `needs` a path given with --set is listed only when CMake has it (--have), so later parts (the DLL, the launcher)
     add their chain cases here: program="{launcher}", needs=("launcher", "eldennet"). `cwd`, a `{name}` path, is the
-    folder the program starts in (relative paths in its arguments are read from there); else the harness's own."""
+    folder the program starts in (relative paths in its arguments are read from there); else the harness's own.
+    `during`, a function of the case's paths and a dictionary, runs on a thread of its own while the program runs (a
+    browser of the tests' own that joins GraceUI's server, say); what it puts in the dictionary is the result's
+    `during` for the check."""
 
     def __init__(self, name, args, exit=0, expect=(), forbid=(), check=None, env=None, toolchains=("clang-cl", "mingw"),
-                 timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False, cwd=None):
+                 timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False, cwd=None,
+                 during=None):
         self.name = name
+        self.during = during
         self.cwd = cwd
         self.prepare = prepare  # a launcher case's own files, made before it runs (launcher_setup)
         self.settle = settle    # wait for every process the case started (a watcher) before the prefix is stopped
@@ -1255,10 +1264,13 @@ def check_graceui_before(r):
                         ("ELDENNET", "init", {"state": "banner"}),
                         ("LAUNCHER", "end", {"kind": "clean"}))(r) +
             any_line(r, "LAUNCHER", "inject", dll="graceui.dll", ok=1) +
-            # The banner: one notice under EldenNet's key, duration 0, in the warning tone, with the build's number.
+            # The banner: one notice under EldenNet's key, duration 0, in the warning tone, with the build's number;
+            # EldenNet's space registered for the game's view alone, so GraceUI's server never starts for it (PAGES
+            # §4.4, GraceUI §7.2 item 1).
             want_grace(r, 300, found=1, eldennet=1, notice_only=0,
                        banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet", banner_tone=1,
-                       badge="none", shown=0) +
+                       badge="none", shown=0, server=0, spaces=1) +
+            any_line(r, "ELDENNET", "connect", path="banner", pages=0) +
             # F11 on the banner path too (frame 360): the view shows L1 and why.
             want_grace(r, 460, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
                        banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet") +
@@ -1304,6 +1316,142 @@ def check_graceui_anticheat(r):
             en_log_is_clean(r))
 
 
+# EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
+# danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down twice to
+# System › Status and Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
+# Developer, with the row focused; → there changes it (a command to EldenNet, answered); F5 closes the menu. While it
+# runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake
+# game's report gives, reads EldenNet's topics and sends commands.
+PAGES_KEYS = "600:f5,720:next,840:next,960:return,1080:right,1200:f5"
+PAGES_REPORTS = "360,660,780,900,1020,1140,1260"
+
+
+def browse_eldennet(paths, out):
+    """The browser's part: once the fake game's report names GraceUI's server running with a space, a page load's
+    cookie, a ticket and a WebSocket; each of EldenNet's topics watched and its first frame kept; three commands and
+    their answers. What it got goes in `out`; nothing of it is printed but in a failure."""
+    deadline = time.monotonic() + 120
+    port = None
+    while time.monotonic() < deadline and port is None:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        for line in text.splitlines():
+            m = re.search(r"^FAKEGAME grace .* server=1 port=([0-9]+) spaces=([1-9])", line)
+            if m:
+                port = int(m.group(1))
+        if port is None:
+            time.sleep(0.25)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    try:
+        view = browser.Browser(port, timeout=10)
+        out["welcome"] = view.welcome
+        for topic in ("status", "errors", "system.status", "system.compatibility", "logs", "settings"):
+            view.sub("eldennet", topic)
+            out[topic] = view.state("eldennet", topic, timeout=10)
+        out["set_ok"] = view.command("eldennet", "settings.set", {"key": "debug.record_sessions", "value": False})
+        out["set_bad"] = view.command("eldennet", "settings.set", {"key": "debug.log_level", "value": "loud"})
+        out["reset_unconfirmed"] = view.command("eldennet", "settings.reset",
+                                                {"scope": "page", "target": "settings.developer"})
+        out["settings_after"] = view.state("eldennet", "settings", timeout=10)
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            view.close()
+
+
+def check_graceui_pages(r):
+    d = r.during
+    failures = []
+    if "error" in d:
+        return ["the browser: %s" % d["error"]]
+    body = lambda topic: d.get(topic, {}).get("body", {})
+    # The browser: the welcome names EldenNet's space at its increment; every topic watched came back, built by
+    # EldenNet from what it knows, in its own words; each command answered once, by EldenNet's one command path.
+    spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
+    need(spaces.get("eldennet", {}).get("increment") == "0.1" and spaces["eldennet"].get("version") == "0.1.0",
+         "the welcome named %s" % sorted(spaces), failures)
+    status = body("status")
+    items = {i.get("label"): i.get("value") for i in status.get("items", [])}
+    need(status.get("word") == "Dormant" and status.get("tone") == "glint" and status.get("page") == "system.status" and
+         "title screen" in status.get("reason", ""), "the status lamp: %s" % {k: status.get(k) for k in
+                                                                              ("word", "tone", "page", "reason")},
+         failures)
+    need(items.get("EldenNet") == "0.1.0" and items.get("Game build") == "3.14.15.0, supported" and
+         items.get("GraceUI") == graceui_version(r)[0], "Home's Status card: %s" % items, failures)
+    need(body("errors").get("checks") == [], "Problems: %s" % body("errors"), failures)
+    parts = {c.get("label"): c.get("state") for c in body("system.status").get("checks", [])}
+    need(parts.get("Start") == "pass" and parts.get("Reading the game") == "pass" and parts.get("Recording") == "pass" and
+         parts.get("GraceUI") == "pass", "EldenNet's parts: %s" % parts, failures)
+    need(len(body("system.status").get("rows", [])) == 11, "the read groups: %d rows" %
+         len(body("system.status").get("rows", [])), failures)
+    compatibility = [c.get("label") for c in body("system.compatibility").get("checks", [])]
+    need("Game build 3.14.15.0" in compatibility and "EldenNet 0.1.0" in compatibility,
+         "Compatibility: %s" % compatibility, failures)
+    logs = d.get("logs", {})
+    lines = [row.get("line", "") for row in logs.get("rows", [])]
+    need(logs.get("t") == "rows" and logs.get("from_seq") == 1 and any(l.startswith("boot ") for l in lines) and
+         any(l.startswith("connect ok=1") for l in lines), "the logs stream: %s" % lines[:3], failures)
+    need(not any("\\" in l or "Users" in l for l in lines), "a log row holds a path", failures)
+    settings = body("settings")
+    need(settings.get("values", {}).get("debug.panel") is True and settings.get("schema", {}).get("number") == 2,
+         "the settings topic: %s" % settings.get("values"), failures)
+    need(d.get("set_ok", {}).get("ok") is True, "settings.set: %s" % d.get("set_ok"), failures)
+    need(d.get("set_bad", {}).get("error") == "invalid_value", "a value refused: %s" % d.get("set_bad"), failures)
+    need(d.get("reset_unconfirmed", {}).get("error") == "confirm_required",
+         "a page's reset unconfirmed: %s" % d.get("reset_unconfirmed"), failures)
+    need(body("settings_after").get("values", {}).get("debug.record_sessions") is False,
+         "the settings after the change: %s" % body("settings_after").get("values"), failures)
+    # In game: F5's menu on EldenNet's Home; System › Status and Logs; Log detail's shortcut to its home on Settings ›
+    # Developer, where → sends EldenNet a command it answers; F5 closes. The menu watched the settings while open.
+    failures += (want_grace(r, 360, eldennet=1, server=1, spaces=1, menu_open=0) +
+                 want_grace(r, 660, menu_open=1, menu_page="home") +
+                 want_grace(r, 780, menu_open=1, menu_page="system.status") +
+                 want_grace(r, 900, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
+                 want_grace(r, 1020, menu_open=1, menu_page="settings.developer",
+                            menu_focused="setting:debug.log_level") +
+                 want_grace(r, 1140, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
+                 want_grace(r, 1260, menu_open=0))
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    for name, key, result in (("settings.set", "debug.record_sessions", "ok"),
+                              ("settings.set", "debug.log_level", "invalid_value"),
+                              ("settings.reset", "settings.developer", "confirm_required"),
+                              ("settings.set", "debug.log_level", "ok")):
+        failures += any_line_kv(r, "ELDENNET", "page", {"what": "command", "name": name, "key": key, "result": result})
+    failures += any_line_kv(r, "ELDENNET", "setting", {"key": "debug.log_level", "effect": "now"})
+    failures += any_line(r, "ELDENNET", "page", what="watched", topic="settings")
+    failures += any_line(r, "ELDENNET", "settings_write", ok=1, keys=2)
+    # settings.toml as the pages left it: both changes, the player's other keys kept.
+    path = os.path.join(r.paths["appdata"], "EldenNet", "config", "settings.toml")
+    try:
+        with open(path, encoding="utf-8") as f:
+            written = f.read()
+    except OSError:
+        written = ""
+    need(re.search(r"""log_level = ["']debug["']""", written) and re.search(r"record_sessions = false", written) and
+         re.search(r"panel = true", written) and re.search(r"schema = 2", written),
+         "settings.toml after the pages: %r" % written, failures)
+    answered = [e for e in r.events("ELDENNET", "page") if e.get("what") == "command"]
+    need(len(answered) == 4, "%d commands answered, wanted 4" % len(answered), failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1380),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_eldennet,
+     check=check_graceui_pages,
+     what="EldenNet's pages through GraceUI: register_pages at the connect; F5's menu on EldenNet's Home, then System › "
+          "Status and Logs, a setting changed from Logs' shortcut row and answered, and Settings › Developer; a "
+          "browser on GraceUI's server reading EldenNet's topics and sending commands, each answered; settings.toml "
+          "written after the pages' quiet")
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),
@@ -2429,7 +2577,7 @@ def stop_wineserver(args, env):
         raise RuntimeError("the wineserver did not end within 60 s of wineserver -k")
 
 
-def launch(args, argv, env, timeout, kill_after=None, settle=False, cwd=None):
+def launch(args, argv, env, timeout, kill_after=None, settle=False, cwd=None, during=None):
     if args.native:
         cmd = argv
     else:
@@ -2437,6 +2585,10 @@ def launch(args, argv, env, timeout, kill_after=None, settle=False, cwd=None):
         cmd = [args.xvfb_run, "-a", "-s", "-screen 0 1024x768x24", args.wine] + argv
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, cwd=cwd,
                             start_new_session=not args.native)
+    beside = None
+    if during is not None:
+        beside = threading.Thread(target=during, daemon=True)
+        beside.start()
     killed = False
     try:
         out, err = proc.communicate(timeout=kill_after or timeout)
@@ -2456,6 +2608,8 @@ def launch(args, argv, env, timeout, kill_after=None, settle=False, cwd=None):
             pass
     if not args.native:
         stop_wineserver(args, env)
+    if beside is not None:
+        beside.join(timeout=30)
     return proc.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"), killed
 
 
@@ -3261,7 +3415,9 @@ def cmd_run(args):
         return 0 if not failures else 1
     start = time.monotonic()
     cwd = re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.cwd) if c.cwd else None  # Wine maps it to its drive
-    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle, cwd)
+    during = {}
+    beside = (lambda: c.during(paths, during)) if c.during is not None else None
+    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle, cwd, beside)
     elapsed = time.monotonic() - start
     status_text = ""
     if os.path.exists(paths["status"]):
@@ -3277,6 +3433,7 @@ def cmd_run(args):
             with open(en_log, encoding="utf-8", errors="replace") as f:
                 status_text += f.read()
     result = Result(code, out, err, killed, status_text)
+    result.during = during
     result.truth = truth
     result.paths = paths
     result.args = args

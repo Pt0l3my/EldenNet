@@ -70,9 +70,17 @@ struct Options {
   // --grace-take-pause stands in for another mod: at boot, before the window, the fake game finds the GraceUI already
   // loaded (the launcher's --also) through graceui-sys, connects and registers Pause as a hotkey of its own, so that
   // EldenNet's Mark, asked for later, registers unbound (GraceUI D164).
+  // --press-keys F:KEY,F:KEY... presses one of GraceUI's menu keys at each frame listed, as --press-f11-at does F11
+  // (f5, next, prior, up, down, left, right, return, escape): the player in GraceUI's menu (D167, D171).
   bool d3d12 = false;
   bool grace_take_pause = false;
   std::vector<std::uint64_t> press_f11_at;
+  struct KeyPress {
+    std::uint64_t frame = 0;
+    unsigned vk = 0;
+    unsigned scan = 0;
+  };
+  std::vector<KeyPress> press_keys;
   std::vector<std::uint64_t> grace_report_at;
   bool grace_probe = false;
   std::uint32_t grace_probe_rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels

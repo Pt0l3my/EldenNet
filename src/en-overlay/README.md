@@ -1,15 +1,15 @@
 # en-overlay: EldenNet's display layer, through GraceUI
 
 `en-overlay` is EldenNet's connection to GraceUI (ARCH §2.2, GraceUI G15), C++20, MIT: the banner and the pause badge
-as GraceUI notices, EldenNet's claims as a world-state provider, its hotkeys (F11 and the development Mark) and the F11
-debug view, a panel drawn on Dear ImGui 1.93.0's core with no backend. It is the first in-game build's part 12, on
-GraceUI's ABI 1 preview (GraceUI 0.1, `feat/foundations` at 3f1352b; GraceUI's `docs/eldennet-changes.md` §14 to §18
-and §20, D131 to D156, D164 and D165). Later increments add EldenNet's own surfaces (subtitles, the chat box, the
-call-out box) as panels.
+as GraceUI notices, EldenNet's claims as a world-state provider, its hotkeys (F11 and the development Mark), the F11
+debug view, a panel drawn on Dear ImGui 1.93.0's core with no backend, and EldenNet's space: its pages in GraceUI's menu
+and browser view (PAGES; GraceUI's G20, D169). It began as the first in-game build's part 12 on GraceUI 0.1
+(`docs/eldennet-changes.md` §14 to §18 and §20, D131 to D156, D164 and D165); the pages' first slice (roadmap S11.4.a)
+moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 and §36). Later increments add EldenNet's own
+surfaces (subtitles, the chat box, the call-out box) as panels, and the rest of its pages.
 
 It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 8d45b20, GraceUI
-0.2.5): its look
-for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+0.2.5; its floor, 0.2.3): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -60,14 +60,15 @@ From then on EldenNet's core thread (T6) alone calls the rest, once per wake (at
   and withdrawn by an empty one; the same text again calls nothing. It works in the notice-only mode. **`badge(text)`**:
   the pause badge, likewise under key 2.
 - **`world(flags)`**: the claims (`world.hpp`), sent when they change.
-- **`step(status)`**: `poll` until GraceUI has nothing waiting; each hotkey event names its presses since the last; an
-  odd count of F11's toggles the view, and the Mark's are counted for the DLL. To open, one list is built and submitted
+- **`step(status, space, facts, now)`**: `poll` (with a buffer for a space's frames) until GraceUI has nothing waiting,
+  passing over every kind it does not use; each hotkey event names its presses since the last; an odd count of F11's
+  toggles the view, and the Mark's are counted for the DLL; the space's events go to the space (below). To open, one list is built and submitted
   and then the panel shown, so it never shows empty; to close, the panel is hidden. While it is open, every step builds
   a frame with `io.DisplaySize` the panel's size, `ImGui::Render()`, appends its lists into one GraceUI list
   (`graceui::imgui::DrawList`) and submits it; a frame past ABI 1's bounds is not built, and the view keeps its last
   list. `not_connected` or `inactive` from `poll` ends it: nothing more is called.
 
-The view takes no input in GraceUI 0.1 (D142): F11 shows it and hides it.
+The view takes no input (D142): F11 shows it and hides it.
 
 ## The F11 view (`view.hpp`)
 
@@ -88,19 +89,67 @@ danger, until en-core's `safe_context` (NPC §5.4) with en-augur's combat state,
 player locked on, in a world; a game menu, until NPC §5.8's menu read, is the HUD's pop-up menu state, in a world. The
 game's own text entry is not read in v0.1.
 
+## EldenNet's space (`space.hpp`; PAGES, GraceUI D160, D169)
+
+- **One source**: `pages/space.toml`, in GraceUI's page format (eldennet-changes §19): the rail of PAGES §4.2.1 in its
+  order (a category with no page yet holds none, and GraceUI shows no empty category), the slice's pages (Home, System ›
+  Status and Logs, Settings › Developer), its topics (`settings`, `status`, `errors`, `system.status`,
+  `system.compatibility`, `logs`), its commands (`settings.set`, `settings.reset`) and the settings v0.1 reads whose
+  home is there (`debug.panel`, `debug.record_sessions`, `debug.log_level`). `python3 -I tools/pages/build.py` writes
+  `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in CTest); every page ships in
+  the increment EldenNet registers, `0.1` (D173). Every word a player reads there is a draft for review.
+- **Registered at the connect** (T1, eldennet-changes §23 item 1): `Options::space_views`, both views on the main path,
+  the game's alone on the banner path (PAGES §4.4); `Report::pages` is register_pages's answer, and the log's connect
+  line says it. Without the `pages` cap, or in the notice-only mode, nothing is registered.
+- **Served on T6** (`Overlay::step(view, space, facts, now)`): poll with a buffer of GRACEUI_FRAME_FROM_PAGE_MAX, a
+  WATCHED or UNWATCHED frame to the space, each COMMAND answered at once and exactly once with what `Space::command`
+  answers (`internal` if no space can), every other kind passed over (the display's among them), then what
+  `Space::collect` has for the watched topics published.
+- **Projections only** (PAGES §3): each body is built from `SpaceFacts`, EldenNet's own enums (the DLL maps en-core's
+  and en-gal's, a switch each), numbers and words, never game text, flags, stages, prompts, model text, paths or names.
+  Absence is silent: a fact EldenNet lacks is left out. `status` is the top bar's lamp (`word`, `tone`, `reason`,
+  `page`; no lamp while EldenNet is starting) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
+  failed start in the banner's own words with its fix, a read group stopped, a refused settings file);
+  `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
+  the core, the anti-cheat watch, the log, the recording when asked for, GraceUI) and the read groups' self-tests
+  (`columns`, `rows`); `system.compatibility` the versions and how EldenNet started; `logs` the log's own lines (500
+  held, from T1's first, scrubbed again of a SteamID64's shape, PV5).
+- **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
+  its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
+  D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings
+  file the player wrote was refused at the start. A secret is held and published as its status alone. What a command
+  changed is taken by the DLL (`take_changes`), which applies it and writes settings.toml.
+- **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
+  new watch) and when its body changes, no oftener than its rate (`status` 4 a second, `system.status` once a second,
+  the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
+
 ## Tests
 
 `en_overlay_tests` (doctest): in every build, the view's lines (every section, the newest change first with its age,
-nothing but our words and numbers whatever the status holds, a long word cut) and the world-state claims. In the
+nothing but our words and numbers whatever the status holds, a long word cut), the world-state claims, and the space:
+its generated page data (the ids, the rail, the increment, GraceUI 0.2.5's checks met), settings.set and settings.reset
+with each refusal, a secret's status alone, what is published and when, the logs stream's batches and ring, the words
+(no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
+states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1's table, answering as GraceUI 0.1 answers and checking as it checks (connect's answers, notices under
-keys, the registration window, hidden panels, hotkeys, poll's events, and submit's draw-list checks: counts, bounds,
-ranges, indices, clip rectangles inside the panel, known textures, the stride). The cases: connect's request; each
+C mock): ABI 1.2's table, answering as GraceUI 0.2.5 answers and checking as it checks (connect's answers, notices
+under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
+submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
+stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched
+topics published, each command answered once, nothing while unwatched; a frame too large kept; poll passing over the
+display's event and any later kind; connect's request; each
 failed connect headless; the banner replaced in place and withdrawn, the badge, a long text cut; the notice-only mode;
 the world-state claims sent on change, and none without the cap; the view (its atlas before any submit, a hidden panel,
 F11, a list before it shows, lists every step while open, hidden again, an even count of presses leaving it as it
 was); a view that cannot be made; the Mark's hotkey and its presses; F11 or Pause taken by another mod, registered
 unbound with its id; GraceUI gone.
 
+CTest also runs `en_pages_build` (`tools/pages/build.py --check`), `en_pages_lint` (GraceUI's own page lint, from a
+GraceUI checkout whose files match the pin, `EN_GRACEUI_SOURCE`) and, in a Linux build with `EN_GRACE_DEV`,
+`en_pages_preview`: grace-dev serves each fixture state, a browser of our own (`tests/pages/browser.py`) reads every
+topic back and sends commands, and each page's in-game structure (`--dump`) matches `tests/pages/golden/`
+(EN_UPDATE_GOLDENS=1 writes them anew).
+
 End to end, the fake game's harness runs eldennet.dll with a test build of GraceUI under Wine with Direct3D 12
-(`tests/fakegame/README.md`).
+(`tests/fakegame/README.md`), `launcher-eldennet-graceui-pages` among its cases: F5's menu on EldenNet's pages, a
+setting changed from it, and a browser on GraceUI's server reading the topics and sending commands.
