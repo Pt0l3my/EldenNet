@@ -27,7 +27,10 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import browser  # noqa: E402
 
-PAGES = ("home", "system.status", "system.logs", "settings.developer")
+# Each page's golden, dumped over the fixture state named with it (since GraceUI 0.2.6, D184, the dump shows the
+# components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
+# a state with a provider set up and a self-test run.
+PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"))
 SIZE = "1920x1080"
 
 
@@ -119,13 +122,16 @@ def main(argv):
         topics = json.loads((folder / "topics.json").read_text(encoding="utf-8"))
         serve(args.grace_dev, folder, state, topics, failures)
     # The in-game structure of each page, as GraceUI's menu lays it out (grace-dev --dump: the fake face, settings at
-    # their defaults, so the same for every state).
+    # their defaults, the components with the state's topics).
     update = os.environ.get("EN_UPDATE_GOLDENS") is not None
     goldens = args.fixtures / "golden"
     goldens.mkdir(exist_ok=True)
-    for page in PAGES:
+    for page, state in PAGES:
+        if state not in states:
+            failures.append("--dump %s: no fixture state %s" % (page, state))
+            continue
         done = subprocess.run([args.grace_dev, "--dump", "eldennet", page, "--size", SIZE, "--space-dir",
-                               str(args.work / states[0])], capture_output=True, text=True, encoding="utf-8")
+                               str(args.work / state)], capture_output=True, text=True, encoding="utf-8")
         if done.returncode != 0:
             failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
             continue
