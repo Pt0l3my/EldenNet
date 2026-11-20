@@ -845,6 +845,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
     to §204); part 10's S0 package and the launcher's smoke run wait for R1's review. Parts 11 (Augur v0.1 with golden
     files) and 12 (en-overlay on GraceUI's ABI 1 preview) started on 2026-11-20, after the layering fix (WHY§211).
+    Part 12 built the same day on GraceUI f51bcc7 (engine 9a42539): en-overlay connects to GraceUI on T1 in both load
+    orders, with the banner and pause badge as notices, the world-state provider (danger and a game menu as v0.1
+    stand-ins), the F11 view on Dear ImGui's core behind `debug.panel`, the Mark on GraceUI's hotkey with the launcher's
+    Pause as the fallback, and the launcher's GraceUI pre-flight (E12); tested against a fake GraceUI table and end to
+    end under Wine with GraceUI's test build on Direct3D 12 (WHY§215 to §221).
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -876,6 +881,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §3.2 with the crash filter, §4.1 and §4.14 (the launcher's options, the watch block, the Mark),
     §5 (not solo means dormant); DESIGN §3.1, §14 and §16.1; dated notes on O89 and O90.
 
+- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8)
+  - needs: a
+  - refs: ARCH§1.4, ARCH§8, DESIGN§14
+  - gives: listed by part 12's notes on 2026-11-20; Augur's folds join when part 11 lands. ARCH §1.4's "As built"
+    bullet (the first build headless) is superseded by part 12.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -886,6 +896,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§5, DESIGN§6, ARCH§8
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
+  - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
+    replay built in parts 6 and 9.
 
 ### S10.3 v0.1's exit checks
 

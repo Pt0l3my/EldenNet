@@ -237,6 +237,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 212 | 2026-11-20 | GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio | METHOD | #graceui #tokens #contrast |
 | 213 | 2026-11-20 | nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4 | FACT | #graceui #protocol #perf |
 | 214 | 2026-11-20 | grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as it arrives, so a client that never ends its head is refused at once; everything else waits for the whole head, then Host first | METHOD | #graceui #server #security |
+| 215 | 2026-11-20 | graceui-sys's headers are vendored into EldenNet at GraceUI f51bcc7, each checked by SHA-256, not fetched; Dear ImGui's core is fetched at GraceUI's own pin | DECIDED | #engine #graceui #licences |
+| 216 | 2026-11-20 | en-overlay's look for GraceUI ends at once when none is installed, rather than after graceui-sys's 30 s | DECIDED | #engine #graceui #dll |
+| 217 | 2026-11-20 | The development Mark changes hands through the watch block, on Pause: the launcher lets its key go when EldenNet's GraceUI hotkey is registered | DECIDED | #engine #launcher #graceui |
+| 218 | 2026-11-20 | The F11 view is behind debug.panel (SP8): without it the view, its panel, atlas and hotkey are not made and F11 reaches the game | DECIDED | #engine #dll #graceui |
+| 219 | 2026-11-20 | E12, a failed GraceUI pre-flight, is told and the game starts headless; --probe and the spikes only log it | DECIDED | #launcher #graceui |
+| 220 | 2026-11-20 | Dear ImGui's core in eldennet.dll brought thread-safe statics and ReadConsoleW; /Zc:threadSafeInit- on the core removes the first, the rest are reviewed imports | FACT | #engine #dll #ci |
+| 221 | 2026-11-20 | The first end-to-end run with GraceUI: the launcher, eldennet.dll and GraceUI's test build in our fake game on Direct3D 12 under Wine, F11's panel read back from the frame | FACT | #engine #graceui #wine #test |
 
 ## Entries
 
@@ -3507,6 +3514,8 @@ invariant 10, EldenNet ARCH (T3)
 - T1 ends at Ready (ARCH: Ready → Exit), which is what exposed WHY§190; in R1 it stays as the probe's reporter.
 - C14's atomics are applied by the core thread to each snapshot's session before the core judges it, not by the task
   (ARCH §1.3 has them read by the task; the task's backend leaves them false, WHY§169).
+- *Later (2026-11-20):* the Headless bullet no longer holds. Part 12 connects to GraceUI at Connect and ConnectB
+  (`overlay.connect` on by default), with the banner as a notice and the F11 view behind `debug.panel` (WHY§215 to §221).
 
 ### 192. The recorder writes numbers-only JSON Lines, each line a report of the kind "recording"
 
@@ -3843,3 +3852,87 @@ invariant 10, EldenNet ARCH (T3)
 - (DECIDED, D158; for EldenNet's launcher as a host of the same library, G29) the session cookie and the ticket are 32
   random bytes written as 43 characters of base64url; the loopback origin is always `http://127.0.0.1:PORT`, with
   `localhost` and `[::1]` redirected there by 307.
+
+### 215. graceui-sys's headers are vendored into EldenNet at GraceUI f51bcc7, each checked by SHA-256, not fetched; Dear ImGui's core is fetched at GraceUI's own pin
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#licences` · refs: ARCH§2.3, GraceUI:D136, GraceUI:D156, engine 789e4cb
+
+- (DECIDED) GraceUI's headers (`graceui.h`, `graceui_sys.h`, `graceui_sys.hpp`, `graceui_imgui.hpp`, and the test
+  build's `graceui_test.h`) are copied unmodified into `third_party/graceui-sys` from GraceUI f51bcc7 with GraceUI's MIT
+  licence, each checked against its SHA-256 at configure time. Not fetched: a fetch URL would name the GitHub account in
+  the repository, which the privacy rule keeps out; the headers are small, and the same owner's and licence.
+- (DECIDED) Dear ImGui 1.93.0's core is fetched (`en_fetch`) at GraceUI's own pin, file by file by SHA-256, in the
+  Windows builds only (THIRD_PARTY.md).
+
+### 216. en-overlay's look for GraceUI ends at once when none is installed, rather than after graceui-sys's 30 s
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#dll` · refs: ARCH§1.4, ARCH§3.2, GraceUI:D51, GraceUI:D83, engine ba05179
+
+- (DECIDED) graceui-sys looks every 250 ms for at most 30 s. When nothing answers, no `GraceUI\graceui.dll` lies in
+  the game's folder and no module is named `graceui.dll`, en-overlay's `find` stops after the first look, so a start
+  without GraceUI (every harness case without it, and R1's) is not held up 30 s. Both load orders still work: before,
+  found by its name; after, loaded from the game's folder by EldenNet itself.
+- Not covered: a copy under another name loaded later from another folder, which GraceUI's packaging rules out.
+
+### 217. The development Mark changes hands through the watch block, on Pause: the launcher lets its key go when EldenNet's GraceUI hotkey is registered
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#graceui` · refs: O90, ARCH§4.14, GraceUI:D155, engine 5e97d91
+
+- (FACT) The launcher's Pause is a system hotkey (RegisterHotKey), which takes the key from the game's window, so
+  GraceUI's hotkey on the same key could never fire beside it, and two writers to the block's ring would race.
+- (DECIDED) `Marks::reserved` became `Marks::source` (None, Launcher, Asked, EldenNet): the launcher marks Launcher
+  when its hotkey registers; EldenNet, once its GraceUI `mark` hotkey is registered, asks; the launcher unregisters,
+  takes the queued presses as its last and hands over; EldenNet then stamps every Mark (at T6's poll, at most 100 ms
+  after the press) and the launcher's record reads them back. The owner presses Pause either way; without GraceUI
+  nothing asks and R1's flow is unchanged. The block's layout and version are unchanged (a reserved field took a
+  meaning).
+- (LIKELY) GraceUI's `register_hotkey` answers ok whether the key bound or not, so if another mod held Pause first
+  nobody would take the presses; asked of the Grace session the same day.
+
+### 218. The F11 view is behind debug.panel (SP8): without it the view, its panel, atlas and hotkey are not made and F11 reaches the game
+
+`2026-11-20` · DECIDED · `#engine` `#dll` `#graceui` · refs: PAGES§4.8, DESIGN§12, ARCH§11.5, engine ba05179
+
+- (DECIDED) DESIGN §12 has the debug view off by default and SP8 puts F11 behind `debug.panel`, so the view, its
+  panel, atlas and F11 hotkey are made only with `debug.panel = true`; otherwise F11 reaches the game. Its first line
+  is SP8's ribbon; SP8's confirmation each session waits for input in the view (GraceUI D142).
+
+### 219. E12, a failed GraceUI pre-flight, is told and the game starts headless; --probe and the spikes only log it
+
+`2026-11-20` · DECIDED · `#launcher` `#graceui` · refs: ARCH§4.3, ARCH§10.3, GraceUI:D83, GraceUI:D88, engine 5e97d91
+
+- (DECIDED) Until EldenNet carries a GraceUI release to install, the launcher cannot mend a failed pre-flight, and
+  ARCH §10.3 allows a headless start. So E12 names what is missing or damaged (by its name in GraceUI's folder, never
+  a path) and the game starts; `--probe` and the spikes, headless by design (O90), log the check and show nothing, so
+  R1's flow gains no dialog. The pre-flight reads `graceui.toml`, checks every listed file's size and SHA-256 (our own
+  implementation), ABI major 1 and the version floor.
+
+### 220. Dear ImGui's core in eldennet.dll brought thread-safe statics and ReadConsoleW; /Zc:threadSafeInit- on the core removes the first, the rest are reviewed imports
+
+`2026-11-20` · FACT · `#engine` `#dll` `#ci` · refs: ARCH§12.1, WHY§195, engine 789e4cb
+
+- (FACT) Compiled into eldennet.dll as GraceUI's `gu_imgui_core` compiles it, Dear ImGui 1.93.0's core brought the
+  runtime's thread-safe statics (`AcquireSRWLockExclusive`, `ReleaseSRWLockExclusive`, `SleepConditionVariableSRW`,
+  `WakeAllConditionVariable`) and, through its `sscanf`, `ReadConsoleW`.
+- (DECIDED) With `/Zc:threadSafeInit-` on that library alone (one thread at a time uses its context) the first four
+  went; `ReadConsoleW` and graceui-sys's `GetTickCount64` were reviewed into `imports.allow`. It holds no dynamic
+  initialiser and no exit-time destructor (Clang's checks kept as errors on it).
+
+### 221. The first end-to-end run with GraceUI: the launcher, eldennet.dll and GraceUI's test build in our fake game on Direct3D 12 under Wine, F11's panel read back from the frame
+
+`2026-11-20` · FACT · `#engine` `#graceui` `#wine` `#test` · refs: WHY§113, GraceUI:D154, GraceUI:D156, engine e0d016e
+
+- (FACT) The fake game, presenting on Direct3D 12 (Wine 9.0, vkd3d on lavapipe, Xvfb), with eldennet.dll injected by
+  the launcher and GraceUI's test build in `game\GraceUI\`: EldenNet loaded GraceUI by path at Connect 0.1 s after
+  the window and connected with the view ready and the Mark's hotkey registered; the launcher handed its Pause over
+  0.3 s later. F11 into the window showed the panel, whose ground covered 97% of the probed rectangle of the frame read
+  back (224,639 of 231,800 pixels), 12 lists accepted and none refused; F11 again hid it (0 pixels); Pause stamped
+  Mark 1 as EldenNet's, which the launcher's record took.
+- (FACT) Before-order on the banner path: the banner notice in the warning tone; beside the anti-cheat module: connect
+  inactive (anti-cheat), the banner the one notice of EldenNet's, no panel, no provider.
+- (METHOD) The harness installs GraceUI as its release lays itself out (graceui.dll, fonts\, a graceui.toml it writes
+  with each file's SHA-256) and gives the fake game `--d3d12`, `--press-f11-at` (keys into the focused window, with the
+  scan code, after the focus events) and `--grace-report` (GraceUI's test exports, and a read-back of a rectangle of
+  the frame). GraceUI's own harness could not host eldennet.dll: it loads its examples by name and checks their ids.
+- (LIKELY) In the fake game's world the danger stand-in claimed danger throughout, probably from its invented lock-on
+  or boss fields; nothing checks it yet.
