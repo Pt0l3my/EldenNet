@@ -12,7 +12,8 @@ dynamic initialiser or an exit-time destructor; ARCH §3.1, §1.7).
 cmake -S . -B build -G Ninja                      # GCC; CXX=clang++ for Clang, which also checks en_dll_module's rules
 cmake --build build
 build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && build/src/en-llm/en_llm_tests \
-  && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests
+  && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests && build/src/en-augur/en_augur_tests \
+  && build/src/en-core/en_core_tests
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
 
@@ -150,7 +151,7 @@ cmake --build build-cl
 
 ## The launcher and the core's slice
 
-`src/en-core/` holds the core's v0.1 slice (part 5): the lifecycle without the store, the offline and multiplayer
+`src/en-core/` holds the core's v0.1 slice (part 5), and, since part 11, Augur on every step (en-augur): the lifecycle without the store, the offline and multiplayer
 gate with its hysteresis, L1, L2 and Dormant; pure, so `en_core_tests` runs in every build. `src/en-launcher/` builds
 `en_launcher_core` everywhere (Steam's library files, the save backups with their BLAKE3 manifests, the appid file and
 its record, launcher.toml, the command line, the texts, the watcher's records and the spikes' tally;
@@ -168,6 +169,32 @@ of its own (the watcher galtest starts) waits for every process of the prefix to
 
 In the cross builds CTest lists the unit-test programs too, which it cannot run on Linux: run them under Wine as
 above (`en_core_tests.exe`, `en_launcher_tests.exe` among them).
+
+## Augur and its golden files
+
+`src/en-augur/` (part 11) builds `en_augur`, Augur, the event engine (ARCH §8): pure and game-neutral, below en-core,
+a module the DLL links (`en_dll_module`). en-core links it and runs it on every step, with the shipped rule files
+`content/eldenring/augur/*.toml` built in at configure time (a change to one re-runs the configuration). Its README has
+the v0.1 catalogue, the rule files' schema, what ARCH §8 left open and how this build reads it, and the benchmark.
+
+- `en_augur_tests` (doctest, every build; under Wine in the Windows ones, where it reads no path: the shipped rule files
+  are built in by `cmake/embed_files.cmake`, as en-core's are): the detectors, the rule files' validation, Augur's
+  step, the world model, the bus, and the seeded property tests (hysteresis, debounce, gaps, merge, ordering,
+  determinism).
+- `en_augur_bench [steps]`: `Augur::step` on a busy synthetic step (32 characters, the shipped rules); built with the
+  tests, run by hand, in a Release build for numbers.
+- `en_tools_tests` (Linux builds): the scenario DSL, the three routes' goldens, determinism over 10 runs, 50% snapshot
+  loss against the dense run.
+- `ctest -R en_golden` runs `eldennet-engine golden check` on each route of `tests/scenarios/`; a golden file that
+  changes needs its line in `tests/golden/CHANGES.md` (the hash `golden update` prints).
+
+The three shipped routes are synthetic, written by us. DESIGN's C12 (S10.3.a) asks for golden events over three
+*recorded* routes of the owner's game; each becomes a route the same way, with `golden update <recording>`.
+
+```sh
+build/src/en-tools/eldennet-engine golden check tests/scenarios/camp-skirmish.scn      # or golden update, after a rule change
+build/src/en-tools/eldennet-engine replay <recording> --events events.jsonl            # a recording's events, golden form
+```
 
 ## eldennet.dll
 
