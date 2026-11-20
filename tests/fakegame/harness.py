@@ -32,11 +32,13 @@ class Case:
     """One behaviour: the program and its arguments (`{name}` stands for a path: exe, vehprobe, work, status, or one
     given with --set name=PATH, as Windows sees it), what must come back, and what the case stands for. A case that
     `needs` a path given with --set is listed only when CMake has it (--have), so later parts (the DLL, the launcher)
-    add their chain cases here: program="{launcher}", needs=("launcher", "eldennet")."""
+    add their chain cases here: program="{launcher}", needs=("launcher", "eldennet"). `cwd`, a `{name}` path, is the
+    folder the program starts in (relative paths in its arguments are read from there); else the harness's own."""
 
     def __init__(self, name, args, exit=0, expect=(), forbid=(), check=None, env=None, toolchains=("clang-cl", "mingw"),
-                 timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False):
+                 timeout=60, kill_after=None, what="", program="{exe}", needs=(), prepare=None, settle=False, cwd=None):
         self.name = name
+        self.cwd = cwd
         self.prepare = prepare  # a launcher case's own files, made before it runs (launcher_setup)
         self.settle = settle    # wait for every process the case started (a watcher) before the prefix is stopped
         self.program = program
@@ -1051,8 +1053,9 @@ def check_spike_folder(word):
                                ("FAKEGAME", "spike_dir", {"set": 1, "exists": 1}))(r)
         need(spike_folders(r) == ["%s-1" % word], "the spike folders: %s" % spike_folders(r), failures)
         lines = "\n".join(l for l in r.lines if l.startswith("LAUNCHER "))
-        need(":\\" not in lines and "\\" not in lines and "spikes" not in lines and "no-such-folder" not in lines,
-             "the launcher's lines hold a path", failures)
+        # "spikes" as a folder's name (a package's label, 0.1.0-spikes.N, is no path)
+        need(":\\" not in lines and "\\" not in lines and not re.search(r"spikes[\\/]", lines) and
+             "no-such-folder" not in lines, "the launcher's lines hold a path", failures)
         return failures + check_spike(word, 1, crashes=0)(r)
     return check
 
@@ -1336,6 +1339,168 @@ case("launcher-eldennet-graceui-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "
                       any_line(r, "ELDENNET", "view", presses=1, open=1)),
      what="S0-E with GraceUI installed: the connect on T1, the spike_run banner as GraceUI's notice, F11's view, and "
           "still no call into the game")
+
+
+# --- The owner's package for S0-E and S4 (tools/spikepkg's s0e-s4 kind), each run as its .cmd file runs it -------------
+# `--set pkg=<the unzipped EldenNet-Spikes folder>` (with `engine`, `leads` and `gallayout` for gal/; CMake never sets
+# `pkg`, so these run by hand, before the package leaves). Each case copies the package into its own folder, with gal/
+# made for the fake game in place of the package's (which is the owner's game's), installs the package's GraceUI folder
+# beside the fake game and writes settings.toml, both as README-SPIKES.txt asks the owner to, adds invented saves for
+# the backup, and runs the package's own launcher from the package's folder with the run's options exactly as its .cmd
+# file holds them (checked against the file), and the tests' own (no dialogs, the case's %APPDATA%, the fake game, no
+# Steam check). Each must end cleanly, make no call (the hub's live count, WHY§250), leave grace-spike's report in the
+# run's folder, and, where EldenNet runs, its spike_run banner as GraceUI's notice.
+PKG_RUNS = {
+    "A1": ("s0e", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
+    "A2": ("s0e", "window", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
+    "A3": ("s0e", "suspended", ["grace-standin.dll", "grace-spike.dll"]),
+    "A4": ("s0e", "window", ["grace-standin.dll", "grace-spike.dll"]),
+    "A0": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
+    "B": ("s4", "suspended", ["grace-spike.dll"]),
+}
+# README-SPIKES.txt's two PowerShell lines write this (Set-Content: one line each, CRLF): F11's view on.
+OWNER_SETTINGS = "schema = 2\r\ndebug = { panel = true }\r\n"
+PKG_NEEDS = ("engine", "leads", "gallayout", "pkg")
+SPIKE_BANNER = "Spike_run:_EldenNet_makes_no_call_into_the_game"
+
+
+def pkg_options(run):
+    spike, at, also = PKG_RUNS[run]
+    out = ["--console", "--spike", spike, "--inject-at", at]
+    for dll in also:
+        out += ["--also", dll]
+    return out
+
+
+def install_package(paths):
+    """The unzipped package, copied into the case's folder with the fake game's gal/ and leads in place of its own; its
+    GraceUI folder beside the fake game; settings.toml as the README writes it; invented saves."""
+    pkg = os.path.join(paths["case"], "EldenNet-Spikes")
+    shutil.copytree(paths["pkg"], pkg)
+    shutil.rmtree(os.path.join(pkg, "gal"))
+    shutil.copytree(paths["galdir"], os.path.join(pkg, "gal"))
+    shutil.copy2(os.path.join(paths["work"], "gal-leads.toml"), os.path.join(pkg, "gal", "leads.toml"))
+    shutil.copytree(os.path.join(pkg, "GraceUI"), os.path.join(paths["gamedir"], "GraceUI"))
+    cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+    os.makedirs(cfg)
+    with open(os.path.join(cfg, "settings.toml"), "w", newline="") as f:
+        f.write(OWNER_SETTINGS)
+    with_saves(paths)
+    paths["pkgdir"] = pkg
+    paths["pkglauncher"] = os.path.join(pkg, "eldennet-launcher.exe")
+
+
+def check_pkg_cmd(run):
+    """The run's .cmd file holds this case's options, from the package's own folder, and a pause at its end."""
+    def check(r):
+        with open(os.path.join(r.paths["pkg"], "run-%s.cmd" % run), "rb") as f:
+            text = f.read().decode("utf-8")
+        lines = text.split("\r\n")
+        failures = []
+        need(text.endswith("\r\n") and "\n" not in text.replace("\r\n", ""), "run-%s.cmd: not CRLF lines" % run,
+             failures)
+        need('cd /d "%~dp0"' in lines, "run-%s.cmd: no cd to its own folder" % run, failures)
+        need("eldennet-launcher.exe " + " ".join(pkg_options(run)) in lines,
+             "run-%s.cmd: the launcher's line differs: %s" % (run, [l for l in lines if "launcher.exe" in l]), failures)
+        need([l for l in lines if l.strip()][-1] == "pause", "run-%s.cmd: no pause at its end" % run, failures)
+        need(":\\" not in text and "%APPDATA%" not in text, "run-%s.cmd names a path" % run, failures)
+        return failures
+    return check
+
+
+def check_grace_report(word, standin):
+    """grace-spike's report in the run's folder: schema 1 lines, the header naming the spike and its connect, state
+    lines, GraceUI hooked once and drawing, the mods connected (EldenNet's among them where it runs), the stand-in
+    patched and its Present called where it is loaded; nothing like a path in it. (The fake game's own GraceUI report
+    reads GraceUI's test state with graceui_test.h as vendored, 3f1352b's, which GraceUI 0.2.1 refuses as too small,
+    so its counters there read 0: the observer's report has them, from GraceUI's own build.)"""
+    def check(r):
+        failures = []
+        path = os.path.join(r.paths["appdata"], "EldenNet", "spikes", "%s-1" % word, "graceui-spike.jsonl")
+        if not os.path.exists(path):
+            return ["no graceui-spike.jsonl in %s-1" % word]
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        lines = [json.loads(l) for l in text.splitlines() if l.strip()]
+        need(all(l.get("report") == "graceui_spike" and l.get("schema") == 1 for l in lines),
+             "a line of the report is not graceui_spike schema 1", failures)
+        headers = [l for l in lines if l.get("k") == "header"]
+        states = [l for l in lines if l.get("k") == "state"]
+        need(len(headers) == 1 and headers[0].get("spike") == word and headers[0].get("connect") == "ok",
+             "the report's header: %s" % headers[:1], failures)
+        need(len(states) >= 2, "%d state lines" % len(states), failures)
+        if states:
+            last = states[-1]
+            need(last.get("host") == "hooked" and last.get("install_runs") == 1 and last.get("frames_drawn", 0) > 0
+                 and not any(st.get("render_off") for st in states),
+                 "GraceUI: %s" % {k: last.get(k) for k in ("host", "install_runs", "frames_drawn", "render_off")},
+                 failures)
+            mods = max(st.get("consumers", 0) for st in states)
+            alone = word == "s0e_alone"
+            need(mods == (1 if alone else 2), "%d mods connected at most" % mods, failures)
+            need(any(st.get("eldennet") == "present" for st in states) != alone, "EldenNet's presence: %s" %
+                 sorted(set(st.get("eldennet") for st in states)), failures)
+            if standin:
+                need(last.get("standin") == "patched" and last.get("standin_presents", 0) > 0,
+                     "the stand-in: %s, %s presents" % (last.get("standin"), last.get("standin_presents")), failures)
+        need(":\\" not in text and "\\\\" not in text and "/" not in text, "the report holds a path", failures)
+        return failures
+    return check
+
+
+def check_pkg_run(run):
+    word, at, also = PKG_RUNS[run]
+    names = [d.split("\\")[-1] for d in also] + ([] if word == "s0e_alone" else ["eldennet.dll"])
+
+    def check(r):
+        failures = check_pkg_cmd(run)(r) + check_spike_folder(word)(r)
+        failures += check_order(*["LAUNCHER inject dll=%s ok=1" % n for n in names])(r)
+        failures += any_line(r, "LAUNCHER", "started", ok=1, mode=at, also=len(also),
+                             eldennet=0 if word == "s0e_alone" else 1)
+        failures += any_line(r, "LAUNCHER", "backup", folders=2, made=2)
+        failures += any_line(r, "LAUNCHER", "preflight", graceui="ok") if word != "s0e_alone" else []
+        failures += check_grace_report(word, "grace-standin.dll" in also)(r)
+        if word == "s0e_alone":
+            failures += (check_lines(("LAUNCHER", "preflight", {"dll": "none"}),
+                                     ("LAUNCHER", "run", {"outcome": "game_ended"}),
+                                     ("LAUNCHER", "end", {"kind": "clean", "init": "none"}))(r) +
+                         (["an ELDENNET line"] if any(l.startswith("ELDENNET ") for l in r.lines) else []) +
+                         no_call(r) + want_grace(r, 900, found=1, eldennet=0, banner="none"))
+        else:
+            failures += check_en_spike(word, grace=True)(r)
+            how = "name" if "GraceUI\\graceui.dll" in also else "path"
+            failures += want(r, "ELDENNET", "connect", ok=1, how=how)
+            # The banner as GraceUI's notice under EldenNet's key, in the banners' tone (the notices' export reads).
+            failures += want_grace(r, 900, found=1, eldennet=1, banner=SPIKE_BANNER, banner_tone=1,
+                                   probe=(0, VIEW_AREA // 100))
+            if word == "s0e":
+                # F11 (frames 960 and 1140), as the README's step 4: the view's ground read back from the game's frame
+                # beside the stand-in, then gone.
+                failures += want_grace(r, 1080, probe=(VIEW_AREA // 2, VIEW_AREA))
+                failures += want_grace(r, 1260, probe=(0, VIEW_AREA // 100))
+                failures += any_line(r, "ELDENNET", "view", presses=1, open=1)
+                failures += any_line(r, "ELDENNET", "view", presses=1, open=0)
+        return failures
+    return check
+
+
+PKG_WHAT = {
+    "A1": "S0-E, GraceUI loaded by the launcher before EldenNet, early",
+    "A2": "S0-E, GraceUI loaded by the launcher before EldenNet, late (once the window shows)",
+    "A3": "S0-E, GraceUI loaded by EldenNet from the game's folder, early, the stand-in first",
+    "A4": "S0-E, GraceUI loaded by EldenNet from the game's folder, late, the stand-in first",
+    "A0": "S0-E's baseline: GraceUI, the observer and the stand-in alone, no eldennet.dll",
+    "B": "S4: the observer alone loaded by the launcher, GraceUI by EldenNet",
+}
+for _run in PKG_RUNS:
+    _extra = ["--press-f11-at", "960,1140"] if PKG_RUNS[_run][0] == "s0e" else []
+    case("launcher-package-spikes-%s" % _run.lower(),
+         ["--no-dialogs", "--appdata", "{appdata}", "--no-steam-check", "--game", "{game}"] + pkg_options(_run) +
+         game("--d3d12", *_extra, "--grace-report", "900,1080,1260", "--grace-probe", VIEW_PROBE, frames=1380),
+         program="{pkglauncher}", cwd="{pkgdir}", needs=PKG_NEEDS, toolchains=("clang-cl",),
+         env=dict(EN_ENV, GRACE_SPIKE_STATE_MS="1000"), timeout=240, prepare=install_package,
+         check=check_pkg_run(_run),
+         what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
 
 def check_r1_callee(p, task, gap=False):
     """Spike.6 to spike.8 (WHY§227, WHY§235, WHY§240): the callee's summary, from the live image, shows the fake
@@ -2068,13 +2233,13 @@ def stop_wineserver(args, env):
         raise RuntimeError("the wineserver did not end within 60 s of wineserver -k")
 
 
-def launch(args, argv, env, timeout, kill_after=None, settle=False):
+def launch(args, argv, env, timeout, kill_after=None, settle=False, cwd=None):
     if args.native:
         cmd = argv
     else:
         stop_wineserver(args, env)  # whatever an earlier run left: each run starts with a server of its own
         cmd = [args.xvfb_run, "-a", "-s", "-screen 0 1024x768x24", args.wine] + argv
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, cwd=cwd,
                             start_new_session=not args.native)
     killed = False
     try:
@@ -2899,7 +3064,8 @@ def cmd_run(args):
         print("PASS" if not failures else "FAILED")
         return 0 if not failures else 1
     start = time.monotonic()
-    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle)
+    cwd = re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.cwd) if c.cwd else None  # Wine maps it to its drive
+    code, out, err, killed = launch(args, argv, env, c.timeout, c.kill_after, c.settle, cwd)
     elapsed = time.monotonic() - start
     status_text = ""
     if os.path.exists(paths["status"]):
