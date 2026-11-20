@@ -18,11 +18,13 @@
 
 // --- Offsets that asm.cpp's assembly uses (each checked against the C++ layout with a static_assert) -------------------
 #define FG_LOOM_GROUP_COUNT_OFF 0x10  // FG::TaskLoomImp: the number of task groups (the registration front's bound)
-#define FG_LOOM_FLAGS_OFF 0x14        // FG::TaskLoomImp: its flags, of which the registration's wrapper tests one
-#define FG_LOOM_CLOSED 0x01           // the flag: while set, the wrapper hands every task to fg_register_closed
+#define FG_LOOM_FLAGS_OFF 0x14        // FG::TaskLoomImp: its flags (none used)
 #define FG_LOOM_LAST_TASK_OFF 0x30    // FG::TaskLoomImp: the last task registered, which the registration keeps there
 #define FG_LOOM_LAST_VTABLE_OFF 0x38  // FG::TaskLoomImp: that task's vtable, which the registration keeps too
 #define FG_GROUP_BOUND 0x200          // the registration refuses a group index at or past it, before the count
+#define FG_RACK_SHELVES_OFF 0x10      // FG::TaskRack: its table of shelves, one per group (spike.8's shape, WHY§240)
+#define FG_RACK_BOUND 31              // the tail function answers 0 for a group past it (entries 0 to 31)
+#define FG_SHELF_REGISTER_OFF 0x10    // a shelf's vtable: its register slot (the third)
 #define FG_WARDEN_SAVE_SLOT_OFF 0x14  // FG::RunWardenImp: the save slot
 #define FG_PLOT_PLACE_OFF 0x1C        // FG::FieldPlotImp: the place id
 #define FG_RTCLASS_NAME_OFF 0x18      // a runtime-class object: its name pointer (DLRF's role; ARCH §6.2 step 3)
@@ -86,10 +88,18 @@ void* fg_save_ledger_swap(void* instance);        // swaps the SaveLedger static
 std::int32_t fg_run_warden_slot();                // the save slot through the RunWarden static, or -1
 std::int64_t fg_field_plot_place();               // the place id through the FieldPlot static, or 0
 
-// The task registration: our own invented ABI, (task in rcx, the hub instance in rdx, the group index in r8d). A
-// wrapper (spike.7's shape, WHY§235): it tests the hub's closed flag, then calls fg_register_keep with the hub in rcx,
-// the group in edx and the task in r8, or, while the hub is closed, tail-jumps to fg_register_closed.
-void fg_register_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);
+// The task registration: our own invented ABI, (task in rcx, the hub instance in rdx, the group index in r8d), answering
+// 1 when the task was kept and 0 when not. A wrapper of R1 run 7's shape (WHY§240): it loads its own singleton (the
+// rack) from fg_static_rack and, while that is null, makes it with two calls and stores it there; then it tail-jumps to
+// fg_register_rack with the rack in rcx, the group in edx, the task in r8 and the hub it was given in r9.
+std::uint64_t fg_register_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);
+// The tail function, a leaf of no unwind data: past FG_RACK_BOUND, or where the rack's shelf for the group is null, it
+// answers 0; else it jumps through the shelf's vtable to its register slot, fg_shelf_register.
+std::uint64_t fg_register_rack(void* rack, std::uint32_t group, FG::TaskUnit* task, FG::TaskLoomImp* hub);
+// A shelf's register slot: the work with the hub in rcx, the group in edx and the task in r8; answers 1.
+std::uint64_t fg_shelf_register(void* shelf, std::uint32_t group, FG::TaskUnit* task, FG::TaskLoomImp* hub);
+extern const void* const fg_shelf_vtable[3];  // in .rdata: two slots answering 0, then fg_shelf_register
+extern void* fg_static_rack;                  // FG::TaskRack*: the registration's own singleton, made lazily
 // The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
 void fg_register_keep(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 // The program's own call sites into it: four tasks, each {task, group}, registered in order.
@@ -103,7 +113,8 @@ void fg_boot_register_tasks(const FgBootTask* tasks);  // exactly four entries
 // Called from the assembly (defined in C++).
 void fg_fd4_unset(const char* path, const char* name, std::uint32_t site);  // a singleton used before it was set
 void fg_hub_enqueue(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
-void fg_register_closed(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);  // counted, never queued
+void* fg_rack_alloc();                               // the rack's memory, zeroed
+void* fg_rack_build(void* memory, FG::TaskLoomImp* hub);  // a shelf for each group of the hub's (but the gap's)
 void fg_register_rejected(std::uint32_t reason);  // 1 hub, 2 group, 3 task; it faults, as a game given bad input would
 }
 
@@ -156,7 +167,7 @@ struct GroupEntry {           // stride 0x90
 struct TaskLoomFields {       // from +0x08
   std::uint64_t frame;        // 0x08
   std::uint32_t group_count;  // 0x10 (FG_LOOM_GROUP_COUNT_OFF)
-  std::uint32_t flags;        // 0x14 (FG_LOOM_FLAGS_OFF): FG_LOOM_CLOSED, never set by the program itself
+  std::uint32_t flags;        // 0x14 (FG_LOOM_FLAGS_OFF): none set
   GroupEntry* groups;         // 0x18
   std::uint64_t tasks_live;   // 0x20
   void** live;                // 0x28: every active task, in the order the hub activated it (kMaxLiveTasks)
@@ -166,6 +177,20 @@ struct TaskLoomFields {       // from +0x08
   std::uint64_t spare;        // 0x48
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
+
+// The registration's own singleton (spike.8's shape, WHY§240): a shelf per group, each an object whose vtable's third
+// slot keeps a task. Made by the registration's first call; with --table-gap the stand-in group has no shelf.
+inline constexpr std::uint32_t kRackGroups = FG_RACK_BOUND + 1;
+struct TaskShelf {
+  const void* const* vtable;  // fg_shelf_vtable
+  std::uint32_t group;
+  std::uint32_t spare;
+};
+struct TaskRack {
+  std::uint64_t made_frame;          // 0x00
+  std::uint64_t shelves_made;        // 0x08
+  TaskShelf* shelves[kRackGroups];   // 0x10 (FG_RACK_SHELVES_OFF)
+};
 
 // Every singleton class has a virtual function of its own, so each has a vtable and RTTI.
 class TaskLoomImp {

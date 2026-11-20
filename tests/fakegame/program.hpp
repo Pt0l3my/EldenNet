@@ -59,6 +59,7 @@ struct Options {
   bool selftest_swapped = false;
   std::uint32_t selftest_object_size = static_cast<std::uint32_t>(FG::kTaskFieldsSize);
   std::int32_t selftest_group = -1;  // -1: the stand-in group
+  bool table_gap = false;  // the registration's rack has no shelf for the stand-in group (R1 spike.8's second case)
   std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
   std::uint64_t press_pause_every = 0;  // and again every this many frames after it; 0 once
   // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that

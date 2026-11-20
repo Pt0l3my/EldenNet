@@ -241,16 +241,29 @@ extern "C" void fg_hub_enqueue(FG::TaskLoomImp* loom, std::uint32_t group, FG::T
   }
 }
 
-// The wrapper's other way (fg_register_task's tail jump while the hub is closed): the task is counted as ignored and
-// never queued, so the call answers as if it had registered.
-extern "C" void fg_register_closed(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group) {
-  (void)task;
-  (void)hub;
-  auto& h = fakegame::hub();
-  AcquireSRWLockExclusive(&h.lock);
-  ++h.stats.ignored;
-  ReleaseSRWLockExclusive(&h.lock);
-  status("register closed group=%u", group);
+// The registration's rack (spike.8's shape, WHY§240), made by its first call: the memory, then a shelf for each of the
+// hub's groups, but the stand-in group's with --table-gap (there the registration answers 0 and keeps nothing).
+extern "C" void* fg_rack_alloc() {
+  static_assert(offsetof(FG::TaskRack, shelves) == FG_RACK_SHELVES_OFF);
+  return VirtualAlloc(nullptr, sizeof(FG::TaskRack), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+}
+
+extern "C" void* fg_rack_build(void* memory, FG::TaskLoomImp* hub) {
+  auto* rack = static_cast<FG::TaskRack*>(memory);
+  const std::uint32_t groups = hub != nullptr ? hub->f.group_count : 0;
+  static_assert(fakegame::kBaseGroups + 8 <= FG::kRackGroups, "every group of the hub has a shelf's place");
+  auto* shelves = static_cast<FG::TaskShelf*>(
+      VirtualAlloc(nullptr, sizeof(FG::TaskShelf) * FG::kRackGroups, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  for (std::uint32_t g = 0; g < groups && g < FG::kRackGroups && shelves != nullptr; ++g) {
+    if (options().table_gap && g == fakegame::standin_group()) continue;
+    shelves[g].vtable = fg_shelf_vtable;
+    shelves[g].group = g;
+    rack->shelves[g] = &shelves[g];
+    ++rack->shelves_made;
+  }
+  status("rack shelves=%llu gap=%d", static_cast<unsigned long long>(rack->shelves_made),
+         options().table_gap ? 1 : 0);
+  return rack;
 }
 
 extern "C" void fg_register_rejected(std::uint32_t reason) {

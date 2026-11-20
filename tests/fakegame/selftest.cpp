@@ -64,11 +64,11 @@ struct FakeVtable {
 };
 const FakeVtable kVtable{st_attach, st_run, st_query};
 
-using RegisterFn = void (*)(FG::TaskUnit*, FG::TaskLoomImp*, std::uint32_t);
+using RegisterFn = std::uint64_t (*)(FG::TaskUnit*, FG::TaskLoomImp*, std::uint32_t);
 
-// The call goes through a pointer, as EldenNet's will (its address comes from discovery).
+// The call goes through a pointer, as EldenNet's will (its address comes from discovery). What it answers is not read.
 void call_register(RegisterFn fn, void* first, void* second, std::uint32_t group) {
-  fn(static_cast<FG::TaskUnit*>(first), static_cast<FG::TaskLoomImp*>(second), group);
+  (void)fn(static_cast<FG::TaskUnit*>(first), static_cast<FG::TaskLoomImp*>(second), group);
 }
 
 #if defined(_MSC_VER)
