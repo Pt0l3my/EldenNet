@@ -1146,7 +1146,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.4 GraceUI 0.2
 
-- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
+- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
   - refs: G2, G20, PAGES§4.6, GraceUI:D163
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
@@ -1156,6 +1156,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29. Since GraceUI's D181 a
     player may quiet EldenNet's notices, so what the player must know (the banner's reason, a failed start) is on
     EldenNet's Home page and in its log too, never in a notice alone (GraceUI's docs/eldennet-changes.md §34).
+    First slice built on 2026-11-20 (engine 75e6303): EldenNet's space with Home, System and Settings › Developer
+    (PAGES §4.5 homes the debug settings there), linted by GraceUI's tools at 8d45b20 (0.2.5), T6's register_pages,
+    publish on watch and answer, settings written on T11; graceui-sys re-vendored at 8d45b20. Tested in grace-dev
+    (goldens of each page's structure) and on the fake game in both views. In game, GraceUI 0.2 draws only a mod's
+    settings and shortcut rows, so Home's cards show in the browser alone until GraceUI draws a mod's components
+    (WHY§266 to §270). AI, Tools, Content packs and Docs follow.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
