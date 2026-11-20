@@ -881,7 +881,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     wrapper handing the group and the task to two inner calls, and 8 of 10.6 GiB held no copy of our task; spike.7
     follows them (WHY§235). Spike.7 sent on 2026-11-20 (engine bddcaa7; WHY§236). Run 7: the wrapper tail-jumps with
     the group and the task to a function that bounds the group by 168 and refuses on a null entry; all readable memory
-    held no copy of our task; spike.8 reads that table and the call's return value (WHY§240).
+    held no copy of our task; spike.8 reads that table and the call's return value (WHY§240). Spike.8 sent on
+    2026-11-20 (engine 9a6e3ea; WHY§247).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175

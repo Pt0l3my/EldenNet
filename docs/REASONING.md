@@ -269,6 +269,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 244 | 2026-11-20 | ABI 1.1's input flag is appended after the reserved word, not renamed from it | METHOD | #graceui #abi |
 | 245 | 2026-11-20 | graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events | FACT | #graceui #abi |
 | 246 | 2026-11-20 | A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED | FACT | #graceui #input |
+| 247 | 2026-11-20 | R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff | DECIDED | #gal #r1 #task |
 
 ## Entries
 
@@ -4305,3 +4306,37 @@ invariant 10, EldenNet ARCH (T3)
 - (FACT) Danger or a loss of focus could end a holder between its grant and `HolderMail::enable`, so its close routine
   found nothing to end and the mod was never told. Fixed by a check after enable, fenced (seq_cst) against `closed()`'s
   fence, posting the end once. Found by review, not by a test: the window is too narrow to hit reliably.
+
+### 247. R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§240, WHY§236, engine 9a6e3ea
+
+- **The return value** (DECIDED): `RegisterFn` returns rax, reported as a kind (`register.returned`: zero, small
+  with its value, ours, the game's with section and RVA, heap, our task's block, other), with its low byte apart for
+  a `bool` (`returned_low`).
+- **Sources** (DECIDED, METHOD): besides "holds argument k", a register can hold "the value loaded from source s":
+  a RIP-relative slot, or `[base + index*scale + disp]` with what base and index hold, at most 3 loads deep. Beyond
+  the brief: a call's result stored to a global counts as that global's value, so a lazily made singleton is followed
+  on both paths. Where the paths still disagree on rcx, the table is read on the path past the wrapper's null test
+  (`via_guard`).
+- **Forms and tail jumps** (DECIDED): each summary's first 64 instructions as forms (offset, length, class, operand
+  kinds; no bytes, no opcodes), and a jump through memory or a register counted as a tail call with its base's source.
+  A function with no unwind data ends at its first jump out that no branch goes past. The report stays within 256 KiB,
+  dropping inner summaries' forms first.
+- **The table** (DECIDED): when run 7's shapes match (the wrapper's rcx from a slot S, the tail function's bound and
+  its null test of `[entry rcx + group*8 + disp]`, then a jump through the entry's first word), T1 reads just before
+  the call and 2 s after:
+  - the singleton's kind, and whether it is CSTask's instance or another named singleton's;
+  - which entries from 0 to the bound are set;
+  - the group's entry, its first word and the slot the final jump uses, whose target is summarised one level deeper.
+
+  A failed shape names the first that failed, and nothing is read.
+- **The control diff** (DECIDED): at the Mark T1 walks the hub, waits 2 s, walks it again and makes the call. Each
+  changed word of the call's diffs is marked `in_control` when it also changed in those 2 s before the call.
+- **The fake game** (FACT, clang-cl Release, Wine 9.0): its registration now has run 7's shape. The table matched
+  (disp 0x10, bound 31, slot 0x10), 10 entries were set before and after the call, the group's entry was on the heap
+  with its vtable in rdata, the call returned 1, and the control diff changed only the frame counter, marked
+  `in_control` in both of the call's diffs. In a variant with no entry for the group, the call returned 0, the entry
+  read zero, the 9 entries set left the group out, and the task never ran, as in run 7.
+- **The owner's steps** (DECIDED): after "No confirmation", wait one more minute at the title screen before quitting,
+  so that the 2 s and 20 s reads and searches finish.
