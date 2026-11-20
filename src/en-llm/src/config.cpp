@@ -576,10 +576,14 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetRes
 void fill_empty_slots(Config& cfg) {
   const auto& dialogue = cfg.slots[std::string(kDialogue)].models;
   auto& bark_live = cfg.slots[std::string(kBarkLive)].models;
-  if (bark_live.empty()) bark_live = dialogue;
+  if (bark_live.empty()) {
+    bark_live = dialogue;
+    cfg.borrowed[std::string(kBarkLive)] = std::string(kDialogue);
+  }
   for (auto& [name, slot] : cfg.slots) {
     if (!slot.models.empty() || name == kDialogue) continue;
     slot.models = name == kDecisions ? bark_live : dialogue;
+    cfg.borrowed[name] = std::string(name == kDecisions ? kBarkLive : kDialogue);
   }
 }
 

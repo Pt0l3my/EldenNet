@@ -84,6 +84,7 @@ LlmRequest LlmRequest::decision(RequestId id, DecisionCall call, std::optional<E
 ErrorClass LlmEvent::error() const {
   if (chat) return chat->error;
   if (pick) return pick->error;
+  if (kind == EventKind::ModelsEnded) return models.error;
   return kind == EventKind::WarmUpEnded ? warm_up.error : ErrorClass::None;
 }
 
@@ -152,6 +153,7 @@ const char* to_string(EventKind kind) {
     case EventKind::Reset: return "Reset";
     case EventKind::Ended: return "Ended";
     case EventKind::WarmUpEnded: return "WarmUpEnded";
+    case EventKind::ModelsEnded: return "ModelsEnded";
   }
   return "Unknown";
 }

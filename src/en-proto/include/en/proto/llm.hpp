@@ -275,6 +275,7 @@ enum class EventKind {
   Reset,        // the text passed on so far was reasoning after all: withdraw it
   Ended,        // the request's one terminal event: `chat` for a chat request, `pick` for a decision call
   WarmUpEnded,  // a warm-up's one event: `provider`, `model` and `warm_up`
+  ModelsEnded,  // a model list's one event: `provider` and `models` (the AI pages' self-test and model list)
 };
 
 struct WarmUpOutcome {
@@ -288,17 +289,35 @@ struct WarmUpOutcome {
   bool operator==(const WarmUpOutcome&) const = default;
 };
 
+// A provider's model list (GET <base_url>/models, ARCH §11.4 and §11.7's step 4a), asked on the handle's workers.
+struct ModelsOutcome {
+  // None, or why not, as en-llm's list_models names it: Auth (401 or 403, or no key), RateLimited, BadRequest, Server (no
+  // connection, a 5xx, an answer that is no model list), TotalTimeout, GateClosed, Cancelled, NoHealthyProvider (no
+  // transport, or no such provider).
+  ErrorClass error = ErrorClass::None;
+  int status = 0;                     // the HTTP status; 0 when none came
+  std::vector<std::string> models;    // the ids, within en-llm's limits: never shown as they are (a local server's
+                                      // ids can be file paths), only counted and compared with the slots' models
+  int omitted = 0;                    // entries left out
+  std::chrono::milliseconds time{0};  // from the send to the end
+
+  bool operator==(const ModelsOutcome&) const = default;
+};
+
 struct LlmEvent {
   EventKind kind = EventKind::Delta;
-  RequestId id = 0;                  // the request's; for WarmUpEnded the warm-up's own, which is not a request id
-  std::string provider;              // Started, WarmUpEnded
+  RequestId id = 0;                  // the request's; for WarmUpEnded and ModelsEnded their own, not a request id
+  std::string provider;              // Started, WarmUpEnded, ModelsEnded
   std::string model;                 // Started, WarmUpEnded
   std::string text;                  // Delta
   std::optional<ChatResult> chat;    // Ended, for a chat request
   std::optional<DecisionPick> pick;  // Ended, for a decision call
   WarmUpOutcome warm_up;             // WarmUpEnded
+  ModelsOutcome models;              // ModelsEnded
 
-  bool terminal() const { return kind == EventKind::Ended || kind == EventKind::WarmUpEnded; }
+  bool terminal() const {
+    return kind == EventKind::Ended || kind == EventKind::WarmUpEnded || kind == EventKind::ModelsEnded;
+  }
   // The outcome's class: the chat result's, the pick's or the warm-up's; None for the other kinds.
   ErrorClass error() const;
 
@@ -371,6 +390,8 @@ void to_json(nlohmann::json& j, const LlmRequest& v);
 void from_json(const nlohmann::json& j, LlmRequest& v);
 void to_json(nlohmann::json& j, const WarmUpOutcome& v);
 void from_json(const nlohmann::json& j, WarmUpOutcome& v);
+void to_json(nlohmann::json& j, const ModelsOutcome& v);
+void from_json(const nlohmann::json& j, ModelsOutcome& v);
 void to_json(nlohmann::json& j, const LlmEvent& v);
 void from_json(const nlohmann::json& j, LlmEvent& v);
 
