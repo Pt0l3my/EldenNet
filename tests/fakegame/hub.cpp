@@ -63,6 +63,13 @@ Fn slot_of(void* task, std::uint32_t index) {
   return fn;
 }
 
+// SAFETY: as slot_of: the run slot's entry, as the vtable holds it.
+void* run_entry(void* task) {
+  void* const* vtable = nullptr;
+  std::memcpy(&vtable, task, sizeof vtable);
+  return vtable[FG::kRunSlot];
+}
+
 // SAFETY: the hub's own fields of a registered task, at +0x08 onwards (FG::TaskFields), which every task leaves to it.
 void write_field(void* task, std::size_t offset, const void* value, std::size_t size) {
   std::memcpy(static_cast<std::byte*>(task) + offset, value, size);
@@ -112,6 +119,10 @@ void hub_create() {
   // hub (part 6) finds the tasks' classes, and their base, from here.
   loom->f.live = static_cast<void**>(
       VirtualAlloc(nullptr, sizeof(void*) * FG::kMaxLiveTasks, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  // And each one's run slot, as a hub might cache the function it calls every frame: R1's whole-memory search finds a
+  // copy of our slot here (spike.7).
+  loom->f.run_fns = static_cast<void**>(
+      VirtualAlloc(nullptr, sizeof(void*) * FG::kMaxLiveTasks, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
   fg_static_taskloom = loom;
 }
 
@@ -148,6 +159,9 @@ void hub_run_frame(std::uint64_t frame, float dt) {
     ++h.groups[group].task_count;
     if (auto* loom = static_cast<FG::TaskLoomImp*>(fg_get_taskloom())) {
       if (loom->f.live != nullptr && loom->f.tasks_live < FG::kMaxLiveTasks) loom->f.live[loom->f.tasks_live] = s.task;
+      if (loom->f.run_fns != nullptr && loom->f.tasks_live < FG::kMaxLiveTasks) {
+        loom->f.run_fns[loom->f.tasks_live] = run_entry(s.task);
+      }
       ++loom->f.tasks_live;
     }
     if (s.foreign) {
@@ -225,6 +239,18 @@ extern "C" void fg_hub_enqueue(FG::TaskLoomImp* loom, std::uint32_t group, FG::T
     status("register accepted group=%u thread=%s", group,
            GetCurrentThreadId() == fakegame::game_thread_id() ? "game" : "other");
   }
+}
+
+// The wrapper's other way (fg_register_task's tail jump while the hub is closed): the task is counted as ignored and
+// never queued, so the call answers as if it had registered.
+extern "C" void fg_register_closed(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group) {
+  (void)task;
+  (void)hub;
+  auto& h = fakegame::hub();
+  AcquireSRWLockExclusive(&h.lock);
+  ++h.stats.ignored;
+  ReleaseSRWLockExclusive(&h.lock);
+  status("register closed group=%u", group);
 }
 
 extern "C" void fg_register_rejected(std::uint32_t reason) {

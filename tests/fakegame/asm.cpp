@@ -9,7 +9,9 @@
 #include "fakegame.hpp"
 
 static_assert(offsetof(FG::TaskLoomFields, group_count) + 8 == FG_LOOM_GROUP_COUNT_OFF);
+static_assert(offsetof(FG::TaskLoomFields, flags) + 8 == FG_LOOM_FLAGS_OFF);
 static_assert(offsetof(FG::TaskLoomFields, last_task) + 8 == FG_LOOM_LAST_TASK_OFF);
+static_assert(offsetof(FG::TaskLoomFields, last_vtable) + 8 == FG_LOOM_LAST_VTABLE_OFF);
 static_assert(offsetof(FG::RunWardenFields, save_slot) + 8 == FG_WARDEN_SAVE_SLOT_OFF);
 static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
 
@@ -417,12 +419,48 @@ __asm__(
     "  ret\n"
     "  .seh_endproc\n"
 
-    // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group. It checks the
-    // hub against its static, the group against a fixed bound (an immediate) and the hub's count and the task against
-    // null, keeps the task in the hub's last_task field, then queues the task. R1's callee summary is checked against
-    // these (the harness). Anything else is refused by fg_register_rejected, which faults (a game given bad arguments
-    // would not check).
+    // ---- register_task's role, with our own ABI: rcx the task, rdx the hub instance, r8d the group. A wrapper of the
+    // shape R1 run 6 found (WHY§235): it keeps its arguments in callee-saved registers, tests a flag of the hub, and
+    // either calls the work with the hub in rcx, the group in edx and the task in r8, or, past that call, tail-jumps to
+    // fg_register_closed with its own arguments as it was given them. R1's callee summary is checked against it.
     FG_FUNC_BEGIN(fg_register_task)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  mov rsi, rdx\n"
+    "  mov edi, r8d\n"
+    "  test byte ptr [rsi + " FG_XSTR(FG_LOOM_FLAGS_OFF) "], " FG_XSTR(FG_LOOM_CLOSED) "\n"
+    "  .byte 0x75, 3f - 1f\n"
+    "1:\n"
+    "  mov r8, rbx\n"
+    "  mov edx, edi\n"
+    "  mov rcx, rsi\n"
+    "  call fg_register_keep\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
+    "  pop rsi\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "3:\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
+    "  pop rsi\n"
+    "  pop rbx\n"
+    "  jmp fg_register_closed\n"  // in another object: always its long form
+    "  .seh_endproc\n"
+
+    // ---- The work, with the hub in rcx, the group in edx and the task in r8. It checks the hub against its static,
+    // the group against a fixed bound (an immediate) and the hub's count and the task against null, keeps the task and
+    // its vtable in the hub's last_task and last_vtable fields, then queues the task. Anything else is refused by
+    // fg_register_rejected, which faults (a game given bad arguments would not check).
+    FG_FUNC_BEGIN(fg_register_keep)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
     "  push rsi\n"
@@ -432,9 +470,9 @@ __asm__(
     "  sub rsp, 0x30\n"
     "  .seh_stackalloc 0x30\n"
     "  .seh_endprologue\n"
-    "  mov rbx, rcx\n"
-    "  mov rsi, rdx\n"
-    "  mov edi, r8d\n"
+    "  mov rsi, rcx\n"
+    "  mov edi, edx\n"
+    "  mov rbx, r8\n"
     "  mov rax, qword ptr [rip + fg_static_taskloom]\n"
     "  cmp rax, rsi\n"
     "  .byte 0x75, 4f - 5f\n"
@@ -449,6 +487,8 @@ __asm__(
     "  .byte 0x74, 8f - 9f\n"
     "9:\n"
     "  mov qword ptr [rsi + " FG_XSTR(FG_LOOM_LAST_TASK_OFF) "], rbx\n"
+    "  mov rax, qword ptr [rbx]\n"
+    "  mov qword ptr [rsi + " FG_XSTR(FG_LOOM_LAST_VTABLE_OFF) "], rax\n"
     "  mov r8, rbx\n"
     "  mov edx, edi\n"
     "  mov rcx, rsi\n"
