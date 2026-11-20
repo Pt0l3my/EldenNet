@@ -904,13 +904,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §3.2 with the crash filter, §4.1 and §4.14 (the launcher's options, the watch block, the Mark),
     §5 (not solo means dormant); DESIGN §3.1, §14 and §16.1; dated notes on O89 and O90.
 
-- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8)
+- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8) [done]
   - needs: a
   - refs: ARCH§1.4, ARCH§8, DESIGN§14
   - gives: listed by part 12's notes on 2026-11-20; Augur's folds joined when part 11 landed the same day: §8's
     opening (Augur after the lifecycle slice in the same step, WHY§222), §8.4, §8.5 (the rule schema's additions and
     Struck's 1 s window) and §8.7 as settled (WHY§223), §8.12's lossy-run differences (WHY§224) and §7.5's recording
     reader (WHY§225). ARCH §1.4's "As built" bullet (the first build headless) is superseded by part 12.
+    Folded on 2026-11-20 (design/v1-proposal, merge of docs/s10-fold-i): ARCH §1.2, §1.4, §2.2, §3.2, §4.1, §4.3,
+    §4.7, §4.14, §7.5, §8 (its opening, §8.1, §8.4, §8.5, §8.7, §8.12), §11.5 and §12.1; DESIGN §2.4, §14 and §16.1
+    and MEM §6.3 by dated notes; a dated note on O90 (the launcher's Mark kept as the fallback, WHY§217).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -925,7 +928,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
-    replay built in parts 6 and 9.
+    replay built in parts 6 and 9. Still to join (found by S10.1.i's fold): the F11 view shows en-core's changes, not
+    Augur's events with their audiences, which DESIGN §14's F11 list asks for.
 
 ### S10.3 v0.1's exit checks
 
