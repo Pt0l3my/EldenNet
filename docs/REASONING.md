@@ -228,6 +228,44 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 203 | 2026-11-17 | The R1 package, 0.1.0-spike.1 | METHOD | #engine #r1 #spike |
 | 204 | 2026-11-17 | C1's slot could answer an older snapshot after a newer one | FACT | #engine #dll |
 | 205 | 2026-11-17 | Under Wine, GetKeyState from the window procedure's filter costs about 100 µs a call: GraceUI reads the modifiers only for a fresh press of a bound key | FACT | #graceui #input #perf |
+| 206 | 2026-11-17 | R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead | FACT | #gal #r1 #derive #launcher |
+| 207 | 2026-11-17 | R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4) | FACT | #gal #r1 #derive |
+| 208 | 2026-11-17 | R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice) | FACT | #gal #r1 #task |
+| 209 | 2026-11-17 | R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored | FACT | #gal #r1 #task #crash |
+| 210 | 2026-11-20 | Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it | FACT | #wine #ci #graceui |
+| 211 | 2026-11-20 | The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering | DECIDED | #layering #launcher #build |
+| 212 | 2026-11-20 | GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio | METHOD | #graceui #tokens #contrast |
+| 213 | 2026-11-20 | nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4 | FACT | #graceui #protocol #perf |
+| 214 | 2026-11-20 | grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as it arrives, so a client that never ends its head is refused at once; everything else waits for the whole head, then Host first | METHOD | #graceui #server #security |
+| 215 | 2026-11-20 | graceui-sys's headers are vendored into EldenNet at GraceUI f51bcc7, each checked by SHA-256, not fetched; Dear ImGui's core is fetched at GraceUI's own pin | DECIDED | #engine #graceui #licences |
+| 216 | 2026-11-20 | en-overlay's look for GraceUI ends at once when none is installed, rather than after graceui-sys's 30 s | DECIDED | #engine #graceui #dll |
+| 217 | 2026-11-20 | The development Mark changes hands through the watch block, on Pause: the launcher lets its key go when EldenNet's GraceUI hotkey is registered | DECIDED | #engine #launcher #graceui |
+| 218 | 2026-11-20 | The F11 view is behind debug.panel (SP8): without it the view, its panel, atlas and hotkey are not made and F11 reaches the game | DECIDED | #engine #dll #graceui |
+| 219 | 2026-11-20 | E12, a failed GraceUI pre-flight, is told and the game starts headless; --probe and the spikes only log it | DECIDED | #launcher #graceui |
+| 220 | 2026-11-20 | Dear ImGui's core in eldennet.dll brought thread-safe statics and ReadConsoleW; /Zc:threadSafeInit- on the core removes the first, the rest are reviewed imports | FACT | #engine #dll #ci |
+| 221 | 2026-11-20 | The first end-to-end run with GraceUI: the launcher, eldennet.dll and GraceUI's test build in our fake game on Direct3D 12 under Wine, F11's panel read back from the frame | FACT | #engine #graceui #wine #test |
+| 222 | 2026-11-20 | Augur runs straight after en-core's lifecycle slice in the same step, not before it, so its lifecycle events and the loading screen are seen in the step they happen | DECIDED | #engine #augur #core |
+| 223 | 2026-11-20 | What ARCH §8 left open, settled for Augur v0.1: lifecycle events as rule files, a 1 s Struck window, engagement re-armed only once apart, FNV-1a hashes and others | DECIDED | #engine #augur |
+| 224 | 2026-11-20 | Under 50% snapshot loss Augur invents no event and fires none earlier; brief states and per-hit events are what differ | FACT | #engine #augur #test |
+| 225 | 2026-11-20 | A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged | DECIDED | #engine #augur #spike #datapiler |
+| 226 | 2026-11-20 | Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish | FACT | #engine #augur #perf #build |
+| 227 | 2026-11-20 | R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee | FACT | #gal #r1 #task |
+| 228 | 2026-11-20 | Cinzel publishes static faces only at Regular, Bold and Black, so GraceUI's 500 and 600 weights take Regular and Bold; of the faces, EB Garamond and Noto Sans Mono carry the arrows U+2190 to U+2193 | FACT | #graceui #fonts |
+| 229 | 2026-11-20 | Under Wine on lavapipe a full-screen overlay's frame-cost p99 is the software renderer's: GraceUI's menu holds its 1 ms present-thread budget at 640x360 and is measured at 1920x1080, the game's run settling it | METHOD | #graceui #perf #wine |
+| 230 | 2026-11-20 | en-overlay takes GraceUI's own rules: GRACEUI_UNBOUND is a success with an id, an unbound Mark leaves the launcher's Pause in place, and graceui-sys's STOP_IF_ABSENT replaces our own early stop | DECIDED | #engine #graceui #dll |
+| 231 | 2026-11-20 | graceui-sys at 3f1352b leaves installed at 0 for a GraceUI found by its name; en-overlay reads a find by name as installed until it is fixed | FACT | #graceui #engine |
+| 232 | 2026-11-20 | Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window | FACT | #wine #graceui #ci |
+| 233 | 2026-11-20 | The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted | METHOD | #engine #launcher #graceui |
+| 234 | 2026-11-20 | R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap | DECIDED | #gal #r1 #task |
+| 235 | 2026-11-20 | R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task | FACT | #gal #r1 #task |
+| 236 | 2026-11-20 | R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call | DECIDED | #gal #r1 #task |
+| 237 | 2026-11-20 | grace-input's record of the last close lost the holder, so a close by the menu key or the player's exit skipped the host's close bookkeeping | FACT | #graceui #input |
+| 238 | 2026-11-20 | GraceUI, not the space, enforces a destructive command's confirmation | DECIDED | #graceui #protocol |
+| 239 | 2026-11-20 | A stream is cleared by an empty batch past a gap, with no message kind of its own | METHOD | #graceui #protocol |
+| 240 | 2026-11-20 | R1 run 7: the wrapper hands the group and the task to a tail-called function that bounds the group by 168 and refuses through a null test; all readable memory held no copy of our task, its vtable or a slot | FACT | #gal #r1 #task |
+| 241 | 2026-11-20 | A mod's panel that takes input gets no characters through ABI 1 | FACT | #graceui #abi |
+| 242 | 2026-11-20 | A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook | METHOD | #graceui #overlay |
+| 243 | 2026-11-20 | Under Wine 9 the process's handle count and private bytes read 0 | FACT | #graceui #wine |
 
 ## Entries
 
@@ -3498,6 +3536,8 @@ invariant 10, EldenNet ARCH (T3)
 - T1 ends at Ready (ARCH: Ready → Exit), which is what exposed WHY§190; in R1 it stays as the probe's reporter.
 - C14's atomics are applied by the core thread to each snapshot's session before the core judges it, not by the task
   (ARCH §1.3 has them read by the task; the task's backend leaves them false, WHY§169).
+- *Later (2026-11-20):* the Headless bullet no longer holds. Part 12 connects to GraceUI at Connect and ConnectB
+  (`overlay.connect` on by default), with the banner as a notice and the F11 view behind `debug.panel` (WHY§215 to §221).
 
 ### 192. The recorder writes numbers-only JSON Lines, each line a report of the kind "recording"
 
@@ -3706,3 +3746,534 @@ invariant 10, EldenNet ARCH (T3)
 - **The way round** (DECIDED, GraceUI D155): the filter reads the modifiers only for a fresh press of a key that some
   hotkey binds, and only while no holder has input; the p99 is back at about 1.5 µs.
 - **For S4** (METHOD): measure `GetKeyState`'s cost on Windows, where it is expected to be far cheaper.
+
+### 206. R1 run 1 on the owner's PC: lld-link's merged manifest stopped the launcher on Windows (spike.2 fixed it); then the live derivation named 9 of 217 FD4 class objects, so no call was made; spike.3 reads namespaced names and reports where the name pointers lead
+
+`2026-11-17` · FACT · `#gal` `#r1` `#derive` `#launcher` · refs: O89, WHY§180, WHY§189, engine 92b368b
+
+- **The manifest** (FACT): package 0.1.0-spike.1's launcher did not start on Windows ("side-by-side configuration is
+  incorrect"). lld-link, given `launcher.manifest` as a source, merged it with its own and wrote the trustInfo with
+  namespaced attributes (`ms_asmv1:level`), which Windows refuses and Wine accepts. Since spike.2 the resource script
+  embeds the file as written and lld-link makes none (`/MANIFEST:NO`); the packager refuses a merged manifest.
+- **The run** (FACT, spike.2, game 2.7.2.0 ww): the gate passed; the live image gave R0's FD4 idiom byte for byte
+  (7,151 hits, as expected), 7,081 accepted sites over 217 class objects, and the task group at index 110, as R0 found.
+  The name search named 9 of the 217 (offset 0x68, ASCII into `.rdata`) over four passes from 17 to 77 s, under the
+  half it needs, so every singleton stayed unnamed and the probe refused the call, as designed.
+- **Why** (LIKELY, untested): the search took a name only as a plain identifier in `.rdata`; a class name joined to its
+  namespace by `::` would be refused, and one held outside the image (the heap) is not read at all.
+- **Spike.3** (DECIDED): names joined by `::` count, and a lead matches a name exactly or as its last part, once only
+  (two such names: ambiguous). `r1-probe.json` gains `names`, per offset 0 to 0x78: where the value points (null,
+  `.rdata`, `.data`, code, other, outside the image) and what text it reaches, numbers only. If the names prove to be on
+  the heap, the next step is a guarded read of them in the probe.
+
+### 207. R1 run 2: the game's FD4 class objects hold no names in the image (their words point to the heap), so R1 names the singletons by their instances' RTTI (O92, spike.4)
+
+`2026-11-17` · FACT · `#gal` `#r1` `#derive` · refs: O92, WHY§206, engine 7840217
+
+- **The run** (FACT, spike.3, game 2.7.2.0 ww): as run 1, the idiom, the 7,081 sites and the group at 110 were
+  confirmed, and the probe refused the call: 9 of 217 class objects named, none of them qualified by a namespace.
+- **The numbers** (FACT, `r1-probe.json`'s `names`): at every offset from 0 to 0x78, 48 to 147 of the 217 words were
+  null and 52 to 153 pointed outside the image; at most 13 pointed into `.rdata`, 20 into `.data` and 3 into code, and
+  none of the objects held a name inline. Offset 0 held no pointer into the image at all (127 null, 90 outside), so the
+  objects carry no vtable of the image's there either. The names, if held, are reached through the heap.
+- **So** (DECIDED, O92): spike.4 names a singleton by its instance's class: the static's instance (live `.data`), its
+  first word read once through the crash-guarded copy with ARCH §6.5's plausibility rules (on T1, before any call), and
+  that vtable's class from the RTTI walk; a lead matches its name or its name with Imp, once only. The probe's report
+  counts the statics tried, null, unread, unclassed, classed and matched (`inst_*`).
+
+### 208. R1 run 3: CSTask named by its instance's RTTI, the checks passed and register_task returned ok at the title screen, but the task never ticked there; run 4 loads a save after the call (owner's choice)
+
+`2026-11-17` · FACT · `#gal` `#r1` `#task` · refs: O89, O92, WHY§207, engine cab98b7
+
+- **The run** (FACT, spike.4, game 2.7.2.0 ww): one derivation pass at 15 s named three of the eleven singletons by
+  their instances' RTTI (CSTask, CSCamera and SoloParamRepository; 219 statics tried: 98 null, 2 unread, 35 of no
+  known class, 84 classed). The registration's function and its three argument registers (task, instance, group in r8,
+  rcx, rdx) and the group's index 110 were confirmed, and every check before the call passed.
+- **The call** (FACT): at the owner's Pause, 46 s after the checks, `register_task` returned ok. The game ran on for 78
+  s at the title screen and exited cleanly; the task was never invoked (no first tick, no slot called, nothing of our
+  object written).
+- **Why** (LIKELY, untested): the group is the characters' post-physics step, and the title screen has no characters.
+- **Next** (DECIDED by the owner, 2026-11-17, "Load a save after the call"): run 4 uses the same package; after the
+  call the owner loads a character, stands at a Site of Grace for about a minute and quits normally. The launcher has
+  backed up the saves. If the task ticks in the world, the probe's census and searches complete R1.
+
+### 209. R1 run 4: with a world loaded the task still never ran, and the game crashed on quit in a module not ours; spike.5 searches the hub for where our task was stored
+
+`2026-11-17` · FACT · `#gal` `#r1` `#task` `#crash` · refs: WHY§208, engine cab98b7
+
+- **The run** (FACT, spike.4): as run 3, every check passed and `register_task` returned ok at the title screen. The
+  owner then loaded a character and stood at a Site of Grace for several minutes: the task was never invoked (no slot
+  called, nothing of our object written). The title screen was not the reason.
+- **The quit** (FACT): the owner quit to the desktop through the menu and saw nothing wrong, but the launcher's crash
+  record holds an access violation on a thread neither the game's main thread nor ours, in a module the record names
+  `160_E658700.bin`, then exit code 0xC0000409. Runs 1 to 3 (no world loaded) ended clean. The cause is unknown: our
+  registered task at shutdown, or the other DLLs in the game folder (`dinput8.dll`, `dxgi.dll`; O91's third-party rows).
+- **So** (LIKELY): the call returned without making our task run: the group's index, the task object the function
+  expects, or the function itself is not what R1 derived.
+- **Spike.5** (DECIDED by the owner, 2026-11-17, "find where it went"): 2 and 20 s after the call, on T1, the hub's
+  reachable memory is searched breadth first from its instance, three pointers deep, read-only through the
+  crash-guarded copy under the plausibility rules, within 6,000 blocks and 6 MB, for our task object's address; the
+  report gives where it was found (the offsets followed) and the 32-bit words equal to the group's index near it. On the
+  fake game it finds the task one pointer deep. Run 5 stays at the title screen.
+
+### 210. Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it
+
+`2026-11-20` · FACT · `#wine` `#ci` `#graceui` · refs: WHY§113, engine e3b2670
+
+- **The failure** (FACT): after the container's restart on 2026-11-20 every Wine process, in an old prefix or a fresh
+  one, printed "free(): invalid pointer" and aborted before running anything; the fake game's prefix set-up failed, so
+  every harness case was not run. Wine, glibc and our builds had not changed; the environment had: it now sets
+  `TMPDIR=/tmp`.
+- **The cause** (FACT, gdb): Wine 9.0's `ntdll.so` frees, during `__wine_main`, a pointer into the environment strings
+  at the top of the stack, which is `TMPDIR`'s value; with the variable unset the same command runs.
+- **The way round** (DECIDED): EldenNet's harness drops `TMPDIR` from the environment it gives Wine (`wine_env`), and
+  hand runs use `env -u TMPDIR`. Grace was told the same day, for GraceUI's harness.
+
+### 211. The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering
+
+`2026-11-20` · DECIDED · `#layering` `#launcher` `#build` · refs: ARCH§2.3, engine 1c30a02
+
+- **The problem** (FACT): to lint R1's two reports after a probe session, the launcher linked `en_shell`, and through it
+  en-core, which ARCH §2.3 does not allow: the launcher may link only its own core, en-gal and en-proto.
+- **The change** (DECIDED): R1's probe report, its findings and closed vocabulary, moved from the shell into en-gal's
+  offline part as `en::gal::probe`, beside the derivation report it pairs with; the probe settings stay in the shell.
+- **The guard** (DECIDED): `cmake/link_rules.cmake` checks every module's links at configure time, following links
+  through other libraries, and stops with the chain that breaks a rule; `tests/linkrules` holds one clean case and five
+  that must be refused (through another library, a deep chain, a link-only dependency, a condition, an alias).
+
+### 212. GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio
+
+`2026-11-20` · METHOD · `#graceui` `#tokens` `#contrast` · refs: GraceUI:D157, GraceUI:DESIGN§3.3, GraceUI feat/foundations 2ae00d0
+
+- (METHOD, the Grace session) DESIGN §3.3's contrast table rounds each ratio twice, to 0.01 and then to 0.1, so eight
+  cells sit 0.1 above the ratio rounded once (11.3479 is written 11.4). The tokens reproduce the table within 0.06,
+  which `tools/tokens/test_build.py` checks; the thresholds (invariant 13's 4.5:1 and the others) are checked on the
+  unrounded ratio (D157).
+
+### 213. nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4
+
+`2026-11-20` · FACT · `#graceui` `#protocol` `#perf` · refs: GraceUI:DESIGN§8, GraceUI:D55, GraceUI feat/foundations beef3ee
+
+- **The measure** (FACT, the Grace session; GCC -O2, this build machine): nlohmann/json 3.12.0 parses a 250 KiB JSON
+  state frame in about 3.3 ms and dumps it in 0.7 ms, about 80 MB/s parsing. GraceUI §8 budgets the in-process bridge
+  at 0.5 ms each way for EldenNet's largest payload (`kinds`, 256 KiB, v0.4).
+- **Our layer** (FACT): with grace-protocol's frame-bounded bodies moved out of the parsed frame and frames written
+  straight to text, grace-protocol adds nothing measurable: the cost is the library's own.
+- **Next** (DECIDED): a risk for S4 to measure on the player's hardware (GraceUI D159, §11). If it stays over, the ways
+  out are a faster parser behind grace-protocol (yyjson, MIT, first) or `publish` checking the body's syntax and passing
+  its bytes through; the second amends D55 and touches EldenNet's T6, so the two sessions agree it first.
+
+### 214. grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as it arrives, so a client that never ends its head is refused at once; everything else waits for the whole head, then Host first
+
+`2026-11-20` · METHOD · `#graceui` `#server` `#security` · refs: GraceUI:D158, GraceUI:DESIGN§7.2, G29, GraceUI feat/foundations 630639d
+
+- (METHOD, the Grace session) grace-serve's head parser refuses a NUL, a bare CR, a bare LF or an empty first line as
+  it arrives, rather than waiting for the whole head. A client that never ends its head (bare-LF line endings) is then
+  refused at once instead of holding a connection until the 5 s head deadline. Everything else waits for the whole
+  head, then Host is checked first (421), as SRV §5.2 advises (D158).
+- (DECIDED, D158; for EldenNet's launcher as a host of the same library, G29) the session cookie and the ticket are 32
+  random bytes written as 43 characters of base64url; the loopback origin is always `http://127.0.0.1:PORT`, with
+  `localhost` and `[::1]` redirected there by 307.
+
+### 215. graceui-sys's headers are vendored into EldenNet at GraceUI f51bcc7, each checked by SHA-256, not fetched; Dear ImGui's core is fetched at GraceUI's own pin
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#licences` · refs: ARCH§2.3, GraceUI:D136, GraceUI:D156, engine 789e4cb
+
+- (DECIDED) GraceUI's headers (`graceui.h`, `graceui_sys.h`, `graceui_sys.hpp`, `graceui_imgui.hpp`, and the test
+  build's `graceui_test.h`) are copied unmodified into `third_party/graceui-sys` from GraceUI f51bcc7 with GraceUI's MIT
+  licence, each checked against its SHA-256 at configure time. Not fetched: a fetch URL would name the GitHub account in
+  the repository, which the privacy rule keeps out; the headers are small, and the same owner's and licence.
+- (DECIDED) Dear ImGui 1.93.0's core is fetched (`en_fetch`) at GraceUI's own pin, file by file by SHA-256, in the
+  Windows builds only (THIRD_PARTY.md).
+
+### 216. en-overlay's look for GraceUI ends at once when none is installed, rather than after graceui-sys's 30 s
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#dll` · refs: ARCH§1.4, ARCH§3.2, GraceUI:D51, GraceUI:D83, engine ba05179
+
+- (DECIDED) graceui-sys looks every 250 ms for at most 30 s. When nothing answers, no `GraceUI\graceui.dll` lies in
+  the game's folder and no module is named `graceui.dll`, en-overlay's `find` stops after the first look, so a start
+  without GraceUI (every harness case without it, and R1's) is not held up 30 s. Both load orders still work: before,
+  found by its name; after, loaded from the game's folder by EldenNet itself.
+- Not covered: a copy under another name loaded later from another folder, which GraceUI's packaging rules out.
+- *Later (2026-11-20):* graceui-sys holds this rule now, as `GRACEUI_SYS_STOP_IF_ABSENT` (GraceUI D164); en-overlay
+  passes the flag instead of its own check (WHY§230).
+
+### 217. The development Mark changes hands through the watch block, on Pause: the launcher lets its key go when EldenNet's GraceUI hotkey is registered
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#graceui` · refs: O90, ARCH§4.14, GraceUI:D155, engine 5e97d91
+
+- (FACT) The launcher's Pause is a system hotkey (RegisterHotKey), which takes the key from the game's window, so
+  GraceUI's hotkey on the same key could never fire beside it, and two writers to the block's ring would race.
+- (DECIDED) `Marks::reserved` became `Marks::source` (None, Launcher, Asked, EldenNet): the launcher marks Launcher
+  when its hotkey registers; EldenNet, once its GraceUI `mark` hotkey is registered, asks; the launcher unregisters,
+  takes the queued presses as its last and hands over; EldenNet then stamps every Mark (at T6's poll, at most 100 ms
+  after the press) and the launcher's record reads them back. The owner presses Pause either way; without GraceUI
+  nothing asks and R1's flow is unchanged. The block's layout and version are unchanged (a reserved field took a
+  meaning).
+- (LIKELY) GraceUI's `register_hotkey` answers ok whether the key bound or not, so if another mod held Pause first
+  nobody would take the presses; asked of the Grace session the same day.
+
+### 218. The F11 view is behind debug.panel (SP8): without it the view, its panel, atlas and hotkey are not made and F11 reaches the game
+
+`2026-11-20` · DECIDED · `#engine` `#dll` `#graceui` · refs: PAGES§4.8, DESIGN§12, ARCH§11.5, engine ba05179
+
+- (DECIDED) DESIGN §12 has the debug view off by default and SP8 puts F11 behind `debug.panel`, so the view, its
+  panel, atlas and F11 hotkey are made only with `debug.panel = true`; otherwise F11 reaches the game. Its first line
+  is SP8's ribbon; SP8's confirmation each session waits for input in the view (GraceUI D142).
+
+### 219. E12, a failed GraceUI pre-flight, is told and the game starts headless; --probe and the spikes only log it
+
+`2026-11-20` · DECIDED · `#launcher` `#graceui` · refs: ARCH§4.3, ARCH§10.3, GraceUI:D83, GraceUI:D88, engine 5e97d91
+
+- (DECIDED) Until EldenNet carries a GraceUI release to install, the launcher cannot mend a failed pre-flight, and
+  ARCH §10.3 allows a headless start. So E12 names what is missing or damaged (by its name in GraceUI's folder, never
+  a path) and the game starts; `--probe` and the spikes, headless by design (O90), log the check and show nothing, so
+  R1's flow gains no dialog. The pre-flight reads `graceui.toml`, checks every listed file's size and SHA-256 (our own
+  implementation), ABI major 1 and the version floor.
+
+### 220. Dear ImGui's core in eldennet.dll brought thread-safe statics and ReadConsoleW; /Zc:threadSafeInit- on the core removes the first, the rest are reviewed imports
+
+`2026-11-20` · FACT · `#engine` `#dll` `#ci` · refs: ARCH§12.1, WHY§195, engine 789e4cb
+
+- (FACT) Compiled into eldennet.dll as GraceUI's `gu_imgui_core` compiles it, Dear ImGui 1.93.0's core brought the
+  runtime's thread-safe statics (`AcquireSRWLockExclusive`, `ReleaseSRWLockExclusive`, `SleepConditionVariableSRW`,
+  `WakeAllConditionVariable`) and, through its `sscanf`, `ReadConsoleW`.
+- (DECIDED) With `/Zc:threadSafeInit-` on that library alone (one thread at a time uses its context) the first four
+  went; `ReadConsoleW` and graceui-sys's `GetTickCount64` were reviewed into `imports.allow`. It holds no dynamic
+  initialiser and no exit-time destructor (Clang's checks kept as errors on it).
+
+### 221. The first end-to-end run with GraceUI: the launcher, eldennet.dll and GraceUI's test build in our fake game on Direct3D 12 under Wine, F11's panel read back from the frame
+
+`2026-11-20` · FACT · `#engine` `#graceui` `#wine` `#test` · refs: WHY§113, GraceUI:D154, GraceUI:D156, engine e0d016e
+
+- (FACT) The fake game, presenting on Direct3D 12 (Wine 9.0, vkd3d on lavapipe, Xvfb), with eldennet.dll injected by
+  the launcher and GraceUI's test build in `game\GraceUI\`: EldenNet loaded GraceUI by path at Connect 0.1 s after
+  the window and connected with the view ready and the Mark's hotkey registered; the launcher handed its Pause over
+  0.3 s later. F11 into the window showed the panel, whose ground covered 97% of the probed rectangle of the frame read
+  back (224,639 of 231,800 pixels), 12 lists accepted and none refused; F11 again hid it (0 pixels); Pause stamped
+  Mark 1 as EldenNet's, which the launcher's record took.
+- (FACT) Before-order on the banner path: the banner notice in the warning tone; beside the anti-cheat module: connect
+  inactive (anti-cheat), the banner the one notice of EldenNet's, no panel, no provider.
+- (METHOD) The harness installs GraceUI as its release lays itself out (graceui.dll, fonts\, a graceui.toml it writes
+  with each file's SHA-256) and gives the fake game `--d3d12`, `--press-f11-at` (keys into the focused window, with the
+  scan code, after the focus events) and `--grace-report` (GraceUI's test exports, and a read-back of a rectangle of
+  the frame). GraceUI's own harness could not host eldennet.dll: it loads its examples by name and checks their ids.
+- (LIKELY) In the fake game's world the danger stand-in claimed danger throughout, probably from its invented lock-on
+  or boss fields; nothing checks it yet.
+
+### 222. Augur runs straight after en-core's lifecycle slice in the same step, not before it, so its lifecycle events and the loading screen are seen in the step they happen
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#core` · refs: ARCH§8, ARCH§9, DESIGN§6.6, engine wip/s10-p11
+
+- **Chosen**: in `Core::step`, the v0.1 slice (gate, phases, ladder) judges the input first, then Augur takes the same
+  input with the slice's changes as its Lifecycle facts, before anything that consumes events (no subscriber yet).
+  ARCH §8's opening ("it runs first in every `Core::step`") is to be amended (roadmap S10.1.i).
+- **Why**: ARCH §8.2's Lifecycle source produces GateChanged, LoadingStarted and the rest, which are the slice's
+  decisions; running Augur first would see them a step late, so a loading screen's snapshot would be processed as a
+  world (engagements not cleared, trackers kept) and LoadingStarted's `ALL` interrupt would lag by up to 100 ms.
+- **Rejected**: Augur first with the previous step's changes (a lag and an ordering inversion); Augur deriving the
+  lifecycle itself (a second lifecycle machine beside en-core's).
+
+### 223. What ARCH §8 left open, settled for Augur v0.1: lifecycle events as rule files, a 1 s Struck window, engagement re-armed only once apart, FNV-1a hashes and others
+
+`2026-11-20` · DECIDED · `#engine` `#augur` · refs: ARCH§8.4, ARCH§8.5, ARCH§8.7, ARCH§8.12, src/en-augur/README.md
+
+- **Chosen** (the module README's list in full): lifecycle events as rule files on a `fact` detector; the schema's
+  additions (`subjects.in_combat`, `changed_stable.to`, `engagement.on`, `fact.value`) and the signals
+  `crit_by_player`, `native_talk`, `lifecycle`; Struck's window 1 s (ARCH §8.5's example has 300 ms), so a hit across
+  a dropped snapshot still fires; an engagement re-armed after a Timeout only once the pair has been apart; squads by
+  live team; `fight_id` a per-session ordinal; Victory evidence from the fight's start; loading clears characters but
+  not the Tarnished's or the world's detectors; K merges within one rule; interrupts from the kind's table; FNV-1a 64
+  hashes and splitmix64 for `AugurCtx::rng` (BLAKE3 stays in the launcher).
+- **Why**: each is the simplest reading that keeps Augur pure and deterministic and lets every catalogue event of v0.1
+  live in a rule file.
+- **v0.1 emits** (25 rule files): PlaceEntered, BossFightStarted and Ended, NativeTalkStarted and Ended (no persona),
+  PlayerDied, MountChanged, Struck, LowHp, Healed, Engaged and Disengaged, AllyDied, CritLanded, JourneyChanged and the
+  eight lifecycle events. KilledNear, CameNear, AutonomyTick and IdleNear wait for personas and cards; FlagWatch's
+  events for v0.2; the hook sources stay reserved (§8.11).
+
+### 224. Under 50% snapshot loss Augur invents no event and fires none earlier; brief states and per-hit events are what differ
+
+`2026-11-20` · FACT · `#engine` `#augur` `#test` · refs: ARCH§8.12, ARCH§5.1
+
+- **Seen**: on the three synthetic routes with half the snapshots dropped at random (12 seeds each), no event is
+  invented and none fires earlier; every lasting state's event is there with its payload, at most two gaps and a
+  second later. What differs: Struck (the hits of a dropped snapshot arrive as one drop, so merges and `hard` change),
+  states briefer than a gap (a 0.5 s near pass, LockOnly before LockClosing, a heal within 1 s, a critical hit's two
+  snapshots, a low HP killed by the next hit), NativeTalkEnded's `held_ms`, and the gate, whose 5 s hold starts again
+  after a gap over 1 s, so it may open late or never in a lossy run.
+- **So**: the backpressure test compares by event and payload for lasting kinds and only "never invented, never
+  earlier" for the rest; §8.12's "except for documented timing differences" is read as this list.
+
+### 225. A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#spike` `#datapiler` · refs: ARCH§7.5, ARCH§12.3, WHY§192, WHY§202
+
+- **Chosen**: en_shell's `read_recorded_line` rebuilds the characters, the Tarnished's combat fields, the UI, the
+  place, the clock, the boss bars and the flag frame from the numbers the recorder already writes, so that `replay` and
+  `golden` drive Augur from a recording; the recording's format is unchanged (schema 1). What it never held stays
+  empty: text look-ups' text, param rows' values, a region key, a bearing without the camera.
+- **Seen**: a route's inputs written as the DLL writes them replay to byte-identical events (7 significant digits of
+  each float are enough for every derivation on the synthetic routes).
+- **For C12** (DESIGN: "golden events over 3 recorded routes"): the three shipped routes are synthetic; the exit check
+  waits for three recordings of the owner's game, redacted so they may be committed, each made a route with
+  `golden update <recording>`.
+
+### 226. Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish
+
+`2026-11-20` · FACT · `#engine` `#augur` `#perf` `#build` · refs: ARCH§8.10
+
+- **Seen**: `en_augur_bench` (Clang 18 Release, the build machine's 4 cores): `Augur::step` on 32 characters with the
+  shipped 25 rules, about 7 events a step: mean 25 to 27 µs, p50 23 to 25 µs, p99 51 to 71 µs over 20,000 steps (the
+  most, 0.9 to 2.1 ms, is the machine's scheduling). ARCH §8.10 allows 1 ms for the snapshot diff and world model and
+  1 ms for the rules. Loading the rule set: 0.5 ms warm, 5 ms cold. An unoptimised GCC build: 766 µs mean.
+- **Also seen** (FACT, build): during the run, `/root/.local/bin/python3.10`, the Python CMake had cached for the
+  harness, vanished: it was a link into a scratch folder that the session removed while freeing disk. Trees configured
+  before need `-DPython3_EXECUTABLE=/usr/local/bin/python3` (3.13); the harness runs on it unchanged.
+
+### 227. R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee
+
+`2026-11-20` · FACT · `#gal` `#r1` `#task` · refs: WHY§208, WHY§209, engine 4edc9cf
+
+- **The run** (FACT, spike.5, game 2.7.2.0 ww): the owner removed the other DLLs from the game's folder
+  (`other_mods=none`, 130 modules against 176 to 179 before). Six singletons named by their instances' RTTI, every
+  check passed, and at the Mark `register_task` (callee RVA 0xEB5680, task r8, instance rcx, group rdx, index 110)
+  returned ok. The task was never invoked; the exit was clean.
+- **The search** (FACT): 2 and 20 s after the call, breadth first from CSTask's instance three pointers deep, about
+  4,600 blocks and 4.1 MB read (about 120 faults, one refused): our object's address found nowhere, and nothing pointing
+  inside it.
+- **So** (LIKELY): the call kept our task nowhere the hub reaches: the callee is not the registration, an argument's
+  meaning is wrong (the group's index, the task object's form), or the task went somewhere the search does not reach.
+  Whether run 4's crash on quit was ours stays open; run 5, with no other mods and no world loaded, ended clean.
+- **Next** (DECIDED): spike.6 adds, with no new call into the game, a summary of the callee from the live image (its
+  calls, its branches before the first call, what it does with each argument register: stores, moves, compares with
+  small immediates) and a search of every readable committed region of the process for our task's address after the
+  call, our own copies counted apart.
+
+### 228. Cinzel publishes static faces only at Regular, Bold and Black, so GraceUI's 500 and 600 weights take Regular and Bold; of the faces, EB Garamond and Noto Sans Mono carry the arrows U+2190 to U+2193
+
+`2026-11-20` · FACT · `#graceui` `#fonts` · refs: GraceUI:D167, GraceUI:NOTICE
+
+- (FACT, the Grace session, from the faces' cmap tables, 2026-11-20) Cinzel (its publisher's repository) publishes static
+  TTFs only at Regular, Bold and Black, so the tokens' 500 and 600 take Regular and Bold until an instancer is in the
+  build. EB Garamond and Noto Sans Mono carry U+2190 to U+2193; Noto Sans and Cinzel do not.
+- (FACT) GraceUI's fonts/ holds eight faces (Cinzel Regular and Bold; EB Garamond Regular, Medium and SemiBold; Noto Sans
+  Regular and SemiBold; Noto Sans Mono), each pinned from its publisher, OFL, credited in NOTICE.
+
+### 229. Under Wine on lavapipe a full-screen overlay's frame-cost p99 is the software renderer's: GraceUI's menu holds its 1 ms present-thread budget at 640x360 and is measured at 1920x1080, the game's run settling it
+
+`2026-11-20` · METHOD · `#graceui` `#perf` `#wine` · refs: GraceUI:D167, GraceUI:D154, WHY§113
+
+- (METHOD, the Grace session) Under Wine on lavapipe, a full-screen 1920×1080 overlay's frame-cost p99 is the software
+  renderer's, which shares the machine's cores (median 0.15 ms, p99 1.1 to 1.9 ms). The budget is held at 640×360
+  (p99 0.36 to 0.78 ms, under 1 ms) and the full size is measured and printed; S4's run in the game settles it.
+- (FACT) GraceUI's menu page at 1920×1080: 2,752 vertices, 6,612 indices and 4 commands, laid out and tessellated in
+  0.06 to 0.3 ms on GraceUI's own thread; its atlas 1024×2048, baked in 25 to 41 ms at warm-up; no allocation on the
+  present thread.
+
+### 230. en-overlay takes GraceUI's own rules: GRACEUI_UNBOUND is a success with an id, an unbound Mark leaves the launcher's Pause in place, and graceui-sys's STOP_IF_ABSENT replaces our own early stop
+
+`2026-11-20` · DECIDED · `#engine` `#graceui` `#dll` · refs: GraceUI:D164, GraceUI:D155, GraceUI:D136, WHY§216, WHY§217, engine d953b14
+
+- (DECIDED) `register_hotkey`'s `GRACEUI_UNBOUND` (11) is a success that carries an id. F11 unbound: the view is made
+  all the same, logged at Warn, keeping the id so that a binding on GraceUI's Hotkeys page (0.6) opens it; there is
+  no other way to the view in v0.1. The Mark unbound: registered with its id, and eldennet.dll asks the launcher for
+  Pause only for a bound Mark, so the launcher's Pause stays the Mark; a harness case checks it.
+- (DECIDED) `find` calls `graceui_sys_find(GRACEUI_SYS_LOAD | GRACEUI_SYS_STOP_IF_ABSENT, …)`; en-overlay's own early
+  stop is gone, with the same behaviour.
+- Not followed in v0.1: a binding made after connect (GraceUI 0.1 has no Hotkeys page).
+
+### 231. graceui-sys at 3f1352b leaves installed at 0 for a GraceUI found by its name; en-overlay reads a find by name as installed until it is fixed
+
+`2026-11-20` · FACT · `#graceui` `#engine` · refs: GraceUI:D164, engine 10a3b0d
+
+- (FACT) `graceui_sys_find_once` returns from its by-name branch before it sets `found->installed`, which
+  `graceui_sys_find` zeroed, so a GraceUI loaded before EldenNet (the launcher's `--also`) reports `installed=0`. D164
+  defines `installed` as 1 when a module named `graceui.dll` was loaded. Nothing is decided by it there (the stop rule
+  applies only when nothing answered).
+- (DECIDED) en-overlay reports `installed` as graceui-sys's word or a find by name; the harness's `-before` and
+  `-unbound` cases check `installed=1`. Passed to the Grace session; the workaround goes when graceui-sys sets it.
+- *Later (2026-11-20):* fixed in graceui-sys at GraceUI c781a85 (D170): the by-name branch sets `installed = 1`.
+  EldenNet's workaround goes when it re-vendors graceui-sys from c781a85 or later.
+
+### 232. Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window
+
+`2026-11-20` · FACT · `#wine` `#graceui` `#ci` · refs: WHY§210, engine 533df70
+
+- (FACT) The fake game, standing in for another mod, loaded `GraceUI\graceui.dll` itself at boot, before its window,
+  with the launcher and eldennet.dll's threads running: 3 runs of 4 hung for ever inside `LoadLibraryW(L"dxgi.dll")`,
+  before any GraceUI code (graceui.dll imports dxgi, d3d12 and D3DCOMPILER_47); alone, 6 runs of 6 passed in under
+  0.1 s.
+- (LIKELY) A lock-order inversion in Wine between the loader lock (dxgi's and wined3d's attach, which bring up the
+  display driver) and the USER side, where EldenNet's T1 polls `EnumWindows` every 100 ms. After the game's first
+  window the driver is up, so later loads never hang. Unknown on Windows (SPECULATION: not expected).
+- (DECIDED) The harness loads GraceUI with the launcher's `--also` into the suspended process; EldenNet itself loads
+  GraceUI only after the window (T1's WaitWindow), so it is not affected. Passed to the Grace session: delay-loading
+  Direct3D's DLLs would spare an early-loading mod.
+- *Later (2026-11-20):* GraceUI c781a85 (D170): graceui.dll imports no Direct3D DLL. CreateDXGIFactory1,
+  D3D12CreateDevice and D3DCompile are bound on GraceUI's init thread after the game's window, from the module the game
+  loaded or else from System32 alone; its imports are checked against a reviewed list. An early load no longer pulls
+  in dxgi.
+
+### 233. The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted
+
+`2026-11-20` · METHOD · `#engine` `#launcher` `#graceui` · refs: GraceUI:D165, GraceUI:D52, ARCH§4.3, engine 4334a8d
+
+- (METHOD) `src/en-launcher/tests/graceui-manifest.toml` is what GraceUI's `tools/release/manifest.py` at 3f1352b wrote
+  for an invented folder of three files of ours, whose bytes the test holds. CMake reads it as hex into a generated
+  `.inc`, so the Windows tests under Wine read the committed bytes with no path. The test checks the folder it lists
+  and accepts `protocol`, `caps` and `released` with other values: the pre-flight reads only the version, the ABI and
+  the files (ARCH §4.3), and never fails on the rest.
+
+### 234. R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§227, WHY§209, engine fbf4c8b, 773a810
+
+- **The callee** (DECIDED): after the checks and before the call, the probe decodes register_task's callee from the live
+  image with en-gal's decoder, within its function of the exception directory (else up to its first return), at most
+  4 KiB, following no call. `r1-probe.json`'s `callee_code` gives its calls (direct with target RVA, through a register
+  or memory, RIP-relative), the conditional branches before the first call, whether a path returns through no call,
+  and per argument register (rcx, rdx, r8, r9): its stores before the first call (base, displacement, width), the
+  callee-saved registers it moved to, and its compares with an immediate up to 65,536. Arguments are followed through
+  register moves and one load of [argument + 0]; an instruction outside the modelled forms ends the tracking, and
+  `modelled_to` says where (METHOD: nothing guessed).
+- **The search** (DECIDED): 2 and 20 s after the call, every committed readable region but no-access, guard,
+  uncached or write-combined ones, never a known stack, read through the crash-guarded copy in 16 KiB chunks, within
+  8 GiB and 30 s. `memory_search` counts the words equal to our address and pointing inside our object, with up to 16
+  hits' region kind, protection, an image's module and section kind, RVA, and the group's index nearby.
+- **Ours apart** (DECIDED, METHOD): in the probe build the DLL allocates from a heap of its own, walked before each
+  search; a region is ours when its allocation base is our module's, our task block's or one of that heap's.
+- **Also**: while the task has not run, T1 itself reads how much of our object the hub wrote.
+- **On the fake game** (FACT): the summary shows the fake hub keeping the task at [instance + 0x30] and comparing the
+  group with 512; each search read about 90 MB in about 30 ms and found the game's 4 copies, our own 15 counted apart.
+- **For the owner's run** (LIKELY): at that rate 8 GiB is a few seconds, so both searches end long before the console's
+  "No confirmation" at 30 s.
+
+### 235. R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task
+
+`2026-11-20` · FACT · `#gal` `#r1` `#task` · refs: WHY§227, WHY§234, engine fbf4c8b
+
+- **The callee** (FACT, spike.6, game 2.7.2.0 ww, no other mods): RVA 0xEB5680 is 93 bytes, 22 instructions, fully
+  modelled: one conditional branch before its first call (offset 25, to 73, past both calls), two direct calls (offsets
+  34 and 61, to RVAs 0x1EC4A40 and 0x1EBCE00), no path returning through no call. Of its arguments, rcx is neither
+  stored nor saved; rdx (the group, by R1's reading) is saved in rdi and r8 (the task) in rbx; none is stored or
+  compared before the first call. So it is a wrapper: the work, and any test that drops our task, lie in what it calls,
+  or after its branch (a jump at its end is not counted as a call).
+- **The search** (FACT): at 2 and 21 s after the call, 8 GiB of 3,166 readable regions read in 0.7 to 1.0 s, no fault,
+  stopped by the 8 GiB cap with about 2 GiB unread: no copy of our task's address but EldenNet's own two (its module's
+  data and its probe heap), nothing pointing inside our object. The hub never wrote our object (object_written 0).
+- **So** (LIKELY): the game kept no pointer to our task object, at least in the 8 GiB read. Either it stored something
+  else (our vtable, or a wrapper it built from our object's fields), or the wrapper's branch or an inner call refused
+  it.
+- **Next** (DECIDED): spike.7 reads all memory (a cap far past the process's size), also searches for our vtable's
+  and slots' addresses, diffs the hub's reachable memory before and after the call, and summarises the two inner
+  callees with the arguments followed into them.
+
+### 236. R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§235, WHY§234, WHY§227, engine bddcaa7
+
+- **The flow** (DECIDED, METHOD): `summarise_callee` now tracks what each register holds along the control flow, to a
+  fixed point: where paths meet a register keeps only what they agree on, unreached code holds nothing, and an
+  unmodelled instruction clears its path. Spike.6 read in address order, which could carry one path's register into
+  another's. Byte registers 4 to 7 without REX are read as ah to bh.
+- **The mapping and the guard** (DECIDED): each call and tail jump gives which of the function's arguments (or the
+  first word of one, its vtable) are in rcx, rdx, r8 and r9 there (`pass`). Each conditional branch before the first
+  call (up to 8) gives its condition, its target and the instruction that set its flags (cmp, test, other or none),
+  with its operands as kinds: a register and the argument it holds, a memory operand (base, the argument in it,
+  displacement), a RIP-relative slot's RVA, an immediate up to 65,536 (`callee_code.guard`).
+- **The inner callees** (DECIDED): each direct call's and tail jump's target (up to 8, one level) is summarised with the
+  call site's mapping as its entry state, so its stores, saves, compares and calls read in the wrapper's arguments
+  (`callee_code.inner`).
+- **The search** (DECIDED): caps 64 GiB and 30 s, the time the bound; regions past a cap are still walked unread, so
+  `committed_bytes` is the process's total. Besides our object it counts words equal to our fake vtable's address and
+  to any of its slot thunks', the game's and ours apart, with how many distinct slots each side names.
+- **The diff** (DECIDED): just before the call T1 makes spike.5's walk of the hub (same bounds) and keeps the blocks'
+  bytes on its own heap; at 2 and 20 s it walks again and compares block by block, by path (else by address, else new).
+  `hub_diff` gives the changed 8-byte words (up to 32, with path, depth, and each value's kind: zero, small, group,
+  task, vtable, ours, game with section and RVA, heap, other; `fresh` for a pointer to a block not reached before), the
+  blocks moved, gone and new. My choice beyond the brief: the 20 s diff marks a word `steady` when it held the same new
+  value at 2 s and lists those first, so that per-frame counters do not crowd out what a registration leaves.
+- **The fake game** (FACT, clang-cl Release, Wine 9.0): its registration is now a wrapper of run 6's shape (a byte
+  test of a flag on the hub, then one call that keeps the task, else a tail jump). R1 read the guard as a byte test of
+  [instance + 0x14] against 1, mapped the task from r8 through rbx to the store at [instance + 0x30] one level deeper,
+  found the game's one copy each of our vtable and one run slot, and diffed 7 changed words (the task and vtable
+  pointers fresh, the group's counts), 6 of them steady at 20 s and the frame counter not. Each search read about
+  90 MB in about 50 ms.
+
+### 237. grace-input's record of the last close lost the holder, so a close by the menu key or the player's exit skipped the host's close bookkeeping
+
+`2026-11-20` · FACT · `#graceui` `#input` · refs: GraceUI:D171, GraceUI's invariants 7 and 17
+
+- (FACT) grace-input packed a close's reason into the byte that held the holder's phase, so `last_close().holder`
+  always read as not holding. The window procedure's menu-key path hands that holder to the host's close bookkeeping,
+  which therefore skipped it: no "no longer holds input" line and no cursor restore after a close by the menu key or
+  the player's exit. Found when the menu's close had to stop a mod's watch (D171); `last_close()` now gives the holder
+  as it held, with tests.
+
+### 238. GraceUI, not the space, enforces a destructive command's confirmation
+
+`2026-11-20` · DECIDED · `#graceui` `#protocol` · refs: GraceUI:D173, GraceUI:DESIGN§7.3
+
+- (DECIDED) The destructive actions are read from the space's own page data, and a command for one without
+  `"confirm": true` is refused (`confirm_required`) by the server for browsers and by the registry for the menu. A mod
+  cannot forget the confirmation, and EldenNet may rely on it.
+
+### 239. A stream is cleared by an empty batch past a gap, with no message kind of its own
+
+`2026-11-20` · METHOD · `#graceui` `#protocol` · refs: GraceUI:D161, GraceUI:D172
+
+- (METHOD) The sequence numbering already says "start over" at a gap, so an empty `rows` batch past a gap clears the
+  stream in every view, and a view that held rows never shows one twice (protocol 1.1).
+
+### 240. R1 run 7: the wrapper hands the group and the task to a tail-called function that bounds the group by 168 and refuses through a null test; all readable memory held no copy of our task, its vtable or a slot
+
+`2026-11-20` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§235, WHY§236, engine bddcaa7
+
+- **The wrapper** (FACT, spike.7, game 2.7.2.0 ww, no other mods): its one branch (offset 25, to 73, past both calls)
+  is a `jne` on a 64-bit `test rcx, rcx` at offset 22, where rcx holds none of its arguments (loaded in its first 22
+  bytes). Its first call is passed rdx, r8 and r9 unchanged, its second none of them. At offset 88 it tail-jumps to RVA 0xEB5D20 with rdx (the group) and r8 (the task) restored from rdi and rbx;
+  our rcx (CSTask's instance, by R1's reading) is never used.
+- **The tail function** (FACT): 32 bytes, 10 instructions, no call: `cmp edx, 168` and `ja` to offset 29, then a
+  64-bit test of rcx (again none of our arguments) and `je` to 29, and a return at 31 that both branches reach. The
+  path that does not branch leaves by an instruction spike.7 does not count (a jump through memory or a register).
+  The two inner calls are short: 33 bytes with one call, and 29 bytes with one call.
+- **The search and the diff** (FACT): at 2 and 22 s, 8.6 of 10.7 GB committed, read in about 1 to 1.5 s, stopped
+  `done` (the 2 GB unread are what the rules skip: no-access, guard and device memory, and stacks). Not one copy of our object's,
+  our vtable's or a slot's address but EldenNet's own. The hub diff (4,405 blocks, 4 MB kept) changed 64 and then 132
+  words, none of them our task, vtable, module or the group's index; 12 steady at 20 s, all heap pointers replacing
+  pointers into the game's data, three entries 32 bytes apart.
+- **The call** (FACT): NativeSys calls register_task as a function returning nothing, so "ok" only means it returned
+  without a fault; the return value was never kept.
+- **So** (LIKELY): the wrapper is a static helper that uses a singleton of its own (lazily made, rcx loaded from a
+  global), and the tail function looks up an entry by group in it (bounded by 168) and returns, likely 0, when the
+  entry is null; otherwise it jumps on through the entry. Nothing kept our task, so the entry for group 110 was most
+  likely null, or the function is not FD4's register_task at all.
+- **Next** (DECIDED): spike.8 keeps the call's return value, lists the wrapper's and the tail function's instructions
+  as forms (no bytes), models a jump through memory or a register as a tail call, reads the singleton's global and the
+  entries before and after the call (which groups are non-null, and group 110's), compares the singleton with CSTask's
+  instance, and makes a control diff of the hub over the same interval before the call.
+
+### 241. A mod's panel that takes input gets no characters through ABI 1
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D77, GraceUI:D175
+
+- (FACT) GraceUI feeds the input holder's keys and characters to its own Dear ImGui context. ABI 1's events for a mod
+  are hotkeys and the protocol's only. A mod that needs typed text (EldenNet's chat box, S11.4.c) needs an input event
+  that ABI 1 has still to gain. Found when the S4 spike's typing panel had to count characters from the test build's
+  counter instead.
+
+### 242. A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook
+
+`2026-11-20` · METHOD · `#graceui` `#overlay` · refs: GraceUI:D86, GraceUI:D175
+
+- (METHOD) Loaded before GraceUI, an overlay that swaps the swap chain's Present slot makes GraceUI's read of its
+  target return the overlay's own Present: GraceUI hooks that function, and both run. Loaded after, the overlay's slot
+  calls dxgi's Present, which GraceUI's hook already covers. Shown with grace-standin.dll in the harness, both orders.
+
+### 243. Under Wine 9 the process's handle count and private bytes read 0
+
+`2026-11-20` · FACT · `#graceui` `#wine` · refs: GraceUI:D175, WHY§210
+
+- (FACT) GetProcessHandleCount and GetProcessMemoryInfo's PrivateUsage answer 0 under Wine 9, so a leak check on them
+  means nothing in the harness. GraceUI's spike reader shows them and does not judge them; on Windows they are real.

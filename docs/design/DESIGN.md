@@ -2533,7 +2533,7 @@ since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09
 plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
-C++), and O89–O91 (the plan for the first in-game build) the same day. None is Open.**
+C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17. None is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2635,3 +2635,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O89](../DECISIONS.md#o89) | How are the game-access layer's facts derived for the owner's build (S0-A)? | (a) two reviewed rounds on the owner's PC: offline as a DataPiler job through EldenNet's devkit tool, then one probe session from the launcher; DataPiler compares the numbers with Smithbox's reading of the files | Decided 2026-11-16 |
 | [O90](../DECISIONS.md#o90) | Must S1, S2, S6 and S7 wait for GraceUI's host? | (c) no: S1 and S2 without GraceUI, S6 and S7 with a development Mark in the launcher until GraceUI's | Decided 2026-11-16 |
 | [O91](../DECISIONS.md#o91) | When do S0's third-party rows run? | (b) as the owner can; a row not run moves to v0.1's compatibility rows, which still block v0.1 | Decided 2026-11-16 |
+| [O92](../DECISIONS.md#o92) | How does R1 name the FD4 singletons, whose names are not in the image? | (a) by their instances' RTTI, one guarded read each | Decided 2026-11-17 |

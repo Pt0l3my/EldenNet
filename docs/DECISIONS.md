@@ -1631,3 +1631,27 @@ compatibility rows (roadmap S10.3.b), which still block v0.1, Seamless Co-op wit
 **Owner's words.** "As you can (Recommended)".
 
 **Follows from.** DESIGN §16.1 (S0-A, S0-C, S0-D) and §16.3; roadmap S10.3.b; O47.
+
+## O92
+
+**How R1 names the FD4 singletons** · *2026-11-17 · Decided by the owner, as recommended*
+
+**Question.** R1's second run (WHY§207) showed that the game's 217 FD4 class objects hold no names in its image: their
+words point outside it, to the heap, so the name layout ARCH §6.2 expects cannot be read from the image alone, and R1
+cannot name the singletons it needs (CSTask's instance first). Which route should the probe take?
+**Options:** (a) the instances' RTTI: for each singleton already created, one guarded 8-byte read of its instance's
+first word (its vtable), named by the class the image's RTTI gives, which EldenNet already walks; a lead names the
+static whose class is its name or its name with Imp; (b) follow the class objects' heap pointers one level to the names
+the game stores there, an internal layout not yet known; (c) call each singleton's getter at the title screen, game
+code beyond the one registration call (ARCH's fallback).
+
+**Recommendation.** (a): one guarded read per singleton, on a structure the compiler fixes (MSVC's RTTI), with no game
+code called. *What it gives up:* a singleton not yet created at the title screen stays unnamed until it is.
+
+**Decision.** (a), from package 0.1.0-spike.4: in game, singletons the class objects leave unnamed are named by their
+instances' RTTI; the read is the crash-guarded copy under ARCH §6.5's plausibility rules, made on T1 before any call
+(a vtable pointer does not change while its object lives); nothing but counts and the leads' slots is written.
+
+**Owner's words.** "RTTI of instances (Recommended)".
+
+**Follows from.** O89; ARCH §6.2, §6.5; WHY§206, WHY§207.

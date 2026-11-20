@@ -905,6 +905,11 @@ on before its review:
   relocation), so `dlrf_name_layout` can only be read in game: the singletons are named by R1, and in a release by the
   class objects once the game has filled them, discovery's retries at +5, +15 and +30 s doubling as the wait for the
   names (WHY§183, §191).
+  *2026-11-17 (R1 runs 1 and 2, O92):* in game the class objects hold no name in the image either: their words point to
+  the heap (WHY§206, §207). The singletons are named instead by their instances' RTTI: the static's instance, its first
+  word read once through the crash-guarded copy under §6.5's plausibility rules (on T1, before any call), and that
+  vtable's class from the RTTI walk; a lead matches its name or its name with Imp, once only. A singleton not yet
+  created stays unnamed until a retry finds it.
 - **A group table by stride.** The task group's name sits in a table of entries wider than a pointer; tables are found
   at strides of 8 to 64 bytes, cut where code addresses an entry's start, and a lone pointer gives no index (WHY§184).
   Where the table and its entries hold no index field, the index is the entry's place.

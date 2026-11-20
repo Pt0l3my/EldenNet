@@ -250,7 +250,7 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
   - gives: superseded by G15 on 2026-11-08: GraceUI owns the overlay and EldenNet draws through it; folded into both
     designs on 2026-11-15 (S7.8.c).
 
-## S6 Waiting on the owner [active]
+## S6 Waiting on the owner [done]
 
 - needs: S4
 - refs: DESIGN§7.8
@@ -716,7 +716,7 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - refs: O86, O36, G5
   - gives: folded 2026-11-16: grounding alone (DESIGN §10.4, MEM §7); test questions per character (NPC §12.1, MEM §7.8); GraceUI's SP2 re-cut as "shown, grounded or impersonal".
 
-## S8 Our own engine, on SkyrimNet's logic (O84) [active]
+## S8 Our own engine, on SkyrimNet's logic (O84) [done]
 
 - needs: S6.1
 
@@ -843,7 +843,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: O73
   - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Parts 1 to 10 of the spike
     build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
-    to §204); part 10's S0 package and the launcher's smoke run wait for R1's review.
+    to §204); part 10's S0 package and the launcher's smoke run wait for R1's review. Parts 11 (Augur v0.1 with golden
+    files) and 12 (en-overlay on GraceUI's ABI 1 preview) started on 2026-11-20, after the layering fix (WHY§211).
+    Part 12 built the same day on GraceUI f51bcc7 (engine 9a42539): en-overlay connects to GraceUI on T1 in both load
+    orders, with the banner and pause badge as notices, the world-state provider (danger and a game menu as v0.1
+    stand-ins), the F11 view on Dear ImGui's core behind `debug.panel`, the Mark on GraceUI's hotkey with the launcher's
+    Pause as the fallback, and the launcher's GraceUI pre-flight (E12); tested against a fake GraceUI table and end to
+    end under Wine with GraceUI's test build on Direct3D 12 (WHY§215 to §221). Part 11 built the same day (engine
+    47fd54a): en-augur v0.1, pure and game-neutral, run in every core step with 25 shipped rule files; the `.scn`
+    scenario language, `eldennet-engine golden` and three synthetic routes with golden files; `replay` driving Augur
+    from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226). Part 12 moved to
+    GraceUI 3f1352b the same day: an unbound hotkey answered as such, the helper's stop-if-absent, GraceUI's own
+    folder and graceui.toml (WHY§230 to §233).
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -859,10 +870,28 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
-    docs/ops/probes/), and R1's package was sent.
+    docs/ops/probes/), and R1's package was sent. R1 run 1 (2026-11-17, spike.2 after spike.1's launcher failed on
+    Windows): the idiom and the task group confirmed, the class names not read (9 of 217), so no call; spike.3 sent
+    (WHY§206). Run 2 showed the names are not in the image at all; the owner chose the instances' RTTI (O92), and
+    spike.4 was sent (WHY§207). Run 3: CSTask named, every check passed and the call returned ok, but the task never
+    ticked at the title screen; run 4 loads a save after the call (WHY§208). Run 4: no tick in the world either, and a
+    crash on quit outside our module; spike.5 searches where the task was stored (WHY§209). Run 5 (no other mods):
+    the call returned ok, and our task was nowhere in the hub's reachable memory; spike.6 searches all memory and
+    summarises the callee (WHY§227). Spike.6 sent on 2026-11-20 (engine fbf4c8b; WHY§234). Run 6: the callee is a
+    wrapper handing the group and the task to two inner calls, and 8 of 10.6 GiB held no copy of our task; spike.7
+    follows them (WHY§235). Spike.7 sent on 2026-11-20 (engine bddcaa7; WHY§236). Run 7: the wrapper tail-jumps with
+    the group and the task to a function that bounds the group by 168 and refuses on a null entry; all readable memory
+    held no copy of our task; spike.8 reads that table and the call's return value (WHY§240).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
-  - refs: O90, G15
+  - refs: O90, G15, GraceUI:D175
+  - gives: planned with the Grace session on 2026-11-20 and run beside R1, independent of our task. GraceUI's side
+    built the same day (GraceUI feat/spikes 4dade85, D175): grace-spike.dll, an observer that connects as a mod and
+    writes a report of numbers into the folder the launcher names; read-only counters in graceui.dll's test build;
+    grace-standin.dll, our own stand-in for another overlay, patching Present before or after GraceUI; and a reader
+    with the pass rules. The owner's runs A1 to A4 (both load orders, injected early and late) and A0 (GraceUI alone).
+    EldenNet's side: the launcher's spike words s0e, s0e_alone and s4, the spike folder in the game's environment,
+    and eldennet.dll making no call into the game in these runs (WHY§241 to §243).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -870,6 +899,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §3.2 with the crash filter, §4.1 and §4.14 (the launcher's options, the watch block, the Mark),
     §5 (not solo means dormant); DESIGN §3.1, §14 and §16.1; dated notes on O89 and O90.
 
+- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8)
+  - needs: a
+  - refs: ARCH§1.4, ARCH§8, DESIGN§14
+  - gives: listed by part 12's notes on 2026-11-20; Augur's folds joined when part 11 landed the same day: §8's
+    opening (Augur after the lifecycle slice in the same step, WHY§222), §8.4, §8.5 (the rule schema's additions and
+    Struck's 1 s window) and §8.7 as settled (WHY§223), §8.12's lossy-run differences (WHY§224) and §7.5's recording
+    reader (WHY§225). ARCH §1.4's "As built" bullet (the first build headless) is superseded by part 12.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -878,8 +914,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§4, ARCH§6, O3, O27
 - c The game-thread task, the world snapshot, and Augur, the event engine, with golden files
   - refs: DESIGN§5, DESIGN§6, ARCH§8
+  - gives: Augur v0.1 built on 2026-11-20 (S10.1.a's part 11, WHY§222 to §226), with three synthetic routes' goldens;
+    the task and snapshot in parts 4 and 6. What C12 (S10.3.a) still needs: three recorded routes of the owner's game,
+    redacted so they may be committed, each made a route with `golden update <recording>`.
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
+  - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
+    replay built in parts 6 and 9.
 
 ### S10.3 v0.1's exit checks
 
@@ -915,13 +956,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     atlas, notices in the Grace look, input for a panel through the holder, and world-state providers; a second
     example mod draws through them in the harness (WHY§140 to §147). The fonts' folder ships from 0.6, as §10 has
     it; until then notices fall back to Dear ImGui's own font.
-- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in the harness [active]
+- d EldenNet's banner as a notice and its F11 view on a headless Dear ImGui, submitted as a panel; our example consumer in the harness [done]
   - needs: c
   - gives: from 2026-11-17 GraceUI's side is the Grace session's (handover-2026-11-17): a helper that turns Dear
     ImGui's draw data into GraceUI's draw lists, an example of the banner and the F11 view, and two consumers at once,
     each way round. F11 comes through GraceUI's hotkeys, brought forward from 0.2 into 0.1. EldenNet's side is the
     spike plan's part 12, built after them. "In CI" became the harness run in the session: neither repository has
-    workflows, by the owner's choice.
+    workflows, by the owner's choice. Done on 2026-11-20 (GraceUI feat/host f51bcc7, D155, D156): hotkeys and a first
+    `poll`, the header-only helper `graceui_imgui.hpp`, the example `hello-debug-view` beside `hello-notice`, each
+    loaded before and after GraceUI, 106 harness checks passing on both toolchains; what EldenNet must do is GraceUI's
+    `docs/eldennet-changes.md` §17 and §18. EldenNet's part 12 started the same day. From part 12's run, GraceUI's D164
+    and D165 (feat/foundations 3f1352b, 2026-11-20): GRACEUI_UNBOUND for a hotkey that did not bind, graceui-sys's
+    installed flag and STOP_IF_ABSENT, and GraceUI's build writing graceui.toml; EldenNet moves its pin there
+    (eldennet-changes §20).
 
 ## S11 v0.2 First words [planned]
 
@@ -932,6 +979,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - refs: DESIGN§16.1
 - S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
+  - refs: GraceUI:D175
+  - gives: GraceUI's side built on 2026-11-20 with S10.1.g's (run B: 60 s of typing in the observer's panel, a held
+    key across the menu's open, a pad's close). Until R1 gets our task running, the movement row is the owner's word
+    and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
+    measures it once the task runs.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
 - c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
   - refs: NPC§12.2, ARCH§12.3
@@ -939,16 +991,101 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.2 GraceUI 0.2 Foundations (0.1 before G15)
 
-- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures
+- S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures [done]
   - refs: G3, GraceUI:DESIGN§9.2
-- b For spike S4: one settings page drawn in game by GraceUI's host
-  - needs: a, S10.4
-  - refs: G15, GraceUI:DESIGN§2.9
-- c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip
-  - needs: b
+  - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
+- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [done]
+  - needs: i, l, S10.4
+  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:D169, GraceUI:D171, GraceUI:D174, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
+  - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
+    input holder with its close routine; harness screenshots, the frame cost and the atlas size, for S4 and the
+    owner's look review. The page is GraceUI > Menu (ui.scale, ui.menu.theme: GraceUI's own settings, GraceUI:D115), agreed by
+    the two sessions on 2026-11-20 in place of Behaviour > Pacing, an EldenNet page since G20; S4 checks input, which
+    either page serves.
+    S4's page in game done on 2026-11-20 (GraceUI feat/foundations ade807c, D167): F5 opens GraceUI > Menu as the
+    holder of kind menu, laid out and tessellated on GraceUI's own thread, the present thread lending the newest list
+    and allocating nothing; under Wine on lavapipe the atlas is 1024×2048 (baked in 25 to 41 ms), the page 2,752
+    vertices and 4 commands, the present thread's own work a median of 0.15 ms at 1920×1080 and under 1 ms at p99 at
+    640×360 (WHY§229); screenshots went to the owner for the look review (d). Next: the ABI's protocol slots
+    (register_pages, publish, answer, poll's protocol kinds), mapped onto grace-serve's SpacePort.
+    The protocol slots and the server in graceui.dll done the same day (GraceUI 959d4ec, D169): register_pages, publish,
+    answer and poll's watched, unwatched and command events, callable from any thread of a mod's, a command unanswered
+    in 10 s answered internal; the server started on GraceUI's thread while a space asks for the browser view, never in
+    notice-only mode. EldenNet's steps for T6 are GraceUI's docs/eldennet-changes.md §23, its status lamp §24. Next: the
+    menu showing a mod's space. GraceUI's D170 the same day (c781a85), from EldenNet's part 12 second run: no Direct3D DLL
+    imported, the imports reviewed, and graceui-sys's installed set on the by-name path (WHY§231, §232).
+    The menu showing every mod's space done the same day (GraceUI feat/foundations 430e8d4 to 0fc1033, D171): F5's
+    menu shows every space registered for the game's view, mods' first and GraceUI's own last, with GraceUI's
+    categories at a mod's rail's foot and a switcher from two mods' spaces; it watches the open space's settings topic
+    as a view does, and its commands reach the mod with a reply handle and the 10 s deadline, a refusal's words shown
+    under the row. Harness scenarios menu, pages and menu-space. With it GraceUI 0.2.0 is complete (D174) but for d,
+    the owner's look review (WHY§237 to §239).
+- c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
+  - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
   - refs: G1
+- e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
+  - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
+    contrast, type-minimum and no-loop checks, web/src/tokens.css and the grace-tokens header; 0.1's notices draw from
+    the header, and the 106 harness checks still pass (WHY§212).
+- f The bridge protocol: one schema, generated C++ and TypeScript types with a drift check, grace-protocol's round trips, golden frames and a frame fuzzer [done]
+  - refs: GraceUI:DESIGN§6, GraceUI:D108, GraceUI:D55, GraceUI:D159
+  - gives: built on 2026-11-20 (GraceUI feat/foundations beef3ee): one schema,
+    src/grace-protocol/protocol.toml, with the framework's envelope, kinds, errors, limits, settings description and
+    commands; a generator for checked C++ types and web/src/protocol.ts; grace-protocol on nlohmann/json 3.12.0; golden
+    frames, round trips and a clean fuzzer. EldenNet's own topics and commands join the schema as its pages are built
+    (S11.4). A risk for S4 to measure: the bridge's budget for EldenNet's largest payload (WHY§213).
+- g The server's pure core: the HTTP/1.1 head parser and writer, the WebSocket handshake and frame codec, and the Host, Origin, Fetch Metadata and cookie checks, fuzzed [done]
+  - refs: GraceUI:DESIGN§7.2, GraceUI:DESIGN§7.6, G30, GraceUI:D158
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 630639d): grace_serve_core, pure: an incremental head
+    parser, the response writer with §7.2 item 10's headers on every response, the Host, Origin, Fetch Metadata and
+    cookie checks, the WebSocket handshake with our own SHA-1 and Base64, and a strict RFC 6455 frame codec; 48 unit
+    cases under the sanitizers, a chunking differential, the RFC vectors and two clean fuzzers. For EldenNet's launcher
+    as a later host (G29): the cookie and ticket are 32 random bytes in base64url, and the loopback origin is always
+    http://127.0.0.1:PORT, localhost and [::1] redirected there (WHY§214).
+- h Page descriptions: their format, grace-pages, GraceUI's own space and the demo space with fixtures, the settings descriptions and the page lint [done]
+  - needs: f
+  - refs: GraceUI:DESIGN§2.5, GraceUI:DESIGN§6.9, GraceUI:D79, GraceUI:D115, GraceUI:D160
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 23430fa): page data as protocol types; a space as one TOML
+    file (GraceUI's own six pages and eight settings, and an invented demo space using every setting type);
+    tools/pages/build.py, which checks a space against the schema and by the page lint and writes the fixtures. EldenNet
+    writes its space in the same form and lints it from a pinned GraceUI (GraceUI's docs/eldennet-changes.md §19, for
+    S11.4.a).
+- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6) [done]
+  - needs: f, g
+  - refs: G4, G17, G29, GraceUI:DESIGN§7.2
+  - gives: built on 2026-11-20 (GraceUI feat/foundations ce4d0d4, 5631bf0): sockets on two threads, the listed web
+    files, the cookie and ticket, and per-space routing (Server::add_space, SpacePort); the security suite, 35 cases
+    over real loopback sockets with two spaces, passing under the sanitizers and under Wine; graceui.toml a shared
+    golden the server's reader parses. How EldenNet's launcher links it (G29): GraceUI's docs/eldennet-changes.md §22.
+    Since D172 (protocol 1.1) an empty batch past a gap clears a stream in every view, and since D173 a destructive
+    command without its confirmation is refused (WHY§238, §239).
+- j The fake host for any space, grace-dev, on fixtures and scripted time [done]
+  - needs: h, i
+  - refs: GraceUI:DESIGN§9.2
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 0ca834c, D168): grace-dev serves spaces on the real
+    grace-serve (the built-in ones and an author's folder, each checked as register_pages checks), with a settings
+    store, fixture topics, every command answered once, and scripted time; `--dump` prints a page's in-game structure
+    without Windows. EldenNet previews its own pages with it (GraceUI's docs/eldennet-changes.md §26). GraceUI's own
+    pages have invented sample states for it (fixtures/graceui/topics.json).
+- k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build [done]
+  - needs: e, f, h
+  - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 356572e, D166): the browser view, which a real Chromium under
+    Wine loaded from graceui.dll's own server and drew the demo space with, no request outside its origin. Since
+    D172 and D173: a refusal's words (result.detail), cleared streams, confirmations for destructive commands, and
+    pages joining in their increment (GraceUI 0.2 shows Menu, Browser view and About).
+- l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell [done]
+  - needs: e, h
+  - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3, GraceUI:D162
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 7c69f93): grace-view lays out the frame and one page with
+    the tokens into a display list, with keyboard and pad navigation and settings search, each change a ready
+    settings.set or settings.reset; grace-draw tessellates it into ABI 1's draw lists, so the menu passes the same
+    checker as a mod's panel (the Menu page at 1920×1080: 2,720 vertices, 4 commands, no allocation on a second
+    frame); 20 tests with golden structure dumps. Editing text, secret and key settings in game, and drawing
+    components, wait for v0.6 (GraceUI D57); S4's page needs neither.
 
 ### S11.3 EldenNet v0.2
 
@@ -966,11 +1103,25 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S11.4 GraceUI 0.2
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
-  - refs: G2, PAGES§4.6
-- b The browser dashboard, always on, on loopback only, with the server's security suite
+  - needs: S11.2.h
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163
+  - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
+    allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
+    `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
+    0.2.0 (2026-11-20) the same space shows in F5's menu too (D171), and EldenNet follows protocol 1.1 (D172) and
+    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29.
+- b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
+  - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
-- c The server in GraceUI with two spaces and per-space routing; EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
-  - refs: G17, GraceUI:DESIGN§10
+  - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
+- c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
+  - refs: G17, GraceUI:DESIGN§10, GraceUI:D176
+  - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20. The chat box needs typed
+    characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
+    2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
+    and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
+    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
+    for a D-entry of GraceUI's, for S4's second round after R1.
 
 ### S11.5 v0.2's exit checks
 
