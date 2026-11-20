@@ -244,6 +244,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 219 | 2026-11-20 | E12, a failed GraceUI pre-flight, is told and the game starts headless; --probe and the spikes only log it | DECIDED | #launcher #graceui |
 | 220 | 2026-11-20 | Dear ImGui's core in eldennet.dll brought thread-safe statics and ReadConsoleW; /Zc:threadSafeInit- on the core removes the first, the rest are reviewed imports | FACT | #engine #dll #ci |
 | 221 | 2026-11-20 | The first end-to-end run with GraceUI: the launcher, eldennet.dll and GraceUI's test build in our fake game on Direct3D 12 under Wine, F11's panel read back from the frame | FACT | #engine #graceui #wine #test |
+| 222 | 2026-11-20 | Augur runs straight after en-core's lifecycle slice in the same step, not before it, so its lifecycle events and the loading screen are seen in the step they happen | DECIDED | #engine #augur #core |
+| 223 | 2026-11-20 | What ARCH §8 left open, settled for Augur v0.1: lifecycle events as rule files, a 1 s Struck window, engagement re-armed only once apart, FNV-1a hashes and others | DECIDED | #engine #augur |
+| 224 | 2026-11-20 | Under 50% snapshot loss Augur invents no event and fires none earlier; brief states and per-hit events are what differ | FACT | #engine #augur #test |
+| 225 | 2026-11-20 | A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged | DECIDED | #engine #augur #spike #datapiler |
+| 226 | 2026-11-20 | Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish | FACT | #engine #augur #perf #build |
 
 ## Entries
 
@@ -3936,3 +3941,73 @@ invariant 10, EldenNet ARCH (T3)
   the frame). GraceUI's own harness could not host eldennet.dll: it loads its examples by name and checks their ids.
 - (LIKELY) In the fake game's world the danger stand-in claimed danger throughout, probably from its invented lock-on
   or boss fields; nothing checks it yet.
+
+### 222. Augur runs straight after en-core's lifecycle slice in the same step, not before it, so its lifecycle events and the loading screen are seen in the step they happen
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#core` · refs: ARCH§8, ARCH§9, DESIGN§6.6, engine wip/s10-p11
+
+- **Chosen**: in `Core::step`, the v0.1 slice (gate, phases, ladder) judges the input first, then Augur takes the same
+  input with the slice's changes as its Lifecycle facts, before anything that consumes events (no subscriber yet).
+  ARCH §8's opening ("it runs first in every `Core::step`") is to be amended (roadmap S10.1.i).
+- **Why**: ARCH §8.2's Lifecycle source produces GateChanged, LoadingStarted and the rest, which are the slice's
+  decisions; running Augur first would see them a step late, so a loading screen's snapshot would be processed as a
+  world (engagements not cleared, trackers kept) and LoadingStarted's `ALL` interrupt would lag by up to 100 ms.
+- **Rejected**: Augur first with the previous step's changes (a lag and an ordering inversion); Augur deriving the
+  lifecycle itself (a second lifecycle machine beside en-core's).
+
+### 223. What ARCH §8 left open, settled for Augur v0.1: lifecycle events as rule files, a 1 s Struck window, engagement re-armed only once apart, FNV-1a hashes and others
+
+`2026-11-20` · DECIDED · `#engine` `#augur` · refs: ARCH§8.4, ARCH§8.5, ARCH§8.7, ARCH§8.12, src/en-augur/README.md
+
+- **Chosen** (the module README's list in full): lifecycle events as rule files on a `fact` detector; the schema's
+  additions (`subjects.in_combat`, `changed_stable.to`, `engagement.on`, `fact.value`) and the signals
+  `crit_by_player`, `native_talk`, `lifecycle`; Struck's window 1 s (ARCH §8.5's example has 300 ms), so a hit across
+  a dropped snapshot still fires; an engagement re-armed after a Timeout only once the pair has been apart; squads by
+  live team; `fight_id` a per-session ordinal; Victory evidence from the fight's start; loading clears characters but
+  not the Tarnished's or the world's detectors; K merges within one rule; interrupts from the kind's table; FNV-1a 64
+  hashes and splitmix64 for `AugurCtx::rng` (BLAKE3 stays in the launcher).
+- **Why**: each is the simplest reading that keeps Augur pure and deterministic and lets every catalogue event of v0.1
+  live in a rule file.
+- **v0.1 emits** (25 rule files): PlaceEntered, BossFightStarted and Ended, NativeTalkStarted and Ended (no persona),
+  PlayerDied, MountChanged, Struck, LowHp, Healed, Engaged and Disengaged, AllyDied, CritLanded, JourneyChanged and the
+  eight lifecycle events. KilledNear, CameNear, AutonomyTick and IdleNear wait for personas and cards; FlagWatch's
+  events for v0.2; the hook sources stay reserved (§8.11).
+
+### 224. Under 50% snapshot loss Augur invents no event and fires none earlier; brief states and per-hit events are what differ
+
+`2026-11-20` · FACT · `#engine` `#augur` `#test` · refs: ARCH§8.12, ARCH§5.1
+
+- **Seen**: on the three synthetic routes with half the snapshots dropped at random (12 seeds each), no event is
+  invented and none fires earlier; every lasting state's event is there with its payload, at most two gaps and a
+  second later. What differs: Struck (the hits of a dropped snapshot arrive as one drop, so merges and `hard` change),
+  states briefer than a gap (a 0.5 s near pass, LockOnly before LockClosing, a heal within 1 s, a critical hit's two
+  snapshots, a low HP killed by the next hit), NativeTalkEnded's `held_ms`, and the gate, whose 5 s hold starts again
+  after a gap over 1 s, so it may open late or never in a lossy run.
+- **So**: the backpressure test compares by event and payload for lasting kinds and only "never invented, never
+  earlier" for the rest; §8.12's "except for documented timing differences" is read as this list.
+
+### 225. A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#spike` `#datapiler` · refs: ARCH§7.5, ARCH§12.3, WHY§192, WHY§202
+
+- **Chosen**: en_shell's `read_recorded_line` rebuilds the characters, the Tarnished's combat fields, the UI, the
+  place, the clock, the boss bars and the flag frame from the numbers the recorder already writes, so that `replay` and
+  `golden` drive Augur from a recording; the recording's format is unchanged (schema 1). What it never held stays
+  empty: text look-ups' text, param rows' values, a region key, a bearing without the camera.
+- **Seen**: a route's inputs written as the DLL writes them replay to byte-identical events (7 significant digits of
+  each float are enough for every derivation on the synthetic routes).
+- **For C12** (DESIGN: "golden events over 3 recorded routes"): the three shipped routes are synthetic; the exit check
+  waits for three recordings of the owner's game, redacted so they may be committed, each made a route with
+  `golden update <recording>`.
+
+### 226. Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish
+
+`2026-11-20` · FACT · `#engine` `#augur` `#perf` `#build` · refs: ARCH§8.10
+
+- **Seen**: `en_augur_bench` (Clang 18 Release, the build machine's 4 cores): `Augur::step` on 32 characters with the
+  shipped 25 rules, about 7 events a step: mean 25 to 27 µs, p50 23 to 25 µs, p99 51 to 71 µs over 20,000 steps (the
+  most, 0.9 to 2.1 ms, is the machine's scheduling). ARCH §8.10 allows 1 ms for the snapshot diff and world model and
+  1 ms for the rules. Loading the rule set: 0.5 ms warm, 5 ms cold. An unoptimised GCC build: 766 µs mean.
+- **Also seen** (FACT, build): during the run, `/root/.local/bin/python3.10`, the Python CMake had cached for the
+  harness, vanished: it was a link into a scratch folder that the session removed while freeing disk. Trees configured
+  before need `-DPython3_EXECUTABLE=/usr/local/bin/python3` (3.13); the harness runs on it unchanged.

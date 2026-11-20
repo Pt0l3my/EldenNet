@@ -849,7 +849,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     orders, with the banner and pause badge as notices, the world-state provider (danger and a game menu as v0.1
     stand-ins), the F11 view on Dear ImGui's core behind `debug.panel`, the Mark on GraceUI's hotkey with the launcher's
     Pause as the fallback, and the launcher's GraceUI pre-flight (E12); tested against a fake GraceUI table and end to
-    end under Wine with GraceUI's test build on Direct3D 12 (WHY§215 to §221).
+    end under Wine with GraceUI's test build on Direct3D 12 (WHY§215 to §221). Part 11 built the same day (engine
+    47fd54a): en-augur v0.1, pure and game-neutral, run in every core step with 25 shipped rule files; the `.scn`
+    scenario language, `eldennet-engine golden` and three synthetic routes with golden files; `replay` driving Augur
+    from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226).
 - b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
   - needs: a, f
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -884,8 +887,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8)
   - needs: a
   - refs: ARCH§1.4, ARCH§8, DESIGN§14
-  - gives: listed by part 12's notes on 2026-11-20; Augur's folds join when part 11 lands. ARCH §1.4's "As built"
-    bullet (the first build headless) is superseded by part 12.
+  - gives: listed by part 12's notes on 2026-11-20; Augur's folds joined when part 11 landed the same day: §8's
+    opening (Augur after the lifecycle slice in the same step, WHY§222), §8.4, §8.5 (the rule schema's additions and
+    Struck's 1 s window) and §8.7 as settled (WHY§223), §8.12's lossy-run differences (WHY§224) and §7.5's recording
+    reader (WHY§225). ARCH §1.4's "As built" bullet (the first build headless) is superseded by part 12.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -894,6 +899,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§4, ARCH§6, O3, O27
 - c The game-thread task, the world snapshot, and Augur, the event engine, with golden files
   - refs: DESIGN§5, DESIGN§6, ARCH§8
+  - gives: Augur v0.1 built on 2026-11-20 (S10.1.a's part 11, WHY§222 to §226), with three synthetic routes' goldens;
+    the task and snapshot in parts 4 and 6. What C12 (S10.3.a) still needs: three recorded routes of the owner's game,
+    redacted so they may be committed, each made a route with `golden update <recording>`.
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
