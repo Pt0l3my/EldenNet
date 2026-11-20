@@ -274,6 +274,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 249 | 2026-11-20 | An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running | FACT | #engine #dll #spike #graceui |
 | 250 | 2026-11-20 | In the fake game, a rack line is no sign of our call; the hub's live count is | METHOD | #fakegame #harness #spike |
 | 251 | 2026-11-20 | The observer's runs' words join schema 1; the game's environment is always the launcher's own block | DECIDED | #engine #launcher #spike #formats |
+| 252 | 2026-11-20 | ABI 1 never had the display-changed event that GraceUI's design promised | FACT | #graceui #abi |
+| 253 | 2026-11-20 | Dear ImGui bakes a face at a whole-pixel size, so GraceUI rounds a scaled face's size itself | FACT | #graceui #fonts |
+| 254 | 2026-11-20 | A rise in a frame-cost median after a change with nothing per-frame was the machine's: measure old and new alternately | METHOD | #graceui #ci |
 
 ## Entries
 
@@ -4412,3 +4415,27 @@ invariant 10, EldenNet ARCH (T3)
   `game_environment`, so that a leftover `ELDENNET_SPIKE_DIR` (in any letter case) never reaches the game.
 - (DECIDED) The spike folder's number is one more than the highest `<word>-<n>` already in `spikes\` (names compared
   ignoring case), so a run never reuses a folder that may hold a report.
+
+### 252. ABI 1 never had the display-changed event that GraceUI's design promised
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D180, GraceUI:D84, O93
+
+- (FACT) GraceUI's DESIGN §3.13, its D84 and proposal 0001's G6 row promise a display-changed event that carries the
+  scale, but ABI 1 never had one: GraceUI 0.2.1's poll kinds were 1 to 9. Found when EldenNet asked for ui.scale's
+  default after D177 (O93). Built as D180 in GraceUI 0.2.2: the display at connect and `GRACEUI_EVENT_DISPLAY` (10),
+  ABI 1.2.
+
+### 253. Dear ImGui bakes a face at a whole-pixel size, so GraceUI rounds a scaled face's size itself
+
+`2026-11-20` · FACT · `#graceui` `#fonts` · refs: GraceUI:D180
+
+- (FACT) Asked for 10.67 px, Dear ImGui 1.93 baked 11. GraceUI now rounds a scaled face's size to a whole pixel itself,
+  so the rule is GraceUI's and documented, not the library's; the glyph table gives the size baked.
+
+### 254. A rise in a frame-cost median after a change with nothing per-frame was the machine's: measure old and new alternately
+
+`2026-11-20` · METHOD · `#graceui` `#ci` · refs: GraceUI:D180, GraceUI:D178
+
+- (METHOD) When the harness's "menu frame cost" medians rose about 25% after a change with nothing per-frame in it,
+  the previous commit was built apart and measured alternately with the new one. The medians were the same, so the rise
+  was the machine's, not the change's.

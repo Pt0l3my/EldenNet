@@ -1093,6 +1093,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     checker as a mod's panel (the Menu page at 1920×1080: 2,720 vertices, 4 commands, no allocation on a second
     frame); 20 tests with golden structure dumps. Editing text, secret and key settings in game, and drawing
     components, wait for v0.6 (GraceUI D57); S4's page needs neither.
+- m GraceUI's settings kept between sessions, in its folder's user\settings.json, only values that differ from their defaults [done]
+  - refs: GraceUI:D179, GraceUI:D84
+  - gives: built on 2026-11-20 in GraceUI 0.2.2 (feat/foundations 1e33a46), at the owner's go-ahead; a release folder
+    carries no user\ folder (the manifest skips it). Wanted before testers get v0.2 (S11.5).
+- n The display at connect and in an event of its own, and faces baked at the content scale (ABI 1.2) [done]
+  - refs: GraceUI:D180, O93
+  - gives: built on 2026-11-20 in GraceUI 0.2.2 (1e33a46, proposal 0004): the connect's answer carries ui.scale, its
+    default and the display's size; GRACEUI_EVENT_DISPLAY (10) comes after warm-up and after each change, with the
+    content scale ((H / 1080) × ui.scale / its default, O93's rule with no constant) and the scale the faces were baked
+    at (WHY§252 to §254).
 
 ### S11.3 EldenNet v0.2
 
@@ -1127,7 +1137,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
     2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
     and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
-    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
+    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). EldenNet's text sizes follow GraceUI 0.2.2's display
+    event and scaled faces (S11.2.n), and drop their constant (GraceUI's docs/eldennet-changes.md §33). The pad chord that opens the box (NPC §5.6) waits
     for a D-entry of GraceUI's, for S4's second round after R1. Built the same day in GraceUI 0.2.1 (feat/foundations
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
