@@ -877,7 +877,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     ticked at the title screen; run 4 loads a save after the call (WHY§208). Run 4: no tick in the world either, and a
     crash on quit outside our module; spike.5 searches where the task was stored (WHY§209). Run 5 (no other mods):
     the call returned ok, and our task was nowhere in the hub's reachable memory; spike.6 searches all memory and
-    summarises the callee (WHY§227).
+    summarises the callee (WHY§227). Spike.6 sent on 2026-11-20 (engine fbf4c8b; WHY§234).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15

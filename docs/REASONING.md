@@ -256,6 +256,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 231 | 2026-11-20 | graceui-sys at 3f1352b leaves installed at 0 for a GraceUI found by its name; en-overlay reads a find by name as installed until it is fixed | FACT | #graceui #engine |
 | 232 | 2026-11-20 | Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window | FACT | #wine #graceui #ci |
 | 233 | 2026-11-20 | The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted | METHOD | #engine #launcher #graceui |
+| 234 | 2026-11-20 | R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap | DECIDED | #gal #r1 #task |
 
 ## Entries
 
@@ -4114,3 +4115,27 @@ invariant 10, EldenNet ARCH (T3)
   `.inc`, so the Windows tests under Wine read the committed bytes with no path. The test checks the folder it lists
   and accepts `protocol`, `caps` and `released` with other values: the pre-flight reads only the version, the ABI and
   the files (ARCH §4.3), and never fails on the rest.
+
+### 234. R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§227, WHY§209, engine fbf4c8b, 773a810
+
+- **The callee** (DECIDED): after the checks and before the call, the probe decodes register_task's callee from the live
+  image with en-gal's decoder, within its function of the exception directory (else up to its first return), at most
+  4 KiB, following no call. `r1-probe.json`'s `callee_code` gives its calls (direct with target RVA, through a register
+  or memory, RIP-relative), the conditional branches before the first call, whether a path returns through no call,
+  and per argument register (rcx, rdx, r8, r9): its stores before the first call (base, displacement, width), the
+  callee-saved registers it moved to, and its compares with an immediate up to 65,536. Arguments are followed through
+  register moves and one load of [argument + 0]; an instruction outside the modelled forms ends the tracking, and
+  `modelled_to` says where (METHOD: nothing guessed).
+- **The search** (DECIDED): 2 and 20 s after the call, every committed readable region but no-access, guard,
+  uncached or write-combined ones, never a known stack, read through the crash-guarded copy in 16 KiB chunks, within
+  8 GiB and 30 s. `memory_search` counts the words equal to our address and pointing inside our object, with up to 16
+  hits' region kind, protection, an image's module and section kind, RVA, and the group's index nearby.
+- **Ours apart** (DECIDED, METHOD): in the probe build the DLL allocates from a heap of its own, walked before each
+  search; a region is ours when its allocation base is our module's, our task block's or one of that heap's.
+- **Also**: while the task has not run, T1 itself reads how much of our object the hub wrote.
+- **On the fake game** (FACT): the summary shows the fake hub keeping the task at [instance + 0x30] and comparing the
+  group with 512; each search read about 90 MB in about 30 ms and found the game's 4 copies, our own 15 counted apart.
+- **For the owner's run** (LIKELY): at that rate 8 GiB is a few seconds, so both searches end long before the console's
+  "No confirmation" at 30 s.
