@@ -321,8 +321,8 @@ std::string scrubbed(std::string_view line) {
   return out;
 }
 
-Space::Space() {
-  settings_description_json_ = json::parse(settings_description(), nullptr, false);
+Space::Space(std::string_view description) {
+  settings_description_json_ = json::parse(description, nullptr, false);
   if (settings_description_json_.is_discarded() || !settings_description_json_.is_object() ||
       !settings_description_json_.contains("settings") || !settings_description_json_["settings"].is_array()) {
     return;
@@ -360,7 +360,10 @@ const Space::Setting* Space::find(std::string_view key) const {
 bool Space::has_setting(std::string_view key) const { return find(key) != nullptr; }
 
 void Space::set_value(std::string_view key, const json& value) {
-  if (find(key) != nullptr) values_[std::string(key)] = value;
+  const Setting* s = find(key);
+  if (s == nullptr) return;
+  values_[std::string(key)] =
+      s->type == "secret" ? json(value.is_string() && !value.get<std::string>().empty() ? "set" : "") : value;
 }
 
 void Space::watched(std::string_view sub_frame) {
@@ -391,8 +394,12 @@ std::string Space::answer(const json& id, std::string_view error, std::string_vi
 }
 
 void Space::change(const Setting& s, const json& value) {
-  if (values_[s.key] == value) return;
-  values_[s.key] = value;
+  // A secret is write-only (GraceUI's invariant 5, PV2): the space holds and publishes its status alone, "set" or "",
+  // and only the change the DLL stores carries the value.
+  const json shown = s.type == "secret" ? json(value.is_string() && !value.get<std::string>().empty() ? "set" : "")
+                                        : value;
+  if (values_[s.key] == shown && s.type != "secret") return;
+  values_[s.key] = shown;
   ++settings_rev_;
   changes_.push_back(Change{s.key, value});
 }

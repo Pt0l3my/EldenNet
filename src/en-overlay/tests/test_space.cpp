@@ -104,7 +104,9 @@ SpaceFacts banner() {
   return f;
 }
 
-// The log lines a state's session wrote, invented in the log's own vocabulary.
+#if !defined(_WIN32)
+// The log lines a state's session wrote, invented in the log's own vocabulary (the fixtures', compared in the Linux
+// builds alone).
 void feed(Space& s, std::string_view state) {
   s.log_line("boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev", 3);
   s.log_line("gate result=" + std::string(state == "banner" ? "unknown_build" : "passed") + " ms=11", 11);
@@ -124,6 +126,7 @@ void feed(Space& s, std::string_view state) {
   }
   if (state == "multiplayer") s.log_line("change what=badge to=up", 1300800);
 }
+#endif
 
 const char* const kStates[] = {"starting", "title", "world", "multiplayer", "banner"};
 
@@ -199,6 +202,19 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     }
   }
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset"}));
+  // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
+  // not GraceUI's reserved one, and every destructive action has its confirmation's text (the slice has none).
+  CHECK(pages["space"] != "graceui");
+  for (const json& t : pages["topics"]) CHECK(t["id"] != "pages");
+  for (const json& p : pages["pages"]) {
+    for (const json& a : p.value("actions", json::array())) {
+      if (a["tone"] == "destructive") CHECK_FALSE(a.value("confirm", std::string()).empty());
+    }
+  }
+  // The settings topic sends the description and schema as registered, and no other.
+  const json body = s.settings_body();
+  CHECK(body["schema"] == settings["schema"]);
+  CHECK(body["description"] == settings["settings"]);
 }
 
 TEST_CASE("space: settings start at their defaults; settings.set validated at its one entry point") {
@@ -260,6 +276,24 @@ TEST_CASE("space: settings start at their defaults; settings.set validated at it
   CHECK(r["detail"].get<std::string>().find("settings file") != std::string::npos);
   CHECK(r["detail"].get<std::string>().size() <= 256);
   CHECK(s.take_changes().empty());
+}
+
+TEST_CASE("space: a secret is held and published as its status alone, set or empty (invariant 5, PV2)") {
+  const std::string description = R"({"schema":{"number":1,"hash":"0000000000000000"},"settings":[)"
+                                   R"({"key":"keys.test","type":"secret","default":"","label":"A key","help":"An )"
+                                   R"(invented key.","synonyms":[],"home":"home","effect":"now","availability":"live",)"
+                                   R"("locked":false}]})";
+  Space s(description);
+  REQUIRE(s.valid());
+  CHECK(s.values()["keys.test"] == "");
+  CHECK(frame(s.command(cmd({{"key", "keys.test"}, {"value", "an-invented-value"}}), title()))["ok"] == true);
+  CHECK(s.values()["keys.test"] == "set");
+  CHECK(s.settings_body().dump().find("an-invented-value") == std::string::npos);
+  const auto changes = s.take_changes();
+  REQUIRE(changes.size() == 1);
+  CHECK(changes[0].value == "an-invented-value");  // for the DLL to store, never to publish
+  s.set_value("keys.test", "another-invented-value");
+  CHECK(s.values()["keys.test"] == "set");
 }
 
 TEST_CASE("space: settings.reset: a key at once; a page or every setting only once confirmed (D173)") {

@@ -63,6 +63,19 @@ struct Grace {
   std::vector<std::uint32_t> world_calls;
   std::uint32_t polls = 0;
   std::map<std::uint32_t, std::uint32_t> poll_sizes;  // polls by the event's size
+  // The space (D169): what register_pages was handed, and every frame published and answered, checked as GraceUI 0.2
+  // checks them (a state or rows frame of the mod's own space and a topic it declares; a result for a reply that is
+  // pending, once).
+  std::uint32_t register_calls = 0;
+  std::uint32_t space_views = 0;
+  std::uint32_t space_version = 0;
+  std::string space_pages, space_settings, space_increment;
+  std::vector<std::string> published;
+  std::uint32_t publish_refused = 0;
+  std::map<std::uint64_t, std::string> answers;  // by reply handle
+  std::uint32_t answer_refused = 0;
+  std::deque<std::string> frames;  // the protocol events' frames, in the order of their events
+  std::uint64_t next_reply = 100;
 
   GraceUiApi1 table{};
 
@@ -76,6 +89,12 @@ struct Grace {
   void press(const std::string& action, std::uint32_t count = 1);
   // The display's event, as GraceUI 0.2.2 gives it after warm-up and after each change (D180).
   void display();
+  // A view's sub, unsub and cmd, as poll gives them to the space; command answers the reply handle it gave.
+  void watch(const std::string& topic);
+  void unwatch(const std::string& topic);
+  std::uint64_t command(const std::string& name, const std::string& args_json);
+  // The published frames of `topic`, parsed, oldest first.
+  std::vector<std::string> published_of(const std::string& topic) const;
   std::uint64_t panel_of(const std::string& owner_hint = {}) const;  // the only panel made, or 0
 };
 

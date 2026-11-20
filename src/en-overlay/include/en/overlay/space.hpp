@@ -99,11 +99,14 @@ class Space {
  public:
   // Reads the settings description (settings_description()); valid() is false if it fails, a defect en_overlay_tests
   // would have caught. Every value starts at its default.
-  Space();
+  Space() : Space(settings_description()) {}
+  // The same over another settings description (the tests', for setting types this slice does not have).
+  explicit Space(std::string_view description);
 
   [[nodiscard]] bool valid() const noexcept { return valid_; }
 
   // ---- The settings it describes, by key, as JSON values. The DLL sets them from settings.toml as read at the start.
+  // A secret's is held and published as its status alone, "set" or "" (none in this slice).
   void set_value(std::string_view key, const nlohmann::json& value);
   [[nodiscard]] const nlohmann::json& values() const noexcept { return values_; }
   [[nodiscard]] bool has_setting(std::string_view key) const;
