@@ -215,8 +215,8 @@ def run_cmd(run, what, options, label):
 
 def graceui_files(tree):
     """GraceUI's test build: its GraceUI folder as the build laid it out, every file as its graceui.toml lists it (no
-    file missing, changed or extra), graceui.dll with its test exports, and the two spike tools from its bin. Answers
-    the files and GraceUI's version and commit."""
+    file missing, changed or extra; its user/ folder of kept settings never), graceui.dll with its test exports, and
+    the two spike tools from its bin. Answers the files and GraceUI's version and commit."""
     import tomllib  # Python 3.11 and later
     c = cache(tree)
     if c.get("CMAKE_BUILD_TYPE") != "Release" or c.get("GRACEUI_TEST_EXPORTS") != "ON":
@@ -233,6 +233,14 @@ def graceui_files(tree):
         for n in names:
             found.add(os.path.relpath(os.path.join(root, n), folder).replace(os.sep, "/"))
     found.discard("graceui.toml")
+    # GraceUI keeps the player's settings in user/ (its D179), which a release never carries and its manifest skips: a
+    # build's folder gets one once a test run has used it. Never packed.
+    user = sorted(n for n in found if n.startswith("user/"))
+    if any(n.startswith("user/") for n in listed):
+        fail("GraceUI's graceui.toml lists a file under user/, which a release never carries")
+    if user:
+        print("spikepkg: GraceUI\\user\\ left out (%d file(s): the settings a test run kept, D179)" % len(user))
+    found -= set(user)
     if found != set(listed):
         fail("GraceUI's folder and its graceui.toml differ: %s" % sorted(found ^ set(listed)))
     files = [("GraceUI/graceui.toml", raw)]

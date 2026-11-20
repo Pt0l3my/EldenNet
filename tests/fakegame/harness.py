@@ -1467,6 +1467,9 @@ def check_pkg_run(run):
 
     def check(r):
         failures = check_pkg_cmd(run)(r) + check_spike_folder(word)(r)
+        # GraceUI keeps its settings in its folder's user\ (its D179): in the case's copies, never in the package given.
+        need(not os.path.exists(os.path.join(r.paths["pkg"], "GraceUI", "user")), "a user folder in the package's "
+             "GraceUI folder", failures)
         failures += check_order(*["LAUNCHER inject dll=%s ok=1" % n for n in names])(r)
         failures += any_line(r, "LAUNCHER", "started", ok=1, mode=at, also=len(also),
                              eldennet=0 if word == "s0e_alone" else 1)
