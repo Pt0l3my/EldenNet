@@ -280,6 +280,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 255 | 2026-11-20 | The owner's package for S0-E and S4: one run file each, GraceUI copied into the game's folder, F11's view switched on | DECIDED | #engine #launcher #graceui #spike |
 | 256 | 2026-11-20 | EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml | FACT | #engine #graceui #harness |
 | 257 | 2026-11-20 | Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz | FACT | #privsweep #graceui |
+| 258 | 2026-11-20 | R1 spike.9: the group's own function read with our task and the entry followed in, the fields it reads, walks from the singleton and the entry, and tagged pointers | DECIDED | #gal #r1 #task |
 
 ## Entries
 
@@ -4477,3 +4478,28 @@ invariant 10, EldenNet ARCH (T3)
   fonts at configure time, so no push had swept them, and this package was their first upload.
 - (DECIDED) An allow line in Skyrizz's `tools/privsweep/allow.txt` covers those two files' strings view only, under a
   `GraceUI/fonts/` path. A later font change is swept and reviewed again.
+
+### 258. R1 spike.9: the group's own function read with our task and the entry followed in, the fields it reads, walks from the singleton and the entry, and tagged pointers
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§248, WHY§247, engine a51ab03
+
+- **Direct tail jumps** (DECIDED): in a function with no unwind data, a direct jump past the code decoded is a tail
+  jump. So the tail function's jump to RVA 0xEB6040 becomes a call site, and the table's shape takes it as its end.
+- **The group's function** (DECIDED): summarised before the call, with rcx the group's entry and rdx the task, and its
+  own direct callees and tail jumps one level further (16 summaries at most, each callee once).
+- **Field reads** (DECIDED, METHOD): every load based on the task, the entry or a value read from either is reported
+  (`task_reads`, `entry_reads`): the field's offset and width, and what the value is used for along the flow (compared
+  with which immediate, tested, stored where, passed to which call, called through, changed). Beyond the brief: a value
+  changed by or, add, shift and the like stays followed, two changes deep, so that a tagged pointer's store is seen.
+- **Roots** (DECIDED): spike.8's walks and diffs (with the 2 s control) run from the singleton and from the group's
+  entry as well as from CSTask's instance.
+- **Tagged pointers** (DECIDED): a word whose low 48 bits are our object's or our vtable's address under a non-zero
+  high 16 bits is counted, in the diffs (`task_tagged`) and the whole-memory search (`tagged_found`), with its tag.
+- **Classes** (DECIDED): the singleton's and the entry's classes by their RTTI, matched against the leads by name or
+  name+"Imp" (O92's rule), reported as a lead's index only.
+- **The fake game** (FACT): its group function now reads two task fields (one compared with 0x51), keeps the task as
+  `task | 0x7E01 << 48` and answers 1. With `--task-gate` and our object's zero in the compared field, the task never
+  runs, as in run 8. R1 reports both reads with the compare, the tagged store, one tagged copy (tag 0x7E01), the diffs'
+  `task_tagged` words, and the entry's class matched to the hub's lead.
+- **Also** (FACT): two existing stack-overflow cases had failed at 5c5b3bc. The fake game's recursion now starts at a
+  fixed stack depth, and they pass.
