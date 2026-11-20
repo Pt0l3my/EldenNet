@@ -3,10 +3,11 @@
 `en-overlay` is EldenNet's connection to GraceUI (ARCH §2.2, GraceUI G15), C++20, MIT: the banner and the pause badge
 as GraceUI notices, EldenNet's claims as a world-state provider, its hotkeys (F11 and the development Mark) and the F11
 debug view, a panel drawn on Dear ImGui 1.93.0's core with no backend. It is the first in-game build's part 12, on
-GraceUI's ABI 1 preview (GraceUI 0.1, `feat/host` at f51bcc7; GraceUI's `docs/eldennet-changes.md` §14 to §18, D131 to
-D156). Later increments add EldenNet's own surfaces (subtitles, the chat box, the call-out box) as panels.
+GraceUI's ABI 1 preview (GraceUI 0.1, `feat/foundations` at 3f1352b; GraceUI's `docs/eldennet-changes.md` §14 to §18
+and §20, D131 to D156, D164 and D165). Later increments add EldenNet's own surfaces (subtitles, the chat box, the
+call-out box) as panels.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at f51bcc7): its look
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 3f1352b): its look
 for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach

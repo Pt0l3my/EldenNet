@@ -132,8 +132,8 @@ class Api {
   }
 
   // ---- Hotkeys and poll (D155; has_cap(GRACEUI_CAP_HOTKEYS)). A GraceUI before D155 answers not_yet to both.
-  // A hotkey: `key` a Windows virtual key (0 for none), `modifiers` GRACEUI_MOD_*; GRACEUI_OK with its id, bound or,
-  // if its default is taken, unbound.
+  // A hotkey: `key` a Windows virtual key (0 for none), `modifiers` GRACEUI_MOD_*; GRACEUI_OK with its id, bound, or
+  // GRACEUI_UNBOUND with its id, its default taken or none (D164): it fires nothing until the player binds it.
   GraceUiStatus register_hotkey(GraceUiConsumer consumer, std::string_view action, std::string_view name,
                                 std::uint32_t key, std::uint32_t modifiers, std::uint32_t& id) const noexcept {
     if (!GRACEUI_API1_COVERS(table_, register_hotkey)) {

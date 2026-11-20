@@ -38,8 +38,9 @@ en_fetch(https://raw.githubusercontent.com/marzer/tomlplusplus/v3.4.0/LICENSE
   tomlplusplus/LICENSE 529bc3900a9571e49db285b0df432397e70b881cc3bf48de6667ae74ff4b06d8)
 
 # Dear ImGui 1.93.0's core, for the F11 view (en-overlay; DESIGN O25, ARCH §2.3): the very pin GraceUI uses (its
-# cmake/third_party.cmake at GraceUI f51bcc7): tag v1.93.0's commit, from its own project, each file by its SHA-256, the
-# core alone and no backend. Only the Windows builds build en-overlay's connection and the view, so only they fetch it.
+# cmake/third_party.cmake at GraceUI 3f1352b, unchanged since f51bcc7): tag v1.93.0's commit, from its own project,
+# each file by its SHA-256, the core alone and no backend. Only the Windows builds build en-overlay's connection and
+# the view, so only they fetch it.
 if(WIN32)
   set(EN_IMGUI_COMMIT c1aaac65e896a45f81f47a4d68f9959e0f86c859)  # ocornut/imgui, tag v1.93.0
   set(EN_IMGUI_DIR ${EN_DEPS}/imgui-1.93.0)
@@ -64,14 +65,14 @@ if(WIN32)
 endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper) and the ABI header it includes,
-# vendored unmodified from GraceUI at f51bcc7 with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md), and
+# vendored unmodified from GraceUI at 3f1352b with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md), and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone. Each file is checked against
 # its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
-    "graceui.h|8bce8e76e52ea18bab93a0c875498cae8aec1b7681fdcb6012e35498fe9de828"
-    "graceui_sys.h|8550e39fa2a8423dac207d1d2bf90cdbd18ff24a01afa1a0575ca8a2afcadb00"
-    "graceui_sys.hpp|3a7368257232039e71e1442ce8eb40c0b818f012d148477fc5442934ac0cf288"
+    "graceui.h|c652405a182283c08041a46f89df9a6f08035ce24e72ed30f3343b64ff1d74e6"
+    "graceui_sys.h|b76946029472afb2e7006cfc57da6463c50b23dcf41144927a4a1e1822d6f7a7"
+    "graceui_sys.hpp|b718314c6d4b0c8b2112c9658e53a328d7da5e45c1a8af4bee1d262ee8835250"
     "graceui_imgui.hpp|b7b66dd74af0cf8600f407447d70df8dd7e1f8aa0df887924922bbd9e2f33c02"
     "graceui_test.h|ea411ec987829f6fccee6a6bc57cb65d7b1d9419689c914718a3667ca36b8640")
   string(REPLACE "|" ";" pin "${pin}")
@@ -79,7 +80,7 @@ foreach(pin IN ITEMS
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI f51bcc7's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 3f1352b's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)

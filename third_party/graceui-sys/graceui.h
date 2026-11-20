@@ -89,6 +89,9 @@ typedef uint32_t GraceUiStatus;
                                     atlas is baked at the overlay's warm-up) */
 #define GRACEUI_TOO_LATE 10u     /* past its time: a texture after the mod's registration window (its first submit),
                                     a face after warm-up */
+#define GRACEUI_UNBOUND 11u      /* register_hotkey: the hotkey is registered, with its id, but its default is taken (by
+                                    another hotkey or the menu key) or it has none: it fires nothing until the player
+                                    binds it (D164) */
 
 /* Why connect answered GRACEUI_INACTIVE. */
 #define GRACEUI_INACTIVE_ANTI_CHEAT 1u  /* an anti-cheat was found before GraceUI hooked: notices only (D88) */
@@ -458,7 +461,7 @@ typedef struct GraceUiApi1 {
                                  GraceUiInputAnswer* answer);
   /* Gives input back if the mod holds it; GRACEUI_OK either way. */
   GraceUiStatus (*release_input)(GraceUiConsumer consumer);
-  /* A hotkey (above): GRACEUI_OK with its id, bound or, if its default is taken, unbound; _REFUSED (a reserved key, an
+  /* A hotkey (above): GRACEUI_OK with its id, bound; GRACEUI_UNBOUND with its id, registered but unbound (D164); _REFUSED (a reserved key, an
    * unknown modifier, Alt+F4, an action that is not an id or already the mod's, a name that is not 1 to 64 bytes of
    * UTF-8, a key with no place on the keyboard); _FULL (GRACEUI_HOTKEYS_PER_MOD, or the session's); _NOT_YET for a pad
    * chord. */
