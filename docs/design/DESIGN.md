@@ -2068,7 +2068,12 @@ Conformance tests check three things: a trailer never displays; with `actions` o
   - the **Mark**, a tester's key press stamped on the recording's clock when something happens in game, for the
     spikes and captures that check a recording against what was seen (MEM §6.3): on F11 through GraceUI, and until
     GraceUI's Mark arrives a development Mark in the launcher, Pause registered as a system hotkey outside the game,
-    with no hook, then retired (O90; ARCH §4.14). The same Mark times R1's one call into the game (O89);
+    with no hook, then retired (O90; ARCH §4.14). The same Mark times R1's one call into the game (O89).
+    *2026-11-20, as built (WHY§217, §230):* the Mark is on Pause in both, and F11 opens the debug view. EldenNet
+    registers Pause as one of its GraceUI hotkeys and, once it is bound, the launcher lets its own Pause go and hands
+    the Marks over through the watch block, so one writer stamps them at a time and the tester presses Pause either
+    way. The launcher's Mark is kept, not retired, wherever GraceUI cannot take it: without GraceUI (R1 among such
+    runs), or when another mod's GraceUI hotkey holds Pause;
   - the spikes' tools: the launcher's development options (`--spike`, `--console`, `--probe`; ARCH §4.1) and
     `eldennet-engine rec-stats`, `replay` and `spike-report` over its numbers-only logs and recordings (ARCH §12.3);
   - rotating logs (our own logger);

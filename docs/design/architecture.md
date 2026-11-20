@@ -607,7 +607,7 @@ number).
 | No EAC bootstrapper | No process named `start_protected_game.exe` | E04 |
 | The game is not already running | No `eldenring.exe` process | E03 |
 | The DLL exists and is ours | The file exists, and its version resource reads `ProductName = EldenNet` | E08 |
-| GraceUI is installed and fits (GraceUI D83, D88) | `Game\GraceUI\graceui.toml` is readable and every listed file matches its size and SHA-256; its ABI major is one EldenNet speaks and its version at least EldenNet's floor. Otherwise the launcher installs the GraceUI release EldenNet carries, never over a newer one, and over an older major only while the carried release still serves that major (GraceUI D74); outside that window it installs only when the player confirms, after naming the mods GraceUI's last log shows connecting on the older major | E08's manner: what is missing or would stop working, and what to do |
+| GraceUI is installed and fits (GraceUI D83, D88) | `Game\GraceUI\graceui.toml` is readable and every listed file matches its size and SHA-256; its ABI major is one EldenNet speaks and its version at least EldenNet's floor. Otherwise the launcher installs the GraceUI release EldenNet carries, never over a newer one, and over an older major only while the carried release still serves that major (GraceUI D74); outside that window it installs only when the player confirms, after naming the mods GraceUI's last log shows connecting on the older major. *As built (part 12, 2026-11-20; WHY§219, §233):* checked after E08, only when EldenNet is to be loaded; our own reader of the `graceui.toml` GraceUI's `tools/release/manifest.py` writes (GraceUI D165): `graceui`, `abi` and `[files]` read, every listed file's size and SHA-256 (our own) checked in the order of their names, a name outside the folder refusing the file; `protocol`, `caps` and `released` accepted whatever they hold, never a failure; ABI major 1 and the floor 0.1.0 (en-proto's `graceui_pin.hpp`). Logged as `preflight graceui=ok\|no_folder\|no_manifest\|unreadable\|file_missing\|size_differs\|hash_differs\|abi_major\|too_old`. Installing the carried release waits until EldenNet carries one (GraceUI D53) | E12 (§4.7), in E08's manner: what is missing or would stop working, by its name inside GraceUI's folder (never a path), and what to do. *As built:* until there is a release to install, the game starts all the same, headless (§10.3); `--probe` and the spikes, headless by design (O90), only log it |
 | The game folder is writable | Only needed for the file method (§4.5) | E06 |
 | Other proxy DLLs | `dinput8.dll`, `winhttp.dll` or `dxgi.dll` next to `eldenring.exe` | Information only: "Other mods detected: …". Never blocks |
 
@@ -672,6 +672,10 @@ sequenceDiagram
 | E09 | "The game could not be started: %s (code %u)." |
 | E10 | "EldenNet could not be loaded into the game: the %s step failed (code %u). The game was closed again. Antivirus software sometimes blocks this step; see the install guide. Start the game without EldenNet instead?" |
 | E11 | "This launcher must run inside the game's Proton prefix. See the Proton notes in the install guide." |
+| E12 | "GraceUI, which shows EldenNet in the game, is missing or damaged: %s. The game starts, and EldenNet runs with nothing shown in the game. Copy the GraceUI folder from EldenNet's download into the game's folder again (see the install guide)." The `%s` names the problem in plain words, a file by its name inside GraceUI's folder and never a path: "there is no GraceUI folder beside the game", "graceui.dll does not match graceui.toml" (added with part 12, 2026-11-20; WHY§219) |
+
+*As built:* when one of E01 to E11 ends the launcher, its exit code is 10 plus the error's number; E12 is told and
+never ends it (WHY§219).
 
 ### 4.8 First-screen notices
 
@@ -759,7 +763,8 @@ the launcher builds with MinGW-w64 and clang-cl and the DLL with clang-cl). The 
 anything; under another loader, EldenNet's watcher (`--watch <pid>`) makes it. EldenNet writes T1's state, its status
 (the core's phase, level and gate flags, discovery's counts, snapshots, faults, trips, the task's p99) and, from its
 crash filter, the crash record (§3.2); the launcher writes the spike, a crash request (probe builds), R1's request and
-the Marks. Numbers and one module file name only. It lives in en-proto because the DLL may not depend on en-launcher and
+the Marks, which EldenNet writes instead once the launcher has handed them over (below). Numbers and one module file
+name only. It lives in en-proto because the DLL may not depend on en-launcher and
 the launcher on nothing of ours but en-gal's offline part (§2.3). Rejected: a pipe (a reader thread on both sides and a
 protocol), a file (no wake-up, and a crash leaves it half written), and the DLL writing the record itself (it must not
 allocate or do I/O in its filter).
@@ -780,6 +785,25 @@ milliseconds (QPC, the snapshots' own clock) into the block's ring of 32, from w
 the recording (§7.5), and kept in the session's record. It is retired when GraceUI's Mark (F11, MEM §6.3) arrives. The
 console polls every 200 ms, so a quick step can pass it unseen (WHY§200).
 
+**GraceUI's Mark and the hand-over** (as built with part 12, 2026-11-20; WHY§217, §230). *This changes the sentence
+above:* GraceUI's Mark is on Pause, not F11 (F11 opens the debug view), and the launcher's is not retired but handed
+over, and kept wherever GraceUI cannot take it. A system hotkey takes its key from the game's window, so a GraceUI
+hotkey on Pause could never fire beside the launcher's, and two writers to the ring would race. So the block's
+`marks.source` (en-proto's `MarkSource`: none, launcher, asked, eldennet; a reserved field given a meaning, the block's
+layout and version unchanged) passes the ring from one writer to the other:
+1. the launcher marks `launcher` once its hotkey is registered;
+2. EldenNet registers its GraceUI hotkey `mark` on Pause (when the console holds Pause, or at connect with
+   `debug.panel`) and, once it is bound, marks `asked`;
+3. the launcher unregisters its hotkey, takes the presses already queued as its last, and marks `eldennet`; with no
+   console holding Pause (a `debug.panel` session without one), EldenNet marks `eldennet` itself at once;
+4. from then on EldenNet alone stamps the Marks, numbered on in the same ring, when T6 takes each press from `poll`
+   (at most 100 ms after it), and the launcher reads each back into the session's record.
+
+The owner presses Pause either way. Without GraceUI nothing asks, so the launcher's Pause stays the Mark and R1's flow
+is unchanged; without a block, EldenNet keeps a ring of its own. When another mod's GraceUI hotkey took Pause first,
+EldenNet's registers unbound (`GRACEUI_UNBOUND`, a success with an id, GraceUI D164): it never asks, and the launcher's
+Pause stays the Mark. Until the hand-over, a press of EldenNet's hotkey is logged as not taken.
+
 **R1 with `--probe`** (O89; decided 2026-11-17, WHY§199). Before it loads anything, the launcher writes R1 into the
 block's `control.probe` (a spare field: the block's version is kept, and 0 means no request), and EldenNet answers there
 at Settings (§3.2): a probe build accepts and runs R1 with its `settings.toml`'s other `probe` settings, `register =
@@ -796,7 +820,14 @@ build (the block's answer says it, and covers EldenNet turned off).
 §16.1's pass rules (§12.3; WHY§201). `s0a --runs <n>` starts and loads per `--inject-at`, waits for T1 to stop (Ready,
 a banner or inert) or `--run-timeout`, then closes the game (§4.6); `s0d-crash` asks a probe build for a crash at Ready
 and checks that the watcher recorded it; `s0b`, `s0c` and `s0d` watch one session, `s0c` counting the game's TCP
-connections to anything but this PC every 2 s (the most at once; no address kept).
+connections to anything but this PC every 2 s (the most at once; no address kept). *2026-11-20 (WHY§249 to §251):*
+`s0e`, `s0e_alone` and `s4` are the runs of GraceUI's observer (S0-E's present-hook half and S4; roadmap S10.1.g),
+whose measurements are GraceUI's: one watched session each, passing when it did not crash. The launcher makes the
+run's folder, `spikes\<word>-<n>` (n one more than the word's highest there, names compared ignoring case), and names
+it to the game as `ELDENNET_SPIKE_DIR` in the environment block it always gives `CreateProcessW` (its own, with any
+leftover `ELDENNET_SPIKE_DIR`, in any letter case, left out of every other start). With `s0e` and `s4` EldenNet stops at Register and makes no call into the game
+(§3.2); `s0e_alone` loads no eldennet.dll at all; `--probe` goes with none of them. The words join schema 1 of the
+recording and the reports (§7.5).
 
 ## 5. The offline and multiplayer gate
 
