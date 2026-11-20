@@ -1,6 +1,7 @@
 // Faults on request (README.md): the crashes a game can end with, the exceptions a game raises and handles itself, and
 // the program's own unhandled-exception filter, which a game may install, or install again over another's.
 #include <intrin.h>
+#include <malloc.h>
 
 #include <atomic>
 #include <cstring>
@@ -43,6 +44,23 @@ __declspec(noinline) int recurse(int depth) {
   if (g_recurse) below = recurse(depth + 1);
   touch_pages(pad, 1, static_cast<char>(below));
   return pad[0];
+}
+
+// The recursion started at the same distance from the stack's end whatever called it. Whether Wine finds room to
+// dispatch the overflow's exception depends on where the 16 KiB frames' probes meet the end, so on how deep the caller
+// was: a game loop a few hundred bytes deeper made Wine end the process with code 1 and no exception.
+__declspec(noinline) int recurse_from_fixed_depth() {
+  ULONG_PTR low = 0, high = 0;
+  GetCurrentThreadStackLimits(&low, &high);
+  volatile char here = 0;
+  const std::uintptr_t at = reinterpret_cast<std::uintptr_t>(&here);
+  constexpr std::size_t room = 256u << 10;  // any distance from 64 KiB to 512 KiB served under Wine 9.0
+  if (at > low + room) {
+    const std::size_t size = at - (low + room);
+    auto* p = static_cast<volatile char*>(_alloca(size));
+    touch_pages(p, size, 1);
+  }
+  return recurse(0);
 }
 
 // SAFETY: a page of our own, readable and writable but not executable, entered as code: the fault of running data.
@@ -155,7 +173,7 @@ void crash_now(Crash c) {
       break;
     }
     case Crash::Illegal: __builtin_trap();
-    case Crash::StackOverflow: (void)recurse(0); break;
+    case Crash::StackOverflow: (void)recurse_from_fixed_depth(); break;
     case Crash::Breakpoint: __debugbreak(); break;
     case Crash::FastFail: __fastfail(7); break;
     case Crash::Terminate:
