@@ -257,6 +257,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 232 | 2026-11-20 | Under Wine 9, loading graceui.dll before the game's first window can hang in dxgi.dll's load while other threads make USER calls; EldenNet loads it only after the window | FACT | #wine #graceui #ci |
 | 233 | 2026-11-20 | The launcher's pre-flight is tested on a manifest GraceUI's own manifest.py wrote, compiled into the tests byte for byte, with the extra keys accepted | METHOD | #engine #launcher #graceui |
 | 234 | 2026-11-20 | R1 spike.6: the callee summarised from the live image, and the whole process searched for our task, our own copies told apart by the probe DLL's own heap | DECIDED | #gal #r1 #task |
+| 235 | 2026-11-20 | R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -4139,3 +4140,23 @@ invariant 10, EldenNet ARCH (T3)
   group with 512; each search read about 90 MB in about 30 ms and found the game's 4 copies, our own 15 counted apart.
 - **For the owner's run** (LIKELY): at that rate 8 GiB is a few seconds, so both searches end long before the console's
   "No confirmation" at 30 s.
+
+### 235. R1 run 6: register_task's callee is a 93-byte wrapper that keeps the group and the task in saved registers and hands them to two inner calls; 8 of 10.6 GiB searched in a second held no copy of our task
+
+`2026-11-20` · FACT · `#gal` `#r1` `#task` · refs: WHY§227, WHY§234, engine fbf4c8b
+
+- **The callee** (FACT, spike.6, game 2.7.2.0 ww, no other mods): RVA 0xEB5680 is 93 bytes, 22 instructions, fully
+  modelled: one conditional branch before its first call (offset 25, to 73, past both calls), two direct calls (offsets
+  34 and 61, to RVAs 0x1EC4A40 and 0x1EBCE00), no path returning through no call. Of its arguments, rcx is neither
+  stored nor saved; rdx (the group, by R1's reading) is saved in rdi and r8 (the task) in rbx; none is stored or
+  compared before the first call. So it is a wrapper: the work, and any test that drops our task, lie in what it calls,
+  or after its branch (a jump at its end is not counted as a call).
+- **The search** (FACT): at 2 and 21 s after the call, 8 GiB of 3,166 readable regions read in 0.7 to 1.0 s, no fault,
+  stopped by the 8 GiB cap with about 2 GiB unread: no copy of our task's address but EldenNet's own two (its module's
+  data and its probe heap), nothing pointing inside our object. The hub never wrote our object (object_written 0).
+- **So** (LIKELY): the game kept no pointer to our task object, at least in the 8 GiB read. Either it stored something
+  else (our vtable, or a wrapper it built from our object's fields), or the wrapper's branch or an inner call refused
+  it.
+- **Next** (DECIDED): spike.7 reads all memory (a cap far past the process's size), also searches for our vtable's
+  and slots' addresses, diffs the hub's reachable memory before and after the call, and summarises the two inner
+  callees with the arguments followed into them.
