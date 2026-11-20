@@ -1115,9 +1115,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G4, GraceUI:DESIGN§7.2
   - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
 - c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
-  - refs: G17, GraceUI:DESIGN§10
+  - refs: G17, GraceUI:DESIGN§10, GraceUI:D176
   - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20. The chat box needs typed
-    characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first.
+    characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
+    2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
+    and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
+    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
+    for a D-entry of GraceUI's, for S4's second round after R1.
 
 ### S11.5 v0.2's exit checks
 
