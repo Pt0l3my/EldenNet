@@ -1120,14 +1120,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: GraceUI:D182
   - gives: built on 2026-11-20 (GraceUI feat/foundations e93151e), from GraceUI's own roadmap, no decision needed;
     EldenNet's pages in the menu take the mouse with nothing to do.
-- q The security review's fixes, before testers get v0.2 (GraceUI 0.2.5) [active]
+- q The security review's fixes, before testers get v0.2 (GraceUI 0.2.5) [done]
+  - refs: GraceUI:D183
   - gives: an independent review on 2026-11-20 (one read-only reviewer, given the code and the rules, probing a live
     grace-dev) found the wire layer sound and six faults higher up: the anti-cheat world-state flag only logged and the
     60 s module re-check missing (now either closes the browser view's server for the session); a destructive action
     without its confirmation (register_pages now refuses one); the reserved space id and topic name; a third WebSocket
     superseding a view before its ticket was shown; settings publications not held to the registration (secrets masked
     to "set" or ""). Open: telling a space which view sent a command (GraceUI DESIGN §7.3), an ABI 1 addition before
-    the home network's pairing (WHY§264, §265).
+    the home network's pairing (WHY§264, §265). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
+    checks on both toolchains, the anti-cheat flag and re-check scenarios among them; no change to the ABI.
 
 ### S11.3 EldenNet v0.2
 
