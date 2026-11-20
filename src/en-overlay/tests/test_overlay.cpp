@@ -1,6 +1,7 @@
 // en-overlay's connection against the fake GraceUI (fake_grace.hpp; the Windows builds): connect's answers, the banner
 // and the badge as notices, the world-state claims, the F11 view on Dear ImGui's core (its atlas in the registration
-// window, a hidden panel, F11 through poll, lists that pass GraceUI's checks) and the Mark's hotkey.
+// window, a hidden panel, F11 through poll, lists that pass GraceUI's checks), the Mark's hotkey, and either hotkey
+// registered unbound (D164).
 #include <doctest.h>
 
 #include <memory>
@@ -279,6 +280,64 @@ TEST_CASE("overlay: the Mark's hotkey on Pause, at once or later, its presses co
   CHECK(p->mark_registered());
   h.press("mark");
   CHECK(p->step(status()).marks == 1);
+}
+
+TEST_CASE("overlay: a hotkey another mod took registers unbound, with its id (GraceUI D164)") {
+  SUBCASE("F11: the view is made, nothing opens it until the player binds F11") {
+    fake::Grace g;
+    g.taken_keys = {kKeyF11};
+    Report r;
+    auto o = connect(g, options(true), r);
+    REQUIRE(o != nullptr);
+    CHECK(std::string(r.view) == "unbound");
+    REQUIRE(g.panels.size() == 1);
+    REQUIRE(g.hotkeys.size() == 1);
+    CHECK_FALSE(g.hotkeys[0].bound);
+    CHECK(o->view_ready());
+    CHECK_FALSE(o->view_bound());
+    (void)o->step(status());
+    CHECK_FALSE(o->view_open());
+    // Bound later on GraceUI's Hotkeys page, its presses come under the same id: the view opens.
+    g.press("debug-view");
+    (void)o->step(status());
+    CHECK(o->view_open());
+  }
+  SUBCASE("Pause: the Mark is registered and unbound, so the launcher keeps Pause") {
+    fake::Grace g;
+    g.taken_keys = {kKeyPause};
+    Report r;
+    auto o = connect(g, options(true, true), r);
+    REQUIRE(o != nullptr);
+    CHECK(std::string(r.view) == "ready");
+    CHECK(o->view_bound());
+    CHECK(r.mark);
+    CHECK_FALSE(r.mark_bound);
+    CHECK(o->mark_registered());
+    CHECK_FALSE(o->mark_bound());
+    REQUIRE(g.hotkeys.size() == 2);
+    CHECK_FALSE(g.hotkeys[1].bound);
+    CHECK(o->register_mark() == GRACEUI_UNBOUND);  // asked again: the same answer, GraceUI not called
+    CHECK(g.hotkeys.size() == 2);
+
+    fake::Grace h;
+    h.taken_keys = {kKeyPause};
+    auto later = connect(h, options(false), r);
+    REQUIRE(later != nullptr);
+    CHECK_FALSE(r.mark);
+    CHECK(later->register_mark() == GRACEUI_UNBOUND);
+    CHECK(later->mark_registered());
+    CHECK_FALSE(later->mark_bound());
+  }
+  SUBCASE("both free: bound") {
+    fake::Grace g;
+    Report r;
+    auto o = connect(g, options(true, true), r);
+    REQUIRE(o != nullptr);
+    CHECK(o->view_bound());
+    CHECK(r.mark_bound);
+    CHECK(o->mark_bound());
+    CHECK(o->register_mark() == GRACEUI_OK);
+  }
 }
 
 TEST_CASE("overlay: GraceUI gone: lost once, nothing more is called") {

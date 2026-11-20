@@ -2,7 +2,8 @@
 // A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1's table, as graceui.h declares it, with
 // the calls en-overlay makes answered as GraceUI 0.1 answers them (eldennet-changes §14 to §18) and checked as GraceUI
 // checks them: connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four),
-// textures in the registration window, panels hidden until shown, hotkeys, poll's events and submit's draw-list
+// textures in the registration window, panels hidden until shown, hotkeys (a default another mod took registers
+// unbound, GRACEUI_UNBOUND with its id, as GraceUI 3f1352b answers, D164), poll's events and submit's draw-list
 // checks (counts, the bounds, every command's ranges and indices, clip rectangles inside the panel, known texture ids,
 // the command stride). graceui-sys has no C mock; this is what stands in for one. One fake at a time (the table's
 // functions are plain C pointers).
@@ -28,6 +29,7 @@ struct Hotkey {
   std::string action;
   std::string name;
   std::uint32_t key = 0;
+  bool bound = true;
 };
 
 struct Grace {
@@ -39,6 +41,7 @@ struct Grace {
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)
   bool refuse_textures = false;
   GraceUiStatus poll_status = GRACEUI_OK;  // GRACEUI_NOT_CONNECTED: the mod was disconnected
+  std::vector<std::uint32_t> taken_keys;   // virtual keys another mod's hotkey holds: these register unbound
 
   // What it saw.
   std::string id, name, mod_caps;
@@ -67,7 +70,7 @@ struct Grace {
   Grace& operator=(const Grace&) = delete;
 
   const GraceUiApi1* api();  // the table, its size as `table_size` says
-  // A press of a hotkey (by its action), as poll gives it.
+  // A press of a hotkey (by its action), as poll gives it: bound or not, as if the player had bound it since.
   void press(const std::string& action, std::uint32_t count = 1);
   std::uint64_t panel_of(const std::string& owner_hint = {}) const;  // the only panel made, or 0
 };

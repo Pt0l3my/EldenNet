@@ -13,19 +13,6 @@ namespace {
 
 namespace pin = en::proto::graceui_pin;
 
-// GraceUI\graceui.dll in the folder of the process's executable: the one copy GraceUI installs (D51, D83).
-bool installed_copy() noexcept {
-  wchar_t path[2048];
-  const wchar_t tail[] = L"GraceUI\\graceui.dll";
-  DWORD length = GetModuleFileNameW(nullptr, path, 2048);
-  if (length == 0 || length >= 2048) return false;
-  while (length > 0 && path[length - 1] != L'\\' && path[length - 1] != L'/') --length;
-  const std::size_t tail_units = sizeof tail / sizeof tail[0];  // with its NUL
-  if (length == 0 || length + tail_units > 2048) return false;
-  std::memcpy(path + length, tail, sizeof tail);
-  return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
-}
-
 ImVec4 colour(const std::array<std::uint8_t, 3>& c) {
   return ImVec4(static_cast<float>(c[0]) / 255.0f, static_cast<float>(c[1]) / 255.0f,
                 static_cast<float>(c[2]) / 255.0f, 1.0f);
@@ -39,24 +26,17 @@ std::uint32_t packed(const std::array<std::uint16_t, 3>& v) noexcept {
 
 Found find(std::uint32_t timeout_ms) noexcept {
   Found f;
-  f.installed = installed_copy();
   GraceUiSysFound sys{};
   sys.size = sizeof sys;
   const ULONGLONG start = GetTickCount64();
-  for (;;) {
-    const GraceUiApi1* table = graceui_sys_find_once(GRACEUI_SYS_LOAD, &sys);
-    if (table != nullptr) {
-      f.api = graceui::Api(table);
-      break;
-    }
-    // Nothing installed and nothing loaded by its name: nothing will answer later either.
-    if (!f.installed && GetModuleHandleW(L"graceui.dll") == nullptr) break;
-    if (GetTickCount64() - start >= timeout_ms) break;
-    Sleep(GRACEUI_SYS_POLL_MS);
-  }
+  // GraceUI's own rule for "not installed" (D164): the look ends at the first that finds nothing answering, no module
+  // named graceui.dll and no GraceUI\graceui.dll in the game's folder.
+  const GraceUiApi1* table = graceui_sys_find(GRACEUI_SYS_LOAD | GRACEUI_SYS_STOP_IF_ABSENT, timeout_ms, &sys);
+  if (table != nullptr) f.api = graceui::Api(table);
   f.how = f.api ? sys.how : 0;
   f.attempts = sys.attempts;
   f.version = f.api ? sys.version : 0;
+  f.installed = sys.installed != 0;
   f.ms = GetTickCount64() - start;
   return f;
 }
@@ -127,7 +107,11 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
     (void)o->make_view(why);
     report.view = why;
   }
-  if (options.mark) report.mark = o->register_mark() == GRACEUI_OK;
+  if (options.mark) {
+    const GraceUiStatus mark = o->register_mark();  // GRACEUI_UNBOUND: registered, Pause taken first (D164)
+    report.mark = o->mark_registered();
+    report.mark_bound = mark == GRACEUI_OK;
+  }
   return o;
 }
 
@@ -166,22 +150,30 @@ bool Overlay::make_view(const char*& why) {
     return false;
   }
   std::uint32_t hotkey = 0;
-  if (api_.register_hotkey(me_, kActionView, "Open EldenNet's debug view", kKeyF11, 0, hotkey) != GRACEUI_OK) {
+  const GraceUiStatus status =
+      api_.register_hotkey(me_, kActionView, "Open EldenNet's debug view", kKeyF11, 0, hotkey);
+  if ((status != GRACEUI_OK && status != GRACEUI_UNBOUND) || hotkey == 0) {
     why = "hotkey";
     return false;
   }
+  // Unbound (D164): F11 was taken first, by another mod's hotkey or the menu key. The view is made all the same and
+  // keeps its hotkey's id, so a binding the player makes later opens it; until then nothing does.
   panel_ = panel;
   view_hotkey_ = hotkey;
-  why = "ready";
+  view_bound_ = status == GRACEUI_OK;
+  why = view_bound_ ? "ready" : "unbound";
   return true;
 }
 
 GraceUiStatus Overlay::register_mark() noexcept {
-  if (mark_hotkey_ != 0) return GRACEUI_OK;
+  if (mark_hotkey_ != 0) return mark_bound_ ? GRACEUI_OK : GRACEUI_UNBOUND;
   if (notices_only_ || !caps_hotkeys_) return GRACEUI_NOT_YET;
   std::uint32_t id = 0;
   const GraceUiStatus status = api_.register_hotkey(me_, kActionMark, "Mark (development)", kKeyPause, 0, id);
-  if (status == GRACEUI_OK) mark_hotkey_ = id;
+  if ((status == GRACEUI_OK || status == GRACEUI_UNBOUND) && id != 0) {
+    mark_hotkey_ = id;
+    mark_bound_ = status == GRACEUI_OK;
+  }
   return status;
 }
 

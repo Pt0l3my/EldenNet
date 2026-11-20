@@ -6,8 +6,10 @@
 //   it runs is its GraceUI pre-flight.
 // - T6, once the link is published: the banner (ARCH §5.4, §10.3's texts, en-core's banner_text) and the pause badge
 //   as notices; EldenNet's claims as a world-state provider (en-overlay's world.hpp); the Mark's hotkey on Pause when
-//   the launcher's console holds Pause or debug.panel is on, and the hand-over of the Marks' ring (watch.hpp's
-//   MarkSource); and the F11 view (debug.panel), whose status is filled here from the core, the task and the block.
+//   the launcher's console holds Pause or debug.panel is on, and, once it is bound, the hand-over of the Marks' ring
+//   (watch.hpp's MarkSource): registered unbound (GraceUI D164, another mod's hotkey took Pause first), the launcher's
+//   Pause stays the Mark; and the F11 view (debug.panel), whose status is filled here from the core, the task and the
+//   block.
 #include <optional>
 #include <string>
 
@@ -33,6 +35,7 @@ struct OverlayLink {
   bool mark_tried = false;  // the Mark's hotkey asked for once on T6 (a GraceUI without hotkeys answers not_yet)
   bool mark_asked = false;
   bool marks_ours = false;
+  bool mark_kept_told = false;  // "the launcher keeps Pause" logged, for an unbound Mark
   bool lost = false;
   GraceUiStatus refused = GRACEUI_OK;
 };
@@ -145,9 +148,12 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     l.flag("ok", o != nullptr).word("outcome", en::overlay::to_string(r.outcome));
     l.word("path", banner_path ? "banner" : "main").word("how", how_word(found.how)).num("looks", found.attempts);
     l.num("look_ms", found.ms).flag("installed", found.installed).word("graceui", version_word(r.graceui_version));
-    l.num("status", r.status).num("reason", r.reason).word("view", r.view).flag("mark", r.mark).flag("world", r.world);
+    l.num("status", r.status).num("reason", r.reason).word("view", r.view).flag("mark", r.mark);
+    l.flag("mark_bound", r.mark_bound).flag("world", r.world);
     log(l, o != nullptr ? LogLevel::Info : LogLevel::Warn);
     if (o == nullptr) return;  // headless: nothing can be drawn this session (ARCH §10.3)
+    // F11 taken first (D164): the view is made, but nothing opens it until the player binds its hotkey in GraceUI.
+    if (o->view_ready() && !o->view_bound()) log(Line("view").word("hotkey", "unbound"), LogLevel::Warn);
     auto* link = new OverlayLink();  // lives for the process (R14)
     link->overlay = o;
     s.overlay.store(link, std::memory_order_release);
@@ -201,14 +207,21 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       link->world = flags;
     }
 
-    // The Mark: GraceUI's hotkey on Pause, once a console holds Pause (or debug.panel asked for it at connect), and the
-    // ring asked for until it is EldenNet's.
+    // The Mark: GraceUI's hotkey on Pause, once a console holds Pause (or debug.panel asked for it at connect), and,
+    // bound, the ring asked for until it is EldenNet's. Unbound (D164), the launcher is never asked: its Pause stays the
+    // Mark, and the session's Marks are its own.
     if (!o.mark_registered() && !link->mark_tried && block::mark_source() == w::MarkSource::Launcher) {
       link->mark_tried = true;
       const GraceUiStatus st = o.register_mark();
-      log(Line("mark_hotkey").num("status", st), st == GRACEUI_OK ? LogLevel::Info : LogLevel::Warn);
+      log(Line("mark_hotkey").num("status", st).flag("bound", st == GRACEUI_OK),
+          st == GRACEUI_OK || st == GRACEUI_UNBOUND ? LogLevel::Info : LogLevel::Warn);
     }
-    if (o.mark_registered() && !link->marks_ours) {
+    if (o.mark_registered() && !o.mark_bound() && !link->mark_kept_told &&
+        block::mark_source() == w::MarkSource::Launcher) {
+      link->mark_kept_told = true;
+      log(Line("marks").word("source", w::to_string(block::mark_source())).flag("bound", false));
+    }
+    if (o.mark_bound() && !link->marks_ours) {
       link->marks_ours = block::take_marks();
       if (!link->mark_asked || link->marks_ours) {
         log(Line("marks").word("source", w::to_string(block::mark_source())));

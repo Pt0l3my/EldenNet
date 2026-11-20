@@ -27,10 +27,11 @@ the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it wai
 
 On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
 
-1. **`find`**: graceui-sys's look, by module name, an export scan, then `GraceUI\graceui.dll` in the game's folder,
-   which it loads, again every 250 ms for at most 30 s. When nothing answers, no copy is installed in the game's folder
-   and no module is named `graceui.dll`, nothing can answer later, and the look ends at once: a start without GraceUI is
-   not held up 30 s. Both load orders work: GraceUI loaded before EldenNet is found by its name, and GraceUI installed in
+1. **`find`**: graceui-sys's look (`graceui_sys_find`), by module name, an export scan, then `GraceUI\graceui.dll` in
+   the game's folder, which it loads, again every 250 ms for at most 30 s. With `GRACEUI_SYS_STOP_IF_ABSENT` (GraceUI
+   D164), when nothing answers, no copy is installed in the game's folder and no module is named `graceui.dll`, nothing
+   can answer later, and the look ends at once: a start without GraceUI is not held up 30 s. The rule is graceui-sys's
+   own, and `installed` in the log is its word for it. Both load orders work: GraceUI loaded before EldenNet is found by its name, and GraceUI installed in
    the game's folder but not yet loaded is loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
    (0.1.0, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
@@ -42,8 +43,12 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    own bitmap font), its atlas registered as a texture before any submit (EldenNet's registration window), a hidden
    panel on the panel layer at the display's top left (24, 24; 680 by 420), and F11 registered as the hotkey
    `debug-view` (D155). A step that fails leaves the view off (the report names it: `no_caps`, `atlas`, `panel`,
-   `hotkey`) and the connection as it is.
-4. The Mark's hotkey (`mark`, Pause) when asked for: below.
+   `hotkey`) and the connection as it is. F11 taken first, by another mod's hotkey or the menu key, registers unbound
+   (`GRACEUI_UNBOUND` with its id, D164): a success, the view made all the same (`unbound` in the report, and the DLL
+   logs it), which nothing opens until the player binds the hotkey in GraceUI; there is no other way to it.
+4. The Mark's hotkey (`mark`, Pause) when asked for, `register_mark` on T6 otherwise. Unbound (another mod's hotkey
+   took Pause first), it is registered with its id and `mark_bound()` stays false: the DLL then never asks the launcher
+   for Pause, which stays the Mark (src/eldennet/README.md).
 
 From then on EldenNet's core thread (T6) alone calls the rest, once per wake (at most every 100 ms):
 
@@ -90,7 +95,8 @@ ranges, indices, clip rectangles inside the panel, known textures, the stride). 
 failed connect headless; the banner replaced in place and withdrawn, the badge, a long text cut; the notice-only mode;
 the world-state claims sent on change, and none without the cap; the view (its atlas before any submit, a hidden panel,
 F11, a list before it shows, lists every step while open, hidden again, an even count of presses leaving it as it
-was); a view that cannot be made; the Mark's hotkey and its presses; GraceUI gone.
+was); a view that cannot be made; the Mark's hotkey and its presses; F11 or Pause taken by another mod, registered
+unbound with its id; GraceUI gone.
 
 End to end, the fake game's harness runs eldennet.dll with a test build of GraceUI under Wine with Direct3D 12
 (`tests/fakegame/README.md`).

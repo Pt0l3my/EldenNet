@@ -1,6 +1,7 @@
 // The fake GraceUI's table (fake_grace.hpp).
 #include "fake_grace.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <string_view>
 
@@ -186,9 +187,10 @@ GraceUiStatus register_hotkey(GraceUiConsumer me, const GraceUiHotkeyDesc* desc,
     if (h.action == action) return GRACEUI_REFUSED;
   }
   if (g.hotkeys.size() >= GRACEUI_HOTKEYS_PER_MOD) return GRACEUI_FULL;
-  g.hotkeys.push_back(Hotkey{action, text_of(desc->name, desc->name_length), desc->key});
+  const bool taken = std::find(g.taken_keys.begin(), g.taken_keys.end(), desc->key) != g.taken_keys.end();
+  g.hotkeys.push_back(Hotkey{action, text_of(desc->name, desc->name_length), desc->key, !taken});
   *id = static_cast<uint32_t>(g.hotkeys.size());
-  return GRACEUI_OK;
+  return taken ? GRACEUI_UNBOUND : GRACEUI_OK;  // registered either way, with its id (D164)
 }
 
 GraceUiStatus notice(GraceUiConsumer me, const GraceUiNotice* n) {

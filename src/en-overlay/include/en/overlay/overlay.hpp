@@ -38,15 +38,17 @@ struct Found {
   std::uint32_t how = 0;       // GRACEUI_SYS_BY_NAME, _BY_SCAN or _BY_PATH; 0 for none
   std::uint32_t attempts = 0;  // looks made
   std::uint32_t version = 0;   // the GraceUI found: GraceUI_Version(), or 0
-  bool installed = false;      // GraceUI\graceui.dll lies in the game's folder (GraceUI D51)
+  bool installed = false;      // at the last look, a module named graceui.dll was loaded or GraceUI\graceui.dll lay
+                               // in the game's folder (graceui-sys's own word, GraceUI D51, D164)
   std::uint64_t ms = 0;        // how long the look took
 };
 
-// On T1, never in DllMain: graceui-sys's look (by module name, an export scan, then GraceUI\graceui.dll in the game's
-// folder, which it loads), again every 250 ms for at most `timeout_ms`. When nothing answers, no copy is installed in
-// the game's folder and no module is named graceui.dll, nothing can answer later: the look ends at once, so a start
-// without GraceUI is not held up 30 s (GraceUI comes only from that folder, D51, D83; a copy loaded later from elsewhere
-// under another name is not waited for).
+// On T1, never in DllMain: graceui-sys's look (`graceui_sys_find`: by module name, an export scan, then
+// GraceUI\graceui.dll in the game's folder, which it loads), again every 250 ms for at most `timeout_ms`, with
+// GRACEUI_SYS_STOP_IF_ABSENT (GraceUI D164): when nothing answers, no copy is installed in the game's folder and no
+// module is named graceui.dll, nothing can answer later, and the look ends at once, so a start without GraceUI is not
+// held up 30 s (GraceUI comes only from that folder, D51, D83; a copy loaded later from elsewhere under another name is
+// not waited for).
 [[nodiscard]] Found find(std::uint32_t timeout_ms = kFindTimeoutMs) noexcept;
 
 // What `connect` came to (GraceUI eldennet-changes §14 item 1).
@@ -79,9 +81,11 @@ struct Report {
   std::uint32_t floor = 0;                 // with too_old: the version EldenNet needs
   bool world = false;                      // has_cap names world-state
   bool hotkeys = false;                    // has_cap names hotkeys
-  const char* view = "off";                // the F11 view: "off", "ready", or why not: "no_caps", "atlas", "panel",
-                                           // "hotkey"
-  bool mark = false;                       // the Mark's hotkey is registered
+  const char* view = "off";                // the F11 view: "off", "ready", "unbound" (made, its hotkey registered but
+                                           // unbound: F11 was taken first, D164), or why not: "no_caps", "atlas",
+                                           // "panel", "hotkey"
+  bool mark = false;                       // the Mark's hotkey is registered, bound or not
+  bool mark_bound = false;                 // and bound: only then does EldenNet ask the launcher for Pause
 };
 
 class Overlay {
@@ -97,9 +101,11 @@ class Overlay {
 
   // ---- On T6 from here on.
   [[nodiscard]] bool notices_only() const noexcept { return notices_only_; }
-  [[nodiscard]] bool view_ready() const noexcept { return panel_ != 0 && view_hotkey_ != 0; }
+  [[nodiscard]] bool view_ready() const noexcept { return panel_ != 0 && view_hotkey_ != 0; }  // bound or not
+  [[nodiscard]] bool view_bound() const noexcept { return view_ready() && view_bound_; }
   [[nodiscard]] bool view_open() const noexcept { return open_; }
-  [[nodiscard]] bool mark_registered() const noexcept { return mark_hotkey_ != 0; }
+  [[nodiscard]] bool mark_registered() const noexcept { return mark_hotkey_ != 0; }  // bound or not
+  [[nodiscard]] bool mark_bound() const noexcept { return mark_hotkey_ != 0 && mark_bound_; }
   [[nodiscard]] std::uint32_t graceui_version() const noexcept { return graceui_version_; }
 
   // The banner: one notice under EldenNet's key, shown until replaced (duration 0); a new text replaces it in place and
@@ -109,7 +115,10 @@ class Overlay {
   GraceUiStatus badge(std::string_view text) noexcept;
   // EldenNet's claims as a world-state provider (world.hpp), sent when they change.
   GraceUiStatus world(std::uint32_t flags) noexcept;
-  // The Mark's hotkey, Pause, registered now (connected, with the hotkeys cap): GRACEUI_OK once registered.
+  // The Mark's hotkey, Pause, registered now (connected, with the hotkeys cap): GRACEUI_OK once registered and bound;
+  // GRACEUI_UNBOUND once registered but unbound (D164: another mod's hotkey took Pause first), a success that carries
+  // its id: the launcher's Pause then stays the Mark, and only a bound Mark asks for it. Asked again, it answers the
+  // same without calling GraceUI.
   GraceUiStatus register_mark() noexcept;
 
   struct Step {
@@ -148,7 +157,9 @@ class Overlay {
   ImGuiContext* imgui_ = nullptr;
   std::uint64_t panel_ = 0;
   std::uint32_t view_hotkey_ = 0;
+  bool view_bound_ = false;
   std::uint32_t mark_hotkey_ = 0;
+  bool mark_bound_ = false;
   bool open_ = false;
   ViewLines lines_;
   graceui::imgui::DrawList list_;
