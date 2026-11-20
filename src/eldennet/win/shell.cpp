@@ -235,7 +235,10 @@ DWORD WINAPI core_main(void* param) noexcept {
           }
         }
       }
-      // GraceUI (overlay.cpp): the banner and the badge as notices, the world-state claims, the Mark and the F11 view.
+      // GraceUI (overlay.cpp): the banner and the badge as notices, the world-state claims, the Mark, the F11 view and
+      // EldenNet's space (its pages), which reads the recorder's state too.
+      s.recording.store(rec.on(), std::memory_order_relaxed);
+      s.recorded.store(rec.lines(), std::memory_order_relaxed);
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now);
       if (now - last_status >= 10'000) {
         last_status = now;

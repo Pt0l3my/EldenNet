@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""tests/pages/preview.py: EldenNet's pages in grace-dev, GraceUI's fake host (GraceUI's eldennet-changes §26).
+
+    python3 -I tests/pages/preview.py --grace-dev <grace-dev> --pages src/en-overlay/pages --fixtures tests/pages \
+        --work <a folder of its own>
+
+For each fixture state (tests/pages/<state>/topics.json, the bodies en_overlay_tests builds from the state's invented
+facts), a space folder of pages.json, settings.json and that topics.json, which grace-dev checks as register_pages
+does; then grace-dev serves it on loopback, and a browser of our own (browser.py) joins: the welcome names EldenNet's
+space at the slice's increment, every topic watched comes back as the fixture holds it, and a settings command is
+answered by the settings description's rules (one accepted, one refused). Then each page's in-game structure
+(`grace-dev --dump eldennet <page> --size 1920x1080`) is compared with tests/pages/golden/<page>-1920x1080.txt
+(EN_UPDATE_GOLDENS=1 writes them anew). Exit 0 when everything matches.
+"""
+import argparse
+import json
+import os
+import pathlib
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import browser  # noqa: E402
+
+PAGES = ("home", "system.status", "system.logs", "settings.developer")
+SIZE = "1920x1080"
+
+
+def free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def collect(stream, into):
+    for line in stream:
+        into.append(line)
+
+
+def serve(grace_dev, folder, state, topics, failures):
+    port = free_port()
+    process = subprocess.Popen([grace_dev, "--space-dir", str(folder), "--no-scenario", "--port", str(port),
+                                "--increment", "0.1"],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    out, err = [], []
+    readers = [threading.Thread(target=collect, args=(process.stdout, out), daemon=True),
+               threading.Thread(target=collect, args=(process.stderr, err), daemon=True)]
+    for reader in readers:
+        reader.start()
+    view = None
+    try:
+        deadline = time.monotonic() + 15
+        while not any(line.startswith("Ready: http://127.0.0.1:%d/" % port) for line in out):
+            if process.poll() is not None or time.monotonic() > deadline:
+                failures.append("%s: grace-dev did not take the space:\n%s%s" % (state, "".join(out), "".join(err)))
+                return
+            time.sleep(0.05)
+        view = browser.Browser(port)
+        spaces = {s["id"]: s for s in view.welcome.get("spaces", [])}
+        if spaces.get("eldennet", {}).get("increment") != "0.1":
+            failures.append("%s: the welcome names no eldennet space at 0.1: %s" % (state, sorted(spaces)))
+        for topic, want in topics.items():
+            view.sub("eldennet", topic)
+            got = view.state("eldennet", topic)
+            have = got.get("body") if got["t"] == "state" else [
+                {k: v for k, v in row.items() if k != "seq"} for row in got.get("rows", [])]
+            if got["t"] == "rows":
+                want = [{k: v for k, v in row.items() if k != "seq"} for row in want]
+            if have != want:
+                failures.append("%s: %s came back otherwise than its fixture" % (state, topic))
+        view.sub("eldennet", "settings")
+        settings = view.state("eldennet", "settings")["body"]
+        if settings.get("values", {}).get("debug.log_level") != "info":
+            failures.append("%s: the settings' values are not their defaults" % state)
+        ok = view.command("eldennet", "settings.set", {"key": "debug.log_level", "value": "debug"})
+        refused = view.command("eldennet", "settings.set", {"key": "debug.log_level", "value": "loud"})
+        if ok.get("ok") is not True or refused.get("error") != "invalid_value":
+            failures.append("%s: settings.set answered %s and %s" % (state, ok, refused))
+    except (browser.BrowserError, OSError, ValueError, KeyError) as e:
+        failures.append("%s: the browser: %r\n%s%s" % (state, e, "".join(out), "".join(err)))
+    finally:
+        if view is not None:
+            view.close()
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        for reader in readers:
+            reader.join(timeout=5)
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--grace-dev", required=True)
+    parser.add_argument("--pages", required=True, type=pathlib.Path, help="the folder of pages.json and settings.json")
+    parser.add_argument("--fixtures", required=True, type=pathlib.Path)
+    parser.add_argument("--work", required=True, type=pathlib.Path)
+    args = parser.parse_args(argv)
+    failures = []
+    states = sorted(p.parent.name for p in args.fixtures.glob("*/topics.json"))
+    if not states:
+        print("preview: no fixture states", file=sys.stderr)
+        return 1
+    shutil.rmtree(args.work, ignore_errors=True)
+    for state in states:
+        folder = args.work / state
+        folder.mkdir(parents=True)
+        for name in ("pages.json", "settings.json"):
+            shutil.copyfile(args.pages / name, folder / name)
+        shutil.copyfile(args.fixtures / state / "topics.json", folder / "topics.json")
+        topics = json.loads((folder / "topics.json").read_text(encoding="utf-8"))
+        serve(args.grace_dev, folder, state, topics, failures)
+    # The in-game structure of each page, as GraceUI's menu lays it out (grace-dev --dump: the fake face, settings at
+    # their defaults, so the same for every state).
+    update = os.environ.get("EN_UPDATE_GOLDENS") is not None
+    goldens = args.fixtures / "golden"
+    goldens.mkdir(exist_ok=True)
+    for page in PAGES:
+        done = subprocess.run([args.grace_dev, "--dump", "eldennet", page, "--size", SIZE, "--space-dir",
+                               str(args.work / states[0])], capture_output=True, text=True, encoding="utf-8")
+        if done.returncode != 0:
+            failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
+            continue
+        golden = goldens / ("%s-%s.txt" % (page, SIZE))
+        if update:
+            golden.write_text(done.stdout, encoding="utf-8")
+        if not golden.is_file() or golden.read_text(encoding="utf-8") != done.stdout:
+            failures.append("--dump %s differs from tests/pages/golden/%s (EN_UPDATE_GOLDENS=1 writes it)" %
+                            (page, golden.name))
+    for f in failures:
+        print("preview: " + f, file=sys.stderr)
+    if not failures:
+        print("preview: %d states served, %d pages match their goldens" % (len(states), len(PAGES)))
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

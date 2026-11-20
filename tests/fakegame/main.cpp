@@ -1,6 +1,7 @@
 // The fake game's entry: the command line, the status lines, the window, the boot order (ARCH §1.4 and §3.3 as a game
 // shows them to EldenNet: a window, then global_hinstance, then the statics), and the frame loop, which runs every
 // registered task at a set rate, with hitches, stalls, moves, loading screens, faults and DLL loads on request.
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -123,6 +124,42 @@ void wait_pumping(double seconds, bool window) {
     if (window) pump();
     Sleep(5);
   }
+}
+
+// --press-keys' list, "F:KEY,F:KEY": each key GraceUI's menu reads, with its virtual key and scan code.
+bool parse_keys(const std::wstring& list, std::vector<Options::KeyPress>& out) {
+  struct Named {
+    const wchar_t* name;
+    unsigned vk;
+    unsigned scan;
+  };
+  static constexpr Named kKeys[] = {{L"f5", VK_F5, 0x3F},      {L"next", VK_NEXT, 0x51}, {L"prior", VK_PRIOR, 0x49},
+                                    {L"up", VK_UP, 0x48},      {L"down", VK_DOWN, 0x50}, {L"left", VK_LEFT, 0x4B},
+                                    {L"right", VK_RIGHT, 0x4D}, {L"return", VK_RETURN, 0x1C},
+                                    {L"escape", VK_ESCAPE, 0x01}};
+  std::size_t at = 0;
+  while (at < list.size()) {
+    const std::size_t end = std::min(list.find(L',', at), list.size());
+    const std::wstring item = list.substr(at, end - at);
+    const std::size_t colon = item.find(L':');
+    if (colon == std::wstring::npos || colon == 0) return false;
+    Options::KeyPress k;
+    for (std::size_t i = 0; i < colon; ++i) {
+      if (item[i] < L'0' || item[i] > L'9') return false;
+      k.frame = k.frame * 10 + static_cast<std::uint64_t>(item[i] - L'0');
+    }
+    const std::wstring name = item.substr(colon + 1);
+    for (const Named& n : kKeys) {
+      if (name == n.name) {
+        k.vk = n.vk;
+        k.scan = n.scan;
+      }
+    }
+    if (k.vk == 0) return false;
+    out.push_back(k);
+    at = end + 1;
+  }
+  return !out.empty();
 }
 
 // --- Command line -------------------------------------------------------------------------------------------------------
@@ -293,6 +330,10 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--d3d12") o.d3d12 = true;
     else if (n == L"--grace-take-pause") o.grace_take_pause = true;
     else if (n == L"--press-f11-at") ok = p.numbers(o.press_f11_at);
+    else if (n == L"--press-keys") {
+      std::wstring list;
+      ok = p.value(list) && parse_keys(list, o.press_keys);
+    }
     else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
     else if (n == L"--grace-probe") {
       std::vector<std::uint32_t> v;
@@ -395,7 +436,7 @@ void print_usage() {
       "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --press-pause-at F",
       "  --press-pause-every N  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b",
-      "  --grace-take-pause",
+      "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -482,6 +523,9 @@ int run(HINSTANCE instance) {
     }
     for (const std::uint64_t at : o.press_f11_at) {
       if (at == frame && window != nullptr) press_key_into(window, VK_F11, 0x57);
+    }
+    for (const Options::KeyPress& k : o.press_keys) {
+      if (k.frame == frame && window != nullptr) press_key_into(window, k.vk, k.scan);
     }
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {

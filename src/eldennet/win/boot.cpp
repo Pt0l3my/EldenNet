@@ -166,6 +166,7 @@ void run(HMODULE module) {
     const en::gal::BuildEntry& e = (*gated)->profile.entry();
     s.game_version = e.file_version;
     s.game_version_known = true;
+    s.build_supported = true;
     s.region = e.region == en::gal::Region::Ww ? "ww" : "jp";
   }
   if (!s.game_version_known) {
@@ -206,7 +207,9 @@ void run(HMODULE module) {
                                                     en::shell::kMaxSettingsBytes);
   const en::shell::LoadedSettings loaded = en::shell::parse_settings(text.value_or(""), kProbeBuild);
   s.settings = loaded.settings;
+  s.settings_refused = loaded.refused;
   set_log_level(s.settings.log_level);
+  set_settings_file(s.paths.data.empty() ? std::wstring() : s.paths.data + L"\\config\\settings.toml", kProbeBuild);
   log(Line("settings").flag("file", text.has_value()).flag("refused", loaded.refused).flag("enabled", s.settings.enabled)
           .flag("record", s.settings.record_sessions).word("copy", en::shell::to_string(s.settings.copy))
           .word("log_level", en::shell::to_string(s.settings.log_level))
@@ -239,8 +242,10 @@ void run(HMODULE module) {
   }
   s.sys->set_copy_kind(s.settings.copy == en::shell::CopyMode::Rpm ? en::gal::CopyKind::Rpm : en::gal::CopyKind::Seh);
   s.io = make_io(s);
+  s.logger_started = logging;
   const bool core = start_core(s);
   const bool watcher = start_watcher_thread(s);
+  s.watcher_started.store(watcher, std::memory_order_relaxed);
   log(Line("threads").flag("core", core).flag("watcher", watcher).flag("logger", logging));
 
   if (!*gated) return banner_path(s, BannerReason::UnknownBuild, gate_word);

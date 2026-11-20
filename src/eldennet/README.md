@@ -43,7 +43,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.1.0) and the caps it uses, and, connected, the F11 view and the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.3) and the caps it uses, and, connected, the F11 view and the
    Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
@@ -115,6 +115,16 @@ After each wake, once T1 has published the connection:
   It shows T1's state and discovery's items, en-core's phase, level, banner and gate, the task's snapshots, p99 and
   read mode, each read group's state, the groups tripped, the faults by kind, the Marks, GraceUI's version and the last
   changes; no game text (en-overlay's README).
+- **EldenNet's pages** (en-overlay's space, PAGES; GraceUI D169): registered by T1 at the connect (`connect … pages=0`
+  when GraceUI took it; both views on the main path, the game's alone on the banner path). T6 keeps the space from its
+  first wake, its logs stream fed from every line T11 writes (a tail ring of 256, T11 to T6), and, connected, fills its
+  facts from the core, the task, the block and the shell, and lets `step` hand it GraceUI's events: each topic watched
+  or no longer and each command logged (`page what=watched|unwatched topic=…`, `page what=command name=… key=…
+  result=…`), every command answered at once. A change is applied (`setting key=… effect=now|next_launch`: the log's
+  detail at once, the developer views and the recording from the next launch) and, after 300 ms with no other (D14),
+  every change of the session is handed to T11, which reads settings.toml again, edits it (en_shell's `edit_settings`:
+  every other key and table kept, comments not; a file the parse refuses is never written over) and writes it beside
+  and renames it over (`settings_write ok=… keys=… why=…`). T6 does no file work for the pages.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)

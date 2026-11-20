@@ -1,0 +1,57 @@
+# eldennet system.status: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.hi         30, 145   64x30   glyphs 6 "System"
+fill    tint.select     0, 185  300x40  
+fill    gold            0, 185    3x40  
+text    gold.hi        50, 193   51x25   glyphs 6 "Status"
+text    ink.mute       50, 233   34x25   glyphs 4 "Logs"
+line    rule           30, 265  240x1   
+text    ink.mute       30, 275   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  119x45   clip1 glyphs 6 "Status"
+text    ink.mute      340, 136  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+text    gold.hi       340, 201   58x22   clip1 glyphs 6 "Health"
+fill    gold          340, 232   57x3    clip1
+text    ink.mute      427, 201  126x22   clip1 glyphs 13 "Compatibility"
+line    rule          340, 235 1540x1    clip1
+fill    ground.2      340, 260 1540x130  r5 clip1
+stroke  rule          340, 260 1540x130  r5 w1 clip1
+text    gold          365, 280   58x20   clip1 glyphs 6 "Health"
+text    ink.faint    1842, 280    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 330  219x25   clip1 glyphs 22 "Shown in the browser view."
+fill    ground.2      340, 410 1540x130  r5 clip1
+stroke  rule          340, 410 1540x130  r5 w1 clip1
+text    gold          365, 430  154x20   clip1 glyphs 15 "EldenNet's parts"
+text    ink.faint    1842, 430    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 480  219x25   clip1 glyphs 22 "Shown in the browser view."
+fill    ground.2      340, 560 1540x155  r5 clip1
+stroke  rule          340, 560 1540x155  r5 w1 clip1
+text    gold          365, 580  182x20   clip1 glyphs 17 "What EldenNet reads"
+text    ink.faint    1842, 580    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 605  557x25   clip1 glyphs 56 "Each group of the game's state EldenNet reads, with its self-test."
+text    ink.mute      365, 655  219x25   clip1 glyphs 22 "Shown in the browser view."
+fill    ground.2      340, 735 1540x175  r5 clip1
+stroke  rule          340, 735 1540x175  r5 w1 clip1
+text    gold          365, 755   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 785 1490x1    clip1
+text    ink.hi        365, 790   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 793  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1835, 790    9x28   clip1 glyphs 1 "→"
+line    rule          365, 840 1490x1    clip1
+text    ink.hi        365, 845   38x28   clip1 glyphs 4 "Home"
+text    ink.mute      862, 848  591x25   clip1 glyphs 56 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1835, 845    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+stroke  gold.hi       362, 782 1496x61   r5 w3 clip1
+# 55 items, 2296 vertices, 4878 indices, 4 commands; check_draw_list: passes

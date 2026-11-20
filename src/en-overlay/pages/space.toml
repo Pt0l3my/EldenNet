@@ -1,0 +1,211 @@
+# SPDX-License-Identifier: MIT
+# EldenNet's space (PAGES §2; GraceUI's G20, D160 and eldennet-changes §19): its rail, pages, topics, commands and
+# settings, in GraceUI's page format. tools/pages/build.py turns it into the protocol's JSON (pages.json and
+# settings.json beside this file) and into src/en-overlay/src/space_data.cpp, which eldennet.dll hands to GraceUI at
+# register_pages; GraceUI's own lint checks it in CTest (en_pages_lint, from a pinned GraceUI).
+#
+# The first slice (roadmap S11.4.a): Home and System as far as v0.1 has data, and Settings › Developer, the home of the
+# developer settings v0.1 reads (PAGES §4.5). The rail holds every category of PAGES §4.2.1 in its order; a category with
+# no page yet holds none, and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft
+# for the owner's review (the slice's notes list them). Names of the game's places and characters never appear here
+# (PAGES §4.1 item 6, SP3).
+
+[space]
+id = "eldennet"
+name = "EldenNet"
+settings_schema = 2
+commands = ["settings.set", "settings.reset"]
+
+# ---- Topics (GraceUI DESIGN §6.5's names; `system.compatibility` is this slice's, for its notes).
+
+[[topic]]
+id = "settings"
+shape = "state"
+
+[[topic]]
+id = "status"
+shape = "state"
+
+[[topic]]
+id = "errors"
+shape = "state"
+
+[[topic]]
+id = "system.status"
+shape = "state"
+
+[[topic]]
+id = "system.compatibility"
+shape = "state"
+
+[[topic]]
+id = "logs"
+shape = "stream"
+ring = 500
+
+# ---- The rail (PAGES §4.2.1), in its order.
+
+[[category]]
+id = "home"
+name = "Home"
+pages = ["home"]
+
+[[category]]
+id = "ai"
+name = "AI"
+pages = []
+
+[[category]]
+id = "voice"
+name = "Voice"
+pages = []
+
+[[category]]
+id = "characters"
+name = "Characters"
+pages = []
+
+[[category]]
+id = "map"
+name = "Map"
+pages = []
+
+[[category]]
+id = "history"
+name = "History"
+pages = []
+
+[[category]]
+id = "behaviour"
+name = "Behaviour"
+pages = []
+
+[[category]]
+id = "system"
+name = "System"
+pages = ["system.status", "system.logs"]
+
+[[category]]
+id = "tools"
+name = "Tools"
+pages = []
+
+[[category]]
+id = "settings"
+name = "Settings"
+pages = ["settings.developer"]
+
+# ---- Settings: those v0.1 reads whose home is on these pages (PAGES §4.5's debug.*). Their effect is v0.1's own: the
+# F11 view is made at the connect and the recorder opened at the core's start, so both wait for the next launch, and
+# the log's detail changes at once (PAGES §4.1 item 3: a row says whether it works now).
+
+[[setting]]
+key = "debug.panel"
+type = "bool"
+default = false
+label = "Developer views"
+help = "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts."
+synonyms = ["debug", "F11", "developer", "view"]
+home = "settings.developer"
+effect = "next_launch"
+availability = "live"
+
+[[setting]]
+key = "debug.record_sessions"
+type = "bool"
+default = false
+label = "Record sessions"
+help = "Keeps a recording of each session's numbers, with no text and no names, for the developers' replay tools. Takes effect the next time the game starts."
+synonyms = ["recording", "record", "replay"]
+home = "settings.developer"
+effect = "next_launch"
+availability = "live"
+
+[[setting]]
+key = "debug.log_level"
+type = "choice"
+default = "info"
+choices = [{ value = "error", label = "Errors only" }, { value = "warn", label = "Warnings" }, { value = "info", label = "Normal" }, { value = "debug", label = "Detailed" }]
+label = "Log detail"
+help = "How much EldenNet writes to its log. Detailed helps with a bug report; Normal is enough otherwise. Changes at once."
+synonyms = ["log", "logging", "verbose", "level"]
+home = "settings.developer"
+effect = "now"
+availability = "live"
+
+# ---- Pages.
+
+[[page]]
+id = "home"
+category = "home"
+name = "Home"
+description = "Whether EldenNet is working on this game, and what to do if it is not."
+increment = "0.1"
+related = ["system.status", "system.logs"]
+help.purpose = "See at a glance whether EldenNet is working, and what to do when something is wrong."
+help.steps = ["Read the Status card: its first line says how EldenNet stands, the next one why.", "Look at Problems: each says what went wrong and what to do about it.", "Open System for the details: the start, EldenNet's parts and its log."]
+
+[[page.sections]]
+id = "status"
+title = "Status"
+blocks = [{ kind = "component", component = "key_value_list", topic = "status" }]
+
+[[page.sections]]
+id = "problems"
+title = "Problems"
+blocks = [{ kind = "component", component = "check_list", topic = "errors" }]
+
+[[page]]
+id = "system.status"
+category = "system"
+name = "Status"
+description = "Whether EldenNet is healthy on this PC and game build, and if not, why."
+increment = "0.1"
+related = ["system.logs", "home"]
+help.purpose = "Check, part by part, whether EldenNet runs as it should on this game build."
+help.steps = ["On Health, read the state and its reason, then whether this game build is supported.", "Look down EldenNet's parts: each says whether it runs and what it is doing.", "On Compatibility, check the versions of EldenNet and GraceUI, and how the game was started."]
+
+[[page.tabs]]
+id = "health"
+name = "Health"
+sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status" }] }]
+
+[[page.tabs]]
+id = "compatibility"
+name = "Compatibility"
+sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.compatibility" }] }]
+
+[[page]]
+id = "system.logs"
+category = "system"
+name = "Logs"
+description = "EldenNet's own log of this session, with nothing personal in it."
+increment = "0.1"
+related = ["system.status", "settings.developer"]
+help.purpose = "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only."
+help.steps = ["Read the newest lines at the end of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
+
+[[page.sections]]
+id = "log"
+title = "Log"
+blocks = [{ kind = "component", component = "log_tail", topic = "logs" }]
+
+[[page.sections]]
+id = "detail"
+title = "Log detail"
+blocks = [{ kind = "shortcuts", keys = ["debug.log_level"] }]
+
+[[page]]
+id = "settings.developer"
+category = "settings"
+name = "Developer"
+description = "Options for testing EldenNet and reporting its problems."
+increment = "0.1"
+related = ["system.logs", "system.status"]
+help.purpose = "Turn on what helps EldenNet's testers: the debug view, recordings of each session and a more detailed log."
+help.steps = ["Turn on Developer views for the F11 debug view, from the next start of the game.", "Turn on Record sessions to keep each session's numbers for the developers' tools.", "Choose how much the log writes; System › Logs shows it."]
+
+[[page.sections]]
+id = "developer"
+title = "Developer"
+blocks = [{ kind = "settings", keys = ["debug.panel", "debug.record_sessions", "debug.log_level"] }]

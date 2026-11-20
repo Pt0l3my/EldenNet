@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <sstream>
 #include <toml.hpp>
 
 #include "en/proto/toml_check.hpp"
@@ -199,6 +200,59 @@ LoadedSettings parse_settings(std::string_view text, bool probe_build) {
     out.settings = Settings{};
     out.notes.clear();
   }
+  return out;
+}
+
+EditedSettings edit_settings(std::string_view text, const std::vector<SettingsEdit>& edits, bool probe_build) {
+  EditedSettings out;
+  toml::table table;
+  if (!text.empty()) {
+    if (parse_settings(text, probe_build).refused) {
+      out.why = "refused";
+      return out;
+    }
+    toml::parse_result parsed = toml::parse(text, std::string_view{"settings.toml"});
+    if (!parsed) {
+      out.why = "refused";
+      return out;
+    }
+    table = std::move(parsed).table();
+  } else {
+    table.insert_or_assign("schema", 2);
+  }
+  for (const SettingsEdit& e : edits) {
+    const std::size_t dot = e.key.find('.');
+    if (dot == std::string::npos || dot == 0 || dot + 1 == e.key.size() ||
+        e.key.find('.', dot + 1) != std::string::npos) {
+      out.why = "unknown_key";
+      return out;
+    }
+    const std::string head = e.key.substr(0, dot);
+    const std::string leaf = e.key.substr(dot + 1);
+    toml::node* node = table.get(head);
+    if (node == nullptr) {
+      table.insert_or_assign(head, toml::table{});
+      node = table.get(head);
+    }
+    toml::table* sub = node->as_table();
+    if (sub == nullptr) {
+      out.why = "not_a_table";
+      return out;
+    }
+    if (e.is_text) {
+      sub->insert_or_assign(leaf, e.text);
+    } else {
+      sub->insert_or_assign(leaf, e.flag);
+    }
+  }
+  std::ostringstream written;
+  written << table << "\n";
+  if (parse_settings(written.str(), probe_build).refused) {
+    out.why = "result_refused";
+    return out;
+  }
+  out.ok = true;
+  out.text = written.str();
   return out;
 }
 

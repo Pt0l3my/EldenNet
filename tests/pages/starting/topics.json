@@ -1,0 +1,137 @@
+{
+  "errors": {
+    "checks": []
+  },
+  "logs": [
+    {
+      "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
+      "seq": 1,
+      "time": "0:00:00"
+    },
+    {
+      "line": "gate result=passed ms=11",
+      "seq": 2,
+      "time": "0:00:00"
+    },
+    {
+      "line": "init state=settings",
+      "seq": 3,
+      "time": "0:00:00"
+    },
+    {
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3",
+      "seq": 4,
+      "time": "0:00:01"
+    }
+  ],
+  "status": {
+    "items": [
+      {
+        "label": "State",
+        "value": "Starting"
+      },
+      {
+        "label": "Why",
+        "value": "Finding what it reads in the game"
+      },
+      {
+        "label": "EldenNet",
+        "value": "0.1.0"
+      },
+      {
+        "label": "GraceUI",
+        "value": "0.2.3"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      },
+      {
+        "label": "This session",
+        "value": "Under a minute"
+      }
+    ]
+  },
+  "system.compatibility": {
+    "checks": [
+      {
+        "detail": "Supported",
+        "label": "Game build 3.14.15.0",
+        "state": "pass"
+      },
+      {
+        "detail": "Started by the EldenNet launcher",
+        "label": "EldenNet 0.1.0",
+        "state": "pass"
+      },
+      {
+        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "label": "GraceUI 0.2.3",
+        "state": "pass"
+      }
+    ]
+  },
+  "system.status": {
+    "checks": [
+      {
+        "detail": "Finding what it reads in the game",
+        "label": "Start",
+        "state": "wait"
+      },
+      {
+        "detail": "Not yet",
+        "label": "Reading the game",
+        "state": "wait"
+      },
+      {
+        "detail": "Running",
+        "label": "The core",
+        "state": "pass"
+      },
+      {
+        "detail": "Checks the game's modules every minute",
+        "label": "Anti-cheat watch",
+        "state": "pass"
+      },
+      {
+        "detail": "Writing",
+        "label": "The log",
+        "state": "pass"
+      },
+      {
+        "detail": "Connected, version 0.2.3",
+        "label": "GraceUI",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "group",
+        "label": "Group"
+      },
+      {
+        "id": "state",
+        "label": "Self-test"
+      }
+    ],
+    "items": [
+      {
+        "label": "State",
+        "value": "Starting"
+      },
+      {
+        "label": "Why",
+        "value": "Finding what it reads in the game"
+      },
+      {
+        "label": "Start",
+        "value": "Finding what it reads in the game"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      }
+    ],
+    "rows": []
+  }
+}

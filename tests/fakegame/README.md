@@ -38,7 +38,8 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F, and with `--press-pause-every N` again every N frames | The player pressing the launcher's Mark, a system hotkey (O90), until it is taken |
 | `--d3d12`: a Direct3D 12 device, queue and flip-model swap chain (960 by 540) on the window, cleared and presented every frame; `d3d12.dll` and `dxgi.dll` loaded by name with this option alone | A game's swap chain, which GraceUI's overlay binds and draws on (part 12) |
 | `--press-f11-at F,F…`: F11 pressed and released into the window at each frame listed, the cursor in it and the window in front and holding the focus (as GraceUI's harness found Wine needs); with `--d3d12`, `--press-pause-at` presses Pause the same way | The player pressing GraceUI's hotkeys: F11 for EldenNet's debug view, Pause for its Mark |
-| `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b`: at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; and, with `--d3d12`, the pixels within 3 of the colour in the rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
+| `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b`: at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; where the test build has them, the menu (open, the page open, the element focused, its refusals) and the browser view's server (running, its port, the spaces, the commands pending); and, with `--d3d12`, the pixels within 3 of the colour in the rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
+| `--press-keys F:KEY,…`: one of GraceUI's menu keys (`f5`, `next`, `prior`, `up`, `down`, `left`, `right`, `return`, `escape`) pressed and released into the window at each frame listed, as F11 is | The player in GraceUI's menu (F5, D167, D171) |
 | `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
@@ -170,6 +171,17 @@ from the ring. (Loading GraceUI from the fake game's main thread at boot instead
 `dxgi.dll`, which `graceui.dll` imports, while eldennet.dll's threads ran; the launcher's `--also` loads it into the
 suspended process.) `launcher-eldennet-graceui-anticheat`: the simulated anti-cheat module beside GraceUI: GraceUI's own
 check puts it in the notice-only mode, and EldenNet's banner is a notice with nothing else (no panel, no provider).
+`launcher-eldennet-graceui-pages` (S11.4.a): EldenNet's space registered at the connect (`pages=0`) and served, at the
+title screen (in the world the fake player reads as in danger, which keeps GraceUI's menu shut): `--press-keys` opens
+F5's menu on EldenNet's Home, goes to System › Status and Logs, follows Log detail's shortcut row to its home on
+Settings › Developer and changes it there (a command EldenNet answers, applied at once), and closes the menu; the
+report gives the page and the focus at each step. Meanwhile the case's `during` hook, a browser of the tests' own
+(`tests/pages/browser.py`) on Linux, joins GraceUI's server at the port the report names (a page load's cookie, a
+ticket, a WebSocket), reads each of EldenNet's topics (the lamp and Home's card, Problems, System's Health, parts and
+read groups, Compatibility, the logs stream from its first line, the settings) and sends three commands: one accepted,
+one value refused, a page's reset refused without its confirmation. settings.toml then holds both changes, written
+once by T11. The banner path's case also checks that EldenNet's space is registered for the game's view alone there,
+so GraceUI's server does not start for it.
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

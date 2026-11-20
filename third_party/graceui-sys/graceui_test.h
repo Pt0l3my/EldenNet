@@ -177,7 +177,7 @@ typedef struct GraceUiTestInput {
   uint32_t events_dropped;     /* the holder's events the ring had no room for */
   uint32_t chars_seen;         /* code points Dear ImGui received since the last reset (GraceUI_Test_GetChars) */
   uint32_t imgui_keys_down;    /* Dear ImGui's keys down after the last frame, mouse buttons not counted */
-  uint32_t imgui_draws_cursor; /* 1 if the last frame drew Dear ImGui's own cursor */
+  uint32_t imgui_draws_cursor; /* 1 if the last frame drew the holder's pointer (the Grace pointer, D178) */
   int32_t imgui_mouse_x;       /* Dear ImGui's mouse position after the last frame, in back-buffer pixels */
   int32_t imgui_mouse_y;
   uint64_t frames_fed;         /* frames whose input came from a holder */
@@ -309,6 +309,8 @@ typedef struct GraceUiTestMenu {
   uint32_t faces;       /* the menu's faces in the atlas: one a type role (11), or 0 if they were left out */
   char page[64];        /* the open page's id */
   char focused[96];     /* the focused element, as grace-view names it ("setting:ui.scale") */
+  float baked_scale;    /* the effective scale the menu's faces were baked at, at warm-up; 0 if they were left out */
+  uint32_t reserved;
 } GraceUiTestMenu;
 
 /* Fills *out (out->size set by the caller); answers 1, or 0 if the size is too small. */
@@ -317,6 +319,17 @@ GRACEUI_API uint32_t GraceUI_Test_GetMenu(GraceUiTestMenu* out);
  * GraceUI's own thread has loaded its space (at its first wake after the first request) or for no such key. One store
  * holds it for the menu and the browser's views alike (D169). Read it while GraceUI is idle. */
 GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_t capacity);
+/* Where the menu's last layout drew an element (§5.5), named as GraceUiTestMenu.focused names it ("setting:ui.scale",
+ * "rail:graceui.mods"): out[0..3] its row, out[4..7] its control (x, y, width, height in the display's pixels; the
+ * control is the row for an element with none). Answers 1, or 0 if it was not drawn. Safe while GraceUI is busy. */
+GRACEUI_API uint32_t GraceUI_Test_GetMenuBounds(const char* name, float* out);
+/* The anti-cheat module re-check's interval while the browser view's server runs (§7.2 item 1), in milliseconds; 0
+ * keeps 60 s. With GraceUI_Test_SetAntiCheatNames after the first request, a test makes a re-check find a module. */
+GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);
+/* A topic of GraceUI's own space other than its settings ("graceui.mods", D181) as JSON text, as the space last published
+ * it, NUL-terminated; answers its length, or 0 before it is first published, for no such topic, or if it does not fit.
+ * A copy kept under a lock: safe to read while GraceUI's thread is busy. */
+GRACEUI_API uint32_t GraceUI_Test_GetTopic(const char* topic, char* out, uint32_t capacity);
 
 /* ---- The spaces and the browser view's server (D169). */
 typedef struct GraceUiTestServer {
