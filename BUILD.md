@@ -272,6 +272,26 @@ Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `
 `--set engine=` pointing at the unzipped files (the owner's steps on the fake game), and sweep it
 (`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
 
+GraceUI's in-game spikes S0-E and S4 (GraceUI D175, its `tools/grace-spike/README.md`) have a package of their own,
+`s0e-s4`, with the release DLL and GraceUI's test build:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=OFF -DEN_VERSION_LABEL=0.1.0-spikes.1 -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel
+python3 -I tools/spikepkg/build.py s0e-s4 --build build-cl-rel --graceui <graceui>/build-cl-test --out EldenNet-Spikes.zip
+```
+
+`--graceui` is a clang-cl Release tree of GraceUI with `GRACEUI_TEST_EXPORTS=ON`: its `GraceUI` folder goes in as the
+build laid it out (each file checked against its `graceui.toml`), with `grace-spike.dll` and `grace-standin.dll` from
+its `bin`. The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
+for each run (`build.py`'s `RUNS`: A1 to A4, A0 and B, each the launcher with fixed options from the package's own
+folder, then a pause) and `README-SPIKES.txt`. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
+and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a1` to `-a4`, `-a0` and `-b` with
+`--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`), each run's options exactly as its `.cmd` file
+holds them, started from the package's folder; GraceUI's own harness cases on the same GraceUI build; GraceUI's
+`tools/grace-spike/report.py` on each case's spikes folder; and the sweep.
+
 ## Checks: compile-fail tests and CI greps
 
 R1's compile-fail tests (ARCH §10.1): CTest builds `src/en-proto/tests/compile_fail/game_thread.cpp` once as a control,
