@@ -41,12 +41,13 @@ T1 then runs, each state logged and written to the watch block for the launcher'
    anti-cheat GraceUI's own check puts it in the notice-only mode), the banner (L1), end.
 7. **WaitWindow**: a visible top-level window of the process, polled every 100 ms, at most 120 s from T1's start.
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
-   `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when
-   no copy is installed there and none is loaded; then `connect` as `eldennet`, with its floor (GraceUI 0.1.0) and the
-   caps it uses, and, connected, the F11 view and the Mark's hotkey (below). One log line, `connect ok=… outcome=…
-   how=… looks=… installed=… graceui=… view=… mark=… world=…`; a failed connect (absent, too old, a duplicate id,
-   inactive, refused) leaves EldenNet headless, nothing drawn (ARCH §10.3), and the start goes on. `overlay.connect =
-   false` skips it (`connect skipped=1 why=off`).
+   `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
+   copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
+   `connect` as `eldennet`, with its floor (GraceUI 0.1.0) and the caps it uses, and, connected, the F11 view and the
+   Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
+   mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
+   failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
+   §10.3), and the start goes on. `overlay.connect = false` skips it (`connect skipped=1 why=off`).
 9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
 10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
     installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
@@ -92,11 +93,14 @@ After each wake, once T1 has published the connection:
   core's phase, multiplayer from the badge or the gate's session reasons, the anti-cheat from C14; danger and a game
   menu are v0.1's stand-ins (en-overlay's `world.hpp`).
 - **The Mark** (O90): GraceUI's hotkey `mark` on Pause, registered when the launcher's console holds Pause (or at
-  connect with `debug.panel`), then the watch block's ring asked for (`marks source=asked`, then `source=eldennet` once
-  the launcher has let its key go and handed it over; with no console, at once). Each press is then a Mark of
-  EldenNet's own, stamped when T6 takes it (at most 100 ms after it), numbered on in the same ring and recorded like
-  the launcher's. Without a block, EldenNet keeps a ring of its own. Until the hand-over, a press is logged as not
-  taken; the launcher's Pause stays the Mark whenever GraceUI is absent, so R1's flow is unchanged.
+  connect with `debug.panel`), then, once it is bound, the watch block's ring asked for (`marks source=asked`, then
+  `source=eldennet` once the launcher has let its key go and handed it over; with no console, at once). Each press is
+  then a Mark of EldenNet's own, stamped when T6 takes it (at most 100 ms after it), numbered on in the same ring and
+  recorded like the launcher's. Without a block, EldenNet keeps a ring of its own. Until the hand-over, a press is
+  logged as not taken; the launcher's Pause stays the Mark whenever GraceUI is absent, so R1's flow is unchanged. When
+  another mod's hotkey took Pause first, GraceUI registers EldenNet's unbound (`GRACEUI_UNBOUND`, D164): the ring is
+  never asked for, and the launcher's Pause stays the Mark (`marks source=launcher bound=0`; registered on T6,
+  `mark_hotkey status=11 bound=0`).
 - **The F11 view** (`debug.panel = true`; PAGES SP8, off by default): `poll`'s F11 presses open and close it; while it
   is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…`).
   It shows T1's state and discovery's items, en-core's phase, level, banner and gate, the task's snapshots, p99 and
@@ -219,7 +223,8 @@ copy, a crash and a stack overflow recorded through the DLL's filter, the watche
 from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
 taken, both reports linted by the launcher), and `--probe` refused by the release DLL. Without GraceUI, each logs
 `connect ok=0 outcome=absent installed=0 looks=1`: the look ends at once. With a test build of GraceUI (CMake's
-`EN_GRACEUI_DIR`), three cases more (`fakegame.launcher-eldennet-graceui*`): GraceUI loaded after EldenNet, by its own
-look, on the main path (the pre-flight, the connect, F11's view drawn on the game's Direct3D 12 frame and hidden again,
-the world-state provider, and the Mark handed over to GraceUI's hotkey); GraceUI loaded before it, on the banner path
-(the banner as one notice, F11's view); and the anti-cheat's notice-only mode.
+`EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), four cases more (`fakegame.launcher-eldennet-graceui*`):
+GraceUI loaded after EldenNet, by its own look, on the main path (the pre-flight, the connect, F11's view drawn on the
+game's Direct3D 12 frame and hidden again, the world-state provider, and the Mark handed over to GraceUI's hotkey);
+GraceUI loaded before it, on the banner path (the banner as one notice, F11's view); another mod holding Pause in
+GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; and the anti-cheat's notice-only mode.
