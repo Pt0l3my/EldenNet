@@ -12,7 +12,7 @@ dynamic initialiser or an exit-time destructor; ARCH §3.1, §1.7).
 cmake -S . -B build -G Ninja                      # GCC; CXX=clang++ for Clang, which also checks en_dll_module's rules
 cmake --build build
 build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && build/src/en-llm/en_llm_tests \
-  && build/src/en-gal/en_gal_tests
+  && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
 
@@ -52,6 +52,13 @@ for an executable it refuses. With the tests on, the fake game's harness runs it
 (`ctest -R fakegame.probe-exe`). The package the owner runs (R0, R0b, R0c: src/en-tools/README.md) takes
 `eldennet-engine.exe` from the clang-cl Release build; `fakegame.exe` carries R0c's variants of the FD4 idiom and of
 the group table, so the harness checks each of them end to end.
+
+Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
+which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
+its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
+f51bcc7, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the connection's
+tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines and the
+world-state claims.
 
 ## The Windows build with clang-cl
 
@@ -111,8 +118,24 @@ cmake --build build-cl
   `AeDebug`'s `Debugger` now names no program, so the process ends with the exception's code, as on a Windows PC with
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
+- The prefix's set-up also gives wined3d its Vulkan renderer (`HKCU\Software\Wine\Direct3D`, `renderer = vulkan`), as
+  GraceUI's BUILD.md does: only the GraceUI cases' fake game (`--d3d12`) makes a DXGI factory, and wined3d's OpenGL
+  renderer hung on Xvfb in GraceUI's harness.
+- **GraceUI's cases** (`ctest -R fakegame.launcher-eldennet-graceui`, clang-cl) need a test build of GraceUI, built from
+  GraceUI's own repository as its BUILD.md says, in a build tree of its own:
+
+  ```sh
+  cmake -S <graceui> -B <graceui-build> -G Ninja -DCMAKE_TOOLCHAIN_FILE=<graceui>/cmake/clang-cl-xwin.cmake \
+    -DCMAKE_BUILD_TYPE=Release -DGRACEUI_TEST_EXPORTS=ON
+  cmake --build <graceui-build>
+  cmake -S . -B build-cl ... -DEN_GRACEUI_DIR=<graceui-build>/bin    # graceui.dll and fonts\ are there
+  ```
+
+  Without `EN_GRACEUI_DIR` they are left out, with a line saying so. They need Mesa's lavapipe (`mesa-vulkan-drivers`)
+  for Wine's Direct3D 12, as GraceUI's harness does.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 12 minutes for the clang-cl build's 95 cases (21 of them the launcher's, 12 eldennet.dll's, below): 52 of about
+- About 13 minutes for the clang-cl build's 98 cases (21 of them the launcher's, 15 eldennet.dll's, three of those with
+  GraceUI, below): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
   offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
@@ -157,8 +180,10 @@ Its README has the start as built, the threads, the settings, the recorder and R
 - `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with
   `llvm-objdump`: `eldennet_instance_marker` their only export, their imports within `src/eldennet/tests/imports.allow`
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
+- The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
+  F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
 - `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 12 cases,
-  about 4 minutes (`launcher-eldennet-probe` is the longest, about 65 s). Each installs the DLL in its own folder with
+  about 4 minutes, and with `EN_GRACEUI_DIR` three more with GraceUI, about 1 minute (`launcher-eldennet-probe` is the longest, about 65 s). Each installs the DLL in its own folder with
   gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
   place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
