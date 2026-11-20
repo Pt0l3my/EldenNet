@@ -752,7 +752,7 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: a
   - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
   - gives: built 2026-11-16 on the engine branch: the WinHTTP transport, loaded by its full path from the system directory, with one conformance suite for it and libcurl, run under Wine; the local probes with the probe and models commands; the asynchronous handle (submit, cancel, the input epoch, events with backpressure, exactly one end per request) and Ollama's warm-up; 125 tests on Linux and 127 under Wine; every command run through the Windows build under Wine (WHY§101).
-- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [done]
+- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [active]
   - needs: g
   - refs: ARCH§11.1, WHY§101, WHY§108
   - gives: run 1 on 2026-11-16 (WHY§108): the home network's llama-server, TLS with real certificates and the tests
@@ -839,7 +839,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.1 The spikes for v0.1, in game
 
 - refs: DESIGN§16.1
-- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [done]
+- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [active]
   - refs: O73
   - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Parts 1 to 10 of the spike
     build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
@@ -864,7 +864,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
-- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [done]
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [active]
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
@@ -976,7 +976,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures [done]
   - refs: G3, GraceUI:DESIGN§9.2
   - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
-- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [done]
+- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [active]
   - needs: i, l, S10.4
   - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
   - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
