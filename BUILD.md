@@ -130,7 +130,10 @@ gate with its hysteresis, L1, L2 and Dormant; pure, so `en_core_tests` runs in e
 `en_launcher_core` everywhere (Steam's library files, the save backups with their BLAKE3 manifests, the appid file and
 its record, launcher.toml, the command line, the texts, the watcher's records and the spikes' tally;
 `en_launcher_tests`) and, in the two Windows builds, `eldennet-launcher.exe` (part 7). The launcher shares en-proto's watch block with
-EldenNet in the game. Its README has the command line and what each step does.
+EldenNet in the game. Its README has the command line and what each step does. Both link en-gal's offline part,
+en-proto and the header-only libraries alone (ARCH §2.3): `en_link_rule` (`cmake/link_rules.cmake`) stops the
+configuration if either reaches any other target of the build, en-core or en_shell among them, and names the chain;
+`ctest -R en_link_rules` checks the rule itself on a project of its own (`tests/linkrules/`).
 
 The launcher's end-to-end cases join the fake game's harness (`ctest -R fakegame.launcher`): 11 in both Windows builds
 (no DLL), and 10 more in the clang-cl build with `tests/galtest/galtest.dll` as the DLL, which now also does EldenNet's
@@ -144,8 +147,9 @@ above (`en_core_tests.exe`, `en_launcher_tests.exe` among them).
 ## eldennet.dll
 
 `src/eldennet/` (part 6) builds `en_shell` everywhere (settings.toml as v0.1 reads it, the scrubbed log's lines, the
-channels, the recorder's numbers-only lines, R1's probe report; `en_shell_tests`) and, in the clang-cl build alone,
-`eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe option (R1).
+channels, the recorder's numbers-only lines; `en_shell_tests`; R1's probe report is en-gal's) and, in the clang-cl
+build alone, `eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe
+option (R1).
 Its README has the start as built, the threads, the settings, the recorder and R1.
 
 - `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with

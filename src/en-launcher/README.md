@@ -15,9 +15,12 @@ It is built in two parts (the first in-game build, part 7):
 - `eldennet-launcher` (`src/win/`), the Windows builds' program: processes, injection, the watch block's mapping,
   the watch loop with the dev console and the Mark, the dialogs and the flow.
 
-It depends on en-gal's offline part (the PE reader and `builds.toml`'s gate; ARCH §2.3's dotted edge), and through it
-on en-proto, whose watch block (`watch.hpp`) it shares with EldenNet in the game, and whose `ffi_guard` starts its
-entries (R3: `wWinMain` and its window-enumeration callback, component `Launcher`).
+It depends on en-gal's offline part (the PE reader, `builds.toml`'s gate and R1's report vocabularies, `derive.hpp`'s
+and `probe_report.hpp`'s; ARCH §2.3's dotted edge), and through it on en-proto, whose watch block (`watch.hpp`) it
+shares with EldenNet in the game, and whose `ffi_guard` starts its entries (R3: `wWinMain` and its window-enumeration
+callback, component `Launcher`). Never on en-core or eldennet's en_shell: `en_link_rule` (`cmake/link_rules.cmake`)
+stops the configuration if `en_launcher_core` or `eldennet-launcher` reaches any target of the build but en-gal's
+offline part, en-proto and the header-only libraries, and names the chain that reaches it.
 
 ## The command line
 

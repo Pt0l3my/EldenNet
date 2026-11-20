@@ -14,9 +14,9 @@
 #include "en/launcher/exe.hpp"
 #include "en/launcher/steam.hpp"
 #include "en/gal/derive.hpp"
+#include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
 #include "en/proto/ffi_guard.hpp"
-#include "en/shell/probe_report.hpp"
 
 #ifndef EN_LAUNCHER_VERSION
 #define EN_LAUNCHER_VERSION "0.0.0"
@@ -216,7 +216,7 @@ Gate gate(const Ctx& c, const fs::path& exe) {
 // (`eldennet-engine lint --report`, the same vocabularies), each told as a line, and the result to the owner.
 void check_r1_reports(const Paths& p) {
   const fs::path folder = p.en / L"probe";
-  const gal::report::Vocabulary* kinds[] = {&gal::derive::vocabulary(), &shell::probe_vocabulary()};
+  const gal::report::Vocabulary* kinds[] = {&gal::derive::vocabulary(), &gal::probe::vocabulary()};
   bool missing = false;
   bool refused = false;
   for (const char* name : {"r1-derive.json", "r1-probe.json"}) {

@@ -3,8 +3,8 @@
 # scrubbed logger, the numbers-only recorder, the watch block's status and the crash filter, and, in a probe build, R1.
 # Two parts:
 # - en_shell, portable and tested on Linux and under Wine in every build: settings.toml, the log lines, the channels,
-#   the recorder's lines, R1's probe report and the safety checks' file names. en-tools links it for the lint's
-#   vocabularies.
+#   the recorder's lines and the safety checks' file names. en-tools links it for the lint's recording vocabulary; R1's
+#   probe report is en-gal's offline part's (probe_report.hpp), so that the launcher lints it without en-core.
 # - eldennet.dll (win/), the clang-cl build's alone (NativeSys needs structured exception handling): the Win32 shell
 #   around en-core and en-gal. With the tests or EN_PROBE on, the same DLL is also built with the probe option
 #   (probe/eldennet.dll), which runs R1.
@@ -13,8 +13,7 @@ add_library(en_shell STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/logline.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/names.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_report.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp)
 en_dll_module(en_shell)
 target_include_directories(en_shell PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(en_shell PUBLIC en_core en_gal en_proto PRIVATE en_third_party)
@@ -25,8 +24,7 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_settings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_logline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_rings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_record.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_report.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_record.cpp)
   target_link_libraries(en_shell_tests PRIVATE en_shell en_doctest)
   add_test(NAME en_shell_tests COMMAND en_shell_tests)
 endif()

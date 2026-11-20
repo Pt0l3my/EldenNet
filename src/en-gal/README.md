@@ -4,8 +4,8 @@ The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. Three 
 may link (`en_dll_module`):
 
 - `en_gal`, the offline part, which builds with every compiler: the PE reader, the patterns, `gal/`'s schemas, the
-  derivation kit that `eldennet-engine probe-exe` runs (part 3), and, with clang-cl, `GuardedReader`'s guarded copy.
-  en-launcher and en-tools use it off game (ARCH §2.3).
+  derivation kit that `eldennet-engine probe-exe` runs (part 3), R1's probe report, and, with clang-cl,
+  `GuardedReader`'s guarded copy. en-launcher and en-tools use it off game (ARCH §2.3).
 - `en_gal_game`, the part that runs in the game process (part 4): `GuardedReader`, the read groups and their breakers,
   discovery over the live image, `ErBackend`'s reads, the task; portable C++ over `SysLayer`, the platform seam, tested
   on Linux over the tests' `FakeSys`; and, with clang-cl, `NativeSys` (`src/sys/`), the seam in game.
@@ -190,7 +190,13 @@ of any game is in it, and every name it looks for comes from a leads file.
   `lint(text, vocabularies)` checks a file token by token (a repeated key cannot hide a string), with problems that say
   where, never what; `lint_lines` checks a JSON Lines file whose every line is one report of the first line's kind
   (eldennet.dll's recordings), each problem with its line. `derive::write_report` writes derive.json through it, under
-  `derive::vocabulary()`; eldennet's en_shell holds the `recording` and `probe` vocabularies.
+  `derive::vocabulary()`; eldennet's en_shell holds the `recording` vocabulary.
+- **`probe_report.hpp`: R1's report** (kind `probe`, schema 1; O89). What the probe build of eldennet.dll finds in
+  game, beside the derivation it runs over the live image: the checks before its one call, the call, the slot counts,
+  the hub's census, the rising fields and the statics' slots. The DLL fills `probe::Findings`, and
+  `probe::write_report` writes it under `probe::vocabulary()`. It is here rather than in eldennet's en_shell, which
+  links en-core, so that the launcher lints R1's two reports after an R1 session (`--probe`) with en-gal's offline
+  part alone (ARCH §2.3).
 
 ```cpp
 #include "en/gal/derive.hpp"
@@ -359,7 +365,8 @@ group entries holding their index, statics without RTTI, and a trademark sign in
 the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
 labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
-than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
+than a pattern. `test_probe_report.cpp` writes every part of R1's report, which lints clean, and refuses a label that
+is not one, leaving no text. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
 `fakegame --describe` says.
 
 The in-game part's tests (part 4) run in every build over `FakeSys` (`tests/fake_sys.hpp`: a process of byte regions,

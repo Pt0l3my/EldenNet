@@ -18,21 +18,25 @@
 // - `rising`: the data slots whose instance holds a 32-bit field rising with the clock (the play time's static, which
 //   has no RTTI), with how often it rose and stood still;
 // - `statics`: each RTTI-classed static's slot, found as the data slot whose instance has the class's vtable.
+// It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
+// session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
+// (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
 #include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "en/gal/report.hpp"
 #include "en/proto/expected.hpp"
 
-namespace en::shell {
+namespace en::gal::probe {
 
 enum class CheckStatus : std::uint8_t { Confirmed, Differs, Missing, NotRun };
 
-struct ProbeCheck {
+struct Check {
   std::string_view item;                   // gate, fd4_idiom, name_layout, register, register_abi, group, task_shape,
                                            // singleton
   std::string label;                       // the leads' label, where the item takes one
@@ -41,7 +45,7 @@ struct ProbeCheck {
   std::optional<std::uint64_t> expected;   // what R0 or the draft layout says
 };
 
-struct ProbeBase {
+struct Base {
   std::uint32_t type_descriptor = 0;  // RVA
   std::uint32_t found = 0;            // of the census's classes, how many list it among their bases
   std::uint32_t derived = 0;          // classes deriving from it in the image
@@ -50,7 +54,7 @@ struct ProbeBase {
   std::optional<std::uint32_t> run_slot;
 };
 
-struct ProbeRising {
+struct Rising {
   std::uint32_t slot = 0;
   std::uint32_t offset = 0;
   std::uint32_t rose = 0;
@@ -58,21 +62,21 @@ struct ProbeRising {
   std::uint32_t other = 0;
 };
 
-struct ProbeStatic {
+struct Static {
   std::string label;
   std::uint64_t candidates = 0;
   std::uint64_t checked = 0;
   std::vector<std::uint32_t> found;  // slots (RVAs)
 };
 
-// The class objects' name search, as numbers only (en-gal's NameSlot): R1 run 1 named 9 of 217 (WHY§206).
-struct ProbeNameSlot {
+// The class objects' name search, as numbers only (derive.hpp's NameSlot): R1 run 1 named 9 of 217 (WHY§206).
+struct NameSlot {
   std::uint32_t offset = 0;
   std::uint64_t null_ptr = 0, to_rdata = 0, to_data = 0, to_code = 0, to_other = 0, outside = 0;
   std::uint64_t plain = 0, qualified = 0, other_text = 0, inline_text = 0;
 };
 
-struct ProbeNames {
+struct Names {
   std::uint64_t of = 0;         // class objects searched
   std::uint64_t agree = 0;      // named by the best layout
   std::uint64_t qualified = 0;  // of those, names joined by :: to a namespace
@@ -80,18 +84,18 @@ struct ProbeNames {
   // Naming by the instances' RTTI (O92): statics tried, null, unread, not a known vtable, classed, leads named.
   std::uint64_t inst_statics = 0, inst_null = 0, inst_unread = 0, inst_unclassed = 0, inst_classed = 0,
                 inst_matched = 0;
-  std::vector<ProbeNameSlot> slots;
+  std::vector<NameSlot> slots;
 };
 
 // R1 run 4 (WHY§209): register_task answered ok and the task never ran. After the call, on T1, the hub's reachable
 // memory is searched for our task object's address, read-only and bounded: where it was stored, if anywhere.
-struct ProbeHubHit {
+struct HubHit {
   std::uint32_t depth = 0;            // pointers followed from the hub's instance
   std::vector<std::uint32_t> path;    // the offset read at each level, the last the word that held our address
   std::uint32_t near_group = 0;       // 32-bit words equal to the group's index within 64 bytes of it
 };
 
-struct ProbeHubSearch {
+struct HubSearch {
   std::uint64_t at_ms = 0;            // after the call
   std::uint64_t nodes = 0;            // blocks read
   std::uint64_t read_bytes = 0;
@@ -99,17 +103,17 @@ struct ProbeHubSearch {
   std::uint64_t refused_reads = 0;    // addresses the plausibility rules refused
   std::uint64_t found = 0;            // words equal to our object's address
   std::uint64_t inside = 0;           // words pointing inside our object, past its start
-  std::vector<ProbeHubHit> hits;      // the first eight
+  std::vector<HubHit> hits;      // the first eight
 };
 
-struct ProbeFindings {
+struct Findings {
   std::string_view stage = "start";  // start, derived, waiting, registered, running, refused, failed
   std::uint64_t elapsed_ms = 0;      // since T1's start
   bool gate_passed = false;
   std::uint32_t derive_passes = 0;
   std::uint64_t derive_ms = 0;
   bool derive_written = false;
-  std::vector<ProbeCheck> checks;
+  std::vector<Check> checks;
   std::vector<std::uint32_t> hinstance;
   std::uint64_t hinstance_count = 0;
   // The call.
@@ -130,19 +134,19 @@ struct ProbeFindings {
   std::uint64_t census_faults = 0;
   std::uint64_t census_objects = 0;
   std::vector<std::pair<std::uint32_t, std::uint32_t>> census_vtables;  // RVA, objects
-  std::vector<ProbeBase> bases;
+  std::vector<Base> bases;
   std::uint64_t rising_candidates = 0;
   std::uint32_t rising_passes = 0;
-  std::vector<ProbeRising> rising;
-  std::vector<ProbeStatic> statics;
+  std::vector<Rising> rising;
+  std::vector<Static> statics;
   std::uint64_t copy_faults = 0;
   std::uint64_t stack_refused = 0;
   std::uint64_t allocations = 0;  // on the game thread after its first tick (R6)
-  ProbeNames names;
-  std::vector<ProbeHubSearch> hub_search;
+  Names names;
+  std::vector<HubSearch> hub_search;
 };
 
-[[nodiscard]] const gal::report::Vocabulary& probe_vocabulary() noexcept;
-[[nodiscard]] proto::Expected<std::string, gal::report::Problem> write_probe_report(const ProbeFindings& f);
+[[nodiscard]] const report::Vocabulary& vocabulary() noexcept;
+[[nodiscard]] proto::Expected<std::string, report::Problem> write_report(const Findings& f);
 
-}  // namespace en::shell
+}  // namespace en::gal::probe

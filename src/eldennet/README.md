@@ -10,8 +10,9 @@ It is built in two parts:
 
 - `en_shell`, portable and tested in every build (`en_shell_tests`): `settings.hpp` (settings.toml as v0.1 reads it),
   `logline.hpp` (the scrubbed log's lines), `rings.hpp` (the channels C1 to C5 and the log's ring), `record.hpp` (the
-  recorder's numbers-only lines), `probe_report.hpp` (R1's report) and `names.hpp` (the safety checks' file names).
-  en-tools links it for `lint`'s vocabularies.
+  recorder's numbers-only lines) and `names.hpp` (the safety checks' file names). en-tools links it for `lint`'s
+  recording vocabulary. R1's report, which the probe build fills, is en-gal's (`en/gal/probe_report.hpp`), so that
+  the launcher lints it without en-core (ARCH §2.3).
 - `eldennet.dll` (`win/`), the clang-cl build's alone (NativeSys needs structured exception handling), and, with the
   tests or the CMake option `EN_PROBE` on, the same DLL with the probe option, `probe/eldennet.dll`, which runs R1.
   A release build is `eldennet.dll` alone, and CI's `options` stage refuses `EN_PROBE` there (ARCH §12.1).
@@ -166,8 +167,8 @@ gives.
 `en_shell_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): settings (the defaults, what
 v0.1 reads, the later tables, each refusal without its value, the size cap, the probe table only in a probe build), the
 log lines (scrubbing a path and a name, a cut line), the rings (order and capacity, C1's newest and gap, C1 under two
-threads, the log's ring from four threads), the safety checks' names, every kind of recording line linting clean alone
-and as a file with no name, text or param value in it, and R1's report.
+threads, the log's ring from four threads), the safety checks' names, and every kind of recording line linting clean
+alone and as a file with no name, text or param value in it. R1's report is tested in `en_gal_tests`.
 
 In the clang-cl build, `eldennet_dll_checks` (`tests/dll_checks.py`) runs ARCH §12.1's greps on `src/eldennet`
 (DllMain's body is the load contract's and calls nothing else; no detach branch; every `WINAPI`, `CALLBACK` and

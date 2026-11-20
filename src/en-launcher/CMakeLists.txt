@@ -4,8 +4,9 @@
 #   their BLAKE3 manifests, the appid file and the launcher's state, launcher.toml, the command line, the texts, the
 #   watcher's records and the S0 spikes' tally.
 # - eldennet-launcher (Windows builds): processes, injection, the watch block, the dev console and the Mark (src/win/).
-# It depends on en-gal's offline part only (the PE reader and builds.toml's gate; ARCH §2.3), and through it on
-# en-proto, whose watch block it shares with EldenNet in the game.
+# It depends on en-gal's offline part only (the PE reader, builds.toml's gate and R1's report vocabularies; ARCH §2.3),
+# and through it on en-proto, whose watch block it shares with EldenNet in the game: never on en-core, en_shell or any
+# other module of ours, which the link rules below refuse when the build is configured.
 set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/blake3.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/vdf.cpp
@@ -34,8 +35,9 @@ if(WIN32)
   set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc APPEND PROPERTY OBJECT_DEPENDS ${EN_LAUNCHER_MANIFEST})
   add_executable(eldennet-launcher WIN32 ${EN_LAUNCHER_WIN_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc
     ${_en_manifest_source})
-  # en_shell: R1's report vocabulary, so that the launcher lints the probe's two reports after an R1 session (--probe).
-  target_link_libraries(eldennet-launcher PRIVATE en_launcher_core en_shell comdlg32 shell32 ole32 advapi32 iphlpapi)
+  # R1's report vocabularies, with which the launcher lints the probe's two reports after an R1 session (--probe), are
+  # en-gal's offline part's (derive.hpp, probe_report.hpp), which en_launcher_core brings.
+  target_link_libraries(eldennet-launcher PRIVATE en_launcher_core comdlg32 shell32 ole32 advapi32 iphlpapi)
   if(MSVC)
     target_link_options(eldennet-launcher PRIVATE /MANIFEST:NO)
   endif()
@@ -45,6 +47,11 @@ if(WIN32)
     target_link_options(eldennet-launcher PRIVATE -municode)  # MinGW: the wide entry point, wWinMain
   endif()
 endif()
+
+# ARCH §2.3: the launcher and its core link en-gal's offline part, en-proto and the header-only libraries, and no other
+# target of the build (cmake/link_rules.cmake). en_gal_game, the in-game part, is not among them either.
+en_link_rule(en_launcher_core ALLOW en_gal en_proto en_third_party)
+en_link_rule(eldennet-launcher ALLOW en_launcher_core en_gal en_proto en_third_party)
 
 if(EN_BUILD_TESTS)
   file(GLOB EN_LAUNCHER_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)

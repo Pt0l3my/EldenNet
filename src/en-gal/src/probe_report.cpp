@@ -1,9 +1,8 @@
 // R1's probe report (probe_report.hpp).
-#include "en/shell/probe_report.hpp"
+#include "en/gal/probe_report.hpp"
 
-namespace en::shell {
+namespace en::gal::probe {
 
-namespace report = gal::report;
 using report::Key;
 using report::Type;
 
@@ -118,9 +117,9 @@ constexpr report::Vocabulary kVocabulary{"probe", 1, kAll};
 
 }  // namespace
 
-const report::Vocabulary& probe_vocabulary() noexcept { return kVocabulary; }
+const report::Vocabulary& vocabulary() noexcept { return kVocabulary; }
 
-proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFindings& f) {
+proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   report::Writer w(kVocabulary);
   w.word("stage", f.stage);
   w.number("elapsed_ms", f.elapsed_ms);
@@ -131,7 +130,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.boolean("written", f.derive_written);
   w.end_object();
   w.begin_array("checks");
-  for (const ProbeCheck& c : f.checks) {
+  for (const Check& c : f.checks) {
     w.begin_object();
     w.word("item", c.item);
     if (!c.label.empty()) w.label("label", c.label);
@@ -185,7 +184,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   }
   w.end_array();
   w.begin_array("bases");
-  for (const ProbeBase& b : f.bases) {
+  for (const Base& b : f.bases) {
     w.begin_object();
     w.number("type_descriptor", b.type_descriptor);
     w.number("found", b.found);
@@ -201,7 +200,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("candidates", f.rising_candidates);
   w.number("passes", f.rising_passes);
   w.begin_array("hits");
-  for (const ProbeRising& r : f.rising) {
+  for (const Rising& r : f.rising) {
     w.begin_object();
     w.number("slot", r.slot);
     w.number("offset", r.offset);
@@ -213,7 +212,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.end_array();
   w.end_object();
   w.begin_array("statics");
-  for (const ProbeStatic& s : f.statics) {
+  for (const Static& s : f.statics) {
     w.begin_object();
     w.label("label", s.label);
     w.number("candidates", s.candidates);
@@ -228,7 +227,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("stack_refused", f.stack_refused);
   w.number("allocations", f.allocations);
   w.begin_array("hub_search");
-  for (const ProbeHubSearch& h : f.hub_search) {
+  for (const HubSearch& h : f.hub_search) {
     w.begin_object();
     w.number("at_ms", h.at_ms);
     w.number("nodes", h.nodes);
@@ -238,7 +237,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
     w.number("found", h.found);
     w.number("inside", h.inside);
     w.begin_array("hits");
-    for (const ProbeHubHit& x : h.hits) {
+    for (const HubHit& x : h.hits) {
       w.begin_object();
       w.number("depth", x.depth);
       w.begin_array("path");
@@ -263,7 +262,7 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   w.number("inst_classed", f.names.inst_classed);
   w.number("inst_matched", f.names.inst_matched);
   w.begin_array("name_slots");
-  for (const ProbeNameSlot& n : f.names.slots) {
+  for (const NameSlot& n : f.names.slots) {
     w.begin_object();
     w.number("offset", n.offset);
     w.number("null_ptr", n.null_ptr);
@@ -283,4 +282,4 @@ proto::Expected<std::string, report::Problem> write_probe_report(const ProbeFind
   return w.finish();
 }
 
-}  // namespace en::shell
+}  // namespace en::gal::probe

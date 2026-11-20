@@ -54,6 +54,7 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 include(cmake/sanitizers.cmake)  # EN_SANITIZE and EN_FUZZ, for Clang on Linux (ARCH §12.1)
+include(cmake/link_rules.cmake)  # en_link_rule: ARCH §2.3's rules on the link graph, checked at configure time
 
 # The modules the DLL links hold no static object with a dynamic initialiser (it would run under the loader lock) or
 # with a destructor that runs at exit (it would run at DLL_PROCESS_DETACH): ARCH §3.1 and §1.7. Clang checks both.
@@ -85,3 +86,30 @@ endif()
 add_subdirectory(tests/galtest)   # the GAL's test DLL, which the harness loads into the fake game (clang-cl)
 add_subdirectory(tests/fakegame)  # the fake game and its Wine harness (Windows builds with the tests)
 add_subdirectory(tests/vehprobe)  # the vectored-handler DLL the harness loads into it
+
+# The link rules' own test (tests/linkrules): each case configures a small project of interface targets with the same
+# cmake/link_rules.cmake; `clean` must configure, and each other case must stop with the chain that reaches en-core's
+# stand-in. The real rules (src/en-launcher/CMakeLists.txt) are checked whenever this build is configured.
+if(EN_BUILD_TESTS)
+  set(_en_rules_cases
+    "clean|"
+    "through|launcher reaches shell \\(launcher -> shell\\)"
+    "deep|launcher reaches core \\(launcher -> launcher_core -> gal -> core\\)"
+    "link_only|launcher reaches core \\(launcher -> launcher_core -> core\\)"
+    "condition|launcher reaches core \\(launcher -> core\\)"
+    "alias|launcher reaches core \\(launcher -> core\\)")
+  foreach(_en_rules_case IN LISTS _en_rules_cases)
+    string(REGEX REPLACE "\\|.*" "" _en_case "${_en_rules_case}")
+    string(REGEX REPLACE "^[^|]*\\|" "" _en_expect "${_en_rules_case}")
+    # CMake wraps a long FATAL_ERROR message at a space, so a space in the pattern matches any run of white space.
+    string(REPLACE " " "[ \t\r\n]+" _en_expect "${_en_expect}")
+    add_test(NAME en_link_rules.${_en_case}
+      COMMAND ${CMAKE_COMMAND} -S ${CMAKE_CURRENT_SOURCE_DIR}/tests/linkrules
+        -B ${CMAKE_CURRENT_BINARY_DIR}/linkrules/${_en_case} -DEN_CASE=${_en_case})
+    if(_en_expect)
+      set_tests_properties(en_link_rules.${_en_case} PROPERTIES PASS_REGULAR_EXPRESSION "${_en_expect}")
+    else()
+      set_tests_properties(en_link_rules.${_en_case} PROPERTIES FAIL_REGULAR_EXPRESSION "reaches")
+    endif()
+  endforeach()
+endif()

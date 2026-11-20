@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
-#include "en/shell/probe_report.hpp"
 #include "en/shell/record.hpp"
 
 using namespace en::shell;
@@ -18,7 +18,7 @@ namespace proto = en::proto;
 
 namespace {
 
-const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &probe_vocabulary()};
+const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &en::gal::probe::vocabulary()};
 
 void lints(const std::string& line) {
   INFO(line.substr(0, 300));

@@ -123,8 +123,7 @@ eldennet-engine lint --gal <folder>
 
 The check every numbers-only report passes before it leaves the PC or is committed (plan §1.2; DataPiler's guard checks
 the same, DP36). `--report` reads the file's `report` key and checks the file against that kind's vocabulary
-(`derive`, which R1's `r1-derive.json` is too, or `probe`, R1's `r1-probe.json`; their vocabularies are en-gal's and
-eldennet's en_shell's):
+(`derive`, which R1's `r1-derive.json` is too, or `probe`, R1's `r1-probe.json`; both vocabularies are en-gal's):
 every key known and given once, every value of its key's type, strings only as the key's fixed words, labels or
 canonical patterns of at most 64 bytes, no float, no null, at most 64 patterns, nested at most 16 deep, at most 256 KiB.
 So a path, a free string, a name and a byte run longer than a pattern are refused. Exit codes: 0 clean (`lint: the

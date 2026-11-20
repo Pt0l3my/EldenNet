@@ -39,9 +39,9 @@
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/probe.hpp"
+#include "en/gal/probe_report.hpp"
 #include "en/gal/rtti.hpp"
 #include "en/proto/ffi_guard.hpp"
-#include "en/shell/probe_report.hpp"
 
 namespace eldennet {
 
@@ -53,12 +53,9 @@ namespace {
 namespace w = en::proto::watch;
 namespace derive = en::gal::derive;
 namespace probe = en::gal::probe;
-using en::shell::CheckStatus;
+using en::gal::probe::CheckStatus;
 using en::shell::Line;
 using en::shell::LogLevel;
-using en::shell::ProbeCheck;
-using en::shell::ProbeHubHit;
-using en::shell::ProbeHubSearch;
 
 constexpr std::uint32_t kSpanObject = 0x400;  // how much of our object the probe copies back
 
@@ -249,13 +246,13 @@ class Round {
 
   void check(std::string_view item, std::string label, CheckStatus st, std::optional<std::uint64_t> value = {},
              std::optional<std::uint64_t> expected = {}) {
-    for (ProbeCheck& c : f_.checks) {
+    for (probe::Check& c : f_.checks) {
       if (c.item == item && c.label == label) {
-        c = ProbeCheck{item, std::move(label), st, value, expected};
+        c = probe::Check{item, std::move(label), st, value, expected};
         return;
       }
     }
-    f_.checks.push_back(ProbeCheck{item, std::move(label), st, value, expected});
+    f_.checks.push_back(probe::Check{item, std::move(label), st, value, expected});
   }
 
   bool instance_named() const {
@@ -298,7 +295,7 @@ class Round {
       f_.names.inst_matched = g.inst_matched;
       f_.names.slots.clear();
       for (const derive::NameSlot& n : g.name_slots) {
-        f_.names.slots.push_back(en::shell::ProbeNameSlot{n.offset, n.null_ptr, n.to_rdata, n.to_data, n.to_code, n.to_other,
+        f_.names.slots.push_back(probe::NameSlot{n.offset, n.null_ptr, n.to_rdata, n.to_data, n.to_code, n.to_other,
                                                n.outside, n.plain, n.qualified, n.other_text, n.inline_text});
       }
     }
@@ -502,8 +499,8 @@ class Round {
     f_.bases.clear();
     for (std::size_t i = 0; i < order.size() && i < 4; ++i) {
       const derive::TaskResult t = derive::task_from_base(*walk_, *img_, order[i].first);
-      f_.bases.push_back(en::shell::ProbeBase{order[i].first, order[i].second, static_cast<std::uint32_t>(t.vtables.size()),
-                                              t.slots_min, t.slots_max, t.run_slot});
+      f_.bases.push_back(probe::Base{order[i].first, order[i].second, static_cast<std::uint32_t>(t.vtables.size()),
+                                     t.slots_min, t.slots_max, t.run_slot});
     }
     if (!f_.bases.empty() && f_.bases.front().run_slot) {
       check("task_shape", "", CheckStatus::Confirmed, *f_.bases.front().run_slot);
@@ -544,7 +541,7 @@ class Round {
       f_.rising_passes = rs->passes();
       f_.rising.clear();
       for (const probe::RisingSearch::Hit& h : rs->hits()) {
-        f_.rising.push_back(en::shell::ProbeRising{h.slot, h.offset, h.rose, h.still, h.other});
+        f_.rising.push_back(probe::Rising{h.slot, h.offset, h.rose, h.still, h.other});
       }
       // A static whose class has no RTTI: the one slot that rose and also stood still (a play time) is its candidate.
       std::set<std::uint32_t> play;
@@ -562,7 +559,7 @@ class Round {
     f_.statics.clear();
     for (std::size_t i = 0; i < body.statics().size(); ++i) {
       const probe::SlotSearch& ss = *body.statics()[i];
-      en::shell::ProbeStatic out{static_labels_[i], ss.candidates(), ss.checked(), {}};
+      probe::Static out{static_labels_[i], ss.candidates(), ss.checked(), {}};
       for (const std::uint32_t at : ss.found()) out.found.push_back(at);
       if (ss.checked() >= ss.candidates() && out.found.size() == 1 &&
           slots_.emplace(static_labels_[i], out.found[0]).second) {
@@ -579,7 +576,7 @@ class Round {
   // WHY§209: the hub's reachable memory searched for our task object, breadth first from the hub's instance, up to three
   // pointers deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps.
   void search_hub() {
-    ProbeHubSearch h;
+    probe::HubSearch h;
     h.at_ms = since_ms() - called_ms_;
     const std::uint64_t target = s_.sys->task_object();
     const std::uint64_t end = target + f_.object_size;
@@ -616,7 +613,7 @@ class Round {
           if (w == target) {
             ++h.found;
             if (h.hits.size() < 8) {
-              ProbeHubHit x;
+              probe::HubHit x;
               x.depth = depth;
               x.path = n.path;
               x.path.push_back(static_cast<std::uint32_t>(o));
@@ -670,7 +667,7 @@ class Round {
   }
 
   void write_report() {
-    const auto text = en::shell::write_probe_report(f_);
+    const auto text = probe::write_report(f_);
     if (!text) {
       log(Line("r1").word("report", "refused").word("where", "probe_report"), LogLevel::Error);
       return;
@@ -680,7 +677,7 @@ class Round {
 
   Shell& s_;
   std::wstring folder_;
-  en::shell::ProbeFindings f_;
+  probe::Findings f_;
   derive::Leads leads_;
   std::unique_ptr<en::gal::ImageInfo> image_;
   std::unique_ptr<en::gal::ImageBytes> img_;

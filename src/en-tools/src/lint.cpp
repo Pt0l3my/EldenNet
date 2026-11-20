@@ -33,8 +33,8 @@
 #include "en/gal/derive.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
+#include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
-#include "en/shell/probe_report.hpp"
 #include "en/shell/record.hpp"
 
 // spike.cpp's reports: rec-stats, replay and spike-report.
@@ -181,7 +181,7 @@ int run_lint(int argc, char** argv) {
     std::fputs("lint: the report cannot be read\n", stderr);
     return 2;
   }
-  const en::gal::report::Vocabulary* reports[] = {&en::gal::derive::vocabulary(), &en::shell::probe_vocabulary(),
+  const en::gal::report::Vocabulary* reports[] = {&en::gal::derive::vocabulary(), &en::gal::probe::vocabulary(),
                                                    &rec_stats_vocabulary(), &replay_vocabulary(), &spike_vocabulary()};
   const en::gal::report::Vocabulary* recordings[] = {&en::shell::recording_vocabulary()};
   const auto result = recording ? en::gal::report::lint_lines(text, recordings) : en::gal::report::lint(text, reports);
