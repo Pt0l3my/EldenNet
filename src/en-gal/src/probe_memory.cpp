@@ -1,6 +1,6 @@
-// The whole-memory search (probe.hpp's search_memory; EN_PROBE only; WHY§227): after R1's call, every committed and
-// readable region of the process read through the crash-guarded copy for our task object's address. Numbers only: the
-// report keeps counts, kinds and offsets, never a byte that was read.
+// The whole-memory search (probe.hpp's search_memory; EN_PROBE only; WHY§227, WHY§235): after R1's call, every committed
+// and readable region of the process read through the crash-guarded copy for our task object's address, our fake
+// vtable's and its slots'. Numbers only: the report keeps counts, kinds and offsets, never a byte that was read.
 #include "en/gal/probe.hpp"
 
 #if EN_PROBE
@@ -12,9 +12,10 @@ namespace en::gal::probe {
 
 namespace {
 
-constexpr std::size_t kMaxHits = 16;
+constexpr std::size_t kMaxHits = 8;  // of each side and kind
 constexpr std::uint64_t kPage = 0x1000;
 constexpr std::size_t kMaxModules = 16;  // images whose headers are kept for their hits' sections
+constexpr std::uint64_t kMaxRegions = 1u << 22;  // regions walked at most (a process has thousands)
 constexpr std::uint32_t kScnCode = 0x20, kScnExecute = 0x2000'0000, kScnRead = 0x4000'0000, kScnWrite = 0x8000'0000;
 
 std::optional<std::uint32_t> le32(std::span<const std::byte> b, std::uint64_t at) noexcept {
@@ -30,6 +31,10 @@ std::optional<std::uint32_t> le16(std::span<const std::byte> b, std::uint64_t at
   return v;
 }
 
+std::uint32_t distinct(const std::vector<std::uint8_t>& seen) noexcept {
+  return static_cast<std::uint32_t>(std::count(seen.begin(), seen.end(), std::uint8_t{1}));
+}
+
 class Search {
  public:
   Search(SysLayer& sys, const MemorySearchSpec& spec) : sys_(sys), spec_(spec), buf_(kMaxCopyBytes) {
@@ -39,26 +44,33 @@ class Search {
     std::uint64_t at = 0;
     std::memcpy(&at, &p, sizeof at);  // the buffer's own address, as a number: it is never read
     skip_.push_back(AddressRange{at, at + buf_.size()});
-    game_.reserve(kMaxHits);
-    ours_.reserve(kMaxHits);
+    for (std::vector<MemoryHit>& list : lists_) list.reserve(kMaxHits);
     heads_.reserve(kMaxModules);
     end_ = spec.target + std::max<std::uint64_t>(spec.object_bytes, 1);
+    for (std::size_t i = 0; i < spec.slots.size(); ++i) {
+      if (spec.slots[i] != 0) slots_.emplace_back(spec.slots[i], static_cast<std::uint32_t>(i));
+    }
+    std::sort(slots_.begin(), slots_.end());
+    game_slots_.assign(spec.slots.size(), 0);
+    own_slots_.assign(spec.slots.size(), 0);
   }
 
   MemorySearch run(const RegionQuery& query) {
     const std::uint64_t start = sys_.now_us();
     std::uint64_t at = kLowestAddress;
     bool stop = false;
-    while (!stop && at < kAddressEnd && spec_.target != 0) {
+    for (std::uint64_t n = 0; at < kAddressEnd && spec_.target != 0 && n < kMaxRegions; ++n) {
       const std::optional<MemoryRegion> r = query(at);
       if (!r || r->size == 0 || r->base + r->size <= at) break;
       at = r->base + r->size;
       if (!r->committed) continue;
       ++out_.regions;
+      out_.committed_bytes += r->size;
       if (!searchable(*r)) {
         out_.unread_bytes += r->size;
         continue;
       }
+      if (stop) continue;  // past a cap: the regions are walked for the committed total, never read
       bool any = false;
       const std::uint64_t end = r->base + r->size;
       for (std::uint64_t p = r->base; p < end;) {
@@ -78,10 +90,9 @@ class Search {
       if (any) ++out_.read_regions;
     }
     out_.ms = (sys_.now_us() - start) / 1000;
-    out_.hits = std::move(game_);
-    for (const MemoryHit& h : ours_) {
-      if (out_.hits.size() < kMaxHits) out_.hits.push_back(h);
-    }
+    out_.slot_distinct = distinct(game_slots_);
+    out_.own_slot_distinct = distinct(own_slots_);
+    for (const std::vector<MemoryHit>& list : lists_) out_.hits.insert(out_.hits.end(), list.begin(), list.end());
     return std::move(out_);
   }
 
@@ -123,7 +134,14 @@ class Search {
     for (std::size_t o = 0; o + 8 <= dst.size(); o += 8) {
       std::uint64_t w = 0;
       std::memcpy(&w, dst.data() + o, 8);
-      if (w >= spec_.target && w < end_) hit(at + o, w - spec_.target, dst, o, r);
+      if (w >= spec_.target && w < end_) {
+        hit(at + o, PointsTo::Object, w - spec_.target, std::nullopt, dst, o, r);
+      } else if (w == spec_.vtable && w != 0) {
+        hit(at + o, PointsTo::Vtable, 0, std::nullopt, dst, o, r);
+      } else if (!slots_.empty() && w >= slots_.front().first && w <= slots_.back().first) {
+        const auto it = std::lower_bound(slots_.begin(), slots_.end(), std::pair<std::uint64_t, std::uint32_t>{w, 0});
+        if (it != slots_.end() && it->first == w) hit(at + o, PointsTo::Slot, 0, it->second, dst, o, r);
+      }
     }
     return Got::Read;
   }
@@ -134,17 +152,27 @@ class Search {
     return std::find(spec_.own_bases.begin(), spec_.own_bases.end(), r.allocation_base) != spec_.own_bases.end();
   }
 
-  void hit(std::uint64_t at, std::uint64_t offset, std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
+  void hit(std::uint64_t at, PointsTo what, std::uint64_t offset, std::optional<std::uint32_t> slot,
+           std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
     const bool mine = own(r);
-    if (offset == 0) {
-      ++(mine ? out_.own_found : out_.found);
-    } else {
-      ++(mine ? out_.own_inside : out_.inside);
+    switch (what) {
+      case PointsTo::Object:
+        ++(offset == 0 ? (mine ? out_.own_found : out_.found) : (mine ? out_.own_inside : out_.inside));
+        break;
+      case PointsTo::Vtable:
+        ++(mine ? out_.own_vtable_found : out_.vtable_found);
+        break;
+      case PointsTo::Slot:
+        ++(mine ? out_.own_slot_found : out_.slot_found);
+        if (slot) (mine ? own_slots_ : game_slots_)[*slot] = 1;
+        break;
     }
-    std::vector<MemoryHit>& list = mine ? ours_ : game_;
+    std::vector<MemoryHit>& list = lists_[(mine ? 3u : 0u) + static_cast<std::size_t>(what)];
     if (list.size() >= kMaxHits) return;
     MemoryHit h;
     h.own = mine;
+    h.points_to = what;
+    h.slot = slot;
     h.offset = offset;
     h.region = r.kind;
     h.protect = r.protect;
@@ -188,7 +216,9 @@ class Search {
   std::vector<std::byte> buf_;
   std::vector<AddressRange> skip_;
   std::uint64_t end_ = 0;
-  std::vector<MemoryHit> game_, ours_;
+  std::array<std::vector<MemoryHit>, 6> lists_;  // the game's, then ours: each our object's, our vtable's, a slot's
+  std::vector<std::pair<std::uint64_t, std::uint32_t>> slots_;  // (address, index), by address
+  std::vector<std::uint8_t> game_slots_, own_slots_;            // which slots each side's words name
   std::vector<Headers> heads_;
   MemorySearch out_;
 };
@@ -204,6 +234,13 @@ bool searchable(const MemoryRegion& r) noexcept {
     default:
       return false;  // no access, execute only, or nothing
   }
+}
+
+SectionKind section_kind_of(std::uint32_t ch) noexcept {
+  if ((ch & (kScnExecute | kScnCode)) != 0) return SectionKind::Code;
+  if ((ch & kScnWrite) != 0) return SectionKind::Data;
+  if ((ch & kScnRead) != 0) return SectionKind::Rdata;
+  return SectionKind::Other;
 }
 
 SectionKind section_kind(std::span<const std::byte> h, std::uint64_t rva) noexcept {
@@ -222,10 +259,7 @@ SectionKind section_kind(std::span<const std::byte> h, std::uint64_t rva) noexce
     first = first ? std::min(*first, *va) : *va;
     const std::uint64_t span = *vsize != 0 ? *vsize : *raw;
     if (rva < *va || rva - *va >= span) continue;
-    if ((*ch & (kScnExecute | kScnCode)) != 0) return SectionKind::Code;
-    if ((*ch & kScnWrite) != 0) return SectionKind::Data;
-    if ((*ch & kScnRead) != 0) return SectionKind::Rdata;
-    return SectionKind::Other;
+    return section_kind_of(*ch);
   }
   if (first && rva < *first) return SectionKind::Header;
   return SectionKind::Other;

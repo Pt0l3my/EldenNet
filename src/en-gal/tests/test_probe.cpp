@@ -541,3 +541,476 @@ TEST_CASE("probe: a region is searched only when committed, readable and of ordi
   CHECK(probe::section_kind(h, 0x3000) == probe::SectionKind::Other);
   CHECK(probe::section_kind(std::vector<std::byte>(0x40), 0x10) == probe::SectionKind::Other);
 }
+
+// ---- Spike.7 (WHY§235): the arguments mapped into calls, the flag tests, the inner callee, and the hub's memory ----
+
+namespace {
+
+bool passes(const probe::CalleeCall& c, std::uint8_t reg, std::uint8_t from, bool first_word = false) {
+  return std::any_of(c.pass.begin(), c.pass.end(), [&](const probe::PassedArg& p) {
+    return p.reg == reg && p.from == from && p.first_word == first_word;
+  });
+}
+bool holds_none(const probe::CalleeCall& c, std::uint8_t reg) {
+  return std::none_of(c.pass.begin(), c.pass.end(), [&](const probe::PassedArg& p) { return p.reg == reg; });
+}
+
+}  // namespace
+
+TEST_CASE("probe: a wrapper's arguments are mapped into each call through the registers that keep them") {
+  // A wrapper of our own ABI (instance rcx, group rdx, task r8): it keeps the task in rbx and the group in rdi, tests
+  // a flag of the instance and jumps past both calls when it is set, then hands the task on in r8 and in rcx, and ends
+  // in a tail jump where both paths meet.
+  const std::vector<std::byte> code = code_of({
+      0x48, 0x89, 0x5C, 0x24, 0x08,  //  0: mov [rsp+8], rbx
+      0x57,                          //  5: push rdi
+      0x48, 0x83, 0xEC, 0x20,        //  6: sub rsp, 0x20
+      0x49, 0x8B, 0xD8,              // 10: mov rbx, r8           (the task)
+      0x48, 0x8B, 0xFA,              // 13: mov rdi, rdx          (the group)
+      0xF6, 0x41, 0x10, 0x01,        // 16: test byte [rcx+0x10], 1   (a flag of the instance)
+      0x75, 0x17,                    // 20: jne 45                (past both calls)
+      0x4C, 0x8B, 0xC3,              // 22: mov r8, rbx
+      0x48, 0x8B, 0xD7,              // 25: mov rdx, rdi
+      0xE8, 0x00, 0x00, 0x00, 0x00,  // 28: call 33               (instance, group, task, r9)
+      0x48, 0x8B, 0xCB,              // 33: mov rcx, rbx
+      0x8B, 0xD7,                    // 36: mov edx, edi
+      0xE8, 0x00, 0x00, 0x00, 0x00,  // 38: call 43               (task, group)
+      0xEB, 0x00,                    // 43: jmp 45
+      0x48, 0x8B, 0x5C, 0x24, 0x30,  // 45: mov rbx, [rsp+0x30]   (both paths meet)
+      0x48, 0x83, 0xC4, 0x20,        // 50: add rsp, 0x20
+      0x5F,                          // 54: pop rdi
+      0xE9, 0x00, 0x01, 0x00, 0x00,  // 55: jmp out               (a tail jump)
+  });
+  const std::uint32_t rva = 0x200000;
+  const probe::CalleeCode c = probe::summarise_callee(code, rva, static_cast<std::uint32_t>(code.size()));
+  CHECK_FALSE(c.modelled_to.has_value());
+  CHECK(c.call_count == 2);
+  REQUIRE(c.calls.size() == 3);
+  const probe::CalleeCall& first = c.calls[0];
+  CHECK(first.offset == 28);
+  CHECK(first.target == std::optional<std::uint32_t>(rva + 33));
+  CHECK(first.reached);
+  CHECK(first.pass.size() == 4);
+  CHECK(passes(first, 1, 1));  // the instance, untouched
+  CHECK(passes(first, 2, 2));  // the group, by way of rdi
+  CHECK(passes(first, 8, 8));  // the task, by way of rbx
+  CHECK(passes(first, 9, 9));
+  const probe::CalleeCall& second = c.calls[1];
+  CHECK(second.offset == 38);
+  CHECK(passes(second, 1, 8));  // the task in rcx
+  CHECK(passes(second, 2, 2));  // the group, 32-bit
+  CHECK(holds_none(second, 8));  // the first call's to change
+  CHECK(holds_none(second, 9));
+  const probe::CalleeCall& tail = c.calls[2];
+  CHECK(tail.form == probe::CallForm::Tail);
+  CHECK(tail.offset == 55);
+  CHECK(tail.target == std::optional<std::uint32_t>(rva + 60 + 0x100));
+  CHECK(tail.reached);
+  CHECK(tail.pass.empty());  // the paths disagree on every argument register
+  REQUIRE(c.guards.size() == 1);
+  const probe::CalleeGuard& g = c.guards[0];
+  CHECK(g.offset == 20);
+  CHECK(g.to == 45);
+  CHECK(g.cond == 5);  // ne
+  CHECK(g.op == probe::GuardOp::Test);
+  CHECK(g.op_at == std::optional<std::uint32_t>(16));
+  CHECK(g.width == 1);
+  REQUIRE(g.operands.size() == 2);
+  CHECK(g.operands[0].form == probe::OperandForm::Memory);
+  CHECK(g.operands[0].base == std::optional<std::uint8_t>(1));
+  CHECK(g.operands[0].base_arg == std::optional<std::uint8_t>(1));
+  CHECK(g.operands[0].disp == 0x10);
+  CHECK(g.operands[1].form == probe::OperandForm::Immediate);
+  CHECK(g.operands[1].imm == std::optional<std::uint64_t>(1));
+  CHECK(arg(c, 8).saved == std::vector<std::uint8_t>{3});
+  CHECK(arg(c, 2).saved == std::vector<std::uint8_t>{7});
+  // The entry of each callee, as its call passes the wrapper's arguments.
+  const probe::EntryState e1 = probe::entry_at(first);
+  CHECK(e1[0].from == 1);
+  CHECK(e1[2].from == 8);
+  const probe::EntryState e2 = probe::entry_at(second);
+  CHECK(e2[0].from == 8);
+  CHECK(e2[1].from == 2);
+  CHECK(e2[2].from == 0);
+  CHECK(e2[3].from == 0);
+}
+
+TEST_CASE("probe: an inner callee's summary follows the wrapper's arguments into it") {
+  // The fake game's shape: the wrapper (task rcx, hub rdx, group r8d) calls in with the hub in rcx, the group in edx
+  // and the task in r8; the inner callee compares the group with a bound, keeps the task and its vtable in the hub.
+  const std::vector<std::byte> code = code_of({
+      0x53,                                // 0: push rbx
+      0x48, 0x83, 0xEC, 0x20,              // 1: sub rsp, 0x20
+      0x4C, 0x89, 0xC3,                    // 5: mov rbx, r8          (the task)
+      0x81, 0xFA, 0x00, 0x02, 0x00, 0x00,  // 8: cmp edx, 0x200       (the group, with a bound)
+      0x73, 0x19,                          // 14: jae 41
+      0x48, 0x89, 0x59, 0x30,              // 16: mov [rcx+0x30], rbx (the task, into the hub)
+      0x48, 0x8B, 0x03,                    // 20: mov rax, [rbx]      (its vtable)
+      0x48, 0x89, 0x41, 0x38,              // 23: mov [rcx+0x38], rax (the vtable, into the hub)
+      0x49, 0x89, 0xD8,                    // 27: mov r8, rbx
+      0xE8, 0x00, 0x00, 0x00, 0x00,        // 30: call 35
+      0x48, 0x83, 0xC4, 0x20,              // 35: add rsp, 0x20
+      0x5B,                                // 39: pop rbx
+      0xC3,                                // 40: ret
+      0x31, 0xC0,                          // 41: xor eax, eax
+      0x48, 0x83, 0xC4, 0x20,              // 43: add rsp, 0x20
+      0x5B,                                // 47: pop rbx
+      0xC3,                                // 48: ret
+  });
+  probe::CalleeCall site;
+  site.pass = {probe::PassedArg{1, 2, false}, probe::PassedArg{2, 8, false}, probe::PassedArg{8, 1, false}};
+  const probe::CalleeCode c =
+      probe::summarise_callee(code, 0x300000, static_cast<std::uint32_t>(code.size()), probe::entry_at(site));
+  CHECK(c.instructions == 17);
+  CHECK(c.returns_early);
+  const probe::ArgUse& task = arg(c, 1);  // the wrapper's rcx
+  CHECK(task.saved == std::vector<std::uint8_t>{3});
+  REQUIRE(task.stores.size() == 2);
+  CHECK(task.stores[0].offset == 16);
+  CHECK(task.stores[0].via == 3);
+  CHECK(task.stores[0].base_arg == std::optional<std::uint8_t>(2));  // the hub: the wrapper's rdx
+  CHECK(task.stores[0].disp == 0x30);
+  CHECK_FALSE(task.stores[0].first_word);
+  CHECK(task.stores[1].offset == 23);
+  CHECK(task.stores[1].via == 0);
+  CHECK(task.stores[1].disp == 0x38);
+  CHECK(task.stores[1].first_word);  // the task's vtable
+  const probe::ArgUse& group = arg(c, 8);  // the wrapper's r8
+  REQUIRE(group.compares.size() == 1);
+  CHECK(group.compares[0].via == 2);
+  CHECK(group.compares[0].imm == std::optional<std::uint64_t>(0x200));
+  CHECK(arg(c, 9).stores.empty());
+  REQUIRE(c.calls.size() == 1);
+  CHECK(passes(c.calls[0], 1, 2));
+  CHECK(passes(c.calls[0], 2, 8));
+  CHECK(passes(c.calls[0], 8, 1));
+  REQUIRE(c.guards.size() == 1);
+  CHECK(c.guards[0].cond == 3);  // ae
+  CHECK(c.guards[0].op == probe::GuardOp::Compare);
+  CHECK(c.guards[0].width == 4);
+  REQUIRE(c.guards[0].operands.size() == 2);
+  CHECK(c.guards[0].operands[0].form == probe::OperandForm::Register);
+  CHECK(c.guards[0].operands[0].reg == std::optional<std::uint8_t>(2));
+  CHECK(c.guards[0].operands[0].from == std::optional<std::uint8_t>(8));
+  CHECK(c.guards[0].operands[1].imm == std::optional<std::uint64_t>(0x200));
+  // The report holds the inner summary and lints clean.
+  probe::Findings f;
+  f.callee_code = c;
+  f.callee_inner.push_back(probe::InnerCallee{0x300000, 30, false, c});
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+}
+
+TEST_CASE("probe: where paths disagree a register holds nothing, and code no known path reaches holds nothing") {
+  SUBCASE("two paths into one call") {
+    const std::vector<std::byte> code = code_of({
+        0x48, 0x85, 0xC9,              // 0: test rcx, rcx
+        0x74, 0x05,                    // 3: je 10
+        0x4C, 0x8B, 0xC1,              // 5: mov r8, rcx
+        0xEB, 0x03,                    // 8: jmp 13
+        0x4C, 0x8B, 0xC2,              // 10: mov r8, rdx
+        0x48, 0x8B, 0xD9,              // 13: mov rbx, rcx
+        0xE8, 0x00, 0x00, 0x00, 0x00,  // 16: call 21
+        0xC3,                          // 21: ret
+    });
+    const probe::CalleeCode c = probe::summarise_callee(code, 0x1000, static_cast<std::uint32_t>(code.size()));
+    REQUIRE(c.calls.size() == 1);
+    CHECK(passes(c.calls[0], 1, 1));
+    CHECK(passes(c.calls[0], 2, 2));
+    CHECK(passes(c.calls[0], 9, 9));
+    CHECK(holds_none(c.calls[0], 8));  // rcx on one path, rdx on the other
+    CHECK(arg(c, 1).saved == std::vector<std::uint8_t>{3});
+    REQUIRE(c.guards.size() == 1);
+    CHECK(c.guards[0].cond == 4);  // e
+    CHECK(c.guards[0].op == probe::GuardOp::Test);
+    REQUIRE(c.guards[0].operands.size() == 2);
+    CHECK(c.guards[0].operands[0].from == std::optional<std::uint8_t>(1));
+    CHECK(c.guards[0].operands[1].from == std::optional<std::uint8_t>(1));
+  }
+  SUBCASE("a call reached only through a jump the summary cannot follow") {
+    const std::vector<std::byte> code = code_of({
+        0xFF, 0xE0,                    // 0: jmp rax
+        0xE8, 0x00, 0x00, 0x00, 0x00,  // 2: call 7
+        0xC3,                          // 7: ret
+    });
+    const probe::CalleeCode c = probe::summarise_callee(code, 0x2000, static_cast<std::uint32_t>(code.size()));
+    REQUIRE(c.calls.size() == 1);
+    CHECK_FALSE(c.calls[0].reached);
+    CHECK(c.calls[0].pass.empty());
+  }
+  SUBCASE("a flag test past moves, and a byte register's high half") {
+    const std::vector<std::byte> code = code_of({
+        0x80, 0x79, 0x7C, 0x00,  // 0: cmp byte [rcx+0x7C], 0
+        0x48, 0x8B, 0xC2,        // 4: mov rax, rdx      (sets no flag)
+        0x74, 0x01,              // 7: je 10
+        0xC3,                    // 9: ret
+        0x84, 0xE9,              // 10: test cl, ch      (ch: rcx's second byte)
+        0x75, 0x01,              // 12: jne 15
+        0xC3,                    // 14: ret
+        0xC3,                    // 15: ret
+    });
+    const probe::CalleeCode c = probe::summarise_callee(code, 0x3000, static_cast<std::uint32_t>(code.size()));
+    REQUIRE(c.guards.size() == 2);
+    CHECK(c.guards[0].op == probe::GuardOp::Compare);
+    CHECK(c.guards[0].op_at == std::optional<std::uint32_t>(0));
+    REQUIRE(c.guards[0].operands.size() == 2);
+    CHECK(c.guards[0].operands[0].base_arg == std::optional<std::uint8_t>(1));
+    CHECK(c.guards[0].operands[0].disp == 0x7C);
+    CHECK(c.guards[0].operands[1].imm == std::optional<std::uint64_t>(0));
+    REQUIRE(c.guards[1].operands.size() == 2);
+    CHECK(c.guards[1].operands[0].reg == std::optional<std::uint8_t>(1));
+    CHECK(c.guards[1].operands[1].reg == std::optional<std::uint8_t>(1));  // ch is rcx's
+    CHECK(arg(c, 1).tested == 1);
+  }
+}
+
+namespace {
+
+// A hub of the test's own: its instance (a frame counter, a table, the last task), the table (two blocks), the blocks.
+struct HubWorld {
+  FakeMemory mem;
+  FakeSys sys{mem, 0x0000'0001'4000'0000ull, 0x3000};
+  Regions rs;
+  static constexpr std::uint64_t kGame = 0x0000'0001'4000'0000ull, kMine = 0x0000'7FF8'0000'0000ull;
+  static constexpr std::uint64_t kHub = 0x0000'0002'0000'0000ull, kTable = 0x0000'0002'0001'0000ull;
+  static constexpr std::uint64_t kB1 = 0x0000'0002'0002'0000ull, kB2 = 0x0000'0002'0003'0000ull;
+  static constexpr std::uint64_t kFresh = 0x0000'0002'0004'0000ull, kVtable = 0x0000'0003'0000'0000ull;
+  static constexpr std::uint64_t kTask = 0x0000'0004'0000'0000ull, kTaskBytes = 0x818;
+  static constexpr std::uint32_t kGroup = 110;
+
+  HubWorld() {
+    const auto add = [&](std::uint64_t base, std::uint64_t len, std::uint64_t alloc, probe::RegionKind kind,
+                         bool mapped = true) {
+      rs.list.push_back(probe::MemoryRegion{base, len, alloc, probe::kPageReadWrite, true, kind});
+      if (mapped) mem.map(base, std::vector<std::byte>(len));
+    };
+    using K = probe::RegionKind;
+    add(kGame, 0x3000, kGame, K::Image);
+    for (const std::uint64_t b : {kHub, kTable, kB1, kB2, kFresh}) add(b, 0x1000, b, K::Private);
+    add(kVtable, 0x1000, kVtable, K::Private);
+    add(kTask, 0x1000, kTask, K::Private);
+    add(kMine, 0x2000, kMine, K::Image, false);  // our module: its code is never mapped here, so a read of it faults
+    std::sort(rs.list.begin(), rs.list.end(), [](const auto& a, const auto& b) { return a.base < b.base; });
+    mem.put<std::uint64_t>(kHub + 0x08, 600);      // the frame
+    mem.put<std::uint64_t>(kHub + 0x18, kTable);
+    mem.put<std::uint64_t>(kHub + 0x30, kB2);      // the last task, before ours
+    mem.put<std::uint64_t>(kTable + 0x00, kB1);
+    mem.put<std::uint64_t>(kTable + 0x08, kB2);
+    mem.put<std::uint64_t>(kB1 + 0x08, 4);         // a count
+    mem.put<std::uint64_t>(kVtable, kMine + 0x1000);  // our slots, in our module
+    mem.put<std::uint64_t>(kVtable + 8, kMine + 0x1040);
+  }
+  probe::HubWalk walk() {
+    probe::HubWalkSpec spec;
+    spec.instance = kHub;
+    spec.image_base = kGame;
+    spec.image_end = kGame + 0x3000;
+    spec.keep = AddressRange{kTask, kTask + kTaskBytes};
+    return probe::walk_hub(sys, spec);
+  }
+  probe::DiffSpec diff_spec() const {
+    probe::DiffSpec d;
+    d.group_index = kGroup;
+    d.task = AddressRange{kTask, kTask + kTaskBytes};
+    d.vtable = AddressRange{kVtable, kVtable + 0x10};
+    d.own_base = kMine;
+    d.game_base = kGame;
+    d.game_sections = {probe::SectionSpan{0x1000, 0x1000, probe::SectionKind::Code},
+                       probe::SectionSpan{0x2000, 0x1000, probe::SectionKind::Data}};
+    d.query = rs.query();
+    return d;
+  }
+};
+
+}  // namespace
+
+TEST_CASE("probe: the hub's memory before and after the call, compared block by block by path") {
+  HubWorld w;
+  const probe::HubWalk before = w.walk();
+  REQUIRE(before.blocks.size() == 4);  // the hub, the table, the last task's block, and the table's first block
+  CHECK(before.blocks[2].address == HubWorld::kB2);
+  CHECK(before.blocks[2].depth == 1);
+  CHECK(before.blocks[3].address == HubWorld::kB1);
+  CHECK(before.blocks[3].depth == 2);
+  CHECK_FALSE(before.capped);
+  CHECK(before.bytes.size() == before.read_bytes);
+  // The call: the hub keeps our task and our vtable, counts it, and the frame goes on.
+  w.mem.put<std::uint64_t>(HubWorld::kHub + 0x08, 601);
+  w.mem.put<std::uint64_t>(HubWorld::kHub + 0x30, HubWorld::kTask);
+  w.mem.put<std::uint64_t>(HubWorld::kHub + 0x38, HubWorld::kVtable);
+  w.mem.put<std::uint64_t>(HubWorld::kTable + 0x10, HubWorld::kTask);
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x08, 5);
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x10, (std::uint64_t{0x1234} << 32) | HubWorld::kGroup);
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x18, HubWorld::kGame + 0x2010);
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x20, HubWorld::kFresh);
+  const probe::HubWalk after = w.walk();
+  CHECK(after.faults == 2);  // our two slots, in our module's unmapped code
+
+  // The hub search over the walk: our task's address where the hub kept it, not followed into.
+  const probe::HubSearch h = probe::search_walk(after, HubWorld::kTask, HubWorld::kTask + 0x808, HubWorld::kGroup);
+  CHECK(h.found == 2);
+  REQUIRE(h.hits.size() == 2);
+  CHECK(h.hits[0].depth == 0);
+  CHECK(h.hits[0].path == std::vector<std::uint32_t>{0x30});
+  CHECK(h.hits[1].path == std::vector<std::uint32_t>{0x18, 0x10});
+
+  const probe::DiffSpec spec = w.diff_spec();
+  const probe::DiffResult r = probe::diff_hub(before, after, spec);
+  const probe::HubDiff& d = r.diff;
+  CHECK(d.before_blocks == 4);
+  CHECK(d.after_blocks == 6);  // and our two slots, which fault
+  CHECK(d.compared == 4);      // the last task's block found again through the table
+  CHECK(d.moved == 0);
+  CHECK(d.gone == 0);
+  CHECK(d.new_blocks == 2);    // our vtable and the fresh block
+  CHECK(d.new_bytes == 0x800);
+  CHECK(d.changed == 8);
+  CHECK_FALSE(d.steady_words.has_value());
+  CHECK_FALSE(d.capped);
+  CHECK(d.kept_bytes == before.bytes.size());
+  REQUIRE(d.words.size() == 8);
+  using V = probe::ValueKind;
+  CHECK(d.words[0].path == std::vector<std::uint32_t>{0x08});
+  CHECK(d.words[0].before.kind == V::Small);
+  CHECK(d.words[0].after.value == std::optional<std::uint64_t>(601));
+  CHECK(d.words[1].path == std::vector<std::uint32_t>{0x30});
+  CHECK(d.words[1].before.kind == V::Heap);
+  CHECK_FALSE(d.words[1].before.fresh.has_value());
+  CHECK(d.words[1].after.kind == V::Task);
+  CHECK(d.words[1].after.fresh == std::optional<bool>(true));
+  CHECK(d.words[2].before.kind == V::Zero);
+  CHECK(d.words[2].after.kind == V::Vtable);
+  CHECK(d.words[3].depth == 1);
+  CHECK(d.words[3].path == std::vector<std::uint32_t>{0x18, 0x10});
+  CHECK(d.words[3].after.kind == V::Task);
+  CHECK(d.words[4].path == std::vector<std::uint32_t>{0x18, 0x00, 0x08});
+  CHECK(d.words[4].after.value == std::optional<std::uint64_t>(5));
+  CHECK(d.words[5].after.kind == V::Other);
+  CHECK(d.words[5].after.group_half);
+  CHECK(d.words[6].after.kind == V::Game);
+  CHECK(d.words[6].after.section == probe::SectionKind::Data);
+  CHECK(d.words[6].after.rva == std::optional<std::uint32_t>(0x2010));
+  CHECK(d.words[7].after.kind == V::Heap);
+  CHECK(d.words[7].after.fresh == std::optional<bool>(true));
+  CHECK(r.changed.size() == 8);
+
+  SUBCASE("a later diff tells the steady changes from the moving ones, the steady first") {
+    w.mem.put<std::uint64_t>(HubWorld::kHub + 0x08, 1700);
+    w.mem.put<std::uint64_t>(HubWorld::kVtable, HubWorld::kGame + 0x1100);  // read only by the walk: not compared
+    const probe::HubWalk later = w.walk();
+    probe::DiffSpec s2 = spec;
+    s2.earlier = &r.changed;
+    const probe::HubDiff d2 = probe::diff_hub(before, later, s2).diff;
+    CHECK(d2.changed == 8);
+    CHECK(d2.steady_words == std::optional<std::uint64_t>(7));
+    REQUIRE(d2.words.size() == 8);
+    CHECK(d2.words[0].path == std::vector<std::uint32_t>{0x30});
+    CHECK(d2.words[0].steady == std::optional<bool>(true));
+    CHECK(d2.words[7].path == std::vector<std::uint32_t>{0x08});
+    CHECK(d2.words[7].steady == std::optional<bool>(false));
+  }
+  SUBCASE("a path that now leads elsewhere, and a block no longer reached") {
+    w.mem.put<std::uint64_t>(HubWorld::kTable + 0x00, HubWorld::kFresh);  // the table's first entry, re-pointed
+    w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x20, 0);
+    const probe::HubDiff d3 = probe::diff_hub(before, w.walk(), spec).diff;
+    CHECK(d3.moved == 1);
+    CHECK(d3.gone == 1);  // the table's first block
+  }
+  SUBCASE("the caps stop the walk, and the diff says so") {
+    probe::HubWalkSpec small;
+    small.instance = HubWorld::kHub;
+    small.image_base = HubWorld::kGame;
+    small.image_end = HubWorld::kGame + 0x3000;
+    small.max_blocks = 2;
+    const probe::HubWalk capped = probe::walk_hub(w.sys, small);
+    CHECK(capped.capped);
+    CHECK(capped.blocks.size() == 2);
+    CHECK(probe::diff_hub(before, capped, spec).diff.capped);
+  }
+  // The report holds both and lints clean.
+  probe::Findings f;
+  f.hub_diff.push_back(d);
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+}
+
+TEST_CASE("probe: the whole-memory search counts our vtable's and slots' copies apart, and the committed total") {
+  FakeMemory mem;
+  const std::uint64_t game = 0x0000'0001'4000'0000ull, mine = 0x0000'7FF8'0000'0000ull;
+  FakeSys sys(mem, game, 0x1000);
+  const std::uint64_t heap = 0x0000'0003'0000'0000ull, own_heap = 0x0000'7FF9'0000'0000ull;
+  const std::uint64_t task = 0x0000'0004'0000'0000ull, vtable = 0x0000'0004'0001'0000ull;
+  Regions rs;
+  const auto add = [&](std::uint64_t base, std::uint64_t len, probe::RegionKind kind, std::uint32_t protect) {
+    rs.list.push_back(probe::MemoryRegion{base, len, base, protect, true, kind});
+    mem.map(base, std::vector<std::byte>(len));
+  };
+  using K = probe::RegionKind;
+  add(game, 0x1000, K::Image, probe::kPageReadOnly);
+  add(heap, 0x8000, K::Private, probe::kPageReadWrite);
+  add(task, 0x1000, K::Private, probe::kPageReadWrite);
+  add(vtable, 0x1000, K::Private, probe::kPageReadOnly);
+  add(mine, 0x1000, K::Image, probe::kPageReadOnly);
+  add(own_heap, 0x1000, K::Private, probe::kPageReadWrite);
+  add(0x0000'7FFA'0000'0000ull, 0x1000, K::Private, probe::kPageNoAccess);  // committed, never read
+  std::sort(rs.list.begin(), rs.list.end(), [](const auto& a, const auto& b) { return a.base < b.base; });
+  const std::vector<std::uint64_t> slots = {mine + 0x400, mine + 0x440, mine + 0x480};
+  mem.put<std::uint64_t>(task, vtable);  // our object's first word
+  for (std::size_t i = 0; i < slots.size(); ++i) {
+    mem.put<std::uint64_t>(vtable + 8 * i, slots[i]);  // our vtable
+    mem.put<std::uint64_t>(mine + 0x100 + 8 * i, slots[i]);  // our module's table of thunks
+  }
+  // The game's copies: our vtable once, the second slot twice and the third once; ours: our vtable in our heap.
+  mem.put<std::uint64_t>(heap + 0x10, vtable);
+  mem.put<std::uint64_t>(heap + 0x18, slots[1]);
+  mem.put<std::uint64_t>(heap + 0x4000, slots[1]);
+  mem.put<std::uint64_t>(heap + 0x6008, slots[2]);
+  mem.put<std::uint64_t>(own_heap + 0x20, vtable);
+  probe::MemorySearchSpec spec;
+  spec.target = task;
+  spec.object_bytes = 0x808;
+  spec.vtable = vtable;
+  spec.slots = slots;
+  spec.game_base = game;
+  spec.own_base = mine;
+  spec.own_bases = {own_heap, task, vtable};
+  spec.own_known = true;
+  const probe::MemorySearch m = probe::search_memory(sys, rs.query(), spec);
+  CHECK(m.stopped == probe::SearchStop::Done);
+  CHECK(m.vtable_found == 1);
+  CHECK(m.own_vtable_found == 2);  // our object's first word, and our heap's copy
+  CHECK(m.slot_found == 3);
+  CHECK(m.slot_distinct == 2);
+  CHECK(m.own_slot_found == 6);    // our vtable and our module's table
+  CHECK(m.own_slot_distinct == 3);
+  CHECK(m.found == 0);
+  CHECK(m.committed_bytes == 0xE000);
+  CHECK(m.regions == 7);
+  REQUIRE(m.hits.size() == 12);  // the game's vtable and three slots; ours: two vtables and six slots
+  CHECK(m.hits[0].points_to == probe::PointsTo::Vtable);
+  CHECK_FALSE(m.hits[0].own);
+  CHECK(m.hits[1].points_to == probe::PointsTo::Slot);
+  CHECK(m.hits[1].slot == std::optional<std::uint32_t>(1));
+  CHECK(m.hits[3].slot == std::optional<std::uint32_t>(2));
+  CHECK(m.hits[4].own);
+  CHECK(m.hits[4].points_to == probe::PointsTo::Vtable);
+  SUBCASE("past the cap of bytes the regions are still walked for the committed total") {
+    probe::MemorySearchSpec capped = spec;
+    capped.max_bytes = 0x1000;
+    const probe::MemorySearch b = probe::search_memory(sys, rs.query(), capped);
+    CHECK(b.stopped == probe::SearchStop::Bytes);
+    CHECK(b.committed_bytes == 0xE000);
+    CHECK(b.regions == 7);
+    CHECK(b.read_bytes < 0xE000);
+  }
+  probe::Findings f;
+  f.memory_search.push_back(m);
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+}
