@@ -250,6 +250,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 225 | 2026-11-20 | A recording's reader now rebuilds what Augur reads of a snapshot, so replay and golden drive Augur from the DLL's recordings, schema unchanged | DECIDED | #engine #augur #spike #datapiler |
 | 226 | 2026-11-20 | Augur v0.1's step costs about 26 µs on a busy synthetic step (32 characters, 25 rules), p99 51 to 71 µs, against ARCH's 1 ms budgets; and a CMake tree's cached Python can vanish | FACT | #engine #augur #perf #build |
 | 227 | 2026-11-20 | R1 run 5: with no other mods, register_task returned ok again and our task's address was nowhere in 4 MB of the hub's memory three pointers deep; spike.6 searches all memory and summarises the callee | FACT | #gal #r1 #task |
+| 228 | 2026-11-20 | Cinzel publishes static faces only at Regular, Bold and Black, so GraceUI's 500 and 600 weights take Regular and Bold; of the faces, EB Garamond and Noto Sans Mono carry the arrows U+2190 to U+2193 | FACT | #graceui #fonts |
+| 229 | 2026-11-20 | Under Wine on lavapipe a full-screen overlay's frame-cost p99 is the software renderer's: GraceUI's menu holds its 1 ms present-thread budget at 640x360 and is measured at 1920x1080, the game's run settling it | METHOD | #graceui #perf #wine |
 
 ## Entries
 
@@ -4031,3 +4033,24 @@ invariant 10, EldenNet ARCH (T3)
   calls, its branches before the first call, what it does with each argument register: stores, moves, compares with
   small immediates) and a search of every readable committed region of the process for our task's address after the
   call, our own copies counted apart.
+
+### 228. Cinzel publishes static faces only at Regular, Bold and Black, so GraceUI's 500 and 600 weights take Regular and Bold; of the faces, EB Garamond and Noto Sans Mono carry the arrows U+2190 to U+2193
+
+`2026-11-20` · FACT · `#graceui` `#fonts` · refs: GraceUI:D167, GraceUI:NOTICE
+
+- (FACT, the Grace session, from the faces' cmap tables, 2026-11-20) Cinzel (its publisher's repository) publishes static
+  TTFs only at Regular, Bold and Black, so the tokens' 500 and 600 take Regular and Bold until an instancer is in the
+  build. EB Garamond and Noto Sans Mono carry U+2190 to U+2193; Noto Sans and Cinzel do not.
+- (FACT) GraceUI's fonts/ holds eight faces (Cinzel Regular and Bold; EB Garamond Regular, Medium and SemiBold; Noto Sans
+  Regular and SemiBold; Noto Sans Mono), each pinned from its publisher, OFL, credited in NOTICE.
+
+### 229. Under Wine on lavapipe a full-screen overlay's frame-cost p99 is the software renderer's: GraceUI's menu holds its 1 ms present-thread budget at 640x360 and is measured at 1920x1080, the game's run settling it
+
+`2026-11-20` · METHOD · `#graceui` `#perf` `#wine` · refs: GraceUI:D167, GraceUI:D154, WHY§113
+
+- (METHOD, the Grace session) Under Wine on lavapipe, a full-screen 1920×1080 overlay's frame-cost p99 is the software
+  renderer's, which shares the machine's cores (median 0.15 ms, p99 1.1 to 1.9 ms). The budget is held at 640×360
+  (p99 0.36 to 0.78 ms, under 1 ms) and the full size is measured and printed; S4's run in the game settles it.
+- (FACT) GraceUI's menu page at 1920×1080: 2,752 vertices, 6,612 indices and 4 commands, laid out and tessellated in
+  0.06 to 0.3 ms on GraceUI's own thread; its atlas 1024×2048, baked in 25 to 41 ms at warm-up; no allocation on the
+  present thread.

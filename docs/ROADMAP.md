@@ -250,7 +250,7 @@ GraceUI's milestones beside them. Version 1 stays dialogue-only and read-only to
   - gives: superseded by G15 on 2026-11-08: GraceUI owns the overlay and EldenNet draws through it; folded into both
     designs on 2026-11-15 (S7.8.c).
 
-## S6 Waiting on the owner [active]
+## S6 Waiting on the owner [done]
 
 - needs: S4
 - refs: DESIGN§7.8
@@ -716,7 +716,7 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - refs: O86, O36, G5
   - gives: folded 2026-11-16: grounding alone (DESIGN §10.4, MEM §7); test questions per character (NPC §12.1, MEM §7.8); GraceUI's SP2 re-cut as "shown, grounded or impersonal".
 
-## S8 Our own engine, on SkyrimNet's logic (O84) [active]
+## S8 Our own engine, on SkyrimNet's logic (O84) [done]
 
 - needs: S6.1
 
@@ -752,7 +752,7 @@ part in its quest, is the one spoiler mechanism, and that the design's extra gua
   - needs: a
   - refs: ARCH§11.1, ARCH§11.3, ARCH§11.4, O84
   - gives: built 2026-11-16 on the engine branch: the WinHTTP transport, loaded by its full path from the system directory, with one conformance suite for it and libcurl, run under Wine; the local probes with the probe and models commands; the asynchronous handle (submit, cancel, the input epoch, events with backpressure, exactly one end per request) and Ollama's warm-up; 125 tests on Linux and 127 under Wine; every command run through the Windows build under Wine (WHY§101).
-- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [active]
+- h Run the engine on Windows itself, against a local server and a cloud provider: what Wine cannot show (WinHTTP with the system's proxy, TLS with real certificates, IPv6 loopback, cancelling on Windows) [done]
   - needs: g
   - refs: ARCH§11.1, WHY§101, WHY§108
   - gives: run 1 on 2026-11-16 (WHY§108): the home network's llama-server, TLS with real certificates and the tests
@@ -839,7 +839,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S10.1 The spikes for v0.1, in game
 
 - refs: DESIGN§16.1
-- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [active]
+- S10.1.a The spike and recording build, its recordings in numbers that DataPiler imports (O73) [done]
   - refs: O73
   - gives: planned on 2026-11-16 in thirteen parts (two builds from one code base). Parts 1 to 10 of the spike
     build are built (2026-11-16 and 17), on the engine's branch, with the package 0.1.0-spike.1 sent for R1 (WHY§197
@@ -864,7 +864,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
-- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [active]
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [done]
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
@@ -976,14 +976,20 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - S11.2.a Tokens, the protocol, the page descriptions, the web shell, and the fake host for any space, with fixtures [done]
   - refs: G3, GraceUI:DESIGN§9.2
   - gives: split on 2026-11-20 into e to l, each built and tested on its own (the Grace session's plan).
-- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu)
+- b For spike S4: GraceUI's menu on F5 drawn in game by GraceUI's host, with one page of GraceUI's own (GraceUI > Menu) [done]
   - needs: i, l, S10.4
-  - refs: G15, G20, GraceUI:D115, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
+  - refs: G15, G20, GraceUI:D115, GraceUI:D167, GraceUI:DESIGN§2.9, GraceUI:DESIGN§3.16
   - gives: the ABI's remaining slots typed (register_pages, publish, answer, poll's protocol kinds); the menu as an
     input holder with its close routine; harness screenshots, the frame cost and the atlas size, for S4 and the
     owner's look review. The page is GraceUI > Menu (ui.scale, ui.menu.theme: GraceUI's own settings, GraceUI:D115), agreed by
     the two sessions on 2026-11-20 in place of Behaviour > Pacing, an EldenNet page since G20; S4 checks input, which
     either page serves.
+    S4's page in game done on 2026-11-20 (GraceUI feat/foundations ade807c, D167): F5 opens GraceUI > Menu as the
+    holder of kind menu, laid out and tessellated on GraceUI's own thread, the present thread lending the newest list
+    and allocating nothing; under Wine on lavapipe the atlas is 1024×2048 (baked in 25 to 41 ms), the page 2,752
+    vertices and 4 commands, the present thread's own work a median of 0.15 ms at 1920×1080 and under 1 ms at p99 at
+    640×360 (WHY§229); screenshots went to the owner for the look review (d). Next: the ABI's protocol slots
+    (register_pages, publish, answer, poll's protocol kinds), mapped onto grace-serve's SpacePort.
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
@@ -1017,9 +1023,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     tools/pages/build.py, which checks a space against the schema and by the page lint and writes the fixtures. EldenNet
     writes its space in the same form and lints it from a pinned GraceUI (GraceUI's docs/eldennet-changes.md §19, for
     S11.4.a).
-- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6) [active]
+- i The server library, grace-serve: sockets, threads, the files graceui.toml lists, the ticket and per-space routing, as one library; the security suite with two spaces (invariants 4 to 6) [done]
   - needs: f, g
   - refs: G4, G17, G29, GraceUI:DESIGN§7.2
+  - gives: built on 2026-11-20 (GraceUI feat/foundations ce4d0d4, 5631bf0): sockets on two threads, the listed web
+    files, the cookie and ticket, and per-space routing (Server::add_space, SpacePort); the security suite, 35 cases
+    over real loopback sockets with two spaces, passing under the sanitizers and under Wine; graceui.toml a shared
+    golden the server's reader parses. How EldenNet's launcher links it (G29): GraceUI's docs/eldennet-changes.md §22.
 - j The fake host for any space, grace-dev, on fixtures and scripted time
   - needs: h, i
   - refs: GraceUI:DESIGN§9.2
