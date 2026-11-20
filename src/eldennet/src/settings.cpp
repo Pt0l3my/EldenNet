@@ -97,8 +97,10 @@ void read_debug(Reader& r, const toml::table& t, Settings& s) {
       if (const auto w = r.word(v, where, std::array<std::string_view, 4>{"error", "warn", "info", "debug"})) {
         s.log_level = static_cast<LogLevel>(*w);
       }
-    } else if (key == "panel" || key == "record_redact_text") {
-      (void)r.boolean(v, where);  // F11's panel and the text redaction come with build B
+    } else if (key == "panel") {
+      if (const auto b = r.boolean(v, where)) s.debug_panel = *b;  // the F11 view (part 12)
+    } else if (key == "record_redact_text") {
+      (void)r.boolean(v, where);  // the text redaction comes with S10.2.d's keyed hashes
     } else {
       r.problem(where, "is not a key of settings.toml");
     }
@@ -167,8 +169,8 @@ LoadedSettings parse_settings(std::string_view text, bool probe_build) {
             for (const auto& [ok, ov] : *t) {
               if (ok.str() != "connect") {
                 r.problem("overlay." + std::string(ok.str()), "is not a key of settings.toml");
-              } else if (const auto b = r.boolean(ov, "overlay.connect"); b && *b) {
-                out.notes.emplace_back("overlay.connect: GraceUI's connect is not in this build; it stays off");
+              } else if (const auto b = r.boolean(ov, "overlay.connect")) {
+                s.overlay_connect = *b;
               }
             }
           }

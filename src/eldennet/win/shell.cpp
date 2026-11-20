@@ -37,7 +37,7 @@ class Io final : public en::gal::TaskIo {
     return retired.try_push(list);
   }
   void push_render(const en::proto::RenderFeed&) noexcept override {
-    renders.fetch_add(1, std::memory_order_relaxed);  // no overlay in this build: counted only
+    renders.fetch_add(1, std::memory_order_relaxed);  // no surface draws the render feed yet: counted only
   }
 
   en::shell::SnapSlot snaps;
@@ -162,6 +162,7 @@ DWORD WINAPI core_main(void* param) noexcept {
       for (const en::core::Change& c : out.changes) {
         log(Line("change").word("what", en::core::to_string(c.what)).word("to", change_word(c)));
         if (rec.on()) rec.put(en::shell::change_line(c, now));
+        overlay_change(en::core::to_string(c.what), change_word(c), c.at);  // the F11 view's list
       }
     };
     for (;;) {
@@ -234,6 +235,8 @@ DWORD WINAPI core_main(void* param) noexcept {
           }
         }
       }
+      // GraceUI (overlay.cpp): the banner and the badge as notices, the world-state claims, the Mark and the F11 view.
+      overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now);
       if (now - last_status >= 10'000) {
         last_status = now;
         Line l("status");

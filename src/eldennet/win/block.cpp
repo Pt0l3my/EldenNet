@@ -28,6 +28,14 @@ constinit std::atomic<DWORD> g_game{0};
 constinit std::atomic<bool> g_in_filter{false};
 constinit std::atomic<bool> g_installed{false};
 constinit LPTOP_LEVEL_EXCEPTION_FILTER g_previous = nullptr;
+// What T1 reported, kept whether or not a block is attached (the F11 view reads it).
+constinit std::atomic<std::uint32_t> g_state{0};
+constinit std::atomic<std::uint32_t> g_items_resolved{0};
+constinit std::atomic<std::uint32_t> g_items_total{0};
+constinit std::atomic<std::uint32_t> g_passes{0};
+// The Marks with no block (another loader, and no watcher): EldenNet's own ring, of the block's shape, which only its
+// GraceUI Mark writes.
+constinit w::Marks g_own_marks{};
 
 HANDLE open_event(std::wstring_view prefix, DWORD pid) {
   const std::wstring name = std::wstring(prefix) + std::to_wstring(pid);
@@ -133,6 +141,7 @@ void install_filter() noexcept {
 }
 
 void state(w::InitState s) noexcept {
+  g_state.store(static_cast<std::uint32_t>(s), std::memory_order_relaxed);
   if (w::Block* b = opened()) {
     b->status.init.store(static_cast<std::uint32_t>(s), std::memory_order_release);
     b->status.updated_ms.store(mono_ms(), std::memory_order_relaxed);
@@ -144,6 +153,9 @@ void ready_ms(std::uint32_t ms) noexcept {
 }
 
 void items(std::uint32_t resolved, std::uint32_t total, std::uint32_t passes) noexcept {
+  g_items_resolved.store(resolved, std::memory_order_relaxed);
+  g_items_total.store(total, std::memory_order_relaxed);
+  g_passes.store(passes, std::memory_order_relaxed);
   if (w::Block* b = opened()) {
     b->status.items_resolved.store(resolved, std::memory_order_relaxed);
     b->status.items_total.store(total, std::memory_order_relaxed);
@@ -195,15 +207,41 @@ bool crash_requested() noexcept {
   return b != nullptr && b->control.crash_request.load(std::memory_order_acquire) != 0;
 }
 
-std::uint32_t marks() noexcept {
-  const w::Block* b = opened();
-  return b == nullptr ? 0 : b->marks.count.load(std::memory_order_acquire);
+w::InitState init_state() noexcept {
+  const std::uint32_t s = g_state.load(std::memory_order_relaxed);
+  return s < w::kInitStateCount ? static_cast<w::InitState>(s) : w::InitState::None;
 }
 
+Items items_seen() noexcept {
+  return Items{g_items_resolved.load(std::memory_order_relaxed), g_items_total.load(std::memory_order_relaxed),
+               g_passes.load(std::memory_order_relaxed)};
+}
+
+namespace {
+w::Marks& ring() noexcept {
+  w::Block* b = opened();
+  return b != nullptr ? b->marks : g_own_marks;
+}
+}  // namespace
+
+std::uint32_t marks() noexcept { return ring().count.load(std::memory_order_acquire); }
+
 std::uint64_t mark_ms(std::uint32_t n) noexcept {
-  const w::Block* b = opened();
-  if (b == nullptr || n == 0) return 0;
-  return b->marks.mono_ms[(n - 1) % w::kMarkRing].load(std::memory_order_relaxed);
+  if (n == 0) return 0;
+  return ring().mono_ms[(n - 1) % w::kMarkRing].load(std::memory_order_relaxed);
+}
+
+w::MarkSource mark_source() noexcept { return w::mark_source(ring()); }
+
+bool take_marks() noexcept {
+  w::Marks& m = ring();
+  if (w::mark_source(m) == w::MarkSource::EldenNet) return true;
+  return w::eldennet_asks(m);  // the launcher's console, if any, lets its Pause go and hands the ring over
+}
+
+std::uint32_t add_own_mark(std::uint64_t at_ms) noexcept {
+  w::Marks& m = ring();
+  return w::mark_source(m) == w::MarkSource::EldenNet ? w::add_mark(m, at_ms) : 0;
 }
 
 }  // namespace eldennet::block

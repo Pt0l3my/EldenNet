@@ -1,9 +1,9 @@
 # eldennet: the DLL in the game
 
 `eldennet.dll` is EldenNet's engine in the game process (ARCH §2.2, §3), C++20, MIT: the launcher loads it (part 7),
-or a player's own loader does. This is the first in-game build's DLL (part 6): headless, with GraceUI's connect off
-(`overlay.connect`; the banner and F11 come with build B's part 12), reading the game through en-gal and stepping
-en-core's v0.1 slice. No code comes from any other project; it uses nothing of me3 or fromsoftware-rs (O47, O48), and
+or a player's own loader does. This is the first in-game build's DLL (part 6), reading the game through en-gal and
+stepping en-core's v0.1 slice, with GraceUI's connect since part 12 (en-overlay): the banner and the pause badge as
+GraceUI notices, EldenNet as a world-state provider, the development Mark on GraceUI's hotkey, and the F11 debug view. No code comes from any other project; it uses nothing of me3 or fromsoftware-rs (O47, O48), and
 nothing in it knows the game: every fact comes from `gal/` beside it.
 
 It is built in two parts:
@@ -37,9 +37,16 @@ T1 then runs, each state logged and written to the watch block for the launcher'
    O71) and its block awaited for 3 s.
 4. **Settings**: `%APPDATA%\EldenNet\config\settings.toml` (below); `enabled = false` ends T1 (Off).
 5. T6 (the core), T10 (the watcher) and T11 (the log writer) start.
-6. An unknown build or anti-cheat takes the **banner path**: WaitWindow, the crash filter, the banner (L1), end.
+6. An unknown build or anti-cheat takes the **banner path**: WaitWindow, the crash filter, **ConnectB** (below; with
+   anti-cheat GraceUI's own check puts it in the notice-only mode), the banner (L1), end.
 7. **WaitWindow**: a visible top-level window of the process, polled every 100 ms, at most 120 s from T1's start.
-8. **Connect**: skipped (`overlay.connect` stays off in this build).
+8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
+   `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when
+   no copy is installed there and none is loaded; then `connect` as `eldennet`, with its floor (GraceUI 0.1.0) and the
+   caps it uses, and, connected, the F11 view and the Mark's hotkey (below). One log line, `connect ok=… outcome=…
+   how=… looks=… installed=… graceui=… view=… mark=… world=…`; a failed connect (absent, too old, a duplicate id,
+   inactive, refused) leaves EldenNet headless, nothing drawn (ARCH §10.3), and the start goes on. `overlay.connect =
+   false` skips it (`connect skipped=1 why=off`).
 9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
 10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
     installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
@@ -58,7 +65,8 @@ A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--pro
   C1 is a `SnapSlot` (two preallocated snapshots; the newest wins and an overwrite marks the next `gap`), C2, C4 and C5
   are SPSC rings of 64. Nothing on it waits or allocates (R6); the probe build counts any allocation there.
 - **T6, the core**, waits on one wake signal (or 100 ms), then drains T1's banners, C2's lifecycle messages and C1's
-  newest snapshot, in that order, and steps en-core's slice on each and on a 100 ms tick. C14's atomics (anti-cheat,
+  newest snapshot, in that order, and steps en-core's slice on each and on a 100 ms tick. Once T1 has connected to
+  GraceUI, T6 alone calls it, after each wake (`overlay_tick`, below). C14's atomics (anti-cheat,
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
   snapshots, faults, the groups tripped, the task's p99), records the Marks, logs each change and a status line every
@@ -70,6 +78,31 @@ A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--pro
   counts); T11 writes `ELDENNET <event> key=value ... t=<ms since T1's start>` to `logs\eldennet.log`, rotated past
   1 MiB with one older file kept. A line holds numbers and words only (`[A-Za-z0-9_.+-]`, at most 48 characters):
   anything else a caller passes is written as `redacted`, so no path, user name or text can reach the log.
+
+## GraceUI on T6 (part 12; `overlay.cpp`)
+
+After each wake, once T1 has published the connection:
+
+- **The banner**: en-core's L1 banner, in its text (ARCH §5.4, §10.3, en-core's `banner_text`, with the game build's
+  number, read from the image when the gate refused it), as one notice under EldenNet's key 1 with a duration of 0, in
+  the warning tone, replaced in place when the reason changes; it works in the anti-cheat's notice-only mode. **The
+  pause badge**, "EldenNet paused (multiplayer)", likewise under key 2, withdrawn by an empty text. Each is logged
+  (`notice what=banner|badge … status=…`).
+- **The world-state claims** (GraceUI D78), sent when they change (`world flags=…`): the title and loading from the
+  core's phase, multiplayer from the badge or the gate's session reasons, the anti-cheat from C14; danger and a game
+  menu are v0.1's stand-ins (en-overlay's `world.hpp`).
+- **The Mark** (O90): GraceUI's hotkey `mark` on Pause, registered when the launcher's console holds Pause (or at
+  connect with `debug.panel`), then the watch block's ring asked for (`marks source=asked`, then `source=eldennet` once
+  the launcher has let its key go and handed it over; with no console, at once). Each press is then a Mark of
+  EldenNet's own, stamped when T6 takes it (at most 100 ms after it), numbered on in the same ring and recorded like
+  the launcher's. Without a block, EldenNet keeps a ring of its own. Until the hand-over, a press is logged as not
+  taken; the launcher's Pause stays the Mark whenever GraceUI is absent, so R1's flow is unchanged.
+- **The F11 view** (`debug.panel = true`; PAGES SP8, off by default): `poll`'s F11 presses open and close it; while it
+  is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…`).
+  It shows T1's state and discovery's items, en-core's phase, level, banner and gate, the task's snapshots, p99 and
+  read mode, each read group's state, the groups tripped, the faults by kind, the Marks, GraceUI's version and the last
+  changes; no game text (en-overlay's README).
+- GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
 
@@ -88,8 +121,8 @@ ours.
 ```toml
 schema = 2
 enabled = true                                  # false: Off, T1 ends at once
-debug = { record_sessions = false, log_level = "info" }   # error, warn, info, debug; panel, record_redact_text: build B
-overlay = { connect = false }                   # GraceUI's connect: not in this build, it stays off (a note if true)
+debug = { panel = false, record_sessions = false, log_level = "info" }  # panel: F11's view; log_level: error .. debug
+overlay = { connect = true }                    # GraceUI's connect (part 12); false: headless, Connect skipped
 gal = { copy = "seh" }                          # or "rpm": ReadProcessMemory on our own process (S0-D)
 probe = { round = "r1", register = "mark", object_size = 0x800, settle_s = 10,
           fault_group = "camera", fault_every = 0, fault_after_s = 2 }   # a probe build's only (EN_PROBE)
@@ -173,13 +206,20 @@ alone and as a file with no name, text or param value in it. R1's report is test
 In the clang-cl build, `eldennet_dll_checks` (`tests/dll_checks.py`) runs ARCH §12.1's greps on `src/eldennet`
 (DllMain's body is the load contract's and calls nothing else; no detach branch; every `WINAPI`, `CALLBACK` and
 `extern "C"` body starts with `ffi_guard`, and is `noexcept`; no `reinterpret_cast` or `std::bit_cast`; no hook
-library's or renderer backend's name; no `IsEnableOnlineMode`; `en_dll_module` on the DLL and `en_shell`) and reads
-both DLLs with llvm-objdump: `eldennet_instance_marker` their only export, and their imports within
-`tests/imports.allow` (kernel32 and user32: no network, no hook API, nothing that reaches into another process).
+library's or renderer backend's name; no `IsEnableOnlineMode`; `en_dll_module` on the DLL and `en_shell`), the same
+greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLLs with llvm-objdump:
+`eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
+network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
+C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording
 that lints clean, the session gate, a build the DLL's own gal/ does not know, a simulated anti-cheat module, a second
 copy, a crash and a stack overflow recorded through the DLL's filter, the watcher started under another loader, R1
 from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
-taken, both reports linted by the launcher), and `--probe` refused by the release DLL.
+taken, both reports linted by the launcher), and `--probe` refused by the release DLL. Without GraceUI, each logs
+`connect ok=0 outcome=absent installed=0 looks=1`: the look ends at once. With a test build of GraceUI (CMake's
+`EN_GRACEUI_DIR`), three cases more (`fakegame.launcher-eldennet-graceui*`): GraceUI loaded after EldenNet, by its own
+look, on the main path (the pre-flight, the connect, F11's view drawn on the game's Direct3D 12 frame and hidden again,
+the world-state provider, and the Mark handed over to GraceUI's hotkey); GraceUI loaded before it, on the banner path
+(the banner as one notice, F11's view); and the anti-cheat's notice-only mode.

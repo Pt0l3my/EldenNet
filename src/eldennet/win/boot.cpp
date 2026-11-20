@@ -1,13 +1,15 @@
-// T1, the init thread (dll.hpp; ARCH §1.4, §3.2): EldenNet's start, headless in this build (GraceUI's connect is off,
-// overlay.connect), from Pin to Ready or to a banner, then T1 ends. Each state is logged and written to the watch block
-// for the launcher's dev console, and a terminal one names how long the start took.
+// T1, the init thread (dll.hpp; ARCH §1.4, §3.2): EldenNet's start, from Pin to Ready or to a banner, then T1 ends.
+// Each state is logged and written to the watch block for the launcher's dev console, and a terminal one names how
+// long the start took.
 //
 //   Pin (and R16's mutex) → Gate → Safety (the anti-cheat check; the log starts here) → Settings (enabled = false: Exit)
-//   → T6, T10 and T11 → WaitWindow (≤ 120 s from T1's start) → Connect (off: skipped)
+//   → T6, T10 and T11 → WaitWindow (≤ 120 s from T1's start) → Connect (GraceUI, overlay.cpp: ≤ 30 s, at once when
+//   none is installed; a failed connect goes on headless)
 //   → Discover (the AOB items, the FD4 singletons, the RTTI sets; retried at +5, +15 and +30 s)
 //   → WaitEngine (the task hub's instance non-null, ≤ 120 s) → the crash filter → Register (the one call)
 //   → FirstTick (≤ 30 s: the group check and phase A on the game thread) → Ready (R16's marker scan) → end.
-//   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, the banner, end.
+//   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
+//   mode with anti-cheat), the banner, end.
 //   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp).
 #include <cstring>
 
@@ -111,7 +113,7 @@ void banner_path(Shell& s, BannerReason reason, const char* detail) {
   const bool window = wait_window(kStartLimitMs);
   log(Line("window").flag("found", window).num("ms", since_ms()));
   if (window) block::install_filter();
-  log(Line("connect").flag("skipped", true).word("why", "not_in_build"));
+  connect_overlay(s, true);  // ConnectB: the banner reaches GraceUI's notice through T6 (overlay.cpp)
   log(Line("banner").word("reason", en::core::to_string(reason)).word("detail", detail), LogLevel::Warn);
   push_banner(s, reason, detail);
   finish(w::InitState::Banner);
@@ -161,7 +163,17 @@ void run(HMODULE module) {
   } else {
     const en::gal::BuildEntry& e = (*gated)->profile.entry();
     s.game_version = e.file_version;
+    s.game_version_known = true;
     s.region = e.region == en::gal::Region::Ww ? "ww" : "jp";
+  }
+  if (!s.game_version_known) {
+    // A build the gate refused: its file version all the same, for the banner's "game build 2.x.y.z" (ARCH §10.3).
+    if (const auto image = en::gal::read_image(s.sys->image(), en::gal::ImageLayout::Memory)) {
+      if (const auto fp = en::gal::fingerprint(*image)) {
+        s.game_version = fp->file_version;
+        s.game_version_known = true;
+      }
+    }
   }
   log(Line("gate").word("result", gate_word).num("ms", since_ms()));
 
@@ -237,7 +249,7 @@ void run(HMODULE module) {
   if (!wait_window(kStartLimitMs)) return stop_at(s, BannerReason::NotStarted, "no_window");
   log(Line("window").flag("found", true).num("ms", since_ms()));
   enter(w::InitState::Connect);
-  log(Line("connect").flag("skipped", true).word("why", "not_in_build"));
+  connect_overlay(s, false);
 
 #if EN_PROBE
   if (s.settings.probe.round == en::shell::ProbeRound::R1) {

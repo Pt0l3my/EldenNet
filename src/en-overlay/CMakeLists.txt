@@ -27,6 +27,14 @@ if(WIN32)
   else()
     target_compile_options(en_imgui_core PRIVATE -w)
   endif()
+  # Its function-local statics without the runtime's thread-safe initialisation, whose lock and condition variable the
+  # DLL would otherwise import: Dear ImGui is not thread-safe anyway, and one thread at a time uses its context (T1
+  # makes it, then T6 alone draws; overlay.hpp).
+  if(MSVC)
+    target_compile_options(en_imgui_core PRIVATE /Zc:threadSafeInit-)
+  else()
+    target_compile_options(en_imgui_core PRIVATE -fno-threadsafe-statics)
+  endif()
 endif()
 
 add_library(en_overlay STATIC ${EN_OVERLAY_SOURCES})

@@ -9,7 +9,10 @@
 - the built DLLs' exports (eldennet_instance_marker alone) and imports (the DLLs and functions of imports.allow, a
   reviewed list: no network, no process injection, no hook API), read with llvm-objdump.
 
-    dll_checks.py --source src/eldennet --objdump llvm-objdump --dll eldennet.dll [--dll probe/eldennet.dll]
+    dll_checks.py --source src/eldennet [--module src/en-overlay] --objdump llvm-objdump --dll eldennet.dll
+                  [--dll probe/eldennet.dll]
+
+A --module (en-overlay, which the DLL links) gets every grep but DllMain's and the CMake rule's: it holds no DllMain.
 """
 import argparse
 import os
@@ -43,31 +46,17 @@ def body_after(text, start):
     raise ValueError("unbalanced braces")
 
 
-def check_sources(src):
-    failures = []
+def read_sources(src):
     files = []
     for folder, _, names in os.walk(src):
         if os.sep + "tests" in folder + os.sep:
             continue
         files += [os.path.join(folder, n) for n in names if n.endswith((".cpp", ".hpp"))]
-    sources = {f: strip_comments(open(f, encoding="utf-8").read()) for f in sorted(files)}
-    dllmain = [(f, t) for f, t in sources.items() if re.search(r"\bDllMain\s*\(", t)]
-    if len(dllmain) != 1:
-        failures.append("DllMain is defined in %d files" % len(dllmain))
-    for f, t in dllmain:
-        m = re.search(r"BOOL\s+WINAPI\s+DllMain\s*\([^)]*\)\s*noexcept", t)
-        if not m:
-            failures.append("%s: DllMain is not BOOL WINAPI DllMain(...) noexcept" % f)
-            continue
-        body = body_after(t, m.end())
-        stmts = " ".join(body.split())
-        want = ("return en::proto::ffi_guard(en::proto::Component::DllMain, TRUE, [&] { if (reason == "
-                "DLL_PROCESS_ATTACH) en::gal::sys::boot::on_attach(module, &eldennet::init_main); return TRUE; });")
-        if stmts != want:
-            failures.append("%s: DllMain's body is not the load contract's (ARCH §3.1): %s" % (f, stmts[:200]))
-        bad = FORBIDDEN_IN_DLLMAIN.findall(body)
-        if bad:
-            failures.append("%s: DllMain calls %s" % (f, sorted(set(bad))))
+    return {f: strip_comments(open(f, encoding="utf-8").read()) for f in sorted(files)}
+
+
+def check_files(sources, src):
+    failures = []
     for f, t in sources.items():
         rel = os.path.relpath(f, src)
         if "DLL_PROCESS_DETACH" in t or "DLL_THREAD_DETACH" in t:
@@ -85,6 +74,30 @@ def check_sources(src):
                 failures.append("%s: an entry that does not start with ffi_guard (R3): %s" % (rel, m.group(0)[:80]))
         for m in re.finditer(r'(?:\bWINAPI|\bCALLBACK)\s+\w+\s*\([^)]*\)\s*\{', t):
             failures.append("%s: an entry that is not noexcept (R3): %s" % (rel, m.group(0)[:80]))
+    return failures
+
+
+def check_sources(src):
+    failures = []
+    sources = read_sources(src)
+    dllmain = [(f, t) for f, t in sources.items() if re.search(r"\bDllMain\s*\(", t)]
+    if len(dllmain) != 1:
+        failures.append("DllMain is defined in %d files" % len(dllmain))
+    for f, t in dllmain:
+        m = re.search(r"BOOL\s+WINAPI\s+DllMain\s*\([^)]*\)\s*noexcept", t)
+        if not m:
+            failures.append("%s: DllMain is not BOOL WINAPI DllMain(...) noexcept" % f)
+            continue
+        body = body_after(t, m.end())
+        stmts = " ".join(body.split())
+        want = ("return en::proto::ffi_guard(en::proto::Component::DllMain, TRUE, [&] { if (reason == "
+                "DLL_PROCESS_ATTACH) en::gal::sys::boot::on_attach(module, &eldennet::init_main); return TRUE; });")
+        if stmts != want:
+            failures.append("%s: DllMain's body is not the load contract's (ARCH §3.1): %s" % (f, stmts[:200]))
+        bad = FORBIDDEN_IN_DLLMAIN.findall(body)
+        if bad:
+            failures.append("%s: DllMain calls %s" % (f, sorted(set(bad))))
+    failures += check_files(sources, src)
     cmake = open(os.path.join(src, "CMakeLists.txt"), encoding="utf-8").read()
     for target in ("en_shell", "${target}"):
         if "en_dll_module(%s)" % target not in cmake:
@@ -150,9 +163,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--source", required=True)
     parser.add_argument("--objdump", required=True)
+    parser.add_argument("--module", action="append", default=[])
     parser.add_argument("--dll", action="append", default=[])
     args = parser.parse_args()
     failures = check_sources(args.source)
+    for module in args.module:
+        failures += check_files(read_sources(module), module)
     allowed = read_allowlist(os.path.join(args.source, "tests", "imports.allow"))
     for dll in args.dll:
         f, n = check_binary(args.objdump, dll, allowed)

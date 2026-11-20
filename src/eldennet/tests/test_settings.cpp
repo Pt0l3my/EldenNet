@@ -15,18 +15,22 @@ TEST_CASE("settings: an empty file and a missing one give the defaults") {
   CHECK_FALSE(s.settings.record_sessions);
   CHECK(s.settings.log_level == LogLevel::Info);
   CHECK(s.settings.copy == CopyMode::Seh);
-  CHECK_FALSE(s.settings.overlay_connect);
+  CHECK(s.settings.overlay_connect);  // GraceUI's connect is on by default (part 12)
+  CHECK_FALSE(s.settings.debug_panel);  // the F11 view is a developer view, off by default (PAGES SP8)
   CHECK(s.settings.probe.round == ProbeRound::None);
 }
 
 TEST_CASE("settings: what v0.1 reads") {
   const LoadedSettings s = parse_settings(R"(schema = 2
 enabled = false
-debug = { panel = false, record_sessions = true, record_redact_text = false, log_level = "debug" }
+debug = { panel = true, record_sessions = true, record_redact_text = false, log_level = "debug" }
 gal = { copy = "rpm" }
+overlay = { connect = false }
 )", false);
   REQUIRE_FALSE(s.refused);
   CHECK_FALSE(s.settings.enabled);
+  CHECK(s.settings.debug_panel);
+  CHECK_FALSE(s.settings.overlay_connect);
   CHECK(s.settings.record_sessions);
   CHECK(s.settings.log_level == LogLevel::Debug);
   CHECK(s.settings.copy == CopyMode::Rpm);
@@ -46,11 +50,17 @@ dialogue = false
   CHECK(s.problems.empty());
 }
 
-TEST_CASE("settings: overlay.connect = true is noted and stays off in this build") {
-  const LoadedSettings s = parse_settings("overlay = { connect = true }\n", false);
+TEST_CASE("settings: overlay.connect is GraceUI's connect, a boolean; overlay holds no other key") {
+  LoadedSettings s = parse_settings("overlay = { connect = true }\n", false);
   CHECK_FALSE(s.refused);
-  CHECK_FALSE(s.settings.overlay_connect);
-  REQUIRE(s.notes.size() == 1);
+  CHECK(s.settings.overlay_connect);
+  CHECK(s.notes.empty());
+  s = parse_settings("overlay = { connect = \"yes\" }\n", false);
+  CHECK(s.refused);
+  s = parse_settings("overlay = { connect = true, hooks = true }\n", false);
+  CHECK(s.refused);
+  s = parse_settings("debug = { panel = 1 }\n", false);
+  CHECK(s.refused);
 }
 
 TEST_CASE("settings: a problem refuses the whole file, worded without its values") {
