@@ -281,6 +281,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 256 | 2026-11-20 | EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml | FACT | #engine #graceui #harness |
 | 257 | 2026-11-20 | Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz | FACT | #privsweep #graceui |
 | 258 | 2026-11-20 | R1 spike.9: the group's own function read with our task and the entry followed in, the fields it reads, walks from the singleton and the entry, and tagged pointers | DECIDED | #gal #r1 #task |
+| 259 | 2026-11-20 | G32's switch is a command of GraceUI's own space, not a setting | DECIDED | #graceui #notices |
+| 260 | 2026-11-20 | A quiet mod's notice is checked, answered ok and kept, never dropped | DECIDED | #graceui #notices |
+| 261 | 2026-11-20 | A test export that read GraceUI's thread's state without a lock crashed a full harness run | LIKELY | #graceui #harness |
+| 262 | 2026-11-20 | GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened | FACT | #graceui #settings |
 
 ## Entries
 
@@ -4503,3 +4507,39 @@ invariant 10, EldenNet ARCH (T3)
   `task_tagged` words, and the entry's class matched to the hub's lead.
 - **Also** (FACT): two existing stack-overflow cases had failed at 5c5b3bc. The fake game's recursion now starts at a
   fixed stack depth, and they pass.
+
+### 259. G32's switch is a command of GraceUI's own space, not a setting
+
+`2026-11-20` · DECIDED · `#graceui` `#notices` · refs: GraceUI:D181, GraceUI:G32
+
+- (DECIDED) The per-mod Notices switch is a command of GraceUI's own space (`mods.notices`, `{id, on}`), its state in
+  the Installed mods page's table, not a setting in the settings store: the mods are known only at run time, so a
+  setting per mod would change the store's keys with each connect. The switch's one home is still the Mods page
+  (GraceUI's invariant 12).
+
+### 260. A quiet mod's notice is checked, answered ok and kept, never dropped
+
+`2026-11-20` · DECIDED · `#graceui` `#notices` · refs: GraceUI:D181
+
+- (DECIDED) A quiet mod's notice is checked as any other (a bad text or tone is still refused), then answered ok and
+  kept on the Installed mods page, not drawn over the game. The mod cannot tell (in the spirit of "absence is silent"),
+  and the player can still read what was missed. So EldenNet never relies on a notice being seen (S11.4.a).
+
+### 261. A test export that read GraceUI's thread's state without a lock crashed a full harness run
+
+`2026-11-20` · LIKELY · `#graceui` `#harness` · refs: GraceUI:D181
+
+- (LIKELY) The quiet scenario crashed the full run (a read at address 8), though it passed alone twice. The likely
+  cause: a test export reading a topic's JSON on the harness's thread while GraceUI's thread replaced it. With the
+  export reading a copy under a lock (`GraceUI_Test_GetTopic`), it passed four times alone and in both toolchains'
+  full runs.
+- (METHOD) Run a new scenario in the full run too, not only alone; reading state another thread writes needs a locked
+  copy, whatever an export's comment says about reading while idle.
+
+### 262. GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened
+
+`2026-11-20` · FACT · `#graceui` `#settings` · refs: GraceUI:D179, GraceUI:D180, GraceUI:D181
+
+- (FACT) D179 wrote `user\settings.json` only from the menu's thread of work, so a change from a browser while the menu
+  was closed was kept, and a new ui.scale told to the mods (D180), only when the menu next opened. GraceUI's thread now
+  does both at every wake.

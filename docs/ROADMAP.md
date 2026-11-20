@@ -1033,7 +1033,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: first answers on 2026-11-20 from screenshots: a larger default size (GraceUI's D177, ui.scale 1.25) and a
     slider's margin, built in GraceUI c4ada9f; GraceUI's G31 (the pointer) and G32 (quieting a mod's notices) put to
     the owner. It stays waiting until the owner has looked at the new screenshots. The pointer (GraceUI's G31, decided
-    2026-11-20): our own Grace pointer, still, built as D178 in GraceUI 67fa60f.
+    2026-11-20): our own Grace pointer, still, built as D178 in GraceUI 67fa60f. G32 decided the same day, as
+    recommended, and built as D181 (S11.2.o).
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
@@ -1105,6 +1106,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     default and the display's size; GRACEUI_EVENT_DISPLAY (10) comes after warm-up and after each change, with the
     content scale ((H / 1080) × ui.scale / its default, O93's rule with no constant) and the scale the faces were baked
     at (WHY§252 to §254).
+- o Quiet notices: a switch per mod on GraceUI's Installed mods page, which joins in 0.2 (GraceUI 0.2.3) [done]
+  - refs: GraceUI:D181, GraceUI:D173
+  - gives: decided by the owner on 2026-11-20 as GraceUI's G32 (a), and built the same day (GraceUI 32ab1ed): a quiet
+    mod's notice is still answered ok and kept on the page, not drawn over the game, and the switch is kept between
+    sessions. The harness's "quiet" scenario on both toolchains, the view and web tests, and the quiet store's unit
+    tests (WHY§259 to §262).
 
 ### S11.3 EldenNet v0.2
 
@@ -1128,7 +1135,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
     0.2.0 (2026-11-20) the same space shows in F5's menu too (D171), and EldenNet follows protocol 1.1 (D172) and
-    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29.
+    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29. Since GraceUI's D181 a
+    player may quiet EldenNet's notices, so what the player must know (the banner's reason, a failed start) is on
+    EldenNet's Home page and in its log too, never in a notice alone (GraceUI's docs/eldennet-changes.md §34).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
