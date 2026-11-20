@@ -1130,6 +1130,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     to "set" or ""). Open: telling a space which view sent a command (GraceUI DESIGN §7.3), an ABI 1 addition before
     the home network's pairing (WHY§264, §265). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
     checks on both toolchains, the anti-cheat flag and re-check scenarios among them; no change to the ABI.
+- r A mod space's state components drawn in game: key-value and check lists, stat tiles, a computed sentence (GraceUI 0.2.6) [done]
+  - refs: GraceUI:D184, GraceUI:D171
+  - gives: built on 2026-11-20 at EldenNet's request (GraceUI feat/foundations 51091c7), no change of the ABI or the
+    page data: the menu subscribes to the open page's topics as a browser does, and the registry keeps a topic's
+    newest state while any view watches it (WHY§271). The other five requests of EldenNet's first pages are GraceUI's
+    proposal 0006 (G33), put to the owner and EldenNet the same day.
 
 ### S11.3 EldenNet v0.2
 
@@ -1161,7 +1167,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     publish on watch and answer, settings written on T11; graceui-sys re-vendored at 8d45b20. Tested in grace-dev
     (goldens of each page's structure) and on the fake game in both views. In game, GraceUI 0.2 draws only a mod's
     settings and shortcut rows, so Home's cards show in the browser alone until GraceUI draws a mod's components
-    (WHY§266 to §270). AI, Tools, Content packs and Docs follow.
+    (WHY§266 to §270). AI, Tools, Content packs and Docs follow. Since GraceUI 0.2.6 (S11.2.r) the in-game menu draws
+    Home's and System's cards too.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

@@ -293,6 +293,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 268 | 2026-11-20 | A browser of our own joins GraceUI's server from Linux while the fake game runs under Wine | METHOD | #engine #graceui #harness |
 | 269 | 2026-11-20 | A range-for over a member of a temporary nlohmann::json dangles in C++20 | FACT | #engine |
 | 270 | 2026-11-20 | One body per topic: GraceUI's components read fixed fields, so a page with two lists needs two topics | FACT | #graceui #pages |
+| 271 | 2026-11-20 | GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it | FACT | #graceui #pages |
 
 ## Entries
 
@@ -4634,3 +4635,12 @@ invariant 10, EldenNet ARCH (T3)
   body's field (`props.field`), so that one topic feeds several blocks. Also asked: an empty-state text per block
   (Problems' "No problems"), a newest-first log tail, a greyed page state for a mod at L1, and the in-game shortcut row
   drawn as the control rather than a link.
+
+### 271. GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it
+
+`2026-11-20` · FACT · `#graceui` `#pages` · refs: GraceUI:D184, GraceUI:D171
+
+- (FACT) A mod publishes on a change. The menu's copy of a topic was kept only while the menu itself watched it, so a
+  topic the browser watched first reached the menu only at the mod's next change, and a static status never would
+  have. Since GraceUI 0.2.6 the registry keeps a topic's newest state while any view watches it, and the menu's
+  subscription is answered at once.
