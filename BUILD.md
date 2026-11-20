@@ -139,7 +139,7 @@ cmake --build build-cl
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 13 minutes for the clang-cl build's 99 cases (21 of them the launcher's, 16 eldennet.dll's, four of those with
+- About 16 minutes for the clang-cl build's 104 cases (21 of them the launcher's, 21 eldennet.dll's, five of those with
   GraceUI, below): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
@@ -155,6 +155,18 @@ cmake --build build-cl
   (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
+- The runs of GraceUI's observer (S0-E's present-hook half and S4, roadmap S10.1.g and S11.1.a; EldenNet's side):
+  `launcher-eldennet-spike-s0e` gives `--spike s0e` to the release DLL and checks the run's folder
+  (`spikes\s0e-1`, made before the game starts), `ELDENNET_SPIKE_DIR` as the fake game sees it (set, and its folder
+  there; the fake game never prints the path, and a leftover value in the launcher's own environment is replaced),
+  the DLL's `register skipped=1 why=spike`, no call into the game (the fake hub's live tasks its own four, its end
+  line's `live`), the `spike_run` banner, T6 and the recorder running on (the recording's header word and banner,
+  linted, through `rec-stats`), and a clean end; `launcher-eldennet-spike-s4` does the same with `s4`;
+  `launcher-eldennet-spike-s0e-alone` loads only its `--also` DLL (`vehprobe.dll`, standing in for GraceUI's
+  observer), with no eldennet.dll in the process and the variable set; and, with `EN_GRACEUI_DIR`,
+  `launcher-eldennet-graceui-spike-s0e` adds the connect, the banner as GraceUI's notice and F11's view.
+  `launcher-vanilla`, `launcher-env` and `launcher-spike-s0c` check that a leftover `ELDENNET_SPIKE_DIR` in the
+  launcher's environment never reaches the game.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## The launcher and the core's slice
@@ -217,8 +229,8 @@ Its README has the start as built, the threads, the settings, the recorder and R
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 13 cases,
-  about 5 minutes, and with `EN_GRACEUI_DIR` four more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 16 cases,
+  about 6 minutes, and with `EN_GRACEUI_DIR` five more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
   `launcher-eldennet-probe-gap` are the longest, about 65 s each). Each installs the DLL in its own folder with
   gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
   place (development and tests).

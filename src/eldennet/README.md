@@ -51,13 +51,22 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
 10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
     installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
-11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game.
+11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game. In a
+    run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, S0-E's present-hook half and S4, read from the
+    watch block; en-proto's `observer_run`), T1 stops at the start of Register instead, before the task is made or
+    anything called: `register skipped=1 why=spike spike=<word>`, then the `spike_run` banner ("Spike run: EldenNet
+    makes no call into the game", GraceUI's notice when connected) and L1. What a stopped start keeps runs on: T6
+    (the core, the status block, the status lines), T10, T11, the connect and F11's view (`debug.panel`), the recorder
+    (its header carries the word). Nothing waits for the task, which T6 and the view read only once it is set, and the
+    crash filter stays in. (`s0e_alone` loads no eldennet.dll at all.)
 12. **FirstTick**: at most 30 s for the task to pass the group check and phase A; else Inert and its banner.
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
 
 A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
-(below).
+(below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
+(`probe round=r1 skipped=1 why=spike`) and the start stops at Register, and the launcher refuses `--probe` with those
+spikes.
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
