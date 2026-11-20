@@ -235,9 +235,9 @@ Its README has the start as built, the threads, the settings, the recorder and R
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
 - `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 17 cases,
   about 7 minutes, and with `EN_GRACEUI_DIR` eight more with GraceUI (`launcher-eldennet-probe`,
-  `launcher-eldennet-probe-gap` and `launcher-eldennet-probe-gate` are the longest, about 65 s each). Each installs the DLL in its own folder with
-  gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
-  place (development and tests).
+  `launcher-eldennet-probe-gap` and `launcher-eldennet-probe-gate` are the longest, about 65 s each). Each installs
+  the DLL in its own folder with gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which
+  the DLL takes in `%APPDATA%`'s place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
 - Each DLL's version resource is configured from `src/eldennet/win/eldennet.rc.in`: ProductVersion is the build's
   label (`EN_VERSION_LABEL`, by default the project's version), and the probe build's carries SpecialBuild "probe"
