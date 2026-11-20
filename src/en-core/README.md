@@ -46,6 +46,21 @@ the ladder's first levels with Dormant. Identity, content, conversations, barks,
   the gate has held its 5 s again. A loading screen closes the gate too (it is neither a world nor the title), but
   raises no badge: the badge is for another player, another world or a lobby (impl).
 
+- **Augur** (part 11; en-augur, ARCH §8). The core links en-augur and runs it on every step, before anything that
+  consumes events: the slice judges the input first, and the step's lifecycle changes (DataReady, PlaythroughReady,
+  loading started and ended, the title, the gate, the ladder, and each read group's trip, once per group) are Augur's
+  Lifecycle facts on the same step. `AugurView` is what en-core supplies Augur at v0.1: every character classifies as
+  Mute and the Tarnished as Player until personas exist (v0.2); no persona perceives; `rng` is splitmix64's finaliser
+  over the seed root (0 until the store). `world_facts()` gives the game's meanings (teams.toml's hostile set
+  {6, 7, 27, 29}, the victory banners 1 to 4 and 22, the throw states 3 and 4 of a critical hit, the open world's areas
+  60 and 61), each to verify in its spike. The shipped rule files, `content/eldenring/augur/*.toml`, are built in at
+  configure time (`builtin_rule_files()`: v0.1 has no content loader); `load_rules` replaces them, keeping the old set
+  on any error. `Outputs::events` holds the step's events in dispatch order (no subsystem subscribes yet).
+- **Predicates** (`predicates.hpp`, DESIGN §10.4): the DSL as v0.1 evaluates it for Augur's `requires`: `true`,
+  `false`, `!`, `&&`, `||`, parentheses and comparisons of `runes` (held) and `journey` (ng_lvl); `world()` and
+  `knows()` refused in Augur, and `flag()`, `boss()`, `stage()` and `region()` until the catalogue and regions.toml
+  exist; at most 1 KB and 32 deep; an error is a fixed text with its column, never a quote.
+
 `Core::step(CoreInput, Mono)` takes one input (`unique_ptr<WorldSnapshot>`, `Lifecycle`, `BootBanner` or `Tick`) and
 answers `Outputs`: the game commands (one `SetTracked{}` when the gate closes or a world is left, ARCH §5.2, §9),
 `ai_allowed` for C15 (the gate open and L2: at the title it allows the wizard's and the self-test's calls, never
@@ -73,4 +88,5 @@ rising, another slot, a slot past 9, an empty name); co-op closing the gate at o
 snapshots, the same character back, another character (Loading → Playthrough), a loading screen with no new identity;
 the title ending a playthrough; very late loads in the world and during a loading screen; T1's banners and their texts;
 optional and structural trips; the session's trip; C2's messages rebuilt from health; a later anti-cheat hit; a null
-snapshot and a tick.
+snapshot and a tick. And Augur's wiring (`test_augur_wiring.cpp`): the built-in set loads, the slice's changes reach
+Augur on the same step, every subject is Mute or Player, v0.1's predicates and their refusals, and a failed reload.

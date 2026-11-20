@@ -2,7 +2,7 @@
 
 The command-line host that runs EldenNet's engine outside the game (ARCH §12.3), C++20, MIT. One program,
 `eldennet-engine`, with a subcommand each: `render-prompt`, `chat`, `decide`, `probe`, `models`, the devkit's
-`probe-exe` and `lint`, and the spikes' `rec-stats`, `replay` and `spike-report` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
+`probe-exe` and `lint`, the spikes' `rec-stats`, `replay` and `spike-report`, and Augur's `golden` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
 
 ## probe-exe: the derivation's offline round (R0, O89)
 
@@ -148,7 +148,7 @@ pattern holds a byte string quoted in `docs/research/` needs the design branch's
 
 ```text
 eldennet-engine rec-stats <recording> [--out FILE]
-eldennet-engine replay <recording> [--out FILE]
+eldennet-engine replay <recording> [--out FILE] [--events FILE]
 eldennet-engine spike-report s0a|s0b|s0c|s0d [--log FILE]... [--recording FILE]... [--need N] [--out FILE]
 ```
 
@@ -166,11 +166,13 @@ and `spike` (schema 1; `lint --report` checks them), to `--out` or, for rec-stat
   tripped and in how many snapshots it was Ok; the lifecycle messages; the core's changes by kind; the gate's openings,
   closings and time open; the banners; the commands; the Marks.
 - **replay**: the recording's inputs (its lifecycle messages, banners and snapshots, in their order, each at the
-  latest time seen so far) stepped through en-core's v0.1 slice again, and its changes (what, from and to) compared
+  latest time seen so far) stepped through en-core's v0.1 slice, and so Augur (part 11), again, and its changes (what, from and to) compared
   with the changes the recording holds, which the DLL's core answered in game: `agree`, or the first that differs.
   The name of a playthrough was never recorded, only its length, so a stand-in of that length takes its place (the
   core tells playthroughs apart by slot, class and name together). Exit 1 when it disagrees: the core or the recorder
-  has a defect, or the file was changed.
+  has a defect, or the file was changed. The report adds Augur's events: `events` (their count) and `event_kinds`
+  (each kind's count), and `--events FILE` writes them in the golden files' form, so that a recording can become a
+  route (below).
 - **spike-report**: DESIGN §16.1's pass rules, each `pass`, `fail` or `not_measured`, with its value and limit:
   - `s0a` over `--log` files: per load mode (`suspended`, early; `window` or `title`, late), `runs_per_mode` (at least
     `--need`, 20 by default), `ready_or_l1` (every run Ready or L1: a banner or inert) and `no_crash`; and
@@ -196,6 +198,50 @@ Exit codes: 0 written (replay agreeing; spike-report passing); 1 replay disagree
 refused (a recording by the lint, a log line that is not the launcher's); 5 a report refused by its own writer (a
 defect of ours). No message quotes what a file held.
 
+## golden: Augur's golden files (part 11)
+
+```text
+eldennet-engine golden [check|update] <route.scn | recording.ensnap.jsonl> [--golden FILE] [--changes FILE]
+```
+
+Runs a scenario or a recording through en-core and Augur, checks a scenario's expectations, and compares the events,
+in the golden files' form (src/en-augur/README.md), with the route's golden file: `tests/golden/<route>.events.jsonl`
+beside the input's folder, or `--golden`. The comparison is exact, times included: replays are deterministic (C12).
+`check`, the default, prints our own diff on a difference (`@@ golden line N, run line N @@`, then `-` the golden's
+lines and `+` the run's, with a line of context, at most 40); then it checks that `CHANGES.md` beside the golden file
+(or `--changes`) has a line naming `` `<route>` `` and the golden file's hash, so a golden file that changes without its
+entry fails (ARCH §8.12). `update` (or `--update`) rewrites the file (beside it as `.part`, then renamed), prints the
+diff and the line CHANGES.md needs; it writes nothing when an expectation fails. A recording's route is its file name
+without `.ensnap.jsonl`.
+
+Exit codes: 0 agrees (check) or written (update); 1 differs, an expectation failed, or CHANGES.md lacks the entry;
+2 a usage error, an input that cannot be read or parsed (a recording refused by the lint), or a file that cannot be
+written. No message quotes an input beyond a word of the DSL's own grammar.
+
+**The scenario DSL** (`tests/scenarios/*.scn`, `lib/scn.hpp`): ARCH §8.12's synthetic DSL in our own form for what v0.1
+can say. `route <name>`, `seed <n>`, `step <ms>` (the snapshot period, 250 by default), `end <ms>` (3 s after the last
+action by default), then `at <ms> <verb> ...`, applied at the first snapshot at or after its time, in the file's order:
+
+| Verb | What it does |
+|---|---|
+| `spawn <name> team=<n> pos=x,y,z [hp=c/m] [param=<n>] [offscreen]` | a character (handles are invented, from 0x1000); `spawn player hp=.. pos=..` sets the Tarnished's |
+| `despawn <name>`, `move <who> to=x,y,z [over=<ms>]` | gone; moved, in a straight line over the time |
+| `hit <a> -> <b> dmg=<n>`, `heal <who> amount=<n>`, `kill <who> [by=<a>]` | HP down with `last_hit_by` set; up; 0 with the dead bit (the Tarnished's death count + 1) |
+| `lock <name>`, `unlock`, `throw <who> <n>` | the Tarnished's lock-on; a throw state |
+| `ride on\|off`, `place <id>\|none`, `banner <n>\|none`, `talk on\|off`, `ng <n>` | the ride, the place, the banner, a popup's talk id, the journey |
+| `boss <name> on\|off` | a boss bar for the character (its `param` as the name id) |
+| `session solo\|coop`, `title`, `load [over=<ms>] [revive]` | another player in the world (the gate closes); the title screen; a loading screen, the Tarnished revived after it |
+| `wait`, `drop_snapshots <n>` | nothing; the next n snapshots are not delivered (gaps) |
+
+`set_flag` (the flag catalogue, v0.2), `say` (the Pipeline source) and `expect bark` (v0.4) are refused with the version
+they wait for. Expectations: `expect event <Kind> [field=value ...] [within <a>..<b>]` (at least one),
+`expect no <Kind> ...` (none), `expect count <n> <Kind> ...` (exactly n) and `expect audience <Kind> ... = [<ids>]`
+(the first match's audience). A field is a top-level key of the event's golden form (`subject`, `object`, `key`,
+`class`, `conf`, `count`, `merged`, `source`) or one of its payload's; a character matches by the scenario's name, a list
+as `[a,b]`, a number within 1e-6. The player plays the lifecycle messages a session starts with (DataReady, then the
+playthrough's), and a snapshot every step: a solo world of one's own, every group Ok, the Tarnished at the given
+place, its play time rising.
+
 ## gal/ for the owner's 2.7.2.0 WW (R0c into R1)
 
 The repository's `gal/` now holds what R0c, the second offline run (2026-11-16), gave, each value a lead until R1 and
@@ -208,6 +254,12 @@ comments. CTest's `en_tools_cli` runs `lint --gal` on it in the Linux builds.
 
 ## Tests
 
+`en_tools_tests` (doctest, in the Linux builds): the DSL's refusals with their lines, the three routes' expectations
+and golden files (exact, and CHANGES.md naming each), determinism (byte-identical over 10 runs, with and without a
+seeded loss), 50% snapshot loss against the dense run (src/en-augur/README.md, "Snapshot loss"), a recording of a
+route's inputs written as the DLL writes it replaying to the same events, and the diff. CTest's `en_golden.<route>`
+runs `golden check` on each route as CI does.
+
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's
 content, the static's pattern from a slot, the lint's refusals of a path, a free string, a byte run and a float without
@@ -219,7 +271,8 @@ recordings that `en_tools_write_recording` writes as eldennet.dll's core thread 
 same with a slow task and a fault, a co-op visit that closes the gate, faults injected until a breaker trips) and on
 invented spike logs: the counts, every replay agreeing and a recording with a change taken out disagreeing at it, each
 spike's rules and verdict passing, failing (19 runs, a crash, a slow p99, a connection, the gate left open, a crash
-not recorded) and incomplete (one load only), and the refusals; and no path in any message; `--sections` against the table read in Python, a refused section's line
+not recorded) and incomplete (one load only), and the refusals; and no path in any message; `replay --events` and `golden` on a recording (update, check, a golden changed by hand or
+without its CHANGES.md entry, an unmet expectation, usage errors); `--sections` against the table read in Python, a refused section's line
 (its shape, its numbers, and DataPiler's log's shape), and a copy whose last section's raw data runs past the end of
 the file and whose SizeOfImage is short of its alignment, which derives as the file itself does. The Windows builds run the same commands under Wine on `fakegame.exe`
 (`tests/fakegame/`).
