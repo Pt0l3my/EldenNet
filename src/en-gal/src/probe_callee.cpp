@@ -1271,6 +1271,53 @@ bool singleton_of(const Source& rcx, Table& t) noexcept {
 
 bool is_entry_rcx(const Source& s) noexcept { return s.kind == Source::Kind::Entry && s.from == 1; }
 
+// Whether a form writes rcx (or a part of it), as far as its class tells: an unknown class might.
+bool writes_rcx(const Form& f) noexcept {
+  switch (f.cls) {
+    case InsnClass::Cmp: case InsnClass::Test: case InsnClass::Push: case InsnClass::Nop: return false;
+    case InsnClass::Mov: case InsnClass::MovExt: case InsnClass::Lea: case InsnClass::Pop: case InsnClass::Xor:
+    case InsnClass::Add: case InsnClass::Sub: case InsnClass::And: case InsnClass::Or: case InsnClass::Shift:
+    case InsnClass::Imul:
+      return !f.operands.empty() && f.operands[0].form == OperandForm::Register && f.operands[0].reg == 1;
+    default: return true;
+  }
+}
+
+// When the paths into the tail jump disagree on rcx (a singleton made and not stored where it is loaded from): the
+// path past the null test of rcx loaded from S, where rcx is not null, reaches the jump in straight-line code that
+// leaves rcx as it is. On that path the jump's rcx is the slot's value.
+bool singleton_past_guard(const CalleeCode& wrapper, const CalleeCall& jump, Table& t) noexcept {
+  for (const CalleeGuard& g : wrapper.guards) {
+    if (g.op != GuardOp::Test || g.width != 8 || g.cond != 5 || g.operands.size() != 2) continue;  // jne
+    const Operand& a = g.operands[0];
+    const Operand& b = g.operands[1];
+    if (a.form != OperandForm::Register || b.form != OperandForm::Register || a.reg != std::optional<std::uint8_t>(1) ||
+        b.reg != a.reg || !a.source || g.to < 0 || g.to > jump.offset) {
+      continue;
+    }
+    Table probe;
+    if (!singleton_of(*a.source, probe)) continue;
+    bool straight = false;
+    for (const Form& f : wrapper.forms) {
+      if (f.offset < g.to || f.offset > jump.offset) continue;
+      if (f.offset == jump.offset) {
+        straight = true;
+        break;
+      }
+      if (f.unreached || writes_rcx(f) || f.cls == InsnClass::Jcc || f.cls == InsnClass::Jmp ||
+          f.cls == InsnClass::Call || f.cls == InsnClass::Ret || f.cls == InsnClass::Int3) {
+        break;
+      }
+    }
+    if (!straight) continue;
+    t.singleton_slot = probe.singleton_slot;
+    t.hop = probe.hop;
+    t.via_guard = true;
+    return true;
+  }
+  return false;
+}
+
 // The tail function's tested value, when it is run 7's: [entry rcx + group*8 + disp], or [[entry rcx + d0] + group*8 +
 // disp].
 bool entry_of(const Source& v, std::uint8_t group_reg, Table& t) noexcept {
@@ -1328,7 +1375,9 @@ Table match_table(const CalleeCode& wrapper, std::span<const InnerCallee> inner,
   if (jump == nullptr) return failed("wrapper_tail");
   const auto rcx = std::find_if(jump->pass_src.begin(), jump->pass_src.end(),
                                 [](const PassedSource& p) { return p.reg == 1; });
-  if (rcx == jump->pass_src.end() || !singleton_of(rcx->source, t)) return failed("wrapper_rcx");
+  if ((rcx == jump->pass_src.end() || !singleton_of(rcx->source, t)) && !singleton_past_guard(wrapper, *jump, t)) {
+    return failed("wrapper_rcx");
+  }
   t.rva = tail->rva;
   const CalleeCode& tc = tail->code;
   if (!tc.read || tc.instructions == 0) return failed("tail_summary");

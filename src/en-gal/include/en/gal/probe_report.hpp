@@ -400,6 +400,8 @@ struct Table {
                                           // tail_null_test
   std::uint32_t singleton_slot = 0;       // S's RVA
   std::optional<std::int64_t> hop;        // rcx = [*S + hop]
+  bool via_guard = false;                 // read on the path past the wrapper's null test of rcx, where the paths
+                                          // into the tail jump disagree on rcx
   std::optional<std::int64_t> array;      // the entries at [singleton + array] (one level deeper)
   std::int64_t disp = 0;                  // entry i at table + disp + i*8
   std::uint32_t bound = 0;                // the group's bound, from the tail function's compare

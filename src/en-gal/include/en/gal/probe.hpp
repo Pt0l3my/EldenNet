@@ -378,7 +378,8 @@ inline constexpr std::size_t kMaxDiffWords = 32;
 void mark_sections(CalleeCode& code, std::span<const SectionSpan> sections) noexcept;
 // Whether the wrapper and its tail function have run 7's shapes (probe_report.hpp's Table): the wrapper's rcx at its
 // tail jump (a reached one, whose target `inner` summarises) loaded from a RIP-relative slot S, directly or through one
-// [reg + d] load; in the tail function a compare of the group (`group_reg`, the wrapper's argument) with an immediate,
+// [reg + d] load (or, where the paths into the jump disagree on rcx, so loaded and null-tested by a jne whose target
+// reaches the jump in straight-line code that leaves rcx as it is: `via_guard`); in the tail function a compare of the group (`group_reg`, the wrapper's argument) with an immediate,
 // and a null test (a register tested with itself, 64-bit) of a value loaded from [base + index*8 + disp], its base the
 // entry rcx (or loaded from [entry rcx + d0], one level deeper) and its index the group; and, where there is one, a
 // jump through [that value's first word + d2]. The first shape that fails is named and nothing more is filled.

@@ -205,6 +205,7 @@ TEST_CASE("probe report: spike.8's return value, forms, sources, table and contr
   t.matched = true;
   t.singleton_slot = 0x480000;
   t.hop = 0x40;
+  t.via_guard = true;
   t.bound = 168;
   t.slot_disp = 0x18;
   t.site = 24;
@@ -231,7 +232,8 @@ TEST_CASE("probe report: spike.8's return value, forms, sources, table and contr
   for (const char* want : {"\"returned\": {", "\"returned_low\": 1", "\"src\": \"entry\"", "\"form\": \"tail_memory\"",
                            "\"vtable_src\": {", "\"pass_src\": [", "\"class\": \"jcc\"", "\"cond\": \"e\"",
                            "\"unreached\": true", "\"large\": true", "\"section\": \"data\"", "\"depth\": 2",
-                           "\"table\": {", "\"nonzero_at\": [", "\"hub_diff_control\": {", "\"hop\": 64"}) {
+                           "\"table\": {", "\"nonzero_at\": [", "\"hub_diff_control\": {", "\"hop\": 64",
+                           "\"via_guard\": true"}) {
     CHECK_MESSAGE(text->find(want) != std::string::npos, want);
   }
   // A table that did not match names the first shape that failed, and nothing more.

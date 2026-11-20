@@ -1217,6 +1217,19 @@ TEST_CASE("probe: the tail function's null test reads its table, and its jump th
   CHECK(m.slot_disp == std::optional<std::int64_t>(0x18));
   CHECK(m.site == std::optional<std::uint32_t>(24));
   CHECK(m.rva == kTailRva);
+  // A singleton made and not stored where it is loaded from: the paths disagree on rcx, and the shape is read on the
+  // path past the null test, which reaches the jump with rcx as it was loaded.
+  std::vector<std::byte> unstored = wrapper_code;
+  const std::array<int, 7> nop7 = {0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00};  // in the store's place
+  for (std::size_t i = 0; i < nop7.size(); ++i) unstored[48 + i] = std::byte{static_cast<std::uint8_t>(nop7[i])};
+  const probe::CalleeCode w2 = probe::summarise_callee(unstored, kWrapperRva, static_cast<std::uint32_t>(unstored.size()));
+  REQUIRE(w2.calls.size() == 3);
+  CHECK(passed_source(w2.calls[2], 1) == nullptr);
+  const probe::Table m2 = probe::match_table(w2, inner, 2);
+  CHECK(m2.matched);
+  CHECK(m2.via_guard);
+  CHECK(m2.singleton_slot == kSingletonSlot);
+  CHECK_FALSE(m.via_guard);
   // Each shape that fails is named.
   CHECK(probe::match_table(wrapper, {}, 2).failed == "wrapper_tail");
   CHECK(probe::match_table(wrapper, inner, 8).failed == "tail_bound");  // the group is not in r8

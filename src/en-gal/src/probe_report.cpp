@@ -264,8 +264,9 @@ constexpr std::array<Key, 38> kSpike8 = {{
     {"entry", Type::Object},
     {"entry_vtable", Type::Object},
 }};
-constexpr std::array<Key, 1> kSpike8More = {{
+constexpr std::array<Key, 2> kSpike8More = {{
     {"slot_value", Type::Object},
+    {"via_guard", Type::Boolean},
 }};
 
 constexpr std::size_t kKeyCount =
@@ -627,6 +628,7 @@ void write_table(report::Writer& w, const Table& t) {
   }
   w.number("singleton_slot", t.singleton_slot);
   if (t.hop) w.signed_number("hop", *t.hop);
+  if (t.via_guard) w.boolean("via_guard", true);
   if (t.array) w.signed_number("array", *t.array);
   w.signed_number("disp", t.disp);
   w.number("bound", t.bound);
