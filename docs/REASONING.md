@@ -270,6 +270,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 245 | 2026-11-20 | graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events | FACT | #graceui #abi |
 | 246 | 2026-11-20 | A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED | FACT | #graceui #input |
 | 247 | 2026-11-20 | R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff | DECIDED | #gal #r1 #task |
+| 248 | 2026-11-20 | R1 run 8: the call returns 1, and the group's entry exists, yet nothing keeps our task; the tail function hands the task to a function of the group's own | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -4172,6 +4173,8 @@ invariant 10, EldenNet ARCH (T3)
 - **Next** (DECIDED): spike.7 reads all memory (a cap far past the process's size), also searches for our vtable's
   and slots' addresses, diffs the hub's reachable memory before and after the call, and summarises the two inner
   callees with the arguments followed into them.
+- Later (2026-11-20): the two direct calls' targets are RVAs 0x1EC4940 and 0x1EBCD00, as runs 7 and 8 report them in
+  decimal; the hexadecimal values above (0x1EC4A40, 0x1EBCE00) were converted wrongly (WHY§248).
 
 ### 236. R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call
 
@@ -4340,3 +4343,30 @@ invariant 10, EldenNet ARCH (T3)
   read zero, the 9 entries set left the group out, and the task never ran, as in run 7.
 - **The owner's steps** (DECIDED): after "No confirmation", wait one more minute at the title screen before quitting,
   so that the 2 s and 20 s reads and searches finish.
+
+### 248. R1 run 8: the call returns 1, and the group's entry exists, yet nothing keeps our task; the tail function hands the task to a function of the group's own
+
+`2026-11-20` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§247, WHY§240, engine 9a6e3ea
+
+- **The return value** (FACT, spike.8, game 2.7.2.0 ww, no other mods): `register.returned` is small, value 1, low
+  byte 1. The call accepted our task, by its own answer.
+- **The table** (FACT): the shapes matched. The singleton comes from the data slot at RVA 0x4592F28, is on the heap
+  and is not CSTask's instance. Its table at displacement 8 has a bound of 168, and all 169 entries are set, before
+  the call and 2 s after. Group 110's entry is on the heap, with its first word in the game's rdata at RVA 0x2C0B330.
+- **The tail function** (FACT, its forms): it bounds the group by 168, loads `[singleton + group*8 + 8]`, returns 0
+  when that is null, and otherwise moves the task (r8) into rdx and jumps directly to RVA 0xEB6040. So the work is
+  `entry->f(task)` at 0xEB6040, with rcx the group's entry and rdx our task: a direct call, not one through the entry's
+  vtable. Spike.8 did not summarise it, being one level too deep.
+- **The search and the diffs** (FACT): at 2 and 21 s, 8.6 of 10.7 GB read, `done`. There was no copy of our object's,
+  our vtable's or a slot's address in the game's memory, and nothing pointing inside our object. The hub walk from
+  CSTask's instance changed 142 and then 220 words, 78 and 99 of them also in the 2 s control. None of them is ours,
+  and the walk never starts from the singleton or the group's entry. Our task never ran, and no slot of ours was
+  called. The exit was clean, and both reports lint clean.
+- **So** (LIKELY): the group's own function took our task and answered 1, but kept no plain pointer to it. It may keep
+  a tagged or offset pointer (a high-bit tag would escape the search), copy fields of our object but not its first
+  word, or queue it somewhere that a later step drops, for example on a field of our object that is zero.
+- **Next** (DECIDED): spike.9 summarises 0xEB6040 and its callees with the group's entry and the task followed in,
+  including every read of a task field (`[task + off]`) and what is done with it. It walks and diffs from the
+  singleton and group 110's entry, with the control. It also searches for words whose low 48 bits equal our address,
+  and names the entry's class by its RTTI against the leads.
+- Corrects WHY§235's hexadecimal call targets.
