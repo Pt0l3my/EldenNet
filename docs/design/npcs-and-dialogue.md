@@ -2756,7 +2756,7 @@ The settings panel captures input like the chat box. Changes are written to `set
 
 ### 10.7 Scale and HDR
 
-- `ui_scale = (H / 1080) × ui.scale`, with `ui.scale` from 0.75 to 1.5, GraceUI's own setting since GraceUI D84, delivered with the host's display-changed event. Font atlases are baked for the effective sizes at init and rebuilt only when the scale changes, when the settings panel closes. The minimum body size is 16 px.
+- `ui_scale = (H / 1080) × ui.scale`, with `ui.scale` from 0.75 to 1.5, GraceUI's own setting since GraceUI D84, delivered with the host's display-changed event. *2026-11-20, O93:* GraceUI's default `ui.scale` is now 1.25 (its D177), and EldenNet's sizes stay as designed at that default: `ui_scale = (H / 1080) × ui.scale / 1.25`, 1.25 being GraceUI's default as the connect reports it. Font atlases are baked for the effective sizes at init and rebuilt only when the scale changes, when the settings panel closes. The minimum body size is 16 px.
 - **HDR:** GraceUI's host detects it from the swapchain format and colour space when its overlay starts, and applies
   these rules to every panel (GraceUI §3.14). In HDR, colours are linearised and scaled by `paper_white_nits / 80`, with
   a default of 203 nits (the BT.2408 reference white) and an adjustable range of 80–400 (`ui.paper_white_nits`).

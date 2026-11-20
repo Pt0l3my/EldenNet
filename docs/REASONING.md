@@ -266,6 +266,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 241 | 2026-11-20 | A mod's panel that takes input gets no characters through ABI 1 | FACT | #graceui #abi |
 | 242 | 2026-11-20 | A vtable-slot overlay loaded before GraceUI is hooked through; one loaded after calls through GraceUI's hook | METHOD | #graceui #overlay |
 | 243 | 2026-11-20 | Under Wine 9 the process's handle count and private bytes read 0 | FACT | #graceui #wine |
+| 244 | 2026-11-20 | ABI 1.1's input flag is appended after the reserved word, not renamed from it | METHOD | #graceui #abi |
+| 245 | 2026-11-20 | graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events | FACT | #graceui #abi |
+| 246 | 2026-11-20 | A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED | FACT | #graceui #input |
+| 247 | 2026-11-20 | R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff | DECIDED | #gal #r1 #task |
+| 248 | 2026-11-20 | R1 run 8: the call returns 1, and the group's entry exists, yet nothing keeps our task; the tail function hands the task to a function of the group's own | FACT | #gal #r1 #task |
+| 249 | 2026-11-20 | An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running | FACT | #engine #dll #spike #graceui |
+| 250 | 2026-11-20 | In the fake game, a rack line is no sign of our call; the hub's live count is | METHOD | #fakegame #harness #spike |
+| 251 | 2026-11-20 | The observer's runs' words join schema 1; the game's environment is always the launcher's own block | DECIDED | #engine #launcher #spike #formats |
 
 ## Entries
 
@@ -4168,6 +4176,8 @@ invariant 10, EldenNet ARCH (T3)
 - **Next** (DECIDED): spike.7 reads all memory (a cap far past the process's size), also searches for our vtable's
   and slots' addresses, diffs the hub's reachable memory before and after the call, and summarises the two inner
   callees with the arguments followed into them.
+- Later (2026-11-20): the two direct calls' targets are RVAs 0x1EC4940 and 0x1EBCD00, as runs 7 and 8 report them in
+  decimal; the hexadecimal values above (0x1EC4A40, 0x1EBCE00) were converted wrongly (WHY§248).
 
 ### 236. R1 spike.7: the task followed past the wrapper: arguments mapped into its calls, its callees summarised one level deeper, all memory read, our vtable and slots searched, the hub's memory diffed across the call
 
@@ -4277,3 +4287,128 @@ invariant 10, EldenNet ARCH (T3)
 
 - (FACT) GetProcessHandleCount and GetProcessMemoryInfo's PrivateUsage answer 0 under Wine 9, so a leak check on them
   means nothing in the harness. GraceUI's spike reader shows them and does not judge them; on Windows they are real.
+
+### 244. ABI 1.1's input flag is appended after the reserved word, not renamed from it
+
+`2026-11-20` · METHOD · `#graceui` `#abi` · refs: GraceUI:D176, GraceUI:D109
+
+- (METHOD) ABI 1's append-only check (GraceUI's tools/check_safety.py, against the 1.0 baseline) refused renaming
+  GraceUiInputRequest's reserved word to `flags`. The flag is appended after it, with a second reserved word, so a
+  1.0 request (24 bytes) reads `flags` as 0 by its size.
+
+### 245. graceui-sys's bufferless poll asked with a 16-byte event, so a mod using it never saw a holder's events
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D176, GraceUI:D169
+
+- (FACT) Found by the spike observer's typing test in GraceUI's harness: its panel received 0 of 10 characters. The
+  wrapper now asks at ABI 1.1's size where `has_cap("holder-events")`, and reads a space's `GRACEUI_FULL` as "nothing
+  waiting". That holds because GraceUI hands out a holder's events and hotkeys before a space's. EldenNet's vendored
+  graceui-sys must be re-vendored from 0.2.1 or later before the chat box uses it.
+
+### 246. A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED
+
+`2026-11-20` · FACT · `#graceui` `#input` · refs: GraceUI:D176
+
+- (FACT) Danger or a loss of focus could end a holder between its grant and `HolderMail::enable`, so its close routine
+  found nothing to end and the mod was never told. Fixed by a check after enable, fenced (seq_cst) against `closed()`'s
+  fence, posting the end once. Found by review, not by a test: the window is too narrow to hit reliably.
+
+### 247. R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§240, WHY§236, engine 9a6e3ea
+
+- **The return value** (DECIDED): `RegisterFn` returns rax, reported as a kind (`register.returned`: zero, small
+  with its value, ours, the game's with section and RVA, heap, our task's block, other), with its low byte apart for
+  a `bool` (`returned_low`).
+- **Sources** (DECIDED, METHOD): besides "holds argument k", a register can hold "the value loaded from source s":
+  a RIP-relative slot, or `[base + index*scale + disp]` with what base and index hold, at most 3 loads deep. Beyond
+  the brief: a call's result stored to a global counts as that global's value, so a lazily made singleton is followed
+  on both paths. Where the paths still disagree on rcx, the table is read on the path past the wrapper's null test
+  (`via_guard`).
+- **Forms and tail jumps** (DECIDED): each summary's first 64 instructions as forms (offset, length, class, operand
+  kinds; no bytes, no opcodes), and a jump through memory or a register counted as a tail call with its base's source.
+  A function with no unwind data ends at its first jump out that no branch goes past. The report stays within 256 KiB,
+  dropping inner summaries' forms first.
+- **The table** (DECIDED): when run 7's shapes match (the wrapper's rcx from a slot S, the tail function's bound and
+  its null test of `[entry rcx + group*8 + disp]`, then a jump through the entry's first word), T1 reads just before
+  the call and 2 s after:
+  - the singleton's kind, and whether it is CSTask's instance or another named singleton's;
+  - which entries from 0 to the bound are set;
+  - the group's entry, its first word and the slot the final jump uses, whose target is summarised one level deeper.
+
+  A failed shape names the first that failed, and nothing is read.
+- **The control diff** (DECIDED): at the Mark T1 walks the hub, waits 2 s, walks it again and makes the call. Each
+  changed word of the call's diffs is marked `in_control` when it also changed in those 2 s before the call.
+- **The fake game** (FACT, clang-cl Release, Wine 9.0): its registration now has run 7's shape. The table matched
+  (disp 0x10, bound 31, slot 0x10), 10 entries were set before and after the call, the group's entry was on the heap
+  with its vtable in rdata, the call returned 1, and the control diff changed only the frame counter, marked
+  `in_control` in both of the call's diffs. In a variant with no entry for the group, the call returned 0, the entry
+  read zero, the 9 entries set left the group out, and the task never ran, as in run 7.
+- **The owner's steps** (DECIDED): after "No confirmation", wait one more minute at the title screen before quitting,
+  so that the 2 s and 20 s reads and searches finish.
+
+### 248. R1 run 8: the call returns 1, and the group's entry exists, yet nothing keeps our task; the tail function hands the task to a function of the group's own
+
+`2026-11-20` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§247, WHY§240, engine 9a6e3ea
+
+- **The return value** (FACT, spike.8, game 2.7.2.0 ww, no other mods): `register.returned` is small, value 1, low
+  byte 1. The call accepted our task, by its own answer.
+- **The table** (FACT): the shapes matched. The singleton comes from the data slot at RVA 0x4592F28, is on the heap
+  and is not CSTask's instance. Its table at displacement 8 has a bound of 168, and all 169 entries are set, before
+  the call and 2 s after. Group 110's entry is on the heap, with its first word in the game's rdata at RVA 0x2C0B330.
+- **The tail function** (FACT, its forms): it bounds the group by 168, loads `[singleton + group*8 + 8]`, returns 0
+  when that is null, and otherwise moves the task (r8) into rdx and jumps directly to RVA 0xEB6040. So the work is
+  `entry->f(task)` at 0xEB6040, with rcx the group's entry and rdx our task: a direct call, not one through the entry's
+  vtable. Spike.8 did not summarise it, being one level too deep.
+- **The search and the diffs** (FACT): at 2 and 21 s, 8.6 of 10.7 GB read, `done`. There was no copy of our object's,
+  our vtable's or a slot's address in the game's memory, and nothing pointing inside our object. The hub walk from
+  CSTask's instance changed 142 and then 220 words, 78 and 99 of them also in the 2 s control. None of them is ours,
+  and the walk never starts from the singleton or the group's entry. Our task never ran, and no slot of ours was
+  called. The exit was clean, and both reports lint clean.
+- **So** (LIKELY): the group's own function took our task and answered 1, but kept no plain pointer to it. It may keep
+  a tagged or offset pointer (a high-bit tag would escape the search), copy fields of our object but not its first
+  word, or queue it somewhere that a later step drops, for example on a field of our object that is zero.
+- **Next** (DECIDED): spike.9 summarises 0xEB6040 and its callees with the group's entry and the task followed in,
+  including every read of a task field (`[task + off]`) and what is done with it. It walks and diffs from the
+  singleton and group 110's entry, with the control. It also searches for words whose low 48 bits equal our address,
+  and names the entry's class by its RTTI against the leads.
+- Corrects WHY§235's hexadecimal call targets.
+
+### 249. An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running
+
+`2026-11-20` · FACT · `#engine` `#dll` `#spike` `#graceui` · refs: S10.1.g, S11.1.a, WHY§240, engine 5c5b3bc
+
+- (FACT, the code) T6's loop and the overlay's view reach the task only through `s.task_set`, which is null before
+  Register. T10 and T11 do not depend on it. The recorder opens at T6's start and writes its header (with the spike's
+  word) then, and the crash filter is in by the end of WaitEngine. So a stop at the start of Register leaves T6 (the
+  core, the block's status, the banner's notice, the world-state claims, F11's view), T10, T11 and the recorder
+  running, and nothing waits for the task.
+- (FACT, the fake game under Wine) `launcher-eldennet-spike-s0e`, `-s4` and `-graceui-spike-s0e` pass: `register
+  skipped=1 why=spike`, the `spike_run` banner (a GraceUI notice, with F11's view, in the GraceUI case), status lines
+  after T1 ended, a clean end, and no registration from outside.
+- (DECIDED) "No call" is about calls. Discovery's guarded reads and WaitEngine's reads still run before the stop, so
+  S0-E's numbers include that start-up reading, which ends within the first seconds. A probe build sets R1 aside in
+  such a run (`probe round=r1 skipped=1 why=spike`).
+
+### 250. In the fake game, a rack line is no sign of our call; the hub's live count is
+
+`2026-11-20` · METHOD · `#fakegame` `#harness` `#spike` · refs: WHY§240, engine 5c5b3bc
+
+- (FACT) Since spike.8 the fake game's own four tasks register through the same wrapper, which makes its rack on the
+  program's own first call, about 60 ms after boot. A first check that read "no rack line" as "no call of ours"
+  failed.
+- (METHOD) The measure of "no call into the game" is the end line's `live` (the hub's own 4) with
+  `foreign_tasks=0`, and no `FAKEGAME register` line of any outcome.
+
+### 251. The observer's runs' words join schema 1; the game's environment is always the launcher's own block
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#spike` `#formats` · refs: WHY§188, engine 5c5b3bc
+
+- (DECIDED) `s0e`, `s0e_alone`, `s4` and the banner reason `spike_run` join schema 1 of the recording, `rec_stats`
+  and `spike`, not a schema 2. formats.md's rule says a new word means a new schema, but no reader outside the engine
+  holds these words (DataPiler's guard holds only `derive`'s, WHY§188), and a schema 2 would make every older
+  recording reader refuse every recording. formats.md has a dated note: the rule holds from the first outside copy.
+- (DECIDED) The launcher always gives CreateProcessW an explicit environment block, its own through
+  `game_environment`, so that a leftover `ELDENNET_SPIKE_DIR` (in any letter case) never reaches the game.
+- (DECIDED) The spike folder's number is one more than the highest `<word>-<n>` already in `spikes\` (names compared
+  ignoring case), so a run never reuses a folder that may hold a report.

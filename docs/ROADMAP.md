@@ -881,7 +881,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     wrapper handing the group and the task to two inner calls, and 8 of 10.6 GiB held no copy of our task; spike.7
     follows them (WHY§235). Spike.7 sent on 2026-11-20 (engine bddcaa7; WHY§236). Run 7: the wrapper tail-jumps with
     the group and the task to a function that bounds the group by 168 and refuses on a null entry; all readable memory
-    held no copy of our task; spike.8 reads that table and the call's return value (WHY§240).
+    held no copy of our task; spike.8 reads that table and the call's return value (WHY§240). Spike.8 sent on
+    2026-11-20 (engine 9a6e3ea; WHY§247). Run 8: the call returns 1 and group 110's entry exists, yet nothing keeps our
+    task; spike.9 reads the group's own function and its memory (WHY§248).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -891,7 +893,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     grace-standin.dll, our own stand-in for another overlay, patching Present before or after GraceUI; and a reader
     with the pass rules. The owner's runs A1 to A4 (both load orders, injected early and late) and A0 (GraceUI alone).
     EldenNet's side: the launcher's spike words s0e, s0e_alone and s4, the spike folder in the game's environment,
-    and eldennet.dll making no call into the game in these runs (WHY§241 to §243).
+    and eldennet.dll making no call into the game in these runs (WHY§241 to §243). EldenNet's side built the same
+    day (engine 5c5b3bc; WHY§249 to §251); the package for the owner follows, with GraceUI 2131839.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1024,7 +1027,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
-  - refs: G1
+  - refs: G1, GraceUI:D177
+  - gives: first answers on 2026-11-20 from screenshots: a larger default size (GraceUI's D177, ui.scale 1.25) and a
+    slider's margin, built in GraceUI c4ada9f; GraceUI's G31 (the pointer) and G32 (quieting a mod's notices) put to
+    the owner. It stays waiting until the owner has looked at the new screenshots.
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
@@ -1121,7 +1127,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
     and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
     Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
-    for a D-entry of GraceUI's, for S4's second round after R1.
+    for a D-entry of GraceUI's, for S4's second round after R1. Built the same day in GraceUI 0.2.1 (feat/foundations
+    2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
 ### S11.5 v0.2's exit checks
 
