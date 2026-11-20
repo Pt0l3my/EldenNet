@@ -76,11 +76,16 @@ TEST_CASE("rings: C1's slot under a writer and a reader on two threads") {
   });
   std::uint64_t last = 0, taken = 0, bad = 0;
   en::proto::WorldSnapshot out;
-  while (!stop || slot.take(out)) {
+  // The writer's end is read before each take, so the newest snapshot is counted even when the writer finished first
+  // (under load, before the reader took anything): the loop's old condition took that one and dropped it.
+  for (;;) {
+    const bool done = stop.load();
     if (slot.take(out)) {
       ++taken;
       if (out.seq <= last || out.mono_ms != out.seq * 2) ++bad;
       last = out.seq;
+    } else if (done) {
+      break;
     }
   }
   writer.join();
