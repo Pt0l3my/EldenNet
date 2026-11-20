@@ -1001,9 +1001,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k The web shell: Preact and TypeScript, the rail, top bar, search and page parts; budgets, the bundle and CSP scan, a reproducible build
   - needs: e, f, h
   - refs: G3, GraceUI:DESIGN§4.2, GraceUI:DESIGN§7.5
-- l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell
+- l The in-game views, grace-view and grace-draw: layout, focus and search, tessellated with the tokens; golden vertex lists and one parity golden against the web shell [done]
   - needs: e, h
-  - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3
+  - refs: GraceUI:DESIGN§3.16, GraceUI:DESIGN§9.3, GraceUI:D162
+  - gives: built on 2026-11-20 (GraceUI feat/foundations 7c69f93): grace-view lays out the frame and one page with
+    the tokens into a display list, with keyboard and pad navigation and settings search, each change a ready
+    settings.set or settings.reset; grace-draw tessellates it into ABI 1's draw lists, so the menu passes the same
+    checker as a mod's panel (the Menu page at 1920×1080: 2,720 vertices, 4 commands, no allocation on a second
+    frame); 20 tests with golden structure dumps. Editing text, secret and key settings in game, and drawing
+    components, wait for v0.6 (GraceUI D57); S4's page needs neither.
 
 ### S11.3 EldenNet v0.2
 
