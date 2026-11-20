@@ -274,6 +274,20 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 249 | 2026-11-20 | An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running | FACT | #engine #dll #spike #graceui |
 | 250 | 2026-11-20 | In the fake game, a rack line is no sign of our call; the hub's live count is | METHOD | #fakegame #harness #spike |
 | 251 | 2026-11-20 | The observer's runs' words join schema 1; the game's environment is always the launcher's own block | DECIDED | #engine #launcher #spike #formats |
+| 252 | 2026-11-20 | ABI 1 never had the display-changed event that GraceUI's design promised | FACT | #graceui #abi |
+| 253 | 2026-11-20 | Dear ImGui bakes a face at a whole-pixel size, so GraceUI rounds a scaled face's size itself | FACT | #graceui #fonts |
+| 254 | 2026-11-20 | A rise in a frame-cost median after a change with nothing per-frame was the machine's: measure old and new alternately | METHOD | #graceui #ci |
+| 255 | 2026-11-20 | The owner's package for S0-E and S4: one run file each, GraceUI copied into the game's folder, F11's view switched on | DECIDED | #engine #launcher #graceui #spike |
+| 256 | 2026-11-20 | EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml | FACT | #engine #graceui #harness |
+| 257 | 2026-11-20 | Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz | FACT | #privsweep #graceui |
+| 258 | 2026-11-20 | R1 spike.9: the group's own function read with our task and the entry followed in, the fields it reads, walks from the singleton and the entry, and tagged pointers | DECIDED | #gal #r1 #task |
+| 259 | 2026-11-20 | G32's switch is a command of GraceUI's own space, not a setting | DECIDED | #graceui #notices |
+| 260 | 2026-11-20 | A quiet mod's notice is checked, answered ok and kept, never dropped | DECIDED | #graceui #notices |
+| 261 | 2026-11-20 | A test export that read GraceUI's thread's state without a lock crashed a full harness run | LIKELY | #graceui #harness |
+| 262 | 2026-11-20 | GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened | FACT | #graceui #settings |
+| 263 | 2026-11-20 | A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high | METHOD | #graceui #input |
+| 264 | 2026-11-20 | An independent review given the code and the rules found GraceUI's faults at the joins between modules | FACT | #graceui #security |
+| 265 | 2026-11-20 | A space's settings publications are held to its registration, and a secret's value is masked rather than refused | DECIDED | #graceui #security |
 
 ## Entries
 
@@ -4412,3 +4426,152 @@ invariant 10, EldenNet ARCH (T3)
   `game_environment`, so that a leftover `ELDENNET_SPIKE_DIR` (in any letter case) never reaches the game.
 - (DECIDED) The spike folder's number is one more than the highest `<word>-<n>` already in `spikes\` (names compared
   ignoring case), so a run never reuses a folder that may hold a report.
+
+### 252. ABI 1 never had the display-changed event that GraceUI's design promised
+
+`2026-11-20` · FACT · `#graceui` `#abi` · refs: GraceUI:D180, GraceUI:D84, O93
+
+- (FACT) GraceUI's DESIGN §3.13, its D84 and proposal 0001's G6 row promise a display-changed event that carries the
+  scale, but ABI 1 never had one: GraceUI 0.2.1's poll kinds were 1 to 9. Found when EldenNet asked for ui.scale's
+  default after D177 (O93). Built as D180 in GraceUI 0.2.2: the display at connect and `GRACEUI_EVENT_DISPLAY` (10),
+  ABI 1.2.
+
+### 253. Dear ImGui bakes a face at a whole-pixel size, so GraceUI rounds a scaled face's size itself
+
+`2026-11-20` · FACT · `#graceui` `#fonts` · refs: GraceUI:D180
+
+- (FACT) Asked for 10.67 px, Dear ImGui 1.93 baked 11. GraceUI now rounds a scaled face's size to a whole pixel itself,
+  so the rule is GraceUI's and documented, not the library's; the glyph table gives the size baked.
+
+### 254. A rise in a frame-cost median after a change with nothing per-frame was the machine's: measure old and new alternately
+
+`2026-11-20` · METHOD · `#graceui` `#ci` · refs: GraceUI:D180, GraceUI:D178
+
+- (METHOD) When the harness's "menu frame cost" medians rose about 25% after a change with nothing per-frame in it,
+  the previous commit was built apart and measured alternately with the new one. The medians were the same, so the rise
+  was the machine's, not the change's.
+
+### 255. The owner's package for S0-E and S4: one run file each, GraceUI copied into the game's folder, F11's view switched on
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#graceui` `#spike` · refs: S10.1.g, S11.1.a, WHY§249, engine def31b4
+
+- (DECIDED) `tools/spikepkg/build.py --kind s0e-s4` packs the launcher, the release eldennet.dll, `gal\`, GraceUI's
+  test build (here 0.2.2 at f5c16a2), grace-spike.dll, grace-standin.dll and one `.cmd` file per run (A1 to A4, A0, B).
+  Each file runs `cd /d "%~dp0"` and adds `--console`, so the launcher's lines show. The package leaves out GraceUI's
+  `user\` folder (D179's kept settings) and refuses a `graceui.toml` that lists one.
+- (DECIDED) The README asks the owner to copy `GraceUI\` into the game's own `Game` folder (A3, A4 and B have EldenNet
+  load it from there, as a release will), to be deleted afterwards, and to switch on F11's view (`debug.panel`), which
+  is off by default.
+- (METHOD) A harness case whose program reads relative paths now names its start folder: Wine maps it to its drive,
+  as cmd.exe's `cd /d "%~dp0"` does on the owner's PC.
+
+### 256. EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml
+
+`2026-11-20` · FACT · `#engine` `#graceui` `#harness` · refs: GraceUI:D175, engine 672cae3
+
+- (FACT) GraceUI 0.2.1 appended fields to `GraceUiTestState` (D175), and `GraceUI_Test_GetState` refuses a smaller
+  size. The fake game, reading through EldenNet's vendored `graceui_test.h` (3f1352b), saw zeros, and
+  `launcher-eldennet-graceui-spike-s0e` failed on that alone. `graceui_test.h` is re-vendored at 2131839 with its
+  SHA-256 pin. The rest of graceui-sys stays at 3f1352b until S11.4.
+- (METHOD) `launcher-eldennet-graceui` expected GraceUI 0.1.0 and ABI 1.0 by name. It now reads both from the GraceUI
+  folder's own `graceui.toml`, so a newer GraceUI under test is not a failure.
+
+### 257. Two OFL fonts' glyph bytes read as an address to the sweep; a narrow allow line in Skyrizz
+
+`2026-11-20` · FACT · `#privsweep` `#graceui` · refs: Skyrizz c7920ee
+
+- (FACT) In the package's zip, privsweep's `email` rule matched byte runs in NotoSans-Regular.ttf and
+  NotoSansMono-Regular.ttf (in their `glyf` and `GPOS` tables; their `name` tables hold no `@`). GraceUI downloads its
+  fonts at configure time, so no push had swept them, and this package was their first upload.
+- (DECIDED) An allow line in Skyrizz's `tools/privsweep/allow.txt` covers those two files' strings view only, under a
+  `GraceUI/fonts/` path. A later font change is swept and reviewed again.
+
+### 258. R1 spike.9: the group's own function read with our task and the entry followed in, the fields it reads, walks from the singleton and the entry, and tagged pointers
+
+`2026-11-20` · DECIDED · `#gal` `#r1` `#task` · refs: WHY§248, WHY§247, engine a51ab03
+
+- **Direct tail jumps** (DECIDED): in a function with no unwind data, a direct jump past the code decoded is a tail
+  jump. So the tail function's jump to RVA 0xEB6040 becomes a call site, and the table's shape takes it as its end.
+- **The group's function** (DECIDED): summarised before the call, with rcx the group's entry and rdx the task, and its
+  own direct callees and tail jumps one level further (16 summaries at most, each callee once).
+- **Field reads** (DECIDED, METHOD): every load based on the task, the entry or a value read from either is reported
+  (`task_reads`, `entry_reads`): the field's offset and width, and what the value is used for along the flow (compared
+  with which immediate, tested, stored where, passed to which call, called through, changed). Beyond the brief: a value
+  changed by or, add, shift and the like stays followed, two changes deep, so that a tagged pointer's store is seen.
+- **Roots** (DECIDED): spike.8's walks and diffs (with the 2 s control) run from the singleton and from the group's
+  entry as well as from CSTask's instance.
+- **Tagged pointers** (DECIDED): a word whose low 48 bits are our object's or our vtable's address under a non-zero
+  high 16 bits is counted, in the diffs (`task_tagged`) and the whole-memory search (`tagged_found`), with its tag.
+- **Classes** (DECIDED): the singleton's and the entry's classes by their RTTI, matched against the leads by name or
+  name+"Imp" (O92's rule), reported as a lead's index only.
+- **The fake game** (FACT): its group function now reads two task fields (one compared with 0x51), keeps the task as
+  `task | 0x7E01 << 48` and answers 1. With `--task-gate` and our object's zero in the compared field, the task never
+  runs, as in run 8. R1 reports both reads with the compare, the tagged store, one tagged copy (tag 0x7E01), the diffs'
+  `task_tagged` words, and the entry's class matched to the hub's lead.
+- **Also** (FACT): two existing stack-overflow cases had failed at 5c5b3bc. The fake game's recursion now starts at a
+  fixed stack depth, and they pass.
+
+### 259. G32's switch is a command of GraceUI's own space, not a setting
+
+`2026-11-20` · DECIDED · `#graceui` `#notices` · refs: GraceUI:D181, GraceUI:G32
+
+- (DECIDED) The per-mod Notices switch is a command of GraceUI's own space (`mods.notices`, `{id, on}`), its state in
+  the Installed mods page's table, not a setting in the settings store: the mods are known only at run time, so a
+  setting per mod would change the store's keys with each connect. The switch's one home is still the Mods page
+  (GraceUI's invariant 12).
+
+### 260. A quiet mod's notice is checked, answered ok and kept, never dropped
+
+`2026-11-20` · DECIDED · `#graceui` `#notices` · refs: GraceUI:D181
+
+- (DECIDED) A quiet mod's notice is checked as any other (a bad text or tone is still refused), then answered ok and
+  kept on the Installed mods page, not drawn over the game. The mod cannot tell (in the spirit of "absence is silent"),
+  and the player can still read what was missed. So EldenNet never relies on a notice being seen (S11.4.a).
+
+### 261. A test export that read GraceUI's thread's state without a lock crashed a full harness run
+
+`2026-11-20` · LIKELY · `#graceui` `#harness` · refs: GraceUI:D181
+
+- (LIKELY) The quiet scenario crashed the full run (a read at address 8), though it passed alone twice. The likely
+  cause: a test export reading a topic's JSON on the harness's thread while GraceUI's thread replaced it. With the
+  export reading a copy under a lock (`GraceUI_Test_GetTopic`), it passed four times alone and in both toolchains'
+  full runs.
+- (METHOD) Run a new scenario in the full run too, not only alone; reading state another thread writes needs a locked
+  copy, whatever an export's comment says about reading while idle.
+
+### 262. GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened
+
+`2026-11-20` · FACT · `#graceui` `#settings` · refs: GraceUI:D179, GraceUI:D180, GraceUI:D181
+
+- (FACT) D179 wrote `user\settings.json` only from the menu's thread of work, so a change from a browser while the menu
+  was closed was kept, and a new ui.scale told to the mods (D180), only when the menu next opened. GraceUI's thread now
+  does both at every wake.
+
+### 263. A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high
+
+`2026-11-20` · METHOD · `#graceui` `#input` · refs: GraceUI proposal 0005, GraceUI:D155, NPC§5.6
+
+- (METHOD) An XInput button mask cannot say which of two buttons comes first. So GraceUI's proposal 0005 carries a
+  chord's order by splitting `register_hotkey`'s `pad_chord` word: the key's bit in the low 16, the anchor's in the
+  high 16 (EldenNet's chord: `XINPUT_GAMEPAD_BACK | (XINPUT_GAMEPAD_DPAD_UP << 16)`). GraceUI has refused to read that
+  word until now (`not_yet`), so no mod can have relied on it.
+
+### 264. An independent review given the code and the rules found GraceUI's faults at the joins between modules
+
+`2026-11-20` · FACT · `#graceui` `#security` · refs: GraceUI:D183, S11.2.q
+
+- (FACT) One read-only reviewer, given the code and the rules but not our conclusions, probed a live grace-dev on
+  loopback. It found the server's wire layer sound: Host, Origin, Fetch Metadata, the cookie and ticket, the CSP and
+  headers, static files, HTTP and WebSocket framing, the bridge's routing, the settings store, and the web app's text
+  and secrets. It also found six faults in the layers the server's own tests do not reach: a world-state flag wired
+  only to a log line, a rule kept only by the page lint, a reserved id never reserved, and others.
+- (METHOD) Review the joins between modules, not only each module, and give the reviewer the code, not our
+  conclusions.
+
+### 265. A space's settings publications are held to its registration, and a secret's value is masked rather than refused
+
+`2026-11-20` · DECIDED · `#graceui` `#security` · refs: GraceUI:D183, GraceUI's invariant 5
+
+- (DECIDED) `publish` on settings must send the registered schema and description or none; a mismatch is refused. A
+  secret's value in a publication is replaced by "set" or "" with one log line rather than refusing the frame, so a
+  mod's mistake costs it nothing visible and leaks nothing. EldenNet publishes secrets' status only.

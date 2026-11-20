@@ -1610,6 +1610,13 @@ one call into the game waits for the first Mark, the owner's Pause at the title 
 task is registered nothing EldenNet reads on its init thread can tell the title (O89; WHY§193). DESIGN §14 and §16.1
 now say so.
 
+*Later (2026-11-20):* as built with GraceUI's connect (the first in-game build's part 12; WHY§217, §230), GraceUI's
+Mark is on Pause, not F11 (F11 opens the debug view): EldenNet registers Pause as one of its GraceUI hotkeys, and once
+it is bound the launcher lets its own Pause go and hands the Marks over through the watch block, one writer at a
+time. The launcher's Mark is not retired: it stays the fallback wherever GraceUI cannot take it, without GraceUI (R1
+among such runs) or when another mod's GraceUI hotkey holds Pause. ARCH §4.14, DESIGN §14 and §16.1 and MEM §6.3 say
+so.
+
 ## O91
 
 **When S0's third-party rows run** · *2026-11-16 · Decided by the owner, as recommended*

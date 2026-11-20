@@ -913,7 +913,7 @@ note = "Kalé's vanilla talk about the howling has happened."
    then_stays = true
    quiet_before_ms = 600000              # must not have risen in the 10 min before the mark
    ```
-2. **Record.** A dev build with `debug.record_sessions = true` and the F11 **wide watch** toggle, which watches whole candidate ranges (a persona's 20-flag block, a tile's conversation band) up to the 2,048 cap. The tester plays the script and presses **Mark** (F11) at each step; marks are stored in the recording.
+2. **Record.** A dev build with `debug.record_sessions = true` and the F11 **wide watch** toggle, which watches whole candidate ranges (a persona's 20-flag block, a tile's conversation band) up to the 2,048 cap. The tester plays the script and presses **Mark** (F11) at each step; marks are stored in the recording. *2026-11-20, as built (WHY§217):* the Mark is Pause, not F11, which opens the debug view: EldenNet's GraceUI hotkey, handed over from the launcher's development Mark, which stays the Mark without GraceUI (DESIGN §14, ARCH §4.14).
 3. **Check.** `eldennet-engine flag-verify <recording> --script tests/s6/godrick.toml` (an addition to DESIGN §2.2)
    aligns edges with marks and writes evidence records to `docs/design/spikes/S6/evidence/`. A record holds the build,
    alias, ID, mark, edge timing, the other IDs that moved within ±5 s and a verdict. It contains no game text and no

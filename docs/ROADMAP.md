@@ -883,7 +883,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the group and the task to a function that bounds the group by 168 and refuses on a null entry; all readable memory
     held no copy of our task; spike.8 reads that table and the call's return value (WHY§240). Spike.8 sent on
     2026-11-20 (engine 9a6e3ea; WHY§247). Run 8: the call returns 1 and group 110's entry exists, yet nothing keeps our
-    task; spike.9 reads the group's own function and its memory (WHY§248).
+    task; spike.9 reads the group's own function and its memory (WHY§248). Spike.9 sent on 2026-11-20 (engine
+    a51ab03; WHY§258).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -894,7 +895,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     with the pass rules. The owner's runs A1 to A4 (both load orders, injected early and late) and A0 (GraceUI alone).
     EldenNet's side: the launcher's spike words s0e, s0e_alone and s4, the spike folder in the game's environment,
     and eldennet.dll making no call into the game in these runs (WHY§241 to §243). EldenNet's side built the same
-    day (engine 5c5b3bc; WHY§249 to §251); the package for the owner follows, with GraceUI 2131839.
+    day (engine 5c5b3bc; WHY§249 to §251). The owner's package sent on 2026-11-20: engine def31b4 with GraceUI 0.2.2
+    at f5c16a2, runs A1 to A4, A0 and B checked on the fake game (WHY§255 to §257).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -902,13 +904,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     §3.2 with the crash filter, §4.1 and §4.14 (the launcher's options, the watch block, the Mark),
     §5 (not solo means dormant); DESIGN §3.1, §14 and §16.1; dated notes on O89 and O90.
 
-- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8)
+- i Parts 11 and 12 folded into ARCH and DESIGN: the connect and its look (ARCH §1.4, §3.2), T6's calls to GraceUI (§1.2), en-overlay as built (§2.2), the GraceUI pre-flight and E12 (§4.3, §4.7), the Mark's hand-over on Pause (§4.14, DESIGN §14, MEM §6.3), the settings read (§11.5), the DLL's imports (§12.1), and Augur as built (§8) [done]
   - needs: a
   - refs: ARCH§1.4, ARCH§8, DESIGN§14
   - gives: listed by part 12's notes on 2026-11-20; Augur's folds joined when part 11 landed the same day: §8's
     opening (Augur after the lifecycle slice in the same step, WHY§222), §8.4, §8.5 (the rule schema's additions and
     Struck's 1 s window) and §8.7 as settled (WHY§223), §8.12's lossy-run differences (WHY§224) and §7.5's recording
     reader (WHY§225). ARCH §1.4's "As built" bullet (the first build headless) is superseded by part 12.
+    Folded on 2026-11-20 (design/v1-proposal, merge of docs/s10-fold-i): ARCH §1.2, §1.4, §2.2, §3.2, §4.1, §4.3,
+    §4.7, §4.14, §7.5, §8 (its opening, §8.1, §8.4, §8.5, §8.7, §8.12), §11.5 and §12.1; DESIGN §2.4, §14 and §16.1
+    and MEM §6.3 by dated notes; a dated note on O90 (the launcher's Mark kept as the fallback, WHY§217).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -923,7 +928,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
-    replay built in parts 6 and 9.
+    replay built in parts 6 and 9. Still to join (found by S10.1.i's fold): the F11 view shows en-core's changes, not
+    Augur's events with their audiences, which DESIGN §14's F11 list asks for.
 
 ### S10.3 v0.1's exit checks
 
@@ -1027,10 +1033,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
 - d The owner's look review of the in-game menu, from screenshots [waiting]
   - needs: b
-  - refs: G1, GraceUI:D177
+  - refs: G1, GraceUI:D177, GraceUI:D178
   - gives: first answers on 2026-11-20 from screenshots: a larger default size (GraceUI's D177, ui.scale 1.25) and a
     slider's margin, built in GraceUI c4ada9f; GraceUI's G31 (the pointer) and G32 (quieting a mod's notices) put to
-    the owner. It stays waiting until the owner has looked at the new screenshots.
+    the owner. It stays waiting until the owner has looked at the new screenshots. The pointer (GraceUI's G31, decided
+    2026-11-20): our own Grace pointer, still, built as D178 in GraceUI 67fa60f. G32 decided the same day, as
+    recommended, and built as D181 (S11.2.o).
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
@@ -1092,6 +1100,36 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     checker as a mod's panel (the Menu page at 1920×1080: 2,720 vertices, 4 commands, no allocation on a second
     frame); 20 tests with golden structure dumps. Editing text, secret and key settings in game, and drawing
     components, wait for v0.6 (GraceUI D57); S4's page needs neither.
+- m GraceUI's settings kept between sessions, in its folder's user\settings.json, only values that differ from their defaults [done]
+  - refs: GraceUI:D179, GraceUI:D84
+  - gives: built on 2026-11-20 in GraceUI 0.2.2 (feat/foundations 1e33a46), at the owner's go-ahead; a release folder
+    carries no user\ folder (the manifest skips it). Wanted before testers get v0.2 (S11.5).
+- n The display at connect and in an event of its own, and faces baked at the content scale (ABI 1.2) [done]
+  - refs: GraceUI:D180, O93
+  - gives: built on 2026-11-20 in GraceUI 0.2.2 (1e33a46, proposal 0004): the connect's answer carries ui.scale, its
+    default and the display's size; GRACEUI_EVENT_DISPLAY (10) comes after warm-up and after each change, with the
+    content scale ((H / 1080) × ui.scale / its default, O93's rule with no constant) and the scale the faces were baked
+    at (WHY§252 to §254).
+- o Quiet notices: a switch per mod on GraceUI's Installed mods page, which joins in 0.2 (GraceUI 0.2.3) [done]
+  - refs: GraceUI:D181, GraceUI:D173
+  - gives: decided by the owner on 2026-11-20 as GraceUI's G32 (a), and built the same day (GraceUI 32ab1ed): a quiet
+    mod's notice is still answered ok and kept on the page, not drawn over the game, and the switch is kept between
+    sessions. The harness's "quiet" scenario on both toolchains, the view and web tests, and the quiet store's unit
+    tests (WHY§259 to §262).
+- p The in-game menu by mouse: clicks, a dragged slider and the wheel (GraceUI 0.2.4) [done]
+  - refs: GraceUI:D182
+  - gives: built on 2026-11-20 (GraceUI feat/foundations e93151e), from GraceUI's own roadmap, no decision needed;
+    EldenNet's pages in the menu take the mouse with nothing to do.
+- q The security review's fixes, before testers get v0.2 (GraceUI 0.2.5) [done]
+  - refs: GraceUI:D183
+  - gives: an independent review on 2026-11-20 (one read-only reviewer, given the code and the rules, probing a live
+    grace-dev) found the wire layer sound and six faults higher up: the anti-cheat world-state flag only logged and the
+    60 s module re-check missing (now either closes the browser view's server for the session); a destructive action
+    without its confirmation (register_pages now refuses one); the reserved space id and topic name; a third WebSocket
+    superseding a view before its ticket was shown; settings publications not held to the registration (secrets masked
+    to "set" or ""). Open: telling a space which view sent a command (GraceUI DESIGN §7.3), an ABI 1 addition before
+    the home network's pairing (WHY§264, §265). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
+    checks on both toolchains, the anti-cheat flag and re-check scenarios among them; no change to the ABI.
 
 ### S11.3 EldenNet v0.2
 
@@ -1115,7 +1153,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
     0.2.0 (2026-11-20) the same space shows in F5's menu too (D171), and EldenNet follows protocol 1.1 (D172) and
-    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29.
+    D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29. Since GraceUI's D181 a
+    player may quiet EldenNet's notices, so what the player must know (the banner's reason, a failed start) is on
+    EldenNet's Home page and in its log too, never in a notice alone (GraceUI's docs/eldennet-changes.md §34).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
@@ -1126,8 +1166,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
     2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
     and pad buttons for the holder's mod only, its end and why, and the caret for the IME, fed to EldenNet's own
-    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). The pad chord that opens the box (NPC §5.6) waits
-    for a D-entry of GraceUI's, for S4's second round after R1. Built the same day in GraceUI 0.2.1 (feat/foundations
+    Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). EldenNet's text sizes follow GraceUI 0.2.2's display
+    event and scaled faces (S11.2.n), and drop their constant (GraceUI's docs/eldennet-changes.md §33). The pad chord that opens the box (NPC §5.6) waits
+    for a D-entry of GraceUI's, for S4's second round after R1: GraceUI's proposal 0005, pad chords for hotkeys, put to
+    the owner and EldenNet on 2026-11-20; not built. Built the same day in GraceUI 0.2.1 (feat/foundations
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
 ### S11.5 v0.2's exit checks

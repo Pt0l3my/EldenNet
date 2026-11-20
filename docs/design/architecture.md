@@ -69,6 +69,18 @@ threads (GraceUI D71, D81). The game's own threads enter EldenNet's code only th
 `on_present` callback on T3, and WinHTTP's own threads only through en-llm's status callback, which queues what
 completed for the exchange's driver (WHY§102). Each of those entries is `noexcept` and starts with `ffi_guard` (R3).
 
+**GraceUI's calls, as built** (the first in-game build's part 12, 2026-11-20; WHY§216 to §218, §230). T1 alone looks
+for GraceUI and connects (§1.4, §3.2), and makes, with `debug.panel`, the F11 view's context, atlas, panel and hotkey,
+and the Mark's hotkey when it is asked for then. Once T1 has published the connection, T6 alone calls GraceUI, after
+each wake (at most every 100 ms): the banner and the pause badge as notices (`notice`), the world-state claims when
+they change (`set_world_state`), `poll` until nothing waits (each hotkey event names its presses since the last: an
+odd count of F11's toggles the view, and each of the Mark's is stamped), the view's frame while it is open (built on Dear ImGui's core, then `submit`;
+`show_panel` after the first list, `hide_panel` to close), and `register_mark` when the launcher's console asks for
+the Mark later. `poll` answering not connected or inactive ends it: nothing more is called. v0.1 registers no
+`on_present` callback, so none of EldenNet's code runs on T3; GraceUI draws on T3 the lists T6 submitted. The chat
+box's typing (GraceUI 0.2.1's holder events, D176, ABI 1.1) and the display's scale (0.2.2's display event, D180, ABI
+1.2; O93) will reach EldenNet through the same `poll` on T6 (WHY§241, §245, §252).
+
 ### 1.3 Channels
 
 ```mermaid
@@ -156,14 +168,41 @@ sequenceDiagram
 ```
 
 - The core is up before the overlay, so the overlay always has a `UiModel` to draw, the banner included.
-- **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.2). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
+- **The connect** (GraceUI §2.9, D70–D73, D88). The launcher has already checked GraceUI's folder (§4.3). `en-overlay`'s helper finds `graceui.dll` on T1 (by module name, an export scan, then `Game\GraceUI\graceui.dll`, polled every 250 ms for at most 30 s) and connects; GraceUI's own init thread installs the hooks. A failed connect leaves EldenNet headless: L2 at most, nothing drawn, logged, with a hint the next time the launcher runs (§10.3). After GraceUI's own anti-cheat hit, `connect` answers `inactive (anti-cheat)` and the banner goes through `notice`, which stays callable. EldenNet registers its space for the browser view only once its gate and safety steps pass (GraceUI D81).
 - Store and net threads start only on the path that can reach L2. An L1 session never opens a database or a socket; the dashboard's socket is GraceUI's (GraceUI D81).
 - `register_task` is called from T1, a non-main thread, as the game's contract requires (ER01 §3.1).
 - **As built** (the first in-game build, 2026-11-16; WHY§191): the mutex is taken at Pin, discovery runs before the
   readiness wait and finds the readiness items with the rest (no separate scan), and the crash filter goes in only
   once the game has started (§3.2). The first build is headless: Connect is logged as skipped (`overlay.connect` stays
   off), and the banner reaches the core and the watch block but is not drawn until GraceUI's part lands (roadmap
-  S10.4.d).
+  S10.4.d). *2026-11-20:* that last sentence is superseded by part 12 (the next item): `overlay.connect` is on by
+  default, and the banner is drawn as a GraceUI notice.
+- **The connect, as built** (part 12, 2026-11-20, on GraceUI's ABI 1 preview; WHY§215, §216, §221, §230 to §232).
+  - **The look** is graceui-sys's own, `graceui_sys_find(GRACEUI_SYS_LOAD | GRACEUI_SYS_STOP_IF_ABSENT)` (GraceUI
+    D164): a module named `graceui.dll`, an export scan, then `GraceUI\graceui.dll` in the game's folder, which
+    EldenNet loads, again every 250 ms for at most 30 s; but when nothing answers, no copy is installed there and none
+    is loaded, nothing can answer later, and the look ends at once, so a start without GraceUI is not held up 30 s.
+    Both load orders work: GraceUI loaded before EldenNet is found by its name, and one installed but not yet loaded
+    is loaded by EldenNet. graceui-sys at 3f1352b leaves `installed` at 0 for a GraceUI found by its name, so
+    en-overlay reports a find by name as installed until it re-vendors from GraceUI c781a85 (WHY§231). EldenNet loads
+    GraceUI only after WaitWindow: under Wine 9 a load before the game's first window could hang in `dxgi.dll`'s load
+    (WHY§232; GraceUI c781a85 imports no Direct3D DLL since).
+  - **`connect`** as `eldennet` (its id and its space's), with its version, its floor (GraceUI 0.1.0, in en-proto's
+    `graceui_pin.hpp` beside the GraceUI commit graceui-sys is vendored from) and the caps it uses: `notices world-state
+    hotkeys`, with `panels textures` for the view. `ok` connects; `inactive` for the anti-cheat with a handle is the
+    notice-only mode (the banner through `notice` alone, D88); `too_old`, `duplicate_id`, `inactive` otherwise,
+    `refused`, `not_yet` and no GraceUI leave EldenNet headless, with one log line (`connect ok=… outcome=… how=…
+    looks=… installed=… graceui=… view=… mark=… mark_bound=… world=…`), and the start goes on. Then the F11 view, with
+    `debug.panel` only (WHY§218), and the Mark's hotkey when asked for (§4.14). No face is registered yet: the view
+    draws with Dear ImGui's own bitmap font, whose atlas is registered as a texture before any submit.
+  - `overlay.connect = false` skips it (`connect skipped=1 why=off`). In a run of GraceUI's observer (`--spike s0e` or
+    `s4`) the connect runs as usual, and T1 stops at Register (§3.2; WHY§249).
+  - **A notice may go unseen.** The player may quiet EldenNet's notices on GraceUI's Installed mods page (GraceUI G32,
+    D181); a quiet mod's notice is still answered `ok` and kept on that page, not drawn over the game (WHY§260). So
+    EldenNet never relies on a notice being seen: the banner's reason is also in the log and the watch block's status,
+    and, once they exist, in EldenNet's own pages.
+  - The chat box and O93's scaled text raise the floor when they land: a holder's events need GraceUI 0.2.1 (D176) and
+    the display at connect 0.2.2 (D180), and graceui-sys is re-vendored from 0.2.1 or later first (WHY§245, §252).
 
 ### 1.5 Shutdown
 
@@ -245,7 +284,7 @@ edges link only that target, so `sys`, `reader` and `task` never reach the tools
 | `en-store` | SQLite files, migrations, the request loop, backups | `StoreHandle Store::spawn(StoreCfg)`, `Expected<void, Full> StoreHandle::send(DbRequest)`, `BoundedQueue<DbResult>& StoreHandle::results()` |
 | `en-llm` (built, O84) | The OpenAI-compatible client and its transports (libcurl, WinHTTP), SSE parser, slots, health, budgets, decision calls (§11.8), local probes, warm-up, and the asynchronous handle the core drives (WHY§101) | `Service(Config, std::shared_ptr<TransportFactory>, ServiceOptions)`, `SubmitResult Service::submit(LlmRequest)`, and its `cancel(RequestId)`, `cancel_before_epoch(Epoch)`, `poll`, `drain`, `wait`, `set_notify`, `set_gate_open`, `warm_up(slot)`, `reload(Config)` and `shutdown`; the blocking `Client::chat` and `Client::decide` beneath it; `probe_local` (its `LocalEndpoint`s) and `list_models` |
 | `en-gal` | The version gate, discovery, layouts, `GuardedReader`, read groups, the task, the snapshot builder, the FMG, param and flag readers, `SysLayer` | `Expected<BuildProfile, GateError> gate(const ImageView&, const Builds&)`, `Expected<Discovery, DiscoveryReport> discover(const SysLayer&, const BuildProfile&)`, `Expected<TaskToken, GalError> install_task(Discovery, TaskWiring)`, `class ErBackend : public GameBackend`, the interface `SysLayer` (§6.4) |
-| `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()` |
+| `en-overlay` | EldenNet's display layer (GraceUI G15): the connection to GraceUI, every surface as a panel (subtitles, the chat box, the call-out box, the bark feed and labels, the talk hint) drawn in an `on_present` callback with `grace-draw` and `grace-view`, toasts and the banner as notices, its faces registered in GraceUI's atlas, input through `request_input`, its hotkeys registered with GraceUI, the world-state provider, and the F11 debug view on Dear ImGui's core (1.93.0, the version GraceUI pins, on a context of its own with no backend) submitted as a panel. Built (the first in-game build's part 12, 2026-11-20, on GraceUI's ABI 1 preview; WHY§215 to §221, §230, §231): through `graceui-sys` alone, its headers vendored unmodified from GraceUI 3f1352b, each checked by SHA-256 at configure time (`graceui_test.h`, the harness's, from 2131839, WHY§256), and Dear ImGui's core fetched at GraceUI's pin, in the Windows builds only, compiled as GraceUI's `gu_imgui_core` is; the banner (key 1) and the pause badge (key 2) as notices, replaced in place and withdrawn by an empty text; the world-state claims, danger and a game menu as v0.1's stand-ins (the player dead, a boss bar or a lock-on, in a world; the HUD's pop-up menu state) until NPC §5.4's `safe_context` and §5.8's menu read; F11's view (`debug.panel` only, SP8: its ribbon first, then EldenNet's status in our own words and numbers, no game text; it takes no input in GraceUI 0.1, D142), a panel of 680 × 420 at (24, 24), shown only after its first list; and the Mark's hotkey (§4.14). A hotkey another mod took first is registered unbound (`GRACEUI_UNBOUND`, a success with an id): F11's view is made all the same, and an unbound Mark leaves the launcher's Pause the Mark. Two parts: the view's lines and the claims are pure, in every build; the connection is the Windows builds', tested under Wine against a fake GraceUI of our own and end to end with GraceUI's test build. Not yet: faces, panels for the surfaces, `on_present`, input | `Expected<OverlayHandle, ConnectError> Overlay::connect(OverlayCfg, UiModelReader /* C6 */, RenderFeedReader, UiEventSink)`, `input::request()`, `input::release()`, `input::epoch()`. Built: `find()` (T1), `Overlay* Overlay::connect(const graceui::Api&, const Options&, Report&)` (T1), then on T6 `banner(text)`, `badge(text)`, `world(flags)`, `step(status)` (the poll, the view's frame) and `register_mark()` |
 | `eldennet` | `DllMain`, the boot sequence, thread spawning, wiring, the effect shell; its foreign entries start with en-proto's `ffi_guard` | `extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) noexcept`, `extern "C" __declspec(dllexport) const std::uint32_t eldennet_instance_marker` |
 | `en-launcher` | The launcher program (§4) | CLI only |
 | `en-tools` | The `eldennet-engine` command (built: `render-prompt`, `chat`, `decide`, `probe`, `models`), with the developer tools as its subcommands (§12.3), the replay `GameBackend` | CLI only |
@@ -437,6 +476,7 @@ stateDiagram-v2
   WaitEngine --> Banner: 120 s since T1 start
   Register --> FirstTick
   Register --> Banner: register call faulted
+  Register --> Banner: a run of GraceUI's observer (S0-E, S4): no call
   FirstTick --> Ready: group check and phase-A tests pass
   FirstTick --> Inert: tests fail, or no tick in 30 s
   Inert --> Banner
@@ -451,17 +491,17 @@ stateDiagram-v2
 | Safety | Anti-cheat check (§5.3). Logging starts here, so a second copy never writes to the shared log; gate results buffered until now are flushed. The launcher's watch block is opened, or, under another loader, the watcher is started (`eldennet-launcher.exe --watch <pid>` beside the DLL) and its block awaited for 3 s (O71; §4.14) | — | Anti-cheat → banner |
 | Settings | Parse `settings.toml` (§11.5). If parsing fails, use the defaults and show a toast later. Answer the launcher's R1 request in the watch block, if any (§4.14) | — | `enabled = false` → Exit (Off). An R1 request to a build that is no probe build, or with EldenNet off → refused, Exit: nothing called |
 | WaitWindow | Poll every 100 ms for a visible top-level window owned by this PID | 120 s from T1 start | Banner (logged; drawn if the window appears later) |
-| Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69) | 30 s (the helper's bound) | A failed connect (`too_old`, `refused`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
-| ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88) | 30 s | No GraceUI → no banner can show; logged, with the launcher's hint |
+| Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69). *As built (part 12, 2026-11-20):* graceui-sys's look with its stop-if-absent rule, then `connect`, the F11 view with `debug.panel` and the Mark's hotkey when asked for; no face and no surface's panel yet, and the world-state claims are T6's to send (§1.2, §1.4; WHY§216, §218, §230) | 30 s (the helper's bound); at once when no GraceUI is installed or loaded (GraceUI D164) | A failed connect (`too_old`, `duplicate_id`, `inactive`, `refused`, `not_yet`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
+| ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88). *As built:* after the crash filter, as Connect does it; the banner is one notice in the warning tone, under EldenNet's key 1, sent by T6 (WHY§221) | 30 s; at once when absent | No GraceUI → no banner can show; logged, with the launcher's hint |
 | Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2), the readiness items among them: there is no separate readiness scan (WHY§191). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5); since the game writes the FD4 class objects' names at run time, the retries are also the wait for the names | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
 | WaitEngine | Poll every 100 ms until the task hub's instance (`CSTask`) is non-null. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
-| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4) | — | Fault caught by SEH → banner. Nothing else is retried |
+| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4). *As built (2026-11-20; WHY§249):* in a run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, read from the watch block), T1 stops at the start of Register, before the task is made or anything called (`register skipped=1 why=spike`), raises the `spike_run` banner ("Spike run: EldenNet makes no call into the game") and ends at L1; T6, T10, T11, the connect, F11's view and the recorder run on, and nothing waits for the task. Discovery's and WaitEngine's guarded reads have run before the stop. A probe build sets R1 aside in such a run | — | Fault caught by SEH → banner. Nothing else is retried |
 | R1 | A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
 | FirstTick | Wait for the first tick. On the game thread, the task checks that the group at the layout's index is named `ChrIns_PostPhysics` (§6.3), then runs the phase-A self-tests over ≤ 8 ticks (§6.7) | 30 s for the first tick (impl) | No tick or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
 | Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; another module exporting `eldennet_instance_marker` is noted as an idle second copy (§1.6); T1 exits | — | — |
 
-On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, raises the
-banner (L1) and ends.
+On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, connects
+(ConnectB), raises the banner (L1) and ends.
 
 **The crash filter** (O71; as built on 2026-11-16, WHY§172, §196). EldenNet's unhandled-exception filter is what lets the
 watcher record a crash with its place (§4.14).
@@ -540,7 +580,7 @@ listed apart in `--help`, and none changes anything unless given (§2.5 has no o
 | `--appid-method file\|env`, `--remove-after window\|exit\|never` | `launcher.toml`'s choices for one run (§4.5, pending S0-C) |
 | `--console` | The dev console: EldenNet's status from the watch block every second while it changes, and the development Mark (§4.14, O90) |
 | `--probe` | The derivation round's R1 (O89; §4.14): brings `--console`; refuses `--no-backup`, `--vanilla-offline` and `--spike`; a failed backup ends the launcher |
-| `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14) |
+| `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14). *2026-11-20 (WHY§249 to §251):* also `s0e`, `s0e_alone` and `s4`, the runs of GraceUI's observer (S0-E's present-hook half and S4), each one watched session in its own folder `spikes\<word>-<n>`, named to the game as `ELDENNET_SPIKE_DIR`; with `s0e` and `s4` EldenNet stops at Register and makes no call into the game (§3.2), `s0e_alone` loads no eldennet.dll (no `--dll`), and `--probe` goes with none of them (§4.14) |
 | `--no-dialogs [--yes]`, `--no-steam-check`, `--gal <dir>`, `--steam <dir>`, `--appdata <dir>` | For the tests and the harness: no task dialogs (an answer given by `--yes`), no Steam check, and other folders for `gal/`, Steam and `%APPDATA%` |
 
 Arguments that are no option (Proton's forwarded `%command%`, §4.9) are set aside and counted; everything after `--`
@@ -567,7 +607,7 @@ number).
 | No EAC bootstrapper | No process named `start_protected_game.exe` | E04 |
 | The game is not already running | No `eldenring.exe` process | E03 |
 | The DLL exists and is ours | The file exists, and its version resource reads `ProductName = EldenNet` | E08 |
-| GraceUI is installed and fits (GraceUI D83, D88) | `Game\GraceUI\graceui.toml` is readable and every listed file matches its size and SHA-256; its ABI major is one EldenNet speaks and its version at least EldenNet's floor. Otherwise the launcher installs the GraceUI release EldenNet carries, never over a newer one, and over an older major only while the carried release still serves that major (GraceUI D74); outside that window it installs only when the player confirms, after naming the mods GraceUI's last log shows connecting on the older major | E08's manner: what is missing or would stop working, and what to do |
+| GraceUI is installed and fits (GraceUI D83, D88) | `Game\GraceUI\graceui.toml` is readable and every listed file matches its size and SHA-256; its ABI major is one EldenNet speaks and its version at least EldenNet's floor. Otherwise the launcher installs the GraceUI release EldenNet carries, never over a newer one, and over an older major only while the carried release still serves that major (GraceUI D74); outside that window it installs only when the player confirms, after naming the mods GraceUI's last log shows connecting on the older major. *As built (part 12, 2026-11-20; WHY§219, §233):* checked after E08, only when EldenNet is to be loaded; our own reader of the `graceui.toml` GraceUI's `tools/release/manifest.py` writes (GraceUI D165): `graceui`, `abi` and `[files]` read, every listed file's size and SHA-256 (our own) checked in the order of their names, a name outside the folder refusing the file; `protocol`, `caps` and `released` accepted whatever they hold, never a failure; ABI major 1 and the floor 0.1.0 (en-proto's `graceui_pin.hpp`). Logged as `preflight graceui=ok\|no_folder\|no_manifest\|unreadable\|file_missing\|size_differs\|hash_differs\|abi_major\|too_old`. Installing the carried release waits until EldenNet carries one (GraceUI D53) | E12 (§4.7), in E08's manner: what is missing or would stop working, by its name inside GraceUI's folder (never a path), and what to do. *As built:* until there is a release to install, the game starts all the same, headless (§10.3); `--probe` and the spikes, headless by design (O90), only log it |
 | The game folder is writable | Only needed for the file method (§4.5) | E06 |
 | Other proxy DLLs | `dinput8.dll`, `winhttp.dll` or `dxgi.dll` next to `eldenring.exe` | Information only: "Other mods detected: …". Never blocks |
 
@@ -632,6 +672,10 @@ sequenceDiagram
 | E09 | "The game could not be started: %s (code %u)." |
 | E10 | "EldenNet could not be loaded into the game: the %s step failed (code %u). The game was closed again. Antivirus software sometimes blocks this step; see the install guide. Start the game without EldenNet instead?" |
 | E11 | "This launcher must run inside the game's Proton prefix. See the Proton notes in the install guide." |
+| E12 | "GraceUI, which shows EldenNet in the game, is missing or damaged: %s. The game starts, and EldenNet runs with nothing shown in the game. Copy the GraceUI folder from EldenNet's download into the game's folder again (see the install guide)." The `%s` names the problem in plain words, a file by its name inside GraceUI's folder and never a path: "there is no GraceUI folder beside the game", "graceui.dll does not match graceui.toml" (added with part 12, 2026-11-20; WHY§219) |
+
+*As built:* when one of E01 to E11 ends the launcher, its exit code is 10 plus the error's number; E12 is told and
+never ends it (WHY§219).
 
 ### 4.8 First-screen notices
 
@@ -719,7 +763,8 @@ the launcher builds with MinGW-w64 and clang-cl and the DLL with clang-cl). The 
 anything; under another loader, EldenNet's watcher (`--watch <pid>`) makes it. EldenNet writes T1's state, its status
 (the core's phase, level and gate flags, discovery's counts, snapshots, faults, trips, the task's p99) and, from its
 crash filter, the crash record (§3.2); the launcher writes the spike, a crash request (probe builds), R1's request and
-the Marks. Numbers and one module file name only. It lives in en-proto because the DLL may not depend on en-launcher and
+the Marks, which EldenNet writes instead once the launcher has handed them over (below). Numbers and one module file
+name only. It lives in en-proto because the DLL may not depend on en-launcher and
 the launcher on nothing of ours but en-gal's offline part (§2.3). Rejected: a pipe (a reader thread on both sides and a
 protocol), a file (no wake-up, and a crash leaves it half written), and the DLL writing the record itself (it must not
 allocate or do I/O in its filter).
@@ -740,6 +785,25 @@ milliseconds (QPC, the snapshots' own clock) into the block's ring of 32, from w
 the recording (§7.5), and kept in the session's record. It is retired when GraceUI's Mark (F11, MEM §6.3) arrives. The
 console polls every 200 ms, so a quick step can pass it unseen (WHY§200).
 
+**GraceUI's Mark and the hand-over** (as built with part 12, 2026-11-20; WHY§217, §230). *This changes the sentence
+above:* GraceUI's Mark is on Pause, not F11 (F11 opens the debug view), and the launcher's is not retired but handed
+over, and kept wherever GraceUI cannot take it. A system hotkey takes its key from the game's window, so a GraceUI
+hotkey on Pause could never fire beside the launcher's, and two writers to the ring would race. So the block's
+`marks.source` (en-proto's `MarkSource`: none, launcher, asked, eldennet; a reserved field given a meaning, the block's
+layout and version unchanged) passes the ring from one writer to the other:
+1. the launcher marks `launcher` once its hotkey is registered;
+2. EldenNet registers its GraceUI hotkey `mark` on Pause (when the console holds Pause, or at connect with
+   `debug.panel`) and, once it is bound, marks `asked`;
+3. the launcher unregisters its hotkey, takes the presses already queued as its last, and marks `eldennet`; with no
+   console holding Pause (a `debug.panel` session without one), EldenNet marks `eldennet` itself at once;
+4. from then on EldenNet alone stamps the Marks, numbered on in the same ring, when T6 takes each press from `poll`
+   (at most 100 ms after it), and the launcher reads each back into the session's record.
+
+The owner presses Pause either way. Without GraceUI nothing asks, so the launcher's Pause stays the Mark and R1's flow
+is unchanged; without a block, EldenNet keeps a ring of its own. When another mod's GraceUI hotkey took Pause first,
+EldenNet's registers unbound (`GRACEUI_UNBOUND`, a success with an id, GraceUI D164): it never asks, and the launcher's
+Pause stays the Mark. Until the hand-over, a press of EldenNet's hotkey is logged as not taken.
+
 **R1 with `--probe`** (O89; decided 2026-11-17, WHY§199). Before it loads anything, the launcher writes R1 into the
 block's `control.probe` (a spare field: the block's version is kept, and 0 means no request), and EldenNet answers there
 at Settings (§3.2): a probe build accepts and runs R1 with its `settings.toml`'s other `probe` settings, `register =
@@ -756,7 +820,14 @@ build (the block's answer says it, and covers EldenNet turned off).
 §16.1's pass rules (§12.3; WHY§201). `s0a --runs <n>` starts and loads per `--inject-at`, waits for T1 to stop (Ready,
 a banner or inert) or `--run-timeout`, then closes the game (§4.6); `s0d-crash` asks a probe build for a crash at Ready
 and checks that the watcher recorded it; `s0b`, `s0c` and `s0d` watch one session, `s0c` counting the game's TCP
-connections to anything but this PC every 2 s (the most at once; no address kept).
+connections to anything but this PC every 2 s (the most at once; no address kept). *2026-11-20 (WHY§249 to §251):*
+`s0e`, `s0e_alone` and `s4` are the runs of GraceUI's observer (S0-E's present-hook half and S4; roadmap S10.1.g),
+whose measurements are GraceUI's: one watched session each, passing when it did not crash. The launcher makes the
+run's folder, `spikes\<word>-<n>` (n one more than the word's highest there, names compared ignoring case), and names
+it to the game as `ELDENNET_SPIKE_DIR` in the environment block it always gives `CreateProcessW` (its own, with any
+leftover `ELDENNET_SPIKE_DIR`, in any letter case, left out of every other start). With `s0e` and `s4` EldenNet stops at Register and makes no call into the game
+(§3.2); `s0e_alone` loads no eldennet.dll at all; `--probe` goes with none of them. The words join schema 1 of the
+recording and the reports (§7.5).
 
 ## 5. The offline and multiplayer gate
 
@@ -1588,12 +1659,35 @@ struct RenderFeed {
   the name's length; no SteamID is read. The header's text-valued fields (`build`, `content_hash`, `seed_root`,
   `salt`) wait for the keyed hashes. About 3.3 KB a snapshot line at six characters, so about 47 MB an hour at 4 Hz
   unzipped; a full snapshot stays within a line's 256 KiB. `replay` steps it through the core again (§12.3).
+- **The recording's reader, as built** (part 11, 2026-11-20; WHY§225). en_shell's `read_recorded_line` rebuilds what
+  Augur reads of a snapshot from the numbers the recorder already writes: the characters, the Tarnished's combat
+  fields, the UI, the place, the clock, the boss bars and the flag frame. So `replay` and `golden` drive Augur from a
+  recording (`replay --events` writes its events in the golden files' form, §8.12), and the format is unchanged
+  (schema 1). What a recording never held stays empty: text look-ups' text, param rows' values, a region key, a
+  bearing without the camera. A route's inputs written as the DLL writes them replay to byte-identical events: 7
+  significant digits of each float are enough for every derivation on the synthetic routes. A recording of the
+  owner's game becomes one of C12's routes once it is redacted so that it may be committed (§8.12). *Also 2026-11-20
+  (WHY§251):* the observer's spike words (`s0e`, `s0e_alone`, `s4`) and the banner reason `spike_run` joined schema 1
+  of the recording, `rec_stats` and `spike`, not a schema 2: no reader outside the engine holds those words (DataPiler's
+  guard holds only `derive`'s), and a schema 2 would make every older reader refuse every recording; the rule that a
+  new word means a new schema holds from the first outside copy.
 
 ---
 
 ## 8. Augur, the event engine
 
 Augur turns snapshot diffs, flag edges, lifecycle changes, pipeline outputs and time into typed events with frozen audiences. It is pure: it does no I/O and reads no clock, and it runs first in every `Core::step` (DESIGN §6).
+
+*2026-11-20, as built (the first in-game build's part 11; WHY§222):* Augur runs straight after en-core's lifecycle
+slice in the same step, not before it, and before anything that consumes events. The slice (gate, phases, ladder)
+judges the input first; Augur then takes the same input, as `AugurInput{snapshot, life}` with the slice's changes as
+its Lifecycle facts (`LifeFact`), since en-augur lies below en-core and never sees `CoreInput`. Run first, it would see
+GateChanged, LoadingStarted and the rest a step late, so a loading screen's snapshot would be processed as a world and
+LoadingStarted's `ALL` interrupt would lag by up to 100 ms. Not chosen: the previous step's changes (a lag and an
+inversion of order), or Augur deriving the lifecycle itself (a second lifecycle machine beside en-core's). v0.1 has no
+subscriber: en-core takes the dispatched events into its outputs. en-augur is game-neutral: what the game's values
+mean (the hostile teams, the victory banners, a critical hit's throw states, the open world's areas) comes through
+`WorldFacts`, beside `AugurCtx`.
 
 ### 8.1 Module surface
 
@@ -1605,7 +1699,7 @@ class AugurCtx {
   virtual Subject classify(const Chr& chr) const = 0;
   virtual bool eval(PredicateId pred, const EvalScope& at) const = 0;  // compiled `requires` (DESIGN §10.4)
   virtual bool persona_may_perceive(PersonaId id) const = 0;           // alive and not muted at the current stage
-  // deterministic: blake3(seed_root ‖ ev ‖ salt)
+  // deterministic: blake3(seed_root ‖ ev ‖ salt); as built in v0.1, splitmix64's finaliser (below)
   virtual std::uint64_t rng(EventId ev, std::uint32_t salt) const = 0;
  protected:
   ~AugurCtx() = default;
@@ -1621,6 +1715,12 @@ class Augur {
   CooldownTable cooldowns_; DedupTable dedup_; std::vector<std::unique_ptr<EventSource>> sources_;
 };
 ```
+
+*2026-11-20, as built (part 11; WHY§223):* `AugurCtx::rng` is en-core's `AugurView::rng` (`src/en-core/src/core.cpp`,
+declared in `en/core/core.hpp`), splitmix64's finaliser over the seed root, the event's step and index, and the salt:
+deterministic and the same in every build. The seed root is 0 until the store's playthrough key exists, and BLAKE3
+replaces the finaliser with it; no v0.1 rule draws from it. en-augur links no BLAKE3, which is en-launcher's (§8.12's
+FNV-1a hashes).
 
 ### 8.2 Sources
 
@@ -1707,6 +1807,27 @@ For one `(rule, subject)`, let `x₀, x₁, …` be the signal's values at the p
    - **T:** the event is dispatched and never stored.
 5. **Confidence:** the rule's `confidence`, or the branch value for `engagement`, or `1.0` for a verified catalogue flag and `0.8` for an unverified one (DESIGN §6.5).
 
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223; `src/en-augur/README.md` holds the list in full):
+- **Time.** Detectors sample at each processed snapshot's `mono_ms`, and events carry the step's `now`. The Timer
+  source fires once per whole second crossed (at most 60 at once); in a replay, whose steps are the recording's inputs
+  (ticks are not recorded), a deferred emission lands on the first input past its second, the same in every replay.
+- **First samples.** The rule above holds for every detector; the engagement machine is none, so a hostile first seen
+  within 8 m engages on that snapshot (§8.7).
+- **Three more forms**, each the smallest reading of a rule the catalogue states: `changed_stable` with `to`, the
+  values that may fire (the change is tracked either way; PlayerDied's banner); `engagement` with `on = "engaged" |
+  "disengaged"`, the machine's transitions; and `fact` on the signal `lifecycle`, one of the Lifecycle source's facts
+  (`data_ready`, `playthrough_ready`, `loading_started`, `loading_ended`, `title_reached`, `gate_changed`,
+  `group_tripped`, `ladder_changed`), so that every event, the lifecycle's included, comes from a rule file.
+- **Windows.** `drop_over_window`'s base resets on each fire, so a longer window counts nothing twice (Struck's 1 s,
+  §8.5).
+- **Debounce** lives in the detector, as the first modifier. A candidate waits on through a loading screen, so a boss
+  fight's end still matures there after a death.
+- **K.** A fire merges only into an entry of the same rule; a fire of another rule with the same key replaces the entry
+  (Engaged and Disengaged share `eng:a:b`). An entry's audience is frozen with its event's. The K store expires at the
+  start of every step and holds at most 512; the dedup and cooldown tables keep at most 4,096 keys each, the oldest
+  going first.
+- **Interrupts** are the kind's (§8.8's table, in code, with Engaged's conditions); a rule's `interrupts` add to them.
+
 ### 8.5 Rule files
 
 Rule files live in `content/eldenring/augur/*.toml`, with the schema of DESIGN §6.3. Two original examples:
@@ -1752,6 +1873,34 @@ priority = 5
 - Bounds: `debounce_ms ≤ 60,000`, `merge_ms ≤ 30,000`, `ttl_s ≤ 600`, `cooldown_s ≤ 3,600`, `dedup_s ≤ 86,400`; `confidence` in (0, 1].
 - Each file is ≤ 64 KB; the total is ≤ 256 rules (impl).
 - User rule files load only when `augur.allow_custom_rules = true`, which is off in v1 (DESIGN §6.3).
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223):
+- **The shipped set**: 25 rules of our own in `content/eldenring/augur/{world,combat,lifecycle}.toml`, built into
+  en-core (v0.1 has no content loader). They emit v0.1's 23 kinds: PlaceEntered, BossFightStarted and Ended,
+  NativeTalkStarted and Ended (no persona), PlayerDied (three rules, one event), MountChanged, Struck, LowHp, Healed,
+  Engaged and Disengaged (the Tarnished's pairs), AllyDied, CritLanded, JourneyChanged and the eight lifecycle events.
+  Every subject classifies as Mute or Player until personas exist (v0.2), so every rule that needs a persona or a card
+  waits; a rule file naming a kind that waits is refused at load with the version and source it waits for.
+- **The schema's additions**: `subjects.in_combat = true` (only while the subject is in combat: the Tarnished by
+  §8.7's combat state, a character engaged at 0.6 or more; Healed's "any combatant"), `changed_stable`'s `to`,
+  `engagement`'s `on` and the `fact` detector's `value` (§8.4); `payload` may be left out when one builder makes the
+  kind (`boss_outcome` must be named: it defers).
+- **The signals**: `crit_by_player`, `native_talk` (the talk popup or the talk camera) and `lifecycle` (the facts) join
+  §8.3's registry. `clock_bucket` is not registered (the seven words' hours are not set down), nor `flag:<alias>`
+  (v0.2); `team_turned`, `crouching`, `invisible` and `idle_due` are registered and never sampled until their spikes
+  verify them.
+- **Struck's window is 1 s**, not the 300 ms of the example above, so a hit across a dropped snapshot still fires
+  once.
+- **The boss outcome**: `fight_id` is the session's ordinal of the fight, not the start's EventId (which is not given
+  yet when its key is made). Victory's evidence is a victory banner at any snapshot since the fight began (it may show
+  before the bars go), Death's a PlayerDied emitted since; the earlier wins; Left when 10 s pass from the falling edge
+  without either. A boss flag's evidence waits for the flag catalogue (v0.2).
+- **Errors** are `RuleError`s (file, line, problem; a toast's text); any error refuses the whole set, so a reload keeps
+  the old one (`Core::load_rules`). The build's own bounds beside the ones above: a window ≤ 10 s, `stable_ms` and
+  `dwell_ms` ≤ 60 s, an id ≤ 48 bytes, a key ≤ 96 bytes, `requires` ≤ 1 KB, at most 64 errors reported.
+- **`requires`** compiles through en-core's predicates: v0.1 evaluates `true`, `false`, `!`, `&&`, `||`, parentheses
+  and comparisons of `runes` and `journey`; `world()` and `knows()` are refused in Augur for good, and `flag()`,
+  `boss()`, `stage()` and `region()` until the flag catalogue and `regions.toml` exist.
 
 ### 8.6 Event catalogue (every v1 event of DESIGN §6.5)
 
@@ -1866,6 +2015,26 @@ stateDiagram-v2
   until it is no longer concealed from V, so standing up near V greets as arriving does, and the scheduler refuses, at
   request and at display, an own-initiative line from V addressed to the Tarnished (DESIGN §9.4). A conversation the
   Tarnished opens is untouched.
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223):
+- **Engagement** only with a live character on a hostile live team, and a Tarnished present; NPC pairs wait for S7
+  (v0.4). A stronger condition raises the confidence and re-emits only when it crosses 0.6. `LockClosing` compares the
+  distance with the oldest sample within the last 2 s. After a Timeout, `Near` and lock-on start an engagement again
+  only once neither holds, so a hostile standing near does not engage every 12 s; a hit always does. A character lost
+  (absent 2 s), no longer hostile, or with no Tarnished ends its engagement silently, as a death does. `fled` reads the
+  Tarnished's distance over the last 5 s.
+- **Squads**: the same side is the same live team (no cards yet); "a member engaged within the last 10 s" is a member
+  engaged now whose last exchange, lock or start is within 10 s. The Tarnished's side holds the Tarnished alone until
+  S7 shows which live teams fight beside it.
+- **Combat state**: a signal at a snapshot is the Tarnished's HP dropping, a character hit by the Tarnished, a critical
+  hit's throw states, or an engagement at 0.6 or more.
+- **Struck's attacker**: for a character struck, the attacker is read only when it is the Tarnished (unseen beyond
+  20 m); another character's is unknown until S7. For the Tarnished struck, its `last_hit_by` names the attacker if
+  that is a present character within 20 m, else the hit is unseen. An unseen hit names no attacker (`att` empty, its
+  key `unseen`; an unknown one's `none`).
+- **Loading**: on `LoadingStarted`, engagements, squads and the K store are cleared silently, the characters
+  forgotten and `enter_radius` re-armed; the Tarnished's and the world's detectors carry on (a fast travel still enters
+  its place). Trackers are dropped 2 s after a character is last seen, at most 256 at once.
 
 ### 8.8 Audience and interrupts
 
@@ -2012,6 +2181,39 @@ prints its seed):
 - Snapshot loss of 50% at random: the golden events match the dense run, except for documented timing differences.
 - Net saturation: pool jobs are dropped first, and dialogue survives.
 - FIFO overflow: T is dropped before K, and P never.
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223 to §225; `src/en-augur/README.md`, `src/en-tools/README.md`):
+- **The golden files' form.** A header (`golden`, `route`, `source`, `rules_hash`, `events`), then one event a line with
+  `seq` (step, index), `t`, `t_play`, `kind`, `class`, `rule`, `source`, `subject`, `object`, `key`, `conf`,
+  `audience`, `count`, `merged`, `interrupts` and `payload`, numbers to three decimals, handles renamed as above. A
+  rule set's hash and a golden file's are FNV-1a 64 (`fnv1a64:<hex>`), not BLAKE3, which is en-launcher's and which
+  neither en-augur nor en-tools links. `eldennet-engine golden [check|update] <route.scn | recording>` runs the input
+  through en-core and Augur; `check` prints our own diff (`@@ golden line N, run line N @@`) and then needs a line in
+  `tests/golden/CHANGES.md` naming the route and the file's hash; `update` writes beside the file and renames, prints
+  the line CHANGES.md needs, and writes nothing when an expectation fails. CTest's `en_golden.<route>` checks each
+  route.
+- **The routes.** The three shipped routes are synthetic scenarios of ours (a camp skirmish, three boss encounters, a
+  road with a co-op visit). C12's "3 recorded routes" wait for three recordings of the owner's game, redacted so they
+  may be committed, each made a route with `golden update <recording>` (§7.5; WHY§225).
+- **The DSL in our own form** for what v0.1 can say: `route <name>`, `seed <n>`, `step <ms>` (the snapshot period, 250
+  by default), `end <ms>`, then `at <ms> <verb> …`, applied at the first snapshot at or after its time. Its verbs:
+  `spawn`, `despawn`, `move`, `hit`, `heal`, `kill`, `lock`, `unlock`, `throw`, `ride`, `place`, `banner`, `talk`,
+  `ng`, `boss`, `session`, `title`, `load`, `wait` and `drop_snapshots`; `set_flag` (v0.2), `say` (the Pipeline source)
+  and `expect bark` (v0.4) are refused with the version they wait for, so the example above runs once they exist. Its
+  expectations: `expect event <Kind> [field=value …] [within a..b]`, `expect no`, `expect count <n>` and `expect
+  audience <Kind> … = [ids]`.
+- **The properties** as above, gaps also checking that a count across a gap is counted once, and determinism as
+  byte-identical golden text over 10 runs, with and without a seeded loss.
+- **50% snapshot loss** (12 seeds a route; WHY§224): no event is invented and none fires earlier; every event of a
+  lasting state (the lifecycle's, places, boss fights, deaths, the mount, the journey, native talk, AllyDied) is there
+  with its payload, at most two gaps and a second later. The "documented timing differences" are these: per-hit
+  events (the hits of a dropped snapshot reach the next kept one as one drop, so Struck's merges and `hard` change),
+  states briefer than the gap they fall in (a near pass, a lock-on before the closing, a heal within 1 s, a critical
+  hit's two snapshots, a low HP the next hit kills), NativeTalkEnded's `held_ms`, and the gate, whose 5 s hold starts
+  again after a gap over 1 s (§5.1), so it may open late or never in a lossy run.
+- **Elsewhere**: net saturation is en-llm's test (a full queue gives a pool job's place away, a memory job is requeued,
+  a reply never); a stalled store is tested on `PersistQueue`, which keeps the store requests' policy until the store
+  exists (v0.3); on FIFO overflow the newest T event goes first, then the newest K.
 
 ---
 
@@ -2324,7 +2526,8 @@ features = { chat = true, barks = true, speak_up = true, callout = true, memory 
 autonomy = { enabled = true, period_s = 120 }           # 30–1800; enabled gates the autonomy motive only, the tick still runs (DESIGN §9.8); free-tier presets write enabled = false
 range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 10–40
 pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
-# NPC §10.7. `scale` and the menu's options are GraceUI's (GraceUI D84, D115), and EldenNet's text follows the scale;
+# NPC §10.7. `scale` and the menu's options are GraceUI's (GraceUI D84, D115), and EldenNet's text follows the scale
+# over GraceUI's default (O93: designed sizes at the default, 1.25 since GraceUI D177);
 # `show_world` and `home_cards` (Home's cards, their order and Setup's place) are EldenNet's (PAGES §4.5).
 ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false, show_world = true }
 pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
@@ -2379,6 +2582,11 @@ reactions = { saw_kill = false }
   value) in the log. `probe` in a release build is refused. `ELDENNET_APPDATA` in the environment stands for
   `%APPDATA%` (the launcher's `--appdata` for the DLL): only where EldenNet's files go, never what it reads of the game.
   Every player's file passes en-proto's TOML pre-check before toml++ reads it (WHY§163).
+  *2026-11-20, with part 12 (WHY§218, §230):* `overlay.connect` is read and on by default, `false` skipping Connect
+  (headless); `debug.panel` is read, off by default, and alone makes F11's view, its panel, atlas and hotkey, so that
+  without it F11 reaches the game (PAGES SP8); `debug.record_redact_text` is accepted as a boolean and not read until
+  the keyed hashes (S10.2.d). `hotkeys` stays a table not read yet: EldenNet registers F11 (`debug-view`) and Pause
+  (`mark`, §4.14) as its defaults, and a binding is the player's on GraceUI's Hotkeys page once it exists.
 
 ```toml
 # %APPDATA%\EldenNet\config\secrets.toml (keys only)
@@ -2577,6 +2785,20 @@ the bench runs (WHY§99). Its rule takes the candidate both searches ranked firs
 | `options` | Linux: the release build's CMake cache, and `eldennet.dll`'s link graph and symbols | `EN_PROBE`, `EN_HOOKS`, `EN_ACTIONS` or `EN_FREEZE` on; MinHook or an ImGui renderer backend linked at all, since GraceUI's G15 (GraceUI's release job checks its own pinned Dear ImGui and MinHook) |
 | `build-release` | Two independent runners: clang-cl and lld-link with the pinned LLVM and xwin SDK and CRT, `SOURCE_DATE_EPOCH`, path prefixes mapped, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
 | `sign` | Every tester build from v0.1, and release tags | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
+
+**The DLL's checks, as built** (the first in-game build, 2026-11-16, and part 12, 2026-11-20; WHY§195, §220). In the
+clang-cl build, CTest's `eldennet_dll_checks` (`src/eldennet/tests/dll_checks.py`) holds the `greps` and the `options`
+stage's link checks for `eldennet.dll`:
+- the greps on `src/eldennet`, and all but DllMain's on `src/en-overlay`, which the DLL links; every module the DLL
+  links keeps `en_dll_module`'s rules (no dynamic initialiser and no exit-time destructor, Clang's warnings as errors);
+- the release and probe DLLs read with `llvm-objdump`: `eldennet_instance_marker` their only export, and their imports
+  within the reviewed `src/eldennet/tests/imports.allow`, kernel32 and user32 alone: no network (en-llm's WinHTTP is
+  loaded by its full path, later than v0.1), no hook API, nothing that reaches into another process. A function a
+  build adds is reviewed into the list before the check passes. Part 12 added graceui-sys's `GetTickCount64` (its
+  look's bound) and `ReadConsoleW`, which the static C runtime's `sscanf` brings with Dear ImGui's core (its number
+  parsing; no console is read). Dear ImGui's core is compiled with `/Zc:threadSafeInit-`, on that library alone (one
+  thread at a time uses its context), so the runtime's thread-safe statics bring no SRW lock or condition variable
+  import. The probe build adds its own heap and its walk (`HeapCreate`, `HeapLock`, `HeapWalk`, `HeapUnlock`; spike.6).
 
 ### 12.2 Test types
 

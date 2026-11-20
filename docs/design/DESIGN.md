@@ -260,7 +260,7 @@ class GameBackend {                        // en-proto; implemented by en-gal an
 
 ### 2.4 Functional core
 
-`Core::step(input, now) -> Outputs` is pure. Time is an input. Commands, the UI model, LLM requests and DB requests are outputs, and their results come back as inputs. Debounce, cooldowns, expiry, scheduling and conversation state therefore replay bit for bit (P1 §2.4, J2 G1). Augur runs first in each step (§6.6).
+`Core::step(input, now) -> Outputs` is pure. Time is an input. Commands, the UI model, LLM requests and DB requests are outputs, and their results come back as inputs. Debounce, cooldowns, expiry, scheduling and conversation state therefore replay bit for bit (P1 §2.4, J2 G1). Augur runs first in each step (§6.6). *2026-11-20, as built (WHY§222; ARCH §8):* Augur runs straight after en-core's lifecycle slice (the gate, the phases, the ladder) in the same step, and before anything that consumes events, so that the lifecycle's events and a loading screen are seen in the step they happen.
 
 ### 2.5 Lifecycle
 
@@ -1306,7 +1306,7 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
 - **Conversable:** alive; the stage allows chat; the live team is not hostile; the +1/+2/+3 bits are clear where verified; not attacked by the player in the last 30 s; no native talk within 8 m. A failure gives a status toast, never generated speech.
 - **Safe context:** the player is alive and not riding; no boss fight; not in combat; no engaged (≥ 0.6) hostile ≤ 25 m and no hostile at all ≤ 12 m; `hud == Default`. **Sheltered** places waive the two hostile-distance checks (never the boss and combat checks) and let rule 5 of the target order (nearest persona) reach 8 m instead of 5 m: the Roundtable (SpEffect 9621, ER05 §3) and resting at a grace (flag 9000, once S6 verifies it). In practice resting adds nothing before S3: the grace menu very likely reads as `PopupMenu`, and the fail-closed rule of §8.7 then blocks chat, so the player stands up first. After S3, resting chat is allowed only if the observer tells the grace menu apart from native talk (NPC §14 item 1). There is **no world freeze** (O9).
 - **Input capture** (GraceUI's since its G15; the chat box asks for input with `request_input` and gives it back with `release_input`, and GraceUI applies these rules to every input holder, GraceUI D77):
-  - one capture state; DirectInput keyboard and mouse buffers zeroed; XInput neutral; ImGui draws its own cursor;
+  - one capture state; DirectInput keyboard and mouse buffers zeroed; XInput neutral; ImGui draws its own cursor (*2026-11-20:* GraceUI draws its own pointer for every holder that takes the mouse, its D178; EldenNet's headless Dear ImGui draws none);
   - keys held at close stay masked until released;
   - capture is released on Esc, on focus loss, after 2 s without an overlay render, on danger, on loading and on any core fault (P2 R7); the player's own exit (a second menu-key press, or Escape held 1 s) ends any holder;
   - no game-code mouse hook (J1 #14). If S4 shows camera drift, the answer is "chat only while standing still".
@@ -2068,7 +2068,12 @@ Conformance tests check three things: a trailer never displays; with `actions` o
   - the **Mark**, a tester's key press stamped on the recording's clock when something happens in game, for the
     spikes and captures that check a recording against what was seen (MEM §6.3): on F11 through GraceUI, and until
     GraceUI's Mark arrives a development Mark in the launcher, Pause registered as a system hotkey outside the game,
-    with no hook, then retired (O90; ARCH §4.14). The same Mark times R1's one call into the game (O89);
+    with no hook, then retired (O90; ARCH §4.14). The same Mark times R1's one call into the game (O89).
+    *2026-11-20, as built (WHY§217, §230):* the Mark is on Pause in both, and F11 opens the debug view. EldenNet
+    registers Pause as one of its GraceUI hotkeys and, once it is bound, the launcher lets its own Pause go and hands
+    the Marks over through the watch block, so one writer stamps them at a time and the tester presses Pause either
+    way. The launcher's Mark is kept, not retired, wherever GraceUI cannot take it: without GraceUI (R1 among such
+    runs), or when another mod's GraceUI hotkey holds Pause;
   - the spikes' tools: the launcher's development options (`--spike`, `--console`, `--probe`; ARCH §4.1) and
     `eldennet-engine rec-stats`, `replay` and `spike-report` over its numbers-only logs and recordings (ARCH §12.3);
   - rotating logs (our own logger);
@@ -2160,6 +2165,10 @@ without GraceUI once S0 passes, on the headless DLL and its recordings. S6 and S
 when something happens in game, to check the recording against: until GraceUI's Mark on F11 arrives they use the
 launcher's development Mark, Pause registered as a system hotkey outside the game with no hook, stamped on the
 recording's clock, then retired (ARCH §4.14). S0-E's present-hook half stays on GraceUI's 0.1 Host.
+*2026-11-20, as built (WHY§217, §230; O90's later note):* GraceUI's Mark is on Pause too, not F11, which opens the debug
+view. Once EldenNet's GraceUI hotkey on Pause is bound, the launcher lets its own Pause go and hands the Marks over
+through the watch block. The launcher's Mark is not retired: it stays the Mark without GraceUI, R1 among such runs,
+and when another mod's GraceUI hotkey holds Pause.
 
 **The third-party rows** (O91, decided by the owner on 2026-11-16). The first S0 runs cover what EldenNet's build
 drives by itself: early and late load (the launcher's `--inject-at`), and our own stand-in DLL with a vectored handler
