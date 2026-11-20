@@ -11,6 +11,8 @@
 //   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
 //   mode with anti-cheat), the banner, end.
 //   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp).
+//   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Register with the spike_run banner and
+//   calls nothing; R1 is set aside in such a run.
 #include <cstring>
 
 #include "dll.hpp"
@@ -253,8 +255,13 @@ void run(HMODULE module) {
 
 #if EN_PROBE
   if (s.settings.probe.round == en::shell::ProbeRound::R1) {
-    run_r1(s, gated);
-    return;
+    // R1's one call (at the Mark) never joins an observer's run: settings.toml's round is set aside, and the start
+    // goes on to its stop at Register (the launcher refuses --probe with these spikes).
+    if (!w::observer_run(block::spike())) {
+      run_r1(s, gated);
+      return;
+    }
+    log(Line("probe").word("round", "r1").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
   }
 #endif
 
@@ -302,6 +309,13 @@ void run(HMODULE module) {
 
   // ---- Register: the one call into the game ----
   enter(w::InitState::Register);
+  // A run of GraceUI's observer (S0-E, S4; watch.hpp's observer_run): no call into the game. T1 stops here at a
+  // banner, as a stopped start does: T6, T10 and T11, the connect to GraceUI with the banner's notice and F11's view,
+  // and the recorder stay; nothing waits for the task, which is never made.
+  if (w::observer_run(block::spike())) {
+    log(Line("register").flag("skipped", true).word("why", "spike").word("spike", w::to_string(block::spike())));
+    return stop_at(s, BannerReason::SpikeRun, w::to_string(block::spike()));
+  }
   // The stack table made again, without T1's own stack: threads that ended since the first scan (the launcher's
   // loading thread), and T1 itself once it ends at Ready, leave memory the game reuses for its own objects, which a
   // stale range would refuse as a stack (WHY§190).
