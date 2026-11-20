@@ -1470,3 +1470,431 @@ TEST_CASE("probe: a control diff before the call marks the words that change on 
   CHECK(text->find("\"in_control\": true") != std::string::npos);
   CHECK(text->find("\"hub_diff_control\": {") != std::string::npos);
 }
+
+// ---- Spike.9 (WHY§248): the group's function, its reads of our task and of its entry, tagged pointers, classes ----
+
+namespace {
+
+// The tail function of R1 run 8's reading (32 bytes, 10 instructions): the group bounded by 168, the entry loaded from
+// [singleton + group*8 + 8] and tested for null (0 answered), else the task moved into rdx and a direct jump, 800
+// bytes on, to the group's own function.
+std::vector<std::byte> direct_tail() {
+  return code_of({
+      0x81, 0xFA, 0xA8, 0x00, 0x00, 0x00,  //  0: cmp edx, 168
+      0x77, 0x15,                          //  6: ja 29
+      0x48, 0x63, 0xC2,                    //  8: movsxd rax, edx
+      0x48, 0x8B, 0x4C, 0xC1, 0x08,        // 11: mov rcx, [rcx + rax*8 + 8]
+      0x48, 0x85, 0xC9,                    // 16: test rcx, rcx
+      0x74, 0x08,                          // 19: je 29
+      0x4C, 0x89, 0xC2,                    // 21: mov rdx, r8          (the task)
+      0xE9, 0x03, 0x03, 0x00, 0x00,        // 24: jmp 800              (the group's function)
+      0x32, 0xC0,                          // 29: xor al, al
+      0xC3,                                // 31: ret
+  });
+}
+constexpr std::uint32_t kGroupRva = kTailRva + 800;
+
+// A group's function of our own (the entry in rcx, the task in rdx): it keeps the task's field at +0x10 on the entry,
+// reads the task's kind at +0x20 and the entry's count at +0x0C, keeps the task in the entry's list under a high-bit
+// tag while the count is below 8, then calls on with the entry, the task and whether the kind is 0x51; it answers 1.
+std::vector<std::byte> group_function() {
+  return code_of({
+      0x53,                                // 0: push rbx
+      0x56,                                // 1: push rsi
+      0x48, 0x83, 0xEC, 0x28,              // 2: sub rsp, 0x28
+      0x48, 0x89, 0xCB,                    // 6: mov rbx, rcx            (the entry)
+      0x48, 0x89, 0xD6,                    // 9: mov rsi, rdx            (the task)
+      0x4C, 0x8B, 0x52, 0x10,              // 12: mov r10, [rdx + 0x10]   (a task read)
+      0x4C, 0x89, 0x53, 0x18,              // 16: mov [rbx + 0x18], r10   (kept on the entry)
+      0x44, 0x8B, 0x5A, 0x20,              // 20: mov r11d, [rdx + 0x20]  (a task read)
+      0x8B, 0x43, 0x0C,                    // 24: mov eax, [rbx + 0x0C]   (an entry read)
+      0x83, 0xF8, 0x08,                    // 27: cmp eax, 8
+      0x73, 0x1A,                          // 30: jae 58
+      0x48, 0x89, 0xF1,                    // 32: mov rcx, rsi
+      0x48, 0xBA, 0, 0, 0, 0, 0, 0, 0x01, 0x7E,  // 35: mov rdx, 0x7E01000000000000
+      0x48, 0x09, 0xD1,                    // 45: or rcx, rdx            (the task, tagged)
+      0x48, 0x89, 0x4C, 0xC3, 0x20,        // 48: mov [rbx + rax*8 + 0x20], rcx
+      0xFF, 0xC0,                          // 53: inc eax
+      0x89, 0x43, 0x0C,                    // 55: mov [rbx + 0x0C], eax
+      0x45, 0x31, 0xC0,                    // 58: xor r8d, r8d
+      0x41, 0x83, 0xFB, 0x51,              // 61: cmp r11d, 0x51
+      0x41, 0x0F, 0x94, 0xC0,              // 65: sete r8b
+      0x48, 0x89, 0xD9,                    // 69: mov rcx, rbx
+      0x48, 0x89, 0xF2,                    // 72: mov rdx, rsi
+      0xE8, 0x00, 0x00, 0x00, 0x00,        // 75: call 80
+      0xB8, 0x01, 0x00, 0x00, 0x00,        // 80: mov eax, 1
+      0x48, 0x83, 0xC4, 0x28,              // 85: add rsp, 0x28
+      0x5E,                                // 89: pop rsi
+      0x5B,                                // 90: pop rbx
+      0xC3,                                // 91: ret
+  });
+}
+
+const probe::FieldUse* use_of(const probe::FieldRead& r, probe::UseKind k) {
+  for (const probe::FieldUse& u : r.uses) {
+    if (u.kind == k) return &u;
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+TEST_CASE("probe: the tail function's direct jump leads to the group's function, with the entry and the task in") {
+  const std::vector<std::byte> wrapper_code = lazy_wrapper();
+  const probe::CalleeCode wrapper =
+      probe::summarise_callee(wrapper_code, kWrapperRva, static_cast<std::uint32_t>(wrapper_code.size()));
+  const std::vector<std::byte> code = direct_tail();
+  const probe::CalleeCode t = probe::summarise_callee(code, kTailRva, 0, probe::entry_at(wrapper.calls[2]), 8);
+  CHECK(t.bytes == 32);
+  CHECK(t.instructions == 10);
+  // With no extent, the jump past the code decoded is a tail jump: its target, its arguments.
+  REQUIRE(t.calls.size() == 1);
+  const probe::CalleeCall& j = t.calls[0];
+  CHECK(j.form == probe::CallForm::Tail);
+  CHECK(j.offset == 24);
+  CHECK(j.target == std::optional<std::uint32_t>(kGroupRva));
+  CHECK(j.reached);
+  CHECK(passes(j, 2, 8));  // the task, moved into rdx
+  CHECK(passes(j, 8, 8));
+  const probe::PassedSource* rcx = passed_source(j, 1);
+  REQUIRE(rcx != nullptr);
+  CHECK(rcx->source.kind == probe::Source::Kind::Memory);
+  CHECK(rcx->source.disp == 8);
+  CHECK(t.task_read_count == 0);  // the tail function reads nothing of the task
+  // The table's shape: run 7's, its end a direct jump with the entry in rcx.
+  const std::vector<probe::InnerCallee> inner = {probe::InnerCallee{kTailRva, 70, true, t, 1, 0, {}}};
+  const probe::Table m = probe::match_table(wrapper, inner, 2);
+  CHECK(m.matched);
+  CHECK(m.disp == 8);
+  CHECK(m.bound == 168);
+  CHECK_FALSE(m.slot_disp.has_value());
+  CHECK(m.target == std::optional<std::uint32_t>(kGroupRva));
+  CHECK(m.site == std::optional<std::uint32_t>(24));
+  // The group's function's entry: rcx the group's entry, rdx and r8 the task.
+  const probe::EntryState e = probe::group_entry_at(j);
+  CHECK(e[0].entry);
+  CHECK(e[0].from == 0);
+  CHECK(e[1].from == 8);
+  CHECK_FALSE(e[1].entry);
+  CHECK(e[2].from == 8);
+
+  const std::vector<std::byte> gcode = group_function();
+  const probe::CalleeCode g = probe::summarise_callee(gcode, kGroupRva, static_cast<std::uint32_t>(gcode.size()), e, 8);
+  CHECK_FALSE(g.modelled_to.has_value());
+  // Both reads of the task, each with its use: one stored on the entry, one compared with a small immediate.
+  CHECK(g.task_read_count == 2);
+  REQUIRE(g.task_reads.size() == 2);
+  const probe::FieldRead& seen = g.task_reads[0];
+  CHECK(seen.offset == 12);
+  CHECK(seen.disp == 0x10);
+  CHECK(seen.width == 8);
+  CHECK(seen.base == 2);
+  CHECK(seen.base_src.kind == probe::Source::Kind::Argument);
+  CHECK(seen.base_src.from == 8);
+  CHECK_FALSE(seen.direct);
+  REQUIRE(seen.uses.size() == 1);
+  CHECK(seen.uses[0].kind == probe::UseKind::Stored);
+  CHECK(seen.uses[0].offset == 16);
+  CHECK(seen.uses[0].base == std::optional<std::uint8_t>(3));
+  REQUIRE(seen.uses[0].base_src.has_value());
+  CHECK(seen.uses[0].base_src->kind == probe::Source::Kind::Entry);  // the group's entry, kept in rbx
+  CHECK(seen.uses[0].base_src->from == 1);
+  CHECK(seen.uses[0].disp == 0x18);
+  CHECK(seen.uses[0].width == 8);
+  const probe::FieldRead& kind = g.task_reads[1];
+  CHECK(kind.offset == 20);
+  CHECK(kind.disp == 0x20);
+  CHECK(kind.width == 4);
+  const probe::FieldUse* cmp = use_of(kind, probe::UseKind::Compared);
+  REQUIRE(cmp != nullptr);
+  CHECK(cmp->offset == 61);
+  CHECK(cmp->imm == std::optional<std::uint64_t>(0x51));
+  // The entry's count: read, compared with the list's length.
+  CHECK(g.entry_read_count == 1);
+  REQUIRE(g.entry_reads.size() == 1);
+  CHECK(g.entry_reads[0].offset == 24);
+  CHECK(g.entry_reads[0].disp == 0x0C);
+  CHECK(g.entry_reads[0].base_src.kind == probe::Source::Kind::Entry);
+  const probe::FieldUse* count = use_of(g.entry_reads[0], probe::UseKind::Compared);
+  REQUIRE(count != nullptr);
+  CHECK(count->imm == std::optional<std::uint64_t>(8));
+  // The stores: the field kept on the entry, and the task itself in the entry's list, tagged.
+  CHECK(g.task_store_count == 2);
+  REQUIRE(g.task_stores.size() == 2);
+  CHECK(g.task_stores[0].offset == 16);
+  CHECK(g.task_stores[0].value.kind == probe::Source::Kind::Memory);
+  CHECK(g.task_stores[0].value.disp == 0x10);
+  const probe::TaskStore& tagged = g.task_stores[1];
+  CHECK(tagged.offset == 48);
+  CHECK(tagged.via == 1);
+  CHECK(tagged.base == std::optional<std::uint8_t>(3));
+  REQUIRE(tagged.base_src.has_value());
+  CHECK(tagged.base_src->kind == probe::Source::Kind::Entry);
+  CHECK(tagged.index == std::optional<std::uint8_t>(0));
+  CHECK(tagged.disp == 0x20);
+  CHECK(tagged.width == 8);
+  CHECK(tagged.value.kind == probe::Source::Kind::Modified);
+  CHECK(tagged.value.op == probe::InsnClass::Or);
+  CHECK(tagged.value.at == 45);
+  CHECK(tagged.value.by == std::optional<std::uint8_t>(2));  // by a register: the tag, a large immediate before it
+  REQUIRE(tagged.value.origin.size() == 1);
+  CHECK(tagged.value.origin[0].kind == probe::Source::Kind::Argument);
+  CHECK(tagged.value.origin[0].from == 8);
+  // Its call: the entry in rcx, the task in rdx; one level further the entry is still the entry.
+  REQUIRE(g.calls.size() == 1);
+  CHECK(passes(g.calls[0], 2, 8));
+  const probe::PassedSource* entry = passed_source(g.calls[0], 1);
+  REQUIRE(entry != nullptr);
+  CHECK(entry->source.kind == probe::Source::Kind::Entry);
+  const probe::EntryState next = probe::entry_at(g.calls[0], e);
+  CHECK(next[0].entry);
+  CHECK(next[1].from == 8);
+  CHECK_FALSE(next[2].entry);  // r8: whether the kind matched, nothing followed
+  // Without a task followed, nothing is read: the summary is spike.8's.
+  const probe::CalleeCode plain = probe::summarise_callee(gcode, kGroupRva, static_cast<std::uint32_t>(gcode.size()));
+  CHECK(plain.task_read_count == 0);
+  CHECK(plain.entry_read_count == 0);
+  CHECK(plain.task_store_count == 0);
+}
+
+TEST_CASE("probe: task reads followed through loads, calls through the task's vtable, in-place uses and changes") {
+  const std::vector<std::byte> code = code_of({
+      0x53,                                      //  0: push rbx
+      0x48, 0x89, 0xD3,                          //  1: mov rbx, rdx             (the task, kept)
+      0x48, 0x8B, 0x03,                          //  4: mov rax, [rbx]           (its first word: our vtable)
+      0x48, 0x8B, 0x4B, 0x40,                    //  7: mov rcx, [rbx + 0x40]
+      0x44, 0x8B, 0x41, 0x08,                    // 11: mov r8d, [rcx + 8]       (read from what was read)
+      0x80, 0x7B, 0x30, 0x02,                    // 15: cmp byte ptr [rbx + 0x30], 2
+      0xF7, 0x43, 0x34, 0x00, 0x01, 0x00, 0x00,  // 19: test dword ptr [rbx + 0x34], 0x100
+      0x4C, 0x8D, 0x4B, 0x50,                    // 26: lea r9, [rbx + 0x50]     (a pointer into the task)
+      0x4C, 0x89, 0x0D, 0x00, 0x01, 0x00, 0x00,  // 30: mov [rip + 0x100], r9
+      0x48, 0x89, 0xDA,                          // 37: mov rdx, rbx
+      0x48, 0x0F, 0xBA, 0xEA, 0x3F,              // 40: bts rdx, 63              (the task, tagged)
+      0x49, 0x89, 0x51, 0x08,                    // 45: mov [r9 + 8], rdx
+      0xFF, 0x50, 0x18,                          // 49: call [rax + 0x18]        (a slot of the task's vtable)
+      0x5B,                                      // 52: pop rbx
+      0xC3,                                      // 53: ret
+  });
+  const probe::CalleeCode c = probe::summarise_callee(code, kWrapperRva, static_cast<std::uint32_t>(code.size()),
+                                                      probe::kOwnArguments, 2);
+  CHECK_FALSE(c.modelled_to.has_value());
+  CHECK(c.task_read_count == 6);
+  REQUIRE(c.task_reads.size() == 6);
+  // The first word: the base of the virtual call.
+  const probe::FieldRead& vt = c.task_reads[0];
+  CHECK(vt.offset == 4);
+  CHECK(vt.disp == 0);
+  CHECK(vt.base_src.kind == probe::Source::Kind::Argument);
+  REQUIRE(vt.uses.size() == 1);
+  CHECK(vt.uses[0].kind == probe::UseKind::Base);
+  CHECK(vt.uses[0].offset == 49);
+  // A pointer read from the task: the base of the next read, then passed in rcx.
+  const probe::FieldRead& ptr = c.task_reads[1];
+  CHECK(ptr.disp == 0x40);
+  REQUIRE(ptr.uses.size() == 2);
+  CHECK(ptr.uses[0].kind == probe::UseKind::Base);
+  CHECK(ptr.uses[0].offset == 11);
+  CHECK(ptr.uses[1].kind == probe::UseKind::Passed);
+  CHECK(ptr.uses[1].reg == std::optional<std::uint8_t>(1));
+  const probe::FieldRead& deeper = c.task_reads[2];
+  CHECK(deeper.offset == 11);
+  CHECK(deeper.disp == 8);
+  CHECK(deeper.width == 4);
+  CHECK(deeper.base == 1);
+  CHECK(deeper.base_src.kind == probe::Source::Kind::Memory);
+  CHECK(deeper.base_src.disp == 0x40);
+  REQUIRE(deeper.uses.size() == 1);
+  CHECK(deeper.uses[0].kind == probe::UseKind::Passed);
+  CHECK(deeper.uses[0].reg == std::optional<std::uint8_t>(8));
+  // Fields used in place: a byte compared with 2, a word tested.
+  const probe::FieldRead& byte = c.task_reads[3];
+  CHECK(byte.direct);
+  CHECK(byte.width == 1);
+  CHECK(byte.disp == 0x30);
+  REQUIRE(byte.uses.size() == 1);
+  CHECK(byte.uses[0].kind == probe::UseKind::Compared);
+  CHECK(byte.uses[0].imm == std::optional<std::uint64_t>(2));
+  CHECK(c.task_reads[4].direct);
+  CHECK(c.task_reads[4].uses[0].kind == probe::UseKind::Tested);
+  // The call through the vtable's slot: a read of the vtable, called through.
+  const probe::FieldRead& slot = c.task_reads[5];
+  CHECK(slot.offset == 49);
+  CHECK(slot.disp == 0x18);
+  CHECK(slot.base_src.kind == probe::Source::Kind::FirstWord);
+  CHECK(slot.uses[0].kind == probe::UseKind::Called);
+  // The stores: a pointer into the task to a global, and the task tagged through it.
+  REQUIRE(c.task_stores.size() == 2);
+  const probe::TaskStore& global = c.task_stores[0];
+  CHECK(global.rip);
+  CHECK(global.disp == kWrapperRva + 37 + 0x100);
+  CHECK(global.value.kind == probe::Source::Kind::Modified);
+  CHECK(global.value.op == probe::InsnClass::Lea);
+  CHECK(global.value.imm == std::optional<std::uint64_t>(0x50));
+  const probe::TaskStore& bit = c.task_stores[1];
+  CHECK(bit.value.op == probe::InsnClass::Other);
+  CHECK(bit.value.imm == std::optional<std::uint64_t>(63));
+  REQUIRE(bit.base_src.has_value());
+  CHECK(bit.base_src->kind == probe::Source::Kind::Modified);
+  CHECK(bit.disp == 8);
+  // The report holds them, lint-clean.
+  probe::Findings f;
+  f.callee_code = c;
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"use\": \"called\"") != std::string::npos);
+  CHECK(text->find("\"src\": \"modified\"") != std::string::npos);
+}
+
+TEST_CASE("probe: our task's address under a high-bit tag, in a diff and in the whole-memory search") {
+  HubWorld w;
+  const probe::HubWalk before = w.walk();
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x10, HubWorld::kTask | (std::uint64_t{0x7E01} << 48));
+  w.mem.put<std::uint64_t>(HubWorld::kB1 + 0x18, (HubWorld::kTask + 0x40) | (std::uint64_t{0x8000} << 48));
+  const probe::DiffResult r = probe::diff_hub(before, w.walk(), w.diff_spec());
+  REQUIRE(r.diff.words.size() == 2);
+  CHECK(r.diff.words[0].after.kind == probe::ValueKind::TaskTagged);
+  CHECK(r.diff.words[0].after.tag == std::optional<std::uint32_t>(0x7E01));
+  CHECK_FALSE(r.diff.words[0].after.offset.has_value());
+  CHECK(r.diff.words[1].after.kind == probe::ValueKind::TaskTagged);
+  CHECK(r.diff.words[1].after.tag == std::optional<std::uint32_t>(0x8000));
+  CHECK(r.diff.words[1].after.offset == std::optional<std::uint64_t>(0x40));
+  const probe::WordValue other = probe::classify_value(HubWorld::kB2 | (std::uint64_t{1} << 48), w.diff_spec());
+  CHECK(other.kind != probe::ValueKind::TaskTagged);  // a tagged pointer elsewhere is not ours
+
+  FakeMemory mem;
+  const std::uint64_t game = 0x0000'0001'4000'0000ull, mine = 0x0000'7FF8'0000'0000ull;
+  FakeSys sys(mem, game, 0x1000);
+  const std::uint64_t heap = 0x0000'0003'0000'0000ull, own_heap = 0x0000'7FF9'0000'0000ull;
+  const std::uint64_t task = 0x0000'0004'0000'0000ull, vtable = 0x0000'0004'0001'0000ull;
+  Regions rs;
+  for (const std::uint64_t b : {heap, task, vtable, own_heap}) {
+    rs.list.push_back(probe::MemoryRegion{b, 0x1000, b, probe::kPageReadWrite, true, probe::RegionKind::Private});
+    mem.map(b, std::vector<std::byte>(0x1000));
+  }
+  mem.put<std::uint64_t>(task, vtable);
+  mem.put<std::uint64_t>(heap + 0x20, task | (std::uint64_t{0x7E01} << 48));
+  mem.put<std::uint64_t>(heap + 0x28, task);                                  // a plain copy, counted as before
+  mem.put<std::uint64_t>(heap + 0x30, (task + 8) | (std::uint64_t{1} << 48));  // inside, tagged: not counted
+  mem.put<std::uint64_t>(heap + 0x38, vtable | (std::uint64_t{0xFFFF} << 48));
+  mem.put<std::uint64_t>(own_heap + 0x40, task | (std::uint64_t{2} << 48));
+  probe::MemorySearchSpec spec;
+  spec.target = task;
+  spec.object_bytes = 0x808;
+  spec.vtable = vtable;
+  spec.game_base = game;
+  spec.own_base = mine;
+  spec.own_bases = {own_heap, task, vtable};
+  spec.own_known = true;
+  const probe::MemorySearch m = probe::search_memory(sys, rs.query(), spec);
+  CHECK(m.found == 1);
+  CHECK(m.tagged_found == 1);
+  CHECK(m.vtable_tagged_found == 1);
+  CHECK(m.own_tagged_found == 1);
+  CHECK(m.own_vtable_tagged_found == 0);
+  REQUIRE(m.tagged_hits.size() == 3);  // the game's object's, the game's vtable's, ours
+  CHECK(m.tagged_hits[0].points_to == probe::PointsTo::Object);
+  CHECK(m.tagged_hits[0].tag == std::optional<std::uint32_t>(0x7E01));
+  CHECK_FALSE(m.tagged_hits[0].own);
+  CHECK(m.tagged_hits[1].points_to == probe::PointsTo::Vtable);
+  CHECK(m.tagged_hits[1].tag == std::optional<std::uint32_t>(0xFFFF));
+  CHECK(m.tagged_hits[2].own);
+  CHECK(m.tagged_hits[2].tag == std::optional<std::uint32_t>(2));
+
+  probe::Findings f;
+  f.memory_search.push_back(m);
+  probe::HubDiff d = r.diff;
+  d.root = "group_entry";
+  f.hub_diff.push_back(d);
+  probe::HubDiff ctl = r.diff;
+  ctl.root = "singleton";
+  f.hub_diff_controls.push_back(ctl);
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"kind\": \"task_tagged\"") != std::string::npos);
+  CHECK(text->find("\"root\": \"group_entry\"") != std::string::npos);
+  CHECK(text->find("\"hub_diff_controls\": [") != std::string::npos);
+  CHECK(text->find("\"tagged_found\": 1") != std::string::npos);
+}
+
+TEST_CASE("probe: a class's innermost name against the leads' names, and the table's addresses for T1") {
+  const std::vector<std::string> names = {"TaskLoom", "ActorRoster", "MenuDeskImp"};
+  probe::ClassMatch m;
+  probe::match_lead(m, "TaskLoomImp", names);
+  CHECK(m.match == probe::LeadMatch::Imp);
+  CHECK(m.lead == std::optional<std::uint32_t>(0));
+  probe::match_lead(m, "ActorRoster", names);
+  CHECK(m.match == probe::LeadMatch::Name);
+  CHECK(m.lead == std::optional<std::uint32_t>(1));
+  probe::match_lead(m, "MenuDeskImp", names);
+  CHECK(m.match == probe::LeadMatch::Name);
+  CHECK(m.lead == std::optional<std::uint32_t>(2));
+  for (const std::string_view none : {"TaskLoomImpl", "Task", "TaskRackImp", ""}) {
+    probe::match_lead(m, none, names);
+    CHECK(m.match == probe::LeadMatch::None);
+    CHECK_FALSE(m.lead.has_value());
+  }
+
+  FakeMemory mem;
+  constexpr std::uint64_t kGame = 0x0000'0001'4000'0000ull, kSingleton = 0x0000'0002'0000'0000ull;
+  constexpr std::uint64_t kEntry = 0x0000'0002'0001'0000ull;
+  mem.map(kGame, std::vector<std::byte>(0x490000));
+  mem.map(kSingleton, std::vector<std::byte>(0x1000));
+  mem.map(kEntry, std::vector<std::byte>(0x100));
+  mem.put<std::uint64_t>(kGame + kSingletonSlot, kSingleton);
+  mem.put<std::uint64_t>(kSingleton, kGame + 0x300100);  // the singleton's vtable
+  mem.put<std::uint64_t>(kSingleton + 8 + 8 * 5, kEntry);
+  mem.put<std::uint64_t>(kEntry, kGame + 0x300200);      // the entry's
+  probe::Table shape;
+  shape.matched = true;
+  shape.singleton_slot = kSingletonSlot;
+  shape.disp = 8;
+  shape.bound = 31;
+  shape.target = kGroupRva;
+  probe::TableReadSpec spec;
+  spec.module_base = kGame;
+  spec.group_index = 5;
+  const probe::BlockReader read = [&](std::uint64_t at, std::span<std::byte> out) { return mem.read(at, out); };
+  probe::TableAddresses at;
+  const probe::TableRead r = probe::read_table(shape, spec, read, &at);
+  CHECK(r.read);
+  CHECK(at.singleton == kSingleton);
+  CHECK(at.singleton_first == kGame + 0x300100);
+  CHECK(at.entry == kEntry);
+  CHECK(at.entry_first == kGame + 0x300200);
+  mem.put<std::uint64_t>(kSingleton + 8 + 8 * 5, 0);
+  (void)probe::read_table(shape, spec, read, &at);
+  CHECK(at.entry == 0);
+  CHECK(at.entry_first == 0);
+
+  probe::Findings f;
+  probe::Table t = shape;
+  t.rva = kTailRva;
+  t.site = 24;
+  t.entry_class = probe::ClassMatch{true, true, 0x3F0000, probe::LeadMatch::Imp, 0};
+  t.singleton_class = probe::ClassMatch{true, true, 0x3F0100, probe::LeadMatch::None, std::nullopt};
+  f.table = t;
+  probe::InnerCallee g{kGroupRva, 24, true, probe::CalleeCode{}, 2, kTailRva, {}};
+  probe::PassedSource rcx;
+  rcx.reg = 1;
+  rcx.source.kind = probe::Source::Kind::Memory;
+  rcx.holds_entry = true;
+  g.entry_src.push_back(rcx);
+  g.code.trimmed = true;  // past 256 KiB a summary is trimmed, and summaries are left out
+  f.callee_code = probe::CalleeCode{};
+  f.callee_inner.push_back(g);
+  f.inner_dropped = 3;
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"match\": \"imp\"") != std::string::npos);
+  CHECK(text->find("\"holds_entry\": true") != std::string::npos);
+  CHECK(text->find("\"parent\": ") != std::string::npos);
+  CHECK(text->find("\"target\": ") != std::string::npos);
+  CHECK(text->find("\"trimmed\": true") != std::string::npos);
+  CHECK(text->find("\"inner_dropped\": 3") != std::string::npos);
+}

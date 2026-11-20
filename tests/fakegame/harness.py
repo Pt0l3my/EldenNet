@@ -1519,14 +1519,15 @@ for _run in PKG_RUNS:
          what="the owner's package, run %s (run-%s.cmd): %s" % (_run, _run, PKG_WHAT[_run]))
 
 def check_r1_callee(p, task, gap=False):
-    """Spike.6 to spike.8 (WHY§227, WHY§235, WHY§240): the callee's summary, from the live image, shows the fake
+    """Spike.6 to spike.9 (WHY§227, WHY§235, WHY§240, WHY§248): the callee's summary, from the live image, shows the fake
     registration as the wrapper of R1 run 7's shape it is: rcx loaded from the rack's static (none of its arguments),
     tested for null and branched on past its two calls (which make the rack and store it there), and, where both ways
     meet, a tail jump to the tail function with the rack in rcx, the group in edx, the task in r8 and the hub in r9. One
     level deeper the tail function bounds the group, tests the rack's shelf for it (loaded from [entry rcx + group*8 +
-    the shelves' offset]) and jumps through the shelf's vtable, a tail call through memory; one more level, read from the
-    table (but where the group has no shelf), the shelf's register slot calls the work with the hub, the group and the
-    task. Every summary's instructions are given as forms, the padding after the tail function's jump unreached."""
+    the shelves' offset]) and, as in R1 run 8, moves the task into rdx and jumps directly to the group's own function,
+    a tail jump past its decoded code; one more level (from the code, so with the gap too), that function with the
+    entry and the task followed in (check_r1_group). Every summary's instructions are given as forms, the padding after
+    the tail function's jump unreached."""
     failures = []
     c = p.get("callee_code")
     if c is None:
@@ -1587,39 +1588,106 @@ def check_r1_callee(p, task, gap=False):
          entry.get("index_src") == {"src": "argument", "from": group_reg} and entry.get("scale") == 8 and
          entry.get("disp") == rack["shelves_off"] and entry.get("width") == 8,
          "the tail function's tested value: %s" % entry, failures)
-    jumps = [k for k in tail.get("call_sites", []) if k["form"] == "tail_memory"]
-    need(len(jumps) == 1 and jumps[0]["reached"] and jumps[0].get("base") == 0 and
-         jumps[0].get("disp") == rack["shelf_slot_off"] and same(jumps[0].get("vtable_src", {}), entry) and
-         {(2, group_reg), (8, task_reg), (9, instance_reg)} <= passed(jumps[0]) and same(src(jumps[0], 1), entry),
-         "the tail function's jump: %s" % jumps, failures)
+    jumps = [k for k in tail.get("call_sites", []) if k["form"] == "tail"]
+    need(len(jumps) == 1 and jumps[0]["reached"] and jumps[0].get("target") == rack["take_rva"] and
+         {(2, task_reg), (8, task_reg), (9, instance_reg)} <= passed(jumps[0]) and same(src(jumps[0], 1), entry) and
+         not [k for k in tail.get("call_sites", []) if k["form"] != "tail"],
+         "the tail function's direct jump: %s" % tail.get("call_sites"), failures)
     tforms = tail.get("forms", [])
     need(len(tforms) == tail.get("instructions") and [f["class"] for f in tforms if f.get("unreached")] ==
-         ["int3", "int3"] and tforms[-1]["class"] == "ret", "the tail function's forms: %s" % tforms, failures)
-    deeper = inner.get((rack["shelf_register_rva"], 2))
-    if gap:
-        need(deeper is None, "a summary one more level deeper, with no shelf: %s" % deeper, failures)
-    else:
-        work = [k for k in (deeper or {}).get("call_sites", []) if k["form"] == "direct"]
-        need(deeper is not None and deeper["tail"] and jumps and deeper["site"] == jumps[0]["offset"] and
-             deeper["call_count"] == 1 and len(work) == 1 and work[0].get("target") == task["register_work_rva"] and
-             {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(work[0]) and deeper.get("forms"),
-             "the shelf's register slot, one more level: %s" % deeper, failures)
+         ["int3", "int3"] and tforms[-1]["class"] == "ret" and
+         any(f["class"] == "jmp" and f.get("to") == rack["take_rva"] - rack["tail_rva"] for f in tforms),
+         "the tail function's forms: %s" % tforms, failures)
+    return failures + check_r1_group(p, task, jumps[0] if jumps else {}, entry)
+
+
+def check_r1_group(p, task, jump, entry):
+    """Spike.9 (WHY§248): the group's own function, the target of the tail function's direct jump, summarised with the
+    group's entry in rcx and our task in rdx: both its reads of the task (the hub field, kept on the entry; the kind,
+    compared with the small immediate), its read of the entry's count (compared with the list's length), the task's
+    store in the entry's list under its high-bit tag (an or by a register), and its call on with the entry and the task;
+    one level further that callee, its entry still the entry."""
+    failures = []
+    c = p["callee_code"]
+    task_reg, instance_reg, _ = p["register"]["registers"]
+    rack = task["register_rack"]
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    g = inner.get((rack["take_rva"], 2), {})
+    entry_src = {x["reg"]: x for x in g.get("entry_src", [])}
+    need(g and g["tail"] and g.get("site") == jump.get("offset") and g.get("parent") == rack["tail_rva"] and
+         g["read"] and g["extent"] > 0 and g["bytes"] == g["extent"] and "modelled_to" not in g and
+         entry_src.get(1, {}).get("holds_entry") is True and entry_src.get(1, {}).get("source") == entry,
+         "the group's function: %s" % {k: v for k, v in g.items() if k not in ("forms", "args", "guard")}, failures)
+    reads = {(r["disp"], r["width"]): r for r in g.get("task_reads", [])}
+    seen = reads.get((rack["task_hub_off"], 8), {})
+    kind = reads.get((rack["task_kind_off"], 4), {})
+    arg = {"src": "argument", "from": task_reg}
+    on_entry = {"src": "entry", "reg": 1}
+    need(g.get("task_read_count") == 2 and len(reads) == 2 and seen.get("base_src") == arg and
+         [(u["use"], u.get("base_src"), u.get("disp")) for u in seen.get("uses", [])] ==
+         [("stored", on_entry, rack["seen_off"])], "the task's hub field, read: %s" % seen, failures)
+    need(kind.get("base_src") == arg and not kind.get("direct") and
+         [(u["use"], u.get("imm")) for u in kind.get("uses", [])] == [("compared", rack["kind"])],
+         "the task's kind, read and compared: %s" % kind, failures)
+    counts = [r for r in g.get("entry_reads", []) if r["disp"] == rack["count_off"]]
+    need(g.get("entry_read_count") == 1 and len(counts) == 1 and counts[0]["base_src"] == on_entry and
+         [(u["use"], u.get("imm")) for u in counts[0]["uses"]] == [("compared", rack["items"])],
+         "the entry's count, read: %s" % g.get("entry_reads"), failures)
+    stores = g.get("task_stores", [])
+    tagged = [s for s in stores if s["source"].get("src") == "modified"]
+    need(g.get("task_store_count") == 2 and len(stores) == 2 and len(tagged) == 1 and
+         tagged[0]["source"].get("class") == "or" and "by" in tagged[0]["source"] and
+         tagged[0]["source"].get("origin") == arg and tagged[0].get("base_src") == on_entry and
+         "index" in tagged[0] and tagged[0]["disp"] == rack["items_off"] and tagged[0]["width"] == 8 and
+         any(s["source"].get("src") == "memory" and s["disp"] == rack["seen_off"] for s in stores),
+         "the task's stores: %s" % stores, failures)
+    calls = [k for k in g.get("call_sites", []) if k["form"] == "direct"]
+    need(len(calls) == 1 and calls[0].get("target") == rack["offer_rva"] and
+         {(2, task_reg), (9, instance_reg)} <= {(a["reg"], a["from"]) for a in calls[0]["pass"]} and
+         {"reg": 1, "source": on_entry} in calls[0].get("pass_src", []) and g.get("forms"),
+         "the group's function's call: %s" % g.get("call_sites"), failures)
+    offer = inner.get((rack["offer_rva"], 3), {})
+    oentry = {x["reg"]: x for x in offer.get("entry_src", [])}
+    need(offer and offer.get("parent") == rack["take_rva"] and calls and offer.get("site") == calls[0]["offset"] and
+         oentry.get(1, {}).get("holds_entry") is True and offer["read"],
+         "the group's function's callee, one level further: %s" %
+         {k: v for k, v in offer.items() if k not in ("forms", "args", "guard")}, failures)
     return failures
 
 
-def check_r1_table(p, task, gap=False):
-    """Spike.8 (WHY§240): the rack the tail function reads, matched to run 7's shapes and read just before the call and
-    2 s after it: the rack on the heap (not the hub), an entry for each of the hub's groups up to the bound (with
-    --table-gap none for the stand-in group), the group's shelf with its vtable in the game's rdata and its register
-    slot in its code; and the call's return value, 1 (0 with the gap)."""
+def r1_lead(result, label):
+    """The index of a singleton's label in the leads R1 reads (gal/leads.toml as make_gal writes it: the leads file
+    without its decoys), as R1's report gives a lead: a number. The leads' tables are read in their labels' order."""
+    labels = sorted(k for k in read_leads(result.args.set_paths["leads"]).get("singletons", {})
+                    if k not in ("duplicata", "strayling", "rockbound"))
+    return labels.index(label) if label in labels else None
+
+
+def check_r1_table(p, task, lead, gap=False):
+    """Spike.8 and spike.9 (WHY§240, WHY§248): the rack the tail function reads, matched to run 7's shapes (its end run
+    8's direct jump, to the group's function) and read just before the call and 2 s after it: the rack on the heap (not
+    the hub), an entry for each of the hub's groups up to the bound (with --table-gap none for the stand-in group), the
+    group's shelf with its vtable in the game's rdata; the classes of the rack (classed, no lead's) and of the shelf
+    (the hub's lead's name with Imp); and the call's return value, 1 (0 with the gap)."""
     failures = []
     rack = task["register_rack"]
     group = p["register"]["group_index"]
     t = p.get("table", {})
     need(t.get("matched") and t.get("singleton_slot") == rack["slot_rva"] and "hop" not in t and "array" not in t and
          t.get("disp") == rack["shelves_off"] and t.get("bound") == rack["bound"] and t.get("rva") == rack["tail_rva"]
-         and t.get("slot_disp") == rack["shelf_slot_off"], "the table's shape: %s" %
+         and t.get("target") == rack["take_rva"] and "slot_disp" not in t and "site" in t, "the table's shape: %s" %
          {k: v for k, v in t.items() if k not in ("before", "after")}, failures)
+    need(t.get("singleton_class") == {"vtable_known": True, "classed": True,
+                                      "type_descriptor": t.get("singleton_class", {}).get("type_descriptor"),
+                                      "match": "none"} and t["singleton_class"]["type_descriptor"] > 0,
+         "the rack's class: %s" % t.get("singleton_class"), failures)
+    if gap:
+        need("entry_class" not in t, "the entry's class, with no shelf: %s" % t.get("entry_class"), failures)
+    else:
+        ec = t.get("entry_class", {})
+        need(ec.get("vtable_known") and ec.get("classed") and ec.get("type_descriptor", 0) > 0 and
+             ec.get("match") == "imp" and ec.get("lead") == lead,
+             "the shelf's class against the leads: %s" % ec, failures)
     groups = [g["index"] for g in task["groups"]]
     shelves = [g for g in groups if not (gap and g == group)]
     for key in ("before", "after"):
@@ -1634,8 +1702,7 @@ def check_r1_table(p, task, gap=False):
         else:
             need(r.get("entry", {}).get("kind") == "heap" and
                  r.get("entry_vtable") == {"kind": "game", "section": "rdata", "rva": rack["shelf_vtable_rva"]} and
-                 r.get("slot_value") == {"kind": "game", "section": "code", "rva": rack["shelf_register_rva"]},
-                 "the group's entry %s the call: %s" % (key, r), failures)
+                 "slot_value" not in r, "the group's entry %s the call: %s" % (key, r), failures)
     need(t.get("before", {}).get("at_ms") == 0 and t.get("after", {}).get("at_ms", 0) >= 2000,
          "the table's reads' times: %s" % [t.get(k, {}).get("at_ms") for k in ("before", "after")], failures)
     want_returned = {"kind": "zero"} if gap else {"kind": "small", "value": 1}
@@ -1677,6 +1744,63 @@ def check_r1_memory(p, task):
              {k: m[k] for k in ("own_vtable_found", "own_slot_found", "own_slot_distinct")}, failures)
         need(all(("module" in h) == (h["region"] == "image") for h in m["hits"]), "hits' modules: %s" % m["hits"],
              failures)
+    return failures + check_r1_tagged(p, task)
+
+
+def check_r1_tagged(p, task):
+    """Spike.9 (WHY§248): in each whole-memory search, our object's address under the shelf's tag, once in the game's
+    memory: in the stand-in group's shelf (a private region), its high 16 bits the tag; none of our vtable's. Our own
+    copies (the walks of the shelf kept on our heap) are counted apart."""
+    failures = []
+    tag = task["register_rack"]["tag"]
+    for m in p.get("memory_search", []):
+        hits = [h for h in m.get("tagged_hits", []) if not h["own"]]
+        need(m.get("tagged_found") == 1 and m.get("vtable_tagged_found") == 0 and len(hits) == 1 and
+             hits[0]["points_to"] == "object" and hits[0].get("tag") == tag and hits[0]["region"] == "private" and
+             all(h.get("tag") == tag for h in m.get("tagged_hits", [])),
+             "the tagged copies of our address: %s" %
+             {k: m.get(k) for k in ("tagged_found", "own_tagged_found", "vtable_tagged_found", "tagged_hits")}, failures)
+    return failures
+
+
+def r1_diffs(p, root):
+    return [d for d in p.get("hub_diff", []) if d.get("root") == root]
+
+
+def check_r1_roots(p, task, gap=False):
+    """Spike.9 (WHY§248): the walk and its diffs from two more roots, the rack (the singleton) and the stand-in group's
+    shelf (its entry), each at 2 and 20 s with its control: across the call the shelf's list gains our task's address
+    under the tag (task_tagged, its high bits the tag), seen from the shelf itself and from the rack through it; their
+    controls change nothing. With --table-gap there is no entry to walk, and nothing of ours in the rack's walk."""
+    failures = []
+    tag = task["register_rack"]["tag"]
+    rack = task["register_rack"]
+    for root in ("singleton", "group_entry"):
+        ds = r1_diffs(p, root)
+        if gap and root == "group_entry":
+            need(not ds, "a diff from the group's entry, with no shelf: %s" % ds, failures)
+            continue
+        need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000 and
+             all(not d["capped"] and d["compared"] > 0 and "in_control_words" in d for d in ds),
+             "the %s's diffs: %s" % (root, [{k: v for k, v in d.items() if k != "words"} for d in ds]), failures)
+        tagged = [w for d in ds for w in d["words"] if w["new"]["kind"] == "task_tagged"]
+        if gap:
+            need(not tagged and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
+                 "the %s's diffs, with nothing kept: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
+                                                                   for d in ds]), failures)
+        else:
+            want_depth = 0 if root == "group_entry" else 1
+            need(any(w["new"].get("tag") == tag and w["depth"] == want_depth and w["old"]["kind"] == "zero" and
+                     w["path"][-1] >= rack["items_off"] and w.get("in_control") is False for w in tagged) and
+                 all(w["new"].get("tag") == tag for w in tagged) and len(tagged) >= 2,
+                 "the %s's diffs: our task under its tag: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
+                                                                         for d in ds]), failures)
+    ctls = {d.get("root"): d for d in p.get("hub_diff_controls", [])}
+    want_roots = {"singleton"} if gap else {"singleton", "group_entry"}
+    need(set(ctls) == want_roots and all(1900 <= d["at_ms"] <= 6000 and d["changed"] == 0 for d in ctls.values()),
+         "the roots' controls: %s" % [{k: v for k, v in d.items() if k != "words"} for d in ctls.values()], failures)
+    need(p.get("hub_diff_control", {}).get("root") == "task_hub", "the hub's control: %s" %
+         {k: v for k, v in p.get("hub_diff_control", {}).items() if k != "words"}, failures)
     return failures
 
 
@@ -1699,9 +1823,10 @@ def check_r1_control(p, ds):
 def check_r1_diff(p, task):
     """Spike.7 (WHY§235): the hub's reachable memory kept just before the call and compared with the same walk 2 and 20 s
     after it: the hub's last_task now our task's address (not followed into, so fresh), its last_vtable our vtable, its
-    table of run slots our run slot (in our module), and at 20 s those changes steady and the hub's frame not."""
+    table of run slots our run slot (in our module), and at 20 s those changes steady and the hub's frame not. Since
+    spike.9 these are the diffs whose root is the hub (task_hub); the others are check_r1_roots's."""
     failures = []
-    ds = p.get("hub_diff", [])
+    ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000, "the hub's diffs: %s" %
          [d.get("at_ms") for d in ds], failures)
     if len(ds) != 2:
@@ -1790,8 +1915,8 @@ def check_r1(result):
     need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
-    failures += (check_r1_callee(p, task) + check_r1_table(p, task) + check_r1_memory(p, task) +
-                 check_r1_diff(p, task))
+    failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
+                 check_r1_memory(p, task) + check_r1_diff(p, task) + check_r1_roots(p, task))
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
@@ -1874,15 +1999,16 @@ def check_r1_gap(result):
     need(p["register"]["call"] == "ok" and p["stage"] == "registered" and p["task"]["invocations"] == 0 and
          not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
          "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
-    failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, gap=True)
-    ds = p.get("hub_diff", [])
+    failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, r1_lead(result, "task_loom"), gap=True)
+    failures += check_r1_roots(p, task, gap=True)
+    ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
          "the hub's diffs, with nothing kept: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]] for d in ds],
          failures)
     failures += check_r1_control(p, ds)
     ms = p.get("memory_search", [])
     need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["vtable_found"] == 0 and
-                              m["slot_found"] == 0 and m["own_found"] >= 2 for m in ms),
+                              m["slot_found"] == 0 and m["own_found"] >= 2 and m["tagged_found"] == 0 for m in ms),
          "the memory searches, with nothing kept: %s" %
          [{k: m.get(k) for k in ("stopped", "found", "vtable_found", "slot_found", "own_found")} for m in ms], failures)
     steps = r1_steps(result)
@@ -1903,6 +2029,60 @@ case("launcher-eldennet-probe-gap", LBASE + ["--no-steam-check", "--game", "{gam
      what="R1 as the owner runs it, on a fake game whose registration table holds no entry for the group (R1 run 7's "
           "end): the call answers 0, the table read before and after it shows the group's entry null and the others "
           "set, the task never runs, and both reports lint clean when the game ends")
+
+
+# Spike.9's case (WHY§248): the hub runs only tasks of the game's kind (--task-gate). The group's function keeps our task
+# on its shelf under a tag and answers 1, but our object holds zero where the kind is, so the task never runs and no
+# plain copy of its address is made: R1 run 8 reproduced. R1's report finds the tagged copy, in the search and in the
+# shelf's and the rack's diffs.
+def check_r1_gate(result):
+    failures = []
+    reports = r1_reports(result, failures)
+    if reports is None:
+        return failures
+    p = reports["r1-probe.json"]
+    task = result.truth["task"]
+    checks = {(c["item"], c.get("label", "")): c for c in p["checks"]}
+    need(all(checks.get((item, ""), {}).get("status") == "confirmed"
+             for item in ("gate", "fd4_idiom", "register", "register_abi", "group")),
+         "the checks: %s" % [(c["item"], c["status"]) for c in p["checks"]], failures)
+    need(p["register"]["call"] == "ok" and p["stage"] == "registered" and p["task"]["invocations"] == 0 and
+         not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
+         "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
+    failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
+                 check_r1_roots(p, task) + check_r1_tagged(p, task))
+    ds = r1_diffs(p, "task_hub")
+    need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "task_tagged", "vtable", "ours")
+                              for d in ds for w in d["words"]),
+         "the hub's diffs, with nothing of ours: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]]
+                                                        for d in ds], failures)
+    failures += check_r1_control(p, ds)
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["inside"] == 0 and
+                              m["vtable_found"] == 0 and m["slot_found"] == 0 and m["own_found"] >= 2 for m in ms),
+         "the memory searches, no plain copy: %s" %
+         [{k: m.get(k) for k in ("stopped", "found", "inside", "vtable_found", "slot_found", "own_found")}
+          for m in ms], failures)
+    steps = r1_steps(result)
+    need("task_confirmed" not in steps and steps[:1] == ["asked"] and "press_mark" in steps and
+         steps[-1:] == ["reports_clean"], "the console's R1 steps: %s" % steps, failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += any_line(result, "FAKEGAME", "rack", gap="0", gate="1")
+    failures += any_line(result, "FAKEGAME", "register", gated=str(p["register"]["group_index"]))
+    return failures + any_line(result, "ELDENNET", "r1", stage="classes") + en_log_is_clean(result)
+
+
+case("launcher-eldennet-probe-gate", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                              "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--task-gate",
+          frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_gate,
+     what="R1 as the owner runs it, on a fake game whose hub runs only tasks of the game's kind (R1 run 8's end): the "
+          "call answers 1, the group's function keeps our task on its shelf under a tag, the task never runs, the "
+          "searches find only the tagged copy, the shelf's and the rack's diffs show it, and both reports lint clean")
 case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                                  "--probe"] + game("--stay-title", "--press-pause-at", "120",
                                                                    frames=600),

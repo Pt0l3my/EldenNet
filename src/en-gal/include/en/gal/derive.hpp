@@ -353,6 +353,10 @@ struct Options {
 // is set; the rest of `base` is the caller's.
 [[nodiscard]] TaskResult task_from_base(const rtti::Walk& walk, const ImageBytes& img, std::uint32_t base);
 
+// The innermost class name of a type descriptor, as O92 names a singleton by its instance's class (".?AVCSTaskImp@CS@@"
+// gives "CSTaskImp"): R1's spike.9 names the classes of the table's singleton and entry the same way. Never written.
+[[nodiscard]] std::optional<std::string> innermost_class(const ImageBytes& img, std::uint32_t type_descriptor);
+
 // Whether every fact the round can derive offline was derived.
 [[nodiscard]] bool complete(const Result& result);
 

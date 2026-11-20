@@ -14,6 +14,13 @@ static_assert(offsetof(FG::TaskLoomFields, last_task) + 8 == FG_LOOM_LAST_TASK_O
 static_assert(offsetof(FG::TaskLoomFields, last_vtable) + 8 == FG_LOOM_LAST_VTABLE_OFF);
 static_assert(offsetof(FG::RunWardenFields, save_slot) + 8 == FG_WARDEN_SAVE_SLOT_OFF);
 static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
+static_assert(offsetof(FG::TaskFields, hub) + 8 == FG_TASK_HUB_OFF);
+static_assert(offsetof(FG::TaskFields, kind) + 8 == FG_TASK_KIND_OFF);
+static_assert(offsetof(FG::ShelfFields, count) + 8 == FG_SHELF_COUNT_OFF);
+static_assert(offsetof(FG::ShelfFields, seen) + 8 == FG_SHELF_SEEN_OFF);
+static_assert(offsetof(FG::ShelfFields, items) + 8 == FG_SHELF_ITEMS_OFF);
+static_assert(sizeof(FG::ShelfFields::items) / sizeof(std::uint64_t) == FG_SHELF_ITEMS);
+static_assert(offsetof(FG::RackFields, shelves) + 8 == FG_RACK_SHELVES_OFF);
 
 #define FG_STR(x) #x
 #define FG_XSTR(x) FG_STR(x)
@@ -131,9 +138,6 @@ __asm__(
     "  .globl fg_static_rockbound\n"
     "fg_static_rockbound:\n  .quad 0\n"
     "fg_rtclass_table:\n  .quad fg_rtclass_name\n"
-    // A shelf's vtable (the registration's rack, spike.8): two slots answering 0, then the one that keeps a task.
-    "  .globl fg_shelf_vtable\n"
-    "fg_shelf_vtable:\n  .quad fg_shelf_none, fg_shelf_none, fg_shelf_register\n"
     "  .globl fg_fd4_path\n"
     "fg_fd4_path:\n  .asciz \"fakegame\\\\kit\\\\fd4\\\\FD4Singleton.h\"\n"
     // The variants' words: a log format loaded before the path, and a pointer to the path.
@@ -464,10 +468,10 @@ __asm__(
     "3:\n"
     "  .seh_endproc\n"
 
-    // ---- The tail function (run 7's shape): the group bounded, the rack's shelf for it loaded and tested for null (0
-    // answered), else a jump through the shelf's vtable to its register slot, the shelf in rcx and the rest as given. A
-    // leaf with no unwind data, so R1 reads it up to its first return; the two traps after the jump are padding no path
-    // reaches.
+    // ---- The tail function (run 7's shape, its end run 8's): the group bounded, the rack's shelf for it loaded and
+    // tested for null (0 answered), else the task moved into rdx and a direct jump to the group's own function, the
+    // shelf in rcx and the hub still in r9. A leaf with no unwind data, so R1 reads it up to its first return; the two
+    // traps after the jump are padding no path reaches.
     "  .p2align 4, 0xcc\n"
     "  .globl fg_register_rack\n"
     "fg_register_rack:\n"
@@ -478,29 +482,59 @@ __asm__(
     "  test rcx, rcx\n"
     "  .byte 0x74, 1f - 3f\n"
     "3:\n"
-    "  mov rax, qword ptr [rcx]\n"
-    "  jmp qword ptr [rax + " FG_XSTR(FG_SHELF_REGISTER_OFF) "]\n"
+    "  mov rdx, r8\n"
+    "  .byte 0xE9\n"  // jmp fg_shelf_take, always in its long form
+    "  .long fg_shelf_take - 4f\n"
+    "4:\n"
     "  int3\n"
     "  int3\n"
     "1:\n"
     "  xor eax, eax\n"
     "  ret\n"
 
-    // ---- A shelf's slots: its register slot calls the work with the hub the registration was given, and answers 1;
-    // the others answer 0.
-    FG_FUNC_BEGIN(fg_shelf_register)
-    "  sub rsp, 0x28\n"
-    "  .seh_stackalloc 0x28\n"
+    // ---- The group's own function (spike.9, R1 run 8's reading, WHY§248): the shelf in rcx, the task in rdx (and r8),
+    // the hub in r9. It reads the task's hub field and keeps it on the shelf, reads the task's kind, keeps the task in
+    // the shelf's list as a pointer under FG_TASK_TAG while the list has room, and offers it to the hub with whether its
+    // kind is the game's (the compare with a small immediate); it answers 1.
+    FG_FUNC_BEGIN(fg_shelf_take)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
     "  .seh_endprologue\n"
-    "  mov rcx, r9\n"
-    "  call fg_register_keep\n"
+    "  mov rbx, rcx\n"
+    "  mov rsi, rdx\n"
+    "  mov rdi, r9\n"
+    "  mov r10, qword ptr [rdx + " FG_XSTR(FG_TASK_HUB_OFF) "]\n"
+    "  mov qword ptr [rbx + " FG_XSTR(FG_SHELF_SEEN_OFF) "], r10\n"
+    "  mov r11d, dword ptr [rdx + " FG_XSTR(FG_TASK_KIND_OFF) "]\n"
+    "  mov eax, dword ptr [rbx + " FG_XSTR(FG_SHELF_COUNT_OFF) "]\n"
+    "  cmp eax, " FG_XSTR(FG_SHELF_ITEMS) "\n"
+    "  .byte 0x73, 1f - 2f\n"
+    "2:\n"
+    "  mov rcx, rsi\n"
+    "  movabs rdx, " FG_XSTR(FG_TASK_TAG) "\n"
+    "  or rcx, rdx\n"
+    "  mov qword ptr [rbx + rax*8 + " FG_XSTR(FG_SHELF_ITEMS_OFF) "], rcx\n"
+    "  inc eax\n"
+    "  mov dword ptr [rbx + " FG_XSTR(FG_SHELF_COUNT_OFF) "], eax\n"
+    "1:\n"
+    "  xor r8d, r8d\n"
+    "  cmp r11d, " FG_XSTR(FG_TASK_KIND) "\n"
+    "  sete r8b\n"
+    "  mov rcx, rbx\n"
+    "  mov rdx, rsi\n"
+    "  mov r9, rdi\n"
+    "  call fg_shelf_offer\n"
     "  mov eax, 1\n"
-    "  add rsp, 0x28\n"
-    "  ret\n"
-    "  .seh_endproc\n"
-    FG_FUNC_BEGIN(fg_shelf_none)
-    "  .seh_endprologue\n"
-    "  xor eax, eax\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
+    "  pop rsi\n"
+    "  pop rbx\n"
     "  ret\n"
     "  .seh_endproc\n"
 

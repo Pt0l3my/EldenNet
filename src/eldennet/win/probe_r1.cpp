@@ -14,9 +14,13 @@
 //    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee);
 //    since spike.7 (WHY§235) the arguments in each call, each branch's flag test, and each callee it calls (or
 //    tail-jumps to) summarised in turn with the arguments followed in; since spike.8 (WHY§240) the instructions as
-//    forms, the values loaded from memory followed, and the tail function's table matched against run 7's reading. At
-//    the Mark the hub's reachable memory (spike.5's walk) is walked, again 2 s later and kept on our heap, and the two
-//    compared (the control diff); then, at once, the table is read and the call made.
+//    forms, the values loaded from memory followed, and the tail function's table matched against run 7's reading;
+//    since spike.9 (WHY§248) the group's own function (the tail function's direct jump, or the entry's vtable slot) and
+//    its callees, with the group's entry and our task followed in: every load from either, its value's uses, and the
+//    task's stores. At the Mark the hub's reachable memory (spike.5's walk) is walked, again 2 s later and kept on our
+//    heap, and the two compared (the control diff), since spike.9 from the table's singleton and the group's entry too;
+//    then, at once, the table is read (with the singleton's and the entry's RTTI classes against the leads) and the call
+//    made.
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -29,9 +33,10 @@
 //    slots are found, the derivation runs again with them, so that r1-derive.json carries a pattern at each.
 // 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227, WHY§235): the hub's reachable memory walked again, searched
 //    for our task object's address and compared with the walk kept from before the call (each changed word marked when
-//    the control diff changed it too); then every readable committed region of the process searched for our task
-//    object's address, our fake vtable's and its slots' (ours counted apart); and, while the task has not run, how much
-//    of our object the hub wrote. At 2 s the table is read again (WHY§240).
+//    the control diff changed it too), from each of its roots (WHY§248); then every readable committed region of the
+//    process searched for our task object's address, our fake vtable's and its slots' (ours counted apart), and for our
+//    object's and vtable's under a high-bit tag; and, while the task has not run, how much of our object the hub wrote.
+//    At 2 s the table is read again (WHY§240).
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
@@ -76,6 +81,7 @@ using en::shell::LogLevel;
 
 constexpr std::uint32_t kSpanObject = 0x400;  // how much of our object the probe copies back
 constexpr std::size_t kMaxInner = 8;          // the callee's callees summarised (WHY§235)
+constexpr std::size_t kMaxGroup = 16;         // the group's function and its callees summarised (WHY§248)
 
 // The probe's body on the game thread (every slot of our fake vtable runs it for our own object).
 class R1Body final : public en::gal::TaskBody {
@@ -224,6 +230,7 @@ class Round {
     R1Body* body = prepare();
     block::install_filter();
     (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§190)
+    table_roots();                  // WHY§248: the singleton and the group's entry, two more roots for the walk
     control_walk();                 // WHY§240: the hub at the Mark, and 2 s later
     (void)s_.sys->rescan_stacks();
     keep_hub();
@@ -612,9 +619,10 @@ class Round {
   // Spike.5's walk of the hub's reachable memory (WHY§209): breadth first from the hub's instance, up to three pointers
   // deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps; pointers
   // into the image are not followed, nor, after the call, those into our task's block.
-  probe::HubWalkSpec hub_walk_spec() const {
+  // Since spike.9 (WHY§248) from any of three roots: the hub's instance, the tail function's singleton, the group's entry.
+  probe::HubWalkSpec hub_walk_spec(std::uint64_t root) const {
     probe::HubWalkSpec spec;
-    spec.instance = instance_;
+    spec.instance = root;
     spec.image_base = base_;
     spec.image_end = base_ + image_->size_of_image;
     spec.own_image = own_image();
@@ -636,32 +644,61 @@ class Round {
     return en::gal::AddressRange{base, end};
   }
 
-  // WHY§235: just before the call, the hub's reachable memory, kept on our heap (within the walk's 6 MiB) for the diffs.
+  // WHY§235: just before the call, the hub's reachable memory, kept on our heap (within the walk's 6 MiB) for the diffs;
+  // since spike.9 the same from the singleton and the group's entry, each within the same bound.
   void keep_hub() {
-    before_ = probe::walk_hub(*s_.sys, hub_walk_spec());
-    kept_ms_ = since_ms();
-    log(Line("r1").word("stage", "hub_kept").num("blocks", before_.blocks.size()).num("bytes", before_.bytes.size())
-            .flag("capped", before_.capped));
+    for (Root& r : roots_) {
+      if (r.address == 0) continue;
+      r.before = probe::walk_hub(*s_.sys, hub_walk_spec(r.address));
+      r.kept_ms = since_ms();
+      log(Line("r1").word("stage", "hub_kept").word("root", r.word).num("blocks", r.before.blocks.size())
+              .num("bytes", r.before.bytes.size()).flag("capped", r.before.capped));
+    }
   }
 
   // WHY§240: at the Mark, the same walk 2 s before the one kept for the call (A, then B): what the hub changes on its
-  // own over the interval. Three walks' blocks at most are ever kept: A is let go once A and B are compared.
+  // own over the interval. Three walks' blocks at most are ever kept per root: A is let go once A and B are compared.
   void control_walk() {
-    control_ = probe::walk_hub(*s_.sys, hub_walk_spec());
-    control_ms_ = since_ms();
-    log(Line("r1").word("stage", "hub_control").num("blocks", control_.blocks.size()).num("bytes", control_.bytes.size())
-            .flag("capped", control_.capped));
+    for (Root& r : roots_) {
+      if (r.address == 0) continue;
+      r.control = probe::walk_hub(*s_.sys, hub_walk_spec(r.address));
+      r.control_ms = since_ms();
+      log(Line("r1").word("stage", "hub_control").word("root", r.word).num("blocks", r.control.blocks.size())
+              .num("bytes", r.control.bytes.size()).flag("capped", r.control.capped));
+    }
     Sleep(2000);
   }
   void control_diff() {
-    if (control_.blocks.empty() || before_.blocks.empty()) return;
-    probe::DiffResult r = probe::diff_hub(control_, before_, kinds_spec());
-    r.diff.at_ms = kept_ms_ > control_ms_ ? kept_ms_ - control_ms_ : 0;  // the interval A to B
-    log(Line("r1").word("stage", "hub_diff_control").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
-            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
-    control_changes_ = std::move(r.changed);
-    f_.hub_diff_control = std::move(r.diff);
-    control_ = probe::HubWalk{};
+    for (std::size_t i = 0; i < roots_.size(); ++i) {
+      Root& r = roots_[i];
+      if (r.control.blocks.empty() || r.before.blocks.empty()) continue;
+      probe::DiffResult d = probe::diff_hub(r.control, r.before, kinds_spec());
+      d.diff.at_ms = r.kept_ms > r.control_ms ? r.kept_ms - r.control_ms : 0;  // the interval A to B
+      d.diff.root = r.word;
+      log(Line("r1").word("stage", "hub_diff_control").word("root", r.word).num("at_ms", d.diff.at_ms)
+              .num("compared", d.diff.compared).num("changed", d.diff.changed).num("new_blocks", d.diff.new_blocks)
+              .flag("capped", d.diff.capped));
+      r.control_changes = std::move(d.changed);
+      r.controlled = true;
+      if (i == 0) {
+        f_.hub_diff_control = std::move(d.diff);
+      } else {
+        f_.hub_diff_controls.push_back(std::move(d.diff));
+      }
+      r.control = probe::HubWalk{};
+    }
+  }
+
+  // WHY§248: the singleton and the group's entry as the table holds them at the Mark, read through the crash-guarded
+  // copy when the table's shapes matched: the walk's two more roots. The hub's instance is the first.
+  void table_roots() {
+    roots_[0].address = instance_;
+    if (!f_.table || !f_.table->matched) return;
+    probe::TableAddresses at;
+    (void)probe::read_table(*f_.table, table_spec(), block_reader(), &at);
+    roots_[1].address = at.singleton;
+    roots_[2].address = at.entry;
+    log(Line("r1").word("stage", "roots").flag("singleton", at.singleton != 0).flag("group_entry", at.entry != 0));
   }
 
   // The diff's classification of values: our task's block, our vtable, our module, the game's image by its sections,
@@ -703,6 +740,30 @@ class Round {
   // to a function of the game's code, that function is summarised one level deeper (once).
   void read_table(bool before) {
     if (!f_.table || !f_.table->matched) return;
+    probe::TableAddresses at;
+    probe::TableRead r = probe::read_table(*f_.table, table_spec(), block_reader(), &at);
+    r.at_ms = before ? 0 : since_ms() - called_ms_;
+    log(Line("r1").word("stage", before ? "table_before" : "table_after").flag("read", r.read)
+            .num("entries", r.entries).num("nonzero", r.nonzero)
+            .word("entry", r.entry ? returned_word(r.entry->kind) : "none"));
+    if (r.slot_value && r.slot_value->kind == probe::ValueKind::Game &&
+        r.slot_value->section == probe::SectionKind::Code && r.slot_value->rva && f_.table->site) {
+      summarise_group(*r.slot_value->rva);
+    }
+    if (before) {  // WHY§248: the classes of the singleton and of the group's entry, by their first words
+      if (at.singleton != 0) f_.table->singleton_class = class_match(at.singleton_first);
+      if (at.entry != 0) f_.table->entry_class = class_match(at.entry_first);
+      const auto word = [](const std::optional<probe::ClassMatch>& m) {
+        return !m ? "none" : m->match == probe::LeadMatch::Imp ? "imp" : m->match == probe::LeadMatch::Name ? "name"
+                                                                                                             : "none";
+      };
+      log(Line("r1").word("stage", "classes").word("singleton", word(f_.table->singleton_class))
+              .word("entry", word(f_.table->entry_class)));
+    }
+    (before ? f_.table->before : f_.table->after) = std::move(r);
+  }
+
+  probe::TableReadSpec table_spec() const {
     probe::TableReadSpec spec;
     spec.module_base = base_;
     spec.group_index = f_.group_index;
@@ -721,39 +782,88 @@ class Round {
     }
     spec.kinds = kinds_spec();
     spec.kinds.group_index = 0;
-    const probe::BlockReader read = [this](std::uint64_t at, std::span<std::byte> out) {
+    return spec;
+  }
+  probe::BlockReader block_reader() const {
+    return [this](std::uint64_t at, std::span<std::byte> out) {
       if (en::gal::implausible(at, out.size(), 1, s_.sys->stacks())) return false;
       return s_.sys->copier().copy(at, out).copied;
     };
-    probe::TableRead r = probe::read_table(*f_.table, spec, read);
-    r.at_ms = before ? 0 : since_ms() - called_ms_;
-    log(Line("r1").word("stage", before ? "table_before" : "table_after").flag("read", r.read)
-            .num("entries", r.entries).num("nonzero", r.nonzero)
-            .word("entry", r.entry ? returned_word(r.entry->kind) : "none"));
-    if (r.slot_value && r.slot_value->kind == probe::ValueKind::Game &&
-        r.slot_value->section == probe::SectionKind::Code && r.slot_value->rva && f_.table->site) {
-      summarise_deeper(*r.slot_value->rva);
-    }
-    (before ? f_.table->before : f_.table->after) = std::move(r);
   }
 
-  // The function the table's entry leads to, summarised with the arguments the tail function's jump passes it.
-  void summarise_deeper(std::uint32_t rva) {
-    if (deeper_) return;
+  // WHY§248: an object's class through its first word, by the RTTI walk of the live image, against the leads' names (O92's
+  // rule: the innermost name, as the lead's or with Imp). Numbers only: the lead's index, never a name.
+  probe::ClassMatch class_match(std::uint64_t first) const {
+    probe::ClassMatch m;
+    if (!walk_ || !img_ || first < base_ || first - base_ > 0xFFFF'FFFFull) return m;
+    const auto rva = static_cast<std::uint32_t>(first - base_);
+    const auto it = std::lower_bound(walk_->vtables.begin(), walk_->vtables.end(), rva,
+                                     [](const en::gal::rtti::Vtable& v, std::uint32_t r) { return v.rva < r; });
+    if (it == walk_->vtables.end() || it->rva != rva || it->locator >= walk_->locators.size()) return m;
+    m.vtable = true;
+    const en::gal::rtti::Locator& loc = walk_->locators[it->locator];
+    const std::optional<std::string> cls =
+        loc.offset == 0 ? derive::innermost_class(*img_, loc.type_descriptor) : std::nullopt;
+    if (!cls) return m;
+    m.classed = true;
+    m.type_descriptor = loc.type_descriptor;
+    std::vector<std::string> names;
+    names.reserve(leads_.singletons.size());
+    for (const derive::NamedLead& lead : leads_.singletons) names.push_back(lead.name);
+    probe::match_lead(m, *cls, names);
+    return m;
+  }
+
+  // WHY§248: the group's own function (the target of the tail function's jump at the table's site: direct, or through
+  // the entry's vtable), summarised with the group's entry in rcx and our task followed in, and its own direct callees
+  // and tail jumps one level further, each with the arguments its site passes; kMaxGroup summaries at most, once.
+  void summarise_group(std::uint32_t rva) {
+    if (group_done_ || !f_.table || !f_.table->site) return;
+    const probe::InnerCallee* tail = nullptr;
     for (const probe::InnerCallee& t : f_.callee_inner) {
-      if (!t.tail || t.depth != 1 || t.rva != f_.table->rva) continue;
-      for (const probe::CalleeCall& k : t.code.calls) {
-        if (k.offset != *f_.table->site) continue;
-        deeper_ = true;
-        const auto [code, extent] = code_at(rva);
-        probe::InnerCallee in{rva, k.offset, true, probe::summarise_callee(code, rva, extent, probe::entry_at(k)), 2};
-        probe::mark_sections(in.code, sections());
-        log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("depth", 2)
-                .num("bytes", in.code.bytes).num("calls", in.code.call_count));
-        f_.callee_inner.push_back(std::move(in));
-        return;
-      }
+      if (t.tail && t.depth == 1 && t.rva == f_.table->rva) tail = &t;
     }
+    if (tail == nullptr) return;
+    const auto jump = std::find_if(tail->code.calls.begin(), tail->code.calls.end(),
+                                   [&](const probe::CalleeCall& k) { return k.offset == *f_.table->site; });
+    if (jump == tail->code.calls.end()) return;
+    group_done_ = true;
+    const probe::EntryState entry = probe::group_entry_at(*jump);
+    std::vector<probe::InnerCallee> group;
+    group.push_back(inner_at(rva, *jump, entry, 2, tail->rva, true));
+    std::set<std::uint32_t> seen{rva};
+    const std::vector<probe::CalleeCall> calls = group.front().code.calls;
+    for (const probe::CalleeCall& k : calls) {
+      if (group.size() >= kMaxGroup) break;
+      if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail) ||
+          !seen.insert(*k.target).second) {
+        continue;
+      }
+      group.push_back(inner_at(*k.target, k, probe::entry_at(k, entry), 3, rva, k.form == probe::CallForm::Tail));
+    }
+    for (probe::InnerCallee& in : group) f_.callee_inner.push_back(std::move(in));
+  }
+  probe::InnerCallee inner_at(std::uint32_t rva, const probe::CalleeCall& site, const probe::EntryState& entry,
+                              std::uint32_t depth, std::uint32_t parent, bool tail) const {
+    const auto [code, extent] = code_at(rva);
+    probe::InnerCallee in;
+    in.rva = rva;
+    in.site = site.offset;
+    in.tail = tail;
+    in.code = probe::summarise_callee(code, rva, extent, entry, f_.registers[0]);
+    in.depth = depth;
+    in.parent = parent;
+    for (const probe::PassedSource& p : site.pass_src) {
+      probe::PassedSource e = p;
+      const std::size_t i = p.reg == 1 ? 0 : p.reg == 2 ? 1 : p.reg == 8 ? 2 : 3;
+      e.holds_entry = entry[i].entry;
+      in.entry_src.push_back(std::move(e));
+    }
+    probe::mark_sections(in.code, sections());
+    log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("depth", depth)
+            .num("bytes", in.code.bytes).num("calls", in.code.call_count).num("task_reads", in.code.task_read_count)
+            .num("entry_reads", in.code.entry_read_count).num("task_stores", in.code.task_store_count));
+    return in;
   }
 
   // WHY§235: our fake vtable's address (our object's first word) and its slots' (our module's thunks), read back from
@@ -771,31 +881,41 @@ class Round {
 
   // WHY§209: the hub's reachable memory searched for our task object; WHY§235: and compared with the walk kept from
   // before the call, block by block by path (the second diff against the first's changes, for their steadiness).
+  // WHY§248: the same diffs from the singleton and the group's entry, each `root` named.
   void search_hub() {
-    const std::uint64_t at_ms = since_ms() - called_ms_;
     const std::uint64_t target = s_.sys->task_object();
-    const probe::HubWalk walk = probe::walk_hub(*s_.sys, hub_walk_spec());
-    probe::HubSearch h = probe::search_walk(walk, target, target + f_.object_size, f_.group_index);
-    h.at_ms = at_ms;
-    log(Line("r1").word("stage", "hub_search").num("at_ms", h.at_ms).num("nodes", h.nodes).num("found", h.found)
-            .num("inside", h.inside).num("faults", h.faults));
-    f_.hub_search.push_back(std::move(h));
-    if (before_.blocks.empty()) return;
-    probe::DiffSpec spec = kinds_spec();
-    spec.earlier = f_.hub_diff.empty() ? nullptr : &first_changes_;
-    spec.control = f_.hub_diff_control ? &control_changes_ : nullptr;
-    probe::DiffResult r = probe::diff_hub(before_, walk, spec);
-    r.diff.at_ms = at_ms;
-    log(Line("r1").word("stage", "hub_diff").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
-            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
-    if (f_.hub_diff.empty()) {
-      first_changes_ = std::move(r.changed);
-    } else {
-      before_ = probe::HubWalk{};  // the last diff: what was kept is let go
-      first_changes_.clear();
-      control_changes_.clear();
+    for (std::size_t i = 0; i < roots_.size(); ++i) {
+      Root& r = roots_[i];
+      if (r.address == 0) continue;
+      const std::uint64_t at_ms = since_ms() - called_ms_;
+      const probe::HubWalk walk = probe::walk_hub(*s_.sys, hub_walk_spec(r.address));
+      if (i == 0) {
+        probe::HubSearch h = probe::search_walk(walk, target, target + f_.object_size, f_.group_index);
+        h.at_ms = at_ms;
+        log(Line("r1").word("stage", "hub_search").num("at_ms", h.at_ms).num("nodes", h.nodes).num("found", h.found)
+                .num("inside", h.inside).num("faults", h.faults));
+        f_.hub_search.push_back(std::move(h));
+      }
+      if (r.before.blocks.empty()) continue;
+      probe::DiffSpec spec = kinds_spec();
+      spec.earlier = r.diffs == 0 ? nullptr : &r.first_changes;
+      spec.control = r.controlled ? &r.control_changes : nullptr;
+      probe::DiffResult d = probe::diff_hub(r.before, walk, spec);
+      d.diff.at_ms = at_ms;
+      d.diff.root = r.word;
+      log(Line("r1").word("stage", "hub_diff").word("root", r.word).num("at_ms", d.diff.at_ms)
+              .num("compared", d.diff.compared).num("changed", d.diff.changed).num("new_blocks", d.diff.new_blocks)
+              .flag("capped", d.diff.capped));
+      if (r.diffs == 0) {
+        r.first_changes = std::move(d.changed);
+      } else {
+        r.before = probe::HubWalk{};  // the last diff: what was kept is let go
+        r.first_changes.clear();
+        r.control_changes.clear();
+      }
+      ++r.diffs;
+      f_.hub_diff.push_back(std::move(d.diff));
     }
-    f_.hub_diff.push_back(std::move(r.diff));
   }
 
   // The code at `rva` as the live image holds it: within its function of the exception directory (its length the
@@ -817,10 +937,12 @@ class Round {
   // WHY§227: what the callee does with its arguments, from the live image (the code the call runs), decoded within its
   // function of the exception directory, or up to its first return, and at most 4 KiB; no call is followed. WHY§235:
   // then each callee it calls directly or tail-jumps to, one level deeper, with the arguments its call site passes.
+  // WHY§248: our task's argument (the registers' first) is followed in every summary: its loads and their uses.
   void summarise_callee() {
     if (f_.callee == 0) return;
+    const std::uint8_t task = f_.registers[0];
     const auto [code, extent] = code_at(f_.callee);
-    f_.callee_code = probe::summarise_callee(code, f_.callee, extent);
+    f_.callee_code = probe::summarise_callee(code, f_.callee, extent, probe::kOwnArguments, task);
     probe::mark_sections(*f_.callee_code, sections());
     const probe::CalleeCode& c = *f_.callee_code;
     log(Line("r1").word("stage", "callee").num("bytes", c.bytes).num("instructions", c.instructions)
@@ -829,8 +951,11 @@ class Round {
       if (f_.callee_inner.size() >= kMaxInner) break;
       if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail)) continue;
       const auto [inner, inner_extent] = code_at(*k.target);
-      probe::InnerCallee in{*k.target, k.offset, k.form == probe::CallForm::Tail,
-                            probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k)), 1};
+      probe::InnerCallee in;
+      in.rva = *k.target;
+      in.site = k.offset;
+      in.tail = k.form == probe::CallForm::Tail;
+      in.code = probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k), task);
       probe::mark_sections(in.code, sections());
       log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("bytes", in.code.bytes)
               .num("calls", in.code.call_count).num("branches", in.code.branch_count));
@@ -840,7 +965,9 @@ class Round {
     f_.table = probe::match_table(c, f_.callee_inner, f_.registers[2]);
     log(Line("r1").word("stage", "table").flag("matched", f_.table->matched)
             .word("failed", f_.table->matched ? "none" : f_.table->failed).hex("slot", f_.table->singleton_slot)
-            .num("bound", f_.table->bound));
+            .num("bound", f_.table->bound).flag("direct", f_.table->target.has_value()));
+    // WHY§248: where the tail function's jump is direct (run 8's), the group's function is in the image: summarised now.
+    if (f_.table->matched && f_.table->target) summarise_group(*f_.table->target);
   }
 
   // WHY§227: every committed, readable region of the process searched for our task object's address, on T1, through
@@ -924,21 +1051,35 @@ class Round {
     }
   }
 
-  // Within the report's 256 KiB: past it, the forms of the inner summaries that are not tail jumps are left out, then
-  // every inner summary's, then the wrapper's (each marked forms_dropped).
+  // Within the report's 256 KiB: past it, the summaries' forms are left out (each marked forms_dropped), pass by pass:
+  // first the wrapper's callees that are not its tail jump and (spike.9) the group function's callees, then the tail
+  // function's, then the wrapper's, and last the group's own function's. Spike.9: past that, the group function's
+  // callees' call sites, branches and guards (`trimmed`; their reads and stores kept), then those callees past the
+  // first four, then all of them (`inner_dropped`), and last the group's own function trimmed. Each pass keeps the
+  // earlier ones' cuts.
   void write_report() {
     auto text = probe::write_report(f_);
-    for (int pass = 0; !text && pass < 3 && f_.callee_code; ++pass) {
+    constexpr int kPasses = 8;
+    for (int pass = 0; !text && pass < kPasses && f_.callee_code; ++pass) {
       probe::Findings g = f_;
       for (probe::InnerCallee& in : g.callee_inner) {
-        if ((pass >= 1 || !in.tail) && !in.code.forms.empty()) {
+        const int rank = in.depth == 2 ? 3 : in.depth == 1 && in.tail ? 1 : 0;
+        if (rank <= pass && !in.code.forms.empty()) {
           in.code.forms.clear();
           in.code.forms_dropped = true;
         }
+        if ((in.depth == 3 && pass >= 4) || (in.depth == 2 && pass >= 7)) trim(in.code);
       }
-      if (pass == 2 && !g.callee_code->forms.empty()) {
+      if (pass >= 2 && !g.callee_code->forms.empty()) {
         g.callee_code->forms.clear();
         g.callee_code->forms_dropped = true;
+      }
+      if (pass >= 5) {
+        std::size_t kept = 0;
+        const std::size_t keep = pass == 5 ? 4 : 0;
+        const auto before = g.callee_inner.size();
+        std::erase_if(g.callee_inner, [&](const probe::InnerCallee& in) { return in.depth == 3 && kept++ >= keep; });
+        g.inner_dropped = static_cast<std::uint32_t>(before - g.callee_inner.size());
       }
       text = probe::write_report(g);
       if (text) log(Line("r1").word("report", "forms_dropped").num("pass", pass), LogLevel::Warn);
@@ -948,6 +1089,14 @@ class Round {
       return;
     }
     (void)write_text(folder_ + L"\\r1-probe.json", *text);
+  }
+  // A summary's call sites, branches and guards left out (their counts kept), its reads and stores kept.
+  static void trim(probe::CalleeCode& c) {
+    if (c.calls.empty() && c.branches.empty() && c.guards.empty()) return;
+    c.calls.clear();
+    c.branches.clear();
+    c.guards.clear();
+    c.trimmed = true;
   }
 
   Shell& s_;
@@ -967,13 +1116,30 @@ class Round {
   en::gal::RegisterAbi abi_;
   std::uint64_t called_ms_ = 0;
   std::uint64_t called_mono_ = 0;
-  probe::HubWalk before_;                         // the hub's reachable memory just before the call (WHY§235)
-  std::vector<probe::ChangedWord> first_changes_;  // the first diff's changes, for the second's steadiness
-  probe::HubWalk control_;                        // WHY§240: the same walk at the Mark, 2 s before
-  std::vector<probe::ChangedWord> control_changes_;  // the control diff's changes, for each later diff's in_control
-  std::uint64_t control_ms_ = 0;
-  std::uint64_t kept_ms_ = 0;
-  bool deeper_ = false;                           // the table's function summarised one level deeper
+  // A walk's root (WHY§248: the hub's instance, the tail function's singleton, the group's entry) and what is kept of
+  // it: the walk just before the call (WHY§235), the same walk at the Mark 2 s before it (WHY§240), the control diff's
+  // changes for each later diff's in_control, and the first diff's for the second's steadiness.
+  struct Root {
+    std::string_view word;
+    std::uint64_t address = 0;
+    probe::HubWalk before;
+    probe::HubWalk control;
+    std::vector<probe::ChangedWord> control_changes;
+    std::vector<probe::ChangedWord> first_changes;
+    std::uint64_t control_ms = 0;
+    std::uint64_t kept_ms = 0;
+    bool controlled = false;
+    std::size_t diffs = 0;
+  };
+  std::array<Root, 3> roots_ = make_roots();
+  static std::array<Root, 3> make_roots() {
+    std::array<Root, 3> r;
+    r[0].word = "task_hub";
+    r[1].word = "singleton";
+    r[2].word = "group_entry";
+    return r;
+  }
+  bool group_done_ = false;                       // WHY§248: the group's function and its callees summarised
   std::uint64_t vtable_ = 0;                      // our fake vtable's address, read back after the call
   std::vector<std::uint64_t> thunks_;             // its slots'
 };
