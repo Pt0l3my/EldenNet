@@ -1659,12 +1659,35 @@ struct RenderFeed {
   the name's length; no SteamID is read. The header's text-valued fields (`build`, `content_hash`, `seed_root`,
   `salt`) wait for the keyed hashes. About 3.3 KB a snapshot line at six characters, so about 47 MB an hour at 4 Hz
   unzipped; a full snapshot stays within a line's 256 KiB. `replay` steps it through the core again (§12.3).
+- **The recording's reader, as built** (part 11, 2026-11-20; WHY§225). en_shell's `read_recorded_line` rebuilds what
+  Augur reads of a snapshot from the numbers the recorder already writes: the characters, the Tarnished's combat
+  fields, the UI, the place, the clock, the boss bars and the flag frame. So `replay` and `golden` drive Augur from a
+  recording (`replay --events` writes its events in the golden files' form, §8.12), and the format is unchanged
+  (schema 1). What a recording never held stays empty: text look-ups' text, param rows' values, a region key, a
+  bearing without the camera. A route's inputs written as the DLL writes them replay to byte-identical events: 7
+  significant digits of each float are enough for every derivation on the synthetic routes. A recording of the
+  owner's game becomes one of C12's routes once it is redacted so that it may be committed (§8.12). *Also 2026-11-20
+  (WHY§251):* the observer's spike words (`s0e`, `s0e_alone`, `s4`) and the banner reason `spike_run` joined schema 1
+  of the recording, `rec_stats` and `spike`, not a schema 2: no reader outside the engine holds those words (DataPiler's
+  guard holds only `derive`'s), and a schema 2 would make every older reader refuse every recording; the rule that a
+  new word means a new schema holds from the first outside copy.
 
 ---
 
 ## 8. Augur, the event engine
 
 Augur turns snapshot diffs, flag edges, lifecycle changes, pipeline outputs and time into typed events with frozen audiences. It is pure: it does no I/O and reads no clock, and it runs first in every `Core::step` (DESIGN §6).
+
+*2026-11-20, as built (the first in-game build's part 11; WHY§222):* Augur runs straight after en-core's lifecycle
+slice in the same step, not before it, and before anything that consumes events. The slice (gate, phases, ladder)
+judges the input first; Augur then takes the same input, as `AugurInput{snapshot, life}` with the slice's changes as
+its Lifecycle facts (`LifeFact`), since en-augur lies below en-core and never sees `CoreInput`. Run first, it would see
+GateChanged, LoadingStarted and the rest a step late, so a loading screen's snapshot would be processed as a world and
+LoadingStarted's `ALL` interrupt would lag by up to 100 ms. Not chosen: the previous step's changes (a lag and an
+inversion of order), or Augur deriving the lifecycle itself (a second lifecycle machine beside en-core's). v0.1 has no
+subscriber: en-core takes the dispatched events into its outputs. en-augur is game-neutral: what the game's values
+mean (the hostile teams, the victory banners, a critical hit's throw states, the open world's areas) comes through
+`WorldFacts`, beside `AugurCtx`.
 
 ### 8.1 Module surface
 
@@ -1778,6 +1801,27 @@ For one `(rule, subject)`, let `x₀, x₁, …` be the signal's values at the p
    - **T:** the event is dispatched and never stored.
 5. **Confidence:** the rule's `confidence`, or the branch value for `engagement`, or `1.0` for a verified catalogue flag and `0.8` for an unverified one (DESIGN §6.5).
 
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223; `src/en-augur/README.md` holds the list in full):
+- **Time.** Detectors sample at each processed snapshot's `mono_ms`, and events carry the step's `now`. The Timer
+  source fires once per whole second crossed (at most 60 at once); in a replay, whose steps are the recording's inputs
+  (ticks are not recorded), a deferred emission lands on the first input past its second, the same in every replay.
+- **First samples.** The rule above holds for every detector; the engagement machine is none, so a hostile first seen
+  within 8 m engages on that snapshot (§8.7).
+- **Three more forms**, each the smallest reading of a rule the catalogue states: `changed_stable` with `to`, the
+  values that may fire (the change is tracked either way; PlayerDied's banner); `engagement` with `on = "engaged" |
+  "disengaged"`, the machine's transitions; and `fact` on the signal `lifecycle`, one of the Lifecycle source's facts
+  (`data_ready`, `playthrough_ready`, `loading_started`, `loading_ended`, `title_reached`, `gate_changed`,
+  `group_tripped`, `ladder_changed`), so that every event, the lifecycle's included, comes from a rule file.
+- **Windows.** `drop_over_window`'s base resets on each fire, so a longer window counts nothing twice (Struck's 1 s,
+  §8.5).
+- **Debounce** lives in the detector, as the first modifier. A candidate waits on through a loading screen, so a boss
+  fight's end still matures there after a death.
+- **K.** A fire merges only into an entry of the same rule; a fire of another rule with the same key replaces the entry
+  (Engaged and Disengaged share `eng:a:b`). An entry's audience is frozen with its event's. The K store expires at the
+  start of every step and holds at most 512; the dedup and cooldown tables keep at most 4,096 keys each, the oldest
+  going first.
+- **Interrupts** are the kind's (§8.8's table, in code, with Engaged's conditions); a rule's `interrupts` add to them.
+
 ### 8.5 Rule files
 
 Rule files live in `content/eldenring/augur/*.toml`, with the schema of DESIGN §6.3. Two original examples:
@@ -1823,6 +1867,34 @@ priority = 5
 - Bounds: `debounce_ms ≤ 60,000`, `merge_ms ≤ 30,000`, `ttl_s ≤ 600`, `cooldown_s ≤ 3,600`, `dedup_s ≤ 86,400`; `confidence` in (0, 1].
 - Each file is ≤ 64 KB; the total is ≤ 256 rules (impl).
 - User rule files load only when `augur.allow_custom_rules = true`, which is off in v1 (DESIGN §6.3).
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223):
+- **The shipped set**: 25 rules of our own in `content/eldenring/augur/{world,combat,lifecycle}.toml`, built into
+  en-core (v0.1 has no content loader). They emit v0.1's 23 kinds: PlaceEntered, BossFightStarted and Ended,
+  NativeTalkStarted and Ended (no persona), PlayerDied (three rules, one event), MountChanged, Struck, LowHp, Healed,
+  Engaged and Disengaged (the Tarnished's pairs), AllyDied, CritLanded, JourneyChanged and the eight lifecycle events.
+  Every subject classifies as Mute or Player until personas exist (v0.2), so every rule that needs a persona or a card
+  waits; a rule file naming a kind that waits is refused at load with the version and source it waits for.
+- **The schema's additions**: `subjects.in_combat = true` (only while the subject is in combat: the Tarnished by
+  §8.7's combat state, a character engaged at 0.6 or more; Healed's "any combatant"), `changed_stable`'s `to`,
+  `engagement`'s `on` and the `fact` detector's `value` (§8.4); `payload` may be left out when one builder makes the
+  kind (`boss_outcome` must be named: it defers).
+- **The signals**: `crit_by_player`, `native_talk` (the talk popup or the talk camera) and `lifecycle` (the facts) join
+  §8.3's registry. `clock_bucket` is not registered (the seven words' hours are not set down), nor `flag:<alias>`
+  (v0.2); `team_turned`, `crouching`, `invisible` and `idle_due` are registered and never sampled until their spikes
+  verify them.
+- **Struck's window is 1 s**, not the 300 ms of the example above, so a hit across a dropped snapshot still fires
+  once.
+- **The boss outcome**: `fight_id` is the session's ordinal of the fight, not the start's EventId (which is not given
+  yet when its key is made). Victory's evidence is a victory banner at any snapshot since the fight began (it may show
+  before the bars go), Death's a PlayerDied emitted since; the earlier wins; Left when 10 s pass from the falling edge
+  without either. A boss flag's evidence waits for the flag catalogue (v0.2).
+- **Errors** are `RuleError`s (file, line, problem; a toast's text); any error refuses the whole set, so a reload keeps
+  the old one (`Core::load_rules`). The build's own bounds beside the ones above: a window ≤ 10 s, `stable_ms` and
+  `dwell_ms` ≤ 60 s, an id ≤ 48 bytes, a key ≤ 96 bytes, `requires` ≤ 1 KB, at most 64 errors reported.
+- **`requires`** compiles through en-core's predicates: v0.1 evaluates `true`, `false`, `!`, `&&`, `||`, parentheses
+  and comparisons of `runes` and `journey`; `world()` and `knows()` are refused in Augur for good, and `flag()`,
+  `boss()`, `stage()` and `region()` until the flag catalogue and `regions.toml` exist.
 
 ### 8.6 Event catalogue (every v1 event of DESIGN §6.5)
 
@@ -1937,6 +2009,26 @@ stateDiagram-v2
   until it is no longer concealed from V, so standing up near V greets as arriving does, and the scheduler refuses, at
   request and at display, an own-initiative line from V addressed to the Tarnished (DESIGN §9.4). A conversation the
   Tarnished opens is untouched.
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223):
+- **Engagement** only with a live character on a hostile live team, and a Tarnished present; NPC pairs wait for S7
+  (v0.4). A stronger condition raises the confidence and re-emits only when it crosses 0.6. `LockClosing` compares the
+  distance with the oldest sample within the last 2 s. After a Timeout, `Near` and lock-on start an engagement again
+  only once neither holds, so a hostile standing near does not engage every 12 s; a hit always does. A character lost
+  (absent 2 s), no longer hostile, or with no Tarnished ends its engagement silently, as a death does. `fled` reads the
+  Tarnished's distance over the last 5 s.
+- **Squads**: the same side is the same live team (no cards yet); "a member engaged within the last 10 s" is a member
+  engaged now whose last exchange, lock or start is within 10 s. The Tarnished's side holds the Tarnished alone until
+  S7 shows which live teams fight beside it.
+- **Combat state**: a signal at a snapshot is the Tarnished's HP dropping, a character hit by the Tarnished, a critical
+  hit's throw states, or an engagement at 0.6 or more.
+- **Struck's attacker**: for a character struck, the attacker is read only when it is the Tarnished (unseen beyond
+  20 m); another character's is unknown until S7. For the Tarnished struck, its `last_hit_by` names the attacker if
+  that is a present character within 20 m, else the hit is unseen. An unseen hit names no attacker (`att` empty, its
+  key `unseen`; an unknown one's `none`).
+- **Loading**: on `LoadingStarted`, engagements, squads and the K store are cleared silently, the characters
+  forgotten and `enter_radius` re-armed; the Tarnished's and the world's detectors carry on (a fast travel still enters
+  its place). Trackers are dropped 2 s after a character is last seen, at most 256 at once.
 
 ### 8.8 Audience and interrupts
 
@@ -2083,6 +2175,39 @@ prints its seed):
 - Snapshot loss of 50% at random: the golden events match the dense run, except for documented timing differences.
 - Net saturation: pool jobs are dropped first, and dialogue survives.
 - FIFO overflow: T is dropped before K, and P never.
+
+**As built in Augur v0.1** (part 11, 2026-11-20; WHY§223 to §225; `src/en-augur/README.md`, `src/en-tools/README.md`):
+- **The golden files' form.** A header (`golden`, `route`, `source`, `rules_hash`, `events`), then one event a line with
+  `seq` (step, index), `t`, `t_play`, `kind`, `class`, `rule`, `source`, `subject`, `object`, `key`, `conf`,
+  `audience`, `count`, `merged`, `interrupts` and `payload`, numbers to three decimals, handles renamed as above. A
+  rule set's hash and a golden file's are FNV-1a 64 (`fnv1a64:<hex>`), not BLAKE3, which is en-launcher's and which
+  neither en-augur nor en-tools links. `eldennet-engine golden [check|update] <route.scn | recording>` runs the input
+  through en-core and Augur; `check` prints our own diff (`@@ golden line N, run line N @@`) and then needs a line in
+  `tests/golden/CHANGES.md` naming the route and the file's hash; `update` writes beside the file and renames, prints
+  the line CHANGES.md needs, and writes nothing when an expectation fails. CTest's `en_golden.<route>` checks each
+  route.
+- **The routes.** The three shipped routes are synthetic scenarios of ours (a camp skirmish, three boss encounters, a
+  road with a co-op visit). C12's "3 recorded routes" wait for three recordings of the owner's game, redacted so they
+  may be committed, each made a route with `golden update <recording>` (§7.5; WHY§225).
+- **The DSL in our own form** for what v0.1 can say: `route <name>`, `seed <n>`, `step <ms>` (the snapshot period, 250
+  by default), `end <ms>`, then `at <ms> <verb> …`, applied at the first snapshot at or after its time. Its verbs:
+  `spawn`, `despawn`, `move`, `hit`, `heal`, `kill`, `lock`, `unlock`, `throw`, `ride`, `place`, `banner`, `talk`,
+  `ng`, `boss`, `session`, `title`, `load`, `wait` and `drop_snapshots`; `set_flag` (v0.2), `say` (the Pipeline source)
+  and `expect bark` (v0.4) are refused with the version they wait for, so the example above runs once they exist. Its
+  expectations: `expect event <Kind> [field=value …] [within a..b]`, `expect no`, `expect count <n>` and `expect
+  audience <Kind> … = [ids]`.
+- **The properties** as above, gaps also checking that a count across a gap is counted once, and determinism as
+  byte-identical golden text over 10 runs, with and without a seeded loss.
+- **50% snapshot loss** (12 seeds a route; WHY§224): no event is invented and none fires earlier; every event of a
+  lasting state (the lifecycle's, places, boss fights, deaths, the mount, the journey, native talk, AllyDied) is there
+  with its payload, at most two gaps and a second later. The "documented timing differences" are these: per-hit
+  events (the hits of a dropped snapshot reach the next kept one as one drop, so Struck's merges and `hard` change),
+  states briefer than the gap they fall in (a near pass, a lock-on before the closing, a heal within 1 s, a critical
+  hit's two snapshots, a low HP the next hit kills), NativeTalkEnded's `held_ms`, and the gate, whose 5 s hold starts
+  again after a gap over 1 s (§5.1), so it may open late or never in a lossy run.
+- **Elsewhere**: net saturation is en-llm's test (a full queue gives a pool job's place away, a memory job is requeued,
+  a reply never); a stalled store is tested on `PersistQueue`, which keeps the store requests' policy until the store
+  exists (v0.3); on FIFO overflow the newest T event goes first, then the newest K.
 
 ---
 
