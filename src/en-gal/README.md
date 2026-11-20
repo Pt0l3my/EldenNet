@@ -345,7 +345,8 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   values), gives each guard operand's source, models a jump through memory or a register as a tail call site, ends a
   function with no extent at its first jump out that no branch goes past, and gives each summary's first 64
   instructions as forms (class and operand kinds, no bytes; `mark_sections` fills a RIP-relative slot's section);
-  `match_table` checks a wrapper and its tail function against run 7's shapes and `read_table` reads the singleton and
+  `match_table` checks a wrapper and its tail function against run 7's shapes (the wrapper's rcx at its tail jump, or
+  past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
   its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
   `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
   the call left it.

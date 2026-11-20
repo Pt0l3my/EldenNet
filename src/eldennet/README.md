@@ -204,9 +204,10 @@ layout fields). On T1, after the window and `settle_s` seconds:
    instructions of each summary are given as `forms` (offset, length, class and each operand's kind: a register with
    its width and the argument it holds, memory, a RIP-relative slot with its section, an immediate up to 65,536 or
    `large`; those no known path reaches `unreached`), no bytes. The tail function's **table** is matched against run
-   7's reading (`table`: the wrapper's rcx loaded from a slot S, directly or through one load, and the tail function's
-   null-tested value loaded from [entry rcx + group*8 + disp], or one level deeper; else `matched: false` and the first
-   shape that failed). At the Mark T1 walks the hub's reachable memory as the hub search does (the control walk), waits
+   7's reading (`table`: the wrapper's rcx loaded from a slot S, directly or through one load, or, where the paths into
+   its tail jump disagree on rcx, so loaded and null-tested on the path past the test, `via_guard`; and the tail
+   function's null-tested value loaded from [entry rcx + group*8 + disp], or one level deeper; else `matched: false`
+   and the first shape that failed). At the Mark T1 walks the hub's reachable memory as the hub search does (the control walk), waits
    2 s and walks it again, keeping the blocks' bytes on our heap (within the walk's 6 MiB) for the diffs below, reads
    the table (`table.before`: the singleton's kind and whether it is CSTask's instance or a named singleton's, the
    entries from 0 to the bound that are set, the group's entry, its first word and the word its final jump reads, a
