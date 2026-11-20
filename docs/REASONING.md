@@ -285,6 +285,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 260 | 2026-11-20 | A quiet mod's notice is checked, answered ok and kept, never dropped | DECIDED | #graceui #notices |
 | 261 | 2026-11-20 | A test export that read GraceUI's thread's state without a lock crashed a full harness run | LIKELY | #graceui #harness |
 | 262 | 2026-11-20 | GraceUI's kept settings and a new ui.scale were saved and told only when the menu next opened | FACT | #graceui #settings |
+| 263 | 2026-11-20 | A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high | METHOD | #graceui #input |
 
 ## Entries
 
@@ -4543,3 +4544,12 @@ invariant 10, EldenNet ARCH (T3)
 - (FACT) D179 wrote `user\settings.json` only from the menu's thread of work, so a change from a browser while the menu
   was closed was kept, and a new ui.scale told to the mods (D180), only when the menu next opened. GraceUI's thread now
   does both at every wake.
+
+### 263. A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high
+
+`2026-11-20` · METHOD · `#graceui` `#input` · refs: GraceUI proposal 0005, GraceUI:D155, NPC§5.6
+
+- (METHOD) An XInput button mask cannot say which of two buttons comes first. So GraceUI's proposal 0005 carries a
+  chord's order by splitting `register_hotkey`'s `pad_chord` word: the key's bit in the low 16, the anchor's in the
+  high 16 (EldenNet's chord: `XINPUT_GAMEPAD_BACK | (XINPUT_GAMEPAD_DPAD_UP << 16)`). GraceUI has refused to read that
+  word until now (`not_yet`), so no mod can have relied on it.
