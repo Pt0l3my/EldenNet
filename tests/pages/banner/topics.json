@@ -1,0 +1,157 @@
+{
+  "errors": {
+    "checks": [
+      {
+        "detail": "An update of EldenNet adds this build once it has been checked. The game itself runs as usual.",
+        "label": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+        "state": "fail"
+      },
+      {
+        "detail": "System › Logs names the setting. Correct it in settings.toml, then start the game again.",
+        "label": "Your settings file has a problem, so EldenNet uses its defaults.",
+        "state": "warn"
+      }
+    ]
+  },
+  "logs": [
+    {
+      "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
+      "seq": 1,
+      "time": "0:00:00"
+    },
+    {
+      "line": "gate result=unknown_build ms=11",
+      "seq": 2,
+      "time": "0:00:00"
+    },
+    {
+      "line": "init state=settings",
+      "seq": 3,
+      "time": "0:00:00"
+    },
+    {
+      "line": "settings_problem where=debug.log_level",
+      "seq": 4,
+      "time": "0:00:00"
+    },
+    {
+      "line": "banner reason=unknown_build detail=unknown_build",
+      "seq": 5,
+      "time": "0:00:01"
+    }
+  ],
+  "status": {
+    "items": [
+      {
+        "label": "State",
+        "value": "Inactive"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+      },
+      {
+        "label": "EldenNet",
+        "value": "0.1.0"
+      },
+      {
+        "label": "GraceUI",
+        "value": "0.2.3"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, not supported yet"
+      },
+      {
+        "label": "This session",
+        "value": "Under a minute"
+      }
+    ],
+    "page": "system.status",
+    "reason": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+    "tone": "rot",
+    "word": "Inactive"
+  },
+  "system.compatibility": {
+    "checks": [
+      {
+        "detail": "Not supported yet",
+        "label": "Game build 3.14.15.0",
+        "state": "fail"
+      },
+      {
+        "detail": "Started by another loader; EldenNet started its crash watch itself",
+        "label": "EldenNet 0.1.0",
+        "state": "pass"
+      },
+      {
+        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "label": "GraceUI 0.2.3",
+        "state": "pass"
+      }
+    ]
+  },
+  "system.status": {
+    "checks": [
+      {
+        "detail": "Stopped (Home's Problems say why)",
+        "label": "Start",
+        "state": "fail"
+      },
+      {
+        "detail": "Not started",
+        "label": "Reading the game",
+        "state": "fail"
+      },
+      {
+        "detail": "Running",
+        "label": "The core",
+        "state": "pass"
+      },
+      {
+        "detail": "Checks the game's modules every minute",
+        "label": "Anti-cheat watch",
+        "state": "pass"
+      },
+      {
+        "detail": "Writing",
+        "label": "The log",
+        "state": "pass"
+      },
+      {
+        "detail": "Connected, version 0.2.3",
+        "label": "GraceUI",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "group",
+        "label": "Group"
+      },
+      {
+        "id": "state",
+        "label": "Self-test"
+      }
+    ],
+    "items": [
+      {
+        "label": "State",
+        "value": "Inactive"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+      },
+      {
+        "label": "Start",
+        "value": "Stopped (Home's Problems say why)"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, not supported yet"
+      }
+    ],
+    "rows": []
+  }
+}

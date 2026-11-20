@@ -1,0 +1,76 @@
+{
+  "schema": {
+    "number": 2,
+    "hash": "4e8d78949d7e593a"
+  },
+  "settings": [
+    {
+      "key": "debug.panel",
+      "type": "bool",
+      "default": false,
+      "label": "Developer views",
+      "help": "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts.",
+      "synonyms": [
+        "debug",
+        "F11",
+        "developer",
+        "view"
+      ],
+      "home": "settings.developer",
+      "effect": "next_launch",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "debug.record_sessions",
+      "type": "bool",
+      "default": false,
+      "label": "Record sessions",
+      "help": "Keeps a recording of each session's numbers, with no text and no names, for the developers' replay tools. Takes effect the next time the game starts.",
+      "synonyms": [
+        "recording",
+        "record",
+        "replay"
+      ],
+      "home": "settings.developer",
+      "effect": "next_launch",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "debug.log_level",
+      "type": "choice",
+      "default": "info",
+      "choices": [
+        {
+          "value": "error",
+          "label": "Errors only"
+        },
+        {
+          "value": "warn",
+          "label": "Warnings"
+        },
+        {
+          "value": "info",
+          "label": "Normal"
+        },
+        {
+          "value": "debug",
+          "label": "Detailed"
+        }
+      ],
+      "label": "Log detail",
+      "help": "How much EldenNet writes to its log. Detailed helps with a bug report; Normal is enough otherwise. Changes at once.",
+      "synonyms": [
+        "log",
+        "logging",
+        "verbose",
+        "level"
+      ],
+      "home": "settings.developer",
+      "effect": "now",
+      "availability": "live",
+      "locked": false
+    }
+  ]
+}
