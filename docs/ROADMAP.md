@@ -929,7 +929,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
     replay built in parts 6 and 9. Still to join (found by S10.1.i's fold): the F11 view shows en-core's changes, not
-    Augur's events with their audiences, which DESIGN §14's F11 list asks for.
+    Augur's events with their audiences, which DESIGN §14's F11 list asks for. Joined on 2026-11-20 (engine 2f2f843):
+    Augur's last ten events with their audiences, then en-core's last five changes, checked on the fake game with
+    GraceUI's test build (WHY§272).
 
 ### S10.3 v0.1's exit checks
 
@@ -1130,6 +1132,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     to "set" or ""). Open: telling a space which view sent a command (GraceUI DESIGN §7.3), an ABI 1 addition before
     the home network's pairing (WHY§264, §265). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
     checks on both toolchains, the anti-cheat flag and re-check scenarios among them; no change to the ABI.
+- r A mod space's state components drawn in game: key-value and check lists, stat tiles, a computed sentence (GraceUI 0.2.6) [done]
+  - refs: GraceUI:D184, GraceUI:D171
+  - gives: built on 2026-11-20 at EldenNet's request (GraceUI feat/foundations 51091c7), no change of the ABI or the
+    page data: the menu subscribes to the open page's topics as a browser does, and the registry keeps a topic's
+    newest state while any view watches it (WHY§271). The other five requests of EldenNet's first pages are GraceUI's
+    proposal 0006 (G33), put to the owner and EldenNet the same day.
 
 ### S11.3 EldenNet v0.2
 
@@ -1146,7 +1154,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 ### S11.4 GraceUI 0.2
 
-- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
+- S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
   - refs: G2, G20, PAGES§4.6, GraceUI:D163
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
@@ -1156,6 +1164,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     D173's confirmations, increments and words: GraceUI's docs/eldennet-changes.md §27 to §29. Since GraceUI's D181 a
     player may quiet EldenNet's notices, so what the player must know (the banner's reason, a failed start) is on
     EldenNet's Home page and in its log too, never in a notice alone (GraceUI's docs/eldennet-changes.md §34).
+    First slice built on 2026-11-20 (engine 75e6303): EldenNet's space with Home, System and Settings › Developer
+    (PAGES §4.5 homes the debug settings there), linted by GraceUI's tools at 8d45b20 (0.2.5), T6's register_pages,
+    publish on watch and answer, settings written on T11; graceui-sys re-vendored at 8d45b20. Tested in grace-dev
+    (goldens of each page's structure) and on the fake game in both views. In game, GraceUI 0.2 draws only a mod's
+    settings and shortcut rows, so Home's cards show in the browser alone until GraceUI draws a mod's components
+    (WHY§266 to §270). AI, Tools, Content packs and Docs follow. Since GraceUI 0.2.6 (S11.2.r) the in-game menu draws
+    Home's and System's cards too.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

@@ -288,6 +288,13 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 263 | 2026-11-20 | A pad chord's order is carried by splitting ABI 1's pad_chord word, key low and anchor high | METHOD | #graceui #input |
 | 264 | 2026-11-20 | An independent review given the code and the rules found GraceUI's faults at the joins between modules | FACT | #graceui #security |
 | 265 | 2026-11-20 | A space's settings publications are held to its registration, and a secret's value is masked rather than refused | DECIDED | #graceui #security |
+| 266 | 2026-11-20 | GraceUI 0.2's in-game menu draws a mod's settings and shortcut rows only, so EldenNet's Home cards show in the browser alone | FACT | #graceui #engine |
+| 267 | 2026-11-20 | EldenNet's first pages: settings written on T11, a refused settings file never written over, and the developer settings on Settings › Developer | DECIDED | #engine #pages |
+| 268 | 2026-11-20 | A browser of our own joins GraceUI's server from Linux while the fake game runs under Wine | METHOD | #engine #graceui #harness |
+| 269 | 2026-11-20 | A range-for over a member of a temporary nlohmann::json dangles in C++20 | FACT | #engine |
+| 270 | 2026-11-20 | One body per topic: GraceUI's components read fixed fields, so a page with two lists needs two topics | FACT | #graceui #pages |
+| 271 | 2026-11-20 | GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it | FACT | #graceui #pages |
+| 272 | 2026-11-20 | F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour | DECIDED | #engine #augur #overlay #test |
 
 ## Entries
 
@@ -4575,3 +4582,84 @@ invariant 10, EldenNet ARCH (T3)
 - (DECIDED) `publish` on settings must send the registered schema and description or none; a mismatch is refused. A
   secret's value in a publication is replaced by "set" or "" with one log line rather than refusing the frame, so a
   mod's mistake costs it nothing visible and leaks nothing. EldenNet publishes secrets' status only.
+
+### 266. GraceUI 0.2's in-game menu draws a mod's settings and shortcut rows only, so EldenNet's Home cards show in the browser alone
+
+`2026-11-20` · FACT · `#graceui` `#engine` · refs: GraceUI:D171, GraceUI:D181, S11.4.a, engine 75e6303
+
+- (FACT) GraceUI 0.2.x's in-game menu watches only a mod space's `settings` topic. Its component blocks (key-value
+  lists, check lists, tables, a log tail) read "Shown in the browser view." in game. So in game EldenNet's Home and
+  System show only settings and shortcut rows. The start state, the banner's reason and a failed start are in game
+  only in the banner notice, which a player may quiet (D181), and in the F11 view (developers).
+- (DECIDED) Asked of GraceUI: draw a mod space's key-value and check lists in game, watching their topics while the
+  page is open. Until then, D181's rule that what the player must know is also on EldenNet's pages holds in the browser
+  alone.
+
+### 267. EldenNet's first pages: settings written on T11, a refused settings file never written over, and the developer settings on Settings › Developer
+
+`2026-11-20` · DECIDED · `#engine` `#pages` · refs: PAGES§4.5, ARCH§1.2, engine 75e6303
+
+- (DECIDED) The pages' settings changes go through T11, not T6. T6 posts the session's edits after 300 ms of quiet as
+  one exchange; T11 reads, edits and renames settings.toml over. T6 stays non-blocking (ARCH §1.2). A change from the
+  pages rewrites the file through toml++: keys and tables kept, comments and layout not (acceptable while
+  settings.toml is EldenNet's to write, D14).
+- (DECIDED) While settings.toml is refused at start (the defaults in use), every change from the pages answers
+  `not_now` with words saying why, so nothing writes over the player's file. A "Reset the file" behind a destructive
+  confirmation can come later.
+- (DECIDED) The `debug.*` settings live on Settings › Developer, their home in PAGES §4.5, with Logs' shortcut row
+  for the log's detail; System holds none. The space's settings description takes settings.toml's schema number (2).
+- (DECIDED) EldenNet's GraceUI floor rises from 0.2.3 to 0.2.5 with the release that ships the pages, so that no
+  player meets a GraceUI without D183's server fixes.
+
+### 268. A browser of our own joins GraceUI's server from Linux while the fake game runs under Wine
+
+`2026-11-20` · METHOD · `#engine` `#graceui` `#harness` · refs: engine 75e6303
+
+- (METHOD) `tests/pages/browser.py` joins GraceUI's server on loopback from the host while the fake game runs under
+  Wine: the page load's cookie, a ticket, a WebSocket with masked frames. The harness's cases take a `during` hook for
+  it, so a case reads every topic and sends commands (accepted, `invalid_value`, `confirm_required`) in both views.
+
+### 269. A range-for over a member of a temporary nlohmann::json dangles in C++20
+
+`2026-11-20` · FACT · `#engine` · refs: engine 75e6303
+
+- (FACT) `for (x : json::parse(t)["k"])` iterates a member of a temporary that is destroyed before the loop's body:
+  the fake GraceUI's first publish check found it. Bind the parsed value to a name first.
+
+### 270. One body per topic: GraceUI's components read fixed fields, so a page with two lists needs two topics
+
+`2026-11-20` · FACT · `#graceui` `#pages` · refs: GraceUI:DESIGN§6.5, engine 75e6303
+
+- (FACT) GraceUI's components read fixed fields of a topic's body (`items`, `checks`, `columns` and `rows`), so a page
+  with two key-value lists needs two topics. EldenNet's slice adds `system.compatibility` beside `system.status`.
+- (DECIDED) Asked of GraceUI: either list `system.compatibility` in its DESIGN §6.5, or add a block prop naming the
+  body's field (`props.field`), so that one topic feeds several blocks. Also asked: an empty-state text per block
+  (Problems' "No problems"), a newest-first log tail, a greyed page state for a mod at L1, and the in-game shortcut row
+  drawn as the control rather than a link.
+
+### 271. GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it
+
+`2026-11-20` · FACT · `#graceui` `#pages` · refs: GraceUI:D184, GraceUI:D171
+
+- (FACT) A mod publishes on a change. The menu's copy of a topic was kept only while the menu itself watched it, so a
+  topic the browser watched first reached the menu only at the mod's next change, and a static status never would
+  have. Since GraceUI 0.2.6 the registry keeps a topic's newest state while any view watches it, and the menu's
+  subscription is answered at once.
+
+### 272. F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour
+
+`2026-11-20` · DECIDED · `#engine` `#augur` `#overlay` `#test` · refs: DESIGN§14, ARCH§2.2, ARCH§2.3, ARCH§8, S10.2.d, engine 2f2f843
+
+- (DECIDED) The view shows Augur's last ten events, newest first: kind, class, subject kind and index, a reason word
+  with at most one number (a place's id, a count, a slot), merges, the audience (radius, rows, first row), and the
+  age. Never an HP fraction, a distance, a handle or a name. en-core's last five changes follow, under DESIGN §14's
+  "ladder": they hold what Augur's lifecycle events leave out (the gate's reason, the banner, the badge). One
+  vocabulary, en-augur's `words.hpp`, serves the golden files and the view. T6 keeps both lists in fixed rings and
+  hands the view a fixed snapshot.
+- (METHOD) Each event's line starts with a 6 × 6 square in its source's colour (lifecycle, world, EldenNet's own):
+  GraceUI's test exports read pixels, not text, so a square of a known colour lets the fake game count events drawn,
+  by source.
+- (DECIDED) The words are mapped in the DLL, since en-overlay depends on en-proto alone (ARCH §2.3).
+- (FACT) On the fake game with GraceUI 0.2.5's test build (`launcher-eldennet-graceui-events`), F11 showed the ring
+  full: five world events and five lifecycle events, none before F11 or after it closed. Replaying the case's
+  recording gives the same 11 events, the view holding the last ten.
