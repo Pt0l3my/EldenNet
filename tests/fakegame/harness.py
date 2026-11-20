@@ -1457,6 +1457,9 @@ def wine_env(args):
         env["WINEDEBUG"] = "-all"
         env["WINEDLLOVERRIDES"] = "mscoree,mshtml="
         env.pop("DISPLAY", None)
+        # Wine 9.0 frees the TMPDIR variable's own string while it starts and aborts ("free(): invalid pointer") when
+        # TMPDIR is set, as the cloud environment has set it since 2026-11-20 (WHY§210); Wine uses /tmp without it.
+        env.pop("TMPDIR", None)
     return env
 
 
