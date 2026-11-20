@@ -10,7 +10,8 @@
 //    registration's callee a function with three agreeing argument registers; the group's index found in the loaded
 //    table and equal to the one the gated build's layout gives (gal/layouts/, a lead); the hub's instance non-null.
 //    Any check that fails: no call, and the report says which. Nothing is guessed, and nothing rests on a derivation
-//    that was not reviewed (O89 (a)).
+//    that was not reviewed (O89 (a)). The callee's summary, from the live image (WHY§227): its calls, its branches
+//    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee).
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -21,6 +22,9 @@
 // 5. On T1 every 2 s, probe\r1-probe.json (probe_report.hpp): the checks, the call, the counts, and, once the census is
 //    done, the base classes the hub's objects share with each one's derived classes' slots and run slot. Once statics'
 //    slots are found, the derivation runs again with them, so that r1-derive.json carries a pattern at each.
+// 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227): the hub's reachable memory, then every readable committed
+//    region of the process, searched for our task object's address (ours counted apart), and, while the task has not
+//    run, how much of our object the hub wrote.
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
@@ -30,7 +34,9 @@
 #include <array>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <set>
+#include <span>
 
 #include "en/gal/derive.hpp"
 #include "en/gal/fd4.hpp"
@@ -41,12 +47,14 @@
 #include "en/gal/probe.hpp"
 #include "en/gal/probe_report.hpp"
 #include "en/gal/rtti.hpp"
+#include "en/gal/sys_boot.hpp"
 #include "en/proto/ffi_guard.hpp"
 
 namespace eldennet {
 
 void arm_allocation_watch(bool armed) noexcept;
 std::uint64_t allocations_watched() noexcept;
+std::optional<std::size_t> own_heap_bases(std::span<std::uint64_t> out) noexcept;  // alloc_count.cpp
 
 namespace {
 
@@ -173,8 +181,9 @@ class Round {
     }
     f_.stage = "derived";
 
-    // ---- 2. The checks ----
+    // ---- 2. The checks, and the callee's summary from the live image (WHY§227) ----
     const bool ready = run_checks();
+    summarise_callee();
     write_report();
     if (!ready) {
       f_.stage = "refused";
@@ -515,8 +524,10 @@ class Round {
     for (std::uint32_t i = 0; i < f_.vtable_slots; ++i) {
       if (const std::uint64_t n = s_.sys->slot_calls(i); n != 0) f_.slot_calls.emplace_back(i, n);
     }
-    f_.object_written = body.written();
-    f_.object_nonzero = body.nonzero();
+    if (body.invocations() > 0) {  // else object_from_t1's, read after the call (WHY§227)
+      f_.object_written = body.written();
+      f_.object_nonzero = body.nonzero();
+    }
     const en::gal::GuardedReader& r = body.reader();
     f_.copy_faults = r.faults(en::gal::FaultKind::Copy);
     f_.stack_refused = r.faults(en::gal::FaultKind::Stack);
@@ -642,6 +653,74 @@ class Round {
     f_.hub_search.push_back(std::move(h));
   }
 
+  // WHY§227: what the callee does with its arguments, from the live image (the code the call runs), decoded within its
+  // function of the exception directory, or up to its first return, and at most 4 KiB; no call is followed.
+  void summarise_callee() {
+    if (f_.callee == 0) return;
+    std::uint32_t extent = 0;
+    const auto fn = std::lower_bound(image_->functions.begin(), image_->functions.end(), f_.callee,
+                                     [](const en::gal::RuntimeFunction& r, std::uint32_t at) { return r.begin < at; });
+    if (fn != image_->functions.end() && fn->begin == f_.callee) extent = fn->length();
+    std::uint32_t len = extent != 0 ? std::min(extent, probe::kCalleeBound) : probe::kCalleeBound;
+    for (const en::gal::Section& sec : image_->sections) {
+      if (sec.contains(f_.callee)) len = std::min(len, sec.rva + sec.mapped_size() - f_.callee);
+    }
+    std::vector<std::byte> code(len);
+    if (!s_.sys->image().read(f_.callee, code)) code.clear();
+    f_.callee_code = probe::summarise_callee(code, f_.callee, extent);
+    const probe::CalleeCode& c = *f_.callee_code;
+    log(Line("r1").word("stage", "callee").num("bytes", c.bytes).num("instructions", c.instructions)
+            .num("calls", c.call_count).num("branches", c.branch_count).flag("returns_early", c.returns_early));
+  }
+
+  // WHY§227: every committed, readable region of the process searched for our task object's address, on T1, through
+  // the crash-guarded copy, within 8 GiB and 30 s; never a known stack, nor T1's own. Ours counted apart: our module,
+  // and the regions of the DLL's own heap (alloc_count.cpp) and of our task's block.
+  void search_memory() {
+    probe::MemorySearchSpec spec;
+    spec.target = s_.sys->task_object();
+    spec.object_bytes = std::uint64_t{8} + f_.object_size;
+    spec.group_index = f_.group_index;
+    spec.game_base = base_;
+    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
+    std::array<std::uint64_t, 1024> bases{};
+    const std::optional<std::size_t> n = own_heap_bases(bases);
+    spec.own_known = n.has_value();
+    if (n) spec.own_bases.assign(bases.begin(), bases.begin() + static_cast<std::ptrdiff_t>(*n));
+    spec.own_bases.push_back(spec.target);  // our task's block is an allocation of its own (VirtualAlloc's)
+    ULONG_PTR low = 0, high = 0;
+    GetCurrentThreadStackLimits(&low, &high);
+    spec.skip.push_back(en::gal::AddressRange{low, high});
+    const std::uint64_t at = since_ms() - called_ms_;
+    probe::MemorySearch m =
+        probe::search_memory(*s_.sys, [this](std::uint64_t a) { return s_.sys->region_at(a); }, spec);
+    m.at_ms = at;
+    log(Line("r1").word("stage", "memory_search").num("at_ms", m.at_ms).num("ms", m.ms).num("read_mb", m.read_bytes >> 20)
+            .num("found", m.found).num("inside", m.inside).num("own_found", m.own_found).flag("own_known", m.own_known)
+            .word("stopped", m.stopped == probe::SearchStop::Done    ? "done"
+                             : m.stopped == probe::SearchStop::Bytes ? "bytes_cap"
+                                                                     : "time_cap"));
+    f_.memory_search.push_back(std::move(m));
+  }
+
+  // How much of our object the hub wrote, read on T1 from our own block when the task has not run (its body reads it
+  // otherwise).
+  void object_from_t1() {
+    const std::uint64_t at = s_.sys->task_object();
+    if (at == 0 || f_.object_size == 0) return;
+    std::vector<std::byte> obj(std::min<std::uint32_t>(f_.object_size, en::gal::kMaxCopyBytes));
+    if (!s_.sys->copier().copy(at + 8, obj).copied) return;
+    std::uint32_t last = 0, nonzero = 0;
+    for (std::size_t i = 0; i < obj.size(); ++i) {
+      if (obj[i] != std::byte{0}) {
+        last = static_cast<std::uint32_t>(i + 1);
+        ++nonzero;
+      }
+    }
+    f_.object_written = last;
+    f_.object_nonzero = nonzero;
+  }
+
   void report_loop(R1Body* body) {
     bool confirmed = false;
     called_mono_ = mono_ms() - (since_ms() - called_ms_);
@@ -649,6 +728,8 @@ class Round {
     for (;;) {
       if (body != nullptr && searches < 2 && since_ms() - called_ms_ >= (searches == 0 ? 2000u : 20000u)) {
         search_hub();
+        search_memory();
+        if (body->invocations() == 0) object_from_t1();
         ++searches;
       }
       if (body != nullptr) {

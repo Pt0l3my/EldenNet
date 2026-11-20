@@ -111,6 +111,9 @@ What it does
     only when every check has passed and you have pressed Pause: it asks the game to run EldenNet's task, a small
     object of ours, every frame. That task then counts how the game calls it, follows the game's own task list to
     learn the task's shape, and watches a few numbers rise and stand still (the play time) to find where they live.
+  - Before the call it reads the code that the call will run and summarises it. Twice after the call it looks through
+    the game's memory, read-only and for at most 30 seconds each time, for where the game kept EldenNet's task; it
+    reports only counts and the kinds of memory it found it in, never what the memory holds.
   - Every two seconds it writes the two reports into %APPDATA%\EldenNet\probe. They hold only numbers (offsets,
     sizes, counts) and our own labels: no names, no text, no paths, nothing of your character or your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
