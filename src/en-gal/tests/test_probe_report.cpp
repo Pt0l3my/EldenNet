@@ -44,9 +44,10 @@ TEST_CASE("probe report: every part written lints clean") {
   c.first_call = 0x40;
   c.first_ret = 0x170;
   c.call_count = 2;
-  c.calls.push_back(CalleeCall{0x40, CallForm::Memory, std::nullopt, 0, std::nullopt, 0x18, 8, true, {}});
+  c.calls.push_back(CalleeCall{0x40, CallForm::Memory, std::nullopt, 0, std::nullopt, 0x18, 8, true, {}, false, {}, {},
+                               {}});
   c.calls.push_back(CalleeCall{0x60, CallForm::Rip, 0x5A0000, std::nullopt, std::nullopt, 0, std::nullopt, true,
-                               {PassedArg{1, 2, false}, PassedArg{8, 8, true}}});
+                               {PassedArg{1, 2, false}, PassedArg{8, 8, true}}, false, {}, {}, {}});
   c.branch_count = 1;
   c.branches.push_back(CalleeBranch{0x20, -0x10});
   CalleeGuard g;
@@ -124,6 +125,124 @@ TEST_CASE("probe report: every part written lints clean") {
   CHECK(text->find("\"points_to\": \"slot\"") != std::string::npos);
   CHECK(text->find("\"kind\": \"heap\"") != std::string::npos);
   CHECK(text->find("\"inner\": [") != std::string::npos);
+}
+
+TEST_CASE("probe report: spike.8's return value, forms, sources, table and control diff are written and lint clean") {
+  Findings f;
+  f.register_status = "ok";
+  WordValue one;
+  one.kind = ValueKind::Small;
+  one.value = 1;
+  f.returned = one;
+  f.returned_low = 1;
+  CalleeCode c;
+  c.read = true;
+  Source slot;
+  slot.kind = Source::Kind::Rip;
+  slot.at = 15;
+  slot.target = 0x480000;
+  Source entry;
+  entry.kind = Source::Kind::Memory;
+  entry.at = 12;
+  entry.base = 1;
+  entry.index = 2;
+  entry.scale = 8;
+  entry.base_src.push_back(Source{Source::Kind::Entry, 1, 0, 0, {}, {}, 1, 0, 8, {}, {}});
+  entry.index_src.push_back(Source{Source::Kind::Argument, 2, 0, 0, {}, {}, 1, 0, 8, {}, {}});
+  CalleeCall jump;
+  jump.offset = 24;
+  jump.form = CallForm::TailMemory;
+  jump.base = 0;
+  jump.disp = 0x18;
+  jump.vtable_src = entry;
+  jump.reached = true;
+  jump.pass_src.push_back(PassedSource{1, slot});
+  c.calls.push_back(jump);
+  Form test;
+  test.offset = 16;
+  test.length = 3;
+  test.cls = InsnClass::Test;
+  Operand r;
+  r.reg = 1;
+  r.width = 8;
+  test.operands = {r, r};
+  c.forms.push_back(test);
+  Form jcc;
+  jcc.offset = 19;
+  jcc.length = 2;
+  jcc.cls = InsnClass::Jcc;
+  jcc.cond = 4;
+  jcc.to = 29;
+  c.forms.push_back(jcc);
+  Form pad;
+  pad.offset = 27;
+  pad.length = 2;
+  pad.cls = InsnClass::Nop;
+  pad.unreached = true;
+  Operand big;
+  big.form = OperandForm::Immediate;
+  big.large = true;
+  Operand global;
+  global.form = OperandForm::Rip;
+  global.target = 0x480000;
+  global.section = SectionKind::Data;
+  pad.operands = {global, big};
+  c.forms.push_back(pad);
+  CalleeGuard g;
+  g.op = GuardOp::Test;
+  r.width = 0;
+  r.source = entry;
+  g.operands = {r, r};
+  c.guards.push_back(g);
+  f.callee_code = c;
+  InnerCallee deeper;
+  deeper.rva = 0x1E0000;
+  deeper.site = 24;
+  deeper.tail = true;
+  deeper.depth = 2;
+  f.callee_inner.push_back(deeper);
+  Table t;
+  t.matched = true;
+  t.singleton_slot = 0x480000;
+  t.hop = 0x40;
+  t.bound = 168;
+  t.slot_disp = 0x18;
+  t.site = 24;
+  TableRead before;
+  before.read = true;
+  before.singleton = WordValue{ValueKind::Heap, {}, {}, SectionKind::None, {}, {}, false};
+  before.entries = 169;
+  before.nonzero = 2;
+  before.nonzero_at = {3, 168};
+  before.entry = WordValue{};
+  before.entry->kind = ValueKind::Zero;
+  t.before = before;
+  t.after = before;
+  t.after->at_ms = 2000;
+  f.table = t;
+  HubDiff control;
+  control.at_ms = 2000;
+  control.changed = 1;
+  f.hub_diff_control = control;
+  const auto text = write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const en::gal::report::Vocabulary*, 1> known = {&vocabulary()};
+  CHECK(en::gal::report::lint(*text, known).has_value());
+  for (const char* want : {"\"returned\": {", "\"returned_low\": 1", "\"src\": \"entry\"", "\"form\": \"tail_memory\"",
+                           "\"vtable_src\": {", "\"pass_src\": [", "\"class\": \"jcc\"", "\"cond\": \"e\"",
+                           "\"unreached\": true", "\"large\": true", "\"section\": \"data\"", "\"depth\": 2",
+                           "\"table\": {", "\"nonzero_at\": [", "\"hub_diff_control\": {", "\"hop\": 64"}) {
+    CHECK_MESSAGE(text->find(want) != std::string::npos, want);
+  }
+  // A table that did not match names the first shape that failed, and nothing more.
+  Findings g2;
+  Table no;
+  no.failed = "wrapper_rcx";
+  g2.table = no;
+  const auto refused = write_report(g2);
+  REQUIRE(refused.has_value());
+  CHECK(refused->find("\"failed\": \"wrapper_rcx\"") != std::string::npos);
+  CHECK(refused->find("\"bound\"") == std::string::npos);
 }
 
 TEST_CASE("probe report: a label that is not one is refused, and no text is left") {

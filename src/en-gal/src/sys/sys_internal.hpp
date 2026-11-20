@@ -14,7 +14,8 @@ struct CallOutcome {
   std::uint64_t answer = 0;   // rax
 };
 
-// register_task at `function`, with the four argument registers rcx, rdx, r8, r9 as `args` gives them (register.cpp).
+// register_task at `function`, with the four argument registers rcx, rdx, r8, r9 as `args` gives them; `answer` is rax
+// as the call left it (register.cpp).
 CallOutcome call_register(std::uint64_t function, const std::array<std::uint64_t, 4>& args) noexcept;
 // The FD4 name getter at `getter`, with the class object in rcx (register.cpp).
 CallOutcome call_getter(std::uint64_t getter, std::uint64_t class_object) noexcept;

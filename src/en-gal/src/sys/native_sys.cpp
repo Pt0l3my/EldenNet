@@ -234,8 +234,8 @@ proto::Expected<std::uint64_t, SysError> NativeSys::call_getter(std::uint64_t ge
   return out.answer;
 }
 
-proto::Expected<void, SysError> NativeSys::register_task(std::uint64_t function, std::uint64_t instance,
-                                                         const TaskShape& shape, TaskBody& body) noexcept {
+proto::Expected<std::uint64_t, SysError> NativeSys::register_task(std::uint64_t function, std::uint64_t instance,
+                                                                  const TaskShape& shape, TaskBody& body) noexcept {
   if (sys::registered()) return proto::Unexpected{SysError::Twice};
   if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
       (!shape.every_slot && shape.run_slot >= shape.vtable_slots) || shape.object_size > kMaxCopyBytes) {
@@ -251,7 +251,7 @@ proto::Expected<void, SysError> NativeSys::register_task(std::uint64_t function,
   sys::set_registered();  // one call, never retried (ARCH §3.2's Register)
   const sys::CallOutcome out = sys::call_register(function, args);
   if (!out.ok) return proto::Unexpected{SysError::Faulted};
-  return {};
+  return out.answer;
 }
 
 std::uint64_t NativeSys::no_access_page() noexcept {

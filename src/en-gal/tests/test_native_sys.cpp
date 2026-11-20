@@ -26,11 +26,14 @@ using namespace en::gal;
 std::uint64_t g_args[4] = {};
 const char kName[] = "InventedName";
 
-extern "C" __declspec(noinline) void test_register(std::uint64_t a, std::uint64_t b, std::uint64_t c, std::uint64_t d) {
+// A registration that answers whether it kept the task, as R1 spike.8 reads rax (WHY§240): 1.
+extern "C" __declspec(noinline) std::uint64_t test_register(std::uint64_t a, std::uint64_t b, std::uint64_t c,
+                                                            std::uint64_t d) {
   g_args[0] = a;
   g_args[1] = b;
   g_args[2] = c;
   g_args[3] = d;
+  return 1;
 }
 extern "C" __declspec(noinline) std::uint64_t test_getter(std::uint64_t) {
   std::uint64_t a = 0;
@@ -245,7 +248,9 @@ TEST_CASE("native sys: the calls into the game run under SEH, and the task objec
   const TaskShape shape{4, 2, 0x18, 7, RegisterAbi{ArgRegister::Rdx, ArgRegister::R9, ArgRegister::Rcx}};
   CHECK(sys.register_task(address_of(&test_register), 0xABCDEF00, TaskShape{4, 4, 0x18, 7, {}}, body).error() ==
         SysError::BadShape);
-  REQUIRE(sys.register_task(address_of(&test_register), 0xABCDEF00, shape, body).has_value());
+  const auto answered = sys.register_task(address_of(&test_register), 0xABCDEF00, shape, body);
+  REQUIRE(answered.has_value());
+  CHECK(*answered == 1);  // rax, as the call left it
   CHECK(g_args[0] == 7);            // rcx: the group
   CHECK(g_args[3] == 0xABCDEF00);  // r9: the instance
   const std::uint64_t block = g_args[1];  // rdx: our task object
