@@ -1028,8 +1028,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6
-  - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format.
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163
+  - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
+    allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
+    `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
