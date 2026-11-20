@@ -155,7 +155,7 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
         if (const auto s = spike_named(v))
           o.spike = *s;
         else
-          ok = proto::Unexpected{std::string("--spike is s0a, s0b, s0c, s0d or s0d-crash")};
+          ok = proto::Unexpected{std::string("--spike is s0a, s0b, s0c, s0d, s0d-crash, s0e, s0e_alone or s4")};
       }
     } else if (arg == "--runs") {
       if ((ok = need())) {
@@ -201,6 +201,9 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
   if (runs_given && o.spike != Spike::S0a && o.spike != Spike::S0dCrash) {
     return proto::Unexpected{std::string("--runs goes with --spike s0a or s0d-crash")};
   }
+  if (o.spike == Spike::S0eAlone && o.dll) {
+    return proto::Unexpected{std::string("--spike s0e_alone loads no eldennet.dll: not with --dll")};
+  }
   if (o.yes && !o.no_dialogs) return proto::Unexpected{std::string("--yes goes with --no-dialogs")};
   if (o.probe) {
     // R1 (O89): the one call into the game rests on a save backup made first, EldenNet's own DLL and one plain start.
@@ -233,6 +236,8 @@ std::string usage_text() {
          "  --probe              the derivation's in-game round R1, with the probe build of eldennet.dll: the console,\n"
          "                       one call into the game at the Mark (Pause, at the title, with no save loaded)\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"
+         "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
+         "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"
          "  --no-dialogs [--yes] lines instead of dialogs; questions answered no (or yes)\n"
          "  --no-steam-check     --gal DIR   --steam DIR   --appdata DIR\n"
          "exit codes: 0 done; 1 a spike's runs did not all pass; 2 usage; 11 to 21 the errors E01 to E11\n";

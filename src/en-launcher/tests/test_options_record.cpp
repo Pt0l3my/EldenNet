@@ -114,7 +114,9 @@ TEST_CASE("options: refusals") {
   CHECK(parse_error({"--runs", "0", "--spike", "s0a"}) == "--runs is 1 to 1000");
   CHECK(parse_error({"--runs", "3"}) == "--runs goes with --spike s0a or s0d-crash");
   CHECK(parse_error({"--runs", "3", "--spike", "s0b"}) == "--runs goes with --spike s0a or s0d-crash");
-  CHECK(parse_error({"--spike", "s9"}) == "--spike is s0a, s0b, s0c, s0d or s0d-crash");
+  CHECK(parse_error({"--spike", "s9"}) == "--spike is s0a, s0b, s0c, s0d, s0d-crash, s0e, s0e_alone or s4");
+  CHECK(parse_error({"--spike", "s0e-alone"}) == "--spike is s0a, s0b, s0c, s0d, s0d-crash, s0e, s0e_alone or s4");
+  CHECK(parse_error({"--spike", "none"}) == "--spike is s0a, s0b, s0c, s0d, s0d-crash, s0e, s0e_alone or s4");
   CHECK(parse_error({"--watch", "0"}) == "--watch takes the game's process id");
   CHECK(parse_error({"--watch", "12", "--cleanup"}).find("go alone") != std::string::npos);
   CHECK(parse_error({"--vanilla-offline", "--also", "a.dll"}).find("injects nothing") != std::string::npos);
@@ -123,6 +125,43 @@ TEST_CASE("options: refusals") {
   CHECK(parse_error({"--yes"}) == "--yes goes with --no-dialogs");
   CHECK(parse_error({"--title-wait", "601"}) == "--title-wait is 0 to 600 seconds");
   CHECK(usage_text().find("--spike") != std::string::npos);
+}
+
+TEST_CASE("options: GraceUI's observer's runs (S0-E, S4): their words, and what goes with them") {
+  CHECK(parse_ok({"--spike", "s0e"}).spike == w::Spike::S0e);
+  CHECK(parse_ok({"--spike", "s0e_alone", "--also", "C:\\mods\\observer.dll"}).spike == w::Spike::S0eAlone);
+  CHECK(parse_ok({"--spike=s4", "--console"}).spike == w::Spike::S4);
+  CHECK(parse_ok({"--spike", "s0e", "--dll", "C:\\dev\\eldennet.dll"}).dll.has_value());
+  CHECK(parse_ok({"--spike", "s4", "--inject-at", "title"}).inject_at == InjectAt::Title);
+  // s0e_alone loads no eldennet.dll: a --dll would be one.
+  CHECK(parse_error({"--spike", "s0e_alone", "--dll", "C:\\dev\\eldennet.dll"}) ==
+        "--spike s0e_alone loads no eldennet.dll: not with --dll");
+  CHECK(parse_error({"--dll", "C:\\dev\\eldennet.dll", "--spike", "s0e_alone"}) ==
+        "--spike s0e_alone loads no eldennet.dll: not with --dll");
+  // R1's Mark never joins these runs, and each is one run.
+  for (const char* word : {"s0e", "s0e_alone", "s4"}) {
+    CAPTURE(word);
+    CHECK(parse_error({"--probe", "--spike", word}) ==
+          "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike");
+    CHECK(parse_error({"--spike", word, "--runs", "2"}) == "--runs goes with --spike s0a or s0d-crash");
+    CHECK(parse_error({"--spike", word, "--vanilla-offline"}).find("injects nothing") != std::string::npos);
+    CHECK(parse_error({"--spike", word, "--cleanup"}) == "--spike and game arguments go with a start");
+  }
+  CHECK(usage_text().find("s0e|s0e_alone|s4") != std::string::npos);
+}
+
+TEST_CASE("the spikes' rule: an observer's run passes when it did not crash") {
+  RunResult ok;
+  ok.outcome = RunOutcome::Banner;
+  RunResult crashed = ok;
+  crashed.end = EndKind::Crash;
+  const std::vector<RunResult> good{ok}, bad{crashed};
+  for (const w::Spike s : {w::Spike::S0e, w::Spike::S0eAlone, w::Spike::S4}) {
+    CHECK(passed(s, tally(good)));
+    CHECK_FALSE(passed(s, tally(bad)));
+    CHECK(to_json(ok, s)["spike"] == w::to_string(s));
+    CHECK(to_json(tally(good), s)["spike"] == w::to_string(s));
+  }
 }
 
 TEST_CASE("options: --probe (R1) brings the console, and keeps the backup, EldenNet's DLL and one plain start") {

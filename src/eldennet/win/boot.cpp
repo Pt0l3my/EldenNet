@@ -11,6 +11,8 @@
 //   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
 //   mode with anti-cheat), the banner, end.
 //   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp).
+//   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Register with the spike_run banner and
+//   calls nothing; R1 is set aside in such a run.
 #include <cstring>
 
 #include "dll.hpp"
@@ -164,6 +166,7 @@ void run(HMODULE module) {
     const en::gal::BuildEntry& e = (*gated)->profile.entry();
     s.game_version = e.file_version;
     s.game_version_known = true;
+    s.build_supported = true;
     s.region = e.region == en::gal::Region::Ww ? "ww" : "jp";
   }
   if (!s.game_version_known) {
@@ -204,7 +207,9 @@ void run(HMODULE module) {
                                                     en::shell::kMaxSettingsBytes);
   const en::shell::LoadedSettings loaded = en::shell::parse_settings(text.value_or(""), kProbeBuild);
   s.settings = loaded.settings;
+  s.settings_refused = loaded.refused;
   set_log_level(s.settings.log_level);
+  set_settings_file(s.paths.data.empty() ? std::wstring() : s.paths.data + L"\\config\\settings.toml", kProbeBuild);
   log(Line("settings").flag("file", text.has_value()).flag("refused", loaded.refused).flag("enabled", s.settings.enabled)
           .flag("record", s.settings.record_sessions).word("copy", en::shell::to_string(s.settings.copy))
           .word("log_level", en::shell::to_string(s.settings.log_level))
@@ -237,8 +242,10 @@ void run(HMODULE module) {
   }
   s.sys->set_copy_kind(s.settings.copy == en::shell::CopyMode::Rpm ? en::gal::CopyKind::Rpm : en::gal::CopyKind::Seh);
   s.io = make_io(s);
+  s.logger_started = logging;
   const bool core = start_core(s);
   const bool watcher = start_watcher_thread(s);
+  s.watcher_started.store(watcher, std::memory_order_relaxed);
   log(Line("threads").flag("core", core).flag("watcher", watcher).flag("logger", logging));
 
   if (!*gated) return banner_path(s, BannerReason::UnknownBuild, gate_word);
@@ -253,8 +260,13 @@ void run(HMODULE module) {
 
 #if EN_PROBE
   if (s.settings.probe.round == en::shell::ProbeRound::R1) {
-    run_r1(s, gated);
-    return;
+    // R1's one call (at the Mark) never joins an observer's run: settings.toml's round is set aside, and the start
+    // goes on to its stop at Register (the launcher refuses --probe with these spikes).
+    if (!w::observer_run(block::spike())) {
+      run_r1(s, gated);
+      return;
+    }
+    log(Line("probe").word("round", "r1").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
   }
 #endif
 
@@ -302,6 +314,13 @@ void run(HMODULE module) {
 
   // ---- Register: the one call into the game ----
   enter(w::InitState::Register);
+  // A run of GraceUI's observer (S0-E, S4; watch.hpp's observer_run): no call into the game. T1 stops here at a
+  // banner, as a stopped start does: T6, T10 and T11, the connect to GraceUI with the banner's notice and F11's view,
+  // and the recorder stay; nothing waits for the task, which is never made.
+  if (w::observer_run(block::spike())) {
+    log(Line("register").flag("skipped", true).word("why", "spike").word("spike", w::to_string(block::spike())));
+    return stop_at(s, BannerReason::SpikeRun, w::to_string(block::spike()));
+  }
   // The stack table made again, without T1's own stack: threads that ended since the first scan (the launcher's
   // loading thread), and T1 itself once it ends at Ready, leave memory the game reuses for its own objects, which a
   // stale range would refuse as a stack (WHY§190).

@@ -43,7 +43,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.1.0) and the caps it uses, and, connected, the F11 view and the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.3) and the caps it uses, and, connected, the F11 view and the
    Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
@@ -51,13 +51,22 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
 10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
     installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
-11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game.
+11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game. In a
+    run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, S0-E's present-hook half and S4, read from the
+    watch block; en-proto's `observer_run`), T1 stops at the start of Register instead, before the task is made or
+    anything called: `register skipped=1 why=spike spike=<word>`, then the `spike_run` banner ("Spike run: EldenNet
+    makes no call into the game", GraceUI's notice when connected) and L1. What a stopped start keeps runs on: T6
+    (the core, the status block, the status lines), T10, T11, the connect and F11's view (`debug.panel`), the recorder
+    (its header carries the word). Nothing waits for the task, which T6 and the view read only once it is set, and the
+    crash filter stays in. (`s0e_alone` loads no eldennet.dll at all.)
 12. **FirstTick**: at most 30 s for the task to pass the group check and phase A; else Inert and its banner.
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
 
 A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
-(below).
+(below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
+(`probe round=r1 skipped=1 why=spike`) and the start stops at Register, and the launcher refuses `--probe` with those
+spikes.
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
@@ -71,7 +80,8 @@ A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--pro
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
   snapshots, faults, the groups tripped, the task's p99), records the Marks, logs each change and a status line every
-  10 s, and notes a stall (a running task with no snapshot for 5 s; WHY§175). A probe build honours the launcher's
+  10 s (with `events=`, how many of Augur's events there have been), hands each change and each of Augur's events of
+  the step to the F11 view's rings, and notes a stall (a running task with no snapshot for 5 s; WHY§175). A probe build honours the launcher's
   crash request (S0-D's `s0d-crash`) on this thread.
 - **T10, the watcher**, repeats the anti-cheat module check every 60 s and notes `ersc.dll` (C14). Hot reload waits
   for content.
@@ -102,10 +112,21 @@ After each wake, once T1 has published the connection:
   never asked for, and the launcher's Pause stays the Mark (`marks source=launcher bound=0`; registered on T6,
   `mark_hotkey status=11 bound=0`).
 - **The F11 view** (`debug.panel = true`; PAGES SP8, off by default): `poll`'s F11 presses open and close it; while it
-  is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…`).
-  It shows T1's state and discovery's items, en-core's phase, level, banner and gate, the task's snapshots, p99 and
-  read mode, each read group's state, the groups tripped, the faults by kind, the Marks, GraceUI's version and the last
-  changes; no game text (en-overlay's README).
+  is open each wake builds a frame of EldenNet's status on Dear ImGui's core and submits it (`view presses=… open=…
+  events=…`, the events it lists). It shows T1's state and discovery's items, en-core's phase, level, banner and gate,
+  the task's snapshots, p99 and read mode, each read group's state, the groups tripped, the faults by kind, the Marks,
+  GraceUI's version, Augur's last ten events with their audiences (each mapped on T6 to en-augur's words, `words.hpp`:
+  no handle, key or name) and en-core's last five changes; no game text (en-overlay's README).
+- **EldenNet's pages** (en-overlay's space, PAGES; GraceUI D169): registered by T1 at the connect (`connect … pages=0`
+  when GraceUI took it; both views on the main path, the game's alone on the banner path). T6 keeps the space from its
+  first wake, its logs stream fed from every line T11 writes (a tail ring of 256, T11 to T6), and, connected, fills its
+  facts from the core, the task, the block and the shell, and lets `step` hand it GraceUI's events: each topic watched
+  or no longer and each command logged (`page what=watched|unwatched topic=…`, `page what=command name=… key=…
+  result=…`), every command answered at once. A change is applied (`setting key=… effect=now|next_launch`: the log's
+  detail at once, the developer views and the recording from the next launch) and, after 300 ms with no other (D14),
+  every change of the session is handed to T11, which reads settings.toml again, edits it (en_shell's `edit_settings`:
+  every other key and table kept, comments not; a file the parse refuses is never written over) and writes it beside
+  and renames it over (`settings_write ok=… keys=… why=…`). T6 does no file work for the pages.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -212,7 +233,21 @@ layout fields). On T1, after the window and `settle_s` seconds:
    the table (`table.before`: the singleton's kind and whether it is CSTask's instance or a named singleton's, the
    entries from 0 to the bound that are set, the group's entry, its first word and the word its final jump reads, a
    game function there summarised one level deeper, `depth` 2), and makes the call at once; then it compares the two
-   walks (`hub_diff_control`) and lets the first go.
+   walks (`hub_diff_control`) and lets the first go. Since spike.9 (WHY§248: run 8's tail function moves the task into
+   rdx and jumps directly to a function of the group's own, with the entry in rcx) a direct jump past a function's
+   decoded code is a tail jump, the table's `target` is that jump's, and **the group's function** is summarised from
+   the image at once (`depth` 2, `parent` the tail function, `entry_src` the jump's known values, rcx `holds_entry`),
+   with its own direct callees and tail jumps one level further (`depth` 3), 16 summaries at most; in every summary each
+   load from our task (the registers' first) or from the group's entry, or from a value loaded from either, is listed
+   (`task_reads`, `entry_reads`: offset, field offset, width, the base's source, and what the value is then used for:
+   compared with an immediate or otherwise, tested, stored with its base and displacement, passed to a call, called
+   through, used as a base, changed), and each store of the task, of a value read from it, or of either changed (a
+   tagged pointer: Source's `modified`) is listed with its base's source and displacement (`task_stores`). The walk
+   and its diffs start from two more roots, read from the table at the Mark: the singleton and the group's entry (each
+   diff's `root`: task_hub, singleton, group_entry; their controls in `hub_diff_controls`), each root within the same
+   bound of three walks; and just before the call the singleton's and the entry's **classes** are read through their
+   first words by the RTTI walk and matched to the leads' names as O92 does (`singleton_class`, `entry_class`: the
+   lead's index where the innermost name is the lead's or it with Imp; numbers only).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -233,7 +268,9 @@ layout fields). On T1, after the window and `settle_s` seconds:
    the heap, or other; a new pointer's block fresh when the walk before the call never reached it, a word whose 32-bit
    half is the group's index marked; at 20 s each word steady when it held the same new value at 2 s, the steady ones
    listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
-   in the control listed before those in it), at 2 s the table read again (`table.after`), and the **whole-memory
+   in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
+   inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
+   (`table.after`), and the **whole-memory
    search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
@@ -241,7 +278,9 @@ layout fields). On T1, after the window and `settle_s` seconds:
    any, ended it, and `committed_bytes` the process's committed total, past a cap too), for the 8-aligned words equal to
    our task object's address and those pointing inside it, and since spike.7 those equal to our fake vtable's address
    (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
-   apart, with how many different slots the game's words name. Each side keeps up to eight hits of each kind, each
+   apart, with how many different slots the game's words name, and since spike.9 the words whose low 48 bits equal our
+   object's or our vtable's address while their high 16 bits are not zero (`tagged_found`, `vtable_tagged_found`,
+   ours apart; `tagged_hits`, each with its `tag`). Each side keeps up to eight hits of each kind, each
    giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
    game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
    to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
@@ -287,8 +326,10 @@ copy, a crash and a stack overflow recorded through the DLL's filter, the watche
 from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
 taken, both reports linted by the launcher), and `--probe` refused by the release DLL. Without GraceUI, each logs
 `connect ok=0 outcome=absent installed=0 looks=1`: the look ends at once. With a test build of GraceUI (CMake's
-`EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), four cases more (`fakegame.launcher-eldennet-graceui*`):
+`EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), seven cases more (`fakegame.launcher-eldennet-graceui*`;
+the spike run's and EldenNet's pages' beside these):
 GraceUI loaded after EldenNet, by its own look, on the main path (the pre-flight, the connect, F11's view drawn on the
 game's Direct3D 12 frame and hidden again, the world-state provider, and the Mark handed over to GraceUI's hotkey);
 GraceUI loaded before it, on the banner path (the banner as one notice, F11's view); another mod holding Pause in
-GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; and the anti-cheat's notice-only mode.
+GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; the anti-cheat's notice-only mode; and
+Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame.

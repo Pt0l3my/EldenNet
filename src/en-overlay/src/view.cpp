@@ -37,6 +37,12 @@ class Builder {
     return num(packed >> 22).text(".").num((packed >> 12) & 0x3FFu).text(".").num(packed & 0xFFFu);
   }
   Builder& yes_no(bool v) noexcept { return text(v ? "yes" : "no"); }
+  // Spaces up to column `col` (at least one), for the event list's columns.
+  Builder& pad(std::size_t col) noexcept {
+    put(' ');
+    while (n_ < col && n_ + 1 < kViewLineBytes) put(' ');
+    return *this;
+  }
   // Tenths of a second, for ages: "12.3".
   Builder& seconds(std::uint64_t ms) noexcept { return num(ms / 1000).text(".").num((ms % 1000) / 100); }
 
@@ -163,7 +169,35 @@ void view_lines(const ViewStatus& s, ViewLines& out) noexcept {
       .word(s.mark_source)
       .text(")   GraceUI ")
       .version(s.graceui_version);
-  line(out, true).text("Last changes");
+  // Augur's events, the newest first (DESIGN §14's "live events with audiences"): each line its square, its age, its
+  // kind, class and subject, its reason, its merges and its audience (the radius, how many rows, the first of them).
+  line(out, true).text("Augur's events (").num(s.events_seen).text(" seen)");
+  if (s.events.size() == 0) {
+    line(out).text("  none yet");
+  }
+  for (std::size_t i = s.events.size(); i-- > 0;) {
+    const ViewEvent& e = s.events[i];
+    Builder b = line(out);
+    ViewLine& l = out[out.size() - 1];
+    l.marked = true;
+    l.from = e.from;
+    b.pad(2).seconds(s.now_ms >= e.at_ms ? s.now_ms - e.at_ms : 0).text(" s").pad(10).word(e.kind).pad(30).word(e.cls);
+    b.pad(33).word(e.subject);
+    if (e.subject_id) b.text(":").num(e.id);
+    b.pad(45);
+    if (e.reason != nullptr) {
+      b.word(e.reason);
+      if (e.reason_number) b.text(" ").num(e.number);
+    }
+    if (e.count > 1) b.text(" x").num(e.count);
+    if (e.merged) b.text(" merged");
+    b.pad(61).text("aud ").word(e.radius).text(" ").num(e.audience);
+    if (e.audience > 0) b.text(" p").num(e.first.persona).text(".").word(e.first.how);
+    if (e.audience > 1) b.text(" +").num(e.audience - 1);
+  }
+  // en-core's changes, the newest first: the ladder's and the lifecycle's moves (DESIGN §14's "ladder"), which keep
+  // what the lifecycle's events leave out (the gate's reason, the banner, the badge).
+  line(out, true).text("en-core's changes");
   if (s.changes.size() == 0) {
     line(out).text("  none yet");
   }

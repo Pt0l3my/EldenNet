@@ -59,6 +59,12 @@ void set_log_level(en::shell::LogLevel level) noexcept;
 // Starts T11 on `folder`\eldennet.log (rotated past 1 MiB, one older kept).
 bool start_logger(const std::wstring& folder) noexcept;
 [[nodiscard]] std::uint64_t log_dropped() noexcept;
+// T6: the next line T11 wrote, for the pages' logs stream (System › Logs); false when none waits.
+bool take_log_tail(en::shell::LogEntry& out) noexcept;
+// T1, before the core starts: where the pages' settings edits go (settings.toml), and whether `probe` is allowed there.
+void set_settings_file(const std::wstring& path, bool probe_build) noexcept;
+// T6: every edit the pages made this session, for T11 to write to settings.toml (an older batch not yet written goes).
+void post_settings_write(std::vector<en::shell::SettingsEdit> edits) noexcept;
 
 // ---- Paths and the process (platform.cpp) ----
 struct Paths {
@@ -138,6 +144,12 @@ struct Shell {
   std::array<std::uint16_t, 4> game_version{};
   bool game_version_known = false;  // from the gate, or the fingerprint of a build the gate refused
   std::string_view region = "none";
+  bool build_supported = false;     // gal/builds.toml knows the build (the gate passed)
+  bool settings_refused = false;    // settings.toml was refused at Settings: the defaults are in use
+  bool logger_started = false;      // T11
+  std::atomic<bool> watcher_started{false};  // T10, set by T1 once it is made
+  std::atomic<bool> recording{false};          // T6's recorder writes (debug.record_sessions)
+  std::atomic<std::uint64_t> recorded{0};      // its lines
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
 };
 // The one Shell, made on T1 (never destroyed), or null before.
@@ -161,6 +173,10 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
                   std::uint64_t now) noexcept;
 // T6: one of the core's changes, by its words (static ones: an enum's name), for the view's list.
 void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept;
+// T6: one of Augur's events of the step, for the view's list, as Augur's words write it (no name, no handle).
+void overlay_event(const en::augur::Event& ev) noexcept;
+// T6: how many of Augur's events the view's list has taken, for the status line.
+std::uint64_t overlay_events_seen() noexcept;
 
 // ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
 unsigned long init_main(void* module) noexcept;

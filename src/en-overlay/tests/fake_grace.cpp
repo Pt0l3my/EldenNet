@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
+#include <nlohmann/json.hpp>
 #include <string_view>
 
 namespace fake {
@@ -55,13 +57,42 @@ GraceUiStatus poll(GraceUiConsumer me, GraceUiEvent* event) {
   ++g.polls;
   if (const GraceUiStatus a = admitted(me); a != GRACEUI_OK) return a;
   if (g.poll_status != GRACEUI_OK) return g.poll_status;
-  if (event == nullptr || event->size < sizeof(GraceUiEvent)) return GRACEUI_REFUSED;
-  if (g.events.empty()) {
-    event->kind = GRACEUI_EVENT_NONE;
+  // GraceUI takes any event from its first size (16 bytes, GraceUI 0.1's) and fills what that size holds; an event
+  // smaller than 0.2's never gets the protocol's kinds, nor one smaller than ABI 1.2's the display's (D169, D180).
+  if (event == nullptr || event->size < 16) return GRACEUI_REFUSED;
+  const std::uint32_t size = event->size;
+  ++g.poll_sizes[size];
+  for (auto it = g.events.begin(); it != g.events.end(); ++it) {
+    const bool protocol = it->kind == GRACEUI_EVENT_WATCHED || it->kind == GRACEUI_EVENT_UNWATCHED ||
+                          it->kind == GRACEUI_EVENT_COMMAND;
+    if ((it->kind == GRACEUI_EVENT_DISPLAY || protocol) && size < sizeof(GraceUiEvent)) continue;
+    if (protocol) {
+      // Its frame into the mod's buffer; one too small answers full with the size needed, the event kept.
+      const std::string& text = g.frames.front();
+      event->frame_length = text.size();
+      if (event->frame == nullptr || event->frame_capacity < text.size()) return GRACEUI_FULL;
+      std::memcpy(event->frame, text.data(), text.size());
+      event->kind = it->kind;
+      event->reply = it->reply;
+      g.frames.pop_front();
+      g.events.erase(it);
+      return GRACEUI_OK;
+    }
+    GraceUiEvent e = *it;
+    g.events.erase(it);
+    if (size >= sizeof(GraceUiEvent)) {
+      char* frame = event->frame;
+      const std::uint64_t capacity = event->frame_capacity;
+      *event = e;
+      event->frame = frame;
+      event->frame_capacity = capacity;
+    } else {
+      std::memcpy(static_cast<void*>(event), &e, 16);
+    }
+    event->size = size;
     return GRACEUI_OK;
   }
-  *event = g.events.front();
-  g.events.pop_front();
+  event->kind = GRACEUI_EVENT_NONE;
   return GRACEUI_OK;
 }
 
@@ -220,7 +251,85 @@ GraceUiStatus set_world_state(GraceUiConsumer me, const GraceUiWorldState* state
 }
 
 GraceUiStatus log_line(GraceUiConsumer, uint32_t, const char*, uint64_t) { return GRACEUI_NOT_YET; }
-GraceUiStatus reserved(GraceUiConsumer, const void*) { return GRACEUI_NOT_YET; }
+GraceUiStatus register_pages(GraceUiConsumer me, const GraceUiSpaceDesc* space) {
+  Grace& g = *g_fake;
+  if (me != kMe) return GRACEUI_NOT_CONNECTED;
+  if (notice_only()) return GRACEUI_INACTIVE;  // no server beside an anti-cheat
+  ++g.register_calls;
+  if (space == nullptr || space->size < sizeof(GraceUiSpaceDesc) || space->views == 0 ||
+      (space->views & ~(GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER)) != 0) {
+    return GRACEUI_REFUSED;
+  }
+  if (!g.space_pages.empty()) return GRACEUI_DUPLICATE_ID;
+  const std::string pages = text_of(space->pages, space->pages_length);
+  const std::string settings = text_of(space->settings, space->settings_length);
+  const nlohmann::json p = nlohmann::json::parse(pages, nullptr, false);
+  const nlohmann::json s = nlohmann::json::parse(settings, nullptr, false);
+  if (p.is_discarded() || s.is_discarded() || !p.is_object() || p.value("space", "") != g.id || !s.is_object() ||
+      g.id == "graceui") {
+    return GRACEUI_REFUSED;
+  }
+  // GraceUI 0.2.5's (D183): no topic named "pages", and a destructive action only with its confirmation's text.
+  for (const nlohmann::json& t : p.value("topics", nlohmann::json::array())) {
+    if (t.value("id", "") == "pages") return GRACEUI_REFUSED;
+  }
+  for (const nlohmann::json& page : p.value("pages", nlohmann::json::array())) {
+    for (const nlohmann::json& a : page.value("actions", nlohmann::json::array())) {
+      if (a.value("tone", "") == "destructive" && a.value("confirm", "").empty()) return GRACEUI_REFUSED;
+    }
+  }
+  g.space_views = space->views;
+  g.space_version = space->version;
+  g.space_pages = pages;
+  g.space_settings = settings;
+  g.space_increment = text_of(space->increment, space->increment_length);
+  return GRACEUI_OK;
+}
+
+GraceUiStatus publish(GraceUiConsumer me, const char* frame, uint64_t length) {
+  Grace& g = *g_fake;
+  if (me != kMe) return GRACEUI_NOT_CONNECTED;
+  if (g.space_pages.empty()) return GRACEUI_NOT_YET;
+  const nlohmann::json f = nlohmann::json::parse(text_of(frame, length), nullptr, false);
+  bool declared = false;
+  if (!f.is_discarded() && f.is_object() && (f.value("t", "") == "state" || f.value("t", "") == "rows")) {
+    const std::string shape = f.value("t", "") == "state" ? "state" : "stream";
+    const nlohmann::json pages = nlohmann::json::parse(g.space_pages);
+    for (const nlohmann::json& t : pages["topics"]) {
+      declared = declared || (t.value("id", "") == f.value("topic", "") && t.value("shape", "") == shape);
+    }
+  }
+  // GraceUI 0.2.5's (D183): the settings topic's schema and description, if sent, are the registered ones.
+  if (declared && f.value("topic", "") == "settings" && f.contains("body") && f["body"].is_object()) {
+    const nlohmann::json registered = nlohmann::json::parse(g.space_settings);
+    const nlohmann::json& body = f["body"];
+    if ((body.contains("schema") && body["schema"] != registered["schema"]) ||
+        (body.contains("description") && body["description"] != registered["settings"])) {
+      declared = false;
+    }
+  }
+  if (length > GRACEUI_FRAME_TO_PAGE_MAX || !declared || f.value("space", "") != g.id) {
+    ++g.publish_refused;
+    return GRACEUI_REFUSED;
+  }
+  g.published.push_back(text_of(frame, length));
+  return GRACEUI_OK;
+}
+
+GraceUiStatus answer(GraceUiConsumer me, uint64_t reply, const char* frame, uint64_t length) {
+  Grace& g = *g_fake;
+  if (me != kMe) return GRACEUI_NOT_CONNECTED;
+  const nlohmann::json f = nlohmann::json::parse(text_of(frame, length), nullptr, false);
+  const bool result = !f.is_discarded() && f.is_object() && f.value("t", "") == "result" &&
+                      (f.value("ok", false) || f.contains("error"));
+  if (!result || reply < 100 || reply >= g.next_reply || g.answers.count(reply) != 0) {
+    ++g.answer_refused;
+    return GRACEUI_REFUSED;
+  }
+  g.answers[reply] = text_of(frame, length);
+  return GRACEUI_OK;
+}
+GraceUiStatus set_caret(GraceUiConsumer, const GraceUiCaret*) { return GRACEUI_OK; }
 
 }  // namespace
 
@@ -230,10 +339,10 @@ Grace::Grace() {
   table.has_cap = &has_cap;
   table.connect = &connect;
   table.disconnect = &disconnect;
-  table.register_pages = &reserved;
-  table.publish = &reserved;
+  table.register_pages = &register_pages;
+  table.publish = &publish;
   table.poll = &poll;
-  table.answer = &reserved;
+  table.answer = &answer;
   table.register_texture = &register_texture;
   table.register_face = &register_face;
   table.glyph_table = &glyph_table;
@@ -247,6 +356,7 @@ Grace::Grace() {
   table.notice = &notice;
   table.set_world_state = &set_world_state;
   table.log = &log_line;
+  table.set_caret = &set_caret;
 }
 
 Grace::~Grace() {
@@ -270,6 +380,54 @@ void Grace::press(const std::string& action, std::uint32_t count) {
       events.push_back(e);
     }
   }
+}
+
+void Grace::watch(const std::string& topic) {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = GRACEUI_EVENT_WATCHED;
+  events.push_back(e);
+  frames.push_back(R"({"v":1,"t":"sub","space":"eldennet","id":0,"topic":")" + topic + "\"}");
+}
+
+void Grace::unwatch(const std::string& topic) {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = GRACEUI_EVENT_UNWATCHED;
+  events.push_back(e);
+  frames.push_back(R"({"v":1,"t":"unsub","space":"eldennet","id":0,"topic":")" + topic + "\"}");
+}
+
+std::uint64_t Grace::command(const std::string& name, const std::string& args_json) {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = GRACEUI_EVENT_COMMAND;
+  e.reply = next_reply++;
+  events.push_back(e);
+  frames.push_back(R"({"v":1,"t":"cmd","space":"eldennet","id":)" + std::to_string(e.reply) + R"(,"name":")" + name +
+                   R"(","args":)" + args_json + "}");
+  return e.reply;
+}
+
+std::vector<std::string> Grace::published_of(const std::string& topic) const {
+  std::vector<std::string> out;
+  for (const std::string& f : published) {
+    if (nlohmann::json::parse(f).value("topic", "") == topic) out.push_back(f);
+  }
+  return out;
+}
+
+void Grace::display() {
+  GraceUiEvent e{};
+  e.size = sizeof e;
+  e.kind = GRACEUI_EVENT_DISPLAY;
+  e.display_width = 1920;
+  e.display_height = 1080;
+  e.ui_scale = 1.25f;
+  e.ui_scale_default = 1.25f;
+  e.scale = 1.25f;
+  e.content_scale = 1.0f;
+  events.push_back(e);
 }
 
 std::uint64_t Grace::panel_of(const std::string&) const { return panels.size() == 1 ? panels.begin()->first : 0; }

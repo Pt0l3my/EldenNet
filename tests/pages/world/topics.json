@@ -1,0 +1,225 @@
+{
+  "errors": {
+    "checks": [
+      {
+        "detail": "Everything else goes on. Restarting the game tries it again.",
+        "label": "The camera: EldenNet stopped reading it after faults.",
+        "state": "warn"
+      }
+    ]
+  },
+  "logs": [
+    {
+      "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
+      "seq": 1,
+      "time": "0:00:00"
+    },
+    {
+      "line": "gate result=passed ms=11",
+      "seq": 2,
+      "time": "0:00:00"
+    },
+    {
+      "line": "init state=settings",
+      "seq": 3,
+      "time": "0:00:00"
+    },
+    {
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3",
+      "seq": 4,
+      "time": "0:00:01"
+    },
+    {
+      "line": "init state=ready",
+      "seq": 5,
+      "time": "0:00:06"
+    },
+    {
+      "line": "change what=phase to=title",
+      "seq": 6,
+      "time": "0:00:06"
+    },
+    {
+      "line": "change what=phase to=in_world",
+      "seq": 7,
+      "time": "0:01:01"
+    },
+    {
+      "line": "tripped group=camera",
+      "seq": 8,
+      "time": "0:20:00"
+    }
+  ],
+  "status": {
+    "items": [
+      {
+        "label": "State",
+        "value": "Observing"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet reads the game. NPCs speak from a later version."
+      },
+      {
+        "label": "EldenNet",
+        "value": "0.1.0"
+      },
+      {
+        "label": "GraceUI",
+        "value": "0.2.3"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      },
+      {
+        "label": "This session",
+        "value": "1 h 5 min"
+      }
+    ],
+    "page": "system.status",
+    "reason": "EldenNet reads the game. NPCs speak from a later version.",
+    "tone": "ember",
+    "word": "Observing"
+  },
+  "system.compatibility": {
+    "checks": [
+      {
+        "detail": "Supported",
+        "label": "Game build 3.14.15.0",
+        "state": "pass"
+      },
+      {
+        "detail": "Started by the EldenNet launcher",
+        "label": "EldenNet 0.1.0",
+        "state": "pass"
+      },
+      {
+        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "label": "GraceUI 0.2.3",
+        "state": "pass"
+      }
+    ]
+  },
+  "system.status": {
+    "checks": [
+      {
+        "detail": "Started",
+        "label": "Start",
+        "state": "pass"
+      },
+      {
+        "detail": "9600 readings so far",
+        "label": "Reading the game",
+        "state": "pass"
+      },
+      {
+        "detail": "Running",
+        "label": "The core",
+        "state": "pass"
+      },
+      {
+        "detail": "Checks the game's modules every minute",
+        "label": "Anti-cheat watch",
+        "state": "pass"
+      },
+      {
+        "detail": "Writing",
+        "label": "The log",
+        "state": "pass"
+      },
+      {
+        "detail": "2400 lines recorded",
+        "label": "Recording",
+        "state": "pass"
+      },
+      {
+        "detail": "Connected, version 0.2.3",
+        "label": "GraceUI",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "group",
+        "label": "Group"
+      },
+      {
+        "id": "state",
+        "label": "Self-test"
+      }
+    ],
+    "items": [
+      {
+        "label": "State",
+        "value": "Observing"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet reads the game. NPCs speak from a later version."
+      },
+      {
+        "label": "Start",
+        "value": "Started"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      },
+      {
+        "label": "Offline and solo",
+        "value": "Confirmed"
+      },
+      {
+        "label": "What it can read",
+        "value": "9 of 11 groups have passed their self-tests"
+      }
+    ],
+    "rows": [
+      {
+        "group": "The session",
+        "state": "Passed"
+      },
+      {
+        "group": "The world",
+        "state": "Passed"
+      },
+      {
+        "group": "Combat",
+        "state": "Passed"
+      },
+      {
+        "group": "Your character",
+        "state": "Passed"
+      },
+      {
+        "group": "Progress",
+        "state": "Passed"
+      },
+      {
+        "group": "The game's text",
+        "state": "Passed"
+      },
+      {
+        "group": "The game's screens",
+        "state": "Passed"
+      },
+      {
+        "group": "Place",
+        "state": "Passed"
+      },
+      {
+        "group": "The camera",
+        "state": "Stopped after faults"
+      },
+      {
+        "group": "The game's tables",
+        "state": "Passed"
+      },
+      {
+        "group": "Statuses",
+        "state": "Not tested yet"
+      }
+    ]
+  }
+}

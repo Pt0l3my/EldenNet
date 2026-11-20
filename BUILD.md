@@ -57,9 +57,10 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-3f1352b, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the connection's
-tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines and the
-world-state claims.
+8d45b20 (GraceUI 0.2.5, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
+configured. `en_overlay_tests.exe` runs the connection's
+tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines (Augur's
+events and en-core's changes among them), its rings and the world-state claims.
 
 ## The Windows build with clang-cl
 
@@ -137,10 +138,25 @@ cmake --build build-cl
   them. Each case installs that folder as it is, so the launcher's pre-flight checks GraceUI's own version file; it
   holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
-  (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does.
+  (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
+  third_party/graceui-sys comes from (8d45b20, GraceUI 0.2.5), so the space meets the checks it will meet.
+  `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI: F5's menu and, from Linux, a browser
+  of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names; it uses
+  that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
+  `launcher-eldennet-graceui-events` opens F11's view on Augur's events from the fake game's world and the lifecycle,
+  and counts each list line's square on the frame by its source's colour (`--grace-probe` given three times).
+- **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
+  `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
+  what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
+  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 8d45b20>` (`tests/pages/lint.py` checks the lint's files against their
+  SHA-256 first); and, in a Linux build, `en_pages_preview` with `-DEN_GRACE_DEV=<grace-dev of a Linux build of GraceUI
+  at 8d45b20>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
+  commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
+  `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
+  dumps). Without the variables the last two are left out, with a line saying so.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 13 minutes for the clang-cl build's 99 cases (21 of them the launcher's, 16 eldennet.dll's, four of those with
-  GraceUI, below): 52 of about
+- About 18 minutes for the clang-cl build's 108 tests of the harness (the prefix and 107 cases, 45 of them the
+  launcher's, 24 of those eldennet.dll's and seven of these with GraceUI, above; counted on 2026-11-20): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
   offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
@@ -151,10 +167,26 @@ cmake --build build-cl
   Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
   its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
   forms, the sources, the tail function's table read before and after the call, the call's answer and the control
-  diff; `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
-  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-release` gives
+  diff, and since spike.9 the group's function with the task's and the entry's reads and the task's tagged store, the
+  rack's and the shelf's classes, the tagged search and the diffs from the rack and the shelf;
+  `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
+  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-gate` on one
+  whose hub runs only tasks of the game's kind (`--task-gate`: the call answers 1, the shelf keeps our task under a tag
+  and the task never runs, as in R1 run 8); `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
+- The runs of GraceUI's observer (S0-E's present-hook half and S4, roadmap S10.1.g and S11.1.a; EldenNet's side):
+  `launcher-eldennet-spike-s0e` gives `--spike s0e` to the release DLL and checks the run's folder
+  (`spikes\s0e-1`, made before the game starts), `ELDENNET_SPIKE_DIR` as the fake game sees it (set, and its folder
+  there; the fake game never prints the path, and a leftover value in the launcher's own environment is replaced),
+  the DLL's `register skipped=1 why=spike`, no call into the game (the fake hub's live tasks its own four, its end
+  line's `live`), the `spike_run` banner, T6 and the recorder running on (the recording's header word and banner,
+  linted, through `rec-stats`), and a clean end; `launcher-eldennet-spike-s4` does the same with `s4`;
+  `launcher-eldennet-spike-s0e-alone` loads only its `--also` DLL (`vehprobe.dll`, standing in for GraceUI's
+  observer), with no eldennet.dll in the process and the variable set; and, with `EN_GRACEUI_DIR`,
+  `launcher-eldennet-graceui-spike-s0e` adds the connect, the banner as GraceUI's notice and F11's view.
+  `launcher-vanilla`, `launcher-env` and `launcher-spike-s0c` check that a leftover `ELDENNET_SPIKE_DIR` in the
+  launcher's environment never reaches the game.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## The launcher and the core's slice
@@ -217,11 +249,11 @@ Its README has the start as built, the threads, the settings, the recorder and R
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 13 cases,
-  about 5 minutes, and with `EN_GRACEUI_DIR` four more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
-  `launcher-eldennet-probe-gap` are the longest, about 65 s each). Each installs the DLL in its own folder with
-  gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
-  place (development and tests).
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 17 cases,
+  about 7 minutes, and with `EN_GRACEUI_DIR` seven more with GraceUI (`launcher-eldennet-probe`,
+  `launcher-eldennet-probe-gap` and `launcher-eldennet-probe-gate` are the longest, about 65 s each). Each installs
+  the DLL in its own folder with gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which
+  the DLL takes in `%APPDATA%`'s place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
 - Each DLL's version resource is configured from `src/eldennet/win/eldennet.rc.in`: ProductVersion is the build's
   label (`EN_VERSION_LABEL`, by default the project's version), and the probe build's carries SpecialBuild "probe"
@@ -235,7 +267,7 @@ A spike package is a development build for the owner's PC, labelled `0.1.0-spike
 
 ```sh
 cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.8 -DPython3_EXECUTABLE=/usr/local/bin/python3
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.9 -DPython3_EXECUTABLE=/usr/local/bin/python3
 cmake --build build-cl-rel
 python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
   --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
@@ -248,7 +280,11 @@ under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's
 addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
 Since spike.8 the hub is walked at the Mark too, 2 s before that walk, for a control diff (three walks' blocks kept at
 most), the call's answer is kept, and the tail function's table is read just before the call and 2 s after it, through
-the same crash-guarded copy; every summary's instructions are given as forms (no bytes).
+the same crash-guarded copy; every summary's instructions are given as forms (no bytes). Since spike.9 the group's own
+function (the tail function's direct jump) and its callees are summarised with the entry and our task followed in (16
+summaries at most), the walk and its diffs start from the table's singleton and the group's entry too (three walks'
+blocks at most per root, the fake game's report about 113 KB), the searches count our object's and vtable's addresses
+under a high-bit tag, and the singleton's and the entry's RTTI classes are matched to the leads' names.
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
 `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
@@ -259,6 +295,26 @@ build, and a text file holding a path of this PC; the zip is the same for the sa
 Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `--set eldennet_probe=` and
 `--set engine=` pointing at the unzipped files (the owner's steps on the fake game), and sweep it
 (`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
+
+GraceUI's in-game spikes S0-E and S4 (GraceUI D175, its `tools/grace-spike/README.md`) have a package of their own,
+`s0e-s4`, with the release DLL and GraceUI's test build:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=OFF -DEN_VERSION_LABEL=0.1.0-spikes.1 -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel
+python3 -I tools/spikepkg/build.py s0e-s4 --build build-cl-rel --graceui <graceui>/build-cl-test --out EldenNet-Spikes.zip
+```
+
+`--graceui` is a clang-cl Release tree of GraceUI with `GRACEUI_TEST_EXPORTS=ON`: its `GraceUI` folder goes in as the
+build laid it out (each file checked against its `graceui.toml`), with `grace-spike.dll` and `grace-standin.dll` from
+its `bin`. The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
+for each run (`build.py`'s `RUNS`: A1 to A4, A0 and B, each the launcher with fixed options from the package's own
+folder, then a pause) and `README-SPIKES.txt`. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
+and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a1` to `-a4`, `-a0` and `-b` with
+`--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`), each run's options exactly as its `.cmd` file
+holds them, started from the package's folder; GraceUI's own harness cases on the same GraceUI build; GraceUI's
+`tools/grace-spike/report.py` on each case's spikes folder; and the sweep.
 
 ## Checks: compile-fail tests and CI greps
 

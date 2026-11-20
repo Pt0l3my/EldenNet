@@ -51,6 +51,14 @@ std::string hex(std::uint64_t v) {
   std::snprintf(buf, sizeof buf, "0x%llX", static_cast<unsigned long long>(v));
   return buf;
 }
+// A class's vtable, from an object of ours made for the purpose: its first word.
+template <class T>
+const void* vtable_of() {
+  const T object{};
+  const void* vt = nullptr;
+  std::memcpy(&vt, static_cast<const void*>(&object), sizeof vt);
+  return vt;
+}
 // SAFETY: the distance from an object of ours to one of its own members, as a number.
 template <class Obj, class Member>
 std::uint64_t off(const Obj* obj, const Member* member) {
@@ -356,9 +364,14 @@ int describe(HINSTANCE instance) {
       {"register_keeps_vtable_off", FG_LOOM_LAST_VTABLE_OFF},  // and the task's vtable
       // The registration is a wrapper of R1 run 7's shape (spike.8): it loads its rack from the static at `slot_rva`
       // (making it with `alloc` and `build` while it is null) and tail-jumps to `tail`, which bounds the group by
-      // `bound`, tests the rack's shelf at `shelves_off` + group*8 and jumps through the shelf's vtable at
-      // `shelf_slot_off` to `shelf_register`, which calls the work (the hub in rcx, the group in edx, the task in r8).
-      // With --table-gap the stand-in group has no shelf (`gap`), and the registration answers 0.
+      // `bound` and tests the rack's shelf at `shelves_off` + group*8; then (run 8's shape, spike.9) it moves the task
+      // into rdx and jumps directly to `take`, the group's own function, which reads the task's hub field at
+      // `task_hub_off` (kept at the shelf's `seen_off`) and its kind at `task_kind_off` (compared with `kind`), reads
+      // the shelf's count at `count_off`, keeps the task in the shelf's list at `items_off` under the tag whose high 16
+      // bits are `tag`, and calls `offer`, which hands it to the work (the hub in rcx, the group in edx, the task in r8)
+      // unless --task-gate (`gate`) is on and its kind is not the game's. The shelves' class's innermost name is the
+      // hub's (`shelf_matches`, the leads' singleton it names); the rack's names none. With --table-gap the stand-in
+      // group has no shelf (`gap`), and the registration answers 0.
       {"register_rack",
        {{"slot_rva", rva(&fg_static_rack)},
         {"alloc_rva", fn_rva(fg_rack_alloc)},
@@ -366,9 +379,20 @@ int describe(HINSTANCE instance) {
         {"tail_rva", fn_rva(fg_register_rack)},
         {"bound", FG_RACK_BOUND},
         {"shelves_off", FG_RACK_SHELVES_OFF},
-        {"shelf_slot_off", FG_SHELF_REGISTER_OFF},
-        {"shelf_register_rva", fn_rva(fg_shelf_register)},
-        {"shelf_vtable_rva", rva(fg_shelf_vtable)},
+        {"take_rva", fn_rva(fg_shelf_take)},
+        {"offer_rva", fn_rva(fg_shelf_offer)},
+        {"task_hub_off", FG_TASK_HUB_OFF},
+        {"task_kind_off", FG_TASK_KIND_OFF},
+        {"kind", FG_TASK_KIND},
+        {"seen_off", FG_SHELF_SEEN_OFF},
+        {"count_off", FG_SHELF_COUNT_OFF},
+        {"items_off", FG_SHELF_ITEMS_OFF},
+        {"items", FG_SHELF_ITEMS},
+        {"tag", static_cast<std::uint64_t>(FG_TASK_TAG) >> 48},
+        {"shelf_vtable_rva", rva(vtable_of<FG::TaskShelf>())},
+        {"rack_vtable_rva", rva(vtable_of<FG::TaskRackImp>())},
+        {"shelf_matches", "task_loom"},
+        {"gate", options().task_gate},
         {"gap", options().table_gap},
         {"made", fg_static_rack != nullptr}}},
       {"register_work_rva", fn_rva(fg_register_keep)},
@@ -387,7 +411,8 @@ int describe(HINSTANCE instance) {
        {{"group", {{"off", 8 + offsetof(FG::TaskFields, group)}, {"ty", "u32"}}},
         {"state", {{"off", 8 + offsetof(FG::TaskFields, state)}, {"ty", "u32"}}},
         {"hub", {{"off", 8 + offsetof(FG::TaskFields, hub)}, {"ty", "ptr"}}},
-        {"runs", {{"off", 8 + offsetof(FG::TaskFields, runs)}, {"ty", "u64"}}}}},
+        {"runs", {{"off", 8 + offsetof(FG::TaskFields, runs)}, {"ty", "u64"}}},
+        {"kind", {{"off", 8 + offsetof(FG::TaskFields, kind)}, {"ty", "u32"}}}}},
       {"frame_info",
        {{"frame", {{"off", offsetof(FG::FrameInfo, frame)}, {"ty", "u64"}}},
         {"dt", {{"off", offsetof(FG::FrameInfo, dt)}, {"ty", "f32"}}},

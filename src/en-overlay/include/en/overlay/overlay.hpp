@@ -6,14 +6,19 @@
 // hooks nothing (R12; GraceUI's invariant 16), and nothing in it waits but `find`, on T1 (R6).
 //
 // The threads: T1 finds GraceUI and connects (`find`, `Overlay::connect`), before anything is submitted, so the view's
-// atlas is registered in EldenNet's registration window; from then on one thread alone, EldenNet's core thread (T6),
-// calls the rest: the banner and the pause badge as notices, the world-state claims, the Mark's hotkey, and `step`,
-// which polls GraceUI's events (F11 and the Mark), opens and closes the view and, while it is open, builds a frame on
-// Dear ImGui's core and submits it. The F11 view takes no input in GraceUI 0.1 (D142): it shows, and F11 hides it.
+// atlas is registered in EldenNet's registration window, and registers EldenNet's space (its pages, space.hpp; D169);
+// from then on one thread alone, EldenNet's core thread (T6), calls the rest: the banner and the pause badge as
+// notices, the world-state claims, the Mark's hotkey, and `step`, which polls GraceUI's events (F11 and the Mark, and
+// the space's: a topic watched or no longer, a view's command), answers each command at once through the space's one
+// command path, publishes what the space has for its watched topics, opens and closes the view and, while it is open,
+// builds a frame on Dear ImGui's core and submits it. The F11 view takes no input (D142): it shows, and F11 hides it.
 #include <array>
 #include <cstdint>
+#include <string>
 #include <string_view>
+#include <vector>
 
+#include "en/overlay/space.hpp"
 #include "en/overlay/view.hpp"
 #include "graceui_imgui.hpp"
 #include "graceui_sys.hpp"
@@ -39,7 +44,7 @@ struct Found {
   std::uint32_t attempts = 0;  // looks made
   std::uint32_t version = 0;   // the GraceUI found: GraceUI_Version(), or 0
   bool installed = false;      // at the last look, a module named graceui.dll was loaded or GraceUI\graceui.dll lay
-                               // in the game's folder (graceui-sys's own word, GraceUI D51, D164)
+                               // in the game's folder (graceui-sys's own word, GraceUI D51, D164, D170)
   std::uint64_t ms = 0;        // how long the look took
 };
 
@@ -71,6 +76,10 @@ struct Options {
   std::array<std::uint16_t, 3> version{};  // EldenNet's own
   bool view = false;                       // debug.panel: the F11 view, its panel, atlas and hotkey (PAGES SP8)
   bool mark = false;                       // the Mark's hotkey at once (else `register_mark` later)
+  // EldenNet's space (D169): the views to register it for (GRACEUI_VIEW_GAME, GRACEUI_VIEW_BROWSER), or 0 for none. The
+  // banner path registers it for the game's view alone: the browser never gets it when the gate or the safety step
+  // fails (PAGES §4.4, GraceUI §7.2 item 1).
+  std::uint32_t space_views = 0;
 };
 
 struct Report {
@@ -86,6 +95,7 @@ struct Report {
                                            // "panel", "hotkey"
   bool mark = false;                       // the Mark's hotkey is registered, bound or not
   bool mark_bound = false;                 // and bound: only then does EldenNet ask the launcher for Pause
+  GraceUiStatus pages = GRACEUI_NOT_YET;   // register_pages's answer; not_yet when not asked, or without the cap
 };
 
 class Overlay {
@@ -106,6 +116,7 @@ class Overlay {
   [[nodiscard]] bool view_open() const noexcept { return open_; }
   [[nodiscard]] bool mark_registered() const noexcept { return mark_hotkey_ != 0; }  // bound or not
   [[nodiscard]] bool mark_bound() const noexcept { return mark_hotkey_ != 0 && mark_bound_; }
+  [[nodiscard]] bool pages() const noexcept { return pages_; }  // EldenNet's space is registered
   [[nodiscard]] std::uint32_t graceui_version() const noexcept { return graceui_version_; }
 
   // The banner: one notice under EldenNet's key, shown until replaced (duration 0); a new text replaces it in place and
@@ -126,11 +137,18 @@ class Overlay {
     std::uint32_t view_presses = 0;   // F11 presses taken
     bool lost = false;                // GraceUI answered not connected or inactive: nothing more is shown
     GraceUiStatus refused = GRACEUI_OK;  // a submit's or a panel call's answer other than ok, if any
+    // The space's (D169).
+    std::uint32_t commands = 0;              // answered, each once
+    std::uint32_t published = 0;             // frames GraceUI took
+    GraceUiStatus page_refused = GRACEUI_OK;  // a publish's or an answer's answer other than ok, if any
   };
-  // Polls every event waiting (GraceUI 0.1: hotkey presses; an odd count of F11 presses toggles the view), and, while
-  // the view is open, builds a frame of `status` and submits it. A frame past ABI 1's bounds is not submitted: the view
-  // keeps its last list.
-  Step step(const ViewStatus& status);
+  // Polls every event waiting, passing over any kind it does not use: hotkeys (an odd count of F11 presses toggles the
+  // view; the Mark's are counted) and, with the space registered, its events, each handed to `space` (a command is
+  // answered at once with what the space's one command path answers, given `facts`); then publishes the frames the
+  // space has for its watched topics at `now_ms`, and, while the view is open, builds a frame of `status` and submits
+  // it. A frame past ABI 1's bounds is not submitted: the view keeps its last list.
+  Step step(const ViewStatus& status, Space* space = nullptr, const SpaceFacts* facts = nullptr,
+            std::uint64_t now_ms = 0);
 
  private:
   Overlay(const graceui::Api& api, GraceUiConsumer me, bool notices_only, std::uint32_t version);
@@ -163,6 +181,10 @@ class Overlay {
   bool open_ = false;
   ViewLines lines_;
   graceui::imgui::DrawList list_;
+  // The space.
+  bool pages_ = false;
+  std::array<char, GRACEUI_FRAME_FROM_PAGE_MAX> frame_{};  // poll writes a space's event's frame here
+  std::vector<std::string> frames_;                         // what the space has to publish, each step
 };
 
 }  // namespace en::overlay

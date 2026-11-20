@@ -17,6 +17,7 @@ constexpr std::uint64_t kPage = 0x1000;
 constexpr std::size_t kMaxModules = 16;  // images whose headers are kept for their hits' sections
 constexpr std::uint64_t kMaxRegions = 1u << 22;  // regions walked at most (a process has thousands)
 constexpr std::uint32_t kScnCode = 0x20, kScnExecute = 0x2000'0000, kScnRead = 0x4000'0000, kScnWrite = 0x8000'0000;
+constexpr std::uint64_t kLow48 = 0xFFFF'FFFF'FFFFull;
 
 std::optional<std::uint32_t> le32(std::span<const std::byte> b, std::uint64_t at) noexcept {
   if (at > b.size() || b.size() - at < 4) return std::nullopt;
@@ -45,6 +46,7 @@ class Search {
     std::memcpy(&at, &p, sizeof at);  // the buffer's own address, as a number: it is never read
     skip_.push_back(AddressRange{at, at + buf_.size()});
     for (std::vector<MemoryHit>& list : lists_) list.reserve(kMaxHits);
+    for (std::vector<MemoryHit>& list : tagged_) list.reserve(kMaxHits);
     heads_.reserve(kMaxModules);
     end_ = spec.target + std::max<std::uint64_t>(spec.object_bytes, 1);
     for (std::size_t i = 0; i < spec.slots.size(); ++i) {
@@ -93,6 +95,9 @@ class Search {
     out_.slot_distinct = distinct(game_slots_);
     out_.own_slot_distinct = distinct(own_slots_);
     for (const std::vector<MemoryHit>& list : lists_) out_.hits.insert(out_.hits.end(), list.begin(), list.end());
+    for (const std::vector<MemoryHit>& list : tagged_) {
+      out_.tagged_hits.insert(out_.tagged_hits.end(), list.begin(), list.end());
+    }
     return std::move(out_);
   }
 
@@ -134,6 +139,15 @@ class Search {
     for (std::size_t o = 0; o + 8 <= dst.size(); o += 8) {
       std::uint64_t w = 0;
       std::memcpy(&w, dst.data() + o, 8);
+      if ((w >> 48) != 0) {  // spike.9: our object's or vtable's address under a high-bit tag
+        const std::uint64_t low = w & kLow48;
+        if (low == spec_.target) {
+          tagged(at + o, PointsTo::Object, w >> 48, dst, o, r);
+        } else if (low == spec_.vtable && spec_.vtable != 0) {
+          tagged(at + o, PointsTo::Vtable, w >> 48, dst, o, r);
+        }
+        continue;
+      }
       if (w >= spec_.target && w < end_) {
         hit(at + o, PointsTo::Object, w - spec_.target, std::nullopt, dst, o, r);
       } else if (w == spec_.vtable && w != 0) {
@@ -169,11 +183,34 @@ class Search {
     }
     std::vector<MemoryHit>& list = lists_[(mine ? 3u : 0u) + static_cast<std::size_t>(what)];
     if (list.size() >= kMaxHits) return;
-    MemoryHit h;
-    h.own = mine;
+    MemoryHit h = where(at, mine, d, o, r);
     h.points_to = what;
     h.slot = slot;
     h.offset = offset;
+    list.push_back(h);
+  }
+
+  // Spike.9: a word whose low 48 bits are our object's (or vtable's) address and whose high 16 bits are `tag`.
+  void tagged(std::uint64_t at, PointsTo what, std::uint64_t tag, std::span<const std::byte> d, std::size_t o,
+              const MemoryRegion& r) {
+    const bool mine = own(r);
+    if (what == PointsTo::Object) {
+      ++(mine ? out_.own_tagged_found : out_.tagged_found);
+    } else {
+      ++(mine ? out_.own_vtable_tagged_found : out_.vtable_tagged_found);
+    }
+    std::vector<MemoryHit>& list = tagged_[(mine ? 2u : 0u) + (what == PointsTo::Object ? 0u : 1u)];
+    if (list.size() >= kMaxHits) return;
+    MemoryHit h = where(at, mine, d, o, r);
+    h.points_to = what;
+    h.tag = static_cast<std::uint32_t>(tag);
+    list.push_back(h);
+  }
+
+  // Where a hit is: its region, its module and section in an image, and the group's index near it.
+  MemoryHit where(std::uint64_t at, bool mine, std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
+    MemoryHit h;
+    h.own = mine;
     h.region = r.kind;
     h.protect = r.protect;
     if (r.kind == RegionKind::Image) {
@@ -190,7 +227,7 @@ class Search {
       std::memcpy(&v, d.data() + k, 4);
       if (v == spec_.group_index) ++h.near_group;
     }
-    list.push_back(h);
+    return h;
   }
 
   // An image's section kind at `rva`, from its first page, copied once per image (at most kMaxModules of them).
@@ -217,6 +254,7 @@ class Search {
   std::vector<AddressRange> skip_;
   std::uint64_t end_ = 0;
   std::array<std::vector<MemoryHit>, 6> lists_;  // the game's, then ours: each our object's, our vtable's, a slot's
+  std::array<std::vector<MemoryHit>, 4> tagged_;  // spike.9: the game's, then ours: our object's tagged, our vtable's
   std::vector<std::pair<std::uint64_t, std::uint32_t>> slots_;  // (address, index), by address
   std::vector<std::uint8_t> game_slots_, own_slots_;            // which slots each side's words name
   std::vector<Headers> heads_;

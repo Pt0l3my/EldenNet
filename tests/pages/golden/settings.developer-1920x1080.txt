@@ -1,0 +1,59 @@
+# eldennet settings.developer: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   64x30   glyphs 6 "System"
+line    rule           30, 185  240x1   
+text    ink.hi         30, 195   85x30   glyphs 8 "Settings"
+fill    tint.select     0, 235  300x40  
+fill    gold            0, 235    3x40  
+text    gold.hi        50, 243   76x25   glyphs 9 "Developer"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  179x45   clip1 glyphs 9 "Developer"
+text    ink.mute      340, 136  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x275  r5 clip1
+stroke  rule          340, 201 1540x275  r5 w1 clip1
+text    gold          365, 221   86x20   clip1 glyphs 9 "Developer"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+line    rule          365, 256 1490x1    clip1
+text    ink.hi        365, 272  141x28   clip1 glyphs 14 "Developer views"
+text    ink.mute      365, 306 1443x25   clip1 glyphs 141 "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts. Default: Off."
+fill    ground.well  1805, 272   50x28   r14 clip1
+stroke  edge         1805, 272   50x28   r14 w1 clip1
+circle  ink.mute     1809, 276   20x20   clip1
+line    rule          365, 341 1490x1    clip1
+text    ink.hi        365, 357  141x28   clip1 glyphs 14 "Record sessions"
+fill    ground.well  1805, 357   50x28   r14 clip1
+stroke  edge         1805, 357   50x28   r14 w1 clip1
+circle  ink.mute     1809, 361   20x20   clip1
+line    rule          365, 401 1490x1    clip1
+text    ink.hi        365, 417   94x28   clip1 glyphs 9 "Log detail"
+stroke  edge         1505, 412  350x38   r3 w1 clip1
+text    ink.mute     1510, 419   76x25   clip1 glyphs 8 "Errors only"
+text    ink.mute     1603, 419   68x25   clip1 glyphs 8 "Warnings"
+fill    ground.3     1681, 413   86x36   r3 clip1
+text    gold.hi      1699, 419   51x25   clip1 glyphs 6 "Normal"
+text    ink.mute     1778, 419   68x25   clip1 glyphs 8 "Detailed"
+fill    ground.2      340, 496 1540x175  r5 clip1
+stroke  rule          340, 496 1540x175  r5 w1 clip1
+text    gold          365, 516   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 546 1490x1    clip1
+text    ink.hi        365, 551   38x28   clip1 glyphs 4 "Logs"
+text    ink.mute      862, 554  540x25   clip1 glyphs 54 "EldenNet's own log of this session, with nothing personal in it."
+text    gold         1835, 551    9x28   clip1 glyphs 1 "→"
+line    rule          365, 601 1490x1    clip1
+text    ink.hi        365, 606   56x28   clip1 glyphs 6 "Status"
+text    ink.mute      862, 609  599x25   clip1 glyphs 58 "Whether EldenNet is healthy on this PC and game build, and if not, why."
+text    gold         1835, 606    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  321x25   glyphs 24 "Enter  Toggle    R  Reset    Esc  Back"
+stroke  gold.hi      1802, 269   56x34   r5 w3 clip1
+# 57 items, 2808 vertices, 6660 indices, 4 commands; check_draw_list: passes

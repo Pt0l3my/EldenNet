@@ -14,7 +14,9 @@
 //   the callee's own callees, our vtable's and slots' addresses searched too, and the hub's reachable memory kept from
 //   before the call and compared after it; for spike.8 (WHY§240), the instructions as forms, the values loaded from
 //   memory followed, jumps through memory or a register as tail calls, the tail function's table matched and read, and
-//   a control diff of the hub before the call.
+//   a control diff of the hub before the call; for spike.9 (WHY§248), the group's own function and its callees with
+//   our task's and the entry's loads followed to their uses, the walk from two more roots, tagged pointers, and the
+//   RTTI classes of the singleton and the entry.
 // Every read is a guarded copy on the game thread within the tick's budget, never into a known stack (WHY§111); the
 // candidates come from the image's own data section, read on T1.
 #include <array>
@@ -24,6 +26,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -206,15 +209,21 @@ inline constexpr std::uint32_t kCalleeBound = 4096;  // bytes of the callee deco
 
 // What rcx, rdx, r8 and r9 hold at a function's entry: one of the summary's arguments (`from`: 1, 2, 8 or 9; 0 none),
 // or the first word of that argument's object. A function summarised on its own holds its own arguments; in an inner
-// summary a register that holds none holds the value it was entered with (Source's Entry, spike.8).
+// summary a register that holds none holds the value it was entered with (Source's Entry, spike.8). Spike.9: `entry`,
+// a register holding no argument holds the group's entry (its loads are `entry_reads`).
 struct EntryArg {
   std::uint8_t from = 0;
   bool first_word = false;
+  bool entry = false;
 };
 using EntryState = std::array<EntryArg, 4>;
-inline constexpr EntryState kOwnArguments = {{{1, false}, {2, false}, {8, false}, {9, false}}};
+inline constexpr EntryState kOwnArguments = {{{1, false, false}, {2, false, false}, {8, false, false},
+                                              {9, false, false}}};
 // The entry state of the function a call (or a tail jump) reaches: its rcx, rdx, r8 and r9 as the call's `pass` says.
 [[nodiscard]] EntryState entry_at(const CalleeCall& call) noexcept;
+// The same from a function entered with `parent` (spike.9): a register the call's `pass_src` gives as one of the
+// function's entry values that held the group's entry holds it in the callee too.
+[[nodiscard]] EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept;
 
 // What the code at `rva` does, decoded with en-gal's decoder from its first byte and following no call: within its
 // function (`extent`, its length in the exception directory, at most kCalleeBound), or, with no extent, up to its first
@@ -236,9 +245,17 @@ inline constexpr EntryState kOwnArguments = {{{1, false}, {2, false}, {8, false}
 // through memory or a register is a tail call site (TailMemory, TailRegister); each
 // guard's register operand that holds no argument gives its `source`; the first 64 instructions are given as forms
 // (`forms`), those no known path reaches marked `unreached`.
+// Spike.9 (WHY§248): with no extent, a direct jump past the decoded code (or before the entry) is a tail jump too. With
+// `task` (the argument, 1, 2, 8 or 9, that holds our task), every load whose base holds the task or a value loaded from
+// it is a task read, and every load whose base holds the group's entry (EntryArg's `entry`) or a value loaded from it an
+// entry read, each with what its value is used for along the flow (compared with an immediate or otherwise, tested,
+// stored, passed into a call, called through, used as a base, changed); a compare, test or other use of such a field in
+// place is a read too. A followed value changed by add, or, xor, and, sub, a shift, a bit set or a lea stays followed
+// (Source's Modified), and each store of the task, of a value read from it, or of either changed is a task store.
 [[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
-                                          const EntryState& entry = kOwnArguments);
+                                          const EntryState& entry = kOwnArguments, std::uint8_t task = 0);
 inline constexpr std::size_t kMaxForms = 64;  // instructions given as forms, per summary
+inline constexpr std::size_t kMaxFieldReads = 16, kMaxFieldUses = 8, kMaxTaskStores = 16;
 
 // One region of the process's address space, as VirtualQuery describes it (NativeSys::region_at in game; a test's
 // list otherwise).
@@ -382,8 +399,12 @@ void mark_sections(CalleeCode& code, std::span<const SectionSpan> sections) noex
 // reaches the jump in straight-line code that leaves rcx as it is: `via_guard`); in the tail function a compare of the group (`group_reg`, the wrapper's argument) with an immediate,
 // and a null test (a register tested with itself, 64-bit) of a value loaded from [base + index*8 + disp], its base the
 // entry rcx (or loaded from [entry rcx + d0], one level deeper) and its index the group; and, where there is one, a
-// jump through [that value's first word + d2]. The first shape that fails is named and nothing more is filled.
+// jump through [that value's first word + d2], or (spike.9, run 8's) a direct tail jump with that value in rcx
+// (`target`). The first shape that fails is named and nothing more is filled.
 [[nodiscard]] Table match_table(const CalleeCode& wrapper, std::span<const InnerCallee> inner, std::uint8_t group_reg);
+// The entry state of the group's function, entered by the tail function's jump at `site` (spike.9): as entry_at gives
+// it, rcx holding the group's entry.
+[[nodiscard]] EntryState group_entry_at(const CalleeCall& site) noexcept;
 // A guarded read of `out.size()` bytes at an address (T1's crash-guarded copy under the reader's plausibility rules),
 // false where it was refused or faulted.
 using BlockReader = std::function<bool(std::uint64_t address, std::span<std::byte> out)>;
@@ -395,10 +416,19 @@ struct TableReadSpec {
   DiffSpec kinds;                  // how values are classified (its group_index 0: a value is never "group")
 };
 inline constexpr std::uint32_t kMaxTableEntries = 513;  // entries 0 to 512
+// What the reads found, as addresses, for T1's own use (spike.9: the walks' roots, the classes): never reported.
+struct TableAddresses {
+  std::uint64_t singleton = 0, singleton_first = 0;  // *S (through the hop), and its first word
+  std::uint64_t entry = 0, entry_first = 0;          // the group's entry, and its first word
+};
 // The reads, for a matched shape: *S (through the hop), the entries from 0 to the bound (at most 512) at
 // table + disp + i*8, and for the group's entry when it is not null its first word and the word at [first word +
-// slot_disp]. Kinds and indices only.
-[[nodiscard]] TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockReader& read);
+// slot_disp]. Kinds and indices only; with `found`, the addresses too.
+[[nodiscard]] TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockReader& read,
+                                   TableAddresses* found = nullptr);
+// Spike.9: a class's innermost name (O92's rule) against the leads' singletons' names: the first lead whose name it is,
+// or whose name with Imp it is.
+void match_lead(ClassMatch& m, std::string_view cls, std::span<const std::string> names);
 
 #endif
 

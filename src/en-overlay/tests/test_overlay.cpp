@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 1, 0));
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 3));  // GraceUI 0.2.3: ABI 1.2 and the pages (D169, D181)
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");
@@ -282,6 +282,38 @@ TEST_CASE("overlay: the Mark's hotkey on Pause, at once or later, its presses co
   CHECK(p->step(status()).marks == 1);
 }
 
+TEST_CASE("overlay: poll passes over the display's event and any kind it does not use, and goes on") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, options(true, true), r);
+  REQUIRE(o != nullptr);
+  g.display();  // GraceUI 0.2.2's, after warm-up (D180)
+  g.press("mark");
+  GraceUiEvent later{};
+  later.size = sizeof later;
+  later.kind = 77;  // a kind of a later GraceUI's
+  g.events.push_back(later);
+  g.display();
+  g.press("debug-view");
+  const Overlay::Step s = o->step(status());
+  CHECK(s.marks == 1);
+  CHECK(s.view_presses == 1);
+  CHECK(o->view_open());
+  CHECK(g.events.empty());  // everything waiting was taken
+  CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);  // asked at ABI 1.2's size
+
+  // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.
+  fake::Grace h;
+  h.caps = {"notices", "panels", "textures", "world-state", "hotkeys"};
+  auto p = connect(h, options(false, true), r);
+  REQUIRE(p != nullptr);
+  h.display();
+  h.press("mark");
+  CHECK(p->step(status()).marks == 1);
+  CHECK(h.poll_sizes.count(16u) == 1);
+  CHECK(h.events.size() == 1);  // the display's, which an event of 0.1's size never gets
+}
+
 TEST_CASE("overlay: a hotkey another mod took registers unbound, with its id (GraceUI D164)") {
   SUBCASE("F11: the view is made, nothing opens it until the player binds F11") {
     fake::Grace g;
@@ -352,4 +384,147 @@ TEST_CASE("overlay: GraceUI gone: lost once, nothing more is called") {
   CHECK(g.polls == polls);
   CHECK(o->banner("text") == GRACEUI_NOT_CONNECTED);
   CHECK(g.notice_calls.empty());
+}
+
+// ---- EldenNet's space through ABI 1's protocol slots (D169, eldennet-changes §23).
+
+namespace {
+
+Options with_space(std::uint32_t views = GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER) {
+  Options o = options(true, false);
+  o.space_views = views;
+  return o;
+}
+
+nlohmann::json parsed(const std::string& text) { return nlohmann::json::parse(text); }
+
+}  // namespace
+
+TEST_CASE("overlay: the space registered once at connect, for both views, at the slice's increment") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, with_space(), r);
+  REQUIRE(o != nullptr);
+  CHECK(g.mod_caps == "notices world-state hotkeys panels textures pages");
+  CHECK(r.pages == GRACEUI_OK);
+  CHECK(o->pages());
+  CHECK(g.register_calls == 1);
+  CHECK(g.space_views == (GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER));
+  CHECK(g.space_version == GRACEUI_VERSION_PACK(0, 1, 0));
+  CHECK(g.space_increment == "0.1");
+  CHECK(g.space_pages == std::string(space_pages()));
+  CHECK(g.space_settings == std::string(settings_description()));
+  CHECK(std::string(r.view) == "ready");  // the rest as before
+
+  // The banner path's: the game's view alone (PAGES §4.4).
+  fake::Grace h;
+  auto p = connect(h, with_space(GRACEUI_VIEW_GAME), r);
+  REQUIRE(p != nullptr);
+  CHECK(h.space_views == GRACEUI_VIEW_GAME);
+
+  // Without the pages cap (a GraceUI before 0.2), and in the notice-only mode, nothing is registered.
+  fake::Grace old;
+  old.caps = {"notices", "panels", "textures", "world-state", "hotkeys"};
+  auto q = connect(old, with_space(), r);
+  REQUIRE(q != nullptr);
+  CHECK(r.pages == GRACEUI_NOT_YET);
+  CHECK_FALSE(q->pages());
+  CHECK(old.register_calls == 0);
+  fake::Grace ac;
+  ac.connect_status = GRACEUI_INACTIVE;
+  ac.connect_reason = GRACEUI_INACTIVE_ANTI_CHEAT;
+  auto n = connect(ac, with_space(), r);
+  REQUIRE(n != nullptr);
+  CHECK(n->notices_only());
+  CHECK(ac.register_calls == 0);
+}
+
+TEST_CASE("overlay: watched topics published, each command answered once at once, nothing while unwatched") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, with_space(), r);
+  REQUIRE(o != nullptr);
+  Space space;
+  space.log_line("init state=ready", 10);
+  SpaceFacts facts;
+  facts.version = {0, 1, 0};
+  facts.graceui = g.version;
+  facts.init = en::proto::watch::InitState::Ready;
+  facts.level = Level::Observing;
+  facts.where = Where::Title;
+
+  // Nothing watched: nothing published.
+  Overlay::Step s = o->step(status(), &space, &facts, 1000);
+  CHECK(s.published == 0);
+  CHECK(g.published.empty());
+
+  // The menu watches the settings, a browser the status and the logs, with the display's event among them.
+  g.watch("settings");
+  g.display();
+  g.watch("status");
+  g.watch("logs");
+  g.press("debug-view");
+  s = o->step(status(), &space, &facts, 1000);
+  CHECK(s.view_presses == 1);  // hotkeys as before
+  CHECK(s.published == 3);
+  CHECK(s.page_refused == GRACEUI_OK);
+  REQUIRE(g.published_of("settings").size() == 1);
+  CHECK(parsed(g.published_of("settings")[0])["body"]["values"]["debug.log_level"] == "info");
+  CHECK(parsed(g.published_of("status")[0])["body"]["word"] == "Dormant");
+  CHECK(parsed(g.published_of("logs")[0])["rows"][0]["line"] == "init state=ready");
+  CHECK(g.events.empty());
+
+  // A command: answered at once, exactly once, through the space's one command path; its change published.
+  const std::uint64_t ok = g.command("settings.set", R"({"key":"debug.log_level","value":"debug"})");
+  const std::uint64_t bad = g.command("settings.set", R"({"key":"debug.log_level","value":"loud"})");
+  const std::uint64_t unknown = g.command("selftest.run", "{}");
+  s = o->step(status(), &space, &facts, 1100);
+  CHECK(s.commands == 3);
+  CHECK(g.answer_refused == 0);
+  REQUIRE(g.answers.size() == 3);
+  CHECK(parsed(g.answers[ok])["ok"] == true);
+  CHECK(parsed(g.answers[bad])["error"] == "invalid_value");
+  CHECK(parsed(g.answers[unknown])["error"] == "unknown_command");
+  REQUIRE(g.published_of("settings").size() == 2);
+  CHECK(parsed(g.published_of("settings")[1])["body"]["values"]["debug.log_level"] == "debug");
+  const auto changes = space.take_changes();
+  REQUIRE(changes.size() == 1);
+  CHECK(changes[0].key == "debug.log_level");
+
+  // Unwatched: nothing more, though it changes.
+  g.unwatch("status");
+  g.unwatch("settings");
+  g.unwatch("logs");
+  (void)o->step(status(), &space, &facts, 1200);
+  const std::size_t before = g.published.size();
+  facts.level = Level::Inactive;
+  facts.stop = Stop::TaskTripped;
+  facts.stop_text = "EldenNet stopped reading the game after an error. Your game is not affected.";
+  space.log_line("tripped group=camera", 1300);
+  (void)o->step(status(), &space, &facts, 5000);
+  CHECK(g.published.size() == before);
+  CHECK_FALSE(space.watching("status"));
+
+  // A command with no space to answer it (a defect) is answered all the same: internal.
+  const std::uint64_t orphan = g.command("settings.set", R"({"key":"debug.panel","value":true})");
+  s = o->step(status());
+  CHECK(s.commands == 1);
+  CHECK(parsed(g.answers[orphan])["error"] == "internal");
+}
+
+TEST_CASE("overlay: a space's event too large for the buffer is kept, never answered twice nor lost") {
+  fake::Grace g;
+  Report r;
+  auto o = connect(g, with_space(), r);
+  REQUIRE(o != nullptr);
+  Space space;
+  SpaceFacts facts;
+  // A view's command whose frame is larger than the buffer: GraceUI answers full and keeps it; the step goes on, and
+  // nothing is lost or answered twice (EldenNet's own buffer is GRACEUI_FRAME_FROM_PAGE_MAX, which always suffices).
+  g.command("settings.set", R"({"key":"debug.panel","value":true,"pad":")" + std::string(20000, 'x') + R"("})");
+  g.press("debug-view");
+  const Overlay::Step s = o->step(status(), &space, &facts, 10);
+  CHECK(s.commands == 0);
+  CHECK(g.answers.empty());
+  CHECK(g.events.size() == 2);  // the command, kept, and the hotkey behind it
 }

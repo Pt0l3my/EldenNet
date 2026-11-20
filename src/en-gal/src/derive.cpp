@@ -1497,6 +1497,10 @@ void name_by_instances(Context& cx) {
 
 }  // namespace
 
+std::optional<std::string> innermost_class(const ImageBytes& img, std::uint32_t type_descriptor) {
+  return class_of(img, type_descriptor);
+}
+
 Result derive(const ImageInfo& image, const ByteSource& source, const Leads& leads, const Options& options) {
   Result result;
   result.file_size = options.file_size;

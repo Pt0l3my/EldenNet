@@ -11,8 +11,9 @@ It is built in two parts (the first in-game build, part 7):
 - `en_launcher_core`, portable and tested on Linux: Steam's KeyValues reader and the game's discovery (`vdf`,
   `steam`), the save backups (`backup`, with `blake3`), the appid file and the launcher's record of it (`appid`),
   `launcher.toml` (`config`), the command line (`options`), the texts (`texts`), the executables' facts through
-  en-gal's PE reader (`exe`), GraceUI's pre-flight (`graceui`, with our own SHA-256, `sha256`), and the watcher's
-  records, the spikes' tally and the pre-flight's order (`record`).
+  en-gal's PE reader (`exe`), GraceUI's pre-flight (`graceui`, with our own SHA-256, `sha256`), the watcher's
+  records, the spikes' tally and the pre-flight's order (`record`), and the observer's runs' folder name and the
+  game's environment (`spikes`).
 - `eldennet-launcher` (`src/win/`), the Windows builds' program: processes, injection, the watch block's mapping,
   the watch loop with the dev console and the Mark, the dialogs and the flow.
 
@@ -32,7 +33,7 @@ eldennet-launcher [options] [-- game arguments]
 development and tests:
   --inject-at suspended|window|title  --title-wait S  --also PATH
   --appid-method file|env  --remove-after window|exit|never
-  --console  --probe  --spike s0a|s0b|s0c|s0d|s0d-crash [--runs N] [--run-timeout S]
+  --console  --probe  --spike s0a|s0b|s0c|s0d|s0d-crash|s0e|s0e_alone|s4 [--runs N] [--run-timeout S]
   --no-dialogs [--yes]  --no-steam-check  --gal DIR  --steam DIR  --appdata DIR
 ```
 
@@ -66,7 +67,7 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
    GraceUI's own `tools/release/manifest.py` writes it in every GraceUI build's folder (D165): `graceui`, `abi`, and
    `[files]` with each file's size and SHA-256 are read; `protocol`, `caps` and `released` are GraceUI's, accepted
    whatever they hold and never a failure. Every listed file must match (in the order of their names; a name outside the
-   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.1.0 (en-proto's
+   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.2.3 (en-proto's
    `graceui_pin.hpp`). The log says `preflight graceui=ok|no_folder|no_manifest|unreadable|
    file_missing|size_differs|hash_differs|abi_major|too_old version=… abi=… files=… checked=…`. What fails is told in
    **E12**, in E08's manner (what is missing or damaged, by its name inside GraceUI's folder, never a path, and what to
@@ -157,6 +158,19 @@ line per run and the tally.
   run's crash was recorded.
 - `s0b`, `s0c`, `s0d`: one watched session; `s0c` counts the game's TCP connections to anything but this PC every 2 s
   (the most at once; no address is kept). They pass when the session did not crash.
+- `s0e`, `s0e_alone`, `s4`: the runs of GraceUI's observer (S0-E's present-hook half and S4, input; roadmap S10.1.g,
+  S11.1.a), whose measurements are GraceUI's (grace-spike.dll's report): one watched session each, passing when it
+  did not crash. Before the game starts the launcher makes the run's folder, `spikes\<word>-<n>` (n one more than the
+  word's highest there, from 1; `--appdata` moves it with everything else; the name is the word and the number,
+  nothing else), and names it in the game's environment as `ELDENNET_SPIKE_DIR`, where the observer writes its report
+  (`spike_dir spike=<word> n=<n> made=1`, never the path). With `s0e` and `s4` eldennet.dll stops at Register and
+  makes no call into the game (src/eldennet/README.md); `s0e_alone` loads no eldennet.dll at all, only the `--also`
+  DLLs (`started … eldennet=0`; no `--dll` with it). `--probe` goes with none of them, so R1's Mark is never in such a
+  run.
+
+In every other start `ELDENNET_SPIKE_DIR` is not set: one the launcher's own environment holds is left out of the
+game's. The game's environment is always made by the launcher (`spikes.hpp`'s `game_environment`: the launcher's own,
+with the appid for the env method and the spike folder as above).
 
 ## Files
 
@@ -182,7 +196,9 @@ manifests that name a path, a missing executable, no list; `--game` as a file or
 folders (the manifest's hashes, no duplicate, a changed or vanished file, two in one second, the rotation of 3 over 6,
 folders that are no backup left alone, nothing under the saves touched, a backup folder that cannot be made); the
 appid file (created, used, someone else's, removal only of ours and only while it holds the id) and the state file's
-round trip; `launcher.toml`; the command line and its refusals (`--probe`'s among them); R1's steps on the console
+round trip; `launcher.toml`; the command line and its refusals (`--probe`'s and `s0e_alone`'s among them); the spike
+folder's name and the game's environment (the variable set in an observer's run, dropped otherwise, any case of its
+name); R1's steps on the console
 from EldenNet's answer and T1's state; the texts and exit codes; records, their JSON and the
 next start's explanation; the spikes' tally and rules; the pre-flight's order; the gate and the DLL check on invented
 images (en-gal's FakeImage); SHA-256 against NIST's examples (whole, in pieces, every length around the padding's
@@ -199,6 +215,10 @@ the title (Ready, the dev console's status, en-core's lifecycle and gate in game
 seen in the block), a crash on the game thread recorded through EldenNet's filter, a game that replaces the filter, a
 stand-in crash reporter loaded with `--also`, the S0-A, S0-D crash and S0-C loops, and the watcher started by
 EldenNet under another loader; and with eldennet.dll, R1 as the owner runs it (`--probe`) and `--probe` refused by the
-release DLL; and, with the GraceUI folder of a test build of GraceUI installed beside the fake game, the pre-flight
-passing on GraceUI's own `graceui.toml`, the Mark handed over to GraceUI's hotkey (`fakegame.launcher-eldennet-graceui`),
-and the launcher keeping Pause when another mod holds it in GraceUI (`fakegame.launcher-eldennet-graceui-unbound`).
+release DLL; the runs of GraceUI's observer (`launcher-eldennet-spike-s0e`, `-s4`, `-s0e-alone`: the folder, the
+variable, no call into the game); and, with the GraceUI folder of a test build of GraceUI installed beside the fake
+game, the pre-flight passing on GraceUI's own `graceui.toml`, the Mark handed over to GraceUI's hotkey
+(`fakegame.launcher-eldennet-graceui`), the launcher keeping Pause when another mod holds it in GraceUI
+(`fakegame.launcher-eldennet-graceui-unbound`), and an S0-E run's banner as GraceUI's notice
+(`fakegame.launcher-eldennet-graceui-spike-s0e`). `launcher-vanilla`, `launcher-env` and `launcher-spike-s0c` check
+that a leftover `ELDENNET_SPIKE_DIR` never reaches the game.

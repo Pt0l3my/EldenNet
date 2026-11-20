@@ -29,7 +29,13 @@
 // - since spike.8 (WHY§240): the call's return value (`register.returned`), each summarised function's instructions
 //   as forms (`forms`: classes and operand kinds, no bytes), jumps through memory or a register as tail call sites,
 //   where a tested register's value came from (`source`), the table the tail function reads, read before and after
-//   the call (`table`), and a control diff of the hub over the same interval before the call (`hub_diff_control`).
+//   the call (`table`), and a control diff of the hub over the same interval before the call (`hub_diff_control`);
+// - since spike.9 (WHY§248): the group's own function (the tail function's direct jump) and its callees summarised with
+//   the group's entry and our task followed in, each load from our task or the entry with what its value is used for
+//   (`task_reads`, `entry_reads`) and each store of our task or of a value read from it (`task_stores`); the walk and
+//   its diffs from the singleton and the group's entry too (`root`); words holding our object's or vtable's address
+//   under a high-bit tag (`task_tagged`, `tagged_found`); and the RTTI class of the singleton and of the entry against
+//   the leads' names (`singleton_class`, `entry_class`).
 // It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
 // session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
 // (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
@@ -134,29 +140,45 @@ enum class SectionKind : std::uint8_t { None, Header, Code, Rdata, Data, Other }
 // a tail call (TailMemory, TailRegister), and follows what a register holds past the arguments: a value loaded from a
 // RIP-relative slot or from [base + index*scale + disp] (Source), at most 3 levels.
 enum class CallForm : std::uint8_t { Direct, Register, Memory, Rip, Tail, TailMemory, TailRegister };
+// An instruction's class, as R1's forms name it (spike.8): no bytes and no opcode beyond it.
+enum class InsnClass : std::uint8_t {
+  Mov, MovExt, Lea, Cmp, Test, Jcc, Jmp, Call, Ret, Push, Pop, Xor, Add, Sub, And, Or, Shift, Imul, Nop, Int3, Other
+};
 // What a register holds, as the report describes it (spike.8): an argument, the first word of its object, the value a
 // function was entered with in one of rcx to r9 that holds no argument (an inner summary's), or a value loaded from
-// memory, with what the load's base and index held, to at most 3 loads deep.
+// memory, with what the load's base and index held, to at most 3 loads deep. Since spike.9 also a followed value (our
+// task, a value read from it or from the group's entry) changed by an instruction: added to, masked, tagged, shifted.
 struct Source {
-  enum class Kind : std::uint8_t { None, Argument, FirstWord, Entry, Rip, Memory };
+  enum class Kind : std::uint8_t { None, Argument, FirstWord, Entry, Rip, Memory, Modified };
   Kind kind = Kind::None;
   std::uint8_t from = 0;        // Argument, FirstWord: the argument (1, 2, 8, 9); Entry: the register
-  std::uint32_t at = 0;         // Rip, Memory: the load's offset (of the loads that made it, the first in address order)
+  std::uint32_t at = 0;         // Rip, Memory: the load's offset (of the loads that made it, the first in address order);
+                                // Modified: the changing instruction's
   std::uint32_t target = 0;     // Rip: the slot's RVA
   std::optional<std::uint8_t> base;   // Memory: the registers
   std::optional<std::uint8_t> index;
   std::uint8_t scale = 1;
   std::int64_t disp = 0;
-  std::uint8_t width = 8;       // Rip, Memory: bytes loaded
+  std::uint8_t width = 8;       // Rip, Memory: bytes loaded; Modified: the operation's size
   std::vector<Source> base_src;   // Memory: what the base held (at most one)
   std::vector<Source> index_src;  // and the index
+  // Modified (spike.9): the instruction's class (add, or, xor, and, sub, shift, lea; a bit set, cleared or flipped is
+  // other's, by the bit's number), and what it changed the value by: an immediate (kept from 0 to 65,536, else
+  // `large`), a register (`by`), or memory (neither).
+  InsnClass op = InsnClass::Other;
+  std::optional<std::uint64_t> imm{};
+  bool large = false;
+  std::optional<std::uint8_t> by{};
+  std::vector<Source> origin{};   // the value it changed (one)
 };
 // Whether two descriptions name the same value (the load's offset aside).
 [[nodiscard]] bool same_source(const Source& a, const Source& b) noexcept;
-// A register at a call holding a known value that is no argument (spike.8).
+// A register at a call holding a known value that is no argument (spike.8); spike.9: where it holds the group's entry
+// (an inner summary's `entry_src`).
 struct PassedSource {
   std::uint8_t reg = 0;
   Source source;
+  bool holds_entry = false;
 };
 // A register holding one of the summarised function's arguments at a call (or a tail jump).
 struct PassedArg {
@@ -212,10 +234,6 @@ struct Operand {
   std::optional<Source> source;
   std::optional<Source> base_src;
 };
-// An instruction's class, as R1's forms name it (spike.8): no bytes and no opcode beyond it.
-enum class InsnClass : std::uint8_t {
-  Mov, MovExt, Lea, Cmp, Test, Jcc, Jmp, Call, Ret, Push, Pop, Xor, Add, Sub, And, Or, Shift, Imul, Nop, Int3, Other
-};
 struct Form {
   std::uint32_t offset = 0;
   std::uint8_t length = 0;
@@ -255,6 +273,48 @@ struct ArgCompare {
   std::uint8_t via = 0;
   std::optional<std::uint64_t> imm;
 };
+// Spike.9 (WHY§248): a load from our task (the wrapper's task argument, or a value loaded from it) or from the group's
+// entry, anywhere in the function, and what the value it loads is then used for, along the flow.
+enum class UseKind : std::uint8_t { Compared, ComparedOther, Tested, Stored, Passed, Called, Base, Changed, Other };
+struct FieldUse {
+  UseKind kind = UseKind::Other;
+  std::uint32_t offset = 0;             // the instruction that uses it
+  std::optional<std::uint64_t> imm;     // Compared: the immediate, kept from 0 to 65,536
+  bool large = false;                   // Compared: an immediate past it
+  std::optional<std::uint8_t> reg;      // Passed: the register at the call (or tail jump)
+  std::optional<std::uint32_t> target;  // Passed, Called: a direct call's or tail jump's RVA
+  std::optional<std::uint8_t> base;     // Stored: the address's base register
+  std::optional<Source> base_src;       // Stored: what that base holds
+  std::optional<std::uint8_t> index;
+  std::int64_t disp = 0;                // Stored: the displacement (RIP-relative: the slot's RVA)
+  bool rip = false;
+  std::uint8_t width = 0;               // Stored: bytes stored
+  std::optional<InsnClass> op;          // Changed: the instruction's class
+};
+struct FieldRead {
+  std::uint32_t offset = 0;             // the reading instruction
+  std::int64_t disp = 0;                // the field's offset from the base
+  std::uint8_t width = 0;               // bytes read
+  std::uint8_t base = 0;                // the address's base register
+  Source base_src;                      // what the base holds: the task, the entry, or a value read from one
+  std::optional<std::uint8_t> index;
+  std::uint8_t scale = 1;
+  bool direct = false;                  // compared, tested or otherwise used in place: no register loaded
+  std::uint32_t use_count = 0;
+  std::vector<FieldUse> uses;           // the first 8
+};
+// A store of our task, of a value read from it, or of either changed (a tagged pointer), anywhere in the function.
+struct TaskStore {
+  std::uint32_t offset = 0;
+  std::uint8_t via = 0;                 // the register stored
+  Source value;                         // what it held
+  std::optional<std::uint8_t> base;
+  std::optional<Source> base_src;       // what the address's base holds
+  std::optional<std::uint8_t> index;
+  std::int64_t disp = 0;                // RIP-relative: the slot's RVA
+  bool rip = false;
+  std::uint8_t width = 0;
+};
 struct ArgUse {
   std::uint8_t reg = 0;                // 1 rcx, 2 rdx, 8 r8, 9 r9 (and their 32-bit forms)
   std::vector<ArgStore> stores;        // the first 8
@@ -283,6 +343,15 @@ struct CalleeCode {
   std::vector<ArgUse> args;             // rcx, rdx, r8, r9 (of the wrapper, for an inner summary)
   std::vector<Form> forms;              // spike.8: the first 64 instructions, as forms
   bool forms_dropped = false;           // left out so that the report stays within its size
+  bool trimmed = false;                 // spike.9: its call sites, branches and guards left out for the same reason
+  // Spike.9: the loads from our task and from the group's entry (the first 16 of each), and the stores of our task or
+  // of a value read from it (the first 16), with how many there were.
+  std::uint32_t task_read_count = 0;
+  std::vector<FieldRead> task_reads;
+  std::uint32_t entry_read_count = 0;
+  std::vector<FieldRead> entry_reads;
+  std::uint32_t task_store_count = 0;
+  std::vector<TaskStore> task_stores;
 };
 // A callee of the summarised function (a direct call's target, or a tail jump's), summarised in turn with the
 // arguments its call site passes it: its `args` are the wrapper's (spike.7, WHY§235).
@@ -292,8 +361,11 @@ struct InnerCallee {
   bool tail = false;
   CalleeCode code;
   // Spike.8: one more level, the function the tail function's table entry leads to (its `site` the tail function's
-  // jump): 2; else 1, and not written.
+  // jump): 2; else 1, and not written. Spike.9: the group's own function (reached by the tail function's direct jump,
+  // or through the entry's vtable) at 2, and its callees at 3, each `site` in the function at `parent`.
   std::uint32_t depth = 1;
+  std::uint32_t parent = 0;              // the RVA of the function holding the site, past depth 1
+  std::vector<PassedSource> entry_src{};  // spike.9: the site's known values that are no argument, past depth 1
 };
 
 // What a word the search counts points at (spike.7): our object (or into it), our fake vtable, or one of its slots.
@@ -309,6 +381,7 @@ struct MemoryHit {
   std::uint32_t near_group = 0;         // 32-bit words equal to the group's index within 64 bytes of it
   PointsTo points_to = PointsTo::Object;
   std::optional<std::uint32_t> slot;    // a slot's index in our vtable
+  std::optional<std::uint32_t> tag{};   // spike.9, a tagged hit: the word's high 16 bits (its low 48 our address)
 };
 enum class SearchStop : std::uint8_t { Done, Bytes, Time };
 struct MemorySearch {
@@ -337,19 +410,28 @@ struct MemorySearch {
   // The game's first, then ours; each side's words equal to our object's address (or inside it) first, then our
   // vtable's, then a slot's: at most 8 of each.
   std::vector<MemoryHit> hits;
+  // Spike.9 (WHY§248): words whose low 48 bits equal our object's (or our vtable's) address while their high 16 bits
+  // are not zero, a pointer under a tag; the game's first, then ours, at most 8 of each side and kind.
+  std::uint64_t tagged_found = 0;
+  std::uint64_t own_tagged_found = 0;
+  std::uint64_t vtable_tagged_found = 0;
+  std::uint64_t own_vtable_tagged_found = 0;
+  std::vector<MemoryHit> tagged_hits;
 };
 
 // Spike.7 (WHY§235): the hub's reachable memory just before the call, kept, and compared with the same walk 2 and 20 s
 // after it, block by block by path (probe.hpp's walk_hub and diff_hub). Numbers and kinds only.
-enum class ValueKind : std::uint8_t { Zero, Small, Group, Task, Vtable, Ours, Game, Heap, Other };
+// Spike.9: TaskTagged, a word whose low 48 bits are our task's address or point inside it, its high 16 bits not zero.
+enum class ValueKind : std::uint8_t { Zero, Small, Group, Task, Vtable, Ours, Game, Heap, Other, TaskTagged };
 struct WordValue {
   ValueKind kind = ValueKind::Other;
   std::optional<std::uint64_t> value;   // Small, Group: the value, 1 to 65,536
-  std::optional<std::uint64_t> offset;  // Task, Vtable: how far into ours it points, when not at the start
+  std::optional<std::uint64_t> offset;  // Task, Vtable, TaskTagged: how far into ours it points, when not at the start
   SectionKind section = SectionKind::None;  // Game: the section's kind, by its characteristics
   std::optional<std::uint32_t> rva;     // Game, Ours
   std::optional<bool> fresh;            // a new pointer into memory: the walk before the call reached no block there
   bool group_half = false;              // a 32-bit half of the word equals the group's index
+  std::optional<std::uint32_t> tag{};   // spike.9, TaskTagged: the high 16 bits
 };
 struct DiffWord {
   std::uint32_t depth = 0;              // pointers followed from the hub's instance
@@ -360,6 +442,9 @@ struct DiffWord {
   std::optional<bool> in_control;       // spike.8: the same path's word changed in the control diff, before the call
 };
 struct HubDiff {
+  // Spike.9: the walk's root: task_hub (CSTask's instance), singleton (the tail function's) or group_entry (the
+  // group's entry in its table); empty, not written.
+  std::string_view root;
   std::uint64_t at_ms = 0;
   std::uint64_t before_blocks = 0;      // read before the call
   std::uint64_t after_blocks = 0;       // read now
@@ -394,6 +479,16 @@ struct TableRead {
   std::optional<WordValue> entry_vtable; // its first word
   std::optional<WordValue> slot_value;   // the word at [first word + slot_disp]: the function the final jump reaches
 };
+// Spike.9 (WHY§248): an object's RTTI class through its first word, as O92 names the singletons by their instances,
+// against the leads' names: the lead's index where the class's innermost name is the lead's name, or it with Imp.
+enum class LeadMatch : std::uint8_t { None, Name, Imp };
+struct ClassMatch {
+  bool vtable = false;                 // the first word is a vtable of the image's RTTI walk
+  bool classed = false;                // its locator names a class (a complete object's, at offset 0)
+  std::uint32_t type_descriptor = 0;   // RVA
+  LeadMatch match = LeadMatch::None;
+  std::optional<std::uint32_t> lead;   // the lead's index in the leads' singletons
+};
 struct Table {
   bool matched = false;
   std::string_view failed;                // when not matched: wrapper_tail, wrapper_rcx, tail_summary, tail_bound,
@@ -408,7 +503,9 @@ struct Table {
   std::optional<std::int64_t> slot_disp;  // the final jump goes through [entry's first word + slot_disp]
   std::uint32_t rva = 0;                  // the tail function
   std::optional<std::uint32_t> site;      // its final jump
+  std::optional<std::uint32_t> target;    // spike.9: where that jump is direct, its target (the group's function)
   std::optional<TableRead> before, after;
+  std::optional<ClassMatch> singleton_class, entry_class;  // spike.9: read just before the call
 };
 
 struct Findings {
@@ -457,6 +554,8 @@ struct Findings {
   std::vector<HubDiff> hub_diff;
   std::optional<HubDiff> hub_diff_control;  // spike.8: the hub's walk at the Mark against the walk 2 s later
   std::optional<Table> table;               // spike.8
+  std::vector<HubDiff> hub_diff_controls;   // spike.9: the same for the singleton's and the group entry's walks
+  std::uint32_t inner_dropped = 0;          // spike.9: inner summaries left out so that the report stays within its size
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;

@@ -66,4 +66,28 @@ inline constexpr std::size_t kMaxSettingsBytes = 64u << 10;
 // The file's text; `probe_build` says whether the `probe` table is allowed (EN_PROBE).
 [[nodiscard]] LoadedSettings parse_settings(std::string_view text, bool probe_build);
 
+// One setting changed from EldenNet's pages (its space's one command path, en-overlay's space.hpp), to be written to
+// settings.toml: a key of a table, `debug.log_level`, and its new value, a boolean or a word.
+struct SettingsEdit {
+  std::string key;
+  bool is_text = false;
+  bool flag = false;
+  std::string text;
+
+  friend bool operator==(const SettingsEdit&, const SettingsEdit&) = default;
+};
+
+// settings.toml's text with `edits` made (D14: the pages' changes, written after 300 ms of quiet), or why not, worded
+// without a value: an empty text makes a file of its own (`schema = 2` and the edits); a text the parse refuses is
+// never written over (the player's file stays as they wrote it); every other key and table, the later increments'
+// among them, is kept with its value, and the result must be one parse_settings accepts. Comments and the file's
+// layout are not kept: toml++ writes the tables again (the slice's notes ask whether that is enough).
+struct EditedSettings {
+  bool ok = false;
+  std::string text;
+  std::string why;  // when not ok: "refused", "not_a_table", "unknown_key", "result_refused"
+};
+[[nodiscard]] EditedSettings edit_settings(std::string_view text, const std::vector<SettingsEdit>& edits,
+                                           bool probe_build);
+
 }  // namespace en::shell

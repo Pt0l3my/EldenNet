@@ -19,7 +19,7 @@ namespace fakegame {
 
 namespace {
 
-constexpr UINT kWidth = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 420 at 24, 24)
+constexpr UINT kWidth = 960;  // wide enough for EldenNet's F11 view at the top left (680 by 500 at 24, 24)
 constexpr UINT kHeight = 540;
 constexpr UINT kBuffers = 2;
 constexpr float kClear[4] = {16 / 255.0f, 40 / 255.0f, 32 / 255.0f, 1.0f};  // the fake game's own ground
@@ -340,22 +340,48 @@ void grace_report(std::uint64_t frame) {
       badge = word_of(n.text);
     }
   }
-  char tail[160] = "";
+  // GraceUI's in-game menu (D167, D171) and its browser view's server (D169), where the test build has them: the page
+  // open and the element focused (our own ids), and the server's port and spaces.
+  const auto get_menu = export_of<uint32_t (*)(GraceUiTestMenu*)>(grace, "GraceUI_Test_GetMenu");
+  const auto get_server = export_of<uint32_t (*)(GraceUiTestServer*)>(grace, "GraceUI_Test_GetServer");
+  GraceUiTestMenu menu{};
+  menu.size = sizeof menu;
+  const bool have_menu = get_menu != nullptr && get_menu(&menu) != 0;
+  GraceUiTestServer server{};
+  server.size = sizeof server;
+  const bool have_server = get_server != nullptr && get_server(&server) != 0;
+  char menu_part[320] = "";
+  if (have_menu) {
+    std::snprintf(menu_part, sizeof menu_part, " menu_open=%u menu_page=%s menu_focused=%s menu_refusals=%u", menu.open,
+                  menu.page[0] != 0 ? word_of(menu.page).c_str() : "none",
+                  menu.focused[0] != 0 ? word_of(menu.focused).c_str() : "none", menu.refusals);
+  }
+  char server_part[128] = "";
+  if (have_server) {
+    std::snprintf(server_part, sizeof server_part, " server=%u port=%u spaces=%u pending=%u", server.running,
+                  server.port, server.spaces, server.pending);
+  }
+  char tail[240] = "";
   const Options& o = options();
-  std::uint64_t matching = 0;
-  std::uint64_t area = 0;
-  if (o.grace_probe && probe(o.grace_probe_rect, o.grace_probe_colour, matching, area)) {
-    std::snprintf(tail, sizeof tail, " probe=%llu probe_area=%llu", static_cast<unsigned long long>(matching),
-                  static_cast<unsigned long long>(area));
+  std::size_t at = 0;
+  for (std::size_t i = 0; i < o.grace_probes.size() && at < sizeof tail; ++i) {
+    std::uint64_t matching = 0;
+    std::uint64_t area = 0;
+    if (!probe(o.grace_probes[i].rect, o.grace_probes[i].colour, matching, area)) continue;
+    const std::string n = i == 0 ? "" : std::to_string(i + 1);  // probe, probe2, probe3
+    const int k = std::snprintf(tail + at, sizeof tail - at, " probe%s=%llu probe%s_area=%llu", n.c_str(),
+                                static_cast<unsigned long long>(matching), n.c_str(),
+                                static_cast<unsigned long long>(area));
+    if (k > 0) at += static_cast<std::size_t>(k);
   }
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
-         "world=0x%X providers=%u window_filter=%u presents=%llu%s",
+         "world=0x%X providers=%u window_filter=%u presents=%llu%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
-         input.window_filter, static_cast<unsigned long long>(st.presents), tail);
+         input.window_filter, static_cast<unsigned long long>(st.presents), menu_part, server_part, tail);
 }
 
 }  // namespace fakegame

@@ -100,5 +100,18 @@ TEST_CASE("watch block: names") {
   CHECK(terminal(InitState::Banner));
   CHECK_FALSE(terminal(InitState::Discover));
   CHECK(std::string(to_string(Spike::S0dCrash)) == "s0d-crash");
+  CHECK(std::string(to_string(Spike::S0e)) == "s0e");
+  CHECK(std::string(to_string(Spike::S0eAlone)) == "s0e_alone");
+  CHECK(std::string(to_string(Spike::S4)) == "s4");
+  CHECK(std::string(to_string(static_cast<Spike>(kSpikeCount))) == "unknown");
+  // Appended: the words already in use keep their numbers in the block.
+  CHECK(static_cast<std::uint32_t>(Spike::S0dCrash) == 5);
+  CHECK(static_cast<std::uint32_t>(Spike::S0e) == 6);
+  CHECK(static_cast<std::uint32_t>(Spike::S0eAlone) == 7);
+  CHECK(static_cast<std::uint32_t>(Spike::S4) == 8);
+  for (std::uint32_t i = 0; i < kSpikeCount; ++i) {
+    const auto s = static_cast<Spike>(i);
+    CHECK(observer_run(s) == (s == Spike::S0e || s == Spike::S0eAlone || s == Spike::S4));
+  }
   CHECK(std::string(to_string(ThreadKind::Game)) == "game");
 }

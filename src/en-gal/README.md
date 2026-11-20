@@ -349,7 +349,16 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
   its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
   `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
-  the call left it.
+  the call left it. Spike.9 (WHY§248) reads the group's own function run 8 found: with no extent a direct jump past the
+  decoded code is a tail jump, and `match_table` takes the tail function's direct jump with the entry in rcx
+  (`target`); given our task's argument, `summarise_callee` reports every load from the task or from the group's entry
+  (`EntryArg::entry`, set by `group_entry_at` and carried into callees by `entry_at(call, parent)`), or from a value
+  loaded from either, with what that value is then used for along the flow, and every store of the task or of a value
+  read from it, a followed value changed by add, or, xor, and, sub, a shift, a bit op or a lea staying followed
+  (Source's `modified`); `search_memory` counts words whose low 48 bits are our object's or vtable's address under a
+  non-zero tag, and `classify_value` names such a word `task_tagged` with its high bits; `read_table` can answer the
+  addresses it read for T1 (the walk's roots, the classes), never reported; `match_lead` names a class against the
+  leads' names as O92 does (derive's `innermost_class` gives the name).
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -437,7 +446,15 @@ matched (one level deeper too) or the first that failed named; a jump through a 
 through a RIP-relative slot, loads not followed (16-bit, a segment's, a fourth level) and a function with no extent
 ending at its jump out; the table's reads over memory of the test's own (the entries to the bound, the group's entry,
 its vtable and slot, no entry, no singleton yet, a hop and an array, the instance); and the control diff's words
-marked and ordered). The clang-cl build adds
+marked and ordered; spike.9's on code of our own: a tail function of run 8's shape whose direct jump past its decoded
+code is a tail call to the group's function, matched as the table's `target`; that function with the entry and the
+task followed in: its two task reads (one stored on the entry, one compared with a small immediate), its read of the
+entry's count, the task's store in the entry's list as a tagged pointer (an or by a register) and the entry carried
+into its call; a function reading the task's vtable and calling through its slot, a pointer read from the task and
+read from in turn, fields compared and tested in place, a lea into the task stored to a global and a bit set in the
+task stored through it; a diff word and the whole-memory search's words holding our address under a tag (ours apart,
+our vtable's too, none for a tagged pointer inside our object); a class's innermost name against the leads' names; the
+table's addresses for T1; and the report of all of it, lint-clean). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
 under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what

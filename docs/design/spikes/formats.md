@@ -14,6 +14,7 @@ All under `%APPDATA%\EldenNet\` (the launcher's `--appdata`, or `ELDENNET_APPDAT
 |---|---|---|---|
 | `recordings\<date>-<time>-<pid>-<n>.ensnap.jsonl` | eldennet.dll, with `debug.record_sessions = true` | JSON Lines, each line a report `recording`, schema 1 | `eldennet-engine lint --recording` |
 | `spikes\<spike>-<YYYYMMDD-HHMMSS>.jsonl` | eldennet-launcher, with `--spike` | JSON Lines: a line per run, then the tally | none (the launcher's own JSON; below) |
+| `spikes\<spike>-<n>\` (s0e, s0e_alone, s4) | the launcher makes it; GraceUI's observer writes its report there (`ELDENNET_SPIKE_DIR`) | GraceUI's | GraceUI's reader |
 | `crashes\crash-<YYYYMMDD-HHMMSS>-<pid>.json` | the launcher's crash watcher (O71) | one JSON object | none (below) |
 | `probe\r1-derive.json`, `probe\r1-probe.json` | eldennet.dll's probe build, in R1 | reports `derive` and `probe`, schema 1 | `lint --report` |
 | what `--out` names | `eldennet-engine rec-stats`, `replay`, `spike-report` | reports `rec_stats`, `replay`, `spike`, schema 1 | `lint --report` |
@@ -24,6 +25,10 @@ label `[a-z][a-z0-9_]*`; a byte pattern of at most 64 bytes; an object; an array
 finite number with at most 7 significant digits). There are no nulls: an absent value is an absent key. A new key or a
 new word is a new schema, never a change within one (WHY§188).
 
+*2026-11-20:* the spike words `s0e`, `s0e_alone` and `s4` and the banner reason `spike_run` (the runs of GraceUI's
+observer, S0-E and S4) joined the recording's, `rec_stats`' and `spike`'s schema 1 before any reader outside the
+engine held a copy of those words (DataPiler's guard holds `derive`'s alone); the rule holds from the first such copy.
+
 ## Recordings (`recording`, schema 1)
 
 Plain JSON Lines (no zstd: plan §1.3), rotated past 256 MB into the next file `<n>`, flushed every second. Every line
@@ -32,10 +37,10 @@ milliseconds, the same clock as the snapshots' `mono_ms` and the launcher's Mark
 
 | `k` | Keys after `t` and `k` |
 |---|---|
-| `header` (first line of each file) | `ensnap` 1, `game_version` [4], `en_version` [3], `region` (`ww`, `jp`, `other`, `none`), `spike` (`none`, `s0a`, `s0b`, `s0c`, `s0d`, `s0d-crash`), `probe_build`, `file` (from 1) |
+| `header` (first line of each file) | `ensnap` 1, `game_version` [4], `en_version` [3], `region` (`ww`, `jp`, `other`, `none`), `spike` (`none`, `s0a`, `s0b`, `s0c`, `s0d`, `s0d-crash`, `s0e`, `s0e_alone`, `s4`), `probe_build`, `file` (from 1) |
 | `snap` | `seq`, `mono_ms`, `gap`, `build`; `health`: `groups` [11 × `group`, `state` (`Untested`, `Ok`, `Tripped`), `phase_b`, `faults` this snapshot's], `task_us_last` (the snapshot's build), `task_us_p99` (the C13 histogram's p99 since the start); `session`: `role`, `is_my_world`, `lobby`, `player_set_len`, `anticheat`, `ersc_loaded`; `life`: `main_player`, `screen`, `load_counter`?; `ui`: `hud`, `banner`?, `popup_talk_id`?, `talk_cam`, `subtitles_on`; `player`? (`handle`, `level`, `archetype`, `body`, `hp`/`fp`/`stamina` {`cur`, `max`}, `runes_held`, `deaths`, `play_time_ms`, `ng_lvl`, `save_slot`, `dead`, `riding`, `locked_on`?, `last_hit_by`?, `throw_state`, `roundtable`, `statuses` [words], `block`, `pos` [3 floats], `gear` [6], `boss_flag`); `place`? {`place_id`?}; `clock`? [h, m]; `boss` [{`handle`, `name_id`, `damage_taken`}]; `chars` [{`handle`, `param`, `model`, `entity`, `kind`, `team`, `hp`, `dead`, `last_hit_by`?, `recv_dmg_type`, `throw_state`, `dist_m`?, `bearing_deg`?, `on_screen`, `statuses`, `block`, `pos`}]; `flags`? {`watch_version`, `set` [ids], `valid` [ids]}; `texts` [{`fmg`, `id`, `found`}]; `params` [{`param_kind`, `id`, `fields`}] |
 | `life` | `life_kind` `data_ready` (`build`, `caps` [group words]), `playthrough_ready` (`slot`, `archetype`, `keepsake`, `play_time_ms`, `name_chars`: the name's length, never the name) or `group_tripped` (`group`) |
-| `banner` | `reason` (`unknown_build`, `anticheat`, `not_started`, `discovery_failed`, `register_faulted`, `inert`, `session_failed`, `task_tripped`) |
+| `banner` | `reason` (`unknown_build`, `anticheat`, `not_started`, `discovery_failed`, `register_faulted`, `inert`, `session_failed`, `task_tripped`, `spike_run`) |
 | `change` | `what` (`phase`, `gate_opened`, `gate_closed`, `level`, `banner`, `badge`), `from`, `to` (en-core's numbers: a phase or level, the gate's reason, a banner reason, the badge 1 up or 0 down), `mono_ms` |
 | `cmd` | `cmd` (`noop`, `set_watch_flags`, `set_tracked`, `resolve_text`, `resolve_params`), then `version`, `n`, `fmg` or `param_kind` by kind: counts, never the ids' text |
 | `mark` | `n`: the Mark's number (the launcher's Pause, O90) |

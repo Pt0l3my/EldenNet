@@ -164,6 +164,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         if (rec.on()) rec.put(en::shell::change_line(c, now));
         overlay_change(en::core::to_string(c.what), change_word(c), c.at);  // the F11 view's list
       }
+      for (const en::augur::Event& e : out.events) overlay_event(e);  // Augur's events, for the F11 view's list
     };
     for (;;) {
       WaitForSingleObject(s.wake, 100);
@@ -235,7 +236,10 @@ DWORD WINAPI core_main(void* param) noexcept {
           }
         }
       }
-      // GraceUI (overlay.cpp): the banner and the badge as notices, the world-state claims, the Mark and the F11 view.
+      // GraceUI (overlay.cpp): the banner and the badge as notices, the world-state claims, the Mark, the F11 view and
+      // EldenNet's space (its pages), which reads the recorder's state too.
+      s.recording.store(rec.on(), std::memory_order_relaxed);
+      s.recorded.store(rec.lines(), std::memory_order_relaxed);
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now);
       if (now - last_status >= 10'000) {
         last_status = now;
@@ -244,6 +248,7 @@ DWORD WINAPI core_main(void* param) noexcept {
         l.flag("gate", cs.gate_open).word("why", en::core::to_string(cs.gate_why)).flag("dormant", cs.dormant);
         l.flag("badge", cs.badge).num("snapshots", snapshots).num("renders", io.renders.load());
         l.num("recorded", rec.lines()).num("refused", rec.refused()).num("log_dropped", log_dropped());
+        l.num("events", overlay_events_seen());
         log(l);
         if (task != nullptr) {
           const en::gal::GuardedReader& reader = task->backend().reader();

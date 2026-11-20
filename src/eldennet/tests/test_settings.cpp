@@ -98,3 +98,42 @@ TEST_CASE("settings: the probe table only in a probe build") {
   CHECK(probe.settings.probe.fault_every == 5);
   CHECK(parse_settings("probe = { object_size = 0x8000 }\n", true).refused);
 }
+
+TEST_CASE("settings: the pages' edits, written over an accepted file and never over a refused one") {
+  using en::shell::SettingsEdit;
+  const std::vector<SettingsEdit> level{SettingsEdit{"debug.log_level", true, false, "debug"}};
+  // No file yet: one of EldenNet's own, schema 2 and the edit.
+  auto made = en::shell::edit_settings("", level, false);
+  REQUIRE(made.ok);
+  CHECK(made.text.find("schema = 2") != std::string::npos);
+  auto read = en::shell::parse_settings(made.text, false);
+  CHECK_FALSE(read.refused);
+  CHECK(read.settings.log_level == en::shell::LogLevel::Debug);
+
+  // A file of the player's: its other keys and the later increments' tables kept, an inline table edited in place.
+  const std::string mine =
+      "schema = 2\nenabled = true\ndebug = { panel = true, record_sessions = true }\n"
+      "features = { chat = true }\n[pacing]\ngap_s = 2.5\n";
+  const std::vector<SettingsEdit> two{SettingsEdit{"debug.log_level", true, false, "warn"},
+                                      SettingsEdit{"debug.panel", false, false, {}}};
+  auto edited = en::shell::edit_settings(mine, two, false);
+  REQUIRE(edited.ok);
+  read = en::shell::parse_settings(edited.text, false);
+  REQUIRE_FALSE(read.refused);
+  CHECK(read.settings.log_level == en::shell::LogLevel::Warn);
+  CHECK_FALSE(read.settings.debug_panel);
+  CHECK(read.settings.record_sessions);
+  CHECK(read.settings.enabled);
+  CHECK(edited.text.find("chat = true") != std::string::npos);
+  CHECK(edited.text.find("gap_s = 2.5") != std::string::npos);
+
+  // Never over a file the parse refuses, nor into a key that is not a table's, nor to a file the parse would refuse.
+  auto refused = en::shell::edit_settings("schema = 2\ndebug = { log_level = \"loud\" }\n", level, false);
+  CHECK_FALSE(refused.ok);
+  CHECK(refused.why == "refused");
+  CHECK(en::shell::edit_settings("enabled = true\n", {SettingsEdit{"enabled.on", false, true, {}}}, false).why ==
+        "not_a_table");
+  CHECK(en::shell::edit_settings("", {SettingsEdit{"debug.colour", true, false, "red"}}, false).why ==
+        "result_refused");
+  CHECK(en::shell::edit_settings("", {SettingsEdit{"schema", false, true, {}}}, false).why == "unknown_key");
+}

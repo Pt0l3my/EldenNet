@@ -1,0 +1,297 @@
+{
+  "space": "eldennet",
+  "name": "EldenNet",
+  "minor": 1,
+  "categories": [
+    {
+      "id": "home",
+      "name": "Home",
+      "pages": [
+        "home"
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI",
+      "pages": []
+    },
+    {
+      "id": "voice",
+      "name": "Voice",
+      "pages": []
+    },
+    {
+      "id": "characters",
+      "name": "Characters",
+      "pages": []
+    },
+    {
+      "id": "map",
+      "name": "Map",
+      "pages": []
+    },
+    {
+      "id": "history",
+      "name": "History",
+      "pages": []
+    },
+    {
+      "id": "behaviour",
+      "name": "Behaviour",
+      "pages": []
+    },
+    {
+      "id": "system",
+      "name": "System",
+      "pages": [
+        "system.status",
+        "system.logs"
+      ]
+    },
+    {
+      "id": "tools",
+      "name": "Tools",
+      "pages": []
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "pages": [
+        "settings.developer"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "home",
+      "category": "home",
+      "name": "Home",
+      "description": "Whether EldenNet is working on this game, and what to do if it is not.",
+      "help": {
+        "purpose": "See at a glance whether EldenNet is working, and what to do when something is wrong.",
+        "steps": [
+          "Read the Status card: its first line says how EldenNet stands, the next one why.",
+          "Look at Problems: each says what went wrong and what to do about it.",
+          "Open System for the details: the start, EldenNet's parts and its log."
+        ]
+      },
+      "related": [
+        "system.status",
+        "system.logs"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "status",
+          "title": "Status",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "status"
+            }
+          ]
+        },
+        {
+          "id": "problems",
+          "title": "Problems",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "errors"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.status",
+      "category": "system",
+      "name": "Status",
+      "description": "Whether EldenNet is healthy on this PC and game build, and if not, why.",
+      "help": {
+        "purpose": "Check, part by part, whether EldenNet runs as it should on this game build.",
+        "steps": [
+          "On Health, read the state and its reason, then whether this game build is supported.",
+          "Look down EldenNet's parts: each says whether it runs and what it is doing.",
+          "On Compatibility, check the versions of EldenNet and GraceUI, and how the game was started."
+        ]
+      },
+      "related": [
+        "system.logs",
+        "home"
+      ],
+      "increment": "0.1",
+      "tabs": [
+        {
+          "id": "health",
+          "name": "Health",
+          "sections": [
+            {
+              "id": "health",
+              "title": "Health",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "key_value_list",
+                  "topic": "system.status"
+                }
+              ]
+            },
+            {
+              "id": "parts",
+              "title": "EldenNet's parts",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "check_list",
+                  "topic": "system.status"
+                }
+              ]
+            },
+            {
+              "id": "reads",
+              "title": "What EldenNet reads",
+              "description": "Each group of the game's state EldenNet reads, with its self-test.",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "table",
+                  "topic": "system.status"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "compatibility",
+          "name": "Compatibility",
+          "sections": [
+            {
+              "id": "versions",
+              "title": "Versions and start",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "check_list",
+                  "topic": "system.compatibility"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.logs",
+      "category": "system",
+      "name": "Logs",
+      "description": "EldenNet's own log of this session, with nothing personal in it.",
+      "help": {
+        "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
+        "steps": [
+          "Read the newest lines at the end of the log.",
+          "Change how much it writes with Log detail; the change applies at once.",
+          "Keep the page open while you play: new lines join the log as they are written."
+        ]
+      },
+      "related": [
+        "system.status",
+        "settings.developer"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "log",
+          "title": "Log",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "log_tail",
+              "topic": "logs"
+            }
+          ]
+        },
+        {
+          "id": "detail",
+          "title": "Log detail",
+          "blocks": [
+            {
+              "kind": "shortcuts",
+              "keys": [
+                "debug.log_level"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "settings.developer",
+      "category": "settings",
+      "name": "Developer",
+      "description": "Options for testing EldenNet and reporting its problems.",
+      "help": {
+        "purpose": "Turn on what helps EldenNet's testers: the debug view, recordings of each session and a more detailed log.",
+        "steps": [
+          "Turn on Developer views for the F11 debug view, from the next start of the game.",
+          "Turn on Record sessions to keep each session's numbers for the developers' tools.",
+          "Choose how much the log writes; System › Logs shows it."
+        ]
+      },
+      "related": [
+        "system.logs",
+        "system.status"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "developer",
+          "title": "Developer",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "debug.panel",
+                "debug.record_sessions",
+                "debug.log_level"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "topics": [
+    {
+      "id": "settings",
+      "shape": "state"
+    },
+    {
+      "id": "status",
+      "shape": "state"
+    },
+    {
+      "id": "errors",
+      "shape": "state"
+    },
+    {
+      "id": "system.status",
+      "shape": "state"
+    },
+    {
+      "id": "system.compatibility",
+      "shape": "state"
+    },
+    {
+      "id": "logs",
+      "shape": "stream",
+      "ring": 500
+    }
+  ],
+  "commands": [
+    "settings.set",
+    "settings.reset"
+  ]
+}

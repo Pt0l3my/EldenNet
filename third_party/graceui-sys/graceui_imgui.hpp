@@ -8,6 +8,8 @@
 //                                                 registered as a texture of its own (no texture change during play)
 //   graceui::imgui::DrawList list;  list.build(*ImGui::GetDrawData(), width, height);  api.submit(me, panel, list.view())
 //                                                 every frame of the mod's own, on its own thread
+//   graceui::imgui::feed(io, event)               from GraceUI 0.2.1 (ABI 1.1, D176): each holder event the mod polled,
+//                                                 before its ImGui::NewFrame(), so InputText works in its panel
 //
 // A frame is built in the panel's own pixels: io.DisplaySize is the panel's width and height, and GraceUI puts the panel
 // where its anchor says. Every ImDrawList of the frame is appended into one GraceUI list, each command keeping its vertex
@@ -22,6 +24,7 @@
 #define GRACEUI_IMGUI_HPP
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -38,6 +41,7 @@ static_assert(sizeof(ImDrawVert) == sizeof(GraceUiDrawVert) && sizeof(ImDrawIdx)
 // The flags a headless Dear ImGui sets for GraceUI: commands keep their vertex offsets, and nothing is written to disk.
 inline void prepare(ImGuiIO& io) noexcept {
   io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+  io.MouseDrawCursor = false;  // GraceUI's host draws the Grace pointer for a holder that takes the mouse (D178)
   io.IniFilename = nullptr;
   io.LogFilename = nullptr;
 }
@@ -65,6 +69,146 @@ inline std::uint64_t register_atlas(const Api& api, GraceUiConsumer me, ImGuiIO&
   atlas->SetTexID(static_cast<ImTextureID>(id));
   atlas->SetStatus(ImTextureStatus_OK);
   return id;
+}
+
+// A virtual key (VK_*, which GRACEUI_EVENT_KEY carries) as Dear ImGui's key; ImGuiKey_None for one it has no name for.
+// The numbers are Windows' own, written here so that this header needs no windows.h.
+inline ImGuiKey key_of(std::uint32_t vk) noexcept {
+  if (vk >= 0x30 && vk <= 0x39) {
+    return static_cast<ImGuiKey>(ImGuiKey_0 + static_cast<int>(vk - 0x30));
+  }
+  if (vk >= 0x41 && vk <= 0x5A) {
+    return static_cast<ImGuiKey>(ImGuiKey_A + static_cast<int>(vk - 0x41));
+  }
+  if (vk >= 0x60 && vk <= 0x69) {
+    return static_cast<ImGuiKey>(ImGuiKey_Keypad0 + static_cast<int>(vk - 0x60));
+  }
+  if (vk >= 0x70 && vk <= 0x87) {
+    return static_cast<ImGuiKey>(ImGuiKey_F1 + static_cast<int>(vk - 0x70));
+  }
+  switch (vk) {
+    case 0x08: return ImGuiKey_Backspace;
+    case 0x09: return ImGuiKey_Tab;
+    case 0x0D: return ImGuiKey_Enter;
+    case 0x10: case 0xA0: return ImGuiKey_LeftShift;
+    case 0xA1: return ImGuiKey_RightShift;
+    case 0x11: case 0xA2: return ImGuiKey_LeftCtrl;
+    case 0xA3: return ImGuiKey_RightCtrl;
+    case 0x12: case 0xA4: return ImGuiKey_LeftAlt;
+    case 0xA5: return ImGuiKey_RightAlt;
+    case 0x13: return ImGuiKey_Pause;
+    case 0x14: return ImGuiKey_CapsLock;
+    case 0x1B: return ImGuiKey_Escape;
+    case 0x20: return ImGuiKey_Space;
+    case 0x21: return ImGuiKey_PageUp;
+    case 0x22: return ImGuiKey_PageDown;
+    case 0x23: return ImGuiKey_End;
+    case 0x24: return ImGuiKey_Home;
+    case 0x25: return ImGuiKey_LeftArrow;
+    case 0x26: return ImGuiKey_UpArrow;
+    case 0x27: return ImGuiKey_RightArrow;
+    case 0x28: return ImGuiKey_DownArrow;
+    case 0x2C: return ImGuiKey_PrintScreen;
+    case 0x2D: return ImGuiKey_Insert;
+    case 0x2E: return ImGuiKey_Delete;
+    case 0x5B: return ImGuiKey_LeftSuper;
+    case 0x5C: return ImGuiKey_RightSuper;
+    case 0x5D: return ImGuiKey_Menu;
+    case 0x6A: return ImGuiKey_KeypadMultiply;
+    case 0x6B: return ImGuiKey_KeypadAdd;
+    case 0x6D: return ImGuiKey_KeypadSubtract;
+    case 0x6E: return ImGuiKey_KeypadDecimal;
+    case 0x6F: return ImGuiKey_KeypadDivide;
+    case 0x90: return ImGuiKey_NumLock;
+    case 0x91: return ImGuiKey_ScrollLock;
+    case 0xBA: return ImGuiKey_Semicolon;
+    case 0xBB: return ImGuiKey_Equal;
+    case 0xBC: return ImGuiKey_Comma;
+    case 0xBD: return ImGuiKey_Minus;
+    case 0xBE: return ImGuiKey_Period;
+    case 0xBF: return ImGuiKey_Slash;
+    case 0xC0: return ImGuiKey_GraveAccent;
+    case 0xDB: return ImGuiKey_LeftBracket;
+    case 0xDC: return ImGuiKey_Backslash;
+    case 0xDD: return ImGuiKey_RightBracket;
+    case 0xDE: return ImGuiKey_Apostrophe;
+    case 0xE2: return ImGuiKey_Oem102;
+    default: return ImGuiKey_None;
+  }
+}
+
+// One XInput button's mask (XINPUT_GAMEPAD_*, which GRACEUI_EVENT_PAD carries) as Dear ImGui's gamepad key.
+inline ImGuiKey pad_key_of(std::uint32_t button) noexcept {
+  switch (button) {
+    case 0x0001: return ImGuiKey_GamepadDpadUp;
+    case 0x0002: return ImGuiKey_GamepadDpadDown;
+    case 0x0004: return ImGuiKey_GamepadDpadLeft;
+    case 0x0008: return ImGuiKey_GamepadDpadRight;
+    case 0x0010: return ImGuiKey_GamepadStart;
+    case 0x0020: return ImGuiKey_GamepadBack;
+    case 0x0040: return ImGuiKey_GamepadL3;
+    case 0x0080: return ImGuiKey_GamepadR3;
+    case 0x0100: return ImGuiKey_GamepadL1;
+    case 0x0200: return ImGuiKey_GamepadR1;
+    case 0x1000: return ImGuiKey_GamepadFaceDown;
+    case 0x2000: return ImGuiKey_GamepadFaceRight;
+    case 0x4000: return ImGuiKey_GamepadFaceLeft;
+    case 0x8000: return ImGuiKey_GamepadFaceUp;
+    default: return ImGuiKey_None;
+  }
+}
+
+// One holder event (GRACEUI_EVENT_KEY to GRACEUI_EVENT_PAD, polled with an event of ABI 1.1's size) as the mod's own
+// context's input: true if it was one of those kinds. Call it for each event before ImGui::NewFrame(), on the thread
+// that owns the context. Keys come with their modifiers; characters as typed (InputText takes them); the pointer in the
+// panel's pixels, as the panel's frame is built (a pointer outside the panel is outside every window); wheel notches;
+// a pad's buttons as Dear ImGui's gamepad keys (a mod that wants pad navigation sets ImGuiConfigFlags_NavEnableGamepad).
+// The end of the holder clears every key and button held and moves the pointer off the panel, so nothing stays held or
+// hovered while the mod does not hold input; the mod asks again before it takes the player's input again.
+inline bool feed(ImGuiIO& io, const GraceUiEvent& event) noexcept {
+  if (event.size < sizeof(GraceUiEvent)) {
+    return false;
+  }
+  switch (event.kind) {
+    case GRACEUI_EVENT_KEY: {
+      io.AddKeyEvent(ImGuiMod_Ctrl, (event.modifiers & GRACEUI_MOD_CTRL) != 0);
+      io.AddKeyEvent(ImGuiMod_Shift, (event.modifiers & GRACEUI_MOD_SHIFT) != 0);
+      io.AddKeyEvent(ImGuiMod_Alt, (event.modifiers & GRACEUI_MOD_ALT) != 0);
+      const ImGuiKey key = key_of(event.key);
+      if (key != ImGuiKey_None) {
+        io.AddKeyEvent(key, event.pressed != 0);  // an auto-repeat is a press again, as Dear ImGui's Win32 backend sends
+        io.SetKeyEventNativeData(key, static_cast<int>(event.key), -1);
+      }
+      return true;
+    }
+    case GRACEUI_EVENT_CHARACTER:
+      io.AddInputCharacter(event.code_point);
+      return true;
+    case GRACEUI_EVENT_POINTER:
+      io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+      io.AddMousePosEvent(event.x, event.y);
+      if (event.button_event != 0 && event.button <= GRACEUI_BUTTON_X2) {
+        io.AddMouseButtonEvent(static_cast<int>(event.button), event.pressed != 0);
+      }
+      if (event.wheel_x != 0.0f || event.wheel_y != 0.0f) {
+        io.AddMouseWheelEvent(-event.wheel_x, event.wheel_y);  // Dear ImGui's horizontal wheel is positive leftwards
+      }
+      return true;
+    case GRACEUI_EVENT_PAD: {
+      io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+      const ImGuiKey key = pad_key_of(event.button);
+      if (key != ImGuiKey_None) {
+        io.AddKeyEvent(key, event.pressed != 0);
+      }
+      return true;
+    }
+    case GRACEUI_EVENT_INPUT_ENDED:
+      io.AddFocusEvent(false);  // Dear ImGui clears every key and button held at its next frame
+      io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+      return true;
+    default:
+      return false;
+  }
 }
 
 // One GraceUI draw list from a frame of Dear ImGui's. Its vectors keep their room from frame to frame.

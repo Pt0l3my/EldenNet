@@ -178,6 +178,7 @@ static inline const GraceUiApi1* graceui_sys_find_once(uint32_t flags, GraceUiSy
     if (found != NULL) {
       found->how = GRACEUI_SYS_BY_NAME;
       found->module = named;
+      found->installed = 1u; /* a loaded graceui.dll is installed (D164; EldenNet's part 12 found this branch left 0) */
     }
     return api;
   }

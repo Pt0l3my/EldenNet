@@ -23,6 +23,7 @@ dynamic initialiser or an exit-time destructor), and it depends on en-proto alon
 | `augur.hpp` | §8.1, §8.9 | `AugurCtx`, `Augur::step` (§8.9's steps 1 to 4), `resolve_audience` |
 | `bus.hpp` | §8.9 | The bus (step 5), the step FIFO and its drops, the exception policy, `PersistQueue` (the store requests' policy) |
 | `golden.hpp` | §8.12 | An event in the golden files' form, handles renamed h1, h2, ... |
+| `words.hpp` | §8.12, DESIGN §14 | Augur's words, one closed vocabulary for the golden files and the F11 view (classes, sources, radii, actors, the payloads' enums, the kinds' names), and `reason`, an event's one telling fact at a glance: a word and, where the payload's telling field is one, a number (a place's id, a count, a slot), never an HP fraction, a distance or a handle |
 
 `Augur::step(AugurInput{snapshot, life}, now, ctx, out)` takes one step of en-core's: a processed snapshot or none, and
 the lifecycle changes en-core's slice made on the same step. The world model takes the snapshot (step 1); the sources
@@ -169,6 +170,8 @@ a recording of the owner's game becomes a route the same way once a redacted rec
 - the world model: each start condition, the raise across 0.6, the ends (Distance with fled, Timeout with its re-arm,
   death), squads, the combat state, stance, trackers dropped after 2 s and the cap of 256;
 - the bus: dispatch order, emitted events at the tail, the FIFO's drops, the exception policy, a stalled store;
+- the words: each enum's, `?` outside it, the golden form writing the same, each kind's reason, and every kind's reason
+  a word of ours;
 - seeded properties (fixed seeds; a failure prints its seed): hysteresis (detectors, and LowHp through Augur), debounce,
   gaps (no edge invented, an edge across a gap once, a count across a gap once), merge (one entry, `count` the inputs,
   only salient re-emits), ordering, and determinism (byte-identical golden text over 10 runs).

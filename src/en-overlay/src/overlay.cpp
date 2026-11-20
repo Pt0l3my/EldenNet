@@ -36,9 +36,7 @@ Found find(std::uint32_t timeout_ms) noexcept {
   f.how = f.api ? sys.how : 0;
   f.attempts = sys.attempts;
   f.version = f.api ? sys.version : 0;
-  // graceui-sys at 3f1352b returns from its by-name look before it sets `installed`, which stays 0 there; a module
-  // named graceui.dll that answered is installed by D164's own words.
-  f.installed = sys.installed != 0 || f.how == GRACEUI_SYS_BY_NAME;
+  f.installed = sys.installed != 0;  // graceui-sys's own word, set on its by-name look too since GraceUI c781a85 (D170)
   f.ms = GetTickCount64() - start;
   return f;
 }
@@ -69,9 +67,15 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
   if (!api) return nullptr;
   report.graceui_version = api.version();
   // The caps EldenNet uses (D138): notices for the banner and the badge, world-state as a provider, hotkeys for F11 and
-  // the Mark, and, for the view, panels and textures (its atlas).
-  const std::string_view caps = options.view ? "notices world-state hotkeys panels textures"
-                                             : "notices world-state hotkeys";
+  // the Mark, for the view panels and textures (its atlas), and pages for its space (D169).
+  std::string_view caps = "notices world-state hotkeys";
+  if (options.view && options.space_views != 0) {
+    caps = "notices world-state hotkeys panels textures pages";
+  } else if (options.view) {
+    caps = "notices world-state hotkeys panels textures";
+  } else if (options.space_views != 0) {
+    caps = "notices world-state hotkeys pages";
+  }
   graceui::Mod mod;
   mod.id = kId;
   mod.name = kName;
@@ -113,6 +117,13 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
     const GraceUiStatus mark = o->register_mark();  // GRACEUI_UNBOUND: registered, Pause taken first (D164)
     report.mark = o->mark_registered();
     report.mark_bound = mark == GRACEUI_OK;
+  }
+  // EldenNet's space, once, after connect (§23 item 1): its page data and settings description as the protocol's JSON,
+  // at its release's increment (D173). A refusal leaves the rest of the connection as it is.
+  if (options.space_views != 0 && api.has_cap(GRACEUI_CAP_PAGES)) {
+    report.pages = api.register_pages(o->me_, options.space_views, packed(options.version), space_pages(),
+                                      settings_description(), kIncrement);
+    o->pages_ = report.pages == GRACEUI_OK;
   }
   return o;
 }
@@ -216,7 +227,7 @@ GraceUiStatus Overlay::world(std::uint32_t flags) noexcept {
 }
 
 // One frame of the view, in the panel's own pixels (D137, D156): a window filling the panel, the ribbon on its first
-// line (PAGES SP8), headings in gold and the rest in ink.
+// line (PAGES SP8), headings in gold and the rest in ink, each event's line after a square of its source's colour.
 bool Overlay::build(const ViewStatus& status) {
   ImGui::SetCurrentContext(imgui_);
   view_lines(status, lines_);
@@ -227,6 +238,7 @@ bool Overlay::build(const ViewStatus& status) {
   ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
   ImGui::SetNextWindowSize(ImVec2(kViewWidth, kViewHeight));
   ImGui::PushStyleColor(ImGuiCol_WindowBg, colour(kViewGround));
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, kViewLineGap));
   ImGui::Begin("eldennet-debug-view", nullptr,
                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                    ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing);
@@ -241,17 +253,24 @@ bool Overlay::build(const ViewStatus& status) {
       ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0.0f, at.y - 2.0f), ImVec2(kViewWidth, at.y + h + 2.0f),
                                                 ImGui::GetColorU32(colour(kViewRibbon)));
     }
+    if (l.marked) {
+      const ImVec2 at = ImGui::GetCursorScreenPos();
+      ImGui::GetWindowDrawList()->AddRectFilled(
+          ImVec2(kViewMarkX, at.y + kViewMarkY), ImVec2(kViewMarkX + kViewMarkSize, at.y + kViewMarkY + kViewMarkSize),
+          ImGui::GetColorU32(colour(kViewMarks[static_cast<std::size_t>(l.from) % kViewMarks.size()])));
+    }
     ImGui::PushStyleColor(ImGuiCol_Text, l.heading ? gold : ink);
     ImGui::TextUnformatted(l.text.data());
     ImGui::PopStyleColor();
   }
   ImGui::End();
+  ImGui::PopStyleVar();
   ImGui::PopStyleColor();
   ImGui::Render();
   return list_.build(*ImGui::GetDrawData(), kViewWidth, kViewHeight);
 }
 
-Overlay::Step Overlay::step(const ViewStatus& status) {
+Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceFacts* facts, std::uint64_t now_ms) {
   Step out;
   if (lost_) {
     out.lost = true;
@@ -261,7 +280,33 @@ Overlay::Step Overlay::step(const ViewStatus& status) {
   GraceUiEvent event{};
   GraceUiStatus polled = GRACEUI_OK;
   bool toggle = false;
-  while ((polled = api_.poll(me_, event)) == GRACEUI_OK && event.kind != GRACEUI_EVENT_NONE) {
+  const bool serving = pages_ && space != nullptr && facts != nullptr;
+  // With a buffer for a space's event's frame (§23 item 2): GRACEUI_FRAME_FROM_PAGE_MAX bytes always suffice.
+  while ((polled = api_.poll(me_, event, frame_.data(), frame_.size())) == GRACEUI_OK &&
+         event.kind != GRACEUI_EVENT_NONE) {
+    const std::string_view frame(frame_.data(), event.frame_length <= frame_.size() ? event.frame_length : 0);
+    if (event.kind == GRACEUI_EVENT_WATCHED || event.kind == GRACEUI_EVENT_UNWATCHED) {
+      if (!serving) continue;
+      if (event.kind == GRACEUI_EVENT_WATCHED) {
+        space->watched(frame);
+      } else {
+        space->unwatched(frame);
+      }
+      continue;
+    }
+    if (event.kind == GRACEUI_EVENT_COMMAND) {
+      // Every command answered exactly once, at once (§23 item 4): through the space's one command path, or, with no
+      // space to answer it (a defect), `internal`.
+      const std::string result =
+          serving ? space->command(frame, *facts)
+                  : std::string(R"({"v":1,"t":"result","space":"eldennet","id":0,"error":"internal"})");
+      const GraceUiStatus answered = api_.answer(me_, event.reply, result);
+      ++out.commands;
+      if (answered != GRACEUI_OK) out.page_refused = answered;
+      continue;
+    }
+    // Every other kind but a hotkey's is passed over, whatever it is: the display's (GRACEUI_EVENT_DISPLAY, after
+    // warm-up and each change, D180), a holder's and any later kind alike. Polling goes on until nothing waits.
     if (event.kind != GRACEUI_EVENT_HOTKEY) continue;
     if (event.hotkey_id != 0 && event.hotkey_id == view_hotkey_) {
       out.view_presses += event.count;
@@ -274,6 +319,19 @@ Overlay::Step Overlay::step(const ViewStatus& status) {
     lost_ = true;
     out.lost = true;
     return out;
+  }
+  // What the space has for its watched topics (§23 item 3): nothing for a topic no view watches.
+  if (serving) {
+    frames_.clear();
+    space->collect(*facts, now_ms, frames_);
+    for (const std::string& f : frames_) {
+      const GraceUiStatus published = api_.publish(me_, f);
+      if (published == GRACEUI_OK) {
+        ++out.published;
+      } else {
+        out.page_refused = published;
+      }
+    }
   }
   if (toggle && view_ready()) {
     if (!open_) {
