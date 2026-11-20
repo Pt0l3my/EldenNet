@@ -129,10 +129,13 @@ class SysLayer {
                                                                              std::uint64_t class_object) noexcept = 0;
   // Builds our task object (ARCH §6.4: a pointer to a fake vtable, the zeroed bytes, our body) and calls
   // register_task at `function` once, with `instance`, the object and the group in the shape's registers. The object
-  // and the body live for the life of the process and are never unregistered (R14).
-  [[nodiscard]] virtual proto::Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
-                                                                      const TaskShape& shape,
-                                                                      TaskBody& body) noexcept = 0;
+  // and the body live for the life of the process and are never unregistered (R14). Answers rax as the call left it
+  // (R1 spike.8, WHY§240: a registration that answers whether it kept the task; one that answers nothing leaves rax as
+  // its last instruction did).
+  [[nodiscard]] virtual proto::Expected<std::uint64_t, SysError> register_task(std::uint64_t function,
+                                                                               std::uint64_t instance,
+                                                                               const TaskShape& shape,
+                                                                               TaskBody& body) noexcept = 0;
 
   // ---- Either thread ----
   [[nodiscard]] virtual Copier& copier() noexcept = 0;

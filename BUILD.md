@@ -12,7 +12,8 @@ dynamic initialiser or an exit-time destructor; ARCH §3.1, §1.7).
 cmake -S . -B build -G Ninja                      # GCC; CXX=clang++ for Clang, which also checks en_dll_module's rules
 cmake --build build
 build/src/en-proto/en_proto_tests && build/src/en-prompt/en_prompt_tests && build/src/en-llm/en_llm_tests \
-  && build/src/en-gal/en_gal_tests
+  && build/src/en-gal/en_gal_tests && build/src/en-overlay/en_overlay_tests && build/src/en-augur/en_augur_tests \
+  && build/src/en-core/en_core_tests
 (cd build && ctest -R compile_fail)               # R1's compile-fail tests: they only compile, so every build runs them
 ```
 
@@ -20,6 +21,11 @@ CTest also runs en-gal's decoder against LLVM's disassembler (`en_gal_x86_object
 `eldennet-engine` and `en_gal_tests`; `en_gal_x86_random`: 20,000 seeded random byte strings, assembled by the build's
 compiler), which need `llvm-objdump` and Python 3, and `en_tools_cli`, which runs `probe-exe` and `lint --report` on the
 derivation tests' invented program as DataPiler's job runs them.
+
+`en_tools_cli` also runs `lint --gal` on the repository's gal/ (each file read as the DLL and probe-exe read it, each
+build's layout with load_layout's checks in a dev build's mode, a derivation note for every pattern), and the spike
+tools (`rec-stats`, `replay`, `spike-report`) on recordings that `en_tools_write_recording` writes as eldennet.dll's
+core thread does, through en_shell's writers and en-core's slice, with invented spike logs.
 
 en-gal now builds three libraries: `en_gal` (offline: the PE reader, patterns, schemas and the derivation kit),
 `en_gal_game` (the part that runs in the game: GuardedReader, discovery, the read groups and the task, portable C++
@@ -47,6 +53,13 @@ for an executable it refuses. With the tests on, the fake game's harness runs it
 (`ctest -R fakegame.probe-exe`). The package the owner runs (R0, R0b, R0c: src/en-tools/README.md) takes
 `eldennet-engine.exe` from the clang-cl Release build; `fakegame.exe` carries R0c's variants of the FD4 idiom and of
 the group table, so the harness checks each of them end to end.
+
+Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
+which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
+its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
+3f1352b, each checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the connection's
+tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines and the
+world-state claims.
 
 ## The Windows build with clang-cl
 
@@ -96,6 +109,8 @@ cmake --build build-cl
 
 - It needs `wine64` (Wine 9.0 here; found in `/usr/lib/wine` or on the path, `EN_WINE`), `xvfb-run` (`EN_XVFB_RUN`)
   and Python 3. Without them the harness's tests are left out, with a line saying so; the programs still build.
+- Wine 9.0 aborts at start-up ("free(): invalid pointer") when `TMPDIR` is set. The harness starts Wine without it; run
+  any Wine command of your own as `env -u TMPDIR wine64 …` (WHY§210).
 - The first test, `fakegame.prefix`, makes the prefix (`EN_WINE_PREFIX`, by default `<build>/wineprefix`, about 700 MB)
   and sets it up for unhandled exceptions (again each time it runs, so an older prefix is brought up to date): no crash
   dialog (with a display, an unhandled exception would otherwise wait on it for ever) and no JIT debugger. Wine
@@ -104,24 +119,55 @@ cmake --build build-cl
   `AeDebug`'s `Debugger` now names no program, so the process ends with the exception's code, as on a Windows PC with
   no JIT debugger. Every case runs under `xvfb-run -a`, no two at once (`RESOURCE_LOCK en_wine`), and starts and ends
   with `wineserver -k` and `wineserver -w`, so no case meets an earlier case's server while it shuts down.
+- The prefix's set-up also gives wined3d its Vulkan renderer (`HKCU\Software\Wine\Direct3D`, `renderer = vulkan`), as
+  GraceUI's BUILD.md does: only the GraceUI cases' fake game (`--d3d12`) makes a DXGI factory, and wined3d's OpenGL
+  renderer hung on Xvfb in GraceUI's harness.
+- **GraceUI's cases** (`ctest -R fakegame.launcher-eldennet-graceui`, clang-cl) need a test build of GraceUI, built from
+  GraceUI's own repository as its BUILD.md says, in a build tree of its own:
+
+  ```sh
+  cmake -S <graceui> -B <graceui-build> -G Ninja -DCMAKE_TOOLCHAIN_FILE=<graceui>/cmake/clang-cl-xwin.cmake \
+    -DCMAKE_BUILD_TYPE=Release -DGRACEUI_TEST_EXPORTS=ON
+  cmake --build <graceui-build>
+  cmake -S . -B build-cl ... -DEN_GRACEUI_DIR=<graceui-build>/GraceUI    # GraceUI's own folder, beside its bin
+  ```
+
+  Every Windows build of GraceUI lays out its `GraceUI` folder beside `bin` (GraceUI D165): `graceui.dll` (here with its
+  test exports), `LICENSE.txt`, `NOTICE.txt` and the `graceui.toml` that GraceUI's `tools/release/manifest.py` writes of
+  them. Each case installs that folder as it is, so the launcher's pre-flight checks GraceUI's own version file; it
+  holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
+  holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
+  (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 11 minutes for the clang-cl build's 94 cases (21 of them the launcher's, 10 eldennet.dll's, below): 52 of about
+- About 13 minutes for the clang-cl build's 99 cases (21 of them the launcher's, 16 eldennet.dll's, four of those with
+  GraceUI, below): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
   offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
   The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
+- `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
+  Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
+  its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
+  forms, the sources, the tail function's table read before and after the call, the call's answer and the control
+  diff; `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
+  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-release` gives
+  `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
+  `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## The launcher and the core's slice
 
-`src/en-core/` holds the core's v0.1 slice (part 5): the lifecycle without the store, the offline and multiplayer
+`src/en-core/` holds the core's v0.1 slice (part 5), and, since part 11, Augur on every step (en-augur): the lifecycle without the store, the offline and multiplayer
 gate with its hysteresis, L1, L2 and Dormant; pure, so `en_core_tests` runs in every build. `src/en-launcher/` builds
 `en_launcher_core` everywhere (Steam's library files, the save backups with their BLAKE3 manifests, the appid file and
 its record, launcher.toml, the command line, the texts, the watcher's records and the spikes' tally;
 `en_launcher_tests`) and, in the two Windows builds, `eldennet-launcher.exe` (part 7). The launcher shares en-proto's watch block with
-EldenNet in the game. Its README has the command line and what each step does.
+EldenNet in the game. Its README has the command line and what each step does. Both link en-gal's offline part,
+en-proto and the header-only libraries alone (ARCH §2.3): `en_link_rule` (`cmake/link_rules.cmake`) stops the
+configuration if either reaches any other target of the build, en-core or en_shell among them, and names the chain;
+`ctest -R en_link_rules` checks the rule itself on a project of its own (`tests/linkrules/`).
 
 The launcher's end-to-end cases join the fake game's harness (`ctest -R fakegame.launcher`): 11 in both Windows builds
 (no DLL), and 10 more in the clang-cl build with `tests/galtest/galtest.dll` as the DLL, which now also does EldenNet's
@@ -132,21 +178,87 @@ of its own (the watcher galtest starts) waits for every process of the prefix to
 In the cross builds CTest lists the unit-test programs too, which it cannot run on Linux: run them under Wine as
 above (`en_core_tests.exe`, `en_launcher_tests.exe` among them).
 
+## Augur and its golden files
+
+`src/en-augur/` (part 11) builds `en_augur`, Augur, the event engine (ARCH §8): pure and game-neutral, below en-core,
+a module the DLL links (`en_dll_module`). en-core links it and runs it on every step, with the shipped rule files
+`content/eldenring/augur/*.toml` built in at configure time (a change to one re-runs the configuration). Its README has
+the v0.1 catalogue, the rule files' schema, what ARCH §8 left open and how this build reads it, and the benchmark.
+
+- `en_augur_tests` (doctest, every build; under Wine in the Windows ones, where it reads no path: the shipped rule files
+  are built in by `cmake/embed_files.cmake`, as en-core's are): the detectors, the rule files' validation, Augur's
+  step, the world model, the bus, and the seeded property tests (hysteresis, debounce, gaps, merge, ordering,
+  determinism).
+- `en_augur_bench [steps]`: `Augur::step` on a busy synthetic step (32 characters, the shipped rules); built with the
+  tests, run by hand, in a Release build for numbers.
+- `en_tools_tests` (Linux builds): the scenario DSL, the three routes' goldens, determinism over 10 runs, 50% snapshot
+  loss against the dense run.
+- `ctest -R en_golden` runs `eldennet-engine golden check` on each route of `tests/scenarios/`; a golden file that
+  changes needs its line in `tests/golden/CHANGES.md` (the hash `golden update` prints).
+
+The three shipped routes are synthetic, written by us. DESIGN's C12 (S10.3.a) asks for golden events over three
+*recorded* routes of the owner's game; each becomes a route the same way, with `golden update <recording>`.
+
+```sh
+build/src/en-tools/eldennet-engine golden check tests/scenarios/camp-skirmish.scn      # or golden update, after a rule change
+build/src/en-tools/eldennet-engine replay <recording> --events events.jsonl            # a recording's events, golden form
+```
+
 ## eldennet.dll
 
 `src/eldennet/` (part 6) builds `en_shell` everywhere (settings.toml as v0.1 reads it, the scrubbed log's lines, the
-channels, the recorder's numbers-only lines, R1's probe report; `en_shell_tests`) and, in the clang-cl build alone,
-`eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe option (R1).
+channels, the recorder's numbers-only lines; `en_shell_tests`; R1's probe report is en-gal's) and, in the clang-cl
+build alone, `eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe
+option (R1).
 Its README has the start as built, the threads, the settings, the recorder and R1.
 
 - `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with
   `llvm-objdump`: `eldennet_instance_marker` their only export, their imports within `src/eldennet/tests/imports.allow`
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 10 cases,
-  about 3 minutes (R1's is the longest, 40 s). Each installs the DLL in its own folder with gal/ beside it and gives it
-  an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s place (development and
-  tests).
+- The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
+  F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 13 cases,
+  about 5 minutes, and with `EN_GRACEUI_DIR` four more with GraceUI, about 1.5 minutes (`launcher-eldennet-probe` and
+  `launcher-eldennet-probe-gap` are the longest, about 65 s each). Each installs the DLL in its own folder with
+  gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s
+  place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
+- Each DLL's version resource is configured from `src/eldennet/win/eldennet.rc.in`: ProductVersion is the build's
+  label (`EN_VERSION_LABEL`, by default the project's version), and the probe build's carries SpecialBuild "probe"
+  (VS_FF_SPECIALBUILD). The label is in the log's boot line too. `eldennet-launcher --probe` asks the probe build for
+  R1 through the watch block (src/en-launcher/README.md).
+
+## The spike package (part 10)
+
+A spike package is a development build for the owner's PC, labelled `0.1.0-spike.N` and never shipped
+(docs/design/spikes/README.md has its files and the S0 runs). R1's is the first:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.8 -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel
+python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
+  --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
+```
+
+Since spike.6 the probe DLL's operator new allocates from a heap of its own (`win/alloc_count.cpp`), so that R1's
+whole-memory search tells the probe's own copies of our task's address apart from the game's; the release DLL is
+unchanged. Since spike.7 each search reads every readable committed region within 64 GiB and 30 s (on the fake game
+under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's, our vtable's and its slots'
+addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
+Since spike.8 the hub is walked at the Mark too, 2 s before that walk, for a control diff (three walks' blocks kept at
+most), the call's answer is kept, and the tail function's table is read just before the call and 2 s after it, through
+the same crash-guarded copy; every summary's instructions are given as forms (no bytes).
+
+`EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
+`eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
+
+`build.py` refuses a tree that is not clang-cl, Release, with `EN_PROBE` and a spike label, a DLL that is not the probe
+build, and a text file holding a path of this PC; the zip is the same for the same inputs. Before it leaves: unzip it,
+`sha256sum -c SHA256SUMS`, run `eldennet-launcher.exe --help --no-dialogs` and `eldennet-engine.exe version` under
+Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `--set eldennet_probe=` and
+`--set engine=` pointing at the unzipped files (the owner's steps on the fake game), and sweep it
+(`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
 
 ## Checks: compile-fail tests and CI greps
 

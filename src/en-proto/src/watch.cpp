@@ -41,6 +41,34 @@ const char* to_string(InitState s) noexcept {
   return "unknown";
 }
 
+const char* to_string(ProbeRequest p) noexcept {
+  switch (p) {
+    case ProbeRequest::None:
+      return "none";
+    case ProbeRequest::R1:
+      return "r1";
+    case ProbeRequest::Accepted:
+      return "accepted";
+    case ProbeRequest::Refused:
+      return "refused";
+  }
+  return "none";
+}
+
+const char* to_string(MarkSource s) noexcept {
+  switch (s) {
+    case MarkSource::None:
+      return "none";
+    case MarkSource::Launcher:
+      return "launcher";
+    case MarkSource::Asked:
+      return "asked";
+    case MarkSource::EldenNet:
+      return "eldennet";
+  }
+  return "none";
+}
+
 const char* to_string(Spike s) noexcept {
   switch (s) {
     case Spike::None:
@@ -103,6 +131,36 @@ std::string_view module_name(const Crash& c) noexcept {
   std::size_t n = 0;
   while (n < kModuleNameBytes && c.module[n] != '\0') ++n;
   return std::string_view(c.module.data(), n);
+}
+
+MarkSource mark_source(const Marks& m) noexcept {
+  const std::uint32_t v = m.source.load(std::memory_order_acquire);
+  return v < kMarkSourceCount ? static_cast<MarkSource>(v) : MarkSource::None;
+}
+
+void launcher_holds(Marks& m) noexcept {
+  auto none = static_cast<std::uint32_t>(MarkSource::None);
+  (void)m.source.compare_exchange_strong(none, static_cast<std::uint32_t>(MarkSource::Launcher),
+                                         std::memory_order_acq_rel);
+}
+
+bool eldennet_asks(Marks& m) noexcept {
+  auto expected = static_cast<std::uint32_t>(MarkSource::None);
+  if (m.source.compare_exchange_strong(expected, static_cast<std::uint32_t>(MarkSource::EldenNet),
+                                       std::memory_order_acq_rel)) {
+    return true;  // nobody held the key: the ring is EldenNet's at once
+  }
+  if (expected == static_cast<std::uint32_t>(MarkSource::Launcher)) {
+    (void)m.source.compare_exchange_strong(expected, static_cast<std::uint32_t>(MarkSource::Asked),
+                                           std::memory_order_acq_rel);
+  }
+  return false;
+}
+
+void launcher_hands_over(Marks& m) noexcept {
+  auto asked = static_cast<std::uint32_t>(MarkSource::Asked);
+  (void)m.source.compare_exchange_strong(asked, static_cast<std::uint32_t>(MarkSource::EldenNet),
+                                         std::memory_order_acq_rel);
 }
 
 std::uint32_t add_mark(Marks& m, std::uint64_t at_ms) noexcept {

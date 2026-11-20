@@ -1,0 +1,42 @@
+# A road at night (synthetic, invented): the Tarnished rides between two places, losing a run of snapshots on the way,
+# meets two hounds, talks to someone at a popup, is joined by another player (the gate closes, and opens again 5 s after
+# they leave) and goes back to the title. Our own route, names and numbers.
+route road-and-gate
+seed 5
+step 250
+end 52000
+
+at 0     spawn player hp=900/900 pos=0,0,0
+at 0     place 63001
+at 1000  ride on
+at 3000  move player to=120,0,0 over=12000
+at 6000  place 63002
+at 6500  drop_snapshots 6
+at 12000 spawn howl team=6 pos=130,4,0 hp=250/250
+at 12000 spawn yelp team=6 pos=131,-3,0 hp=250/250
+at 14000 hit howl -> player dmg=60
+at 15000 ride off
+at 15500 kill howl by=player
+at 16000 hit player -> yelp dmg=120
+at 16500 kill yelp by=player
+at 20000 place 63001
+at 26000 place 63002
+at 24000 talk on
+at 27000 talk off
+at 30000 session coop
+at 36000 session solo
+at 50000 title
+
+# What the route must show (ARCH §8.4, §8.8, §9): a place stable across a run of dropped snapshots fires once; a place
+# entered again within 10 min of play is deduplicated; an attack from beyond 20 m is unseen; the gate's changes.
+expect count 1 PlaceEntered place_id=63002
+expect event PlaceEntered place_id=63001 prev=63002 within 22000..22000
+expect event Struck subject=player unseen=true att=none within 14000..14000
+expect event AllyDied victim=howl witnesses=[yelp]
+expect count 1 AllyDied
+expect event NativeTalkStarted popup=true within 24000..24000
+expect event NativeTalkEnded held_ms=3000 within 27000..27000
+expect event GateChanged active=false within 30000..30000
+expect event GateChanged active=true within 41000..41000
+expect event TitleReached within 50000..50000
+expect count 2 MountChanged

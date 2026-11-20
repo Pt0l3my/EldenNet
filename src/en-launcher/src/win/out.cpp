@@ -92,4 +92,13 @@ void say(const char* fmt, ...) {
   ReleaseSRWLockExclusive(&g_lock);
 }
 
+void console_line(std::string_view text) {
+  std::string line = "EldenNet R1: ";
+  line.append(text);
+  line += "\r\n";
+  AcquireSRWLockExclusive(&g_lock);
+  write_all(g_out, line.data(), static_cast<DWORD>(line.size()));
+  ReleaseSRWLockExclusive(&g_lock);
+}
+
 }  // namespace en::launcher::win

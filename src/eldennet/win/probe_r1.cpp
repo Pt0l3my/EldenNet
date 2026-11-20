@@ -5,10 +5,18 @@
 //    ABI from the hub's static and the game's own call sites, the group table as loaded, the RTTI sets. Passes at once,
 //    then at +15, +30 and +60 s while the registration's instance is not named. Written as probe\r1-derive.json
 //    (derive.json's schema 1). global_hinstance's slot: the data slots that hold the module's base.
-// 2. The checks before the one call: the gate passed, the name layout read by at least half the class objects, the
-//    registration's callee a function with three agreeing argument registers, the group's index found in the loaded
-//    table (and equal to the draft layout's, where gal/ has one). Any check that fails: no call, and the report says
-//    which. Nothing is guessed.
+// 2. The checks before the one call: the gate passed; the FD4 idiom the live image gives the one R0 cut from the file
+//    (gal/patterns.toml's fd4_idiom, reviewed); the name layout read by at least half the class objects; the
+//    registration's callee a function with three agreeing argument registers; the group's index found in the loaded
+//    table and equal to the one the gated build's layout gives (gal/layouts/, a lead); the hub's instance non-null.
+//    Any check that fails: no call, and the report says which. Nothing is guessed, and nothing rests on a derivation
+//    that was not reviewed (O89 (a)). The callee's summary, from the live image (WHY§227): its calls, its branches
+//    before the first call, and what it does with each argument register before it (probe.hpp's summarise_callee);
+//    since spike.7 (WHY§235) the arguments in each call, each branch's flag test, and each callee it calls (or
+//    tail-jumps to) summarised in turn with the arguments followed in; since spike.8 (WHY§240) the instructions as
+//    forms, the values loaded from memory followed, and the tail function's table matched against run 7's reading. At
+//    the Mark the hub's reachable memory (spike.5's walk) is walked, again 2 s later and kept on our heap, and the two
+//    compared (the control diff); then, at once, the table is read and the call made.
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -19,41 +27,55 @@
 // 5. On T1 every 2 s, probe\r1-probe.json (probe_report.hpp): the checks, the call, the counts, and, once the census is
 //    done, the base classes the hub's objects share with each one's derived classes' slots and run slot. Once statics'
 //    slots are found, the derivation runs again with them, so that r1-derive.json carries a pattern at each.
+// 6. On T1, 2 and 20 s after the call (WHY§209, WHY§227, WHY§235): the hub's reachable memory walked again, searched
+//    for our task object's address and compared with the walk kept from before the call (each changed word marked when
+//    the control diff changed it too); then every readable committed region of the process searched for our task
+//    object's address, our fake vtable's and its slots' (ours counted apart); and, while the task has not run, how much
+//    of our object the hub wrote. At 2 s the table is read again (WHY§240).
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
 #if EN_PROBE
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <map>
+#include <optional>
 #include <set>
-
-#include <toml.hpp>
+#include <span>
+#include <utility>
+#include <vector>
 
 #include "en/gal/derive.hpp"
+#include "en/gal/fd4.hpp"
+#include "en/gal/guarded.hpp"
 #include "en/gal/image_bytes.hpp"
+#include "en/gal/layout.hpp"
+#include "en/gal/patterns.hpp"
 #include "en/gal/probe.hpp"
+#include "en/gal/probe_report.hpp"
 #include "en/gal/rtti.hpp"
+#include "en/gal/sys_boot.hpp"
 #include "en/proto/ffi_guard.hpp"
-#include "en/proto/toml_check.hpp"
-#include "en/shell/probe_report.hpp"
 
 namespace eldennet {
 
 void arm_allocation_watch(bool armed) noexcept;
 std::uint64_t allocations_watched() noexcept;
+std::optional<std::size_t> own_heap_bases(std::span<std::uint64_t> out) noexcept;  // alloc_count.cpp
 
 namespace {
 
 namespace w = en::proto::watch;
 namespace derive = en::gal::derive;
 namespace probe = en::gal::probe;
-using en::shell::CheckStatus;
+using en::gal::probe::CheckStatus;
 using en::shell::Line;
 using en::shell::LogLevel;
-using en::shell::ProbeCheck;
 
 constexpr std::uint32_t kSpanObject = 0x400;  // how much of our object the probe copies back
+constexpr std::size_t kMaxInner = 8;          // the callee's callees summarised (WHY§235)
 
 // The probe's body on the game thread (every slot of our fake vtable runs it for our own object).
 class R1Body final : public en::gal::TaskBody {
@@ -169,8 +191,9 @@ class Round {
     }
     f_.stage = "derived";
 
-    // ---- 2. The checks ----
+    // ---- 2. The checks, and the callee's summary from the live image (WHY§227) ----
     const bool ready = run_checks();
+    summarise_callee();
     write_report();
     if (!ready) {
       f_.stage = "refused";
@@ -201,6 +224,10 @@ class Round {
     R1Body* body = prepare();
     block::install_filter();
     (void)s_.sys->rescan_stacks();  // as before the normal start's call (WHY§190)
+    control_walk();                 // WHY§240: the hub at the Mark, and 2 s later
+    (void)s_.sys->rescan_stacks();
+    keep_hub();
+    read_table(true);
     enter_state(w::InitState::Register);
     en::gal::TaskShape shape;
     shape.vtable_slots = f_.vtable_slots;
@@ -213,14 +240,25 @@ class Round {
     called_ms_ = since_ms();
     f_.register_status = called ? "ok" : "faulted";
     f_.stage = called ? "registered" : "failed";
-    log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
-            .num("slots", f_.vtable_slots).num("object_size", f_.object_size));
-    write_report();
+    control_diff();
     if (!called) {
+      log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
+              .num("slots", f_.vtable_slots).num("object_size", f_.object_size));
+      write_report();
       push_banner(s_, en::core::BannerReason::RegisterFaulted, en::gal::to_string(called.error()));
       block::state(w::InitState::Banner);
       return report_loop(nullptr);
     }
+    read_vtable();
+    // WHY§240: rax as the call left it, as a kind (a registration's bool answer sets al alone).
+    probe::DiffSpec kinds = kinds_spec();
+    kinds.group_index = 0;
+    f_.returned = probe::classify_value(*called, kinds);
+    f_.returned_low = static_cast<std::uint8_t>(*called & 0xFF);
+    log(Line("r1").word("register", f_.register_status).hex("callee", f_.callee).num("group", f_.group_index)
+            .num("slots", f_.vtable_slots).num("object_size", f_.object_size)
+            .word("returned", returned_word(f_.returned->kind)).num("returned_low", *f_.returned_low));
+    write_report();
     enter_state(w::InitState::FirstTick);
     report_loop(body);
   }
@@ -242,13 +280,13 @@ class Round {
 
   void check(std::string_view item, std::string label, CheckStatus st, std::optional<std::uint64_t> value = {},
              std::optional<std::uint64_t> expected = {}) {
-    for (ProbeCheck& c : f_.checks) {
+    for (probe::Check& c : f_.checks) {
       if (c.item == item && c.label == label) {
-        c = ProbeCheck{item, std::move(label), st, value, expected};
+        c = probe::Check{item, std::move(label), st, value, expected};
         return;
       }
     }
-    f_.checks.push_back(ProbeCheck{item, std::move(label), st, value, expected});
+    f_.checks.push_back(probe::Check{item, std::move(label), st, value, expected});
   }
 
   bool instance_named() const {
@@ -262,9 +300,39 @@ class Round {
     const std::uint64_t t = since_ms();
     derive::Options options;
     for (const auto& [label, slot] : slots_) options.static_slots.emplace_back(label, slot);
+    // O92: one 8-byte read at an instance outside the image (its vtable), on T1 before any call, through the same
+    // crash-guarded copy and plausibility rules as the reader's (ARCH §6.5); a vtable pointer does not change while
+    // its object lives. Refused or faulted: nothing.
+    options.read_instance_word = [this](std::uint64_t address) -> std::optional<std::uint64_t> {
+      if (en::gal::implausible(address, 8, 8, s_.sys->stacks())) return std::nullopt;
+      std::array<std::byte, 8> v{};
+      if (!s_.sys->copier().copy(address, v).copied) return std::nullopt;
+      std::uint64_t out = 0;
+      std::memcpy(&out, v.data(), 8);
+      return out;
+    };
     result_ = derive::derive(*image_, s_.sys->image(), leads_, options);
     ++f_.derive_passes;
     f_.derive_ms = since_ms() - t;
+    {  // the name search's numbers, for the reviewer (WHY§206)
+      const auto& g = result_.fd4.diagnostics;
+      f_.names.of = result_.fd4.names_of;
+      f_.names.agree = g.names_best;
+      f_.names.qualified = g.names_qualified;
+      f_.names.offset = g.best_names && g.names_best != 0 ? std::optional<std::uint32_t>(g.best_names->offset)
+                                                          : std::nullopt;
+      f_.names.inst_statics = g.inst_statics;
+      f_.names.inst_null = g.inst_null;
+      f_.names.inst_unread = g.inst_unread;
+      f_.names.inst_unclassed = g.inst_unclassed;
+      f_.names.inst_classed = g.inst_classed;
+      f_.names.inst_matched = g.inst_matched;
+      f_.names.slots.clear();
+      for (const derive::NameSlot& n : g.name_slots) {
+        f_.names.slots.push_back(probe::NameSlot{n.offset, n.null_ptr, n.to_rdata, n.to_data, n.to_code, n.to_other,
+                                               n.outside, n.plain, n.qualified, n.other_text, n.inline_text});
+      }
+    }
     const auto json = derive::write_report(result_);
     f_.derive_written = json.has_value() && write_text(folder_ + L"\\r1-derive.json", *json);
     log(Line("r1").word("stage", "derive").num("pass", f_.derive_passes).num("ms", f_.derive_ms)
@@ -272,19 +340,39 @@ class Round {
             .word("group", derive::to_string(result_.group.status)).flag("written", f_.derive_written));
   }
 
-  // The draft layout's group index, where gal/ has a layout for the gated build (its [task] table).
+  // The layout gal/builds.toml names for the gated build, read as a dev build reads it (leads allowed; only its [task]
+  // table matters here): its group's index, the reviewed lead R1 must find again in the loaded table. Nothing when the
+  // file cannot be read or is refused, which fails the group check: R1 calls only on reviewed leads.
   std::optional<std::uint64_t> draft_group(const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) {
     if (gated == nullptr || !*gated) return std::nullopt;
-    std::wstring rel((*gated)->profile.entry().layout.begin(), (*gated)->profile.entry().layout.end());
+    const std::string& name = (*gated)->profile.entry().layout;
+    std::wstring rel(name.begin(), name.end());  // builds.toml's layout path is ASCII, checked
     std::replace(rel.begin(), rel.end(), L'/', L'\\');
     const std::optional<std::string> text = read_text(s_.paths.gal + L"\\" + rel, 256u << 10);
-    if (!text || en::proto::unsafe_for_toml(*text, en::proto::TomlText::Gal)) return std::nullopt;
-    toml::parse_result parsed = toml::parse(*text, std::string_view{"layout"});
-    if (!parsed) return std::nullopt;
-    if (const auto v = parsed.table()["task"]["group_index"].value<std::int64_t>(); v && *v >= 0) {
-      return static_cast<std::uint64_t>(*v);
+    if (!text) return std::nullopt;
+    en::gal::LayoutNeeds needs;
+    needs.task = true;
+    const auto layout = en::gal::load_layout((*gated)->profile, *text, needs, en::gal::LayoutMode::Dev, "layout");
+    if (!layout || !layout->task()) {
+      log(Line("r1").word("draft_layout", "refused").num("problems", layout ? 0 : layout.error().size()),
+          LogLevel::Warn);
+      return std::nullopt;
     }
-    return std::nullopt;
+    return layout->task()->group_index;
+  }
+
+  // gal/patterns.toml's FD4 idiom, the lead R0 derived from the executable file (its id fd4_idiom).
+  std::optional<en::gal::PatternSpec> lead_idiom() {
+    const std::optional<std::string> text = read_text(s_.paths.gal + L"\\patterns.toml", 256u << 10);
+    if (!text) return std::nullopt;
+    const auto set = en::gal::parse_patterns(*text, {}, "patterns.toml");
+    if (!set) {
+      log(Line("r1").word("patterns", "refused").num("problems", set.error().size()), LogLevel::Warn);
+      return std::nullopt;
+    }
+    const en::gal::PatternSpec* idiom = set->find("fd4_idiom");
+    if (idiom == nullptr || idiom->kind != en::gal::PatternKind::Idiom) return std::nullopt;
+    return *idiom;
   }
 
  public:
@@ -293,12 +381,27 @@ class Round {
  private:
   bool run_checks() {
     bool ok = f_.gate_passed;
-    // The name layout: read by at least half the class objects.
     const derive::Fd4Result& fd = result_.fd4;
+    // The FD4 idiom: the one R0 cut from the file (gal/patterns.toml's, reviewed), byte for byte and capture for
+    // capture, or the derivation over the live image is not the one that was reviewed (O89 (a)), and nothing is called.
+    // The live hits are reported beside the lead's count (where it gives one) for the reviewer; they do not decide.
+    {
+      const std::optional<en::gal::PatternSpec> lead = lead_idiom();
+      const std::optional<en::gal::fd4::Idiom> want = lead ? en::gal::fd4::idiom_from(*lead) : std::nullopt;
+      const bool same = want && fd.idiom && want->bytes == fd.idiom->bytes && want->static_slot == fd.idiom->static_slot &&
+                        want->class_object == fd.idiom->class_object && want->getter == fd.idiom->getter;
+      const std::optional<std::uint64_t> count =
+          lead && lead->expect_min == lead->expect_max ? std::optional<std::uint64_t>(lead->expect_min) : std::nullopt;
+      check("fd4_idiom", "", same ? CheckStatus::Confirmed : want ? CheckStatus::Differs : CheckStatus::Missing,
+            fd.idiom ? std::optional<std::uint64_t>(fd.idiom_hits) : std::nullopt, count);
+      ok = ok && same;
+    }
+    // The name layout: read by at least half the class objects; or, without it, the singletons named by their instances'
+    // RTTI (O92), the registration's instance among them. Either way each singleton has its own check below.
     const bool names = fd.names.has_value() && fd.names_of > 0 && fd.names_agree * 2 >= fd.names_of;
     check("name_layout", "", names ? CheckStatus::Confirmed : CheckStatus::Missing,
           fd.names ? std::optional<std::uint64_t>(fd.names->offset) : std::nullopt);
-    ok = ok && names;
+    ok = ok && (names || (fd.diagnostics.inst_matched > 0 && instance_named()));
     for (const derive::SingletonResult& sr : fd.singletons) {
       check("singleton", sr.label, sr.status == derive::Status::Derived ? CheckStatus::Confirmed : CheckStatus::Missing,
             sr.status == derive::Status::Derived ? std::optional<std::uint64_t>(sr.static_slot) : std::nullopt);
@@ -345,7 +448,7 @@ class Round {
       }
     }
     const std::optional<std::uint64_t> expected = draft_group(gated_);
-    CheckStatus gst = table == nullptr ? CheckStatus::Missing : CheckStatus::Confirmed;
+    CheckStatus gst = table == nullptr || !expected ? CheckStatus::Missing : CheckStatus::Confirmed;
     if (table != nullptr && expected && *expected != table->index) gst = CheckStatus::Differs;
     check("group", "", gst, table != nullptr ? std::optional<std::uint64_t>(table->index) : std::nullopt, expected);
     ok = ok && gst == CheckStatus::Confirmed;
@@ -430,8 +533,8 @@ class Round {
     f_.bases.clear();
     for (std::size_t i = 0; i < order.size() && i < 4; ++i) {
       const derive::TaskResult t = derive::task_from_base(*walk_, *img_, order[i].first);
-      f_.bases.push_back(en::shell::ProbeBase{order[i].first, order[i].second, static_cast<std::uint32_t>(t.vtables.size()),
-                                              t.slots_min, t.slots_max, t.run_slot});
+      f_.bases.push_back(probe::Base{order[i].first, order[i].second, static_cast<std::uint32_t>(t.vtables.size()),
+                                     t.slots_min, t.slots_max, t.run_slot});
     }
     if (!f_.bases.empty() && f_.bases.front().run_slot) {
       check("task_shape", "", CheckStatus::Confirmed, *f_.bases.front().run_slot);
@@ -446,8 +549,10 @@ class Round {
     for (std::uint32_t i = 0; i < f_.vtable_slots; ++i) {
       if (const std::uint64_t n = s_.sys->slot_calls(i); n != 0) f_.slot_calls.emplace_back(i, n);
     }
-    f_.object_written = body.written();
-    f_.object_nonzero = body.nonzero();
+    if (body.invocations() > 0) {  // else object_from_t1's, read after the call (WHY§227)
+      f_.object_written = body.written();
+      f_.object_nonzero = body.nonzero();
+    }
     const en::gal::GuardedReader& r = body.reader();
     f_.copy_faults = r.faults(en::gal::FaultKind::Copy);
     f_.stack_refused = r.faults(en::gal::FaultKind::Stack);
@@ -472,7 +577,7 @@ class Round {
       f_.rising_passes = rs->passes();
       f_.rising.clear();
       for (const probe::RisingSearch::Hit& h : rs->hits()) {
-        f_.rising.push_back(en::shell::ProbeRising{h.slot, h.offset, h.rose, h.still, h.other});
+        f_.rising.push_back(probe::Rising{h.slot, h.offset, h.rose, h.still, h.other});
       }
       // A static whose class has no RTTI: the one slot that rose and also stood still (a play time) is its candidate.
       std::set<std::uint32_t> play;
@@ -490,7 +595,7 @@ class Round {
     f_.statics.clear();
     for (std::size_t i = 0; i < body.statics().size(); ++i) {
       const probe::SlotSearch& ss = *body.statics()[i];
-      en::shell::ProbeStatic out{static_labels_[i], ss.candidates(), ss.checked(), {}};
+      probe::Static out{static_labels_[i], ss.candidates(), ss.checked(), {}};
       for (const std::uint32_t at : ss.found()) out.found.push_back(at);
       if (ss.checked() >= ss.candidates() && out.found.size() == 1 &&
           slots_.emplace(static_labels_[i], out.found[0]).second) {
@@ -504,10 +609,306 @@ class Round {
 
   std::uint64_t called_mono_ms() const noexcept { return called_mono_; }
 
+  // Spike.5's walk of the hub's reachable memory (WHY§209): breadth first from the hub's instance, up to three pointers
+  // deep, read-only through the crash-guarded copy under the reader's plausibility rules, within fixed caps; pointers
+  // into the image are not followed, nor, after the call, those into our task's block.
+  probe::HubWalkSpec hub_walk_spec() const {
+    probe::HubWalkSpec spec;
+    spec.instance = instance_;
+    spec.image_base = base_;
+    spec.image_end = base_ + image_->size_of_image;
+    spec.own_image = own_image();
+    if (const std::uint64_t task = s_.sys->task_object(); task != 0) {
+      spec.keep = en::gal::AddressRange{task, task + 16 + f_.object_size};
+    }
+    return spec;
+  }
+
+  // Our module's mapped range: the regions from its base that VirtualQuery gives the same allocation base.
+  en::gal::AddressRange own_image() const {
+    const std::uint64_t base = en::gal::sys::boot::address_of_module(s_.module);
+    std::uint64_t end = base;
+    for (std::size_t n = 0; base != 0 && n < 256; ++n) {
+      const std::optional<probe::MemoryRegion> r = s_.sys->region_at(end);
+      if (!r || r->allocation_base != base || r->base != end || r->size == 0) break;
+      end = r->base + r->size;
+    }
+    return en::gal::AddressRange{base, end};
+  }
+
+  // WHY§235: just before the call, the hub's reachable memory, kept on our heap (within the walk's 6 MiB) for the diffs.
+  void keep_hub() {
+    before_ = probe::walk_hub(*s_.sys, hub_walk_spec());
+    kept_ms_ = since_ms();
+    log(Line("r1").word("stage", "hub_kept").num("blocks", before_.blocks.size()).num("bytes", before_.bytes.size())
+            .flag("capped", before_.capped));
+  }
+
+  // WHY§240: at the Mark, the same walk 2 s before the one kept for the call (A, then B): what the hub changes on its
+  // own over the interval. Three walks' blocks at most are ever kept: A is let go once A and B are compared.
+  void control_walk() {
+    control_ = probe::walk_hub(*s_.sys, hub_walk_spec());
+    control_ms_ = since_ms();
+    log(Line("r1").word("stage", "hub_control").num("blocks", control_.blocks.size()).num("bytes", control_.bytes.size())
+            .flag("capped", control_.capped));
+    Sleep(2000);
+  }
+  void control_diff() {
+    if (control_.blocks.empty() || before_.blocks.empty()) return;
+    probe::DiffResult r = probe::diff_hub(control_, before_, kinds_spec());
+    r.diff.at_ms = kept_ms_ > control_ms_ ? kept_ms_ - control_ms_ : 0;  // the interval A to B
+    log(Line("r1").word("stage", "hub_diff_control").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
+            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
+    control_changes_ = std::move(r.changed);
+    f_.hub_diff_control = std::move(r.diff);
+    control_ = probe::HubWalk{};
+  }
+
+  // The diff's classification of values: our task's block, our vtable, our module, the game's image by its sections,
+  // what any other pointer points into.
+  probe::DiffSpec kinds_spec() const {
+    probe::DiffSpec spec;
+    spec.group_index = f_.group_index;
+    if (const std::uint64_t target = s_.sys->task_object(); target != 0) {
+      spec.task = en::gal::AddressRange{target, target + 16 + f_.object_size};
+    }
+    if (vtable_ != 0) spec.vtable = en::gal::AddressRange{vtable_, vtable_ + 8 * thunks_.size()};
+    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
+    spec.game_base = base_;
+    spec.game_sections = sections();
+    spec.query = [this](std::uint64_t a) { return s_.sys->region_at(a); };
+    return spec;
+  }
+  std::vector<probe::SectionSpan> sections() const {
+    std::vector<probe::SectionSpan> out;
+    for (const en::gal::Section& sec : image_->sections) {
+      out.push_back(probe::SectionSpan{sec.rva, sec.mapped_size(), probe::section_kind_of(sec.characteristics)});
+    }
+    return out;
+  }
+  static const char* returned_word(probe::ValueKind k) noexcept {
+    switch (k) {
+      case probe::ValueKind::Zero: return "zero";
+      case probe::ValueKind::Small: return "small";
+      case probe::ValueKind::Task: return "task";
+      case probe::ValueKind::Ours: return "ours";
+      case probe::ValueKind::Game: return "game";
+      case probe::ValueKind::Heap: return "heap";
+      default: return "other";
+    }
+  }
+
+  // WHY§240: the tail function's table, when its shapes matched, read through the crash-guarded copy under the reader's
+  // plausibility rules on T1: just before the call, and 2 s after it. Where the group's entry leads through its vtable
+  // to a function of the game's code, that function is summarised one level deeper (once).
+  void read_table(bool before) {
+    if (!f_.table || !f_.table->matched) return;
+    probe::TableReadSpec spec;
+    spec.module_base = base_;
+    spec.group_index = f_.group_index;
+    spec.instance = instance_;
+    for (const derive::SingletonResult& sr : result_.fd4.singletons) {
+      if (sr.status != derive::Status::Derived) continue;
+      std::array<std::byte, 8> v{};
+      std::uint64_t inst = 0;
+      if (!s_.sys->image().read(sr.static_slot, v)) continue;
+      std::memcpy(&inst, v.data(), 8);
+      for (std::size_t i = 0; i < leads_.singletons.size(); ++i) {
+        if (leads_.singletons[i].label == sr.label && inst != 0) {
+          spec.leads.emplace_back(static_cast<std::uint32_t>(i), inst);
+        }
+      }
+    }
+    spec.kinds = kinds_spec();
+    spec.kinds.group_index = 0;
+    const probe::BlockReader read = [this](std::uint64_t at, std::span<std::byte> out) {
+      if (en::gal::implausible(at, out.size(), 1, s_.sys->stacks())) return false;
+      return s_.sys->copier().copy(at, out).copied;
+    };
+    probe::TableRead r = probe::read_table(*f_.table, spec, read);
+    r.at_ms = before ? 0 : since_ms() - called_ms_;
+    log(Line("r1").word("stage", before ? "table_before" : "table_after").flag("read", r.read)
+            .num("entries", r.entries).num("nonzero", r.nonzero)
+            .word("entry", r.entry ? returned_word(r.entry->kind) : "none"));
+    if (r.slot_value && r.slot_value->kind == probe::ValueKind::Game &&
+        r.slot_value->section == probe::SectionKind::Code && r.slot_value->rva && f_.table->site) {
+      summarise_deeper(*r.slot_value->rva);
+    }
+    (before ? f_.table->before : f_.table->after) = std::move(r);
+  }
+
+  // The function the table's entry leads to, summarised with the arguments the tail function's jump passes it.
+  void summarise_deeper(std::uint32_t rva) {
+    if (deeper_) return;
+    for (const probe::InnerCallee& t : f_.callee_inner) {
+      if (!t.tail || t.depth != 1 || t.rva != f_.table->rva) continue;
+      for (const probe::CalleeCall& k : t.code.calls) {
+        if (k.offset != *f_.table->site) continue;
+        deeper_ = true;
+        const auto [code, extent] = code_at(rva);
+        probe::InnerCallee in{rva, k.offset, true, probe::summarise_callee(code, rva, extent, probe::entry_at(k)), 2};
+        probe::mark_sections(in.code, sections());
+        log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("depth", 2)
+                .num("bytes", in.code.bytes).num("calls", in.code.call_count));
+        f_.callee_inner.push_back(std::move(in));
+        return;
+      }
+    }
+  }
+
+  // WHY§235: our fake vtable's address (our object's first word) and its slots' (our module's thunks), read back from
+  // our own memory after the call, for the whole-memory search and the diff's kinds.
+  void read_vtable() {
+    const std::uint64_t at = s_.sys->task_object();
+    std::array<std::byte, 8> v{};
+    if (at == 0 || !s_.sys->copier().copy(at, v).copied) return;
+    std::memcpy(&vtable_, v.data(), 8);
+    std::vector<std::byte> t(std::size_t{8} * f_.vtable_slots);
+    if (vtable_ == 0 || t.empty() || !s_.sys->copier().copy(vtable_, t).copied) return;
+    thunks_.assign(f_.vtable_slots, 0);
+    for (std::size_t i = 0; i < thunks_.size(); ++i) std::memcpy(&thunks_[i], t.data() + 8 * i, 8);
+  }
+
+  // WHY§209: the hub's reachable memory searched for our task object; WHY§235: and compared with the walk kept from
+  // before the call, block by block by path (the second diff against the first's changes, for their steadiness).
+  void search_hub() {
+    const std::uint64_t at_ms = since_ms() - called_ms_;
+    const std::uint64_t target = s_.sys->task_object();
+    const probe::HubWalk walk = probe::walk_hub(*s_.sys, hub_walk_spec());
+    probe::HubSearch h = probe::search_walk(walk, target, target + f_.object_size, f_.group_index);
+    h.at_ms = at_ms;
+    log(Line("r1").word("stage", "hub_search").num("at_ms", h.at_ms).num("nodes", h.nodes).num("found", h.found)
+            .num("inside", h.inside).num("faults", h.faults));
+    f_.hub_search.push_back(std::move(h));
+    if (before_.blocks.empty()) return;
+    probe::DiffSpec spec = kinds_spec();
+    spec.earlier = f_.hub_diff.empty() ? nullptr : &first_changes_;
+    spec.control = f_.hub_diff_control ? &control_changes_ : nullptr;
+    probe::DiffResult r = probe::diff_hub(before_, walk, spec);
+    r.diff.at_ms = at_ms;
+    log(Line("r1").word("stage", "hub_diff").num("at_ms", r.diff.at_ms).num("compared", r.diff.compared)
+            .num("changed", r.diff.changed).num("new_blocks", r.diff.new_blocks).flag("capped", r.diff.capped));
+    if (f_.hub_diff.empty()) {
+      first_changes_ = std::move(r.changed);
+    } else {
+      before_ = probe::HubWalk{};  // the last diff: what was kept is let go
+      first_changes_.clear();
+      control_changes_.clear();
+    }
+    f_.hub_diff.push_back(std::move(r.diff));
+  }
+
+  // The code at `rva` as the live image holds it: within its function of the exception directory (its length the
+  // extent), or up to the 4 KiB bound, never past its section.
+  std::pair<std::vector<std::byte>, std::uint32_t> code_at(std::uint32_t rva) const {
+    std::uint32_t extent = 0;
+    const auto fn = std::lower_bound(image_->functions.begin(), image_->functions.end(), rva,
+                                     [](const en::gal::RuntimeFunction& r, std::uint32_t at) { return r.begin < at; });
+    if (fn != image_->functions.end() && fn->begin == rva) extent = fn->length();
+    std::uint32_t len = extent != 0 ? std::min(extent, probe::kCalleeBound) : probe::kCalleeBound;
+    for (const en::gal::Section& sec : image_->sections) {
+      if (sec.contains(rva)) len = std::min(len, sec.rva + sec.mapped_size() - rva);
+    }
+    std::vector<std::byte> code(len);
+    if (!s_.sys->image().read(rva, code)) code.clear();
+    return {std::move(code), extent};
+  }
+
+  // WHY§227: what the callee does with its arguments, from the live image (the code the call runs), decoded within its
+  // function of the exception directory, or up to its first return, and at most 4 KiB; no call is followed. WHY§235:
+  // then each callee it calls directly or tail-jumps to, one level deeper, with the arguments its call site passes.
+  void summarise_callee() {
+    if (f_.callee == 0) return;
+    const auto [code, extent] = code_at(f_.callee);
+    f_.callee_code = probe::summarise_callee(code, f_.callee, extent);
+    probe::mark_sections(*f_.callee_code, sections());
+    const probe::CalleeCode& c = *f_.callee_code;
+    log(Line("r1").word("stage", "callee").num("bytes", c.bytes).num("instructions", c.instructions)
+            .num("calls", c.call_count).num("branches", c.branch_count).flag("returns_early", c.returns_early));
+    for (const probe::CalleeCall& k : c.calls) {
+      if (f_.callee_inner.size() >= kMaxInner) break;
+      if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail)) continue;
+      const auto [inner, inner_extent] = code_at(*k.target);
+      probe::InnerCallee in{*k.target, k.offset, k.form == probe::CallForm::Tail,
+                            probe::summarise_callee(inner, *k.target, inner_extent, probe::entry_at(k)), 1};
+      probe::mark_sections(in.code, sections());
+      log(Line("r1").word("stage", "inner").hex("rva", in.rva).num("site", in.site).num("bytes", in.code.bytes)
+              .num("calls", in.code.call_count).num("branches", in.code.branch_count));
+      f_.callee_inner.push_back(std::move(in));
+    }
+    // WHY§240: the table the tail function reads, when the shapes are run 7's; read just before the call.
+    f_.table = probe::match_table(c, f_.callee_inner, f_.registers[2]);
+    log(Line("r1").word("stage", "table").flag("matched", f_.table->matched)
+            .word("failed", f_.table->matched ? "none" : f_.table->failed).hex("slot", f_.table->singleton_slot)
+            .num("bound", f_.table->bound));
+  }
+
+  // WHY§227: every committed, readable region of the process searched for our task object's address, on T1, through
+  // the crash-guarded copy, within 64 GiB (WHY§235: run 6's 8 GiB cap left 2 GiB unread) and 30 s; never a known
+  // stack, nor T1's own. Since spike.7 our fake vtable's and its slots' addresses too. Ours counted apart: our module,
+  // and the regions of the DLL's own heap (alloc_count.cpp), of our task's block and of our vtable's.
+  void search_memory() {
+    probe::MemorySearchSpec spec;
+    spec.target = s_.sys->task_object();
+    spec.object_bytes = std::uint64_t{8} + f_.object_size;
+    spec.vtable = vtable_;
+    spec.slots = thunks_;
+    spec.group_index = f_.group_index;
+    spec.game_base = base_;
+    spec.own_base = en::gal::sys::boot::address_of_module(s_.module);
+    std::array<std::uint64_t, 1024> bases{};
+    const std::optional<std::size_t> n = own_heap_bases(bases);
+    spec.own_known = n.has_value();
+    if (n) spec.own_bases.assign(bases.begin(), bases.begin() + static_cast<std::ptrdiff_t>(*n));
+    spec.own_bases.push_back(spec.target);  // our task's block is an allocation of its own (VirtualAlloc's)
+    if (vtable_ != 0) spec.own_bases.push_back(vtable_);  // and so is our vtable
+    ULONG_PTR low = 0, high = 0;
+    GetCurrentThreadStackLimits(&low, &high);
+    spec.skip.push_back(en::gal::AddressRange{low, high});
+    const std::uint64_t at = since_ms() - called_ms_;
+    probe::MemorySearch m =
+        probe::search_memory(*s_.sys, [this](std::uint64_t a) { return s_.sys->region_at(a); }, spec);
+    m.at_ms = at;
+    log(Line("r1").word("stage", "memory_search").num("at_ms", m.at_ms).num("ms", m.ms).num("read_mb", m.read_bytes >> 20)
+            .num("committed_mb", m.committed_bytes >> 20).num("found", m.found).num("inside", m.inside)
+            .num("own_found", m.own_found).num("vtable_found", m.vtable_found).num("slot_found", m.slot_found)
+            .flag("own_known", m.own_known)
+            .word("stopped", m.stopped == probe::SearchStop::Done    ? "done"
+                             : m.stopped == probe::SearchStop::Bytes ? "bytes_cap"
+                                                                     : "time_cap"));
+    f_.memory_search.push_back(std::move(m));
+  }
+
+  // How much of our object the hub wrote, read on T1 from our own block when the task has not run (its body reads it
+  // otherwise).
+  void object_from_t1() {
+    const std::uint64_t at = s_.sys->task_object();
+    if (at == 0 || f_.object_size == 0) return;
+    std::vector<std::byte> obj(std::min<std::uint32_t>(f_.object_size, en::gal::kMaxCopyBytes));
+    if (!s_.sys->copier().copy(at + 8, obj).copied) return;
+    std::uint32_t last = 0, nonzero = 0;
+    for (std::size_t i = 0; i < obj.size(); ++i) {
+      if (obj[i] != std::byte{0}) {
+        last = static_cast<std::uint32_t>(i + 1);
+        ++nonzero;
+      }
+    }
+    f_.object_written = last;
+    f_.object_nonzero = nonzero;
+  }
+
   void report_loop(R1Body* body) {
     bool confirmed = false;
     called_mono_ = mono_ms() - (since_ms() - called_ms_);
+    std::size_t searches = 0;
     for (;;) {
+      if (body != nullptr && searches < 2 && since_ms() - called_ms_ >= (searches == 0 ? 2000u : 20000u)) {
+        if (searches == 0) read_table(false);
+        search_hub();
+        search_memory();
+        if (body->invocations() == 0) object_from_t1();
+        ++searches;
+      }
       if (body != nullptr) {
         update(*body);
         if (!confirmed && body->invocations() > 0) {
@@ -523,8 +924,25 @@ class Round {
     }
   }
 
+  // Within the report's 256 KiB: past it, the forms of the inner summaries that are not tail jumps are left out, then
+  // every inner summary's, then the wrapper's (each marked forms_dropped).
   void write_report() {
-    const auto text = en::shell::write_probe_report(f_);
+    auto text = probe::write_report(f_);
+    for (int pass = 0; !text && pass < 3 && f_.callee_code; ++pass) {
+      probe::Findings g = f_;
+      for (probe::InnerCallee& in : g.callee_inner) {
+        if ((pass >= 1 || !in.tail) && !in.code.forms.empty()) {
+          in.code.forms.clear();
+          in.code.forms_dropped = true;
+        }
+      }
+      if (pass == 2 && !g.callee_code->forms.empty()) {
+        g.callee_code->forms.clear();
+        g.callee_code->forms_dropped = true;
+      }
+      text = probe::write_report(g);
+      if (text) log(Line("r1").word("report", "forms_dropped").num("pass", pass), LogLevel::Warn);
+    }
     if (!text) {
       log(Line("r1").word("report", "refused").word("where", "probe_report"), LogLevel::Error);
       return;
@@ -534,7 +952,7 @@ class Round {
 
   Shell& s_;
   std::wstring folder_;
-  en::shell::ProbeFindings f_;
+  probe::Findings f_;
   derive::Leads leads_;
   std::unique_ptr<en::gal::ImageInfo> image_;
   std::unique_ptr<en::gal::ImageBytes> img_;
@@ -549,6 +967,15 @@ class Round {
   en::gal::RegisterAbi abi_;
   std::uint64_t called_ms_ = 0;
   std::uint64_t called_mono_ = 0;
+  probe::HubWalk before_;                         // the hub's reachable memory just before the call (WHY§235)
+  std::vector<probe::ChangedWord> first_changes_;  // the first diff's changes, for the second's steadiness
+  probe::HubWalk control_;                        // WHY§240: the same walk at the Mark, 2 s before
+  std::vector<probe::ChangedWord> control_changes_;  // the control diff's changes, for each later diff's in_control
+  std::uint64_t control_ms_ = 0;
+  std::uint64_t kept_ms_ = 0;
+  bool deeper_ = false;                           // the table's function summarised one level deeper
+  std::uint64_t vtable_ = 0;                      // our fake vtable's address, read back after the call
+  std::vector<std::uint64_t> thunks_;             // its slots'
 };
 
 }  // namespace

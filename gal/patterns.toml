@@ -1,0 +1,21 @@
+# The patterns the game access layer matches in the game's image (ARCH §6.2, §6.3). Each is cut by our own derivation
+# kit (eldennet-engine probe-exe, O89) from the owner's own executable, never taken from another project (O48), and has
+# its note in gal/derivations/<id>.md. A pattern whose `builds` list is empty has been confirmed in no build yet: it is
+# a lead until R1 and S0-A confirm it on the build it was derived from (ARCH §6.3 "Lead and confirmed").
+#
+# Held so far: the FD4 singleton idiom, from R0c. register_task and the AOB statics (GameDataMan, global_hinstance,
+# then GameMan and FieldArea) follow once R1 has found their slots and the next offline round cuts their patterns
+# (probe-exe --static), so a release build's discovery cannot run on this file yet.
+schema = 1
+
+[[pattern]]
+id = "fd4_idiom"
+kind = "idiom"
+section = ".text"
+# The head every inlined FD4 accessor shares: a load of the static, a test, a jump over the block that makes it, the
+# class object's address into rcx and the call to its getter. Register bytes and displacements are wildcards.
+bytes = "?? 8B ?? ?? ?? ?? ?? ?? 85 ?? 75 ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ??"
+expect_matches = [7151, 7151]     # R0c's hits in the first .text; R1's live derivation counts them again in memory
+path_suffix = "FD4Singleton.h"
+captures = { static = { at = 3, kind = "rip_rel32", insn_end = 7, section = ".data", align = 8 }, class = { at = 15, kind = "rip_rel32", insn_end = 19, section = ".data" }, getter = { at = 20, kind = "rip_rel32", insn_end = 24, section = ".text", function = true } }
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2", "ER01 \u00A74"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-16" }

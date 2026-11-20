@@ -46,6 +46,46 @@ TEST_CASE("watch block: Marks numbered from 1 in a ring of the newest 32") {
   CHECK(b.marks.mono_ms[8].load() == 9000);   // mark 9 is still there: no mark 41 yet
 }
 
+TEST_CASE("watch block: the Marks' ring changes hands once, the launcher's first, then EldenNet's") {
+  SUBCASE("the launcher holds its key: EldenNet asks, the launcher hands over") {
+    Block b{};
+    CHECK(mark_source(b.marks) == MarkSource::None);
+    launcher_holds(b.marks);
+    CHECK(mark_source(b.marks) == MarkSource::Launcher);
+    CHECK(add_mark(b.marks, 100) == 1);  // the launcher's Mark
+    CHECK_FALSE(eldennet_asks(b.marks));  // not yet EldenNet's: the launcher must let its key go
+    CHECK(mark_source(b.marks) == MarkSource::Asked);
+    CHECK_FALSE(eldennet_asks(b.marks));  // asking again changes nothing
+    CHECK(mark_source(b.marks) == MarkSource::Asked);
+    launcher_holds(b.marks);  // a late registration does not take it back
+    CHECK(mark_source(b.marks) == MarkSource::Asked);
+    launcher_hands_over(b.marks);
+    CHECK(mark_source(b.marks) == MarkSource::EldenNet);
+    CHECK(add_mark(b.marks, 200) == 2);  // EldenNet's, numbered on
+    CHECK_FALSE(eldennet_asks(b.marks));
+    launcher_holds(b.marks);
+    launcher_hands_over(b.marks);
+    CHECK(mark_source(b.marks) == MarkSource::EldenNet);
+  }
+  SUBCASE("nobody holds the key: the ring is EldenNet's at once") {
+    Block b{};
+    CHECK(eldennet_asks(b.marks));
+    CHECK(mark_source(b.marks) == MarkSource::EldenNet);
+    launcher_holds(b.marks);  // a launcher that registers later stays out
+    CHECK(mark_source(b.marks) == MarkSource::EldenNet);
+  }
+  SUBCASE("a hand-over nobody asked for changes nothing; an unknown value reads as none") {
+    Block b{};
+    launcher_holds(b.marks);
+    launcher_hands_over(b.marks);
+    CHECK(mark_source(b.marks) == MarkSource::Launcher);
+    b.marks.source.store(77);
+    CHECK(mark_source(b.marks) == MarkSource::None);
+  }
+  CHECK(std::string(to_string(MarkSource::EldenNet)) == "eldennet");
+  CHECK(std::string(to_string(MarkSource::Asked)) == "asked");
+}
+
 TEST_CASE("watch block: mono milliseconds from a counter, exact and without overflow") {
   CHECK(mono_ms(0, 10'000'000) == 0);
   CHECK(mono_ms(10'000'000, 10'000'000) == 1000);

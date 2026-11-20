@@ -12,11 +12,16 @@
 // - the init-only getter fallback and the one call into the game that registers our task (sys/register.cpp), both
 //   under SEH, from T1; the task object and its fake vtable of guarded no-ops, with the run slot our trampoline
 //   (sys/trampoline.cpp), made once and never freed (R14);
-// - the clock (QPC, µs) and the thread's id.
+// - the clock (QPC, µs) and the thread's id;
+// - in a probe build, the regions of the process as VirtualQuery describes them (R1's whole-memory search).
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "en/gal/sys.hpp"
+#if EN_PROBE
+#include "en/gal/probe.hpp"
+#endif
 
 namespace en::gal {
 
@@ -33,8 +38,9 @@ class NativeSys final : public SysLayer {
   [[nodiscard]] const ByteSource& image() const noexcept override;
   [[nodiscard]] proto::Expected<std::uint64_t, SysError> call_getter(std::uint64_t getter,
                                                                      std::uint64_t class_object) noexcept override;
-  [[nodiscard]] proto::Expected<void, SysError> register_task(std::uint64_t function, std::uint64_t instance,
-                                                              const TaskShape& shape, TaskBody& body) noexcept override;
+  [[nodiscard]] proto::Expected<std::uint64_t, SysError> register_task(std::uint64_t function, std::uint64_t instance,
+                                                                       const TaskShape& shape,
+                                                                       TaskBody& body) noexcept override;
   [[nodiscard]] Copier& copier() noexcept override;
   [[nodiscard]] StackRanges& stacks() noexcept override { return stacks_; }
   void note_own_stack() noexcept override;
@@ -57,6 +63,11 @@ class NativeSys final : public SysLayer {
   std::size_t rescan_stacks() noexcept;
   // An address that faults when read, for the probe's fault injection: a page reserved with no access, never freed.
   [[nodiscard]] std::uint64_t no_access_page() noexcept;
+#if EN_PROBE
+  // R1's whole-memory search (WHY§227): the region holding `at`, as VirtualQuery describes it (nothing is read there),
+  // or nothing past user space.
+  [[nodiscard]] std::optional<probe::MemoryRegion> region_at(std::uint64_t at) const noexcept;
+#endif
 
  private:
   struct Impl;

@@ -205,7 +205,7 @@ proto::Expected<void, SysError> install_task(SysLayer& sys, const Discovery& dis
   const auto& task = discovery.layout().task();
   const auto function = discovery.address(roles::Item::RegisterTask);
   const auto hub_static = discovery.address(roles::Item::TaskHub);
-  if (!task || !function || !hub_static) return proto::Unexpected{SysError::BadShape};
+  if (!task || task->partial || !function || !hub_static) return proto::Unexpected{SysError::BadShape};
   // The hub's instance, from its static: a read of the image's own data section, on T1 (ARCH §1.2).
   std::array<std::byte, 8> bytes{};
   const std::uint64_t rva = *hub_static - discovery.module_base();
@@ -214,7 +214,9 @@ proto::Expected<void, SysError> install_task(SysLayer& sys, const Discovery& dis
   std::memcpy(&instance, bytes.data(), sizeof instance);
   if (instance == 0) return proto::Unexpected{SysError::Unreadable};
   const TaskShape shape{task->vtable_slots, task->run_slot, task->object_size, task->group_index, task->register_abi};
-  return sys.register_task(*function, instance, shape, body);
+  const auto called = sys.register_task(*function, instance, shape, body);  // what it answers is R1's alone
+  if (!called) return proto::Unexpected{called.error()};
+  return {};
 }
 
 }  // namespace en::gal

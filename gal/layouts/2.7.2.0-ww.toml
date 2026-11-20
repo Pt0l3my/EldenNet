@@ -1,0 +1,18 @@
+# The layout of 2.7.2.0 WW (ARCH §6.3), a lead file. It holds only what the derivation's offline round has given: the
+# task group's index. Everything else the layout will hold (the registration's argument registers, the task object's
+# shape, the classes, fields, enums, params and self-test ids) is the in-game round's to find (R1, O89), and is left
+# out rather than guessed. A release build refuses this file (every entry a lead), and discovery never registers with
+# a [task] that holds only its group, so only R1, in a probe build, reads it: its index is one of the checks before its
+# one call into the game.
+schema = 1
+build = "2.7.2.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/2026-11-16-r0c.md"
+
+# R0c (2026-11-16): the group's name is found once in the image, as UTF-16, and one pointer to it, which lies in a table
+# of 168 entries of 32 bytes in .rdata, each with a pointer to a UTF-16 name 16 bytes from the entry's start; the
+# group's entry is the 111th (index 110 from 0). No entry holds a field with its own index. R1 reads the table again as
+# loaded and must find the same index before it calls; the first tick then checks the name (ARCH §6.3).
+[task]
+group = { name = "ChrIns_PostPhysics", index = 110 }
+status = "lead"

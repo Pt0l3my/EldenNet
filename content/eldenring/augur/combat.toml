@@ -1,0 +1,104 @@
+# Augur's combat rules for v0.1 (ARCH §8.5 to §8.7; DESIGN §5.3, §6.5): our own, written from the design's specs.
+# Engagement is the Tarnished's against hostile characters; NPC pairs, FoeKilled and the status events wait for S7 and
+# S8 (v0.4), KilledNear and IdleNear for personas and cards.
+
+# Struck: every processed HP drop (the window's base resets on each fire); att from last_hit_by (the Tarnished's, or,
+# for a hit on the Tarnished, the attacker its own last_hit_by names); merged per pair over 2.5 s; hard at ≥ 30% of
+# the maximum within 3 s (K hit:att:vic, 10 s, 0.9). The window is 1 s rather than §8.5's 300 ms, so a hit across a
+# dropped snapshot still fires once.
+[[rule]]
+id = "struck"
+emits = "Struck"
+subjects = { kinds = ["generic", "persona", "player"], alive = true }
+signal = "hp_frac"
+detect = { kind = "drop_over_window", fraction = 0.001, window_ms = 1000 }
+payload = "struck"
+class = "K"
+key = "hit:{att}:{subject}"
+ttl_s = 10
+merge_ms = 2500
+confidence = 0.9
+audience = { radius = "witness" }
+priority = 20
+
+# LowHp: below 25%, re-armed above 35% (K, 20 s, 0.95).
+[[rule]]
+id = "low_hp"
+emits = "LowHp"
+subjects = { kinds = ["generic", "persona"], alive = true }
+signal = "hp_frac"
+detect = { kind = "crosses_below", value = 0.25, rearm_above = 0.35 }
+class = "K"
+key = "low_hp:{subject}"
+ttl_s = 20
+confidence = 0.95
+audience = { radius = "witness" }
+priority = 30
+
+# Healed: + ≥ 20% of the maximum within 1 s, in combat, any combatant (T, 0.8).
+[[rule]]
+id = "healed"
+emits = "Healed"
+subjects = { kinds = ["generic", "persona", "player"], alive = true, in_combat = true }
+signal = "hp_frac"
+detect = { kind = "rise_over_window", fraction = 0.2, window_ms = 1000 }
+class = "T"
+confidence = 0.8
+audience = { radius = "witness" }
+priority = 40
+
+# Engaged / Disengaged: the engagement machine (§8.7), the confidence its branch's: Hit 0.9, LockClosing and Near 0.6,
+# LockOnly 0.3 (K eng:a:b, 30 s).
+[[rule]]
+id = "engaged"
+emits = "Engaged"
+subjects = { kinds = ["generic", "persona"] }
+signal = "engaged"
+detect = { kind = "engagement", on = "engaged" }
+class = "K"
+key = "eng:{subject}:{opponent}"
+ttl_s = 30
+confidence = 0.9
+audience = { radius = "combat" }
+priority = 15
+
+[[rule]]
+id = "disengaged"
+emits = "Disengaged"
+subjects = { kinds = ["generic", "persona"] }
+signal = "engaged"
+detect = { kind = "engagement", on = "disengaged" }
+class = "K"
+key = "eng:{subject}:{opponent}"
+ttl_s = 30
+confidence = 0.6
+audience = { radius = "combat" }
+priority = 25
+
+# AllyDied: the death of a character with live witnesses on its side within 20 m (K, 10 s, 1.0).
+[[rule]]
+id = "ally_died"
+emits = "AllyDied"
+subjects = { kinds = ["generic", "persona"] }
+signal = "dead"
+detect = { kind = "rising_edge" }
+class = "K"
+key = "ally_died:{subject}"
+ttl_s = 10
+confidence = 1.0
+audience = { radius = "death" }
+priority = 10
+
+# CritLanded: the Tarnished's throw 3 while the character's is 4, rising (K, 10 s, 0.9).
+[[rule]]
+id = "crit_landed"
+emits = "CritLanded"
+subjects = { kinds = ["generic", "persona"] }
+signal = "crit_by_player"
+detect = { kind = "rising_edge" }
+class = "K"
+key = "crit:{subject}"
+ttl_s = 10
+confidence = 0.9
+audience = { radius = "witness" }
+priority = 20

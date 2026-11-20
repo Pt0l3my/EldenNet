@@ -11,13 +11,17 @@ It is built in two parts (the first in-game build, part 7):
 - `en_launcher_core`, portable and tested on Linux: Steam's KeyValues reader and the game's discovery (`vdf`,
   `steam`), the save backups (`backup`, with `blake3`), the appid file and the launcher's record of it (`appid`),
   `launcher.toml` (`config`), the command line (`options`), the texts (`texts`), the executables' facts through
-  en-gal's PE reader (`exe`), and the watcher's records, the spikes' tally and the pre-flight's order (`record`).
+  en-gal's PE reader (`exe`), GraceUI's pre-flight (`graceui`, with our own SHA-256, `sha256`), and the watcher's
+  records, the spikes' tally and the pre-flight's order (`record`).
 - `eldennet-launcher` (`src/win/`), the Windows builds' program: processes, injection, the watch block's mapping,
   the watch loop with the dev console and the Mark, the dialogs and the flow.
 
-It depends on en-gal's offline part (the PE reader and `builds.toml`'s gate; ARCH §2.3's dotted edge), and through it
-on en-proto, whose watch block (`watch.hpp`) it shares with EldenNet in the game, and whose `ffi_guard` starts its
-entries (R3: `wWinMain` and its window-enumeration callback, component `Launcher`).
+It depends on en-gal's offline part (the PE reader, `builds.toml`'s gate and R1's report vocabularies, `derive.hpp`'s
+and `probe_report.hpp`'s; ARCH §2.3's dotted edge), and through it on en-proto, whose watch block (`watch.hpp`) it
+shares with EldenNet in the game, and whose `ffi_guard` starts its entries (R3: `wWinMain` and its window-enumeration
+callback, component `Launcher`). Never on en-core or eldennet's en_shell: `en_link_rule` (`cmake/link_rules.cmake`)
+stops the configuration if `en_launcher_core` or `eldennet-launcher` reaches any target of the build but en-gal's
+offline part, en-proto and the header-only libraries, and names the chain that reaches it.
 
 ## The command line
 
@@ -28,14 +32,15 @@ eldennet-launcher [options] [-- game arguments]
 development and tests:
   --inject-at suspended|window|title  --title-wait S  --also PATH
   --appid-method file|env  --remove-after window|exit|never
-  --console  --spike s0a|s0b|s0c|s0d|s0d-crash [--runs N] [--run-timeout S]
+  --console  --probe  --spike s0a|s0b|s0c|s0d|s0d-crash [--runs N] [--run-timeout S]
   --no-dialogs [--yes]  --no-steam-check  --gal DIR  --steam DIR  --appdata DIR
 ```
 
 `--help` prints the list. Arguments that are no option (Proton's forwarded `%command%`, ARCH §4.9) are set aside and
 counted; everything after `--` goes to the game (the tests' fake game takes its options so). Exit codes: 0 done (the
 game started and ended, whatever its own exit), 1 a spike's runs did not all pass its rule, 2 a usage error, 3 nothing
-could be done (no AppData folder, nothing to watch), and 11 to 21 the errors E01 to E11 (10 + the error's number).
+could be done (no AppData folder, nothing to watch), and 11 to 21 the errors E01 to E11 (10 + the error's number);
+E12, GraceUI's pre-flight, is told and never ends the launcher.
 
 The development options are built into every launcher and listed apart: they change nothing unless given. `--also`
 loads a DLL that is not ours (a stand-in for another mod, such as the tests' `vehprobe.dll`), before EldenNet's.
@@ -56,7 +61,18 @@ loads a DLL that is not ours (a stand-in for another mod, such as the tests' `ve
 6. **Pre-flight** (ARCH §4.3), in this order: Steam running (`steam.exe`, or the registry's live `ActiveProcess`), no
    `start_protected_game.exe`, the game not running, and the DLL ours (`--dll`, else `eldennet.dll` beside the
    launcher: its version resource's ProductName reads `EldenNet`): E02, E04, E03, E08. Other proxy DLLs beside the
-   game (`dinput8.dll`, `winhttp.dll`, `dxgi.dll`) are named and never block. GraceUI's pre-flight comes with its host.
+   game (`dinput8.dll`, `winhttp.dll`, `dxgi.dll`) are named and never block. Then **GraceUI** (ARCH §4.3, GraceUI D83,
+   D88), when EldenNet is loaded: `GraceUI\graceui.toml` beside the game readable, as GraceUI's DESIGN §2.7 has it and
+   GraceUI's own `tools/release/manifest.py` writes it in every GraceUI build's folder (D165): `graceui`, `abi`, and
+   `[files]` with each file's size and SHA-256 are read; `protocol`, `caps` and `released` are GraceUI's, accepted
+   whatever they hold and never a failure. Every listed file must match (in the order of their names; a name outside the
+   folder refuses the file), its ABI major 1 and its version at least EldenNet's floor, 0.1.0 (en-proto's
+   `graceui_pin.hpp`). The log says `preflight graceui=ok|no_folder|no_manifest|unreadable|
+   file_missing|size_differs|hash_differs|abi_major|too_old version=… abi=… files=… checked=…`. What fails is told in
+   **E12**, in E08's manner (what is missing or damaged, by its name inside GraceUI's folder, never a path, and what to
+   do), and the game starts all the same: EldenNet runs with nothing shown in game (ARCH §10.3). `--probe` and the
+   spikes, headless by design (O90), only log it. Installing the GraceUI release EldenNet carries waits until it carries
+   one (GraceUI D53).
 7. **Save backups** (ARCH §4.4): each `%APPDATA%\EldenRing\<17 digits>\` folder's `ER0000.sl2` and `.bak`, to
    `%APPDATA%\EldenNet\save-backups\<id>\<YYYYMMDD-HHMMSS>\` (each copied to `.tmp`, its size and BLAKE3 hash checked
    against the source, then renamed), with a `manifest.toml` of sizes and hashes; no new backup when every file equals
@@ -102,7 +118,32 @@ the level, the gate's flags, discovery's items and passes, snapshots, faults, gr
 Marks), on the console the launcher was started from or one of its own, and registers **Pause** as a system hotkey
 (`RegisterHotKey`, no hook). Each press is a Mark: numbered from 1, stamped in mono milliseconds (QPC, the snapshots'
 own clock) into the block's ring of 32, where EldenNet's recorder takes it into the recording, and kept in the
-session's record. It is retired when GraceUI's Mark arrives.
+session's record.
+
+**GraceUI's Mark** (part 12) is EldenNet's own: a GraceUI hotkey on the same key, Pause, which EldenNet registers when
+the console holds Pause. EldenNet then asks for the ring (the block's `marks.source`, en-proto's `MarkSource`); the
+launcher lets its key go, takes the presses already queued as its last, and hands the ring over
+(`mark hotkey=pause released=1 source=eldennet`). From then on EldenNet alone stamps Marks, numbered on in the same
+ring, and the launcher reads each from the ring into the session's record (`mark n=… mono_ms=… source=eldennet`). One
+writer at a time, and the owner presses Pause either way. EldenNet asks only once its hotkey is bound: when another
+mod's GraceUI hotkey took Pause first, EldenNet's registers unbound (GraceUI D164) and never asks. Then, as without
+GraceUI, nothing asks, and the launcher's Pause stays the Mark, as R1's `--probe` uses it.
+
+## R1 with --probe (O89, the owner's in-game round)
+
+`--probe` runs the derivation's in-game round with the probe build of eldennet.dll (src/eldennet/README.md): it brings
+`--console` (the Mark), and goes with a start only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The
+save backup is made first, and with `--probe` a failed one ends the launcher (E07, with no "continue without a
+backup"). Before it loads anything the launcher writes R1 into the watch block's `control.probe`, and EldenNet answers
+there: accepted, or refused (not a probe build, or turned off), when it stops and calls nothing.
+
+The console then tells each step once, in plain words (`EldenNet R1: …`, on the console only), beside the log's
+`r1 step=<word>` (`texts.hpp`'s `R1Step`): `asked` (stay at the title, load no save), `reading` (the live derivation
+and its checks), `press_mark` (the checks passed: press Pause at the title with no save loaded), `called`,
+`task_confirmed` (the game runs our task: load the save and play), or `refused`, `not_called` (a check failed),
+`call_failed`, `no_confirmation` (30 s after the call). When the game ends, the launcher lints both reports in
+`%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses (`r1 report=<name>
+lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
 
 ## The S0 spikes (DESIGN §16.1, the plan's §1.2)
 
@@ -127,9 +168,10 @@ a user name or an id.
 
 ## What waits
 
-GraceUI's pre-flight and its install (ARCH §4.3, with GraceUI's host), plugins (§4.12, from 1.1), the dashboard off
+GraceUI's install (ARCH §4.3: the release EldenNet carries, once it carries one), plugins (§4.12, from 1.1), the dashboard off
 game (§4.13), Proton (§4.9: E11's text is here, raised once S0-C settles the recipe), `--selftest` with the fake game
-for the owner's smoke run (part 10), EldenNet's last log lines in a record (with the DLL, part 6), and signing.
+for the owner's smoke run (the spike package's, docs/design/spikes/README.md), EldenNet's last log lines in a record
+(with the DLL, part 6), and signing.
 
 ## Tests
 
@@ -140,9 +182,14 @@ manifests that name a path, a missing executable, no list; `--game` as a file or
 folders (the manifest's hashes, no duplicate, a changed or vanished file, two in one second, the rotation of 3 over 6,
 folders that are no backup left alone, nothing under the saves touched, a backup folder that cannot be made); the
 appid file (created, used, someone else's, removal only of ours and only while it holds the id) and the state file's
-round trip; `launcher.toml`; the command line and its refusals; the texts and exit codes; records, their JSON and the
+round trip; `launcher.toml`; the command line and its refusals (`--probe`'s among them); R1's steps on the console
+from EldenNet's answer and T1's state; the texts and exit codes; records, their JSON and the
 next start's explanation; the spikes' tally and rules; the pre-flight's order; the gate and the DLL check on invented
-images (en-gal's FakeImage).
+images (en-gal's FakeImage); SHA-256 against NIST's examples (whole, in pieces, every length around the padding's
+edges, a file); GraceUI's pre-flight on invented GraceUI folders (every file matching, a newer minor, and each way it
+fails), a `graceui.toml` that GraceUI's own `manifest.py` wrote for an invented folder of ours
+(`tests/graceui-manifest.toml`, compiled in byte for byte) and D165's keys with other values, and `graceui.toml`'s
+refusals; E12's text.
 
 End to end, the fake game's harness runs the launcher under Wine (`ctest -R fakegame.launcher`): in both builds, a
 vanilla start (the appid file made and removed at the window, the last crash explained), a crash with no DLL, the env
@@ -151,4 +198,7 @@ E02, E05, E08 and a usage error; with clang-cl and galtest.dll as the DLL, injec
 the title (Ready, the dev console's status, en-core's lifecycle and gate in game, a Mark pressed in the fake game and
 seen in the block), a crash on the game thread recorded through EldenNet's filter, a game that replaces the filter, a
 stand-in crash reporter loaded with `--also`, the S0-A, S0-D crash and S0-C loops, and the watcher started by
-EldenNet under another loader.
+EldenNet under another loader; and with eldennet.dll, R1 as the owner runs it (`--probe`) and `--probe` refused by the
+release DLL; and, with the GraceUI folder of a test build of GraceUI installed beside the fake game, the pre-flight
+passing on GraceUI's own `graceui.toml`, the Mark handed over to GraceUI's hotkey (`fakegame.launcher-eldennet-graceui`),
+and the launcher keeping Pause when another mod holds it in GraceUI (`fakegame.launcher-eldennet-graceui-unbound`).

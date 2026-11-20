@@ -5,7 +5,7 @@
 //
 // Threads (ARCH §1.2): T1 init (boot.cpp), T2 the game thread (the task, through en-gal's trampoline), T6 the core
 // (shell.cpp), T10 the watcher (watcher.cpp: the anti-cheat and ersc.dll checks every 60 s) and T11 the log writer
-// (logger.cpp). No other thread is made, and GraceUI's connect is off in this build (overlay.connect).
+// (logger.cpp). No other thread is made. T1 connects to GraceUI (overlay.cpp, en-overlay) and T6 alone calls it after.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -36,6 +36,11 @@
 namespace eldennet {
 
 inline constexpr std::array<std::uint16_t, 3> kVersion = {0, 1, 0};
+#ifdef EN_DLL_VERSION_LABEL
+inline constexpr std::string_view kVersionLabel = EN_DLL_VERSION_LABEL;  // EN_VERSION_LABEL: "0.1.0-spike.1"
+#else
+inline constexpr std::string_view kVersionLabel = "dev";
+#endif
 #if EN_PROBE
 inline constexpr bool kProbeBuild = true;
 #else
@@ -92,12 +97,32 @@ void game_thread(std::uint32_t tid) noexcept;
 void init_thread(std::uint32_t tid) noexcept;
 [[nodiscard]] en::proto::watch::Spike spike() noexcept;
 [[nodiscard]] bool crash_requested() noexcept;
+// The launcher's --probe: what it asked (R1, before it loaded us), and EldenNet's answer in the same field.
+[[nodiscard]] en::proto::watch::ProbeRequest probe_request() noexcept;
+void probe_answer(en::proto::watch::ProbeRequest answer) noexcept;
+// The Marks: the block's ring, or EldenNet's own with no block. The launcher's Pause stamps them until EldenNet's own
+// Mark, a GraceUI hotkey on the same key, takes the ring over (watch.hpp's MarkSource).
 [[nodiscard]] std::uint32_t marks() noexcept;
 [[nodiscard]] std::uint64_t mark_ms(std::uint32_t n) noexcept;  // mark n (from 1), while the ring holds it
+[[nodiscard]] en::proto::watch::MarkSource mark_source() noexcept;
+// EldenNet's GraceUI Mark is registered: asks for the ring; true once it is EldenNet's (at once when nobody held the
+// key; after the launcher's hand-over otherwise).
+bool take_marks() noexcept;
+// A Mark of EldenNet's own: its number, or 0 while the ring is not EldenNet's.
+std::uint32_t add_own_mark(std::uint64_t at_ms) noexcept;
+// What T1 last reported (kept with no block too).
+[[nodiscard]] en::proto::watch::InitState init_state() noexcept;
+struct Items {
+  std::uint32_t resolved = 0;
+  std::uint32_t total = 0;
+  std::uint32_t passes = 0;
+};
+[[nodiscard]] Items items_seen() noexcept;
 }  // namespace block
 
 // ---- The task's channels (shell.cpp): C1 to C5, and the core thread ----
 class Io;
+struct OverlayLink;  // overlay.cpp: en-overlay's connection and what T6 last showed through it
 struct Shell {
   en::shell::Settings settings;
   Paths paths;
@@ -111,7 +136,9 @@ struct Shell {
   std::atomic<bool> ersc{false};
   en::shell::SpscRing<en::core::BootBanner, 4> banners;  // T1 → T6
   std::array<std::uint16_t, 4> game_version{};
+  bool game_version_known = false;  // from the gate, or the fingerprint of a build the gate refused
   std::string_view region = "none";
+  std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -123,6 +150,17 @@ en::gal::TaskIo& task_io(Io& io) noexcept;
 bool start_core(Shell& s) noexcept;     // T6
 bool start_watcher_thread(Shell& s) noexcept;  // T10
 void push_banner(Shell& s, en::core::BannerReason reason, std::string_view detail) noexcept;
+
+// ---- GraceUI (overlay.cpp; en-overlay): the connect on T1, then each wake of T6 ----
+// Connect or ConnectB (ARCH §3.2): find GraceUI, connect, and, connected, publish the link for T6. One log line; a
+// failed connect leaves EldenNet headless (ARCH §10.3). `banner_path`: ConnectB, after a refused gate or anti-cheat.
+void connect_overlay(Shell& s, bool banner_path) noexcept;
+// T6, after each step: the banner and the badge as notices, the world-state claims, the Mark's hotkey and its
+// presses, and the F11 view. `latest` is the newest snapshot the core judged, or null before the first.
+void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest, std::uint64_t tripped,
+                  std::uint64_t now) noexcept;
+// T6: one of the core's changes, by its words (static ones: an enum's name), for the view's list.
+void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept;
 
 // ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
 unsigned long init_main(void* module) noexcept;

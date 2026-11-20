@@ -301,3 +301,51 @@ TEST_CASE("the task, the provenance and the self-test ids keep to their forms") 
   CHECK(has_error(refusal(std::string(kSample) + "\n[extra]\nx = 1\n"), "layout.toml", "has an unknown key \"extra\""));
   CHECK(has_error(refusal("not toml\n"), "layout.toml", "is not valid TOML"));
 }
+
+TEST_CASE("a lead [task] may hold only its group, which discovery never registers with; a confirmed one holds all") {
+  const std::string_view task =
+      "[task]\ngroup = { name = \"Invented_Group\", index = 3 }\nregister_abi = { task = \"rdx\", instance = \"r9\", "
+      "group = \"rcx\" }\nvtable_slots = 4\nrun_slot = 2\nobject_size = 0x40\nstatus = \"confirmed\"\n";
+  const std::string group_only = "[task]\ngroup = { name = \"Invented_Group\", index = 3 }\nstatus = \"lead\"\n";
+  const auto dev = load_layout(gated(), changed(task, group_only), kNeeds, LayoutMode::Dev);
+  REQUIRE(dev.has_value());
+  REQUIRE(dev->task().has_value());
+  CHECK(dev->task()->partial);
+  CHECK(dev->task()->group_index == 3);
+  CHECK(dev->task()->group_name == "Invented_Group");
+  CHECK(dev->has_leads());
+  // A release build refuses it as it refuses every lead.
+  CHECK(has_error(refusal(changed(task, group_only)), "layout.toml: task", "is a lead"));
+  // Without a status it is a lead too; a full lead is not partial.
+  const auto unstated = load_layout(gated(), changed(task, "[task]\ngroup = { name = \"Invented_Group\", index = 3 }\n"),
+                                    kNeeds, LayoutMode::Dev);
+  REQUIRE(unstated.has_value());
+  CHECK(unstated->task()->partial);
+  const auto full = load_layout(gated(), changed("object_size = 0x40\nstatus = \"confirmed\"", "object_size = 0x40"),
+                                kNeeds, LayoutMode::Dev);
+  REQUIRE(full.has_value());
+  CHECK_FALSE(full->task()->partial);
+  // Confirmed, or a lead with any of R1's keys, needs them all.
+  CHECK(has_error(refusal(changed(task, "[task]\ngroup = { name = \"Invented_Group\", index = 3 }\nstatus = "
+                                        "\"confirmed\"\n")),
+                  "layout.toml: task.register_abi", "is missing"));
+  CHECK(has_error(refusal(changed(task, "[task]\ngroup = { name = \"Invented_Group\", index = 3 }\nvtable_slots = 4\n"),
+                          LayoutMode::Dev),
+                  "layout.toml: task.object_size", "is missing"));
+  // The group itself is always required.
+  CHECK(has_error(refusal(changed(task, "[task]\nstatus = \"lead\"\n"), LayoutMode::Dev), "layout.toml: task.group",
+                  "is missing"));
+}
+
+TEST_CASE("check_layout makes load_layout's checks from builds.toml's entry, without the gate") {
+  BuildEntry entry;
+  entry.key = "9.8.7.0-ww";
+  CHECK(check_layout(entry, kSample, kNeeds, LayoutMode::Release).empty());
+  const SchemaErrors other = check_layout(entry, changed("build = \"9.8.7.0-ww\"", "build = \"9.8.7.1-jp\""), kNeeds,
+                                          LayoutMode::Release, "layouts/a.toml");
+  CHECK(has_error(other, "layouts/a.toml: build", "is not the build the gate matched"));
+  const std::string lead =
+      changed("[class.Inner]\ncopy_size = 0x20\nstatus = \"confirmed\"", "[class.Inner]\ncopy_size = 0x20");
+  CHECK(check_layout(entry, lead, kNeeds, LayoutMode::Dev).empty());
+  CHECK_FALSE(check_layout(entry, lead, kNeeds, LayoutMode::Release).empty());
+}

@@ -1,0 +1,76 @@
+# Augur's lifecycle rules for v0.1 (ARCH §8.6, §9): one rule a fact of the Lifecycle source, which reads what en-core's
+# lifecycle slice changed on the step. P for PlaythroughReady (JourneyChanged is world.toml's), T otherwise; no
+# audience. Our own, written from the design's specs.
+
+[[rule]]
+id = "data_ready"
+emits = "DataReady"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "data_ready" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "playthrough_ready"
+emits = "PlaythroughReady"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "playthrough_ready" }
+class = "P"
+key = "playthrough:{slot}"
+priority = 0
+
+[[rule]]
+id = "loading_started"
+emits = "LoadingStarted"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "loading_started" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "loading_ended"
+emits = "LoadingEnded"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "loading_ended" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "title_reached"
+emits = "TitleReached"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "title_reached" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "gate_changed"
+emits = "GateChanged"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "gate_changed" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "group_tripped"
+emits = "GroupTripped"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "group_tripped" }
+class = "T"
+priority = 0
+
+[[rule]]
+id = "ladder_changed"
+emits = "LadderChanged"
+subjects = { kinds = ["world"] }
+signal = "lifecycle"
+detect = { kind = "fact", value = "ladder_changed" }
+class = "T"
+priority = 0

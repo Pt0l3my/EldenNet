@@ -7,8 +7,10 @@ endif()
 enable_language(RC)
 
 add_executable(fakegame WIN32
-  asm.cpp describe.cpp faults.cpp hub.cpp main.cpp selftest.cpp world.cpp fakegame.rc)
-target_link_libraries(fakegame PRIVATE en_third_party user32 gdi32 shell32 winmm version)
+  asm.cpp describe.cpp faults.cpp hub.cpp main.cpp present.cpp selftest.cpp world.cpp fakegame.rc)
+# d3d12.dll and dxgi.dll are loaded by name with --d3d12 alone (present.cpp), so every other case runs without them;
+# graceui_test.h (third_party/graceui-sys) for GraceUI's test exports, read through GetProcAddress, never linked.
+target_link_libraries(fakegame PRIVATE en_third_party en_graceui_sys user32 gdi32 shell32 winmm version)
 
 # --- The harness: CTest runs each case of harness.py (its CASES) under Wine on Xvfb, or directly on Windows ------------
 find_package(Python3 COMPONENTS Interpreter)
@@ -71,6 +73,21 @@ if(TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
     list(APPEND _en_have eldennet_probe)
     list(APPEND _en_set --set eldennet_probe=$<TARGET_FILE:eldennet_probe>)
   endif()
+endif()
+
+# GraceUI with EldenNet (part 12): the GraceUI folder of a test build of GraceUI (GRACEUI_TEST_EXPORTS), built from
+# GraceUI's own repository as its BUILD.md says, which lays it out beside bin/ (graceui.dll, LICENSE.txt, NOTICE.txt
+# and the graceui.toml listing them; GraceUI D165). A case installs that folder as it is in the fake game's folder;
+# the fake game presents on Direct3D 12 and reads GraceUI's test exports.
+set(EN_GRACEUI_DIR "" CACHE PATH "The GraceUI folder of a GraceUI test build (graceui.dll with its test exports and \
+graceui.toml)")
+if(EN_GRACEUI_DIR AND EXISTS ${EN_GRACEUI_DIR}/graceui.dll AND EXISTS ${EN_GRACEUI_DIR}/graceui.toml
+   AND TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
+  list(APPEND _en_have graceui)
+  list(APPEND _en_set --set graceui=${EN_GRACEUI_DIR}/graceui.dll)
+elseif(EN_GRACEUI_DIR)
+  message(STATUS "The GraceUI cases are left out: EN_GRACEUI_DIR holds no graceui.dll and graceui.toml (GraceUI's "
+                 "GraceUI folder, beside its bin), or the DLL is not built")
 endif()
 
 set(_en_harness ${CMAKE_CURRENT_SOURCE_DIR}/harness.py)

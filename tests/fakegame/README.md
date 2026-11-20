@@ -16,7 +16,8 @@ offset, enum value and number is invented here, shaped only by what the design d
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
 | The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
 | The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which R1's census follows to the tasks' classes and their base (part 6) |
-| `fg_register_task`, found by an interior pattern at entry + 7 inside a `.pdata` function, with our own ABI: **rcx the task, rdx the hub instance, r8d the group**; the program's four own call sites load the hub from its static into rdx | `register_task` and its `register_abi` (ARCH §6.2, §6.4). Bad arguments fault in the caller's thread; `--register fault` faults on request, `--register ignore` never runs the task |
+| `fg_register_task`, found by an interior pattern at entry + 7 inside a `.pdata` function, with our own ABI: **rcx the task, rdx the hub instance, r8d the group**; the program's four own call sites load the hub from its static into rdx. Since spike.8 a wrapper of the shape R1 run 7 found (WHY§240), answering 1 when the task was kept and 0 when not: it keeps its arguments in callee-saved registers, loads its own singleton (the rack, `FG::TaskRack`) from `fg_static_rack` and tests it, and while it is null makes it with two calls (`fg_rack_alloc`, `fg_rack_build`: a shelf for each of the hub's groups) and stores it there; then, where both ways meet, it tail-jumps to `fg_register_rack` with the rack in rcx, the group in edx, the task in r8 and the hub it was given in r9. That tail function, a leaf with no unwind data, answers 0 past `FG_RACK_BOUND` or where the rack's shelf for the group (at `FG_RACK_SHELVES_OFF` + group*8) is null, and else jumps through the shelf's vtable (in .rdata) to its register slot (`FG_SHELF_REGISTER_OFF`), `fg_shelf_register`, which calls `fg_register_keep` with the hub in rcx, the group in edx and **the task in r8**. `fg_register_keep` compares the group with a fixed bound (an immediate, `FG_GROUP_BOUND`) and the hub's count, tests the task for null, keeps it and its vtable in the hub's `last_task` and `last_vtable` fields, and queues it | `register_task` and its `register_abi` (ARCH §6.2, §6.4), and what R1's callee summary must read from its code (spike.6), from its callees with the arguments followed in (spike.7), and from its tail function's table (spike.8). Bad arguments fault in the caller's thread; `--register fault` faults on request, `--register ignore` never runs the task; `--table-gap` leaves the stand-in group without a shelf, so the registration answers 0 and the task never runs |
+| The hub's table of each active task's run slot (`TaskLoomFields.run_fns`, +0x40) | A hub caching the function it calls every frame: R1's whole-memory search finds our run slot there, and its diff the new entry (spike.7) |
 | A task object: a vtable pointer, then 0x18 bytes the hub writes (group, state, hub, a run count), so `object_size` is 0x18; three slots: 0 attach (once, on the game thread), **1 run (`self`, `FrameInfo*`) every frame**, 2 query (every 64th frame) | The task object's shape the derivation must find (`vtable_slots`, `run_slot`, `object_size`) |
 | Seventeen accessors with the FD4 shape (`mov rbx,[rip+static]; test; jnz; lea rcx,[rip+class]; call getter; mov rdx,rax; mov r8d,site; lea rcx,[rip+path]; call log`), the path ending in `FD4Singleton.h`, the class object's name at +0x18 | The FD4 singleton idiom (ARCH §6.2): eleven names (`TaskLoom` for CSTask's role, `ActorRoster` for WorldChrMan's, and so on; `--describe` maps each), two of them with a second site, and three decoys: `Duplicata` (two statics: ambiguous), `Strayling` (path ends in `.hpp`), `Rockbound` (its static is in `.rdata`) |
 | R0c's variants: five more sites of five of those names, with the same head but the static in rdi, r12, rsi or rbx, and the path loaded after a format string, into rdx right after the getter's call, through a pointer to it, by its absolute address, or into rsi before the head; and `Mimicry`, a decoy whose "static" is read through rsi, which only the idiom's wildcards match | The ways a game's compiler may load the path (R0's review), so that the idiom cut from them has the registers' bytes wildcarded (as the game's was) and no path capture, and the finder must find each path by its text; `--describe` gives each site's path load |
@@ -32,7 +33,12 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--handled-every` with `--handled-kind seh\|cxx` | Exceptions a game raises and handles itself, which a vectored handler sees first |
 | `--load [boot\|window\|ready\|title\|world:]PATH` | A loader that loads a DLL at one moment (ARCH §3.3's late load) |
 | `--selftest-task` (`--selftest-abi`, `--selftest-object-size`, `--selftest-group`) | EldenNet's T1 and trampoline, in miniature: a task registered from another thread, its slots counted |
-| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F | The player pressing the launcher's Mark, a system hotkey (O90) |
+| `--table-gap`: the registration's rack made with no shelf for the stand-in group (`--describe` gives `register_rack.gap`) | A game whose registration answers 0 and keeps nothing for the group, as R1 run 7 read it (spike.8) |
+| `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F, and with `--press-pause-every N` again every N frames | The player pressing the launcher's Mark, a system hotkey (O90), until it is taken |
+| `--d3d12`: a Direct3D 12 device, queue and flip-model swap chain (960 by 540) on the window, cleared and presented every frame; `d3d12.dll` and `dxgi.dll` loaded by name with this option alone | A game's swap chain, which GraceUI's overlay binds and draws on (part 12) |
+| `--press-f11-at F,F…`: F11 pressed and released into the window at each frame listed, the cursor in it and the window in front and holding the focus (as GraceUI's harness found Wine needs); with `--d3d12`, `--press-pause-at` presses Pause the same way | The player pressing GraceUI's hotkeys: F11 for EldenNet's debug view, Pause for its Mark |
+| `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b`: at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; and, with `--d3d12`, the pixels within 3 of the colour in the rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
+| `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -110,7 +116,53 @@ R1 in the probe build (`probe/eldennet.dll`, the leads' task base replaced by a 
 reports lint clean, every check confirmed, one call at the Mark with the registers and group `--describe` gives, the
 slot counts (attach once, run every frame, query every 64th), the bytes of our object the hub wrote, the census's base
 class with the run slot, the hinstance's and the statics' slots, the rising play time (with loading screens for it to
-stand still in), no allocation on the game thread, and the live derivation's singletons and statics.
+stand still in), no allocation on the game thread, the live derivation's singletons and statics, the callee's summary
+(spike.8: the wrapper's two direct calls and its one branch past them, its guard a 64-bit test of rcx loaded from the
+rack's static, the tail jump with the rack in rcx, loaded on one way and stored there on the other, the group, the task
+and the hub in rdx, r8 and r9, its forms with both of the static's moves; one level deeper the tail function's bound,
+its null test of the shelf loaded from [entry rcx + group*8 + the shelves' offset] and its jump through the shelf's
+vtable, a tail call through memory, the two traps after it unreached; one more level, from the table, the shelf's
+register slot calling the work with the hub, the group and the task), the table read before the call and 2 s after it
+(the rack on the heap, a shelf for each group up to the bound, the group's shelf with its vtable in .rdata and its
+register slot in the code), the call's answer (1), two whole-memory searches after the call, each
+complete within its caps, finding our task's address in the fake game's private memory, our vtable's in the hub and
+our run slot's in the hub's table and, counted apart, ours in our module's data, the probe's own heap and our vtable,
+with the committed total; and the hub's memory kept before the call and compared 2 and 20 s after it (the last task now
+our task's address, fresh; the last vtable ours; our run slot, in our module, in the hub's table; at 20 s those steady
+and the hub's frame not), against a control diff over the 2 s before the call that changed the frame alone, marked
+`in_control` in both and listed last. Then R1 as the
+owner runs it (`launcher-eldennet-probe`: `--probe` with no settings.toml, invented saves backed up first, the default
+settle of 10 s, Pause pressed every second from the title until it is taken; the console's six steps in order, the
+reviewed idiom and the layout's group confirmed, the launcher's lint of both reports), the same on a fake game with
+`--table-gap` (`launcher-eldennet-probe-gap`, R1 run 7's end: the call answers 0, the group's entry null before and
+after it and the others set, no summary past the table, the task never run, nothing of ours in the game's memory but
+our own, the reports linted clean), and `--probe` with the release
+DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report). The part 9 tools run on what
+these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (the counts as written, and en-core
+stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
+(three early runs passing their rules, each with its load mode, the late load not run).
+
+GraceUI joined it with part 12 (`launcher-eldennet-graceui*`, clang-cl, with a test build of GraceUI, GraceUI's own
+`GRACEUI_TEST_EXPORTS` build, whose `GraceUI` folder CMake's `EN_GRACEUI_DIR` names; without it the cases are left out).
+Each installs that folder as it is, as GraceUI's build lays it out beside its `bin` (GraceUI D165): `game/GraceUI/` with
+`graceui.dll`, `LICENSE.txt`, `NOTICE.txt` and the `graceui.toml` GraceUI's `tools/release/manifest.py` wrote of each
+file's size and SHA-256, so the launcher's pre-flight checks GraceUI's own version file, and runs the fake game with
+`--d3d12`, under Wine with Mesa's lavapipe (the prefix's set-up gives wined3d its Vulkan renderer, as GraceUI's BUILD.md
+does). `launcher-eldennet-graceui`: GraceUI loaded after EldenNet, by EldenNet's own look, on the main path: the
+launcher's pre-flight passes; EldenNet connects (the view ready, the Mark's hotkey registered, a world-state provider);
+F11 shows the view, whose ground the fake game reads back over most of its rectangle, and F11 again hides it; and the
+launcher's console hands its Pause over, so the Pause pressed into the window is a Mark of EldenNet's own, which the
+launcher's record takes from the ring. `launcher-eldennet-graceui-before`: GraceUI loaded before EldenNet (the
+launcher's `--also`), found by its name, on the banner path of a build the DLL's gal/ does not know: the banner as one
+notice under EldenNet's key, in the warning tone with the build's number, and F11's view there too.
+`launcher-eldennet-graceui-unbound`: GraceUI loaded before EldenNet, and the fake game, as another mod would, connected
+to it at boot with Pause as its own hotkey (`--grace-take-pause`): EldenNet's Mark registers unbound (`mark=1
+mark_bound=0`, GraceUI D164), EldenNet never asks for the ring (`marks source=launcher bound=0`), the launcher keeps its
+Pause, and the Pause pressed is the launcher's own Mark (`mark n=1` with no source), which EldenNet's recorder reads
+from the ring. (Loading GraceUI from the fake game's main thread at boot instead hung under Wine 9 in the load of
+`dxgi.dll`, which `graceui.dll` imports, while eldennet.dll's threads ran; the launcher's `--also` loads it into the
+suspended process.) `launcher-eldennet-graceui-anticheat`: the simulated anti-cheat module beside GraceUI: GraceUI's own
+check puts it in the notice-only mode, and EldenNet's banner is a notice with nothing else (no panel, no provider).
 
 The derivation's offline round (part 3) joined it so: `probe-exe`, `probe-exe-slots` and `probe-exe-lint` run the
 Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.toml` (the fake game's own names under our

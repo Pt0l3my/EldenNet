@@ -165,6 +165,29 @@ std::size_t NativeSys::rescan_stacks() noexcept {
   return stacks_.size();
 }
 
+#if EN_PROBE
+std::optional<probe::MemoryRegion> NativeSys::region_at(std::uint64_t at) const noexcept {
+  MEMORY_BASIC_INFORMATION mbi{};
+  // SAFETY: VirtualQuery reads the page tables for this address, not the address.
+  if (at >= kAddressEnd ||
+      VirtualQuery(reinterpret_cast<const void*>(static_cast<std::uintptr_t>(at)), &mbi, sizeof mbi) == 0) {
+    return std::nullopt;
+  }
+  probe::MemoryRegion r;
+  // SAFETY: the region's base and its allocation's, as numbers.
+  r.base = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress);
+  r.allocation_base = reinterpret_cast<std::uintptr_t>(mbi.AllocationBase);
+  r.size = mbi.RegionSize;
+  r.committed = mbi.State == MEM_COMMIT;
+  r.protect = r.committed ? mbi.Protect : 0;
+  r.kind = mbi.Type == MEM_PRIVATE ? probe::RegionKind::Private
+           : mbi.Type == MEM_MAPPED ? probe::RegionKind::Mapped
+           : mbi.Type == MEM_IMAGE  ? probe::RegionKind::Image
+                                    : probe::RegionKind::Other;
+  return r;
+}
+#endif
+
 std::size_t NativeSys::refresh_stacks() noexcept {
   // Every allocation that holds a guard page, whole (the shape of a thread's stack); in an image, its guard pages alone.
   std::uint64_t p = kLowestAddress;
@@ -211,8 +234,8 @@ proto::Expected<std::uint64_t, SysError> NativeSys::call_getter(std::uint64_t ge
   return out.answer;
 }
 
-proto::Expected<void, SysError> NativeSys::register_task(std::uint64_t function, std::uint64_t instance,
-                                                         const TaskShape& shape, TaskBody& body) noexcept {
+proto::Expected<std::uint64_t, SysError> NativeSys::register_task(std::uint64_t function, std::uint64_t instance,
+                                                                  const TaskShape& shape, TaskBody& body) noexcept {
   if (sys::registered()) return proto::Unexpected{SysError::Twice};
   if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
       (!shape.every_slot && shape.run_slot >= shape.vtable_slots) || shape.object_size > kMaxCopyBytes) {
@@ -228,7 +251,7 @@ proto::Expected<void, SysError> NativeSys::register_task(std::uint64_t function,
   sys::set_registered();  // one call, never retried (ARCH §3.2's Register)
   const sys::CallOutcome out = sys::call_register(function, args);
   if (!out.ok) return proto::Unexpected{SysError::Faulted};
-  return {};
+  return out.answer;
 }
 
 std::uint64_t NativeSys::no_access_page() noexcept {

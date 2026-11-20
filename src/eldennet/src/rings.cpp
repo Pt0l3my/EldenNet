@@ -59,12 +59,18 @@ bool SnapSlot::take(proto::WorldSnapshot& out) noexcept {
     if (newest < 0) return false;
     std::uint8_t want = Ready;
     if (!state_[newest].compare_exchange_strong(want, Reading, std::memory_order_acq_rel)) continue;  // overwritten
+    // The slot is ours now, and its order is what the writer published last into it: between the scan and the claim
+    // the writer may have overwritten and published it again, newer than the other slot it left Ready.
+    best = order_[newest].load(std::memory_order_relaxed);
     out = *buf_[newest];
-    // An older Ready one is stale now: free it too, so the writer always finds room.
+    // An older Ready one is stale now: free it too, so the writer always finds room, and so that the next take never
+    // answers a snapshot older than this one. It is claimed before its order is read, so that one the writer has
+    // just published again (newer) is never freed unread.
     const int other = 1 - newest;
     std::uint8_t ready = Ready;
-    if (order_[other].load(std::memory_order_relaxed) < best) {
-      (void)state_[other].compare_exchange_strong(ready, Empty, std::memory_order_acq_rel);
+    if (state_[other].compare_exchange_strong(ready, Reading, std::memory_order_acq_rel)) {
+      state_[other].store(order_[other].load(std::memory_order_relaxed) < best ? Empty : Ready,
+                          std::memory_order_release);
     }
     state_[newest].store(Empty, std::memory_order_release);
     return true;

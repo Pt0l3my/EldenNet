@@ -43,7 +43,8 @@ struct Settings {
   bool enabled = true;            // false: Off (T1 exits at once)
   bool record_sessions = false;   // debug.record_sessions: the recorder (ARCH §7.5)
   LogLevel log_level = LogLevel::Info;
-  bool overlay_connect = false;   // overlay.connect: GraceUI's connect, not in this build (it stays off)
+  bool overlay_connect = true;    // overlay.connect: GraceUI's connect (part 12); false: headless, Connect skipped
+  bool debug_panel = false;       // debug.panel: the F11 debug view (PAGES SP8: a developer view, off by default)
   CopyMode copy = CopyMode::Seh;  // gal.copy
   ProbeSettings probe;
 };
@@ -56,7 +57,7 @@ struct SettingsProblem {
 struct LoadedSettings {
   Settings settings;
   std::vector<SettingsProblem> problems;  // why the file was refused (the defaults are then used)
-  std::vector<std::string> notes;         // what was accepted but not taken (overlay.connect = true in this build)
+  std::vector<std::string> notes;         // what was accepted but not taken (none in this build)
   bool refused = false;
 };
 

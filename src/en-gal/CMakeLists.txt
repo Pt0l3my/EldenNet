@@ -1,9 +1,10 @@
 # en-gal: the game access layer (ARCH §6). Three libraries:
 # - en_gal, its offline part, which builds with every compiler: the PE32+ reader (pe), the byte patterns and their
 #   matcher (patterns), gal/builds.toml with the version gate (builds), the layouts (layout), and the derivation kit
-#   (x86, rtti, fd4, derive, report). en-launcher and en-tools use it off game (ARCH §2.3). With an MSVC-like compiler
-#   it also holds the guarded copy (reader.cpp: structured exception handling, __try/__except, ARCH §2.6), which the
-#   clang-cl build (cmake/clang-cl-xwin.cmake) adds and GCC's, Clang's and MinGW-w64's leave out.
+#   (x86, rtti, fd4, derive, report), with R1's probe report (probe_report: the launcher's --probe and en-tools' lint
+#   check R1's reports with its vocabulary). en-launcher and en-tools use it off game (ARCH §2.3). With an MSVC-like
+#   compiler it also holds the guarded copy (reader.cpp: structured exception handling, __try/__except, ARCH §2.6),
+#   which the clang-cl build (cmake/clang-cl-xwin.cmake) adds and GCC's, Clang's and MinGW-w64's leave out.
 # - en_gal_game, the part that runs in the game process (part 4 of the first in-game build): GuardedReader, the
 #   groups and their breakers, discovery over the live image, ErBackend's reads, the task, all portable and tested on
 #   Linux over the tests' FakeSys; and, with an MSVC-like compiler, NativeSys (sys/), the platform seam in game.
@@ -28,7 +29,8 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/fd4.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_leads.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_report.cpp)
 if(MSVC)
   list(APPEND EN_GAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp)
 else()
@@ -49,7 +51,10 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_callee.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_hub.cpp)
 if(MSVC)
   # NativeSys, the platform seam in game (sys/): structured exception handling and Win32, clang-cl only.
   list(APPEND EN_GAL_GAME_SOURCES
@@ -85,6 +90,7 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_program.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/sample_program.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_derive.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_report.cpp
     # The in-game part, on FakeSys (part 4)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/alloc_count.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_sys.cpp

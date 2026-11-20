@@ -44,6 +44,8 @@ struct Context {
   const SectionCopy* text;
   std::vector<Fixup> fixups;
   Result& result;
+  std::vector<fd4::Site> accepted;   // the FD4 finder's accepted sites (derive_fd4)
+  std::optional<rtti::Walk> walk;    // the RTTI walk (derive_rtti)
 };
 
 bool data_section(const ImageBytes& img, const SectionCopy& c) {
@@ -279,31 +281,93 @@ std::uint32_t offset_in(const SiteSeq& s, std::size_t index) {
   return off;
 }
 
-// The name layout: the offset in the class objects that points at an identifier in .rdata for the most of them.
+// Identifiers joined by ::, two or more (a class name with its namespace).
+bool is_qualified_text(std::string_view s) {
+  if (s.find("::") == std::string_view::npos) return false;
+  std::size_t from = 0;
+  for (;;) {
+    const std::size_t at = s.find("::", from);
+    if (!is_identifier_text(s.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from)))
+      return false;
+    if (at == std::string_view::npos) return true;
+    from = at + 2;
+  }
+}
+
+bool is_name_text(std::string_view s) { return is_identifier_text(s) || is_qualified_text(s); }
+
+// The name layout: the offset in the class objects that points at a class name in .rdata, an identifier or one joined
+// by :: to its namespace, for the most of them. Every offset's numbers are kept for the report (NameSlot).
 void derive_names(Context& cx, const std::vector<std::uint32_t>& class_objects) {
   Fd4Result& r = cx.result.fd4;
+  Fd4Diagnostics& g = r.diagnostics;
   r.names_of = class_objects.size();
+  g.name_slots.clear();
   std::uint64_t best = 0;
+  std::uint64_t best_qualified = 0;
   for (std::uint32_t off = 0; off < 0x80; off += 8) {
+    NameSlot slot;
+    slot.offset = off;
+    for (const std::uint32_t cls : class_objects) {
+      const std::optional<std::uint64_t> va = cx.img.u64(cls + off);
+      const std::optional<std::uint32_t> rva = va && *va != 0 ? cx.img.rva_of(*va) : std::nullopt;
+      if (!va || *va == 0) {
+        ++slot.null_ptr;
+      } else if (!rva) {
+        ++slot.outside;
+      } else {
+        const std::string_view sec = cx.img.section_name(*rva);
+        ++(sec == kRdata ? slot.to_rdata : sec == kData ? slot.to_data : sec == kText ? slot.to_code : slot.to_other);
+        const std::optional<std::string> a = cx.img.ascii(*rva, 128);
+        const std::optional<std::string> u = cx.img.utf16(*rva, 128);
+        const auto kind = [&](const std::optional<std::string>& t) {
+          return !t ? 0 : is_identifier_text(*t) ? 1 : is_qualified_text(*t) ? 2 : t->size() >= 4 ? 3 : 0;
+        };
+        const int ka = kind(a);
+        const int ku = kind(u);
+        const int k = ka == 1 || ka == 2 ? ka : ku == 1 || ku == 2 ? ku : std::max(ka, ku);  // a name over other text
+        if (k == 1) ++slot.plain;
+        if (k == 2) ++slot.qualified;
+        if (k == 3) ++slot.other_text;
+      }
+      const std::optional<std::string> in = cx.img.ascii(cls + off, 64);
+      const std::optional<std::string> in16 = cx.img.utf16(cls + off, 64);
+      if ((in && in->size() >= 4 && is_name_text(*in)) || (in16 && in16->size() >= 4 && is_name_text(*in16)))
+        ++slot.inline_text;
+    }
+    g.name_slots.push_back(slot);
     for (const fd4::NameEncoding enc : {fd4::NameEncoding::Ascii, fd4::NameEncoding::Utf16}) {
       std::uint64_t n = 0;
+      std::uint64_t q = 0;
       for (const std::uint32_t cls : class_objects) {
         const std::optional<std::uint64_t> va = cx.img.u64(cls + off);
         const std::optional<std::uint32_t> rva = va ? cx.img.rva_of(*va) : std::nullopt;
         if (!rva || cx.img.section_name(*rva) != kRdata) continue;
         const std::optional<std::string> name = fd4::class_name(cx.img, cls, fd4::NameLayout{off, enc});
-        if (name && is_identifier_text(*name)) ++n;
+        if (name && is_name_text(*name)) {
+          ++n;
+          if (is_qualified_text(*name)) ++q;
+        }
       }
       if (n > best) {
         best = n;
+        best_qualified = q;
         r.names = fd4::NameLayout{off, enc};
       }
     }
   }
   r.names_agree = best;
-  r.diagnostics.names_best = best;
-  r.diagnostics.best_names = r.names;
+  g.names_best = best;
+  g.names_qualified = best_qualified;
+  g.best_names = r.names;
   if (best == 0 || 2 * best < class_objects.size()) r.names.reset();
+}
+
+// A lead's name as a found name gives it: the same, or the last part of a qualified one (CS::CSTask for CSTask).
+bool names_lead(std::string_view found, std::string_view lead) {
+  if (found == lead) return true;
+  return found.size() > lead.size() + 2 && found.substr(found.size() - lead.size()) == lead &&
+         found.substr(found.size() - lead.size() - 2, 2) == "::";
 }
 
 // The class objects as the file holds them: with a base relocation in their first 128 bytes (a pointer the file
@@ -506,6 +570,7 @@ void derive_fd4(Context& cx) {
       if (i < r.refused.size()) ++r.refused[i];
     } else {
       ++r.accepted;
+      cx.accepted.push_back(s);
     }
   }
   r.unnamed = found.unnamed;
@@ -532,17 +597,26 @@ void derive_fd4(Context& cx) {
     listed.insert(lead.name);
     SingletonResult one;
     one.label = lead.label;
-    const auto it = std::find_if(found.singletons.begin(), found.singletons.end(),
-                                 [&](const fd4::Singleton& s) { return s.name == lead.name; });
+    auto it = std::find_if(found.singletons.begin(), found.singletons.end(),
+                           [&](const fd4::Singleton& s) { return s.name == lead.name; });
+    bool several = false;
+    if (it == found.singletons.end()) {
+      const auto pred = [&](const fd4::Singleton& s) { return names_lead(s.name, lead.name); };
+      it = std::find_if(found.singletons.begin(), found.singletons.end(), pred);
+      several = it != found.singletons.end() && std::count_if(found.singletons.begin(), found.singletons.end(), pred) > 1;
+    }
     if (it != found.singletons.end()) {
-      one.status = it->ambiguous ? Status::Ambiguous : Status::Derived;
+      listed.insert(it->name);
+      one.status = it->ambiguous || several ? Status::Ambiguous : Status::Derived;
       one.static_slot = it->static_slot;
       one.class_object = it->class_object;
       one.getter = it->getter;
       one.sites = it->sites;
     } else {
       const auto refused = std::find_if(found.sites.begin(), found.sites.end(),
-                                        [&](const fd4::Site& s) { return s.refused && s.name == lead.name; });
+                                        [&](const fd4::Site& s) {
+                                          return s.refused && s.name && names_lead(*s.name, lead.name);
+                                        });
       if (refused != found.sites.end()) {
         one.status = Status::Refused;
         one.refusal = refused->refused;
@@ -651,7 +725,8 @@ ClassResult class_result(Context& cx, const rtti::Walk& walk, std::string_view c
 }
 
 void derive_rtti(Context& cx) {
-  const rtti::Walk walk = rtti::walk(cx.img);
+  cx.walk = rtti::walk(cx.img);
+  const rtti::Walk& walk = *cx.walk;
   cx.result.stats.locators = walk.locators.size();
   cx.result.stats.vtables = walk.vtables.size();
 
@@ -1346,18 +1421,93 @@ std::uint64_t same_name(const ImageBytes& img, std::string_view cls) {
   return found.size();
 }
 
+// The innermost class name of a type descriptor: ".?AVCSTaskImp@CS@@" gives "CSTaskImp".
+std::optional<std::string> class_of(const ImageBytes& img, std::uint32_t type_descriptor) {
+  const std::optional<std::string> d = img.ascii(type_descriptor + 16, 512);
+  if (!d || d->size() < 6 || (d->rfind(".?AV", 0) != 0 && d->rfind(".?AU", 0) != 0)) return std::nullopt;
+  const std::string inner = d->substr(4, d->find('@', 4) == std::string::npos ? std::string::npos : d->find('@', 4) - 4);
+  if (!is_identifier_text(inner)) return std::nullopt;
+  return inner;
+}
+
+// O92: in game, the singletons the class objects leave unnamed are named by their instances. For each distinct static
+// of the accepted sites: the instance it holds (the live data section), the instance's first word read once through
+// the guarded copy (its vtable), and that vtable's class from the RTTI walk. A lead names the one static whose class is
+// its name or its name with Imp (the game's implementation classes, ER01 §3.2); two such statics leave it ambiguous.
+// Nothing about the instances is written but counts and the slots the leads already ask for.
+void name_by_instances(Context& cx) {
+  Fd4Result& r = cx.result.fd4;
+  Fd4Diagnostics& g = r.diagnostics;
+  if (r.names || !cx.options.read_instance_word || !cx.walk || cx.accepted.empty()) return;
+  std::map<std::uint32_t, std::size_t> vtables;  // RVA, index into the walk's vtables
+  for (std::size_t i = 0; i < cx.walk->vtables.size(); ++i) vtables.emplace(cx.walk->vtables[i].rva, i);
+  std::map<std::uint32_t, std::string> classes;  // static slot, its instance's class
+  std::set<std::uint32_t> seen;
+  for (const fd4::Site& s : cx.accepted) {
+    if (!seen.insert(s.static_slot).second) continue;
+    ++g.inst_statics;
+    const std::optional<std::uint64_t> instance = cx.img.u64(s.static_slot);
+    if (!instance || *instance == 0) {
+      ++g.inst_null;
+      continue;
+    }
+    const std::optional<std::uint64_t> vtable =
+        cx.img.rva_of(*instance) ? std::nullopt : cx.options.read_instance_word(*instance);
+    if (!vtable) {
+      ++g.inst_unread;
+      continue;
+    }
+    const std::optional<std::uint32_t> rva = cx.img.rva_of(*vtable);
+    const auto it = rva ? vtables.find(*rva) : vtables.end();
+    if (it == vtables.end()) {
+      ++g.inst_unclassed;
+      continue;
+    }
+    const rtti::Locator& loc = cx.walk->locators[cx.walk->vtables[it->second].locator];
+    const std::optional<std::string> cls = loc.offset == 0 ? class_of(cx.img, loc.type_descriptor) : std::nullopt;
+    if (!cls) {
+      ++g.inst_unclassed;
+      continue;
+    }
+    ++g.inst_classed;
+    classes.emplace(s.static_slot, *cls);
+  }
+  for (std::size_t i = 0; i < r.singletons.size() && i < cx.leads.singletons.size(); ++i) {
+    SingletonResult& one = r.singletons[i];
+    const std::string& name = cx.leads.singletons[i].name;
+    if (one.status == Status::Derived) continue;
+    std::vector<std::uint32_t> statics;
+    for (const auto& [slot, cls] : classes) {
+      if (cls == name || cls == name + "Imp") statics.push_back(slot);
+    }
+    if (statics.empty()) continue;
+    one.status = statics.size() == 1 ? Status::Derived : Status::Ambiguous;
+    one.static_slot = statics.front();
+    one.sites = 0;
+    for (const fd4::Site& s : cx.accepted) {
+      if (s.static_slot != one.static_slot) continue;
+      if (one.sites++ == 0) {
+        one.class_object = s.class_object;
+        one.getter = s.getter;
+      }
+    }
+    if (one.status == Status::Derived) ++g.inst_matched;
+  }
+}
+
 }  // namespace
 
 Result derive(const ImageInfo& image, const ByteSource& source, const Leads& leads, const Options& options) {
   Result result;
   result.file_size = options.file_size;
   const ImageBytes img(image, source);
-  Context cx{image, source, leads, options, img, img.named(kText), {}, result};
+  Context cx{image, source, leads, options, img, img.named(kText), {}, result, {}, {}};
   if (auto fixups = read_relocations(image, source)) cx.fixups = std::move(*fixups);
   result.stats.fixups = cx.fixups.size();
   fingerprint(cx);
   derive_fd4(cx);
   derive_rtti(cx);
+  name_by_instances(cx);
   const std::vector<std::uint32_t> path_targets = path_strings(img, leads.fd4_path_suffix);
 
   // One sweep for every reference the rest needs: the registration's instance, the group's name, the statics' slots.

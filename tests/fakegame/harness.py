@@ -499,6 +499,25 @@ def with_steam(paths):
     paths["steam"] = steam
 
 
+def check_spike_report_s0a(result):
+    """spike-report s0a over the launcher's own log (--need 3 for the case's three runs): each run's mode is there,
+    the early rules pass, and the late load, not run, leaves the verdict incomplete."""
+    failures = []
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
+    logs = [os.path.join(folder, n) for n in sorted(os.listdir(folder)) if n.startswith("s0a-")]
+    out = os.path.join(result.paths["case"], "s0a-report.json")
+    code, text, _ = run_engine(result.args, result.env, ["spike-report", "s0a", "--need", "3", "--log",
+                                                         result.as_win(logs[-1]), "--out", result.as_win(out)])
+    need(code == 1 and "verdict=incomplete" in text, "spike-report s0a: exit %s %s" % (code, text[-300:]), failures)
+    if os.path.exists(out):
+        with open(out) as f:
+            rep = json.load(f)
+        rules = {(x["rule"], x.get("mode")): x["status"] for x in rep["rules"]}
+        need(rules.get(("runs_per_mode", "suspended")) == "pass" and rules.get(("ready_or_l1", "suspended")) == "pass"
+             and rules.get(("both_modes", None)) == "not_measured", "spike-report s0a's rules: %s" % rules, failures)
+    return failures
+
+
 def spike_log(result, spike):
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
     names = [n for n in sorted(os.listdir(folder)) if n.startswith(spike + "-")] if os.path.isdir(folder) else []
@@ -720,8 +739,9 @@ def check_spike(spike, runs, **tally):
 case("launcher-spike-s0a", LGAME + ["--dll", "{galtest}", "--spike", "s0a", "--runs", "3", "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
      needs=LGAL_NEEDS, toolchains=("clang-cl",), env=GALTEST_ENV, timeout=240,
-     check=check_spike("s0a", 3, ready=3, crashes=0, timeout=0),
-     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes")
+     check=lambda r: check_spike("s0a", 3, ready=3, crashes=0, timeout=0)(r) + check_spike_report_s0a(r),
+     what="--spike s0a --runs 3: each run starts, injects, reaches Ready at the title, is closed; the tally passes; "
+          "spike-report reads the log: three early runs pass their rules, the late load not run yet")
 case("launcher-spike-s0d-crash", LGAME + ["--dll", "{galtest}", "--spike", "s0d-crash", "--runs", "2",
                                           "--run-timeout", "60"] +
      ["--", "--forever", "--stay-title", "--fps", "60", "--status-file", "{status}"], program="{launcher}",
@@ -756,9 +776,10 @@ EN_PROBE_NEEDS = EN_NEEDS + ("eldennet_probe",)
 EN_ENV = {"ELDENNET_APPDATA": "{appdata}"}
 
 
-def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None):
-    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata}, and `copies` of files
-    (name, source key) beside the game for --also and --load."""
+def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads_base=None, then=None):
+    """A case's prepare: the DLL and its gal/ in {case}/eldennet, settings.toml in {appdata} (none when `settings` is
+    None, as on a PC that never had one), `copies` of files (name, source key) beside the game for --also and --load,
+    and `then`, another prepare, last."""
     def prepare(paths):
         folder = os.path.join(paths["case"], "eldennet")
         os.makedirs(folder)
@@ -775,14 +796,17 @@ def install_eldennet(settings="", probe=False, gal_change=None, copies=(), leads
             gal_change(os.path.join(folder, "gal"))
         cfg = os.path.join(paths["appdata"], "EldenNet", "config")
         os.makedirs(cfg)
-        with open(os.path.join(cfg, "settings.toml"), "w") as f:
-            f.write(settings)
+        if settings is not None:
+            with open(os.path.join(cfg, "settings.toml"), "w") as f:
+                f.write(settings)
         paths["eldennetdll"] = dll
         paths["endir"] = folder
         for name, key in copies:
             target = os.path.join(paths["case"], name)
             shutil.copy2(paths[key], target)
             paths[name.split(".")[0].replace("-", "_").lower()] = target
+        if then is not None:
+            then(paths)
     return prepare
 
 
@@ -848,6 +872,26 @@ def check_recordings(min_snaps):
             need("Wanderer" not in text and "Test W" not in text, "the character's name was recorded", failures)
             need(not any(w in text for w in ("Ash Warden", "Quiet Vale", "Lantern")), "game text was recorded",
                  failures)
+            # The part 9 tools on the real recording: rec-stats counts what the DLL wrote, and replay steps its inputs
+            # through en-core again and answers the changes the DLL's core answered.
+            stats_out, replay_out = path + ".stats.json", path + ".replay.json"
+            code, _, err = run_engine(result.args, result.env, ["rec-stats", result.as_win(path), "--out",
+                                                                 result.as_win(stats_out)])
+            need(code == 0 and os.path.exists(stats_out), "rec-stats: exit %s %s" % (code, err[-300:]), failures)
+            if code == 0 and os.path.exists(stats_out):
+                with open(stats_out) as f:
+                    st = json.load(f)
+                need(st["snapshots"]["count"] == kinds.count("snap") and st["marks"] == kinds.count("mark") and
+                     st["life"]["data_ready"] == lives.count("data_ready"), "rec-stats' counts: %s" %
+                     {k: st[k] for k in ("snapshots", "marks", "life")}, failures)
+            code, _, err = run_engine(result.args, result.env, ["replay", result.as_win(path), "--out",
+                                                                 result.as_win(replay_out)])
+            agree = False
+            if os.path.exists(replay_out):
+                with open(replay_out) as f:
+                    rp = json.load(f)
+                agree = rp["agree"] and rp["recorded"] == rp["replayed"] > 0
+            need(code == 0 and agree, "replay: exit %s %s" % (code, err[-300:]), failures)
         return failures
     return check
 
@@ -863,7 +907,8 @@ def check_en_ready(where):
                                ("ELDENNET", "register", {"ok": 1}),
                                ("ELDENNET", "first_tick", {"state": "running"}),
                                ("ELDENNET", "init", {"state": "ready"}),
-                               ("ELDENNET", "connect", {"skipped": 1}))(result)
+                               ("ELDENNET", "connect", {"ok": 0, "outcome": "absent", "installed": 0, "looks": 1}))(
+                                   result)
         failures += want(result, "LAUNCHER", "status", init="ready", snapshots=(8, 1e9), tripped="0x0")
         phases = [e.get("to") for e in result.events("ELDENNET", "change") if e.get("what") == "phase"]
         if where == "world":
@@ -973,11 +1018,400 @@ case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{
           "(--watch <pid>), which makes the block, sees the crash through the DLL's filter and keeps its record")
 
 
-def check_r1(result):
-    """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
-    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+
+# --- GraceUI with eldennet.dll (part 12): the GraceUI folder of a test build of GraceUI (EN_GRACEUI_DIR: graceui.dll
+# with its test exports, LICENSE.txt, NOTICE.txt and the graceui.toml GraceUI's build writes of each file's size and
+# SHA-256, its D52 and D165), installed as it is in the fake game's folder as GraceUI's release lays it out (its D51);
+# the launcher's pre-flight checks it. The fake game presents on Direct3D 12 (--d3d12), so that GraceUI's overlay binds
+# its swap chain and draws, presses F11 and Pause into its window, and reports what GraceUI's test exports say
+# (--grace-report): EldenNet's connection, its notices by key, the panels made, shown and drawn, the world-state
+# providers, and the pixels of the F11 view's ground read back from the frame. The view's place and ground are
+# en-overlay's (src/en-overlay/include/en/overlay/view.hpp): at 24, 24, 680 by 420, ground (22, 28, 38); the probe keeps
+# left of the notices at the top right.
+GRACE_NEEDS = EN_NEEDS + ("graceui",)
+EN_PANEL = 'schema = 2\ndebug = { panel = true, record_sessions = true }\n'
+VIEW_PROBE = "30,60,640,440,22,28,38"
+VIEW_AREA = (640 - 30) * (440 - 60)
+
+
+def install_graceui(paths):
+    """GraceUI's folder beside the fake game, copied as GraceUI's build laid it out (its D165): no file of ours in it."""
+    folder = os.path.join(paths["gamedir"], "GraceUI")
+    shutil.copytree(os.path.dirname(paths["graceui"]), folder, symlinks=False)
+    paths["gracedll"] = os.path.join(folder, "graceui.dll")
+
+
+def any_line_kv(result, source, event, kv):
+    """any_line, with the values in a dictionary: for a key named as one of its parameters (`source`)."""
+    for e in result.events(source, event):
+        if all(e.get(k) == str(v) for k, v in kv.items()):
+            return []
+    return ["no %s %s line with %s" % (source, event, " ".join("%s=%s" % i for i in sorted(kv.items())))]
+
+
+def want_grace(result, frame, **kv):
+    """The fake game's report of GraceUI's state at `frame`: each key equal to a string, a number within (lo, hi), or
+    a callable that answers whether the value is right."""
+    line = next((e for e in result.events("FAKEGAME", "grace") if e.get("frame") == str(frame)), None)
+    if line is None:
+        return ["no FAKEGAME grace line at frame %d" % frame]
     failures = []
-    truth = result.truth
+    for key, value in kv.items():
+        got = line.get(key)
+        if callable(value):
+            ok = got is not None and value(got)
+        elif isinstance(value, tuple):
+            ok = got is not None and re.match(r"^-?[0-9.]+$", got) and value[0] <= float(got) <= value[1]
+        else:
+            ok = got == str(value)
+        need(ok, "FAKEGAME grace frame=%d %s=%s, wanted %s" % (frame, key, got, getattr(value, "__name__", value)),
+             failures)
+    return failures
+
+
+def check_graceui_main(r):
+    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok", "version": "0.1.0", "abi": "1.0"}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "how": "path",
+                                                 "installed": 1, "graceui": "0.1.0", "view": "ready", "mark": 1,
+                                                 "mark_bound": 1, "world": 1}),
+                        ("ELDENNET", "init", {"state": "ready"}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            # Connected, at the title or in the world: the panel made and hidden, the atlas registered, EldenNet a
+            # world-state provider, no banner (the main path has none).
+            want_grace(r, 360, found=1, eldennet=1, notice_only=0, panels=1, shown=0, textures=(1, 8), providers=1,
+                       banner="none", window_filter=1, presents=(100, 1e9),
+                       caps=lambda c: all(w in c.split("_") for w in ("notices", "world-state", "hotkeys", "panels",
+                                                                       "textures")),
+                       probe=(0, VIEW_AREA // 100)) +
+            # F11 (frame 420): GraceUI's hotkey, through poll; one list before the panel shows, then a list every wake;
+            # GraceUI drew it on the game's frame: its ground read back over most of the probe.
+            want_grace(r, 480, shown=1, submitted=(2, 1e9), refused=0, panel_frames=(1, 1e9),
+                       probe=(VIEW_AREA // 2, VIEW_AREA)) +
+            any_line(r, "ELDENNET", "view", presses=1, open=1) +
+            # F11 again (frame 600): hidden, nothing of it on the frame.
+            want_grace(r, 660, shown=0, refused=0, probe=(0, VIEW_AREA // 100)) +
+            any_line(r, "ELDENNET", "view", presses=1, open=0) +
+            # The Mark: GraceUI's hotkey on Pause, the launcher's console handing its ring over, then Pause (frame 540)
+            # stamped by EldenNet, which the launcher's record takes from the ring.
+            any_line_kv(r, "ELDENNET", "marks", {"source": "eldennet"}) +
+            any_line_kv(r, "LAUNCHER", "mark", {"hotkey": "pause", "released": 1, "source": "eldennet"}) +
+            want(r, "ELDENNET", "mark", n=1) + any_line_kv(r, "LAUNCHER", "mark", {"n": 1, "source": "eldennet"}) +
+            (["%d Marks for one press" % len(r.events("ELDENNET", "mark"))]
+             if len([e for e in r.events("ELDENNET", "mark") if "n" in e]) != 1 else []) +
+            en_log_is_clean(r))
+
+
+def check_graceui_before(r):
+    return (check_lines(("LAUNCHER", "preflight", {"graceui": "ok"}),
+                        ("ELDENNET", "gate", {"result": "unknown_build"}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "banner", "how": "name",
+                                                 "installed": 1, "view": "ready"}),
+                        ("ELDENNET", "notice", {"what": "banner", "reason": "unknown_build", "status": 0}),
+                        ("ELDENNET", "init", {"state": "banner"}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            any_line(r, "LAUNCHER", "inject", dll="graceui.dll", ok=1) +
+            # The banner: one notice under EldenNet's key, duration 0, in the warning tone, with the build's number.
+            want_grace(r, 300, found=1, eldennet=1, notice_only=0,
+                       banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet", banner_tone=1,
+                       badge="none", shown=0) +
+            # F11 on the banner path too (frame 360): the view shows L1 and why.
+            want_grace(r, 460, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
+                       banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet") +
+            any_line(r, "ELDENNET", "view", presses=1, open=1) +
+            (["the DLL registered on an unknown build"] if r.events("ELDENNET", "register") else []) +
+            en_log_is_clean(r))
+
+
+def check_graceui_unbound(r):
+    return (check_lines(("FAKEGAME", "grace_other", {"found": 1, "connect": 0, "hotkey": 0}),
+                        ("LAUNCHER", "preflight", {"graceui": "ok"}),
+                        ("LAUNCHER", "mark", {"hotkey": "pause", "registered": 1}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "how": "name",
+                                                 "installed": 1, "view": "ready", "mark": 1, "mark_bound": 0}),
+                        ("ELDENNET", "marks", {"source": "launcher", "bound": 0}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            # Another mod (the fake game) holds Pause in GraceUI, so EldenNet's Mark registered unbound (D164): EldenNet
+            # never asks for the ring, the launcher keeps its key, and the Pause pressed is the launcher's own Mark.
+            want_grace(r, 360, found=1, eldennet=1, consumers=2, panels=1, shown=0) +
+            (["the launcher let Pause go"] if any("released" in e for e in r.events("LAUNCHER", "mark")) else []) +
+            (["the Marks' ring was asked for"] if any(e.get("source") in ("asked", "eldennet")
+                                                       for e in r.events("ELDENNET", "marks")) else []) +
+            any_line(r, "LAUNCHER", "mark", n=1) +
+            (["the launcher's Mark named another source"] if any("source" in e and "n" in e
+                                                                for e in r.events("LAUNCHER", "mark")) else []) +
+            want(r, "ELDENNET", "mark", n=1) +
+            (["a press was offered to EldenNet's unbound Mark"] if any(e.get("taken") == "0"
+                                                                      for e in r.events("ELDENNET", "mark")) else []) +
+            en_log_is_clean(r))
+
+
+def check_graceui_anticheat(r):
+    text = "EldenNet_inactive:_Easy_Anti-Cheat_is_running._EldenNet_only_runs_offline;_start_the_game_with_the_" \
+           "EldenNet_launcher."
+    return (check_lines(("ELDENNET", "safety", {"anticheat": 1}),
+                        ("ELDENNET", "connect", {"ok": 1, "outcome": "notices_only", "path": "banner"}),
+                        ("ELDENNET", "notice", {"what": "banner", "reason": "anticheat", "status": 0}),
+                        ("LAUNCHER", "end", {"kind": "clean"}))(r) +
+            # GraceUI's own check found the same module before it hooked: notices only, and EldenNet's banner among
+            # them; no panel, no hotkey, no provider.
+            want_grace(r, 300, found=1, eldennet=1, notice_only=1, banner=text, panels=0, shown=0, providers=0) +
+            (["the DLL registered beside anti-cheat"] if r.events("ELDENNET", "register") else []) +
+            en_log_is_clean(r))
+
+
+case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
+          "--grace-probe", VIEW_PROBE, frames=960),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui),
+     check=check_graceui_main,
+     what="GraceUI installed in the game's folder and loaded after EldenNet, by EldenNet's own look: the launcher's "
+          "pre-flight, the connect on T1, the F11 view on Dear ImGui's core shown and hidden through GraceUI's hotkey "
+          "and drawn on the game's frame, the world-state provider, and the Mark on GraceUI's hotkey once the "
+          "launcher's console hands its ring over")
+case("launcher-eldennet-graceui-before", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--press-f11-at", "360", "--grace-report", "300,460", "--grace-probe", VIEW_PROBE, frames=540),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, gal_change=unknown_build_for_dll, then=install_graceui),
+     check=check_graceui_before,
+     what="GraceUI loaded before EldenNet (the launcher's --also), found by its name, on the banner path (a build the "
+          "DLL's gal/ does not know): ConnectB, the banner as one notice under EldenNet's key, and F11's view")
+case("launcher-eldennet-graceui-unbound", LGAME + ["--also", "{gracedll}", "--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--grace-take-pause", "--press-pause-at", "540", "--grace-report", "360", frames=720),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=200,
+     prepare=install_eldennet(EN_PANEL, then=install_graceui),
+     check=check_graceui_unbound,
+     what="another mod holding Pause in GraceUI (the fake game, connected at boot to the GraceUI the launcher loaded): "
+          "EldenNet's Mark registers unbound (GraceUI D164), the launcher is never asked for Pause and keeps it, and "
+          "the Pause pressed is its own Mark")
+case("launcher-eldennet-graceui-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "--dll", "{eldennetdll}",
+                                                     "--console"] +
+     game("--d3d12", "--grace-report", "300", frames=420),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=dict(EN_ENV, VEHPROBE_MODE="off"),
+     timeout=200, prepare=install_eldennet(EN_PANEL, copies=(("EasyAntiCheat_EOS.dll", "vehprobe"),),
+                                           then=install_graceui),
+     check=check_graceui_anticheat,
+     what="a simulated anti-cheat module with GraceUI installed: GraceUI's own check puts it in the notice-only mode, "
+          "connect answers inactive (anti-cheat), and the banner goes through notice alone")
+
+def check_r1_callee(p, task, gap=False):
+    """Spike.6 to spike.8 (WHY§227, WHY§235, WHY§240): the callee's summary, from the live image, shows the fake
+    registration as the wrapper of R1 run 7's shape it is: rcx loaded from the rack's static (none of its arguments),
+    tested for null and branched on past its two calls (which make the rack and store it there), and, where both ways
+    meet, a tail jump to the tail function with the rack in rcx, the group in edx, the task in r8 and the hub in r9. One
+    level deeper the tail function bounds the group, tests the rack's shelf for it (loaded from [entry rcx + group*8 +
+    the shelves' offset]) and jumps through the shelf's vtable, a tail call through memory; one more level, read from the
+    table (but where the group has no shelf), the shelf's register slot calls the work with the hub, the group and the
+    task. Every summary's instructions are given as forms, the padding after the tail function's jump unreached."""
+    failures = []
+    c = p.get("callee_code")
+    if c is None:
+        return ["no callee_code in r1-probe.json"]
+    task_reg, instance_reg, group_reg = p["register"]["registers"]
+    rack = task["register_rack"]
+    callee = p["register"]["callee"]
+
+    def passed(k):
+        return {(a["reg"], a["from"]) for a in k.get("pass", []) if not a["first_word"]}
+
+    def src(k, reg):
+        return next((x["source"] for x in k.get("pass_src", []) if x["reg"] == reg), {})
+
+    def same(a, b):  # two sources, their loads' offsets aside
+        drop = lambda v: {k: (drop(x) if isinstance(x, dict) else x) for k, x in v.items() if k != "load_at"}
+        return drop(a) == drop(b)
+
+    need(c["read"] and not c["cut"] and not c["undecodable"] and c["bytes"] == c["extent"] > 0,
+         "the callee's bytes: %s" % {k: c.get(k) for k in ("read", "cut", "undecodable", "bytes", "extent")}, failures)
+    calls = [k for k in c["call_sites"] if k["form"] == "direct"]
+    tails = [k for k in c["call_sites"] if k["form"] == "tail"]
+    need(c["call_count"] == 2 and [k.get("target") for k in calls] == [rack["alloc_rva"], rack["build_rva"]] and
+         c["first_call"] == calls[0]["offset"], "the wrapper's calls: %s" % c["call_sites"], failures)
+    need(len(tails) == 1 and tails[0].get("target") == rack["tail_rva"] and tails[0]["reached"],
+         "the wrapper's tail jump: %s" % c["call_sites"], failures)
+    need(c["branch_count"] == 1 and not c["returns_early"] and "modelled_to" not in c,
+         "the wrapper's branches: %s, returns early %s, modelled to %s" %
+         (c["branches"], c["returns_early"], c.get("modelled_to")), failures)
+    guard = c.get("guard", [])
+    ops = guard[0]["operands"] if len(guard) == 1 else []
+    slot = {"src": "rip", "target": rack["slot_rva"], "width": 8}
+    need(len(guard) == 1 and guard[0]["op"] == "test" and guard[0]["cond"] == "ne" and guard[0].get("width") == 8 and
+         len(calls) == 2 and guard[0]["to"] > calls[1]["offset"] and len(ops) == 2 and
+         all(o["form"] == "register" and o.get("reg") == 1 and "from" not in o and
+             same(o.get("source", {}), slot) for o in ops), "the wrapper's guard: %s" % guard, failures)
+    need(tails and {(2, group_reg), (8, task_reg), (9, instance_reg)} <= passed(tails[0]) and
+         same(src(tails[0], 1), slot), "the arguments into the tail jump: %s" % (tails[0] if tails else None), failures)
+    forms = c.get("forms", [])
+    rips = [f for f in forms if f["class"] == "mov" and any(o["form"] == "rip" and o.get("target") == rack["slot_rva"]
+                                                            and o.get("section") == "data" for o in f["operands"])]
+    need(len(forms) == c["instructions"] and not any(f.get("unreached") for f in forms) and len(rips) == 2 and
+         forms[-1]["class"] == "jmp" and forms[-1].get("to") == rack["tail_rva"] - callee and
+         [f["offset"] for f in forms if f["class"] == "call"] == [k["offset"] for k in calls],
+         "the wrapper's forms: %s" % forms, failures)
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    tail = inner.get((rack["tail_rva"], 1), {})
+    need((rack["alloc_rva"], 1) in inner and (rack["build_rva"], 1) in inner and tail and tail["tail"] and tails and
+         tail["site"] == tails[0]["offset"], "the inner summaries: %s" %
+         [(i["rva"], i["site"], i["tail"], i.get("depth")) for i in c.get("inner", [])], failures)
+    tg = tail.get("guard", [])
+    entry = tg[1]["operands"][0].get("source", {}) if len(tg) == 2 and tg[1]["operands"] else {}
+    need(tail.get("extent") == 0 and tail.get("returns_early") and tail.get("call_count") == 0 and
+         tail.get("branch_count") == 2 and len(tg) == 2 and tg[0]["op"] == "cmp" and tg[0]["cond"] == "a" and
+         tg[0]["operands"][0].get("from") == group_reg and tg[0]["operands"][1].get("imm") == rack["bound"] and
+         tg[1]["op"] == "test" and tg[1].get("width") == 8, "the tail function's guards: %s" % tg, failures)
+    need(entry.get("src") == "memory" and entry.get("base_src") == {"src": "entry", "reg": 1} and
+         entry.get("index_src") == {"src": "argument", "from": group_reg} and entry.get("scale") == 8 and
+         entry.get("disp") == rack["shelves_off"] and entry.get("width") == 8,
+         "the tail function's tested value: %s" % entry, failures)
+    jumps = [k for k in tail.get("call_sites", []) if k["form"] == "tail_memory"]
+    need(len(jumps) == 1 and jumps[0]["reached"] and jumps[0].get("base") == 0 and
+         jumps[0].get("disp") == rack["shelf_slot_off"] and same(jumps[0].get("vtable_src", {}), entry) and
+         {(2, group_reg), (8, task_reg), (9, instance_reg)} <= passed(jumps[0]) and same(src(jumps[0], 1), entry),
+         "the tail function's jump: %s" % jumps, failures)
+    tforms = tail.get("forms", [])
+    need(len(tforms) == tail.get("instructions") and [f["class"] for f in tforms if f.get("unreached")] ==
+         ["int3", "int3"] and tforms[-1]["class"] == "ret", "the tail function's forms: %s" % tforms, failures)
+    deeper = inner.get((rack["shelf_register_rva"], 2))
+    if gap:
+        need(deeper is None, "a summary one more level deeper, with no shelf: %s" % deeper, failures)
+    else:
+        work = [k for k in (deeper or {}).get("call_sites", []) if k["form"] == "direct"]
+        need(deeper is not None and deeper["tail"] and jumps and deeper["site"] == jumps[0]["offset"] and
+             deeper["call_count"] == 1 and len(work) == 1 and work[0].get("target") == task["register_work_rva"] and
+             {(1, instance_reg), (2, group_reg), (8, task_reg)} <= passed(work[0]) and deeper.get("forms"),
+             "the shelf's register slot, one more level: %s" % deeper, failures)
+    return failures
+
+
+def check_r1_table(p, task, gap=False):
+    """Spike.8 (WHY§240): the rack the tail function reads, matched to run 7's shapes and read just before the call and
+    2 s after it: the rack on the heap (not the hub), an entry for each of the hub's groups up to the bound (with
+    --table-gap none for the stand-in group), the group's shelf with its vtable in the game's rdata and its register
+    slot in its code; and the call's return value, 1 (0 with the gap)."""
+    failures = []
+    rack = task["register_rack"]
+    group = p["register"]["group_index"]
+    t = p.get("table", {})
+    need(t.get("matched") and t.get("singleton_slot") == rack["slot_rva"] and "hop" not in t and "array" not in t and
+         t.get("disp") == rack["shelves_off"] and t.get("bound") == rack["bound"] and t.get("rva") == rack["tail_rva"]
+         and t.get("slot_disp") == rack["shelf_slot_off"], "the table's shape: %s" %
+         {k: v for k, v in t.items() if k not in ("before", "after")}, failures)
+    groups = [g["index"] for g in task["groups"]]
+    shelves = [g for g in groups if not (gap and g == group)]
+    for key in ("before", "after"):
+        r = t.get(key, {})
+        need(r.get("read") and r.get("singleton", {}).get("kind") == "heap" and not r.get("is_instance") and
+             "singleton_lead" not in r and r.get("entries") == rack["bound"] + 1 and
+             r.get("nonzero_at") == shelves and r.get("nonzero") == len(shelves),
+             "the table %s the call: %s" % (key, r), failures)
+        if gap:
+            need(r.get("entry") == {"kind": "zero"} and "entry_vtable" not in r and "slot_value" not in r,
+                 "the group's entry %s the call, with no shelf: %s" % (key, r), failures)
+        else:
+            need(r.get("entry", {}).get("kind") == "heap" and
+                 r.get("entry_vtable") == {"kind": "game", "section": "rdata", "rva": rack["shelf_vtable_rva"]} and
+                 r.get("slot_value") == {"kind": "game", "section": "code", "rva": rack["shelf_register_rva"]},
+                 "the group's entry %s the call: %s" % (key, r), failures)
+    need(t.get("before", {}).get("at_ms") == 0 and t.get("after", {}).get("at_ms", 0) >= 2000,
+         "the table's reads' times: %s" % [t.get(k, {}).get("at_ms") for k in ("before", "after")], failures)
+    want_returned = {"kind": "zero"} if gap else {"kind": "small", "value": 1}
+    need(p["register"].get("returned") == want_returned and p["register"].get("returned_low") == (0 if gap else 1),
+         "the call's return value: %s, low byte %s" % (p["register"].get("returned"),
+                                                       p["register"].get("returned_low")), failures)
+    return failures
+
+
+def check_r1_memory(p, task):
+    """Spike.6 and spike.7 (WHY§227, WHY§235): two whole-memory searches after the call, each complete within its caps,
+    each finding our task's address in the fake game's own memory (the hub's last_task and its tables: private
+    regions), our vtable's in the hub's last_vtable and our run slot's in the hub's table of run slots, and, counted
+    apart, ours (our module's data, the probe's own heap, our vtable itself), with the process's committed total."""
+    failures = []
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and ms[0]["at_ms"] >= 2000 and ms[1]["at_ms"] >= 20000, "the memory searches: %s" %
+         [(m["at_ms"], m["stopped"]) for m in ms], failures)
+    slots = p["register"]["vtable_slots"]
+    for m in ms:
+        game = [h for h in m["hits"] if not h["own"]]
+        ours = [h for h in m["hits"] if h["own"]]
+        need(m["stopped"] == "done" and m["own_known"] and m["read_bytes"] > 0 and m["regions"] >= m["read_regions"] > 0
+             and m["committed_bytes"] >= m["read_bytes"] + m["unread_bytes"],
+             "the memory search's walk: %s" % {k: v for k, v in m.items() if k != "hits"}, failures)
+        need(m["found"] >= 2 and any(h["points_to"] == "object" and h["offset"] == 0 and h["region"] == "private"
+                                     for h in game), "the game's copies: %s of %s" % (m["found"], game), failures)
+        need(m["own_found"] >= 2 and
+             any(h["region"] == "image" and h.get("module") == "ours" and h.get("section") == "data" for h in ours) and
+             any(h["region"] == "private" for h in ours), "our own copies: %s of %s" % (m["own_found"], ours), failures)
+        need(m["vtable_found"] >= 1 and any(h["points_to"] == "vtable" and h["region"] == "private" for h in game),
+             "the game's copies of our vtable: %s of %s" % (m["vtable_found"], game), failures)
+        need(m["slot_found"] >= 1 and m["slot_distinct"] == 1 and
+             any(h["points_to"] == "slot" and h.get("slot") == task["run_slot"] for h in game),
+             "the game's copies of our slots: %s, %s distinct, of %s" % (m["slot_found"], m["slot_distinct"], game),
+             failures)
+        need(m["own_vtable_found"] >= 1 and m["own_slot_found"] >= slots and m["own_slot_distinct"] == slots,
+             "our own copies of our vtable and slots: %s" %
+             {k: m[k] for k in ("own_vtable_found", "own_slot_found", "own_slot_distinct")}, failures)
+        need(all(("module" in h) == (h["region"] == "image") for h in m["hits"]), "hits' modules: %s" % m["hits"],
+             failures)
+    return failures
+
+
+def check_r1_control(p, ds):
+    """Spike.8 (WHY§240): the control diff, the same walk at the Mark and 2 s later, changed the hub's frame alone, and in
+    each diff across the call the frame is marked in_control and listed after the words that are not."""
+    failures = []
+    ctl = p.get("hub_diff_control", {})
+    need(ctl and 1900 <= ctl.get("at_ms", 0) <= 6000 and not ctl["capped"] and ctl["compared"] > 0 and
+         [w["path"] for w in ctl["words"]] == [[8]] and "in_control_words" not in ctl,
+         "the control diff: %s" % ctl, failures)
+    for d in ds:
+        frame = {tuple(w["path"]): w for w in d["words"]}.get((8,), {})
+        need(d.get("in_control_words") == 1 and frame.get("in_control") is True and d["words"][-1] == frame and
+             all(w.get("in_control") is False for w in d["words"][:-1]),
+             "the diff's control marks: %s" % [(w["path"], w.get("in_control")) for w in d["words"]], failures)
+    return failures
+
+
+def check_r1_diff(p, task):
+    """Spike.7 (WHY§235): the hub's reachable memory kept just before the call and compared with the same walk 2 and 20 s
+    after it: the hub's last_task now our task's address (not followed into, so fresh), its last_vtable our vtable, its
+    table of run slots our run slot (in our module), and at 20 s those changes steady and the hub's frame not."""
+    failures = []
+    ds = p.get("hub_diff", [])
+    need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000, "the hub's diffs: %s" %
+         [d.get("at_ms") for d in ds], failures)
+    if len(ds) != 2:
+        return failures
+    for d in ds:
+        head = {k: v for k, v in d.items() if k != "words"}
+        need(not d["capped"] and d["kept_bytes"] > 0 and d["compared"] > 0 and d["new_blocks"] >= 1 and
+             d["changed"] >= 5 and len(d["words"]) == min(32, d["changed"]), "the diff: %s" % head, failures)
+        words = {tuple(w["path"]): w for w in d["words"]}
+        last = words.get((task["register_keeps_off"],), {})
+        need(last.get("depth") == 0 and last.get("new", {}).get("kind") == "task" and
+             last["new"].get("fresh") is True and last.get("old", {}).get("kind") in ("heap", "game"),
+             "the hub's last task: %s" % last, failures)
+        vt = words.get((task["register_keeps_vtable_off"],), {})
+        need(vt.get("new", {}).get("kind") == "vtable" and vt["new"].get("fresh") is True and
+             vt.get("old", {}).get("kind") == "game" and vt["old"].get("section") == "rdata",
+             "the hub's last vtable: %s" % vt, failures)
+        runs = [w for w in d["words"] if w["depth"] == 1 and w["path"][0] == task["hub_run_fns_off"]]
+        need(len(runs) == 1 and runs[0]["old"]["kind"] == "zero" and runs[0]["new"]["kind"] == "ours" and
+             "rva" in runs[0]["new"], "the hub's run slots: %s" % runs, failures)
+    first, later = ds
+    need("steady_words" not in first and all("steady" not in w for w in first["words"]),
+         "the first diff's steadiness: %s" % first.get("steady_words"), failures)
+    words = {tuple(w["path"]): w for w in later["words"]}
+    frame = words.get((8,), {})
+    need(later.get("steady_words", 0) >= 4 and words.get((task["register_keeps_off"],), {}).get("steady") is True and
+         frame.get("steady") is False and later["words"][0].get("steady") is True,
+         "the later diff's steadiness: %s steady, the last task %s, the frame %s" %
+         (later.get("steady_words"), words.get((task["register_keeps_off"],)), frame), failures)
+    return failures + check_r1_control(p, ds)
+
+
+def r1_reports(result, failures):
+    """R1's two reports, each linted by the engine; None unless both are there."""
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
     reports = {}
     for name in ("r1-derive.json", "r1-probe.json"):
@@ -989,7 +1423,16 @@ def check_r1(result):
         need(code == 0, "lint --report %s: exit %s %s" % (name, code, out[-400:]), failures)
         with open(path) as f:
             reports[name] = json.load(f)
-    if len(reports) != 2:
+    return reports if len(reports) == 2 else None
+
+
+def check_r1(result):
+    """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
+    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+    failures = []
+    truth = result.truth
+    reports = r1_reports(result, failures)
+    if reports is None:
         return failures
     p, d = reports["r1-probe.json"], reports["r1-derive.json"]
     task = truth["task"]
@@ -1023,12 +1466,15 @@ def check_r1(result):
     need(any(h["offset"] == 0x20 and h["rose"] >= 2 and h["still"] >= 1 for h in p["rising"]["hits"]),
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
+    failures += (check_r1_callee(p, task) + check_r1_table(p, task) + check_r1_memory(p, task) +
+                 check_r1_diff(p, task))
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
     need(sum(1 for s in d["statics"] if s["status"] == "derived") == 4, "the statics: %s" %
          [(s["label"], s["status"]) for s in d["statics"]], failures)
-    return failures + want(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
+    # any_line: once the statics' slots are found the derivation runs again, and its line may come after this one.
+    return failures + any_line(result, "ELDENNET", "r1", stage="task_confirmed") + en_log_is_clean(result)
 
 
 case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
@@ -1041,6 +1487,113 @@ case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      what="R1 in a probe build: the derivation over the live image, the checks, the one call at the Mark (Pause at the "
           "title), the slot counts, the hub census's base class and run slot, the statics' slots, two lint-clean "
           "reports")
+
+
+# R1 as the owner runs it (README-R1.txt): `eldennet-launcher --probe`, with no settings.toml and the save backup made
+# first; the console's steps in plain words; Pause pressed at the title until it is taken (the default settle of 10 s,
+# then the live derivation); the one call; "task confirmed"; a while in the world with loading screens; the game ends
+# and the launcher lints both reports.
+R1_STEPS = ("asked", "reading", "press_mark", "called", "task_confirmed", "reports_clean")
+
+
+def r1_steps(result):
+    return [e.get("step") for e in result.events("LAUNCHER", "r1") if "step" in e]
+
+
+def check_r1_owner(result):
+    failures = check_r1(result)
+    # The console polls the block every 200 ms, so a quick step (reading, called) may pass unseen, as in a Release
+    # build on the fake game; the others are always told, in order, and nothing else is.
+    steps = r1_steps(result)
+    essential = [x for x in steps if x not in ("reading", "called")]
+    need(essential == [x for x in R1_STEPS if x not in ("reading", "called")] and
+         steps == [x for x in R1_STEPS if x in steps], "the console's R1 steps: %s" % steps, failures)
+    plain = [l for l in result.lines if l.startswith("EldenNet R1: ")]
+    need(len(plain) == len(steps) and any("press Pause" in l for l in plain) and
+         any("Task confirmed" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += want(result, "ELDENNET", "probe", asked="r1", accepted=1, probe_build=1)
+    failures += want(result, "ELDENNET", "settings", file=0)
+    failures += want(result, "LAUNCHER", "backup", folders=2, made=2)
+    p = json.load(open(os.path.join(result.paths["appdata"], "EldenNet", "probe", "r1-probe.json")))
+    checks = {c["item"]: c for c in p["checks"]}
+    need(checks.get("fd4_idiom", {}).get("status") == "confirmed", "the idiom's check: %s" % checks.get("fd4_idiom"),
+         failures)
+    need(checks.get("group", {}).get("expected") == checks.get("group", {}).get("value") is not None,
+         "the group's check against the layout: %s" % checks.get("group"), failures)
+    return failures
+
+
+case("launcher-eldennet-probe", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}", "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--reload-every", "360",
+          "--load-frames", "180", frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_owner,
+     what="R1 as the owner runs it: --probe (no settings.toml), the backup first, the console's steps in plain words, "
+          "Pause at the title until taken, the reviewed idiom and the layout's group confirmed, one call, task "
+          "confirmed, and both reports linted clean by the launcher when the game ends")
+# Spike.8's second case (WHY§240): the registration's rack holds no shelf for the stand-in group (--table-gap), so the
+# call answers 0 and the task never runs, as in R1 run 7. R1's report says so, and the run ends as run 7's did.
+def check_r1_gap(result):
+    failures = []
+    reports = r1_reports(result, failures)
+    if reports is None:
+        return failures
+    p = reports["r1-probe.json"]
+    task = result.truth["task"]
+    checks = {(c["item"], c.get("label", "")): c for c in p["checks"]}
+    need(all(checks.get((item, ""), {}).get("status") == "confirmed"
+             for item in ("gate", "fd4_idiom", "register", "register_abi", "group")),
+         "the checks: %s" % [(c["item"], c["status"]) for c in p["checks"]], failures)
+    need(p["register"]["call"] == "ok" and p["stage"] == "registered" and p["task"]["invocations"] == 0 and
+         not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
+         "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
+    failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, gap=True)
+    ds = p.get("hub_diff", [])
+    need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
+         "the hub's diffs, with nothing kept: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]] for d in ds],
+         failures)
+    failures += check_r1_control(p, ds)
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["vtable_found"] == 0 and
+                              m["slot_found"] == 0 and m["own_found"] >= 2 for m in ms),
+         "the memory searches, with nothing kept: %s" %
+         [{k: m.get(k) for k in ("stopped", "found", "vtable_found", "slot_found", "own_found")} for m in ms], failures)
+    steps = r1_steps(result)
+    need("task_confirmed" not in steps and steps[:1] == ["asked"] and "press_mark" in steps and
+         steps[-1:] == ["reports_clean"], "the console's R1 steps: %s" % steps, failures)
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    failures += any_line(result, "FAKEGAME", "rack", gap="1")
+    return failures + any_line(result, "ELDENNET", "r1", stage="table_after") + en_log_is_clean(result)
+
+
+case("launcher-eldennet-probe-gap", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}", "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--table-gap",
+          frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_gap,
+     what="R1 as the owner runs it, on a fake game whose registration table holds no entry for the group (R1 run 7's "
+          "end): the call answers 0, the table read before and after it shows the group's entry null and the others "
+          "set, the task never runs, and both reports lint clean when the game ends")
+case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                 "--probe"] + game("--stay-title", "--press-pause-at", "120",
+                                                                   frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=120,
+     prepare=install_eldennet(None),
+     check=lambda r: (want(r, "ELDENNET", "probe", asked="r1", accepted=0, probe_build=0) +
+                      want(r, "LAUNCHER", "init", state="exit") +
+                      ([] if r1_steps(r) == ["asked", "refused", "reports_missing"] else
+                       ["the console's R1 steps: %s" % r1_steps(r)]) +
+                      any_line(r, "LAUNCHER", "r1", report="r1-probe.json", lint="missing") +
+                      [f"the release DLL went on: {e}" for e in r.events("ELDENNET", "init")
+                       if e.get("state") not in ("pin", "gate", "safety", "settings", "exit")] +
+                      [l for l in r.lines if l.startswith("ELDENNET register")]),
+     what="--probe with the release DLL: it refuses R1 at Settings and stops there, calling nothing; the console says "
+          "so, and no report is left")
 
 
 # --- A small PE reader of our own, for the checks from outside ------------------------------------------------------------
@@ -1350,6 +1903,9 @@ def wine_env(args):
         env["WINEDEBUG"] = "-all"
         env["WINEDLLOVERRIDES"] = "mscoree,mshtml="
         env.pop("DISPLAY", None)
+        # Wine 9.0 frees the TMPDIR variable's own string while it starts and aborts ("free(): invalid pointer") when
+        # TMPDIR is set, as the cloud environment has set it since 2026-11-20 (WHY§210); Wine uses /tmp without it.
+        env.pop("TMPDIR", None)
     return env
 
 
@@ -1411,6 +1967,10 @@ SETUP_STEPS = (
     ["reg", "add", "HKCU\\Software\\Wine\\WineDbg", "/v", "ShowCrashDialog", "/t", "REG_DWORD", "/d", "0", "/f"],
     ["reg", "add", AEDEBUG, "/v", "Debugger", "/t", "REG_SZ", "/d", "no-jit-debugger-in-tests", "/f"],
     ["reg", "add", AEDEBUG, "/v", "Auto", "/t", "REG_SZ", "/d", "1", "/f"],
+    # Wine's DXGI factory starts wined3d, whose OpenGL renderer hung on Xvfb in GraceUI's harness; with its Vulkan
+    # renderer (Mesa's lavapipe, as Direct3D 12 uses) it did not (GraceUI's BUILD.md). Only the GraceUI cases' fake game
+    # (--d3d12) makes a DXGI factory.
+    ["reg", "add", "HKCU\\Software\\Wine\\Direct3D", "/v", "renderer", "/t", "REG_SZ", "/d", "vulkan", "/f"],
 )
 
 

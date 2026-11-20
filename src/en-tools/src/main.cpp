@@ -1,9 +1,14 @@
 // eldennet-engine: runs EldenNet's engine outside the game (roadmap S8.1.a, S8.1.g).
 // Each subcommand lives in its own file: render_prompt.cpp, chat.cpp, decide.cpp, probe.cpp (probe and models),
-// probe_exe.cpp (the derivation's offline round) and lint.cpp (lint --report).
+// probe_exe.cpp (the derivation's offline round), lint.cpp (lint), spike.cpp (rec-stats, replay, spike-report) and
+// golden.cpp (golden, over lib/: the scenario DSL and the golden runner).
 #include <cstdio>
 #include <cstring>
 #include <string>
+
+#ifndef EN_ENGINE_VERSION
+#define EN_ENGINE_VERSION "0.0.1"
+#endif
 
 int run_render_prompt(int argc, char** argv);
 int run_chat(int argc, char** argv);
@@ -12,6 +17,10 @@ int run_probe(int argc, char** argv);
 int run_models(int argc, char** argv);
 int run_probe_exe(int argc, char** argv);
 int run_lint(int argc, char** argv);
+int run_rec_stats(int argc, char** argv);
+int run_replay(int argc, char** argv);
+int run_spike_report(int argc, char** argv);
+int run_golden(int argc, char** argv);
 
 namespace {
 void usage() {
@@ -23,7 +32,11 @@ void usage() {
       "  probe          find the local model servers on this PC's usual ports\n"
       "  models         list the models each configured provider offers\n"
       "  probe-exe      read a game's executable file and derive what the game access layer needs (devkit)\n"
-      "  lint           check a numbers-only report (--report)\n"
+      "  lint           check a numbers-only report (--report), a recording (--recording) or gal/ (--gal)\n"
+      "  rec-stats      what a recording holds, as a numbers-only report\n"
+      "  replay         step a recording's inputs through the core (and Augur) again, and compare its changes\n"
+      "  golden         run a scenario or a recording through Augur and compare with its golden file\n"
+      "  spike-report   DESIGN 16.1's pass rules for S0-A to S0-D over spike logs and recordings\n"
       "  version        print the version\n",
       stderr);
 }
@@ -42,8 +55,12 @@ int main(int argc, char** argv) {
   if (cmd == "models") return run_models(argc - 1, argv + 1);
   if (cmd == "probe-exe") return run_probe_exe(argc - 1, argv + 1);
   if (cmd == "lint") return run_lint(argc - 1, argv + 1);
+  if (cmd == "rec-stats") return run_rec_stats(argc - 1, argv + 1);
+  if (cmd == "replay") return run_replay(argc - 1, argv + 1);
+  if (cmd == "spike-report") return run_spike_report(argc - 1, argv + 1);
+  if (cmd == "golden") return run_golden(argc - 1, argv + 1);
   if (cmd == "version") {
-    std::puts("eldennet-engine 0.0.1");
+    std::puts("eldennet-engine " EN_ENGINE_VERSION);
     return 0;
   }
   usage();

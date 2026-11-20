@@ -26,11 +26,14 @@ using namespace en::gal;
 std::uint64_t g_args[4] = {};
 const char kName[] = "InventedName";
 
-extern "C" __declspec(noinline) void test_register(std::uint64_t a, std::uint64_t b, std::uint64_t c, std::uint64_t d) {
+// A registration that answers whether it kept the task, as R1 spike.8 reads rax (WHY§240): 1.
+extern "C" __declspec(noinline) std::uint64_t test_register(std::uint64_t a, std::uint64_t b, std::uint64_t c,
+                                                            std::uint64_t d) {
   g_args[0] = a;
   g_args[1] = b;
   g_args[2] = c;
   g_args[3] = d;
+  return 1;
 }
 extern "C" __declspec(noinline) std::uint64_t test_getter(std::uint64_t) {
   std::uint64_t a = 0;
@@ -182,6 +185,53 @@ TEST_CASE("native sys: the rescan leaves out the calling thread's stack; a freed
   VirtualFree(pages, 0, MEM_RELEASE);
 }
 
+TEST_CASE("native sys: the regions VirtualQuery describes, and the whole-memory search over this process (WHY§227)") {
+  NativeSys sys;
+  // SAFETY: pages of our own: a "task" block, a page that holds its address, and a page with no access.
+  auto* task = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  auto* holder = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  auto* closed = static_cast<std::byte*>(VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS));
+  REQUIRE((task != nullptr && holder != nullptr && closed != nullptr));
+  const std::uint64_t at = address_of(task);
+  std::memcpy(holder + 0x40, &at, sizeof at);
+  const auto r = sys.region_at(address_of(holder) + 0x10);
+  REQUIRE(r.has_value());
+  CHECK(r->base == address_of(holder));
+  CHECK(r->allocation_base == address_of(holder));
+  CHECK(r->committed);
+  CHECK(r->kind == probe::RegionKind::Private);
+  CHECK(r->protect == PAGE_READWRITE);
+  CHECK(probe::searchable(*r));
+  const auto image = sys.region_at(sys.module_base());
+  REQUIRE(image.has_value());
+  CHECK(image->kind == probe::RegionKind::Image);
+  CHECK(image->allocation_base == sys.module_base());
+  CHECK_FALSE(probe::searchable(*sys.region_at(address_of(closed))));
+  CHECK_FALSE(sys.region_at(kAddressEnd).has_value());
+
+  probe::MemorySearchSpec spec;
+  spec.target = at;
+  spec.object_bytes = 0x100;
+  spec.game_base = sys.module_base();
+  spec.own_bases = {at};
+  spec.own_known = true;
+  ULONG_PTR low = 0, high = 0;
+  GetCurrentThreadStackLimits(&low, &high);
+  spec.skip.push_back(AddressRange{low, high});
+  const probe::MemorySearch m =
+      probe::search_memory(sys, [&](std::uint64_t a) { return sys.region_at(a); }, spec);
+  CHECK(m.stopped == probe::SearchStop::Done);
+  CHECK(m.found >= 1);
+  CHECK(m.read_bytes > 0);
+  CHECK(m.unread_bytes >= 4096);  // the page with no access, never touched
+  bool held = false;
+  for (const probe::MemoryHit& h : m.hits) held = held || (!h.own && h.region == probe::RegionKind::Private && h.offset == 0);
+  CHECK(held);
+  VirtualFree(closed, 0, MEM_RELEASE);
+  VirtualFree(holder, 0, MEM_RELEASE);
+  VirtualFree(task, 0, MEM_RELEASE);
+}
+
 TEST_CASE("native sys: the calls into the game run under SEH, and the task object's trampoline runs our body") {
   // A call that faults is an answer (ARCH §3.2's Register → banner).
   const sys::CallOutcome fault = sys::call_register(address_of(&test_faulting), {1, 2, 3, 4});
@@ -198,7 +248,9 @@ TEST_CASE("native sys: the calls into the game run under SEH, and the task objec
   const TaskShape shape{4, 2, 0x18, 7, RegisterAbi{ArgRegister::Rdx, ArgRegister::R9, ArgRegister::Rcx}};
   CHECK(sys.register_task(address_of(&test_register), 0xABCDEF00, TaskShape{4, 4, 0x18, 7, {}}, body).error() ==
         SysError::BadShape);
-  REQUIRE(sys.register_task(address_of(&test_register), 0xABCDEF00, shape, body).has_value());
+  const auto answered = sys.register_task(address_of(&test_register), 0xABCDEF00, shape, body);
+  REQUIRE(answered.has_value());
+  CHECK(*answered == 1);  // rax, as the call left it
   CHECK(g_args[0] == 7);            // rcx: the group
   CHECK(g_args[3] == 0xABCDEF00);  // r9: the instance
   const std::uint64_t block = g_args[1];  // rdx: our task object

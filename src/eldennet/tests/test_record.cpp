@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
-#include "en/shell/probe_report.hpp"
 #include "en/shell/record.hpp"
 
 using namespace en::shell;
@@ -18,7 +18,7 @@ namespace proto = en::proto;
 
 namespace {
 
-const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &probe_vocabulary()};
+const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &en::gal::probe::vocabulary()};
 
 void lints(const std::string& line) {
   INFO(line.substr(0, 300));
@@ -136,4 +136,104 @@ TEST_CASE("record: every kind of line lints clean, and a file of them too") {
 TEST_CASE("record: an empty snapshot (the title) lints clean") {
   const proto::WorldSnapshot empty;
   lints(snapshot_line(empty, 1));
+}
+
+TEST_CASE("a recording's lines read back with the writer's words: what the core and Augur read, counts of the rest") {
+  const auto s = full_snapshot();
+  const auto snap = read_recorded_line(snapshot_line(*s, s->mono_ms));
+  REQUIRE(snap.has_value());
+  CHECK(snap->kind == RecordedLine::Kind::Snap);
+  CHECK(snap->t == s->mono_ms);
+  REQUIRE(snap->snap);
+  const proto::WorldSnapshot& r = *snap->snap;
+  CHECK(r.seq == s->seq);
+  CHECK(r.gap == s->gap);
+  CHECK(r.health == s->health);
+  CHECK(r.session == s->session);
+  CHECK(r.life == s->life);
+  CHECK(r.ui.hud == s->ui.hud);
+  REQUIRE(r.player.has_value());
+  CHECK(r.player->play_time_ms == s->player->play_time_ms);
+  CHECK(r.player->level == s->player->level);
+  CHECK(r.player->save_slot == s->player->save_slot);
+  CHECK(snap->chars == s->chars.size());
+  CHECK(snap->flag_frame == s->flags.has_value());
+  // What Augur reads (part 11): the characters, the Tarnished's combat fields, the UI, the place, the boss and flags.
+  CHECK(r.ui == s->ui);
+  CHECK(r.place.has_value() == s->place.has_value());
+  if (s->place) CHECK(r.place->place_id == s->place->place_id);  // the region key is never recorded
+  CHECK(r.clock == s->clock);
+  CHECK(r.boss.bars == s->boss.bars);
+  CHECK(r.flags == s->flags);
+  const auto near = [](float a, float b) { return std::isnan(a) ? std::isnan(b) : std::fabs(a - b) <= 1e-5f * (1 + std::fabs(a)); };
+  proto::Player pa = *r.player, pb = *s->player;
+  CHECK(near(pa.pos[0], pb.pos[0]));
+  CHECK(near(pa.pos[1], pb.pos[1]));
+  CHECK(near(pa.pos[2], pb.pos[2]));
+  pa.pos = pb.pos;
+  CHECK(pa == pb);
+  REQUIRE(r.chars.size() == s->chars.size());
+  for (std::size_t i = 0; i < r.chars.size(); ++i) {
+    CAPTURE(i);
+    proto::Chr a = r.chars[i], b = s->chars[i];
+    CHECK(near(a.dist_m, b.dist_m));
+    CHECK(near(a.bearing_deg, b.bearing_deg));
+    for (std::size_t k = 0; k < 3; ++k) CHECK(near(a.pos[k], b.pos[k]));
+    a.dist_m = b.dist_m;
+    a.bearing_deg = b.bearing_deg;
+    a.pos = b.pos;
+    a.asleep = b.asleep;  // never recorded (S8)
+    if (std::isnan(b.bearing_deg)) {
+      CHECK(a.handle == b.handle);
+    } else {
+      CHECK(a == b);
+    }
+  }
+
+  proto::Lifecycle::PlaythroughReady p;
+  p.slot = 4;
+  p.archetype = 2;
+  p.play_time_ms = 77;
+  REQUIRE(p.name.try_assign("Invented Name"));
+  const auto life = read_recorded_line(lifecycle_line(proto::Lifecycle{p}, 9));
+  REQUIRE(life.has_value());
+  const auto* back = std::get_if<proto::Lifecycle::PlaythroughReady>(&life->life.payload);
+  REQUIRE(back != nullptr);
+  CHECK(back->slot == 4);
+  CHECK(back->archetype == 2);
+  CHECK(back->play_time_ms == 77);
+  CHECK(back->name.size() == p.name.size());   // a stand-in of the same length
+  CHECK(back->name.view() != p.name.view());   // never the name, which was never recorded
+  const auto tripped = read_recorded_line(lifecycle_line(proto::Lifecycle{proto::Lifecycle::GroupTripped{
+                                                             proto::Group::Camera}}, 10));
+  REQUIRE(tripped.has_value());
+  CHECK(std::get<proto::Lifecycle::GroupTripped>(tripped->life.payload).group == proto::Group::Camera);
+
+  const en::core::Change c{en::core::Change::What::GateClosed, 2, 0, 555};
+  const auto change = read_recorded_line(change_line(c, 600));
+  REQUIRE(change.has_value());
+  CHECK(change->change == c);
+  CHECK(change->t == 600);
+  const auto banner = read_recorded_line(banner_line(en::core::BannerReason::Inert, 7));
+  REQUIRE(banner.has_value());
+  CHECK(banner->banner == en::core::BannerReason::Inert);
+  const auto mark = read_recorded_line(mark_line(3, 8));
+  REQUIRE(mark.has_value());
+  CHECK(mark->mark == 3);
+  RecordingHeader h;
+  h.game_version = {9, 8, 7, 0};
+  h.region = "ww";
+  h.spike = "s0b";
+  h.file = 2;
+  const auto header = read_recorded_line(header_line(h, 1));
+  REQUIRE(header.has_value());
+  CHECK(header->header.game_version == h.game_version);
+  CHECK(header->header.spike == "s0b");
+  CHECK(header->header.file == 2);
+  // Not a recording line: another kind, another schema, no JSON.
+  CHECK_FALSE(read_recorded_line(R"({"report":"probe","schema":1,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line(R"({"report":"recording","schema":2,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line("not json").has_value());
+  CHECK(kind_name(RecordedLine::Kind::Snap) == "snap");
+  CHECK(group_name(proto::Group::Camera) == "camera");
 }

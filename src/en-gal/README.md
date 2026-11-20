@@ -4,8 +4,8 @@ The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. Three 
 may link (`en_dll_module`):
 
 - `en_gal`, the offline part, which builds with every compiler: the PE reader, the patterns, `gal/`'s schemas, the
-  derivation kit that `eldennet-engine probe-exe` runs (part 3), and, with clang-cl, `GuardedReader`'s guarded copy.
-  en-launcher and en-tools use it off game (ARCH §2.3).
+  derivation kit that `eldennet-engine probe-exe` runs (part 3), R1's probe report, and, with clang-cl,
+  `GuardedReader`'s guarded copy. en-launcher and en-tools use it off game (ARCH §2.3).
 - `en_gal_game`, the part that runs in the game process (part 4): `GuardedReader`, the read groups and their breakers,
   discovery over the live image, `ErBackend`'s reads, the task; portable C++ over `SysLayer`, the platform seam, tested
   on Linux over the tests' `FakeSys`; and, with clang-cl, `NativeSys` (`src/sys/`), the seam in game.
@@ -77,7 +77,13 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   every copy size within 0x4000; every `to` and `elem` naming a class of the file; each enum table total over the
   range of the fields that use it; what the read groups need (`LayoutNeeds`: fields with their types, enum tables with
   the snapshot enum's names, params) present; and, in a release build, no entry left a `lead` (an entry with no
-  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5).
+  `status` is a lead). `max_copy_size()` sizes the scratch buffers (ARCH §6.5). A `[task]` that is a lead may hold
+  only its `group` (the derivation's offline round gives the group's index; `register_abi`, `vtable_slots`,
+  `run_slot` and `object_size` are the in-game round's to find, left out rather than guessed): it is `partial`, and
+  discovery is never ready with it, `install_task` refuses it and the first tick reads nothing (the real game's draft
+  layout, `gal/layouts/2.7.2.0-ww.toml`). A confirmed `[task]`, or a lead with any of those keys, needs them all.
+  `check_layout(entry, text, needs, mode)` makes the same checks for builds.toml's entry without the gate and keeps no
+  `Layout` (R7 still keeps that to `load_layout`): `eldennet-engine lint --gal` runs it.
 
 Every schema problem is reported, up to 64, with where it was and what was wrong, never a value
 (`patterns.toml: pattern[2].capture: lies outside the pattern`); a gal/ file over 256 KiB is refused unread.
@@ -184,7 +190,13 @@ of any game is in it, and every name it looks for comes from a leads file.
   `lint(text, vocabularies)` checks a file token by token (a repeated key cannot hide a string), with problems that say
   where, never what; `lint_lines` checks a JSON Lines file whose every line is one report of the first line's kind
   (eldennet.dll's recordings), each problem with its line. `derive::write_report` writes derive.json through it, under
-  `derive::vocabulary()`; eldennet's en_shell holds the `recording` and `probe` vocabularies.
+  `derive::vocabulary()`; eldennet's en_shell holds the `recording` vocabulary.
+- **`probe_report.hpp`: R1's report** (kind `probe`, schema 1; O89). What the probe build of eldennet.dll finds in
+  game, beside the derivation it runs over the live image: the checks before its one call, the call, the slot counts,
+  the hub's census, the rising fields and the statics' slots. The DLL fills `probe::Findings`, and
+  `probe::write_report` writes it under `probe::vocabulary()`. It is here rather than in eldennet's en_shell, which
+  links en-core, so that the launcher lints R1's two reports after an R1 session (`--probe`) with en-gal's offline
+  part alone (ARCH §2.3).
 
 ```cpp
 #include "en/gal/derive.hpp"
@@ -305,7 +317,39 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   `SysLayer::slot_calls` counts the game's calls of each slot, and `TaskShape::every_slot` (R1, the run slot not yet
   known) makes every slot count its calls and run the body for our own object; `SysLayer::task_object` gives our
   object's address, so that R1 can see how much of it the hub wrote. Everything they need on the game thread is
-  allocated on T1.
+  allocated on T1. Spike.6 (WHY§227) adds two of T1's: `summarise_callee`, the registration's callee as its code reads
+  (decoded from its RVA within its function or up to its first return, at most 4 KiB, no call followed: its calls and
+  their forms, its branches before the first call, whether a path returns through no call, and each argument
+  register's stores, moves to callee-saved registers, compares and tests before the first call, followed through moves
+  between registers until an instruction it does not model), and `search_memory`, every committed and searchable
+  region (`searchable`: readable, not a guard page, no-access, uncached or write-combined) read through the copy
+  primitive in chunks of `kMaxCopyBytes`, page by page where one faults or a stack or a kept-out range overlaps it,
+  within a cap of bytes and of time, for the words equal to an address or pointing into the object there, the regions
+  whose allocation base the caller names as its own counted apart, and an image hit's section read from its headers by
+  its characteristics (`section_kind`). Both fill `probe_report.hpp`'s structures. NativeSys's `region_at` (probe
+  builds) is the VirtualQuery behind the search. Spike.7 (WHY§235) follows the task past the wrapper run 6 found:
+  `summarise_callee` knows what each register holds along the flow (where paths meet a register keeps only what both
+  agree on, and code no known path reaches holds nothing), maps the arguments into every call and tail jump (`pass`),
+  reads each branch's flag test before the first call (`guards`: the compare or test, past moves that set no flag, with
+  its operands' kinds: a register and the argument it holds, a memory operand's base and displacement, a RIP-relative
+  slot, an immediate), and takes an entry state, so that each callee of the wrapper is summarised with the wrapper's
+  arguments followed into it (`entry_at`); `search_memory` also counts the words equal to our fake vtable's address and
+  to its slots', reads up to 64 GiB (the time cap the bound) and walks past a cap for the committed total; and
+  `walk_hub`, `search_walk` and `diff_hub` (`probe_hub.cpp`) keep spike.5's walk of the hub's reachable memory, search
+  it, and compare two walks block by block by path, each changed word's old and new value by kind (zero, a small
+  integer, the group's index, our task, our vtable, our module, the game's image with its section and RVA, the heap,
+  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not. Spike.8 (WHY§240) reads the
+  tail function run 7 found: `summarise_callee` also follows values loaded from memory (a RIP-relative slot, or
+  [base + index*scale + disp] with what base and index hold, at most 3 loads deep; a call's result stored to a
+  RIP-relative slot holds that slot's value, and an inner summary's rcx to r9 that hold no argument their entry
+  values), gives each guard operand's source, models a jump through memory or a register as a tail call site, ends a
+  function with no extent at its first jump out that no branch goes past, and gives each summary's first 64
+  instructions as forms (class and operand kinds, no bytes; `mark_sections` fills a RIP-relative slot's section);
+  `match_table` checks a wrapper and its tail function against run 7's shapes (the wrapper's rcx at its tail jump, or
+  past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
+  its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
+  `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
+  the call left it.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -353,7 +397,8 @@ group entries holding their index, statics without RTTI, and a trademark sign in
 the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
 labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
-than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
+than a pattern. `test_probe_report.cpp` writes every part of R1's report, which lints clean, and refuses a label that
+is not one, leaving no text. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
 `fakegame --describe` says.
 
 The in-game part's tests (part 4) run in every build over `FakeSys` (`tests/fake_sys.hpp`: a process of byte regions,
@@ -371,10 +416,31 @@ layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stal
 most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
 this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
 (`test_probe.cpp`: the slot searches, the heap slots and the module base's slot, the rising-counter search telling a
-play time from a still field, the hub census to a depth of three past a released object). The clang-cl build adds
+play time from a still field, the hub census to a depth of three past a released object; the callee's summary on code
+of our own, hand-assembled: an argument kept in a callee-saved register and stored into another, a compare with a
+bound, a virtual call on an argument's object, a refusal path that returns through no call, a RIP-relative store, an
+immediate past the bound, an instruction it does not model, the 4 KiB bound and bytes that do not decode; and the
+whole-memory search over regions of the test's own: the game's copies in its image, heap and a mapped view, ours in our
+module, heap and task block, a guard page, an execute-only page and a stack never read, a page that faults, a range
+kept out, both caps, and its copies counted as the game's when our heap's regions are not known; spike.7's on code of
+our own: a wrapper's arguments mapped into two calls and a tail jump through the registers that keep them, a flag of
+the instance tested before a branch past both calls, an inner callee summarised with the wrapper's arguments (the task
+and its vtable kept in the hub, the group compared with a bound), two paths that disagree, a call reached only through
+a jump the summary cannot follow, a compare found past a move and a byte register's high half; the hub walked, searched
+and diffed over memory of the test's own (each kind of value, a fresh block, a block found again by another path, a
+path re-pointed, a block gone, the caps, and a later diff's steady words first); and the search for our vtable's and
+slots' copies, ours apart, with the committed total past a cap; spike.8's on code of our own: a wrapper of run 7's
+shape whose singleton, loaded from a global on one path and made and stored there on the other, reaches its tail jump
+on both, its guard's source and its forms; a tail function whose null test reads [entry rcx + group*8] and whose jump
+through the entry's vtable is a tail call through memory, the padding after it unreached, and the table's shapes
+matched (one level deeper too) or the first that failed named; a jump through a register loaded from a global, one
+through a RIP-relative slot, loads not followed (16-bit, a segment's, a fourth level) and a function with no extent
+ending at its jump out; the table's reads over memory of the test's own (the entries to the bound, the group's entry,
+its vtable and slot, no entry, no singleton yet, a hop and an array, the instance); and the control diff's words
+marked and ordered). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
-under SEH, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
+under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
 it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page

@@ -710,7 +710,7 @@ GroupCheck ErBackend::first_tick(const GameThread& gt) {
   GroupCheck out;
   const auto& task = d_.layout().task();
   const auto hub = item_object(gt, Group::Session, Item::TaskHub, false);  // counted nowhere: boot has no breaker
-  if (!task || !hub) return out;
+  if (!task || task->partial || !hub) return out;
   const auto table = hub->ptr(b_.field(Fld::HubGroups));
   const auto count = hub->integer(b_.field(Fld::HubGroupCount));
   const std::uint32_t stride = b_.stride_of(Cls::TaskGroup);
