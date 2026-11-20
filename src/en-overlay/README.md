@@ -105,12 +105,15 @@ game's own text entry is not read in v0.1.
 ## EldenNet's space (`space.hpp`; PAGES, GraceUI D160, D169)
 
 - **One source**: `pages/space.toml`, in GraceUI's page format (eldennet-changes §19): the rail of PAGES §4.2.1 in its
-  order (a category with no page yet holds none, and GraceUI shows no empty category), the slice's pages (Home, System ›
-  Status and Logs, Settings › Developer), its topics (`settings`, `status`, `errors`, `system.status`,
-  `system.compatibility`, `logs`), its commands (`settings.set`, `settings.reset`) and the settings v0.1 reads whose
-  home is there (`debug.panel`, `debug.record_sessions`, `debug.log_level`). `python3 -I tools/pages/build.py` writes
-  `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in CTest); every page ships in
-  the increment EldenNet registers, `0.1` (D173). Every word a player reads there is a draft for review.
+  order (a category with no page yet holds none, and GraceUI shows no empty category), the pages (Home, System ›
+  Status and Logs, Settings › Developer from the first slice; AI › Providers, Models and Self-test from the second),
+  its topics (`settings`, `status`, `errors`, `system.status`, `system.compatibility`, `logs`; `ai.status`,
+  `providers`, `health`, `ai.slots`, `selftest`), its commands (`settings.set`, `settings.reset`, `selftest.run`,
+  `models.list`, `providers.add`, `providers.remove`) and the settings whose home is there (`debug.panel`,
+  `debug.record_sessions`, `debug.log_level`; `ai.preset`, `keys.openrouter`, `keys.nanogpt`). `python3 -I
+  tools/pages/build.py` writes `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in
+  CTest); every page ships in the increment EldenNet registers or an earlier one, `0.2` since the AI pages (D173).
+  Every word a player reads there is a draft for review.
 - **Registered at the connect** (T1, eldennet-changes §23 item 1): `Options::space_views`, both views on the main path,
   the game's alone on the banner path (PAGES §4.4); `Report::pages` is register_pages's answer, and the log's connect
   line says it. Without the `pages` cap, or in the notice-only mode, nothing is registered.
@@ -126,15 +129,29 @@ game's own text entry is not read in v0.1.
   `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
   the core, the anti-cheat watch, the log, the recording when asked for, GraceUI) and the read groups' self-tests
   (`columns`, `rows`); `system.compatibility` the versions and how EldenNet started; `logs` the log's own lines (500
-  held, from T1's first, scrubbed again of a SteamID64's shape, PV5).
+  held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
+  own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
+  inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
+  gate, or v0.1's observing); `providers` the providers' table (the base URL here alone, PV2; a key's status, Set,
+  Missing, Rejected or None needed) and the model list's checks, in words; `health` each provider's state, when it
+  last answered and its jobs; `ai.slots` each job's provider, model and fallback, "Same as Conversation" for one that
+  borrows (the reserved slots get no row until their features exist, PAGES §4.5); `selftest` the verdict, the steps,
+  the figures and this session's earlier runs, nothing before the first run. Never a key, an id a server listed, or
+  the model's text.
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings
-  file the player wrote was refused at the start. A secret is held and published as its status alone. What a command
-  changed is taken by the DLL (`take_changes`), which applies it and writes settings.toml.
+  file the player wrote was refused at the start. A secret is held and published as its status alone; one with a space
+  or a control inside is refused. What a command changed is taken by the DLL (`take_changes`), which applies it and
+  writes settings.toml, or for `ai.preset` and the keys providers.toml and secrets.toml (refused while providers.toml
+  is). The AI pages' commands are answered at once and handed to the DLL (`take_requests`): `selftest.run` and
+  `models.list` (only with a provider, while the gate is open, one at a time: `busy` for the same, `not_now` in words
+  for the other), `providers.add` (the chosen preset's providers that providers.toml lacks; not for Custom) and
+  `providers.remove` (the providers no job uses, with their keys: destructive, so `confirm_required` without
+  `confirm: true`, D173, D183).
 - **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
-  new watch) and when its body changes, no oftener than its rate (`status` 4 a second, `system.status` once a second,
-  the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
+  new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
+  `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.
 
 ## Tests
 
@@ -143,7 +160,8 @@ first with their ages, each event's columns and its square's source, full lists 
 nothing but our words and numbers whatever the status holds, a long word cut), the newest ring (the last N, the newest
 last in its copy, every push counted), the world-state claims, and the space:
 its generated page data (the ids, the rail, the increment, GraceUI 0.2.5's checks met), settings.set and settings.reset
-with each refusal, a secret's status alone, what is published and when, the logs stream's batches and ring, the words
+with each refusal, a secret's status alone, the AI pages' topics, commands, preset and keys (a key in no frame, answer
+or note), what is published and when, the logs stream's batches and ring, the words
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no

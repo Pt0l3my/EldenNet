@@ -276,16 +276,323 @@ json compatibility_body(const SpaceFacts& f) {
   return json{{"checks", std::move(checks)}};
 }
 
+
+// ---- AI (PAGES §4.6.2). Projections only: the configuration's ids, our words and numbers; a base URL on Providers
+// alone (PV2); a key's status, never a key; never an id a server listed, never the model's text (PV4).
+
+const char* slot_words(std::string_view slot) noexcept {
+  if (slot == proto::kDialogue) return "Conversation";
+  if (slot == proto::kBarkLive) return "Quick lines";
+  if (slot == proto::kBarkPool) return "Prepared lines";
+  if (slot == proto::kMemory) return "Memory";
+  if (slot == proto::kSelftest) return "Self-test";
+  if (slot == proto::kDecisions) return "Decisions";
+  if (slot == proto::kDraft) return "Profile drafts";
+  return "";
+}
+
+const char* flavor_words(AiFlavor f) noexcept {
+  switch (f) {
+    case AiFlavor::OpenAI: return "OpenAI-compatible";
+    case AiFlavor::Ollama: return "Ollama";
+    case AiFlavor::LlamaCpp: return "llama.cpp";
+    case AiFlavor::LmStudio: return "LM Studio";
+    case AiFlavor::KoboldCpp: return "KoboldCpp";
+  }
+  return "";
+}
+
+const char* json_words(AiJson j) noexcept {
+  switch (j) {
+    case AiJson::None: return "Off";
+    case AiJson::Object: return "JSON object";
+    case AiJson::Schema: return "JSON schema";
+  }
+  return "";
+}
+
+const char* key_words(AiKey k) noexcept {
+  switch (k) {
+    case AiKey::NotNeeded: return "None needed";
+    case AiKey::Set: return "Set";
+    case AiKey::Missing: return "Missing";
+    case AiKey::Rejected: return "Rejected";
+  }
+  return "";
+}
+
+// What went wrong, as the end of a sentence about a provider ("… could not be reached").
+const char* failure_words(AiFailure f) noexcept {
+  switch (f) {
+    case AiFailure::None: return "";
+    case AiFailure::Unreachable: return "Could not be reached.";
+    case AiFailure::KeyRefused: return "Refused the key.";
+    case AiFailure::RateLimited: return "Asked EldenNet to wait: too many requests.";
+    case AiFailure::TimedOut: return "Took too long to answer.";
+    case AiFailure::BadReply: return "Answered with something EldenNet could not read.";
+    case AiFailure::BadRequest: return "Refused the request: the model may not exist there.";
+    case AiFailure::Refused: return "Declined to answer.";
+    case AiFailure::GateClosed: return "Not sent: model calls wait until this session is confirmed offline and solo.";
+    case AiFailure::Busy: return "Not sent: the provider was busy with other calls.";
+    case AiFailure::NoProvider: return "Not sent: no provider answers for it.";
+    case AiFailure::Cancelled: return "Stopped before it finished.";
+  }
+  return "";
+}
+
+const char* verdict_words(AiVerdict v) noexcept {
+  switch (v) {
+    case AiVerdict::None: return "";
+    case AiVerdict::Quick: return "Quick";
+    case AiVerdict::Acceptable: return "Acceptable";
+    case AiVerdict::Slow: return "Slow";
+  }
+  return "";
+}
+
+std::string seconds_of(std::int64_t ms) {
+  char text[32];
+  std::snprintf(text, sizeof text, "%.2f s", static_cast<double>(ms) / 1000.0);
+  return text;
+}
+
+// "Conversation's", "Conversation's or Memory's".
+std::string slots_owned(const std::vector<std::string_view>& slots) {
+  std::string out;
+  for (std::size_t i = 0; i < slots.size(); ++i) {
+    if (i != 0) out += i + 1 == slots.size() ? " or " : ", ";
+    out += std::string(slot_words(slots[i])) + "'s";
+  }
+  return out;
+}
+
+const char* step_state(AiStep s) noexcept {
+  switch (s) {
+    case AiStep::Passed: return "pass";
+    case AiStep::Failed: return "fail";
+    case AiStep::Skipped: return "warn";
+    case AiStep::Waiting:
+    case AiStep::Running: break;
+  }
+  return "wait";
+}
+
+std::string list_words(const AiList& l) {
+  switch (l.state) {
+    case AiStep::Waiting: return "Waiting for its turn.";
+    case AiStep::Running: return "Asking for its models.";
+    case AiStep::Skipped: return "Not asked.";
+    case AiStep::Passed:
+    case AiStep::Failed: break;
+  }
+  if (l.why != AiFailure::None) return failure_words(l.why);
+  const std::string count = l.listed == 1 ? "1 model" : std::to_string(l.listed) + " models";
+  if (l.missing.empty()) return "Lists " + count + ", every job's model among them.";
+  return "Lists " + count + ", but not " + slots_owned(l.missing) + " model.";
+}
+
+const AiProvider* provider_of(const AiFacts& ai, std::string_view id) {
+  for (const AiProvider& p : ai.providers) {
+    if (p.id == id) return &p;
+  }
+  return nullptr;
+}
+
+// What the AI can do now and why, which every AI page leads with (PAGES §4.4: L2, no healthy model, the gate).
+std::string ai_cause(const SpaceFacts& f) {
+  const AiFacts& ai = *f.ai;
+  if (f.level == Level::Inactive) return "EldenNet is inactive, so it calls no model: Home's Problems say why.";
+  if (ai.files == AiFiles::Refused) {
+    return "Your providers file has a problem, so EldenNet calls no model. System › Logs names the line.";
+  }
+  if (ai.providers.empty()) {
+    return "No provider yet: choose a preset on Models, then press Add provider on Providers.";
+  }
+  const AiSlot* talk = nullptr;
+  for (const AiSlot& s : ai.slots) {
+    if (s.slot == proto::kDialogue) talk = &s;
+  }
+  if (talk == nullptr || talk->model.empty()) {
+    return "Conversation has no model yet: choose a preset on Models, or name one in your providers file.";
+  }
+  if (const AiProvider* p = provider_of(ai, talk->provider)) {
+    if (p->key == AiKey::Missing) return p->id + " has no key yet: paste it under Keys on Providers.";
+    if (p->key == AiKey::Rejected) return p->id + " refused its key: paste it again under Keys on Providers.";
+  }
+  if (!talk->healthy) {
+    return "No model answers Conversation now: its models are resting after failures, and try again within a minute.";
+  }
+  if (!f.gate_open) {
+    if (f.badge || f.gate_why == Unclean::NotSolo || f.gate_why == Unclean::Lobby) {
+      return "Model calls wait while you play with others online.";
+    }
+    return "Model calls wait until EldenNet has confirmed that this session is offline and solo.";
+  }
+  if (f.level == Level::Starting) return "EldenNet is still starting.";
+  return "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider "
+         "meanwhile.";
+}
+
+json ai_status_body(const SpaceFacts& f) {
+  if (f.ai == nullptr) return json::object();
+  return json{{"sentence", ai_cause(f)}};
+}
+
+json providers_body(const SpaceFacts& f) {
+  if (f.ai == nullptr) return json::object();
+  const AiFacts& ai = *f.ai;
+  json columns = json::array({json{{"id", "id"}, {"label", "Provider"}}, json{{"id", "kind"}, {"label", "Kind"}},
+                              json{{"id", "type"}, {"label", "Server type"}},
+                              json{{"id", "address"}, {"label", "Address"}}, json{{"id", "key"}, {"label", "Key"}},
+                              json{{"id", "requests"}, {"label", "Requests at once"}, {"numeric", true}},
+                              json{{"id", "json"}, {"label", "JSON answers"}}});
+  json rows = json::array();
+  for (const AiProvider& p : ai.providers) {
+    rows.push_back(json{{"id", p.id}, {"kind", p.cloud ? "Cloud" : "Local"}, {"type", flavor_words(p.flavor)},
+                        {"address", p.base_url}, {"key", key_words(p.key)}, {"requests", std::to_string(p.concurrency)},
+                        {"json", json_words(p.json)}});
+  }
+  // The model list's last result, a check per provider.
+  json checks = json::array();
+  for (const AiList& l : ai.lists) {
+    checks.push_back(check(l.provider, step_state(l.state), list_words(l)));
+  }
+  return json{{"columns", std::move(columns)}, {"rows", std::move(rows)}, {"checks", std::move(checks)}};
+}
+
+json health_body(const SpaceFacts& f) {
+  if (f.ai == nullptr) return json::object();
+  const AiFacts& ai = *f.ai;
+  json columns = json::array({json{{"id", "id"}, {"label", "Provider"}}, json{{"id", "state"}, {"label", "State"}},
+                              json{{"id", "answered"}, {"label", "Last answered"}},
+                              json{{"id", "jobs"}, {"label", "Jobs"}}});
+  json rows = json::array();
+  for (const AiProvider& p : ai.providers) {
+    std::string state = "Healthy";
+    if (p.disabled) {
+      state = "Failing: it refused its key";
+    } else if (p.cooling_s != 0) {
+      state = "Cooling down, " + std::to_string(p.cooling_s) + " s left";
+    } else if (p.pairs_cooling != 0) {
+      state = p.pairs_cooling == 1 ? "A model of it is resting after failures"
+                                   : std::to_string(p.pairs_cooling) + " of its models are resting after failures";
+    }
+    std::string jobs;
+    for (const std::string_view s : p.slots) jobs += std::string(jobs.empty() ? "" : ", ") + slot_words(s);
+    rows.push_back(json{{"id", p.id}, {"state", state},
+                        {"answered", p.answered_ms < 0 ? std::string("Not this session")
+                                                       : clock_of(static_cast<std::uint64_t>(p.answered_ms))},
+                        {"jobs", jobs.empty() ? std::string("None") : jobs}});
+  }
+  return json{{"columns", std::move(columns)}, {"rows", std::move(rows)}};
+}
+
+json slots_body(const SpaceFacts& f) {
+  if (f.ai == nullptr) return json::object();
+  const AiFacts& ai = *f.ai;
+  json columns = json::array({json{{"id", "job"}, {"label", "Job"}}, json{{"id", "provider"}, {"label", "Provider"}},
+                              json{{"id", "model"}, {"label", "Model"}},
+                              json{{"id", "fallback"}, {"label", "Fallback"}},
+                              json{{"id", "state"}, {"label", "State"}}});
+  json rows = json::array();
+  for (const AiSlot& s : ai.slots) {
+    json row{{"job", slot_words(s.slot)}};
+    if (!s.same_as.empty()) {
+      const std::string same = std::string("Same as ") + slot_words(s.same_as);
+      row["provider"] = same;
+      row["model"] = same;
+      row["fallback"] = same;
+    } else {
+      row["provider"] = s.model.empty() ? std::string("None") : s.provider;
+      row["model"] = s.model.empty() ? std::string("None") : s.model;
+      row["fallback"] = s.fallback.empty() ? std::string("None")
+                                           : s.fallback_provider == s.provider ? s.fallback
+                                                                               : s.fallback + " (" + s.fallback_provider + ")";
+    }
+    row["state"] = s.model.empty() && s.same_as.empty() ? "No model" : s.healthy ? "Ready" : "Resting after failures";
+    rows.push_back(std::move(row));
+  }
+  return json{{"columns", std::move(columns)}, {"rows", std::move(rows)}};
+}
+
+json selftest_body(const SpaceFacts& f) {
+  if (f.ai == nullptr || !f.ai->selftest.ran) return json::object();  // absence is silent: nothing before a run
+  const AiSelfTest& st = f.ai->selftest;
+  json b = json::object();
+  // The verdict, or where the run is.
+  if (st.running) {
+    b["sentence"] = "The self-test is running: it takes a few seconds.";
+  } else if (st.verdict != AiVerdict::None) {
+    std::string s = std::string(verdict_words(st.verdict)) + ": the first words of a reply come in about " +
+                    seconds_of(st.first_page_ms) + ".";
+    if (st.verdict == AiVerdict::Slow) s += " Replies will feel late; a faster model or provider helps.";
+    if (st.json == AiStep::Failed) s += " But its answers in JSON failed their check: see Steps.";
+    b["sentence"] = std::move(s);
+  } else {
+    b["sentence"] = "The self-test could not measure a reply: see Steps for what went wrong.";
+  }
+  // The steps.
+  json checks = json::array();
+  for (const AiList& l : st.lists) {
+    checks.push_back(check("Reaches " + l.provider, step_state(l.state), list_words(l)));
+  }
+  auto step_detail = [](AiStep s, AiFailure why, const char* passed) -> std::string {
+    switch (s) {
+      case AiStep::Waiting: return "Waiting for its turn.";
+      case AiStep::Running: return "Running.";
+      case AiStep::Skipped: return "Not run: its provider did not answer.";
+      case AiStep::Passed: return passed;
+      case AiStep::Failed: break;
+    }
+    return why != AiFailure::None ? failure_words(why) : "Answered, but not in the form asked for.";
+  };
+  checks.push_back(check("A short reply", step_state(st.latency),
+                         step_detail(st.latency, st.latency_why, "Answered and streamed its reply.")));
+  checks.push_back(check("An answer in JSON", step_state(st.json),
+                         step_detail(st.json, st.json_why, "Answered with the object asked for.")));
+  b["checks"] = std::move(checks);
+  // The figures.
+  json items = json::array();
+  if (!st.model.empty()) items.push_back(item("Model", st.model));
+  if (!st.provider.empty()) items.push_back(item("Provider", st.provider));
+  if (st.first_token_ms >= 0) {
+    items.push_back(item("First token", seconds_of(st.first_token_ms)));
+    char rate[32];
+    std::snprintf(rate, sizeof rate, "%.0f", st.tokens_per_second);
+    items.push_back(item("Tokens per second", rate));
+    items.push_back(item("First page, estimated", seconds_of(st.first_page_ms)));
+  }
+  if (st.json == AiStep::Passed || st.json == AiStep::Failed) {
+    items.push_back(item("JSON check", st.json == AiStep::Passed ? "Passed" : "Failed"));
+  }
+  items.push_back(item("Run at", clock_of(st.at_ms)));
+  b["items"] = std::move(items);
+  // Earlier runs this session.
+  json rows = json::array();
+  for (const AiRun& r : st.earlier) {
+    rows.push_back(json{{"time", clock_of(r.at_ms)}, {"model", r.model.empty() ? std::string("None") : r.model},
+                        {"verdict", r.verdict != AiVerdict::None ? std::string(verdict_words(r.verdict))
+                                                                 : std::string("Not measured")}});
+  }
+  b["columns"] = json::array({json{{"id", "time"}, {"label", "Time"}}, json{{"id", "model"}, {"label", "Model"}},
+                              json{{"id", "verdict"}, {"label", "Verdict"}}});
+  b["rows"] = std::move(rows);
+  return b;
+}
+
 // The rate of each state topic (GraceUI DESIGN §6.5): the least time between two publishes.
 std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "status") return 250;
   if (topic == "system.status") return 1000;
   if (topic == "logs") return 1000;
+  if (topic == "health") return 1000;  // a cooldown counts down each second
+  if (topic == "selftest" || topic == "providers") return 250;
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 5> kStates = {"settings", "status", "errors", "system.status",
-                                                     "system.compatibility"};
+constexpr std::array<std::string_view, 10> kStates = {"settings", "status",    "errors",   "system.status",
+                                                      "system.compatibility", "ai.status", "providers", "health",
+                                                      "ai.slots",             "selftest"};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -416,7 +723,14 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
   };
   if (s == nullptr) return refuse("unknown_key", "");
   if (s->locked) return refuse("locked", "");
-  if (facts.settings_refused) {
+  // The AI pages' settings live in providers.toml and secrets.toml, not settings.toml.
+  const bool ai = key == "ai.preset" || key.rfind("keys.", 0) == 0;
+  if (ai) {
+    if (facts.ai == nullptr) return refuse("not_now", "EldenNet's model settings are not ready yet.");
+    if (facts.ai->files == AiFiles::Refused) {
+      return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+    }
+  } else if (facts.settings_refused) {
     return refuse("not_now", "Your settings file has a problem: correct it first. System › Logs names the setting.");
   }
   bool fits = false;
@@ -434,7 +748,89 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
     fits = value.is_string() && value.get<std::string>().size() <= 256;
   }
   if (!fits) return refuse("invalid_value", "");
+  if (s->type == "secret") {
+    // A key as pasted: spaces and line ends round it are the DLL's to take off; one inside is no key.
+    std::string_view v = value.get_ref<const std::string&>();
+    while (!v.empty() && (v.front() == ' ' || v.front() == '\t' || v.front() == '\r' || v.front() == '\n')) {
+      v.remove_prefix(1);
+    }
+    while (!v.empty() && (v.back() == ' ' || v.back() == '\t' || v.back() == '\r' || v.back() == '\n')) {
+      v.remove_suffix(1);
+    }
+    if (std::any_of(v.begin(), v.end(), [](char c) { return static_cast<unsigned char>(c) <= 0x20 || c == 0x7F; })) {
+      return refuse("invalid_value", "A key has no spaces or line breaks in it: paste it again.");
+    }
+  }
+  if (key == "ai.preset" && value != "custom" &&
+      std::find(facts.ai->presets.begin(), facts.ai->presets.end(), value.get<std::string>()) ==
+          facts.ai->presets.end()) {
+    return refuse("not_now", "This version of EldenNet has no models file for that preset yet.");
+  }
   change(*s, value);
+  note.result = "ok";
+  return answer(id, "", "");
+}
+
+std::string Space::ai_command(const json& id, std::string_view name, const json& args, const SpaceFacts& facts) {
+  SpaceNote& note = notes_.back();
+  const auto refuse = [&](std::string_view code, std::string_view detail) {
+    note.result = code;
+    return answer(id, code, detail);
+  };
+  const AiFacts* ai = facts.ai;
+  if (ai == nullptr || facts.level == Level::Starting) return refuse("not_now", "EldenNet is still starting.");
+  if (facts.level == Level::Inactive) {
+    return refuse("not_now", "EldenNet is inactive, so it calls no model: Home's Problems say why.");
+  }
+  if (ai->files == AiFiles::Refused) {
+    return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+  }
+  const bool calls = name == "selftest.run" || name == "models.list";
+  if (calls) {
+    if (ai->providers.empty()) {
+      return refuse("not_now", "Add a provider first: choose a preset on Models, then press Add provider on Providers.");
+    }
+    if ((name == "selftest.run" && ai->selftest.running) || (name == "models.list" && ai->listing)) {
+      return refuse("busy", "");
+    }
+    if (ai->selftest.running || ai->listing) {
+      return refuse("not_now", name == "selftest.run" ? "The model list is running: try again when it ends."
+                                                      : "The self-test is running: try again when it ends.");
+    }
+    // Only while EldenNet's gate allows network (GraceUI DESIGN §6.6; ARCH §5.1's title clause lets it at the title).
+    if (!facts.gate_open) {
+      return refuse("not_now", "Model calls wait until EldenNet has confirmed that this session is offline and solo.");
+    }
+    requests_.push_back(name == "selftest.run" ? AiRequest::SelfTest : AiRequest::ListModels);
+    note.result = "ok";
+    return answer(id, "", "");
+  }
+  if (name == "providers.add") {
+    const std::string preset = values_.value("ai.preset", std::string("custom"));
+    if (preset == "custom") {
+      return refuse("not_now", "Custom keeps your providers file as it is: choose a preset on Models to add its "
+                               "provider.");
+    }
+    if (ai->preset_needs_probe) {
+      return refuse("not_now", "This preset finds its server on this PC with Find local servers, which comes in a "
+                               "later version.");
+    }
+    if (ai->preset_missing.empty()) {
+      return refuse("not_now", "Your providers already include every one this preset uses.");
+    }
+    requests_.push_back(AiRequest::AddProviders);
+    note.result = "ok";
+    return answer(id, "", "");
+  }
+  // providers.remove: destructive, so only once confirmed (GraceUI D173, D183); a view sends the confirmation after
+  // the action's second press.
+  const bool confirmed = args.is_object() && args.value("confirm", false);
+  if (!confirmed) return refuse("confirm_required", "");
+  if (ai->selftest.running || ai->listing) {
+    return refuse("not_now", "A self-test or a model list is running: try again when it ends.");
+  }
+  if (ai->unused.empty()) return refuse("not_now", "Every provider is used by a job: there is none to remove.");
+  requests_.push_back(AiRequest::RemoveUnused);
   note.result = "ok";
   return answer(id, "", "");
 }
@@ -485,6 +881,9 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) 
   const json args = f.contains("args") ? f["args"] : json::object();
   if (name == "settings.set") return set(id, args, facts);
   if (name == "settings.reset") return reset(id, args, facts);
+  if (name == "selftest.run" || name == "models.list" || name == "providers.add" || name == "providers.remove") {
+    return ai_command(id, name, args, facts);
+  }
   notes_.back().result = "unknown_command";
   return answer(id, "unknown_command", "");
 }
@@ -492,6 +891,12 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) 
 std::vector<Space::Change> Space::take_changes() {
   std::vector<Change> out;
   out.swap(changes_);
+  return out;
+}
+
+std::vector<AiRequest> Space::take_requests() {
+  std::vector<AiRequest> out;
+  out.swap(requests_);
   return out;
 }
 
@@ -529,6 +934,11 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "errors") return errors_body(facts);
   if (topic == "system.status") return system_status_body(facts);
   if (topic == "system.compatibility") return compatibility_body(facts);
+  if (topic == "ai.status") return ai_status_body(facts);
+  if (topic == "providers") return providers_body(facts);
+  if (topic == "health") return health_body(facts);
+  if (topic == "ai.slots") return slots_body(facts);
+  if (topic == "selftest") return selftest_body(facts);
   return json::object();
 }
 

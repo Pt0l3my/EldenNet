@@ -30,8 +30,10 @@ import browser  # noqa: E402
 # Each page's golden, dumped over the fixture state named with it (since GraceUI 0.2.6, D184, the dump shows the
 # components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
 # a state with a provider set up and a self-test run.
-PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"))
+PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
+         ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"))
 SIZE = "1920x1080"
+INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
 
 def free_port():
@@ -48,7 +50,7 @@ def collect(stream, into):
 def serve(grace_dev, folder, state, topics, failures):
     port = free_port()
     process = subprocess.Popen([grace_dev, "--space-dir", str(folder), "--no-scenario", "--port", str(port),
-                                "--increment", "0.1"],
+                                "--increment", INCREMENT],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
     out, err = [], []
     readers = [threading.Thread(target=collect, args=(process.stdout, out), daemon=True),
@@ -65,8 +67,8 @@ def serve(grace_dev, folder, state, topics, failures):
             time.sleep(0.05)
         view = browser.Browser(port)
         spaces = {s["id"]: s for s in view.welcome.get("spaces", [])}
-        if spaces.get("eldennet", {}).get("increment") != "0.1":
-            failures.append("%s: the welcome names no eldennet space at 0.1: %s" % (state, sorted(spaces)))
+        if spaces.get("eldennet", {}).get("increment") != INCREMENT:
+            failures.append("%s: the welcome names no eldennet space at %s: %s" % (state, INCREMENT, sorted(spaces)))
         for topic, want in topics.items():
             view.sub("eldennet", topic)
             got = view.state("eldennet", topic)
