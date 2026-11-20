@@ -235,6 +235,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 210 | 2026-11-20 | Wine 9.0 aborts at start-up ("free(): invalid pointer") when TMPDIR is set, as the cloud environment now sets it: every Wine process runs without it | FACT | #wine #ci #graceui |
 | 211 | 2026-11-20 | The launcher no longer links en-core: R1's probe report vocabulary moved into en-gal, and a configure-time check refuses any link that breaks ARCH §2.3's layering | DECIDED | #layering #launcher #build |
 | 212 | 2026-11-20 | GraceUI DESIGN §3.3's contrast table rounds each ratio twice, so eight cells read 0.1 high; the tokens reproduce it within 0.06 and the thresholds are checked on the unrounded ratio | METHOD | #graceui #tokens #contrast |
+| 213 | 2026-11-20 | nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4 | FACT | #graceui #protocol #perf |
 
 ## Entries
 
@@ -3816,3 +3817,16 @@ invariant 10, EldenNet ARCH (T3)
   cells sit 0.1 above the ratio rounded once (11.3479 is written 11.4). The tokens reproduce the table within 0.06,
   which `tools/tokens/test_build.py` checks; the thresholds (invariant 13's 4.5:1 and the others) are checked on the
   unrounded ratio (D157).
+
+### 213. nlohmann/json 3.12.0 parses a 250 KiB state frame in about 3.3 ms and writes it in 0.7 ms, against GraceUI §8's 0.5 ms each way for the bridge's largest payload: a risk for S4
+
+`2026-11-20` · FACT · `#graceui` `#protocol` `#perf` · refs: GraceUI:DESIGN§8, GraceUI:D55, GraceUI feat/foundations beef3ee
+
+- **The measure** (FACT, the Grace session; GCC -O2, this build machine): nlohmann/json 3.12.0 parses a 250 KiB JSON
+  state frame in about 3.3 ms and dumps it in 0.7 ms, about 80 MB/s parsing. GraceUI §8 budgets the in-process bridge
+  at 0.5 ms each way for EldenNet's largest payload (`kinds`, 256 KiB, v0.4).
+- **Our layer** (FACT): with grace-protocol's frame-bounded bodies moved out of the parsed frame and frames written
+  straight to text, grace-protocol adds nothing measurable: the cost is the library's own.
+- **Next** (DECIDED): a risk for S4 to measure on the player's hardware (GraceUI D159, §11). If it stays over, the ways
+  out are a faster parser behind grace-protocol (yyjson, MIT, first) or `publish` checking the body's syntax and passing
+  its bytes through; the second amends D55 and touches EldenNet's T6, so the two sessions agree it first.
