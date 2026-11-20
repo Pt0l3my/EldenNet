@@ -90,7 +90,13 @@ typedef struct GraceUiTestState {
   uint32_t notice_face_grace;     /* 1 if notices are drawn in GraceUI's own face (fonts\NotoSans-Regular.ttf) */
   uint32_t world_flags;           /* every provider's claims, combined (GRACEUI_WORLD_*) */
   uint32_t providers;             /* world-state providers */
+  /* Appended for the in-game spikes (D175): */
+  uint32_t present_prologue;      /* GRACEUI_TEST_PROLOGUE_*: Present's first bytes as GraceUI found them at install */
+  uint32_t reserved2;
 } GraceUiTestState;
+
+/* What Present's first bytes held when GraceUI installed its hook (D86's cue that another hook was there first). */
+enum { GRACEUI_TEST_PROLOGUE_UNKNOWN = 0, GRACEUI_TEST_PROLOGUE_PLAIN = 1, GRACEUI_TEST_PROLOGUE_JUMP = 2 };
 
 /* What the anti-cheat check found (D133). */
 enum { GRACEUI_TEST_ANTI_CHEAT_NONE = 0, GRACEUI_TEST_ANTI_CHEAT_MODULE = 1, GRACEUI_TEST_ANTI_CHEAT_PARENT = 2 };
@@ -178,6 +184,22 @@ typedef struct GraceUiTestInput {
   uint64_t window;             /* the window whose filter is active, as a number (0 for none) */
   uint32_t windows_filtered;   /* windows given a filter so far: the first found, then the bound swap chain's */
   uint32_t reserved;
+  /* Appended for the in-game spikes (D175). Input of a device the holder takes that still reached the game, by kind
+   * (Alt+F4's press, which always does, left out): */
+  uint32_t passed_presses;     /* key presses */
+  uint32_t passed_releases;    /* key releases (one the game saw begin reaches it, by design) */
+  uint32_t passed_characters;
+  uint32_t passed_mouse;       /* mouse moves, wheels and button presses */
+  uint32_t passed_raw;         /* raw input */
+  /* DirectInput and XInput reads GraceUI changed: while a holder held, and with none (a closing press until it is
+   * released, and the menu key, which never reaches the game): */
+  uint32_t masked_keyboard_held;
+  uint32_t masked_mouse_held;
+  uint32_t masked_pad_held;
+  uint32_t masked_keyboard_free;
+  uint32_t masked_mouse_free;
+  uint32_t masked_pad_free;
+  uint32_t reserved2;
 } GraceUiTestInput;
 
 /* request_input (D77): fills *out; answers 1, or 0 if `out` is null. */
@@ -190,6 +212,8 @@ GRACEUI_API void GraceUI_Test_SetWorld(uint32_t flags);
 GRACEUI_API void GraceUI_Test_SetCaret(int32_t x, int32_t y, int32_t height);
 /* The code page an ANSI window's characters are read in: 0 for its keyboard layout's. */
 GRACEUI_API void GraceUI_Test_SetCodePage(uint32_t code_page);
+/* Pad `user`'s buttons (XINPUT_GAMEPAD_*) as an XInput read gives them, through the detour's own filter (D176). */
+GRACEUI_API void GraceUI_Test_Pad(uint32_t user, uint32_t buttons);
 /* Fills *out (out->size set by the caller); answers 1, or 0 if the size is too small. */
 GRACEUI_API uint32_t GraceUI_Test_GetInput(GraceUiTestInput* out);
 /* Copies up to `capacity` of the code points Dear ImGui received since the last reset, oldest first; answers how many. */
@@ -265,6 +289,47 @@ GRACEUI_API void GraceUI_Test_SetAtlasLimit(uint32_t side);
 #define GRACEUI_TEST_NOTICE_PAD_Y 8
 #define GRACEUI_TEST_NOTICE_LINE 22
 #define GRACEUI_TEST_NOTICE_LINE_FALLBACK 17
+
+/* ---- The in-game menu (D167): GraceUI's own space, drawn by the host as the input holder of kind menu, opened by the
+ * menu key (F5). */
+typedef struct GraceUiTestMenu {
+  uint32_t size;        /* set by the caller to sizeof(GraceUiTestMenu) */
+  uint32_t open;        /* 1 while the menu holds input */
+  uint32_t generation;  /* its holder's generation, while open */
+  uint32_t inputs;      /* keys and buttons the page view took */
+  uint64_t lists;       /* lists laid out and published, on GraceUI's own thread */
+  uint64_t frames;      /* frames that drew the menu's list */
+  uint32_t refusals;    /* commands GraceUI's settings store refused */
+  uint32_t layout_us;   /* the last layout and tessellation, in microseconds */
+  uint32_t vertices;    /* of the last list */
+  uint32_t indices;
+  uint32_t commands;
+  uint32_t off;         /* 1 once a fault turned the menu off for the session */
+  float scale;          /* the effective scale of the last layout: (H / 1080) x ui.scale */
+  uint32_t faces;       /* the menu's faces in the atlas: one a type role (11), or 0 if they were left out */
+  char page[64];        /* the open page's id */
+  char focused[96];     /* the focused element, as grace-view names it ("setting:ui.scale") */
+} GraceUiTestMenu;
+
+/* Fills *out (out->size set by the caller); answers 1, or 0 if the size is too small. */
+GRACEUI_API uint32_t GraceUI_Test_GetMenu(GraceUiTestMenu* out);
+/* A setting of GraceUI's own space as JSON text ("1.05", "\"clear\""), NUL-terminated; answers its length, or 0 before
+ * GraceUI's own thread has loaded its space (at its first wake after the first request) or for no such key. One store
+ * holds it for the menu and the browser's views alike (D169). Read it while GraceUI is idle. */
+GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_t capacity);
+
+/* ---- The spaces and the browser view's server (D169). */
+typedef struct GraceUiTestServer {
+  uint32_t size;     /* set by the caller to sizeof(GraceUiTestServer) */
+  uint32_t running;  /* 1 while the server runs */
+  uint32_t port;     /* its port, while it runs */
+  uint32_t spaces;   /* mods' spaces registered */
+  uint32_t pending;  /* mods' commands polled and not yet answered */
+  uint32_t failed;   /* 1 if it could not start this session */
+} GraceUiTestServer;
+
+/* Fills *out (out->size set by the caller); answers 1, or 0 if the size is too small. */
+GRACEUI_API uint32_t GraceUI_Test_GetServer(GraceUiTestServer* out);
 
 #ifdef __cplusplus
 }
