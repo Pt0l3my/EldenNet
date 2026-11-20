@@ -965,13 +965,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - needs: b
   - refs: G1
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
-  - refs: GraceUI:DESIGN§3.15, GraceUI:D108
+  - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
     contrast, type-minimum and no-loop checks, web/src/tokens.css and the grace-tokens header; 0.1's notices draw from
-    the header, and the 106 harness checks still pass (D157 on GraceUI's working branch; WHY§212).
+    the header, and the 106 harness checks still pass (WHY§212).
 - f The bridge protocol: one schema, generated C++ and TypeScript types with a drift check, grace-protocol's round trips, golden frames and a frame fuzzer [done]
-  - refs: GraceUI:DESIGN§6, GraceUI:D108, GraceUI:D55
-  - gives: built on 2026-11-20 (GraceUI feat/foundations beef3ee, D159 on its working branch): one schema,
+  - refs: GraceUI:DESIGN§6, GraceUI:D108, GraceUI:D55, GraceUI:D159
+  - gives: built on 2026-11-20 (GraceUI feat/foundations beef3ee): one schema,
     src/grace-protocol/protocol.toml, with the framework's envelope, kinds, errors, limits, settings description and
     commands; a generator for checked C++ types and web/src/protocol.ts; grace-protocol on nlohmann/json 3.12.0; golden
     frames, round trips and a clean fuzzer. EldenNet's own topics and commands join the schema as its pages are built
