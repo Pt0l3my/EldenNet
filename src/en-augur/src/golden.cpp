@@ -2,6 +2,7 @@
 #include "en/augur/golden.hpp"
 
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <string_view>
 
@@ -191,6 +192,9 @@ nlohmann::ordered_json event_json(const Event& ev, const HandleNamer& name) {
   return j;
 }
 
-std::string golden_line(const Event& ev, const HandleNamer& name) { return event_json(ev, name).dump(); }
+std::string golden_line(const Event& ev, const HandleNamer& name) {
+  // Every string here is ASCII of ours; `replace` keeps dump() from ever throwing all the same (no throwing, R3).
+  return event_json(ev, name).dump(-1, ' ', false, nlohmann::ordered_json::error_handler_t::replace);
+}
 
 }  // namespace en::augur

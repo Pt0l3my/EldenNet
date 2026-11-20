@@ -305,6 +305,9 @@ def check_golden_tools(a, work, recording):
     gold = os.path.join(work, "golden")
     os.makedirs(gold, exist_ok=True)
     target, changes = os.path.join(gold, "s0c.events.jsonl"), os.path.join(gold, "CHANGES.md")
+    for old in (target, os.path.join(gold, "unmet.events.jsonl")):
+        if os.path.exists(old):
+            os.remove(old)  # an earlier run's
     with open(changes, "w") as f:
         f.write("# changes\n")
     code, so, se = run(a.engine, "golden", "update", recording, "--golden", target)

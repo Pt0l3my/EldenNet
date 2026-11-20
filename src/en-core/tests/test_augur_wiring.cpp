@@ -129,6 +129,36 @@ TEST_CASE("v0.1's predicates: runes and journey, and every call refused") {
   CHECK(err.error().find("secret_alias") == std::string::npos);  // never a quote of the expression
 }
 
+TEST_CASE("GroupTripped: from C2's message or a snapshot's health, once per group for the session") {
+  Core core;
+  (void)core.step(in(test::data_ready()), 0);
+  const auto count = [](const Outputs& o, proto::Group g) {
+    int n = 0;
+    for (const augur::Event& e : o.events) {
+      if (const auto* t = std::get_if<augur::GroupTripped>(&e.kind)) n += t->group == g ? 1 : 0;
+    }
+    return n;
+  };
+  CHECK(count(core.step(in(test::tripped(proto::Group::Text)), 10), proto::Group::Text) == 1);
+  proto::WorldSnapshot s = test::world(250);
+  s.health.of(proto::Group::Text).state = proto::GroupState::Tripped;
+  s.health.of(proto::Group::Camera).state = proto::GroupState::Tripped;
+  const Outputs o = core.step(in(s), 250);
+  CHECK(count(o, proto::Group::Text) == 0);  // already had
+  CHECK(count(o, proto::Group::Camera) == 1);
+  s.mono_ms = 500;
+  CHECK(count(core.step(in(s), 500), proto::Group::Camera) == 0);
+}
+
+TEST_CASE("the golden form: handles renamed in order of first appearance, keys included") {
+  augur::GoldenNames names;
+  const augur::HandleNamer n = [&](augur::ChrHandle h) { return names(h); };
+  CHECK(augur::key_names("hit:#1a2b:#ff", n) == "hit:h1:h2");
+  CHECK(augur::key_names("hit:#ff:player", n) == "hit:h2:player");
+  CHECK(augur::key_names("place:#", n) == "place:#");
+  CHECK(augur::actor_text(augur::ActorRef::mute(augur::ChrHandle{0x1a2b}), n) == "mute#h1");
+}
+
 TEST_CASE("a rule set that fails to load keeps the old one") {
   Core core;
   const std::size_t before = core.augur().rules()->rules().size();
