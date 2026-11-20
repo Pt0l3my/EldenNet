@@ -2395,7 +2395,8 @@ features = { chat = true, barks = true, speak_up = true, callout = true, memory 
 autonomy = { enabled = true, period_s = 120 }           # 30–1800; enabled gates the autonomy motive only, the tick still runs (DESIGN §9.8); free-tier presets write enabled = false
 range    = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }   # 3–16, 8–30, 10–40
 pacing   = { gap_s = 2.5, group_gap_s = 8.0, window_s = 60, fight_max = 6, idle_max = 2, talk_max = 4 }
-# NPC §10.7. `scale` and the menu's options are GraceUI's (GraceUI D84, D115), and EldenNet's text follows the scale;
+# NPC §10.7. `scale` and the menu's options are GraceUI's (GraceUI D84, D115), and EldenNet's text follows the scale
+# over GraceUI's default (O93: designed sizes at the default, 1.25 since GraceUI D177);
 # `show_world` and `home_cards` (Home's cards, their order and Setup's place) are EldenNet's (PAGES §4.5).
 ui = { hdr = "auto", paper_white_nits = 203, follow_game_subtitles = true, latency_toasts = false, show_world = true }
 pools = { max_jobs_per_session = 60 }                    # 0 turns generated pools off (NPC §9.5, O23)
@@ -2450,6 +2451,11 @@ reactions = { saw_kill = false }
   value) in the log. `probe` in a release build is refused. `ELDENNET_APPDATA` in the environment stands for
   `%APPDATA%` (the launcher's `--appdata` for the DLL): only where EldenNet's files go, never what it reads of the game.
   Every player's file passes en-proto's TOML pre-check before toml++ reads it (WHY§163).
+  *2026-11-20, with part 12 (WHY§218, §230):* `overlay.connect` is read and on by default, `false` skipping Connect
+  (headless); `debug.panel` is read, off by default, and alone makes F11's view, its panel, atlas and hotkey, so that
+  without it F11 reaches the game (PAGES SP8); `debug.record_redact_text` is accepted as a boolean and not read until
+  the keyed hashes (S10.2.d). `hotkeys` stays a table not read yet: EldenNet registers F11 (`debug-view`) and Pause
+  (`mark`, §4.14) as its defaults, and a binding is the player's on GraceUI's Hotkeys page once it exists.
 
 ```toml
 # %APPDATA%\EldenNet\config\secrets.toml (keys only)
@@ -2648,6 +2654,20 @@ the bench runs (WHY§99). Its rule takes the candidate both searches ranked firs
 | `options` | Linux: the release build's CMake cache, and `eldennet.dll`'s link graph and symbols | `EN_PROBE`, `EN_HOOKS`, `EN_ACTIONS` or `EN_FREEZE` on; MinHook or an ImGui renderer backend linked at all, since GraceUI's G15 (GraceUI's release job checks its own pinned Dear ImGui and MinHook) |
 | `build-release` | Two independent runners: clang-cl and lld-link with the pinned LLVM and xwin SDK and CRT, `SOURCE_DATE_EPOCH`, path prefixes mapped, `/Brepro` | Their SHA-256 hashes differ (not reproducible) |
 | `sign` | Every tester build from v0.1, and release tags | `SHA256SUMS` signed with the project's minisign key (the public key is in the README); Authenticode signing when a certificate is available (K4) |
+
+**The DLL's checks, as built** (the first in-game build, 2026-11-16, and part 12, 2026-11-20; WHY§195, §220). In the
+clang-cl build, CTest's `eldennet_dll_checks` (`src/eldennet/tests/dll_checks.py`) holds the `greps` and the `options`
+stage's link checks for `eldennet.dll`:
+- the greps on `src/eldennet`, and all but DllMain's on `src/en-overlay`, which the DLL links; every module the DLL
+  links keeps `en_dll_module`'s rules (no dynamic initialiser and no exit-time destructor, Clang's warnings as errors);
+- the release and probe DLLs read with `llvm-objdump`: `eldennet_instance_marker` their only export, and their imports
+  within the reviewed `src/eldennet/tests/imports.allow`, kernel32 and user32 alone: no network (en-llm's WinHTTP is
+  loaded by its full path, later than v0.1), no hook API, nothing that reaches into another process. A function a
+  build adds is reviewed into the list before the check passes. Part 12 added graceui-sys's `GetTickCount64` (its
+  look's bound) and `ReadConsoleW`, which the static C runtime's `sscanf` brings with Dear ImGui's core (its number
+  parsing; no console is read). Dear ImGui's core is compiled with `/Zc:threadSafeInit-`, on that library alone (one
+  thread at a time uses its context), so the runtime's thread-safe statics bring no SRW lock or condition variable
+  import. The probe build adds its own heap and its walk (`HeapCreate`, `HeapLock`, `HeapWalk`, `HeapUnlock`; spike.6).
 
 ### 12.2 Test types
 
