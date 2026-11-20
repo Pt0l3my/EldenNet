@@ -271,6 +271,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 246 | 2026-11-20 | A holder that ended on another thread between its grant and the event mailbox's enable never got INPUT_ENDED | FACT | #graceui #input |
 | 247 | 2026-11-20 | R1 spike.8: the call's return value kept, instructions reported as forms, loaded values followed to their sources, the tail function's table read before and after the call, and a control diff | DECIDED | #gal #r1 #task |
 | 248 | 2026-11-20 | R1 run 8: the call returns 1, and the group's entry exists, yet nothing keeps our task; the tail function hands the task to a function of the group's own | FACT | #gal #r1 #task |
+| 249 | 2026-11-20 | An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running | FACT | #engine #dll #spike #graceui |
+| 250 | 2026-11-20 | In the fake game, a rack line is no sign of our call; the hub's live count is | METHOD | #fakegame #harness #spike |
+| 251 | 2026-11-20 | The observer's runs' words join schema 1; the game's environment is always the launcher's own block | DECIDED | #engine #launcher #spike #formats |
 
 ## Entries
 
@@ -4370,3 +4373,42 @@ invariant 10, EldenNet ARCH (T3)
   singleton and group 110's entry, with the control. It also searches for words whose low 48 bits equal our address,
   and names the entry's class by its RTTI against the leads.
 - Corrects WHY§235's hexadecimal call targets.
+
+### 249. An observer's run (S0-E, S4) stops T1 at Register; what a stopped start leaves running
+
+`2026-11-20` · FACT · `#engine` `#dll` `#spike` `#graceui` · refs: S10.1.g, S11.1.a, WHY§240, engine 5c5b3bc
+
+- (FACT, the code) T6's loop and the overlay's view reach the task only through `s.task_set`, which is null before
+  Register. T10 and T11 do not depend on it. The recorder opens at T6's start and writes its header (with the spike's
+  word) then, and the crash filter is in by the end of WaitEngine. So a stop at the start of Register leaves T6 (the
+  core, the block's status, the banner's notice, the world-state claims, F11's view), T10, T11 and the recorder
+  running, and nothing waits for the task.
+- (FACT, the fake game under Wine) `launcher-eldennet-spike-s0e`, `-s4` and `-graceui-spike-s0e` pass: `register
+  skipped=1 why=spike`, the `spike_run` banner (a GraceUI notice, with F11's view, in the GraceUI case), status lines
+  after T1 ended, a clean end, and no registration from outside.
+- (DECIDED) "No call" is about calls. Discovery's guarded reads and WaitEngine's reads still run before the stop, so
+  S0-E's numbers include that start-up reading, which ends within the first seconds. A probe build sets R1 aside in
+  such a run (`probe round=r1 skipped=1 why=spike`).
+
+### 250. In the fake game, a rack line is no sign of our call; the hub's live count is
+
+`2026-11-20` · METHOD · `#fakegame` `#harness` `#spike` · refs: WHY§240, engine 5c5b3bc
+
+- (FACT) Since spike.8 the fake game's own four tasks register through the same wrapper, which makes its rack on the
+  program's own first call, about 60 ms after boot. A first check that read "no rack line" as "no call of ours"
+  failed.
+- (METHOD) The measure of "no call into the game" is the end line's `live` (the hub's own 4) with
+  `foreign_tasks=0`, and no `FAKEGAME register` line of any outcome.
+
+### 251. The observer's runs' words join schema 1; the game's environment is always the launcher's own block
+
+`2026-11-20` · DECIDED · `#engine` `#launcher` `#spike` `#formats` · refs: WHY§188, engine 5c5b3bc
+
+- (DECIDED) `s0e`, `s0e_alone`, `s4` and the banner reason `spike_run` join schema 1 of the recording, `rec_stats`
+  and `spike`, not a schema 2. formats.md's rule says a new word means a new schema, but no reader outside the engine
+  holds these words (DataPiler's guard holds only `derive`'s, WHY§188), and a schema 2 would make every older
+  recording reader refuse every recording. formats.md has a dated note: the rule holds from the first outside copy.
+- (DECIDED) The launcher always gives CreateProcessW an explicit environment block, its own through
+  `game_environment`, so that a leftover `ELDENNET_SPIKE_DIR` (in any letter case) never reaches the game.
+- (DECIDED) The spike folder's number is one more than the highest `<word>-<n>` already in `spikes\` (names compared
+  ignoring case), so a run never reuses a folder that may hold a report.
