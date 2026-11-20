@@ -31,8 +31,10 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    the game's folder, which it loads, again every 250 ms for at most 30 s. With `GRACEUI_SYS_STOP_IF_ABSENT` (GraceUI
    D164), when nothing answers, no copy is installed in the game's folder and no module is named `graceui.dll`, nothing
    can answer later, and the look ends at once: a start without GraceUI is not held up 30 s. The rule is graceui-sys's
-   own, and `installed` in the log is its word for it. Both load orders work: GraceUI loaded before EldenNet is found by its name, and GraceUI installed in
-   the game's folder but not yet loaded is loaded by EldenNet (and found by its name if a loader loads it later).
+   own, and `installed` in the log is its word for it, but for a GraceUI found by its name, which graceui-sys at 3f1352b
+   leaves at 0 (its by-name look returns before it sets it): that one is 1, as D164 defines it. Both load orders work:
+   GraceUI loaded before EldenNet is found by its name, and GraceUI installed in the game's folder but not yet loaded is
+   loaded by EldenNet (and found by its name if a loader loads it later).
 2. **`Overlay::connect`** as `eldennet` (its id and its space's), display name `EldenNet`, its version, its GraceUI floor
    (0.1.0, `en/proto/graceui_pin.hpp`) and the caps it uses: `notices world-state hotkeys`, and with the view
    `panels textures`. The answers: `connected`; `notices_only` (inactive for the anti-cheat, with a handle: the banner
@@ -45,7 +47,8 @@ On T1, after WaitWindow (ARCH §3.2's Connect, and ConnectB on the banner path):
    `debug-view` (D155). A step that fails leaves the view off (the report names it: `no_caps`, `atlas`, `panel`,
    `hotkey`) and the connection as it is. F11 taken first, by another mod's hotkey or the menu key, registers unbound
    (`GRACEUI_UNBOUND` with its id, D164): a success, the view made all the same (`unbound` in the report, and the DLL
-   logs it), which nothing opens until the player binds the hotkey in GraceUI; there is no other way to it.
+   logs it), which nothing opens until the player binds the hotkey on GraceUI's Hotkeys page (GraceUI 0.6); there is
+   no other way to it.
 4. The Mark's hotkey (`mark`, Pause) when asked for, `register_mark` on T6 otherwise. Unbound (another mod's hotkey
    took Pause first), it is registered with its id and `mark_bound()` stays false: the DLL then never asks the launcher
    for Pause, which stays the Mark (src/eldennet/README.md).

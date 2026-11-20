@@ -36,7 +36,9 @@ Found find(std::uint32_t timeout_ms) noexcept {
   f.how = f.api ? sys.how : 0;
   f.attempts = sys.attempts;
   f.version = f.api ? sys.version : 0;
-  f.installed = sys.installed != 0;
+  // graceui-sys at 3f1352b returns from its by-name look before it sets `installed`, which stays 0 there; a module
+  // named graceui.dll that answered is installed by D164's own words.
+  f.installed = sys.installed != 0 || f.how == GRACEUI_SYS_BY_NAME;
   f.ms = GetTickCount64() - start;
   return f;
 }
