@@ -148,18 +148,130 @@ std::string banner_text(BannerReason r, std::string_view build, std::string_view
   return out;
 }
 
+// ---- Augur's side (ARCH §8; part 11) ----
+
+augur::Subject AugurView::classify(const proto::Chr& chr) const {
+  // Every subject is Mute or Player until personas exist (v0.2) and cards (v0.4).
+  augur::Subject s;
+  s.kind = player && chr.handle == *player ? augur::Subject::Kind::Player : augur::Subject::Kind::Mute;
+  return s;
+}
+
+bool AugurView::eval(augur::PredicateId pred, const augur::EvalScope&) const { return predicates_.eval(pred, facts); }
+
+bool AugurView::persona_may_perceive(augur::PersonaId) const { return false; }  // no persona yet
+
+std::uint64_t AugurView::rng(augur::EventId ev, std::uint32_t salt) const {
+  std::uint64_t z = seed_root ^ (ev.step * 0x9E3779B97F4A7C15ull) ^ (std::uint64_t{ev.index} << 32) ^ salt;
+  z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+  z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+  return z ^ (z >> 31);
+}
+
+augur::WorldFacts world_facts() {
+  augur::WorldFacts f;
+  f.hostile_teams = {6, 7, 27, 29};       // teams.toml's hostile set (DESIGN §5.3; usage to verify, S7)
+  f.victory_banners = {1, 2, 3, 4, 22};   // a boss fight's Victory (DESIGN §6.5; to verify, S2 and S7)
+  f.crit_player_throw = 3;                // CritLanded: the Tarnished's throw 3 while the victim's is 4 (§6.5)
+  f.crit_victim_throw = 4;
+  f.open_world_areas = {60, 61};          // the open world (ARCH §8.8)
+  return f;
+}
+
+Core::Core() : augur_(world_facts()) {
+  std::vector<augur::RuleFile> files;
+  for (const BuiltinFile& f : builtin_rule_files()) files.push_back(augur::RuleFile{std::string(f.name), std::string(f.text)});
+  rule_errors_ = load_rules(files);
+}
+
+std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
+  auto loaded = augur::RuleSet::load(files, predicates_);
+  if (!loaded) return loaded.error();  // the old set stays (ARCH §8.5)
+  augur_.set_rules(*loaded);
+  return {};
+}
+
+void Core::run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, Mono now, Outputs& out) {
+  // The Lifecycle source's facts: what the slice changed on this step, and the read groups that tripped (from C2's
+  // message or a snapshot's health; once per group for the session).
+  std::vector<augur::LifeFact> facts;
+  const auto trip = [&](proto::Group g) {
+    const auto bit = static_cast<std::uint16_t>(1u << static_cast<unsigned>(g));
+    if ((groups_tripped_ & bit) != 0) return;
+    groups_tripped_ = static_cast<std::uint16_t>(groups_tripped_ | bit);
+    facts.push_back(augur::LifeFact{augur::FactKind::GroupTripped, static_cast<std::uint8_t>(g), {}});
+  };
+  if (l != nullptr) {
+    if (const auto* t = std::get_if<proto::Lifecycle::GroupTripped>(&l->payload)) trip(t->group);
+  }
+  if (s != nullptr) {
+    for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+      if (s->health.groups[g].state == proto::GroupState::Tripped) trip(static_cast<proto::Group>(g));
+    }
+  }
+  for (const Change& c : out.changes) {
+    switch (c.what) {
+      case Change::What::Phase: {
+        const auto from = static_cast<Phase>(c.from);
+        const auto to = static_cast<Phase>(c.to);
+        if (from == Phase::Loading && (to == Phase::InWorld || to == Phase::Playthrough)) {
+          facts.push_back(augur::LifeFact{augur::FactKind::LoadingEnded, 0, {}});
+        }
+        if (to == Phase::Ready) facts.push_back(augur::LifeFact{augur::FactKind::DataReady, 0, {}});
+        if (to == Phase::Playthrough) {
+          const std::uint8_t slot = current_ ? current_->slot : 0;
+          facts.push_back(augur::LifeFact{augur::FactKind::PlaythroughReady, 0, {slot, state_.playthroughs}});
+        }
+        if (to == Phase::Loading) facts.push_back(augur::LifeFact{augur::FactKind::LoadingStarted, 0, {}});
+        if (to == Phase::Title) facts.push_back(augur::LifeFact{augur::FactKind::TitleReached, 0, {}});
+        break;
+      }
+      case Change::What::GateOpened:
+        facts.push_back(augur::LifeFact{augur::FactKind::GateChanged, 1, {}});
+        break;
+      case Change::What::GateClosed:
+        facts.push_back(augur::LifeFact{augur::FactKind::GateChanged, 0, {}});
+        break;
+      case Change::What::Level:
+        facts.push_back(augur::LifeFact{augur::FactKind::LadderChanged, c.to, {}});  // Starting, L1, L2: the same order
+        break;
+      case Change::What::Banner:
+      case Change::What::Badge:
+        break;
+    }
+  }
+  if (s != nullptr) {
+    if (s->player) {
+      view_.player = s->player->handle;
+      view_.facts.runes = s->player->runes_held;
+      view_.facts.journey = s->player->ng_lvl;
+    } else {
+      view_.player.reset();
+    }
+  }
+  augur::EventBatch batch;
+  augur_.step(augur::AugurInput{s, facts}, now, view_, batch);
+  bus_.run(std::move(batch), now, augur_, view_, out.events);
+}
+
 Outputs Core::step(CoreInput input, Mono now) {
   Outputs out;
   tracked_none_sent_ = false;
   Mono at = now;
+  const proto::WorldSnapshot* snapshot = nullptr;
+  const proto::Lifecycle* lifecycle = nullptr;
   std::visit(Overloaded{
                  [&](std::unique_ptr<proto::WorldSnapshot>& s) {
                    if (s) {
                      at = s->mono_ms;
+                     snapshot = s.get();
                      on_snapshot(*s, out);
                    }
                  },
-                 [&](proto::Lifecycle& l) { on_lifecycle(l, now, out); },
+                 [&](proto::Lifecycle& l) {
+                   lifecycle = &l;
+                   on_lifecycle(l, now, out);
+                 },
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
              },
@@ -167,6 +279,7 @@ Outputs Core::step(CoreInput input, Mono now) {
   settle(at, out);
   out.ai_allowed = state_.gate_open && state_.level == Level::L2;
   out.state = state_;
+  run_augur(snapshot, lifecycle, now, out);
   return out;
 }
 

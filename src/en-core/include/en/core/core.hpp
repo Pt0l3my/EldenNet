@@ -10,15 +10,24 @@
 //
 // What waits for later parts: the store (Playthrough → InWorld waits for `DbResult::Opened` once it exists; here it
 // follows at once), conversations, barks and the net (L3 and L4, the provider's health), content.
+//
+// Augur (en-augur, ARCH §8; part 11) runs in every step, before anything that consumes the step's events: the slice
+// judges the input first (the gate, the phases, the ladder), because Augur's Lifecycle source reads what it changed on
+// the same step, and then Augur takes the same input and answers the step's events, which the bus dispatches (none of
+// v0.1's subsystems subscribes yet) into Outputs::events. AugurView is what en-core supplies Augur at v0.1.
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
 
+#include "en/augur/augur.hpp"
+#include "en/augur/bus.hpp"
 #include "en/core/gate.hpp"
+#include "en/core/predicates.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
 #include "en/proto/snapshot.hpp"
@@ -123,11 +132,46 @@ struct Outputs {
   bool ai_allowed = false;               // C15: network calls allowed (the gate open, and L2 or above)
   State state;
   std::vector<Change> changes;
+  std::vector<augur::Event> events;  // Augur's events of the step, in dispatch order (ARCH §8.9)
 };
+
+// What en-core supplies Augur (ARCH §8.1), for what v0.1 knows. There are no personas and no cards until content
+// exists (v0.2, v0.4): every character classifies as Mute, and the Tarnished as Player. The predicates are v0.1's
+// (predicates.hpp); no persona perceives yet; the seed root is 0 until the store's playthrough key exists.
+class AugurView final : public augur::AugurCtx {
+ public:
+  explicit AugurView(const Predicates& predicates) : predicates_(predicates) {}
+  [[nodiscard]] augur::Subject classify(const proto::Chr& chr) const override;
+  [[nodiscard]] bool eval(augur::PredicateId pred, const augur::EvalScope& at) const override;
+  [[nodiscard]] bool persona_may_perceive(augur::PersonaId id) const override;
+  // splitmix64's finaliser over the seed root, the event and the salt: deterministic, and the same in every build.
+  // BLAKE3 (DESIGN's blake3(seed_root ‖ ev ‖ salt)) replaces it with the seed root; no v0.1 rule draws from it.
+  [[nodiscard]] std::uint64_t rng(augur::EventId ev, std::uint32_t salt) const override;
+
+  std::optional<proto::ChrHandle> player;  // the Tarnished's handle at the last snapshot
+  PredicateFacts facts;
+  std::uint64_t seed_root = 0;
+
+ private:
+  const Predicates& predicates_;
+};
+
+// The rule files built into this build (content/eldenring/augur/*.toml, read at configure time): v0.1 has no content
+// loader, so the shipped set is part of the binary.
+struct BuiltinFile {
+  std::string_view name;
+  std::string_view text;
+};
+[[nodiscard]] std::span<const BuiltinFile> builtin_rule_files() noexcept;
+// What the game's values mean, as Augur reads them (teams.toml's hostile set, DESIGN §5.3; the victory banners, §6.5;
+// the throw states of a critical hit, §6.5; the open world's areas, ARCH §8.8). teams.toml joins with content.
+[[nodiscard]] augur::WorldFacts world_facts();
 
 class Core {
  public:
-  Core() = default;
+  // Loads the built-in rule set; a set that fails to load (a defect: en_core_tests loads it) leaves Augur with none,
+  // and rule_errors() says why.
+  Core();
 
   // One input. `now` is the core's mono time; a snapshot is judged by its own mono_ms.
   [[nodiscard]] Outputs step(CoreInput input, Mono now);
@@ -138,6 +182,11 @@ class Core {
   [[nodiscard]] const std::optional<PlaythroughId>& playthrough() const noexcept { return current_; }
   // The fixed words T1 gave with its banner (for banner_text's reason), or empty.
   [[nodiscard]] const std::string& banner_detail() const noexcept { return banner_detail_; }
+  [[nodiscard]] const augur::Augur& augur() const noexcept { return augur_; }
+  [[nodiscard]] const augur::Bus& bus() const noexcept { return bus_; }
+  [[nodiscard]] const std::vector<augur::RuleError>& rule_errors() const noexcept { return rule_errors_; }
+  // Replaces the rule set (tests and tools); on any error the old set is kept and the errors are answered.
+  std::vector<augur::RuleError> load_rules(std::span<const augur::RuleFile> files);
 
  private:
   void on_snapshot(const proto::WorldSnapshot& s, Outputs& out);
@@ -150,6 +199,7 @@ class Core {
   bool ready_for_playthrough(const proto::WorldSnapshot& s) const noexcept;
   void start_playthrough(const proto::WorldSnapshot& s, Outputs& out);
   void settle(Mono at, Outputs& out);
+  void run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, Mono now, Outputs& out);
 
   State state_;
   Gate gate_;
@@ -164,6 +214,13 @@ class Core {
   std::string banner_detail_;
   bool paused_multiplayer_ = false;  // the gate closed in a world for a session reason
   bool tracked_none_sent_ = false;   // one SetTracked{} per step
+  std::uint16_t groups_tripped_ = 0;  // the groups whose GroupTripped Augur has had, one bit each (once per session)
+
+  Predicates predicates_;
+  AugurView view_{predicates_};
+  augur::Augur augur_;
+  augur::Bus bus_;
+  std::vector<augur::RuleError> rule_errors_;
 };
 
 }  // namespace en::core
