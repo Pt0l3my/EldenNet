@@ -34,6 +34,7 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_leads.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_report.cpp)
 if(MSVC)
   list(APPEND EN_GAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp)
@@ -101,6 +102,7 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resolve.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_shape.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_recipes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lodestar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_report.cpp
     # The in-game part, on FakeSys (part 4)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/alloc_count.cpp

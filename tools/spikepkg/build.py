@@ -5,6 +5,7 @@ licences and SHA256SUMS. Run it with `python3 -I`, from anywhere:
 
     build.py r1 --build build-cl-rel --out EldenNet-R1.zip [--engine build/src/en-tools/eldennet-engine]
     build.py s0e-s4 --build build-cl-rel --graceui <graceui>/build-cl-test --out EldenNet-Spikes.zip
+    build.py find --build build-cl-rel --out EldenNet-Find.zip [--engine build/src/en-tools/eldennet-engine]
 
 `r1` is the derivation's in-game round (O89): the clang-cl Release tree's eldennet-launcher.exe, the probe build of
 eldennet.dll (EN_PROBE) and eldennet-engine.exe, the repository's gal/ and README-R1.txt, in one folder, EldenNet-R1/.
@@ -17,6 +18,11 @@ clang-cl Release tree's eldennet-launcher.exe and release eldennet.dll (EN_PROBE
 GraceUI's test build (`--graceui`, a clang-cl Release tree of GraceUI with GRACEUI_TEST_EXPORTS: its GraceUI folder as
 the build laid it out, every file checked against its graceui.toml, and its grace-spike.dll and grace-standin.dll),
 one .cmd file for each run (RUNS) and README-SPIKES.txt, in one folder, EldenNet-Spikes/.
+
+`find` is Lodestar's offline finding run (proposal 0005, step L3; O100 to O102): the clang-cl Release tree's
+eldennet-engine.exe (a 0.1.0-lodestar.N label; EN_PROBE either way), gal/ (with recipes.toml and no patterns.toml),
+find.cmd, onto which the owner drops the game's executable file, and README-FIND.txt, in one folder, EldenNet-Find/.
+It holds no launcher and no DLL: nothing in it starts or enters the game.
 
 Nothing is read from outside the repository and the build trees (GraceUI's commit from its own source tree), and the
 package holds nothing personal: no path of this PC (each text file is checked), no key. The privacy sweep still runs
@@ -35,6 +41,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATE = (2026, 1, 1, 0, 0, 0)
 LABEL = re.compile(r"0\.1\.0-spike\.[0-9]+")
 SPIKES_LABEL = re.compile(r"0\.1\.0-spikes\.[0-9]+")
+FIND_LABEL = re.compile(r"0\.1\.0-lodestar\.[0-9]+")
 DISCLOSURE_SOURCE = os.path.join(REPO, "src", "en-tools", "src", "probe_exe.cpp")
 
 
@@ -310,9 +317,79 @@ def spikes(a):
     return pack(files, "EldenNet-Spikes", a.out, label)
 
 
+def find_cmd(label):
+    """find.cmd: from the package's own folder, the finder on the one file dropped onto it, then the lint on what it
+    wrote, then a pause. It names nothing outside the package's folder but the file it is given, which it never
+    repeats."""
+    return crlf("\n".join([
+        "@echo off",
+        "rem EldenNet's package %s: Lodestar's finding run. README-FIND.txt has the steps." % label,
+        "rem Drop the game's executable file onto this file. It is read, never changed, and the game is not started.",
+        "setlocal",
+        "cd /d \"%~dp0\"",
+        "if \"%~1\"==\"\" goto :nofile",
+        "if not \"%~2\"==\"\" goto :nofile",
+        "echo Reading the file. This takes a minute or two.",
+        "eldennet-engine.exe lodestar find \"%~1\" --gal gal --out lodestar-found.json",
+        "set FOUND=%ERRORLEVEL%",
+        "if %FOUND% LEQ 1 eldennet-engine.exe lint --report lodestar-found.json",
+        "echo.",
+        "echo The run has ended (exit code: %FOUND%). README-FIND.txt says what to send back.",
+        "pause",
+        "exit /b %FOUND%",
+        ":nofile",
+        "echo Drop one file onto find.cmd: the game's executable, from the Game folder of your install.",
+        "echo README-FIND.txt has the steps.",
+        "pause",
+        "exit /b 2", ""]))
+
+
+def find(a):
+    """The package for Lodestar's offline finding run (proposal 0005, step L3): the engine, gal/, find.cmd and its
+    README. No launcher and no DLL: nothing in it starts or enters the game."""
+    c = cache(a.build)
+    label = c.get("EN_VERSION_LABEL", "")
+    if c.get("CMAKE_BUILD_TYPE") != "Release" or not FIND_LABEL.fullmatch(label):
+        fail("the build tree must be Release, with EN_VERSION_LABEL=0.1.0-lodestar.N")
+    if "clang-cl" not in c.get("CMAKE_TOOLCHAIN_FILE", ""):
+        fail("the build tree must be the clang-cl one")
+    gal = os.path.join(REPO, "gal")
+    if a.engine:
+        r = subprocess.run([a.engine, "lint", "--gal", gal], capture_output=True, text=True)
+        if r.returncode != 0:
+            fail("lint --gal refused gal/:\n" + r.stdout)
+        print(r.stdout.strip())
+    if not os.path.isfile(os.path.join(gal, "recipes.toml")) or os.path.exists(os.path.join(gal, "patterns.toml")):
+        fail("gal/ must hold recipes.toml and no patterns.toml (O102)")
+    with open(os.path.join(a.build, "src", "en-tools", "eldennet-engine.exe"), "rb") as f:
+        engine = f.read()
+    if label.encode() not in engine:
+        fail("eldennet-engine.exe does not carry the label %s" % label)
+    if b"lodestar find" not in engine:
+        fail("eldennet-engine.exe has no lodestar command")
+    files = [("eldennet-engine.exe", engine), ("find.cmd", find_cmd(label))]
+    files += gal_files()
+    with open(os.path.join(HERE, "README-FIND.txt.in"), encoding="utf-8") as f:
+        title = "EldenNet, Lodestar's finding run (package %s)" % label
+        readme = (f.read().replace("@LABEL@", label).replace("@UNDERLINE@", "=" * len(title))
+                  .replace("@COMMIT@", git_commit()).replace("@DISCLOSURE@", disclosure()))
+    if re.search(r"@[A-Z]+@", readme):
+        fail("README-FIND.txt has a placeholder left")
+    files.append(("README-FIND.txt", crlf(readme)))
+    with open(os.path.join(REPO, "LICENSE"), encoding="utf-8") as f:
+        files.append(("LICENSE.txt", crlf(f.read())))
+    with open(os.path.join(REPO, "THIRD_PARTY.md"), encoding="utf-8") as f:
+        files.append(("THIRD_PARTY.md", crlf(f.read())))
+    files.append(("THIRD-PARTY-NOTICES.txt", crlf(notices(a.build))))
+    for name, data in files:
+        if not name.endswith((".exe", ".dll")) and PERSONAL.search(data.decode("utf-8")):
+            fail("%s holds a path of this PC" % name)
+    return pack(files, "EldenNet-Find", a.out, label)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("kind", choices=["r1", "s0e-s4"])
+    p.add_argument("kind", choices=["r1", "s0e-s4", "find"])
     p.add_argument("--build", required=True, help="the clang-cl Release tree, with EN_PROBE and a spike label (r1), or "
                    "with EN_PROBE off and a 0.1.0-spikes.N label (s0e-s4)")
     p.add_argument("--graceui", help="s0e-s4: GraceUI's clang-cl Release tree with GRACEUI_TEST_EXPORTS")
@@ -321,6 +398,8 @@ def main():
     a = p.parse_args()
     if a.kind == "s0e-s4":
         return spikes(a)
+    if a.kind == "find":
+        return find(a)
     c = cache(a.build)
     label = c.get("EN_VERSION_LABEL", "")
     if c.get("CMAKE_BUILD_TYPE") != "Release" or c.get("EN_PROBE") != "ON" or not LABEL.fullmatch(label):

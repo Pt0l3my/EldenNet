@@ -248,6 +248,71 @@ def check_gal(a):
          (code, se))
 
 
+def check_lodestar(a, exe, leads):
+    """lodestar find, on the derivation tests' invented program: the report written, complete, clean under the lint, its
+    numbers as the unit tests give them, and nothing in it but numbers, booleans, fixed words and labels; refusals for
+    a folder without its files, an executable that is none, and a usage error, none of them repeating a path."""
+    base = os.path.join(a.work, "lodestar")
+    gal = os.path.join(base, "gal")
+    os.makedirs(gal, exist_ok=True)
+    recipes = INVENTED_RECIPES.replace("invented_accessor", "accessor").replace("Invented.h", "Lone.h")
+    with open(leads) as f:
+        leads_text = f.read()
+    for name, text in (("leads.toml", leads_text), ("recipes.toml", recipes), ("builds.toml", INVENTED_BUILDS),
+                       ("ids.toml", INVENTED_IDS)):
+        with open(os.path.join(gal, name), "w") as f:
+            f.write(text)
+    out = os.path.join(base, "found.json")
+    code, so, se = run(a.engine, "lodestar", "find", exe, "--gal", gal, "--out", out)
+    need(code == 0 and "complete" in so and a.work not in so + se, "lodestar find: exit %s %r %r" % (code, so, se))
+    with open(out) as f:
+        text = f.read()
+    d = json.loads(text)
+    need(d["report"] == "lodestar" and d["schema"] == 2 and d["complete"] is True, "the lodestar report's head")
+    acc = d["accessor"]
+    need(acc["recipe"] and acc["hits"] == 8 and acc["accepted"] == 6 and acc["expect"] == "within",
+         "the accessor's counts: %s" % {k: acc[k] for k in ("hits", "accepted", "expect")})
+    need(acc["pattern"] == {"cut": True, "hits": acc["pattern"]["hits"], "accepted": 6, "both": 6, "only_shape": 0,
+                            "only_pattern": 0}, "the comparison with the pattern: %s" % acc["pattern"])
+    need(len(acc["statics"]) == acc["statics_found"] and sum(s["sites"] for s in acc["statics"]) == 6 and
+         all(1 <= len(s["witnesses"]) <= 8 for s in acc["statics"]), "the statics and their witnesses")
+    # The invented builds.toml holds this version with another fingerprint: the gate's own word for it.
+    need(d["image"]["build"] == "fingerprint_differs" and d["table"]["status"] == "derived" and
+         all(c["status"] == "derived" and c["vtables"] for c in d["classes"]), "the image, the table and the classes")
+    # Nothing but numbers, booleans, fixed words and labels: no string longer than a word, none with a byte's look.
+    strings = re.findall(r'"([^"]*)"\s*[,\]}\n]', text)
+    need(all(re.fullmatch(r"[a-z][a-z0-9_]{0,47}", v) for v in strings), "a string that is no word or label: %s" %
+         [v for v in strings if not re.fullmatch(r"[a-z][a-z0-9_]{0,47}", v)][:3])
+    need(not re.search(r"\b[0-9A-F]{2} [0-9A-F?]{2} ", text), "something with a pattern's look in the report")
+    code, so, _ = run(a.engine, "lint", "--report", out)
+    need(code == 0 and "clean" in so, "lint on the lodestar report: exit %s %r" % (code, so))
+    # A count outside the recipe's range: written, to read first (1).
+    with open(os.path.join(gal, "recipes.toml"), "w") as f:
+        f.write(recipes.replace("path_suffix", "expect_matches = [1, 4]\npath_suffix"))
+    code, so, _ = run(a.engine, "lodestar", "find", exe, "--gal", gal, "--out", out)
+    need(code == 1 and "to read first" in so, "lodestar find, a count out of range: exit %s %r" % (code, so))
+    with open(out) as f:
+        need(json.load(f)["accessor"]["expect"] == "above", "the count's word")
+    # Refusals: a folder without its recipes (4), an executable that is none (3), usage (2); never a path repeated.
+    os.remove(os.path.join(gal, "recipes.toml"))
+    code, _, se = run(a.engine, "lodestar", "find", exe, "--gal", gal, "--out", out)
+    need(code == 4 and "recipes.toml cannot be read" in se and a.work not in se, "no recipes.toml: %s %r" % (code, se))
+    with open(os.path.join(gal, "recipes.toml"), "w") as f:
+        f.write(recipes.replace("own-derivation", "copied"))
+    code, _, se = run(a.engine, "lodestar", "find", exe, "--gal", gal, "--out", out)
+    need(code == 4 and "recipes.toml: recipe[0].provenance.method" in se, "a refused recipes.toml: %s %r" % (code, se))
+    with open(os.path.join(gal, "recipes.toml"), "w") as f:
+        f.write(recipes)
+    code, _, se = run(a.engine, "lodestar", "find", os.path.join(gal, "leads.toml"), "--gal", gal, "--out", out)
+    need(code == 3 and "not a PE32+ image" in se and a.work not in se, "an executable that is none: %s %r" % (code, se))
+    code, _, se = run(a.engine, "lodestar", "find", exe, "--gal", gal)
+    need(code == 2 and a.work not in se, "lodestar find without --out: %s %r" % (code, se))
+    code, _, se = run(a.engine, "lodestar", "check", exe)
+    need(code == 2 and "find is the command built so far" in se, "a command not built yet: %s %r" % (code, se))
+    code, so, _ = run(a.engine, "lodestar", "find", "--help")
+    need(code == 0 and "Safe use" in so and "never a running game" in so, "lodestar find --help")
+
+
 def spike_log(path, spike, runs):
     """A launcher's spike log (en-launcher's record.cpp: a line per run, then the tally), runs as (mode, outcome, end,
     record_kept, connections_max). Invented numbers."""
@@ -617,6 +682,7 @@ def main():
     need(code == 0, "lint on the loose layout's report: exit %s %r" % (code, so))
 
     check_gal(a)
+    check_lodestar(a, exe, leads)
     if a.recordings:
         check_spike_tools(a)
 
