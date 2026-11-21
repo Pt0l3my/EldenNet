@@ -107,8 +107,24 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   the catalogue the caller gives (`LayoutNeeds::ids`): each under the catalogue's label, number and kind, none
   retired, and a file with items is refused without one. A release build refuses a lead item as any other lead. No
   key of an item can hold a byte of the game: `bytes`, `pattern`, `text`, `name` and the like are unknown keys, and
-  refused. Nothing reads the items yet: resolving through them is the next step (the proposal's L2 to L4). A schema 1
-  layout reads as before and holds neither key.
+  refused. A schema 1 layout reads as before and holds neither key.
+- **`resolve.hpp`: Lodestar's resolver** (proposal 0005 §7.1, §9.1). The checks a start makes on the build's table,
+  with no search: `check_item(image, source, item)` re-finds one item in the image as loaded. *Placement*: a static in
+  a section that is read and written and not run, with room for a pointer; a function at a start the image's own
+  function table lists, of the table's length; a table whole within one section that is read and not run; a class's
+  tables of methods in read-only data, aligned to 8. *Witness*: at each place the table records as using the id, the
+  instruction's own bytes are read (one read of at most 15 bytes through the `ByteSource`: offline the file, in game
+  the guarded view of the mapped image) and decoded with our decoder, and must refer to the id: a static or a table
+  by a RIP-relative operand, a function by a relative call or jump or by a RIP-relative operand (a branch on a
+  condition is no witness). The first witness that fails refuses the item and is named by its index. A witness says
+  that the bytes at a place refer to the id, not that an instruction starts there: one byte into a prefixed load the
+  bytes still decode to the same reference, which is accepted. `Library(layout, image, source)` checks every item
+  once, on the init thread, and `place(id, kind)` and `vtables(id)` hand out the offsets of checked items only; a
+  refused item answers its `ItemProblem` (fixed words, `to_string`; `check_of` names the check it belongs to), an id
+  the table lacks `Unknown`, an id asked for as another kind `Kind`. One refusal touches no other item: nothing is
+  looked for nearby and nothing is retried. Nothing in the DLL reads through the library yet: discovery still uses
+  `patterns.toml`, until the first table is found and reviewed (the proposal's L3 and L4); the digest, class,
+  self-test and verdict checks are later steps'.
   `check_layout(entry, text, needs, mode)` makes the same checks for builds.toml's entry without the gate and keeps no
   `Layout` (R7 still keeps that to `load_layout`): `eldennet-engine lint --gal` runs it.
 
