@@ -320,6 +320,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 295 | 2026-11-21 | R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests | DECIDED | #gal #r1 #task |
 | 296 | 2026-11-21 | R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it | FACT | #gal #r1 #task |
 | 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
+| 298 | 2026-11-21 | A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change | METHOD | #graceui #pages |
 
 ## Entries
 
@@ -5065,3 +5066,13 @@ invariant 10, EldenNet ARCH (T3)
   provider of its own would have moved silently with its job; its provider is now written.
 - **A pitfall again** (METHOD): a range-for over a member of a temporary dangled in a new test, the third time
   (WHY§269); hold the body in a variable first.
+
+### 298. A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change
+
+`2026-11-21` · FACT, with a METHOD · `#graceui` `#pages` · refs: G36, GraceUI's D202, S11.2.x
+
+- **The fault** (FACT): grace-pages' round-trip test holds the built-in page data to the schema's field order (the
+  encoder's). A section written in TOML with its new fields (D202's chip, status and actions) before its blocks failed
+  it in every Linux tree; fixed before GraceUI 0.2.12 was pushed.
+- **The method** (METHOD): run every Linux tree's full ctest before pushing a schema change, not only the suites the
+  change touches.
