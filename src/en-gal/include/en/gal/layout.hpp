@@ -3,6 +3,10 @@
 // that only moves fields is a data update. A Layout is read only for the build the gate matched (R7): load_layout()
 // takes the BuildProfile, refuses a layout written for another build, and is the only maker of a Layout.
 //
+// Since schema 2 the file is also the build's table of Lodestar, EldenNet's own address library (proposal 0005 §5):
+// [item.<label>] says where each id of gal/ids.toml lies in this build, how it was found and which checks it passed,
+// and [provenance] where the table came from. A schema 1 file holds neither.
+//
 // Validation, at boot and in CI alike (O4): the schema, field types and offsets within their class (off + size ≤ the
 // class's copy size, copy sizes ≤ 0x4000), every `to` and `elem` naming a class of the file, every field the read
 // groups need present with its type, each enum table total over the range of the fields that use it and naming only
@@ -18,6 +22,7 @@
 #include <vector>
 
 #include "en/gal/builds.hpp"
+#include "en/gal/ids.hpp"
 #include "en/gal/schema.hpp"
 #include "en/proto/expected.hpp"
 #include "en/proto/snapshot.hpp"
@@ -139,6 +144,56 @@ struct SelfTestIds {
   std::vector<std::uint32_t> npc_param_ids;
 };
 
+// ---- The build's table: where each of Lodestar's ids lies in this build (schema 2; proposal 0005 §5 to §7) ----
+
+// How an id's value was found (proposal 0005 §6.1). A recipe finds one kind of thing: an accessor, an instance's class
+// and an invariant find a static; a class recipe a class; a table recipe a table; a relation a function or a static.
+enum class Recipe : std::uint8_t { Accessor, Class, InstanceClass, Table, Relation, Invariant };
+[[nodiscard]] const char* to_string(Recipe r) noexcept;  // "accessor", "class", "instance_class", ...
+
+// The checks an id passed in the reviewed round (proposal 0005 §7.1).
+enum class ItemCheck : std::uint8_t { Placement, Agree, Witness, Digest, Class, SelfTest, SecondSource, Verdict };
+[[nodiscard]] const char* to_string(ItemCheck c) noexcept;  // "placement", "agree", "witness", ...
+
+// What a function does with what it is handed, as our own tool judged it (proposal 0005 §7.2). Unknown means no call.
+enum class Verdict : std::uint8_t { Adds, Removes, Reads, Unknown };
+[[nodiscard]] const char* to_string(Verdict v) noexcept;  // "adds", "removes", "reads", "unknown"
+
+inline constexpr std::size_t kMaxWitnesses = 8;
+inline constexpr std::size_t kMaxVtables = 64;
+inline constexpr std::size_t kDigestHexDigits = 32;         // a 128-bit digest, as lower-case hex
+inline constexpr std::uint32_t kMaxFunctionLength = 1u << 20;
+
+// One id in one build: numbers, our labels and fixed words only, never a byte of the game.
+struct ItemEntry {
+  std::string label;  // the catalogue's
+  std::uint32_t id = 0;
+  IdKind kind = IdKind::Static;
+  std::uint32_t rva = 0;                 // a static, a function, a table: its offset from the start of the image
+  std::uint32_t length = 0;              // a function's length in bytes
+  std::uint32_t stride = 0;              // a table's entry size
+  std::uint32_t count = 0;               // a table's entries
+  std::vector<std::uint32_t> vtables;    // a class: the offsets of its tables of methods, ascending
+  std::vector<Recipe> found_by;          // the recipes that gave this value, independently
+  std::vector<std::uint32_t> witnesses;  // places in the code that use it, re-checked at every start
+  std::string digest;                    // a function: the digest of its code as reviewed; empty for none
+  std::optional<Verdict> verdict;        // a function: what it does
+  std::vector<ItemCheck> checks;
+  LayoutStatus status = LayoutStatus::Lead;
+
+  [[nodiscard]] bool passed(ItemCheck c) const noexcept;
+};
+
+// Where a build's table came from (proposal 0005 §5): the tool, the round and the leads, never a path or a name of
+// anyone's. The reviewed record is the layout's probe_record.
+struct TableProvenance {
+  std::string tool;         // the tool's version label
+  std::string tool_sha256;  // 64 lower-case hex digits
+  std::string round;        // the round's label of ours: "r0c", "l3"
+  std::string date;         // YYYY-MM-DD
+  std::vector<std::string> leads;
+};
+
 inline constexpr std::uint32_t kMaxCopySize = 0x4000;  // ARCH §6.3, and GuardedReader's cap on one copy (§6.5)
 
 class Layout;
@@ -158,6 +213,9 @@ struct LayoutNeeds {
   std::span<const EnumNeed> enums;
   std::span<const std::string_view> params;
   bool task = true;  // the [task] table is required
+  // The catalogue the table's items must agree with (label, number and kind; no retired id). A file with items is
+  // refused without it.
+  const Catalogue* ids = nullptr;
 };
 
 enum class LayoutMode : std::uint8_t { Release, Dev };
@@ -186,6 +244,12 @@ class Layout {
   [[nodiscard]] const std::optional<FmgLayout>& fmg() const noexcept { return fmg_; }
   [[nodiscard]] const std::optional<DlrfLayout>& dlrf() const noexcept { return dlrf_; }
   [[nodiscard]] const SelfTestIds& selftest() const noexcept { return selftest_; }
+  // Schema 2: the build's table and where it came from. A schema 1 file has neither.
+  [[nodiscard]] std::uint32_t schema() const noexcept { return schema_; }
+  [[nodiscard]] const std::vector<ItemEntry>& items() const noexcept { return items_; }
+  [[nodiscard]] const std::optional<TableProvenance>& provenance() const noexcept { return provenance_; }
+  [[nodiscard]] const ItemEntry* find_item(std::string_view label) const noexcept;
+  [[nodiscard]] const ItemEntry* find_item(std::uint32_t id) const noexcept;
 
   [[nodiscard]] const ClassLayout* find_class(std::string_view name) const noexcept;
   [[nodiscard]] const EnumTable* find_enum(std::string_view name) const noexcept;
@@ -199,7 +263,7 @@ class Layout {
   Layout() = default;
   // The one reader, for the build whose key and index are given: load_layout's (from the gate's profile) and
   // check_layout's (from builds.toml's entry, keeping no Layout).
-  static proto::Expected<Layout, SchemaErrors> read(std::string_view build, proto::BuildKey build_key,
+  static proto::Expected<Layout, SchemaErrors> read(const BuildEntry& entry, proto::BuildKey build_key,
                                                     std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
                                                     std::string_view file);
   friend proto::Expected<Layout, SchemaErrors> load_layout(const BuildProfile& profile, std::string_view text,
@@ -219,6 +283,9 @@ class Layout {
   std::optional<FmgLayout> fmg_;
   std::optional<DlrfLayout> dlrf_;
   SelfTestIds selftest_;
+  std::uint32_t schema_ = 1;
+  std::vector<ItemEntry> items_;
+  std::optional<TableProvenance> provenance_;
 };
 
 }  // namespace en::gal

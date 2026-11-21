@@ -1,0 +1,10 @@
+#pragma once
+// gal/ids.toml as the repository holds it, compiled into the tests byte for byte at configure time, so that the tests
+// read the very catalogue EldenNet ships, in every build, under Wine too (no path is opened).
+#include <string_view>
+
+namespace en::gal::test {
+
+inline constexpr std::string_view kRepositoryIdsToml = R"EN_GAL_IDS(@EN_GAL_IDS_TOML@)EN_GAL_IDS";
+
+}  // namespace en::gal::test

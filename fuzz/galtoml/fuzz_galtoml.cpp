@@ -1,13 +1,15 @@
 // libFuzzer target: the schemas of gal/'s files on arbitrary text (ARCH §6.3): patterns.toml (parse_patterns),
-// builds.toml (parse_builds) and a layout (load_layout, for a build gated on an invented FakeImage). The first byte
-// picks the file (its value modulo 3); the rest is the text. Besides any sanitizer report, a broken property is a
-// finding:
+// builds.toml (parse_builds), a layout (load_layout, for a build gated on an invented FakeImage, its items checked
+// against an invented catalogue) and ids.toml (parse_ids). The first byte picks the file (its value modulo 4); the rest
+// is the text. Besides any sanitizer report, a broken property is a finding:
 // - a refusal lists 1 to kMaxSchemaErrors + 1 problems, each with where and what;
 // - what patterns.toml accepts holds unique ids, own-derivation provenance and captures within their patterns;
 // - what builds.toml accepts holds keys that are their version and region joined, layouts under layouts/ and a
 //   SizeOfImage above 0;
 // - what a layout accepts is the gated build's, with every field within its class's bound and every `to` and `elem`
-//   naming a class of the file.
+//   naming a class of the file, and every item an id of the catalogue under its number and kind, inside the image,
+//   found by recipes of its kind;
+// - what ids.toml accepts holds numbers that ascend, each in its kind's block, and labels of ours, none twice.
 // toml++ is built without exceptions in en-gal; an exception that escapes is a finding too, so this entry has no
 // ffi_guard.
 #include <cstddef>
@@ -18,6 +20,7 @@
 #include <string_view>
 
 #include "en/gal/builds.hpp"
+#include "en/gal/ids.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
 #include "fake_image.hpp"
@@ -60,6 +63,26 @@ const BuildProfile& profile() {
   return *gated;
 }
 
+// The catalogue the layouts' items are read against: invented ids, one of each kind and one retired.
+const Catalogue& catalogue() {
+  static const Catalogue* parsed = [] {
+    std::string text = "schema = 1\n";
+    const auto id = [&](int n, const char* label, const char* kind, const char* extra) {
+      text += "[[id]]\nn = " + std::to_string(n) + "\nlabel = \"" + label + "\"\nkind = \"" + kind +
+              "\"\nmeans = \"An invented thing.\"\nneeds = \"world\"\nrequired = false\n" + extra;
+    };
+    id(1001, "lantern", "static", "");
+    id(1002, "ledger", "static", "status = \"retired\"\n");
+    id(2001, "ring_bell", "function", "");
+    id(3001, "walker", "class", "");
+    id(4001, "rota", "table", "");
+    auto c = parse_ids(text);
+    require(c.has_value(), "the invented catalogue reads");
+    return new Catalogue(*c);
+  }();
+  return *parsed;
+}
+
 constexpr FieldNeed kFields[] = {{"Holder", "mode", FieldType::I32}};
 constexpr std::string_view kNames[] = {"Alpha", "Beta", "Gamma"};
 constexpr EnumNeed kEnums[] = {{"mode", kNames}};
@@ -72,7 +95,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   // the characters they are, and ends where they end.
   const std::string_view input(reinterpret_cast<const char*>(data), size);
   const std::string_view text = input.substr(1);
-  switch (static_cast<std::uint8_t>(input[0]) % 3) {
+  switch (static_cast<std::uint8_t>(input[0]) % 4) {
     case 0: {
       const auto set = parse_patterns(text, {});
       if (!set) {
@@ -105,8 +128,25 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
       }
       return 0;
     }
+    case 3: {
+      const auto ids = parse_ids(text);
+      if (!ids) {
+        check_errors(ids.error());
+        return 0;
+      }
+      std::uint32_t last = 0;
+      for (const IdEntry& e : ids->entries()) {
+        require(e.number > last && kind_of_number(e.number) == e.kind, "numbers ascend, each in its kind's block");
+        last = e.number;
+        require(is_id_label(e.label) && (e.was.empty() || is_id_label(e.was)), "labels of ours");
+        require(ids->find(e.label, true) == &e && ids->find(e.number) == &e, "no label or number twice");
+        require(!e.means.empty() && !e.needs.empty(), "a meaning and a need");
+        require(e.status == IdStatus::Active || !e.required, "a retired id is not required");
+      }
+      return 0;
+    }
     default: {
-      const LayoutNeeds needs{kFields, kEnums, {}, false};
+      const LayoutNeeds needs{kFields, kEnums, {}, false, &catalogue()};
       const auto layout = load_layout(profile(), text, needs, LayoutMode::Dev);
       if (!layout) {
         check_errors(layout.error());
@@ -119,6 +159,34 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
           require(std::uint64_t{f.off} + f.size <= bound, "a field within its class");
           if (!f.to.empty()) require(layout->find_class(f.to) != nullptr, "a pointer's class exists");
           if (!f.elem.empty()) require(layout->find_class(f.elem) != nullptr, "an array's class exists");
+        }
+      }
+      const std::uint32_t image = profile().entry().size_of_image;
+      require(layout->items().empty() || layout->schema() == 2, "items only in schema 2");
+      require((layout->schema() == 2) == layout->provenance().has_value(), "schema 2 has its provenance");
+      for (const ItemEntry& item : layout->items()) {
+        const IdEntry* id = catalogue().find(item.label);
+        require(id != nullptr && id->number == item.id && id->kind == item.kind && id->status == IdStatus::Active,
+                "an item is an active id of the catalogue");
+        require(layout->find_item(item.id) == &item, "no id twice");
+        require(!item.found_by.empty(), "found by a recipe");
+        if (item.kind == IdKind::Class) {
+          require(!item.vtables.empty() && item.rva == 0 && item.witnesses.empty(), "a class has its method tables");
+          for (const std::uint32_t v : item.vtables) require(v > 0 && v < image, "a method table inside the image");
+        } else {
+          require(item.rva > 0 && item.rva < image, "an offset inside the image");
+          for (const std::uint32_t w : item.witnesses) require(w > 0 && w < image, "a witness inside the image");
+        }
+        if (item.kind == IdKind::Function) {
+          require(item.length >= 1 && std::uint64_t{item.rva} + item.length <= image, "a function inside the image");
+        } else {
+          require(item.digest.empty() && !item.verdict.has_value(), "only a function has a digest or a verdict");
+        }
+        if (item.kind == IdKind::Table) {
+          require(std::uint64_t{item.rva} + std::uint64_t{item.stride} * item.count <= image, "a table inside");
+        }
+        if (item.status == LayoutStatus::Confirmed) {
+          require(item.passed(ItemCheck::Placement) && item.passed(ItemCheck::Agree), "confirmed by two sources");
         }
       }
       return 0;
