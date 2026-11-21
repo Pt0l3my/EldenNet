@@ -32,9 +32,9 @@ constexpr std::array<std::string_view, 3> kPoints = {"object", "vtable", "slot"}
 constexpr std::array<std::string_view, 10> kValues = {"zero", "small", "group", "task",  "vtable",
                                                       "ours", "game",  "heap",  "other", "task_tagged"};
 // Spike.8 (WHY§240): what a register holds, an instruction's class, and the table's first shape that failed; spike.9's
-// modified, a followed value changed.
-constexpr std::array<std::string_view, 7> kSrcs = {"none", "argument", "first_word", "entry", "rip", "memory",
-                                                   "modified"};
+// modified, a followed value changed; spike.11's stack and address, addresses the code makes.
+constexpr std::array<std::string_view, 9> kSrcs = {"none", "argument", "first_word", "entry", "rip", "memory",
+                                                   "modified", "stack", "address"};
 constexpr std::array<std::string_view, 21> kClasses = {"mov", "movx", "lea",   "cmp",  "test", "jcc", "jmp",
                                                        "call", "ret", "push", "pop", "xor",  "add", "sub",
                                                        "and", "or",  "shift", "imul", "nop",  "int3", "other"};
@@ -274,8 +274,8 @@ constexpr std::array<Key, 2> kSpike8More = {{
 
 // Spike.9 (WHY§248): the group's function's reads of our task and of its entry, their uses and the task's stores; the
 // walks' roots; tagged pointers; the singleton's and the entry's classes against the leads.
-// Spike.10: g_singleton, the second singleton's walk; index, a value used as an index.
-constexpr std::array<std::string_view, 4> kRoots = {"task_hub", "singleton", "group_entry", "g_singleton"};
+// Spike.10: g_singleton, the second singleton's walk; index, a value used as an index. Spike.11: g_queue, G's queue's.
+constexpr std::array<std::string_view, 5> kRoots = {"task_hub", "singleton", "group_entry", "g_singleton", "g_queue"};
 constexpr std::array<std::string_view, 3> kMatches = {"none", "name", "imp"};
 constexpr std::array<std::string_view, 10> kUses = {"compared", "compared_other", "tested", "stored", "passed",
                                                     "called",   "base",           "changed", "other",  "index"};
@@ -359,8 +359,66 @@ constexpr std::array<Key, 38> kSpike10 = {{
     {"sites", Type::Unsigned},
 }};
 
+// Spike.11 (WHY§293): the parts, the request and its readers, G's fields and path, G's queue, the game's requests in
+// the searches, the classes' bases, the words' halves.
+constexpr std::array<std::string_view, 3> kHows = {"primary", "chained", "unlisted"};
+constexpr std::array<std::string_view, 6> kRoles = {"vtable", "task", "manager", "word", "zero", "other"};
+constexpr std::array<std::string_view, 2> kPaths = {"now", "queued"};
+constexpr std::array<std::string_view, 3> kQueueWalks = {"walked", "is_root", "none"};
+constexpr std::array<std::string_view, 6> kObjects = {"manager", "request", "task_hub", "group_entry", "g",
+                                                      "game_task"};
+constexpr std::array<Key, 43> kSpike11 = {{
+    {"parts", Type::Array, Type::Object},
+    {"how", Type::Word, Type::Object, kHows},
+    {"request_read_count", Type::Unsigned},
+    {"request_reads", Type::Array, Type::Object},
+    {"manager_read_count", Type::Unsigned},
+    {"manager_reads", Type::Array, Type::Object},
+    {"holds_request", Type::Boolean},
+    {"holds_manager", Type::Boolean},
+    {"request_slot", Type::Unsigned},
+    {"request", Type::Object},
+    {"vtable", Type::Unsigned},
+    {"task_field", Type::Unsigned},
+    {"fields", Type::Array, Type::Object},
+    {"field", Type::Word, Type::Object, kRoles},
+    {"now", Type::Unsigned},
+    {"request_class", Type::Object},
+    {"slot_count", Type::Unsigned},
+    {"g_fields", Type::Array, Type::Object},
+    {"field_value", Type::Object},
+    {"field_class", Type::Object},
+    {"defer_disp", Type::Signed},
+    {"path_taken", Type::Word, Type::Object, kPaths},
+    {"queue", Type::Object},
+    {"g_disp", Type::Signed},
+    {"queue_walk", Type::Word, Type::Object, kQueueWalks},
+    {"blocks", Type::Unsigned},
+    {"requests", Type::Array, Type::Object},
+    {"ours", Type::Boolean},
+    {"task_value", Type::Object},
+    {"task_class", Type::Object},
+    {"manager", Type::Boolean},
+    {"flag", Type::Unsigned},
+    {"request_found", Type::Unsigned},
+    {"own_request_found", Type::Unsigned},
+    {"request_hits", Type::Array, Type::Object},
+    {"request_tasks", Type::Array, Type::Object},
+    {"word_class", Type::Object},
+    {"classes", Type::Array, Type::Object},
+    {"object", Type::Word, Type::Object, kObjects},
+    {"base_count", Type::Unsigned},
+    {"base_rvas", Type::Array, Type::Unsigned},
+    {"shared_bases", Type::Array, Type::Object},
+    {"own_low", Type::Unsigned},
+}};
+constexpr std::array<Key, 1> kSpike11More = {{
+    {"highs", Type::Array, Type::Object},
+}};
+
 constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size() + kSpike8.size() +
-                                  kSpike8More.size() + kSpike9.size() + kSpike10.size();
+                                  kSpike8More.size() + kSpike9.size() + kSpike10.size() + kSpike11.size() +
+                                  kSpike11More.size();
 constexpr std::array<Key, kKeyCount> joined() {
   std::array<Key, kKeyCount> out{};
   std::size_t n = 0;
@@ -372,6 +430,8 @@ constexpr std::array<Key, kKeyCount> joined() {
   for (const Key& k : kSpike8More) out[n++] = k;
   for (const Key& k : kSpike9) out[n++] = k;
   for (const Key& k : kSpike10) out[n++] = k;
+  for (const Key& k : kSpike11) out[n++] = k;
+  for (const Key& k : kSpike11More) out[n++] = k;
   return out;
 }
 constexpr std::array<Key, kKeyCount> kAll = joined();
@@ -439,6 +499,12 @@ void write_source(report::Writer& w, std::string_view key, const Source& s) {
       if (s.large) w.boolean("large", true);
       optional_number(w, "by", s.by);
       if (!s.origin.empty()) write_source(w, "origin", s.origin.front());
+      break;
+    case Source::Kind::Stack:  // spike.11
+      w.signed_number("disp", s.disp);
+      break;
+    case Source::Kind::Address:
+      w.number("target", s.target);
       break;
     case Source::Kind::None:
       break;
@@ -681,6 +747,26 @@ void write_code(report::Writer& w, const CalleeCode& c) {
     w.number("word_use_count", c.word_use_count);
     write_uses(w, "word_uses", c.word_uses);
   }
+  // Spike.11: where there are any.
+  if (!c.parts.empty()) {
+    w.begin_array("parts");
+    for (const CodePart& p : c.parts) {
+      w.begin_object();
+      w.number("rva", p.rva);
+      w.number("bytes", p.bytes);
+      w.word("how", kHows[static_cast<std::size_t>(p.how)]);
+      w.end_object();
+    }
+    w.end_array();
+  }
+  if (c.request_read_count != 0) {
+    w.number("request_read_count", c.request_read_count);
+    write_reads(w, "request_reads", c.request_reads);
+  }
+  if (c.manager_read_count != 0) {
+    w.number("manager_read_count", c.manager_read_count);
+    write_reads(w, "manager_reads", c.manager_reads);
+  }
   write_forms(w, c);
 }
 
@@ -702,6 +788,8 @@ void write_inner(report::Writer& w, const std::vector<InnerCallee>& inner) {
         if (p.holds_entry) w.boolean("holds_entry", true);
         if (p.holds_g) w.boolean("holds_g", true);
         if (p.holds_word) w.boolean("holds_word", true);
+        if (p.holds_request) w.boolean("holds_request", true);
+        if (p.holds_manager) w.boolean("holds_manager", true);
         w.end_object();
       }
       w.end_array();
@@ -711,6 +799,7 @@ void write_inner(report::Writer& w, const std::vector<InnerCallee>& inner) {
         for (const std::uint8_t r : i.zeroed) w.number(r);
         w.end_array();
       }
+      optional_number(w, "request_slot", i.request_slot);
     }
     write_code(w, i.code);
     w.end_object();
@@ -738,7 +827,20 @@ void write_sibling(report::Writer& w, const Sibling& s) {
   w.end_object();
 }
 
-void write_memory(report::Writer& w, const MemorySearch& m) {
+void write_value(report::Writer& w, std::string_view key, const WordValue& v);
+void write_class(report::Writer& w, std::string_view key, const ClassMatch& m);
+
+// Spike.11: a request object as read (its task field, manager field, word and byte), in the object the caller opened.
+void write_request_read(report::Writer& w, const RequestRead& r) {
+  if (r.ours) w.boolean("ours", *r.ours);
+  if (r.task) write_value(w, "task_value", *r.task);
+  if (r.task_class) write_class(w, "task_class", *r.task_class);
+  if (r.manager) w.boolean("manager", *r.manager);
+  optional_number(w, "word", r.word);
+  optional_number(w, "flag", r.flag);
+}
+
+void write_memory(report::Writer& w, const MemorySearch& m, const RequestSearch* rs) {
   w.begin_object();
   w.number("at_ms", m.at_ms);
   w.number("ms", m.ms);
@@ -787,6 +889,51 @@ void write_memory(report::Writer& w, const MemorySearch& m) {
   w.number("vtable_tagged_found", m.vtable_tagged_found);
   w.number("own_vtable_tagged_found", m.own_vtable_tagged_found);
   hits("tagged_hits", m.tagged_hits);
+  // Spike.11: the game's requests, each hit with its fields as T1 read them, and their tasks' classes.
+  if (m.request_searched) {
+    w.number("request_found", m.request_found);
+    w.number("own_request_found", m.own_request_found);
+    w.begin_array("request_hits");
+    for (std::size_t i = 0; i < m.request_hits.size(); ++i) {
+      const MemoryHit& h = m.request_hits[i];
+      w.begin_object();
+      w.word("region", kRegions[static_cast<std::size_t>(h.region)]);
+      w.number("protect", h.protect);
+      if (h.module != ModuleKind::None) w.word("module", kModules[static_cast<std::size_t>(h.module) - 1]);
+      if (h.section != SectionKind::None) w.word("section", kSections[static_cast<std::size_t>(h.section) - 1]);
+      optional_number(w, "rva", h.rva);
+      if (rs != nullptr && i < rs->hits.size()) write_request_read(w, rs->hits[i]);
+      w.end_object();
+    }
+    w.end_array();
+    if (rs != nullptr && !rs->tasks.empty()) {
+      w.begin_array("request_tasks");
+      for (const GameTask& t : rs->tasks) {
+        w.begin_object();
+        write_class(w, "task_class", t.cls);
+        w.number("vtable", t.vtable);
+        w.number("count", t.count);
+        w.number("slot_count", t.slot_count);
+        w.begin_array("words");
+        for (std::size_t k = 0; k < t.words.size(); ++k) {
+          const TaskWord& x = t.words[k];
+          w.begin_object();
+          w.number("offset", 8 * k);
+          w.word("kind", kValues[static_cast<std::size_t>(x.value.kind)]);
+          optional_number(w, "value", x.value.value);
+          if (x.value.section != SectionKind::None) {
+            w.word("section", kSections[static_cast<std::size_t>(x.value.section) - 1]);
+          }
+          optional_number(w, "rva", x.value.rva);
+          if (x.cls) write_class(w, "word_class", *x.cls);
+          w.end_object();
+        }
+        w.end_array();
+        w.end_object();
+      }
+      w.end_array();
+    }
+  }
   w.end_object();
 }
 
@@ -915,11 +1062,127 @@ void write_method(report::Writer& w, const Method& m) {
     w.number("words_read", r.words_read);
     w.number("own_index", r.own_index);
     w.number("distinct", r.distinct);
+    if (r.words_read != 0) {  // spike.11
+      w.number("own_low", r.own_low);
+      w.begin_array("highs");
+      for (const auto& [value, count] : r.highs) {
+        w.begin_object();
+        w.number("value", value);
+        w.number("count", count);
+        w.end_object();
+      }
+      w.end_array();
+    }
     w.end_object();
   };
   if (m.before) read("before", *m.before);
   if (m.after) read("after", *m.after);
+  // Spike.11: G's fields across the call, the byte that decides the path, and the path.
+  if (!m.g_fields.empty()) {
+    w.begin_array("g_fields");
+    for (const GFieldsRead& r : m.g_fields) {
+      w.begin_object();
+      w.number("at_ms", r.at_ms);
+      w.boolean("read", r.read);
+      w.begin_array("fields");
+      for (const GField& x : r.fields) {
+        w.begin_object();
+        w.signed_number("disp", x.disp);
+        w.number("width", x.width);
+        w.boolean("read", x.read);
+        optional_number(w, "value", x.value);
+        if (x.kind) write_value(w, "field_value", *x.kind);
+        if (x.cls) write_class(w, "field_class", *x.cls);
+        w.end_object();
+      }
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
+  }
+  if (m.defer_disp) w.signed_number("defer_disp", *m.defer_disp);
+  if (!m.path_taken.empty()) w.word("path_taken", m.path_taken);
   w.end_object();
+}
+
+// Spike.11 (WHY§293): the request G's method builds.
+void write_request(report::Writer& w, const RequestShape& r) {
+  w.begin_object("request");
+  w.number("vtable", r.vtable);
+  w.signed_number("disp", r.disp);
+  w.number("site", r.site);
+  w.number("task_field", r.task_field);
+  w.begin_array("fields");
+  for (const RequestField& f : r.fields) {
+    w.begin_object();
+    w.number("offset", f.offset);
+    w.number("width", f.width);
+    w.word("field", kRoles[static_cast<std::size_t>(f.role)]);
+    write_source(w, "source", f.source);
+    w.end_object();
+  }
+  w.end_array();
+  optional_number(w, "now", r.now);
+  if (r.cls) write_class(w, "request_class", *r.cls);
+  w.number("slot_count", r.slot_count);
+  w.begin_array("slots");
+  for (const std::uint32_t s : r.slots) w.number(s);
+  w.end_array();
+  w.end_object();
+}
+
+void write_queue(report::Writer& w, const Queue& q) {
+  w.begin_object("queue");
+  w.signed_number("g_disp", q.g_disp);
+  w.word("queue_walk", q.walk);
+  w.begin_array("reads");
+  for (const QueueRead& r : q.reads) {
+    w.begin_object();
+    w.number("at_ms", r.at_ms);
+    w.boolean("read", r.read);
+    w.number("blocks", r.blocks);
+    w.number("found", r.found);
+    w.begin_array("requests");
+    for (const QueuedRequest& x : r.requests) {
+      w.begin_object();
+      w.number("depth", x.depth);
+      w.begin_array("path");
+      for (const std::uint32_t o : x.path) w.number(o);
+      w.end_array();
+      write_request_read(w, x.fields);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_classes(report::Writer& w, const std::vector<ClassBases>& classes,
+                   const std::vector<std::pair<std::uint32_t, std::uint32_t>>& shared) {
+  w.begin_array("classes");
+  for (const ClassBases& c : classes) {
+    w.begin_object();
+    w.word("object", c.object);
+    w.boolean("classed", c.cls.classed);
+    if (c.cls.classed) w.number("type_descriptor", c.cls.type_descriptor);
+    w.word("match", kMatches[static_cast<std::size_t>(c.cls.match)]);
+    w.number("base_count", c.base_count);
+    w.begin_array("base_rvas");
+    for (const std::uint32_t b : c.bases) w.number(b);
+    w.end_array();
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("shared_bases");
+  for (const auto& [td, count] : shared) {
+    w.begin_object();
+    w.number("type_descriptor", td);
+    w.number("count", count);
+    w.end_object();
+  }
+  w.end_array();
 }
 
 void write_views(report::Writer& w, const ArrayViews& v) {
@@ -1151,7 +1414,9 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   w.end_object();
   if (f.callee_code) write_callee(w, *f.callee_code, f.callee_inner, f.inner_dropped);
   w.begin_array("memory_search");
-  for (const MemorySearch& m : f.memory_search) write_memory(w, m);
+  for (std::size_t i = 0; i < f.memory_search.size(); ++i) {
+    write_memory(w, f.memory_search[i], i < f.request_search.size() ? &f.request_search[i] : nullptr);
+  }
   w.end_array();
   w.begin_array("hub_diff");
   for (const HubDiff& d : f.hub_diff) write_diff(w, d);
@@ -1167,6 +1432,9 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   if (f.views) write_views(w, *f.views);
   if (!f.game_sites.empty()) write_sites(w, f.game_sites);
   if (f.sibling) write_sibling(w, *f.sibling);
+  if (f.request) write_request(w, *f.request);
+  if (f.queue) write_queue(w, *f.queue);
+  if (!f.classes.empty()) write_classes(w, f.classes, f.shared_bases);
   return w.finish();
 }
 

@@ -366,7 +366,18 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   (`g_reads`) and the uses of the entry's word (`word_uses`), a use as an index is `index`, and with `starts` (the
   exception directory's) a direct jump to a function's start goes past nothing; `task_argument` reads what a call site
   passes as the task (the function decoded from its start onto the call, read back to the register's last write);
-  `diff_view` compares one of the array's views across the call; `read_table` answers every entry's address.
+  `diff_view` compares one of the array's views across the call; `read_table` answers every entry's address. Spike.11
+(WHY§293) reads the request run 10 found G's method building: with `SummaryOptions` (the exception directory's entries
+and, from `chained_entries`, the ones chained to a primary by UNW_FLAG_CHAININFO or by an entry pointing at another)
+`summarise_callee` decodes a function with an extent in parts where its code goes past it (`parts`: its chained
+entries, then the code its conditional branches reach past the extent in no entry, decoded linearly up to 4 KiB to a
+return, a trap, a jump out of the parts, another entry's start or a part), a jump into a part being no tail jump, and
+gives up to 128 forms then; a lea of rip or rsp makes an address (Source's `Address`, `Stack`), passed at calls, and the
+stores to the stack frame are kept for `request_shape`, which finds the request (its rdata vtable at [rsp + d], the task
+at +8, G's field as its manager, the entry's word, the zeroed register) and the function called with its address;
+`request_entry_at` carries the request, its task, manager and word into a callee, whose loads from the request and the
+manager are `request_reads` and `manager_reads`, a load of its task field the task; and `search_memory` counts the words
+equal to the request's vtable (`request_vtable`), the game's with their addresses for T1.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -467,7 +478,13 @@ target follows it ends at its jump only with the starts) and a method of G's wit
 four uses of the word and its call carrying both; a call site's task as a load, a member, a result, a static and a
 stack slot with a branch landing on the call; a view's changed words with the threads' ids; a class's innermost name
 against the leads' names; the
-table's addresses for T1; and the report of all of it, lint-clean). The clang-cl build adds
+table's addresses for T1; and the report of all of it, lint-clean; spike.11's (`test_probe_request.cpp`) on code of our
+own: a method of G's of run 10's shape building its request on the stack (its five fields and roles, the function it
+calls with its address, no request where the vtable is not in rdata or the task not at +8), that function in two parts
+(an unlisted second part past its extent with branches back into the primary, a chained one instead, an entry chained to
+no one, and a jump out of the parts as a tail jump) with the request's task, word and manager followed and carried one
+level further; the chained entries of an image of our own; the search for the request's vtable; and the report of all
+of it, lint-clean). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
 under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
