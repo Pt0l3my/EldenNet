@@ -1198,6 +1198,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (the slot id), a status from a state topic (a dot and a word in the lamp's tones) and one or two actions of a
     header action's shape ("Prepare lines now"); protocol 1.3, ABI unchanged. Recommended: all three. EldenNet's
     AI › Models then moves its jobs from the settings block under the Jobs table into one section per job.
+- y A row secret's line in game only when a row takes a key (GraceUI 0.2.11) [done]
+  - needs: v
+  - refs: GraceUI:D200, WHY§297
+  - gives: asked by EldenNet's fourth pages slice, where every row of a local server read Not needed and the line
+    "Key: set in the browser view." still showed. Done on 2026-11-21 (GraceUI feat/foundations 75cc11a), all checks
+    passed; nothing for EldenNet to change (GraceUI's docs/eldennet-changes.md §44).
 
 ### S11.3 EldenNet v0.2
 
