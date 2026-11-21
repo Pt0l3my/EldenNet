@@ -2542,7 +2542,8 @@ since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09
 plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
-C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) and O95 (the first pages' choices) on 2026-11-21. O96 and O97 are Open.**
+C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) and O95 (the first pages' choices), O96 (System One for decisions) and O97 (decisions choose the addressee) on
+2026-11-21. None is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2648,5 +2649,5 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O93](../DECISIONS.md#o93) | Does EldenNet's in-game text grow with GraceUI's larger default size (1.25, GraceUI D177)? | (a) no: its sizes are as designed at the new default | Decided 2026-11-20 |
 | [O94](../DECISIONS.md#o94) | Is the talk key one key on the keyboard, and which? | (a) one key, `T` by default, checked in game by S4 | Decided 2026-11-21 |
 | [O95](../DECISIONS.md#o95) | The first pages: the lamp while starting, its tones, the AI pages' label, the greyed words, the draft words? | As recommended: no lamp, the tones, the build's increment, the banner's words, the words stand | Decided 2026-11-21 |
-| [O96](../DECISIONS.md#o96) | May a provider use System One, a classifier's protocol, for the `decisions` job? | (a) yes, `api_style = "system_one"`, chat and the rules behind it | **Open** |
-| [O97](../DECISIONS.md#o97) | A decision for whom the player addressed, as SkyrimNet has? | (a) rules in v1, the decision once several personas may answer | **Open** |
+| [O96](../DECISIONS.md#o96) | May a provider use System One, a classifier's protocol, for the `decisions` job? | (a) yes, `api_style = "system_one"`, chat and the rules behind it | Decided 2026-11-21 |
+| [O97](../DECISIONS.md#o97) | A decision for whom the player addressed, as SkyrimNet has? | The owner's own: in v1, decisions choose the addressee of the player's lines and of NPC-to-NPC lines | Decided 2026-11-21 |

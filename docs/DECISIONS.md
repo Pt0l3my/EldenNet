@@ -62,8 +62,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   put and decided the same day, as recommended; O36's guards dropped.
 - **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
 - **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
-  key, one key) and O95 (the first pages' choices) decided. O96 and O97 put to the owner on 2026-11-21.
-- **Open.** O96 (a System One provider for the decisions job), O97 (a decision for whom the player addressed).
+  key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
+  the addressee) put to the owner and decided on 2026-11-21.
+- **Open.** None.
 
 ## O1
 
@@ -1739,7 +1740,7 @@ of NPC §5.6) and its proposal 0007 (G34: row actions, live pickers, row keys an
 
 ## O96
 
-**A System One provider for the decisions job** · *2026-11-21 · Open*
+**A System One provider for the decisions job** · *2026-11-21 · Decided by the owner, as recommended*
 
 **Question.** The owner asked: "will you also add chat/completions or systemone selection for providers that could use
 decision models?" EldenNet's decision calls (ARCH §11.8) go over chat completions to any model: code builds the
@@ -1759,11 +1760,18 @@ rules still stand behind every call. A classifier answers in a fraction of a sec
 pick made while the player waits, and it is reachable on the OpenRouter key the default preset already uses. One
 provider calls Jev experimental, so chat stays the default and the fallback.
 
+**Decision.** (a). A provider has an `api_style`, `chat` (the default) or `system_one`, which only the `decisions`
+job uses. A DecisionCall goes to a `system_one` provider as System One's typed question, through our own client written
+from the published protocol; on a failed, refused or late call it goes once as a chat-format decision to the slot's
+fallback model, and then the rules pick, as for every decision. Built with the decisions slot (S13.2.h).
+
+**Owner's words.** "O96: a"
+
 **Follows from.** ARCH §11.1, §11.8; DESIGN §11.2; O84, O88; SN01 §6.1; WHY§280.
 
 ## O97
 
-**A decision for whom the player addressed** · *2026-11-21 · Open*
+**A decision for whom the player addressed** · *2026-11-21 · Decided by the owner, an option of their own*
 
 **Question.** The owner asked whether EldenNet will include the decision job "for target selection that SkyrimNet has".
 SkyrimNet asks its decisions model whom the player addressed (`player_dialogue_target_selector`) and who speaks next
@@ -1779,5 +1787,21 @@ header.
 
 **Recommendation.** (a). The player sees whom they speak to before typing, the box opens in under 50 ms with no model
 call, and a line never goes to someone the header did not name. The hint's 500 ms lead already settles near-ties.
+
+**Decision.** A fourth option, the owner's own: in v1, decision calls choose the addressee, both of the player's lines
+and of NPC-to-NPC lines, as SkyrimNet's target selectors do. It replaces NPC §9.2's rule that the addressee is code's,
+never the model's choice. How it applies, by the design's rules for every decision (ARCH §11.8):
+- **The player's line.** The talk key still opens the box on its rules' target, named in the header before the player
+  types (NPC §5.1). When the sent line is heard by two or more personas or characters that may answer, a decision
+  picks whom it addresses among them; the header's target is the rules' pick and the fallback. A pick other than the
+  header's target retargets the box (the header names the new addressee), and only the addressee answers. With one
+  who may answer there is no call.
+- **NPC-to-NPC lines.** The next-speaker decision (NPC §9.2) picks a speaker and whom they address together, from pairs
+  code builds (each eligible speaker with each legal addressee present: another NPC, the Tarnished, or no one), and
+  silence, always offered. The motive's own speaker and addressee are the rules' pick and the fallback.
+- **Always:** code builds the options under neutral labels, the model only picks one, and the rules stand behind every
+  call; at most 12 options; no call with one option. Built with the decisions slot (S13.2.h), on the CI fixtures first.
+
+**Owner's words.** "O97: add decision job in v1 for both player and NPC to NPC target selector."
 
 **Follows from.** NPC §5.1, §9.4, §9.7; ARCH §11.8; SN02 §13.2; SN07.

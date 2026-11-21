@@ -914,6 +914,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Folded on 2026-11-20 (design/v1-proposal, merge of docs/s10-fold-i): ARCH §1.2, §1.4, §2.2, §3.2, §4.1, §4.3,
     §4.7, §4.14, §7.5, §8 (its opening, §8.1, §8.4, §8.5, §8.7, §8.12), §11.5 and §12.1; DESIGN §2.4, §14 and §16.1
     and MEM §6.3 by dated notes; a dated note on O90 (the launcher's Mark kept as the fallback, WHY§217).
+- j O96 and O97 folded into the design: the System One api style (ARCH §11.1, §11.4, §11.8, DESIGN §11), and decisions choosing the addressee of the player's lines and of NPC-to-NPC lines (NPC §5, §9.2, §9.4, §9.8, DESIGN §8.1, §9) [active]
+  - refs: O96, O97, ARCH§11.8, DESIGN§11.2
+  - gives: decided by the owner on 2026-11-21; built with the decisions slot in v0.4 (S13.2.h).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1284,8 +1287,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: DESIGN§7.8
 - g The first roster captures in game, binding by binding [waiting]
   - needs: f
-- h The decisions slot and the next-speaker decision, on the CI fixtures
-  - refs: DESIGN§9.7, DESIGN§11.2, ARCH§11.8, WHY§98, WHY§99
+- h The decisions slot and the next-speaker decision, on the CI fixtures; the addressee decisions (O97) and the System One api style (O96)
+  - refs: DESIGN§9.7, DESIGN§11.2, ARCH§11.8, WHY§98, WHY§99, O96, O97, WHY§280
+  - gives: widened on 2026-11-21 by the owner's O96 and O97: the next-speaker decision picks a speaker and an addressee
+    together; a decision picks whom the player's line addresses when two or more may answer it; and a provider may take
+    the System One protocol for the decisions job, tested against Ollama locally and against OpenRouter with the
+    owner's key. Folded into the design the same day (S10.1.j).
 - i Stance, unseen attackers and the concealed Tarnished, as spikes S7 and S8 verify their reads
   - refs: DESIGN§6.5, WHY§98
 
