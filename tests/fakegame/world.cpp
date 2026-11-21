@@ -383,6 +383,7 @@ void enter(Phase phase, std::uint64_t frame) {
     case Phase::Loading: set_screen(2); ++w.stats.loads; break;
     case Phase::World:
       spawn();
+      hub_world_loaded();  // spike.12: the words the world adds to the manager's map, at its first load
       set_screen(4);
       w.world_frames = 0;
       break;

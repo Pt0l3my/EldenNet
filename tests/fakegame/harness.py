@@ -2249,7 +2249,11 @@ def check_r1_request(p, task):
     function, the cancel and the word); each slot summarised at depth 4 with the request in rcx, the now path's
     function in two parts (its entry and, past its extent in no entry, its check) with the request's fields followed:
     the task, the word, the manager; the task's kind and state read in the second part, the manager's strict flag
-    tested; and one level further (5) the note and the work, the task and the word carried in."""
+    tested. Since spike.12 (WHY§296) R1 run 11's shape: the task's first word read on the other branch, the manager's
+    map and list read (the head, the root, the nil byte; the list's end less its begin), the note, the hand-over (twice:
+    the list's and the match's), the other branch's call and a call through the task's first word; one level further
+    (5) the note, the hand-over entered with the map's value, the task, the word and the manager, and the other
+    branch's call with the task; and past the hand-over (6) the work."""
     failures = []
     c = p["callee_code"]
     rack = task["register_rack"]
@@ -2277,18 +2281,26 @@ def check_r1_request(p, task):
          {k: v for k, v in now.items() if k not in ("forms", "args", "guard")}, failures)
     on_request = {"src": "entry", "reg": 1}
     rreads = {(x["disp"], x["width"]) for x in now.get("request_reads", []) if x["base_src"] == on_request}
-    treads = sorted((x["disp"], x["width"]) for x in now.get("task_reads", []))
+    second = rack["check_rva"] - rack["now_rva"]
+    treads = sorted((x["disp"], x["width"]) for x in now.get("task_reads", []) if x["offset"] >= second)
+    first_word = [x for x in now.get("task_reads", []) if x["offset"] < second]
     mreads = now.get("manager_reads", [])
+    flags = [x for x in mreads if x["disp"] == rack["manager_flags_off"] and x.get("direct")]
+    heads = [x for x in mreads if x["disp"] == rack["map_head_off"] and x["width"] == 8]
     need({(rack["request_task_off"], 8), (rack["request_word_off"], 4), (rack["request_manager_off"], 8)} <= rreads and
          treads == sorted([(rack["task_state_off"], 4), (rack["task_kind_off"], 4)]) and
-         all(x["offset"] >= rack["check_rva"] - rack["now_rva"] for x in now.get("task_reads", [])) and
-         len(mreads) == 1 and mreads[0]["disp"] == rack["manager_flags_off"] and mreads[0].get("direct") and
-         [u["use"] for u in mreads[0].get("uses", [])] == ["tested"],
+         [(x["disp"], x["width"], x.get("direct", False)) for x in first_word] == [(0, 8, False), (8, 8, True)] and
+         len(flags) == 1 and [u["use"] for u in flags[0].get("uses", [])] == ["tested"] and len(heads) == 1 and
+         {(rack["map_list_off"], 8), (rack["map_list_off"] + 8, 8), (8, 8), (rack["node_nil_off"], 1)} <=
+         {(x["disp"], x["width"]) for x in mreads},
          "the now path's function's reads: request %s, task %s, manager %s" %
          (now.get("request_reads"), now.get("task_reads"), mreads), failures)
     calls = [k for k in now.get("call_sites", []) if k["form"] == "direct"]
-    tails = [k for k in now.get("call_sites", []) if k["form"] != "direct"]
-    need([k.get("target") for k in calls] == [rack["note_rva"], rack["keep_rva"]] and not tails,
+    others = [k for k in now.get("call_sites", []) if k["form"] != "direct"]
+    need([k.get("target") for k in calls] == [rack["note_rva"], rack["map_take_rva"], rack["map_take_rva"],
+                                              rack["task_other_rva"]] and
+         [k["form"] for k in others] == ["memory"] and others[0].get("vtable_src", {}).get("disp") ==
+         rack["request_task_off"],
          "the now path's function's calls (the jumps back into its entry no tail calls): %s" % now.get("call_sites"),
          failures)
     forms = now.get("forms", [])
@@ -2317,15 +2329,29 @@ def check_r1_request(p, task):
     word = inner.get((rack["word_rva"], 4), {})
     need([(x["disp"], x["width"]) for x in word.get("request_reads", [])] == [(rack["request_word_off"], 4)],
          "the word's request reads: %s" % word.get("request_reads"), failures)
-    keep = inner.get((rack["keep_rva"], 5), {})
+    take = inner.get((rack["map_take_rva"], 5), {})
     note = inner.get((rack["note_rva"], 5), {})
-    kentry = {x["reg"]: x for x in keep.get("entry_src", [])}
-    held = kentry.get(8, {}).get("source", {})
-    need(keep and note and keep.get("parent") == rack["now_rva"] and note.get("parent") == rack["now_rva"] and
-         held.get("src") == "memory" and held.get("disp") == rack["request_task_off"] and
-         held.get("base_src") == on_request and kentry.get(2, {}).get("holds_word") is True,
-         "one level further: %s; the work's entry %s" %
-         ([(i["rva"], i.get("depth"), i.get("parent")) for i in c.get("inner", [])], kentry), failures)
+    other = inner.get((rack["task_other_rva"], 5), {})
+    keep = inner.get((rack["keep_rva"], 6), {})
+    tentry = {x["reg"]: x for x in take.get("entry_src", [])}
+    held = tentry.get(2, {}).get("source", {})
+    site = p.get("map", {}).get("map_call_site")
+    oentry = {x["reg"]: x for x in other.get("entry_src", [])}
+    need(take and note and other and keep and
+         all(x.get("parent") == rack["now_rva"] for x in (take, note, other)) and
+         keep.get("parent") == rack["map_take_rva"] and take.get("site") == site and site is not None and
+         tentry.get(1, {}).get("holds_value") is True and held.get("src") == "memory" and
+         held.get("disp") == rack["request_task_off"] and held.get("base_src") == on_request and
+         tentry.get(8, {}).get("holds_word") is True and tentry.get(9, {}).get("holds_manager") is True and
+         oentry.get(1, {}).get("source", {}).get("disp") == rack["request_task_off"],
+         "one level further: %s; the hand-over's entry %s" %
+         ([(i["rva"], i.get("depth"), i.get("parent")) for i in c.get("inner", [])], tentry), failures)
+    vreads = [(x["disp"], x["width"], x.get("direct", False)) for x in take.get("value_reads", [])]
+    need(take.get("value_read_count") == 2 and vreads == [(rack["bin_group_off"], 4, False),
+                                                          (rack["bin_group_off"] + 4, 4, True)] and
+         "forms" in take and take["forms"] and "forms" in now and now["forms"],
+         "the hand-over's reads of the map's value: %s (forms kept: %s)" %
+         (take.get("value_reads"), bool(take.get("forms"))), failures)
     del task_reg
     return failures
 
@@ -2662,15 +2688,91 @@ def check_r1_roots(p, task, gap=False, gate=False):
     return failures
 
 
-def check_r1_spike10(p, task, gap=False, gate=False, queued=False):
+def check_r1_spike10(p, task, gap=False, gate=False, queued=False, late=False, world=False):
     """Spike.10's own checks (WHY§289): G and its method, the array's views, the game's call sites, the sibling; and
     spike.11's (WHY§293): G's fields and the path, the request and its methods, G's queue, the game's requests in the
-    searches, the classes and their bases."""
+    searches, the classes and their bases; and spike.12's (WHY§296): the manager's map and list."""
     group = p["register"]["group_index"]
     return (check_r1_method(p, task, group, gap=gap, gate=gate, queued=queued) + check_r1_views(p, task, gap=gap) +
             check_r1_sites(p, task) + check_r1_sibling(p, task) + check_r1_request(p, task) +
             check_r1_queue(p, task, gap=gap, queued=queued) + check_r1_request_search(p, task) +
-            check_r1_classes(p, gap=gap))
+            check_r1_classes(p, gap=gap) + check_r1_map(p, task, gap=gap, late=late, world=world))
+
+
+def check_r1_map(p, task, gap=False, late=False, world=False):
+    """Spike.12 (WHY§296): the manager's map and list as R1 read them. The layout from the now path's function's
+    summary: the head at the manager's offset --describe gives, the root at the head's +8, the nil byte, the 4-byte key
+    and the value 8 bytes past it (the summary knows no value in rcx at the match's call, its paths disagreeing on the
+    node: value_known false), the children at +0 and +16, the list's begin and end; the hand-over a match calls and the
+    other branch's call. The readings: the first just before the call (at the title, the title's words, every value a
+    bin of the title's class, the list one bin), at least five in all, each kept reading's keys in order with high 16
+    bits 0; the stand-in group's word present at every reading (with --map-late absent at the title, with its nearest
+    words below and above, and present once the world's first load added the world's words, at a reading in the
+    world); with --table-gap no word looked for. The last reading after 10 s, its map the title's and the world's
+    words, the world's bins of their own class; with `world` (a case whose world stays loaded) a reading in the world
+    with them."""
+    failures = []
+    rack = task["register_rack"]
+    m = p.get("map", {})
+    group = p["register"]["group_index"]
+    title, added = list(rack["map_title_words"]), list(rack["map_world_words"])
+    if late and group in title:  # --describe runs without the case's options: with --map-late the word is the world's
+        title.remove(group)
+        added = sorted(added + [group])
+    need(m.get("head_disp") == rack["map_head_off"] and m.get("root_disp") == 8 and
+         m.get("nil_disp") == rack["node_nil_off"] and m.get("key_disp") == rack["node_key_off"] and
+         m.get("key_width") == 4 and m.get("value_disp") == rack["node_value_off"] and m.get("value_known") is False and
+         m.get("left_disp") == 0 and m.get("right_disp") == 16 and m.get("list_begin") == rack["map_list_off"] and
+         m.get("list_end") == rack["map_list_off"] + 8 and m.get("map_call") == rack["map_take_rva"] and
+         m.get("other_call") == rack["task_other_rva"] and "shape_failed" not in m,
+         "the map's shape: %s" % {k: v for k, v in m.items() if k != "readings"}, failures)
+    need(("word" not in m) if gap else m.get("word") == group, "the word looked for: %s" % m.get("word"), failures)
+    reads = m.get("readings", [])
+    need(m.get("readings_made", 0) >= 5 and 2 <= len(reads) <= 26 and m.get("changes", 0) >= 1 and
+         all(r["read"] and "map_failed" not in r and "list_failed" not in r for r in reads) and
+         [r["at_ms"] for r in reads] == sorted(r["at_ms"] for r in reads),
+         "the map's readings: %s" % [(r.get("at_ms"), r.get("world_stage"), r.get("nodes"), r.get("word_present"))
+                                     for r in reads], failures)
+    if not reads:
+        return failures
+
+    def classes(r, key):
+        return sorted((x["value_class"]["type_descriptor"] if x.get("value_class", {}).get("classed") else None,
+                       x["count"]) for x in r.get(key, []))
+
+    first, last = reads[0], reads[-1]
+    bins = classes(first, "values")
+    need(first["at_ms"] == 0 and first["world_stage"] == "title" and first["nodes"] == len(title) and
+         first.get("key_lows") == sorted(title) and first.get("key_highs") == [{"value": 0, "count": len(title)}] and
+         first.get("ordered") and first.get("root_parent") and first.get("head_ends") and
+         first.get("count_word") == {"kind": "small", "value": len(title)} and len(bins) == 1 and
+         bins[0][0] is not None and bins[0][1] == len(title) and first.get("list_count") == rack["list_count"] and
+         classes(first, "list_values") == [(bins[0][0], 1)] and
+         all(x["value_kind"] == {"kind": "heap"} for x in first.get("values", [])),
+         "the first reading: %s" % first, failures)
+    for r in reads:
+        present = r.get("word_present")
+        if gap:
+            need(present is None and "below" not in r, "a reading with no word: %s" % r, failures)
+        elif not late or r["nodes"] == len(title) + len(added):
+            need(present is True and "below" not in r and "above" not in r, "the word at %s ms: %s" % (r["at_ms"], r),
+                 failures)
+        else:
+            below = max(w for w in title if w < group)
+            above = min(w for w in title if w > group)
+            need(present is False and r.get("below") == below and r.get("above") == above,
+                 "the word absent at %s ms: %s" % (r["at_ms"], r), failures)
+        need(r.get("key_highs", [{"value": 0}])[0]["value"] == 0 and
+             r["nodes"] in (len(title), len(title) + len(added)), "the keys at %s ms: %s" % (r["at_ms"], r), failures)
+    full = sorted(title + added)
+    need(last["at_ms"] >= 10000 and last["nodes"] == len(full) and last.get("key_lows") == full and
+         len(classes(last, "values")) == 2 and sorted(n for _, n in classes(last, "values")) ==
+         sorted([len(title), len(added)]),
+         "the last reading: %s" % last, failures)
+    need(not world or any(r["world_stage"] == "world" and r["nodes"] == len(full) for r in reads),
+         "no reading in the world with the world's words: %s" %
+         [(r["at_ms"], r["world_stage"], r["nodes"]) for r in reads], failures)
+    return failures
 
 
 def check_r1_control(p, ds):
@@ -2871,7 +2973,7 @@ def check_r1_gap(result):
          not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
          "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
     failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, r1_lead(result, "task_loom"), gap=True)
-    failures += check_r1_roots(p, task, gap=True) + check_r1_spike10(p, task, gap=True)
+    failures += check_r1_roots(p, task, gap=True) + check_r1_spike10(p, task, gap=True, world=True)
     ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
          "the hub's diffs, with nothing kept: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]] for d in ds],
@@ -2888,6 +2990,8 @@ def check_r1_gap(result):
     for name in ("r1-derive.json", "r1-probe.json"):
         failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
     failures += any_line(result, "FAKEGAME", "rack", gap="1")
+    # Spike.12 (WHY§296): no copy of our task, so the console has the owner load the save (the map is read there too).
+    failures += any_line(result, "LAUNCHER", "r1", step="no_confirmation", absent="1")
     return failures + any_line(result, "ELDENNET", "r1", stage="table_after") + en_log_is_clean(result)
 
 
@@ -2921,7 +3025,7 @@ def check_r1_gate(result):
          not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
          "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
     failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
-                 check_r1_roots(p, task, gate=True) + check_r1_spike10(p, task, gate=True))
+                 check_r1_roots(p, task, gate=True) + check_r1_spike10(p, task, gate=True, world=True))
     ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "task_tagged", "vtable", "ours")
                               for d in ds for w in d["words"]),
@@ -2942,6 +3046,7 @@ def check_r1_gate(result):
         failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
     failures += any_line(result, "FAKEGAME", "rack", gap="0", gate="1")
     failures += any_line(result, "FAKEGAME", "register", gated=str(p["register"]["group_index"]))
+    failures += any_line(result, "LAUNCHER", "r1", step="no_confirmation", absent="1")  # spike.12, as the gap's
     return failures + any_line(result, "ELDENNET", "r1", stage="classes") + en_log_is_clean(result)
 
 
@@ -2975,6 +3080,91 @@ case("launcher-eldennet-probe-queue", LBASE + ["--no-steam-check", "--game", "{g
      what="R1 as the owner runs it, on a fake game whose ledger (G) queues each request (R1 run 10's other path): the "
           "request in G's queue at 50 and 250 ms, drained and run by a later frame, the task confirmed, and both "
           "reports lint clean")
+# Spike.12's case (WHY§296): R1 run 11's end. The manager's map holds the stand-in group's word only once the world is
+# loaded (--map-late), so the call at the title finds no match and drops our task (answering 1), the task never runs,
+# and no copy of it is found: the console, after no confirmation, has the owner load the save and stay two minutes in
+# the world (README-R1.txt's steps 4 and 5 say the same). The fake world then loads, adding its words, and the map's
+# readings show the word absent at the title (its nearest words below and above) and present in the world.
+R1_ABSENT = ("Our task is not in the game. Load your save now, stay in the world for two minutes, then quit the game "
+             "as usual.")
+README_R1 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "spikepkg",
+                         "README-R1.txt.in")
+
+
+def check_readme_r1(result):
+    """README-R1.txt's steps (its source in tools/spikepkg) against the console: the line the console shows when our
+    task is not in the game, quoted in step 4 with what to do (load the save, two minutes in the world, a grace
+    enough), the old way kept for every other end, "Task confirmed." before step 5's play, and the time still 5 to 10
+    minutes."""
+    failures = []
+    with open(README_R1, encoding="utf-8") as f:
+        text = f.read()
+    flat = " ".join(text.split())
+
+    def step(n):  # a numbered step of the steps' section, to the next one, its lines joined
+        body = text[text.find("\nThe steps\n"):text.find("\nWhat it does\n")]
+        m = re.search(r"^%d\. (.*?)(?=^%d\. )" % (n, n + 1), body, re.M | re.S)
+        return " ".join(m.group(1).split()) if m else ""
+
+    step4, step5 = step(4), step(5)
+    need("No confirmation 30 seconds after the call. " + R1_ABSENT in step4 and "two minutes" in step4 and
+         "grace" in step4 and "Do not load a save" in step4 and "Task confirmed." in step4 and
+         "Task confirmed." in step5 and "about 5 to 10 minutes" in flat,
+         "README-R1.txt's steps 4 and 5: %r / %r" % (step4[:400], step5[:200]), failures)
+    plain = [l for l in result.lines if l.startswith("EldenNet R1: ")]
+    need(any(l == "EldenNet R1: No confirmation 30 seconds after the call. " + R1_ABSENT for l in plain) and
+         not any("Do not load a save" in l for l in plain),
+         "the console's lines: %s" % plain, failures)
+    return failures
+
+
+def check_r1_late(result):
+    failures = []
+    reports = r1_reports(result, failures)
+    if reports is None:
+        return failures
+    p = reports["r1-probe.json"]
+    task = result.truth["task"]
+    checks = {(c["item"], c.get("label", "")): c for c in p["checks"]}
+    need(all(checks.get((item, ""), {}).get("status") == "confirmed"
+             for item in ("gate", "fd4_idiom", "register", "register_abi", "group")),
+         "the checks: %s" % [(c["item"], c["status"]) for c in p["checks"]], failures)
+    need(p["register"]["call"] == "ok" and p["stage"] == "registered" and p["task"]["invocations"] == 0 and
+         not p["task"]["slot_calls"] and p["task"]["object_written"] == 0 and
+         p["register"].get("returned_low") == 1,
+         "the call, the stage and the task: %s, %s, %s" % (p["register"], p["stage"], p["task"]), failures)
+    failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
+                 check_r1_roots(p, task) + check_r1_spike10(p, task, late=True, world=True))
+    ms = p.get("memory_search", [])
+    need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["inside"] == 0 and
+                              m["vtable_found"] == 0 and m["slot_found"] == 0 and m["tagged_found"] == 0 for m in ms),
+         "the memory searches, no copy: %s" %
+         [{k: m.get(k) for k in ("stopped", "found", "inside", "vtable_found", "slot_found")} for m in ms], failures)
+    steps = r1_steps(result)
+    need("task_confirmed" not in steps and steps[:1] == ["asked"] and "press_mark" in steps and
+         "no_confirmation" in steps and steps[-1:] == ["reports_clean"], "the console's R1 steps: %s" % steps, failures)
+    failures += any_line(result, "LAUNCHER", "r1", step="no_confirmation", absent="1")
+    for name in ("r1-derive.json", "r1-probe.json"):
+        failures += any_line(result, "LAUNCHER", "r1", report=name, lint="clean")
+    group = p["register"]["group_index"]
+    failures += any_line(result, "FAKEGAME", "map", missed=str(group))
+    failures += any_line(result, "FAKEGAME", "map", world_words=str(len(task["register_rack"]["map_world_words"]) + 1))
+    failures += any_line(result, "ELDENNET", "r1", stage="task_search", found="0")
+    failures += any_line(result, "ELDENNET", "r1", stage="map_change", word="present", world="world")
+    return failures + check_readme_r1(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-probe-map", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                             "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--map-late",
+          frames=3900),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_late,
+     what="R1 as the owner runs it, on a fake game whose manager's map holds the stand-in group's word only in the "
+          "world (R1 run 11's end): the call at the title drops our task, no copy is found, the console has the owner "
+          "load the save for two minutes (as README-R1.txt's steps say), and the map's readings show the word absent "
+          "at the title and present once the world is loaded; both reports lint clean")
 # Spike.10 (WHY§290): R1 run 9's launcher stopped logging at the call: its console's output was suspended (a click inside
 # a classic console window, LIKELY), and the watch loop with it. Here the launcher's console writer blocks for good after
 # a few lines (its test hook ELDENNET_TEST_CONSOLE, with a queue of a few lines): launcher.log still carries every line,

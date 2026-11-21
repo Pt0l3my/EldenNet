@@ -100,8 +100,68 @@ T* in_arena() {
   return new (arena(sizeof(T))) T();
 }
 
+// Spike.12 (R1 run 11's shape, WHY§296): the manager's map, a tree of our own making with MSVC's node shape (no
+// balancing: a few nodes), keyed by the shelves' words, each value a bin of its group's. Its words: every group's but
+// 0's (the list's: a word of 0 takes the list) and the world's own (1, 3, 6 and 8, past the shift; with --map-late the
+// stand-in group's too), which its first load adds.
+bool world_word(std::uint32_t word) {
+  const std::uint32_t s = options().shift_groups;
+  return word == 1 + s || word == 3 + s || word == 6 + s || word == 8 + s ||
+         (options().map_late && word == standin_group());
+}
+
+void map_insert(FG::TaskManagerImp& m, std::uint32_t key, FG::TaskBin* value) {
+  FG::MapNode* head = m.m.map_head;
+  FG::MapNode* parent = head;
+  FG::MapNode* at = head->parent;
+  bool left = false;
+  while (at != head) {
+    if (at->key == key) return;
+    parent = at;
+    left = key < at->key;
+    at = left ? at->left : at->right;
+  }
+  auto* n = in_arena<FG::MapNode>();
+  n->left = head;
+  n->right = head;
+  n->parent = parent;
+  n->key = key;
+  n->value = value;
+  if (parent == head) {  // the node is whole before a reader can reach it
+    head->parent = n;
+  } else if (left) {
+    parent->left = n;
+  } else {
+    parent->right = n;
+  }
+  if (head->left == head || key < head->left->key) head->left = n;
+  if (head->right == head || key > head->right->key) head->right = n;
+  ++m.m.map_count;
+}
+
+template <class Bin>
+FG::TaskBin* make_bin(std::uint32_t group) {
+  auto* bin = in_arena<Bin>();
+  bin->b.group = group;
+  return bin;
+}
+
+void make_map(FG::TaskManagerImp& m) {
+  auto* head = in_arena<FG::MapNode>();
+  head->left = head->parent = head->right = head;
+  head->nil = 1;
+  head->colour = 1;
+  m.m.map_head = head;
+  for (const std::uint32_t w : map_title_words()) map_insert(m, w, make_bin<FG::TaskBin>(w));
+  auto** list = static_cast<FG::TaskBin**>(arena(4 * sizeof(FG::TaskBin*)));
+  list[0] = make_bin<FG::TaskBin>(0);
+  m.m.list_begin = list;
+  m.m.list_end = list + 1;
+  m.m.list_cap = list + 4;
+}
+
 // The ledger, its manager and its three tasks of the game's own, its queue, and the two requests of the game's own that
-// wait there (spike.11).
+// wait there (spike.11); since spike.12 the manager's map and list.
 void make_ledger() {
   if (fg_static_ledger != nullptr) return;
   auto* g = new (VirtualAlloc(nullptr, sizeof(FG::TaskLedgerImp), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE))
@@ -118,6 +178,7 @@ void make_ledger() {
     c->c.manager = manager;
     manager->m.chores[manager->m.count++] = c;
   }
+  make_map(*manager);
   g->l.manager = manager;
   auto* queue = in_arena<FG::TaskQueueImp>();
   auto* list = in_arena<FG::RequestList>();
@@ -214,6 +275,32 @@ std::uint64_t read_runs(void* task) {
 }  // namespace
 
 std::uint32_t standin_group() { return kStandinBase + options().shift_groups; }
+
+std::vector<std::uint32_t> map_title_words() {
+  std::vector<std::uint32_t> out;
+  for (std::uint32_t w = 1; w < kBaseGroups + options().shift_groups; ++w) {
+    if (!world_word(w)) out.push_back(w);
+  }
+  return out;
+}
+std::vector<std::uint32_t> map_world_words() {
+  std::vector<std::uint32_t> out;
+  for (std::uint32_t w = 1; w < kBaseGroups + options().shift_groups; ++w) {
+    if (world_word(w)) out.push_back(w);
+  }
+  return out;
+}
+
+// The world's first load adds its words to the manager's map, each with a bin of the world's class.
+void hub_world_loaded() {
+  static bool done = false;
+  const auto* g = static_cast<const FG::TaskLedgerImp*>(fg_static_ledger);
+  if (done || g == nullptr || g->l.manager == nullptr) return;
+  done = true;
+  for (const std::uint32_t w : map_world_words()) map_insert(*g->l.manager, w, make_bin<FG::WorldBin>(w));
+  status("map world_words=%zu count=%llu", map_world_words().size(),
+         static_cast<unsigned long long>(g->l.manager->m.map_count));
+}
 std::uint32_t group_count() { return hub().count; }
 const char16_t* group_name(std::uint32_t index) {
   Hub& h = hub();
@@ -295,6 +382,10 @@ void hub_run_frame(std::uint64_t frame, float dt) {
   if (fg_gated != 0) {
     fg_gated = 0;
     status("register gated=%u", fg_gated_word);
+  }
+  if (fg_missed != 0) {  // spike.12: a word the manager's map does not hold, its task dropped
+    fg_missed = 0;
+    status("map missed=%u", fg_missed_word);
   }
   // Spike.10: the ledger's last note, stamped with this thread's id FG_NOTE_STAMP_MS after it was made.
   Ledger& l = ledger();
@@ -410,6 +501,8 @@ std::uint32_t FG::TaskNote::note_kind() const { return 0x504; }
 // code is the same in every build).
 std::uint32_t FG::TaskManagerImp::manager_kind() const { return 0x505; }
 std::uint32_t FG::TaskQueueImp::queue_kind() const { return 0x506; }
+std::uint32_t FG::TaskBin::bin_kind() const { return 0x509; }
+std::uint32_t FG::WorldBin::bin_kind() const { return 0x50A; }
 void FG::Chore::step() { ++c.runs; }
 std::uint32_t FG::SweepChore::chore_kind() const { return 0x507; }
 std::uint32_t FG::TallyChore::chore_kind() const { return 0x508; }
