@@ -73,18 +73,36 @@ TEST_CASE("base url: each refusal named") {
   CHECK(problem("https://example.invalid/%2") == UrlProblem::Characters);
   CHECK(problem("https://example.invalid/\xC3\xA9") == UrlProblem::Characters);
   CHECK(problem("https://example.invalid/a\"b") == UrlProblem::Characters);
-  // http:// only to this PC: never to another host, a private address included (the owner's to decide, O98).
+  // http:// to this PC, or to another PC of the home network by a literal private address (O98 (a)); never to a public
+  // address or a name, which may resolve anywhere.
   CHECK(problem("http://models.example.invalid/v1") == UrlProblem::PlainRemote);
-  CHECK(problem("http://[fd00::20]:1234/v1") == UrlProblem::PlainRemote);
   CHECK(problem("http://192.0.2.7:1234/v1") == UrlProblem::PlainRemote);  // a documentation address: public
   CHECK(problem("http://storeroom.invalid:1234/v1") == UrlProblem::PlainRemote);
   CHECK(problem("http://127.example.invalid/v1") == UrlProblem::PlainRemote);  // a name, not 127.0.0.0/8
 }
 
-TEST_CASE("base url: where http:// goes, the one check of the form, parse_config and the key rows") {
+TEST_CASE("base url: a server on the home network over http://, by its private address (O98 (a))") {
+  auto home = check_base_url("http://[fd00::20]:1234/v1/");
+  CHECK(home.problem == UrlProblem::None);
+  CHECK(home.home);
+  CHECK_FALSE(home.loopback);
+  CHECK_FALSE(home.https);
+  CHECK(home.url == "http://[fd00::20]:1234/v1");
+  home = check_base_url("http://" + v4(192, 168, 1, 20) + ":1234/v1");
+  CHECK(home.problem == UrlProblem::None);
+  CHECK(home.home);
+  CHECK(check_base_url("http://" + v4(10, 1, 2, 3) + "/v1").home);
+  CHECK(check_base_url("http://" + v4(172, 20, 0, 9) + ":5001/v1").home);
+  CHECK(check_base_url("http://" + v4(172, 32, 0, 9) + ":5001/v1").problem == UrlProblem::PlainRemote);
+  // Over https:// a private address is any https:// host: allowed, as a cloud one (it may take a key).
+  home = check_base_url("https://" + v4(192, 168, 1, 20) + "/v1");
+  CHECK(home.problem == UrlProblem::None);
+  CHECK(home.https);
+  // Where each goes, the form's, parse_config's and the key rows' one check.
   using en::proto::Reach;
   using en::proto::reach_of;
   CHECK(reach_of("https://api.example.invalid/v1") == Reach::Encrypted);
+  CHECK(reach_of("HTTPS://" + v4(10, 0, 0, 2) + "/v1") == Reach::Encrypted);
   CHECK(reach_of("http://127.0.0.1:1234/v1") == Reach::ThisPc);
   CHECK(reach_of("http://localhost:11434/v1") == Reach::ThisPc);
   CHECK(reach_of("http://[fd00::20]:1234/v1") == Reach::HomeNetwork);

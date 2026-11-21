@@ -282,8 +282,13 @@ TEST_CASE("provider rules: a key never in clear text to another computer, http:/
             .refusal == ConfigRefusal::PlainKey);
   CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\nheaders = { X-Client = \"eldennet\" }\n")
             .what == "accepted");  // a plain header is no key
-  CHECK(refusal_of("base_url = \"http://[fd00::20]:1234/v1\"\n").refusal == ConfigRefusal::PlainCloud);  // cloud by default
+  // A home server is local by default (O98 (a)); one marked cloud there needs https://, as before.
+  CHECK(refusal_of("base_url = \"http://[fd00::20]:1234/v1\"\n").what == "accepted");
+  CHECK(refusal_of("kind = \"cloud\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n").refusal ==
+        ConfigRefusal::PlainCloud);
   CHECK(refusal_of("base_url = \"http://storeroom.invalid:1234/v1\"\n").refusal == ConfigRefusal::PlainPublic);  // a name
+  ConfigTexts home = providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n");
+  CHECK(parse_config(home, no_env).providers[0].kind == ProviderKind::Local);
   // This PC: http:// with a key, as before.
   CHECK(refusal_of("base_url = \"http://127.0.0.1:1234/v1\"\nkey_ref = \"secrets:cloud\"\n").what == "accepted");
   CHECK(refusal_of("base_url = \"http://localhost:11434/v1\"\nkey_ref = \"secrets:cloud\"\n").what == "accepted");

@@ -131,13 +131,14 @@ After each wake, once T1 has published the connection:
   `secrets.toml` from the config folder, `models.toml` from `content\eldenring\` beside the DLL, and makes en-llm's
   WinHTTP transport (the system's `winhttp.dll` by its full path); `ai_files providers=… models=… secrets=…
   transport=…`. T6 parses them with en-llm (`ai_config result=ready|missing|refused …`, a refusal by its file and line
-  alone, never its message), fills the space's `AiFacts` each wake (the files' parts only when they change; the
+  alone with the refusal's kind, `why=credentials|query|plain_public|plain_cloud|plain_key|scheme|other`, never its
+  message; the pages say why in words, by the line), fills the space's `AiFacts` each wake (the files' parts only when they change; the
   configuration's `revision`, which rises with each edit taken; what each provider listed at its newest answered list,
   for the pickers alone, never logged), sets the preset's row from the file, and takes the space's changes and
   requests: the preset and Add the preset's provider (`ai_change what=preset|add`: providers.toml's `preset`, the
   preset's missing providers added with their keys in `secrets:<id>`), a provider of one's own (`what=add_own`:
-  OpenAI-compatible, local on a loopback address with no key's place until one is set, else cloud with its key in
-  `secrets:<id>`), a job's model (`what=model|model_reset`: its `[slots.<slot>]` provider and model, or the table
+  OpenAI-compatible; local when reached by http:// on this PC or the home network, with no key's place, which this PC's
+  may get on its row and the home network's never; else cloud with its key in `secrets:<id>`), a job's model (`what=model|model_reset`: its `[slots.<slot>]` provider and model, or the table
   gone), a key on a row (`what=key name=… set=…`: cleaned, the request's copy overwritten; a provider with no key's
   place gets `secrets:<id>` first, `what=key_place`; never one whose address is http:// to another computer or whose
   key is an environment variable's), Remove on a row (`what=remove`: only a provider no job uses, with the keys no

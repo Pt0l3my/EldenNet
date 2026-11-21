@@ -381,7 +381,7 @@ blocks = [{ kind = "component", component = "table", topic = "providers", props 
 [[page.sections]]
 id = "own"
 title = "Your own provider"
-description = "A server that speaks the OpenAI API: a cloud service at an https:// address, or a server on this PC."
+description = "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key."
 blocks = [{ kind = "form", command = "providers.add", fields = [{ id = "name", label = "Name", max = 32 }, { id = "base_url", label = "Base URL", max = 200 }], submit = "Add" }]
 
 [[page.sections]]

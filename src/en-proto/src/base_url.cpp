@@ -207,7 +207,8 @@ BaseUrl check_base_url(std::string_view typed) {
     }
   }
   out.loopback = is_loopback_host(host);
-  if (!out.https && !out.loopback) return fail(UrlProblem::PlainRemote);
+  out.home = !out.loopback && is_private_host(lowered(host));
+  if (!out.https && !out.loopback && !out.home) return fail(UrlProblem::PlainRemote);
   out.url = std::string(out.https ? "https://" : "http://") + lowered(host);
   if (has_port) out.url += ":" + std::string(port);
   out.url += path;

@@ -683,7 +683,7 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
       case ov::AiRequest::Kind::AddOwn: {
         // The space checked the name and the address (en-proto's check_base_url); parse_config checks the result.
         llm::ProvidersEdit edit;
-        edit.add.push_back(llm::own_provider(r.id, r.base_url, r.loopback));
+        edit.add.push_back(llm::own_provider(r.id, r.base_url, r.local));
         (void)change_providers(*st, edit, "add_own");
         return;
       }

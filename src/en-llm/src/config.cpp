@@ -254,8 +254,8 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
       pctx.fail(ConfigRefusal::QueryOrFragment, "base_url must end at its path, with no ? or #", url_node);
     default: break;
   }
-  // A key must never cross a network in clear text (ARCH §11.1): http:// goes to this PC, or to a literal private
-  // address of the home network as a local server with no key; never to a public host or a name, whatever the
+  // A key must never cross a network in clear text (ARCH §11.1; O98 (a)): http:// goes to this PC, or to a literal
+  // private address of the home network as a local server with no key; never to a public host or a name, whatever the
   // provider's kind. en-proto's reach_of, which the pages' form and key rows share.
   const proto::Reach reach = proto::reach_of(p.base_url);
   const bool plain_remote = reach == proto::Reach::HomeNetwork || reach == proto::Reach::Public;
@@ -267,7 +267,8 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
   if (auto kind = get_string(table, "kind", pctx)) {
     p.kind = parse_choice(*kind, kKinds, "kind", pctx);
   } else {
-    p.kind = reach == proto::Reach::ThisPc ? ProviderKind::Local : ProviderKind::Cloud;
+    p.kind = reach == proto::Reach::ThisPc || reach == proto::Reach::HomeNetwork ? ProviderKind::Local
+                                                                                 : ProviderKind::Cloud;
   }
   if (plain_remote && p.kind == ProviderKind::Cloud) {
     pctx.fail(ConfigRefusal::PlainCloud, "a cloud provider's base_url must use https://", url_node);

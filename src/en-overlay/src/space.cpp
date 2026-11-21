@@ -952,7 +952,8 @@ const char* url_words(proto::UrlProblem p) noexcept {
     case proto::UrlProblem::None: return "";
     case proto::UrlProblem::Empty: return "Give the provider's base URL, such as https://api.example.com/v1.";
     case proto::UrlProblem::TooLong: return "A base URL is at most 200 characters long.";
-    case proto::UrlProblem::Scheme: return "A base URL starts with https://, or http:// for a server on this PC.";
+    case proto::UrlProblem::Scheme:
+      return "A base URL starts with https://, or http:// for a server on this PC or your home network.";
     case proto::UrlProblem::Credentials:
       return "A base URL holds no name or password: once the provider is added, put its key on its row.";
     case proto::UrlProblem::Host: return "That base URL has no host EldenNet can use: check the address.";
@@ -961,7 +962,8 @@ const char* url_words(proto::UrlProblem p) noexcept {
       return "That base URL holds a character no base URL has: check for spaces, and letters outside A to Z.";
     case proto::UrlProblem::QueryOrFragment: return "A base URL ends at its path, with no ? or # after it.";
     case proto::UrlProblem::PlainRemote:
-      return "Only a server on this PC may use http://: give this server's https:// address.";
+      return "http:// goes only to this PC, or to another PC of your home network by its private address, not its "
+             "name: give this server's https:// address.";
   }
   return "";
 }
@@ -1051,7 +1053,7 @@ std::string Space::ai_command(const json& id, std::string_view name, json& args,
     r.kind = AiRequest::Kind::AddOwn;
     r.id = std::string(*typed);
     r.base_url = url.url;
-    r.loopback = url.loopback;
+    r.local = !url.https;  // this PC's, or the home network's by a private address (O98 (a))
     return take(std::move(r));
   }
 
@@ -1121,7 +1123,8 @@ std::string Space::ai_command(const json& id, std::string_view name, json& args,
   }
   if (p->plain) {
     wipe();
-    return refuse("not_now", "This provider's address is http:// to another computer, so EldenNet sends it no key.");
+    return refuse("not_now", "A key goes only to an https:// address or to this PC: this provider is reached by "
+                             "http:// on your home network, so it takes no key.");
   }
   if (std::any_of(v.begin(), v.end(), [](char c) { return static_cast<unsigned char>(c) <= 0x20 || c == 0x7F; })) {
     wipe();

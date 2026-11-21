@@ -1496,7 +1496,7 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed beside
 # the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider, sets an
 # invented key on its row (GraceUI D194), runs the self-test once the gate allows network and lists the models; adds a
-# provider of its own through the form (D195), refused first for an address on another PC over http:// and for one
+# provider of its own through the form (D195), refused first for a public address over http:// and for one
 # holding a password, sets the same key on that one's row and lists again; picks a model for Prepared lines from what the
 # provider listed (D193), refused for one it did not list; and is refused Remove on a row unconfirmed (GraceUI's server)
 # and on a provider a job uses (EldenNet's words). Then GraceUI's menu opens AI › Providers (F5, Page Down), removes the
@@ -1712,8 +1712,8 @@ def check_graceui_ai(r):
          failures)
     # The form (D195): EldenNet's own checks, in words; then the provider of the case's own, local on this PC.
     need(d.get("own_plain", {}).get("error") == "invalid_value" and
-         d.get("own_plain", {}).get("detail", "").startswith("Only a server on this PC may use http://"),
-         "an address on another PC over http://: %s" % d.get("own_plain"), failures)
+         d.get("own_plain", {}).get("detail", "").startswith("http:// goes only to this PC"),
+         "a public address over http://: %s" % d.get("own_plain"), failures)
     need(d.get("own_password", {}).get("error") == "invalid_value" and
          "no name or password" in d.get("own_password", {}).get("detail", ""),
          "an address with a password: %s" % d.get("own_password"), failures)

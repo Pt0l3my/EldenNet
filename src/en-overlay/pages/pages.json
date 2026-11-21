@@ -362,7 +362,7 @@
         {
           "id": "own",
           "title": "Your own provider",
-          "description": "A server that speaks the OpenAI API: a cloud service at an https:// address, or a server on this PC.",
+          "description": "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key.",
           "blocks": [
             {
               "kind": "form",

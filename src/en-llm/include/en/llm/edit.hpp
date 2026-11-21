@@ -68,9 +68,10 @@ struct EditedText {
 };
 
 // A provider of the player's own, from AI › Providers' form: an OpenAI-compatible endpoint (ARCH §11.1's default
-// flavour), local when its host is this PC's (one request at once, no key until one is set on its row) and cloud
-// otherwise, its key then in secrets:<id>. `base_url` is as en-proto's check_base_url wrote it.
-[[nodiscard]] ProviderEntry own_provider(std::string id, std::string base_url, bool loopback);
+// flavour), local when it is reached by http:// on this PC or the home network (one request at once, no key's place:
+// this PC's may take one on its row, the home network's never), and cloud otherwise, its key then in secrets:<id>.
+// `base_url` is as en-proto's check_base_url wrote it.
+[[nodiscard]] ProviderEntry own_provider(std::string id, std::string base_url, bool local);
 
 // providers.toml's text with `edit` made; an empty text makes a new file (`schema = 1` and the edit).
 [[nodiscard]] EditedText edit_providers(std::string_view text, const ProvidersEdit& edit);

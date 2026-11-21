@@ -220,10 +220,10 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
   return out;
 }
 
-ProviderEntry own_provider(std::string id, std::string base_url, bool loopback) {
+ProviderEntry own_provider(std::string id, std::string base_url, bool local) {
   ProviderEntry e;
   e.flavor = Flavor::OpenAI;
-  e.kind = loopback ? ProviderKind::Local : ProviderKind::Cloud;
+  e.kind = local ? ProviderKind::Local : ProviderKind::Cloud;
   e.base_url = normalised(std::move(base_url));
   if (e.kind == ProviderKind::Cloud) e.key_ref = "secrets:" + id;
   e.id = std::move(id);

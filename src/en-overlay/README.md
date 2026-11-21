@@ -128,7 +128,8 @@ game's own text entry is not read in v0.1.
   `page`; no lamp while EldenNet is starting) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
   failed start in the banner's own words with its fix, a read group stopped, a refused settings file);
   `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
-  the core, the anti-cheat watch, the log, the recording when asked for, GraceUI), the read groups' self-tests
+  the core, a refused providers file with why in words and its line, the anti-cheat watch, the log, the recording
+  when asked for, GraceUI), the read groups' self-tests
   (`columns`, `rows`) and the Compatibility tab's versions and how EldenNet started (`compatibility`, the member its
   block reads, GraceUI D185's `props.field`); `logs` the log's own lines (500
   held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
@@ -160,10 +161,11 @@ game's own text entry is not read in v0.1.
   other); `providers.add` with no fields (the header's: the chosen preset's providers that providers.toml lacks; not
   for Custom) or with the form's `name` and `base_url` (a provider of one's own: the name 1 to 32 of letters, digits,
   `-_.`, no provider's already, nor a key's already kept; the address checked by en-proto's `check_base_url`, each
-  refusal in words, never logged); `providers.remove` with a row's `id` (destructive, so `confirm_required` without
+  refusal in words, never logged; `http://` to this PC, or to another PC of the home network by a literal private
+  address, O98 (a), as a local provider with no key); `providers.remove` with a row's `id` (destructive, so `confirm_required` without
   `confirm: true`, D173, D192; never a provider a job uses, the jobs named); and `providers.key` with a row's `id` and
   `value` (D194: empty clears it; refused, in words that never echo it, for a provider whose key is an environment
-  variable's or whose address is http:// to another computer; the frame's copy of the value overwritten, and the
+  variable's or whose address is http:// to another computer, a home server's included; the frame's copy of the value overwritten, and the
   poll buffer's after each command). An argument of the wrong type is refused as `invalid_value`.
 - **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,

@@ -3,18 +3,18 @@
 // EldenNet writes it to providers.toml: portable, shared by EldenNet's space (its one entry point) and the DLL.
 //
 // The rules, each from ARCH §11 and the client as built (en-llm's parse_config):
-// - the scheme is `https://`, or `http://` for a server on this PC alone (a loopback host: `localhost`, a dotted
-//   127.0.0.0/8 address, `[::1]`), so that a key never crosses a network in clear text;
+// - the scheme is `https://`, or `http://` for a server on this PC (a loopback host: `localhost`, a dotted 127.0.0.0/8
+//   address, `[::1]`) or on another PC of the home network, by a literal private address (O98 (a): RFC 1918's IPv4
+//   ranges or fc00::/7, never a name), so that a key never crosses a network in clear text: a home server takes no key;
 // - the address holds no name or password (`user:pass@host`): a key is never written inline (ARCH §11.1's key_ref),
 //   and the base URL is shown on AI › Providers (PV2);
 // - a host of letters, digits, '-' and '.', or a bracketed IPv6 address, with an optional port of 1 to 65535;
 // - a path of plain characters (letters, digits and `-._~/%`), with no query or fragment, since the client appends
 //   its own paths (`/chat/completions`, `/models`);
 // - at most 200 bytes (GraceUI's form field, D195); spaces round it and a trailing '/' are taken off.
-// A server on another PC of the home network over http:// is refused here: whether players may add one from the pages
-// is the owner's to decide (O98). en-llm's parse_config, for the player's own providers.toml, takes the same checks of a
-// name or password and a query or fragment (`url_extras`) and of where http:// goes (`reach_of`): never to a public host
-// or a name, and to a private address only with no key.
+// en-llm's parse_config, for the player's own providers.toml, takes the same checks of a name or password and a query
+// or fragment (`url_extras`) and of where http:// goes (`reach_of`): never to a public host or a name, and to the home
+// network only with no key. A home server is never probed: the player adds it (ARCH §11.4's probes are this PC's).
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -31,7 +31,7 @@ enum class UrlProblem : std::uint8_t {
   Port,             // a port that is not 1 to 65535
   Characters,       // a character a base URL's path does not hold
   QueryOrFragment,  // '?' or '#'
-  PlainRemote,      // http:// to a host that is not this PC
+  PlainRemote,      // http:// to a host that is neither this PC nor a private address of the home network
 };
 
 // Where a base URL's requests go and how: encrypted (https://), or in clear text (http://) to this PC, to a literal
@@ -42,6 +42,7 @@ struct BaseUrl {
   UrlProblem problem = UrlProblem::Empty;
   std::string url;        // when problem is None: as written to providers.toml (trimmed, no trailing '/')
   bool loopback = false;  // the host is this PC's
+  bool home = false;      // the host is a literal private address of the home network
   bool https = false;
 };
 

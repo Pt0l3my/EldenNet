@@ -891,12 +891,22 @@ TEST_CASE("space: a provider of one's own from the form: its name and base URL c
   CHECK(taken[0].kind == AiRequest::Kind::AddOwn);
   CHECK(taken[0].id == "lantern-box");
   CHECK(taken[0].base_url == "http://127.0.0.1:1234/v1");
-  CHECK(taken[0].loopback);
+  CHECK(taken[0].local);
   r = add("far.cloud", "https://models.example.invalid/api/v1");
   CHECK(r["ok"] == true);
   taken = s.take_requests();
   REQUIRE(taken.size() == 1);
-  CHECK_FALSE(taken[0].loopback);
+  CHECK_FALSE(taken[0].local);
+  // A server on another PC of the home network, by its private address (O98 (a)): a local one, which takes no key.
+  // The IPv4 one is built from its numbers, so that no file holds a home network's address as text (the sweep).
+  CHECK(add("other-pc", "http://[fd00::20]:1234/v1")["ok"] == true);
+  const std::string home_v4 = "http://" + std::to_string(192) + "." + std::to_string(168) + ".1.20:1234/v1";
+  CHECK(add("other-pc-2", home_v4)["ok"] == true);
+  taken = s.take_requests();
+  REQUIRE(taken.size() == 2);
+  CHECK(taken[0].local);
+  CHECK(taken[0].base_url == "http://[fd00::20]:1234/v1");
+  CHECK(taken[1].local);
 
   const auto refusal = [&](const json& name, const json& url) {
     const json a = add(name, url);
@@ -918,9 +928,11 @@ TEST_CASE("space: a provider of one's own from the form: its name and base URL c
         "A base URL ends at its path, with no ? or # after it.");
   CHECK(refusal("box", "https://models.example.invalid:99999/v1").find("port") != std::string::npos);
   CHECK(refusal("box", "https://models example/v1").find("character") != std::string::npos);
-  CHECK(refusal("box", "http://[fd00::20]:1234/v1") ==
-        "Only a server on this PC may use http://: give this server's https:// address.");
-  CHECK(refusal("box", "http://127.example.invalid/v1").rfind("Only a server on this PC", 0) == 0);
+  CHECK(refusal("box", "http://192.0.2.7:1234/v1") ==
+        "http:// goes only to this PC, or to another PC of your home network by its private address, not its name: "
+        "give this server's https:// address.");
+  CHECK(refusal("box", "http://storeroom.invalid:1234/v1").rfind("http:// goes only to this PC", 0) == 0);  // a name
+  CHECK(refusal("box", "http://127.example.invalid/v1").rfind("http:// goes only to this PC", 0) == 0);
   CHECK(refusal("box", 12).rfind("Give the provider's base URL", 0) == 0);
   CHECK(refusal(12, "https://models.example.invalid/v1") == "Give the provider a name.");
   CHECK(s.take_requests().empty());

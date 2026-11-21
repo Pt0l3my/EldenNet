@@ -213,7 +213,7 @@ struct AiRequest {
   Kind kind = Kind::SelfTest;
   std::string id;
   std::string base_url;   // AddOwn: as en-proto's check_base_url wrote it
-  bool loopback = false;  // AddOwn: its host is this PC's
+  bool local = false;     // AddOwn: http:// to this PC or to a private address of the home network
   std::string key;        // SetKey: the key as typed, spaces round it taken off: never logged, published or kept here
 
   bool operator==(const AiRequest&) const = default;
