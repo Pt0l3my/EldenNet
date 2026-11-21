@@ -148,20 +148,22 @@ cmake --build build-cl
   `launcher-eldennet-graceui-ai` drives the AI pages against a fake model server of the tests' own
   (`tests/pages/fake_models.py`: OpenAI-compatible, on 127.0.0.1 at a free port, in the harness's own process, with
   invented models and a new invented key each run, and a path of its own that takes no key, as a server on this PC),
-  which a `models.toml` beside the DLL names for the two cloud presets' providers: the browser adds the preset's
-  provider, sets a wrong invented key on its row, whose model list is refused (the row reads Refused, Health and the
-  lead say why), then the right one, runs the self-test and the model lists, adds a server of its own on this PC
-  through the form (on the fake server's keyless path: its row reads Not needed and refuses a key), gives Prepared lines
-  that provider and a model from its list (the provider waiting for the model, since its list lacks the job's), sees
-  the changed mark on that job's rows alone and meets EldenNet's refusals in words; then the menu (fixed key presses
-  from frame 3120, so the browser's first part must be done by about 54 s) tries Remove on the server of its own,
-  refused since a job uses it, gives Memory that provider and the first of its models from their pickers and runs the
-  self-test from its header action; then the browser sees both jobs' rows changed, resets each (one by its model row,
-  one by its provider row), sees no row changed, removes the server of its own, chooses the NanoGPT preset and removes
-  the unused provider. The case then looks for either key in every frame, log line, recording and file of the run, and
-  for a fragment both hold in what the menu draws (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the fake game's `shows=`
-  from `FAKEGAME_SHOWS`, at most four texts), which also checks that the menu draws the rows' keys as Set and Not
-  needed and a model row's help ending with its default in the space's words.
+  which a `models.toml` beside the DLL names for the two cloud presets' providers: the browser reads AI › Models' page
+  data (one card per job, its slot as its chip, its live status from `ai.jobs`), adds the preset's provider (the cards
+  read No key yet), sets a wrong invented key on its row, whose model list is refused (the row reads Refused, Health and
+  the lead say why, the cards Failing), then the right one (Ready), runs the self-test and the model lists, adds a
+  server of its own on this PC through the form (on the fake server's keyless path: its row reads Not needed and
+  refuses a key), gives Prepared lines that provider and a model from its list (the provider waiting for the model,
+  since its list lacks the job's), sees the changed mark on that job's rows alone, gives Conversation's fallback a model
+  of that server's (its fallback rows alone changed) and meets EldenNet's refusals in words; then the menu (fixed key
+  presses from frame 3120, so the browser's first part must be done by about 54 s) tries Remove on the server of its
+  own, refused since a job uses it, gives Memory that provider and the last of its models from their pickers and runs
+  the self-test from its header action; then the browser sees the three cards' rows changed, resets each (one by its
+  model row, one by its provider row, the fallback by its picker's Default), sees no row changed, removes the server of
+  its own, chooses the NanoGPT preset and removes the unused provider. The case then looks for either key in every
+  frame, log line, recording and file of the run, and for a fragment both hold in what the menu draws (GraceUI 0.2.6's
+  `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`, at most four texts), which also checks that
+  the menu draws a row's key as Not needed, a card's chip and a card's live status.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with

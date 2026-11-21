@@ -1509,12 +1509,13 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # rows changed, resets each job (one by its model row, one by its provider row), sees no row changed, removes the server
 # of its own, chooses the NanoGPT preset, whose provider joins, and removes the unused one with its key, confirmed. Both
 # keys' values must then be nowhere: no topic, log line, recording, report or file.
+# On Models, Down 17 times from the preset to Memory's provider: each card's head and its four rows (GraceUI D202).
 AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3600:return,3660:return,3780:next,"
-           "3900:down,3930:down,3960:down,3990:down,4020:down,4050:down,4080:down,4110:down,4140:down,4260:right,"
-           "4380:down,4440:right,4560:next,4680:return,5160:f5")
+           + ",".join("%d:down" % (3900 + 30 * i) for i in range(17)) + ",4500:right,4620:down,4680:left,4800:next,"
+           "4920:return,5400:f5")
 # The early reports name GraceUI's server to the browser (grace_port), so that its first part ends long before the menu's
 # presses need the provider it adds.
-AI_REPORTS = "600,900,1200,1500,1800,2460,3060,3180,3300,3540,3720,3840,4200,4320,4500,4620,5100,5220"
+AI_REPORTS = "600,900,1200,1500,1800,2460,3060,3180,3300,3540,3720,3840,4440,4560,4740,4860,5340,5460"
 AI_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = true, log_level = "debug" }\n'
 AI_MODELS = ["invented-talker-small", "invented-talker-large", "invented-keeper"]
 AI_OWN = "lantern-box"  # the provider of the case's own: an invented name, on the fake server's own path
@@ -1530,9 +1531,9 @@ def install_ai(paths):
     server = fake_models.FakeModels(key, AI_MODELS, open_prefix="/own/", open_models=AI_OWN_MODELS)
     AI_RUNS[paths["case"]] = {"key": key, "wrong": wrong, "server": server}
     # What the menu's report looks for (GraceUI_Test_MenuShows, at most four texts): a fragment both keys hold, which it
-    # must never draw, and texts of the pages' that it must: the rows' key states (D197) and the end of a model row's
-    # help (D198: the default in the space's words, GraceUI printing none of its own).
-    paths["text_ai_shows"] = "|".join((key[12:24], "Key: Set", "Key: Not needed", "Default: the preset's model."))
+    # must never draw, and texts of the pages' that it must: a row's key state (D197), a card's chip and a card's live
+    # status (D202).
+    paths["text_ai_shows"] = "|".join((key[12:24], "Key: Not needed", "bark_pool", "Ready"))
     content = os.path.join(paths["endir"], "content", "eldenring")
     os.makedirs(content)
     with open(os.path.join(content, "models.toml"), "w") as f:
@@ -1576,17 +1577,22 @@ def browse_ai(paths, out):
     E = "eldennet"
     rows = lambda b: b.get("rows", [])
     row_of = lambda b, pid: next((r for r in rows(b) if r.get("id") == pid), {})
-    job_of = lambda b, job: next((r for r in rows(b) if r.get("job") == job), {})
+    values = lambda b: b.get("values", {})
+    word = lambda b, slot: b.get(slot, {}).get("word")
     changed = lambda b: [k for k in b.get("changed", []) if not k.startswith("debug.")]  # the case's settings.toml's
     try:
         view = browser.Browser(port, timeout=10)
         out["welcome"] = view.welcome
-        for topic in ("settings", "ai.status", "providers", "health", "ai.slots", "selftest", "ai.choices.bark_pool",
-                      "ai.choices.providers"):
+        for topic in ("settings", "ai.status", "providers", "health", "ai.jobs", "ai.budgets", "selftest",
+                      "ai.choices.bark_pool", "ai.choices.providers", "ai.choices.dialogue.fallback", "pages"):
             view.sub(E, topic)
+        out["pages"] = view.wait(E, "pages", lambda b: bool(b.get("pages")))
         out["first_status"] = view.wait(E, "ai.status", lambda b: "sentence" in b)
+        out["first_jobs"] = view.latest.get((E, "ai.jobs"))
         out["add"] = view.command(E, "providers.add", {})
         out["added"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
+        # Each card's status (D202): no key yet; failing once the wrong key is refused; ready with the right one.
+        out["jobs_no_key"] = view.wait(E, "ai.jobs", lambda b: word(b, "dialogue") == "No key yet", timeout=15)
         # A wrong key on the provider's row (D194): its cell says "set", never the key; the model list, once the gate
         # allows network (at the title, after 5 s of clean readings), is refused for it: the row reads "refused"
         # (D197), Health and the lead say why, and the provider is no job's choice meanwhile.
@@ -1607,9 +1613,11 @@ def browse_ai(paths, out):
         out["refused_status"] = view.wait(E, "ai.status", lambda b: "refused its key" in b.get("sentence", ""),
                                           timeout=15)
         out["refused_choices"] = view.wait(E, "ai.choices.providers", lambda b: b.get("choices") == [], timeout=15)
+        out["jobs_failing"] = view.wait(E, "ai.jobs", lambda b: word(b, "dialogue") == "Failing", timeout=15)
         # The right key on its row: "set" again.
         out["set_key"] = view.command(E, "providers.key", {"id": "openrouter", "value": key})
         out["with_key"] = view.wait(E, "providers", lambda b: row_of(b, "openrouter").get("key") == "set", timeout=15)
+        out["jobs_ready"] = view.wait(E, "ai.jobs", lambda b: word(b, "dialogue") == "Ready", timeout=15)
         tries, answer, give_up = 0, {}, time.monotonic() + 30
         while time.monotonic() < give_up:
             tries += 1
@@ -1652,14 +1660,26 @@ def browse_ai(paths, out):
                                    AI_OWN, timeout=15)
         out["pick_bad"] = view.command(E, "settings.set", {"key": "slots.bark_pool.model", "value": AI_MODELS[0]})
         out["pick"] = view.command(E, "settings.set", {"key": "slots.bark_pool.model", "value": AI_OWN_MODELS[0]})
-        out["picked"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Prepared lines").get("model") == AI_OWN_MODELS[0],
-                                  timeout=15)
         out["changed_one"] = view.wait(E, "settings", lambda b: changed(b) == ["slots.bark_pool.provider",
                                                                           "slots.bark_pool.model"], timeout=15)
+        out["picked"] = values(out["changed_one"])
         # Remove on a row: GraceUI's server refuses it unconfirmed (D192); EldenNet refuses one a job uses, saying why.
         out["remove_unconfirmed"] = view.command(E, "providers.remove", {"id": AI_OWN})
         out["remove_used"] = view.command(E, "providers.remove", {"id": "openrouter", "confirm": True})
         out["remove_own_used"] = view.command(E, "providers.remove", {"id": AI_OWN, "confirm": True})
+        # Conversation's card: its fallback on the server of the case's own, whose list lacks the fallback now, so its
+        # provider waits and its picker offers that server's models; one of them, written with its provider: the
+        # fallback rows changed, and the job's own rows not. A job that borrows Conversation's models takes none.
+        out["fallback_borrowed"] = view.command(E, "settings.set", {"key": "slots.selftest.fallback",
+                                                                    "value": AI_MODELS[1]})
+        out["fallback_provider"] = view.command(E, "settings.set", {"key": "slots.dialogue.fallback_provider",
+                                                                    "value": AI_OWN})
+        out["fallback_choices"] = view.wait(E, "ai.choices.dialogue.fallback", lambda b: [
+            c.get("value") for c in b.get("choices", [])] == AI_OWN_MODELS, timeout=15)
+        out["fallback"] = view.command(E, "settings.set", {"key": "slots.dialogue.fallback", "value": AI_OWN_MODELS[1]})
+        out["changed_fallback"] = view.wait(E, "settings", lambda b: changed(b) == [
+            "slots.dialogue.fallback_provider", "slots.dialogue.fallback", "slots.bark_pool.provider",
+            "slots.bark_pool.model"], timeout=15)
         secrets = os.path.join(paths["appdata"], "EldenNet", "config", "secrets.toml")
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline and "secrets_written" not in out:
@@ -1672,29 +1692,34 @@ def browse_ai(paths, out):
             time.sleep(0.2)
         out["browser_done_s"] = time.monotonic()
         # The menu's turn: its Remove on the server of the case's own, refused; Memory's provider and model from its
-        # pickers, the server of the case's own and the first of its models; its self-test.
-        out["menu_picked"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Memory").get("provider") == AI_OWN and
-                                       job_of(b, "Memory").get("model") == AI_OWN_MODELS[0], timeout=150)
+        # pickers, the server of the case's own and the last of its models (← from a value not in the list; → would
+        # give Default first, D199); its self-test.
+        out["menu_picked"] = view.wait(E, "settings", lambda b: "slots.memory.model" in changed(b) and
+                                       values(b).get("slots.memory.provider") == AI_OWN and
+                                       values(b).get("slots.memory.model") == AI_OWN_MODELS[1], timeout=150)
         out["selftest_menu"] = view.wait(E, "selftest", lambda b: len(b.get("rows", [])) >= 1 and
                                          "running" not in b.get("sentence", "running"), timeout=120)
         out["changed_two"] = view.wait(E, "settings", lambda b: changed(b) == [
-            "slots.bark_pool.provider", "slots.bark_pool.model", "slots.memory.provider", "slots.memory.model"],
-            timeout=15)
-        # Both jobs back to the preset's provider and model, one by its model row, the other by its provider row: no row
-        # changed; the server of the case's own, now no job's, removed; a new preset, whose provider joins; the old one,
-        # now no job's, goes with its key once confirmed.
+            "slots.dialogue.fallback_provider", "slots.dialogue.fallback", "slots.bark_pool.provider",
+            "slots.bark_pool.model", "slots.memory.provider", "slots.memory.model"], timeout=15)
+        # Both jobs back to the preset's provider and model, one by its model row, the other by its provider row, and
+        # Conversation's fallback by its picker's Default (D199): no row changed; the server of the case's own, now no
+        # job's, removed; a new preset, whose provider joins; the old one, now no job's, goes with its key once
+        # confirmed.
         for job in ("slots.bark_pool.model", "slots.memory.provider"):
             out["reset_" + job] = view.command(E, "settings.reset", {"scope": "key", "target": job})
-        out["reset"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Memory").get("model") == "invented-keeper" and
-                                 job_of(b, "Prepared lines").get("model") == "Same as Conversation", timeout=15)
+        out["fallback_default"] = view.command(E, "settings.set", {"key": "slots.dialogue.fallback", "value": ""})
         out["changed_none"] = view.wait(E, "settings", lambda b: changed(b) == [], timeout=15)
+        out["reset"] = values(out["changed_none"])
+        out["budgets_reset"] = view.wait(E, "ai.budgets", lambda b: b.get("bark_pool", {}).get("items", [{}])[0] ==
+                                         {"label": "Models", "value": "Same as Conversation"}, timeout=15)
         out["remove_own"] = view.command(E, "providers.remove", {"id": AI_OWN, "confirm": True})
         out["own_gone"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
         out["preset"] = view.command(E, "settings.set", {"key": "ai.preset", "value": "cloud-nanogpt"})
         out["two"] = view.wait(E, "providers", lambda b: len(rows(b)) == 2, timeout=15)
         out["remove"] = view.command(E, "providers.remove", {"id": "openrouter", "confirm": True})
         out["one"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
-        out["slots"] = view.latest.get((E, "ai.slots"))
+        out["jobs"] = view.latest.get((E, "ai.jobs"))
         out["health"] = view.latest.get((E, "health"))
     except (browser.BrowserError, OSError, ValueError, KeyError, IndexError) as e:
         out["error"] = repr(e)
@@ -1732,11 +1757,22 @@ def check_graceui_ai(r):
         failures.append("the browser: %s" % d["error"])
     body = lambda name: d.get(name) or {}
     row_of = lambda b, pid: next((x for x in b.get("rows", []) if x.get("id") == pid), {})
-    job_of = lambda b, job: next((x for x in b.get("rows", []) if x.get("job") == job), {})
     spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
     need(spaces.get("eldennet", {}).get("increment") == "0.2", "the welcome named %s" % sorted(spaces), failures)
+    # AI › Models as the browser view has it (GraceUI's pages topic, D169): one card per job, in PAGES' order, each with
+    # its slot as its chip and its live status from ai.jobs (D202), and no Jobs table.
+    models = next((pg for pg in body("pages").get("pages", []) if pg.get("id") == "ai.models"), {})
+    cards = [(s.get("id"), s.get("title"), s.get("chip"), (s.get("status") or {}).get("topic"),
+              (s.get("status") or {}).get("field")) for s in models.get("sections", []) if "chip" in s]
+    need(cards == [(slot, title, slot, "ai.jobs", slot) for slot, title in (
+        ("dialogue", "Conversation"), ("bark_live", "Quick lines"), ("bark_pool", "Prepared lines"),
+        ("memory", "Memory"), ("selftest", "Self-test"))], "the Models page's cards: %s" % cards, failures)
+    need(body("pages").get("minor") == 3 and [s.get("id") for s in models.get("sections", [])][:2] == ["now", "preset"]
+         and len(models.get("sections", [])) == 7, "the Models page's sections: %s" %
+         [s.get("id") for s in models.get("sections", [])], failures)
     need(body("first_status").get("sentence", "").startswith("No provider yet"),
          "the first lead: %s" % body("first_status"), failures)
+    need(not body("first_jobs"), "a card's status before any job: %s" % body("first_jobs"), failures)
     need(d.get("add", {}).get("ok") is True, "providers.add: %s" % d.get("add"), failures)
     added = body("added").get("rows", [{}])[0]
     need(added.get("id") == "openrouter" and added.get("key") == "" and added.get("kind") == "Cloud",
@@ -1755,6 +1791,16 @@ def check_graceui_ai(r):
          "the lead on a refused key: %s" % body("refused_status"), failures)
     need(body("refused_choices").get("choices") == [], "a refused provider is a job's choice: %s" %
          body("refused_choices"), failures)
+    # A card's status, as its provider fails and recovers: no key yet, failing on the refused key, ready on the right one.
+    need(body("jobs_no_key").get("dialogue") == {"word": "No key yet", "tone": "glint"} and
+         body("jobs_no_key").get("memory") == {"word": "No key yet", "tone": "glint"},
+         "the cards' status with no key: %s" % body("jobs_no_key"), failures)
+    need(body("jobs_failing").get("dialogue") == {"word": "Failing", "tone": "rot"} and
+         body("jobs_failing").get("selftest") == {"word": "Failing", "tone": "rot"},
+         "the cards' status on a refused key: %s" % body("jobs_failing"), failures)
+    need(all(body("jobs_ready").get(slot) == {"word": "Ready", "tone": "moss"} for slot in
+             ("dialogue", "bark_live", "bark_pool", "memory", "selftest")),
+         "the cards' status with the right key: %s" % body("jobs_ready"), failures)
     need(d.get("set_key", {}).get("ok") is True and "body" not in d.get("set_key", {}),
          "the key set on its row: %s" % d.get("set_key"), failures)
     need(row_of(body("with_key"), "openrouter").get("key") == "set", "the key's status", failures)
@@ -1811,8 +1857,9 @@ def check_graceui_ai(r):
          "does not list that model" in d.get("pick_bad", {}).get("detail", ""), "a model not listed: %s" %
          d.get("pick_bad"), failures)
     need(d.get("pick", {}).get("ok") is True, "the pick: %s" % d.get("pick"), failures)
-    need(job_of(body("picked"), "Prepared lines").get("provider") == AI_OWN,
-         "Prepared lines after the pick: %s" % job_of(body("picked"), "Prepared lines"), failures)
+    need(body("picked").get("slots.bark_pool.provider") == AI_OWN and
+         body("picked").get("slots.bark_pool.model") == AI_OWN_MODELS[0],
+         "Prepared lines after the pick: %s" % body("picked"), failures)
     need("changed_one" in d, "the changed mark after the pick", failures)
     # GraceUI's server refuses a destructive row command unconfirmed before EldenNet hears it (D192); EldenNet refuses
     # a provider a job uses, saying which.
@@ -1823,18 +1870,39 @@ def check_graceui_ai(r):
          d.get("remove_used"), failures)
     need(d.get("remove_own_used", {}).get("detail", "").startswith("Prepared lines uses it:"),
          "Remove of the server Prepared lines uses: %s" % d.get("remove_own_used"), failures)
+    # Conversation's fallback (its card's last two rows): refused for a job that borrows; its provider waiting, its
+    # picker that provider's models; the pick; the changed mark on its fallback rows alone, beside Prepared lines'.
+    need(d.get("fallback_borrowed", {}).get("error") == "not_now" and
+         d.get("fallback_borrowed", {}).get("detail") ==
+         "Self-test uses Conversation's models: choose a model of its own first.",
+         "a fallback for a job that borrows: %s" % d.get("fallback_borrowed"), failures)
+    need(d.get("fallback_provider", {}).get("ok") is True, "Conversation's fallback provider: %s" %
+         d.get("fallback_provider"), failures)
+    need([c.get("value") for c in body("fallback_choices").get("choices", [])] == AI_OWN_MODELS,
+         "the fallback's choices: %s" % body("fallback_choices"), failures)
+    need(d.get("fallback", {}).get("ok") is True, "Conversation's fallback: %s" % d.get("fallback"), failures)
+    need("changed_fallback" in d, "the changed mark after the fallback's pick", failures)
     need(d.get("secrets_written") is True, "secrets.toml never held the key", failures)
-    # The menu's turn, as the browser saw it: Memory on the server of the case's own, the first of its models.
-    need(job_of(body("menu_picked"), "Memory").get("model") == AI_OWN_MODELS[0],
-         "the menu's pick: %s" % job_of(body("menu_picked"), "Memory"), failures)
+    # The menu's turn, as the browser saw it: Memory on the server of the case's own, the last of its models.
+    picked = body("menu_picked").get("values", {})
+    need(picked.get("slots.memory.provider") == AI_OWN and picked.get("slots.memory.model") == AI_OWN_MODELS[1],
+         "the menu's pick: %s" % {k: v for k, v in picked.items() if k.startswith("slots.memory.")}, failures)
     menu_run = body("selftest_menu")
     need(len(menu_run.get("rows", [])) == 1, "the menu's run: earlier runs %s" % menu_run.get("rows"), failures)
     need("changed_two" in d, "the changed mark after the menu's pick", failures)
     for job in ("slots.bark_pool.model", "slots.memory.provider"):
         need(d.get("reset_" + job, {}).get("ok") is True, "the reset of %s: %s" % (job, d.get("reset_" + job)),
              failures)
-    need("reset" in d, "the jobs' models never went back to the preset's", failures)
+    need(d.get("fallback_default", {}).get("ok") is True, "the fallback's Default: %s" % d.get("fallback_default"),
+         failures)
     need("changed_none" in d, "a row still changed after the resets", failures)
+    back = body("reset")
+    need(back.get("slots.memory.model") == "invented-keeper" and back.get("slots.memory.provider") == "openrouter" and
+         back.get("slots.bark_pool.model") == "invented-talker-small" and
+         back.get("slots.dialogue.fallback") == "invented-talker-large" and
+         back.get("slots.dialogue.fallback_provider") == "openrouter",
+         "the jobs after the resets: %s" % {k: v for k, v in back.items() if k.startswith("slots.")}, failures)
+    need("budgets_reset" in d, "Prepared lines' card never said Same as Conversation again", failures)
     need(d.get("remove_own", {}).get("ok") is True and len(body("own_gone").get("rows", [])) == 1,
          "Remove of the server of the case's own: %s" % d.get("remove_own"), failures)
     need(d.get("preset", {}).get("ok") is True, "the NanoGPT preset: %s" % d.get("preset"), failures)
@@ -1848,26 +1916,27 @@ def check_graceui_ai(r):
     need(counts["refused"] == 1 and counts["unknown"] == 0 and counts["models"] >= 3 and counts["chats"] >= 2 and
          counts["json"] >= 1 and counts["open_models"] >= 2 and counts["open_chats"] >= 1,
          "the fake server answered %s" % counts, failures)
-    # In game: F5's menu on Home; AI › Providers, which draws the rows' keys as Set and Not needed, never a key's
-    # fragment; Down to the server of the case's own's Remove, Enter twice, refused (a job uses it); Models, Down to
-    # Memory's provider picker, →, Down to its model picker, →, its help ending with the default in words; Self-test's
-    # Run self-test. The menu watched the pages' topics.
+    # In game: F5's menu on Home; AI › Providers, which draws a row's key as Not needed, never a key's fragment; Down to
+    # the server of the case's own's Remove, Enter twice, refused (a job uses it); Models, Down past each card's head and
+    # rows to Memory's provider picker, →, Down to its model picker, ←, the cards drawing a chip and a live status
+    # (D202); Self-test's Run self-test. The menu watched the pages' topics.
     failures += (want_grace(r, 3060, eldennet=1, server=1, spaces=1, menu_open=0) +
                  want_grace(r, 3180, menu_open=1, menu_page="home") +
                  want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="action:add",
-                            shows="0110") +
+                            shows="0100") +
                  want_grace(r, 3540, menu_open=1, menu_page="ai.providers",
                             menu_focused="row:providers/%s/remove" % AI_OWN) +
                  want_grace(r, 3720, menu_open=1, menu_page="ai.providers", menu_refusals=1) +
-                 want_grace(r, 3840, menu_open=1, menu_page="ai.models", menu_focused="setting:ai.preset") +
-                 want_grace(r, 4200, menu_open=1, menu_page="ai.models",
+                 want_grace(r, 3840, menu_open=1, menu_page="ai.models", menu_focused="setting:ai.preset",
+                            shows="0011") +
+                 want_grace(r, 4440, menu_open=1, menu_page="ai.models",
                             menu_focused="setting:slots.memory.provider") +
-                 want_grace(r, 4320, menu_open=1, menu_page="ai.models", menu_refusals=1) +
-                 want_grace(r, 4500, menu_open=1, menu_page="ai.models", menu_focused="setting:slots.memory.model",
-                            menu_refusals=1, shows="0001") +
-                 want_grace(r, 4620, menu_open=1, menu_page="ai.selftest", menu_focused="action:run") +
-                 want_grace(r, 5100, menu_open=1, menu_page="ai.selftest", menu_refusals=1, shows="0000") +
-                 want_grace(r, 5220, menu_open=0))
+                 want_grace(r, 4560, menu_open=1, menu_page="ai.models", menu_refusals=1) +
+                 want_grace(r, 4740, menu_open=1, menu_page="ai.models", menu_focused="setting:slots.memory.model",
+                            menu_refusals=1, shows="0011") +
+                 want_grace(r, 4860, menu_open=1, menu_page="ai.selftest", menu_focused="action:run") +
+                 want_grace(r, 5340, menu_open=1, menu_page="ai.selftest", menu_refusals=1, shows="0000") +
+                 want_grace(r, 5460, menu_open=0))
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     passed = [e for e in r.events("ELDENNET", "selftest") if e.get("result") == "passed"]
@@ -1883,6 +1952,9 @@ def check_graceui_ai(r):
                {"what": "command", "name": "settings.set", "key": "slots.bark_pool.model", "result": "invalid_value"},
                {"what": "command", "name": "settings.set", "key": "slots.memory.provider", "result": "ok"},
                {"what": "command", "name": "settings.set", "key": "slots.memory.model", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "slots.selftest.fallback", "result": "not_now"},
+               {"what": "command", "name": "settings.set", "key": "slots.dialogue.fallback_provider", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "slots.dialogue.fallback", "result": "ok"},
                {"what": "command", "name": "settings.reset", "key": "slots.memory.provider", "result": "ok"},
                {"what": "command", "name": "providers.remove", "key": "openrouter", "result": "not_now"},
                {"what": "command", "name": "providers.remove", "key": AI_OWN, "result": "not_now"},
@@ -1898,7 +1970,7 @@ def check_graceui_ai(r):
     failures += any_line(r, "ELDENNET", "ai_write", file="secrets", ok=1)
     failures += any_line(r, "ELDENNET", "ai_write", file="providers", ok=1)
     failures += any_line_kv(r, "ELDENNET", "ai_config", {"result": "missing"})
-    for what in ("add_own", "key", "provider", "model_reset", "remove"):
+    for what in ("add_own", "key", "provider", "model_reset", "remove", "fallback", "fallback_reset"):
         failures += any_line_kv(r, "ELDENNET", "ai_change", {"what": what, "ok": "1"})
     # Each key is nowhere: no frame either view could have, no log or report line, no recording, no file left (the
     # removals took the right one out of secrets.toml, which the right one replaced the wrong one in), and a fragment
@@ -1927,17 +1999,19 @@ def check_graceui_ai(r):
 
 
 case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5280),
+     game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5520),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.9 against a fake model server on loopback: a provider added from "
-          "its preset, a wrong key on its row refused (Refused) and the right one set, a server of the case's own "
+     what="EldenNet's AI pages through GraceUI 0.2.12 against a fake model server on loopback: AI › Models as one "
+          "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
+          "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
-          "and a model from its list, the changed mark on that job's rows alone, refusals in words; from the menu a "
-          "row's Remove refused, a job's provider and model from their pickers and the self-test; then the picks "
-          "reset, no row changed, a new preset, and the unused providers removed; either key in no topic, log line, "
-          "recording, report or file, and drawn nowhere in the menu")
+          "and a model from its list, Conversation's fallback on it, the changed mark on each card's own rows alone, "
+          "refusals in words; from the menu a row's Remove refused, a job's provider and model from their pickers and "
+          "the self-test; then the picks reset (a fallback by its picker's Default), no row changed, a new preset, and "
+          "the unused providers removed; either key in no topic, log line, recording, report or file, and drawn "
+          "nowhere in the menu")
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),
