@@ -441,7 +441,7 @@ Personas are prose in named fields. Code owns the order, headers, state and pers
 ### 3.1 Fields
 
 Audiences: **public** (what anyone sees at a first meeting) may appear in this persona's prompts, in other NPCs'
-`observed` views, in the next-speaker decision (§9.2) and on the roster page (PAGES §4.6.4; GraceUI's D67:
+`observed` views, in the next-speaker decision and the player's addressee decision (§9.2; O97) and on the roster page (PAGES §4.6.4; GraceUI's D67:
 `public.summary`, `public.role` and `subjects`). **private** appears only in this persona's own prompts: dialogue,
 own-initiative lines and its own background jobs (the memory job and the lived layer's update, §7.6). **voice** goes to
 block 4 and the lint. **knowledge** goes to block 7, gated. **stages** select what blocks 2, 3, 5b and 7 show.
@@ -1296,7 +1296,7 @@ listed and never converses, a voiceless one never speaks, and one of a speaking 
 | Pools (`bark_pool`, §7.5) | The persona pool block (identity, voice with `instructions`, the stage's `road`; `companion.*` in `vs:other` jobs, §9.11) | The character block + trigger; key `character:{id}@{profile_hash}/{gates}/{trigger}/{ctx}`, `gates` the bit set of active `knows_when` entries (§9.5) | Card block + variant; `card_hash` covers the layer |
 | Seeds | `[seed]` (unchanged) | `[seed]`; a key with no seed and no pool is silent | `[seed]` |
 | Memory job and the lived layer's update (§7.6) | The witness's grounded layers only (O86): `brief`, `public.summary` and `private.honesty`, as its prompts hold them at its stage; `instructions`, `subjects` and `stirs` never | The same, from its bio | — |
-| Others' prompts | `brief`/`observed` (unchanged); in the next-speaker decision, `brief`, `public.summary` and `stirs` (§9.2) | `brief`; the same in the next-speaker decision | The card label |
+| Others' prompts | `brief`/`observed` (unchanged); in the next-speaker decision, `brief`, `public.summary` and `stirs`, and in the player's addressee decision `brief` and `public.summary` (§9.2; O97) | `brief`; the same in both decisions | The card label |
 
 **The character block** (ours; template `prompts/callout/02_character.j2`, used by pools; since O45 a character's conversation and own-initiative lines take the persona path (DESIGN §7.8); cache B per `profile_hash` and `gates`):
 
@@ -1538,6 +1538,14 @@ Since O45 every NPC with a profile converses. In this section *persona* reads *p
 - The box **opens on key-down** within ≤ 50 ms (DESIGN §1.4). The first `WM_CHAR` matching the hotkey within 100 ms of opening is swallowed, so the box never starts with a stray "t" (GraceUI pairs the characters and hands them over; the swallow rule stays EldenNet's).
 - **Talk hint:** "[T] Speak — Kalé" (or "[T] Call out — Godrick Soldier") under a small diamond marker above the target's head, shown whenever the key would open chat or a call-out. The core computes the target per snapshot. It changes target only after the new best has led for 500 ms, so the hint does not flicker between two NPCs. After a persona's line addressed to the Tarnished, the hint reads "[T] Answer — Kalé" for 10 s (§5.9).
 - **Header:** "Speak to Kalé — heard by: Kalé", listing the personas in the speech audience (DESIGN §5.4). Other personas overhear, but while a conversation is open they never answer (§9.4's gates).
+  *2026-11-21, O97:* the header's target is the conversation's partner, chosen by the target order (§5.2), and the rules'
+  pick for each line the player sends. When a sent line is heard by two or more profiled NPCs that may answer it, a
+  decision picks whom it addresses (§9.2, "The player's addressee"; ARCH §11.8). A pick other than the header's target
+  moves the conversation to the pick in the same box (§5.7, `retarget`), the header then naming it ("Speak to Varré —
+  heard by: Kalé, Varré"), and only the addressee answers; the target marker follows the partner. The others still
+  overhear, and never answer on their own while a conversation is open (§9.4's gates). The box shows no word of its own
+  for the move: the header's new name is the cue. *For the owner's review:* whether a moved box should also say so,
+  for example with a short status line (no wording proposed here).
 - **Pressing the key with no valid target**, or a target that fails a check, never produces generated speech:
   - a mute candidate with `hint = nothing_to_say`, or whose `dialogue` allowance is off (§1.4) → "They have nothing to say to you." (2 s);
   - stage `refuse` → "(Kalé will not speak with you)";
@@ -1554,6 +1562,9 @@ Since O45 every NPC with a profile converses. In this section *persona* reads *p
 4. **A persona within a 25° cone of the camera's forward vector and ≤ 8 m.** Score = `angle/25 + dist/8`; lowest wins; ties go to the one facing the player, then the lower handle (P1 §5.1). Without the `camera` group this rule is skipped.
 5. **The nearest persona ≤ 5 m.**
 6. **A card with `replies`, by lock-on or by cone ≤ 20 m** → the call-out (§9.7). A non-hostile character converses through rules 0–5 (O45).
+
+*2026-11-21, O97:* the target this order gives is the header's target, the rules' pick for the addressee of each line
+the player sends (§5.1, §9.2).
 
 Mute candidates (a persona at a `mute` stage, a resolved mute with `hint = nothing_to_say`, or a persona or card whose `dialogue` allowance is off, §1.4) take part in rules 3–6 only to produce the hint line; one whose allowance is off shows "They have nothing to say to you." (§5.1). While resting (flag 9000, verified) or in the Roundtable (SpEffect 9621), rule 5 accepts targets out to 8 m, the reach rule 4 already has (DESIGN §8.1).
 
@@ -1637,6 +1648,7 @@ std::optional<Unsafe> safe_context(const WorldModel& w) {
 | Native talk with this NPC | End at once; unshown dropped | `native_talk` |
 | 120 s without a player line (the timer pauses while `Held`) | End | `idle` |
 | Talk key on a different conversable persona | End after the current page, then open the new one | `retarget` |
+| *2026-11-21, O97:* the addressee decision picks another profiled NPC for the player's line (§5.1, §9.2) | End after the current page; the line opens a conversation with the pick at once, in the same box (`opened_by = Player`), as its first player line | `retarget` |
 | A required group trips (`flags`, `ui`, `params`) | End at once, with the group's toast | `degraded` |
 | Core or overlay fault | End at once; input released | `fault` |
 
@@ -1686,7 +1698,7 @@ stateDiagram-v2
   [*] --> Closed
   Closed --> Open: OpenChat(target), conversable and safe
   Closed --> Open: Answer(line) ≤ 10 s, conversable and safe
-  Open --> Awaiting: Submit(text) / commit PlayerSaid, send request
+  Open --> Awaiting: Submit(text) / pick the addressee (§9.2), commit PlayerSaid, send request
   Awaiting --> Awaiting: first token 6 s (10 s local) / fallback model once
   Awaiting --> Streaming: first page sealed and PageShown(idx 0)
   Awaiting --> Open: 20 s total / "…" page (uncommitted) + toast
@@ -1707,6 +1719,12 @@ stateDiagram-v2
   Held --> Ending: end trigger
   Ending --> Closed: current page done (closed/retarget) or at once / ConversationEnded
 ```
+
+*2026-11-21, O97:* a line dispatched (at Submit, or from the queued slot, §6.3) while two or more profiled NPCs may
+answer it waits in `Awaiting` for the addressee decision (§9.2) before `PlayerSaid` is committed and its request sent.
+A pick of another NPC ends this conversation with `retarget` after its current page (§5.7) and opens one with the pick,
+in `Awaiting`, with the line as its first player line and the box kept open; the speaker card (§6.2) waits for the pick
+and names it.
 
 ```cpp
 struct Conversation {
@@ -2019,7 +2037,8 @@ Say one line{{ to_whom }}, as {{ name }}, in {{ possessive }} own voice, in at m
 ```
 
 `n` = min(20, `reply_words_max`); `to_whom` is " to the Tarnished", " to {{ other }}" or empty, set by code from the
-motive's talk target, never by the model (§9.2). Motive lines (ours, fixed; template `prompts/dialogue/11_unasked.j2`):
+motive's talk target, never by the model (§9.2). *2026-11-21, O97:* or from the pair the next-speaker decision picked,
+which code built (§9.2); never by the model that writes the line. Motive lines (ours, fixed; template `prompts/dialogue/11_unasked.j2`):
 
 | Motive | `motive_line` |
 |---|---|
@@ -2289,21 +2308,82 @@ picks.
   and admission step 3 (§9.4), under a neutral label, and **silence**, always offered. Never the line's own speaker,
   nor anyone in a conversation, cooling down or held by a gate. A card is never an option: cards answer by the rules,
   from pools. With one eligible speaker there is no call.
+  *2026-11-21, O97:* each option is a **pair**, a legal speaker with one addressee the motive allows (the table below)
+  that is present and legal for that speaker, and silence is still always offered. At most 12 options: when more than
+  11 pairs are legal, code keeps the rules' pair, then each other speaker with the motive's own addressee, then pairs
+  addressed to the Tarnished, then the rest, nearest addressee first (impl). There is no call with one legal pair, so a
+  moment with one speaker and two or more legal addressees is now a decision, and one with one speaker and one
+  addressee is not.
+- **Addressees by motive** (*2026-11-21, O97*). An addressee is legal for a speaker only where a line from it so
+  addressed would pass its gates now (§9.4): the Tarnished only where calm lines addressed to the Tarnished pass for
+  that speaker (within `range.talk_m`, not hostile, the Tarnished not concealed from it, and for a persona its stage's
+  row); another NPC only one within the speech radius (16 m) of the speaker, alive, never the speaker, on its side as
+  `greet_npc` reads sides (§9.8), a card included (as an addressee only); no one only where the motive allows it.
+
+  | Motive | The rules' addressee | Also legal |
+  |---|---|---|
+  | `answer` | The heard line's speaker | The Tarnished; another NPC that heard the line (an answer is to someone: silence is the other choice) |
+  | `greet_player` | The Tarnished | — (a greeting to another NPC is `greet_npc`'s, which is no decision) |
+  | `saw_kill`, `saw_victory` | No one | The Tarnished; another NPC that saw the deed |
+
 - **Inputs**, gathered by code by id and given as quoted data (§7.1; template `prompts/decisions/10_next_speaker.j2`,
   ours): the moment in our words (the motive's line, §7.8, with a heard line quoted and its speaker's `brief`); for
   each option its `brief`, `public.summary` and `stirs`. Nothing private, no memory, no stage text and no runtime name:
-  the labels stand in for names.
+  the labels stand in for names. *2026-11-21, O97:* each NPC in the call has one label, used in every pair it is in;
+  an addressee that is not a speaker gets its `brief` (a card: its card label, §4.5), and each option's line, written
+  by code, reads as the pair ("A, to the Tarnished"; "B, to C"; "A, to no one").
 - **The question:** "Who here would speak up now, if anyone?", answered with one label: an enum schema where the
   provider supports one, otherwise a plain answer read by meaning; thinking off; logprobs, where offered, recorded with
-  the pick and never used as a cut-off (ARCH §11.8).
+  the pick and never used as a cut-off (ARCH §11.8). *2026-11-21, O97:* "Who here would speak up now, and to whom, if
+  anyone?", answered with one option's key.
 - **The addressee is code's:** the talk target the motive sets, never the model's choice: the heard line's speaker for
   an `answer`, the Tarnished for `greet_player`, no one for a remark on a deed.
+  *2026-11-21, O97, which replaces this rule:* the addressee is picked with the speaker, from the pairs code built; the
+  model never names an addressee code did not offer, and the line's `to` and its task block's `to_whom` (§7.8) come
+  from the pair. The motive's talk target above is the rules' addressee.
 - **Fallback, always:** with no `decisions` slot set up, or on a failed or late call, the motive's rule picks:
-  `addressee_or_side_listener` for an answer, and otherwise the scheduler's order (§9.4 step 4).
+  `addressee_or_side_listener` for an answer, and otherwise the scheduler's order (§9.4 step 4). *2026-11-21, O97:*
+  with the motive's talk target as the addressee; on a System One provider, after one chat-format retry (O96; ARCH
+  §11.8).
 - **Cost:** one call on the `decisions` slot per moment, sent only when step 3 would admit a line now. The chosen
   speaker's line then follows the reservation rule (§9.4); silence ends the moment with no line and no reservation.
   Each moment follows a paced line or an edge with its own cooldown, so the calls stay within the budget of requests
-  per hour (ARCH §11).
+  per hour (ARCH §11). *2026-11-21, O97:* moments with one speaker and several legal addressees add calls, still at
+  most one per admitted moment, so within the talk window.
+
+**The player's addressee** (a decision call, ARCH §11.8; *2026-11-21, O97*). The talk key opens the box on its rules'
+target, named in the header before the player types (§5.1, §5.2). When a line the player sends is heard by two or more
+profiled NPCs (personas or characters, O45) that may answer it, a decision picks whom it addresses; with one there is no
+call.
+
+- **Who may answer** (*for the owner's review*: the natural reading, not O97's words): each profiled NPC in the line's
+  speech audience (DESIGN §5.4) that is conversable now (§5.3) and within the talk key's reach of 8 m (rule 4 of §5.2),
+  and the header's target while its conversation holds. Cards are never options: a call-out (§9.7) gets no call, and
+  a card near a conversation never answers the player's line.
+- **Options**, built by code: each of them under a neutral label, at most 12 (the header's target and the 11 nearest
+  others), and no `none`: a line the player sends is always answered.
+- **Inputs**, gathered by code by id and given as quoted data (§7.1; template `prompts/decisions/20_addressee.j2`,
+  ours): the player's line, quoted, with every name the header shows for a candidate (a whole word, case and accents
+  aside) replaced by that candidate's label, so that the labels stand in for names here too (*for the owner's
+  review*); which label is the header's target; the last line shown to the Tarnished in this conversation, quoted with
+  its speaker's label; for each option its `brief` and `public.summary`. Nothing private, no memory, no stage text, no
+  `stirs` and no runtime name.
+- **The question:** "Whom is the Tarnished speaking to?", answered with one label, read as every decision is (ARCH
+  §11.8).
+- **The rule:** the header's target, which is also the fallback on a failed or late call, with no `decisions` slot set
+  up, and at the bound on requests per hour.
+- **When:** at dispatch (§6.3), before `PlayerSaid` is committed and the reply sent, so the line is committed in the
+  addressee's conversation, `direct` for the addressee and `overheard` for the others (MEM §1.1). *For the owner's
+  review:* the pick is due within the `decisions` slot's first-token time (1.5 s cloud, 3 s local), counted from
+  dispatch, a System One call's chat retry included; after it the header's target answers. C5's first page (DESIGN
+  §1.4) is counted from the line sent, so the decision's time is inside it. The other reading, a reply to the header's
+  target sent beside the decision and cancelled when the pick differs, saves that time on cloud at the cost of a
+  wasted request, and cannot work on a local provider, which serves one request at a time (ARCH §11.3).
+- **The pick:** the header's target answers as before. Another pick ends the conversation with `retarget` after its
+  current page and opens one with the pick in the same box, the line its first player line (§5.7, §6.1); the header
+  then names the pick. Only the addressee answers.
+- **Cost:** at most one call per line the player sends that two or more may answer, and none in a call-out (ARCH
+  §11.8's requests per hour).
 
 ### 9.3 Squads
 
@@ -2368,7 +2448,7 @@ Cooldowns per type are in §9.1's catalogue. Values are play time (`t_play_ms`).
 **The reservation rule for live calls.** A request that needs a model call (a persona line in the Autonomous class; a generic autonomy tick) is sent only if step 3 would admit a line at that moment. Sending it takes one window slot and holds the cooldown key (a **reservation**), so no second call for the same key goes out while the call is in flight or its line waits. When the line displays, its window entry takes the display time and the type's cooldown starts; the gap is checked again at display. A reservation that ends with no line shown (silence, a failure, a timeout, an unshown discard, or a cancellation: an input epoch, native talk or a scripted line within 20 m, a conversation opening, the player's `Submit`) keeps its window slot until the slot ages out from the send time, and releases the cooldown key; autonomy, whose cooldown is its period, records it at send. So model calls per window never exceed the class's cap, and an NPC is prompted only when pacing would let a line through.
 
 **How the rules combine with everything else.**
-- **Conversations.** Replies are outside pacing. While a conversation is open, and for `quiet_after_conversation_s` (3 s) after it ends, no own-initiative line is admitted from anyone (a gate). A conversation page outranks every line on screen.
+- **Conversations.** Replies are outside pacing. While a conversation is open, and for `quiet_after_conversation_s` (3 s) after it ends, no own-initiative line is admitted from anyone (a gate). A conversation page outranks every line on screen. *2026-11-21, O97:* the one who answers a line the player sends is its addressee, the header's target or the pick of the addressee decision among the profiled NPCs that may answer it (§9.2); that answer is a reply, outside pacing, and a pick that moves the conversation ends the old one with `retarget` (§5.7), whose 3 s quiet does not hold the new one's reply. No one else answers, and the gate still holds every own-initiative line.
 - **Call-outs.** A call-out reply is a reply. Opening its box advances the input epoch, which drops pending and visible own-initiative lines (#691).
 - **Interrupts** (an event-type property, DESIGN §6.5): `Engaged` (≥ 0.6) within 25 m interrupts `chat_input`, `Ambient` and `Autonomous`; `PlayerDied` opens the death window (for 1.2 s only `player_fell`, never once banner 5 shows); `NativeTalkStarted` and `NativeLineHeard{phase: Started}` interrupt conversation output and every own-initiative line within 20 m, pending or visible (visible ones fade over 300 ms); `LoadingStarted` interrupts everything.
 - **Display caps** stay presentation, not admission: ≤ 2 labels visible, the feed ≤ 3 lines of 4 s, a page outranks every label.
@@ -2504,7 +2584,8 @@ expect none from dead speakers
 | `late_draw.scn`: the overlay stalls 3 s | `BarkDropped{Late}`; nothing shown late |
 | `busy_fight.scn` (new) | §9.11's busy-fight table line for line, with its preconditions; ≤ 2 labels; no group twice within 8 s. A second case with Blaidd's detector unverified: his lines are held, the rest as in the table, except that `ally_fell` M2 at 30.0 is admitted (the window holds 5) |
 | `chatter.scn` (new) | §9.8's exchange ends after 3 lines; no NPC answers its own line; ≤ `talk_max` per window |
-| `next_speaker.scn` (new; two CI characters and a persona, mock `decisions`) | A heard line with no addressee and two profiled listeners makes one decision call, whose options are the eligible speakers and silence; a "silence" answer shows no line and reserves no slot; a picked speaker's line is addressed to the heard line's speaker whatever the reply says; with the slot unset or the call late, the nearest listener answers (§9.2); in a fight, no call |
+| `next_speaker.scn` (new; two CI characters and a persona, mock `decisions`; pairs since O97) | A heard line with no addressee and two profiled listeners, the Tarnished within `range.talk_m`, makes one decision call, whose options are the legal (speaker, addressee) pairs of §9.2's table and silence, at most 12; a "silence" answer shows no line and reserves no slot; a picked pair's line goes to the pair's addressee (its `to` and `to_whom`) whatever the reply says, and one addressed to the Tarnished shows as a page and arms Answer (§5.9); with the Tarnished concealed, no pair addresses it; a line addressed to one listener makes a call with that listener's pairs, and with the Tarnished out of range and no other NPC near, it makes none (one pair); with the slot unset or the call late, the nearest listener answers the heard line's speaker (§9.2); a mock System One provider that fails gives one chat-format retry on the fallback model, then the rules (O96); in a fight, no call |
+| `addressee.scn` (new, O97; two CI characters and a persona, mock `decisions`) | The Tarnished talks to the persona with both characters within 8 m: each sent line makes one decision call whose options are the three, with no silence, and whose rule is the header's target; the line's audience entries read `direct` for the pick and `overheard` for the others; a pick of a character ends the conversation with `retarget` after its current page and opens one with the character in the same box, the header naming it, and only the character answers; a character's name the header shows, typed in the line, reaches the call as its label, never as the name; with one character beyond 8 m and the other asleep, no call; with the slot unset, the call late or the requests per hour spent, the header's target answers; a call-out to a card makes no call |
 | `speak_up.scn` (new; the Lantern-Keeper) | A beckon line at range entry once prepared; none after a native talk at that stage (and none for a native talk ending ≤ 10 s before `StageChanged`); again after 300 s; none at an `asleep` stage; none with S3 not passed; none with `approach` `unknown`; none on a journey adopted mid-playthrough without a `talked` flag, and none after "Forget this NPC" until the next `StageChanged`; the Tarnished passes at 15 m (the line is prepared, never shown, and discarded), comes back to 6 m at 120 s, and a beckon line shows; the line cancelled by opening the chat box; the Tarnished lingers at 15 m for 5 min: one preparation and no other call (a persona's autonomy tick needs the Tarnished within `range.talk_m`); after that discard, the Tarnished crosses 20 m inward five times in a minute: no further request until a line shows |
 | `autonomy_bound.scn` (new; 32 generics in range) | Own-initiative calls ≤ `talk_max` per window; a silent answer spends its slot; no autonomy call on a tick while pacing would refuse |
 | `npc_vs_npc.scn` (new) | Soldiers against a spirit summon, with S7's `last_hit_by` check for NPC attackers passed: `Hit` engagements, `engaged` and `struck_hard` from the soldiers, none from the mute summon. With it unverified: no NPC-pair engagement, no `FoeKilled`, and no line from the pair |
@@ -2555,7 +2636,10 @@ NPCs can react to each other's lines, and greet each other to start a dialogue, 
   side for a calm line and on either side for a Combat-class line, except that outside a fight, with two or more
   profiled listeners eligible, the next-speaker decision picks one of them or silence (§9.2). Never the speaker itself
   (never react to your own lines). The answerer needs the `npc_to_npc` feature and allowance, a voice source, alive and
-  conscious, and no conversation with the Tarnished.
+  conscious, and no conversation with the Tarnished. *2026-11-21, O97:* the decision picks the answerer with whom it
+  addresses, as a pair (§9.2), so an answer may go to the Tarnished or to another NPC instead of the heard line's
+  speaker, the rules' addressee; a line with an addressee is still answered only by that addressee, so the rule
+  below that ends a chain holds.
 - **Persona listeners.** The heard line enters block 9's "just now" lines (MEM §1.4: "{speaker} just said to {to}: "…"",
   the quoted line cut at a word boundary, with "…", so that the whole heard line stays ≤ 25 tokens by MEM §0's estimate)
   only if the names leave room for 3 words or more; otherwise the persona gets "{speaker} just said something to {to}."
@@ -2987,6 +3071,7 @@ that fails the zero-tolerance part is handled as a leak on the test questions is
 | `personas/*.toml` and `characters/*.toml` (changed: the bio's layers, O46: `public.role`, `private.claims`, `private.seeks`, `private.ties`, `stirs`, `companion.*`; `private.background`, `private.goals` and `private.relationships` retired; a character's `who`, `manner` and `cadence` become `identity`, `private.personality` and `voice.cadence`) | §3.1, §3.4, §3.5, §4.5 |
 | `%APPDATA%\EldenNet\profiles\tarnished.toml` (new; the player's, never shipped) | §4.7, §7.3 |
 | `prompts/decisions/10_next_speaker.j2`, `tests/scenarios/barks/next_speaker.scn` (new) | §9.2, §9.6 |
+| `prompts/decisions/20_addressee.j2`, `tests/scenarios/barks/addressee.scn` (new, O97); `10_next_speaker.j2` and `next_speaker.scn` (changed: pairs) | §5.1, §9.2, §9.6 |
 
 ---
 

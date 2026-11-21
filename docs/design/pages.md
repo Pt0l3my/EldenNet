@@ -284,7 +284,9 @@ dialog and Related card of GraceUI §4.2.4.
   (`kind`), flavour (OpenAI-compatible, Ollama, llama.cpp, LM Studio or KoboldCpp; ARCH §11.1), base URL (shown on this
   page only), key status (Set, Missing, Rejected) with a masked, write-only "Set key" and "Clear key", requests at once
   (`max_concurrency`; default 2 for cloud, 1 for local), JSON answers (`json_mode`: off, JSON object, JSON schema;
-  default JSON schema); *Advanced*: extra header names, whose values are write-only like keys. **Local servers found**:
+  default JSON schema), API style (`api_style`: Chat, the default, or System One, which only the Decisions job uses;
+  EldenNet ARCH §11.1; *2026-11-21, O96:* one more field on the card, from 0.4 with the decisions slot, roadmap
+  S13.2.h, writable from 0.6 like the rest); *Advanced*: extra header names, whose values are write-only like keys. **Local servers found**:
   one row per probe (the four known servers on their ports, in ARCH §11.4's order; llama.cpp on 9931, then its legacy
   8080), found or not, with "Use". *Health*: per provider, healthy, cooling down (time left) or failing (the error class
   in words: unreachable, key refused, rate limited, timed out, bad reply), the last success, and the slots that use it
@@ -320,7 +322,9 @@ dialog and Related card of GraceUI §4.2.4.
   never listed before they play) and "Prepare lines now" (`pools.prebake`; at rest or at the title only). The
   **Decisions** card serves EldenNet's decision calls (in v1, who speaks next at a shared place; EldenNet ARCH §11.8)
   and says in words that a preset naming no model for it uses the Quick lines model, and that the rules decide when
-  no model answers in time. Since EldenNet's decision calls came into v1 it is a card like the others, with no "WIP"
+  no model answers in time. *2026-11-21, O96, O97:* in v1 also to whom that speaker speaks, and whom the player's line
+  addresses when two or more may answer it; on a provider set to System One (Providers), a chat answer from the
+  fallback model is tried before the rules. Since EldenNet's decision calls came into v1 it is a card like the others, with no "WIP"
   tag (G7's note of 2026-11-16).
 - **Data.** Reads `providers`, `health`, `settings`. Writes `providers.update`, `settings.set`, `pools.prebake`.
 - **Rules.** Pool lines are never listed before they play. Privacy as Providers; on a paired device (G9) whatever here
@@ -843,7 +847,8 @@ GraceUI's (D82): GraceUI §4.7. Each row is generated from EldenNet's settings d
 | Provider health and error classes | AI › Providers › Health | Home › Status (dots) | 0.2 |
 | Model slots, fallbacks, fixed budgets | AI › Models | — | 0.2 / 0.6 |
 | Model presets and EldenNet's advice | AI › Models | Home › Setup, AI › Providers (advice) | 0.2 |
-| The `decisions` slot: decision calls (the next speaker at a shared place in v1, the recall gate later) | AI › Models (the Decisions card) | — | 0.4 / 0.6 |
+| The `decisions` slot: decision calls (the next speaker at a shared place and whom it addresses, and whom the player's line addresses, in v1, O97; the recall gate later) | AI › Models (the Decisions card) | — | 0.4 / 0.6 |
+| A provider's API style for decision calls, Chat or System One (O96) | AI › Providers (the provider's card) | AI › Models (the Decisions card, in words) | 0.4 / 0.6 |
 | Self-test (in First light, and silent at start-up) | AI › Self-test | Home › Setup, First light | 0.2 |
 | Model call log, usage, cost | AI › Requests | Home › Model calls | 0.2 |
 | Prepared lines (pools), preparing them | AI › Models (Prepared lines) | Behaviour › Combat | 0.4 |
@@ -907,7 +912,7 @@ with a page of their own show as statements (G7); everything else is simply abse
 | AI › Vision (screenshots described by a model; a gallery) | Not planned | No EldenNet DESIGN entry; sending screen captures to a provider is a privacy question; heavy |
 | AI › GameMaster | Later: AI › Director (statement) | EldenNet DESIGN §13, the `Directed` class |
 | AI › Providers › Routing (rotation, failover, a first-token guard) | Adapted and simplified: one fallback per slot on Models; health on Providers | SN01 §14.2 |
-| Request styles per provider, decision providers | Adapted: decision calls in EldenNet's own format over the same providers, on the `decisions` slot (AI › Models' Decisions card); no request styles of their own | EldenNet DESIGN §11.2; ARCH §11.8 |
+| Request styles per provider, decision providers | Adapted: decision calls in EldenNet's own format over the same providers, on the `decisions` slot (AI › Models' Decisions card); no request styles of their own. *2026-11-21, O96:* and one API style per provider, Chat or System One, which only decision calls use (AI › Providers), our own client written from the published protocol | EldenNet DESIGN §11.2; ARCH §11.1, §11.8; O96 |
 | A hosted first-party account, sign-in, a community link | Never | No accounts; PV rules |
 | Voice › Bard Singing | Not planned | SN01 §14.3 |
 | Voice › Samples (cloning) | Never for the cast's voices | EldenNet DESIGN §1.2, Never column |
