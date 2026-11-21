@@ -636,10 +636,11 @@ __asm__(
     "  ret\n"
     "  .seh_endproc\n"
 
-    // ---- The request's work, now (spike.11, R1 run 10's 0x1267F0 shape): the request in rcx. Its entry reads the task
-    // and the word, notes the task in the hub's rows and tests the manager's strict flag: not strict, it hands the task
-    // to the work with the word as its group and answers 1; strict (--task-gate), it branches past its extent to its
-    // second part below, which lies in no entry of the exception directory (unlisted).
+    // ---- The request's work, now (spike.11, the shape of R1 run 10's function called with the request): the request
+    // in rcx. Its entry reads the task and the word, notes the task in the hub's rows and tests the manager's strict
+    // flag: not strict, it hands the task to the work with the word as its group and answers 1; strict (--task-gate),
+    // it branches past its extent to its second part below, which lies in no entry of the exception directory
+    // (unlisted).
     FG_FUNC_BEGIN(fg_request_now)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
