@@ -63,6 +63,7 @@ struct Options {
   bool table_gap = false;  // the registration's rack has no shelf for the stand-in group (R1 spike.8's second case)
   bool task_gate = false;  // the hub runs only tasks of the game's kind: R1's never runs (R1 spike.9's second case)
   bool task_queue = false;  // the ledger queues each request for a later frame (R1 spike.11's queued path)
+  bool map_late = false;  // the stand-in group's word joins the manager's map only with the world (R1 spike.12)
   std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
   std::uint64_t press_pause_every = 0;  // and again every this many frames after it; 0 once
   // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that
@@ -129,6 +130,11 @@ void hub_create();                                // the hub singleton and its g
 // The program's own four tasks, the second made in `bench` (spike.10's call-site forms).
 void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4], FgTaskBench* bench);
 void hub_run_frame(std::uint64_t frame, float dt);
+// Spike.12 (WHY§296): the manager's map's words, at the title and those the world's first load adds (with --map-late
+// the stand-in group's among them), and the call that adds them (on the game thread, once).
+std::vector<std::uint32_t> map_title_words();
+std::vector<std::uint32_t> map_world_words();
+void hub_world_loaded();
 
 struct HubStats {
   std::uint64_t builtin_runs = 0;

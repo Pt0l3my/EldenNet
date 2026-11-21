@@ -37,6 +37,8 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--task-gate`: G's manager is strict, the request's check keeps only tasks of the game's kind and state 0, and the shelves hold G where run 9's entries held one object (`--describe` gives `register_rack.gate` and `ledger_shared`) | A game whose registration answers 1 and keeps nothing of our task, never running it, as R1 runs 9 and 10 read it (since spike.11 the check in the now path's function's second part, past its extent: run 10's end) |
 | Since spike.11 (R1 run 10's shape, WHY§293) G's method, `fg_ledger_admit`, answers 0 for a null task or a ledger not open (`FG_LEDGER_OPEN_OFF`), else builds a 32-byte request on its stack (`FG::TaskRequest`, the compiler's vtable, at [rsp + `FG_REQUEST_DISP`]: the task, G's manager, the word, r9's byte) and, with G's deferred byte (`FG_LEDGER_DEFER_OFF`) zero, calls `fg_request_now` with its address: that function has two parts, its entry (which notes the task, tests the manager's strict flag and hands the task to the work) and `fg_request_check` past its extent in no entry of the exception directory (the gate's check, branching back into the entry). The request's slots are 5-byte jumps to `fg_request_now`, `fg_request_cancel` and `fg_request_word`. G's manager holds three tasks of the game's own (`FG::SweepChore`, `FG::TallyChore`, of one base, `FG::Chore`), and G's queue (`FG::TaskQueueImp`: a lock, and a list of requests waiting) two requests of the game's own whose flag 1 keeps them there for ever; the ledger's objects lie in pages of their own | What run 10 found: G's method wraps the task in a request and runs it now or queues it; the function it runs it with goes past its extent; the game's own requests and tasks to be found in memory |
 | `--task-queue`: G's deferred byte set, so its method copies the request to memory from `fg_request_alloc` and hands it to G's queue (`fg_queue_push`); a later frame drains it after `FG_QUEUE_DRAIN_MS` and runs it through its run slot | Run 10's other path, the request queued |
+| `--map-late`: the stand-in group's word joins G's manager's map only with the world's first load (spike.12) | R1 run 11's end: the call at the title finds no match, drops our task and answers 1; the word is in the map once the world is loaded |
+| Since spike.12 (R1 run 11's shape, WHY§296) the hand-over is G's manager's: `fg_request_now`, after the note and the strict flag's test, with a word of 0 calls `fg_map_take` for each bin of the manager's list (`FG_MANAGER_LIST_OFF`: begin, end, capacity; one bin, group 0's), and with any other walks the manager's map from its head (`FG_MANAGER_MAP_OFF`, its count beside it; a tree of our own making with MSVC's node shape: left, parent, right, the nil byte at `FG_NODE_NIL_OFF`, a 4-byte key at `FG_NODE_KEY_OFF`, the value at `FG_NODE_VALUE_OFF`) and on a match calls `fg_map_take` with the node's bin (`FG::TaskBin`; the world's, `FG::WorldBin`), the task, the word and the manager; `fg_map_take` counts the task in the bin and hands it to the work with the bin's group. No match drops the task (`map missed=<word>`). Where the request's flag is set (the game's own lingering requests'), `fg_task_other` with the task, then the task's slot 1. The map holds every group's word but 0 and the world's own (1, 3, 6, 8, past the shift; with `--map-late` the stand-in group's too), which the world's first load adds (`map world_words=`) | What run 11 found: the request looks the group's word up in the manager's map and gives the task to what it finds there; at the title the word may be missing |
 | The hub's desk at +0x3B0, its index at +0x3D0, the index's four pointers 32 bytes apart from +200 into rows 240 bytes apart (`FG_ROW_BYTES`); each of G's notes an `FG::TaskNote` there, a fresh record in place of a pointer to a static word, stamped with the game thread's id `FG_NOTE_STAMP_MS` later | The array behind CSTask's +0x3B0 and +0x3D0 that changed after the call in R1 runs 7 to 9, seen as four views by the walk (spike.10) |
 | `--press-pause-at F`: Pause pressed and released (`SendInput`) at frame F, and with `--press-pause-every N` again every N frames | The player pressing the launcher's Mark, a system hotkey (O90), until it is taken |
 | `--d3d12`: a Direct3D 12 device, queue and flip-model swap chain (960 by 540) on the window, cleared and presented every frame; `d3d12.dll` and `dxgi.dll` loaded by name with this option alone | A game's swap chain, which GraceUI's overlay binds and draws on (part 12) |
@@ -156,7 +158,16 @@ the request in rcx, and one level further the note and the work with the task an
 four times (with the path now, or queued with `--task-queue`); G's queue at the same times (the game's two requests,
 and with `--task-queue` ours at 50 and 250 ms, drained by 2 s); the game's requests in each search with their tasks'
 two classes; the classes met with their bases (one shared, by the two task classes); the views at 2 s only; no tagged
-copy of our address. Then R1 as the
+copy of our address. Since spike.12 (WHY§296) the now path's function has run 11's shape (its task reads the kind and
+state in the second part and the first word on the other branch; its manager reads the strict flag, the list's end and
+begin and the map's head, root and nil byte; its calls the note, the hand-over twice, the other branch's call and one
+through the task's first word); one level further the note, the hand-over entered with the map's value (`holds_value`;
+the bin's group and count read, `value_reads`), the task, the word and the manager, and the other branch's call with
+the task, the work past the hand-over (6), the now path's function's and the hand-over's forms kept; and the map
+(`check_r1_map`): its layout as --describe gives it, the word looked for (none with --table-gap), at least five
+readings, the first at the title with the title's words and their bins, every reading's keys in order, the word
+present throughout (with `--map-late` absent at the title, with its nearest words, and present once the world loaded),
+the last with the world's bins of their own class, and a reading in the world. Then R1 as the
 owner runs it (`launcher-eldennet-probe`: `--probe` with no settings.toml, invented saves backed up first, the default
 settle of 10 s, Pause pressed every second from the title until it is taken; the console's six steps in order, the
 reviewed idiom and the layout's group confirmed, the launcher's lint of both reports), the same on a fake game with
@@ -166,7 +177,11 @@ clean), the same on a fake game with `--task-gate` (`launcher-eldennet-probe-gat
 call answers 1, G's method keeps nothing of our task, the task never runs, the searches find no copy of its address,
 plain or tagged, and G, held by the shelf, is not walked), the same with `--task-queue` (`launcher-eldennet-probe-queue`,
 since spike.11 run 10's other path: the request queued, found in G's queue at 50 and 250 ms, drained and run a second
-later, the task confirmed), the same with the launcher's console writer blocked after
+later, the task confirmed), the same with `--map-late` (`launcher-eldennet-probe-map`, since spike.12 R1 run 11's end:
+the call at the title drops our task, no copy is found, the console's no-confirmation line has the owner load the save
+and stay two minutes in the world, as README-R1.txt's steps 4 and 5 say, and the map's readings show the word absent at
+the title and present in the world; the gap and gate cases now end with that line too), the same with the launcher's
+console writer blocked after
 three lines (`launcher-eldennet-probe-console`, WHY§290: launcher.log carries the status lines, the 30 s
 no-confirmation step, the lint and the end, and counts the console's dropped lines), and `--probe` with the release
 DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report); `launcher-crash-console` crashes

@@ -224,6 +224,8 @@ inline constexpr std::uint32_t kCalleeBound = 4096;  // bytes of the callee deco
 // Spike.11 (WHY§293): `request`, it holds the request G's method builds (its loads are `request_reads`, and a load of
 // the request's task field holds the task); `manager`, it holds G's manager, the request's field of G's (its loads are
 // `manager_reads`).
+// Spike.12 (WHY§296): `value`, it holds the value of the manager's map that the now path's function passes on a match
+// (its loads are `value_reads`).
 struct EntryArg {
   std::uint8_t from = 0;
   bool first_word = false;
@@ -233,6 +235,7 @@ struct EntryArg {
   bool zero = false;
   bool request = false;
   bool manager = false;
+  bool value = false;
 };
 using EntryState = std::array<EntryArg, 4>;
 inline constexpr EntryState kOwnArguments = {{{1, false, false}, {2, false, false}, {8, false, false},
@@ -516,6 +519,36 @@ struct TableAddresses {
 // Spike.9: a class's innermost name (O92's rule) against the leads' singletons' names: the first lead whose name it is,
 // or whose name with Imp it is.
 void match_lead(ClassMatch& m, std::string_view cls, std::span<const std::string> names);
+
+// ---- Spike.12 (WHY§296): the manager's map, as the now path's function walks it ----
+
+// The map's layout from the now path's function's summary (`now`, entered with `entry`: the request in a register),
+// the request's shape and the wrapper's task argument (probe_report.hpp's MapShape): the manager is the request's
+// manager field; the head the manager's 8-byte field whose value is a base, the root the head's, the nil byte the
+// root's 1-byte field compared in place with 0; the key the memory operand compared with the word; the call the
+// reached direct call with the word in r8 and the manager in r9, an 8-byte load in rcx its displacement the value's
+// (where the summary knows nothing in rcx, the paths into the call disagreeing on its base, 8 bytes past the key);
+// the list the two manager fields one of which a sub takes from the other (begin, end); the other call the last direct
+// call with the task in rcx before the first call through the task's first word. The children are the tree's own, at
+// +0 and at the root's displacement + 8 (MSVC's node: left, parent, right). The first part not found is `failed`.
+[[nodiscard]] MapShape map_shape(const CalleeCode& now, const EntryState& entry, const RequestShape& request,
+                                 std::uint8_t task);
+// One walk of the map and of the list, at the manager `manager`, by a derived shape: the head on the heap (`on_heap`)
+// with its nil byte not zero; from the root, in order, each node on the heap, read whole (to its value's end), its nil
+// byte zero, never met twice, at most kMaxMapNodes; a child equal to the head is a leaf's. The keys (`width` bytes) in
+// order; whether `word` is among them, else the nearest below and above it; the values, in key order, for T1 to
+// classify (never reported). The list's count, (end - begin) / 8, at most kMaxListEntries, and its entries. A check
+// that fails is named (`failed`, `list_failed`) and nothing more of that part is read.
+inline constexpr std::size_t kMaxMapNodes = 4096, kMaxMapKeys = 256, kMaxListEntries = 4096, kMaxValueClasses = 16;
+struct MapWalk {
+  MapRead read;                        // its map and list parts (without the time, the stage and the classes)
+  std::optional<std::uint64_t> count_word;  // the manager's word beside the head, as read
+  std::vector<std::uint64_t> values;   // each node's value, in key order
+  std::vector<std::uint64_t> list;     // the list's entries
+};
+using HeapTest = std::function<bool(std::uint64_t address)>;
+[[nodiscard]] MapWalk walk_map(const BlockReader& read, const HeapTest& on_heap, std::uint64_t manager,
+                               const MapShape& shape, std::uint32_t word);
 
 #endif
 

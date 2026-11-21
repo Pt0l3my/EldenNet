@@ -25,6 +25,13 @@ static_assert(offsetof(FG::LedgerFields, deferred) + 8 == FG_LEDGER_DEFER_OFF);
 static_assert(offsetof(FG::LedgerFields, open) + 8 == FG_LEDGER_OPEN_OFF);
 static_assert(offsetof(FG::LedgerFields, manager) + 8 == FG_LEDGER_MANAGER_OFF);
 static_assert(offsetof(FG::ManagerFields, flags) + 8 == FG_MANAGER_FLAGS_OFF);
+static_assert(offsetof(FG::ManagerFields, map_head) + 8 == FG_MANAGER_MAP_OFF);  // spike.12
+static_assert(offsetof(FG::ManagerFields, list_begin) + 8 == FG_MANAGER_LIST_OFF);
+static_assert(offsetof(FG::ManagerFields, list_end) + 8 == FG_MANAGER_LIST_OFF + 8);
+static_assert(offsetof(FG::MapNode, nil) == FG_NODE_NIL_OFF && offsetof(FG::MapNode, key) == FG_NODE_KEY_OFF);
+static_assert(offsetof(FG::MapNode, value) == FG_NODE_VALUE_OFF && offsetof(FG::MapNode, parent) == 8);
+static_assert(offsetof(FG::BinFields, group) + 8 == FG_BIN_GROUP_OFF);
+static_assert(offsetof(FG::BinFields, kept) + 8 == FG_BIN_KEPT_OFF);
 static_assert(sizeof(FG::TaskRequest) == FG_REQUEST_BYTES);
 static_assert(offsetof(FG::RequestFields, task) + 8 == FG_REQUEST_TASK_OFF);
 static_assert(offsetof(FG::RequestFields, manager) + 8 == FG_REQUEST_MANAGER_OFF);
@@ -139,6 +146,10 @@ __asm__(
     "fg_gated_word:\n  .long 0\n"
     "  .globl fg_gated\n"
     "fg_gated:\n  .byte 0\n"
+    "  .globl fg_missed_word\n"
+    "fg_missed_word:\n  .long 0\n"
+    "  .globl fg_missed\n"
+    "fg_missed:\n  .byte 0\n"
     "  .globl fg_save_ledger_ready\n"
     "fg_save_ledger_ready:\n  .byte 0\n"
     FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
@@ -636,18 +647,24 @@ __asm__(
     "  ret\n"
     "  .seh_endproc\n"
 
-    // ---- The request's work, now (spike.11, the shape of R1 run 10's function called with the request): the request
-    // in rcx. Its entry reads the task and the word, notes the task in the hub's rows and tests the manager's strict
-    // flag: not strict, it hands the task to the work with the word as its group and answers 1; strict (--task-gate),
-    // it branches past its extent to its second part below, which lies in no entry of the exception directory
-    // (unlisted).
+    // ---- The request's work, now (spike.11, the shape of R1 run 10's function called with the request; since spike.12
+    // R1 run 11's, WHY§296): the request in rcx. Its entry reads the task and the word, notes the task in the hub's
+    // rows and tests the manager's strict flag: strict (--task-gate), it branches past its extent to its second part
+    // below, which lies in no entry of the exception directory (unlisted). Then the hand-over, the manager's: with a
+    // word of 0, fg_map_take for each bin of the manager's list (its end less its begin, over 8); with any other, a
+    // walk of the manager's map from its head (the root at the head's +8, each node's nil byte compared with 0, the
+    // word with each node's key) and on a match fg_map_take with the node's bin, the task, the word and the manager; no
+    // match drops the task (its word in fg_missed_word). Then, where the request's flag is set, fg_task_other with the
+    // task and the task's slot 1. It answers 1.
     FG_FUNC_BEGIN(fg_request_now)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
     "  push rsi\n"
     "  .seh_pushreg rsi\n"
-    "  sub rsp, 0x28\n"
-    "  .seh_stackalloc 0x28\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
     "  .seh_endprologue\n"
     "  mov rbx, rcx\n"
     "  mov rsi, qword ptr [rcx + " FG_XSTR(FG_REQUEST_TASK_OFF) "]\n"
@@ -660,13 +677,64 @@ __asm__(
     "  .long fg_request_check - 1f\n"
     "1:\n"
     ".Lrequest_keep:\n"
-    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
-    "  mov edx, dword ptr [rbx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
-    "  mov r8, rsi\n"
-    "  call fg_ledger_keep\n"
+    "  mov r8d, dword ptr [rbx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
+    "  test r8d, r8d\n"
+    "  jne .Lrequest_map\n"
+    "  xor edi, edi\n"
+    ".Lrequest_each:\n"
+    "  mov rax, qword ptr [rbx + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "]\n"
+    "  mov rcx, qword ptr [rax + " FG_XSTR(FG_MANAGER_LIST_OFF) " + 8]\n"
+    "  sub rcx, qword ptr [rax + " FG_XSTR(FG_MANAGER_LIST_OFF) "]\n"
+    "  sar rcx, 3\n"
+    "  cmp rdi, rcx\n"
+    "  jge .Lrequest_after\n"
+    "  mov rax, qword ptr [rax + " FG_XSTR(FG_MANAGER_LIST_OFF) "]\n"
+    "  mov rcx, qword ptr [rax + rdi*8]\n"
+    "  mov rdx, rsi\n"
+    "  call fg_map_take\n"
+    "  inc rdi\n"
+    "  jmp .Lrequest_each\n"
+    ".Lrequest_map:\n"
+    "  mov r9, qword ptr [rbx + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "]\n"
+    "  mov rcx, qword ptr [r9 + " FG_XSTR(FG_MANAGER_MAP_OFF) "]\n"
+    "  mov rdx, qword ptr [rcx + 8]\n"
+    "  mov rax, rcx\n"
+    "  cmp byte ptr [rdx + " FG_XSTR(FG_NODE_NIL_OFF) "], 0\n"
+    "  jne .Lrequest_miss\n"
+    ".Lrequest_walk:\n"
+    "  cmp dword ptr [rdx + " FG_XSTR(FG_NODE_KEY_OFF) "], r8d\n"
+    "  jae .Lrequest_left\n"
+    "  mov rdx, qword ptr [rdx + 16]\n"
+    "  jmp .Lrequest_next\n"
+    ".Lrequest_left:\n"
+    "  mov rax, rdx\n"
+    "  mov rdx, qword ptr [rdx]\n"
+    ".Lrequest_next:\n"
+    "  cmp byte ptr [rdx + " FG_XSTR(FG_NODE_NIL_OFF) "], 0\n"
+    "  je .Lrequest_walk\n"
+    "  cmp rax, rcx\n"
+    "  je .Lrequest_miss\n"
+    "  cmp r8d, dword ptr [rax + " FG_XSTR(FG_NODE_KEY_OFF) "]\n"
+    "  jb .Lrequest_miss\n"
+    "  mov rcx, qword ptr [rax + " FG_XSTR(FG_NODE_VALUE_OFF) "]\n"
+    "  mov rdx, rsi\n"
+    "  call fg_map_take\n"
+    "  jmp .Lrequest_after\n"
+    ".Lrequest_miss:\n"
+    "  mov dword ptr [rip + fg_missed_word], r8d\n"
+    "  mov byte ptr [rip + fg_missed], 1\n"
+    ".Lrequest_after:\n"
+    "  cmp byte ptr [rbx + " FG_XSTR(FG_REQUEST_FLAG_OFF) "], 0\n"
+    "  je .Lrequest_done\n"
+    "  mov rcx, rsi\n"
+    "  call fg_task_other\n"
+    "  mov rax, qword ptr [rsi]\n"
+    "  mov rcx, rsi\n"
+    "  call qword ptr [rax + 8]\n"
     ".Lrequest_done:\n"
     "  mov eax, 1\n"
-    "  add rsp, 0x28\n"
+    "  add rsp, 0x20\n"
+    "  pop rdi\n"
     "  pop rsi\n"
     "  pop rbx\n"
     "  ret\n"
@@ -691,6 +759,33 @@ __asm__(
     "  .long .Lrequest_done - 4f\n"
     "4:\n"
     "  int3\n"
+
+    // ---- A match's hand-over (spike.12, the stand-in of the function R1 run 11's now path's function calls with the
+    // map's value): the bin in rcx, the task in rdx, the word in r8d, the manager in r9. It counts the task in the bin
+    // and hands it to the work with the bin's group.
+    FG_FUNC_BEGIN(fg_map_take)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rdx\n"
+    "  mov edx, dword ptr [rcx + " FG_XSTR(FG_BIN_GROUP_OFF) "]\n"
+    "  inc dword ptr [rcx + " FG_XSTR(FG_BIN_KEPT_OFF) "]\n"
+    "  mov r8, rbx\n"
+    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
+    "  call fg_ledger_keep\n"
+    "  mov eax, 1\n"
+    "  add rsp, 0x20\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+    // ---- The other branch's call before the task's slot (spike.12): the task in rcx; it reads the task's state.
+    FG_FUNC_BEGIN(fg_task_other)
+    "  .seh_endprologue\n"
+    "  mov eax, dword ptr [rcx + " FG_XSTR(FG_TASK_STATE_OFF) "]\n"
+    "  ret\n"
+    "  .seh_endproc\n"
 
     // ---- The request's other slots (spike.11): its cancel resets its task's state; its word answers the word ----
     FG_FUNC_BEGIN(fg_request_cancel)

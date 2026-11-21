@@ -14,9 +14,9 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-The run usually ends at the title screen, in about 5 to 10 minutes: 5 to unzip and start, 1 to 3 at the title
-screen, then a minute or two before you quit, and a few to send the files. Only if the console says "Task confirmed."
-do you play, for about ten minutes more.
+The run usually takes about 5 to 10 minutes: 5 to unzip and start, 1 to 3 at the title screen, then, as the console
+says, either a minute more at the title screen or two minutes in the world with your save loaded, and a few to send
+the files. Only if the console says "Task confirmed." do you play, for about ten minutes more.
 
 
 What is in it
@@ -73,14 +73,18 @@ The steps
 3. When the console says "The checks passed. At the title screen, with no save loaded, press Pause once.", press
    Pause once, still at the title screen.
 
-4. Within a few seconds the console says "Task confirmed." Then, and only then, load your save.
+4. Within a few seconds the console may say "Task confirmed." Then load your save and go to step 5.
 
-   If it says anything else instead (a check did not pass, the call did not complete, or no confirmation after 30
-   seconds), do not load a save: wait one more minute at the title screen, then quit the game from the title screen
-   and go to step 7. That is a useful result too.
+   If instead, 30 seconds after your Pause, it says "No confirmation 30 seconds after the call. Our task is not in the
+   game. Load your save now, stay in the world for two minutes, then quit the game as usual.", do just that: load your
+   save, stay in the world for two minutes (standing at a grace is enough), and go to step 6.
 
-5. Play for about ten minutes: go near NPCs and enemies, rest at a grace, and fast travel once (the loading screen
-   matters to one of the measurements).
+   If it says anything else (a check did not pass, the call did not complete, or no confirmation and "Do not load a
+   save"), do not load a save: wait one more minute at the title screen, then quit the game from the title screen and
+   go to step 7. That is a useful result too.
+
+5. Only after "Task confirmed.": play for about ten minutes: go near NPCs and enemies, rest at a grace, and fast
+   travel once (the loading screen matters to one of the measurements).
 
 6. Quit the game as you usually do. The console then says whether both reports passed their check, and the launcher
    ends.
@@ -125,6 +129,11 @@ What it does
     through all of the game's memory, read-only and for at most 30 seconds each time, for where the game kept
     EldenNet's task or the parts of it, also with a mark in the top bits of their addresses; it reports only counts
     and the kinds of memory it found them in, never what the memory holds.
+  - Just before the call, a few times just after it and then every ten seconds for as long as the game runs, it reads
+    the game's own index of the task groups that take tasks, which the call's code looks EldenNet's group up in: how
+    many groups it holds, by number only, whether EldenNet's group is among them, and whether the game is at the title
+    screen or in the world. That is why, when the game did not take EldenNet's task, the console asks you to load your
+    save for two minutes: the index may change once the world is loaded.
   - Just before the call and 2 s after it, it reads the table that code looks the group up in: which entries are set,
     and, by number only, which kind of object the table, the group's entry and that second object are, and one number
     each entry of the table holds. It compares the second object's part of memory across the call too, and reads one
