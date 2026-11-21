@@ -21,15 +21,19 @@ the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar'
 
 ## The package and the sweep
 
-The sweep at first refused `EldenNet-Find.zip` under its rule `email`: `THIRD-PARTY-NOTICES.txt` holds toml++'s MIT
-licence unchanged, and its copyright line carries its author's address. The owner chose, in Lodestar's chat on
-2026-11-21, "Allow that one address": one narrow, commented line in the sweep's `allow.txt` (rule `email`, that one
-address, only in `THIRD-PARTY-NOTICES.txt` and `tomlplusplus/LICENSE`). It is committed in Skyrizz on this session's
-branch there, `claude/serene-tesla-aan6oc` (cece89f), and takes effect for other sessions once the owner or the
-Skyrizz session merges it into Skyrizz's working branch; until then another container's sweep refuses such a package
-again. The package (SHA-256 75989ada93cae98b70515d374d3cba19ff3e42c1af6a3f4952d488e442b5bdb5, built from engine
-9edf1c0) then passed the sweep and **was sent to the owner on 2026-11-21**. To rebuild it: BUILD.md, "The spike
-package", the `find` kind.
+Install the sweep from Skyrizz's working branch, `feat/skyrizz-lite`, not from its default branch: check that branch
+out in the Skyrizz checkout, then `python3 -I tools/privsweep/privsweep.py install`. The sweep's code is the same on
+both, but only the working branch's `allow.txt` has the reviewed lines the packages need, among them the one for
+authors' addresses inside a file named `THIRD-PARTY-NOTICES.txt` (Skyrizz c68a948).
+
+Lodestar's first install came from the default branch, so its sweep was stricter than the others' and refused
+`EldenNet-Find.zip` for toml++'s author's address in its licence notice. Before Engine's answer arrived, the owner
+chose "Allow that one address" in Lodestar's chat, and Lodestar committed a line for it on this session's own branch
+in Skyrizz, `claude/serene-tesla-aan6oc` (cece89f). **That commit is redundant and should not be merged**: the
+working branch already covers the case. The package (SHA-256
+75989ada93cae98b70515d374d3cba19ff3e42c1af6a3f4952d488e442b5bdb5, built from engine 9edf1c0) passes the working
+branch's sweep as it is, and **was sent to the owner on 2026-11-21**. Everything pushed and sent before had passed the
+stricter install. To rebuild the package: BUILD.md, "The spike package", the `find` kind.
 
 ## What comes next, in order
 
