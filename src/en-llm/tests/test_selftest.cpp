@@ -277,7 +277,7 @@ TEST_CASE("edit_providers: a new file, a preset's provider added, the preset set
 }
 
 TEST_CASE("edit_providers: a removed provider takes the [slots.*] that name it; a refused file is never written") {
-  const EditedText removed = edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"other"}});
+  const EditedText removed = edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"other"}, {}, {}});
   REQUIRE(removed.ok);
   CHECK(removed.text.find("other.example.invalid") == std::string::npos);
   CHECK(removed.text.find("[slots") == std::string::npos);  // dialogue's slot named "other" for its fallback
@@ -285,9 +285,102 @@ TEST_CASE("edit_providers: a removed provider takes the [slots.*] that name it; 
   texts.providers = removed.text;
   texts.secrets = kSecrets;
   CHECK(parse_config(texts, no_env).providers.size() == 1);
-  CHECK(edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"nobody"}}).why == "unknown_id");
+  CHECK(edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"nobody"}, {}, {}}).why == "unknown_id");
   CHECK(edit_providers("schema = 1\n[provider\n", ProvidersEdit{}).why == "refused");
-  CHECK(edit_providers("schema = 1\nprovider = 3\n", ProvidersEdit{std::nullopt, {}, {"x"}}).why == "not_a_table");
+  CHECK(edit_providers("schema = 1\nprovider = 3\n", ProvidersEdit{std::nullopt, {}, {"x"}, {}, {}}).why == "not_a_table");
+}
+
+TEST_CASE("edit_providers: a job's model chosen and reset, its fallback kept; a key's place set on an entry") {
+  // kCloud's dialogue has its own [slots.dialogue] with a fallback: a new model keeps the fallback.
+  ProvidersEdit pick;
+  pick.slots.push_back(SlotEdit{std::string(kDialogue), "cloud", "model-c"});
+  pick.slots.push_back(SlotEdit{std::string(kMemory), "cloud", "model-b"});
+  const EditedText picked = edit_providers(kCloud, pick);
+  REQUIRE(picked.ok);
+  Config cfg = make_config(picked.text);
+  REQUIRE(cfg.slot(kDialogue).models.size() == 2);
+  CHECK(cfg.slot(kDialogue).models[0].model == "model-c");
+  CHECK(cfg.slot(kDialogue).models[1].model == "model-b");  // the fallback the file gave it
+  CHECK(cfg.slot(kMemory).models.front().model == "model-b");
+  CHECK(cfg.borrowed.count(std::string(kMemory)) == 0);
+  CHECK(picked.text.find("extra_body") != std::string::npos);  // every other key kept
+  // Reset: the slot's table goes, and the slot borrows again.
+  ProvidersEdit reset;
+  reset.slots.push_back(SlotEdit{std::string(kMemory), "", ""});
+  const EditedText back = edit_providers(picked.text, reset);
+  REQUIRE(back.ok);
+  cfg = make_config(back.text);
+  CHECK(cfg.borrowed.at(std::string(kMemory)) == std::string(kDialogue));
+  reset.slots = {SlotEdit{std::string(kDialogue), "", ""}};
+  const EditedText none = edit_providers(back.text, reset);
+  REQUIRE(none.ok);
+  CHECK(none.text.find("slots") == std::string::npos);
+  CHECK(edit_providers(kCloud, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{"chatter", "cloud", "x"}}, {}}).why ==
+        "unknown_slot");
+  CHECK(edit_providers(kCloud, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "a b", "x"}}, {}})
+            .why == "bad_entry");
+  const ProvidersEdit memory_pick{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "c", "x"}}, {}};
+  CHECK(edit_providers("schema = 1\nslots = 2\n", memory_pick).why == "not_a_table");
+
+  // A key's place on a provider of the player's own (a server on this PC, which had none).
+  ProvidersEdit own;
+  own.add.push_back(own_provider("box", "http://127.0.0.1:1234/v1", true));
+  CHECK(own.add[0].kind == ProviderKind::Local);
+  CHECK(own.add[0].key_ref.empty());
+  const EditedText added = edit_providers(kTwoClouds, own);
+  REQUIRE(added.ok);
+  ConfigTexts texts;
+  texts.providers = added.text;
+  texts.secrets = std::string(kSecrets) + "box = \"invented-box-key\"\n";
+  REQUIRE(parse_config(texts, no_env).provider("box") != nullptr);
+  CHECK_FALSE(parse_config(texts, no_env).provider("box")->key.has_value());
+  ProvidersEdit ref;
+  ref.key_refs.push_back(KeyRefEdit{"box", "secrets:box"});
+  const EditedText keyed = edit_providers(added.text, ref);
+  REQUIRE(keyed.ok);
+  texts.providers = keyed.text;
+  CHECK(parse_config(texts, no_env).provider("box")->key.has_value());
+  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"nobody", "secrets:x"}}}).why ==
+        "unknown_id");
+  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"box", "env:X"}}}).why ==
+        "bad_entry");
+  // A cloud one keeps its key under its own name from the start.
+  const ProviderEntry cloud = own_provider("far", "https://far.example.invalid/v1", false);
+  CHECK(cloud.kind == ProviderKind::Cloud);
+  CHECK(cloud.key_ref == "secrets:far");
+  // Removing every provider leaves no list behind, and a key's place for a gone one is refused.
+  const ProvidersEdit both_gone{std::nullopt, {}, {"other", "box"}, {}, {KeyRefEdit{"box", "secrets:box"}}};
+  CHECK(edit_providers(added.text, both_gone).why == "unknown_id");
+}
+
+TEST_CASE("the model list asks every provider, a provider no job uses too, and keeps what each listed") {
+  const std::string idle = std::string(kTwoClouds) + R"(
+[[provider]]
+id = "idle"
+base_url = "https://idle.example.invalid/v1"
+key_ref = "secrets:cloud"
+)";
+  Run rig(idle);
+  rig.server->script("", models_of({"model-a"}));
+  rig.server->script("", models_of({"model-b"}));
+  rig.server->script("", models_of({"spare-1", "spare-2", "spare-3"}));
+  SelfTest list(*rig.service->client().config(), true, 2000);
+  REQUIRE(list.report().lists.size() == 3);
+  CHECK(list.report().lists[2].provider == "idle");
+  rig.drive(list);
+  CHECK(list.report().lists[0].models == std::vector<std::string>{"model-a"});
+  CHECK(list.report().lists[2].models == std::vector<std::string>{"spare-1", "spare-2", "spare-3"});
+  CHECK(list.report().lists[2].state == CheckState::Passed);
+  // The self-test asks only the providers its slots name.
+  CHECK(SelfTest(*rig.service->client().config(), false, 3000).report().lists.size() == 2);
+}
+
+TEST_CASE("a provider at a name that only starts with 127. is not this PC's: http:// to it is refused for a cloud one") {
+  ConfigTexts texts;
+  texts.providers = "schema = 1\n[[provider]]\nid = \"near\"\nbase_url = \"http://127.0.0.1:1234/v1\"\n";
+  CHECK(parse_config(texts, no_env).providers.front().kind == ProviderKind::Local);
+  texts.providers = "schema = 1\n[[provider]]\nid = \"far\"\nbase_url = \"http://127.example.invalid/v1\"\n";
+  CHECK_THROWS_AS((void)parse_config(texts, no_env), ConfigError);  // a cloud provider over http://
 }
 
 TEST_CASE("preset_providers: the providers a preset names that providers.toml lacks, each with its own key") {
@@ -328,7 +421,7 @@ all = { model_hint = ["small"] }
   CHECK(one[0].base_url == "https://one.example.invalid/v1");
 
   // Matched by base_url: nothing to add once providers.toml has it, and the preset's configuration then loads.
-  ProvidersEdit add{std::string("two"), two, {}};
+  ProvidersEdit add{std::string("two"), two, {}, {}, {}};
   const EditedText written = edit_providers("", add);
   REQUIRE(written.ok);
   ConfigTexts texts;

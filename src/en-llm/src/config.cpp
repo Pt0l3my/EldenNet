@@ -19,6 +19,7 @@
 
 #include <toml.hpp>
 
+#include "en/proto/base_url.hpp"
 #include "en/proto/toml_check.hpp"
 
 namespace en::llm {
@@ -207,9 +208,9 @@ std::string url_host(std::string_view url) {
   return lower(std::string(rest.substr(0, rest.find(':'))));
 }
 
-bool is_loopback_host(const std::string& host) {
-  return host == "localhost" || host == "[::1]" || host.rfind("127.", 0) == 0;
-}
+// This PC's hosts: `localhost`, a dotted address of 127.0.0.0/8, `[::1]` (en-proto's, shared with the pages' form). A
+// name that merely starts with "127." is another host's.
+bool is_loopback_host(const std::string& host) { return proto::is_loopback_host(host); }
 
 std::string normalise_base_url(std::string url) {
   while (!url.empty() && (url.back() == '/' || url.back() == ' ')) url.pop_back();
