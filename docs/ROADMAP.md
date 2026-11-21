@@ -1145,10 +1145,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     per-page greying, and built the same day (GraceUI feat/foundations beca859), no change of the ABI. EldenNet's
     pages take them as each slice is built; Home and System are reworked to use them in a later slice (WHY§273).
 - t The browser view's rail and tables match the game's (page-less categories hidden, column gaps, a one-line top bar), and a page-shots harness scenario for look reviews (GraceUI D191) [done]
-  - refs: WHY§278, WHY§279
-  - gives: found and done on 2026-11-21 (GraceUI's D191 on feat/foundations c397464, in design/v1 at its next sync;
-    no change of the ABI) while making the owner's "Decisions in pictures" page from EldenNet's pages as built
-    (engine 80ef2fe), in both views.
+  - refs: GraceUI:D191, WHY§278, WHY§279
+  - gives: found and done on 2026-11-21 (GraceUI feat/foundations c397464, no change of the ABI) while making the
+    owner's "Decisions in pictures" page from EldenNet's pages as built (engine 80ef2fe), in both views.
+- u Row actions, pickers from a topic, row secrets and small forms for mods' pages: proposal 0007 (G34) built (GraceUI 0.2.8) [done]
+  - refs: G34, GraceUI:D192, GraceUI:D193, GraceUI:D194, GraceUI:D195, GraceUI:D196, O95, WHY§281
+  - gives: decided by the owner on 2026-11-21 (O95's words) and built the same day (GraceUI feat/foundations 0738fa3),
+    protocol 1.2, ABI 1.2 unchanged. Row actions and the row secret are declared on a table's block in the page data,
+    not as columns in a topic's body (WHY§281); how EldenNet uses them is GraceUI's docs/eldennet-changes.md §41.
+    In game, focus now stays on its element when a topic's body arrives. EldenNet's AI pages take them in the next
+    slice (S11.4.a).
 
 ### S11.3 EldenNet v0.2
 
@@ -1190,7 +1196,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     game only Custom can be chosen until X1 and S8.1.h have measured the models. GraceUI's proposal 0007 (G34): row
     actions, live pickers, row secrets and small forms, for the AI pages' providers and models, put to the owner and
     EldenNet on 2026-11-21; not built. GraceUI's D190 records EldenNet's commands on its secret settings as built.
-    The owner approved proposal 0007 and the slices' open choices on 2026-11-21 (O95): no lamp while starting, the
+    The owner approved proposal 0007 (G34, built as GraceUI 0.2.8, S11.2.u) and the slices' open choices on 2026-11-21 (O95): no lamp while starting, the
     tones, labels by the build's increment, the banner's words on greyed pages (the Now card's sentence follows in the
     next slice), and the words as drafted.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
@@ -1206,7 +1212,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). EldenNet's text sizes follow GraceUI 0.2.2's display
     event and scaled faces (S11.2.n), and drop their constant (GraceUI's docs/eldennet-changes.md §33). The pad chord that opens the box (NPC §5.6) waits
     for a D-entry of GraceUI's, for S4's second round after R1: GraceUI's proposal 0005, pad chords for hotkeys, put to
-    the owner and EldenNet on 2026-11-20, approved by the owner on 2026-11-21 (O95); not built. Built the same day in GraceUI 0.2.1 (feat/foundations
+    the owner and EldenNet on 2026-11-20, approved by the owner on 2026-11-21 (O95; GraceUI's G35); not built. Built the same day in GraceUI 0.2.1 (feat/foundations
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
 ### S11.5 v0.2's exit checks

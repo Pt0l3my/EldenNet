@@ -303,6 +303,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 278 | 2026-11-21 | GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages | FACT | #graceui #pages |
 | 279 | 2026-11-21 | The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey | FACT | #graceui #lamp |
 | 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
+| 281 | 2026-11-21 | Row actions and row secrets are declared on a table's block in the page data, not in a topic's body, so registration can check them | DECIDED | #graceui #pages |
 
 ## Entries
 
@@ -4774,3 +4775,13 @@ invariant 10, EldenNet ARCH (T3)
 - (METHOD) From web search results on 2026-11-21 (Spring AI's System One decision page, OpenRouter's Jev guide,
   LangChain's TypeSafe integration, AIMLAPI's model page); the pages themselves were not read. A client of ours would be
   written from TypeSafe's and OpenRouter's published references, never from SkyrimNet's (O84).
+
+### 281. Row actions and row secrets are declared on a table's block in the page data, not in a topic's body, so registration can check them
+
+`2026-11-21` · DECIDED · `#graceui` `#pages` · refs: GraceUI:D192, GraceUI:D194, GraceUI:G34, S11.2.u
+
+- (DECIDED) Proposal 0007 sketched row actions and row secrets as columns in a topic's body. GraceUI 0.2.8 declares
+  them on the table's block in the page data instead (`row_actions`, one to three, and `row_secret`), because the
+  safety the proposal promised needs them known at registration, before any body is published: a destructive row
+  action refused without its confirm words, the server requiring `"confirm": true`, and a secret command's result
+  sent back without a body. A secret column's cells are only "set" or "".
