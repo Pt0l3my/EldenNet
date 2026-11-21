@@ -36,6 +36,7 @@
 #include "en/gal/derive.hpp"
 #include "en/gal/ids.hpp"
 #include "en/gal/layout.hpp"
+#include "en/gal/lodestar.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/probe_report.hpp"
 #include "en/gal/recipes.hpp"
@@ -223,6 +224,7 @@ int run_lint(int argc, char** argv) {
     return 2;
   }
   const en::gal::report::Vocabulary* reports[] = {&en::gal::derive::vocabulary(), &en::gal::probe::vocabulary(),
+                                                   &en::gal::lodestar::vocabulary(),
                                                    &rec_stats_vocabulary(), &replay_vocabulary(), &spike_vocabulary()};
   const en::gal::report::Vocabulary* recordings[] = {&en::shell::recording_vocabulary()};
   const auto result = recording ? en::gal::report::lint_lines(text, recordings) : en::gal::report::lint(text, reports);

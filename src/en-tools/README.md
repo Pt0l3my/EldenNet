@@ -113,6 +113,32 @@ what they count. A new key waits for a schema 2 and a DataPiler that reads it.
 | `stats.fd4.names` | Of the accepted hits' class objects: `of` how many, `agree` how many the best name layout reads (with its `offset` and `encoding`, even under half), `fixups` how many have a base relocation in their first 128 bytes (a pointer the file initialises), `unreadable` how many lie past the raw data the file holds of their section (zeros until the game writes them) |
 | `stats.fd4.classes`, `loads`, `calls` | Distinct class objects, statics and getters of the accepted hits |
 
+## lodestar find
+
+```
+eldennet-engine lodestar find <exe> --gal <folder> --out <report.json>
+```
+
+The first of Lodestar's devkit commands (proposal 0005 §9.7; `check` and `diff` are still to come). It reads a game's
+executable file, never a running game (O73, O75), with what gal/ says to look for (`leads.toml` and `recipes.toml`,
+both required; `builds.toml` for the gate's verdict; `ids.toml` is read to check it), and writes a report of kind
+`lodestar`, schema 2, which passes the lint before it is written. The report's places:
+
+| Key | Holds |
+|---|---|
+| `complete` | The accessor has a recipe, its count within `expect_matches`, an accepted site, and no site that only one of the shape and the withdrawn pattern accepts |
+| `image` | `file_version`, `time_date_stamp`, `size_of_image`, `file_size`, the counts of `sections` and `functions`, and `build`: `known`, or the gate's reason (`no_version`, `unknown_build`, `fingerprint_differs`) |
+| `accessor` | `recipe` (recipes.toml holds one); `hits` (places the shape stands at), `sites` (kept), `accepted`, `refused` (by `reason`, with its `count`), `expect` (`within`, `below`, `above`); `statics_found`, `class_objects`; `statics`, each a manager's slot not yet named: its `rva`, its `class_object`, its `sites` and up to 8 `witnesses` (the loads themselves); `getters` |
+| `accessor.pattern` | The comparison with the withdrawn pattern, cut again in memory and never written: `cut`, its `hits` and `accepted`, and the accepted sites in `both`, `only_shape` and `only_pattern` |
+| `classes` | For each class the leads name: its `label`, `status`, `type_descriptor`, `classes_derived`, and its `vtables` (primary, ascending, at most 64) |
+| `table` | The task groups' table: `status`, `rva`, `entries`, `stride`, `has_name_offset` and `name_offset`, `wide`, and the lead's group's `index` |
+
+Every value is a whole number, a boolean, a fixed word or one of the leads' labels. The vocabulary has no key that can
+hold bytes, a pattern, text, a name or an instruction in any form, so `lint --report` refuses a report that carries
+one. Exit codes: 0 written and complete; 1 written, something to read first; 2 usage; 3 the executable refused; 4 a
+file of gal/ refused; 5 the report refused (a defect); 6 the output not written. No message repeats a path. CTest's
+`en_tools_cli` runs it on the derivation tests' invented program.
+
 ## lint --report, lint --recording and lint --gal
 
 ```text
@@ -123,7 +149,8 @@ eldennet-engine lint --gal <folder>
 
 The check every numbers-only report passes before it leaves the PC or is committed (plan §1.2; DataPiler's guard checks
 the same, DP36). `--report` reads the file's `report` key and checks the file against that kind's vocabulary
-(`derive`, which R1's `r1-derive.json` is too, or `probe`, R1's `r1-probe.json`; both vocabularies are en-gal's):
+(`derive`, which R1's `r1-derive.json` is too, `probe`, R1's `r1-probe.json`, or `lodestar`, the finder's, schema 2;
+all three vocabularies are en-gal's):
 every key known and given once, every value of its key's type, strings only as the key's fixed words, labels or
 canonical patterns of at most 64 bytes, no float, no null, at most 64 patterns, nested at most 16 deep, at most 256 KiB.
 So a path, a free string, a name and a byte run longer than a pattern are refused. Exit codes: 0 clean (`lint: the

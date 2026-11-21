@@ -219,6 +219,18 @@ of any game is in it, and every name it looks for comes from a leads file.
   the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
   until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
   no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
+- **`lodestar.hpp`: Lodestar's finder and its report** (proposal 0005 §6.2, §11; step L3). `lodestar::find(image,
+  source, file_size, leads, recipes, builds)` runs, on an executable read from its file, the recipes that need no
+  running game: the image's fingerprint and the gate's verdict against `builds.toml`; the accessor's shape (its hits
+  against the recipe's `expect_matches`, the sites accepted and refused by reason, and every static the accepted sites
+  load, each with its class object, its count of sites and up to 8 witnesses, the loads themselves, which the resolver
+  re-finds); the classes the leads name with their tables of methods; and the task groups' table (through the
+  derivation, as R0 ran it). While the shape is new it also cuts the withdrawn pattern again in memory, as the
+  derivation does, and counts the accepted sites the two share and those only one accepts; the pattern is never
+  written. `complete` says the accessor has a recipe, its count within range, an accepted site, and no site that only
+  one of the two accepts. `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
+  numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
+  fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
