@@ -304,6 +304,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 279 | 2026-11-21 | The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey | FACT | #graceui #lamp |
 | 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
 | 281 | 2026-11-21 | Row actions and row secrets are declared on a table's block in the page data, not in a topic's body, so registration can check them | DECIDED | #graceui #pages |
+| 282 | 2026-11-21 | Folding O96 and O97: the player's addressee is picked before the reply, and pairs make one speaker with several addressees a decision | LIKELY | #decisions #llm #npc |
 
 ## Entries
 
@@ -4785,3 +4786,21 @@ invariant 10, EldenNet ARCH (T3)
   safety the proposal promised needs them known at registration, before any body is published: a destructive row
   action refused without its confirm words, the server requiring `"confirm": true`, and a secret command's result
   sent back without a body. A secret column's cells are only "set" or "".
+
+### 282. Folding O96 and O97: the player's addressee is picked before the reply, and pairs make one speaker with several addressees a decision
+
+`2026-11-21` · LIKELY · `#decisions` `#llm` `#npc` · refs: O96, O97, ARCH§11.8, NPC§9.2, NPC§5.1, WHY§280, S10.1.j
+
+- (LIKELY) The player's addressee decision must finish before `PlayerSaid` is committed, since the line's direct and
+  overheard audience and its conversation depend on it. So it runs in series before the reply, within the first-page
+  target, with the `decisions` slot's first-token time as its deadline (1.5 s, 3 s local), after which the header's
+  target answers. Sending the reply beside it would save the time on a cloud provider only. Marked for the owner's
+  review; X3 measures the added time.
+- (LIKELY) Counting options as pairs under "no call with one option" turns a single speaker with two legal addressees
+  into a decision; the reservation rule keeps those calls within the talk window. Marked for review.
+- (METHOD) A name the player types for a candidate is replaced by that candidate's neutral label before the call, which
+  keeps NPC §9.2's rule of no runtime names in a decision's inputs. Marked for review.
+- (DECIDED, by reuse) A move to another addressee reuses NPC §5.7's `retarget` end: no new state, and memory jobs run
+  per conversation as before. The header's new name is the only cue in v1 (marked for review). Who may answer the
+  player's line, and the addressees each motive allows, are written in NPC §9.2 and §9.4 (marked for review).
+- (FACT) PAGES §4.6.2's Requests filter has no purpose for decision calls; a word for it is left to the pages work.
