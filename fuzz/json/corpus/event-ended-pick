@@ -1,0 +1,1 @@
+ {"kind": "Ended", "id": 3, "pick": {"key": "B", "by": "model", "read": "meaning", "probabilities": [{"key": "B", "probability": 0.875}], "fallback": false, "miss": false, "error": "None", "latency_ms": 350, "prompt_hash": "0123456789abcdef", "provider": "cloud", "model": "invented-model", "task": "next_speaker", "subject": null, "option_keys": ["A", "B", "none"]}}

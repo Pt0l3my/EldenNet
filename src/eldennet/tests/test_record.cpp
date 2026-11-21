@@ -1,0 +1,249 @@
+// The recorder's lines (record.hpp): every kind written on one line through the closed vocabulary, linting clean
+// alone and as a file; no name, text or param value in any of them; and a full snapshot within a line's cap.
+#include <doctest.h>
+
+#include <array>
+#include <cmath>
+#include <limits>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "en/gal/probe_report.hpp"
+#include "en/gal/report.hpp"
+#include "en/shell/record.hpp"
+
+using namespace en::shell;
+namespace proto = en::proto;
+
+namespace {
+
+const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &en::gal::probe::vocabulary()};
+
+void lints(const std::string& line) {
+  INFO(line.substr(0, 300));
+  REQUIRE_FALSE(line.empty());
+  CHECK(line.back() == '\n');
+  CHECK(line.find('\n') == line.size() - 1);
+  const auto ok = en::gal::report::lint(line, kKnown);
+  if (!ok) {
+    for (const auto& p : ok.error()) INFO(en::gal::report::describe(p));
+  }
+  CHECK(ok.has_value());
+}
+
+std::unique_ptr<proto::WorldSnapshot> full_snapshot() {
+  auto s = std::make_unique<proto::WorldSnapshot>();
+  s->seq = 41;
+  s->mono_ms = 123456;
+  s->gap = true;
+  s->build.index = 1;
+  for (auto& g : s->health.groups) g = proto::GroupHealth{proto::GroupState::Ok, true, 2};
+  s->health.task_us_p99 = 310;
+  s->session = proto::Session{proto::MultiplayRole::Host, true, proto::LobbyState::None, 1, false, false};
+  s->life = proto::Life{true, proto::Screen::InGame, 7};
+  s->ui.hud = proto::HudState::Default;
+  s->ui.banner = 3;
+  s->ui.popup_talk_id = 99;
+  proto::Player p;
+  p.handle.raw = 0xFFFFFFFF15A00000ull;
+  p.level = 120;
+  p.hp = {1100, 1200};
+  p.play_time_ms = 3'600'000;
+  p.statuses = proto::bit_of(proto::Status::Poison);
+  p.pos = {1.5f, -2.25f, 1234.567f};
+  p.locked_on = proto::ChrHandle{5};
+  s->player = p;
+  s->place = proto::Place{6100100, {}, false, true};
+  s->clock = proto::Clock{13, 37};
+  (void)s->boss.bars.try_push_back(proto::BossBar{proto::ChrHandle{8}, 904, -10});
+  for (std::uint32_t i = 0; i < proto::kMaxSnapshotChars; ++i) {
+    proto::Chr c;
+    c.handle.raw = 1000 + i;
+    c.param = 81100 + i;
+    c.hp = {500, 600};
+    c.dist_m = 3.5f * static_cast<float>(i);
+    c.bearing_deg = i % 2 == 0 ? std::numeric_limits<float>::quiet_NaN() : 12.25f;
+    c.pos = {1.0f, 2.0f, 3.0f};
+    (void)s->chars.try_push_back(c);
+  }
+  proto::FlagFrame f;
+  f.watch_version = 9;
+  for (std::size_t i = 0; i < proto::kMaxWatchFlags; i += 3) {
+    f.bits.set(i);
+    f.valid.set(i);
+  }
+  s->flags = f;
+  proto::TextEntry named;
+  named.fmg = 7;
+  named.id = 1100;
+  (void)named.text.emplace().try_assign("Invented Name");
+  (void)s->new_text.try_push_back(named);
+  proto::TextEntry missing;
+  missing.fmg = 7;
+  missing.id = 1103;
+  (void)s->new_text.try_push_back(missing);
+  proto::ParamRowInfo row;
+  row.id = 81100;
+  (void)row.fields.try_push_back(proto::ParamField{0, 424242});
+  (void)s->new_params.try_push_back(row);
+  return s;
+}
+
+}  // namespace
+
+TEST_CASE("record: every kind of line lints clean, and a file of them too") {
+  std::string file = header_line(RecordingHeader{{3, 14, 15, 0}, "ww", {0, 1, 0}, "s0b", true, 1}, 10);
+  lints(file);
+  const auto snap = full_snapshot();
+  const std::string s = snapshot_line(*snap, 20);
+  lints(s);
+  CHECK(s.size() < en::gal::report::kMaxReportBytes);
+  CHECK(s.find("bearing_deg\":12.25") != std::string::npos);
+  file += s;
+  proto::Lifecycle ready{proto::Lifecycle::DataReady{proto::BuildKey{1}, proto::Capabilities{en::proto::FlagSetTraits<proto::GroupSet>::all}}};
+  proto::Lifecycle::PlaythroughReady pr;
+  pr.slot = 2;
+  (void)pr.name.try_assign("Tess Wayfarer");
+  pr.play_time_ms = 1000;
+  for (const proto::Lifecycle& l : {ready, proto::Lifecycle{pr}, proto::Lifecycle{proto::Lifecycle::GroupTripped{
+                                                                     proto::Group::Camera}}}) {
+    const std::string line = lifecycle_line(l, 30);
+    lints(line);
+    file += line;
+  }
+  for (const std::string& line :
+       {banner_line(en::core::BannerReason::DiscoveryFailed, 40),
+        change_line(en::core::Change{en::core::Change::What::GateClosed, 3, 0, 123}, 41), mark_line(1, 42),
+        command_line(proto::GameCommand{proto::GameCommand::SetWatchFlags{
+                         9, std::make_shared<const std::vector<std::uint32_t>>(std::vector<std::uint32_t>{1, 2})}},
+                     43),
+        command_line(proto::GameCommand{proto::GameCommand::SetTracked{}}, 44),
+        command_line(proto::GameCommand{proto::GameCommand::ResolveText{}}, 45),
+        command_line(proto::GameCommand{proto::GameCommand::ResolveParams{}}, 46),
+        command_line(proto::GameCommand{}, 47)}) {
+    lints(line);
+    file += line;
+  }
+  CHECK(en::gal::report::lint_lines(file, kKnown).has_value());
+  // Numbers only: neither the character's name, nor the text found, nor a param's value.
+  CHECK(file.find("Tess") == std::string::npos);
+  CHECK(file.find("Invented") == std::string::npos);
+  CHECK(file.find("424242") == std::string::npos);
+  CHECK(file.find("\"name_chars\":13") != std::string::npos);
+}
+
+TEST_CASE("record: an empty snapshot (the title) lints clean") {
+  const proto::WorldSnapshot empty;
+  lints(snapshot_line(empty, 1));
+}
+
+TEST_CASE("a recording's lines read back with the writer's words: what the core and Augur read, counts of the rest") {
+  const auto s = full_snapshot();
+  const auto snap = read_recorded_line(snapshot_line(*s, s->mono_ms));
+  REQUIRE(snap.has_value());
+  CHECK(snap->kind == RecordedLine::Kind::Snap);
+  CHECK(snap->t == s->mono_ms);
+  REQUIRE(snap->snap);
+  const proto::WorldSnapshot& r = *snap->snap;
+  CHECK(r.seq == s->seq);
+  CHECK(r.gap == s->gap);
+  CHECK(r.health == s->health);
+  CHECK(r.session == s->session);
+  CHECK(r.life == s->life);
+  CHECK(r.ui.hud == s->ui.hud);
+  REQUIRE(r.player.has_value());
+  CHECK(r.player->play_time_ms == s->player->play_time_ms);
+  CHECK(r.player->level == s->player->level);
+  CHECK(r.player->save_slot == s->player->save_slot);
+  CHECK(snap->chars == s->chars.size());
+  CHECK(snap->flag_frame == s->flags.has_value());
+  // What Augur reads (part 11): the characters, the Tarnished's combat fields, the UI, the place, the boss and flags.
+  CHECK(r.ui == s->ui);
+  CHECK(r.place.has_value() == s->place.has_value());
+  if (s->place) CHECK(r.place->place_id == s->place->place_id);  // the region key is never recorded
+  CHECK(r.clock == s->clock);
+  CHECK(r.boss.bars == s->boss.bars);
+  CHECK(r.flags == s->flags);
+  const auto near = [](float a, float b) { return std::isnan(a) ? std::isnan(b) : std::fabs(a - b) <= 1e-5f * (1 + std::fabs(a)); };
+  proto::Player pa = *r.player, pb = *s->player;
+  CHECK(near(pa.pos[0], pb.pos[0]));
+  CHECK(near(pa.pos[1], pb.pos[1]));
+  CHECK(near(pa.pos[2], pb.pos[2]));
+  pa.pos = pb.pos;
+  CHECK(pa == pb);
+  REQUIRE(r.chars.size() == s->chars.size());
+  for (std::size_t i = 0; i < r.chars.size(); ++i) {
+    CAPTURE(i);
+    proto::Chr a = r.chars[i], b = s->chars[i];
+    CHECK(near(a.dist_m, b.dist_m));
+    CHECK(near(a.bearing_deg, b.bearing_deg));
+    for (std::size_t k = 0; k < 3; ++k) CHECK(near(a.pos[k], b.pos[k]));
+    a.dist_m = b.dist_m;
+    a.bearing_deg = b.bearing_deg;
+    a.pos = b.pos;
+    a.asleep = b.asleep;  // never recorded (S8)
+    if (std::isnan(b.bearing_deg)) {
+      CHECK(a.handle == b.handle);
+    } else {
+      CHECK(a == b);
+    }
+  }
+
+  proto::Lifecycle::PlaythroughReady p;
+  p.slot = 4;
+  p.archetype = 2;
+  p.play_time_ms = 77;
+  REQUIRE(p.name.try_assign("Invented Name"));
+  const auto life = read_recorded_line(lifecycle_line(proto::Lifecycle{p}, 9));
+  REQUIRE(life.has_value());
+  const auto* back = std::get_if<proto::Lifecycle::PlaythroughReady>(&life->life.payload);
+  REQUIRE(back != nullptr);
+  CHECK(back->slot == 4);
+  CHECK(back->archetype == 2);
+  CHECK(back->play_time_ms == 77);
+  CHECK(back->name.size() == p.name.size());   // a stand-in of the same length
+  CHECK(back->name.view() != p.name.view());   // never the name, which was never recorded
+  const auto tripped = read_recorded_line(lifecycle_line(proto::Lifecycle{proto::Lifecycle::GroupTripped{
+                                                             proto::Group::Camera}}, 10));
+  REQUIRE(tripped.has_value());
+  CHECK(std::get<proto::Lifecycle::GroupTripped>(tripped->life.payload).group == proto::Group::Camera);
+
+  const en::core::Change c{en::core::Change::What::GateClosed, 2, 0, 555};
+  const auto change = read_recorded_line(change_line(c, 600));
+  REQUIRE(change.has_value());
+  CHECK(change->change == c);
+  CHECK(change->t == 600);
+  const auto banner = read_recorded_line(banner_line(en::core::BannerReason::Inert, 7));
+  REQUIRE(banner.has_value());
+  CHECK(banner->banner == en::core::BannerReason::Inert);
+  const auto mark = read_recorded_line(mark_line(3, 8));
+  REQUIRE(mark.has_value());
+  CHECK(mark->mark == 3);
+  RecordingHeader h;
+  h.game_version = {9, 8, 7, 0};
+  h.region = "ww";
+  h.spike = "s0b";
+  h.file = 2;
+  const auto header = read_recorded_line(header_line(h, 1));
+  REQUIRE(header.has_value());
+  CHECK(header->header.game_version == h.game_version);
+  CHECK(header->header.spike == "s0b");
+  CHECK(header->header.file == 2);
+  // The spike runs of GraceUI's observer (S0-E, S4) are words of the header, and their banner one of the reasons.
+  for (const char* word : {"s0e", "s0e_alone", "s4"}) {
+    h.spike = word;
+    const auto spiked = read_recorded_line(header_line(h, 1));
+    REQUIRE(spiked.has_value());
+    CHECK(spiked->header.spike == word);
+  }
+  const auto spike_banner = read_recorded_line(banner_line(en::core::BannerReason::SpikeRun, 7));
+  REQUIRE(spike_banner.has_value());
+  CHECK(spike_banner->banner == en::core::BannerReason::SpikeRun);
+  // Not a recording line: another kind, another schema, no JSON.
+  CHECK_FALSE(read_recorded_line(R"({"report":"probe","schema":1,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line(R"({"report":"recording","schema":2,"t":1,"k":"mark","n":1})").has_value());
+  CHECK_FALSE(read_recorded_line("not json").has_value());
+  CHECK(kind_name(RecordedLine::Kind::Snap) == "snap");
+  CHECK(group_name(proto::Group::Camera) == "camera");
+}

@@ -1,0 +1,137 @@
+# Augur's world and player rules for v0.1 (ARCH §8.5, §8.6; DESIGN §6.3, §6.5): our own, written from the design's
+# specs. Bark rules are v0.4's; the rules on flags (GraceRested, RestEnded, GraceLit, FlagChanged) wait for the flag
+# catalogue and FlagWatch (v0.2), and the persona rules for personas (v0.2): src/en-augur/README.md lists them.
+
+# PlaceEntered: place_id changed and stable 2 s; dedup per place 10 min (P, 1.0).
+[[rule]]
+id = "place_entered"
+emits = "PlaceEntered"
+subjects = { kinds = ["player"] }
+signal = "place_id"
+detect = { kind = "changed_stable", stable_ms = 2000 }
+class = "P"
+key = "place:{place_id}"
+dedup_s = 600
+confidence = 1.0
+audience = { radius = "none" }
+priority = 40
+
+# BossFightStarted: boss.active rising (P, 1.0).
+[[rule]]
+id = "boss_started"
+emits = "BossFightStarted"
+subjects = { kinds = ["world"] }
+signal = "boss_active"
+detect = { kind = "rising_edge" }
+class = "P"
+key = "boss:{fight_id}"
+confidence = 1.0
+audience = { radius = "combat" }
+priority = 5
+
+# BossFightEnded: boss.active falling, debounced 1 s. Victory on a victory banner since the fight began, Death on a
+# PlayerDied, each as soon as it is seen; Left only once 10 s pass without either (P, 1.0).
+[[rule]]
+id = "boss_ended"
+emits = "BossFightEnded"
+subjects = { kinds = ["world"] }
+signal = "boss_active"
+detect = { kind = "falling_edge" }
+debounce_ms = 1000
+payload = "boss_outcome"
+class = "P"
+key = "boss_end:{fight_id}"
+confidence = 1.0
+audience = { radius = "death" }
+priority = 5
+
+# NativeTalkStarted / Ended: the popup's talk id or the talk camera (S3 picks the signals); no persona yet. T, with the
+# scheduler's lock once it exists; 0.6 until S3.
+[[rule]]
+id = "native_talk_started"
+emits = "NativeTalkStarted"
+subjects = { kinds = ["world"] }
+signal = "native_talk"
+detect = { kind = "rising_edge" }
+class = "T"
+confidence = 0.6
+audience = { radius = "speech" }
+priority = 10
+
+[[rule]]
+id = "native_talk_ended"
+emits = "NativeTalkEnded"
+subjects = { kinds = ["world"] }
+signal = "native_talk"
+detect = { kind = "falling_edge" }
+class = "T"
+confidence = 0.6
+audience = { radius = "speech" }
+priority = 10
+
+# PlayerDied: the dead bit rising, deaths + 1, or banner 5; one event, by the dedup of 5 s of play time (P, 1.0).
+[[rule]]
+id = "player_died"
+emits = "PlayerDied"
+subjects = { kinds = ["player"] }
+signal = "dead"
+detect = { kind = "rising_edge" }
+class = "P"
+key = "player_died"
+dedup_s = 5
+confidence = 1.0
+audience = { radius = "death" }
+priority = 5
+
+[[rule]]
+id = "player_died_count"
+emits = "PlayerDied"
+subjects = { kinds = ["player"] }
+signal = "deaths"
+detect = { kind = "count_increment" }
+class = "P"
+key = "player_died"
+dedup_s = 5
+confidence = 1.0
+audience = { radius = "death" }
+priority = 5
+
+[[rule]]
+id = "player_died_banner"
+emits = "PlayerDied"
+subjects = { kinds = ["world"] }
+signal = "banner"
+detect = { kind = "changed_stable", stable_ms = 0, to = [5] }
+class = "P"
+key = "player_died"
+dedup_s = 5
+confidence = 1.0
+audience = { radius = "death" }
+priority = 5
+
+# MountChanged: the ride edge, either way (K 30 s, 1.0).
+[[rule]]
+id = "mount_changed"
+emits = "MountChanged"
+subjects = { kinds = ["player"] }
+signal = "riding"
+detect = { kind = "changed_stable", stable_ms = 0 }
+class = "K"
+key = "mount"
+ttl_s = 30
+confidence = 1.0
+audience = { radius = "witness" }
+priority = 60
+
+# JourneyChanged: player.ng_lvl changed (P, 1.0).
+[[rule]]
+id = "journey_changed"
+emits = "JourneyChanged"
+subjects = { kinds = ["player"] }
+signal = "ng_lvl"
+detect = { kind = "changed_stable", stable_ms = 0 }
+class = "P"
+key = "journey:{ng_lvl}"
+confidence = 1.0
+audience = { radius = "none" }
+priority = 1

@@ -1,0 +1,791 @@
+{
+  "ai.budgets": {
+    "bark_live": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "32 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.9"
+        },
+        {
+          "label": "First token within",
+          "value": "1.5 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "3 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    },
+    "bark_pool": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "600 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "1"
+        },
+        {
+          "label": "First token within",
+          "value": "15 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "60 s"
+        },
+        {
+          "label": "Retries",
+          "value": "1"
+        }
+      ]
+    },
+    "dialogue": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "140 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.8"
+        },
+        {
+          "label": "First token within",
+          "value": "6 s, 10 s on a local server"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "20 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    },
+    "memory": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "500 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.3"
+        },
+        {
+          "label": "First token within",
+          "value": "20 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "60 s"
+        },
+        {
+          "label": "Retries",
+          "value": "2"
+        }
+      ]
+    },
+    "selftest": {
+      "items": [
+        {
+          "label": "Models",
+          "value": "Same as Conversation"
+        },
+        {
+          "label": "Longest answer",
+          "value": "32 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0"
+        },
+        {
+          "label": "First token within",
+          "value": "10 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "20 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    }
+  },
+  "ai.choices.bark_live": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.bark_live.fallback": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.bark_pool": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.bark_pool.fallback": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.dialogue": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.dialogue.fallback": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.memory": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.memory.fallback": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.providers": {
+    "choices": [
+      {
+        "label": "openrouter",
+        "value": "openrouter"
+      }
+    ]
+  },
+  "ai.choices.selftest": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.selftest.fallback": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.jobs": {
+    "bark_live": {
+      "tone": "ember",
+      "word": "Cooling down"
+    },
+    "bark_pool": {
+      "tone": "ember",
+      "word": "Cooling down"
+    },
+    "dialogue": {
+      "tone": "ember",
+      "word": "Cooling down"
+    },
+    "memory": {
+      "tone": "ember",
+      "word": "Cooling down"
+    },
+    "selftest": {
+      "tone": "ember",
+      "word": "Cooling down"
+    }
+  },
+  "ai.status": {
+    "sentence": "Model calls wait while you play with others online."
+  },
+  "errors": {
+    "checks": []
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": [
+      {
+        "answered": "0:11:40",
+        "id": "openrouter",
+        "jobs": "Conversation, Quick lines, Prepared lines, Memory, Self-test",
+        "state": "Cooling down, 42 s left"
+      },
+      {
+        "answered": "Not this session",
+        "id": "spare-cloud",
+        "jobs": "None",
+        "state": "Failing: it refused its key"
+      }
+    ]
+  },
+  "logs": [
+    {
+      "line": "boot pid=4242 dll=eldennet.dll probe_build=0 version_minor=1 version=dev",
+      "seq": 1,
+      "time": "0:00:00"
+    },
+    {
+      "line": "gate result=passed ms=11",
+      "seq": 2,
+      "time": "0:00:00"
+    },
+    {
+      "line": "init state=settings",
+      "seq": 3,
+      "time": "0:00:00"
+    },
+    {
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.12",
+      "seq": 4,
+      "time": "0:00:01"
+    },
+    {
+      "line": "init state=ready",
+      "seq": 5,
+      "time": "0:00:06"
+    },
+    {
+      "line": "change what=phase to=title",
+      "seq": 6,
+      "time": "0:00:06"
+    },
+    {
+      "line": "change what=phase to=in_world",
+      "seq": 7,
+      "time": "0:01:01"
+    },
+    {
+      "line": "tripped group=camera",
+      "seq": 8,
+      "time": "0:20:00"
+    },
+    {
+      "line": "change what=badge to=up",
+      "seq": 9,
+      "time": "0:21:40"
+    }
+  ],
+  "providers": {
+    "checks": [
+      {
+        "detail": "Lists 214 models, every job's model among them.",
+        "label": "openrouter",
+        "state": "pass"
+      },
+      {
+        "detail": "Refused the key.",
+        "label": "spare-cloud",
+        "state": "fail"
+      }
+    ],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": [
+      {
+        "address": "https://router.example.invalid/api/v1",
+        "id": "openrouter",
+        "json": "JSON schema",
+        "key": "set",
+        "kind": "Cloud",
+        "requests": "2",
+        "type": "OpenAI-compatible"
+      },
+      {
+        "address": "https://spare.example.invalid/v1",
+        "id": "spare-cloud",
+        "json": "JSON schema",
+        "key": "refused",
+        "kind": "Cloud",
+        "requests": "2",
+        "type": "OpenAI-compatible"
+      }
+    ]
+  },
+  "selftest": {
+    "checks": [
+      {
+        "detail": "Lists 214 models, every job's model among them.",
+        "label": "Reaches openrouter",
+        "state": "pass"
+      },
+      {
+        "detail": "Answered and streamed its reply.",
+        "label": "A short reply",
+        "state": "pass"
+      },
+      {
+        "detail": "Answered with the object asked for.",
+        "label": "An answer in JSON",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "items": [
+      {
+        "label": "Model",
+        "value": "talker-small"
+      },
+      {
+        "label": "Provider",
+        "value": "openrouter"
+      },
+      {
+        "label": "First token",
+        "value": "0.42 s"
+      },
+      {
+        "label": "Tokens per second",
+        "value": "61"
+      },
+      {
+        "label": "First page, estimated",
+        "value": "0.67 s"
+      },
+      {
+        "label": "JSON check",
+        "value": "Passed"
+      },
+      {
+        "label": "Run at",
+        "value": "0:11:30"
+      }
+    ],
+    "rows": [
+      {
+        "model": "talker-small",
+        "time": "0:10:10",
+        "verdict": "Acceptable"
+      }
+    ],
+    "sentence": "Quick: the first words of a reply come in about 0.67 s."
+  },
+  "space.state": {
+    "greyed": {}
+  },
+  "status": {
+    "items": [
+      {
+        "label": "State",
+        "value": "Dormant"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet pauses while you play with others online."
+      },
+      {
+        "label": "EldenNet",
+        "value": "0.1.0"
+      },
+      {
+        "label": "GraceUI",
+        "value": "0.2.12"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      },
+      {
+        "label": "This session",
+        "value": "1 h 5 min"
+      }
+    ],
+    "page": "system.status",
+    "reason": "EldenNet pauses while you play with others online.",
+    "tone": "glint",
+    "word": "Dormant"
+  },
+  "system.status": {
+    "checks": [
+      {
+        "detail": "Started",
+        "label": "Start",
+        "state": "pass"
+      },
+      {
+        "detail": "9600 readings so far",
+        "label": "Reading the game",
+        "state": "pass"
+      },
+      {
+        "detail": "Running",
+        "label": "The core",
+        "state": "pass"
+      },
+      {
+        "detail": "Checks the game's modules every minute",
+        "label": "Anti-cheat watch",
+        "state": "pass"
+      },
+      {
+        "detail": "Writing",
+        "label": "The log",
+        "state": "pass"
+      },
+      {
+        "detail": "Connected, version 0.2.12",
+        "label": "GraceUI",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "group",
+        "label": "Group"
+      },
+      {
+        "id": "state",
+        "label": "Self-test"
+      }
+    ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Supported",
+          "label": "Game build 3.14.15.0",
+          "state": "pass"
+        },
+        {
+          "detail": "Started by the EldenNet launcher",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.12 or later",
+          "label": "GraceUI 0.2.12",
+          "state": "pass"
+        }
+      ]
+    },
+    "items": [
+      {
+        "label": "State",
+        "value": "Dormant"
+      },
+      {
+        "label": "Why",
+        "value": "EldenNet pauses while you play with others online."
+      },
+      {
+        "label": "Start",
+        "value": "Started"
+      },
+      {
+        "label": "Game build",
+        "value": "3.14.15.0, supported"
+      },
+      {
+        "label": "Offline and solo",
+        "value": "EldenNet pauses while you play with others online."
+      },
+      {
+        "label": "What it can read",
+        "value": "10 of 11 groups have passed their self-tests"
+      }
+    ],
+    "rows": [
+      {
+        "group": "The session",
+        "state": "Passed"
+      },
+      {
+        "group": "The world",
+        "state": "Passed"
+      },
+      {
+        "group": "Combat",
+        "state": "Passed"
+      },
+      {
+        "group": "Your character",
+        "state": "Passed"
+      },
+      {
+        "group": "Progress",
+        "state": "Passed"
+      },
+      {
+        "group": "The game's text",
+        "state": "Passed"
+      },
+      {
+        "group": "The game's screens",
+        "state": "Passed"
+      },
+      {
+        "group": "Place",
+        "state": "Passed"
+      },
+      {
+        "group": "The camera",
+        "state": "Passed"
+      },
+      {
+        "group": "The game's tables",
+        "state": "Passed"
+      },
+      {
+        "group": "Statuses",
+        "state": "Not tested yet"
+      }
+    ]
+  }
+}

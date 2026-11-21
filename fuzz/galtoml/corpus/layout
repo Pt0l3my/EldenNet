@@ -1,0 +1,60 @@
+2schema = 1
+build = "9.8.7.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/9.8.7.0-ww.json"
+
+[task]
+group = { name = "Invented_Group", index = 3 }
+register_abi = { task = "rcx", instance = "rdx", group = "r8" }
+vtable_slots = 4
+run_slot = 2
+object_size = 0x40
+status = "confirmed"
+
+[class.Holder]
+rtti = "Invented::Holder"
+copy_size = 0x100
+status = "confirmed"
+[class.Holder.fields]
+vtable = { off = 0x0, ty = "ptr" }
+mode   = { off = 0x10, ty = "i32", group = "ui", range = [0, 3], enum = "mode" }
+flags  = { off = 0x14, ty = "bit", bit = 6, group = "world" }
+name   = { off = 0x20, ty = "utf16[16]", group = "player" }
+inner  = { off = 0x40, ty = "ptr", to = "Inner", group = "world" }
+slots  = { off = 0x50, ty = "array", elem = "Slot", len = 3, stride = 0x10, group = "ui" }
+when   = { off = 0x80, ty = "u64", group = "boot" }
+
+[class.Inner]
+copy_size = 0x20
+status = "confirmed"
+[class.Inner.fields]
+level = { off = 0x4, ty = "u16", group = "player", range = [1, 999] }
+
+[class.Slot]
+stride = 0x10
+status = "confirmed"
+[class.Slot.fields]
+handle = { off = 0x0, ty = "handle", group = "ui" }
+
+[enum.mode]
+values = { 0 = "Alpha", 1 = "Beta", 2 = "Gamma", 3 = "Delta", -1 = "Alpha" }
+
+[param.InventedParam]
+slot = 4
+row_size = 0x20
+status = "confirmed"
+fields = { name_id = { off = 0x0, ty = "i32" }, team = { off = 0x4, ty = "u8" } }
+
+[fmg]
+indexing = "flat"
+group_stride = 12
+status = "confirmed"
+
+[dlrf]
+name_ptr_off = 0x8
+status = "confirmed"
+
+[selftest]
+npc_name_ids = [101, 102]
+place_name_ids = []
+npc_param_ids = [7]

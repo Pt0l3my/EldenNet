@@ -1,0 +1,720 @@
+# SPDX-License-Identifier: MIT
+# EldenNet's space (PAGES §2; GraceUI's G20, D160 and eldennet-changes §19): its rail, pages, topics, commands and
+# settings, in GraceUI's page format. tools/pages/build.py turns it into the protocol's JSON (pages.json and
+# settings.json beside this file) and into src/en-overlay/src/space_data.cpp, which eldennet.dll hands to GraceUI at
+# register_pages; GraceUI's own lint checks it in CTest (en_pages_lint, from a pinned GraceUI).
+#
+# The first slice (roadmap S11.4.a): Home and System as far as v0.1 has data, and Settings › Developer, the home of the
+# developer settings v0.1 reads (PAGES §4.5). The second: AI's Providers, Models and Self-test (PAGES §4.6.2), as far as
+# the engine has them: the presets of O88 and their providers, the providers' health, and the model list and the
+# self-test as long commands. The third, on GraceUI 0.2.8's protocol 1.2 (D192 to D196, G34): a Remove and a key on each
+# provider's row, a small form for a provider of one's own, and a model picker for each job, its choices what the job's
+# provider lists. The fourth, on GraceUI 0.2.9 (D197, D198): a provider picker for each job, a key's Refused and Not
+# needed, and the changed mark of a job's rows only where the player's providers file holds a pick for it. The fifth, on
+# GraceUI 0.2.12 (D202, protocol 1.3): AI › Models as one card per job, each a section with the job's slot as its chip,
+# its state as its live status, its provider, model and fallback, and its fixed budgets.
+# The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
+# and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
+# (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
+
+[space]
+id = "eldennet"
+name = "EldenNet"
+settings_schema = 2
+commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
+            "providers.key"]
+
+# ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
+# member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
+
+[[topic]]
+id = "settings"
+shape = "state"
+
+[[topic]]
+id = "status"
+shape = "state"
+
+[[topic]]
+id = "errors"
+shape = "state"
+
+[[topic]]
+id = "system.status"
+shape = "state"
+
+[[topic]]
+id = "logs"
+shape = "stream"
+ring = 500
+
+# The AI pages' (GraceUI DESIGN §6.5's `providers`, `health` and `selftest`; `ai.status`, the cause every AI page leads
+# with (PAGES §4.4), is EldenNet's own: one body per topic, Q4 of the first slice). Models' cards read two of their own,
+# a member per job: `ai.jobs`, each card's live status ({word, tone}, GraceUI D202), and `ai.budgets`, each card's
+# fixed budgets (D185's field).
+
+[[topic]]
+id = "ai.status"
+shape = "state"
+
+[[topic]]
+id = "providers"
+shape = "state"
+
+[[topic]]
+id = "health"
+shape = "state"
+
+[[topic]]
+id = "ai.jobs"
+shape = "state"
+
+[[topic]]
+id = "ai.budgets"
+shape = "state"
+
+[[topic]]
+id = "selftest"
+shape = "state"
+
+# Each job's model picker's choices (GraceUI D193): what the job's provider listed last, as {"choices": [...]}; each
+# job's fallback picker's, what its fallback's provider listed; and every provider picker's: the providers of
+# providers.toml whose key was not refused.
+
+[[topic]]
+id = "ai.choices.dialogue"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_live"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_pool"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.memory"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.selftest"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.providers"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.dialogue.fallback"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_live.fallback"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_pool.fallback"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.memory.fallback"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.selftest.fallback"
+shape = "state"
+
+# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 Home and the AI pages are
+# greyed with the banner's words (PAGES §4.4, O95).
+
+[[topic]]
+id = "space.state"
+shape = "state"
+
+# ---- The rail (PAGES §4.2.1), in its order.
+
+[[category]]
+id = "home"
+name = "Home"
+pages = ["home"]
+
+[[category]]
+id = "ai"
+name = "AI"
+pages = ["ai.providers", "ai.models", "ai.selftest"]
+
+[[category]]
+id = "voice"
+name = "Voice"
+pages = []
+
+[[category]]
+id = "characters"
+name = "Characters"
+pages = []
+
+[[category]]
+id = "map"
+name = "Map"
+pages = []
+
+[[category]]
+id = "history"
+name = "History"
+pages = []
+
+[[category]]
+id = "behaviour"
+name = "Behaviour"
+pages = []
+
+[[category]]
+id = "system"
+name = "System"
+pages = ["system.status", "system.logs"]
+
+[[category]]
+id = "tools"
+name = "Tools"
+pages = []
+
+[[category]]
+id = "settings"
+name = "Settings"
+pages = ["settings.developer"]
+
+# ---- Settings: those v0.1 reads whose home is on these pages (PAGES §4.5's debug.*). Their effect is v0.1's own: the
+# F11 view is made at the connect and the recorder opened at the core's start, so both wait for the next launch, and
+# the log's detail changes at once (PAGES §4.1 item 3: a row says whether it works now).
+
+[[setting]]
+key = "debug.panel"
+type = "bool"
+default = false
+label = "Developer views"
+help = "Turns on the F11 debug view in game, for testers. It shows EldenNet's own numbers and words, never story or chat. Takes effect the next time the game starts."
+synonyms = ["debug", "F11", "developer", "view"]
+home = "settings.developer"
+effect = "next_launch"
+availability = "live"
+
+[[setting]]
+key = "debug.record_sessions"
+type = "bool"
+default = false
+label = "Record sessions"
+help = "Keeps a recording of each session's numbers, with no text and no names, for the developers' replay tools. Takes effect the next time the game starts."
+synonyms = ["recording", "record", "replay"]
+home = "settings.developer"
+effect = "next_launch"
+availability = "live"
+
+[[setting]]
+key = "debug.log_level"
+type = "choice"
+default = "info"
+choices = [{ value = "error", label = "Errors only" }, { value = "warn", label = "Warnings" }, { value = "info", label = "Normal" }, { value = "debug", label = "Detailed" }]
+label = "Log detail"
+help = "How much EldenNet writes to its log. Detailed helps with a bug report; Normal is enough otherwise. Changes at once."
+synonyms = ["log", "logging", "verbose", "level"]
+home = "settings.developer"
+effect = "now"
+availability = "live"
+
+# The AI pages' settings: the preset in use, providers.toml's `preset`, and each job's provider, model and fallback, its
+# `[slots.<slot>]` (PAGES §4.5's row per slot, home AI › Models, on the job's card): pickers (GraceUI D193), a
+# provider's choices the providers of providers.toml, a model's what its provider lists, their values the job's now,
+# the preset's or the ones chosen. A provider chosen that does not list the job's model (or its fallback) waits for one
+# of its models. A reset of the job's provider or model clears the job's pick, its fallback with it, so the preset's
+# hold again; a reset of either fallback row clears the fallback alone; a picker's Default (D199) is the row's reset.
+# The job's rows count as changed only while providers.toml holds a model for it, its fallback rows while it holds a
+# fallback (D198), so their help says what Default means. A fallback is chosen only for a job with a model of its own.
+# Their effect is the next request: en-llm takes a changed configuration at once. Keys are no settings rows since
+# GraceUI 0.2.8: each is its provider's row secret on Providers (D194). The local presets wait for Find local servers.
+
+[[setting]]
+key = "ai.preset"
+type = "choice"
+default = "cloud-budget"
+choices = [{ value = "cloud-budget", label = "Cloud budget, on OpenRouter" }, { value = "cloud-nanogpt", label = "Cloud, on NanoGPT" }, { value = "custom", label = "Custom" }]
+label = "Preset"
+help = "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its key goes."
+synonyms = ["preset", "models", "cloud", "openrouter", "nanogpt"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.dialogue.provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Conversation's provider"
+help = "Where Conversation's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider."
+synonyms = ["provider", "conversation", "dialogue", "chat"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.dialogue.model"
+type = "text"
+choices_from = "ai.choices.dialogue"
+default = ""
+label = "Conversation's model"
+help = "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's provider, model and fallback again. Default: the preset's model."
+synonyms = ["model", "conversation", "dialogue", "chat"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.dialogue.fallback_provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Conversation's fallback provider"
+help = "Where Conversation's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none."
+synonyms = ["fallback", "provider", "conversation", "dialogue", "chat"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.dialogue.fallback"
+type = "text"
+choices_from = "ai.choices.dialogue.fallback"
+default = ""
+label = "Conversation's fallback"
+help = "The model that stands in when Conversation's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none."
+synonyms = ["fallback", "backup", "model", "conversation", "dialogue", "chat"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_live.provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Quick lines' provider"
+help = "Where Quick lines' calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider."
+synonyms = ["provider", "quick lines", "barks", "call-outs"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_live.model"
+type = "text"
+choices_from = "ai.choices.bark_live"
+default = ""
+label = "Quick lines' model"
+help = "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's provider, model and fallback again. Default: the preset's model."
+synonyms = ["model", "quick lines", "barks", "call-outs"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_live.fallback_provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Quick lines' fallback provider"
+help = "Where Quick lines' fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none."
+synonyms = ["fallback", "provider", "quick lines", "barks", "call-outs"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_live.fallback"
+type = "text"
+choices_from = "ai.choices.bark_live.fallback"
+default = ""
+label = "Quick lines' fallback"
+help = "The model that stands in when Quick lines' model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none."
+synonyms = ["fallback", "backup", "model", "quick lines", "barks", "call-outs"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_pool.provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Prepared lines' provider"
+help = "Where Prepared lines' calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider."
+synonyms = ["provider", "prepared lines", "pool", "batches"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_pool.model"
+type = "text"
+choices_from = "ai.choices.bark_pool"
+default = ""
+label = "Prepared lines' model"
+help = "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's provider, model and fallback again. Default: the preset's model."
+synonyms = ["model", "prepared lines", "pool", "batches"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_pool.fallback_provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Prepared lines' fallback provider"
+help = "Where Prepared lines' fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none."
+synonyms = ["fallback", "provider", "prepared lines", "pool", "batches"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_pool.fallback"
+type = "text"
+choices_from = "ai.choices.bark_pool.fallback"
+default = ""
+label = "Prepared lines' fallback"
+help = "The model that stands in when Prepared lines' model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none."
+synonyms = ["fallback", "backup", "model", "prepared lines", "pool", "batches"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.memory.provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Memory's provider"
+help = "Where Memory's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider."
+synonyms = ["provider", "memory", "journal"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.memory.model"
+type = "text"
+choices_from = "ai.choices.memory"
+default = ""
+label = "Memory's model"
+help = "The model that writes what characters remember of what happened. Reset it to use the preset's provider, model and fallback again. Default: the preset's model."
+synonyms = ["model", "memory", "journal"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.memory.fallback_provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Memory's fallback provider"
+help = "Where Memory's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none."
+synonyms = ["fallback", "provider", "memory", "journal"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.memory.fallback"
+type = "text"
+choices_from = "ai.choices.memory.fallback"
+default = ""
+label = "Memory's fallback"
+help = "The model that stands in when Memory's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none."
+synonyms = ["fallback", "backup", "model", "memory", "journal"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.selftest.provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Self-test's provider"
+help = "Where Self-test's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider."
+synonyms = ["provider", "self-test", "test"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.selftest.model"
+type = "text"
+choices_from = "ai.choices.selftest"
+default = ""
+label = "Self-test's model"
+help = "The model the self-test measures. Reset it to use the preset's provider, model and fallback again. Default: the preset's model."
+synonyms = ["model", "self-test", "test"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.selftest.fallback_provider"
+type = "text"
+choices_from = "ai.choices.providers"
+default = ""
+label = "Self-test's fallback provider"
+help = "Where Self-test's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none."
+synonyms = ["fallback", "provider", "self-test", "test"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.selftest.fallback"
+type = "text"
+choices_from = "ai.choices.selftest.fallback"
+default = ""
+label = "Self-test's fallback"
+help = "The model that stands in when Self-test's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none."
+synonyms = ["fallback", "backup", "model", "self-test", "test"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+# ---- Pages.
+
+[[page]]
+id = "home"
+category = "home"
+name = "Home"
+description = "Whether EldenNet is working on this game, and what to do if it is not."
+increment = "0.1"
+related = ["system.status", "system.logs"]
+help.purpose = "See at a glance whether EldenNet is working, and what to do when something is wrong."
+help.steps = ["Read the Status card: its first line says how EldenNet stands, the next one why.", "Look at Problems: each says what went wrong and what to do about it.", "Open System for the details: the start, EldenNet's parts and its log."]
+
+[[page.sections]]
+id = "status"
+title = "Status"
+blocks = [{ kind = "component", component = "key_value_list", topic = "status" }]
+
+[[page.sections]]
+id = "problems"
+title = "Problems"
+blocks = [{ kind = "component", component = "check_list", topic = "errors", props = { empty = "No problems." } }]
+
+[[page]]
+id = "system.status"
+category = "system"
+name = "Status"
+description = "Whether EldenNet is healthy on this PC and game build, and if not, why."
+increment = "0.1"
+related = ["system.logs", "home"]
+help.purpose = "Check, part by part, whether EldenNet runs as it should on this game build."
+help.steps = ["On Health, read the state and its reason, then whether this game build is supported.", "Look down EldenNet's parts: each says whether it runs and what it is doing.", "On Compatibility, check the versions of EldenNet and GraceUI, and how the game was started."]
+
+[[page.tabs]]
+id = "health"
+name = "Health"
+sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status", props = { empty = "Each group appears here after EldenNet's first reading of the game." } }] }]
+
+[[page.tabs]]
+id = "compatibility"
+name = "Compatibility"
+sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.status", props = { field = "compatibility" } }] }]
+
+[[page]]
+id = "system.logs"
+category = "system"
+name = "Logs"
+description = "EldenNet's own log of this session, with nothing personal in it."
+increment = "0.1"
+related = ["system.status", "settings.developer"]
+help.purpose = "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only."
+help.steps = ["Read the newest lines at the top of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
+
+[[page.sections]]
+id = "log"
+title = "Log"
+blocks = [{ kind = "component", component = "log_tail", topic = "logs", props = { newest_first = true } }]
+
+[[page.sections]]
+id = "detail"
+title = "Log detail"
+blocks = [{ kind = "shortcuts", keys = ["debug.log_level"] }]
+
+[[page]]
+id = "settings.developer"
+category = "settings"
+name = "Developer"
+description = "Options for testing EldenNet and reporting its problems."
+increment = "0.1"
+related = ["system.logs", "system.status"]
+help.purpose = "Turn on what helps EldenNet's testers: the debug view, recordings of each session and a more detailed log."
+help.steps = ["Turn on Developer views for the F11 debug view, from the next start of the game.", "Turn on Record sessions to keep each session's numbers for the developers' tools.", "Choose how much the log writes; System › Logs shows it."]
+
+[[page.sections]]
+id = "developer"
+title = "Developer"
+blocks = [{ kind = "settings", keys = ["debug.panel", "debug.record_sessions", "debug.log_level"] }]
+
+# ---- AI (PAGES §4.6.2). Each page leads with what the AI can do now and why (PAGES §4.4: L2, no healthy model, or the
+# gate), from `ai.status`. Increment 0.2, the AI pages' (PAGES §4.6.2).
+
+[[page]]
+id = "ai.providers"
+category = "ai"
+name = "Providers"
+description = "Where EldenNet's model calls go, with whose key, and whether each answers."
+increment = "0.2"
+related = ["ai.models", "ai.selftest"]
+help.purpose = "Set up where EldenNet's model calls go: your preset's provider or one of your own, and each one's key."
+help.steps = ["Press Add the preset's provider, or fill in a name and a base URL under Your own provider.", "Paste each provider's key on its row. It is kept on this PC and never shown again.", "Press List models to check that every provider answers and serves the models your jobs use.", "Remove a provider no job uses with Remove on its row; its key goes with it."]
+
+[[page.actions]]
+id = "add"
+label = "Add the preset's provider"
+command = "providers.add"
+tone = "primary"
+
+[[page.actions]]
+id = "list"
+label = "List models"
+command = "models.list"
+tone = "secondary"
+
+[[page.sections]]
+id = "now"
+title = "Now"
+blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.status" }]
+
+[[page.sections]]
+id = "providers"
+title = "Providers"
+description = "Each key is written to this PC only, and never shown again."
+blocks = [{ kind = "component", component = "table", topic = "providers", props = { empty = "No provider yet: add the preset's provider, or one of your own below." }, row_actions = [{ id = "remove", label = "Remove", command = "providers.remove", key = "id", tone = "destructive", confirm = "Remove this provider and its key? If you add it back, you must paste its key again." }], row_secret = { column = "key", command = "providers.key", key = "id" } }, { kind = "shortcuts", keys = ["ai.preset"] }]
+
+[[page.sections]]
+id = "own"
+title = "Your own provider"
+description = "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key."
+blocks = [{ kind = "form", command = "providers.add", fields = [{ id = "name", label = "Name", max = 32 }, { id = "base_url", label = "Base URL", max = 200 }], submit = "Add" }]
+
+[[page.sections]]
+id = "listed"
+title = "Models listed"
+blocks = [{ kind = "component", component = "check_list", topic = "providers", props = { empty = "Press List models to ask each provider for its models." } }]
+
+[[page.sections]]
+id = "health"
+title = "Health"
+blocks = [{ kind = "component", component = "table", topic = "health", props = { empty = "No provider yet." } }]
+
+[[page]]
+id = "ai.models"
+category = "ai"
+name = "Models"
+description = "Which model does each job, and the preset that sets them all."
+increment = "0.2"
+related = ["ai.providers", "ai.selftest"]
+help.purpose = "See which model does each job, choose the preset that sets them all, and choose a job's provider, model and fallback yourself."
+help.steps = ["Choose a preset. Cloud budget, on OpenRouter, suits most players.", "Read each job's card: its state, its provider, model and fallback, and its limits. A job with no model of its own uses Conversation's.", "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Its fallback likewise. Reset a row, or choose Default, to use the preset's again.", "Open Self-test to check that the models answer quickly enough."]
+
+[[page.sections]]
+id = "now"
+title = "Now"
+blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.status" }]
+
+[[page.sections]]
+id = "preset"
+title = "Preset"
+blocks = [{ kind = "settings", keys = ["ai.preset"] }]
+
+# One card per job (PAGES §4.6.2; GraceUI D202): the player's label as its title, the slot as its chip, the job's state
+# as its live status, its four rows, and its fixed budgets read-only. The blocks come before the new fields, in the
+# schema's order (WHY§298).
+
+[[page.sections]]
+id = "dialogue"
+title = "Conversation"
+description = "Replies when you talk to a character. Its limits are the same in every preset."
+blocks = [{ kind = "settings", keys = ["slots.dialogue.provider", "slots.dialogue.model", "slots.dialogue.fallback_provider", "slots.dialogue.fallback"] }, { kind = "component", component = "key_value_list", topic = "ai.budgets", props = { field = "dialogue" } }]
+chip = "dialogue"
+status = { topic = "ai.jobs", field = "dialogue" }
+
+[[page.sections]]
+id = "bark_live"
+title = "Quick lines"
+description = "Short lines said in the moment, such as a call-out in a fight. Its limits are the same in every preset."
+blocks = [{ kind = "settings", keys = ["slots.bark_live.provider", "slots.bark_live.model", "slots.bark_live.fallback_provider", "slots.bark_live.fallback"] }, { kind = "component", component = "key_value_list", topic = "ai.budgets", props = { field = "bark_live" } }]
+chip = "bark_live"
+status = { topic = "ai.jobs", field = "bark_live" }
+
+[[page.sections]]
+id = "bark_pool"
+title = "Prepared lines"
+description = "Lines prepared ahead of time, in batches, while nothing waits for them. Its limits are the same in every preset."
+blocks = [{ kind = "settings", keys = ["slots.bark_pool.provider", "slots.bark_pool.model", "slots.bark_pool.fallback_provider", "slots.bark_pool.fallback"] }, { kind = "component", component = "key_value_list", topic = "ai.budgets", props = { field = "bark_pool" } }]
+chip = "bark_pool"
+status = { topic = "ai.jobs", field = "bark_pool" }
+
+[[page.sections]]
+id = "memory"
+title = "Memory"
+description = "Writes what characters remember of what happened. Its limits are the same in every preset."
+blocks = [{ kind = "settings", keys = ["slots.memory.provider", "slots.memory.model", "slots.memory.fallback_provider", "slots.memory.fallback"] }, { kind = "component", component = "key_value_list", topic = "ai.budgets", props = { field = "memory" } }]
+chip = "memory"
+status = { topic = "ai.jobs", field = "memory" }
+
+[[page.sections]]
+id = "selftest"
+title = "Self-test"
+description = "What the self-test measures. Its limits are the same in every preset."
+blocks = [{ kind = "settings", keys = ["slots.selftest.provider", "slots.selftest.model", "slots.selftest.fallback_provider", "slots.selftest.fallback"] }, { kind = "component", component = "key_value_list", topic = "ai.budgets", props = { field = "selftest" } }]
+chip = "selftest"
+status = { topic = "ai.jobs", field = "selftest" }
+
+[[page]]
+id = "ai.selftest"
+category = "ai"
+name = "Self-test"
+description = "Is the model fast and well-formed enough for conversation?"
+increment = "0.2"
+related = ["ai.models", "ai.providers"]
+help.purpose = "Check that your provider answers, how quickly, and that its answers come in the form EldenNet needs."
+help.steps = ["Press Run self-test. It takes a few seconds, and works at the title screen too.", "Read the verdict: quick, acceptable or slow, for the first words of a reply.", "Look down the steps: each says what it checked, and what went wrong if it failed."]
+
+[[page.actions]]
+id = "run"
+label = "Run self-test"
+command = "selftest.run"
+tone = "primary"
+
+[[page.sections]]
+id = "now"
+title = "Now"
+blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.status" }]
+
+[[page.sections]]
+id = "verdict"
+title = "Verdict"
+blocks = [{ kind = "component", component = "computed_sentence", topic = "selftest", props = { empty = "Press Run self-test to check your provider." } }]
+
+[[page.sections]]
+id = "steps"
+title = "Steps"
+blocks = [{ kind = "component", component = "check_list", topic = "selftest", props = { empty = "Each step appears here once the self-test has run." } }]
+
+[[page.sections]]
+id = "figures"
+title = "Figures"
+blocks = [{ kind = "component", component = "key_value_list", topic = "selftest", props = { empty = "The figures appear here once the self-test has run." } }]
+
+[[page.sections]]
+id = "earlier"
+title = "Earlier runs this session"
+blocks = [{ kind = "component", component = "table", topic = "selftest", props = { empty = "No earlier run this session." } }]

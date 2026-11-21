@@ -1,0 +1,38 @@
+2schema = 2
+build = "9.8.7.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/invented.md"
+[provenance]
+method = "own-derivation"
+tool = "0.1.0-test.1"
+tool_sha256 = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+round = "l3"
+date = "2026-11-21"
+[item.lantern]
+id = 1001
+kind = "static"
+rva = 0x1008
+found_by = ["accessor", "instance_class"]
+witnesses = [0x1010]
+checks = ["placement", "agree", "witness"]
+status = "confirmed"
+[item.ring_bell]
+id = 2001
+kind = "function"
+rva = 0x1020
+length = 16
+found_by = ["relation"]
+digest = "0123456789abcdef0123456789abcdef"
+verdict = "removes"
+[item.walker]
+id = 3001
+kind = "class"
+vtables = [0x1040, 0x1060]
+found_by = ["class"]
+[item.rota]
+id = 4001
+kind = "table"
+rva = 0x1080
+stride = 8
+count = 4
+found_by = ["table"]

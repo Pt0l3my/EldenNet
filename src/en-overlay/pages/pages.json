@@ -1,0 +1,807 @@
+{
+  "space": "eldennet",
+  "name": "EldenNet",
+  "minor": 3,
+  "categories": [
+    {
+      "id": "home",
+      "name": "Home",
+      "pages": [
+        "home"
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI",
+      "pages": [
+        "ai.providers",
+        "ai.models",
+        "ai.selftest"
+      ]
+    },
+    {
+      "id": "voice",
+      "name": "Voice",
+      "pages": []
+    },
+    {
+      "id": "characters",
+      "name": "Characters",
+      "pages": []
+    },
+    {
+      "id": "map",
+      "name": "Map",
+      "pages": []
+    },
+    {
+      "id": "history",
+      "name": "History",
+      "pages": []
+    },
+    {
+      "id": "behaviour",
+      "name": "Behaviour",
+      "pages": []
+    },
+    {
+      "id": "system",
+      "name": "System",
+      "pages": [
+        "system.status",
+        "system.logs"
+      ]
+    },
+    {
+      "id": "tools",
+      "name": "Tools",
+      "pages": []
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "pages": [
+        "settings.developer"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "home",
+      "category": "home",
+      "name": "Home",
+      "description": "Whether EldenNet is working on this game, and what to do if it is not.",
+      "help": {
+        "purpose": "See at a glance whether EldenNet is working, and what to do when something is wrong.",
+        "steps": [
+          "Read the Status card: its first line says how EldenNet stands, the next one why.",
+          "Look at Problems: each says what went wrong and what to do about it.",
+          "Open System for the details: the start, EldenNet's parts and its log."
+        ]
+      },
+      "related": [
+        "system.status",
+        "system.logs"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "status",
+          "title": "Status",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "status"
+            }
+          ]
+        },
+        {
+          "id": "problems",
+          "title": "Problems",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "errors",
+              "props": {
+                "empty": "No problems."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.status",
+      "category": "system",
+      "name": "Status",
+      "description": "Whether EldenNet is healthy on this PC and game build, and if not, why.",
+      "help": {
+        "purpose": "Check, part by part, whether EldenNet runs as it should on this game build.",
+        "steps": [
+          "On Health, read the state and its reason, then whether this game build is supported.",
+          "Look down EldenNet's parts: each says whether it runs and what it is doing.",
+          "On Compatibility, check the versions of EldenNet and GraceUI, and how the game was started."
+        ]
+      },
+      "related": [
+        "system.logs",
+        "home"
+      ],
+      "increment": "0.1",
+      "tabs": [
+        {
+          "id": "health",
+          "name": "Health",
+          "sections": [
+            {
+              "id": "health",
+              "title": "Health",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "key_value_list",
+                  "topic": "system.status"
+                }
+              ]
+            },
+            {
+              "id": "parts",
+              "title": "EldenNet's parts",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "check_list",
+                  "topic": "system.status"
+                }
+              ]
+            },
+            {
+              "id": "reads",
+              "title": "What EldenNet reads",
+              "description": "Each group of the game's state EldenNet reads, with its self-test.",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "table",
+                  "topic": "system.status",
+                  "props": {
+                    "empty": "Each group appears here after EldenNet's first reading of the game."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "compatibility",
+          "name": "Compatibility",
+          "sections": [
+            {
+              "id": "versions",
+              "title": "Versions and start",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "check_list",
+                  "topic": "system.status",
+                  "props": {
+                    "field": "compatibility"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "system.logs",
+      "category": "system",
+      "name": "Logs",
+      "description": "EldenNet's own log of this session, with nothing personal in it.",
+      "help": {
+        "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
+        "steps": [
+          "Read the newest lines at the top of the log.",
+          "Change how much it writes with Log detail; the change applies at once.",
+          "Keep the page open while you play: new lines join the log as they are written."
+        ]
+      },
+      "related": [
+        "system.status",
+        "settings.developer"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "log",
+          "title": "Log",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "log_tail",
+              "topic": "logs",
+              "props": {
+                "newest_first": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "detail",
+          "title": "Log detail",
+          "blocks": [
+            {
+              "kind": "shortcuts",
+              "keys": [
+                "debug.log_level"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "settings.developer",
+      "category": "settings",
+      "name": "Developer",
+      "description": "Options for testing EldenNet and reporting its problems.",
+      "help": {
+        "purpose": "Turn on what helps EldenNet's testers: the debug view, recordings of each session and a more detailed log.",
+        "steps": [
+          "Turn on Developer views for the F11 debug view, from the next start of the game.",
+          "Turn on Record sessions to keep each session's numbers for the developers' tools.",
+          "Choose how much the log writes; System › Logs shows it."
+        ]
+      },
+      "related": [
+        "system.logs",
+        "system.status"
+      ],
+      "increment": "0.1",
+      "sections": [
+        {
+          "id": "developer",
+          "title": "Developer",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "debug.panel",
+                "debug.record_sessions",
+                "debug.log_level"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai.providers",
+      "category": "ai",
+      "name": "Providers",
+      "description": "Where EldenNet's model calls go, with whose key, and whether each answers.",
+      "help": {
+        "purpose": "Set up where EldenNet's model calls go: your preset's provider or one of your own, and each one's key.",
+        "steps": [
+          "Press Add the preset's provider, or fill in a name and a base URL under Your own provider.",
+          "Paste each provider's key on its row. It is kept on this PC and never shown again.",
+          "Press List models to check that every provider answers and serves the models your jobs use.",
+          "Remove a provider no job uses with Remove on its row; its key goes with it."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "ai.selftest"
+      ],
+      "increment": "0.2",
+      "actions": [
+        {
+          "id": "add",
+          "label": "Add the preset's provider",
+          "command": "providers.add",
+          "tone": "primary"
+        },
+        {
+          "id": "list",
+          "label": "List models",
+          "command": "models.list",
+          "tone": "secondary"
+        }
+      ],
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "providers",
+          "title": "Providers",
+          "description": "Each key is written to this PC only, and never shown again.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "providers",
+              "props": {
+                "empty": "No provider yet: add the preset's provider, or one of your own below."
+              },
+              "row_actions": [
+                {
+                  "id": "remove",
+                  "label": "Remove",
+                  "command": "providers.remove",
+                  "key": "id",
+                  "tone": "destructive",
+                  "confirm": "Remove this provider and its key? If you add it back, you must paste its key again."
+                }
+              ],
+              "row_secret": {
+                "column": "key",
+                "command": "providers.key",
+                "key": "id"
+              }
+            },
+            {
+              "kind": "shortcuts",
+              "keys": [
+                "ai.preset"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "own",
+          "title": "Your own provider",
+          "description": "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key.",
+          "blocks": [
+            {
+              "kind": "form",
+              "command": "providers.add",
+              "fields": [
+                {
+                  "id": "name",
+                  "label": "Name",
+                  "max": 32
+                },
+                {
+                  "id": "base_url",
+                  "label": "Base URL",
+                  "max": 200
+                }
+              ],
+              "submit": "Add"
+            }
+          ]
+        },
+        {
+          "id": "listed",
+          "title": "Models listed",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "providers",
+              "props": {
+                "empty": "Press List models to ask each provider for its models."
+              }
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "health",
+              "props": {
+                "empty": "No provider yet."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai.models",
+      "category": "ai",
+      "name": "Models",
+      "description": "Which model does each job, and the preset that sets them all.",
+      "help": {
+        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's provider, model and fallback yourself.",
+        "steps": [
+          "Choose a preset. Cloud budget, on OpenRouter, suits most players.",
+          "Read each job's card: its state, its provider, model and fallback, and its limits. A job with no model of its own uses Conversation's.",
+          "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Its fallback likewise. Reset a row, or choose Default, to use the preset's again.",
+          "Open Self-test to check that the models answer quickly enough."
+        ]
+      },
+      "related": [
+        "ai.providers",
+        "ai.selftest"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "preset",
+          "title": "Preset",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "ai.preset"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "dialogue",
+          "title": "Conversation",
+          "description": "Replies when you talk to a character. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.dialogue.provider",
+                "slots.dialogue.model",
+                "slots.dialogue.fallback_provider",
+                "slots.dialogue.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "dialogue"
+              }
+            }
+          ],
+          "chip": "dialogue",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "dialogue"
+          }
+        },
+        {
+          "id": "bark_live",
+          "title": "Quick lines",
+          "description": "Short lines said in the moment, such as a call-out in a fight. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.bark_live.provider",
+                "slots.bark_live.model",
+                "slots.bark_live.fallback_provider",
+                "slots.bark_live.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "bark_live"
+              }
+            }
+          ],
+          "chip": "bark_live",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "bark_live"
+          }
+        },
+        {
+          "id": "bark_pool",
+          "title": "Prepared lines",
+          "description": "Lines prepared ahead of time, in batches, while nothing waits for them. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.bark_pool.provider",
+                "slots.bark_pool.model",
+                "slots.bark_pool.fallback_provider",
+                "slots.bark_pool.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "bark_pool"
+              }
+            }
+          ],
+          "chip": "bark_pool",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "bark_pool"
+          }
+        },
+        {
+          "id": "memory",
+          "title": "Memory",
+          "description": "Writes what characters remember of what happened. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.memory.provider",
+                "slots.memory.model",
+                "slots.memory.fallback_provider",
+                "slots.memory.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "memory"
+              }
+            }
+          ],
+          "chip": "memory",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "memory"
+          }
+        },
+        {
+          "id": "selftest",
+          "title": "Self-test",
+          "description": "What the self-test measures. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.selftest.provider",
+                "slots.selftest.model",
+                "slots.selftest.fallback_provider",
+                "slots.selftest.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "selftest"
+              }
+            }
+          ],
+          "chip": "selftest",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "selftest"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ai.selftest",
+      "category": "ai",
+      "name": "Self-test",
+      "description": "Is the model fast and well-formed enough for conversation?",
+      "help": {
+        "purpose": "Check that your provider answers, how quickly, and that its answers come in the form EldenNet needs.",
+        "steps": [
+          "Press Run self-test. It takes a few seconds, and works at the title screen too.",
+          "Read the verdict: quick, acceptable or slow, for the first words of a reply.",
+          "Look down the steps: each says what it checked, and what went wrong if it failed."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "ai.providers"
+      ],
+      "increment": "0.2",
+      "actions": [
+        {
+          "id": "run",
+          "label": "Run self-test",
+          "command": "selftest.run",
+          "tone": "primary"
+        }
+      ],
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "verdict",
+          "title": "Verdict",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "selftest",
+              "props": {
+                "empty": "Press Run self-test to check your provider."
+              }
+            }
+          ]
+        },
+        {
+          "id": "steps",
+          "title": "Steps",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "selftest",
+              "props": {
+                "empty": "Each step appears here once the self-test has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "figures",
+          "title": "Figures",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "selftest",
+              "props": {
+                "empty": "The figures appear here once the self-test has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "earlier",
+          "title": "Earlier runs this session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "selftest",
+              "props": {
+                "empty": "No earlier run this session."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "topics": [
+    {
+      "id": "settings",
+      "shape": "state"
+    },
+    {
+      "id": "status",
+      "shape": "state"
+    },
+    {
+      "id": "errors",
+      "shape": "state"
+    },
+    {
+      "id": "system.status",
+      "shape": "state"
+    },
+    {
+      "id": "logs",
+      "shape": "stream",
+      "ring": 500
+    },
+    {
+      "id": "ai.status",
+      "shape": "state"
+    },
+    {
+      "id": "providers",
+      "shape": "state"
+    },
+    {
+      "id": "health",
+      "shape": "state"
+    },
+    {
+      "id": "ai.jobs",
+      "shape": "state"
+    },
+    {
+      "id": "ai.budgets",
+      "shape": "state"
+    },
+    {
+      "id": "selftest",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.dialogue",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_live",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_pool",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.memory",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.selftest",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.providers",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.dialogue.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_live.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_pool.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.memory.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.selftest.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "space.state",
+      "shape": "state"
+    }
+  ],
+  "commands": [
+    "settings.set",
+    "settings.reset",
+    "selftest.run",
+    "models.list",
+    "providers.add",
+    "providers.remove",
+    "providers.key"
+  ]
+}

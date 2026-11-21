@@ -1,0 +1,40 @@
+3schema = 1
+
+
+[[id]]
+n = 1001
+label = "module_handle"
+kind = "static"
+means = "A slot that holds the game's own module handle once the game is up: non-null means ready."
+needs = "boot"
+required = false
+
+[[id]]
+n = 1002
+label = "save_data"
+kind = "static"
+means = "The slot of the object that holds the playthrough's running data: play time, deaths, the player's sheet and the settings."
+needs = "player"
+required = true
+
+[[id]]
+n = 1003
+label = "game_state"
+kind = "static"
+means = "The slot of the object that holds the save slot in use and the talk camera's id."
+needs = "player"
+required = true
+
+[[id]]
+n = 1004
+label = "field_area"
+kind = "static"
+means = "The slot of the object that holds the id of the place the player is in."
+needs = "place"
+required = false
+
+[[id]]
+n = 1005
+label = "task_hub"
+kind = "static"
+means = "The slot of the manager that owns the game's per-frame tasks."

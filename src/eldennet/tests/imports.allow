@@ -1,0 +1,208 @@
+# eldennet.dll's imports, reviewed (dll_checks.py; ARCH §12.1's `options` stage reads the release DLL's imports):
+# every function the DLL and the static C runtime (/MT) it carries may import, by DLL. Kernel32, user32 and, for
+# secrets.toml's access list, advapi32's token and ACL functions: no network imported (the AI pages' en-llm loads the
+# system's WinHTTP by its full path), no hook library or API (R12), and
+# nothing that reaches into another process (no OpenProcess, WriteProcessMemory, VirtualAllocEx or CreateRemoteThread).
+# Ours, besides the runtime's: the Toolhelp module and process lists (the anti-cheat check, R16's marker scan, the
+# parent's name), the watch block (OpenFileMappingW, MapViewOfFile, OpenEventW, SetEvent), the crash filter
+# (SetUnhandledExceptionFilter), the watcher's start (CreateProcessW), R16's mutex (CreateMutexW), the task object
+# (VirtualAlloc, VirtualProtect), ReadProcessMemory on our own process (gal.copy = "rpm", S0-D), and EnumWindows and
+# its helpers (WaitWindow). Part 12, en-overlay: graceui-sys's look for GraceUI (the Toolhelp module list,
+# GetModuleHandleExW, GetProcAddress, LoadLibraryExW on GraceUI\graceui.dll, and GetTickCount64 for its bound), and
+# ReadConsoleW, which the C runtime's scanf brings with Dear ImGui's core (its number parsing; no console is read).
+# Spike.6, the probe build: the DLL's own heap for its operator new (HeapCreate) and its walk for R1's whole-memory
+# search (HeapLock, HeapWalk, HeapUnlock; alloc_count.cpp). A function the build adds must be reviewed here before the
+# check passes.
+# The AI pages (S11.4.a's second slice) link en-llm: its handle's threads (T7–T8) bring the C++ runtime's thread
+# support, whose functions are the SRW locks, condition variables, one-time initialisation, the thread pool's timers and
+# waits that its timed waits use, and the thread functions (ExitThread, FreeLibraryAndExitThread, GetExitCodeThread,
+# ResumeThread, SwitchToThread, FlushProcessWriteBuffers, GetCurrentProcessorNumber, GetNativeSystemInfo,
+# CreateEventExW, CreateSemaphoreExW); that same object of the runtime also names CreateSymbolicLinkW, GetTempPathW and
+# Get/SetFileInformationByHandle(Ex), which no code of EldenNet's calls. Ours: GetSystemDirectoryW (en-llm's WinHTTP,
+# loaded by its full path, never imported) and DeleteFileW (secrets.toml's part file, made anew). And advapi32.dll, for
+# secrets.toml's access list (ARCH §11.5: this user alone): the process token's user and an ACL of one entry in a
+# security descriptor, nothing else of it.
+[advapi32.dll]
+AddAccessAllowedAce
+GetLengthSid
+GetTokenInformation
+InitializeAcl
+InitializeSecurityDescriptor
+OpenProcessToken
+SetSecurityDescriptorControl
+SetSecurityDescriptorDacl
+
+[kernel32.dll]
+AcquireSRWLockExclusive
+AcquireSRWLockShared
+CloseHandle
+CloseThreadpoolTimer
+CloseThreadpoolWait
+CompareStringEx
+CompareStringW
+CreateDirectoryW
+CreateEventExW
+CreateEventW
+CreateFileW
+CreateMutexW
+CreateProcessW
+CreateSemaphoreExW
+CreateSymbolicLinkW
+CreateThread
+CreateThreadpoolTimer
+CreateThreadpoolWait
+CreateToolhelp32Snapshot
+DecodePointer
+DeleteCriticalSection
+DeleteFileW
+DisableThreadLibraryCalls
+EncodePointer
+EnterCriticalSection
+EnumSystemLocalesW
+ExitProcess
+ExitThread
+FindClose
+FindFirstFileExA
+FindFirstFileExW
+FindNextFileA
+FindNextFileW
+FlushFileBuffers
+FlushProcessWriteBuffers
+FormatMessageA
+FreeEnvironmentStringsW
+FreeLibrary
+FreeLibraryAndExitThread
+FreeLibraryWhenCallbackReturns
+GetACP
+GetCPInfo
+GetCommandLineA
+GetCommandLineW
+GetConsoleCP
+GetConsoleMode
+GetCurrentProcess
+GetCurrentProcessId
+GetCurrentProcessorNumber
+GetCurrentThread
+GetCurrentThreadId
+GetCurrentThreadStackLimits
+GetDateFormatW
+GetEnvironmentStringsW
+GetEnvironmentVariableW
+GetExitCodeThread
+GetFileAttributesW
+GetFileInformationByHandleEx
+GetFileSizeEx
+GetFileType
+GetLastError
+GetLocalTime
+GetLocaleInfoEx
+GetLocaleInfoW
+GetModuleFileNameA
+GetModuleFileNameW
+GetModuleHandleExW
+GetModuleHandleW
+GetNativeSystemInfo
+GetOEMCP
+GetProcAddress
+GetProcessHeap
+GetStartupInfoW
+GetStdHandle
+GetStringTypeW
+GetSystemDirectoryW
+GetSystemTimeAsFileTime
+GetTempPathW
+GetTickCount64
+GetTimeFormatW
+GetTimeZoneInformation
+GetUserDefaultLCID
+HeapAlloc
+HeapCreate
+HeapFree
+HeapLock
+HeapQueryInformation
+HeapReAlloc
+HeapSize
+HeapUnlock
+HeapWalk
+InitOnceBeginInitialize
+InitOnceComplete
+InitOnceExecuteOnce
+InitializeCriticalSectionAndSpinCount
+InitializeCriticalSectionEx
+InitializeSListHead
+InterlockedFlushSList
+InterlockedPushEntrySList
+IsDebuggerPresent
+IsProcessorFeaturePresent
+IsValidCodePage
+IsValidLocale
+LCMapStringEx
+LCMapStringW
+LeaveCriticalSection
+LoadLibraryExW
+LocalFree
+MapViewOfFile
+Module32FirstW
+Module32NextW
+MoveFileExW
+MultiByteToWideChar
+OpenEventW
+OpenFileMappingW
+OutputDebugStringA
+OutputDebugStringW
+Process32FirstW
+Process32NextW
+QueryPerformanceCounter
+QueryPerformanceFrequency
+RaiseException
+ReadConsoleW
+ReadFile
+ReadProcessMemory
+ReleaseSRWLockExclusive
+ReleaseSRWLockShared
+ResumeThread
+RtlCaptureContext
+RtlLookupFunctionEntry
+RtlPcToFileHeader
+RtlUnwind
+RtlUnwindEx
+RtlVirtualUnwind
+SetConsoleCtrlHandler
+SetEnvironmentVariableA
+SetEnvironmentVariableW
+SetEvent
+SetFileInformationByHandle
+SetFilePointerEx
+SetLastError
+SetStdHandle
+SetThreadpoolTimer
+SetThreadpoolWait
+SetUnhandledExceptionFilter
+Sleep
+SleepConditionVariableSRW
+SwitchToThread
+TerminateProcess
+TlsAlloc
+TlsFree
+TlsGetValue
+TlsSetValue
+TryAcquireSRWLockExclusive
+TryAcquireSRWLockShared
+UnhandledExceptionFilter
+VirtualAlloc
+VirtualProtect
+VirtualQuery
+WaitForSingleObject
+WaitForSingleObjectEx
+WaitForThreadpoolTimerCallbacks
+WakeAllConditionVariable
+WakeConditionVariable
+WideCharToMultiByte
+WriteConsoleW
+WriteFile
+
+[user32.dll]
+EnumWindows
+GetWindow
+GetWindowThreadProcessId
+IsWindowVisible

@@ -1,0 +1,31 @@
+// eldennet.dll's version resource: ProductName EldenNet, which the launcher's pre-flight checks (ARCH §4.3, E08), and the
+// build's label (EN_VERSION_LABEL: a spike package's 0.1.0-spike.N, the plan's part 10). CMake configures it once per
+// DLL; the probe build's says so in SpecialBuild, and sets VS_FF_SPECIALBUILD (0x20).
+1 VERSIONINFO
+FILEVERSION 0,1,0,0
+PRODUCTVERSION 0,1,0,0
+FILEFLAGSMASK 0x3F
+FILEFLAGS @EN_RC_FLAGS@
+FILEOS 0x40004
+FILETYPE 0x2
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904B0"
+    BEGIN
+      VALUE "CompanyName", "EldenNet"
+      VALUE "FileDescription", "EldenNet: NPC conversations for Elden Ring (first in-game build)"
+      VALUE "FileVersion", "0.1.0.0"
+      VALUE "InternalName", "eldennet"
+      VALUE "LegalCopyright", "MIT licence"
+      VALUE "OriginalFilename", "eldennet.dll"
+      VALUE "ProductName", "EldenNet"
+      VALUE "ProductVersion", "@EN_VERSION_LABEL@"@EN_RC_SPECIAL@
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0809, 1200
+  END
+END
