@@ -273,6 +273,15 @@ void fill_facts(AiState& st, const ov::Space& space) {
   f.providers.clear();
   f.slots.clear();
   f.unused.clear();
+  // Each shown job's fixed budgets, en-llm's slot table (ARCH §11.4): code, the same in every preset and without a file.
+  if (f.budgets.empty()) {
+    for (const std::string_view slot : kShownSlots) {
+      const llm::SlotBudget b = llm::default_budget(slot);
+      const auto ms = [](llm::Millis m) { return static_cast<std::uint32_t>(m.count()); };
+      f.budgets.push_back(ov::AiBudget{slot, b.max_tokens, b.temperature, ms(b.first_token), ms(b.first_token_local),
+                                       ms(b.total), b.retries});
+    }
+  }
   const llm::HealthReport health =
       st.service ? st.service->client().health() : llm::HealthReport{};
   auto provider_health = [&](const std::string& id) -> const llm::HealthReport::Provider* {
@@ -340,6 +349,7 @@ void fill_facts(AiState& st, const ov::Space& space) {
         s.model = sc.models[0].model;
       }
       s.picked = cfg.picked.count(slot) != 0;
+      s.fallback_picked = cfg.picked_fallback.count(slot) != 0;
       if (sc.models.size() > 1) {
         s.fallback_provider = sc.models[1].provider;
         s.fallback = sc.models[1].model;
@@ -627,33 +637,58 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
       return;
     }
     // A job's pick: "slots.<slot>.model", on the provider the space names with it (the job's, or one chosen for it, and
-    // a model it listed: the space checked both); an empty one is a reset, the preset's provider and model again. Its
-    // fallback stays where it is. Neither the model's id nor the provider's is logged.
-    constexpr std::string_view kSuffix = ".model";
-    if (c.key.rfind("slots.", 0) != 0 || c.key.size() <= 6 + kSuffix.size() ||
-        c.key.compare(c.key.size() - kSuffix.size(), kSuffix.size(), kSuffix) != 0) {
-      return;
-    }
-    const std::string slot = c.key.substr(6, c.key.size() - 6 - kSuffix.size());
+    // a model it listed: the space checked both); an empty one is a reset, the preset's provider, model and fallback
+    // again. A fallback the job's table gives stays where it is. Its fallback: "slots.<slot>.fallback", on the provider
+    // named with it; an empty one removes the table's fallback, the preset's again. Neither a model's id nor a
+    // provider's is logged.
+    const auto ends_with = [&](std::string_view suffix) {
+      return c.key.size() > 6 + suffix.size() && c.key.compare(c.key.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+    const bool of_fallback = ends_with(".fallback");
+    if (c.key.rfind("slots.", 0) != 0 || (!of_fallback && !ends_with(".model"))) return;
+    const std::string slot = c.key.substr(6, c.key.size() - 6 - (of_fallback ? 9 : 6));
     const std::string model = c.value.is_string() ? c.value.get<std::string>() : std::string();
     const auto restore = [&] {  // the job's rows as the configuration has them
       std::string now;
       std::string provider;
+      std::string fallback;
+      std::string fallback_provider;
       if (st->config) {
         const llm::SlotConfig& sc = st->config->slot(slot);
         if (!sc.models.empty()) {
           now = sc.models.front().model;
           provider = sc.models.front().provider;
         }
+        if (sc.models.size() > 1) {
+          fallback = sc.models[1].model;
+          fallback_provider = sc.models[1].provider;
+        }
       }
-      space.set_value(c.key, now);
+      space.set_value("slots." + slot + ".model", now);
       space.set_value("slots." + slot + ".provider", provider);
+      space.set_value("slots." + slot + ".fallback", fallback);
+      space.set_value("slots." + slot + ".fallback_provider", fallback_provider);
     };
     if (std::find(kShownSlots.begin(), kShownSlots.end(), slot) == kShownSlots.end() || !st->config) {
       restore();
       return;
     }
     llm::ProvidersEdit edit;
+    if (of_fallback) {
+      llm::FallbackEdit fallback;
+      fallback.slot = slot;
+      if (!model.empty()) {
+        if (c.provider.empty() || st->config->provider(c.provider) == nullptr) {
+          restore();
+          return;
+        }
+        fallback.provider = c.provider;
+        fallback.model = model;
+      }
+      edit.fallbacks.push_back(std::move(fallback));
+      if (!change_providers(*st, edit, model.empty() ? "fallback_reset" : "fallback")) restore();
+      return;
+    }
     llm::SlotEdit pick;
     pick.slot = slot;
     const llm::SlotConfig& sc = st->config->slot(slot);

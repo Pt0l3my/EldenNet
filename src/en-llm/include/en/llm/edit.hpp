@@ -46,6 +46,18 @@ struct SlotEdit {
   bool operator==(const SlotEdit&) const = default;
 };
 
+// A job's fallback as the pages choose it (PAGES §4.5's `[slots.<slot>]` `fallback` and `fallback_provider`): both
+// written, the provider always named so that the fallback stays where it is when the job moves; the rest of the table
+// kept, and the table made when there is none (its model then the preset's, which the caller checks the job has). An
+// empty model removes both keys, and the table with them when nothing else is left, so the preset's fallback holds again.
+struct FallbackEdit {
+  std::string slot;      // a slot in use (known_slots())
+  std::string provider;  // with a model: the fallback's provider's id, which providers.toml has
+  std::string model;     // empty: the slot's fallback and fallback_provider removed
+
+  bool operator==(const FallbackEdit&) const = default;
+};
+
 // Where a provider's key is kept, set on its entry: `secrets:<name>`, for a key the pages set on a provider whose entry
 // had none (a server of the player's own on this PC).
 struct KeyRefEdit {
@@ -61,6 +73,7 @@ struct ProvidersEdit {
   std::vector<std::string> remove;    // by id, with every [slots.*] entry that names one of them
   std::vector<SlotEdit> slots;        // made after the rest, in order
   std::vector<KeyRefEdit> key_refs;   // likewise
+  std::vector<FallbackEdit> fallbacks;  // after the slots, in order
 };
 
 struct EditedText {

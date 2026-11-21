@@ -114,10 +114,12 @@ struct Config {
   // The slots with no model of their own, from the preset or [slots.*], and the slot each borrows its models from
   // (ARCH §11.4: decisions bark_live's, every other dialogue's): what the AI pages call "Same as Conversation".
   std::map<std::string, std::string, std::less<>> borrowed;
-  // The slots providers.toml gives a table of their own under [slots.*] (a job's pick from the pages, or the player's own
-  // entry), whatever it holds: what AI › Models counts as changed from the preset's (GraceUI D198), and what a row's
-  // reset removes.
+  // The slots whose table of their own under [slots.*] (a job's pick from the pages, or the player's own entry) gives a
+  // `model`: what AI › Models counts as the job's own provider and model, changed from the preset's (GraceUI D198), and
+  // what a reset of the job's rows removes (the whole table).
   std::set<std::string, std::less<>> picked;
+  // The slots whose table gives a `fallback`: AI › Models' fallback rows count as changed, and their reset removes it.
+  std::set<std::string, std::less<>> picked_fallback;
   int requests_per_hour = 600;  // budget.requests_per_hour, 60 to 3600 (ARCH §11.4, §11.5)
   Millis backup_after{2500};    // a cloud reply's backup request (ARCH §11.2; EST)
   std::vector<std::string> warnings;  // things the loader could not resolve but that do not stop the client

@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 2,
+  "minor": 3,
   "categories": [
     {
       "id": "home",
@@ -419,11 +419,11 @@
       "name": "Models",
       "description": "Which model does each job, and the preset that sets them all.",
       "help": {
-        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's provider and model yourself.",
+        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's provider, model and fallback yourself.",
         "steps": [
           "Choose a preset. Cloud budget, on OpenRouter, suits most players.",
-          "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.",
-          "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Reset either to use the preset's again.",
+          "Read each job's card: its state, its provider, model and fallback, and its limits. A job with no model of its own uses Conversation's.",
+          "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Its fallback likewise. Reset a row, or choose Default, to use the preset's again.",
           "Open Self-test to check that the models answer quickly enough."
         ]
       },
@@ -457,40 +457,149 @@
           ]
         },
         {
-          "id": "jobs",
-          "title": "Jobs",
-          "blocks": [
-            {
-              "kind": "component",
-              "component": "table",
-              "topic": "ai.slots",
-              "props": {
-                "empty": "No job has a model yet: choose a preset above."
-              }
-            }
-          ]
-        },
-        {
-          "id": "choose",
-          "title": "Each job's provider and model",
-          "description": "A job's models are those its provider listed when you last pressed List models on Providers. A provider that does not list the job's model takes over once you choose one of its models.",
+          "id": "dialogue",
+          "title": "Conversation",
+          "description": "Replies when you talk to a character. Its limits are the same in every preset.",
           "blocks": [
             {
               "kind": "settings",
               "keys": [
                 "slots.dialogue.provider",
                 "slots.dialogue.model",
+                "slots.dialogue.fallback_provider",
+                "slots.dialogue.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "dialogue"
+              }
+            }
+          ],
+          "chip": "dialogue",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "dialogue"
+          }
+        },
+        {
+          "id": "bark_live",
+          "title": "Quick lines",
+          "description": "Short lines said in the moment, such as a call-out in a fight. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
                 "slots.bark_live.provider",
                 "slots.bark_live.model",
+                "slots.bark_live.fallback_provider",
+                "slots.bark_live.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "bark_live"
+              }
+            }
+          ],
+          "chip": "bark_live",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "bark_live"
+          }
+        },
+        {
+          "id": "bark_pool",
+          "title": "Prepared lines",
+          "description": "Lines prepared ahead of time, in batches, while nothing waits for them. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
                 "slots.bark_pool.provider",
                 "slots.bark_pool.model",
+                "slots.bark_pool.fallback_provider",
+                "slots.bark_pool.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "bark_pool"
+              }
+            }
+          ],
+          "chip": "bark_pool",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "bark_pool"
+          }
+        },
+        {
+          "id": "memory",
+          "title": "Memory",
+          "description": "Writes what characters remember of what happened. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
                 "slots.memory.provider",
                 "slots.memory.model",
-                "slots.selftest.provider",
-                "slots.selftest.model"
+                "slots.memory.fallback_provider",
+                "slots.memory.fallback"
               ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "memory"
+              }
             }
-          ]
+          ],
+          "chip": "memory",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "memory"
+          }
+        },
+        {
+          "id": "selftest",
+          "title": "Self-test",
+          "description": "What the self-test measures. Its limits are the same in every preset.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.selftest.provider",
+                "slots.selftest.model",
+                "slots.selftest.fallback_provider",
+                "slots.selftest.fallback"
+              ]
+            },
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "ai.budgets",
+              "props": {
+                "field": "selftest"
+              }
+            }
+          ],
+          "chip": "selftest",
+          "status": {
+            "topic": "ai.jobs",
+            "field": "selftest"
+          }
         }
       ]
     },
@@ -626,7 +735,11 @@
       "shape": "state"
     },
     {
-      "id": "ai.slots",
+      "id": "ai.jobs",
+      "shape": "state"
+    },
+    {
+      "id": "ai.budgets",
       "shape": "state"
     },
     {
@@ -655,6 +768,26 @@
     },
     {
       "id": "ai.choices.providers",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.dialogue.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_live.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_pool.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.memory.fallback",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.selftest.fallback",
       "shape": "state"
     },
     {

@@ -31,10 +31,11 @@ import browser  # noqa: E402
 # components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
 # a state with a provider set up and a self-test run.
 # A page dumped over a second state has its golden named for it too (ai.selftest.banner and home.banner: greyed at L1,
-# GraceUI 0.2.7's space.state, D188; ai.providers.world: a key refused, GraceUI 0.2.9's D197).
+# GraceUI 0.2.7's space.state, D188; ai.providers.world: a key refused, GraceUI 0.2.9's D197; ai.models.world: the
+# cards' status on a provider cooling down, GraceUI 0.2.12's D202).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
-         ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"))
+         ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
@@ -73,6 +74,9 @@ def serve(grace_dev, folder, state, topics, failures):
         if spaces.get("eldennet", {}).get("increment") != INCREMENT:
             failures.append("%s: the welcome names no eldennet space at %s: %s" % (state, INCREMENT, sorted(spaces)))
         for topic, want in topics.items():
+            # GraceUI's server counts every message of a connection, a sub too, against 20 a second (its §6.8) and drops
+            # the rest unread: with the AI pages' topics there are more than 20, so they go no faster than 16 a second.
+            time.sleep(1 / 16)
             view.sub("eldennet", topic)
             got = view.state("eldennet", topic)
             have = got.get("body") if got["t"] == "state" else [
