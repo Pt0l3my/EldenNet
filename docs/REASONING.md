@@ -329,6 +329,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 304 | 2026-11-21 | Lodestar's shape: a table of numbers per build, each id re-found at start through its witnesses, no bytes in gal/ | METHOD | #gal #lodestar |
 | 305 | 2026-11-21 | A function EldenNet might call carries a verdict of our own tool; unknown means no call | DECIDED | #gal #lodestar #task |
 | 306 | 2026-11-21 | Lodestar L1: the registration's label is task_add, and a build's table lives in its layout file | DECIDED | #gal #lodestar |
+| 307 | 2026-11-21 | A witness says the bytes at a place refer to the id, not that an instruction starts there | FACT | #gal #lodestar |
+| 308 | 2026-11-21 | The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites | METHOD | #gal #lodestar |
+| 309 | 2026-11-21 | GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is | FACT | #graceui #lodestar |
+| 310 | 2026-11-21 | O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use | DECIDED | #gal #lodestar |
+| 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
 
 ## Entries
 
@@ -5219,3 +5224,74 @@ O101, proposal 0005 §7.2
   schema 2 (items with placement, witnesses, digest, verdict, checks and status, and a provenance block; no key can carry
   bytes); `lint --gal` and the galtoml fuzz target read the catalogue. Every build passes with no warning (engine
   feat/engine fb999ca).
+
+### 307. A witness says the bytes at a place refer to the id, not that an instruction starts there
+
+`2026-11-21` · FACT, with a DECIDED · `#gal` `#lodestar` · refs: proposal 0005 §7.1, WHY§304, S10.1.k
+
+- **The finding** (FACT): a witness one byte into a prefixed load still decodes, with our decoder, to a load of the same
+  static (the prefix is skipped and the displacement's end does not move), so the check accepts it.
+- **Decided** (DECIDED): a witness says that the bytes at a place refer to the id, not that an instruction starts there.
+  On a build the gate has matched, a wrong table or a patched place is what the check must catch, and it does; proving
+  an instruction boundary would need a decode from the function's start, which a start does not otherwise make. Tested,
+  and said in en-gal's README.
+- **Built** (FACT): en-gal's resolver (`resolve.hpp`, engine feat/engine c2401d0): an item of a build's table is re-found
+  in the image as loaded with no search, by its placement (a static in written data with room for a pointer, a function
+  at a start the function table lists, a table within one section that is not run, a class's method tables in read-only
+  data) and its witnesses (one read of at most 15 bytes at each recorded place, decoded by our own decoder, which must
+  refer to the id); only a checked item's place is handed out. Nothing in the DLL reads through it yet.
+
+### 308. The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites
+
+`2026-11-21` · METHOD, with a LIKELY · `#gal` `#lodestar` · refs: O102, proposal 0005 §6.1, WHY§181, WHY§197, S10.1.k
+
+- **Stricter** (METHOD): the load must be 64-bit, the test must be of the register just loaded, and the branch must go
+  forward; the pattern wildcarded those bytes and left the rest to the finder's decoding. So what the pattern hit and
+  then refused as no idiom, the shape never hits, and on the tests' three invented programs the accepted sites are the
+  same, with every place, verdict and name.
+- **On the real game** (LIKELY): the shape's hits are fewer than R0c's 7,151 and its accepted sites equal R1's 7,081;
+  L3's offline run reports both counts, and a difference in accepted sites is a finding to read before the pattern goes.
+- **Every offset** (METHOD): the shape is looked for at every offset of a section, not only where a straight decode
+  lands, since a pattern scan finds a site wherever it lies and the shape must lose none; a three-byte test on the first
+  form's encoding keeps it as cheap.
+- **Built** (FACT): en-gal's `shape.hpp`, a run of at most 16 instruction forms in our own grammar over our decoder's
+  fields, with no byte of any program; `fd4::find` runs on the shape beside the pattern (engine feat/engine 33cf307). The
+  pattern stays in use until the derivation, discovery and R1 read the shape from `gal/recipes.toml`.
+
+### 309. GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is
+
+`2026-11-21` · FACT · `#graceui` `#lodestar` · refs: GraceUI's graceui.h (Panels, World-state providers), GraceUI's D24, D71,
+D76, D78, D143, D151; O101; proposal 0005 L4
+
+- **No per-frame assumption** (FACT): a panel's newest draw list is drawn every frame until replaced, with no age check,
+  hiding or smoothing (D76, D137); world-state claims hold until replaced or disconnected, with no heartbeat or expiry
+  (D78, D143); the per-frame budgets measure cost, not freshness, and D151's watchdog counts GraceUI's own frames. So
+  O101's reader, at about ten readings a second, fits ABI 1.2 as it is.
+- **Two consequences, EldenNet's** (FACT): floating labels step at the reader's rate (smoothing every frame would need
+  D71's `on_present`, designed but not in ABI 1.2, an append under a GraceUI proposal); and the danger close and the
+  open gate follow the world by up to one reading (D24's 0 ms is the close's motion, not a reaction time).
+
+### 310. O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use
+
+`2026-11-21` · DECIDED (O102 carried out) · `#gal` `#lodestar` · refs: O102, O89, O101, WHY§308, S10.1.k
+
+- **Withdrawn** (DECIDED): `gal/patterns.toml`'s idiom and its note are removed, and `gal/recipes.toml`'s accessor, a
+  shape of five forms with no bytes, replaces it (note `gal/derivations/accessor.md`); `gal/` holds no byte of the game.
+  The recipe is a lead until it is counted on the game itself (L3).
+- **Where it is read** (DECIDED): with a recipe, discovery finds the FD4 singletons by its shape and reads no idiom even
+  where one is given; eldennet.dll's boot, galtest, `lint --gal`, the galtoml fuzz target and the fake game's harness
+  read it. The pattern reader stays for the fake game's generated folder and for the statics' and the function's
+  patterns, until discovery goes through the table (L3, L4).
+- **R1** (FACT): R1's byte-for-byte idiom check now refuses its call on the repository's `gal/`, which O101 wants; the R1
+  package and its README are legacy until L5's read-only package replaces them.
+- **History** (FACT): the 24-byte pattern (7 fixed bytes) stays in feat/engine's history (55487c0), where O89 allowed it
+  at the time.
+- **Checked** (FACT): every build with no warning; the fake game's harness 105 of 105 under Wine; engine feat/engine
+  6da3291.
+
+### 311. Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one
+
+`2026-11-21` · DECIDED (Lodestar's) · `#gal` `#lodestar` · refs: proposal 0005 §7.1, O101, S10.1.k
+
+- A digest says a function's code is what the review saw. Under O101 (b) v1 calls no function of the game, so nothing in
+  v1 would read one; digests move to L7, the task service's research, and L3 comes next.
