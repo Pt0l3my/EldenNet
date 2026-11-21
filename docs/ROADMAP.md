@@ -905,6 +905,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Spike.13 not built: on 2026-11-21 a safety classifier stopped the work while game code was being written out, and
     the route is with the owner as O100 (WHY§303). O100 decided the same day: R1's road goes on as Lodestar's work,
     EldenNet's own address library (S10.1.k).
+    Since 2026-11-21 (O101, O102) R1's package can make no call: it is legacy until Lodestar's read-only L5 package.
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -962,8 +963,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the game, `gal/` holds no bytes from the game (O89 amended), and the library serves EldenNet alone in v1.
     Of L2 and L4, the resolver with its placement and witness checks built on invented images the same day (engine
     c2401d0; WHY§307). L2's first half the same day: the accessor's shape in our own grammar, matched beside the pattern
-    with the same accepted sites on invented programs (engine 33cf307; WHY§308). Next: `gal/recipes.toml`, the three
-    readers moved to it, `patterns.toml` retired, digests; then L3.
+    with the same accepted sites on invented programs (engine 33cf307; WHY§308). L2 done the same day (engine 6da3291):
+    `gal/recipes.toml`'s accessor in use and `gal/patterns.toml` withdrawn, so `gal/` holds no byte of the game (O102;
+    WHY§310); digests moved to L7 (WHY§311). R1's package can no longer make its call and is legacy until L5's
+    read-only package replaces it. Next: L3, the finding tool and report schema 2.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

@@ -332,6 +332,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 307 | 2026-11-21 | A witness says the bytes at a place refer to the id, not that an instruction starts there | FACT | #gal #lodestar |
 | 308 | 2026-11-21 | The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites | METHOD | #gal #lodestar |
 | 309 | 2026-11-21 | GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is | FACT | #graceui #lodestar |
+| 310 | 2026-11-21 | O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use | DECIDED | #gal #lodestar |
+| 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
 
 ## Entries
 
@@ -5268,3 +5270,28 @@ D76, D78, D143, D151; O101; proposal 0005 L4
 - **Two consequences, EldenNet's** (FACT): floating labels step at the reader's rate (smoothing every frame would need
   D71's `on_present`, designed but not in ABI 1.2, an append under a GraceUI proposal); and the danger close and the
   open gate follow the world by up to one reading (D24's 0 ms is the close's motion, not a reaction time).
+
+### 310. O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use
+
+`2026-11-21` · DECIDED (O102 carried out) · `#gal` `#lodestar` · refs: O102, O89, O101, WHY§308, S10.1.k
+
+- **Withdrawn** (DECIDED): `gal/patterns.toml`'s idiom and its note are removed, and `gal/recipes.toml`'s accessor, a
+  shape of five forms with no bytes, replaces it (note `gal/derivations/accessor.md`); `gal/` holds no byte of the game.
+  The recipe is a lead until it is counted on the game itself (L3).
+- **Where it is read** (DECIDED): with a recipe, discovery finds the FD4 singletons by its shape and reads no idiom even
+  where one is given; eldennet.dll's boot, galtest, `lint --gal`, the galtoml fuzz target and the fake game's harness
+  read it. The pattern reader stays for the fake game's generated folder and for the statics' and the function's
+  patterns, until discovery goes through the table (L3, L4).
+- **R1** (FACT): R1's byte-for-byte idiom check now refuses its call on the repository's `gal/`, which O101 wants; the R1
+  package and its README are legacy until L5's read-only package replaces them.
+- **History** (FACT): the 24-byte pattern (7 fixed bytes) stays in feat/engine's history (55487c0), where O89 allowed it
+  at the time.
+- **Checked** (FACT): every build with no warning; the fake game's harness 105 of 105 under Wine; engine feat/engine
+  6da3291.
+
+### 311. Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one
+
+`2026-11-21` · DECIDED (Lodestar's) · `#gal` `#lodestar` · refs: proposal 0005 §7.1, O101, S10.1.k
+
+- A digest says a function's code is what the review saw. Under O101 (b) v1 calls no function of the game, so nothing in
+  v1 would read one; digests move to L7, the task service's research, and L3 comes next.
