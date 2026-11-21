@@ -65,7 +65,9 @@ struct AiState {
   std::vector<ov::AiRun> earlier;
   llm::RequestId next_id = 1;
   std::map<std::string, std::int64_t, std::less<>> answered;  // provider → when it last answered (since T1's start)
-  std::set<std::string, std::less<>> rejected;                // providers whose key a model list refused
+  // Providers whose last call was refused for their key (a model list's, or the handle's health), or for want of one:
+  // kept until the provider answers again or its key or key's place changes, since a reload clears the health's.
+  std::set<std::string, std::less<>> rejected;
   ov::AiFacts facts;
   bool values_set = false;  // the space's ai.preset from the files
   std::uint64_t revision = 1;  // the configuration's, each time one is taken (the space's model rows follow it)
@@ -308,9 +310,13 @@ void fill_facts(AiState& st, const ov::Space& space) {
         a.key_place = ov::AiKeyPlace::Env;
       }
       a.plain = en::proto::plain_remote(p.base_url);
-      if (p.key_ref.empty()) {
-        a.key = ov::AiKey::NotNeeded;
-      } else if (a.disabled || st.rejected.count(p.id) != 0) {
+      if (a.disabled) st.rejected.insert(p.id);
+      const bool refused = st.rejected.count(p.id) != 0;
+      if (a.plain) {
+        a.key = ov::AiKey::NotNeeded;  // http:// on another computer: never a key (parse_config refuses a key_ref there)
+      } else if (p.key_ref.empty()) {
+        a.key = refused ? ov::AiKey::Rejected : ov::AiKey::NotNeeded;  // no key's place: none, until one is asked for
+      } else if (refused) {
         a.key = ov::AiKey::Rejected;
       } else {
         a.key = p.key ? ov::AiKey::Set : ov::AiKey::Missing;
@@ -333,6 +339,7 @@ void fill_facts(AiState& st, const ov::Space& space) {
         s.provider = sc.models[0].provider;
         s.model = sc.models[0].model;
       }
+      s.picked = cfg.picked.count(slot) != 0;
       if (sc.models.size() > 1) {
         s.fallback_provider = sc.models[1].provider;
         s.fallback = sc.models[1].model;
@@ -381,7 +388,6 @@ void commit(AiState& st, std::string providers, llm::Secret secrets, llm::Config
   st.secrets = std::move(secrets);
   st.config = std::move(config);
   st.refused = false;
-  st.rejected.clear();
   st.dirty = true;
   ++st.revision;
   if (st.service) st.service->reload(*st.config);
@@ -427,10 +433,19 @@ void note_answers(AiState& st, const llm::SelfTestReport& r) {
     if (c.error == llm::ErrorClass::None) {
       st.answered[c.provider] = now;
       st.listed[c.provider] = c.models;  // the pickers' choices: never logged
+      st.rejected.erase(c.provider);
     }
-    if (c.error == llm::ErrorClass::Auth) st.rejected.insert(c.provider);
+    // Refused for its key, or for want of one: never for a key that was not sent (its key_ref names none kept yet),
+    // whose row says Missing.
+    if (c.error == llm::ErrorClass::Auth) {
+      const llm::ProviderConfig* p = st.config ? st.config->provider(c.provider) : nullptr;
+      if (p != nullptr && p->keys_resolved()) st.rejected.insert(c.provider);
+    }
   }
-  if (r.latency == llm::CheckState::Passed) st.answered[r.provider] = now;
+  if (r.latency == llm::CheckState::Passed) {
+    st.answered[r.provider] = now;
+    st.rejected.erase(r.provider);
+  }
 }
 
 // providers.toml edited as `edit` says, checked, then held and written; false with a log line when refused.
@@ -469,6 +484,12 @@ bool edit_key(AiState& st, std::string_view name, const llm::Secret* key) {
   }
   post_ai_write(AiWrite::secret(std::string(name), key != nullptr ? std::optional<llm::Secret>(*key) : std::nullopt));
   log(Line("ai_change").word("what", "key").word("name", name).flag("set", key != nullptr).flag("ok", true));
+  // A new key, or none: the providers that name it are not refused until a call says so again.
+  if (st.config) {
+    for (const llm::ProviderConfig& p : st.config->providers) {
+      if (p.key_ref == "secrets:" + std::string(name)) st.rejected.erase(p.id);
+    }
+  }
   return true;
 }
 
@@ -605,8 +626,9 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
       }
       return;
     }
-    // A job's model: "slots.<slot>.model", on the provider the job uses now (the space checked it is one that provider
-    // listed); an empty one is a reset, the preset's model again. The model's id is not logged.
+    // A job's pick: "slots.<slot>.model", on the provider the space names with it (the job's, or one chosen for it, and
+    // a model it listed: the space checked both); an empty one is a reset, the preset's provider and model again. Its
+    // fallback stays where it is. Neither the model's id nor the provider's is logged.
     constexpr std::string_view kSuffix = ".model";
     if (c.key.rfind("slots.", 0) != 0 || c.key.size() <= 6 + kSuffix.size() ||
         c.key.compare(c.key.size() - kSuffix.size(), kSuffix.size(), kSuffix) != 0) {
@@ -614,13 +636,18 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
     }
     const std::string slot = c.key.substr(6, c.key.size() - 6 - kSuffix.size());
     const std::string model = c.value.is_string() ? c.value.get<std::string>() : std::string();
-    const auto restore = [&] {
+    const auto restore = [&] {  // the job's rows as the configuration has them
       std::string now;
+      std::string provider;
       if (st->config) {
         const llm::SlotConfig& sc = st->config->slot(slot);
-        if (!sc.models.empty()) now = sc.models.front().model;
+        if (!sc.models.empty()) {
+          now = sc.models.front().model;
+          provider = sc.models.front().provider;
+        }
       }
       space.set_value(c.key, now);
+      space.set_value("slots." + slot + ".provider", provider);
     };
     if (std::find(kShownSlots.begin(), kShownSlots.end(), slot) == kShownSlots.end() || !st->config) {
       restore();
@@ -629,17 +656,20 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
     llm::ProvidersEdit edit;
     llm::SlotEdit pick;
     pick.slot = slot;
+    const llm::SlotConfig& sc = st->config->slot(slot);
+    const std::string before = sc.models.empty() ? std::string() : sc.models.front().provider;
     if (!model.empty()) {
-      const llm::SlotConfig& sc = st->config->slot(slot);
-      if (sc.models.empty()) {
+      pick.provider = !c.provider.empty() ? c.provider : before;
+      if (pick.provider.empty() || st->config->provider(pick.provider) == nullptr) {
         restore();
         return;
       }
-      pick.provider = sc.models.front().provider;
       pick.model = model;
+      if (sc.models.size() > 1) pick.fallback_provider = sc.models[1].provider;
     }
+    const char* what = model.empty() ? "model_reset" : pick.provider != before ? "provider" : "model";
     edit.slots.push_back(std::move(pick));
-    if (!change_providers(*st, edit, model.empty() ? "model_reset" : "model")) restore();
+    if (!change_providers(*st, edit, what)) restore();
   });
 }
 
@@ -703,6 +733,7 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
         const std::vector<std::string> kept = llm::secret_names(staying);
         if (!change_providers(*st, edit, "remove")) return;
         st->listed.erase(r.id);
+        st->rejected.erase(r.id);
         for (const std::string& name : llm::secret_names(going)) {
           if (std::find(kept.begin(), kept.end(), name) == kept.end()) (void)edit_key(*st, name, nullptr);
         }
@@ -716,6 +747,11 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
           log(Line("ai_change").word("what", "key").flag("ok", false).word("why", "not_here"), LogLevel::Warn);
           return;
         }
+        // Nor to a provider with no key's place that no call has asked one for (its row reads Not needed, D197).
+        if (provider->key_ref.empty() && st->rejected.count(r.id) == 0) {
+          log(Line("ai_change").word("what", "key").flag("ok", false).word("why", "not_needed"), LogLevel::Warn);
+          return;
+        }
         std::string name;
         if (provider->key_ref.rfind("secrets:", 0) == 0) {
           name = provider->key_ref.substr(8);
@@ -724,6 +760,7 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) 
           llm::ProvidersEdit edit;
           edit.key_refs.push_back(llm::KeyRefEdit{r.id, "secrets:" + r.id});
           if (!change_providers(*st, edit, "key_place")) return;
+          st->rejected.erase(r.id);
           name = r.id;
         }
         (void)edit_key(*st, name, &*key);

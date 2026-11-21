@@ -64,6 +64,9 @@ enum class AiFiles : std::uint8_t { Missing, Refused, Ready };  // providers.tom
 enum class AiRefusal : std::uint8_t { Other, Scheme, Credentials, QueryOrFragment, PlainPublic, PlainCloud, PlainKey };
 enum class AiFlavor : std::uint8_t { OpenAI, Ollama, LlamaCpp, LmStudio, KoboldCpp };
 enum class AiJson : std::uint8_t { None, Object, Schema };
+// A provider's key: none needed (no key's place, and no call refused for want of one; or http:// on another computer,
+// which never takes one), one kept, none kept yet, or one refused: its last call was refused for its key, or, with no
+// key's place, for want of one (Health's state, and the model list's).
 enum class AiKey : std::uint8_t { NotNeeded, Set, Missing, Rejected };
 // Where a provider's key is kept (its key_ref): nowhere yet, secrets.toml under a name, or an environment variable.
 enum class AiKeyPlace : std::uint8_t { None, Secrets, Env };
@@ -101,6 +104,7 @@ struct AiSlot {
   std::string fallback;
   std::string_view same_as;  // the slot it borrows its models from, or empty
   bool healthy = true;       // a model of it is usable now
+  bool picked = false;       // providers.toml gives it a [slots.<slot>] table of its own: not the preset's choice
 };
 
 struct AiList {
@@ -253,14 +257,19 @@ class Space {
   // it does takes long in this slice; a later long command answers at once and publishes its progress (§23 item 4).
   // `facts` says whether settings.toml may be written (not while the file the player wrote was refused).
   [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts);
-  // AI › Models' model rows (`slots.<slot>.model`) as the facts have them: each job's model, the one its preset gives it
-  // or the one chosen. collect calls it when the facts' revision changes; the tests and the fixtures call it too.
+  // AI › Models' rows of each job (`slots.<slot>.provider` and `slots.<slot>.model`) as the facts have them: the job's
+  // provider and model now, the preset's or the ones chosen, a provider chosen and waiting for its model kept; and which
+  // jobs providers.toml holds a pick for, the rows its `changed` list names (GraceUI D198). collect calls it when the
+  // facts' revision changes; the tests and the fixtures call it too.
   void sync(const SpaceFacts& facts);
 
-  // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml.
+  // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml. A job's pick is one
+  // change of its model row (`slots.<slot>.model`): the model and the provider to write it with, or an empty model, the
+  // job's [slots.<slot>] removed (a reset of either of its rows).
   struct Change {
     std::string key;
     nlohmann::json value;
+    std::string provider;  // a job's pick: the provider its model is on
   };
   [[nodiscard]] std::vector<Change> take_changes();
   [[nodiscard]] std::vector<AiRequest> take_requests();
@@ -326,6 +335,10 @@ class Space {
   std::vector<SpaceNote> notes_;
   bool synced_once_ = false;  // collect has set the model rows from the facts
   std::uint64_t synced_ = 0;   // from the facts of this revision
+  // A job's provider chosen whose list lacks the job's model: held here, by slot, until a model of its list is chosen
+  // (nothing is written before), and dropped by a reset, by choosing the job's provider again, or when it is gone.
+  std::map<std::string, std::string, std::less<>> pending_;
+  std::set<std::string, std::less<>> picked_;  // the jobs providers.toml holds a pick for, as the facts last said
   bool valid_ = false;
 };
 

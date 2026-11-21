@@ -11,6 +11,9 @@
   "ai.choices.memory": {
     "choices": []
   },
+  "ai.choices.providers": {
+    "choices": []
+  },
   "ai.choices.selftest": {
     "choices": []
   },
@@ -164,7 +167,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.8"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -208,7 +211,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.8",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -236,8 +239,8 @@
           "state": "pass"
         },
         {
-          "detail": "EldenNet needs GraceUI 0.2.8 or later",
-          "label": "GraceUI 0.2.8",
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
+          "label": "GraceUI 0.2.9",
           "state": "pass"
         }
       ]

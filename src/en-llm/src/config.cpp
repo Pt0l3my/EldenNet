@@ -553,6 +553,7 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetRes
     if (!value.is_table()) ctx.fail("must be a table", &value);
     const toml::table& table = *value.as_table();
     check_keys(table, {"model", "fallback", "provider", "fallback_provider"}, ctx);
+    cfg.picked.insert(slot);
     const std::optional<std::string> preset_provider = preset_default(preset, slot);
 
     auto provider_for = [&](std::string_view key, const std::optional<std::string>& fallback_to) -> std::string {

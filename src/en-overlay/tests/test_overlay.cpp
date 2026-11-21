@@ -46,7 +46,7 @@ TEST_CASE("overlay: connect as eldennet, with EldenNet's floor and the caps it u
   CHECK(r.outcome == Outcome::Connected);
   CHECK(g.id == "eldennet");
   CHECK(g.name == "EldenNet");
-  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 8));  // GraceUI 0.2.8: ABI 1.2 and protocol 1.2's pages (D196)
+  CHECK(g.floor == GRACEUI_VERSION_PACK(0, 2, 9));  // GraceUI 0.2.9: ABI 1.2, protocol 1.2, D197 and D198
   CHECK(g.mod_version == GRACEUI_VERSION_PACK(0, 1, 0));
   CHECK(g.mod_caps == "notices world-state hotkeys");
   CHECK(std::string(r.view) == "off");

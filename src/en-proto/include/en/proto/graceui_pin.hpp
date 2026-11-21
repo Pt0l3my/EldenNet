@@ -9,8 +9,8 @@
 namespace en::proto::graceui_pin {
 
 inline constexpr std::uint32_t kAbiMajor = 1;                    // graceui.h's GRACEUI_ABI_MAJOR, which `connect` asks
-inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 8};  // GraceUI 0.2.8: ABI 1.2, protocol 1.2's pages (D196)
-inline constexpr std::string_view kCommit = "0738fa3";             // GraceUI's feat/foundations (D169 to D196)
+inline constexpr std::array<std::uint16_t, 3> kFloor = {0, 2, 9};  // GraceUI 0.2.9: ABI 1.2, protocol 1.2, D197, D198
+inline constexpr std::string_view kCommit = "908c179";             // GraceUI's main (D169 to D198)
 
 // Whether a GraceUI version (major, minor, patch) is at least the floor.
 [[nodiscard]] constexpr bool at_least_floor(const std::array<std::uint16_t, 3>& v) noexcept {

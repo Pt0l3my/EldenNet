@@ -174,7 +174,7 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
     entry->insert_or_assign("key_ref", k.key_ref);
   }
 
-  // A job's model: its [slots.<slot>] provider and model, the rest of the table kept; or the table gone.
+  // A job's provider and model: its [slots.<slot>] provider and model, the rest of the table kept; or the table gone.
   for (const SlotEdit& s : edit.slots) {
     if (!known_slot(s.slot)) {
       out.why = "unknown_slot";
@@ -212,6 +212,15 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
       slot_node = slots->get(s.slot);
     }
     toml::table* slot = slot_node->as_table();
+    // A fallback the table gives with no provider of its own follows the job's: kept where it was.
+    if (!s.fallback_provider.empty() && s.fallback_provider != s.provider && slot->get("fallback") != nullptr &&
+        slot->get("fallback_provider") == nullptr) {
+      if (!valid_name(s.fallback_provider)) {
+        out.why = "bad_entry";
+        return out;
+      }
+      slot->insert_or_assign("fallback_provider", s.fallback_provider);
+    }
     slot->insert_or_assign("provider", s.provider);
     slot->insert_or_assign("model", s.model);
   }

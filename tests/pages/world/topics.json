@@ -95,6 +95,14 @@
       }
     ]
   },
+  "ai.choices.providers": {
+    "choices": [
+      {
+        "label": "openrouter",
+        "value": "openrouter"
+      }
+    ]
+  },
   "ai.choices.selftest": {
     "choices": [
       {
@@ -217,6 +225,12 @@
         "id": "openrouter",
         "jobs": "Conversation, Quick lines, Prepared lines, Memory, Self-test",
         "state": "Cooling down, 42 s left"
+      },
+      {
+        "answered": "Not this session",
+        "id": "spare-cloud",
+        "jobs": "None",
+        "state": "Failing: it refused its key"
       }
     ]
   },
@@ -237,7 +251,7 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.9",
       "seq": 4,
       "time": "0:00:01"
     },
@@ -268,6 +282,11 @@
         "detail": "Lists 214 models, every job's model among them.",
         "label": "openrouter",
         "state": "pass"
+      },
+      {
+        "detail": "Refused the key.",
+        "label": "spare-cloud",
+        "state": "fail"
       }
     ],
     "columns": [
@@ -307,6 +326,15 @@
         "id": "openrouter",
         "json": "JSON schema",
         "key": "set",
+        "kind": "Cloud",
+        "requests": "2",
+        "type": "OpenAI-compatible"
+      },
+      {
+        "address": "https://spare.example.invalid/v1",
+        "id": "spare-cloud",
+        "json": "JSON schema",
+        "key": "refused",
         "kind": "Cloud",
         "requests": "2",
         "type": "OpenAI-compatible"
@@ -403,7 +431,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.8"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -452,7 +480,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.8",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -480,8 +508,8 @@
           "state": "pass"
         },
         {
-          "detail": "EldenNet needs GraceUI 0.2.8 or later",
-          "label": "GraceUI 0.2.8",
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
+          "label": "GraceUI 0.2.9",
           "state": "pass"
         }
       ]

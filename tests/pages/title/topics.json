@@ -74,24 +74,24 @@
   "ai.choices.memory": {
     "choices": [
       {
-        "label": "talker-small",
-        "value": "talker-small"
+        "label": "lantern-keeper",
+        "value": "lantern-keeper"
       },
       {
-        "label": "talker-large",
-        "value": "talker-large"
+        "label": "lantern-talker",
+        "value": "lantern-talker"
+      }
+    ]
+  },
+  "ai.choices.providers": {
+    "choices": [
+      {
+        "label": "openrouter",
+        "value": "openrouter"
       },
       {
-        "label": "pool-flash",
-        "value": "pool-flash"
-      },
-      {
-        "label": "keeper-large",
-        "value": "keeper-large"
-      },
-      {
-        "label": "keeper-small",
-        "value": "keeper-small"
+        "label": "lantern-box",
+        "value": "lantern-box"
       }
     ]
   },
@@ -167,8 +167,8 @@
       {
         "fallback": "None",
         "job": "Memory",
-        "model": "keeper-large",
-        "provider": "openrouter",
+        "model": "lantern-keeper",
+        "provider": "lantern-box",
         "state": "Ready"
       },
       {
@@ -209,7 +209,13 @@
       {
         "answered": "0:11:40",
         "id": "openrouter",
-        "jobs": "Conversation, Quick lines, Prepared lines, Memory, Self-test",
+        "jobs": "Conversation, Quick lines, Prepared lines, Self-test",
+        "state": "Healthy"
+      },
+      {
+        "answered": "0:11:45",
+        "id": "lantern-box",
+        "jobs": "Memory",
         "state": "Healthy"
       }
     ]
@@ -231,7 +237,7 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.9",
       "seq": 4,
       "time": "0:00:01"
     },
@@ -251,6 +257,11 @@
       {
         "detail": "Lists 214 models, every job's model among them.",
         "label": "openrouter",
+        "state": "pass"
+      },
+      {
+        "detail": "Lists 2 models, every job's model among them.",
+        "label": "lantern-box",
         "state": "pass"
       }
     ],
@@ -293,6 +304,15 @@
         "key": "set",
         "kind": "Cloud",
         "requests": "2",
+        "type": "OpenAI-compatible"
+      },
+      {
+        "address": "http://127.0.0.1:1234/v1",
+        "id": "lantern-box",
+        "json": "JSON schema",
+        "key": "none",
+        "kind": "Local",
+        "requests": "1",
         "type": "OpenAI-compatible"
       }
     ]
@@ -387,7 +407,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.8"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -431,7 +451,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.8",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -459,8 +479,8 @@
           "state": "pass"
         },
         {
-          "detail": "EldenNet needs GraceUI 0.2.8 or later",
-          "label": "GraceUI 0.2.8",
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
+          "label": "GraceUI 0.2.9",
           "state": "pass"
         }
       ]
