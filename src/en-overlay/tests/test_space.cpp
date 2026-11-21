@@ -224,7 +224,7 @@ SpaceFacts facts_of(std::string_view state) {
   return f;
 }
 
-const char* const kAiTopics[] = {"ai.status", "providers", "health", "ai.slots", "selftest"};
+const char* const kAiTopics[] = {"ai.status", "providers", "health", "ai.slots", "selftest", "space.state"};
 
 json frame(const std::string& text) { return json::parse(text); }
 
@@ -597,6 +597,19 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(st["rows"].size() == 1);
   CHECK(st["rows"][0]["verdict"] == "Acceptable");
 
+  // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words.
+  CHECK(s.body("space.state", f) == json{{"greyed", json::object()}});
+  const json greyed = s.body("space.state", facts_of("banner"))["greyed"];
+  CHECK(greyed.size() == 3);
+  CHECK(greyed["ai.selftest"] == "EldenNet inactive: game build 3.14.15.0 not supported yet");
+  CHECK(greyed.contains("ai.providers"));
+  CHECK_FALSE(greyed.contains("home"));
+  CHECK_FALSE(greyed.contains("system.status"));
+  SpaceFacts long_banner = facts_of("banner");
+  const std::string words(300, 'w');
+  long_banner.stop_text = words;
+  CHECK(s.body("space.state", long_banner)["greyed"]["ai.models"].get<std::string>().size() == 200);
+
   // Resting models, the gate closed online, a first run, the banner.
   CHECK(s.body("health", facts_of("world"))["rows"][0]["state"] == "Cooling down, 42 s left");
   CHECK(s.body("ai.slots", facts_of("world"))["rows"][2]["state"] == "Resting after failures");
@@ -607,7 +620,9 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   // Absence is silent: no table rows for providers there are not, no self-test before one runs, nothing without facts.
   CHECK(s.body("providers", facts_of("starting"))["rows"].empty());
   CHECK(s.body("selftest", facts_of("starting")).empty());
-  for (const char* topic : kAiTopics) CHECK(s.body(topic, title()).empty());
+  for (const char* topic : {"ai.status", "providers", "health", "ai.slots", "selftest"}) {
+    CHECK(s.body(topic, title()).empty());
+  }
 
   // A key's status reads Missing or Rejected, and the lead says what to do.
   AiFacts missing = ai_ready();
@@ -734,7 +749,7 @@ TEST_CASE("space: the preset and the keys through settings.set; a key's value on
   s.watched(sub("settings"));
   for (const char* topic : kAiTopics) s.watched(sub(topic));
   s.collect(f, 1000, frames);
-  CHECK(frames.size() == 6);
+  CHECK(frames.size() == 7);
   for (const std::string& text : frames) CHECK(text.find(key) == std::string::npos);
   for (const SpaceNote& n : s.take_notes()) {
     CHECK(n.key.find(key) == std::string::npos);

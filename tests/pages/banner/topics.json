@@ -125,6 +125,13 @@
     "rows": []
   },
   "selftest": {},
+  "space.state": {
+    "greyed": {
+      "ai.models": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.providers": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+    }
+  },
   "status": {
     "items": [
       {

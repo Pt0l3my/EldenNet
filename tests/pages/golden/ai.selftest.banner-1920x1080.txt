@@ -1,0 +1,70 @@
+# eldennet ai.selftest: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.hi         30, 145   21x30   glyphs 2 "AI"
+text    ink.mute       50, 193   76x25   glyphs 9 "Providers"
+text    ink.mute       50, 233   51x25   glyphs 6 "Models"
+fill    tint.select     0, 265  300x40  
+fill    gold            0, 265    3x40  
+text    gold.hi        50, 273   76x25   glyphs 9 "Self-test"
+line    rule           30, 305  240x1   
+text    ink.mute       30, 315   64x30   glyphs 6 "System"
+line    rule           30, 355  240x1   
+text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  179x45   clip1 glyphs 9 "Self-test"
+fill    gold         1718,  89  162x40   r3 clip1
+text    on.gold      1738,  95  122x28   clip1 glyphs 12 "Run self-test"
+text    ink.mute      340, 136  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.3      340, 201 1540x55   r3 clip1
+fill    ember         340, 201    4x55   clip1
+text    ink.hi        360, 215  534x28   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
+fill    ground.2      340, 276 1540x130  r5 clip1
+stroke  rule          340, 276 1540x130  r5 w1 clip1
+text    gold          365, 296   29x20   clip1 glyphs 3 "Now"
+text    ink.faint    1842, 296    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 346  574x25   clip1 glyphs 57 "EldenNet is inactive, so it calls no model: Home's Problems say why."
+fill    ground.2      340, 426 1540x130  r5 clip1
+stroke  rule          340, 426 1540x130  r5 w1 clip1
+text    gold          365, 446   67x20   clip1 glyphs 7 "Verdict"
+text    ink.faint    1842, 446    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 496  363x25   clip1 glyphs 37 "Press Run self-test to check your provider."
+fill    ground.2      340, 576 1540x130  r5 clip1
+stroke  rule          340, 576 1540x130  r5 w1 clip1
+text    gold          365, 596   48x20   clip1 glyphs 5 "Steps"
+text    ink.faint    1842, 596    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 646  422x25   clip1 glyphs 42 "Each step appears here once the self-test has run."
+fill    ground.2      340, 726 1540x130  r5 clip1
+stroke  rule          340, 726 1540x130  r5 w1 clip1
+text    gold          365, 746   67x20   clip1 glyphs 7 "Figures"
+text    ink.faint    1842, 746    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 796  430x25   clip1 glyphs 43 "The figures appear here once the self-test has run."
+fill    ground.2      340, 876 1540x130  r5 clip1
+stroke  rule          340, 876 1540x130  r5 w1 clip1
+text    gold          365, 896  240x20   clip1 glyphs 22 "Earlier runs this session"
+text    ink.faint    1842, 896    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 946  236x25   clip1 glyphs 24 "No earlier run this session."
+fill    ground.2      340,1026 1540x175  r5 clip1
+stroke  rule          340,1026 1540x175  r5 w1 clip1
+text    gold          365,1046   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1076 1490x1    clip1
+text    ink.hi        365,1081   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1084  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1835,1081    9x28   clip1 glyphs 1 "→"
+line    rule          365,1131 1490x1    clip1
+text    ink.hi        365,1136   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,1139  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1835,1136    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  253x25   glyphs 22 "Not available now    Esc  Back"
+stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
+# 68 items, 3172 vertices, 6888 indices, 4 commands; check_draw_list: passes

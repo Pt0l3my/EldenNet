@@ -68,6 +68,13 @@ shape = "state"
 id = "selftest"
 shape = "state"
 
+# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 the AI pages are greyed with
+# the banner's words (PAGES §4.4); Home's greying at L1 waits for the slice that reworks Home.
+
+[[topic]]
+id = "space.state"
+shape = "state"
+
 # ---- The rail (PAGES §4.2.1), in its order.
 
 [[category]]
@@ -314,7 +321,7 @@ blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.sta
 [[page.sections]]
 id = "providers"
 title = "Providers"
-blocks = [{ kind = "component", component = "table", topic = "providers" }]
+blocks = [{ kind = "component", component = "table", topic = "providers", props = { empty = "No provider yet: choose a preset on Models, then press Add provider." } }]
 
 [[page.sections]]
 id = "keys"
@@ -325,12 +332,12 @@ blocks = [{ kind = "settings", keys = ["keys.openrouter", "keys.nanogpt"] }, { k
 [[page.sections]]
 id = "listed"
 title = "Models listed"
-blocks = [{ kind = "component", component = "check_list", topic = "providers" }]
+blocks = [{ kind = "component", component = "check_list", topic = "providers", props = { empty = "Press List models to ask each provider for its models." } }]
 
 [[page.sections]]
 id = "health"
 title = "Health"
-blocks = [{ kind = "component", component = "table", topic = "health" }]
+blocks = [{ kind = "component", component = "table", topic = "health", props = { empty = "No provider yet." } }]
 
 [[page]]
 id = "ai.models"
@@ -355,7 +362,7 @@ blocks = [{ kind = "settings", keys = ["ai.preset"] }]
 [[page.sections]]
 id = "jobs"
 title = "Jobs"
-blocks = [{ kind = "component", component = "table", topic = "ai.slots" }]
+blocks = [{ kind = "component", component = "table", topic = "ai.slots", props = { empty = "No job has a model yet: choose a preset above." } }]
 
 [[page]]
 id = "ai.selftest"
@@ -381,19 +388,19 @@ blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.sta
 [[page.sections]]
 id = "verdict"
 title = "Verdict"
-blocks = [{ kind = "component", component = "computed_sentence", topic = "selftest" }]
+blocks = [{ kind = "component", component = "computed_sentence", topic = "selftest", props = { empty = "Press Run self-test to check your provider." } }]
 
 [[page.sections]]
 id = "steps"
 title = "Steps"
-blocks = [{ kind = "component", component = "check_list", topic = "selftest" }]
+blocks = [{ kind = "component", component = "check_list", topic = "selftest", props = { empty = "Each step appears here once the self-test has run." } }]
 
 [[page.sections]]
 id = "figures"
 title = "Figures"
-blocks = [{ kind = "component", component = "key_value_list", topic = "selftest" }]
+blocks = [{ kind = "component", component = "key_value_list", topic = "selftest", props = { empty = "The figures appear here once the self-test has run." } }]
 
 [[page.sections]]
 id = "earlier"
 title = "Earlier runs this session"
-blocks = [{ kind = "component", component = "table", topic = "selftest" }]
+blocks = [{ kind = "component", component = "table", topic = "selftest", props = { empty = "No earlier run this session." } }]

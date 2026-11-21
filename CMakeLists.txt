@@ -38,7 +38,7 @@ en_fetch(https://raw.githubusercontent.com/marzer/tomlplusplus/v3.4.0/LICENSE
   tomlplusplus/LICENSE 529bc3900a9571e49db285b0df432397e70b881cc3bf48de6667ae74ff4b06d8)
 
 # Dear ImGui 1.93.0's core, for the F11 view (en-overlay; DESIGN O25, ARCH §2.3): the very pin GraceUI uses (its
-# cmake/third_party.cmake at GraceUI 51091c7, unchanged since f51bcc7): tag v1.93.0's commit, from its own project,
+# cmake/third_party.cmake at GraceUI beca859, unchanged since f51bcc7): tag v1.93.0's commit, from its own project,
 # each file by its SHA-256, the core alone and no backend. Only the Windows builds build en-overlay's connection and
 # the view, so only they fetch it.
 if(WIN32)
@@ -66,7 +66,7 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 51091c7 (GraceUI 0.2.6, ABI 1.2) with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md).
+# from GraceUI at beca859 (GraceUI 0.2.7, ABI 1.2) with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
@@ -80,7 +80,7 @@ foreach(pin IN ITEMS
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 51091c7's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI beca859's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)

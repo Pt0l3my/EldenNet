@@ -263,6 +263,9 @@
     ],
     "sentence": "Quick: the first words of a reply come in about 0.67 s."
   },
+  "space.state": {
+    "greyed": {}
+  },
   "status": {
     "items": [
       {

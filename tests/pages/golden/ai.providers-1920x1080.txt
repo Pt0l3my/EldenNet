@@ -58,7 +58,12 @@ stroke  edge         1505, 654  350x35   r3 w1 clip1
 text    ink.body     1518, 659   59x25   clip1 glyphs 7 "Missing"
 line    rule          365, 701 1490x1    clip1
 text    ink.hi        365, 717   56x28   clip1 glyphs 6 "Preset"
-text    gold         1728, 719  127x25   clip1 glyphs 13 "Lives in Models"
+text    gold         1348, 719  127x25   clip1 glyphs 13 "Lives in Models"
+stroke  edge         1505, 712  350x38   r3 w1 clip1
+fill    ground.3     1506, 713  115x36   r3 clip1
+text    gold.hi      1510, 719  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
+text    ink.mute     1627, 719  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
+text    ink.mute     1771, 719   51x25   clip1 glyphs 6 "Custom"
 fill    ground.2      340, 796 1540x130  r5 clip1
 stroke  rule          340, 796 1540x130  r5 w1 clip1
 text    gold          365, 816  125x20   clip1 glyphs 12 "Models listed"
@@ -88,4 +93,4 @@ text    gold         1835,1206    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi      1296,  86  158x46   r5 w3 clip1
-# 89 items, 4128 vertices, 8886 indices, 4 commands; check_draw_list: passes
+# 94 items, 4308 vertices, 9366 indices, 4 commands; check_draw_list: passes

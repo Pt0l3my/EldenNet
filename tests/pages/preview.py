@@ -30,8 +30,11 @@ import browser  # noqa: E402
 # Each page's golden, dumped over the fixture state named with it (since GraceUI 0.2.6, D184, the dump shows the
 # components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
 # a state with a provider set up and a self-test run.
+# A page dumped over a second state has its golden named for it too (ai.selftest.banner: greyed at L1, GraceUI 0.2.7's
+# space.state, D188).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
-         ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"))
+         ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
+         ("ai.providers", "starting"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
@@ -137,7 +140,8 @@ def main(argv):
         if done.returncode != 0:
             failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
             continue
-        golden = goldens / ("%s-%s.txt" % (page, SIZE))
+        first = next(s for p, s in PAGES if p == page)
+        golden = goldens / ("%s-%s.txt" % (page if state == first else "%s.%s" % (page, state), SIZE))
         if update:
             golden.write_text(done.stdout, encoding="utf-8")
         if not golden.is_file() or golden.read_text(encoding="utf-8") != done.stdout:

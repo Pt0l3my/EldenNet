@@ -8,8 +8,8 @@ and browser view (PAGES; GraceUI's G20, D169). It began as the first in-game bui
 moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 and §36). Later increments add EldenNet's own
 surfaces (subtitles, the chat box, the call-out box) as panels, and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 51091c7, GraceUI
-0.2.6; its floor, 0.2.3): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at beca859, GraceUI
+0.2.7; its floor, 0.2.3): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -137,7 +137,9 @@ game's own text entry is not read in v0.1.
   last answered and its jobs; `ai.slots` each job's provider, model and fallback, "Same as Conversation" for one that
   borrows (the reserved slots get no row until their features exist, PAGES §4.5); `selftest` the verdict, the steps,
   the figures and this session's earlier runs, nothing before the first run. Never a key, an id a server listed, or
-  the model's text.
+  the model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): the AI pages greyed at L1 with the
+  banner's own words (PAGES §4.4), nothing greyed otherwise (at L2 every page stays usable, led by `ai.status`). The
+  AI pages' blocks carry `props.empty` words for a topic that published nothing for them (D186).
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings

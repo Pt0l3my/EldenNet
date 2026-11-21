@@ -580,6 +580,23 @@ json selftest_body(const SpaceFacts& f) {
   return b;
 }
 
+// GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 the AI pages, with the banner's own
+// words (PAGES §4.4: "EldenNet is inactive: reason"); at L2, or with no healthy model, every page stays usable and the
+// AI pages lead with the cause (ai.status). Home's greying at L1 is the slice's that reworks Home.
+json space_state_body(const SpaceFacts& f) {
+  json greyed = json::object();
+  if (f.level == Level::Inactive) {
+    std::string words = f.stop_text.empty() ? std::string("EldenNet is inactive.") : std::string(f.stop_text);
+    if (words.size() > 200) {
+      std::size_t cut = 200;
+      while (cut > 0 && (static_cast<unsigned char>(words[cut]) & 0xC0) == 0x80) --cut;  // at a character
+      words.resize(cut);
+    }
+    for (const char* page : {"ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
+  }
+  return json{{"greyed", std::move(greyed)}};
+}
+
 // The rate of each state topic (GraceUI DESIGN §6.5): the least time between two publishes.
 std::uint64_t interval_of(std::string_view topic) noexcept {
   if (topic == "status") return 250;
@@ -590,9 +607,9 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 10> kStates = {"settings", "status",    "errors",   "system.status",
+constexpr std::array<std::string_view, 11> kStates = {"settings", "status",    "errors",   "system.status",
                                                       "system.compatibility", "ai.status", "providers", "health",
-                                                      "ai.slots",             "selftest"};
+                                                      "ai.slots",             "selftest",  "space.state"};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -939,6 +956,7 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "health") return health_body(facts);
   if (topic == "ai.slots") return slots_body(facts);
   if (topic == "selftest") return selftest_body(facts);
+  if (topic == "space.state") return space_state_body(facts);
   return json::object();
 }
 

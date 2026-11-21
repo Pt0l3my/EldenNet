@@ -34,7 +34,13 @@ text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
 line    rule          365, 406 1490x1    clip1
 text    ink.hi        365, 422   94x28   clip1 glyphs 9 "Log detail"
 text    ink.mute      365, 456 1114x25   clip1 glyphs 111 "How much EldenNet writes to its log. Detailed helps with a bug report; Normal is enough otherwise. Changes at once. Default: Normal."
-text    gold         1703, 424  152x25   clip1 glyphs 16 "Lives in Developer"
+text    gold         1323, 424  152x25   clip1 glyphs 16 "Lives in Developer"
+stroke  edge         1505, 417  350x38   r3 w1 clip1
+text    ink.mute     1510, 424   76x25   clip1 glyphs 8 "Errors only"
+text    ink.mute     1603, 424   68x25   clip1 glyphs 8 "Warnings"
+fill    ground.3     1681, 418   86x36   r3 clip1
+text    gold.hi      1699, 424   51x25   clip1 glyphs 6 "Normal"
+text    ink.mute     1778, 424   68x25   clip1 glyphs 8 "Detailed"
 fill    ground.2      340, 526 1540x175  r5 clip1
 stroke  rule          340, 526 1540x175  r5 w1 clip1
 text    gold          365, 546   67x20   clip1 glyphs 7 "Related"
@@ -47,6 +53,6 @@ text    ink.hi        365, 636   84x28   clip1 glyphs 9 "Developer"
 text    ink.mute      862, 639  472x25   clip1 glyphs 49 "Options for testing EldenNet and reporting its problems."
 text    gold         1835, 636    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
-text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
-stroke  gold.hi      1700, 418  158x36   r5 w3 clip1
-# 50 items, 2160 vertices, 4392 indices, 4 commands; check_draw_list: passes
+text    ink.faint     340,1045  413x25   glyphs 31 "← →  Change    Enter  Go to its page    Esc  Back"
+stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
+# 56 items, 2412 vertices, 4980 indices, 4 commands; check_draw_list: passes

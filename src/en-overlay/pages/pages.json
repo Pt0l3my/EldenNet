@@ -325,7 +325,10 @@
             {
               "kind": "component",
               "component": "table",
-              "topic": "providers"
+              "topic": "providers",
+              "props": {
+                "empty": "No provider yet: choose a preset on Models, then press Add provider."
+              }
             }
           ]
         },
@@ -356,7 +359,10 @@
             {
               "kind": "component",
               "component": "check_list",
-              "topic": "providers"
+              "topic": "providers",
+              "props": {
+                "empty": "Press List models to ask each provider for its models."
+              }
             }
           ]
         },
@@ -367,7 +373,10 @@
             {
               "kind": "component",
               "component": "table",
-              "topic": "health"
+              "topic": "health",
+              "props": {
+                "empty": "No provider yet."
+              }
             }
           ]
         }
@@ -422,7 +431,10 @@
             {
               "kind": "component",
               "component": "table",
-              "topic": "ai.slots"
+              "topic": "ai.slots",
+              "props": {
+                "empty": "No job has a model yet: choose a preset above."
+              }
             }
           ]
         }
@@ -473,7 +485,10 @@
             {
               "kind": "component",
               "component": "computed_sentence",
-              "topic": "selftest"
+              "topic": "selftest",
+              "props": {
+                "empty": "Press Run self-test to check your provider."
+              }
             }
           ]
         },
@@ -484,7 +499,10 @@
             {
               "kind": "component",
               "component": "check_list",
-              "topic": "selftest"
+              "topic": "selftest",
+              "props": {
+                "empty": "Each step appears here once the self-test has run."
+              }
             }
           ]
         },
@@ -495,7 +513,10 @@
             {
               "kind": "component",
               "component": "key_value_list",
-              "topic": "selftest"
+              "topic": "selftest",
+              "props": {
+                "empty": "The figures appear here once the self-test has run."
+              }
             }
           ]
         },
@@ -506,7 +527,10 @@
             {
               "kind": "component",
               "component": "table",
-              "topic": "selftest"
+              "topic": "selftest",
+              "props": {
+                "empty": "No earlier run this session."
+              }
             }
           ]
         }
@@ -557,6 +581,10 @@
     },
     {
       "id": "selftest",
+      "shape": "state"
+    },
+    {
+      "id": "space.state",
       "shape": "state"
     }
   ],

@@ -6,7 +6,7 @@ eldennet-changes §19 item 2).
     python3 -I tests/pages/lint.py --graceui <a GraceUI checkout> src/en-overlay/pages/space.toml
 
 It runs `tools/pages/build.py --lint` of the GraceUI checkout given, once every file that lint reads is the pinned
-commit's, by its SHA-256 (the pins below, GraceUI 51091c7, the commit third_party/graceui-sys comes from). A checkout at
+commit's, by its SHA-256 (the pins below, GraceUI beca859, the commit third_party/graceui-sys comes from). A checkout at
 another commit fails with the file that differs: move the pins with the vendored headers. Standard library only.
 """
 import argparse
@@ -15,9 +15,9 @@ import pathlib
 import subprocess
 import sys
 
-COMMIT = "51091c7"
+COMMIT = "beca859"
 PINS = {
-    "tools/pages/build.py": "bd74bf843a956fadd4548941fdd8a5ea26ffa041fe2fb245ee6f52a190d7178d",
+    "tools/pages/build.py": "eb7b1bc8bbff3972455b0fe1e49ace3596155886c527c2fdd0bc4a303ac42995",
     "tools/protocol/generate.py": "d5bd23b02647a25e0196a42aa94f7912bbcdabf24ad40aa17c8247d3f88c2607",
     "src/grace-protocol/protocol.toml": "738dad504d2f4151419113e3d7be817d20202f1abe7892f849bb980e83c66f61",
     # The built-in spaces, which the lint reads for the pages other spaces may link to ("graceui/<page>").

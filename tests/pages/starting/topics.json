@@ -109,6 +109,9 @@
     "rows": []
   },
   "selftest": {},
+  "space.state": {
+    "greyed": {}
+  },
   "status": {
     "items": [
       {
