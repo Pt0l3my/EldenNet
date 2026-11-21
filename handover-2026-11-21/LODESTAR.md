@@ -1,4 +1,4 @@
-# Lodestar's status, 21 November 2026 (end of the first sitting)
+# Lodestar's status, 21 November 2026 (after its second sitting)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -7,46 +7,55 @@ first; this file adds only where Lodestar's own work stands.
 
 | What | Where | State |
 |---|---|---|
-| Proposal 0005 | `docs/proposals/0005-lodestar.md` (`docs/lodestar`, and on `design/v1-proposal` through Engine) | Accepted: O101 (b), O102 (a) and O103 (a), each as recommended |
-| Step L1: the catalogue (`gal/ids.toml`, `ids.hpp`) and the build's table (`layout.hpp`, schema 2) | `feat/lodestar` dc18c95; merged into `feat/engine` as fb999ca | Done |
-| The resolver: placement and witness checks, `Library` (`resolve.hpp`) | `feat/lodestar` 440233e | Done on invented images; nothing in the DLL reads through it |
-| L2, first half: shapes (`shape.hpp`) and the accessor finder on a shape (`fd4::Accessor`) | `feat/lodestar` 700d54e | Done: on the tests' three invented programs the shape's sites are exactly the pattern's. The pattern path is still the one in use |
-| The design document, with a code for `wp` | `docs/lodestar` | Not started |
-| The text for ARCH §3.2, §6.2 to §6.4 and §6.10, DESIGN §2.1, §4.2 and §16.1 (proposal §15) | to send to Engine | Not started |
+| Proposal 0005 | `docs/proposals/0005-lodestar.md` | Accepted: O101 (b), O102 (a) and O103 (a), each as recommended |
+| L1: the catalogue (`gal/ids.toml`, `ids.hpp`) and the build's table (`layout.hpp`, schema 2) | engine dc18c95 | Done, merged |
+| The resolver: placement and witness checks, `Library` (`resolve.hpp`) | engine 440233e | Done on invented images, merged; nothing in the DLL reads through it yet |
+| L2: shapes (`shape.hpp`), the accessor as a recipe (`gal/recipes.toml`, `recipes.hpp`), discovery by the shape, `gal/patterns.toml` withdrawn | engine 700d54e, 21c5b02 | Done, merged: `gal/` holds no byte of the game. The fake game's harness passes 105 of 105 with the shape in use |
+| L3: the finder (`lodestar.hpp`, `eldennet-engine lodestar find`), report kind `lodestar` schema 2, the `find` package kind | engine 9edf1c0 | Built, merged. **The owner's offline run has not happened** |
+| The package for that run, `EldenNet-Find.zip`, label 0.1.0-lodestar.1 | not in the repository | Built and checked under Wine, then **held by the privacy sweep** (below) |
+| Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
+| The design document, with a code for `wp`; the text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Not started |
 
-Engine holds the numbers: the questions are O101 to O103, the log entries WHY§304 to §306 (next free: 307), and
-S10.1.k carries the steps L1 to L7.
+Engine holds the numbers: O101 to O103; WHY§304 to §312 are Lodestar's drafts placed (next free: 313); S10.1.k carries
+the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar's branches reach it through them.
+
+## The package and the sweep
+
+The sweep refuses `EldenNet-Find.zip` under its rule `email`: `THIRD-PARTY-NOTICES.txt` holds toml++'s MIT licence
+unchanged, and its copyright line carries its author's address. The licence obliges us to keep the notice as it is,
+so the address cannot be removed, and the sweep is never bypassed. Asked of Engine: how R1's packages, which carry the
+same notices, passed. Proposed to the owner otherwise: one narrow, commented line in the sweep's `allow.txt`, in
+Skyrizz (rule `email`, that one address, only in `THIRD-PARTY-NOTICES.txt` and `tomlplusplus/LICENSE`). Until one of
+the two is settled the package is not sent. To rebuild it: BUILD.md, "The spike package", the `find` kind.
 
 ## What comes next, in order
 
-1. **L2, second half: the shape in use.** `gal/recipes.toml` (schema, reader, `lint --gal`, a note per recipe in
-   `gal/derivations/`), holding the accessor: its five forms (`load_slot`, `test_loaded`, `branch_set_short`,
-   `address_arg1`, `call_relative`), which step gives the static, the class object and the getter, and the path
-   suffix. Then the three readers of `patterns.toml`'s idiom move to it: the derivation (`derive.cpp`, which today cuts
-   the idiom's bytes from the sites: it would report the shape's hits and sites instead), discovery
-   (`discovery.cpp`) and R1's check (`probe_r1.cpp`, "the idiom byte for byte" becomes "the shape's sites"). The fake
-   game's harness cases under Wine must pass unchanged, in clang-cl's and MinGW's `fakegame.exe`. Only then is
-   `patterns.toml` removed, with its note and ARCH §6.3's text (through Engine). The shape is stricter than the
-   pattern (a 64-bit load, a test of the same register, a forward branch), so on the real game its hits may be fewer
-   than R0c's 7,151: L3's run reports both counts, and the accepted sites against R1's 7,081.
-2. **L2, digests.** A function's digest over its code as loaded, with relocated bytes and RIP-relative displacements
-   masked. The launcher has our own BLAKE3 (`blake3.cpp`, WHY§174); it would move where en-gal can link it.
-3. **L3**: `lodestar find`, `check` and `diff` in `eldennet-engine`, report schema 2 (`kind = "lodestar"`, no key that
-   can carry bytes or instruction forms); send Engine its vocabulary for DataPiler's guard. Then the owner's one
-   offline run on 2.7.2.0, as a package (`tools/spikepkg`), swept, with plain steps.
-4. **L4**: discovery at start through `Library`, and the frame service's `own thread` provider with §10's checks
-   (structure read twice, a change held for two readings). Under O101 (b), `register_task` and `call_getter` leave
-   release builds.
-5. The design document and the text for Engine, once L2 shows the grammar's final form.
+1. **The owner's offline run** (about 5 minutes, the game closed), once the package may be sent: the owner drops the
+   game's executable onto `find.cmd` and sends back `lodestar-found.json` and the console's line. Review it as data
+   (`lint --report`, then against en-tools' README): the shape's hits and accepted sites against R0c's 7,151 and
+   7,081, `only_shape` and `only_pattern` (both should be 0), the statics found (R0c: 219) and class objects (217),
+   the classes and the table (168 entries of 32 bytes, index 110). Write the record in `docs/ops/probes/` through
+   Engine, set the recipe's `expect_matches` from the count, and send Engine a log draft.
+2. **L4: the reader thread.** Discovery at start through `Library` once a table exists, and the frame service's `own
+   thread` provider with proposal §10's checks (structure read twice, a change held for two readings). Under O101 (b),
+   `register_task` and `call_getter` leave release builds. Grace's answer (WHY§309): nothing in GraceUI assumes
+   per-frame updates; labels step at the reader's rate and a camera turn shows it most; smoothing every frame would
+   need GraceUI's `on_present` callback, which is designed but not in ABI 1.2, by a GraceUI proposal.
+3. **L5: the read-only in-game package**, which names the managers' slots by their instances' classes (O92) and
+   writes the first table for 2.7.2.0; it replaces R1's package (`tools/spikepkg`'s `r1` and README-R1.txt.in are
+   legacy until then).
+4. `lodestar check` and `diff`, and the draft-table writer, when a table exists to check.
+5. The design document and the text for Engine.
 
 ## What a sitting needs to know
 
-- The container: `feat/engine` is a worktree at `../eldennet-engine`; Wine's loader is `/usr/lib/wine/wine64` (not on
-  the path); unset `TMPDIR` for it and give each run its own prefix.
-- One build tree beside `build` (GCC, Release) at a time. Building only `en_gal_tests` in the second tree takes a few
-  minutes: Clang (`CXX=clang++-18`), clang-cl (`cmake/clang-cl-xwin.cmake`), MinGW (`cmake/mingw-w64.cmake`), then
-  the tree is removed. The fuzz tree is `-DEN_FUZZ=ON` with Clang; `en_fuzz_galtoml` covers `ids.toml` and the items.
-- Counts to compare against: `en_gal_tests` 194 cases on GCC, Clang and MinGW, 209 on clang-cl; ctest 29 of 29 on GCC.
-- A witness says that the bytes at a place refer to the id, not that an instruction starts there (one byte into a
-  prefixed load the bytes still decode to the same reference). Accepted, tested and said in en-gal's README.
-- Nothing of the game was needed, read or written in this sitting, and no report of the owner's was asked for.
+- The container: `feat/engine` is a worktree at `../eldennet-engine`, on `feat/lodestar`; Wine's loader is
+  `/usr/lib/wine/wine64` (not on the path); unset `TMPDIR` for it and give each run its own prefix.
+- One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
+  minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
+  (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
+- Counts to compare against: `en_gal_tests` 204 cases on GCC, Clang and MinGW, 219 on clang-cl; ctest 29 of 29 on
+  GCC; the harness 105 of 105.
+- A string escape in a `gal/` file must be written as a backslash and `u00A7` in the file itself: a shell heredoc
+  here turned it into the character, which `lint --gal` refuses.
+- Nothing of the game was needed, read or written so far, and no report of the owner's was asked for.
