@@ -20,6 +20,7 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/builds.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ids.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/layout.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/resolve.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/toml_reader.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/x86.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/report.cpp
@@ -27,7 +28,9 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/code.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/cut.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rtti.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/shape.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/fd4.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/recipes.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_leads.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/derive_report.cpp
@@ -95,6 +98,9 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_program.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/sample_program.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_derive.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resolve.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_recipes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_report.cpp
     # The in-game part, on FakeSys (part 4)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/alloc_count.cpp

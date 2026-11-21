@@ -23,6 +23,7 @@
 
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/patterns.hpp"
+#include "en/gal/shape.hpp"
 
 namespace en::gal::fd4 {
 
@@ -124,6 +125,25 @@ struct Result {
 };
 
 [[nodiscard]] Result find(const ImageBytes& img, const Idiom& idiom, const Config& config);
+
+// The accessor as a shape (shape.hpp; proposal 0005 §6.1, O102): the same head with no byte of any program, and which
+// of its steps gives the static (a load of a slot), the class object (an address into the first argument's register)
+// and the getter (a relative call). The shape comes from the caller, as the idiom does: nothing here knows the game.
+struct Accessor {
+  shape::Shape shape;
+  std::uint8_t static_step = 0;
+  std::uint8_t class_step = 0;
+  std::uint8_t getter_step = 0;
+
+  // The steps exist and are of the forms that give those places.
+  [[nodiscard]] bool valid() const noexcept;
+};
+
+// The finder on a shape: every place of the code section where the shape stands is a site, already decoded, so none
+// is refused as unreadable; its path is found by decoding on (in the block the shape's branch skips, or before the
+// hit), and its placement and its name are judged as a pattern's site's are. `first_reference` does not apply. An
+// accessor that is not valid finds nothing.
+[[nodiscard]] Result find(const ImageBytes& img, const Accessor& accessor, const Config& config);
 
 // The name a class object gives through a layout: printable ASCII of 1 to 128 characters (UTF-16 narrowed alike).
 [[nodiscard]] std::optional<std::string> class_name(const ImageBytes& img, std::uint32_t class_object,

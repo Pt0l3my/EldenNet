@@ -139,8 +139,9 @@ larger than 512 MiB being 2 (`lint: the recording is clean`, `... is refused`).
 `patterns.toml` and `leads.toml` (each if present) read as the DLL and probe-exe read them, and each build's layout with
 `load_layout`'s checks in a dev build's mode (leads allowed; what the read groups need is the DLL's to check at boot).
 `ids.toml` is Lodestar's catalogue (proposal 0005 §4; en-gal's `ids.hpp`): a layout that holds a table's items
-(schema 2) is checked against it, and refused when the folder has none; the clean line ends with the catalogue's
-count (`ids 20`).
+(schema 2) is checked against it, and refused when the folder has none. `recipes.toml` (if present) is read as the DLL
+reads it (en-gal's `recipes.hpp`); every recipe needs its derivation note and may list only builds builds.toml holds.
+The clean line ends with the catalogue's and the recipes' counts (`ids 20, recipes 1`).
 Every pattern needs its derivation note, `derivations/<id>.md` (ARCH §6.3, DESIGN O27), and every build a pattern
 lists as confirmed must be one builds.toml holds. Each problem is printed as `lint: <file>: <where>: <problem>`, never
 with a value; on success one line, `lint: gal/ is clean: builds 1, layouts 1, patterns 1 (confirmed in no build: 1),
@@ -247,7 +248,8 @@ place, its play time rising.
 
 ## gal/ for the owner's 2.7.2.0 WW (R0c into R1)
 
-The repository's `gal/` now holds what R0c, the second offline run (2026-11-16), gave, each value a lead until R1 and
+The repository's `gal/` holds what R0c, the second offline run (2026-11-16), gave (its idiom until 2026-11-21 only,
+as the next paragraph says), each value a lead until R1 and
 S0-A confirm it (ARCH §6.3): `builds.toml`'s fingerprint for 2.7.2.0 WW (App 1.17.2); `patterns.toml`'s FD4 idiom
 (`fd4_idiom`, 24 bytes, 7 fixed, R0c's 7,151 hits, confirmed in no build) with its note
 `derivations/fd4_idiom.md`; and the draft layout `layouts/2.7.2.0-ww.toml`, a `[task]` holding only the group's name
@@ -255,7 +257,13 @@ and index (110: R0c's table of 168 entries of 32 bytes, UTF-16 names at +16), wh
 the task's shape, the statics, the classes and fields are R1's to find; `leads.toml` is R0's, unchanged but for its
 comments. CTest's `en_tools_cli` runs `lint --gal` on it in the Linux builds.
 
-Since 2026-11-21 it also holds `ids.toml`, Lodestar's catalogue (proposal 0005 §4): 20 ids of our own, the 16 items
+Since 2026-11-21 the FD4 idiom is withdrawn (O102: no bytes from the game in `gal/`): `patterns.toml` and
+`derivations/fd4_idiom.md` are gone, and `recipes.toml` holds the same accessor as a shape in our own grammar
+(`accessor`, five forms, no bytes; en-gal's `recipes.hpp`), a lead with its note `derivations/accessor.md`, not yet
+counted on the game. `lint --gal` reads it, wants a note for every recipe and a known build for every one it lists,
+and its clean line ends `recipes 1`.
+
+It also holds `ids.toml`, Lodestar's catalogue (proposal 0005 §4): 20 ids of our own, the 16 items
 the code reads (15 statics and the function, `task_add`), `task_remove` (the function R0c took for the registration,
 which R1's run 12 showed to remove; WHY§302), the two character classes and the task groups' table. It states no fact
 about any build; the layout stays schema 1, with no item, until a table is found by our own tools and reviewed.

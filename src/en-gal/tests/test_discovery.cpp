@@ -110,6 +110,60 @@ TEST_CASE("discovery: the probe round's slot stands for a static that has no pat
   CHECK_FALSE(refused->ready());
 }
 
+TEST_CASE("discovery: with an accessor recipe the singletons are found by its shape, and no idiom is needed") {
+  FakeWorld w;
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  // patterns.toml without its idiom: refused while nothing replaces it.
+  const std::size_t a = w.patterns.find("[[pattern]]\nid = \"fd4_idiom\"");
+  REQUIRE(a != std::string::npos);
+  const std::size_t b = w.patterns.find("[[pattern]]", a + 5);
+  std::string no_idiom = w.patterns;
+  no_idiom.erase(a, b == std::string::npos ? std::string::npos : b - a);
+  CHECK_FALSE(discover(*w.sys, *gated, no_idiom, w.layout).has_value());
+  // The same accessor as a shape, with no byte of the fake world's code in it.
+  DiscoveryOptions with_recipe;
+  with_recipe.recipes =
+      "schema = 1\n[[recipe]]\nid = \"accessor\"\nkind = \"accessor\"\n"
+      "steps = [\"load_slot\", \"test_loaded\", \"branch_set_short\", \"address_arg1\", \"call_relative\"]\n"
+      "gives = { static = 0, class = 3, getter = 4 }\npath_suffix = \"One.h\"\n"
+      "provenance = { method = \"own-derivation\", evidence = \"docs/ops/probes/invented.md\", "
+      "date = \"2026-01-02\" }\n";
+  const auto by_shape = discover(*w.sys, *gated, no_idiom, w.layout, with_recipe);
+  if (!by_shape.has_value()) {
+    for (const SchemaError& e : by_shape.error()) MESSAGE(describe(e));
+  }
+  REQUIRE(by_shape.has_value());
+  const auto by_pattern = discover(*w.sys, *gated, w.patterns, w.layout);
+  REQUIRE(by_pattern.has_value());
+  CHECK(by_shape->ready() == by_pattern->ready());
+  CHECK(by_shape->ready());
+  CHECK(by_shape->report().fd4_accepted == by_pattern->report().fd4_accepted);
+  CHECK(by_shape->report().fd4_names == by_pattern->report().fd4_names);
+  CHECK(by_shape->report().fd4_hits <= by_pattern->report().fd4_hits);  // the shape hits no look-alike
+  for (std::size_t i = 0; i < roles::kItemCount; ++i) {
+    const auto item = static_cast<Item>(i);
+    CAPTURE(roles::info(item).label);
+    CHECK(by_shape->report().items[i].status == by_pattern->report().items[i].status);
+    CHECK(by_shape->report().items[i].rva == by_pattern->report().items[i].rva);
+    CHECK(by_shape->report().items[i].sites == by_pattern->report().items[i].sites);
+  }
+  // With the recipe, the idiom is not read even where patterns.toml still holds it.
+  const auto both = discover(*w.sys, *gated, w.patterns, w.layout, with_recipe);
+  REQUIRE(both.has_value());
+  CHECK(both->report().fd4_hits == by_shape->report().fd4_hits);
+  // A recipes.toml that does not read is a refusal, as a patterns.toml is; one without an accessor changes nothing.
+  DiscoveryOptions broken = with_recipe;
+  broken.recipes = replaced(with_recipe.recipes, "own-derivation", "copied");
+  CHECK_FALSE(discover(*w.sys, *gated, w.patterns, w.layout, broken).has_value());
+  DiscoveryOptions empty;
+  empty.recipes = "schema = 1\n";
+  CHECK_FALSE(discover(*w.sys, *gated, no_idiom, w.layout, empty).has_value());
+  const auto idiom_still = discover(*w.sys, *gated, w.patterns, w.layout, empty);
+  REQUIRE(idiom_still.has_value());
+  CHECK(idiom_still->report().fd4_hits == by_pattern->report().fd4_hits);
+}
+
 TEST_CASE("discovery: a required item missing is retried at +5, +15 and +30 s, then fails") {
   FakeWorld w;
   const std::string broken =

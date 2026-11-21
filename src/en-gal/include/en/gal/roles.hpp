@@ -56,6 +56,9 @@ struct ItemInfo {
 [[nodiscard]] constexpr std::size_t index(Item item) noexcept { return static_cast<std::size_t>(item); }
 
 inline constexpr std::string_view kFd4IdiomId = "fd4_idiom";
+// The same finder's recipe in recipes.toml: the accessor as a shape, with no byte of the game (proposal 0005 §6; O102).
+// Where the recipe is given, the idiom is neither needed nor read.
+inline constexpr std::string_view kAccessorRecipeId = "accessor";
 
 // ---- Classes of the layout, by label ----
 

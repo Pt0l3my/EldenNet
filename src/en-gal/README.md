@@ -107,8 +107,24 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   the catalogue the caller gives (`LayoutNeeds::ids`): each under the catalogue's label, number and kind, none
   retired, and a file with items is refused without one. A release build refuses a lead item as any other lead. No
   key of an item can hold a byte of the game: `bytes`, `pattern`, `text`, `name` and the like are unknown keys, and
-  refused. Nothing reads the items yet: resolving through them is the next step (the proposal's L2 to L4). A schema 1
-  layout reads as before and holds neither key.
+  refused. A schema 1 layout reads as before and holds neither key.
+- **`resolve.hpp`: Lodestar's resolver** (proposal 0005 §7.1, §9.1). The checks a start makes on the build's table,
+  with no search: `check_item(image, source, item)` re-finds one item in the image as loaded. *Placement*: a static in
+  a section that is read and written and not run, with room for a pointer; a function at a start the image's own
+  function table lists, of the table's length; a table whole within one section that is read and not run; a class's
+  tables of methods in read-only data, aligned to 8. *Witness*: at each place the table records as using the id, the
+  instruction's own bytes are read (one read of at most 15 bytes through the `ByteSource`: offline the file, in game
+  the guarded view of the mapped image) and decoded with our decoder, and must refer to the id: a static or a table
+  by a RIP-relative operand, a function by a relative call or jump or by a RIP-relative operand (a branch on a
+  condition is no witness). The first witness that fails refuses the item and is named by its index. A witness says
+  that the bytes at a place refer to the id, not that an instruction starts there: one byte into a prefixed load the
+  bytes still decode to the same reference, which is accepted. `Library(layout, image, source)` checks every item
+  once, on the init thread, and `place(id, kind)` and `vtables(id)` hand out the offsets of checked items only; a
+  refused item answers its `ItemProblem` (fixed words, `to_string`; `check_of` names the check it belongs to), an id
+  the table lacks `Unknown`, an id asked for as another kind `Kind`. One refusal touches no other item: nothing is
+  looked for nearby and nothing is retried. Nothing in the DLL reads through the library yet: discovery still uses
+  `patterns.toml`, until the first table is found and reviewed (the proposal's L3 and L4); the digest, class,
+  self-test and verdict checks are later steps'.
   `check_layout(entry, text, needs, mode)` makes the same checks for builds.toml's entry without the gate and keeps no
   `Layout` (R7 still keeps that to `load_layout`): `eldennet-engine lint --gal` runs it.
 
@@ -175,6 +191,34 @@ of any game is in it, and every name it looks for comes from a leads file.
   the block, whatever its text, and no decoding of the hit) stays as `Config::first_reference`, for the derivation's
   comparison only. `idiom_from(spec)` builds the idiom from patterns.toml's
   `fd4_idiom`, by its captures' names (`static`, `class`, `getter`, `path`).
+- **`shape.hpp`: shapes, recipes without bytes** (proposal 0005 §6.1; O102). A shape is a run of at most 16
+  instruction forms in a grammar of our own over the decoder's fields: `load_slot` (a 64-bit load of a RIP-relative
+  slot into a register, which the shape remembers; gives the slot), `test_loaded` (a 64-bit test of that register with
+  itself), `branch_set_short` and `branch_set_near` (a branch forward taken when the test found it set, with an 8-bit
+  or a 32-bit distance), `address_arg1` (the address of a RIP-relative object into the first argument's register;
+  gives the object) and `call_relative` (gives its target). Each form is one instruction of the architecture's own
+  encoding, with no prefix but REX.W where it is 64-bit, whatever registers and distances it uses; the steps'
+  instructions follow one another. `match_at` answers the shape at one place, with what each step gives and where its
+  branch goes; `find` looks at every offset of a section, as the pattern scan does, so a site is found also where a
+  straight decode is out of step, with a three-byte test on the first step's encoding before each decode. No byte of
+  any program is in a shape. `fd4::find(img, accessor, config)` runs the finder on a shape (`fd4::Accessor`: the
+  shape and which step gives the static, the class object and the getter): every hit is a site already decoded, its
+  path found by decoding on, its placement and name judged as a pattern's site's are. On the tests' three invented
+  programs, as files and as mapped, the shape's sites are exactly the pattern's that are not refused as no idiom, with
+  every place, verdict and name the same: the test that let `gal/patterns.toml`'s idiom go (O102).
+- **`recipes.hpp`: `gal/recipes.toml`** (proposal 0005 §6; O102). `parse_recipes(text, required_ids)` reads the
+  recipes, one kind so far: an `accessor`, with its `steps` (1 to 16 forms of the grammar; a test before any load is
+  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it), its
+  `path_suffix`, and, as a pattern has, `section`, `expect_matches` (a range up to 65,536), `builds` and `provenance`
+  (`own-derivation`). No key of a recipe can hold bytes. `RecipeSpec::accessor()` is what the finder takes. Discovery
+  takes the file's text in `DiscoveryOptions::recipes`: with an `accessor` recipe (`roles::kAccessorRecipeId`) the FD4
+  singletons are found by its shape and `patterns.toml` needs no `fd4_idiom`, nor is one read; a text that does not
+  read is a refusal. On the tests' fake world discovery finds the same items, sites and names by either. The DLL and
+  the test DLL read `recipes.toml` when the folder holds it, and a folder with it and no `patterns.toml` is read as
+  having no pattern. The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
+  the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
+  until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
+  no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with

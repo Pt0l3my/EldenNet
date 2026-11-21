@@ -4281,8 +4281,8 @@ def check_template(text, truth):
 
 def make_gal(args, env):
     """gal/ for fakegame.exe as the derivation round gives it: probe-exe --derive with the leads (decoys left out) and
-    R1's slots of the AOB statics (from --describe, standing in for the in-game probe), then builds.toml, patterns.toml
-    and layouts/fakegame.toml from derive.json and the template. Answers the folder and --describe's truth."""
+    R1's slots of the AOB statics (from --describe, standing in for the in-game probe), then builds.toml, patterns.toml,
+    recipes.toml (the accessor as a shape) and layouts/fakegame.toml from derive.json and the template. Answers the folder and --describe's truth."""
     truth = describe_truth(args, env)
     leads = read_leads(args.set_paths["leads"])
     as_win = lambda p: windows_path(p, args.native)
@@ -4333,6 +4333,13 @@ def make_gal(args, env):
                 % (idiom["bytes"], leads["fd4"]["path_suffix"], caps, GAL_PROVENANCE))
     with open(os.path.join(gal, "patterns.toml"), "w") as f:
         f.write("\n".join(pats) + "\n")
+    # Lodestar's recipe for the same accessors, as a shape with no bytes (proposal 0005 §6; O102): where the folder
+    # holds it, discovery finds the singletons by it and reads no idiom. The idiom above stays for R1's own check.
+    with open(os.path.join(gal, "recipes.toml"), "w") as f:
+        f.write('schema = 1\n[[recipe]]\nid = "accessor"\nkind = "accessor"\n'
+                'steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]\n'
+                'gives = { static = 0, class = 3, getter = 4 }\npath_suffix = "%s"\n%s\n'
+                % (leads["fd4"]["path_suffix"], GAL_PROVENANCE))
     best = d["register"]["candidates"][0]
     with open(args.set_paths["gallayout"]) as f:
         template = f.read()
