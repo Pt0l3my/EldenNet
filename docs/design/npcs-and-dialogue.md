@@ -1620,7 +1620,7 @@ std::optional<Unsafe> safe_context(const WorldModel& w) {
 
 ### 5.6 Gamepad gesture (pending S4, O11)
 
-- **Gesture:** hold View + D-pad Up for 0.4 s. It opens the box and calls `ISteamUtils::ShowFloatingGamepadTextInput` (single line) positioned over the input field. The call goes through the flat API of the `steam_api64.dll` the game has already loaded, from the effect shell on T6; it is never a game-code call (DESIGN R2) and it does not block. Steam delivers the text as keystrokes. XInput is neutral while the box is open. B or the keyboard's dismiss closes the box like Esc.
+- **Gesture:** hold View + D-pad Up for 0.4 s. It opens the box and calls `ISteamUtils::ShowFloatingGamepadTextInput` (single line) positioned over the input field. The call goes through the flat API of the `steam_api64.dll` the game has already loaded, from the effect shell on T6; it is never a game-code call (DESIGN R2) and it does not block. Steam delivers the text as keystrokes. XInput is neutral while the box is open. B or the keyboard's dismiss closes the box like Esc. *2026-11-21:* approved by the owner as GraceUI's proposal 0005 (O95), which GraceUI builds.
 - **Chord masking:** while D-pad Up has been held for ≥ 150 ms, View is masked from the game until the chord resolves. If the chord completes, View is never delivered. If D-pad Up is released first, a masked View press is replayed as a short tap. The first D-pad Up press still reaches the game (one spell switch). S4 confirms the chord or picks another (§14 item 2).
 - **If S4 fails:** pad players have no typing path in v1. The intent list is v1.1 (O11).
 

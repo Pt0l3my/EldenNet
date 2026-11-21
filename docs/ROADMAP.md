@@ -1167,7 +1167,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1190,6 +1190,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     game only Custom can be chosen until X1 and S8.1.h have measured the models. GraceUI's proposal 0007 (G34): row
     actions, live pickers, row secrets and small forms, for the AI pages' providers and models, put to the owner and
     EldenNet on 2026-11-21; not built. GraceUI's D190 records EldenNet's commands on its secret settings as built.
+    The owner approved proposal 0007 and the slices' open choices on 2026-11-21 (O95): no lamp while starting, the
+    tones, labels by the build's increment, the banner's words on greyed pages (the Now card's sentence follows in the
+    next slice), and the words as drafted.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
@@ -1203,7 +1206,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Dear ImGui context (GraceUI's docs/eldennet-changes.md §31). EldenNet's text sizes follow GraceUI 0.2.2's display
     event and scaled faces (S11.2.n), and drop their constant (GraceUI's docs/eldennet-changes.md §33). The pad chord that opens the box (NPC §5.6) waits
     for a D-entry of GraceUI's, for S4's second round after R1: GraceUI's proposal 0005, pad chords for hotkeys, put to
-    the owner and EldenNet on 2026-11-20; not built. Built the same day in GraceUI 0.2.1 (feat/foundations
+    the owner and EldenNet on 2026-11-20, approved by the owner on 2026-11-21 (O95); not built. Built the same day in GraceUI 0.2.1 (feat/foundations
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
 
 ### S11.5 v0.2's exit checks

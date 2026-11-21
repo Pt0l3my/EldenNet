@@ -302,6 +302,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 277 | 2026-11-21 | The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4 | LIKELY | #input #hotkeys |
 | 278 | 2026-11-21 | GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages | FACT | #graceui #pages |
 | 279 | 2026-11-21 | The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey | FACT | #graceui #lamp |
+| 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
 
 ## Entries
 
@@ -4760,3 +4761,16 @@ invariant 10, EldenNet ARCH (T3)
   A graphic needs 3:1, and each clears the 4.5:1 GraceUI asks of readable text. Glint is a pale blue-grey, not gold.
 - (FACT) The lamp is drawn only in the browser view, in the top bar beside the theme switch, not beside the name;
   the game's menu has none today.
+
+### 280. System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama
+
+`2026-11-21` · LIKELY · `#llm` `#decisions` · refs: O96, ARCH§11.8, SN01§6.1
+
+- (LIKELY) Jev is TypeSafe's first System One model: it answers typed questions about a given state with an option and
+  probabilities, not prose, and returns no reasoning. System One is the protocol `POST /v1/systemone`. OpenRouter offers
+  Jev through two of its APIs, Decisions and System One; Ollama added a matching endpoint in 0.35; TypeSafe's SDKs work
+  against any server that implements System One, by its base URL. The provider receives the state sent, as any cloud
+  provider does. One provider's documentation calls Jev experimental.
+- (METHOD) From web search results on 2026-11-21 (Spring AI's System One decision page, OpenRouter's Jev guide,
+  LangChain's TypeSafe integration, AIMLAPI's model page); the pages themselves were not read. A client of ours would be
+  written from TypeSafe's and OpenRouter's published references, never from SkyrimNet's (O84).
