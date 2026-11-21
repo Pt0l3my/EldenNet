@@ -322,6 +322,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
 | 298 | 2026-11-21 | A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change | METHOD | #graceui #pages |
 | 299 | 2026-11-21 | R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step | DECIDED | #gal #r1 #task #launcher |
+| 300 | 2026-11-21 | The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit | DECIDED | #engine #pages #graceui |
 
 ## Entries
 
@@ -5110,3 +5111,21 @@ invariant 10, EldenNet ARCH (T3)
   reads 4 nodes at the title (the word absent, between keys 4 and 7) and 9 in the world (the word present).
 - **Also** (FACT): GCC 13's Release build warned twice in rtti.cpp (`-Wmaybe-uninitialized` on two optionals), from part
   3; each optional is now copied into a plain value after its check, and GCC is checked in Release from now on.
+
+### 300. The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit
+
+`2026-11-21` · DECIDED, with FACT readings · `#engine` `#pages` `#graceui` · refs: S11.4.a, S11.2.x, G36, WHY§297
+
+- **The cards** (DECIDED): AI › Models is one section per job (GraceUI's D202): the slot as chip; the job's state as a
+  live status from its provider's health (Ready, Cooling down, Resting after failures, Failing, No key yet, No model);
+  its provider, model, fallback and fallback's provider; its fixed budgets read-only from en-llm's slot table. The
+  Jobs table is gone, each of its facts on a card.
+- **A job's fallback** (DECIDED): chosen as its model is, only for a job with a model of its own and never the job's own
+  model, written with its provider named. Its reset removes the fallback alone; the job's reset removes its whole table.
+  A picker's Default (D199) is the row's reset. The changed mark follows what the table gives (a model, a fallback).
+- **The floor** (FACT): GraceUI 0.2.9 to 0.2.11 take page data saying `"minor": 3` without refusal and draw no chip and
+  no status, so with the Jobs table gone a job's state would show nowhere; EldenNet's floor rose to 0.2.12.
+- **A rate limit** (FACT): GraceUI's server counts every message of a connection, a subscription included, against 20 a
+  second and drops the rest unread, while its web shell paces commands but not subscriptions. AI › Models reads 14
+  topics, so a browser opening it straight after connecting can lose one (a picker with no choices, a card with no
+  status). Seen in the tests' own browser, which now paces its subscriptions; GraceUI asked to pace them too.

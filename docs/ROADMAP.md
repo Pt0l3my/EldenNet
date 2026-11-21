@@ -1269,6 +1269,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     states as Missing. Checked on the fake game in both views against a fake model server with a keyless path, both
     keys nowhere (WHY§297). Left to the owner: the slice's eight readings; cards per job and a fallback picker with
     GraceUI's proposal 0008 (S11.2.x).
+    Fifth slice on 2026-11-21 (engine b05fda5), at GraceUI 0.2.12 (a9aac78; G36 (a), GraceUI:D202): AI › Models as one
+    card per job (Conversation, Quick lines, Prepared lines, Memory, Self-test), each a section with its slot as a
+    chip, its state as a live status (Ready, Cooling down, Resting after failures, Failing, No key yet, No model), its
+    provider and model, its fallback and the fallback's provider (new; only for a job with a model of its own), and
+    its fixed budgets read-only; the Jobs table gone; a picker's Default is its row's reset. EldenNet's GraceUI floor
+    is 0.2.12. Checked on the fake game in both views against the fake model server, both keys nowhere (WHY§300).
+    Left: the Decisions (0.4) and Profile drafts (0.6) cards, Prepared lines' pool row, state and "Prepare lines now"
+    (its section action, with the pool), Advice, Apply and Reset to preset; the slice's eleven readings; GraceUI's
+    pacing of a page's subscriptions, asked the same day.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
