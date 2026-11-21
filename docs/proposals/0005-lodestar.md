@@ -1,7 +1,8 @@
 # Proposal 0005: Lodestar, EldenNet's own address library
 
-**Status: proposal, 2026-11-21 (roadmap S10.1.k; O100). Its three questions for the owner (§14) are open, and carry
-letters until Engine gives them their O-numbers.** Where this text and the designs differ, the designs hold. A bare §n
+**Status: proposal, 2026-11-21 (roadmap S10.1.k; O100). Its three questions, O101 to O103, were decided by the owner
+the same day, each as recommended (§14). Built so far, on `feat/lodestar`: step L1 (the catalogue and the table's
+format) and the resolver's placement and witness checks, on invented images (§13).** Where this text and the designs differ, the designs hold. A bare §n
 is a section of this proposal; DESIGN and ARCH are EldenNet's design documents. Evidence: the derivation rounds R0 to
 R0c and R1's twelve runs on game 2.7.2.0 (WHY§171 to §209, §227 to §258, §289 to §303; `docs/ops/probes/`), the
 game-access layer as designed and built (ARCH §6; WHY§121, §149, §159 to §170), and the first build of `feat/engine`
@@ -58,7 +59,7 @@ Three things differ for Elden Ring, and they shape everything below.
   already are, as leads in `gal/leads.toml` (WHY§164);
 - a hook library: it hooks nothing (R12, O65);
 - a way to change the game: it writes nothing to the game's memory and patches nothing of its code or its protection;
-- open to other mods in v1 (§14, question C).
+- open to other mods in v1 (O103, §14).
 
 ## 4. Ids
 
@@ -138,7 +139,7 @@ is the function the review saw" without keeping any of it.
 
 A **recipe** says how to find an id in a build nobody has seen: in our own words in its note, and as data our tools
 run. The derivation kit already has every finder below but the last two; what changes is that none of them needs a
-byte string kept in the repository (§14, question B).
+byte string kept in the repository (O102, §14).
 
 | Recipe | Finds | How, in plain words | Runs |
 |---|---|---|---|
@@ -351,7 +352,7 @@ reported to Engine for merging. Steps 1 to 4 need no game.
 
 | Step | What is built | The owner |
 |---|---|---|
-| L1 | The catalogue, the table's schema 2, its loader and lint; the fake game's table; `roles.hpp` on ids | Nothing |
+| L1 | The catalogue, the table's schema 2, its loader and lint; `roles.hpp` on ids. *Done 2026-11-21 (engine dc18c95, merged as fb999ca); the fake game's own table comes with L3, which writes tables.* The resolver's placement and witness checks, first planned for L2 and L4, are built too (feat/lodestar 440233e) | Nothing |
 | L2 | Shapes for the accessor; witnesses and digests; `patterns.toml` retired once the shape passes the same tests | Nothing |
 | L3 | `lodestar find`, `check` and `diff`; report schema 2 | One offline run on 2.7.2.0, about 5 minutes, game closed |
 | L4 | The checks at start; the frame service with the `own thread` provider; the fake game's harness under Wine | Nothing |
@@ -364,7 +365,7 @@ sends Engine the text for ARCH §3.2, §6.2 to §6.4 and §6.10, DESIGN §2.1, �
 
 ## 14. Questions for the owner
 
-### A. Where does v1's per-frame reading run? (O100's question, §10)
+### O101: Where does v1's per-frame reading run? (O100's question, §10)
 
 (a) The game's task first: v0.1 waits for the task service. (b) **Recommended.** EldenNet's own thread now, reading
 about ten times a second with the checks of §10; the task service stays Lodestar's work and the owner decides again
@@ -374,7 +375,11 @@ the in-game work.
 *What (b) gives up:* readings in step with the game's frame, for v1. *What it gains:* v1 makes no call into the game
 and writes nothing to it, and the in-game work goes on from today.
 
-### B. May `gal/` hold bytes cut from the game?
+*Decided 2026-11-21: (b), "Own thread now (Recommended)". EldenNet v1 reads from its own thread with §10's checks,
+makes no call into the game and writes nothing to it, and the release build drops the getter fallback. The task
+service stays Lodestar's later work (§9.6, step L7), and the owner decides again when it is confirmed.*
+
+### O102: May `gal/` hold bytes cut from the game?
 
 O89 let patterns of at most 64 bytes, their addresses wildcarded, leave the owner's PC, and `gal/patterns.toml` holds
 one (24 bytes, 7 of them fixed). The handover of 2026-11-21 rules out byte patterns copied from the game in any file.
@@ -387,7 +392,10 @@ wildcarded patterns, as O89 allowed, and treat the handover's rule as covering l
 start no longer searches (§6.2). *What it gains:* nothing of the game is in the repository at all, and a recipe
 survives a patch that changes registers or distances.
 
-### C. Who may use the library?
+*Decided 2026-11-21: (a), "No bytes at all (Recommended)". O89 is amended by a dated note: its patterns are
+withdrawn, and `gal/patterns.toml`'s one pattern is retired when its shape passes the same tests (step L2).*
+
+### O103: Who may use the library?
 
 Skyrim's Address Library and SKSE serve every mod. (a) **Recommended.** In v1, EldenNet and its devkit only: the data
 is in the open repository under EldenNet's licence, but there is no interface for other mods. Whether to publish one
@@ -397,12 +405,14 @@ native mods, bound by the same gate (offline, solo, no anti-cheat). (c) Never pu
 *What (a) gives up:* other mods cannot build on it yet. *What it gains:* the library stays small and ours to change
 while it is young, and nothing we publish can be turned to uses we would not stand behind.
 
+*Decided 2026-11-21: (a), "EldenNet only in v1 (Recommended)". Asked again after v1.0, with the plugin interface.*
+
 ## 15. What changes if this is accepted
 
-- **O89** gains a dated note: R0 becomes `lodestar find`, R1's call leaves the round under A (b), and patterns leave
-  `gal/` under B (a). **O12** is unchanged. **O92** becomes the `instance_class` recipe.
+- **O89** gains a dated note: R0 becomes `lodestar find`, R1's call leaves the round under O101 (b), and patterns
+  leave `gal/` under O102 (a). **O12** is unchanged. **O92** becomes the `instance_class` recipe.
 - **ARCH §6.2 and §6.3**: discovery at start becomes "load the table and check each id"; `patterns.toml` becomes
-  `recipes.toml`; the layout gains its `[item.*]` entries. **ARCH §6.4 and §3.2**: under A (b), `register_task` and
+  `recipes.toml`; the layout gains its `[item.*]` entries. **ARCH §6.4 and §3.2**: under O101 (b), `register_task` and
   `call_getter` leave release builds, and Register and FirstTick become the reader's start and first reading.
   **DESIGN §2.1**: the thread that reads the game is the reader, not the game's.
 - **DESIGN §16.1**: S0-A counts ids, not five patterns; S0-B measures the reader for two hours, not a game task.
