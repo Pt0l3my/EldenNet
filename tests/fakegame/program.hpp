@@ -125,7 +125,8 @@ inline constexpr std::uint32_t kBaseGroups = 10;
 inline constexpr std::uint32_t kStandinBase = 5;  // Fg_ActorSettle: positions are final there
 std::uint32_t standin_group();                    // kStandinBase + the shift
 void hub_create();                                // the hub singleton and its group table
-void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4]);
+// The program's own four tasks, the second made in `bench` (spike.10's call-site forms).
+void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4], FgTaskBench* bench);
 void hub_run_frame(std::uint64_t frame, float dt);
 
 struct HubStats {

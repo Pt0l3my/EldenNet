@@ -16,10 +16,16 @@ static_assert(offsetof(FG::RunWardenFields, save_slot) + 8 == FG_WARDEN_SAVE_SLO
 static_assert(offsetof(FG::FieldPlotFields, place_id) + 8 == FG_PLOT_PLACE_OFF);
 static_assert(offsetof(FG::TaskFields, hub) + 8 == FG_TASK_HUB_OFF);
 static_assert(offsetof(FG::TaskFields, kind) + 8 == FG_TASK_KIND_OFF);
-static_assert(offsetof(FG::ShelfFields, count) + 8 == FG_SHELF_COUNT_OFF);
-static_assert(offsetof(FG::ShelfFields, seen) + 8 == FG_SHELF_SEEN_OFF);
-static_assert(offsetof(FG::ShelfFields, items) + 8 == FG_SHELF_ITEMS_OFF);
-static_assert(sizeof(FG::ShelfFields::items) / sizeof(std::uint64_t) == FG_SHELF_ITEMS);
+static_assert(offsetof(FG::ShelfFields, word) + 8 == FG_SHELF_WORD_OFF);
+static_assert(offsetof(FG::ShelfFields, shared) + 8 == FG_SHELF_SHARED_OFF);
+static_assert(offsetof(FG::LedgerFields, flags) + 8 == FG_LEDGER_FLAGS_OFF);
+static_assert(offsetof(FG::LedgerFields, count) + 8 == FG_LEDGER_COUNT_OFF);
+static_assert(offsetof(FG::LedgerFields, groups) + 8 == FG_LEDGER_GROUPS_OFF);
+static_assert(offsetof(FG::LedgerFields, seen) + 8 == FG_LEDGER_SEEN_OFF);
+static_assert(offsetof(FG::LedgerFields, items) + 8 == FG_LEDGER_ITEMS_OFF);
+static_assert(sizeof(FG::LedgerFields::items) / sizeof(std::uint64_t) == FG_LEDGER_ITEMS);
+static_assert(offsetof(FG::TaskLoomFields, desk) + 8 == FG_LOOM_DESK_OFF);
+static_assert(offsetof(FgTaskBench, task) == FG_BENCH_TASK_OFF);
 static_assert(offsetof(FG::RackFields, shelves) + 8 == FG_RACK_SHELVES_OFF);
 
 #define FG_STR(x) #x
@@ -113,6 +119,8 @@ __asm__(
     FG_STATIC(fg_static_hinstance)
     FG_STATIC(fg_hinstance_check)
     FG_STATIC(fg_static_rack)
+    FG_STATIC(fg_static_ledger)
+    FG_STATIC(fg_ledger_blank)
     "  .globl fg_save_ledger_ready\n"
     "fg_save_ledger_ready:\n  .byte 0\n"
     FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
@@ -492,11 +500,62 @@ __asm__(
     "  xor eax, eax\n"
     "  ret\n"
 
-    // ---- The group's own function (spike.9, R1 run 8's reading, WHY§248): the shelf in rcx, the task in rdx (and r8),
-    // the hub in r9. It reads the task's hub field and keeps it on the shelf, reads the task's kind, keeps the task in
-    // the shelf's list as a pointer under FG_TASK_TAG while the list has room, and offers it to the hub with whether its
-    // kind is the game's (the compare with a small immediate); it answers 1.
+    // ---- The group's own function (since spike.10 R1 run 9's shape, WHY§289): the shelf in rcx, the task in rdx (and
+    // r8), the hub in r9. A null task answers 0. Else it loads the ledger (G) from its static, while that is null has it
+    // made (fg_ledger_missing) and loads it again, puts the shelf's word in r8 and tail-jumps through the stub to the
+    // ledger's method, the ledger in rcx and the task in rdx. It reads nothing of the task.
     FG_FUNC_BEGIN(fg_shelf_take)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rdx\n"
+    "  mov rdi, rcx\n"
+    "  test rdx, rdx\n"
+    "  .byte 0x74, 1f - 2f\n"
+    "2:\n"
+    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
+    "  test rcx, rcx\n"
+    "  .byte 0x75, 3f - 4f\n"
+    "4:\n"
+    "  call fg_ledger_missing\n"
+    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
+    "3:\n"
+    "  mov r8d, dword ptr [rdi + " FG_XSTR(FG_SHELF_WORD_OFF) "]\n"
+    "  mov rdx, rbx\n"
+    "  add rsp, 0x28\n"
+    "  pop rdi\n"
+    "  pop rbx\n"
+    "  .byte 0xE9\n"  // jmp fg_ledger_stub, always in its long form
+    "  .long fg_ledger_stub - 5f\n"
+    "5:\n"
+    "1:\n"
+    "  xor eax, eax\n"
+    "  add rsp, 0x28\n"
+    "  pop rdi\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- The stub (R1 run 9's, 8 bytes): r9 zeroed, a tail jump to the ledger's method. A leaf with no unwind data.
+    "  .p2align 4, 0xcc\n"
+    "  .globl fg_ledger_stub\n"
+    "fg_ledger_stub:\n"
+    "  xor r9d, r9d\n"
+    "  .byte 0xE9\n"  // jmp fg_ledger_admit, always in its long form
+    "  .long fg_ledger_admit - 1f\n"
+    "1:\n"
+    "  int3\n"
+
+    // ---- The ledger's method (G's, spike.10): the ledger in rcx, the task in rdx, the shelf's word in r8d, r9 zero. It
+    // notes the task in the hub's rows; refuses a word past the rack's bound, or at or past the ledger's groups; reads
+    // the task's hub field (kept on the ledger) and its kind; where the ledger is strict (--task-gate) and the kind is
+    // not the game's, answers 1 keeping nothing (R1 run 9's end); else keeps the task in its list under the tag while
+    // the list has room, and hands it to the work with the word as its group. It answers 1.
+    FG_FUNC_BEGIN(fg_ledger_admit)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
     "  push rsi\n"
@@ -508,28 +567,39 @@ __asm__(
     "  .seh_endprologue\n"
     "  mov rbx, rcx\n"
     "  mov rsi, rdx\n"
-    "  mov rdi, r9\n"
-    "  mov r10, qword ptr [rdx + " FG_XSTR(FG_TASK_HUB_OFF) "]\n"
-    "  mov qword ptr [rbx + " FG_XSTR(FG_SHELF_SEEN_OFF) "], r10\n"
-    "  mov r11d, dword ptr [rdx + " FG_XSTR(FG_TASK_KIND_OFF) "]\n"
-    "  mov eax, dword ptr [rbx + " FG_XSTR(FG_SHELF_COUNT_OFF) "]\n"
-    "  cmp eax, " FG_XSTR(FG_SHELF_ITEMS) "\n"
-    "  .byte 0x73, 1f - 2f\n"
+    "  mov edi, r8d\n"
+    "  call fg_ledger_note\n"
+    "  cmp edi, " FG_XSTR(FG_RACK_BOUND) "\n"
+    "  .byte 0x77, 1f - 2f\n"
     "2:\n"
+    "  cmp edi, dword ptr [rbx + " FG_XSTR(FG_LEDGER_GROUPS_OFF) "]\n"
+    "  .byte 0x73, 1f - 3f\n"
+    "3:\n"
+    "  mov r10, qword ptr [rsi + " FG_XSTR(FG_TASK_HUB_OFF) "]\n"
+    "  mov qword ptr [rbx + " FG_XSTR(FG_LEDGER_SEEN_OFF) "], r10\n"
+    "  mov r11d, dword ptr [rsi + " FG_XSTR(FG_TASK_KIND_OFF) "]\n"
+    "  test byte ptr [rbx + " FG_XSTR(FG_LEDGER_FLAGS_OFF) "], 1\n"
+    "  .byte 0x74, 4f - 5f\n"
+    "5:\n"
+    "  cmp r11d, " FG_XSTR(FG_TASK_KIND) "\n"
+    "  .byte 0x75, 1f - 4f\n"
+    "4:\n"
+    "  mov eax, dword ptr [rbx + " FG_XSTR(FG_LEDGER_COUNT_OFF) "]\n"
+    "  cmp eax, " FG_XSTR(FG_LEDGER_ITEMS) "\n"
+    "  .byte 0x73, 6f - 7f\n"
+    "7:\n"
     "  mov rcx, rsi\n"
     "  movabs rdx, " FG_XSTR(FG_TASK_TAG) "\n"
     "  or rcx, rdx\n"
-    "  mov qword ptr [rbx + rax*8 + " FG_XSTR(FG_SHELF_ITEMS_OFF) "], rcx\n"
+    "  mov qword ptr [rbx + rax*8 + " FG_XSTR(FG_LEDGER_ITEMS_OFF) "], rcx\n"
     "  inc eax\n"
-    "  mov dword ptr [rbx + " FG_XSTR(FG_SHELF_COUNT_OFF) "], eax\n"
-    "1:\n"
-    "  xor r8d, r8d\n"
-    "  cmp r11d, " FG_XSTR(FG_TASK_KIND) "\n"
-    "  sete r8b\n"
+    "  mov dword ptr [rbx + " FG_XSTR(FG_LEDGER_COUNT_OFF) "], eax\n"
+    "6:\n"
     "  mov rcx, rbx\n"
-    "  mov rdx, rsi\n"
-    "  mov r9, rdi\n"
-    "  call fg_shelf_offer\n"
+    "  mov edx, edi\n"
+    "  mov r8, rsi\n"
+    "  call fg_ledger_keep\n"
+    "1:\n"
     "  mov eax, 1\n"
     "  add rsp, 0x20\n"
     "  pop rdi\n"
@@ -598,8 +668,59 @@ __asm__(
     "1:\n"
     "  .seh_endproc\n"
 
-    // ---- The program's own call sites into the registration: each loads the hub from its static into rdx ----
+    // ---- The program's own call sites into the registration: each loads the hub from its static into rdx. Since
+    // spike.10 each passes its task as a game's call site might (R1's game_sites): loaded from the rows, the bench's
+    // member, an allocator's result, loaded.
     FG_FUNC_BEGIN(fg_boot_register_tasks)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rsi\n"
+    "  .seh_pushreg rsi\n"
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  mov rsi, rdx\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx]\n"
+    "  mov r8d, dword ptr [rbx + 0x08]\n"
+    ".Lcall_1:\n"
+    "  call fg_register_task\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  lea rcx, [rsi + " FG_XSTR(FG_BENCH_TASK_OFF) "]\n"
+    "  mov r8d, dword ptr [rbx + 0x18]\n"
+    ".Lcall_2:\n"
+    "  call fg_register_task\n"
+    "  mov ecx, 2\n"
+    "  call fg_task_make\n"
+    "  mov rcx, rax\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov r8d, dword ptr [rbx + 0x28]\n"
+    ".Lcall_3:\n"
+    "  call fg_register_task\n"
+    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
+    "  mov rcx, qword ptr [rbx + 0x30]\n"
+    "  mov r8d, dword ptr [rbx + 0x38]\n"
+    ".Lcall_4:\n"
+    "  call fg_register_task\n"
+    "  add rsp, 0x28\n"
+    "  pop rsi\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- The registration's sibling (spike.10): our own ABI too (rcx the task, rdx the hub, r8d the group); it hands
+    // the task to the ledger to forget (a tail jump). Its two call sites are never run: they are there to be found.
+    FG_FUNC_BEGIN(fg_unregister_task)
+    "  .seh_endprologue\n"
+    "  mov r9, rdx\n"
+    "  mov rdx, rcx\n"
+    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
+    "  .byte 0xE9\n"  // jmp fg_ledger_forget, always in its long form
+    "  .long fg_ledger_forget - 1f\n"
+    "1:\n"
+    "  .seh_endproc\n"
+    FG_FUNC_BEGIN(fg_boot_forget_tasks)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
     "  sub rsp, 0x20\n"
@@ -609,23 +730,11 @@ __asm__(
     "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
     "  mov rcx, qword ptr [rbx]\n"
     "  mov r8d, dword ptr [rbx + 0x08]\n"
-    ".Lcall_1:\n"
-    "  call fg_register_task\n"
+    "  call fg_unregister_task\n"
     "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
     "  mov rcx, qword ptr [rbx + 0x10]\n"
     "  mov r8d, dword ptr [rbx + 0x18]\n"
-    ".Lcall_2:\n"
-    "  call fg_register_task\n"
-    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
-    "  mov rcx, qword ptr [rbx + 0x20]\n"
-    "  mov r8d, dword ptr [rbx + 0x28]\n"
-    ".Lcall_3:\n"
-    "  call fg_register_task\n"
-    "  mov rdx, qword ptr [rip + fg_static_taskloom]\n"
-    "  mov rcx, qword ptr [rbx + 0x30]\n"
-    "  mov r8d, dword ptr [rbx + 0x38]\n"
-    ".Lcall_4:\n"
-    "  call fg_register_task\n"
+    "  call fg_unregister_task\n"
     "  add rsp, 0x20\n"
     "  pop rbx\n"
     "  ret\n"
