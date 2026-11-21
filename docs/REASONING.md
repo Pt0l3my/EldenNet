@@ -335,6 +335,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 310 | 2026-11-21 | O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use | DECIDED | #gal #lodestar |
 | 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
 | 312 | 2026-11-21 | Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern | METHOD | #gal #lodestar #devkit |
+| 313 | 2026-11-21 | A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only | FACT | #process #privacy #spike |
 
 ## Entries
 
@@ -5315,3 +5316,22 @@ D76, D78, D143, D151; O101; proposal 0005 L4
   disclosure; `lint --report` knows the kind; `tools/spikepkg/build.py find` makes EldenNet-Find.zip (the engine, `gal/`,
   `find.cmd` and README-FIND.txt; no launcher, no DLL). On the fake game the shape and the pattern accept the same 20
   sites. Engine feat/engine ffc172b.
+
+### 313. A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only
+
+`2026-11-21` · FACT, with a DECIDED (the owner's) · `#process` `#privacy` `#spike` · refs: O75, BUILD.md "The spike package",
+S10.1.k
+
+- **The refusal** (FACT): the sweep reads archives member by member, and refused Lodestar's finding package because its
+  THIRD-PARTY-NOTICES.txt holds toml++'s MIT licence, whose copyright line carries its author's address (rule email).
+  The licence obliges us to keep the notice unchanged, so the address is neither removed nor the licence left out. Any
+  package with `notices()` or `spikes_notices()` meets this.
+- **Why earlier packages passed** (FACT): Skyrizz's working branch `feat/skyrizz-lite` already allows rule email only in a
+  file whose place ends in THIRD-PARTY-NOTICES.txt (since 2026-11-15, Skyrizz c68a948); a zip member's place is
+  `<zip>!<path>`, so it covers notices inside a package. Skyrizz's default branch `main` lacks that line, and Lodestar's
+  sweep was installed from `main`. The handover now says to install from `feat/skyrizz-lite`.
+- **The owner's decision** (DECIDED): in Lodestar's chat, "Allow that one address (Recommended)": one narrower line,
+  rule email, that address only, only in THIRD-PARTY-NOTICES.txt and tomlplusplus/LICENSE, with its reason, committed in
+  Skyrizz on Lodestar's branch (cece89f), for the owner or Skyrizz's session to bring into `feat/skyrizz-lite`.
+- **Sent** (FACT): EldenNet-Find.zip, label 0.1.0-lodestar.1, built from engine 9edf1c0, checked as BUILD.md says and
+  swept, sent to the owner by Lodestar on 2026-11-21.

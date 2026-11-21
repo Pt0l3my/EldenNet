@@ -969,6 +969,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     read-only package replaces it. L3's tool and package built the same day (engine ffc172b; WHY§312): `eldennet-engine
     lodestar find` and report schema 2, kind `lodestar`; the owner's offline run (about 5 minutes, game closed) and its
     review come next, then L4.
+    The finding package (EldenNet-Find.zip, 0.1.0-lodestar.1) sent to the owner the same day (WHY§313).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
