@@ -92,7 +92,8 @@ struct WorldState {
   bool online = false;
   WorldStats stats;
   FG::ClockTask clock_task;
-  FG::MotionTask motion_task;
+  FgTaskBench motion_bench{};            // spike.10: the motion task is made in the bench, a member of it
+  FG::MotionTask* motion_task = nullptr;
   FG::SettleTask settle_task;
   FG::MenuTask menu_task;
   std::uint8_t* flag_blocks[3] = {nullptr, nullptr, nullptr};  // groups 0, 7 and 4321
@@ -100,6 +101,8 @@ struct WorldState {
 
 WorldState& state() {
   static WorldState w;
+  static_assert(sizeof(FG::MotionTask) <= sizeof(FgTaskBench::task) && alignof(FG::MotionTask) <= 8);
+  if (w.motion_task == nullptr) w.motion_task = new (w.motion_bench.task) FG::MotionTask();  // made in the bench
   return w;
 }
 
@@ -482,10 +485,10 @@ void world_create_singletons() {
 
 void world_register_tasks() {
   WorldState& w = state();
-  FG::TaskUnit* const tasks[4] = {&w.clock_task, &w.motion_task, &w.settle_task, &w.menu_task};
+  FG::TaskUnit* const tasks[4] = {&w.clock_task, w.motion_task, &w.settle_task, &w.menu_task};
   const std::uint32_t shift = options().shift_groups;
   const std::uint32_t groups[4] = {0 + shift, 4 + shift, kStandinBase + shift, 7 + shift};
-  hub_register_builtins(tasks, groups);
+  hub_register_builtins(tasks, groups, &w.motion_bench);
 }
 
 void world_frame_begin(std::uint64_t frame) {
@@ -602,7 +605,7 @@ std::vector<ClassSample> class_samples() {
   if (!w.props.empty()) add("FG::Prop", ".?AVProp@FG@@", w.props.front(), 0, false, "");
   add("Decoy::Actor", ".?AVActor@Decoy@@", w.decoy, 0, false, "");
   add("FG::ClockTask", ".?AVClockTask@FG@@", &w.clock_task, 0, false, "FG::TaskUnit");
-  add("FG::MotionTask", ".?AVMotionTask@FG@@", &w.motion_task, 0, false, "FG::TaskUnit");
+  add("FG::MotionTask", ".?AVMotionTask@FG@@", w.motion_task, 0, false, "FG::TaskUnit");
   add("FG::SettleTask", ".?AVSettleTask@FG@@", &w.settle_task, 0, false, "FG::TaskUnit");
   add("FG::MenuTask", ".?AVMenuTask@FG@@", &w.menu_task, 0, false, "FG::TaskUnit");
   static FG::Tombstone tomb;

@@ -43,7 +43,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.3) and the caps it uses, and, connected, the F11 view and the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.9) and the caps it uses, and, connected, the F11 view and the
    Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
@@ -127,6 +127,29 @@ After each wake, once T1 has published the connection:
   every change of the session is handed to T11, which reads settings.toml again, edits it (en_shell's `edit_settings`:
   every other key and table kept, comments not; a file the parse refuses is never written over) and writes it beside
   and renames it over (`settings_write ok=… keys=… why=…`). T6 does no file work for the pages.
+- **The AI pages** (`ai.cpp`; PAGES §4.6.2, ARCH §11): T1, on the main path after Safety, reads `providers.toml` and
+  `secrets.toml` from the config folder, `models.toml` from `content\eldenring\` beside the DLL, and makes en-llm's
+  WinHTTP transport (the system's `winhttp.dll` by its full path); `ai_files providers=… models=… secrets=…
+  transport=…`. T6 parses them with en-llm (`ai_config result=ready|missing|refused …`, a refusal by its file and line
+  alone with the refusal's kind, `why=credentials|query|plain_public|plain_cloud|plain_key|scheme|other`, never its
+  message; the pages say why in words, by the line), fills the space's `AiFacts` each wake (the files' parts only when they change; the
+  configuration's `revision`, which rises with each edit taken; what each provider listed at its newest answered list,
+  for the pickers alone, never logged), sets the preset's row from the file, and takes the space's changes and
+  requests: the preset and Add the preset's provider (`ai_change what=preset|add`: providers.toml's `preset`, the
+  preset's missing providers added with their keys in `secrets:<id>`), a provider of one's own (`what=add_own`:
+  OpenAI-compatible; local when reached by http:// on this PC or the home network, with no key's place, which this PC's
+  may get on its row once a call asks for a key and the home network's never; else cloud with its key in
+  `secrets:<id>`), a job's pick (`what=model|provider|model_reset`: its `[slots.<slot>]` provider and model, on the
+  provider the space names, a fallback with no provider of its own kept where it was, or the table gone), a key on a
+  row (`what=key name=… set=…`: cleaned, the request's copy overwritten; a provider with no key's place gets
+  `secrets:<id>` first, `what=key_place`, but only once a call was refused for want of a key; never one whose address
+  is http:// to another computer or whose key is an environment variable's), Remove on a row (`what=remove`: only a provider no job uses, with the keys no
+  remaining provider names), each checked by parsing the result first and then posted to T11, which makes the same change on the file as it is then
+  (`ai_write file=providers|secrets ok=… why=…`; secrets.toml written with an access list for this user alone,
+  `write_private`). The self-test and the model list run on en-llm's handle (T7–T8), which T6 makes when one first
+  needs it (`ai_service ok=1 workers=…`) and tells the core's gate at each wake; its notify sets T6's wake. Each run's
+  end is one line of words and numbers (`selftest result=passed verdict=quick … first_token_ms=… tps=…`,
+  `models_list providers=… passed=…`). en-llm's own log lines are not taken (a server's message could reach them).
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -247,7 +270,41 @@ layout fields). On T1, after the window and `settle_s` seconds:
    diff's `root`: task_hub, singleton, group_entry; their controls in `hub_diff_controls`), each root within the same
    bound of three walks; and just before the call the singleton's and the entry's **classes** are read through their
    first words by the RTTI walk and matched to the leads' names as O92 does (`singleton_class`, `entry_class`: the
-   lead's index where the innermost name is the lead's or it with Imp; numbers only).
+   lead's index where the innermost name is the lead's or it with Imp; numbers only). Since spike.10 (WHY§289: run 9's
+   group function tail-jumps through an 8-byte stub that zeroes r9 to **a method of a second singleton G**, with G,
+   loaded from a data slot, in rcx, our task in rdx and a 32-bit word of the entry in r8) the site in the group's
+   function that reaches G's method gives its entry state (`holds_g`, `holds_word` in `entry_src`); a stub (16 bytes
+   or fewer ending in a direct tail jump) is followed without spending a depth level, so G's method is `depth` 3
+   (`stub`, `zeroed`), and its direct callees and tail jumps `depth` 4, within the 16 summaries; each summary lists the
+   loads based on G (`g_reads`) and the uses of the entry's word (`word_uses`: compared with an immediate or otherwise,
+   an index, passed, stored). With no extent, a direct jump to a function's start of the exception directory ends the
+   decoding (a stub's forward tail jump). Statically, before the call, the game's own call sites of the registration
+   (derive's) are read for what they pass as the task (`game_sites`: a member with its base and displacement, a static,
+   a load, an allocator's result with its callee, the function's own argument, a stack slot, or other), and the
+   registration's sibling of the same shape (derive's next such candidate) is summarised with its callees breadth first
+   to depth 4 (`sibling`, 12 summaries at most). At the Mark G is read through its slot (`method`: null or heap, its
+   class against the leads, whether CSTask's instance holds it at +8 and the group's entry at +0x58, where run 9's
+   walks met one object, and every table entry's word at the site's offset: group 110's, how many hold their own index,
+   how many distinct values), again just before the call and 2 s after it; and G is the walk's fourth root
+   (`g_singleton`, with its control) unless it is a root's object or held there (`g_walk`). Since spike.11 (WHY§293:
+   run 10's G method builds a 32-byte **request** on its stack and either calls a function with it at once or copies
+   it to the heap for G's queue) every summary with an extent is decoded **in parts** where its code goes past it
+   (`parts`: the primary entry, the exception directory's entries chained to it, and the code a conditional branch
+   past the extent reaches in no entry, `unlisted`); the request is read from G's method (`request`: its vtable in
+   rdata, its stack displacement, each field's offset, width, source and role: vtable, task, manager (G's field),
+   word, zero; the function called with its address, `now`; its class by RTTI and its slots, the vtable's words into
+   the game's code); its slots' functions (the first six) are summarised at depth 4 with the request in rcx
+   (`request_slot`, `holds_request`), the request's fields followed (`request_reads`; a load of its task field is the
+   task, of its manager field G's manager, `manager_reads`; of its word the entry's word), the function G's method
+   calls with it too, each with its direct callees and tail jumps one level further (depth 5), 24 summaries at most.
+   The fields of G that G's method reads (by offset and width from its summary) are read just before the call and
+   about 50, 250 and 2,000 ms after it (`method.g_fields`: a narrow field's value, an 8-byte one's kind and a
+   pointer's class), the byte the method compares first deciding the path (`defer_disp`, `path_taken`: now or
+   queued); and G's queue (the G field the method passes in rcx to the queued path's call, `queue.g_disp`) is the
+   walk's fifth root (`g_queue`, with its control) and is walked at the same four times (`queue.reads`: the blocks
+   whose first word is the request's vtable, each read as a request: its task ours or its kind and class, its manager
+   field G's or not, its word, its zeroed byte). Every entry's word is also read for its own index in its low 16 bits
+   (`own_low`) and its high 16 bits' values (`highs`).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -270,7 +327,8 @@ layout fields). On T1, after the window and `settle_s` seconds:
    listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
    in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
    inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
-   (`table.after`), and the **whole-memory
+   (`table.after`), and since spike.10 G and the entries' words (`method.after`) and the array's views (below), since
+   spike.11 G's fields and its queue, and the **whole-memory
    search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
@@ -280,7 +338,12 @@ layout fields). On T1, after the window and `settle_s` seconds:
    (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
    apart, with how many different slots the game's words name, and since spike.9 the words whose low 48 bits equal our
    object's or our vtable's address while their high 16 bits are not zero (`tagged_found`, `vtable_tagged_found`,
-   ours apart; `tagged_hits`, each with its `tag`). Each side keeps up to eight hits of each kind, each
+   ours apart; `tagged_hits`, each with its `tag`), and since spike.11 the words equal to the request's vtable
+   (`request_found`, ours apart: the game's requests; `request_hits`, 32 at most, each read by T1 as a request, and
+   `request_tasks`: for each distinct class of their tasks, 8 at most, its vtable's slots and the first 16 words of one
+   such task as kinds, a pointer's with its class). After each search the classes met are given with their RTTI bases
+   (`classes`: G's manager, the request, CSTask's instance, the group's entry, G, the game's tasks; each base count
+   and its bases' type descriptors; `shared_bases`, those met in two or more). Each side keeps up to eight hits of each kind, each
    giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
    game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
    to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
@@ -289,7 +352,12 @@ layout fields). On T1, after the window and `settle_s` seconds:
    (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its copies, its state) lies there,
    and the search walks that heap (`HeapWalk`) for its regions' and large blocks' allocation bases; `own_known` is
    false when the heap could not be made or walked, and then the heap's copies count as the game's. While the task
-   has not run, T1 also reads how much of our object the hub wrote (`object_written`).
+   has not run, T1 also reads how much of our object the hub wrote (`object_written`). Since spike.10 (WHY§289) the
+   four views of the array behind CSTask's +0x3B0 and +0x3D0 (run 9's paths, four sibling pointers 32 bytes apart at
+   depth 3 of the walk kept before the call) are read again at 2 s (since spike.11 only then; spike.10 read them at
+   about 50 and 250 ms too) (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
+   game's rdata classed by the RTTI walk, `new_class`, and whether a changed word's 32-bit half is the main window's
+   thread id, `main_thread`, or T1's, `caller_thread`).
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
    counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
    classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'
@@ -317,7 +385,9 @@ greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLL
 `eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
 network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
 C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap and its
-walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`).
+walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`; the AI pages en-llm's threads, the C runtime's thread
+support with them, `GetSystemDirectoryW` for WinHTTP's full path, and advapi32's token and access-list functions for
+secrets.toml).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording
@@ -332,4 +402,7 @@ GraceUI loaded after EldenNet, by its own look, on the main path (the pre-flight
 game's Direct3D 12 frame and hidden again, the world-state provider, and the Mark handed over to GraceUI's hotkey);
 GraceUI loaded before it, on the banner path (the banner as one notice, F11's view); another mod holding Pause in
 GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; the anti-cheat's notice-only mode; and
-Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame.
+Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame;
+and the AI pages against a fake model server on loopback (`launcher-eldennet-graceui-ai`): a provider added, a key set,
+the self-test from the browser and from the menu, the model list, a provider removed with its key, and the key in no
+frame, log line, recording or file.

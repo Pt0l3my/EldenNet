@@ -62,6 +62,7 @@ struct Options {
   std::int32_t selftest_group = -1;  // -1: the stand-in group
   bool table_gap = false;  // the registration's rack has no shelf for the stand-in group (R1 spike.8's second case)
   bool task_gate = false;  // the hub runs only tasks of the game's kind: R1's never runs (R1 spike.9's second case)
+  bool task_queue = false;  // the ledger queues each request for a later frame (R1 spike.11's queued path)
   std::uint64_t press_pause_at = 0;  // the player presses Pause (the launcher's Mark, O90) at this frame; 0 never
   std::uint64_t press_pause_every = 0;  // and again every this many frames after it; 0 once
   // Part 12: GraceUI in the fake game (present.cpp). --d3d12 presents every frame on a Direct3D 12 swap chain, so that
@@ -125,7 +126,8 @@ inline constexpr std::uint32_t kBaseGroups = 10;
 inline constexpr std::uint32_t kStandinBase = 5;  // Fg_ActorSettle: positions are final there
 std::uint32_t standin_group();                    // kStandinBase + the shift
 void hub_create();                                // the hub singleton and its group table
-void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4]);
+// The program's own four tasks, the second made in `bench` (spike.10's call-site forms).
+void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4], FgTaskBench* bench);
 void hub_run_frame(std::uint64_t frame, float dt);
 
 struct HubStats {

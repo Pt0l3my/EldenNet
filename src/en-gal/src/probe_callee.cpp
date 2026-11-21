@@ -25,7 +25,8 @@ constexpr std::uint64_t kImmBound = 65536;
 constexpr std::uint8_t kMaxLevels = 3;     // loads followed into a source
 constexpr std::size_t kMaxSources = 1024;  // sources in one summary; past it a load holds nothing
 constexpr std::array<std::uint8_t, 4> kArgs = {1, 2, 8, 9};  // rcx, rdx, r8, r9
-constexpr std::uint8_t kRax = 0, kRdx = 2;
+constexpr std::uint8_t kRax = 0, kRdx = 2, kRsp = 4;
+constexpr std::size_t kMaxStackStores = 64;  // spike.11: stores to the stack frame kept, per summary
 
 constexpr bool callee_saved(std::uint8_t r) noexcept { return r == 3 || r == 5 || r == 6 || r == 7 || r >= 12; }
 
@@ -39,12 +40,14 @@ std::optional<std::uint8_t> arg_index(std::uint8_t reg) noexcept {
 // What a register holds, as far as the summary follows it: an argument's value, or the first word of the object an
 // argument points at (its vtable, for a virtual call); since spike.8 also the value an inner summary was entered with in
 // rcx to r9 (Entry), a value loaded from memory (Loaded, a source of the summary's table), or a call's result; since
-// spike.9 a followed value (our task's, the group entry's, or one read from either) changed by an instruction.
+// spike.9 a followed value (our task's, the group entry's, or one read from either) changed by an instruction; since
+// spike.11 an address the code makes: a place in its stack frame, or a RIP-relative address.
 struct Held {
-  enum class Kind : std::uint8_t { None, Value, Deref, Entry, Loaded, Result, Modified };
+  enum class Kind : std::uint8_t { None, Value, Deref, Entry, Loaded, Result, Modified, Stack, Address };
   Kind kind = Kind::None;
   std::uint8_t arg = 0;   // Value, Deref, Entry: into kArgs
-  std::uint16_t id = 0;   // Loaded: the source's index; Result: the call's offset; Modified: the change's index
+  std::uint16_t id = 0;   // Loaded: the source's index; Result: the call's offset; Modified: the change's index;
+                          // Stack: the displacement from rsp; Address: the address's index
   friend bool operator==(const Held&, const Held&) = default;
 };
 
@@ -109,6 +112,15 @@ class Sources {
     return static_cast<std::uint16_t>(mods_.size() - 1);
   }
   [[nodiscard]] const Mod& mod(std::uint16_t id) const noexcept { return mods_[id]; }
+  // A RIP-relative address a lea makes (spike.11), by its RVA; nothing past the table's size.
+  std::optional<std::uint16_t> intern_address(std::uint32_t rva) {
+    for (std::size_t i = 0; i < addresses_.size(); ++i) {
+      if (addresses_[i] == rva) return static_cast<std::uint16_t>(i);
+    }
+    if (addresses_.size() >= kMaxSources) return std::nullopt;
+    addresses_.push_back(rva);
+    return static_cast<std::uint16_t>(addresses_.size() - 1);
+  }
   // The source a load makes, or nothing past kMaxLevels loads deep or past the table's size.
   std::optional<std::uint16_t> intern(Src s) {
     s.level = s.rip ? 1 : static_cast<std::uint8_t>(1 + std::max(level(s.base), level(s.index)));
@@ -152,6 +164,8 @@ class Sources {
         o.origin.push_back(describe(m.origin));
         return o;
       }
+      case Held::Kind::Stack: o.kind = Source::Kind::Stack; o.disp = h.id; return o;
+      case Held::Kind::Address: o.kind = Source::Kind::Address; o.target = addresses_[h.id]; return o;
       default: return o;
     }
     const Src& s = list_[h.id];
@@ -176,6 +190,7 @@ class Sources {
  private:
   std::vector<Src> list_;
   std::vector<Mod> mods_;
+  std::vector<std::uint32_t> addresses_;
 };
 
 // What the registers hold before an instruction, along the flow: `reached` once a known path from the entry leads there.
@@ -294,19 +309,39 @@ bool flags_untouched(const Instruction& in) noexcept {
 }
 
 // What a value is, as the field reads follow it (spike.9): our task's (the task argument, a value loaded from it, or one
-// of those changed), the group entry's (the same from the entry), or neither.
-enum class Follow : std::uint8_t { None, Task, Entry };
+// of those changed), the group entry's (the same from the entry), since spike.10 the second singleton G's, or neither.
+// Spike.11: the request G's method builds, and G's manager (the request's field of G's).
+enum class Follow : std::uint8_t { None, Task, Entry, G, Request, Manager };
+constexpr std::size_t kMaxWordUses = 16;
+
+// Which of rcx to r9 hold what at the entry (spike.9 to spike.11): the group's entry, G, the entry's word, the request
+// G's method builds, G's manager.
+struct Holds {
+  std::array<bool, 4> entry{}, g{}, word{}, request{}, manager{};
+};
 
 class Summariser {
  public:
   // `end`: the function's length, when the exception directory gives it, or with none the bytes decoded (a jump past it
-  // is a tail jump). `task`: our task's argument, into kArgs; `entry`: which of rcx to r9 hold the group's entry.
+  // is a tail jump). `task`: our task's argument, into kArgs; `holds`, what rcx to r9 hold. Spike.11: `layout`, the
+  // request whose fields are followed; `parts`, the offsets [begin, end) of the parts past the primary (a jump into one
+  // is no tail jump).
   Summariser(std::uint32_t rva, std::uint32_t end, CalleeCode& out, Sources& sources,
-             std::optional<std::uint8_t> task = std::nullopt, std::array<bool, 4> entry = {})
-      : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(entry) {
+             std::optional<std::uint8_t> task = std::nullopt, const Holds& holds = {},
+             const RequestShape* layout = nullptr, std::vector<std::pair<std::uint32_t, std::uint32_t>> parts = {})
+      : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(holds.entry), g_(holds.g),
+        word_(holds.word), request_(holds.request), manager_(holds.manager), layout_(layout), parts_(std::move(parts)) {
     out_.args.resize(kArgs.size());
     for (std::size_t i = 0; i < kArgs.size(); ++i) out_.args[i].reg = kArgs[i];
-    following_ = task_.has_value() || std::find(entry_.begin(), entry_.end(), true) != entry_.end();
+    const auto any = [](const std::array<bool, 4>& a) { return std::find(a.begin(), a.end(), true) != a.end(); };
+    following_ = task_.has_value() || any(entry_) || any(g_) || any(word_) || any(request_) || any(manager_);
+    if (layout_ != nullptr) {
+      task_field_ = layout_->task_field;
+      for (const RequestField& f : layout_->fields) {
+        if (f.role == FieldRole::Manager && f.width == 8) manager_fields_.push_back(f.offset);
+        if (f.role == FieldRole::Word && !word_field_) word_field_ = f.offset;
+      }
+    }
   }
 
   // One instruction's effect on `regs`, nothing recorded (the passes over the flow).
@@ -340,7 +375,8 @@ class Summariser {
  private:
   // ---- The field reads (spike.9) ----
 
-  // What a value is, as the reads follow it.
+  // What a value is, as the reads follow it. Spike.11: a value loaded from the request is the task where it is the
+  // request's task field (8 bytes), G's manager where it is a manager field, else the request's (its vtable, say).
   [[nodiscard]] Follow follows(const Held& h, int depth = 0) const noexcept {
     if (depth > 8) return Follow::None;
     switch (h.kind) {
@@ -348,10 +384,23 @@ class Summariser {
       case Held::Kind::Deref:
         return task_ && h.arg == *task_ ? Follow::Task : Follow::None;
       case Held::Kind::Entry:
-        return entry_[h.arg] ? Follow::Entry : Follow::None;
+        return entry_[h.arg]     ? Follow::Entry
+               : g_[h.arg]       ? Follow::G
+               : request_[h.arg] ? Follow::Request
+               : manager_[h.arg] ? Follow::Manager
+                                 : Follow::None;
       case Held::Kind::Loaded: {
         const Src& s = sources_.at(h.id);
-        return s.rip || !s.base_reg ? Follow::None : follows(s.base, depth + 1);
+        if (s.rip || !s.base_reg) return Follow::None;
+        const Follow b = follows(s.base, depth + 1);
+        if (b == Follow::Request && !s.index_reg && s.width == 8 && s.disp >= 0) {
+          const auto d = static_cast<std::uint64_t>(s.disp);
+          if (task_ && layout_ != nullptr && d == task_field_) return Follow::Task;
+          if (std::find(manager_fields_.begin(), manager_fields_.end(), d) != manager_fields_.end()) {
+            return Follow::Manager;
+          }
+        }
+        return b;
       }
       case Held::Kind::Modified:
         return follows(sources_.mod(h.id).origin, depth + 1);
@@ -380,6 +429,7 @@ class Summariser {
     const std::uint8_t sub = static_cast<std::uint8_t>((in.modrm >> 3) & 7);
     if (legacy && in.map == 0 && op == 0x8D) return p;  // lea reads no memory (its base's use is a change: modify)
     p.mem = memory_operand(in, bytes_);
+    if (p.mem.index) use(regs_[*p.mem.index & 15], use_at(UseKind::Index));  // spike.10: a value as an index
     if (!p.mem.base) return p;
     p.base = regs_[*p.mem.base & 15];
     use(p.base, use_at(UseKind::Base));  // a value read before, the base of this one
@@ -445,11 +495,29 @@ class Summariser {
     return p;
   }
 
+  // The list of reads of a followed value, and its count.
+  std::vector<FieldRead>& reads_list(Follow f) noexcept {
+    switch (f) {
+      case Follow::Task: return out_.task_reads;
+      case Follow::Entry: return out_.entry_reads;
+      case Follow::Request: return out_.request_reads;
+      case Follow::Manager: return out_.manager_reads;
+      default: return out_.g_reads;
+    }
+  }
+  std::uint32_t& read_count(Follow f) noexcept {
+    switch (f) {
+      case Follow::Task: return out_.task_read_count;
+      case Follow::Entry: return out_.entry_read_count;
+      case Follow::Request: return out_.request_read_count;
+      case Follow::Manager: return out_.manager_read_count;
+      default: return out_.g_read_count;
+    }
+  }
   // A load or an in-place use of a followed field, kept in its list; a loaded value is mapped to it for its uses.
   void add_read(const Planned& p) {
-    const bool task = p.follow == Follow::Task;
-    std::vector<FieldRead>& list = task ? out_.task_reads : out_.entry_reads;
-    ++(task ? out_.task_read_count : out_.entry_read_count);
+    std::vector<FieldRead>& list = reads_list(p.follow);
+    ++read_count(p.follow);
     Held value;
     if (p.dest) value = regs_[*p.dest & 15];
     if (list.size() >= kMaxFieldReads) return;
@@ -469,7 +537,7 @@ class Summariser {
     list.push_back(std::move(r));
     const bool known = value.kind == Held::Kind::Loaded || value.kind == Held::Kind::Deref;
     if (known && std::none_of(reads_.begin(), reads_.end(), [&](const ReadOf& o) { return o.value == value; })) {
-      reads_.push_back(ReadOf{value, !task, list.size() - 1});
+      reads_.push_back(ReadOf{value, p.follow, list.size() - 1});
     }
   }
 
@@ -477,7 +545,7 @@ class Summariser {
   FieldRead* read_of(const Held& h, int depth = 0) {
     if (h.kind == Held::Kind::None || depth > 4) return nullptr;
     for (const ReadOf& o : reads_) {
-      if (o.value == h) return &(o.entry ? out_.entry_reads : out_.task_reads)[o.index];
+      if (o.value == h) return &reads_list(o.which)[o.index];
     }
     if (h.kind == Held::Kind::Modified) return read_of(sources_.mod(h.id).origin, depth + 1);
     return nullptr;
@@ -488,9 +556,28 @@ class Summariser {
     u.offset = at_;
     return u;
   }
-  // A use of the value a register holds, kept with its read, in the recording pass.
+  // Spike.10: whether a register holds the entry's word (as G's method is entered with it in r8), or it changed;
+  // spike.11: or it was loaded from the request's word field.
+  [[nodiscard]] bool is_word(const Held& h, int depth = 0) const noexcept {
+    if (depth > 4) return false;
+    if (h.kind == Held::Kind::Entry) return word_[h.arg];
+    if (h.kind == Held::Kind::Modified) return is_word(sources_.mod(h.id).origin, depth + 1);
+    if (h.kind == Held::Kind::Loaded && word_field_) {
+      const Src& s = sources_.at(h.id);
+      return !s.rip && s.base_reg && !s.index_reg && s.width <= 4 && s.disp >= 0 &&
+             static_cast<std::uint64_t>(s.disp) == *word_field_ && follows(s.base, depth + 1) == Follow::Request;
+    }
+    return false;
+  }
+  // A use of the value a register holds, kept with its read (spike.10: or as a use of the entry's word), in the
+  // recording pass.
   void use(const Held& h, FieldUse u) {
     if (!recording_ || !reached_) return;
+    if (is_word(h)) {
+      ++out_.word_use_count;
+      if (out_.word_uses.size() < kMaxWordUses) out_.word_uses.push_back(std::move(u));
+      return;
+    }
     FieldRead* r = read_of(h);
     if (r == nullptr) return;
     ++r->use_count;
@@ -552,7 +639,7 @@ class Summariser {
   // dst := `h` changed (`h` the value dst held, or for a lea its base's).
   void change(const Held h, std::uint8_t dst, InsnClass op, std::uint8_t width, std::optional<std::uint64_t> imm,
               bool large, std::optional<std::uint8_t> by) {
-    if (following_ && width >= 4 && follows(h) != Follow::None) {
+    if (following_ && width >= 4 && (follows(h) != Follow::None || is_word(h))) {
       if (op != InsnClass::Lea) {  // a lea's base is used as one, which plan_read does not see (it reads nothing)
         FieldUse u = use_at(UseKind::Changed);
         u.op = op;
@@ -568,14 +655,31 @@ class Summariser {
   }
   // lea reg, [base + index*scale + disp] (spike.9): from a followed base, a change of it by the displacement (or by the
   // index), and a use of it as a base; [base] alone, a copy; anything else clears reg.
+  // Spike.11: lea reg, [rip + d] makes an address in the image, and lea reg, [rsp + d] a place in the stack frame (64-bit
+  // only, a displacement from 0 to 65,535).
   void lea() {
     const Instruction& in = *in_;
     const Mem m = memory_operand(in, bytes_);
     const std::uint8_t dst = in.reg();
-    if (m.rip || !m.base) return kill(dst);
+    if (m.rip) {
+      const auto t = x86::rip_target(in, bytes_, std::uint64_t{rva_} + at_);
+      const auto id = width_of(in, false) == 8 && t && *t <= 0xFFFF'FFFFull
+                          ? sources_.intern_address(static_cast<std::uint32_t>(*t))
+                          : std::nullopt;
+      if (!id) return kill(dst);
+      regs_[dst & 15] = Held{Held::Kind::Address, 0, *id};
+      return;
+    }
+    if (!m.base) return kill(dst);
+    if ((*m.base & 15) == kRsp && !m.index) {
+      if (width_of(in, false) != 8 || m.disp < 0 || m.disp > 0xFFFF) return kill(dst);
+      regs_[dst & 15] = Held{Held::Kind::Stack, 0, static_cast<std::uint16_t>(m.disp)};
+      return;
+    }
     const Held base = regs_[*m.base & 15];
     use(base, use_at(UseKind::Base));
-    if (!following_ || follows(base) == Follow::None) return kill(dst);
+    if (m.index) use(regs_[*m.index & 15], use_at(UseKind::Index));
+    if (!following_ || (follows(base) == Follow::None && !is_word(base))) return kill(dst);
     const std::uint8_t width = width_of(in, false);
     if (!m.index && m.disp == 0) {
       if (width == 8) {
@@ -641,7 +745,7 @@ class Summariser {
   // loaded 32 bits wide or less.
   void copy(std::uint8_t dst, std::uint8_t src, std::uint8_t width) {
     Held h = regs_[src & 15];
-    const bool narrow = h.kind == Held::Kind::Value ||
+    const bool narrow = h.kind == Held::Kind::Value || (h.kind == Held::Kind::Entry && word_[h.arg]) ||
                         (h.kind == Held::Kind::Loaded && sources_.at(h.id).width <= 4) ||
                         (h.kind == Held::Kind::Modified && sources_.mod(h.id).width <= 4);
     if (width < 4 || (width == 4 && !narrow)) h = Held{};
@@ -664,7 +768,8 @@ class Summariser {
     std::vector<PassedSource> p;
     for (const std::uint8_t r : kArgs) {
       const Held& h = regs_[r];
-      if (h.kind == Held::Kind::Entry || h.kind == Held::Kind::Loaded || h.kind == Held::Kind::Modified) {
+      if (h.kind == Held::Kind::Entry || h.kind == Held::Kind::Loaded || h.kind == Held::Kind::Modified ||
+          h.kind == Held::Kind::Stack || h.kind == Held::Kind::Address) {
         p.push_back(PassedSource{r, sources_.describe(h), false});
       }
     }
@@ -684,8 +789,17 @@ class Summariser {
     }
   }
 
+  // Spike.11: a store to [rsp + d], kept for the request's shape (the first kMaxStackStores).
+  void stack_store(std::uint8_t reg, std::uint8_t width) {
+    if (!recording_ || !reached_ || out_.stack_stores.size() >= kMaxStackStores) return;
+    const Mem m = memory_operand(*in_, bytes_);
+    if (m.rip || !m.base || (*m.base & 15) != kRsp || m.index) return;
+    out_.stack_stores.push_back(StackStore{at_, m.disp, width, sources_.describe(regs_[reg & 15])});
+  }
+
   // ---- What is kept before the first call ----
   void store(std::uint8_t reg, std::uint8_t width) {
+    stack_store(reg, width);
     stored(reg, width);
     forward(reg, width);
     const Held& h = regs_[reg & 15];
@@ -809,7 +923,7 @@ class Summariser {
   void tail() {
     const auto to = x86::branch_target(*in_, bytes_, std::uint64_t{rva_} + at_);
     if (!to || *to > 0xFFFF'FFFFull) return;
-    const bool out = *to < rva_ || (end_ != 0 && *to >= std::uint64_t{rva_} + end_);
+    const bool out = (*to < rva_ || (end_ != 0 && *to >= std::uint64_t{rva_} + end_)) && !in_part(*to);
     if (!out) return;
     passed_uses(static_cast<std::uint32_t>(*to));
     if (out_.calls.size() >= kMaxCalls) return;
@@ -821,6 +935,13 @@ class Summariser {
     c.pass = passed();
     c.pass_src = passed_sources();
     out_.calls.push_back(std::move(c));
+  }
+
+  // Spike.11: whether an RVA lies in one of the parts past the primary.
+  [[nodiscard]] bool in_part(std::uint64_t to) const noexcept {
+    if (to < rva_) return false;
+    const std::uint64_t off = to - rva_;
+    return std::any_of(parts_.begin(), parts_.end(), [&](const auto& r) { return off >= r.first && off < r.second; });
   }
 
   // A jump through a register or memory (spike.8): it leaves the function, a tail call through a pointer.
@@ -921,7 +1042,7 @@ class Summariser {
       case 0x63:  // movsxd: a 32-bit value's copy (an index), or a load
         if (reg_form) {
           const Held h = regs_[in.rm()];
-          regs_[in.reg()] = h.kind == Held::Kind::Value ? h : Held{};
+          regs_[in.reg()] = h.kind == Held::Kind::Value || is_word(h) ? h : Held{};
         } else {
           load(in.reg(), 4);
         }
@@ -1141,7 +1262,7 @@ class Summariser {
 
   struct ReadOf {
     Held value;
-    bool entry = false;
+    Follow which = Follow::Task;
     std::size_t index = 0;
   };
 
@@ -1151,6 +1272,15 @@ class Summariser {
   Sources& sources_;
   std::optional<std::uint8_t> task_;
   std::array<bool, 4> entry_{};
+  std::array<bool, 4> g_{};
+  std::array<bool, 4> word_{};
+  std::array<bool, 4> request_{};
+  std::array<bool, 4> manager_{};
+  const RequestShape* layout_ = nullptr;
+  std::uint64_t task_field_ = 0;
+  std::vector<std::uint64_t> manager_fields_;
+  std::optional<std::uint64_t> word_field_;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> parts_;
   bool following_ = false;
   std::vector<ReadOf> reads_;  // the loaded values of the reads, each with its read (the first that loaded it)
   Regs regs_{};
@@ -1552,7 +1682,88 @@ EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept {
   for (const PassedSource& p : call.pass_src) {
     const auto to = arg_index(p.reg);
     const auto from = p.source.kind == Source::Kind::Entry ? arg_index(p.source.from) : std::nullopt;
-    if (to && from && parent[*from].entry && e[*to].from == 0) e[*to].entry = true;
+    if (!to || !from || e[*to].from != 0) continue;
+    const EntryArg& was = parent[*from];
+    e[*to].entry = e[*to].entry || was.entry;
+    e[*to].g = e[*to].g || was.g;
+    e[*to].word = e[*to].word || was.word;
+    e[*to].zero = e[*to].zero || was.zero;
+    e[*to].request = e[*to].request || was.request;  // spike.11
+    e[*to].manager = e[*to].manager || was.manager;
+  }
+  return e;
+}
+
+EntryState method_entry_at(const CalleeCall& site, const EntryState& parent) noexcept {
+  EntryState e = entry_at(site, parent);
+  for (const PassedSource& p : site.pass_src) {
+    const auto to = arg_index(p.reg);
+    if (!to || e[*to].from != 0) continue;
+    if (p.reg == 1 && p.source.kind == Source::Kind::Rip && p.source.width == 8) e[*to].g = true;
+    if (p.source.kind == Source::Kind::Memory && p.source.base_src.size() == 1 &&
+        p.source.base_src[0].kind == Source::Kind::Entry) {
+      const auto from = arg_index(p.source.base_src[0].from);
+      if (from && parent[*from].entry) e[*to].word = true;
+    }
+  }
+  return e;
+}
+
+const CalleeCall* method_site(const CalleeCode& group, std::uint8_t task) noexcept {
+  for (const CallForm form : {CallForm::Tail, CallForm::Direct}) {  // a tail jump first, as run 9's
+    for (const CalleeCall& c : group.calls) {
+      if (!c.reached || !c.target || c.form != form) continue;
+      const bool passes_task = std::any_of(c.pass.begin(), c.pass.end(),
+                                           [&](const PassedArg& p) { return p.from == task && !p.first_word; });
+      const auto rcx =
+          std::find_if(c.pass_src.begin(), c.pass_src.end(), [](const PassedSource& p) { return p.reg == 1; });
+      if (passes_task && rcx != c.pass_src.end() && rcx->source.kind == Source::Kind::Rip && rcx->source.width == 8) {
+        return &c;
+      }
+    }
+  }
+  return nullptr;
+}
+
+const CalleeCall* stub_jump(const CalleeCode& stub) noexcept {
+  if (!stub.read || stub.bytes == 0 || stub.bytes > kMaxStubBytes || stub.call_count != 0 || stub.branch_count != 0 ||
+      stub.first_ret || stub.calls.size() != 1 || stub.forms.empty()) {
+    return nullptr;
+  }
+  const CalleeCall& j = stub.calls.front();
+  const Form& last = stub.forms.back();
+  if (j.form != CallForm::Tail || !j.reached || !j.target || last.offset != j.offset || last.cls != InsnClass::Jmp ||
+      last.offset + last.length != stub.bytes) {
+    return nullptr;
+  }
+  return &j;
+}
+
+EntryState through_stub(const CalleeCode& stub, const EntryState& stub_entry) noexcept {
+  const CalleeCall* j = stub_jump(stub);
+  if (j == nullptr) return {};
+  EntryState e = entry_at(*j, stub_entry);
+  std::array<bool, 4> zero{};
+  for (const Form& f : stub.forms) {
+    if (f.offset >= j->offset) break;
+    if (f.operands.empty() || f.operands[0].form != OperandForm::Register || !f.operands[0].reg) continue;
+    const auto i = arg_index(*f.operands[0].reg);
+    if (!i) continue;
+    const Operand& dst = f.operands[0];
+    const bool self_xor = f.cls == InsnClass::Xor && f.operands.size() == 2 &&
+                          f.operands[1].form == OperandForm::Register && f.operands[1].reg == dst.reg;
+    const bool mov_zero = f.cls == InsnClass::Mov && f.operands.size() == 2 &&
+                          f.operands[1].form == OperandForm::Immediate && f.operands[1].imm == std::optional<std::uint64_t>(0);
+    switch (f.cls) {
+      case InsnClass::Cmp: case InsnClass::Test: case InsnClass::Push: case InsnClass::Nop:
+        break;
+      default:
+        zero[*i] = (self_xor || mov_zero) && dst.width >= 4;
+        break;
+    }
+  }
+  for (std::size_t i = 0; i < zero.size(); ++i) {
+    if (zero[i]) e[i] = EntryArg{0, false, false, false, false, true};
   }
   return e;
 }
@@ -1563,8 +1774,272 @@ EntryState group_entry_at(const CalleeCall& site) noexcept {
   return e;
 }
 
+std::vector<ChainedEntry> chained_entries(const ImageBytes& img, std::span<const RuntimeFunction> functions) {
+  constexpr unsigned kChainInfo = 0x4;  // UNW_FLAG_CHAININFO
+  std::vector<ChainedEntry> out;
+  for (const RuntimeFunction& f : functions) {
+    std::uint32_t begin = f.begin;
+    std::uint32_t unwind = f.unwind;
+    std::optional<std::uint32_t> primary;
+    bool chained = false;
+    for (int link = 0; link < 16; ++link) {
+      if ((unwind & 1u) != 0) {  // an entry that points at another entry: its RUNTIME_FUNCTION's RVA
+        const auto b = img.u32(unwind & ~1u);
+        const auto u = img.u32((unwind & ~1u) + 8);
+        if (!b || !u) break;
+        chained = true;
+        begin = *b;
+        unwind = *u;
+        continue;
+      }
+      const auto flags = img.u8(unwind);
+      const auto codes = img.u8(unwind + 2);
+      if (!flags || !codes) break;
+      if (((*flags >> 3) & kChainInfo) == 0) {
+        primary = begin;
+        break;
+      }
+      // The chained RUNTIME_FUNCTION follows the unwind codes, their count rounded up to an even number.
+      const std::uint32_t at = unwind + 4 + 2 * ((std::uint32_t{*codes} + 1u) & ~1u);
+      const auto b = img.u32(at);
+      const auto u = img.u32(at + 8);
+      if (!b || !u) break;
+      chained = true;
+      begin = *b;
+      unwind = *u;
+    }
+    if (chained && primary && *primary != f.begin) out.push_back(ChainedEntry{f.begin, f.end, *primary});
+  }
+  std::sort(out.begin(), out.end(), [](const ChainedEntry& a, const ChainedEntry& b) {
+    return a.primary != b.primary ? a.primary < b.primary : a.begin < b.begin;
+  });
+  return out;
+}
+
+namespace {
+
+SectionKind section_at(std::span<const SectionSpan> sections, std::uint32_t rva) noexcept {
+  for (const SectionSpan& sec : sections) {
+    if (rva >= sec.rva && rva - sec.rva < sec.size) return sec.kind;
+  }
+  return SectionKind::None;
+}
+
+// The role of what a request's field holds, by the method's entry state (spike.11).
+FieldRole role_of(const Source& v, const EntryState& entry, std::uint8_t task) noexcept {
+  if (v.kind == Source::Kind::Argument && v.from == task) return FieldRole::Task;
+  if (v.kind == Source::Kind::Entry) {
+    if (const auto i = arg_index(v.from)) {
+      if (entry[*i].word) return FieldRole::Word;
+      if (entry[*i].zero) return FieldRole::Zero;
+    }
+  }
+  if (v.kind == Source::Kind::Memory && v.base_src.size() == 1 && v.base_src[0].kind == Source::Kind::Entry &&
+      !v.index) {
+    if (const auto i = arg_index(v.base_src[0].from); i && entry[*i].g) return FieldRole::Manager;
+  }
+  return FieldRole::Other;
+}
+
+}  // namespace
+
+std::optional<RequestShape> request_shape(const CalleeCode& method, const EntryState& entry, std::uint8_t task,
+                                          std::span<const SectionSpan> sections) {
+  const std::vector<StackStore>& st = method.stack_stores;
+  for (const StackStore& head : st) {
+    if (head.width != 8 || head.value.kind != Source::Kind::Address) continue;
+    if (!sections.empty() && section_at(sections, head.value.target) != SectionKind::Rdata) continue;
+    const auto has_task = std::any_of(st.begin(), st.end(), [&](const StackStore& x) {
+      return x.disp == head.disp + 8 && x.width == 8 && x.value.kind == Source::Kind::Argument && x.value.from == task;
+    });
+    if (!has_task) continue;
+    RequestShape r;
+    r.vtable = head.value.target;
+    r.disp = head.disp;
+    r.site = head.offset;
+    r.task_field = 8;
+    for (const StackStore& x : st) {  // in address order: the first store at each place
+      if (x.disp < head.disp || x.disp >= head.disp + 64) continue;
+      const auto off = static_cast<std::uint32_t>(x.disp - head.disp);
+      if (std::any_of(r.fields.begin(), r.fields.end(), [&](const RequestField& f) { return f.offset == off; })) {
+        continue;
+      }
+      RequestField f;
+      f.offset = off;
+      f.width = x.width;
+      f.role = off == 0 ? FieldRole::Vtable : role_of(x.value, entry, task);
+      f.source = x.value;
+      r.fields.push_back(std::move(f));
+    }
+    std::sort(r.fields.begin(), r.fields.end(),
+              [](const RequestField& a, const RequestField& b) { return a.offset < b.offset; });
+    for (const CalleeCall& c : method.calls) {
+      if (c.form != CallForm::Direct || !c.reached || !c.target) continue;
+      const auto rcx = std::find_if(c.pass_src.begin(), c.pass_src.end(), [](const PassedSource& p) { return p.reg == 1; });
+      if (rcx != c.pass_src.end() && rcx->source.kind == Source::Kind::Stack && rcx->source.disp == head.disp) {
+        r.now = c.target;
+        break;
+      }
+    }
+    return r;
+  }
+  return std::nullopt;
+}
+
+EntryState request_entry_at(const CalleeCall& call, const EntryState& parent, const RequestShape& request,
+                            std::uint8_t task) noexcept {
+  EntryState e = entry_at(call, parent);
+  for (const PassedSource& p : call.pass_src) {
+    const auto to = arg_index(p.reg);
+    if (!to || e[*to].from != 0) continue;
+    const Source& v = p.source;
+    if (v.kind == Source::Kind::Stack && v.disp == request.disp) {
+      e[*to].request = true;
+      continue;
+    }
+    if (v.kind != Source::Kind::Memory || v.index || v.base_src.size() != 1 ||
+        v.base_src[0].kind != Source::Kind::Entry || v.disp < 0) {
+      continue;
+    }
+    const auto from = arg_index(v.base_src[0].from);
+    if (!from || !parent[*from].request) continue;
+    const auto off = static_cast<std::uint64_t>(v.disp);
+    for (const RequestField& f : request.fields) {
+      if (f.offset != off) continue;
+      if (f.role == FieldRole::Task && v.width == 8 && task != 0) e[*to].from = task;
+      if (f.role == FieldRole::Manager && v.width == 8) e[*to].manager = true;
+      if (f.role == FieldRole::Word && v.width <= 4) e[*to].word = true;
+    }
+  }
+  return e;
+}
+
 CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
-                            const EntryState& entry, std::uint8_t task) {
+                            const EntryState& entry, std::uint8_t task, std::span<const std::uint32_t> starts) {
+  SummaryOptions options;
+  options.starts = starts;
+  return summarise_callee(code, rva, extent, entry, task, options);
+}
+
+namespace {
+
+// Spike.11: the exception directory's entry holding `rva`, by binary search over the sorted entries.
+const RuntimeFunction* entry_holding(std::span<const RuntimeFunction> functions, std::uint64_t rva) noexcept {
+  const auto it = std::upper_bound(functions.begin(), functions.end(), rva,
+                                   [](std::uint64_t at, const RuntimeFunction& f) { return at < f.begin; });
+  if (it == functions.begin()) return nullptr;
+  const RuntimeFunction& f = *std::prev(it);
+  return rva < f.end ? &f : nullptr;
+}
+
+// The parts past a function's primary entry (spike.11): its chained entries, then the unlisted code its conditional
+// branches reach, each decoded linearly into `decoded`. `ranges` gets each decoded part's [begin, end) offsets.
+class Parts {
+ public:
+  Parts(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t primary_end, const SummaryOptions& options,
+        std::vector<Decoded>& decoded, CalleeCode& out)
+      : code_(code), rva_(rva), primary_(primary_end), options_(options), decoded_(decoded), out_(out) {}
+
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> run() {
+    std::vector<CodePart> parts;
+    const auto [lo, hi] = std::equal_range(options_.chained.begin(), options_.chained.end(), ChainedEntry{0, 0, rva_},
+                                           [](const ChainedEntry& a, const ChainedEntry& b) { return a.primary < b.primary; });
+    for (auto it = lo; it != hi && parts.size() + 1 < kMaxParts; ++it) {
+      CodePart part{it->begin, 0, PartHow::Chained};
+      if (it->begin > rva_ && it->end > it->begin && std::uint64_t{it->end} - rva_ <= code_.size() &&
+          !inside(it->begin - rva_)) {
+        const std::uint32_t from = it->begin - rva_;
+        const std::uint32_t to = std::min<std::uint32_t>(it->end - rva_, from + kPartBound);
+        part.bytes = linear(from, to, false);
+      }
+      parts.push_back(part);
+    }
+    while (parts.size() + 1 < kMaxParts) {
+      const std::optional<std::uint32_t> from = next_branch_target();
+      if (!from) break;
+      const std::uint32_t to =
+          static_cast<std::uint32_t>(std::min<std::uint64_t>(code_.size(), std::uint64_t{*from} + kPartBound));
+      CodePart part{rva_ + *from, 0, PartHow::Unlisted};
+      part.bytes = linear(*from, to, true);
+      tried_.push_back(*from);
+      if (part.bytes == 0) continue;
+      parts.push_back(part);
+    }
+    if (!parts.empty()) {
+      out_.parts.push_back(CodePart{rva_, primary_, PartHow::Primary});
+      out_.parts.insert(out_.parts.end(), parts.begin(), parts.end());
+    }
+    return ranges_;
+  }
+
+ private:
+  // Whether an offset lies in the primary or a decoded part.
+  [[nodiscard]] bool inside(std::uint64_t off) const noexcept {
+    if (off < primary_) return true;
+    return std::any_of(ranges_.begin(), ranges_.end(), [&](const auto& r) { return off >= r.first && off < r.second; });
+  }
+  [[nodiscard]] bool starts_entry(std::uint64_t off) const noexcept {
+    return std::binary_search(options_.starts.begin(), options_.starts.end(), static_cast<std::uint32_t>(rva_ + off));
+  }
+  // The lowest target of a conditional branch decoded so far past the primary, outside every part and every entry of
+  // the directory, not tried before.
+  [[nodiscard]] std::optional<std::uint32_t> next_branch_target() const {
+    std::optional<std::uint32_t> best;
+    for (const Decoded& d : decoded_) {
+      if (d.insn.flow != Flow::Branch) continue;
+      const auto to = x86::branch_target(d.insn, code_.subspan(d.at, d.insn.length), std::uint64_t{rva_} + d.at);
+      if (!to || *to < rva_ || *to - rva_ >= code_.size()) continue;
+      const auto off = static_cast<std::uint32_t>(*to - rva_);
+      if (inside(off) || entry_holding(options_.functions, *to) != nullptr ||
+          std::find(tried_.begin(), tried_.end(), off) != tried_.end()) {
+        continue;
+      }
+      if (!best || off < *best) best = off;
+    }
+    return best;
+  }
+  // Decodes [from, to) linearly; an unlisted part ends at a return, a trap, a jump through memory or a register, a
+  // direct jump not back into a part, another entry's start or a part's. Answers the bytes decoded.
+  std::uint32_t linear(std::uint32_t from, std::uint32_t to, bool unlisted) {
+    std::uint32_t at = from;
+    while (at < to) {
+      if (at != from && (inside(at) || (unlisted && starts_entry(at)))) break;
+      const auto insn = x86::decode(code_.subspan(at, std::min<std::size_t>(x86::kMaxLength, to - at)));
+      if (!insn) break;
+      const std::uint32_t next = at + insn->length;
+      if (std::any_of(ranges_.begin(), ranges_.end(), [&](const auto& r) { return at < r.first && next > r.first; })) {
+        break;  // it would run into a part
+      }
+      decoded_.push_back(Decoded{at, *insn});
+      at = next;
+      if (!unlisted) continue;
+      if (insn->flow == Flow::Return || insn->flow == Flow::Trap || insn->flow == Flow::JumpIndirect) break;
+      if (insn->flow == Flow::Jump) {
+        const auto t = x86::branch_target(*insn, code_.subspan(at - insn->length, insn->length),
+                                          std::uint64_t{rva_} + at - insn->length);
+        const bool back = t && *t >= rva_ && (inside(*t - rva_) || (*t - rva_ >= from && *t - rva_ < at));
+        if (!back) break;
+      }
+    }
+    if (at > from) ranges_.emplace_back(from, at);
+    return at - from;
+  }
+
+  std::span<const std::byte> code_;
+  std::uint32_t rva_;
+  std::uint32_t primary_;
+  const SummaryOptions& options_;
+  std::vector<Decoded>& decoded_;
+  CalleeCode& out_;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> ranges_;
+  std::vector<std::uint32_t> tried_;
+};
+
+}  // namespace
+
+CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
+                            const EntryState& entry, std::uint8_t task, const SummaryOptions& options) {
+  const std::span<const std::uint32_t> starts = options.starts;
   CalleeCode out;
   out.read = !code.empty();
   out.extent = extent;
@@ -1591,7 +2066,9 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
     // jump decoded so far goes past it (a tail jump's padding is the next function's, never its own).
     if (insn->flow == Flow::Branch || insn->flow == Flow::Jump) {
       const auto to = x86::branch_target(*insn, code.subspan(from, insn->length), std::uint64_t{rva} + from);
-      if (to && *to >= rva) past = std::max<std::uint64_t>(past, *to - rva);
+      const bool to_function = insn->flow == Flow::Jump && to && *to > rva && *to <= 0xFFFF'FFFFull &&
+                               std::binary_search(starts.begin(), starts.end(), static_cast<std::uint32_t>(*to));
+      if (to && *to >= rva && !to_function) past = std::max<std::uint64_t>(past, *to - rva);
     }
     const bool leaves = insn->flow == Flow::Return || insn->flow == Flow::Jump || insn->flow == Flow::JumpIndirect;
     if (insn->flow == Flow::Return || (leaves && past < at)) {
@@ -1601,15 +2078,36 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
   }
   if (extent != 0 && at >= extent) ended = true;
   out.cut = !ended && !out.undecodable && limit == kCalleeBound;
-  out.bytes = static_cast<std::uint32_t>(at);
+  // Spike.11: the parts past the extent, where the directory is known.
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> ranges;
+  std::size_t span = at;
+  std::uint64_t decoded_bytes = at;
+  if (extent != 0 && !options.functions.empty() && !decoded.empty()) {
+    ranges = Parts(code, rva, static_cast<std::uint32_t>(at), options, decoded, out).run();
+    for (const auto& r : ranges) {
+      span = std::max<std::size_t>(span, r.second);
+      decoded_bytes += r.second - r.first;
+    }
+    std::sort(decoded.begin(), decoded.end(), [](const Decoded& a, const Decoded& b) { return a.at < b.at; });
+  }
+  out.bytes = static_cast<std::uint32_t>(decoded_bytes);
   out.instructions = static_cast<std::uint32_t>(decoded.size());
-  const std::span<const std::byte> bytes = code.first(at);
+  const std::span<const std::byte> bytes = code.first(span);
+  const std::size_t max_forms = out.parts.empty() ? kMaxForms : 2 * kMaxForms;
 
   // What each instruction's registers hold along the flow, to a fixed point: a register only ever loses what it holds.
   Sources sources;
-  std::array<bool, 4> entries{};
-  for (std::size_t i = 0; i < kArgs.size(); ++i) entries[i] = entry[i].entry && entry[i].from == 0;
-  Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), entries);
+  Holds holds;
+  for (std::size_t i = 0; i < kArgs.size(); ++i) {
+    const bool none = entry[i].from == 0;
+    holds.entry[i] = entry[i].entry && none;
+    holds.g[i] = entry[i].g && none;
+    holds.word[i] = entry[i].word && none;
+    holds.request[i] = entry[i].request && none;
+    holds.manager[i] = entry[i].manager && none;
+  }
+  Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), holds,
+               options.request, ranges);
   std::vector<State> states(decoded.size());
   if (!decoded.empty()) {
     states[0].reached = true;
@@ -1644,7 +2142,7 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
     if (d.insn.flow == Flow::Branch && !s.called() && out.guards.size() < kMaxGuards) {
       out.guards.push_back(guard_of(decoded, states, i, bytes, rva, sources));
     }
-    if (out.forms.size() < kMaxForms) out.forms.push_back(form_of(d, bytes, rva, states[i]));
+    if (out.forms.size() < max_forms) out.forms.push_back(form_of(d, bytes, rva, states[i]));
     State st = states[i];
     if (!st.reached) st.regs.fill(Held{});
     s.record(st, d.at, d.insn, bytes.subspan(d.at, d.insn.length));

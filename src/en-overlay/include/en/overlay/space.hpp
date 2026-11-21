@@ -20,13 +20,14 @@
 #include <string_view>
 #include <vector>
 
+#include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
 #include "en/proto/watch.hpp"
 
 namespace en::overlay {
 
 // The increment eldennet.dll registers, its release's (GraceUI D173): a page of a later one is absent from both views.
-inline constexpr std::string_view kIncrement = "0.1";
+inline constexpr std::string_view kIncrement = "0.2";  // the AI pages' (PAGES §4.6.2)
 inline constexpr std::string_view kSpaceId = "eldennet";
 
 // The generated page data and settings description (space_data.cpp, tools/pages/build.py), as the protocol's JSON.
@@ -51,6 +52,120 @@ enum class Stop : std::uint8_t {  // en-core's BannerReason, or none
 enum class Where : std::uint8_t { Starting, Title, Loading, World, Stopped };  // en-core's phase, as the player meets it
 enum class Unclean : std::uint8_t { None, Gap, SessionFailed, AntiCheat, NotSolo, Lobby, Loading };  // the gate's why
 enum class Reading : std::uint8_t { None, Registered, PhaseA, Running, Inert };  // en-gal's task, or none yet
+
+// ---- AI (PAGES §4.6.2): en-llm's configuration, health and runs as the DLL knows them, in en-overlay's own types (it
+// links no en-llm, ARCH §2.3; the DLL maps them). Ids are the configuration's (providers.toml's provider ids, its model
+// ids); a base URL is shown on AI › Providers alone (PV2). Never a key: a key's status alone. A server's listed ids
+// reach AI › Models' pickers alone, any that looks like a path left out (PV5); never the model's text.
+enum class AiFiles : std::uint8_t { Missing, Refused, Ready };  // providers.toml: none, refused (its checks), read
+// Why providers.toml was refused, as en-llm names it (its ConfigRefusal, mapped by the DLL): a provider's base URL's
+// scheme, a name or password in it, a query or fragment, http:// to a public host, http:// for a cloud provider, a key
+// over http:// to another computer, or anything else.
+enum class AiRefusal : std::uint8_t { Other, Scheme, Credentials, QueryOrFragment, PlainPublic, PlainCloud, PlainKey };
+enum class AiFlavor : std::uint8_t { OpenAI, Ollama, LlamaCpp, LmStudio, KoboldCpp };
+enum class AiJson : std::uint8_t { None, Object, Schema };
+// A provider's key: none needed (no key's place, and no call refused for want of one; or http:// on another computer,
+// which never takes one), one kept, none kept yet, or one refused: its last call was refused for its key, or, with no
+// key's place, for want of one (Health's state, and the model list's).
+enum class AiKey : std::uint8_t { NotNeeded, Set, Missing, Rejected };
+// Where a provider's key is kept (its key_ref): nowhere yet, secrets.toml under a name, or an environment variable.
+enum class AiKeyPlace : std::uint8_t { None, Secrets, Env };
+// An outcome's class in the player's words (ARCH §11.2's classes, folded).
+enum class AiFailure : std::uint8_t {
+  None, Unreachable, KeyRefused, RateLimited, TimedOut, BadReply, BadRequest, Refused, GateClosed, Busy, NoProvider,
+  Cancelled,
+};
+enum class AiStep : std::uint8_t { Waiting, Running, Passed, Failed, Skipped };
+enum class AiVerdict : std::uint8_t { None, Quick, Acceptable, Slow };
+
+struct AiProvider {
+  std::string id;
+  bool cloud = true;
+  AiFlavor flavor = AiFlavor::OpenAI;
+  std::string base_url;
+  AiKey key = AiKey::NotNeeded;
+  AiKeyPlace key_place = AiKeyPlace::None;
+  std::string key_name;  // with Secrets: the name secrets.toml keeps it under
+  bool plain = false;    // its base URL is http:// to a host that is not this PC's: no key is set on its row
+  int concurrency = 1;
+  AiJson json = AiJson::None;
+  bool disabled = false;           // its key was rejected (health)
+  std::uint32_t cooling_s = 0;     // rate-limited: the seconds left
+  std::uint32_t pairs_cooling = 0;  // of its (provider, model) pairs, those cooling after three failures
+  std::int64_t answered_ms = -1;   // when it last answered this session (since T1's start); -1: not this session
+  std::vector<std::string_view> slots;  // the slots whose model or fallback it serves
+};
+
+struct AiSlot {
+  std::string_view slot;  // en-proto's slot names
+  std::string provider;
+  std::string model;
+  std::string fallback_provider;
+  std::string fallback;
+  std::string_view same_as;  // the slot it borrows its models from, or empty
+  bool healthy = true;       // a model of it is usable now
+  bool picked = false;       // providers.toml gives it a [slots.<slot>] table of its own: not the preset's choice
+};
+
+struct AiList {
+  std::string provider;
+  AiStep state = AiStep::Waiting;
+  AiFailure why = AiFailure::None;
+  int listed = 0;
+  std::vector<std::string_view> missing;  // the slots whose model it does not list
+};
+
+struct AiRun {
+  std::uint64_t at_ms = 0;  // since T1's start
+  std::string model;
+  AiVerdict verdict = AiVerdict::None;
+  bool passed = false;
+};
+
+struct AiSelfTest {
+  bool ran = false;      // a run has started this session
+  bool running = false;
+  std::uint64_t at_ms = 0;
+  std::vector<AiList> lists;
+  AiStep latency = AiStep::Waiting;
+  AiFailure latency_why = AiFailure::None;
+  AiStep json = AiStep::Waiting;
+  AiFailure json_why = AiFailure::None;
+  std::string provider;
+  std::string model;
+  std::int64_t first_token_ms = -1;
+  double tokens_per_second = 0;
+  std::int64_t first_page_ms = 0;
+  AiVerdict verdict = AiVerdict::None;
+  std::vector<AiRun> earlier;  // this session's runs before this one, newest first
+};
+
+// What one provider listed at the last model list or self-test that it answered: the ids as it sent them, within
+// en-llm's limits (EldenNet's space chooses which a picker may show).
+struct AiModels {
+  std::string provider;
+  std::vector<std::string> ids;
+};
+
+struct AiFacts {
+  AiFiles files = AiFiles::Missing;
+  AiRefusal refusal = AiRefusal::Other;  // with files Refused: why
+  std::uint32_t refusal_line = 0;        // and the line, 0 when the refusal names none
+  std::uint64_t revision = 0;          // the configuration's: it changes whenever the DLL takes an edited one
+  std::string preset;                  // providers.toml's, as the file names it
+  std::vector<std::string> presets;    // models.toml's
+  std::vector<std::string> keys_set;   // the names secrets.toml holds a key under (for the key rows' status)
+  std::vector<AiProvider> providers;   // providers.toml's, in its order
+  std::vector<AiSlot> slots;           // the jobs this increment shows, in ARCH §11.4's order
+  std::vector<std::string> preset_missing;  // the chosen preset's providers that providers.toml lacks
+  bool preset_needs_probe = false;          // one of them has no address: Find local servers finds it (later)
+  std::vector<std::string> unused;          // the providers no job uses
+  AiSelfTest selftest;
+  bool listing = false;                // the model list runs
+  bool listed = false;                 // it has run this session
+  std::vector<AiList> lists;           // its last result
+  std::vector<AiModels> models;        // each provider's ids, from its newest answered list (the list or a self-test)
+};
 
 struct SpaceFacts {
   std::array<std::uint16_t, 3> version{};  // EldenNet's
@@ -83,6 +198,29 @@ struct SpaceFacts {
   bool launcher = false;          // started by EldenNet's launcher (its watch block is attached)
   bool settings_refused = false;  // settings.toml was refused at the start: the defaults are in use
   std::uint64_t session_ms = 0;   // since T1's start
+  const AiFacts* ai = nullptr;    // the AI pages' facts; null: none yet (their topics publish nothing)
+};
+
+// A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
+// (providers.add, providers.remove, providers.key): answered `ok` at once, for the DLL to make; its progress and its
+// outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to store and overwrite.
+struct AiRequest {
+  enum class Kind : std::uint8_t {
+    SelfTest,
+    ListModels,
+    AddPreset,  // the chosen preset's providers that providers.toml lacks
+    AddOwn,     // a provider of the player's own: `id` and `base_url`, both checked here
+    Remove,     // `id`, which no job uses, with its key where no other provider names it
+    SetKey,     // `id`'s key: `key`
+    ClearKey,   // `id`'s key, cleared
+  };
+  Kind kind = Kind::SelfTest;
+  std::string id;
+  std::string base_url;   // AddOwn: as en-proto's check_base_url wrote it
+  bool local = false;     // AddOwn: http:// to this PC or to a private address of the home network
+  std::string key;        // SetKey: the key as typed, spaces round it taken off: never logged, published or kept here
+
+  bool operator==(const AiRequest&) const = default;
 };
 
 // What happened at the space on a step, for the DLL's log: our own words only (topic and command names are the space's
@@ -106,7 +244,7 @@ class Space {
   [[nodiscard]] bool valid() const noexcept { return valid_; }
 
   // ---- The settings it describes, by key, as JSON values. The DLL sets them from settings.toml as read at the start.
-  // A secret's is held and published as its status alone, "set" or "" (none in this slice).
+  // A secret's is held and published as its status alone, "set" or "" (the AI pages' keys).
   void set_value(std::string_view key, const nlohmann::json& value);
   [[nodiscard]] const nlohmann::json& values() const noexcept { return values_; }
   [[nodiscard]] bool has_setting(std::string_view key) const;
@@ -119,13 +257,22 @@ class Space {
   // it does takes long in this slice; a later long command answers at once and publishes its progress (§23 item 4).
   // `facts` says whether settings.toml may be written (not while the file the player wrote was refused).
   [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts);
+  // AI › Models' rows of each job (`slots.<slot>.provider` and `slots.<slot>.model`) as the facts have them: the job's
+  // provider and model now, the preset's or the ones chosen, a provider chosen and waiting for its model kept; and which
+  // jobs providers.toml holds a pick for, the rows its `changed` list names (GraceUI D198). collect calls it when the
+  // facts' revision changes; the tests and the fixtures call it too.
+  void sync(const SpaceFacts& facts);
 
-  // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml.
+  // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml. A job's pick is one
+  // change of its model row (`slots.<slot>.model`): the model and the provider to write it with, or an empty model, the
+  // job's [slots.<slot>] removed (a reset of either of its rows).
   struct Change {
     std::string key;
     nlohmann::json value;
+    std::string provider;  // a job's pick: the provider its model is on
   };
   [[nodiscard]] std::vector<Change> take_changes();
+  [[nodiscard]] std::vector<AiRequest> take_requests();
   [[nodiscard]] std::vector<SpaceNote> take_notes();
 
   // ---- The logs stream: one of the log's lines (its text, `<event> key=value ...`, EldenNet's own), `t_ms` since T1's
@@ -171,6 +318,8 @@ class Space {
   std::string answer(const nlohmann::json& id, std::string_view error, std::string_view detail) const;
   std::string set(const nlohmann::json& id, const nlohmann::json& args, const SpaceFacts& facts);
   std::string reset(const nlohmann::json& id, const nlohmann::json& args, const SpaceFacts& facts);
+  std::string ai_command(const nlohmann::json& id, std::string_view name, nlohmann::json& args,
+                         const SpaceFacts& facts);
   void change(const Setting& s, const nlohmann::json& value);
   nlohmann::json settings_description_json_;
   std::vector<Setting> settings_;
@@ -182,7 +331,14 @@ class Space {
   std::uint64_t next_seq_ = 1;
   std::uint64_t logs_sent_ = 0;    // the last row's seq the watched logs stream has had, 0 for none
   std::vector<Change> changes_;
+  std::vector<AiRequest> requests_;
   std::vector<SpaceNote> notes_;
+  bool synced_once_ = false;  // collect has set the model rows from the facts
+  std::uint64_t synced_ = 0;   // from the facts of this revision
+  // A job's provider chosen whose list lacks the job's model: held here, by slot, until a model of its list is chosen
+  // (nothing is written before), and dropped by a reset, by choosing the job's provider again, or when it is gone.
+  std::map<std::string, std::string, std::less<>> pending_;
+  std::set<std::string, std::less<>> picked_;  // the jobs providers.toml holds a pick for, as the facts last said
   bool valid_ = false;
 };
 
@@ -190,5 +346,8 @@ class Space {
 [[nodiscard]] std::string clock_of(std::uint64_t ms);
 // A log line as the logs stream holds it: any run of 17 digits starting 7656119 (a SteamID64's shape) "redacted" (PV5).
 [[nodiscard]] std::string scrubbed(std::string_view line);
+// Whether an id a server listed may be one of a picker's choices: 1 to 200 bytes, and nothing that looks like a path
+// (a local server's ids can be its model files' paths, which hold the Windows user name: PV5).
+[[nodiscard]] bool pickable(std::string_view id) noexcept;
 
 }  // namespace en::overlay

@@ -13,13 +13,13 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <initializer_list>
 #include <memory>
 #include <sstream>
 
 #include <toml.hpp>
 
+#include "en/proto/base_url.hpp"
 #include "en/proto/toml_check.hpp"
 
 namespace en::llm {
@@ -31,7 +31,6 @@ namespace {
 constexpr std::int64_t kProvidersSchema = 1;
 constexpr std::int64_t kModelsSchema = 1;
 constexpr std::int64_t kSettingsSchema = 2;
-constexpr std::uintmax_t kMaxFileBytes = 64 * 1024;  // DESIGN §11.4
 
 // The levels OpenRouter's provider.quantizations takes, lowest first.
 constexpr std::array<std::string_view, 8> kQuantLevels = {"int4", "fp4", "fp6", "int8", "fp8", "fp16", "bf16", "fp32"};
@@ -46,11 +45,16 @@ struct Ctx {
   std::string where;
 
   [[noreturn]] void fail(const std::string& what, const toml::node* at = nullptr) const {
+    fail(ConfigRefusal::Other, what, at);
+  }
+  [[noreturn]] void fail(ConfigRefusal refusal, const std::string& what, const toml::node* at) const {
     std::string message = where.empty() ? what : where + ": " + what;
+    std::uint32_t line = 0;
     if (at != nullptr && at->source().begin.line > 0) {
-      message += " (line " + std::to_string(at->source().begin.line) + ")";
+      line = at->source().begin.line;
+      message += " (line " + std::to_string(line) + ")";
     }
-    throw ConfigError(file, message);
+    throw ConfigError(file, message, refusal, line);
   }
   Ctx sub(std::string inner) const { return Ctx{file, std::move(inner)}; }
 };
@@ -193,26 +197,6 @@ bool valid_id(std::string_view id) {
   });
 }
 
-std::string lower(std::string s) {
-  for (char& c : s) {
-    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
-  }
-  return s;
-}
-
-std::string url_host(std::string_view url) {
-  const auto scheme_end = url.find("://");
-  std::string_view rest = scheme_end == std::string_view::npos ? url : url.substr(scheme_end + 3);
-  rest = rest.substr(0, rest.find_first_of("/?#"));
-  if (const auto at = rest.rfind('@'); at != std::string_view::npos) rest = rest.substr(at + 1);
-  if (!rest.empty() && rest.front() == '[') return lower(std::string(rest.substr(0, rest.find(']') + 1)));
-  return lower(std::string(rest.substr(0, rest.find(':'))));
-}
-
-bool is_loopback_host(const std::string& host) {
-  return host == "localhost" || host == "[::1]" || host.rfind("127.", 0) == 0;
-}
-
 std::string normalise_base_url(std::string url) {
   while (!url.empty() && (url.back() == '/' || url.back() == ' ')) url.pop_back();
   while (!url.empty() && url.front() == ' ') url.erase(url.begin());
@@ -256,21 +240,50 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
 
   p.flavor = parse_choice(get_string(table, "flavor", pctx).value_or("openai"), kFlavors, "flavor", pctx);
   p.base_url = normalise_base_url(require_string(table, "base_url", pctx));
+  const toml::node* url_node = table.get("base_url");
   if (p.base_url.rfind("https://", 0) != 0 && p.base_url.rfind("http://", 0) != 0) {
-    pctx.fail("base_url must start with https:// or http://");
+    pctx.fail(ConfigRefusal::Scheme, "base_url must start with https:// or http://", url_node);
   }
-  const bool loopback = is_loopback_host(url_host(p.base_url));
+  // en-proto's check, which AI › Providers' form makes too: a key is never written inline, and the client appends its
+  // own paths. Neither message quotes the address.
+  switch (proto::url_extras(p.base_url)) {
+    case proto::UrlProblem::Credentials:
+      pctx.fail(ConfigRefusal::Credentials,
+                "base_url must hold no name or password: a key goes in secrets.toml, named by key_ref", url_node);
+    case proto::UrlProblem::QueryOrFragment:
+      pctx.fail(ConfigRefusal::QueryOrFragment, "base_url must end at its path, with no ? or #", url_node);
+    default: break;
+  }
+  // A key must never cross a network in clear text (ARCH §11.1; O98 (a)): http:// goes to this PC, or to a literal
+  // private address of the home network as a local server with no key; never to a public host or a name, whatever the
+  // provider's kind. en-proto's reach_of, which the pages' form and key rows share.
+  const proto::Reach reach = proto::reach_of(p.base_url);
+  const bool plain_remote = reach == proto::Reach::HomeNetwork || reach == proto::Reach::Public;
+  if (reach == proto::Reach::Public) {
+    pctx.fail(ConfigRefusal::PlainPublic,
+              "base_url uses http:// to a host that is neither this PC nor a private address: it must use https://",
+              url_node);
+  }
   if (auto kind = get_string(table, "kind", pctx)) {
     p.kind = parse_choice(*kind, kKinds, "kind", pctx);
   } else {
-    p.kind = loopback ? ProviderKind::Local : ProviderKind::Cloud;
+    p.kind = reach == proto::Reach::ThisPc || reach == proto::Reach::HomeNetwork ? ProviderKind::Local
+                                                                                 : ProviderKind::Cloud;
   }
-  // A key must never cross a network in clear text.
-  if (p.base_url.rfind("http://", 0) == 0 && !loopback && p.kind == ProviderKind::Cloud) {
-    pctx.fail("a cloud provider's base_url must use https://");
+  if (plain_remote && p.kind == ProviderKind::Cloud) {
+    pctx.fail(ConfigRefusal::PlainCloud, "a cloud provider's base_url must use https://", url_node);
   }
+  const auto no_key_in_clear = [&](const char* where, const toml::node* at) {
+    if (plain_remote) {
+      pctx.fail(ConfigRefusal::PlainKey,
+                std::string(where) + " names a key, which would go over http:// to another computer: use https://, "
+                                     "or no key",
+                at);
+    }
+  };
 
   if (auto ref = get_string(table, "key_ref", pctx)) {
+    no_key_in_clear("key_ref", table.get("key_ref"));
     p.key_ref = *ref;
     p.key = resolve_ref(*ref, keys, env, pctx, "key_ref");
     if (!p.key) p.unresolved_refs.push_back(*ref);
@@ -281,6 +294,7 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
       if (!value.is_string()) pctx.fail("headers." + std::string(name.str()) + " must be a string", &value);
       std::string text = value.as_string()->get();
       if (is_ref(text)) {
+        no_key_in_clear(("headers." + std::string(name.str())).c_str(), &value);
         if (auto secret = resolve_ref(text, keys, env, pctx, "headers." + std::string(name.str()))) {
           p.secret_headers.emplace_back(std::string(name.str()), std::move(*secret));
         } else {
@@ -539,6 +553,7 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetRes
     if (!value.is_table()) ctx.fail("must be a table", &value);
     const toml::table& table = *value.as_table();
     check_keys(table, {"model", "fallback", "provider", "fallback_provider"}, ctx);
+    cfg.picked.insert(slot);
     const std::optional<std::string> preset_provider = preset_default(preset, slot);
 
     auto provider_for = [&](std::string_view key, const std::optional<std::string>& fallback_to) -> std::string {
@@ -576,10 +591,14 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetRes
 void fill_empty_slots(Config& cfg) {
   const auto& dialogue = cfg.slots[std::string(kDialogue)].models;
   auto& bark_live = cfg.slots[std::string(kBarkLive)].models;
-  if (bark_live.empty()) bark_live = dialogue;
+  if (bark_live.empty()) {
+    bark_live = dialogue;
+    cfg.borrowed[std::string(kBarkLive)] = std::string(kDialogue);
+  }
   for (auto& [name, slot] : cfg.slots) {
     if (!slot.models.empty() || name == kDialogue) continue;
     slot.models = name == kDecisions ? bark_live : dialogue;
+    cfg.borrowed[name] = std::string(name == kDecisions ? kBarkLive : kDialogue);
   }
 }
 
@@ -597,21 +616,6 @@ void parse_settings(Config& cfg, const std::string& text) {
   }
 }
 
-std::optional<std::string> read_file(const std::filesystem::path& path, bool required) {
-  std::error_code ec;
-  if (!std::filesystem::exists(path, ec)) {
-    if (required) throw ConfigError(path.filename().string(), "not found in the configuration folder");
-    return std::nullopt;
-  }
-  const auto size = std::filesystem::file_size(path, ec);
-  if (ec) throw ConfigError(path.filename().string(), "cannot be read");
-  if (size > kMaxFileBytes) throw ConfigError(path.filename().string(), "is larger than 64 KB");
-  std::ifstream in(path, std::ios::binary);
-  if (!in) throw ConfigError(path.filename().string(), "cannot be opened");
-  std::ostringstream text;
-  text << in.rdbuf();
-  return text.str();
-}
 
 }  // namespace
 
@@ -729,14 +733,5 @@ Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
   return cfg;
 }
 
-Config load_config_dir(const std::filesystem::path& dir, const std::optional<std::filesystem::path>& models_file,
-                       const EnvLookup& env) {
-  ConfigTexts texts;
-  texts.providers = *read_file(dir / "providers.toml", /*required=*/true);
-  texts.models = read_file(models_file ? *models_file : dir / "models.toml", /*required=*/models_file.has_value());
-  texts.settings = read_file(dir / "settings.toml", false);
-  texts.secrets = read_file(dir / "secrets.toml", false);
-  return parse_config(texts, env);
-}
 
 }  // namespace en::llm

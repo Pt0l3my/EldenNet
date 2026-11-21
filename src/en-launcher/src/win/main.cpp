@@ -719,5 +719,9 @@ int run_launcher() {
 // R3: the entry starts with ffi_guard; an exception that escapes the flow ends the launcher with exit code 3. (The
 // SDK declares wWinMain without noexcept, so the definition cannot add it; ffi_guard is noexcept itself.)
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-  return en::proto::ffi_guard(en::proto::Component::Launcher, 3, [] { return en::launcher::win::run_launcher(); });
+  return en::proto::ffi_guard(en::proto::Component::Launcher, 3, [] {
+    const int code = en::launcher::win::run_launcher();
+    en::launcher::win::close_output();  // WHY§290: the console's last lines, its mode restored
+    return code;
+  });
 }

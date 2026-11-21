@@ -32,6 +32,7 @@
 
 #include "en/gal/discovery.hpp"
 #include "en/gal/guarded.hpp"
+#include "en/gal/image_bytes.hpp"
 #include "en/gal/probe_report.hpp"
 #include "en/gal/sys.hpp"
 
@@ -205,16 +206,33 @@ class Census {
 
 // ---- Spike.6 (WHY§227): the callee as its code reads, and the whole process searched for our task ----
 
+// One section of the image: its RVA, size and kind (by its characteristics).
+struct SectionSpan {
+  std::uint32_t rva = 0;
+  std::uint32_t size = 0;
+  SectionKind kind = SectionKind::Other;
+};
+
 inline constexpr std::uint32_t kCalleeBound = 4096;  // bytes of the callee decoded at most
 
 // What rcx, rdx, r8 and r9 hold at a function's entry: one of the summary's arguments (`from`: 1, 2, 8 or 9; 0 none),
 // or the first word of that argument's object. A function summarised on its own holds its own arguments; in an inner
 // summary a register that holds none holds the value it was entered with (Source's Entry, spike.8). Spike.9: `entry`,
 // a register holding no argument holds the group's entry (its loads are `entry_reads`).
+// Spike.10 (WHY§289): `g`, a register holding no argument holds the second singleton G (its loads are `g_reads`);
+// `word`, it holds the entry's word (its uses are `word_uses`); `zero`, a stub left it zero (reported only).
+// Spike.11 (WHY§293): `request`, it holds the request G's method builds (its loads are `request_reads`, and a load of
+// the request's task field holds the task); `manager`, it holds G's manager, the request's field of G's (its loads are
+// `manager_reads`).
 struct EntryArg {
   std::uint8_t from = 0;
   bool first_word = false;
   bool entry = false;
+  bool g = false;
+  bool word = false;
+  bool zero = false;
+  bool request = false;
+  bool manager = false;
 };
 using EntryState = std::array<EntryArg, 4>;
 inline constexpr EntryState kOwnArguments = {{{1, false, false}, {2, false, false}, {8, false, false},
@@ -222,8 +240,28 @@ inline constexpr EntryState kOwnArguments = {{{1, false, false}, {2, false, fals
 // The entry state of the function a call (or a tail jump) reaches: its rcx, rdx, r8 and r9 as the call's `pass` says.
 [[nodiscard]] EntryState entry_at(const CalleeCall& call) noexcept;
 // The same from a function entered with `parent` (spike.9): a register the call's `pass_src` gives as one of the
-// function's entry values that held the group's entry holds it in the callee too.
+// function's entry values that held the group's entry holds it in the callee too; since spike.10 the same for G, the
+// entry's word and a zero.
 [[nodiscard]] EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept;
+// Spike.10 (WHY§289): the entry state of G's method, reached from the group's function (entered with `parent`) by
+// `site`: as entry_at gives it, and rcx, loaded from a RIP-relative slot 64 bits wide, holds G; a register loaded from
+// the group's entry (a value read from [entry + d]) holds the entry's word.
+[[nodiscard]] EntryState method_entry_at(const CalleeCall& site, const EntryState& parent) noexcept;
+// The site in the group's function that reaches G's method: the first reached tail jump (else call) with a target that
+// passes our task (`task`, the wrapper's argument) with rcx loaded from a RIP-relative slot 64 bits wide.
+[[nodiscard]] const CalleeCall* method_site(const CalleeCode& group, std::uint8_t task) noexcept;
+// A stub: a summary of 16 bytes or fewer, with no call, no branch and no return, whose last instruction is a reached
+// direct tail jump (that jump; else null). Followed through without spending a depth level (spike.10).
+inline constexpr std::uint32_t kMaxStubBytes = 16;
+[[nodiscard]] const CalleeCall* stub_jump(const CalleeCode& stub) noexcept;
+// The entry state at a stub's target, the stub entered with `stub_entry`: entry_at through its jump, and `zero` where
+// the stub zeroed the register (xor r, r, or mov r, 0) and wrote it no more.
+[[nodiscard]] EntryState through_stub(const CalleeCode& stub, const EntryState& stub_entry) noexcept;
+// Spike.10: what a call site passes in `reg` (the task's register), read from the code of the function holding it,
+// decoded from its start (`fn_rva`, `code` its bytes from there on) onto the call at `call_rva` (probe_report.hpp's
+// SiteArg).
+[[nodiscard]] SiteArg task_argument(std::span<const std::byte> code, std::uint32_t fn_rva, std::uint32_t call_rva,
+                                    std::uint8_t reg);
 
 // What the code at `rva` does, decoded with en-gal's decoder from its first byte and following no call: within its
 // function (`extent`, its length in the exception directory, at most kCalleeBound), or, with no extent, up to its first
@@ -252,10 +290,57 @@ inline constexpr EntryState kOwnArguments = {{{1, false, false}, {2, false, fals
 // stored, passed into a call, called through, used as a base, changed); a compare, test or other use of such a field in
 // place is a read too. A followed value changed by add, or, xor, and, sub, a shift, a bit set or a lea stays followed
 // (Source's Modified), and each store of the task, of a value read from it, or of either changed is a task store.
+// Spike.10: with no extent, a direct jump to one of `starts` (the RVAs where the exception directory's functions begin,
+// ascending) goes past nothing: a forward tail jump (a stub's, into the function after it) ends the decoding too.
 [[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
-                                          const EntryState& entry = kOwnArguments, std::uint8_t task = 0);
-inline constexpr std::size_t kMaxForms = 64;  // instructions given as forms, per summary
+                                          const EntryState& entry = kOwnArguments, std::uint8_t task = 0,
+                                          std::span<const std::uint32_t> starts = {});
+inline constexpr std::size_t kMaxForms = 64;  // instructions given as forms, per summary (with parts, 128)
 inline constexpr std::size_t kMaxFieldReads = 16, kMaxFieldUses = 8, kMaxTaskStores = 16;
+
+// ---- Spike.11 (WHY§293): a function in parts, the request G's method builds, and the request's methods ----
+
+// An entry of the exception directory chained to another (UNW_FLAG_CHAININFO, or an entry that points at another),
+// with the primary entry its chain leads back to.
+struct ChainedEntry {
+  std::uint32_t begin = 0, end = 0;
+  std::uint32_t primary = 0;  // the primary entry's begin
+};
+// Every chained entry of `functions` (ImageInfo's, sorted), read from the image's unwind information, by primary then
+// begin; a chain of more than 16 links, or one that cannot be read, is left out.
+[[nodiscard]] std::vector<ChainedEntry> chained_entries(const ImageBytes& img,
+                                                        std::span<const RuntimeFunction> functions);
+// What a summary knows of the image around it: the exception directory's starts (spike.10's), its entries and the
+// chained ones (for the parts), and the request whose fields it follows (G's method's, once found).
+struct SummaryOptions {
+  std::span<const std::uint32_t> starts;
+  std::span<const RuntimeFunction> functions;
+  std::span<const ChainedEntry> chained;
+  const RequestShape* request = nullptr;
+};
+// A function with an extent is decoded in parts (`parts`) where its code goes past it: its primary entry, then each
+// entry chained to it that lies after its start within `code`, then, at each conditional branch's target past what is
+// decoded that lies in no entry, linear decoding from there (unlisted) up to kPartBound bytes, until a return, a trap,
+// a jump through memory or a register, a direct jump not back into a part, another entry's start or a part already
+// decoded; at most kMaxParts parts. A jump into a part is no tail jump. `code` holds the bytes from `rva` on (the
+// parts' bytes among them, at most kPartSpan). Its forms are its first kMaxForms instructions, or with parts 128.
+inline constexpr std::uint32_t kPartBound = 4096, kPartSpan = 64u << 10;
+inline constexpr std::size_t kMaxParts = 8;
+[[nodiscard]] CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
+                                          const EntryState& entry, std::uint8_t task, const SummaryOptions& options);
+// The request G's method builds (probe_report.hpp's RequestShape), from its summary entered with `entry`: the first
+// 8-byte store to [rsp + d] of a RIP-relative address in rdata (by `sections`) with an 8-byte store of the task (`task`,
+// the wrapper's argument) at [rsp + d + 8]; its fields every store to [rsp + d] to [rsp + d + 64), the first at each
+// place; `now` the target of the first reached direct call with rcx [rsp + d]. Nothing when there is none. T1 fills its
+// class and slots.
+[[nodiscard]] std::optional<RequestShape> request_shape(const CalleeCode& method, const EntryState& entry,
+                                                        std::uint8_t task, std::span<const SectionSpan> sections);
+// The entry state at a call in a function entered with `parent`, the request known: as entry_at gives it, and a
+// register holding the request's stack address (G's method's), or a register the parent's request holds (carried by
+// entry_at), holds the request; one loaded from the request's task field holds the task (`task`), from its manager
+// field G's manager, from its word field the entry's word.
+[[nodiscard]] EntryState request_entry_at(const CalleeCall& call, const EntryState& parent,
+                                          const RequestShape& request, std::uint8_t task) noexcept;
 
 // One region of the process's address space, as VirtualQuery describes it (NativeSys::region_at in game; a test's
 // list otherwise).
@@ -295,6 +380,7 @@ struct MemorySearchSpec {
   std::vector<std::uint64_t> own_bases;
   bool own_known = false;          // whether `own_bases` holds our heap's
   std::vector<AddressRange> skip;  // never read (the calling thread's stack)
+  std::uint64_t request_vtable = 0;  // spike.11: the request's vtable address (0: not searched)
   std::uint64_t max_bytes = 64ull << 30;  // far past a game's size (run 6: 10.6 GiB): the time cap is the bound
   std::uint64_t max_us = 30'000'000;
 };
@@ -352,11 +438,6 @@ struct ChangedWord {
   std::uint64_t value = 0;
   std::uint32_t after_block = 0;
 };
-struct SectionSpan {
-  std::uint32_t rva = 0;
-  std::uint32_t size = 0;
-  SectionKind kind = SectionKind::Other;
-};
 struct DiffSpec {
   std::uint32_t group_index = 0;
   AddressRange task{};    // our task object's block
@@ -388,6 +469,11 @@ inline constexpr std::size_t kMaxDiffWords = 32;
 // vtable, ours, the game's with its section and RVA, heap, other), with no freshness (spike.8: the call's return value,
 // the table's words).
 [[nodiscard]] WordValue classify_value(std::uint64_t v, const DiffSpec& spec);
+// Spike.10: one view of the array, as the walk kept it before the call and as read again after it: the changed 8-byte
+// words (the first kMaxViewWords described, each value's kind by `kinds`), and whether a changed word's low or high
+// 32 bits equal `main_thread` or `caller_thread` (0: not compared).
+[[nodiscard]] ViewRead diff_view(std::span<const std::byte> before, std::span<const std::byte> after,
+                                 const DiffSpec& kinds, std::uint32_t main_thread, std::uint32_t caller_thread);
 
 // ---- Spike.8 (WHY§240): the tail function's table ----
 
@@ -420,6 +506,7 @@ inline constexpr std::uint32_t kMaxTableEntries = 513;  // entries 0 to 512
 struct TableAddresses {
   std::uint64_t singleton = 0, singleton_first = 0;  // *S (through the hop), and its first word
   std::uint64_t entry = 0, entry_first = 0;          // the group's entry, and its first word
+  std::vector<std::uint64_t> entries;                // spike.10: every entry read, by index (0 where null)
 };
 // The reads, for a matched shape: *S (through the hop), the entries from 0 to the bound (at most 512) at
 // table + disp + i*8, and for the group's entry when it is not null its first word and the word at [first word +

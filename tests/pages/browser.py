@@ -29,6 +29,8 @@ class Browser:
         self.ticket = self._ticket()
         self.sock = None
         self.buffer = b""
+        self.received = []  # every text frame, as it came: a case checks that none holds what it must not
+        self.latest = {}    # (space, topic): the newest state body seen
         self.welcome = self._join()
         self.next_id = 1
 
@@ -103,32 +105,52 @@ class Browser:
 
     def _read(self, n, deadline):
         while len(self.buffer) < n:
-            left = deadline - time.monotonic()
-            if left <= 0:
-                raise BrowserError("timed out waiting for a frame")
-            self.sock.settimeout(left)
-            try:
-                chunk = self.sock.recv(65536)
-            except socket.timeout as e:
-                raise BrowserError("timed out waiting for a frame") from e
-            if not chunk:
-                raise BrowserError("the server closed the connection")
-            self.buffer += chunk
+            self._fill(deadline)
         out, self.buffer = self.buffer[:n], self.buffer[n:]
         return out
+
+    def _fill(self, deadline):
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise BrowserError("timed out waiting for a frame")
+        self.sock.settimeout(left)
+        try:
+            chunk = self.sock.recv(65536)
+        except socket.timeout as e:
+            raise BrowserError("timed out waiting for a frame") from e
+        if not chunk:
+            raise BrowserError("the server closed the connection")
+        self.buffer += chunk
+
+    def _take(self):
+        """A whole frame from the buffer (its opcode and payload), or None while it has not all come: a time-out
+        between two reads never leaves half a frame taken."""
+        b = self.buffer
+        if len(b) < 2:
+            return None
+        n, at = b[1] & 0x7F, 2
+        if n == 126:
+            if len(b) < 4:
+                return None
+            n, at = struct.unpack(">H", b[2:4])[0], 4
+        elif n == 127:
+            if len(b) < 10:
+                return None
+            n, at = struct.unpack(">Q", b[2:10])[0], 10
+        if len(b) < at + n:
+            return None
+        self.buffer = b[at + n:]
+        return b[0] & 0x0F, b[at:at + n]
 
     def frame(self, timeout=None):
         """The next text frame, as JSON; a ping is answered on the way."""
         deadline = time.monotonic() + (timeout or self.timeout)
         while True:
-            b0, b1 = self._read(2, deadline)
-            n = b1 & 0x7F
-            if n == 126:
-                n = struct.unpack(">H", self._read(2, deadline))[0]
-            elif n == 127:
-                n = struct.unpack(">Q", self._read(8, deadline))[0]
-            payload = self._read(n, deadline)
-            opcode = b0 & 0x0F
+            taken = self._take()
+            if taken is None:
+                self._fill(deadline)
+                continue
+            opcode, payload = taken
             if opcode == 0x9:  # ping
                 mask = os.urandom(4)
                 self.sock.sendall(bytes([0x8A, 0x80 | len(payload)]) + mask +
@@ -137,7 +159,14 @@ class Browser:
             if opcode == 0x8:
                 raise BrowserError("the server closed the WebSocket")
             if opcode == 0x1:
-                return json.loads(payload.decode("utf-8"))
+                text = payload.decode("utf-8")
+                self.received.append(text)
+                f = json.loads(text)
+                if f.get("t") == "state":
+                    self.latest[(f.get("space"), f.get("topic"))] = f.get("body")
+                if f.get("t") == "ping":  # the protocol's liveness, every 15 s: two unanswered close the socket
+                    self.send({"v": 1, "t": "pong"})
+                return f
 
     def next(self, want, timeout=None):
         """The next frame `want` accepts, passing over the others (a ping's pong, another topic's state)."""
@@ -165,6 +194,22 @@ class Browser:
         self.next_id += 1
         self.send({"v": 1, "t": "cmd", "space": space, "id": cid, "name": name, "args": args})
         return self.next(lambda f: f.get("t") == "result" and f.get("id") == cid, timeout)
+
+    def wait(self, space, topic, want, timeout=None):
+        """The newest state body of a watched topic that `want` accepts: the one seen already, or the next to come."""
+        deadline = time.monotonic() + (timeout or self.timeout)
+        while True:
+            body = self.latest.get((space, topic))
+            if body is not None and want(body):
+                return body
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise BrowserError("%s never came as wanted: %r" % (topic, body))
+            try:
+                self.frame(min(left, 1.0))
+            except BrowserError as e:
+                if "timed out" not in str(e):
+                    raise
 
     def close(self):
         if self.sock is not None:

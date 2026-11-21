@@ -238,6 +238,76 @@ TEST_CASE("a Secret prints redacted") {
   CHECK(copy.reveal() == "other");
 }
 
+namespace {
+
+// The refusal a providers.toml of one provider meets, by its kind and line (en-llm's ConfigRefusal).
+struct Refused {
+  ConfigRefusal refusal = ConfigRefusal::Other;
+  std::uint32_t line = 0;
+  std::string what;
+};
+
+Refused refusal_of(const std::string& provider) {
+  try {
+    parse_config(providers_only("schema = 1\n[[provider]]\nid = \"x\"\n" + provider), no_env);
+  } catch (const ConfigError& e) {
+    return Refused{e.refusal(), e.line(), e.what()};
+  }
+  return Refused{ConfigRefusal::Other, 0, "accepted"};
+}
+
+}  // namespace
+
+TEST_CASE("provider rules: a key never in clear text to another computer, http:// to a public host never, a base URL "
+          "with no name, password, query or fragment, each refusal named with its line") {
+  // http:// to a public host, whatever the kind.
+  Refused r = refusal_of("kind = \"local\"\nbase_url = \"http://models.example.invalid/v1\"\n");
+  CHECK(r.refusal == ConfigRefusal::PlainPublic);
+  CHECK(r.line == 5);
+  CHECK(r.what.find("models.example.invalid") == std::string::npos);  // the message never quotes the address
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://192.0.2.7:1234/v1\"\n").refusal ==
+        ConfigRefusal::PlainPublic);
+  // A private address over http:// stays as it was, for a local server with no key; a key there is refused, by
+  // key_ref or a header's secret, and a cloud provider there needs https:// as before.
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n").what == "accepted");
+  const std::string private_v4 = std::to_string(10) + ".1.2.3";  // invented, by number (the sweep's ip rule)
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://" + private_v4 + ":1234/v1\"\n").what == "accepted");
+  r = refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\nkey_ref = \"secrets:cloud\"\n");
+  CHECK(r.refusal == ConfigRefusal::PlainKey);
+  CHECK(r.line == 6);
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\nkey_ref = \"env:SOME_KEY\"\n")
+            .refusal == ConfigRefusal::PlainKey);
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n"
+                   "headers = { X-Token = \"secrets:cloud\" }\n")
+            .refusal == ConfigRefusal::PlainKey);
+  CHECK(refusal_of("kind = \"local\"\nbase_url = \"http://[fd00::20]:1234/v1\"\nheaders = { X-Client = \"eldennet\" }\n")
+            .what == "accepted");  // a plain header is no key
+  // A home server is local by default (O98 (a)); one marked cloud there needs https://, as before.
+  CHECK(refusal_of("base_url = \"http://[fd00::20]:1234/v1\"\n").what == "accepted");
+  CHECK(refusal_of("kind = \"cloud\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n").refusal ==
+        ConfigRefusal::PlainCloud);
+  CHECK(refusal_of("base_url = \"http://storeroom.invalid:1234/v1\"\n").refusal == ConfigRefusal::PlainPublic);  // a name
+  ConfigTexts home = providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"http://[fd00::20]:1234/v1\"\n");
+  CHECK(parse_config(home, no_env).providers[0].kind == ProviderKind::Local);
+  // This PC: http:// with a key, as before.
+  CHECK(refusal_of("base_url = \"http://127.0.0.1:1234/v1\"\nkey_ref = \"secrets:cloud\"\n").what == "accepted");
+  CHECK(refusal_of("base_url = \"http://localhost:11434/v1\"\nkey_ref = \"secrets:cloud\"\n").what == "accepted");
+  // A name or password, a query or a fragment, a scheme: refused, the message quoting none of them.
+  r = refusal_of("base_url = \"https://someone:hunter@models.example.invalid/v1\"\n");
+  CHECK(r.refusal == ConfigRefusal::Credentials);
+  CHECK(r.what.find("hunter") == std::string::npos);
+  CHECK(r.line == 4);
+  CHECK(refusal_of("base_url = \"https://models.example.invalid/v1?key=abc\"\n").refusal ==
+        ConfigRefusal::QueryOrFragment);
+  CHECK(refusal_of("base_url = \"https://models.example.invalid/v1#top\"\n").refusal ==
+        ConfigRefusal::QueryOrFragment);
+  CHECK(refusal_of("base_url = \"ftp://models.example.invalid/v1\"\n").refusal == ConfigRefusal::Scheme);
+  // Every other refusal is Other, with its line where it names one.
+  r = refusal_of("base_url = \"https://models.example.invalid/v1\"\nmax_concurrency = \"two\"\n");
+  CHECK(r.refusal == ConfigRefusal::Other);
+  CHECK(refusal_of("base_url = \"https://models.example.invalid/v1\"\n").what == "accepted");
+}
+
 TEST_CASE("provider rules: https for cloud keys, client fields stay the client's, flavour defaults") {
   CHECK(error_of(providers_only("schema = 1\n[[provider]]\nid = \"x\"\nkind = \"cloud\"\nbase_url = \"http://x.example.invalid\"\n"))
             .find("https") != std::string::npos);

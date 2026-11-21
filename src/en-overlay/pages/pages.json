@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 1,
+  "minor": 2,
   "categories": [
     {
       "id": "home",
@@ -13,7 +13,11 @@
     {
       "id": "ai",
       "name": "AI",
-      "pages": []
+      "pages": [
+        "ai.providers",
+        "ai.models",
+        "ai.selftest"
+      ]
     },
     {
       "id": "voice",
@@ -99,7 +103,10 @@
             {
               "kind": "component",
               "component": "check_list",
-              "topic": "errors"
+              "topic": "errors",
+              "props": {
+                "empty": "No problems."
+              }
             }
           ]
         }
@@ -158,7 +165,10 @@
                 {
                   "kind": "component",
                   "component": "table",
-                  "topic": "system.status"
+                  "topic": "system.status",
+                  "props": {
+                    "empty": "Each group appears here after EldenNet's first reading of the game."
+                  }
                 }
               ]
             }
@@ -175,7 +185,10 @@
                 {
                   "kind": "component",
                   "component": "check_list",
-                  "topic": "system.compatibility"
+                  "topic": "system.status",
+                  "props": {
+                    "field": "compatibility"
+                  }
                 }
               ]
             }
@@ -191,7 +204,7 @@
       "help": {
         "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
         "steps": [
-          "Read the newest lines at the end of the log.",
+          "Read the newest lines at the top of the log.",
           "Change how much it writes with Log detail; the change applies at once.",
           "Keep the page open while you play: new lines join the log as they are written."
         ]
@@ -209,7 +222,10 @@
             {
               "kind": "component",
               "component": "log_tail",
-              "topic": "logs"
+              "topic": "logs",
+              "props": {
+                "newest_first": true
+              }
             }
           ]
         },
@@ -261,6 +277,318 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ai.providers",
+      "category": "ai",
+      "name": "Providers",
+      "description": "Where EldenNet's model calls go, with whose key, and whether each answers.",
+      "help": {
+        "purpose": "Set up where EldenNet's model calls go: your preset's provider or one of your own, and each one's key.",
+        "steps": [
+          "Press Add the preset's provider, or fill in a name and a base URL under Your own provider.",
+          "Paste each provider's key on its row. It is kept on this PC and never shown again.",
+          "Press List models to check that every provider answers and serves the models your jobs use.",
+          "Remove a provider no job uses with Remove on its row; its key goes with it."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "ai.selftest"
+      ],
+      "increment": "0.2",
+      "actions": [
+        {
+          "id": "add",
+          "label": "Add the preset's provider",
+          "command": "providers.add",
+          "tone": "primary"
+        },
+        {
+          "id": "list",
+          "label": "List models",
+          "command": "models.list",
+          "tone": "secondary"
+        }
+      ],
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "providers",
+          "title": "Providers",
+          "description": "Each key is written to this PC only, and never shown again.",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "providers",
+              "props": {
+                "empty": "No provider yet: add the preset's provider, or one of your own below."
+              },
+              "row_actions": [
+                {
+                  "id": "remove",
+                  "label": "Remove",
+                  "command": "providers.remove",
+                  "key": "id",
+                  "tone": "destructive",
+                  "confirm": "Remove this provider and its key? If you add it back, you must paste its key again."
+                }
+              ],
+              "row_secret": {
+                "column": "key",
+                "command": "providers.key",
+                "key": "id"
+              }
+            },
+            {
+              "kind": "shortcuts",
+              "keys": [
+                "ai.preset"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "own",
+          "title": "Your own provider",
+          "description": "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key.",
+          "blocks": [
+            {
+              "kind": "form",
+              "command": "providers.add",
+              "fields": [
+                {
+                  "id": "name",
+                  "label": "Name",
+                  "max": 32
+                },
+                {
+                  "id": "base_url",
+                  "label": "Base URL",
+                  "max": 200
+                }
+              ],
+              "submit": "Add"
+            }
+          ]
+        },
+        {
+          "id": "listed",
+          "title": "Models listed",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "providers",
+              "props": {
+                "empty": "Press List models to ask each provider for its models."
+              }
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "health",
+              "props": {
+                "empty": "No provider yet."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai.models",
+      "category": "ai",
+      "name": "Models",
+      "description": "Which model does each job, and the preset that sets them all.",
+      "help": {
+        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's provider and model yourself.",
+        "steps": [
+          "Choose a preset. Cloud budget, on OpenRouter, suits most players.",
+          "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.",
+          "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Reset either to use the preset's again.",
+          "Open Self-test to check that the models answer quickly enough."
+        ]
+      },
+      "related": [
+        "ai.providers",
+        "ai.selftest"
+      ],
+      "increment": "0.2",
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "preset",
+          "title": "Preset",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "ai.preset"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "jobs",
+          "title": "Jobs",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "ai.slots",
+              "props": {
+                "empty": "No job has a model yet: choose a preset above."
+              }
+            }
+          ]
+        },
+        {
+          "id": "choose",
+          "title": "Each job's provider and model",
+          "description": "A job's models are those its provider listed when you last pressed List models on Providers. A provider that does not list the job's model takes over once you choose one of its models.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.dialogue.provider",
+                "slots.dialogue.model",
+                "slots.bark_live.provider",
+                "slots.bark_live.model",
+                "slots.bark_pool.provider",
+                "slots.bark_pool.model",
+                "slots.memory.provider",
+                "slots.memory.model",
+                "slots.selftest.provider",
+                "slots.selftest.model"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai.selftest",
+      "category": "ai",
+      "name": "Self-test",
+      "description": "Is the model fast and well-formed enough for conversation?",
+      "help": {
+        "purpose": "Check that your provider answers, how quickly, and that its answers come in the form EldenNet needs.",
+        "steps": [
+          "Press Run self-test. It takes a few seconds, and works at the title screen too.",
+          "Read the verdict: quick, acceptable or slow, for the first words of a reply.",
+          "Look down the steps: each says what it checked, and what went wrong if it failed."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "ai.providers"
+      ],
+      "increment": "0.2",
+      "actions": [
+        {
+          "id": "run",
+          "label": "Run self-test",
+          "command": "selftest.run",
+          "tone": "primary"
+        }
+      ],
+      "sections": [
+        {
+          "id": "now",
+          "title": "Now",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "ai.status"
+            }
+          ]
+        },
+        {
+          "id": "verdict",
+          "title": "Verdict",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "computed_sentence",
+              "topic": "selftest",
+              "props": {
+                "empty": "Press Run self-test to check your provider."
+              }
+            }
+          ]
+        },
+        {
+          "id": "steps",
+          "title": "Steps",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "check_list",
+              "topic": "selftest",
+              "props": {
+                "empty": "Each step appears here once the self-test has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "figures",
+          "title": "Figures",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "key_value_list",
+              "topic": "selftest",
+              "props": {
+                "empty": "The figures appear here once the self-test has run."
+              }
+            }
+          ]
+        },
+        {
+          "id": "earlier",
+          "title": "Earlier runs this session",
+          "blocks": [
+            {
+              "kind": "component",
+              "component": "table",
+              "topic": "selftest",
+              "props": {
+                "empty": "No earlier run this session."
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "topics": [
@@ -281,17 +609,66 @@
       "shape": "state"
     },
     {
-      "id": "system.compatibility",
-      "shape": "state"
-    },
-    {
       "id": "logs",
       "shape": "stream",
       "ring": 500
+    },
+    {
+      "id": "ai.status",
+      "shape": "state"
+    },
+    {
+      "id": "providers",
+      "shape": "state"
+    },
+    {
+      "id": "health",
+      "shape": "state"
+    },
+    {
+      "id": "ai.slots",
+      "shape": "state"
+    },
+    {
+      "id": "selftest",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.dialogue",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_live",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_pool",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.memory",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.selftest",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.providers",
+      "shape": "state"
+    },
+    {
+      "id": "space.state",
+      "shape": "state"
     }
   ],
   "commands": [
     "settings.set",
-    "settings.reset"
+    "settings.reset",
+    "selftest.run",
+    "models.list",
+    "providers.add",
+    "providers.remove",
+    "providers.key"
   ]
 }

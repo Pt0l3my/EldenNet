@@ -1,0 +1,101 @@
+# eldennet ai.providers: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.hi         30, 145   21x30   glyphs 2 "AI"
+fill    tint.select     0, 185  300x40  
+fill    gold            0, 185    3x40  
+text    gold.hi        50, 193   76x25   glyphs 9 "Providers"
+text    ink.mute       50, 233   51x25   glyphs 6 "Models"
+text    ink.mute       50, 273   76x25   glyphs 9 "Self-test"
+line    rule           30, 305  240x1   
+text    ink.mute       30, 315   64x30   glyphs 6 "System"
+line    rule           30, 355  240x1   
+text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  179x45   clip1 glyphs 9 "Providers"
+stroke  edge         1737,  89  143x40   r3 w1 clip1
+text    ink.hi       1757,  95  103x28   clip1 glyphs 10 "List models"
+fill    gold         1448,  89  274x40   r3 clip1
+text    on.gold      1468,  95  234x28   clip1 glyphs 22 "Add the preset's provider"
+text    ink.mute      340, 136  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x130  r5 clip1
+stroke  rule          340, 201 1540x130  r5 w1 clip1
+text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 271  962x25   clip1 glyphs 97 "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+fill    ground.2      340, 351 1540x315  r5 clip1
+stroke  rule          340, 351 1540x315  r5 w1 clip1
+text    gold          365, 371   86x20   clip1 glyphs 9 "Providers"
+text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 396  498x25   clip1 glyphs 48 "Each key is written to this PC only, and never shown again."
+line    rule          365, 431 1490x1    clip1
+text    ink.hi        365, 447   94x28   clip1 glyphs 10 "openrouter"
+fill    rot.fill     1774, 444   81x35   r3 clip1
+text    ink.hi       1789, 449   51x25   clip1 glyphs 6 "Remove"
+text    ink.mute      862, 449  878x25   clip1 glyphs 82 "Cloud  ·  OpenAI-compatible  ·  https://router.example.invalid/api/v1  ·  Key: Set  ·  2  ·  JSON schema"
+line    rule          365, 491 1490x1    clip1
+text    ink.hi        365, 507  103x28   clip1 glyphs 11 "lantern-box"
+fill    rot.fill     1774, 504   81x35   r3 clip1
+text    ink.hi       1789, 509   51x25   clip1 glyphs 6 "Remove"
+text    ink.mute      862, 509  827x25   clip1 glyphs 75 "Local  ·  OpenAI-compatible  ·  http://127.0.0.1:1234/v1  ·  Key: Not needed  ·  1  ·  JSON schema"
+text    ink.faint     365, 561  245x25   clip1 glyphs 24 "Key: set in the browser view."
+line    rule          365, 591 1490x1    clip1
+text    ink.hi        365, 607   56x28   clip1 glyphs 6 "Preset"
+text    gold         1348, 609  127x25   clip1 glyphs 13 "Lives in Models"
+stroke  edge         1505, 602  350x38   r3 w1 clip1
+fill    ground.3     1506, 603  115x36   r3 clip1
+text    gold.hi      1510, 609  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
+text    ink.mute     1627, 609  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
+text    ink.mute     1771, 609   51x25   clip1 glyphs 6 "Custom"
+fill    ground.2      340, 686 1540x155  r5 clip1
+stroke  rule          340, 686 1540x155  r5 w1 clip1
+text    gold          365, 706  163x20   clip1 glyphs 15 "Your own provider"
+text    ink.faint    1842, 706    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 731 1485x25   clip1 glyphs 143 "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key."
+text    ink.mute      365, 781  363x25   clip1 glyphs 36 "Filled in the browser view: Name, Base URL."
+fill    ground.2      340, 861 1540x190  r5 clip1
+stroke  rule          340, 861 1540x190  r5 w1 clip1
+text    gold          365, 881  125x20   clip1 glyphs 12 "Models listed"
+text    ink.faint    1842, 881    8x25   clip1 glyphs 1 "-"
+line    rule          365, 916 1490x1    clip1
+text    moss          365, 934   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 932   94x28   clip1 glyphs 10 "openrouter"
+text    ink.mute      617, 934  397x25   clip1 glyphs 40 "Lists 214 models, every job's model among them."
+line    rule          365, 976 1490x1    clip1
+text    moss          365, 994   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 992  103x28   clip1 glyphs 11 "lantern-box"
+text    ink.mute      626, 994  380x25   clip1 glyphs 38 "Lists 2 models, every job's model among them."
+fill    ground.2      340,1071 1540x190  r5 clip1
+stroke  rule          340,1071 1540x190  r5 w1 clip1
+text    gold          365,1091   58x20   clip1 glyphs 6 "Health"
+text    ink.faint    1842,1091    8x25   clip1 glyphs 1 "-"
+line    rule          365,1126 1490x1    clip1
+text    ink.hi        365,1142   94x28   clip1 glyphs 10 "openrouter"
+text    ink.mute      862,1144  641x25   clip1 glyphs 63 "Healthy  ·  0:11:40  ·  Conversation, Quick lines, Prepared lines, Self-test"
+line    rule          365,1186 1490x1    clip1
+text    ink.hi        365,1202  103x28   clip1 glyphs 11 "lantern-box"
+text    ink.mute      862,1204  253x25   clip1 glyphs 22 "Healthy  ·  0:11:45  ·  Memory"
+fill    ground.2      340,1281 1540x175  r5 clip1
+stroke  rule          340,1281 1540x175  r5 w1 clip1
+text    gold          365,1301   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1331 1490x1    clip1
+text    ink.hi        365,1336   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1339  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1835,1336    9x28   clip1 glyphs 1 "→"
+line    rule          365,1386 1490x1    clip1
+text    ink.hi        365,1391   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1394  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1835,1391    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+stroke  gold.hi      1444,  86  280x46   r5 w3 clip1
+# 99 items, 5592 vertices, 10938 indices, 4 commands; check_draw_list: passes

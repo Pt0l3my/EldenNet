@@ -1,6 +1,73 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.providers": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
+  "ai.slots": {
+    "columns": [
+      {
+        "id": "job",
+        "label": "Job"
+      },
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "fallback",
+        "label": "Fallback"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      }
+    ],
+    "rows": []
+  },
+  "ai.status": {
+    "sentence": "No provider yet: on Providers, add the preset's provider or one of your own."
+  },
   "errors": {
     "checks": []
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": []
   },
   "logs": [
     {
@@ -19,11 +86,50 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.9",
       "seq": 4,
       "time": "0:00:01"
     }
   ],
+  "providers": {
+    "checks": [],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": []
+  },
+  "selftest": {},
+  "space.state": {
+    "greyed": {}
+  },
   "status": {
     "items": [
       {
@@ -40,7 +146,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.3"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -49,25 +155,6 @@
       {
         "label": "This session",
         "value": "Under a minute"
-      }
-    ]
-  },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Supported",
-        "label": "Game build 3.14.15.0",
-        "state": "pass"
-      },
-      {
-        "detail": "Started by the EldenNet launcher",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
-        "label": "GraceUI 0.2.3",
-        "state": "pass"
       }
     ]
   },
@@ -99,7 +186,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.3",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -114,6 +201,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Supported",
+          "label": "Game build 3.14.15.0",
+          "state": "pass"
+        },
+        {
+          "detail": "Started by the EldenNet launcher",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
+          "label": "GraceUI 0.2.9",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

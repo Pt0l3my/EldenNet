@@ -35,7 +35,19 @@
 //   (`task_reads`, `entry_reads`) and each store of our task or of a value read from it (`task_stores`); the walk and
 //   its diffs from the singleton and the group's entry too (`root`); words holding our object's or vtable's address
 //   under a high-bit tag (`task_tagged`, `tagged_found`); and the RTTI class of the singleton and of the entry against
-//   the leads' names (`singleton_class`, `entry_class`).
+//   the leads' names (`singleton_class`, `entry_class`);
+// - since spike.10 (WHY§289): the second singleton's method (G's, reached through a stub) and its callees, with G's
+//   loads (`g_reads`) and the uses of the entry's word (`word_uses`); G and the entry's word read before and after the
+//   call (`method`); G's walk and its diffs (`root` g_singleton); the array behind CSTask's +0x3B0 and +0x3D0 read
+//   again 50 and 250 ms and 2 s after the call (`array_views`); what the game's own call sites pass as the task
+//   (`game_sites`); and the registration's sibling summarised the same way (`sibling`);
+// - since spike.11 (WHY§293): the request G's method builds (`request`: its vtable, stack place and fields, its class
+//   and slots), its slots' functions and the function G's method calls with it summarised with the request in rcx
+//   (`request_reads`, `manager_reads`), each summary decoded in parts where its code goes past its extent (`parts`);
+//   the fields of G the method reads, before and 50, 250 and 2,000 ms after the call, and the path it took
+//   (`method.g_fields`, `path_taken`); G's queue walked at the same times (`queue`); the game's own requests in the
+//   memory searches (`request_found`, `request_hits`, `request_tasks`); the RTTI bases of the objects met
+//   (`classes`, `shared_bases`); and the entries' words' low and high halves (`own_low`, `highs`).
 // It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
 // session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
 // (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
@@ -148,8 +160,11 @@ enum class InsnClass : std::uint8_t {
 // function was entered with in one of rcx to r9 that holds no argument (an inner summary's), or a value loaded from
 // memory, with what the load's base and index held, to at most 3 loads deep. Since spike.9 also a followed value (our
 // task, a value read from it or from the group's entry) changed by an instruction: added to, masked, tagged, shifted.
+// Spike.11 (WHY§293): also an address the code makes, never a load: a place in the function's stack frame
+// (`Stack`, lea reg, [rsp + disp]; `disp` its displacement), or a RIP-relative address (`Address`, lea reg, [rip + d];
+// `target` its RVA).
 struct Source {
-  enum class Kind : std::uint8_t { None, Argument, FirstWord, Entry, Rip, Memory, Modified };
+  enum class Kind : std::uint8_t { None, Argument, FirstWord, Entry, Rip, Memory, Modified, Stack, Address };
   Kind kind = Kind::None;
   std::uint8_t from = 0;        // Argument, FirstWord: the argument (1, 2, 8, 9); Entry: the register
   std::uint32_t at = 0;         // Rip, Memory: the load's offset (of the loads that made it, the first in address order);
@@ -174,11 +189,16 @@ struct Source {
 // Whether two descriptions name the same value (the load's offset aside).
 [[nodiscard]] bool same_source(const Source& a, const Source& b) noexcept;
 // A register at a call holding a known value that is no argument (spike.8); spike.9: where it holds the group's entry
-// (an inner summary's `entry_src`).
+// (an inner summary's `entry_src`); spike.10: where it holds the second singleton G, or the entry's word; spike.11:
+// the request G's method builds, or G's manager (the request's field that holds a field of G's).
 struct PassedSource {
   std::uint8_t reg = 0;
   Source source;
   bool holds_entry = false;
+  bool holds_g = false;
+  bool holds_word = false;
+  bool holds_request = false;
+  bool holds_manager = false;
 };
 // A register holding one of the summarised function's arguments at a call (or a tail jump).
 struct PassedArg {
@@ -275,7 +295,8 @@ struct ArgCompare {
 };
 // Spike.9 (WHY§248): a load from our task (the wrapper's task argument, or a value loaded from it) or from the group's
 // entry, anywhere in the function, and what the value it loads is then used for, along the flow.
-enum class UseKind : std::uint8_t { Compared, ComparedOther, Tested, Stored, Passed, Called, Base, Changed, Other };
+// Spike.10: Index, a value used as a memory operand's index.
+enum class UseKind : std::uint8_t { Compared, ComparedOther, Tested, Stored, Passed, Called, Base, Changed, Other, Index };
 struct FieldUse {
   UseKind kind = UseKind::Other;
   std::uint32_t offset = 0;             // the instruction that uses it
@@ -323,6 +344,22 @@ struct ArgUse {
   std::uint32_t compared_other = 0;    // compares with memory, a register, or an immediate past the bound
   std::uint32_t tested = 0;            // TEST with itself or an immediate (a null or flag check)
 };
+// Spike.11 (WHY§293): where a summary's code lies, when it goes past its exception-directory extent: its primary entry,
+// the entries chained to it (UNW_FLAG_CHAININFO, back to the primary), and code a branch past the extent reaches that
+// lies in no entry, decoded linearly (`unlisted`). `bytes` is what was decoded (0: listed, not decoded).
+enum class PartHow : std::uint8_t { Primary, Chained, Unlisted };
+struct CodePart {
+  std::uint32_t rva = 0;
+  std::uint32_t bytes = 0;
+  PartHow how = PartHow::Primary;
+};
+// A store to the function's stack frame, [rsp + disp] (spike.11, for the request's shape): not reported.
+struct StackStore {
+  std::uint32_t offset = 0;
+  std::int64_t disp = 0;
+  std::uint8_t width = 0;
+  Source value;
+};
 struct CalleeCode {
   bool read = false;                    // the image gave the bytes
   std::uint32_t extent = 0;             // the function's length in the exception directory, or 0
@@ -352,6 +389,22 @@ struct CalleeCode {
   std::vector<FieldRead> entry_reads;
   std::uint32_t task_store_count = 0;
   std::vector<TaskStore> task_stores;
+  // Spike.10 (WHY§289): the loads from the second singleton G (rcx at G's method's entry, or a value loaded from it),
+  // the first 16, and the uses of the entry's word (r8 at its entry), the first 16, with how many there were.
+  std::uint32_t g_read_count = 0;
+  std::vector<FieldRead> g_reads;
+  std::uint32_t word_use_count = 0;
+  std::vector<FieldUse> word_uses;
+  // Spike.11 (WHY§293): its parts, where it has more than its primary entry (the primary first); the loads from the
+  // request G's method builds (rcx in its slots' functions) and from G's manager (the request's field of G's), the
+  // first 16 of each, with how many there were; and its stores to its own stack frame, for the request's shape (not
+  // reported, the first 64).
+  std::vector<CodePart> parts;
+  std::uint32_t request_read_count = 0;
+  std::vector<FieldRead> request_reads;
+  std::uint32_t manager_read_count = 0;
+  std::vector<FieldRead> manager_reads;
+  std::vector<StackStore> stack_stores;
 };
 // A callee of the summarised function (a direct call's target, or a tail jump's), summarised in turn with the
 // arguments its call site passes it: its `args` are the wrapper's (spike.7, WHY§235).
@@ -362,10 +415,17 @@ struct InnerCallee {
   CalleeCode code;
   // Spike.8: one more level, the function the tail function's table entry leads to (its `site` the tail function's
   // jump): 2; else 1, and not written. Spike.9: the group's own function (reached by the tail function's direct jump,
-  // or through the entry's vtable) at 2, and its callees at 3, each `site` in the function at `parent`.
+  // or through the entry's vtable) at 2, and its callees at 3, each `site` in the function at `parent`. Spike.10: G's
+  // method at 3 (its site the group's function's, through a stub that spends no level) and its callees at 4.
   std::uint32_t depth = 1;
   std::uint32_t parent = 0;              // the RVA of the function holding the site, past depth 1
   std::vector<PassedSource> entry_src{};  // spike.9: the site's known values that are no argument, past depth 1
+  // Spike.10: the stub (16 bytes or fewer, ending in a direct tail jump) the site reaches it through, and the registers
+  // of rcx to r9 that stub leaves zero (G's method is entered with r9 0).
+  std::optional<std::uint32_t> stub{};
+  std::vector<std::uint8_t> zeroed{};
+  // Spike.11: the request's slot this summary is (its index in the request's vtable), entered with the request in rcx.
+  std::optional<std::uint32_t> request_slot{};
 };
 
 // What a word the search counts points at (spike.7): our object (or into it), our fake vtable, or one of its slots.
@@ -417,7 +477,15 @@ struct MemorySearch {
   std::uint64_t vtable_tagged_found = 0;
   std::uint64_t own_vtable_tagged_found = 0;
   std::vector<MemoryHit> tagged_hits;
+  // Spike.11 (WHY§293): words equal to the request's vtable address (the game's request objects), outside our memory
+  // and the stacks; the game's first kMaxRequestHits with their regions, and their addresses for T1 (never reported).
+  bool request_searched = false;
+  std::uint64_t request_found = 0;
+  std::uint64_t own_request_found = 0;
+  std::vector<MemoryHit> request_hits;
+  std::vector<std::uint64_t> request_at;
 };
+inline constexpr std::size_t kMaxRequestHits = 32;
 
 // Spike.7 (WHY§235): the hub's reachable memory just before the call, kept, and compared with the same walk 2 and 20 s
 // after it, block by block by path (probe.hpp's walk_hub and diff_hub). Numbers and kinds only.
@@ -443,7 +511,8 @@ struct DiffWord {
 };
 struct HubDiff {
   // Spike.9: the walk's root: task_hub (CSTask's instance), singleton (the tail function's) or group_entry (the
-  // group's entry in its table); empty, not written.
+  // group's entry in its table), since spike.10 g_singleton (G) and since spike.11 g_queue (G's queue); empty, not
+  // written.
   std::string_view root;
   std::uint64_t at_ms = 0;
   std::uint64_t before_blocks = 0;      // read before the call
@@ -508,6 +577,216 @@ struct Table {
   std::optional<ClassMatch> singleton_class, entry_class;  // spike.9: read just before the call
 };
 
+// Spike.10 (WHY§289): the second singleton G and its method. The group's function loads G from a data slot and
+// tail-jumps (through a stub) to G's method with G in rcx, our task in rdx and a word of the entry in r8. Read just before
+// the call and 2 s after it: G (null or heap), its RTTI class against the leads, whether G is the object CSTask's
+// instance holds at `hub_off` and the group's entry at `entry_off` (run 9's walks reached one object there from every
+// root), and the entry's word: group 110's, and over every entry of the table how many hold their own index there and
+// how many distinct values there are. Numbers only.
+struct MethodRead {
+  std::uint64_t at_ms = 0;              // after the call (before it: 0)
+  bool read = false;                    // G's slot was read
+  std::optional<WordValue> g;           // what the slot holds
+  std::optional<ClassMatch> g_class;
+  std::optional<bool> at_hub;           // G is the word CSTask's instance holds at hub_off
+  std::optional<bool> at_entry;         // G is the word the group's entry holds at entry_off
+  std::optional<std::uint32_t> word;    // the group's entry's word
+  std::uint32_t words_read = 0;         // entries whose word was read
+  std::uint32_t own_index = 0;          // of those, holding their own index
+  std::uint32_t distinct = 0;           // distinct values among them
+  // Spike.11 (WHY§293): of those, how many hold their own index in their low 16 bits, and the distinct values of their
+  // high 16 bits with how many hold each (the first kMaxHighs, by value).
+  std::uint32_t own_low = 0;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> highs;
+};
+inline constexpr std::size_t kMaxHighs = 8;
+// Spike.11 (WHY§293): one field of G that G's method reads (its offset and width from the method's summary), as read:
+// a narrow field's value; an 8-byte field's kind (zero, small with its value under 4,096, heap, the game's image or
+// ours with its section, other) and, for a pointer, its object's class by RTTI against the leads (O92's rule).
+struct GField {
+  std::int64_t disp = 0;
+  std::uint8_t width = 0;
+  bool read = false;
+  std::optional<std::uint64_t> value;
+  std::optional<WordValue> kind;
+  std::optional<ClassMatch> cls;
+};
+struct GFieldsRead {
+  std::uint64_t at_ms = 0;  // after the call (just before it: 0)
+  bool read = false;        // G's slot was read
+  std::vector<GField> fields;
+};
+struct Method {
+  std::uint32_t site = 0;                 // the jump (or call) in the group's function that reaches G's method
+  std::uint32_t slot = 0;                 // G's data slot (RVA)
+  std::optional<std::uint32_t> stub;      // the stub the site reaches it through
+  std::uint32_t rva = 0;                  // G's method
+  std::optional<std::int64_t> word_disp;  // the entry's word: its offset in the entry, and its width
+  std::uint8_t word_width = 0;
+  std::uint32_t hub_off = 0, entry_off = 0;
+  // G as the walk's fourth root: walked; is_root (G is a root's object); held_by_root (G is the object CSTask's instance
+  // or the entry holds at those offsets, already in their walks); none (no G to walk).
+  std::string_view g_walk = "none";
+  std::optional<MethodRead> before, after;
+  // Spike.11 (WHY§293): the fields of G its summary's g_reads name, read just before the call and about 50, 250 and
+  // 2,000 ms after it; the byte the method compares in place before its first call (`defer_disp`), and the path the
+  // method took at the call by that byte's value just before it: "now" (zero), "queued" (not zero), or none.
+  std::vector<GFieldsRead> g_fields;
+  std::optional<std::int64_t> defer_disp;
+  std::string_view path_taken;
+};
+
+// Spike.11 (WHY§293): the request G's method builds on its stack: the rdata address stored as the first word of a stack
+// object whose +8 receives the task, and each field stored there (its offset in the request, width, what it holds and
+// its role: the vtable, the task, G's field (`manager`), the entry's word, the register the stub zeroed, other). Its
+// class by RTTI, and its slots (the vtable's words that point into the game's code, the first kMaxRequestSlots).
+enum class FieldRole : std::uint8_t { Vtable, Task, Manager, Word, Zero, Other };
+struct RequestField {
+  std::uint32_t offset = 0;
+  std::uint8_t width = 0;
+  FieldRole role = FieldRole::Other;
+  Source source;
+};
+struct RequestShape {
+  std::uint32_t vtable = 0;               // RVA
+  std::int64_t disp = 0;                  // the request's place in G's method's stack frame, [rsp + disp]
+  std::uint32_t site = 0;                 // the store of its vtable, in G's method
+  std::uint32_t task_field = 0;           // the field that holds the task
+  std::vector<RequestField> fields;
+  std::optional<std::uint32_t> now;       // the function G's method calls with the request's address in rcx
+  std::optional<ClassMatch> cls;          // T1's
+  std::uint32_t slot_count = 0;
+  std::vector<std::uint32_t> slots;       // RVAs
+  // Its fields' offsets by role, for the summaries that follow it (the first of each).
+  [[nodiscard]] std::optional<std::uint32_t> field(FieldRole role) const noexcept {
+    for (const RequestField& f : fields) {
+      if (f.role == role) return f.offset;
+    }
+    return std::nullopt;
+  }
+};
+inline constexpr std::size_t kMaxRequestSlots = 16;
+// A request object read in memory (spike.11): its task field (our task, or else its kind and, for a pointer, the
+// class of what it points at), whether its manager field holds G's (as G holds it then), its word and its zeroed byte.
+struct RequestRead {
+  std::optional<bool> ours;
+  std::optional<WordValue> task;
+  std::optional<ClassMatch> task_class;
+  std::optional<bool> manager;
+  std::optional<std::uint32_t> word;
+  std::optional<std::uint32_t> flag;
+};
+// G's queue (spike.11): the object G's method hands the queued request to (G's field passed in rcx to its call there),
+// walked as a fifth root, at the same four times as G's fields; the blocks it reaches whose first word is the
+// request's vtable address, each read as a request.
+struct QueuedRequest {
+  std::uint32_t depth = 0;
+  std::vector<std::uint32_t> path;
+  RequestRead fields;
+};
+struct QueueRead {
+  std::uint64_t at_ms = 0;
+  bool read = false;
+  std::uint64_t blocks = 0;               // the walk's
+  std::uint64_t found = 0;                // blocks holding a request
+  std::vector<QueuedRequest> requests;    // the first kMaxQueued
+};
+inline constexpr std::size_t kMaxQueued = 8;
+struct Queue {
+  std::int64_t g_disp = 0;                // G's field that holds it
+  std::string_view walk = "none";         // walked, is_root (another root's object), none
+  std::vector<QueueRead> reads;
+};
+// The game's own requests found by a memory search (spike.11): each hit read as a request (`hits`, beside the search's
+// `request_hits`), and for each distinct class of their tasks (the first kMaxTaskClasses) its vtable's slots and the
+// first 16 words of one such task, each as a kind, a pointer's with the class of what it points at.
+struct TaskWord {
+  WordValue value;
+  std::optional<ClassMatch> cls;
+};
+struct GameTask {
+  ClassMatch cls;
+  std::uint32_t vtable = 0;               // RVA
+  std::uint32_t count = 0;                // requests whose task has it
+  std::uint32_t slot_count = 0;
+  std::vector<TaskWord> words;
+};
+inline constexpr std::size_t kMaxTaskClasses = 8, kTaskWords = 16, kMaxVtableSlots = 64;
+struct RequestSearch {
+  std::vector<RequestRead> hits;          // as the search's request_hits, in order
+  std::vector<GameTask> tasks;
+};
+// The RTTI classes of the objects met (spike.11): each one's base count and its bases' type descriptors (the first
+// kMaxBases, the class itself left out), and the bases two or more of them share, with how many.
+struct ClassBases {
+  std::string_view object;                // manager, request, task_hub, group_entry, g, game_task
+  ClassMatch cls;
+  std::uint32_t base_count = 0;
+  std::vector<std::uint32_t> bases;
+};
+inline constexpr std::size_t kMaxBases = 16;
+
+// Spike.10 (WHY§289): the array behind CSTask's instance at +0x3B0, then +0x3D0, that changed after the call in runs 7
+// to 9, seen by the hub's walk as four views (depth 3, four sibling pointers 32 bytes apart). Each view's bytes as the
+// walk before the call kept them, read again about 50 and 250 ms after the call and at 2 s: the words that changed, each
+// value's kind, the RTTI class of a new value in the game's rdata (a vtable), and whether a changed word (either 32-bit
+// half) equals the game's main thread id (the main window's thread) or our calling thread's (T1). Numbers only.
+struct ArrayView {
+  std::vector<std::uint32_t> path;
+  bool found = false;                   // the walk before the call reached a block by that path
+  std::uint32_t bytes = 0;
+};
+struct ViewWord {
+  std::uint32_t offset = 0;
+  WordValue before, after;
+  std::optional<ClassMatch> after_class;  // a new value in the game's rdata: its class, where it is a vtable
+};
+struct ViewRead {
+  std::uint64_t at_ms = 0;
+  std::uint32_t view = 0;               // the view's index
+  bool read = false;
+  std::uint32_t changed = 0;            // 8-byte words that differ from the walk's
+  std::vector<ViewWord> words;          // the first 8
+  bool main_thread = false;
+  bool caller_thread = false;
+};
+inline constexpr std::size_t kMaxViewWords = 8;
+struct ArrayViews {
+  std::vector<ArrayView> views;
+  std::vector<ViewRead> reads;
+};
+
+// Spike.10 (WHY§289): what the game's own call sites of register_task pass as the task (its register before the call),
+// read from the code before each call back to the register's last write: an embedded member (lea reg, [base + disp]),
+// a static object (lea reg, [rip + slot]), a load (mov reg, [base + disp] or [rip + slot]), an allocator's result (a
+// call's rax), the function's own argument (no write in the function before the call), or other; with what the base
+// holds where there is one (one level), how many instructions lie between the write and the call, and whether a branch
+// lands between them (another path may set it).
+enum class ArgForm : std::uint8_t { Member, Static, Load, Result, Argument, Stack, Other };
+struct SiteArg {
+  std::uint32_t site = 0;                     // the call instruction (RVA)
+  bool decoded = false;                       // the function decoded from its start onto the call
+  ArgForm form = ArgForm::Other;
+  std::optional<std::uint8_t> base;           // member, load: the address's base register
+  std::int64_t disp = 0;                      // member, load: the displacement
+  std::optional<std::uint32_t> target;        // static, a RIP-relative load: the RVA; result: a direct call's target
+  bool rip = false;
+  std::optional<ArgForm> base_form;           // member, load: what the base holds
+  std::optional<std::uint32_t> base_target;
+  std::optional<std::int64_t> base_disp;
+  std::uint32_t distance = 0;                 // instructions from the write to the call
+  bool joined = false;
+};
+// Spike.10: the registration's sibling of the same argument shape (derive's second candidate), summarised with its
+// callees down the same depth as the registration's chain, for comparison.
+struct Sibling {
+  std::uint32_t rva = 0;
+  std::uint32_t sites = 0;
+  CalleeCode code;
+  std::vector<InnerCallee> inner;
+  std::uint32_t inner_dropped = 0;
+};
+
 struct Findings {
   std::string_view stage = "start";  // start, derived, waiting, registered, running, refused, failed
   std::uint64_t elapsed_ms = 0;      // since T1's start
@@ -556,6 +835,18 @@ struct Findings {
   std::optional<Table> table;               // spike.8
   std::vector<HubDiff> hub_diff_controls;   // spike.9: the same for the singleton's and the group entry's walks
   std::uint32_t inner_dropped = 0;          // spike.9: inner summaries left out so that the report stays within its size
+  // Spike.10 (WHY§289): G and its method, the array's views across the call, the game's own call sites' tasks, and the
+  // registration's sibling.
+  std::optional<Method> method;
+  std::optional<ArrayViews> views;
+  std::vector<SiteArg> game_sites;
+  std::optional<Sibling> sibling;
+  // Spike.11 (WHY§293): the request, G's queue, the game's requests in each memory search (by index), the classes.
+  std::optional<RequestShape> request;
+  std::optional<Queue> queue;
+  std::vector<RequestSearch> request_search;
+  std::vector<ClassBases> classes;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> shared_bases;  // type descriptor, classes listing it
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;

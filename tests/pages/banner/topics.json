@@ -1,4 +1,50 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.providers": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
+  "ai.slots": {
+    "columns": [
+      {
+        "id": "job",
+        "label": "Job"
+      },
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "fallback",
+        "label": "Fallback"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      }
+    ],
+    "rows": []
+  },
+  "ai.status": {
+    "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+  },
   "errors": {
     "checks": [
       {
@@ -12,6 +58,27 @@
         "state": "warn"
       }
     ]
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": []
   },
   "logs": [
     {
@@ -40,6 +107,50 @@
       "time": "0:00:01"
     }
   ],
+  "providers": {
+    "checks": [],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": []
+  },
+  "selftest": {},
+  "space.state": {
+    "greyed": {
+      "ai.models": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.providers": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "home": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+    }
+  },
   "status": {
     "items": [
       {
@@ -56,7 +167,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.3"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -71,25 +182,6 @@
     "reason": "EldenNet inactive: game build 3.14.15.0 not supported yet",
     "tone": "rot",
     "word": "Inactive"
-  },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Not supported yet",
-        "label": "Game build 3.14.15.0",
-        "state": "fail"
-      },
-      {
-        "detail": "Started by another loader; EldenNet started its crash watch itself",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
-        "label": "GraceUI 0.2.3",
-        "state": "pass"
-      }
-    ]
   },
   "system.status": {
     "checks": [
@@ -119,7 +211,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.3",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -134,6 +226,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Not supported yet",
+          "label": "Game build 3.14.15.0",
+          "state": "fail"
+        },
+        {
+          "detail": "Started by another loader; EldenNet started its crash watch itself",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
+          "label": "GraceUI 0.2.9",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

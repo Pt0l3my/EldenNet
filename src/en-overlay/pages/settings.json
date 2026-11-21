@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "4e8d78949d7e593a"
+    "hash": "7170a209bcc976e9"
   },
   "settings": [
     {
@@ -69,6 +69,214 @@
       ],
       "home": "settings.developer",
       "effect": "now",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "ai.preset",
+      "type": "choice",
+      "default": "cloud-budget",
+      "choices": [
+        {
+          "value": "cloud-budget",
+          "label": "Cloud budget, on OpenRouter"
+        },
+        {
+          "value": "cloud-nanogpt",
+          "label": "Cloud, on NanoGPT"
+        },
+        {
+          "value": "custom",
+          "label": "Custom"
+        }
+      ],
+      "label": "Preset",
+      "help": "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its key goes.",
+      "synonyms": [
+        "preset",
+        "models",
+        "cloud",
+        "openrouter",
+        "nanogpt"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.dialogue.provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Conversation's provider",
+      "help": "Where Conversation's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider.",
+      "synonyms": [
+        "provider",
+        "conversation",
+        "dialogue",
+        "chat"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.dialogue.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.dialogue",
+      "label": "Conversation's model",
+      "help": "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "synonyms": [
+        "model",
+        "conversation",
+        "dialogue",
+        "chat"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_live.provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Quick lines' provider",
+      "help": "Where Quick lines' calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider.",
+      "synonyms": [
+        "provider",
+        "quick lines",
+        "barks",
+        "call-outs"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_live.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.bark_live",
+      "label": "Quick lines' model",
+      "help": "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "synonyms": [
+        "model",
+        "quick lines",
+        "barks",
+        "call-outs"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_pool.provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Prepared lines' provider",
+      "help": "Where Prepared lines' calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider.",
+      "synonyms": [
+        "provider",
+        "prepared lines",
+        "pool",
+        "batches"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_pool.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.bark_pool",
+      "label": "Prepared lines' model",
+      "help": "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "synonyms": [
+        "model",
+        "prepared lines",
+        "pool",
+        "batches"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.memory.provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Memory's provider",
+      "help": "Where Memory's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider.",
+      "synonyms": [
+        "provider",
+        "memory",
+        "journal"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.memory.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.memory",
+      "label": "Memory's model",
+      "help": "The model that writes what characters remember of what happened. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "synonyms": [
+        "model",
+        "memory",
+        "journal"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.selftest.provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Self-test's provider",
+      "help": "Where Self-test's calls go: one of the providers on Providers. If it does not list the job's model, choose one of its models below. Default: the preset's provider.",
+      "synonyms": [
+        "provider",
+        "self-test",
+        "test"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.selftest.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.selftest",
+      "label": "Self-test's model",
+      "help": "The model the self-test measures. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "synonyms": [
+        "model",
+        "self-test",
+        "test"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
       "availability": "live",
       "locked": false
     }

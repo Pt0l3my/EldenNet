@@ -1,0 +1,100 @@
+# eldennet ai.selftest: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.hi         30, 145   21x30   glyphs 2 "AI"
+text    ink.mute       50, 193   76x25   glyphs 9 "Providers"
+text    ink.mute       50, 233   51x25   glyphs 6 "Models"
+fill    tint.select     0, 265  300x40  
+fill    gold            0, 265    3x40  
+text    gold.hi        50, 273   76x25   glyphs 9 "Self-test"
+line    rule           30, 305  240x1   
+text    ink.mute       30, 315   64x30   glyphs 6 "System"
+line    rule           30, 355  240x1   
+text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  179x45   clip1 glyphs 9 "Self-test"
+fill    gold         1718,  89  162x40   r3 clip1
+text    on.gold      1738,  95  122x28   clip1 glyphs 12 "Run self-test"
+text    ink.mute      340, 136  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x130  r5 clip1
+stroke  rule          340, 201 1540x130  r5 w1 clip1
+text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 271  962x25   clip1 glyphs 97 "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+fill    ground.2      340, 351 1540x130  r5 clip1
+stroke  rule          340, 351 1540x130  r5 w1 clip1
+text    gold          365, 371   67x20   clip1 glyphs 7 "Verdict"
+text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 421  464x25   clip1 glyphs 44 "Quick: the first words of a reply come in about 0.67 s."
+fill    ground.2      340, 501 1540x250  r5 clip1
+stroke  rule          340, 501 1540x250  r5 w1 clip1
+text    gold          365, 521   48x20   clip1 glyphs 5 "Steps"
+text    ink.faint    1842, 521    8x25   clip1 glyphs 1 "-"
+line    rule          365, 556 1490x1    clip1
+text    moss          365, 574   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 572  169x28   clip1 glyphs 17 "Reaches openrouter"
+text    ink.mute      692, 574  397x25   clip1 glyphs 40 "Lists 214 models, every job's model among them."
+line    rule          365, 616 1490x1    clip1
+text    moss          365, 634   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 632  122x28   clip1 glyphs 11 "A short reply"
+text    ink.mute      645, 634  270x25   clip1 glyphs 28 "Answered and streamed its reply."
+line    rule          365, 676 1490x1    clip1
+text    moss          365, 694   51x25   clip1 glyphs 6 "Passed"
+text    ink.body      503, 692  159x28   clip1 glyphs 14 "An answer in JSON"
+text    ink.mute      682, 694  295x25   clip1 glyphs 30 "Answered with the object asked for."
+fill    ground.2      340, 771 1540x490  r5 clip1
+stroke  rule          340, 771 1540x490  r5 w1 clip1
+text    gold          365, 791   67x20   clip1 glyphs 7 "Figures"
+text    ink.faint    1842, 791    8x25   clip1 glyphs 1 "-"
+line    rule          365, 826 1490x1    clip1
+text    ink.hi        365, 842   47x28   clip1 glyphs 5 "Model"
+text    ink.body      862, 844  101x25   clip1 glyphs 12 "talker-small"
+line    rule          365, 886 1490x1    clip1
+text    ink.hi        365, 902   75x28   clip1 glyphs 8 "Provider"
+text    ink.body      862, 904   84x25   clip1 glyphs 10 "openrouter"
+line    rule          365, 946 1490x1    clip1
+text    ink.hi        365, 962  103x28   clip1 glyphs 10 "First token"
+text    ink.body      862, 964   51x25   clip1 glyphs 5 "0.42 s"
+line    rule          365,1006 1490x1    clip1
+text    ink.hi        365,1022  159x28   clip1 glyphs 15 "Tokens per second"
+text    ink.body      862,1024   17x25   clip1 glyphs 2 "61"
+line    rule          365,1066 1490x1    clip1
+text    ink.hi        365,1082  197x28   clip1 glyphs 19 "First page, estimated"
+text    ink.body      862,1084   51x25   clip1 glyphs 5 "0.67 s"
+line    rule          365,1126 1490x1    clip1
+text    ink.hi        365,1142   94x28   clip1 glyphs 9 "JSON check"
+text    ink.body      862,1144   51x25   clip1 glyphs 6 "Passed"
+line    rule          365,1186 1490x1    clip1
+text    ink.hi        365,1202   56x28   clip1 glyphs 5 "Run at"
+text    ink.body      862,1204   59x25   clip1 glyphs 7 "0:11:30"
+fill    ground.2      340,1281 1540x130  r5 clip1
+stroke  rule          340,1281 1540x130  r5 w1 clip1
+text    gold          365,1301  240x20   clip1 glyphs 22 "Earlier runs this session"
+text    ink.faint    1842,1301    8x25   clip1 glyphs 1 "-"
+line    rule          365,1336 1490x1    clip1
+text    ink.hi        365,1352   66x28   clip1 glyphs 7 "0:10:10"
+text    ink.mute      862,1354  228x25   clip1 glyphs 23 "talker-small  ·  Acceptable"
+fill    ground.2      340,1431 1540x175  r5 clip1
+stroke  rule          340,1431 1540x175  r5 w1 clip1
+text    gold          365,1451   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1481 1490x1    clip1
+text    ink.hi        365,1486   56x28   clip1 glyphs 6 "Models"
+text    ink.mute      862,1489  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1835,1486    9x28   clip1 glyphs 1 "→"
+line    rule          365,1536 1490x1    clip1
+text    ink.hi        365,1541   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,1544  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1835,1541    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
+stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
+# 98 items, 3940 vertices, 7974 indices, 4 commands; check_draw_list: passes

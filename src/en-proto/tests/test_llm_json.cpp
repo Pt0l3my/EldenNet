@@ -136,7 +136,7 @@ TEST_CASE("every enum's names travel both ways") {
   for (const ReadAs v : {ReadAs::Schema, ReadAs::Meaning, ReadAs::YesNo, ReadAs::Rules}) round_trip(v);
   for (const RequestKind v : {RequestKind::Chat, RequestKind::Decision}) round_trip(v);
   for (const EventKind v : {EventKind::Started, EventKind::Delta, EventKind::Reset, EventKind::Ended,
-                            EventKind::WarmUpEnded}) {
+                            EventKind::WarmUpEnded, EventKind::ModelsEnded}) {
     round_trip(v);
   }
   CHECK(json(Purpose::OwnInitiative) == "own_initiative");
@@ -222,6 +222,14 @@ TEST_CASE("the handle's requests and events round-trip, with ids past 2^53") {
   warmed.model = "invented-local-model";
   warmed.warm_up = WarmUpOutcome{true, 200, milliseconds(800), ErrorClass::None};
   round_trip(warmed);
+  LlmEvent listed;
+  listed.kind = EventKind::ModelsEnded;
+  listed.id = 2;
+  listed.provider = "invented-cloud";
+  listed.models = ModelsOutcome{ErrorClass::Auth, 401, {"invented-model-a", "invented-model-b"}, 1, milliseconds(120)};
+  round_trip(listed);
+  CHECK(listed.terminal());
+  CHECK(listed.error() == ErrorClass::Auth);
   CHECK(ended_pick.error() == ErrorClass::FirstTokenTimeout);
   CHECK(json(delta)["chat"].is_null());
 }

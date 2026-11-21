@@ -2,6 +2,7 @@
 // frame's run of every active task, group by group. The hub treats every task as its ABI says, as raw bytes with a
 // vtable pointer first, because a task registered from outside (EldenNet's trampoline, or the self-test) is no C++
 // object of ours.
+#include <atomic>
 #include <cstddef>
 #include <cstring>
 #include <new>
@@ -47,6 +48,136 @@ Hub& hub() {
   return h;
 }
 
+// The ledger's side (spike.10, R1 run 9's shape, WHY§289): the hub's rows of notes, the note to stamp, the boot tasks
+// fg_task_make answers.
+constexpr std::uint32_t kRows = 0x1000 / FG_ROW_BYTES;
+struct Ledger {
+  std::byte* rows = nullptr;
+  std::uint32_t notes = 0;
+  std::atomic<std::int64_t> pending{-1};  // the row to stamp, or -1
+  std::atomic<std::uint64_t> noted_us{0};
+  FG::TaskUnit* boot[4] = {};
+};
+Ledger& ledger() {
+  static Ledger l;
+  return l;
+}
+
+void* alloc_page() { return VirtualAlloc(nullptr, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE); }
+
+std::uint64_t now_us() {
+  LARGE_INTEGER f{}, c{};
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&c);
+  return static_cast<std::uint64_t>(c.QuadPart) * 1000000ULL / static_cast<std::uint64_t>(f.QuadPart);
+}
+
+
+// The ledger's queue (spike.11, R1 run 10's shape): its list's capacity, and the game's own requests that wait in it
+// for ever (each of a task of the manager's, its word and its flag 1, which the drain leaves).
+constexpr std::uint32_t kQueueCap = 64;
+constexpr std::uint32_t kLingering = 2;
+constexpr std::uint32_t kLingeringWords[kLingering] = {3, 7};
+
+// The ledger's objects, in pages of their own (an arena never freed), so that the walks R1 makes from G and its queue
+// read nothing that changes on its own.
+void* arena(std::size_t bytes) {
+  static std::byte* at = nullptr;
+  static std::size_t left = 0;
+  bytes = (bytes + 15) & ~std::size_t{15};
+  if (bytes > left) {
+    at = static_cast<std::byte*>(VirtualAlloc(nullptr, 0x10000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+    left = at != nullptr ? 0x10000 : 0;
+  }
+  if (bytes > left) return nullptr;
+  void* p = at;
+  at += bytes;
+  left -= bytes;
+  return p;
+}
+template <class T>
+T* in_arena() {
+  return new (arena(sizeof(T))) T();
+}
+
+// The ledger, its manager and its three tasks of the game's own, its queue, and the two requests of the game's own that
+// wait there (spike.11).
+void make_ledger() {
+  if (fg_static_ledger != nullptr) return;
+  auto* g = new (VirtualAlloc(nullptr, sizeof(FG::TaskLedgerImp), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE))
+      FG::TaskLedgerImp();
+  g->l.groups = hub().count;
+  g->l.open = 1;
+  g->l.deferred = options().task_queue ? 1 : 0;
+  auto* manager = in_arena<FG::TaskManagerImp>();
+  manager->m.flags = options().task_gate ? 1u : 0u;
+  FG::Chore* const chores[] = {in_arena<FG::SweepChore>(), in_arena<FG::TallyChore>(), in_arena<FG::SweepChore>()};
+  for (FG::Chore* c : chores) {
+    c->c.id = manager->m.count;
+    c->c.kind = FG_TASK_KIND;
+    c->c.manager = manager;
+    manager->m.chores[manager->m.count++] = c;
+  }
+  g->l.manager = manager;
+  auto* queue = in_arena<FG::TaskQueueImp>();
+  auto* list = in_arena<FG::RequestList>();
+  list->items = static_cast<FG::TaskRequest**>(alloc_page());
+  list->queued_us = static_cast<std::uint64_t*>(alloc_page());
+  list->cap = kQueueCap;
+  queue->list = list;
+  for (std::uint32_t i = 0; i < kLingering; ++i) {
+    auto* r = in_arena<FG::TaskRequest>();
+    r->r.task = reinterpret_cast<FG::TaskUnit*>(manager->m.chores[i]);  // SAFETY: a task of the game's, by address
+    r->r.manager = manager;
+    r->r.word = kLingeringWords[i];
+    r->r.flag = 1;
+    list->items[list->count] = r;
+    list->queued_us[list->count++] = 0;
+  }
+  g->l.queue = queue;
+  fg_static_ledger = g;
+}
+
+// The queue's drain, each frame on the game thread: a request of ours (flag 0) that has waited FG_QUEUE_DRAIN_MS is
+// taken out under the lock and run through its run slot (the now path's function), then zeroed and freed.
+void drain_queue() {
+  const auto* g = static_cast<const FG::TaskLedgerImp*>(fg_static_ledger);
+  if (g == nullptr || g->l.queue == nullptr || g->l.queue->list == nullptr) return;
+  FG::TaskQueueImp& q = *g->l.queue;
+  FG::TaskRequest* due[kQueueCap] = {};
+  std::uint32_t n = 0;
+  const std::uint64_t now = now_us();
+  AcquireSRWLockExclusive(&q.lock);
+  FG::RequestList& l = *q.list;
+  for (std::uint32_t i = 0; i < l.count;) {
+    FG::TaskRequest* r = l.items[i];
+    if (r->r.flag == 0 && now - l.queued_us[i] >= FG_QUEUE_DRAIN_MS * 1000ull) {
+      due[n++] = r;
+      l.items[i] = l.items[l.count - 1];
+      l.queued_us[i] = l.queued_us[l.count - 1];
+      --l.count;
+      l.items[l.count] = nullptr;
+      l.queued_us[l.count] = 0;
+      continue;
+    }
+    ++i;
+  }
+  ReleaseSRWLockExclusive(&q.lock);
+  for (std::uint32_t i = 0; i < n; ++i) {
+    std::uint32_t word = 0;
+    std::memcpy(&word, reinterpret_cast<const std::byte*>(due[i]) + FG_REQUEST_WORD_OFF, sizeof word);
+    status("ledger drained=%u", word);
+    using RunFn = std::uint64_t (*)(void* self);
+    void* const* vtable = nullptr;
+    std::memcpy(&vtable, static_cast<const void*>(due[i]), sizeof vtable);  // SAFETY: the request's vtable, slot 0
+    RunFn run = nullptr;
+    std::memcpy(&run, &vtable[0], sizeof run);
+    (void)run(due[i]);
+    std::memset(static_cast<void*>(due[i]), 0, FG_REQUEST_BYTES);
+    ::operator delete(static_cast<void*>(due[i]));
+  }
+}
+
 using AttachFn = void (*)(void* self, void* hub);
 using RunFn = void (*)(void* self, const FG::FrameInfo* frame);
 using QueryFn = std::uint32_t (*)(void* self);
@@ -78,13 +209,6 @@ std::uint64_t read_runs(void* task) {
   std::uint64_t runs = 0;
   std::memcpy(&runs, static_cast<const std::byte*>(task) + 8 + offsetof(FG::TaskFields, runs), sizeof runs);
   return runs;
-}
-
-std::uint64_t now_us() {
-  LARGE_INTEGER f{}, c{};
-  QueryPerformanceFrequency(&f);
-  QueryPerformanceCounter(&c);
-  return static_cast<std::uint64_t>(c.QuadPart) * 1000000ULL / static_cast<std::uint64_t>(f.QuadPart);
 }
 
 }  // namespace
@@ -123,14 +247,35 @@ void hub_create() {
   // copy of our slot here (spike.7).
   loom->f.run_fns = static_cast<void**>(
       VirtualAlloc(nullptr, sizeof(void*) * FG::kMaxLiveTasks, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+  // Spike.10 (R1 run 9's walks, WHY§289): the desk at +0x3B0, its index at +0x3D0, and the index's four pointers 32
+  // bytes apart from +200 into the rows, 240 bytes apart: four overlapping views of one array. Each row points at a
+  // static word until the ledger's first note there.
+  auto* desk = static_cast<std::byte*>(alloc_page());
+  auto* index = static_cast<std::byte*>(alloc_page());
+  Ledger& l = ledger();
+  l.rows = static_cast<std::byte*>(alloc_page());
+  std::memcpy(desk + FG_DESK_INDEX_OFF, &index, sizeof index);
+  for (std::uint32_t k = 0; k < 4; ++k) {
+    std::byte* view = l.rows + FG_ROW_BYTES * k;
+    std::memcpy(index + FG_INDEX_VIEWS_OFF + 32 * k, &view, sizeof view);
+  }
+  for (std::uint32_t r = 0; r < kRows; ++r) {
+    void* blank = &fg_ledger_blank;
+    std::memcpy(l.rows + FG_ROW_BYTES * r + 8, &blank, sizeof blank);
+  }
+  loom->f.desk = desk;
   fg_static_taskloom = loom;
+  make_ledger();
 }
 
-void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4]) {
+void hub_register_builtins(FG::TaskUnit* const tasks[4], const std::uint32_t groups[4], FgTaskBench* bench) {
   FgBootTask rows[4]{};
-  for (int i = 0; i < 4; ++i) rows[i] = FgBootTask{tasks[i], groups[i], 0};
+  for (int i = 0; i < 4; ++i) {
+    rows[i] = FgBootTask{tasks[i], groups[i], 0};
+    ledger().boot[i] = tasks[i];
+  }
   hub().registering_builtins = true;
-  fg_boot_register_tasks(rows);
+  fg_boot_register_tasks(rows, bench);
   hub().registering_builtins = false;
 }
 
@@ -145,6 +290,20 @@ HubStats hub_stats() {
 
 void hub_run_frame(std::uint64_t frame, float dt) {
   Hub& h = hub();
+  // Spike.11: the ledger's queue drained, and a request the check dropped told once.
+  drain_queue();
+  if (fg_gated != 0) {
+    fg_gated = 0;
+    status("register gated=%u", fg_gated_word);
+  }
+  // Spike.10: the ledger's last note, stamped with this thread's id FG_NOTE_STAMP_MS after it was made.
+  Ledger& l = ledger();
+  if (const std::int64_t row = l.pending.load(std::memory_order_acquire);
+      row >= 0 && now_us() - l.noted_us.load(std::memory_order_relaxed) >= FG_NOTE_STAMP_MS * 1000ull) {
+    auto* note = reinterpret_cast<FG::TaskNote*>(l.rows + FG_ROW_BYTES * static_cast<std::uint32_t>(row));
+    note->stamp = static_cast<std::uint32_t>(GetCurrentThreadId());
+    l.pending.store(-1, std::memory_order_release);
+  }
   // Activate what was registered since the last frame: slot 0 once, on this thread.
   std::vector<Slot> fresh;
   AcquireSRWLockExclusive(&h.lock);
@@ -197,6 +356,7 @@ void hub_run_frame(std::uint64_t frame, float dt) {
 }  // namespace fakegame
 
 using fakegame::hub;
+using fakegame::ledger;
 using fakegame::options;
 using fakegame::RegisterMode;
 using fakegame::status;
@@ -244,6 +404,43 @@ extern "C" void fg_hub_enqueue(FG::TaskLoomImp* loom, std::uint32_t group, FG::T
 
 std::uint32_t FG::Rack::TaskLoomImp::shelf_kind() const { return 0x501; }
 std::uint32_t FG::TaskRackImp::rack_kind() const { return 0x502; }
+std::uint32_t FG::TaskLedgerImp::ledger_kind() const { return 0x503; }
+std::uint32_t FG::TaskNote::note_kind() const { return 0x504; }
+// Spike.11: the manager, its tasks, the queue, and the request's slots (each a jump to its work in asm.cpp, so that its
+// code is the same in every build).
+std::uint32_t FG::TaskManagerImp::manager_kind() const { return 0x505; }
+std::uint32_t FG::TaskQueueImp::queue_kind() const { return 0x506; }
+void FG::Chore::step() { ++c.runs; }
+std::uint32_t FG::SweepChore::chore_kind() const { return 0x507; }
+std::uint32_t FG::TallyChore::chore_kind() const { return 0x508; }
+void FG::TallyChore::step() { c.runs += 2; }
+__attribute__((naked)) std::uint32_t FG::TaskRequest::run() {
+  __asm__(".intel_syntax noprefix\n  .byte 0xE9\n  .long fg_request_now - 1f\n1:\n  .att_syntax prefix\n");
+}
+__attribute__((naked)) std::uint32_t FG::TaskRequest::cancel() {
+  __asm__(".intel_syntax noprefix\n  .byte 0xE9\n  .long fg_request_cancel - 1f\n1:\n  .att_syntax prefix\n");
+}
+__attribute__((naked)) std::uint32_t FG::TaskRequest::word_of() {
+  __asm__(".intel_syntax noprefix\n  .byte 0xE9\n  .long fg_request_word - 1f\n1:\n  .att_syntax prefix\n");
+}
+
+// A queued request's memory, and the queue's push (spike.11): under the queue's lock, with when it was queued.
+extern "C" void* fg_request_alloc(std::uint32_t bytes) { return ::operator new(bytes, std::nothrow); }
+extern "C" std::uint64_t fg_queue_push(FG::TaskQueueImp* queue, FG::TaskRequest* request) {
+  if (queue == nullptr || queue->list == nullptr || request == nullptr) return 0;
+  AcquireSRWLockExclusive(&queue->lock);
+  FG::RequestList& l = *queue->list;
+  const bool room = l.count < l.cap;
+  if (room) {
+    l.items[l.count] = request;
+    l.queued_us[l.count++] = fakegame::now_us();
+  }
+  ReleaseSRWLockExclusive(&queue->lock);
+  std::uint32_t word = 0;
+  std::memcpy(&word, reinterpret_cast<const std::byte*>(request) + FG_REQUEST_WORD_OFF, sizeof word);
+  if (!hub().registering_builtins) status("ledger queued=%u", word);
+  return room ? 1 : 0;
+}
 
 // The registration's rack (spike.8's shape, WHY§240), made by its first call: the memory, then a shelf for each of the
 // hub's groups, but the stand-in group's with --table-gap (there the registration answers 0 and keeps nothing).
@@ -261,6 +458,8 @@ extern "C" void* fg_rack_build(void* memory, FG::TaskLoomImp* hub) {
     if (options().table_gap && g == fakegame::standin_group()) continue;
     auto* shelf = new (shelves + sizeof(FG::TaskShelf) * g) FG::TaskShelf();
     shelf->s.group = g;
+    shelf->s.word = g;  // spike.10: the group's own index, as R1 asks of run 9's entries
+    shelf->s.shared = options().task_gate ? fg_static_ledger : static_cast<void*>(rack);
     rack->r.shelves[g] = shelf;
     ++rack->r.shelves_made;
   }
@@ -269,18 +468,30 @@ extern "C" void* fg_rack_build(void* memory, FG::TaskLoomImp* hub) {
   return rack;
 }
 
-// Spike.9 (R1 run 8's reading, WHY§248): a shelf offers the hub each task it took, with whether its kind is the game's.
-// The hub takes it to the work as before, unless --task-gate is on and the kind is not the game's: then the hub runs
-// only tasks of the game's kind, and this one stays on the shelf's list under its tag, never run (R1's object holds
-// zero there), as in run 8.
-extern "C" void fg_shelf_offer(void* shelf, FG::TaskUnit* task, std::uint32_t awake, FG::TaskLoomImp* hub) {
-  const auto* s = static_cast<const FG::TaskShelf*>(shelf);
-  if (options().task_gate && awake == 0) {
-    status("register gated=%u kept=%u", s->s.group, s->s.count);  // gated: the group
-    return;
-  }
-  fg_register_keep(hub, s->s.group, task);
+// Spike.10 (R1 run 9's shape, WHY§289): the ledger, made while its static is null.
+extern "C" void fg_ledger_missing() { fakegame::make_ledger(); }
+
+// The request's work notes each task in the next of the hub's rows: an object of FG::TaskNote (its vtable in rdata), a
+// fresh record in place of the static word, and the game thread's stamp FG_NOTE_STAMP_MS later.
+extern "C" void fg_ledger_note(FG::TaskUnit*, std::uint32_t word) {
+  fakegame::Ledger& l = ledger();
+  if (l.rows == nullptr) return;
+  const std::uint32_t row = l.notes++ % fakegame::kRows;
+  auto* note = new (l.rows + FG_ROW_BYTES * row) FG::TaskNote();
+  note->record = new std::uint64_t[2]{word, l.notes};  // never freed: a record the game keeps
+  l.noted_us.store(fakegame::now_us(), std::memory_order_relaxed);
+  l.pending.store(row, std::memory_order_release);
+  if (!hub().registering_builtins) status("ledger note row=%u group=%u", row, word);
 }
+
+// The work, with the hub the registration was given (fg_shelf_take keeps it): a swapped call is refused there.
+extern "C" void fg_ledger_keep(void*, std::uint32_t group, FG::TaskUnit* task) {
+  fg_register_keep(static_cast<FG::TaskLoomImp*>(fg_ledger_given), group, task);
+}
+
+extern "C" std::uint64_t fg_ledger_forget(void*, FG::TaskUnit*, std::uint32_t, FG::TaskLoomImp*) { return 0; }
+
+extern "C" FG::TaskUnit* fg_task_make(std::uint32_t which) { return ledger().boot[which & 3u]; }
 
 extern "C" void fg_register_rejected(std::uint32_t reason) {
   auto& h = hub();

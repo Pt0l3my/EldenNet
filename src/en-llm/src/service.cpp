@@ -21,6 +21,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "en/llm/probe.hpp"
 #include "en/llm/request.hpp"
 #include "en/llm/thread.hpp"
 #include "en/proto/ffi_guard.hpp"
@@ -195,6 +196,12 @@ struct WarmUp {
   std::string model;
 };
 
+struct ListJob {
+  RequestId id = 0;
+  std::shared_ptr<const Config> config;  // the snapshot its provider is read from
+  std::string provider;
+};
+
 }  // namespace
 
 struct Service::Impl {
@@ -219,6 +226,8 @@ struct Service::Impl {
   void run(const std::shared_ptr<Job>& job);
   void settle(const std::shared_ptr<Job>& job, LlmEvent ended);
   void run_warm_up(const WarmUp& w);
+  void run_list(const ListJob& l);
+  void end_pending_lists_locked(ErrorClass error);
   ErrorClass exchange_warm_up(Transport& session, const HttpRequest& http, TimePoint sent, int& status);
 
   void insert_locked(const std::shared_ptr<Job>& job);
@@ -259,6 +268,9 @@ struct Service::Impl {
   std::vector<std::shared_ptr<Job>> queue;                    // waiting: by priority, then by submission
   std::unordered_map<RequestId, std::shared_ptr<Job>> live;   // queued or running
   std::deque<WarmUp> warm_ups;                                // waiting for a worker
+  std::deque<ListJob> lists;                                // model lists waiting for a worker
+  std::stop_source lists_stop;                                // stops the running model lists (the gate, shutdown)
+  RequestId next_list = 1;
   std::map<std::string, int, std::less<>> provider_load;      // running requests that sent to each provider
   std::map<std::string, TimePoint, std::less<>> last_served;  // when each provider last ended one of them
   std::set<std::string, std::less<>> warming;                 // providers with a warm-up queued or in flight
@@ -343,6 +355,8 @@ void Service::Impl::shutdown() {
       stopping.store(true);
       for (const auto& job : live_in_order_locked()) stop_locked(job, ErrorClass::Cancelled, "shut down");
       end_pending_warm_ups_locked(ErrorClass::Cancelled);
+      end_pending_lists_locked(ErrorClass::Cancelled);
+      lists_stop.request_stop();
       work_cv.notify_all();
     }
     for (StackThread& t : workers) {
@@ -367,6 +381,14 @@ void Service::Impl::worker_main() {
       warm_ups.pop_front();
       lock.unlock();
       run_warm_up(w);
+      lock.lock();
+      continue;
+    }
+    if (!lists.empty()) {
+      const ListJob l = std::move(lists.front());
+      lists.pop_front();
+      lock.unlock();
+      run_list(l);
       lock.lock();
       continue;
     }
@@ -793,6 +815,62 @@ ErrorClass Service::Impl::exchange_warm_up(Transport& session, const HttpRequest
   }
 }
 
+// --- Model lists ---
+
+void Service::Impl::run_list(const ListJob& l) {
+  ModelsOutcome out;
+  const TimePoint sent = clock->now();
+  std::stop_token stop;
+  {
+    std::lock_guard lock(mutex);
+    stop = lists_stop.get_token();
+  }
+  const ProviderConfig* provider = l.config->provider(l.provider);
+  if (provider == nullptr) {
+    out.error = ErrorClass::NoHealthyProvider;
+  } else if (stopping.load()) {
+    out.error = ErrorClass::Cancelled;
+  } else if (!client.gate_open()) {
+    out.error = ErrorClass::GateClosed;
+  } else {
+    ListModelsOptions options;
+    options.clock = clock;
+    options.poll_slice = slice;
+    ModelsResult listed = ::en::llm::list_models(*transport, *provider, options, stop);
+    out.error = listed.error;
+    out.status = listed.http_status;
+    out.models = std::move(listed.models);
+    out.omitted = static_cast<int>(std::min<std::size_t>(listed.omitted, 1u << 20));
+    if (out.error == ErrorClass::Cancelled && !stopping.load() && !client.gate_open()) out.error = ErrorClass::GateClosed;
+  }
+  out.time = since(sent, clock->now());
+  // Ours: the provider's id, the class, the status and a count; never a key, an address or an id the server listed.
+  log(out.error == ErrorClass::None ? LogLevel::Debug : LogLevel::Info,
+      "provider " + l.provider + ": model list " +
+          (out.error == ErrorClass::None ? "of " + std::to_string(out.models.size()) + " in " + ms_text(out.time)
+                                         : std::string("failed (") + to_string(out.error) + ")"));
+  LlmEvent e;
+  e.kind = EventKind::ModelsEnded;
+  e.id = l.id;
+  e.provider = l.provider;
+  e.models = std::move(out);
+  std::lock_guard lock(mutex);
+  if (events.push_ending(std::move(e))) signal_notify_locked();
+}
+
+void Service::Impl::end_pending_lists_locked(ErrorClass error) {
+  while (!lists.empty()) {
+    const ListJob l = std::move(lists.front());
+    lists.pop_front();
+    LlmEvent e;
+    e.kind = EventKind::ModelsEnded;
+    e.id = l.id;
+    e.provider = l.provider;
+    e.models.error = error;
+    if (events.push_ending(std::move(e))) signal_notify_locked();
+  }
+}
+
 void Service::Impl::end_pending_warm_ups_locked(ErrorClass error) {
   while (!warm_ups.empty()) {
     const WarmUp w = std::move(warm_ups.front());
@@ -914,6 +992,9 @@ void Service::set_gate_open(bool open) {
     s.stop_locked(job, ErrorClass::GateClosed, job->running ? "the offline gate closed" : "the offline gate closed: nothing is sent");
   }
   s.end_pending_warm_ups_locked(ErrorClass::GateClosed);
+  s.end_pending_lists_locked(ErrorClass::GateClosed);
+  s.lists_stop.request_stop();
+  s.lists_stop = std::stop_source();  // the lists that start later run until the gate closes again
 }
 
 bool Service::gate_open() const { return impl_->client.gate_open(); }
@@ -938,6 +1019,28 @@ std::optional<RequestId> Service::warm_up(std::string_view slot_name) {
   const RequestId id = s.next_warm_up++;
   s.warming.insert(provider->id);
   s.warm_ups.push_back(WarmUp{id, config, provider->id, model.model});
+  s.work_cv.notify_one();
+  return id;
+}
+
+std::optional<RequestId> Service::list_models(std::string_view provider) {
+  Impl& s = *impl_;
+  const std::shared_ptr<const Config> config = s.client.config();
+  if (config->provider(provider) == nullptr) return std::nullopt;
+  std::lock_guard lock(s.mutex);
+  if (s.closing) return std::nullopt;
+  const RequestId id = s.next_list++;
+  if (!s.transport || !s.client.gate_open()) {
+    // Nothing goes out: the list ends at once (no transport: NoHealthyProvider, as list_models says).
+    LlmEvent e;
+    e.kind = EventKind::ModelsEnded;
+    e.id = id;
+    e.provider = std::string(provider);
+    e.models.error = !s.transport ? ErrorClass::NoHealthyProvider : ErrorClass::GateClosed;
+    if (s.events.push_ending(std::move(e))) s.signal_notify_locked();
+    return id;
+  }
+  s.lists.push_back(ListJob{id, config, std::string(provider)});
   s.work_cv.notify_one();
   return id;
 }

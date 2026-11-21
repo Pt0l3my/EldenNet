@@ -38,7 +38,7 @@ en_fetch(https://raw.githubusercontent.com/marzer/tomlplusplus/v3.4.0/LICENSE
   tomlplusplus/LICENSE 529bc3900a9571e49db285b0df432397e70b881cc3bf48de6667ae74ff4b06d8)
 
 # Dear ImGui 1.93.0's core, for the F11 view (en-overlay; DESIGN O25, ARCH §2.3): the very pin GraceUI uses (its
-# cmake/third_party.cmake at GraceUI 8d45b20, unchanged since f51bcc7): tag v1.93.0's commit, from its own project,
+# cmake/third_party.cmake at GraceUI 908c179, unchanged since f51bcc7): tag v1.93.0's commit, from its own project,
 # each file by its SHA-256, the core alone and no backend. Only the Windows builds build en-overlay's connection and
 # the view, so only they fetch it.
 if(WIN32)
@@ -66,7 +66,7 @@ endif()
 
 # GraceUI's graceui-sys (its C helper, C++ wrapper and headless Dear ImGui helper), the ABI header it includes, and
 # graceui_test.h, the test build's exports, which the fake game reads in the tests alone: all five vendored unmodified
-# from GraceUI at 8d45b20 (GraceUI 0.2.5, ABI 1.2) with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md).
+# from GraceUI at 908c179 (GraceUI 0.2.9, ABI 1.2; the five unchanged since beca859) with GraceUI's licence (third_party/graceui-sys, THIRD_PARTY.md).
 # Each file is checked against its SHA-256 here, so that an edit is caught when the build is configured.
 foreach(pin IN ITEMS
     "LICENSE|8cdd091310968c1af65a292fad858fb4a13509d829e4d1e5594f3a391028a4e0"
@@ -74,13 +74,13 @@ foreach(pin IN ITEMS
     "graceui_sys.h|ceb0caa996291b1d60b0e3b5e7f3d61dda0b1b50db6126d4333a9353dfdd1e0e"
     "graceui_sys.hpp|2b42e2db6d4c8fd35852a22049bd009a05a75f50bb88e7c7870adb57697b548f"
     "graceui_imgui.hpp|4206f176a70cda7a7fe78af0d75b8a1d015f4dd0fb3a1451164320a4e4ac7786"
-    "graceui_test.h|b9fdaba4a378c3d8709fe4d2a734656a297982688a9e7c5e8fcbe1374ef75991")
+    "graceui_test.h|176436e2905a4434f524abaf262e71bd9d655a614216995ae28805ef268cd7c7")
   string(REPLACE "|" ";" pin "${pin}")
   list(GET pin 0 _en_path)
   list(GET pin 1 _en_sha256)
   file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/third_party/graceui-sys/${_en_path} _en_have)
   if(NOT _en_have STREQUAL _en_sha256)
-    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 8d45b20's (SHA-256 ${_en_have})")
+    message(FATAL_ERROR "third_party/graceui-sys/${_en_path} is not GraceUI 908c179's (SHA-256 ${_en_have})")
   endif()
 endforeach()
 add_library(en_graceui_sys INTERFACE)

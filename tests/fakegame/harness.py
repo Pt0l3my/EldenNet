@@ -26,6 +26,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages"))
 import browser  # noqa: E402  (tests/pages/browser.py: a browser of the tests' own, for GraceUI's server)
+import fake_models  # noqa: E402  (tests/pages/fake_models.py: a fake model server of the tests' own, on loopback)
 
 AV = 0xC0000005
 
@@ -1355,13 +1356,13 @@ def check_graceui_events(r):
 
 
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
-# danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down twice to
-# System › Status and Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
+# danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
+# three pages to System › Status, and once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
 # Developer, with the row focused; → there changes it (a command to EldenNet, answered); F5 closes the menu. While it
 # runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake
 # game's report gives, reads EldenNet's topics and sends commands.
-PAGES_KEYS = "600:f5,720:next,840:next,960:return,1080:right,1200:f5"
-PAGES_REPORTS = "360,660,780,900,1020,1140,1260"
+PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,1020:next,1140:return,1260:right,1380:f5"
+PAGES_REPORTS = "360,660,960,1080,1200,1320,1440"
 
 
 def browse_eldennet(paths, out):
@@ -1389,7 +1390,7 @@ def browse_eldennet(paths, out):
     try:
         view = browser.Browser(port, timeout=10)
         out["welcome"] = view.welcome
-        for topic in ("status", "errors", "system.status", "system.compatibility", "logs", "settings"):
+        for topic in ("status", "errors", "system.status", "logs", "settings"):
             view.sub("eldennet", topic)
             out[topic] = view.state("eldennet", topic, timeout=10)
         out["set_ok"] = view.command("eldennet", "settings.set", {"key": "debug.record_sessions", "value": False})
@@ -1413,7 +1414,7 @@ def check_graceui_pages(r):
     # The browser: the welcome names EldenNet's space at its increment; every topic watched came back, built by
     # EldenNet from what it knows, in its own words; each command answered once, by EldenNet's one command path.
     spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
-    need(spaces.get("eldennet", {}).get("increment") == "0.1" and spaces["eldennet"].get("version") == "0.1.0",
+    need(spaces.get("eldennet", {}).get("increment") == "0.2" and spaces["eldennet"].get("version") == "0.1.0",
          "the welcome named %s" % sorted(spaces), failures)
     status = body("status")
     items = {i.get("label"): i.get("value") for i in status.get("items", [])}
@@ -1429,7 +1430,8 @@ def check_graceui_pages(r):
          parts.get("GraceUI") == "pass", "EldenNet's parts: %s" % parts, failures)
     need(len(body("system.status").get("rows", [])) == 11, "the read groups: %d rows" %
          len(body("system.status").get("rows", [])), failures)
-    compatibility = [c.get("label") for c in body("system.compatibility").get("checks", [])]
+    # System › Status's Compatibility tab reads the topic's `compatibility` member (GraceUI D185's props.field).
+    compatibility = [c.get("label") for c in body("system.status").get("compatibility", {}).get("checks", [])]
     need("Game build 3.14.15.0" in compatibility and "EldenNet 0.1.0" in compatibility,
          "Compatibility: %s" % compatibility, failures)
     logs = d.get("logs", {})
@@ -1450,12 +1452,12 @@ def check_graceui_pages(r):
     # Developer, where → sends EldenNet a command it answers; F5 closes. The menu watched the settings while open.
     failures += (want_grace(r, 360, eldennet=1, server=1, spaces=1, menu_open=0) +
                  want_grace(r, 660, menu_open=1, menu_page="home") +
-                 want_grace(r, 780, menu_open=1, menu_page="system.status") +
-                 want_grace(r, 900, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
-                 want_grace(r, 1020, menu_open=1, menu_page="settings.developer",
+                 want_grace(r, 960, menu_open=1, menu_page="system.status") +
+                 want_grace(r, 1080, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
+                 want_grace(r, 1200, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
-                 want_grace(r, 1140, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
-                 want_grace(r, 1260, menu_open=0))
+                 want_grace(r, 1320, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
+                 want_grace(r, 1440, menu_open=0))
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     for name, key, result in (("settings.set", "debug.record_sessions", "ok"),
@@ -1482,7 +1484,7 @@ def check_graceui_pages(r):
 
 
 case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1380),
+     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1560),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_eldennet,
      check=check_graceui_pages,
@@ -1490,6 +1492,452 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
           "Status and Logs, a setting changed from Logs' shortcut row and answered, and Settings › Developer; a "
           "browser on GraceUI's server reading EldenNet's topics and sending commands, each answered; settings.toml "
           "written after the pages' quiet")
+# EldenNet's AI pages (S11.4.a's second to fourth slices; PAGES §4.6.2), at the title screen, against a fake model
+# server of the tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed
+# beside the DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider and
+# sets a wrong invented key on its row (GraceUI D194), whose model list is refused: the row reads Refused (D197) and
+# Health and the lead say why; sets the right key, runs the self-test once the gate allows network and lists the models;
+# adds a server of its own on this PC through the form (D195), refused first for a public address over http:// and for
+# one holding a password, whose row reads Not needed (D197) and takes no key, and lists again (that server takes none);
+# gives Prepared lines that provider (refused first for one not in the file), whose list lacks the job's model, so it
+# waits for a model of its list, which it picks (D193), refused first for one not listed; sees the changed mark on that
+# job's rows alone (D198); and is refused Remove on a row unconfirmed (GraceUI's server) and on providers jobs use
+# (EldenNet's words). Then GraceUI's menu opens AI › Providers (F5, Page Down), which draws Set and Not needed, tries
+# Remove on the server of its own (Down to it, Enter twice: D192), refused, opens Models, steps Memory's provider picker
+# on to that server (Down to it, →) and its model picker on to the first of its models (Down, →), whose help ends with
+# the default in words, and runs the self-test from Self-test's header action (Enter). Then the browser sees both jobs'
+# rows changed, resets each job (one by its model row, one by its provider row), sees no row changed, removes the server
+# of its own, chooses the NanoGPT preset, whose provider joins, and removes the unused one with its key, confirmed. Both
+# keys' values must then be nowhere: no topic, log line, recording, report or file.
+AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3600:return,3660:return,3780:next,"
+           "3900:down,3930:down,3960:down,3990:down,4020:down,4050:down,4080:down,4110:down,4140:down,4260:right,"
+           "4380:down,4440:right,4560:next,4680:return,5160:f5")
+# The early reports name GraceUI's server to the browser (grace_port), so that its first part ends long before the menu's
+# presses need the provider it adds.
+AI_REPORTS = "600,900,1200,1500,1800,2460,3060,3180,3300,3540,3720,3840,4200,4320,4500,4620,5100,5220"
+AI_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = true, log_level = "debug" }\n'
+AI_MODELS = ["invented-talker-small", "invented-talker-large", "invented-keeper"]
+AI_OWN = "lantern-box"  # the provider of the case's own: an invented name, on the fake server's own path
+AI_OWN_MODELS = ["invented-lantern-a", "invented-lantern-b"]  # what that server, which takes no key, lists
+AI_RUNS = {}  # a case's invented key and fake server, by its folder
+
+
+def install_ai(paths):
+    """GraceUI's folder; the fake model server, with a new invented key; models.toml beside the DLL naming it."""
+    install_graceui(paths)
+    key = "fk-invented-" + os.urandom(12).hex()
+    wrong = key[:24] + os.urandom(6).hex()  # a key the fake server refuses, with the same fragment as the right one
+    server = fake_models.FakeModels(key, AI_MODELS, open_prefix="/own/", open_models=AI_OWN_MODELS)
+    AI_RUNS[paths["case"]] = {"key": key, "wrong": wrong, "server": server}
+    # What the menu's report looks for (GraceUI_Test_MenuShows, at most four texts): a fragment both keys hold, which it
+    # must never draw, and texts of the pages' that it must: the rows' key states (D197) and the end of a model row's
+    # help (D198: the default in the space's words, GraceUI printing none of its own).
+    paths["text_ai_shows"] = "|".join((key[12:24], "Key: Set", "Key: Not needed", "Default: the preset's model."))
+    content = os.path.join(paths["endir"], "content", "eldenring")
+    os.makedirs(content)
+    with open(os.path.join(content, "models.toml"), "w") as f:
+        f.write('schema = 1\n\n'
+                '[preset.cloud-budget.providers.openrouter]\nflavor = "openai"\nkind = "cloud"\n'
+                'base_url = "http://127.0.0.1:%d/v1"\n\n'
+                '[preset.cloud-budget]\n'
+                'dialogue = { provider = "openrouter", model = "invented-talker-small", '
+                'fallback = "invented-talker-large" }\n'
+                'memory = { provider = "openrouter", model = "invented-keeper" }\n\n'
+                '[preset.cloud-nanogpt.providers.nanogpt]\nflavor = "openai"\nkind = "cloud"\n'
+                'base_url = "http://127.0.0.1:%d/nano/v1"\n\n'
+                '[preset.cloud-nanogpt]\n'
+                'dialogue = { provider = "nanogpt", model = "invented-talker-small" }\n' % (server.port, server.port))
+
+
+def grace_port(paths, deadline):
+    """The port of GraceUI's server, once the fake game's report names it running with a space."""
+    while time.monotonic() < deadline:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        for line in text.splitlines():
+            m = re.search(r"^FAKEGAME grace .* server=1 port=([0-9]+) spaces=([1-9])", line)
+            if m:
+                return int(m.group(1))
+        time.sleep(0.25)
+    return None
+
+
+def browse_ai(paths, out):
+    run = AI_RUNS[paths["case"]]
+    key = run["key"]
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    rows = lambda b: b.get("rows", [])
+    row_of = lambda b, pid: next((r for r in rows(b) if r.get("id") == pid), {})
+    job_of = lambda b, job: next((r for r in rows(b) if r.get("job") == job), {})
+    changed = lambda b: [k for k in b.get("changed", []) if not k.startswith("debug.")]  # the case's settings.toml's
+    try:
+        view = browser.Browser(port, timeout=10)
+        out["welcome"] = view.welcome
+        for topic in ("settings", "ai.status", "providers", "health", "ai.slots", "selftest", "ai.choices.bark_pool",
+                      "ai.choices.providers"):
+            view.sub(E, topic)
+        out["first_status"] = view.wait(E, "ai.status", lambda b: "sentence" in b)
+        out["add"] = view.command(E, "providers.add", {})
+        out["added"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
+        # A wrong key on the provider's row (D194): its cell says "set", never the key; the model list, once the gate
+        # allows network (at the title, after 5 s of clean readings), is refused for it: the row reads "refused"
+        # (D197), Health and the lead say why, and the provider is no job's choice meanwhile.
+        out["set_wrong"] = view.command(E, "providers.key", {"id": "openrouter", "value": run["wrong"]})
+        out["with_wrong"] = view.wait(E, "providers", lambda b: row_of(b, "openrouter").get("key") == "set", timeout=15)
+        tries, answer, give_up = 0, {}, time.monotonic() + 60
+        while time.monotonic() < give_up:
+            tries += 1
+            answer = view.command(E, "models.list", {})
+            if answer.get("error") != "not_now":
+                break
+            time.sleep(0.5)
+        out["list_wrong"], out["list_wrong_tries"] = answer, tries
+        out["refused"] = view.wait(E, "providers", lambda b: row_of(b, "openrouter").get("key") == "refused",
+                                   timeout=30)
+        out["refused_health"] = view.wait(E, "health", lambda b: row_of(b, "openrouter").get("state", "")
+                                          .startswith("Failing"), timeout=15)
+        out["refused_status"] = view.wait(E, "ai.status", lambda b: "refused its key" in b.get("sentence", ""),
+                                          timeout=15)
+        out["refused_choices"] = view.wait(E, "ai.choices.providers", lambda b: b.get("choices") == [], timeout=15)
+        # The right key on its row: "set" again.
+        out["set_key"] = view.command(E, "providers.key", {"id": "openrouter", "value": key})
+        out["with_key"] = view.wait(E, "providers", lambda b: row_of(b, "openrouter").get("key") == "set", timeout=15)
+        tries, answer, give_up = 0, {}, time.monotonic() + 30
+        while time.monotonic() < give_up:
+            tries += 1
+            answer = view.command(E, "selftest.run", {})
+            if answer.get("error") != "not_now":
+                break
+            time.sleep(0.5)
+        out["run"], out["run_tries"] = answer, tries
+        out["selftest"] = view.wait(E, "selftest", lambda b: "sentence" in b and "running" not in b["sentence"],
+                                    timeout=60)
+        out["list"] = view.command(E, "models.list", {})
+        # (The wrong key's list left a failed check: this one must pass.)
+        out["listed"] = view.wait(E, "providers", lambda b: b.get("checks") and
+                                  all(c.get("state") == "pass" for c in b["checks"]), timeout=30)
+        # A provider of the case's own, through the form (D195): refused first, with words, then added.
+        own_url = "http://127.0.0.1:%d/own/v1/" % run["server"].port
+        out["own_plain"] = view.command(E, "providers.add", {"name": AI_OWN, "base_url": "http://192.0.2.7:1234/v1"})
+        out["own_password"] = view.command(E, "providers.add", {"name": AI_OWN,
+                                                                "base_url": "https://someone:pw@models.invalid/v1"})
+        out["own"] = view.command(E, "providers.add", {"name": AI_OWN, "base_url": own_url})
+        out["own_added"] = view.wait(E, "providers", lambda b: len(rows(b)) == 2, timeout=15)
+        out["own_again"] = view.command(E, "providers.add", {"name": AI_OWN.upper(), "base_url": own_url})
+        # A server on this PC with no key's place takes none: its row says Not needed (D197), and a key is refused.
+        out["own_key"] = view.command(E, "providers.key", {"id": AI_OWN, "value": key})
+        out["list_two"] = view.command(E, "models.list", {})
+        out["listed_two"] = view.wait(E, "providers", lambda b: len(b.get("checks", [])) == 2 and
+                                      all(c.get("state") != "wait" for c in b["checks"]), timeout=30)
+        out["own_none"] = view.latest.get((E, "providers"))
+        # Prepared lines' provider (a picker of the providers): one not in the file refused; the server of the case's
+        # own, whose list lacks the job's model, waits on its row for one of its models, which the job's picker then
+        # offers; one it did not list refused; then the job's model from it (D193): the job's rows alone changed.
+        out["provider_choices"] = view.wait(E, "ai.choices.providers", lambda b: len(b.get("choices", [])) == 2,
+                                            timeout=15)
+        out["provider_bad"] = view.command(E, "settings.set", {"key": "slots.bark_pool.provider",
+                                                               "value": "invented-nowhere"})
+        out["provider"] = view.command(E, "settings.set", {"key": "slots.bark_pool.provider", "value": AI_OWN})
+        out["choices"] = view.wait(E, "ai.choices.bark_pool", lambda b: [c.get("value") for c in b.get("choices", [])]
+                                   == AI_OWN_MODELS, timeout=15)
+        out["waiting"] = view.wait(E, "settings", lambda b: b.get("values", {}).get("slots.bark_pool.provider") ==
+                                   AI_OWN, timeout=15)
+        out["pick_bad"] = view.command(E, "settings.set", {"key": "slots.bark_pool.model", "value": AI_MODELS[0]})
+        out["pick"] = view.command(E, "settings.set", {"key": "slots.bark_pool.model", "value": AI_OWN_MODELS[0]})
+        out["picked"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Prepared lines").get("model") == AI_OWN_MODELS[0],
+                                  timeout=15)
+        out["changed_one"] = view.wait(E, "settings", lambda b: changed(b) == ["slots.bark_pool.provider",
+                                                                          "slots.bark_pool.model"], timeout=15)
+        # Remove on a row: GraceUI's server refuses it unconfirmed (D192); EldenNet refuses one a job uses, saying why.
+        out["remove_unconfirmed"] = view.command(E, "providers.remove", {"id": AI_OWN})
+        out["remove_used"] = view.command(E, "providers.remove", {"id": "openrouter", "confirm": True})
+        out["remove_own_used"] = view.command(E, "providers.remove", {"id": AI_OWN, "confirm": True})
+        secrets = os.path.join(paths["appdata"], "EldenNet", "config", "secrets.toml")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and "secrets_written" not in out:
+            try:
+                with open(secrets, encoding="utf-8") as f:
+                    if key in f.read():
+                        out["secrets_written"] = True
+            except OSError:
+                pass
+            time.sleep(0.2)
+        out["browser_done_s"] = time.monotonic()
+        # The menu's turn: its Remove on the server of the case's own, refused; Memory's provider and model from its
+        # pickers, the server of the case's own and the first of its models; its self-test.
+        out["menu_picked"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Memory").get("provider") == AI_OWN and
+                                       job_of(b, "Memory").get("model") == AI_OWN_MODELS[0], timeout=150)
+        out["selftest_menu"] = view.wait(E, "selftest", lambda b: len(b.get("rows", [])) >= 1 and
+                                         "running" not in b.get("sentence", "running"), timeout=120)
+        out["changed_two"] = view.wait(E, "settings", lambda b: changed(b) == [
+            "slots.bark_pool.provider", "slots.bark_pool.model", "slots.memory.provider", "slots.memory.model"],
+            timeout=15)
+        # Both jobs back to the preset's provider and model, one by its model row, the other by its provider row: no row
+        # changed; the server of the case's own, now no job's, removed; a new preset, whose provider joins; the old one,
+        # now no job's, goes with its key once confirmed.
+        for job in ("slots.bark_pool.model", "slots.memory.provider"):
+            out["reset_" + job] = view.command(E, "settings.reset", {"scope": "key", "target": job})
+        out["reset"] = view.wait(E, "ai.slots", lambda b: job_of(b, "Memory").get("model") == "invented-keeper" and
+                                 job_of(b, "Prepared lines").get("model") == "Same as Conversation", timeout=15)
+        out["changed_none"] = view.wait(E, "settings", lambda b: changed(b) == [], timeout=15)
+        out["remove_own"] = view.command(E, "providers.remove", {"id": AI_OWN, "confirm": True})
+        out["own_gone"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
+        out["preset"] = view.command(E, "settings.set", {"key": "ai.preset", "value": "cloud-nanogpt"})
+        out["two"] = view.wait(E, "providers", lambda b: len(rows(b)) == 2, timeout=15)
+        out["remove"] = view.command(E, "providers.remove", {"id": "openrouter", "confirm": True})
+        out["one"] = view.wait(E, "providers", lambda b: len(rows(b)) == 1, timeout=15)
+        out["slots"] = view.latest.get((E, "ai.slots"))
+        out["health"] = view.latest.get((E, "health"))
+    except (browser.BrowserError, OSError, ValueError, KeyError, IndexError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def files_holding(folder, needle):
+    """Every file under `folder` whose bytes hold `needle`."""
+    found = []
+    for root, _, names in os.walk(folder):
+        for name in names:
+            path = os.path.join(root, name)
+            try:
+                with open(path, "rb") as f:
+                    if needle in f.read():
+                        found.append(os.path.relpath(path, folder))
+            except OSError:
+                pass
+    return found
+
+
+def check_graceui_ai(r):
+    run = AI_RUNS.pop(r.paths["case"], None)
+    if run is None:
+        return ["the case's fake server was never made"]
+    key, wrong = run["key"], run["wrong"]
+    counts = run["server"].snapshot()
+    run["server"].close()
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    body = lambda name: d.get(name) or {}
+    row_of = lambda b, pid: next((x for x in b.get("rows", []) if x.get("id") == pid), {})
+    job_of = lambda b, job: next((x for x in b.get("rows", []) if x.get("job") == job), {})
+    spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
+    need(spaces.get("eldennet", {}).get("increment") == "0.2", "the welcome named %s" % sorted(spaces), failures)
+    need(body("first_status").get("sentence", "").startswith("No provider yet"),
+         "the first lead: %s" % body("first_status"), failures)
+    need(d.get("add", {}).get("ok") is True, "providers.add: %s" % d.get("add"), failures)
+    added = body("added").get("rows", [{}])[0]
+    need(added.get("id") == "openrouter" and added.get("key") == "" and added.get("kind") == "Cloud",
+         "the provider added: %s" % added, failures)
+    # A wrong key: set, then refused by the model list (D197's Refused), Health and the lead saying why.
+    need(d.get("set_wrong", {}).get("ok") is True and row_of(body("with_wrong"), "openrouter").get("key") == "set",
+         "the wrong key set on its row: %s" % d.get("set_wrong"), failures)
+    need(d.get("list_wrong", {}).get("ok") is True, "models.list with the wrong key: %s after %s tries" %
+         (d.get("list_wrong"), d.get("list_wrong_tries")), failures)
+    need(row_of(body("refused"), "openrouter").get("key") == "refused", "the refused key's row: %s" %
+         row_of(body("refused"), "openrouter"), failures)
+    need(row_of(body("refused_health"), "openrouter").get("state") == "Failing: it refused its key",
+         "Health on a refused key: %s" % body("refused_health"), failures)
+    need(body("refused_status").get("sentence") ==
+         "openrouter refused its key: paste it again on its row on Providers.",
+         "the lead on a refused key: %s" % body("refused_status"), failures)
+    need(body("refused_choices").get("choices") == [], "a refused provider is a job's choice: %s" %
+         body("refused_choices"), failures)
+    need(d.get("set_key", {}).get("ok") is True and "body" not in d.get("set_key", {}),
+         "the key set on its row: %s" % d.get("set_key"), failures)
+    need(row_of(body("with_key"), "openrouter").get("key") == "set", "the key's status", failures)
+    need(d.get("run", {}).get("ok") is True, "selftest.run: %s after %s tries" % (d.get("run"), d.get("run_tries")),
+         failures)
+    st = body("selftest")
+    need(re.match(r"^(Quick|Acceptable|Slow): the first words of a reply come in about [0-9.]+ s\.",
+                  st.get("sentence", "")) is not None, "the verdict: %s" % st.get("sentence"), failures)
+    need([c.get("state") for c in st.get("checks", [])] == ["pass", "pass", "pass"],
+         "the self-test's steps: %s" % st.get("checks"), failures)
+    figures = {i.get("label"): i.get("value") for i in st.get("items", [])}
+    need(figures.get("Model") == "invented-talker-small" and figures.get("Provider") == "openrouter" and
+         "First token" in figures and figures.get("JSON check") == "Passed", "the figures: %s" % figures, failures)
+    need(d.get("list", {}).get("ok") is True, "models.list: %s" % d.get("list"), failures)
+    checks = body("listed").get("checks", [])
+    need(len(checks) == 1 and checks[0].get("state") == "pass" and
+         checks[0].get("detail") == "Lists 3 models, every job's model among them.", "the model list: %s" % checks,
+         failures)
+    # The form (D195): EldenNet's own checks, in words; then the provider of the case's own, local on this PC.
+    need(d.get("own_plain", {}).get("error") == "invalid_value" and
+         d.get("own_plain", {}).get("detail", "").startswith("http:// goes only to this PC"),
+         "a public address over http://: %s" % d.get("own_plain"), failures)
+    need(d.get("own_password", {}).get("error") == "invalid_value" and
+         "no name or password" in d.get("own_password", {}).get("detail", ""),
+         "an address with a password: %s" % d.get("own_password"), failures)
+    need(d.get("own", {}).get("ok") is True, "the provider of one's own: %s" % d.get("own"), failures)
+    own = row_of(body("own_added"), AI_OWN)
+    need(own.get("kind") == "Local" and own.get("key") == "none" and
+         own.get("address") == "http://127.0.0.1:%d/own/v1" % run["server"].port, "its row: %s" % own, failures)
+    need(d.get("own_again", {}).get("detail") == "A provider is already called that: choose another name.",
+         "the same name again: %s" % d.get("own_again"), failures)
+    need(d.get("own_key", {}).get("error") == "not_now" and
+         d.get("own_key", {}).get("detail", "").startswith("This provider takes no key."),
+         "a key on a row that needs none: %s" % d.get("own_key"), failures)
+    need(row_of(body("own_none"), AI_OWN).get("key") == "none", "its row after the list: %s" %
+         row_of(body("own_none"), AI_OWN), failures)
+    checks = body("listed_two").get("checks", [])
+    need(d.get("list_two", {}).get("ok") is True and [c.get("state") for c in checks] == ["pass", "pass"] and
+         [c.get("label") for c in checks] == ["openrouter", AI_OWN], "the second list: %s" % checks, failures)
+    # A job's provider (a picker of the providers): one not in the file refused; one whose list lacks the job's model
+    # waits for a model of its list, which the job's picker offers (D193); one it did not list refused; the pick; the
+    # changed mark on that job's rows alone (D198).
+    need([c.get("value") for c in body("provider_choices").get("choices", [])] == ["openrouter", AI_OWN],
+         "the providers' choices: %s" % body("provider_choices"), failures)
+    need(d.get("provider_bad", {}).get("error") == "invalid_value" and
+         "not in your providers file" in d.get("provider_bad", {}).get("detail", ""),
+         "a provider not in the file: %s" % d.get("provider_bad"), failures)
+    need(d.get("provider", {}).get("ok") is True, "Prepared lines' provider: %s" % d.get("provider"), failures)
+    need([c.get("value") for c in body("choices").get("choices", [])] == AI_OWN_MODELS,
+         "Prepared lines' choices: %s" % body("choices"), failures)
+    waiting = [k for k in body("waiting").get("changed", []) if not k.startswith("debug.")]
+    need(waiting == [], "a provider waiting for its model counts as changed: %s" % waiting, failures)
+    need(d.get("pick_bad", {}).get("error") == "invalid_value" and
+         "does not list that model" in d.get("pick_bad", {}).get("detail", ""), "a model not listed: %s" %
+         d.get("pick_bad"), failures)
+    need(d.get("pick", {}).get("ok") is True, "the pick: %s" % d.get("pick"), failures)
+    need(job_of(body("picked"), "Prepared lines").get("provider") == AI_OWN,
+         "Prepared lines after the pick: %s" % job_of(body("picked"), "Prepared lines"), failures)
+    need("changed_one" in d, "the changed mark after the pick", failures)
+    # GraceUI's server refuses a destructive row command unconfirmed before EldenNet hears it (D192); EldenNet refuses
+    # a provider a job uses, saying which.
+    need(d.get("remove_unconfirmed", {}).get("error") == "confirm_required",
+         "Remove unconfirmed: %s" % d.get("remove_unconfirmed"), failures)
+    need(d.get("remove_used", {}).get("error") == "not_now" and
+         "use it" in d.get("remove_used", {}).get("detail", ""), "Remove of a provider in use: %s" %
+         d.get("remove_used"), failures)
+    need(d.get("remove_own_used", {}).get("detail", "").startswith("Prepared lines uses it:"),
+         "Remove of the server Prepared lines uses: %s" % d.get("remove_own_used"), failures)
+    need(d.get("secrets_written") is True, "secrets.toml never held the key", failures)
+    # The menu's turn, as the browser saw it: Memory on the server of the case's own, the first of its models.
+    need(job_of(body("menu_picked"), "Memory").get("model") == AI_OWN_MODELS[0],
+         "the menu's pick: %s" % job_of(body("menu_picked"), "Memory"), failures)
+    menu_run = body("selftest_menu")
+    need(len(menu_run.get("rows", [])) == 1, "the menu's run: earlier runs %s" % menu_run.get("rows"), failures)
+    need("changed_two" in d, "the changed mark after the menu's pick", failures)
+    for job in ("slots.bark_pool.model", "slots.memory.provider"):
+        need(d.get("reset_" + job, {}).get("ok") is True, "the reset of %s: %s" % (job, d.get("reset_" + job)),
+             failures)
+    need("reset" in d, "the jobs' models never went back to the preset's", failures)
+    need("changed_none" in d, "a row still changed after the resets", failures)
+    need(d.get("remove_own", {}).get("ok") is True and len(body("own_gone").get("rows", [])) == 1,
+         "Remove of the server of the case's own: %s" % d.get("remove_own"), failures)
+    need(d.get("preset", {}).get("ok") is True, "the NanoGPT preset: %s" % d.get("preset"), failures)
+    need(len(body("two").get("rows", [])) == 2, "the preset's provider added", failures)
+    need(d.get("remove", {}).get("ok") is True, "Remove: %s" % d.get("remove"), failures)
+    left = body("one").get("rows", [{}])
+    need(len(left) == 1 and left[0].get("id") == "nanogpt", "the provider left: %s" % left, failures)
+    # The fake server: one list refused for the wrong key, every other keyed request with the right one; the server
+    # of the case's own asked with no key; two runs (the second's JSON step on Memory's model, then that server's) and
+    # four lists.
+    need(counts["refused"] == 1 and counts["unknown"] == 0 and counts["models"] >= 3 and counts["chats"] >= 2 and
+         counts["json"] >= 1 and counts["open_models"] >= 2 and counts["open_chats"] >= 1,
+         "the fake server answered %s" % counts, failures)
+    # In game: F5's menu on Home; AI › Providers, which draws the rows' keys as Set and Not needed, never a key's
+    # fragment; Down to the server of the case's own's Remove, Enter twice, refused (a job uses it); Models, Down to
+    # Memory's provider picker, →, Down to its model picker, →, its help ending with the default in words; Self-test's
+    # Run self-test. The menu watched the pages' topics.
+    failures += (want_grace(r, 3060, eldennet=1, server=1, spaces=1, menu_open=0) +
+                 want_grace(r, 3180, menu_open=1, menu_page="home") +
+                 want_grace(r, 3300, menu_open=1, menu_page="ai.providers", menu_focused="action:add",
+                            shows="0110") +
+                 want_grace(r, 3540, menu_open=1, menu_page="ai.providers",
+                            menu_focused="row:providers/%s/remove" % AI_OWN) +
+                 want_grace(r, 3720, menu_open=1, menu_page="ai.providers", menu_refusals=1) +
+                 want_grace(r, 3840, menu_open=1, menu_page="ai.models", menu_focused="setting:ai.preset") +
+                 want_grace(r, 4200, menu_open=1, menu_page="ai.models",
+                            menu_focused="setting:slots.memory.provider") +
+                 want_grace(r, 4320, menu_open=1, menu_page="ai.models", menu_refusals=1) +
+                 want_grace(r, 4500, menu_open=1, menu_page="ai.models", menu_focused="setting:slots.memory.model",
+                            menu_refusals=1, shows="0001") +
+                 want_grace(r, 4620, menu_open=1, menu_page="ai.selftest", menu_focused="action:run") +
+                 want_grace(r, 5100, menu_open=1, menu_page="ai.selftest", menu_refusals=1, shows="0000") +
+                 want_grace(r, 5220, menu_open=0))
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    passed = [e for e in r.events("ELDENNET", "selftest") if e.get("result") == "passed"]
+    need(len(passed) == 2, "%d self-tests passed in the log, wanted 2" % len(passed), failures)
+    for kv in ({"what": "command", "name": "providers.add", "result": "ok"},
+               {"what": "command", "name": "providers.add", "result": "invalid_value"},
+               {"what": "command", "name": "providers.key", "key": "openrouter", "result": "ok"},
+               {"what": "command", "name": "providers.key", "key": AI_OWN, "result": "not_now"},
+               {"what": "command", "name": "selftest.run", "result": "ok"},
+               {"what": "command", "name": "models.list", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "slots.bark_pool.provider", "result": "invalid_value"},
+               {"what": "command", "name": "settings.set", "key": "slots.bark_pool.provider", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "slots.bark_pool.model", "result": "invalid_value"},
+               {"what": "command", "name": "settings.set", "key": "slots.memory.provider", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "slots.memory.model", "result": "ok"},
+               {"what": "command", "name": "settings.reset", "key": "slots.memory.provider", "result": "ok"},
+               {"what": "command", "name": "providers.remove", "key": "openrouter", "result": "not_now"},
+               {"what": "command", "name": "providers.remove", "key": AI_OWN, "result": "not_now"},
+               {"what": "command", "name": "providers.remove", "key": AI_OWN, "result": "ok"},
+               {"what": "command", "name": "providers.remove", "key": "openrouter", "result": "ok"},
+               {"what": "watched", "topic": "selftest"},
+               {"what": "watched", "topic": "ai.choices.memory"},
+               {"what": "watched", "topic": "ai.choices.providers"},
+               {"what": "watched", "topic": "space.state"}):
+        failures += any_line_kv(r, "ELDENNET", "page", kv)
+    failures += any_line(r, "ELDENNET", "models_list", providers=1, passed=0)
+    failures += any_line(r, "ELDENNET", "models_list", providers=2, passed=2)
+    failures += any_line(r, "ELDENNET", "ai_write", file="secrets", ok=1)
+    failures += any_line(r, "ELDENNET", "ai_write", file="providers", ok=1)
+    failures += any_line_kv(r, "ELDENNET", "ai_config", {"result": "missing"})
+    for what in ("add_own", "key", "provider", "model_reset", "remove"):
+        failures += any_line_kv(r, "ELDENNET", "ai_change", {"what": what, "ok": "1"})
+    # Each key is nowhere: no frame either view could have, no log or report line, no recording, no file left (the
+    # removals took the right one out of secrets.toml, which the right one replaced the wrong one in), and a fragment
+    # both hold is drawn nowhere in the menu (shows' first bit). The own provider's address and name reach no log
+    # line but the configuration's ids.
+    for secret in (key, wrong):
+        need(not any(secret in text for text in d.get("received", [])), "a frame to the browser holds a key", failures)
+        need(not any(secret in line for line in r.lines), "a log or report line holds a key", failures)
+        need(secret not in r.out and secret not in r.err, "the run's output holds a key", failures)
+        for folder in (r.paths["case"], r.paths["appdata"]):
+            held = files_holding(folder, secret.encode("utf-8"))
+            need(not held, "files hold a key: %s" % held, failures)
+    need(not any("/own/v1" in line or "192.0.2.7" in line or "models.invalid" in line for line in r.lines),
+         "a log line holds an address typed in the form", failures)
+    need(bool(en_recordings(r)), "no recording to look in", failures)
+    path = os.path.join(r.paths["appdata"], "EldenNet", "config", "providers.toml")
+    try:
+        with open(path, encoding="utf-8") as f:
+            written = f.read()
+    except OSError:
+        written = ""
+    need(re.search(r"""preset = ["']cloud-nanogpt["']""", written) and "nanogpt" in written and
+         "openrouter" not in written and AI_OWN not in written and "slots" not in written,
+         "providers.toml after the pages: %r" % written, failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5280),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
+     prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
+     what="EldenNet's AI pages through GraceUI 0.2.9 against a fake model server on loopback: a provider added from "
+          "its preset, a wrong key on its row refused (Refused) and the right one set, a server of the case's own "
+          "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
+          "and a model from its list, the changed mark on that job's rows alone, refusals in words; from the menu a "
+          "row's Remove refused, a job's provider and model from their pickers and the self-test; then the picks "
+          "reset, no row changed, a new preset, and the unused providers removed; either key in no topic, log line, "
+          "recording, report or file, and drawn nowhere in the menu")
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),
@@ -1797,14 +2245,14 @@ def check_r1_callee(p, task, gap=False):
 
 
 def check_r1_group(p, task, jump, entry):
-    """Spike.9 (WHY§248): the group's own function, the target of the tail function's direct jump, summarised with the
-    group's entry in rcx and our task in rdx: both its reads of the task (the hub field, kept on the entry; the kind,
-    compared with the small immediate), its read of the entry's count (compared with the list's length), the task's
-    store in the entry's list under its high-bit tag (an or by a register), and its call on with the entry and the task;
-    one level further that callee, its entry still the entry."""
+    """Spike.9 and spike.10 (WHY§248, WHY§289): the group's own function, the target of the tail function's direct jump,
+    summarised with the group's entry in rcx and our task in rdx, of R1 run 9's shape: it reads nothing of the task,
+    reads the shelf's word (passed on in r8), and tail-jumps to the stub with G, loaded from its slot, in rcx and the
+    task in rdx (its one call, the ledger's lazy make, on the path where the slot is null). One level further the stub,
+    8 bytes: r9 zeroed, G and the word carried, a jump to G's method at the same depth (check_r1_g_method)."""
     failures = []
     c = p["callee_code"]
-    task_reg, instance_reg, _ = p["register"]["registers"]
+    task_reg, _, _ = p["register"]["registers"]
     rack = task["register_rack"]
     inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
     g = inner.get((rack["take_rva"], 2), {})
@@ -1813,40 +2261,368 @@ def check_r1_group(p, task, jump, entry):
          g["read"] and g["extent"] > 0 and g["bytes"] == g["extent"] and "modelled_to" not in g and
          entry_src.get(1, {}).get("holds_entry") is True and entry_src.get(1, {}).get("source") == entry,
          "the group's function: %s" % {k: v for k, v in g.items() if k not in ("forms", "args", "guard")}, failures)
-    reads = {(r["disp"], r["width"]): r for r in g.get("task_reads", [])}
-    seen = reads.get((rack["task_hub_off"], 8), {})
-    kind = reads.get((rack["task_kind_off"], 4), {})
-    arg = {"src": "argument", "from": task_reg}
+    need("task_read_count" not in g and "task_store_count" not in g, "the group's function reads the task: %s" %
+         {k: g.get(k) for k in ("task_read_count", "task_reads", "task_store_count")}, failures)
     on_entry = {"src": "entry", "reg": 1}
-    need(g.get("task_read_count") == 2 and len(reads) == 2 and seen.get("base_src") == arg and
-         [(u["use"], u.get("base_src"), u.get("disp")) for u in seen.get("uses", [])] ==
-         [("stored", on_entry, rack["seen_off"])], "the task's hub field, read: %s" % seen, failures)
-    need(kind.get("base_src") == arg and not kind.get("direct") and
-         [(u["use"], u.get("imm")) for u in kind.get("uses", [])] == [("compared", rack["kind"])],
-         "the task's kind, read and compared: %s" % kind, failures)
-    counts = [r for r in g.get("entry_reads", []) if r["disp"] == rack["count_off"]]
-    need(g.get("entry_read_count") == 1 and len(counts) == 1 and counts[0]["base_src"] == on_entry and
-         [(u["use"], u.get("imm")) for u in counts[0]["uses"]] == [("compared", rack["items"])],
-         "the entry's count, read: %s" % g.get("entry_reads"), failures)
-    stores = g.get("task_stores", [])
-    tagged = [s for s in stores if s["source"].get("src") == "modified"]
-    need(g.get("task_store_count") == 2 and len(stores) == 2 and len(tagged) == 1 and
-         tagged[0]["source"].get("class") == "or" and "by" in tagged[0]["source"] and
-         tagged[0]["source"].get("origin") == arg and tagged[0].get("base_src") == on_entry and
-         "index" in tagged[0] and tagged[0]["disp"] == rack["items_off"] and tagged[0]["width"] == 8 and
-         any(s["source"].get("src") == "memory" and s["disp"] == rack["seen_off"] for s in stores),
-         "the task's stores: %s" % stores, failures)
+    words = [r for r in g.get("entry_reads", []) if r["disp"] == rack["word_off"]]
+    need(g.get("entry_read_count") == 1 and len(words) == 1 and words[0]["width"] == 4 and
+         words[0]["base_src"] == on_entry and
+         [(u["use"], u.get("reg"), u.get("target")) for u in words[0]["uses"]] == [("passed", 8, rack["stub_rva"])],
+         "the entry's word, read and passed on: %s" % g.get("entry_reads"), failures)
+    tails = [k for k in g.get("call_sites", []) if k["form"] == "tail"]
     calls = [k for k in g.get("call_sites", []) if k["form"] == "direct"]
-    need(len(calls) == 1 and calls[0].get("target") == rack["offer_rva"] and
-         {(2, task_reg), (9, instance_reg)} <= {(a["reg"], a["from"]) for a in calls[0]["pass"]} and
-         {"reg": 1, "source": on_entry} in calls[0].get("pass_src", []) and g.get("forms"),
-         "the group's function's call: %s" % g.get("call_sites"), failures)
-    offer = inner.get((rack["offer_rva"], 3), {})
-    oentry = {x["reg"]: x for x in offer.get("entry_src", [])}
-    need(offer and offer.get("parent") == rack["take_rva"] and calls and offer.get("site") == calls[0]["offset"] and
-         oentry.get(1, {}).get("holds_entry") is True and offer["read"],
-         "the group's function's callee, one level further: %s" %
-         {k: v for k, v in offer.items() if k not in ("forms", "args", "guard")}, failures)
+    srcs = {x["reg"]: x["source"] for x in (tails[0].get("pass_src", []) if tails else [])}
+    rcx = {k: v for k, v in srcs.get(1, {}).items() if k != "load_at"}
+    r8 = {k: v for k, v in srcs.get(8, {}).items() if k != "load_at"}
+    need(len(tails) == 1 and tails[0]["reached"] and tails[0].get("target") == rack["stub_rva"] and
+         (2, task_reg) in {(a["reg"], a["from"]) for a in tails[0]["pass"]} and
+         rcx == {"src": "rip", "target": rack["ledger_slot_rva"], "width": 8} and
+         r8.get("src") == "memory" and r8.get("base_src") == on_entry and r8.get("disp") == rack["word_off"] and
+         r8.get("width") == 4, "the group's function's jump to the stub: %s" % tails, failures)
+    need(len(calls) == 1 and calls[0].get("target") == rack["missing_rva"], "the group's function's call: %s" % calls,
+         failures)
+    stub = inner.get((rack["stub_rva"], 3), {})
+    sentry = {x["reg"]: x for x in stub.get("entry_src", [])}
+    jumps = [k for k in stub.get("call_sites", []) if k["form"] == "tail"]
+    need(stub and stub["tail"] and stub.get("parent") == rack["take_rva"] and tails and
+         stub.get("site") == tails[0]["offset"] and stub["bytes"] == 8 and stub["instructions"] == 2 and
+         sentry.get(1, {}).get("holds_g") is True and sentry.get(8, {}).get("holds_word") is True and
+         stub.get("word_use_count") == 1 and len(jumps) == 1 and jumps[0].get("target") == rack["admit_rva"],
+         "the stub: %s" % {k: v for k, v in stub.items() if k not in ("args", "guard")}, failures)
+    return failures + check_r1_g_method(p, task, tails[0]["offset"] if tails else None)
+
+
+def check_r1_g_method(p, task, site):
+    """Spike.10 and spike.11 (WHY§289, WHY§293): G's method, reached through the stub at the same depth (3), entered with
+    G in rcx, the task in rdx, the entry's word in r8 and r9 zero, of R1 run 10's shape: it never reads the task, which
+    it stores into the request it builds on its stack; it reads four fields of G (its open word and its deferred byte
+    compared in place, its manager stored into the request, its queue passed in rcx to the queued path's call); the
+    word is stored into the request, and still in r8 at the first two calls; its three callees are the now path's
+    function (with the request's stack address in rcx), the allocator and the queue's push."""
+    failures = []
+    c = p["callee_code"]
+    rack = task["register_rack"]
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    m = inner.get((rack["admit_rva"], 3), {})
+    mentry = {x["reg"]: x for x in m.get("entry_src", [])}
+    need(m and m.get("stub") == rack["stub_rva"] and m.get("zeroed") == [9] and m.get("parent") == rack["take_rva"] and
+         m.get("site") == site and m["read"] and m["extent"] > 0 and m["bytes"] == m["extent"] and
+         "modelled_to" not in m and mentry.get(1, {}).get("holds_g") is True and
+         mentry.get(8, {}).get("holds_word") is True and "parts" not in m,
+         "G's method: %s" % {k: v for k, v in m.items() if k not in ("forms", "args", "guard")}, failures)
+    need("task_read_count" not in m and m.get("task_store_count") == 1 and
+         m.get("task_stores", [{}])[0].get("base") == 4 and
+         m.get("task_stores", [{}])[0].get("disp") == rack["request_disp"] + rack["request_task_off"],
+         "G's method's task: %s" % {k: m.get(k) for k in ("task_read_count", "task_stores")}, failures)
+    on_g = {"src": "entry", "reg": 1}
+    greads = {r["disp"]: r for r in m.get("g_reads", [])}
+    opened = greads.get(rack["ledger_open_off"], {})
+    defer = greads.get(rack["ledger_defer_off"], {})
+    manager = greads.get(rack["ledger_manager_off"], {})
+    queue = greads.get(rack["ledger_queue_off"], {})
+    need(m.get("g_read_count") == 4 and all(r.get("base_src") == on_g for r in greads.values()) and
+         opened.get("direct") and opened.get("width") == 8 and
+         [(u["use"], u.get("imm")) for u in opened.get("uses", [])] == [("compared", 0)] and
+         defer.get("direct") and defer.get("width") == 1 and
+         [(u["use"], u.get("imm")) for u in defer.get("uses", [])] == [("compared", 0)] and
+         [u["use"] for u in manager.get("uses", [])] == ["stored"] and
+         [(u["use"], u.get("reg"), u.get("target")) for u in queue.get("uses", [])] ==
+         [("passed", 1, rack["push_rva"])], "G's reads: %s" % m.get("g_reads"), failures)
+    uses = [(u["use"], u.get("base"), u.get("disp"), u.get("width"), u.get("target")) for u in m.get("word_uses", [])]
+    need(m.get("word_use_count") == len(uses) == 3 and
+         uses[0] == ("stored", 4, rack["request_disp"] + rack["request_word_off"], 4, None) and
+         [(u[0], u[4]) for u in uses[1:]] == [("passed", rack["now_rva"]), ("passed", rack["request_alloc_rva"])],
+         "the entry's word's uses (stored into the request, still in r8 at the two calls): %s" % m.get("word_uses"),
+         failures)
+    calls = [k for k in m.get("call_sites", []) if k["form"] == "direct"]
+    rcx = next((x["source"] for x in calls[0].get("pass_src", []) if x["reg"] == 1), {}) if calls else {}
+    need([k.get("target") for k in calls] == [rack["now_rva"], rack["request_alloc_rva"], rack["push_rva"]] and
+         rcx == {"src": "stack", "disp": rack["request_disp"]},
+         "G's method's calls: %s" % m.get("call_sites"), failures)
+    return failures
+
+
+def check_r1_request(p, task):
+    """Spike.11 (WHY§293): the request G's method builds, as R1 read it: its vtable (the fake game's FG::TaskRequest's,
+    classed, no lead's) at the method's stack place, its five fields (the vtable, the task at +8, G's manager, the word,
+    the zeroed byte), the function the method calls with it, and its three slots (5-byte jumps to the now path's
+    function, the cancel and the word); each slot summarised at depth 4 with the request in rcx, the now path's
+    function in two parts (its entry and, past its extent in no entry, its check) with the request's fields followed:
+    the task, the word, the manager; the task's kind and state read in the second part, the manager's strict flag
+    tested; and one level further (5) the note and the work, the task and the word carried in."""
+    failures = []
+    c = p["callee_code"]
+    rack = task["register_rack"]
+    task_reg = p["register"]["registers"][0]
+    r = p.get("request", {})
+    fields = [(f["offset"], f["width"], f["field"]) for f in r.get("fields", [])]
+    cls = r.get("request_class", {})
+    need(r.get("vtable") == rack["request_vtable_rva"] and r.get("disp") == rack["request_disp"] and
+         r.get("task_field") == rack["request_task_off"] and r.get("now") == rack["now_rva"] and
+         fields == [(0, 8, "vtable"), (rack["request_task_off"], 8, "task"), (rack["request_manager_off"], 8, "manager"),
+                    (rack["request_word_off"], 4, "word"), (rack["request_flag_off"], 1, "zero")] and
+         r.get("fields", [{}])[0].get("source") == {"src": "address", "target": rack["request_vtable_rva"]} and
+         cls.get("vtable_known") and cls.get("classed") and cls.get("match") == "none" and
+         r.get("slot_count") == 3 and r.get("slots") == rack["slot_rvas"],
+         "the request: %s" % r, failures)
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    now = inner.get((rack["now_rva"], 4), {})
+    parts = [(x["rva"], x["how"]) for x in now.get("parts", [])]
+    nentry = {x["reg"]: x for x in now.get("entry_src", [])}
+    need(now and now.get("parent") == rack["admit_rva"] and now.get("extent", 0) > 0 and
+         parts == [(rack["now_rva"], "primary"), (rack["check_rva"], "unlisted")] and
+         now["parts"][0]["bytes"] == now["extent"] and now["bytes"] == sum(x["bytes"] for x in now["parts"]) and
+         nentry.get(1, {}).get("holds_request") is True and now.get("request_slot") == 0 and
+         not now.get("returns_early") and "modelled_to" not in now, "the now path's function: %s" %
+         {k: v for k, v in now.items() if k not in ("forms", "args", "guard")}, failures)
+    on_request = {"src": "entry", "reg": 1}
+    rreads = {(x["disp"], x["width"]) for x in now.get("request_reads", []) if x["base_src"] == on_request}
+    treads = sorted((x["disp"], x["width"]) for x in now.get("task_reads", []))
+    mreads = now.get("manager_reads", [])
+    need({(rack["request_task_off"], 8), (rack["request_word_off"], 4), (rack["request_manager_off"], 8)} <= rreads and
+         treads == sorted([(rack["task_state_off"], 4), (rack["task_kind_off"], 4)]) and
+         all(x["offset"] >= rack["check_rva"] - rack["now_rva"] for x in now.get("task_reads", [])) and
+         len(mreads) == 1 and mreads[0]["disp"] == rack["manager_flags_off"] and mreads[0].get("direct") and
+         [u["use"] for u in mreads[0].get("uses", [])] == ["tested"],
+         "the now path's function's reads: request %s, task %s, manager %s" %
+         (now.get("request_reads"), now.get("task_reads"), mreads), failures)
+    calls = [k for k in now.get("call_sites", []) if k["form"] == "direct"]
+    tails = [k for k in now.get("call_sites", []) if k["form"] != "direct"]
+    need([k.get("target") for k in calls] == [rack["note_rva"], rack["keep_rva"]] and not tails,
+         "the now path's function's calls (the jumps back into its entry no tail calls): %s" % now.get("call_sites"),
+         failures)
+    forms = now.get("forms", [])
+    need(len(forms) == now.get("instructions") and
+         any(f["offset"] == rack["check_rva"] - rack["now_rva"] for f in forms),
+         "the now path's function's forms, its second part among them: %s" % len(forms), failures)
+    for i, (slot, target) in enumerate(zip(rack["slot_rvas"], rack["slot_targets"])):
+        s = inner.get((slot, 4), {})
+        jumps = [k for k in s.get("call_sites", []) if k["form"] == "tail"]
+        sentry = {x["reg"]: x for x in s.get("entry_src", [])}
+        need(s and s.get("request_slot") == i and s.get("parent") == rack["admit_rva"] and s["bytes"] == 5 and
+             len(jumps) == 1 and jumps[0].get("target") == target and
+             sentry.get(1, {}).get("holds_request") is True and
+             sentry.get(1, {}).get("source") == {"src": "stack", "disp": rack["request_disp"]},
+             "the request's slot %d: %s" % (i, {k: v for k, v in s.items() if k not in ("forms", "args", "guard")}),
+             failures)
+        if target == rack["now_rva"]:
+            continue
+        t = inner.get((target, 4), {})
+        need(t and t.get("stub") == slot and t.get("request_slot") == i and t.get("request_read_count", 0) >= 1,
+             "the request's slot %d's work: %s" % (i, {k: v for k, v in t.items() if k not in ("forms", "args")}),
+             failures)
+    cancel = inner.get((rack["cancel_rva"], 4), {})
+    need([(x["disp"], x["width"]) for x in cancel.get("request_reads", [])] == [(rack["request_task_off"], 8)],
+         "the cancel's request reads: %s" % cancel.get("request_reads"), failures)
+    word = inner.get((rack["word_rva"], 4), {})
+    need([(x["disp"], x["width"]) for x in word.get("request_reads", [])] == [(rack["request_word_off"], 4)],
+         "the word's request reads: %s" % word.get("request_reads"), failures)
+    keep = inner.get((rack["keep_rva"], 5), {})
+    note = inner.get((rack["note_rva"], 5), {})
+    kentry = {x["reg"]: x for x in keep.get("entry_src", [])}
+    held = kentry.get(8, {}).get("source", {})
+    need(keep and note and keep.get("parent") == rack["now_rva"] and note.get("parent") == rack["now_rva"] and
+         held.get("src") == "memory" and held.get("disp") == rack["request_task_off"] and
+         held.get("base_src") == on_request and kentry.get(2, {}).get("holds_word") is True,
+         "one level further: %s; the work's entry %s" %
+         ([(i["rva"], i.get("depth"), i.get("parent")) for i in c.get("inner", [])], kentry), failures)
+    del task_reg
+    return failures
+
+
+def check_r1_method(p, task, group, gap=False, gate=False, queued=False):
+    """Spike.10 (WHY§289): G's method as R1 found it (the group's function's site, G's slot, the stub, the method, the
+    entry's word at its offset), and the three numbers before and after the call: G on the heap, classed but no lead's;
+    not the object the hub holds at +8; the object the shelf holds at +0x58 only with --task-gate (then not walked,
+    held by a root, else walked as a fourth root); the stand-in group's word its own index, and every shelf's the
+    same (with --table-gap, no word for the group)."""
+    failures = []
+    rack = task["register_rack"]
+    m = p.get("method", {})
+    shelves = [g["index"] for g in task["groups"] if not (gap and g["index"] == group)]
+    need(m.get("slot") == rack["ledger_slot_rva"] and m.get("stub") == rack["stub_rva"] and
+         m.get("rva") == rack["admit_rva"] and m.get("word_disp") == rack["word_off"] and m.get("width") == 4 and
+         m.get("hub_off") == 8 and m.get("entry_off") == 0x58 and
+         m.get("g_walk") == ("held_by_root" if gate else "walked") and "site" in m,
+         "G's method: %s" % {k: v for k, v in m.items() if k not in ("before", "after")}, failures)
+    for key in ("before", "after"):
+        r = m.get(key, {})
+        cls = r.get("g_class", {})
+        need(r.get("read") and r.get("g", {}).get("kind") == "heap" and cls.get("vtable_known") and
+             cls.get("classed") and cls.get("match") == "none" and cls.get("type_descriptor", 0) > 0 and
+             r.get("at_hub") is False and r.get("words_read") == len(shelves) and
+             r.get("own_index") == len(shelves) and r.get("distinct") == len(shelves),
+             "G %s the call: %s" % (key, r), failures)
+        if gap:
+            need("at_entry" not in r and "word" not in r, "the group's entry %s the call, with no shelf: %s" % (key, r),
+                 failures)
+        else:
+            need(r.get("at_entry") is gate and r.get("word") == group, "the entry's word %s the call: %s" % (key, r),
+                 failures)
+    need(m.get("before", {}).get("at_ms") == 0 and m.get("after", {}).get("at_ms", 0) >= 2000,
+         "G's reads' times: %s" % [m.get(k, {}).get("at_ms") for k in ("before", "after")], failures)
+    # Spike.11 (WHY§293): every shelf's word holds its own index in its low 16 bits too, and its high 16 bits are 0.
+    for key in ("before", "after"):
+        r = m.get(key, {})
+        need(r.get("own_low") == len(shelves) and r.get("highs") == [{"value": 0, "count": len(shelves)}],
+             "the words' halves %s the call: %s" % (key, r), failures)
+    return failures + check_r1_g_fields(p, task, queued)
+
+
+def check_r1_g_fields(p, task, queued=False):
+    """Spike.11 (WHY§293): the four fields of G its method reads, just before the call and about 50 and 250 ms and 2 s
+    after it: its open word 1, its manager and its queue on the heap and classed (no lead's), its deferred byte 0 (1
+    with --task-queue); the byte the method compares first is that one, and the path it took the one --describe says."""
+    failures = []
+    rack = task["register_rack"]
+    m = p.get("method", {})
+    reads = m.get("g_fields", [])
+    times = [r["at_ms"] for r in reads]
+    need(len(reads) == 4 and times[0] == 0 and 45 <= times[1] < 250 <= times[2] < 2000 <= times[3],
+         "G's fields' reads: %s" % times, failures)
+    defer = 1 if queued else 0
+
+    def heap(x):
+        return (x.get("field_value", {}).get("kind") == "heap" and x.get("field_class", {}).get("classed") and
+                x.get("field_class", {}).get("match") == "none")
+
+    for r in reads:
+        f = {x["disp"]: x for x in r.get("fields", [])}
+        need(r.get("read") and len(f) == 4 and all(x["read"] for x in f.values()) and
+             f.get(rack["ledger_open_off"], {}).get("field_value") == {"kind": "small", "value": 1} and
+             f.get(rack["ledger_defer_off"], {}).get("value") == defer and
+             f.get(rack["ledger_defer_off"], {}).get("width") == 1 and
+             heap(f.get(rack["ledger_manager_off"], {})) and heap(f.get(rack["ledger_queue_off"], {})),
+             "G's fields at %s ms: %s" % (r.get("at_ms"), r), failures)
+    need(m.get("defer_disp") == rack["ledger_defer_off"] and m.get("path_taken") == ("queued" if queued else "now"),
+         "the deciding byte and the path: %s, %s" % (m.get("defer_disp"), m.get("path_taken")), failures)
+    return failures
+
+
+def check_r1_queue(p, task, gap=False, queued=False):
+    """Spike.11 (WHY§293): G's queue (G's field passed to the queued path's call) walked as a fifth root, at the same
+    four times: the two requests of the game's own that wait there for ever (their tasks the manager's, classed, their
+    manager field G's, their words and flag 1), and with --task-queue ours at 50 and 250 ms (our task, G's manager, the
+    group's word, flag 0), drained by 2 s."""
+    failures = []
+    rack = task["register_rack"]
+    group = p["register"]["group_index"]
+    q = p.get("queue", {})
+    reads = q.get("reads", [])
+    need(q.get("g_disp") == rack["ledger_queue_off"] and q.get("queue_walk") == "walked" and len(reads) == 4,
+         "G's queue: %s" % {k: v for k, v in q.items() if k != "reads"}, failures)
+    queued = queued and not gap
+    for r in reads:
+        reqs = r.get("requests", [])
+        ours = [x for x in reqs if x.get("ours")]
+        theirs = [x for x in reqs if x.get("ours") is False]
+        early = 0 < r["at_ms"] < 2000
+        need(r.get("read") and r.get("found") == len(reqs) and
+             sorted(x.get("word") for x in theirs) == rack["lingering_words"] and
+             all(x.get("flag") == 1 and x.get("manager") is True and x.get("task_value", {}).get("kind") == "heap" and
+                 x.get("task_class", {}).get("classed") for x in theirs) and
+             len(ours) == (1 if queued and early else 0) and
+             all(x.get("word") == group and x.get("flag") == 0 and x.get("manager") is True for x in ours),
+             "the queue at %s ms: %s" % (r.get("at_ms"), r), failures)
+    return failures
+
+
+def check_r1_request_search(p, task):
+    """Spike.11 (WHY§293): in each whole-memory search, the game's requests: the two that wait in G's queue (private
+    memory), each read as a request (not our task, its manager G's, its word and flag 1), and their tasks' two classes,
+    each with its vtable's slots and 16 words (the first its vtable, classed)."""
+    failures = []
+    rack = task["register_rack"]
+    for m in p.get("memory_search", []):
+        hits = m.get("request_hits", [])
+        tasks = m.get("request_tasks", [])
+        need(m.get("request_found") == rack["lingering"] and len(hits) == rack["lingering"] and
+             all(h["region"] == "private" and h.get("ours") is False and h.get("manager") is True and
+                 h.get("flag") == 1 and h.get("task_class", {}).get("classed") for h in hits) and
+             sorted(h.get("word") for h in hits) == rack["lingering_words"],
+             "the game's requests: %s" % {k: m.get(k) for k in ("request_found", "own_request_found", "request_hits")},
+             failures)
+        need(sorted(t["vtable"] for t in tasks) == sorted(rack["chore_vtable_rvas"]) and
+             all(t["count"] == 1 and t["slot_count"] >= 2 and len(t["words"]) == 16 and
+                 t["words"][0].get("kind") == "game" and t["words"][0].get("word_class", {}).get("classed")
+                 for t in tasks), "their tasks: %s" % tasks, failures)
+    return failures
+
+
+def check_r1_classes(p, gap=False):
+    """Spike.11 (WHY§293): the classes met, with their bases: G's manager, the request (one base), CSTask's instance,
+    the group's entry (none with --table-gap), G, and the game's two task classes (one base each, the same: the one
+    shared base, listed twice)."""
+    failures = []
+    classes = {}
+    for x in p.get("classes", []):
+        classes.setdefault(x["object"], []).append(x)
+    want = {"manager", "request", "task_hub", "g", "game_task"} | (set() if gap else {"group_entry"})
+    need(set(classes) == want and len(classes.get("game_task", [])) == 2 and
+         all(x["classed"] for v in classes.values() for x in v),
+         "the classes: %s" % p.get("classes"), failures)
+    request = classes.get("request", [{}])[0]
+    chores = classes.get("game_task", [])
+    shared = p.get("shared_bases", [])
+    need(len(chores) == 2 and request.get("base_count") == 1 and all(x.get("base_count") == 1 for x in chores) and
+         len({tuple(x.get("base_rvas", [])) for x in chores}) == 1 and
+         shared == [{"type_descriptor": chores[0]["base_rvas"][0], "count": 2}],
+         "the bases: request %s, tasks %s, shared %s" % (request, chores, shared), failures)
+    return failures
+
+
+def check_r1_views(p, task, gap=False):
+    """Spike.10 (WHY§289): the hub's four views of its rows (run 9's paths, 1 KiB each), read again at 2 s (since
+    spike.11 only then): the note the request's work made (with --table-gap none), its vtable in rdata classed as a
+    class of ours, a fresh pointer, and the game thread's stamp; our calling thread's id nowhere."""
+    failures = []
+    rack = task["register_rack"]
+    v = p.get("array_views", {})
+    views = v.get("views", [])
+    need([x["path"] for x in views] == rack["views"] and all(x["reached"] and x["bytes"] == 1024 for x in views),
+         "the views: %s" % views, failures)
+    reads = v.get("reads", [])
+    times = sorted({r["at_ms"] for r in reads})
+    need(len(reads) == 4 and len(times) == 1 and 2000 <= times[0],
+         "the views' reads: %s" % [(r["at_ms"], r["view"]) for r in reads], failures)
+    for r in reads:
+        need(r["read"] and not r["caller_thread"], "a view's read: %s" % r, failures)
+        if gap:
+            need(r["changed"] == 0, "a view with nothing noted: %s" % r, failures)
+            continue
+        news = [w["new"] for w in r["words"]]
+        classed = [w for w in r["words"] if w.get("new_class", {}).get("classed")]
+        need(r["changed"] == (3 if r["main_thread"] else 2) and {"kind": "game", "section": "rdata", "rva": rack["note_vtable_rva"]} in news and
+             any(n["kind"] == "heap" for n in news) and len(classed) == 1 and
+             classed[0]["new_class"].get("match") == "none", "a view's changes: %s" % r, failures)
+        need(r["main_thread"], "the game thread's stamp, at %s ms: %s" % (r["at_ms"], r), failures)
+    return failures
+
+
+def check_r1_sites(p, task):
+    """Spike.10 (WHY§289): what the fake game's own four call sites pass as the task (rcx): loaded from the rows, the
+    bench's member, an allocator's result, loaded; each base the function's own argument, no branch between."""
+    failures = []
+    rack = task["register_rack"]
+    sites = p.get("game_sites", [])
+    need([x["site"] for x in sites] == task["register_call_sites"], "the game's sites: %s" % sites, failures)
+    for got, want in zip(sites, rack["site_args"]):
+        need(got["decoded"] and not got["joined"] and all(got.get(k) == want[k] for k in want),
+             "a call site's task: %s, wanted %s" % (got, want), failures)
+    return failures
+
+
+def check_r1_sibling(p, task):
+    """Spike.10 (WHY§289): the registration's sibling of the same shape, summarised with its tail jump one level down."""
+    failures = []
+    rack = task["register_rack"]
+    s = p.get("sibling", {})
+    inner = {(i["rva"], i.get("depth", 1)): i for i in s.get("inner", [])}
+    tails = [k for k in s.get("call_sites", []) if k["form"] == "tail"]
+    need(s.get("rva") == rack["sibling_rva"] and s.get("sites") == rack["sibling_sites"] and s.get("read") and
+         len(tails) == 1 and tails[0].get("target") == rack["forget_rva"] and
+         inner.get((rack["forget_rva"], 1), {}).get("tail") is True,
+         "the sibling: %s" % {k: v for k, v in s.items() if k not in ("forms", "args", "guard", "inner")}, failures)
     return failures
 
 
@@ -1943,18 +2719,15 @@ def check_r1_memory(p, task):
 
 
 def check_r1_tagged(p, task):
-    """Spike.9 (WHY§248): in each whole-memory search, our object's address under the shelf's tag, once in the game's
-    memory: in the stand-in group's shelf (a private region), its high 16 bits the tag; none of our vtable's. Our own
-    copies (the walks of the shelf kept on our heap) are counted apart."""
+    """Spike.9 (WHY§248): in each whole-memory search, our object's address under a tag: since spike.11 (R1 run 10's
+    shape: G keeps no list) none in the game's memory, nor of our vtable's."""
     failures = []
-    tag = task["register_rack"]["tag"]
     for m in p.get("memory_search", []):
-        hits = [h for h in m.get("tagged_hits", []) if not h["own"]]
-        need(m.get("tagged_found") == 1 and m.get("vtable_tagged_found") == 0 and len(hits) == 1 and
-             hits[0]["points_to"] == "object" and hits[0].get("tag") == tag and hits[0]["region"] == "private" and
-             all(h.get("tag") == tag for h in m.get("tagged_hits", [])),
+        need(m.get("tagged_found") == 0 and m.get("vtable_tagged_found") == 0 and
+             not [h for h in m.get("tagged_hits", []) if not h["own"]],
              "the tagged copies of our address: %s" %
              {k: m.get(k) for k in ("tagged_found", "own_tagged_found", "vtable_tagged_found", "tagged_hits")}, failures)
+    del task
     return failures
 
 
@@ -1962,41 +2735,42 @@ def r1_diffs(p, root):
     return [d for d in p.get("hub_diff", []) if d.get("root") == root]
 
 
-def check_r1_roots(p, task, gap=False):
-    """Spike.9 (WHY§248): the walk and its diffs from two more roots, the rack (the singleton) and the stand-in group's
-    shelf (its entry), each at 2 and 20 s with its control: across the call the shelf's list gains our task's address
-    under the tag (task_tagged, its high bits the tag), seen from the shelf itself and from the rack through it; their
-    controls change nothing. With --table-gap there is no entry to walk, and nothing of ours in the rack's walk."""
+def check_r1_roots(p, task, gap=False, gate=False):
+    """Spike.9 to spike.11 (WHY§248, WHY§289, WHY§293): the walk and its diffs from four more roots, the rack (the
+    singleton), the stand-in group's shelf (its entry), G and G's queue, each at 2 and 20 s with its control. Since
+    spike.11 (R1 run 10's shape) G keeps nothing of our task, and no walk but the hub's holds anything of ours. With
+    --task-gate G is the shelf's (held by a root: not walked); with --table-gap there is no entry to walk. Every control
+    changes nothing."""
     failures = []
-    tag = task["register_rack"]["tag"]
-    rack = task["register_rack"]
-    for root in ("singleton", "group_entry"):
+    roots = ["singleton"] + ([] if gap else ["group_entry"]) + ([] if gate else ["g_singleton"]) + ["g_queue"]
+    for root in ("singleton", "group_entry", "g_singleton", "g_queue"):
         ds = r1_diffs(p, root)
-        if gap and root == "group_entry":
-            need(not ds, "a diff from the group's entry, with no shelf: %s" % ds, failures)
+        if root not in roots:
+            need(not ds, "a diff from %s: %s" % (root, ds), failures)
             continue
         need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000 and
              all(not d["capped"] and d["compared"] > 0 and "in_control_words" in d for d in ds),
              "the %s's diffs: %s" % (root, [{k: v for k, v in d.items() if k != "words"} for d in ds]), failures)
-        tagged = [w for d in ds for w in d["words"] if w["new"]["kind"] == "task_tagged"]
-        if gap:
-            need(not tagged and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
-                 "the %s's diffs, with nothing kept: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
-                                                                   for d in ds]), failures)
-        else:
-            want_depth = 0 if root == "group_entry" else 1
-            need(any(w["new"].get("tag") == tag and w["depth"] == want_depth and w["old"]["kind"] == "zero" and
-                     w["path"][-1] >= rack["items_off"] and w.get("in_control") is False for w in tagged) and
-                 all(w["new"].get("tag") == tag for w in tagged) and len(tagged) >= 2,
-                 "the %s's diffs: our task under its tag: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
-                                                                         for d in ds]), failures)
+        need(all(w["new"]["kind"] not in ("task", "task_tagged", "vtable", "ours") for d in ds for w in d["words"]),
+             "the %s's diffs, with nothing of ours: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
+                                                                 for d in ds]), failures)
     ctls = {d.get("root"): d for d in p.get("hub_diff_controls", [])}
-    want_roots = {"singleton"} if gap else {"singleton", "group_entry"}
-    need(set(ctls) == want_roots and all(1900 <= d["at_ms"] <= 6000 and d["changed"] == 0 for d in ctls.values()),
+    need(set(ctls) == set(roots) and all(1900 <= d["at_ms"] <= 6000 and d["changed"] == 0 for d in ctls.values()),
          "the roots' controls: %s" % [{k: v for k, v in d.items() if k != "words"} for d in ctls.values()], failures)
     need(p.get("hub_diff_control", {}).get("root") == "task_hub", "the hub's control: %s" %
          {k: v for k, v in p.get("hub_diff_control", {}).items() if k != "words"}, failures)
     return failures
+
+
+def check_r1_spike10(p, task, gap=False, gate=False, queued=False):
+    """Spike.10's own checks (WHY§289): G and its method, the array's views, the game's call sites, the sibling; and
+    spike.11's (WHY§293): G's fields and the path, the request and its methods, G's queue, the game's requests in the
+    searches, the classes and their bases."""
+    group = p["register"]["group_index"]
+    return (check_r1_method(p, task, group, gap=gap, gate=gate, queued=queued) + check_r1_views(p, task, gap=gap) +
+            check_r1_sites(p, task) + check_r1_sibling(p, task) + check_r1_request(p, task) +
+            check_r1_queue(p, task, gap=gap, queued=queued) + check_r1_request_search(p, task) +
+            check_r1_classes(p, gap=gap))
 
 
 def check_r1_control(p, ds):
@@ -2070,9 +2844,10 @@ def r1_reports(result, failures):
     return reports if len(reports) == 2 else None
 
 
-def check_r1(result):
+def check_r1(result, queued=False):
     """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
-    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots. Since spike.11
+    `queued`: the ledger queued the request (--task-queue), and a later frame ran it."""
     failures = []
     truth = result.truth
     reports = r1_reports(result, failures)
@@ -2111,7 +2886,8 @@ def check_r1(result):
          "the rising search: %s" % p["rising"], failures)
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
     failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
-                 check_r1_memory(p, task) + check_r1_diff(p, task) + check_r1_roots(p, task))
+                 check_r1_memory(p, task) + check_r1_diff(p, task) + check_r1_roots(p, task) +
+                 check_r1_spike10(p, task, queued=queued))
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
@@ -2195,7 +2971,7 @@ def check_r1_gap(result):
          not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
          "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
     failures += check_r1_callee(p, task, gap=True) + check_r1_table(p, task, r1_lead(result, "task_loom"), gap=True)
-    failures += check_r1_roots(p, task, gap=True)
+    failures += check_r1_roots(p, task, gap=True) + check_r1_spike10(p, task, gap=True)
     ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
          "the hub's diffs, with nothing kept: %s" % [[(w["path"], w["new"]["kind"]) for w in d["words"]] for d in ds],
@@ -2226,10 +3002,10 @@ case("launcher-eldennet-probe-gap", LBASE + ["--no-steam-check", "--game", "{gam
           "set, the task never runs, and both reports lint clean when the game ends")
 
 
-# Spike.9's case (WHY§248): the hub runs only tasks of the game's kind (--task-gate). The group's function keeps our task
-# on its shelf under a tag and answers 1, but our object holds zero where the kind is, so the task never runs and no
-# plain copy of its address is made: R1 run 8 reproduced. R1's report finds the tagged copy, in the search and in the
-# shelf's and the rack's diffs.
+# Spike.9's case (WHY§248), since spike.10 R1 run 9's end (WHY§289): G's method keeps only tasks of the game's kind
+# (--task-gate, G strict). Our object holds zero where the kind is, so the method answers 1 keeping nothing, the task
+# never runs, and no copy of its address is made, plain or tagged: R1 run 9 reproduced. The shelf holds G where run 9's
+# entries held one object, so G is not walked as a root of its own.
 def check_r1_gate(result):
     failures = []
     reports = r1_reports(result, failures)
@@ -2245,7 +3021,7 @@ def check_r1_gate(result):
          not p["task"]["slot_calls"] and p["task"]["object_written"] == 0,
          "the call, the stage and the task: %s, %s, %s" % (p["register"]["call"], p["stage"], p["task"]), failures)
     failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
-                 check_r1_roots(p, task) + check_r1_tagged(p, task))
+                 check_r1_roots(p, task, gate=True) + check_r1_spike10(p, task, gate=True))
     ds = r1_diffs(p, "task_hub")
     need(len(ds) == 2 and all(w["new"]["kind"] not in ("task", "task_tagged", "vtable", "ours")
                               for d in ds for w in d["words"]),
@@ -2254,10 +3030,11 @@ def check_r1_gate(result):
     failures += check_r1_control(p, ds)
     ms = p.get("memory_search", [])
     need(len(ms) == 2 and all(m["stopped"] == "done" and m["found"] == 0 and m["inside"] == 0 and
-                              m["vtable_found"] == 0 and m["slot_found"] == 0 and m["own_found"] >= 2 for m in ms),
-         "the memory searches, no plain copy: %s" %
-         [{k: m.get(k) for k in ("stopped", "found", "inside", "vtable_found", "slot_found", "own_found")}
-          for m in ms], failures)
+                              m["vtable_found"] == 0 and m["slot_found"] == 0 and m["own_found"] >= 2 and
+                              m["tagged_found"] == 0 and m["vtable_tagged_found"] == 0 for m in ms),
+         "the memory searches, no copy, plain or tagged: %s" %
+         [{k: m.get(k) for k in ("stopped", "found", "inside", "vtable_found", "slot_found", "own_found",
+                                 "tagged_found")} for m in ms], failures)
     steps = r1_steps(result)
     need("task_confirmed" not in steps and steps[:1] == ["asked"] and "press_mark" in steps and
          steps[-1:] == ["reports_clean"], "the console's R1 steps: %s" % steps, failures)
@@ -2275,9 +3052,87 @@ case("launcher-eldennet-probe-gate", LBASE + ["--no-steam-check", "--game", "{ga
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
      check=check_r1_gate,
-     what="R1 as the owner runs it, on a fake game whose hub runs only tasks of the game's kind (R1 run 8's end): the "
-          "call answers 1, the group's function keeps our task on its shelf under a tag, the task never runs, the "
-          "searches find only the tagged copy, the shelf's and the rack's diffs show it, and both reports lint clean")
+     what="R1 as the owner runs it, on a fake game whose ledger (G) keeps only tasks of the game's kind (R1 run 9's "
+          "end): the call answers 1, G's method keeps nothing of our task, the task never runs, the searches find no "
+          "copy, plain or tagged, G is the shelf's and not walked, and both reports lint clean")
+# Spike.11's case (WHY§293): the ledger's deferred byte set (--task-queue), G's method takes R1 run 10's other path: it
+# copies the request to the heap and hands it to G's queue, where R1 finds it at 50 and 250 ms; a later frame drains it
+# (after FG_QUEUE_DRAIN_MS) and runs it, so the task runs, as in the default case, a second late.
+def check_r1_queued(result):
+    failures = check_r1(result, queued=True)
+    failures += any_line(result, "FAKEGAME", "ledger", queued=str(result.truth["task"]["standin"]["index"]))
+    failures += any_line(result, "FAKEGAME", "ledger", drained=str(result.truth["task"]["standin"]["index"]))
+    return failures + any_line(result, "ELDENNET", "r1", stage="queue")
+
+
+case("launcher-eldennet-probe-queue", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                               "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--task-queue",
+          "--reload-every", "360", "--load-frames", "180", frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_queued,
+     what="R1 as the owner runs it, on a fake game whose ledger (G) queues each request (R1 run 10's other path): the "
+          "request in G's queue at 50 and 250 ms, drained and run by a later frame, the task confirmed, and both "
+          "reports lint clean")
+# Spike.10 (WHY§290): R1 run 9's launcher stopped logging at the call: its console's output was suspended (a click inside
+# a classic console window, LIKELY), and the watch loop with it. Here the launcher's console writer blocks for good after
+# a few lines (its test hook ELDENNET_TEST_CONSOLE, with a queue of a few lines): launcher.log still carries every line,
+# the status lines, the 30 s no-confirmation step, the lint and the end; the console's dropped lines are counted there.
+def launcher_log_lines(result):
+    path = os.path.join(result.paths["appdata"], "EldenNet", "logs", "launcher.log")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return [l.rstrip("\r\n") for l in f]
+
+
+def check_console_blocked(*events, statuses=5):
+    """The console blocked (stdout held its first few lines): each event in launcher.log and not on the console, status
+    lines on after the block (with the console's status lines on), the first dropped line noted, and the totals at the
+    end with lines dropped."""
+    def check(result):
+        failures = []
+        log = launcher_log_lines(result)
+        out = [l.rstrip("\r") for l in result.out.splitlines() if l.startswith("LAUNCHER ")]
+        need(0 < len(out) <= 4, "%d LAUNCHER lines on the console, wanted 1 to 4" % len(out), failures)
+        need(all(l in log for l in out), "the console's lines, not all in the log", failures)
+        for prefix in events:
+            need(any(l.startswith(prefix) for l in log) and not any(l.startswith(prefix) for l in out),
+                 "%r: in the log %s, on the console %s" % (prefix, any(l.startswith(prefix) for l in log),
+                                                            any(l.startswith(prefix) for l in out)), failures)
+        status = [l for l in log if l.startswith("LAUNCHER status ")]
+        need(len(status) >= statuses, "%d status lines in the log" % len(status), failures)
+        need(any(l.startswith("LAUNCHER console dropped=1 queue_full=1") for l in log), "no first drop noted", failures)
+        totals = [l for l in log if l.startswith("LAUNCHER console lines=")]
+        kv = dict(x.split("=", 1) for x in totals[-1].split()[2:]) if totals else {}
+        need(totals and int(kv.get("dropped", 0)) > 0 and kv.get("drained") == "0",
+             "the console's totals: %s" % totals, failures)
+        return failures
+    return check
+
+
+case("launcher-eldennet-probe-console", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                 "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--task-gate",
+          frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), timeout=240, settle=True,
+     env=dict(EN_ENV, ELDENNET_TEST_CONSOLE="block_after=3,queue=6"),
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=lambda r: check_r1_gate(r) + check_console_blocked(
+         "LAUNCHER r1 step=no_confirmation", "LAUNCHER r1 report=r1-probe.json lint=clean",
+         "LAUNCHER r1 step=reports_clean", "LAUNCHER end ", "LAUNCHER finish ")(r),
+     what="R1 as run 9 (G keeps nothing, --task-gate) with the launcher's console blocked after three lines: the watch "
+          "loop, the status lines, the 30 s no-confirmation step, the lint and the end go on in launcher.log, the "
+          "console's dropped lines counted there")
+case("launcher-crash-console", LGAME + ["--dll", "{galtest}"] + game("--crash", "av-read", "--crash-at", "400",
+                                                                      frames=720),
+     program="{launcher}", needs=LGAL_NEEDS, toolchains=("clang-cl",), timeout=180, settle=True,
+     env=dict(GALTEST_ENV, ELDENNET_TEST_CONSOLE="block_after=2,queue=4"),
+     check=lambda r: check_crash("game")(r) + check_console_blocked("LAUNCHER crash ", "LAUNCHER end ", statuses=0)(r),
+     what="the game crashes while the launcher's console is blocked after two lines: the crash watcher still lists the "
+          "modules, keeps its record and logs the crash and the end")
+
 case("launcher-eldennet-probe-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                                  "--probe"] + game("--stay-title", "--press-pause-at", "120",
                                                                    frames=600),
@@ -3444,7 +4299,9 @@ def cmd_run(args):
             return 1
         argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
         argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
-    env.update({k: re.sub(r"\{(\w+)\}", as_windows, v) for k, v in c.env.items()})
+    # A `{text_...}` name stands for a value of the case's own (no path): it is put in as it is.
+    env.update({k: re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)] if m.group(1).startswith("text_") else
+                          as_windows(m), v) for k, v in c.env.items()})
     if c.name.startswith("probe-exe"):
         args.set_paths = paths
         start = time.monotonic()

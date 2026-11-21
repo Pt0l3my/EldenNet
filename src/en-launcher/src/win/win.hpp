@@ -37,8 +37,13 @@ namespace fs = std::filesystem;
 // The launcher's lines: "LAUNCHER <event> key=value … t=<ms>", to standard output when there is one (a console, or a
 // pipe as under the tests) and to launcher.log. They hold numbers and fixed words only: never a path, a user name or
 // an id (PV rules).
+// Since spike.10 (WHY§290) launcher.log is written first and the console by a thread of its own, through a bounded
+// queue that drops lines rather than wait (lines.hpp), with QuickEdit off for the launcher's console; close_output, at
+// the end, waits a second at most for the console, notes in the log how many lines it was given and dropped, and
+// restores the console's mode.
 void open_output(bool console);
 void open_log(const fs::path& logs_dir);
+void close_output();
 void say(const char* fmt, ...);
 // A plain sentence for the owner, on the console only (R1's steps, --probe): never in the log, which keeps to say()'s
 // numbers and words.
