@@ -889,7 +889,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     word of the entry, to a method of a second singleton (0x2658FB0, not yet read). Nothing in memory keeps our task,
     plainly or tagged, and the group's memory did not change. The launcher's log stopped at the call, so no 30 s text
     was shown and the crash watcher was blocked. Spike.10 reads that method and the second singleton, and the
-    launcher's console no longer blocks its watch (WHY§289, WHY§290).
+    launcher's console no longer blocks its watch (WHY§289, WHY§290). Spike.10 sent on 2026-11-21 (engine b5c2966;
+    WHY§291, WHY§292).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175

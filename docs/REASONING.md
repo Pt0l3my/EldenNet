@@ -313,6 +313,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 288 | 2026-11-21 | A row's changed mark is the space's own list, not a value compared with its default | DECIDED | #graceui #settings |
 | 289 | 2026-11-21 | R1 run 9: the group's function hands our untouched task to a second singleton's method; nothing in memory keeps it | FACT | #gal #r1 #task |
 | 290 | 2026-11-21 | R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked | FACT | #launcher #r1 #console |
+| 291 | 2026-11-21 | R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites | DECIDED | #gal #r1 #task |
+| 292 | 2026-11-21 | The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off | DECIDED | #launcher #r1 #console |
 
 ## Entries
 
@@ -4910,3 +4912,47 @@ invariant 10, EldenNet ARCH (T3)
 - **Next:** the launcher turns QuickEdit off for its console, writes the file first, and keeps console output off the
   watch loop (a writer thread with a bounded queue that drops console lines rather than waiting). Until then, the
   README asks the player not to click inside the console.
+
+### 291. R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites
+
+`2026-11-21` · DECIDED, with FACT on the fake game · `#gal` `#r1` `#task` · refs: WHY§289, WHY§248, WHY§240, S10.1.f
+
+- **G's method** (DECIDED): the group function's first tail jump (else call) that passes our task with rcx loaded from
+  a 64-bit RIP-relative slot is the site, and rcx there is G. A stub of 16 bytes or fewer, with no call, branch or
+  return and a direct tail jump last, is followed without spending a depth level, with the registers it zeroes. G's
+  method is summarised at depth 3 and its direct callees and tail jumps at 4, within the group's 16 summaries, with
+  `task_reads`, `task_stores`, `g_reads` (loads based on G) and `word_uses` (the entry's word compared, tested, stored,
+  passed, changed or used as an index), the word followed through 32-bit moves, movsxd and lea.
+- **A fix** (METHOD): a direct jump to a function start from the exception directory now ends a summary; spike.9 let a
+  forward jump extend the code decoded.
+- **The numbers** (DECIDED), just before the call and 2 s after it: G's slot (zero or heap) and its class against the
+  leads (O92's rule); whether CSTask's instance holds G at +8 and the entry at +0x58; group 110's word, and over every
+  entry how many hold their own index and how many distinct words there are. G is walked as a fourth root, with its
+  control, unless it is a root or the object at +8 or +0x58. The array behind +0x3B0 and +0x3D0 is read again at 50 and
+  250 ms and at 2 s, its new rdata words classed, a small word compared with the main window's thread and with the
+  calling thread.
+- **The game's own tasks** (DECIDED): at each of the first 16 call sites of register_task, the task argument read back
+  along the straight line to its last write (member, static, load, result, argument, stack or other, with one level of
+  its base); the sibling at 0xEB5540 summarised to depth 4, 12 summaries at most. Past 256 KiB the forms go first, the
+  group function and G's method last (eleven passes; the fake game's report is about 210 KB).
+- **On the fake game** (FACT): its group function reproduces run 9's shape. Spike.10 finds G's method through the stub,
+  with 2 task reads (one compared with a small immediate), 3 reads of G and 4 uses of the word; G on the heap, classed,
+  no lead, held at neither offset; every word its entry's own index; the array's change seen at 50 ms and the main
+  thread's stamp from 250 ms; the four call-site forms as built. With a strict G the call answers 1 and keeps nothing,
+  as in run 9.
+- **A self-test kept honest** (METHOD): with r9 zeroed by the stub, the fake game's swapped call (the hub passed as the
+  task) ran and faulted; the fake now keeps the hub it was given, so that case is refused at the hub again.
+
+### 292. The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off
+
+`2026-11-21` · DECIDED · `#launcher` `#r1` `#console` · refs: WHY§290, O71, O90
+
+- **The order** (DECIDED): every line goes to launcher.log first, then into a queue of 256 lines for one console writer
+  thread, under the same lock; a line that finds the queue full is dropped and counted, never waited on. The first drop
+  is noted in the log, and the end logs the totals; at exit the writer gets one second at most.
+- **QuickEdit** (DECIDED): with the console (`--console`, `--probe`) the launcher turns QuickEdit off while it runs and
+  restores the mode it found; with no console (a pipe, as in the tests) it changes nothing.
+- **Tested** (FACT): with the console writer blocked after three lines, launcher.log kept every line to the end (the
+  status lines, the no-confirmation step at 43.6 s, both lints and the end), with 79 console lines dropped; a crash with
+  the console blocked is still recorded. README-R1.txt asks players not to click inside the console until this
+  launcher has replaced the old one.
