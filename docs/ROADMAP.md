@@ -1226,7 +1226,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, G34
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1276,8 +1276,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     its fixed budgets read-only; the Jobs table gone; a picker's Default is its row's reset. EldenNet's GraceUI floor
     is 0.2.12. Checked on the fake game in both views against the fake model server, both keys nowhere (WHY§300).
     Left: the Decisions (0.4) and Profile drafts (0.6) cards, Prepared lines' pool row, state and "Prepare lines now"
-    (its section action, with the pool), Advice, Apply and Reset to preset; the slice's eleven readings; GraceUI's
-    pacing of a page's subscriptions, asked the same day.
+    (its section action, with the pool), Advice, Apply and Reset to preset; GraceUI's pacing of a page's
+    subscriptions, asked the same day. The owner accepted the slice's eleven readings as written (O99), and both slices
+    are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings wait.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

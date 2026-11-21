@@ -63,7 +63,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
 - **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
   key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
-  the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day.
+  the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
+  accepted as written the same day.
 - **Open.** None.
 
 ## O1
@@ -1831,3 +1832,25 @@ the file refuses a `key_ref` on it), and it is never probed, only added by the p
 **Owner's words.** "O98: a"
 
 **Follows from.** ARCH §11.1, §11.5; PAGES §4.6.2, §4.9; S11.4.a.
+
+## O99
+
+**The AI pages' fifth slice: its eleven readings** · *2026-11-21 · Decided by the owner, as written*
+
+**Question.** The fifth pages slice (S11.4.a; WHY§300) made AI › Models one card per job on GraceUI 0.2.12 (G36 (a))
+and left eleven readings in its notes for the owner: the GraceUI floor at 0.2.12 (Q1); GraceUI asked to pace a page's
+subscriptions (Q2); a job's state words and tones, "Ready" before any call has answered and "No key yet" in glint (Q3);
+a fallback from the preset changed but never removed in v0.2 (Q4); no fallback for a job that borrows Conversation's
+models (Q5); a job's reset clearing its whole table, a fallback's reset the fallback alone (Q6); the changed mark by
+what the job's table gives (Q7); "Same as Conversation" as the first line of a borrowing card (Q8); no overview table,
+the cards open (Q9); the cards' words (Q10); a fallback counting as a provider's use for Remove (Q11).
+**Options:** accept them as written, or change any of them.
+
+**Recommendation.** Accept as written, each as its notes recommend.
+
+**Decision.** All eleven as written, as built in the fifth slice (engine feat/engine b05fda5).
+
+**Owner's words.** "Choices for you (or reply “accept as written”): accept as written"
+
+**Follows from.** PAGES §4.6.2, §4.5; ARCH §11.2, §11.4; G36; S11.4.a; WHY§297, WHY§300.
+
