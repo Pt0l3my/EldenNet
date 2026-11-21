@@ -195,6 +195,8 @@ json errors_body(const SpaceFacts& f) {
   return json{{"checks", std::move(checks)}};
 }
 
+json compatibility_body(const SpaceFacts& f);
+
 json system_status_body(const SpaceFacts& f) {
   const Lamp lamp = lamp_of(f);
   const std::string reason = reason_of(f);
@@ -258,8 +260,10 @@ json system_status_body(const SpaceFacts& f) {
     }
   }
   json columns = json::array({json{{"id", "group"}, {"label", "Group"}}, json{{"id", "state"}, {"label", "Self-test"}}});
-  return json{{"items", std::move(items)}, {"checks", std::move(checks)}, {"columns", std::move(columns)},
-              {"rows", std::move(rows)}};
+  // The Compatibility tab's checks, a member of the same body (GraceUI D185's `props.field`): one topic for the page.
+  return json{{"items", std::move(items)},     {"checks", std::move(checks)},
+              {"columns", std::move(columns)}, {"rows", std::move(rows)},
+              {"compatibility", compatibility_body(f)}};
 }
 
 json compatibility_body(const SpaceFacts& f) {
@@ -652,14 +656,14 @@ json choices_body(const SpaceFacts& f, std::string_view slot) {
   return json{{"choices", std::move(choices)}};
 }
 
-// GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 the AI pages, with the banner's own
-// words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or with no healthy model, every page stays usable and
-// the AI pages lead with the cause (ai.status). Home's greying at L1 is the slice's that reworks Home.
+// GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 Home and the AI pages (PAGES §4.4; System
+// and Settings stay usable), with the banner's own words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or
+// with no healthy model, every page stays usable and the AI pages lead with the cause (ai.status).
 json space_state_body(const SpaceFacts& f) {
   json greyed = json::object();
   if (f.level == Level::Inactive) {
     const std::string words = banner_words(f);
-    for (const char* page : {"ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
+    for (const char* page : {"home", "ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
   }
   return json{{"greyed", std::move(greyed)}};
 }
@@ -674,10 +678,10 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 16> kStates = {
-    "settings",  "status",      "errors",          "system.status",       "system.compatibility", "ai.status",
-    "providers", "health",      "ai.slots",        "selftest",            "space.state",          "ai.choices.dialogue",
-    "ai.choices.bark_live",     "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest"};
+constexpr std::array<std::string_view, 15> kStates = {
+    "settings",          "status",       "errors",       "system.status",        "ai.status",
+    "providers",         "health",       "ai.slots",     "selftest",             "space.state",
+    "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest"};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -1244,7 +1248,6 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "status") return status_body(facts);
   if (topic == "errors") return errors_body(facts);
   if (topic == "system.status") return system_status_body(facts);
-  if (topic == "system.compatibility") return compatibility_body(facts);
   if (topic == "ai.status") return ai_status_body(facts);
   if (topic == "providers") return providers_body(facts);
   if (topic == "health") return health_body(facts);

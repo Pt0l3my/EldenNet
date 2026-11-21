@@ -5,6 +5,7 @@
 // topics.json, which grace-dev previews (tests/pages; EN_UPDATE_FIXTURES=1 writes them anew).
 #include <doctest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -332,6 +333,28 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
   }
   CHECK(row_actions == 1);
   CHECK(forms == 1);
+  // Home's and System's blocks on GraceUI 0.2.7's props (D185 to D187): one topic for System › Status, its own words
+  // for an empty list, the log newest first.
+  std::vector<std::string> topics;
+  for (const json& t : pages["topics"]) topics.push_back(t["id"].get<std::string>());
+  CHECK(std::find(topics.begin(), topics.end(), "system.compatibility") == topics.end());
+  const auto block_of = [&](std::string_view page, std::string_view section) {
+    for (const json& p : pages["pages"]) {
+      if (p["id"].get<std::string>() != page) continue;
+      std::vector<json> all = p.value("sections", json::array());
+      for (const json& tab : p.value("tabs", json::array())) {
+        for (const json& sec : tab["sections"]) all.push_back(sec);
+      }
+      for (const json& sec : all) {
+        if (sec["id"].get<std::string>() == section) return sec["blocks"][0];
+      }
+    }
+    return json();
+  };
+  CHECK(block_of("home", "problems")["props"]["empty"] == "No problems.");
+  CHECK(block_of("system.logs", "log")["props"]["newest_first"] == true);
+  CHECK(block_of("system.status", "versions")["props"]["field"] == "compatibility");
+  CHECK(block_of("system.status", "versions")["topic"] == "system.status");
   // Each job's model row is a picker on a topic of the space's own (D193).
   for (const json& s : settings["settings"]) {
     if (s["key"].get<std::string>().rfind("slots.", 0) != 0) continue;
@@ -580,11 +603,14 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   for (const json& c : s.body("system.status", title())["checks"]) CHECK(c["label"] != "Recording");
   CHECK(s.body("errors", title())["checks"].empty());
   CHECK(s.body("system.status", world())["rows"].size() == en::proto::kGroupCount);
+  // The Compatibility tab reads the same topic's `compatibility` member (GraceUI D185).
+  const json compatibility = s.body("system.status", title())["compatibility"]["checks"];
+  REQUIRE(compatibility.size() == 3);
+  CHECK(compatibility[0]["label"] == "Game build 3.14.15.0");
+  CHECK(compatibility[2]["detail"] == "EldenNet needs GraceUI 0.2.8 or later");
 
   for (const char* state : kStates) {
-    for (const char* topic : {"status", "errors", "system.status", "system.compatibility"}) {
-      CHECK(clean(s.body(topic, facts_of(state))));
-    }
+    for (const char* topic : {"status", "errors", "system.status"}) CHECK(clean(s.body(topic, facts_of(state))));
   }
 }
 
@@ -654,11 +680,12 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words.
   CHECK(s.body("space.state", f) == json{{"greyed", json::object()}});
   const json greyed = s.body("space.state", facts_of("banner"))["greyed"];
-  CHECK(greyed.size() == 3);
+  CHECK(greyed.size() == 4);  // Home and AI (PAGES §4.4): System and Settings stay usable
   CHECK(greyed["ai.selftest"] == "EldenNet inactive: game build 3.14.15.0 not supported yet");
+  CHECK(greyed["home"] == greyed["ai.selftest"]);
   CHECK(greyed.contains("ai.providers"));
-  CHECK_FALSE(greyed.contains("home"));
   CHECK_FALSE(greyed.contains("system.status"));
+  CHECK_FALSE(greyed.contains("settings.developer"));
   SpaceFacts long_banner = facts_of("banner");
   const std::string words(300, 'w');
   long_banner.stop_text = words;
@@ -1006,9 +1033,7 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     feed(s, state);
     const SpaceFacts f = facts_of(state);
     json topics = json::object();
-    for (const char* topic : {"status", "errors", "system.status", "system.compatibility"}) {
-      topics[topic] = s.body(topic, f);
-    }
+    for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
     topics["logs"] = s.log_rows();
     const std::string text = topics.dump(2) + "\n";

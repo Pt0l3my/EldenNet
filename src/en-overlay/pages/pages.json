@@ -103,7 +103,10 @@
             {
               "kind": "component",
               "component": "check_list",
-              "topic": "errors"
+              "topic": "errors",
+              "props": {
+                "empty": "No problems."
+              }
             }
           ]
         }
@@ -162,7 +165,10 @@
                 {
                   "kind": "component",
                   "component": "table",
-                  "topic": "system.status"
+                  "topic": "system.status",
+                  "props": {
+                    "empty": "Each group appears here after EldenNet's first reading of the game."
+                  }
                 }
               ]
             }
@@ -179,7 +185,10 @@
                 {
                   "kind": "component",
                   "component": "check_list",
-                  "topic": "system.compatibility"
+                  "topic": "system.status",
+                  "props": {
+                    "field": "compatibility"
+                  }
                 }
               ]
             }
@@ -195,7 +204,7 @@
       "help": {
         "purpose": "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only.",
         "steps": [
-          "Read the newest lines at the end of the log.",
+          "Read the newest lines at the top of the log.",
           "Change how much it writes with Log detail; the change applies at once.",
           "Keep the page open while you play: new lines join the log as they are written."
         ]
@@ -213,7 +222,10 @@
             {
               "kind": "component",
               "component": "log_tail",
-              "topic": "logs"
+              "topic": "logs",
+              "props": {
+                "newest_first": true
+              }
             }
           ]
         },
@@ -589,10 +601,6 @@
     },
     {
       "id": "system.status",
-      "shape": "state"
-    },
-    {
-      "id": "system.compatibility",
       "shape": "state"
     },
     {

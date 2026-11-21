@@ -1390,7 +1390,7 @@ def browse_eldennet(paths, out):
     try:
         view = browser.Browser(port, timeout=10)
         out["welcome"] = view.welcome
-        for topic in ("status", "errors", "system.status", "system.compatibility", "logs", "settings"):
+        for topic in ("status", "errors", "system.status", "logs", "settings"):
             view.sub("eldennet", topic)
             out[topic] = view.state("eldennet", topic, timeout=10)
         out["set_ok"] = view.command("eldennet", "settings.set", {"key": "debug.record_sessions", "value": False})
@@ -1430,7 +1430,8 @@ def check_graceui_pages(r):
          parts.get("GraceUI") == "pass", "EldenNet's parts: %s" % parts, failures)
     need(len(body("system.status").get("rows", [])) == 11, "the read groups: %d rows" %
          len(body("system.status").get("rows", [])), failures)
-    compatibility = [c.get("label") for c in body("system.compatibility").get("checks", [])]
+    # System › Status's Compatibility tab reads the topic's `compatibility` member (GraceUI D185's props.field).
+    compatibility = [c.get("label") for c in body("system.status").get("compatibility", {}).get("checks", [])]
     need("Game build 3.14.15.0" in compatibility and "EldenNet 0.1.0" in compatibility,
          "Compatibility: %s" % compatibility, failures)
     logs = d.get("logs", {})

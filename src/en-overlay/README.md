@@ -108,7 +108,7 @@ game's own text entry is not read in v0.1.
   order (a category with no page yet holds none, and GraceUI shows no empty category), the pages (Home, System ›
   Status and Logs, Settings › Developer from the first slice; AI › Providers, Models and Self-test from the second,
   writable from the third on GraceUI 0.2.8's protocol 1.2: D192 to D196), its topics (`settings`, `status`, `errors`,
-  `system.status`, `system.compatibility`, `logs`; `ai.status`, `providers`, `health`, `ai.slots`, `selftest`, and
+  `system.status`, `logs`; `ai.status`, `providers`, `health`, `ai.slots`, `selftest`, and
   `ai.choices.<slot>` for each job's picker), its commands (`settings.set`, `settings.reset`, `selftest.run`,
   `models.list`, `providers.add`, `providers.remove`, `providers.key`) and the settings whose home is there
   (`debug.panel`, `debug.record_sessions`, `debug.log_level`; `ai.preset` and each job's model, `slots.<slot>.model`).
@@ -128,8 +128,9 @@ game's own text entry is not read in v0.1.
   `page`; no lamp while EldenNet is starting) and Home's Status card (`items`); `errors` Home's Problems (`checks`: the
   failed start in the banner's own words with its fix, a read group stopped, a refused settings file);
   `system.status` System › Status's Health (`items`), EldenNet's parts as lamps (`checks`: the start, reading the game,
-  the core, the anti-cheat watch, the log, the recording when asked for, GraceUI) and the read groups' self-tests
-  (`columns`, `rows`); `system.compatibility` the versions and how EldenNet started; `logs` the log's own lines (500
+  the core, the anti-cheat watch, the log, the recording when asked for, GraceUI), the read groups' self-tests
+  (`columns`, `rows`) and the Compatibility tab's versions and how EldenNet started (`compatibility`, the member its
+  block reads, GraceUI D185's `props.field`); `logs` the log's own lines (500
   held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
   own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
   inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
@@ -141,9 +142,11 @@ game's own text entry is not read in v0.1.
   the figures and this session's earlier runs, nothing before the first run; `ai.choices.<slot>` a job's picker's
   choices (D193), what the job's provider listed last, in its order, at most 256, any id that looks like a path left
   out (`pickable`: a backslash, a leading '/' or '~', a drive's letter, a home folder; PV5). Never a key or the
-  model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): the AI pages greyed at L1 with the
-  banner's own words (O95's one form), nothing greyed otherwise (at L2 every page stays usable, led by `ai.status`). The
-  AI pages' blocks carry `props.empty` words for a topic that published nothing for them (D186).
+  model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): Home and the AI pages greyed at L1 with
+  the banner's own words (PAGES §4.4, O95's one form), nothing greyed otherwise (at L2 every page stays usable, led by
+  `ai.status`). Blocks whose topic can publish nothing for them carry `props.empty` words (D186): Home's Problems "No
+  problems.", System's read groups before the first reading, the AI pages'; Logs' tail is newest first in the browser
+  (`props.newest_first`, D187).
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings

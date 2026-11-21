@@ -403,25 +403,6 @@
     "tone": "glint",
     "word": "Dormant"
   },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Supported",
-        "label": "Game build 3.14.15.0",
-        "state": "pass"
-      },
-      {
-        "detail": "Started by the EldenNet launcher",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.8 or later",
-        "label": "GraceUI 0.2.8",
-        "state": "pass"
-      }
-    ]
-  },
   "system.status": {
     "checks": [
       {
@@ -465,6 +446,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Supported",
+          "label": "Game build 3.14.15.0",
+          "state": "pass"
+        },
+        {
+          "detail": "Started by the EldenNet launcher",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.8 or later",
+          "label": "GraceUI 0.2.8",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

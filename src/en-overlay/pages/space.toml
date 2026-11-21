@@ -20,7 +20,8 @@ settings_schema = 2
 commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
             "providers.key"]
 
-# ---- Topics (GraceUI DESIGN §6.5's names; `system.compatibility` is this slice's, for its notes).
+# ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
+# member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
 
 [[topic]]
 id = "settings"
@@ -36,10 +37,6 @@ shape = "state"
 
 [[topic]]
 id = "system.status"
-shape = "state"
-
-[[topic]]
-id = "system.compatibility"
 shape = "state"
 
 [[topic]]
@@ -92,8 +89,8 @@ shape = "state"
 id = "ai.choices.selftest"
 shape = "state"
 
-# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 the AI pages are greyed with
-# the banner's words (PAGES §4.4); Home's greying at L1 waits for the slice that reworks Home.
+# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 Home and the AI pages are
+# greyed with the banner's words (PAGES §4.4, O95).
 
 [[topic]]
 id = "space.state"
@@ -288,7 +285,7 @@ blocks = [{ kind = "component", component = "key_value_list", topic = "status" }
 [[page.sections]]
 id = "problems"
 title = "Problems"
-blocks = [{ kind = "component", component = "check_list", topic = "errors" }]
+blocks = [{ kind = "component", component = "check_list", topic = "errors", props = { empty = "No problems." } }]
 
 [[page]]
 id = "system.status"
@@ -303,12 +300,12 @@ help.steps = ["On Health, read the state and its reason, then whether this game 
 [[page.tabs]]
 id = "health"
 name = "Health"
-sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status" }] }]
+sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status", props = { empty = "Each group appears here after EldenNet's first reading of the game." } }] }]
 
 [[page.tabs]]
 id = "compatibility"
 name = "Compatibility"
-sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.compatibility" }] }]
+sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.status", props = { field = "compatibility" } }] }]
 
 [[page]]
 id = "system.logs"
@@ -318,12 +315,12 @@ description = "EldenNet's own log of this session, with nothing personal in it."
 increment = "0.1"
 related = ["system.status", "settings.developer"]
 help.purpose = "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only."
-help.steps = ["Read the newest lines at the end of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
+help.steps = ["Read the newest lines at the top of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
 
 [[page.sections]]
 id = "log"
 title = "Log"
-blocks = [{ kind = "component", component = "log_tail", topic = "logs" }]
+blocks = [{ kind = "component", component = "log_tail", topic = "logs", props = { newest_first = true } }]
 
 [[page.sections]]
 id = "detail"
