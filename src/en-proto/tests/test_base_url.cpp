@@ -65,7 +65,7 @@ TEST_CASE("base url: each refusal named") {
   CHECK(problem("https://example.invalid/%2") == UrlProblem::Characters);
   CHECK(problem("https://example.invalid/\xC3\xA9") == UrlProblem::Characters);
   CHECK(problem("https://example.invalid/a\"b") == UrlProblem::Characters);
-  // http:// only to this PC: never to another host, a private address included (the owner's to decide).
+  // http:// only to this PC: never to another host, a private address included (fd00::/8 here; the owner's to decide).
   CHECK(problem("http://models.example.invalid/v1") == UrlProblem::PlainRemote);
   CHECK(problem("http://[fd00::20]:1234/v1") == UrlProblem::PlainRemote);
   CHECK(problem("http://127.example.invalid/v1") == UrlProblem::PlainRemote);  // a name, not 127.0.0.0/8
