@@ -47,7 +47,14 @@
 //   the fields of G the method reads, before and 50, 250 and 2,000 ms after the call, and the path it took
 //   (`method.g_fields`, `path_taken`); G's queue walked at the same times (`queue`); the game's own requests in the
 //   memory searches (`request_found`, `request_hits`, `request_tasks`); the RTTI bases of the objects met
-//   (`classes`, `shared_bases`); and the entries' words' low and high halves (`own_low`, `highs`).
+//   (`classes`, `shared_bases`); and the entries' words' low and high halves (`own_low`, `highs`);
+// - since spike.12 (WHY§296): the manager's map that the now path's function walks, its layout derived from that
+//   function's summary, and the manager's list (`map`: the shape, then the readings just before the call, at about 50
+//   and 250 ms and 2 s after it and every 10 s while the game runs, the first, each where the map's node count, the
+//   presence of the group's word or the stage changes, and the last: the keys' halves, the word's presence or its
+//   nearest keys, the values' and the list's entries' kinds and classes, counted); the function a match calls and the
+//   one called before the task's slot on the other branch, summarised with one level further, the map's value followed
+//   (`value_reads`); and a compare's memory operand where it is compared with a followed value.
 // It is in en-gal's offline part, beside derive.json's report, so that the launcher lints R1's two reports after an R1
 // session (--probe) without en-core (ARCH §2.3). The probe build of eldennet.dll fills `Findings` in game
 // (win/probe_r1.cpp); probe.hpp's searches, which find what it holds, are en_gal_game_probe's.
@@ -199,6 +206,7 @@ struct PassedSource {
   bool holds_word = false;
   bool holds_request = false;
   bool holds_manager = false;
+  bool holds_value = false;  // spike.12: the manager's map's value
 };
 // A register holding one of the summarised function's arguments at a call (or a tail jump).
 struct PassedArg {
@@ -304,12 +312,14 @@ struct FieldUse {
   bool large = false;                   // Compared: an immediate past it
   std::optional<std::uint8_t> reg;      // Passed: the register at the call (or tail jump)
   std::optional<std::uint32_t> target;  // Passed, Called: a direct call's or tail jump's RVA
-  std::optional<std::uint8_t> base;     // Stored: the address's base register
-  std::optional<Source> base_src;       // Stored: what that base holds
+  // Stored, and since spike.12 ComparedOther with a memory operand (`width` not 0): the address's base register, what
+  // that base holds, the displacement (RIP-relative: the slot's RVA) and the bytes stored or compared.
+  std::optional<std::uint8_t> base;
+  std::optional<Source> base_src;
   std::optional<std::uint8_t> index;
-  std::int64_t disp = 0;                // Stored: the displacement (RIP-relative: the slot's RVA)
+  std::int64_t disp = 0;
   bool rip = false;
-  std::uint8_t width = 0;               // Stored: bytes stored
+  std::uint8_t width = 0;
   std::optional<InsnClass> op;          // Changed: the instruction's class
 };
 struct FieldRead {
@@ -405,6 +415,9 @@ struct CalleeCode {
   std::uint32_t manager_read_count = 0;
   std::vector<FieldRead> manager_reads;
   std::vector<StackStore> stack_stores;
+  // Spike.12 (WHY§296): the loads from the manager's map's value (rcx in the function a match calls), the first 16.
+  std::uint32_t value_read_count = 0;
+  std::vector<FieldRead> value_reads;
 };
 // A callee of the summarised function (a direct call's target, or a tail jump's), summarised in turn with the
 // arguments its call site passes it: its `args` are the wrapper's (spike.7, WHY§235).
@@ -726,6 +739,69 @@ struct ClassBases {
 };
 inline constexpr std::size_t kMaxBases = 16;
 
+// Spike.12 (WHY§296): the manager's map, which the now path's function walks with any word but 0 (R1 run 11), and its
+// list, which it walks with a word of 0. Its layout, derived from that function's summary (probe.hpp's map_shape):
+// the head's place in the manager, the root's in the head, the byte compared with 0 at each node (the head's not
+// zero), the key compared with the word and its width, the value passed on a match, the children (the tree's own),
+// and the list's begin and end in the manager; the function a match calls (with the value, the task, the word and the
+// manager) and the one called before the task's slot on the other branch (with the task). `failed`: the first part
+// that could not be derived (no_now, head, root, nil, key, call, shape), when nothing is read.
+struct MapShape {
+  std::int64_t head_disp = 0, root_disp = 0, nil_disp = 0, key_disp = 0, value_disp = 0;
+  std::uint8_t key_width = 0;
+  std::int64_t left_disp = 0, right_disp = 0;
+  std::optional<std::int64_t> list_begin, list_end;
+  bool value_known = false;                // the value's displacement from the call's rcx (else 8 past the key)
+  std::optional<std::uint32_t> call;       // RVA
+  std::optional<std::uint32_t> call_site;  // its offset in the now path's function
+  std::optional<std::uint32_t> other;      // RVA
+  std::string_view failed;
+};
+// Values counted by kind and class (a pointer's class by RTTI, O92's rule), the first kMaxValueClasses distinct.
+struct ValueCount {
+  WordValue kind;
+  std::optional<ClassMatch> cls;
+  std::uint32_t count = 0;
+};
+// One reading of the map and of the list: when (after the call; just before it 0) and at what stage (title: no
+// character of the leads' sets held by a singleton, loading screens included; world: one held; unknown); the
+// manager's word beside the head as a kind; the nodes walked, whether their keys rose in order, whether the root's
+// parent is the head and the head's children the first and last nodes (MSVC's tree); the keys' low 16 bits in order
+// (the first kMaxMapKeys) and their high 16 bits with how many keys hold each (the first 8, by value); whether the
+// group's word is among them, else the nearest keys below and above it; the values' kinds and classes; the list's
+// count and its entries' kinds and classes. A check that failed is named (manager, head, head_nil, pointer, unread,
+// node_nil, cycle, too_many; for the list also no_list, order) and nothing more of that part is given.
+struct MapRead {
+  std::uint64_t at_ms = 0;
+  std::string_view stage = "unknown";
+  bool read = false;
+  std::string_view failed;
+  std::optional<WordValue> count_word;
+  std::uint32_t nodes = 0;
+  bool ordered = false;
+  std::optional<bool> root_parent, head_ends;
+  std::vector<std::uint32_t> key_lows;
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> key_highs;
+  std::optional<bool> word_present;
+  std::optional<std::uint64_t> below, above;
+  std::vector<ValueCount> values;
+  std::optional<std::uint64_t> list_count;
+  std::string_view list_failed;
+  std::vector<ValueCount> list_values;
+};
+// The map across the run: its shape, the group's word looked for (the group's entry's, as read just before the call;
+// none without an entry, and then no reading says whether it is there), how many readings were made and how many
+// changed the map's node count, the word's presence or the stage, and the readings kept (the first, each change, at
+// most kMaxMapChanges, and the last).
+struct ManagerMap {
+  MapShape shape;
+  std::optional<std::uint32_t> word;
+  std::uint32_t made = 0;
+  std::uint32_t changes = 0;
+  std::vector<MapRead> readings;
+};
+inline constexpr std::size_t kMaxMapChanges = 24;
+
 // Spike.10 (WHY§289): the array behind CSTask's instance at +0x3B0, then +0x3D0, that changed after the call in runs 7
 // to 9, seen by the hub's walk as four views (depth 3, four sibling pointers 32 bytes apart). Each view's bytes as the
 // walk before the call kept them, read again about 50 and 250 ms after the call and at 2 s: the words that changed, each
@@ -847,9 +923,13 @@ struct Findings {
   std::vector<RequestSearch> request_search;
   std::vector<ClassBases> classes;
   std::vector<std::pair<std::uint32_t, std::uint32_t>> shared_bases;  // type descriptor, classes listing it
+  // Spike.12 (WHY§296): the manager's map and list.
+  std::optional<ManagerMap> map;
 };
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;
-[[nodiscard]] proto::Expected<std::string, report::Problem> write_report(const Findings& f);
+// Pretty-printed, or (since spike.12, when that is past 256 KiB) on one line.
+[[nodiscard]] proto::Expected<std::string, report::Problem> write_report(const Findings& f,
+                                                                        report::Style style = report::Style::Pretty);
 
 }  // namespace en::gal::probe

@@ -416,9 +416,56 @@ constexpr std::array<Key, 1> kSpike11More = {{
     {"highs", Type::Array, Type::Object},
 }};
 
+// Spike.12 (WHY§296): the manager's map and list, their readings, the map's value followed, and the stage.
+constexpr std::array<std::string_view, 7> kShapeFails = {"no_now", "head", "root", "nil", "key", "call", "shape"};
+constexpr std::array<std::string_view, 3> kWorldStages = {"title", "world", "unknown"};
+constexpr std::array<std::string_view, 10> kMapFails = {"manager", "head", "head_nil", "pointer", "unread",
+                                                        "node_nil", "cycle", "too_many", "no_list", "order"};
+constexpr std::array<Key, 39> kSpike12 = {{
+    {"value_read_count", Type::Unsigned},
+    {"value_reads", Type::Array, Type::Object},
+    {"holds_value", Type::Boolean},
+    {"map", Type::Object},
+    {"head_disp", Type::Signed},
+    {"root_disp", Type::Signed},
+    {"nil_disp", Type::Signed},
+    {"key_disp", Type::Signed},
+    {"key_width", Type::Unsigned},
+    {"value_disp", Type::Signed},
+    {"value_known", Type::Boolean},
+    {"left_disp", Type::Signed},
+    {"right_disp", Type::Signed},
+    {"list_begin", Type::Signed},
+    {"list_end", Type::Signed},
+    {"map_call", Type::Unsigned},
+    {"map_call_site", Type::Unsigned},
+    {"other_call", Type::Unsigned},
+    {"shape_failed", Type::Word, Type::Object, kShapeFails},
+    {"readings_made", Type::Unsigned},
+    {"changes", Type::Unsigned},
+    {"readings", Type::Array, Type::Object},
+    {"world_stage", Type::Word, Type::Object, kWorldStages},
+    {"map_failed", Type::Word, Type::Object, kMapFails},
+    {"count_word", Type::Object},
+    {"ordered", Type::Boolean},
+    {"root_parent", Type::Boolean},
+    {"head_ends", Type::Boolean},
+    {"key_lows", Type::Array, Type::Unsigned},
+    {"key_highs", Type::Array, Type::Object},
+    {"word_present", Type::Boolean},
+    {"below", Type::Unsigned},
+    {"above", Type::Unsigned},
+    {"values", Type::Array, Type::Object},
+    {"value_kind", Type::Object},
+    {"value_class", Type::Object},
+    {"list_count", Type::Unsigned},
+    {"list_failed", Type::Word, Type::Object, kMapFails},
+    {"list_values", Type::Array, Type::Object},
+}};
+
 constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size() + kSpike8.size() +
                                   kSpike8More.size() + kSpike9.size() + kSpike10.size() + kSpike11.size() +
-                                  kSpike11More.size();
+                                  kSpike11More.size() + kSpike12.size();
 constexpr std::array<Key, kKeyCount> joined() {
   std::array<Key, kKeyCount> out{};
   std::size_t n = 0;
@@ -432,14 +479,27 @@ constexpr std::array<Key, kKeyCount> joined() {
   for (const Key& k : kSpike10) out[n++] = k;
   for (const Key& k : kSpike11) out[n++] = k;
   for (const Key& k : kSpike11More) out[n++] = k;
+  for (const Key& k : kSpike12) out[n++] = k;
   return out;
 }
 constexpr std::array<Key, kKeyCount> kAll = joined();
-// One key, one type: a name given twice would be read as its first entry alone.
+// One key, one type: a name given twice would be read as its first entry alone. Since spike.12 the names are compared
+// by a hash first (FNV-1a), and only where two hashes agree by their text, which keeps the check within a compiler's
+// constant-evaluation steps as the vocabulary grows.
+constexpr std::uint64_t name_hash(std::string_view s) {
+  std::uint64_t h = 14695981039346656037ull;
+  for (const char c : s) {
+    h ^= static_cast<unsigned char>(c);
+    h *= 1099511628211ull;
+  }
+  return h;
+}
 constexpr bool unique_names() {
+  std::array<std::uint64_t, kAll.size()> hashes{};
+  for (std::size_t i = 0; i < kAll.size(); ++i) hashes[i] = name_hash(kAll[i].name);
   for (std::size_t i = 0; i < kAll.size(); ++i) {
     for (std::size_t j = i + 1; j < kAll.size(); ++j) {
-      if (kAll[i].name == kAll[j].name) return false;
+      if (hashes[i] == hashes[j] && kAll[i].name == kAll[j].name) return false;
     }
   }
   return true;
@@ -523,7 +583,7 @@ void write_uses(report::Writer& w, std::string_view key, const std::vector<Field
     if (u.large) w.boolean("large", true);
     optional_number(w, "reg", u.reg);
     optional_number(w, "target", u.target);
-    if (u.kind == UseKind::Stored) {
+    if (u.kind == UseKind::Stored || (u.kind == UseKind::ComparedOther && u.width != 0)) {  // spike.12: a compare's
       optional_number(w, "base", u.base);
       if (u.base_src) write_source(w, "base_src", *u.base_src);
       optional_number(w, "index", u.index);
@@ -767,6 +827,10 @@ void write_code(report::Writer& w, const CalleeCode& c) {
     w.number("manager_read_count", c.manager_read_count);
     write_reads(w, "manager_reads", c.manager_reads);
   }
+  if (c.value_read_count != 0) {  // spike.12
+    w.number("value_read_count", c.value_read_count);
+    write_reads(w, "value_reads", c.value_reads);
+  }
   write_forms(w, c);
 }
 
@@ -790,6 +854,7 @@ void write_inner(report::Writer& w, const std::vector<InnerCallee>& inner) {
         if (p.holds_word) w.boolean("holds_word", true);
         if (p.holds_request) w.boolean("holds_request", true);
         if (p.holds_manager) w.boolean("holds_manager", true);
+        if (p.holds_value) w.boolean("holds_value", true);
         w.end_object();
       }
       w.end_array();
@@ -1250,8 +1315,89 @@ void write_sites(report::Writer& w, const std::vector<SiteArg>& sites) {
 
 const report::Vocabulary& vocabulary() noexcept { return kVocabulary; }
 
-proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
-  report::Writer w(kVocabulary);
+// Spike.12 (WHY§296): values counted by kind and class.
+void write_counts(report::Writer& w, std::string_view key, const std::vector<ValueCount>& counts) {
+  w.begin_array(key);
+  for (const ValueCount& c : counts) {
+    w.begin_object();
+    write_value(w, "value_kind", c.kind);
+    if (c.cls) write_class(w, "value_class", *c.cls);
+    w.number("count", c.count);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+void write_map_read(report::Writer& w, const MapRead& r) {
+  w.begin_object();
+  w.number("at_ms", r.at_ms);
+  w.word("world_stage", r.stage);
+  w.boolean("read", r.read);
+  if (!r.failed.empty()) {
+    w.word("map_failed", r.failed);
+  } else if (r.read) {
+    if (r.count_word) write_value(w, "count_word", *r.count_word);
+    w.number("nodes", r.nodes);
+    w.boolean("ordered", r.ordered);
+    if (r.root_parent) w.boolean("root_parent", *r.root_parent);
+    if (r.head_ends) w.boolean("head_ends", *r.head_ends);
+    w.begin_array("key_lows");
+    for (const std::uint32_t k : r.key_lows) w.number(k);
+    w.end_array();
+    w.begin_array("key_highs");
+    for (const auto& [high, n] : r.key_highs) {
+      w.begin_object();
+      w.number("value", high);
+      w.number("count", n);
+      w.end_object();
+    }
+    w.end_array();
+    if (r.word_present) w.boolean("word_present", *r.word_present);
+    optional_number(w, "below", r.below);
+    optional_number(w, "above", r.above);
+    write_counts(w, "values", r.values);
+  }
+  if (!r.list_failed.empty()) {
+    w.word("list_failed", r.list_failed);
+  } else if (r.list_count) {
+    w.number("list_count", *r.list_count);
+    write_counts(w, "list_values", r.list_values);
+  }
+  w.end_object();
+}
+
+void write_map(report::Writer& w, const ManagerMap& m) {
+  w.begin_object("map");
+  const MapShape& s = m.shape;
+  if (!s.failed.empty()) {
+    w.word("shape_failed", s.failed);
+  } else {
+    w.signed_number("head_disp", s.head_disp);
+    w.signed_number("root_disp", s.root_disp);
+    w.signed_number("nil_disp", s.nil_disp);
+    w.signed_number("key_disp", s.key_disp);
+    w.number("key_width", s.key_width);
+    w.signed_number("value_disp", s.value_disp);
+    w.boolean("value_known", s.value_known);
+    w.signed_number("left_disp", s.left_disp);
+    w.signed_number("right_disp", s.right_disp);
+  }
+  if (s.list_begin) w.signed_number("list_begin", *s.list_begin);
+  if (s.list_end) w.signed_number("list_end", *s.list_end);
+  optional_number(w, "map_call", s.call);
+  optional_number(w, "map_call_site", s.call_site);
+  optional_number(w, "other_call", s.other);
+  optional_number(w, "word", m.word);
+  w.number("readings_made", m.made);
+  w.number("changes", m.changes);
+  w.begin_array("readings");
+  for (const MapRead& r : m.readings) write_map_read(w, r);
+  w.end_array();
+  w.end_object();
+}
+
+proto::Expected<std::string, report::Problem> write_report(const Findings& f, report::Style style) {
+  report::Writer w(kVocabulary, style);
   w.word("stage", f.stage);
   w.number("elapsed_ms", f.elapsed_ms);
   w.boolean("gate_passed", f.gate_passed);
@@ -1435,6 +1581,7 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
   if (f.request) write_request(w, *f.request);
   if (f.queue) write_queue(w, *f.queue);
   if (!f.classes.empty()) write_classes(w, f.classes, f.shared_bases);
+  if (f.map) write_map(w, *f.map);
   return w.finish();
 }
 

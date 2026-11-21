@@ -484,7 +484,16 @@ calls with its address, no request where the vtable is not in rdata or the task 
 (an unlisted second part past its extent with branches back into the primary, a chained one instead, an entry chained to
 no one, and a jump out of the parts as a tail jump) with the request's task, word and manager followed and carried one
 level further; the chained entries of an image of our own; the search for the request's vtable; and the report of all
-of it, lint-clean). The clang-cl build adds
+of it, lint-clean; spike.12's (`test_probe_map.cpp`) on code and trees of our own: a now path's function of run 11's
+shape (its list walked with a word of 0, its map with any other) and the map's layout derived from its summary (the
+head, the root, the nil byte, the key from the word's compares, the match's call and the other branch's, the list's
+begin and end; the value 8 past the key where the summary knows nothing in rcx, else its load's), nothing derived
+without the request's manager field, the word's compares or the call; the match's call entered with the map's value,
+its load a value read; MSVC-shaped trees walked in order with the word present or its nearest keys, an empty map, and
+the walk's refusals (a cycle, a nil head, a node off the heap, a node's nil byte set, a head off the heap, no manager,
+4,097 nodes against 4,095 walked, a list out of order and none); and the map in the report, pretty and on one line,
+lint-clean). The vocabulary's check that every key is given once compares the names by a hash first (spike.12), so
+that it stays within a compiler's constant-evaluation steps. The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
 under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
