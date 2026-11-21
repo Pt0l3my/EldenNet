@@ -274,10 +274,11 @@ constexpr std::array<Key, 2> kSpike8More = {{
 
 // Spike.9 (WHY§248): the group's function's reads of our task and of its entry, their uses and the task's stores; the
 // walks' roots; tagged pointers; the singleton's and the entry's classes against the leads.
-constexpr std::array<std::string_view, 3> kRoots = {"task_hub", "singleton", "group_entry"};
+// Spike.10: g_singleton, the second singleton's walk; index, a value used as an index.
+constexpr std::array<std::string_view, 4> kRoots = {"task_hub", "singleton", "group_entry", "g_singleton"};
 constexpr std::array<std::string_view, 3> kMatches = {"none", "name", "imp"};
-constexpr std::array<std::string_view, 9> kUses = {"compared", "compared_other", "tested", "stored", "passed",
-                                                   "called",   "base",           "changed", "other"};
+constexpr std::array<std::string_view, 10> kUses = {"compared", "compared_other", "tested", "stored", "passed",
+                                                    "called",   "base",           "changed", "other",  "index"};
 constexpr std::array<Key, 31> kSpike9 = {{
     {"root", Type::Word, Type::Object, kRoots},
     {"hub_diff_controls", Type::Array, Type::Object},
@@ -312,8 +313,54 @@ constexpr std::array<Key, 31> kSpike9 = {{
     {"inner_dropped", Type::Unsigned},
 }};
 
+// Spike.10 (WHY§289): G's method and its reads, the stub, G and the entry's word across the call, the array's views,
+// the game's own call sites, the sibling.
+constexpr std::array<std::string_view, 4> kGWalks = {"walked", "is_root", "held_by_root", "none"};
+constexpr std::array<std::string_view, 7> kArgForms = {"member", "static", "load", "result", "argument", "stack",
+                                                       "other"};
+constexpr std::array<Key, 38> kSpike10 = {{
+    {"g_read_count", Type::Unsigned},
+    {"g_reads", Type::Array, Type::Object},
+    {"word_use_count", Type::Unsigned},
+    {"word_uses", Type::Array, Type::Object},
+    {"holds_g", Type::Boolean},
+    {"holds_word", Type::Boolean},
+    {"stub", Type::Unsigned},
+    {"zeroed", Type::Array, Type::Unsigned},
+    {"method", Type::Object},
+    {"word_disp", Type::Signed},
+    {"hub_off", Type::Unsigned},
+    {"entry_off", Type::Unsigned},
+    {"g_walk", Type::Word, Type::Object, kGWalks},
+    {"g", Type::Object},
+    {"g_class", Type::Object},
+    {"at_hub", Type::Boolean},
+    {"at_entry", Type::Boolean},
+    {"word", Type::Unsigned},
+    {"words_read", Type::Unsigned},
+    {"own_index", Type::Unsigned},
+    {"distinct", Type::Unsigned},
+    {"array_views", Type::Object},
+    {"views", Type::Array, Type::Object},
+    {"reads", Type::Array, Type::Object},
+    {"view", Type::Unsigned},
+    {"new_class", Type::Object},
+    {"main_thread", Type::Boolean},
+    {"caller_thread", Type::Boolean},
+    {"game_sites", Type::Array, Type::Object},
+    {"arg", Type::Word, Type::Object, kArgForms},
+    {"decoded", Type::Boolean},
+    {"base_form", Type::Word, Type::Object, kArgForms},
+    {"base_target", Type::Unsigned},
+    {"base_disp", Type::Signed},
+    {"distance", Type::Unsigned},
+    {"joined", Type::Boolean},
+    {"sibling", Type::Object},
+    {"sites", Type::Unsigned},
+}};
+
 constexpr std::size_t kKeyCount = kKeys.size() + kMore.size() + kSpike6.size() + kSpike7.size() + kSpike8.size() +
-                                  kSpike8More.size() + kSpike9.size();
+                                  kSpike8More.size() + kSpike9.size() + kSpike10.size();
 constexpr std::array<Key, kKeyCount> joined() {
   std::array<Key, kKeyCount> out{};
   std::size_t n = 0;
@@ -324,6 +371,7 @@ constexpr std::array<Key, kKeyCount> joined() {
   for (const Key& k : kSpike8) out[n++] = k;
   for (const Key& k : kSpike8More) out[n++] = k;
   for (const Key& k : kSpike9) out[n++] = k;
+  for (const Key& k : kSpike10) out[n++] = k;
   return out;
 }
 constexpr std::array<Key, kKeyCount> kAll = joined();
@@ -398,7 +446,32 @@ void write_source(report::Writer& w, std::string_view key, const Source& s) {
   w.end_object();
 }
 
-// Spike.9: a field read of our task or of the group's entry, and what its value is used for.
+// Spike.9: what a followed value is used for; spike.10: the entry's word's uses too.
+void write_uses(report::Writer& w, std::string_view key, const std::vector<FieldUse>& uses) {
+  w.begin_array(key);
+  for (const FieldUse& u : uses) {
+    w.begin_object();
+    w.word("use", kUses[static_cast<std::size_t>(u.kind)]);
+    w.number("offset", u.offset);
+    optional_number(w, "imm", u.imm);
+    if (u.large) w.boolean("large", true);
+    optional_number(w, "reg", u.reg);
+    optional_number(w, "target", u.target);
+    if (u.kind == UseKind::Stored) {
+      optional_number(w, "base", u.base);
+      if (u.base_src) write_source(w, "base_src", *u.base_src);
+      optional_number(w, "index", u.index);
+      w.signed_number("disp", u.disp);
+      if (u.rip) w.boolean("rip", true);
+      w.number("width", u.width);
+    }
+    if (u.op) w.word("class", kClasses[static_cast<std::size_t>(*u.op)]);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+// Spike.9: a field read of our task or of the group's entry (spike.10: or of G), and what its value is used for.
 void write_reads(report::Writer& w, std::string_view key, const std::vector<FieldRead>& reads) {
   w.begin_array(key);
   for (const FieldRead& r : reads) {
@@ -412,27 +485,7 @@ void write_reads(report::Writer& w, std::string_view key, const std::vector<Fiel
     if (r.index) w.number("scale", r.scale);
     if (r.direct) w.boolean("direct", true);
     w.number("use_count", r.use_count);
-    w.begin_array("uses");
-    for (const FieldUse& u : r.uses) {
-      w.begin_object();
-      w.word("use", kUses[static_cast<std::size_t>(u.kind)]);
-      w.number("offset", u.offset);
-      optional_number(w, "imm", u.imm);
-      if (u.large) w.boolean("large", true);
-      optional_number(w, "reg", u.reg);
-      optional_number(w, "target", u.target);
-      if (u.kind == UseKind::Stored) {
-        optional_number(w, "base", u.base);
-        if (u.base_src) write_source(w, "base_src", *u.base_src);
-        optional_number(w, "index", u.index);
-        w.signed_number("disp", u.disp);
-        if (u.rip) w.boolean("rip", true);
-        w.number("width", u.width);
-      }
-      if (u.op) w.word("class", kClasses[static_cast<std::size_t>(*u.op)]);
-      w.end_object();
-    }
-    w.end_array();
+    write_uses(w, "uses", r.uses);
     w.end_object();
   }
   w.end_array();
@@ -619,14 +672,19 @@ void write_code(report::Writer& w, const CalleeCode& c) {
     w.number("task_store_count", c.task_store_count);
     write_stores(w, c.task_stores);
   }
+  // Spike.10: where there are any.
+  if (c.g_read_count != 0) {
+    w.number("g_read_count", c.g_read_count);
+    write_reads(w, "g_reads", c.g_reads);
+  }
+  if (c.word_use_count != 0) {
+    w.number("word_use_count", c.word_use_count);
+    write_uses(w, "word_uses", c.word_uses);
+  }
   write_forms(w, c);
 }
 
-void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner,
-                  std::uint32_t dropped) {
-  w.begin_object("callee_code");
-  write_code(w, c);
-  if (dropped != 0) w.number("inner_dropped", dropped);
+void write_inner(report::Writer& w, const std::vector<InnerCallee>& inner) {
   w.begin_array("inner");
   for (const InnerCallee& i : inner) {
     w.begin_object();
@@ -642,14 +700,41 @@ void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<Inne
         w.number("reg", p.reg);
         write_source(w, "source", p.source);
         if (p.holds_entry) w.boolean("holds_entry", true);
+        if (p.holds_g) w.boolean("holds_g", true);
+        if (p.holds_word) w.boolean("holds_word", true);
         w.end_object();
       }
       w.end_array();
+      optional_number(w, "stub", i.stub);
+      if (!i.zeroed.empty()) {
+        w.begin_array("zeroed");
+        for (const std::uint8_t r : i.zeroed) w.number(r);
+        w.end_array();
+      }
     }
     write_code(w, i.code);
     w.end_object();
   }
   w.end_array();
+}
+
+void write_callee(report::Writer& w, const CalleeCode& c, const std::vector<InnerCallee>& inner,
+                  std::uint32_t dropped) {
+  w.begin_object("callee_code");
+  write_code(w, c);
+  if (dropped != 0) w.number("inner_dropped", dropped);
+  write_inner(w, inner);
+  w.end_object();
+}
+
+// Spike.10: the registration's sibling, as the registration's chain is summarised.
+void write_sibling(report::Writer& w, const Sibling& s) {
+  w.begin_object("sibling");
+  w.number("rva", s.rva);
+  w.number("sites", s.sites);
+  write_code(w, s.code);
+  if (s.inner_dropped != 0) w.number("inner_dropped", s.inner_dropped);
+  write_inner(w, s.inner);
   w.end_object();
 }
 
@@ -751,6 +836,16 @@ void write_diff(report::Writer& w, const HubDiff& d, std::string_view key = {}) 
   w.end_object();
 }
 
+void write_class(report::Writer& w, std::string_view key, const ClassMatch& m) {
+  w.begin_object(key);
+  w.boolean("vtable_known", m.vtable);
+  w.boolean("classed", m.classed);
+  if (m.classed) w.number("type_descriptor", m.type_descriptor);
+  w.word("match", kMatches[static_cast<std::size_t>(m.match)]);
+  optional_number(w, "lead", m.lead);
+  w.end_object();
+}
+
 void write_read(report::Writer& w, std::string_view key, const TableRead& r) {
   w.begin_object(key);
   w.number("at_ms", r.at_ms);
@@ -789,18 +884,103 @@ void write_table(report::Writer& w, const Table& t) {
   optional_number(w, "target", t.target);
   if (t.before) write_read(w, "before", *t.before);
   if (t.after) write_read(w, "after", *t.after);
-  const auto cls = [&](std::string_view key, const ClassMatch& m) {
+  if (t.singleton_class) write_class(w, "singleton_class", *t.singleton_class);
+  if (t.entry_class) write_class(w, "entry_class", *t.entry_class);
+  w.end_object();
+}
+
+// Spike.10 (WHY§289): G's method and the three numbers around the call.
+void write_method(report::Writer& w, const Method& m) {
+  w.begin_object("method");
+  w.number("site", m.site);
+  w.number("slot", m.slot);
+  optional_number(w, "stub", m.stub);
+  w.number("rva", m.rva);
+  if (m.word_disp) {
+    w.signed_number("word_disp", *m.word_disp);
+    w.number("width", m.word_width);
+  }
+  w.number("hub_off", m.hub_off);
+  w.number("entry_off", m.entry_off);
+  w.word("g_walk", m.g_walk);
+  const auto read = [&](std::string_view key, const MethodRead& r) {
     w.begin_object(key);
-    w.boolean("vtable_known", m.vtable);
-    w.boolean("classed", m.classed);
-    if (m.classed) w.number("type_descriptor", m.type_descriptor);
-    w.word("match", kMatches[static_cast<std::size_t>(m.match)]);
-    optional_number(w, "lead", m.lead);
+    w.number("at_ms", r.at_ms);
+    w.boolean("read", r.read);
+    if (r.g) write_value(w, "g", *r.g);
+    if (r.g_class) write_class(w, "g_class", *r.g_class);
+    if (r.at_hub) w.boolean("at_hub", *r.at_hub);
+    if (r.at_entry) w.boolean("at_entry", *r.at_entry);
+    optional_number(w, "word", r.word);
+    w.number("words_read", r.words_read);
+    w.number("own_index", r.own_index);
+    w.number("distinct", r.distinct);
     w.end_object();
   };
-  if (t.singleton_class) cls("singleton_class", *t.singleton_class);
-  if (t.entry_class) cls("entry_class", *t.entry_class);
+  if (m.before) read("before", *m.before);
+  if (m.after) read("after", *m.after);
   w.end_object();
+}
+
+void write_views(report::Writer& w, const ArrayViews& v) {
+  w.begin_object("array_views");
+  w.begin_array("views");
+  for (const ArrayView& a : v.views) {
+    w.begin_object();
+    w.begin_array("path");
+    for (const std::uint32_t o : a.path) w.number(o);
+    w.end_array();
+    w.boolean("reached", a.found);
+    w.number("bytes", a.bytes);
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("reads");
+  for (const ViewRead& r : v.reads) {
+    w.begin_object();
+    w.number("at_ms", r.at_ms);
+    w.number("view", r.view);
+    w.boolean("read", r.read);
+    w.number("changed", r.changed);
+    w.begin_array("words");
+    for (const ViewWord& x : r.words) {
+      w.begin_object();
+      w.number("offset", x.offset);
+      write_value(w, "old", x.before);
+      write_value(w, "new", x.after);
+      if (x.after_class) write_class(w, "new_class", *x.after_class);
+      w.end_object();
+    }
+    w.end_array();
+    w.boolean("main_thread", r.main_thread);
+    w.boolean("caller_thread", r.caller_thread);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_sites(report::Writer& w, const std::vector<SiteArg>& sites) {
+  w.begin_array("game_sites");
+  for (const SiteArg& a : sites) {
+    w.begin_object();
+    w.number("site", a.site);
+    w.boolean("decoded", a.decoded);
+    w.word("arg", kArgForms[static_cast<std::size_t>(a.form)]);
+    optional_number(w, "base", a.base);
+    if (a.form == ArgForm::Member || a.form == ArgForm::Stack || (a.form == ArgForm::Load && !a.rip)) {
+      w.signed_number("disp", a.disp);
+    }
+    optional_number(w, "target", a.target);
+    if (a.rip) w.boolean("rip", true);
+    if (a.base_form) w.word("base_form", kArgForms[static_cast<std::size_t>(*a.base_form)]);
+    optional_number(w, "base_target", a.base_target);
+    if (a.base_disp) w.signed_number("base_disp", *a.base_disp);
+    w.number("distance", a.distance);
+    w.boolean("joined", a.joined);
+    w.end_object();
+  }
+  w.end_array();
 }
 
 }  // namespace
@@ -983,6 +1163,10 @@ proto::Expected<std::string, report::Problem> write_report(const Findings& f) {
     w.end_array();
   }
   if (f.table) write_table(w, *f.table);
+  if (f.method) write_method(w, *f.method);
+  if (f.views) write_views(w, *f.views);
+  if (!f.game_sites.empty()) write_sites(w, f.game_sites);
+  if (f.sibling) write_sibling(w, *f.sibling);
   return w.finish();
 }
 

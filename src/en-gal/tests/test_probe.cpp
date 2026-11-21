@@ -1898,3 +1898,397 @@ TEST_CASE("probe: a class's innermost name against the leads' names, and the tab
   CHECK(text->find("\"trimmed\": true") != std::string::npos);
   CHECK(text->find("\"inner_dropped\": 3") != std::string::npos);
 }
+
+// ---- Spike.10 (WHY§289): G's method through a stub, its reads of G and uses of the entry's word, the game's call
+// sites, the array's views ----
+
+namespace {
+
+constexpr std::uint32_t kGroup10Rva = 0x410000, kStubRva = 0x410300, kMethodRva = 0x410400;
+constexpr std::uint32_t kGSlot = 0x480100, kNameRva = 0x470000, kReportRva = 0x410200, kKeepRva = 0x410600;
+
+// A rel32 at `at` in `code`, of an instruction ending at `next`, to `target` (all RVAs from `rva`).
+void rel32(std::vector<std::byte>& code, std::size_t at, std::uint32_t rva, std::size_t next, std::uint32_t target) {
+  const auto d = static_cast<std::int32_t>(static_cast<std::int64_t>(target) - static_cast<std::int64_t>(rva + next));
+  std::memcpy(code.data() + at, &d, 4);
+}
+
+// A group's function of R1 run 9's shape (87 bytes): the task null-tested, G loaded from its slot (while null, a
+// report and G loaded again), the entry's word at +0x54 in r8, and a tail jump to the stub with G in rcx and the task in
+// rdx.
+std::vector<std::byte> group_of_run9() {
+  std::vector<std::byte> c = code_of({
+      0x48, 0x89, 0x5C, 0x24, 0x08,  //  0: mov [rsp + 8], rbx
+      0x57,                          //  5: push rdi
+      0x48, 0x83, 0xEC, 0x20,        //  6: sub rsp, 0x20
+      0x48, 0x89, 0xD3,              // 10: mov rbx, rdx           (the task)
+      0x48, 0x89, 0xCF,              // 13: mov rdi, rcx           (the entry)
+      0x48, 0x85, 0xD2,              // 16: test rdx, rdx
+      0x74, 0x35,                    // 19: je 74
+      0x48, 0x8B, 0x0D, 0, 0, 0, 0,  // 21: mov rcx, [rip + G's slot]
+      0x48, 0x85, 0xC9,              // 28: test rcx, rcx
+      0x75, 0x13,                    // 31: jne 52
+      0x48, 0x8D, 0x0D, 0, 0, 0, 0,  // 33: lea rcx, [rip + a name]
+      0xE8, 0, 0, 0, 0,              // 40: call the report
+      0x48, 0x8B, 0x0D, 0, 0, 0, 0,  // 45: mov rcx, [rip + G's slot]
+      0x44, 0x8B, 0x47, 0x54,        // 52: mov r8d, [rdi + 0x54]  (the entry's word)
+      0x48, 0x89, 0xDA,              // 56: mov rdx, rbx
+      0x48, 0x8B, 0x5C, 0x24, 0x30,  // 59: mov rbx, [rsp + 0x30]
+      0x48, 0x83, 0xC4, 0x20,        // 64: add rsp, 0x20
+      0x5F,                          // 68: pop rdi
+      0xE9, 0, 0, 0, 0,              // 69: jmp the stub
+      0x32, 0xC0,                    // 74: xor al, al
+      0x48, 0x8B, 0x5C, 0x24, 0x30,  // 76: mov rbx, [rsp + 0x30]
+      0x48, 0x83, 0xC4, 0x20,        // 81: add rsp, 0x20
+      0x5F,                          // 85: pop rdi
+      0xC3,                          // 86: ret
+  });
+  rel32(c, 24, kGroup10Rva, 28, kGSlot);
+  rel32(c, 36, kGroup10Rva, 40, kNameRva);
+  rel32(c, 41, kGroup10Rva, 45, kReportRva);
+  rel32(c, 48, kGroup10Rva, 52, kGSlot);
+  rel32(c, 70, kGroup10Rva, 74, kStubRva);
+  return c;
+}
+
+// The 8-byte stub: r9 zeroed, a tail jump to G's method.
+std::vector<std::byte> stub_of_run9() {
+  std::vector<std::byte> c = code_of({0x45, 0x31, 0xC9, 0xE9, 0, 0, 0, 0});
+  rel32(c, 4, kStubRva, 8, kMethodRva);
+  return c;
+}
+
+// A method of G of our own (84 bytes; G in rcx, the task in rdx, the entry's word in r8d): the word compared with 31,
+// the task's field at +0x10 kept on G and its kind at +0x20 read; G's flag tested and, where set, the kind compared
+// with 0x51; the word compared with G's count; the task kept in G's table at the word's index; then a call on with G,
+// the word and the task. It answers 1.
+std::vector<std::byte> method_of_g() {
+  std::vector<std::byte> c = code_of({
+      0x53,                          //  0: push rbx
+      0x56,                          //  1: push rsi
+      0x57,                          //  2: push rdi
+      0x48, 0x83, 0xEC, 0x20,        //  3: sub rsp, 0x20
+      0x48, 0x89, 0xCB,              //  7: mov rbx, rcx           (G)
+      0x48, 0x89, 0xD6,              // 10: mov rsi, rdx           (the task)
+      0x44, 0x89, 0xC7,              // 13: mov edi, r8d           (the entry's word)
+      0x83, 0xFF, 0x1F,              // 16: cmp edi, 31
+      0x77, 0x32,                    // 19: ja 71
+      0x4C, 0x8B, 0x56, 0x10,        // 21: mov r10, [rsi + 0x10]  (a task read)
+      0x4C, 0x89, 0x53, 0x18,        // 25: mov [rbx + 0x18], r10  (kept on G)
+      0x44, 0x8B, 0x5E, 0x20,        // 29: mov r11d, [rsi + 0x20] (a task read)
+      0xF6, 0x43, 0x08, 0x01,        // 33: test byte ptr [rbx + 8], 1  (a read of G, in place)
+      0x74, 0x06,                    // 37: je 45
+      0x41, 0x83, 0xFB, 0x51,        // 39: cmp r11d, 0x51
+      0x75, 0x1A,                    // 43: jne 71
+      0x3B, 0x7B, 0x10,              // 45: cmp edi, [rbx + 0x10]  (the word against G's count)
+      0x73, 0x15,                    // 48: jae 71
+      0x48, 0x8B, 0x43, 0x28,        // 50: mov rax, [rbx + 0x28]  (G's table)
+      0x48, 0x89, 0x34, 0xF8,        // 54: mov [rax + rdi*8], rsi (the task kept, the word its index)
+      0x48, 0x89, 0xD9,              // 58: mov rcx, rbx
+      0x89, 0xFA,                    // 61: mov edx, edi
+      0x49, 0x89, 0xF0,              // 63: mov r8, rsi
+      0xE8, 0, 0, 0, 0,              // 66: call on
+      0xB8, 0x01, 0x00, 0x00, 0x00,  // 71: mov eax, 1
+      0x48, 0x83, 0xC4, 0x20,        // 76: add rsp, 0x20
+      0x5F,                          // 80: pop rdi
+      0x5E,                          // 81: pop rsi
+      0x5B,                          // 82: pop rbx
+      0xC3,                          // 83: ret
+  });
+  rel32(c, 67, kMethodRva, 71, kKeepRva);
+  return c;
+}
+
+probe::SiteArg site_of_member() {
+  probe::SiteArg a;
+  a.site = 0x420015;
+  a.decoded = true;
+  a.form = probe::ArgForm::Member;
+  a.base = 3;
+  a.disp = 0x40;
+  a.base_form = probe::ArgForm::Argument;
+  a.distance = 1;
+  return a;
+}
+
+const probe::FieldUse* word_use(const probe::CalleeCode& c, probe::UseKind k) {
+  for (const probe::FieldUse& u : c.word_uses) {
+    if (u.kind == k) return &u;
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+TEST_CASE("probe: G's method through an 8-byte stub, its reads of G and the uses of the entry's word") {
+  // The group's function, entered as the tail function's direct jump leaves it: the entry in rcx, the task in rdx, r8.
+  probe::EntryState group_entry{};
+  group_entry[0].entry = true;
+  group_entry[1].from = 8;
+  group_entry[2].from = 8;
+  const std::vector<std::byte> gcode = group_of_run9();
+  const probe::CalleeCode g =
+      probe::summarise_callee(gcode, kGroup10Rva, static_cast<std::uint32_t>(gcode.size()), group_entry, 8);
+  CHECK_FALSE(g.modelled_to.has_value());
+  CHECK(g.task_read_count == 0);  // the task null-tested only
+  CHECK(g.entry_read_count == 1);
+  REQUIRE(g.calls.size() == 2);
+  // G's site: the tail jump, not the report's call (which passes the task too, with rcx a lea).
+  const probe::CalleeCall* site = probe::method_site(g, 8);
+  REQUIRE(site != nullptr);
+  CHECK(site->offset == 69);
+  CHECK(site->form == probe::CallForm::Tail);
+  CHECK(site->target == std::optional<std::uint32_t>(kStubRva));
+  const probe::EntryState e = probe::method_entry_at(*site, group_entry);
+  CHECK(e[0].g);           // rcx: G, from its slot
+  CHECK_FALSE(e[0].entry);
+  CHECK(e[1].from == 8);   // rdx: the task
+  CHECK(e[2].word);        // r8: the entry's word
+  CHECK_FALSE(e[2].g);
+  CHECK_FALSE(e[3].g);
+  // The stub: followed through, r9 left zero, G and the word carried.
+  const std::vector<std::byte> scode = stub_of_run9();
+  const probe::CalleeCode st = probe::summarise_callee(scode, kStubRva, 0, e, 8);
+  CHECK(st.bytes == 8);
+  CHECK(st.instructions == 2);
+  const probe::CalleeCall* sj = probe::stub_jump(st);
+  REQUIRE(sj != nullptr);
+  CHECK(sj->target == std::optional<std::uint32_t>(kMethodRva));
+  CHECK(st.word_use_count == 1);  // passed on in r8
+  const probe::EntryState me = probe::through_stub(st, e);
+  CHECK(me[0].g);
+  CHECK(me[1].from == 8);
+  CHECK(me[2].word);
+  CHECK(me[3].zero);
+  CHECK(me[3].from == 0);
+  // Neither the group's function nor G's method is a stub.
+  CHECK(probe::stub_jump(g) == nullptr);
+  // A stub whose target comes after it, as the image holds it (padding, then the next function): with no extent its
+  // jump to a function's start ends the decoding; without the starts the decoder runs on into the next function.
+  std::vector<std::byte> image_stub = stub_of_run9();
+  const auto forward = static_cast<std::int32_t>(16 - 8);  // to kStubRva + 16
+  std::memcpy(image_stub.data() + 4, &forward, 4);
+  for (int i = 8; i < 16; ++i) image_stub.push_back(std::byte{0xCC});
+  for (const int b : {0x53, 0x48, 0x89, 0xCB, 0x5B, 0xC3}) image_stub.push_back(std::byte{static_cast<std::uint8_t>(b)});
+  const std::array<std::uint32_t, 2> starts = {kGroup10Rva, kStubRva + 16};
+  const probe::CalleeCode fwd = probe::summarise_callee(image_stub, kStubRva, 0, e, 8, starts);
+  CHECK(fwd.bytes == 8);
+  REQUIRE(probe::stub_jump(fwd) != nullptr);
+  CHECK(probe::stub_jump(fwd)->target == std::optional<std::uint32_t>(kStubRva + 16));
+  const probe::CalleeCode run_on = probe::summarise_callee(image_stub, kStubRva, 0, e, 8);
+  CHECK(run_on.bytes > 8);
+  CHECK(probe::stub_jump(run_on) == nullptr);
+
+  // G's method, with that entry: the task's reads and stores, G's reads, the word's uses.
+  const std::vector<std::byte> mcode = method_of_g();
+  const probe::CalleeCode m =
+      probe::summarise_callee(mcode, kMethodRva, static_cast<std::uint32_t>(mcode.size()), me, 8);
+  CHECK_FALSE(m.modelled_to.has_value());
+  CHECK(m.task_read_count == 2);
+  REQUIRE(m.task_reads.size() == 2);
+  CHECK(m.task_reads[0].disp == 0x10);
+  CHECK(m.task_reads[0].width == 8);
+  REQUIRE(m.task_reads[0].uses.size() == 1);
+  CHECK(m.task_reads[0].uses[0].kind == probe::UseKind::Stored);
+  REQUIRE(m.task_reads[0].uses[0].base_src.has_value());
+  CHECK(m.task_reads[0].uses[0].base_src->kind == probe::Source::Kind::Entry);  // on G
+  CHECK(m.task_reads[1].disp == 0x20);
+  CHECK(m.task_reads[1].width == 4);
+  const probe::FieldUse* kind = use_of(m.task_reads[1], probe::UseKind::Compared);
+  REQUIRE(kind != nullptr);
+  CHECK(kind->imm == std::optional<std::uint64_t>(0x51));
+  // G's reads: its flag tested in place, its count compared in place with the word, its table the base of a store.
+  CHECK(m.g_read_count == 3);
+  REQUIRE(m.g_reads.size() == 3);
+  CHECK(m.g_reads[0].offset == 33);
+  CHECK(m.g_reads[0].disp == 8);
+  CHECK(m.g_reads[0].width == 1);
+  CHECK(m.g_reads[0].direct);
+  CHECK(m.g_reads[0].uses[0].kind == probe::UseKind::Tested);
+  CHECK(m.g_reads[1].offset == 45);
+  CHECK(m.g_reads[1].disp == 0x10);
+  CHECK(m.g_reads[1].direct);
+  CHECK(m.g_reads[1].uses[0].kind == probe::UseKind::ComparedOther);
+  CHECK(m.g_reads[2].disp == 0x28);
+  CHECK(m.g_reads[2].base_src.kind == probe::Source::Kind::Entry);
+  REQUIRE(use_of(m.g_reads[2], probe::UseKind::Base) != nullptr);
+  CHECK(use_of(m.g_reads[2], probe::UseKind::Base)->offset == 54);
+  // The word: compared with 31, against G's count, an index, passed on in rdx (after a 32-bit copy).
+  CHECK(m.word_use_count == 4);
+  const probe::FieldUse* bound = word_use(m, probe::UseKind::Compared);
+  REQUIRE(bound != nullptr);
+  CHECK(bound->offset == 16);
+  CHECK(bound->imm == std::optional<std::uint64_t>(31));
+  REQUIRE(word_use(m, probe::UseKind::ComparedOther) != nullptr);
+  CHECK(word_use(m, probe::UseKind::ComparedOther)->offset == 45);
+  REQUIRE(word_use(m, probe::UseKind::Index) != nullptr);
+  CHECK(word_use(m, probe::UseKind::Index)->offset == 54);
+  const probe::FieldUse* passed = word_use(m, probe::UseKind::Passed);
+  REQUIRE(passed != nullptr);
+  CHECK(passed->reg == std::optional<std::uint8_t>(2));
+  CHECK(passed->target == std::optional<std::uint32_t>(kKeepRva));
+  // The task's stores: its field on G, and itself in G's table.
+  CHECK(m.task_store_count == 2);
+  REQUIRE(m.task_stores.size() == 2);
+  CHECK(m.task_stores[1].offset == 54);
+  CHECK(m.task_stores[1].value.kind == probe::Source::Kind::Argument);
+  CHECK(m.task_stores[1].index == std::optional<std::uint8_t>(7));
+  // Its call: G, the word and the task carried one level further.
+  REQUIRE(m.calls.size() == 1);
+  const probe::EntryState next = probe::entry_at(m.calls[0], me);
+  CHECK(next[0].g);
+  CHECK(next[1].word);
+  CHECK(next[2].from == 8);
+  // Entered without G and the word, the same code reads nothing of either.
+  const probe::CalleeCode plain = probe::summarise_callee(mcode, kMethodRva, static_cast<std::uint32_t>(mcode.size()),
+                                                          probe::entry_at(*sj), 8);
+  CHECK(plain.g_read_count == 0);
+  CHECK(plain.word_use_count == 0);
+  CHECK(plain.task_read_count == 2);
+}
+
+TEST_CASE("probe: what a call site passes as the task: a load, a member, a result, a static, a stack slot") {
+  constexpr std::uint32_t kFn = 0x420000, kTarget = 0x400000, kAlloc = 0x430000, kObject = 0x490000;
+  std::vector<std::byte> c = code_of({
+      0x53,                          //  0: push rbx
+      0x48, 0x83, 0xEC, 0x20,        //  1: sub rsp, 0x20
+      0x48, 0x89, 0xCB,              //  5: mov rbx, rcx
+      0x4C, 0x8B, 0x43, 0x10,        //  8: mov r8, [rbx + 0x10]
+      0xE8, 0, 0, 0, 0,              // 12: call (a load)
+      0x4C, 0x8D, 0x43, 0x40,        // 17: lea r8, [rbx + 0x40]
+      0xE8, 0, 0, 0, 0,              // 21: call (a member)
+      0xE8, 0, 0, 0, 0,              // 26: call the allocator
+      0x49, 0x89, 0xC0,              // 31: mov r8, rax
+      0xE8, 0, 0, 0, 0,              // 34: call (its result)
+      0x4C, 0x8D, 0x05, 0, 0, 0, 0,  // 39: lea r8, [rip + an object]
+      0xE8, 0, 0, 0, 0,              // 46: call (a static)
+      0x4C, 0x8D, 0x44, 0x24, 0x28,  // 51: lea r8, [rsp + 0x28]
+      0x85, 0xC0,                    // 56: test eax, eax
+      0x74, 0x03,                    // 58: je 63
+      0x48, 0x31, 0xC9,              // 60: xor rcx, rcx
+      0xE8, 0, 0, 0, 0,              // 63: call (a stack slot, a branch landing on the call)
+      0x48, 0x83, 0xC4, 0x20,        // 68: add rsp, 0x20
+      0x5B,                          // 72: pop rbx
+      0xC3,                          // 73: ret
+  });
+  for (const std::size_t at : {12u, 21u, 34u, 46u, 63u}) rel32(c, at + 1, kFn, at + 5, kTarget);
+  rel32(c, 27, kFn, 31, kAlloc);
+  rel32(c, 42, kFn, 46, kObject);
+  const auto site = [&](std::uint32_t off) { return probe::task_argument(c, kFn, kFn + off, 8); };
+
+  const probe::SiteArg load = site(12);
+  CHECK(load.decoded);
+  CHECK(load.form == probe::ArgForm::Load);
+  CHECK(load.base == std::optional<std::uint8_t>(3));
+  CHECK(load.disp == 0x10);
+  CHECK(load.base_form == std::optional<probe::ArgForm>(probe::ArgForm::Argument));  // rbx: the function's rcx
+  CHECK(load.distance == 1);
+  CHECK_FALSE(load.joined);
+  const probe::SiteArg member = site(21);
+  CHECK(member.form == probe::ArgForm::Member);
+  CHECK(member.base == std::optional<std::uint8_t>(3));
+  CHECK(member.disp == 0x40);
+  const probe::SiteArg result = site(34);
+  CHECK(result.form == probe::ArgForm::Result);
+  CHECK(result.target == std::optional<std::uint32_t>(kAlloc));
+  const probe::SiteArg stat = site(46);
+  CHECK(stat.form == probe::ArgForm::Static);
+  CHECK(stat.rip);
+  CHECK(stat.target == std::optional<std::uint32_t>(kObject));
+  const probe::SiteArg stack = site(63);
+  CHECK(stack.form == probe::ArgForm::Stack);
+  CHECK(stack.disp == 0x28);
+  CHECK(stack.joined);  // the je lands on the call
+  CHECK(stack.distance == 4);
+  // A site off the instructions' boundaries, or not a call, is not decoded.
+  CHECK_FALSE(site(13).decoded);
+  CHECK_FALSE(site(17).decoded);
+  CHECK_FALSE(probe::task_argument(c, kFn, kFn - 4, 8).decoded);
+  // The function's own argument: r9, never written before the call.
+  CHECK(probe::task_argument(c, kFn, kFn + 12, 9).form == probe::ArgForm::Argument);
+  // A register a call clobbers, not rax: other.
+  CHECK(probe::task_argument(c, kFn, kFn + 34, 1).form == probe::ArgForm::Other);
+}
+
+TEST_CASE("probe: one view of the array compared across the call, the threads' ids among its changed words") {
+  std::vector<std::byte> before(0x40), after(0x40);
+  const auto put = [](std::vector<std::byte>& b, std::size_t at, std::uint64_t v) { std::memcpy(b.data() + at, &v, 8); };
+  put(before, 0x08, 0x1234);
+  put(after, 0x08, 0x1234);                                 // unchanged
+  put(after, 0x10, 11964);                                  // a small word: the main thread's id
+  put(after, 0x18, (std::uint64_t{772} << 32) | 5);         // the caller's id in the high half
+  put(after, 0x20, 0x0000'7FF6'0000'1000ull);               // something else
+  probe::DiffSpec kinds;
+  const probe::ViewRead r = probe::diff_view(before, after, kinds, 11964, 772);
+  CHECK(r.read);
+  CHECK(r.changed == 3);
+  REQUIRE(r.words.size() == 3);
+  CHECK(r.words[0].offset == 0x10);
+  CHECK(r.words[0].before.kind == probe::ValueKind::Zero);
+  CHECK(r.words[0].after.kind == probe::ValueKind::Small);
+  CHECK(r.main_thread);
+  CHECK(r.caller_thread);
+  const probe::ViewRead none = probe::diff_view(before, after, kinds, 4242, 0);
+  CHECK_FALSE(none.main_thread);
+  CHECK_FALSE(none.caller_thread);  // 0: not compared
+  // The report holds G's method, the views, the sites and the sibling, lint-clean.
+  probe::Findings f;
+  f.callee_code = probe::CalleeCode{};
+  probe::InnerCallee in;
+  in.rva = kMethodRva;
+  in.depth = 3;
+  in.stub = kStubRva;
+  in.zeroed = {9};
+  in.entry_src.push_back(probe::PassedSource{1, probe::Source{}, false, true, false});
+  in.code.g_read_count = 1;
+  in.code.g_reads.push_back(probe::FieldRead{});
+  in.code.word_use_count = 1;
+  probe::FieldUse index;
+  index.kind = probe::UseKind::Index;
+  in.code.word_uses.push_back(index);
+  f.callee_inner.push_back(in);
+  probe::Method m;
+  m.site = 69;
+  m.slot = kGSlot;
+  m.stub = kStubRva;
+  m.rva = kMethodRva;
+  m.word_disp = 0x54;
+  m.word_width = 4;
+  m.hub_off = 8;
+  m.entry_off = 0x58;
+  m.g_walk = "held_by_root";
+  probe::MethodRead mr;
+  mr.read = true;
+  mr.g = probe::WordValue{};
+  mr.g->kind = probe::ValueKind::Heap;
+  mr.g_class = probe::ClassMatch{true, true, 0x3D0000, probe::LeadMatch::None, std::nullopt};
+  mr.at_hub = true;
+  mr.at_entry = false;
+  mr.word = 110;
+  mr.words_read = 169;
+  mr.own_index = 169;
+  mr.distinct = 169;
+  m.before = mr;
+  f.method = m;
+  probe::ArrayViews v;
+  v.views.push_back(probe::ArrayView{{0x3B0, 0x3D0, 200}, true, 0x400});
+  probe::ViewRead vr = r;
+  vr.words[2].after_class = probe::ClassMatch{true, true, 0x3D0100, probe::LeadMatch::None, std::nullopt};
+  v.reads.push_back(vr);
+  f.views = v;
+  f.game_sites.push_back(site_of_member());
+  probe::Sibling s;
+  s.rva = 0x400200;
+  s.sites = 4;
+  s.inner.push_back(in);
+  f.sibling = s;
+  const auto text = probe::write_report(f);
+  REQUIRE(text.has_value());
+  const std::array<const report::Vocabulary*, 1> known = {&probe::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  for (const char* key : {"\"g_walk\": \"held_by_root\"", "\"holds_g\": true", "\"zeroed\": [", "\"use\": \"index\"",
+                          "\"main_thread\": true", "\"new_class\": {", "\"arg\": \"member\"", "\"sibling\": {",
+                          "\"word_disp\": 84", "\"own_index\": 169"}) {
+    CHECK_MESSAGE(text->find(key) != std::string::npos, key);
+  }
+}

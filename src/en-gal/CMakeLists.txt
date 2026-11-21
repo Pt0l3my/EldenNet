@@ -54,7 +54,8 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_callee.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_hub.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_hub.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_sites.cpp)
 if(MSVC)
   # NativeSys, the platform seam in game (sys/): structured exception handling and Win32, clang-cl only.
   list(APPEND EN_GAL_GAME_SOURCES
