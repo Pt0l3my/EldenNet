@@ -234,6 +234,88 @@ PathSearch find_path(const ImageBytes& img, const SectionCopy& text, std::uint32
 
 }  // namespace
 
+namespace {
+
+// The rest of a site once its three places are known: its path (through the pattern's capture, by R0's rule, or by
+// decoding on), its placement and its name.
+void conclude(const ImageBytes& img, const SectionCopy& text, const Config& config, Site s, std::uint32_t pattern_end,
+              const std::optional<Capture>& path_capture, bool first_reference_rule,
+              std::map<std::string, Singleton>& by_name, Result& result) {
+  const std::uint32_t hit = s.hit;
+  const std::uint32_t st = s.static_slot;
+  const std::uint32_t cl = s.class_object;
+  const std::uint32_t gt = s.getter;
+  std::optional<std::uint32_t> path;
+  std::optional<Refusal> path_refusal;
+  if (path_capture) {
+    path = target(img, hit, *path_capture);
+    if (!path) {
+      path_refusal = Refusal::NoPath;
+    } else if (!in_named(img, *path, config.rdata)) {
+      path_refusal = Refusal::PathSection;
+    } else if (!path_matches(img, *path, config.path_suffix)) {
+      path_refusal = Refusal::PathText;
+    }
+  } else if (first_reference_rule) {
+    path = first_reference(img, text, hit, pattern_end, config);
+    if (!path) {
+      path_refusal = Refusal::NoPath;
+    } else if (!path_matches(img, *path, config.path_suffix)) {
+      path_refusal = Refusal::PathText;
+    }
+  } else {
+    PathSearch found = find_path(img, text, hit, pattern_end, config);
+    if (found.load) {
+      path = found.path;
+      s.path_load = found.load;
+    } else if (found.elsewhere) {
+      path = found.elsewhere;
+      path_refusal = Refusal::PathSection;
+    } else if (found.first) {
+      path = found.first;
+      path_refusal = Refusal::PathText;
+    } else {
+      path_refusal = Refusal::NoPath;
+    }
+  }
+  if (path) s.path = *path;
+  const RuntimeFunction* fn = img.image().function_at(gt);
+  if (!in_named(img, st, config.data)) {
+    s.refused = Refusal::StaticSection;
+  } else if (st % 8 != 0) {
+    s.refused = Refusal::StaticAlignment;
+  } else if (!in_named(img, cl, config.data)) {
+    s.refused = Refusal::ClassSection;
+  } else if (!in_named(img, gt, config.code)) {
+    s.refused = Refusal::GetterSection;
+  } else if (fn == nullptr || fn->begin != gt) {
+    s.refused = Refusal::GetterNotFunction;
+  } else if (path_refusal) {
+    s.refused = path_refusal;
+  }
+  if (config.names) s.name = class_name(img, cl, *config.names);
+  if (!s.refused) {
+    if (!s.name) {
+      ++result.unnamed;
+    } else {
+      auto [it, fresh] = by_name.try_emplace(*s.name);
+      Singleton& one = it->second;
+      if (fresh) {
+        one.name = *s.name;
+        one.static_slot = st;
+        one.class_object = cl;
+        one.getter = gt;
+      } else if (one.static_slot != st) {
+        one.ambiguous = true;
+      }
+      ++one.sites;
+    }
+  }
+  result.sites.push_back(std::move(s));
+}
+
+}  // namespace
+
 Result find(const ImageBytes& img, const Idiom& idiom, const Config& config) {
   Result result;
   const SectionCopy* text = img.named(config.code);
@@ -255,79 +337,42 @@ Result find(const ImageBytes& img, const Idiom& idiom, const Config& config) {
     s.static_slot = *st;
     s.class_object = *cl;
     s.getter = *gt;
-    std::optional<std::uint32_t> path;
-    std::optional<Refusal> path_refusal;
     const auto pattern_end = static_cast<std::uint32_t>(hit + idiom.bytes.size());
     if (!config.first_reference && !shaped(img, *text, hit, idiom)) {
       s.refused = Refusal::Unreadable;
       result.sites.push_back(std::move(s));
       continue;
     }
-    if (idiom.path) {
-      path = target(img, hit, *idiom.path);
-      if (!path) {
-        path_refusal = Refusal::NoPath;
-      } else if (!in_named(img, *path, config.rdata)) {
-        path_refusal = Refusal::PathSection;
-      } else if (!path_matches(img, *path, config.path_suffix)) {
-        path_refusal = Refusal::PathText;
-      }
-    } else if (config.first_reference) {
-      path = first_reference(img, *text, hit, pattern_end, config);
-      if (!path) {
-        path_refusal = Refusal::NoPath;
-      } else if (!path_matches(img, *path, config.path_suffix)) {
-        path_refusal = Refusal::PathText;
-      }
-    } else {
-      PathSearch found = find_path(img, *text, hit, pattern_end, config);
-      if (found.load) {
-        path = found.path;
-        s.path_load = found.load;
-      } else if (found.elsewhere) {
-        path = found.elsewhere;
-        path_refusal = Refusal::PathSection;
-      } else if (found.first) {
-        path = found.first;
-        path_refusal = Refusal::PathText;
-      } else {
-        path_refusal = Refusal::NoPath;
-      }
-    }
-    if (path) s.path = *path;
-    const RuntimeFunction* fn = img.image().function_at(*gt);
-    if (!in_named(img, *st, config.data)) {
-      s.refused = Refusal::StaticSection;
-    } else if (*st % 8 != 0) {
-      s.refused = Refusal::StaticAlignment;
-    } else if (!in_named(img, *cl, config.data)) {
-      s.refused = Refusal::ClassSection;
-    } else if (!in_named(img, *gt, config.code)) {
-      s.refused = Refusal::GetterSection;
-    } else if (fn == nullptr || fn->begin != *gt) {
-      s.refused = Refusal::GetterNotFunction;
-    } else if (path_refusal) {
-      s.refused = path_refusal;
-    }
-    if (config.names) s.name = class_name(img, *cl, *config.names);
-    if (!s.refused) {
-      if (!s.name) {
-        ++result.unnamed;
-      } else {
-        auto [it, fresh] = by_name.try_emplace(*s.name);
-        Singleton& one = it->second;
-        if (fresh) {
-          one.name = *s.name;
-          one.static_slot = *st;
-          one.class_object = *cl;
-          one.getter = *gt;
-        } else if (one.static_slot != *st) {
-          one.ambiguous = true;
-        }
-        ++one.sites;
-      }
-    }
-    result.sites.push_back(std::move(s));
+    conclude(img, *text, config, std::move(s), pattern_end, idiom.path, config.first_reference, by_name, result);
+  }
+  for (auto& [_, one] : by_name) result.singletons.push_back(std::move(one));
+  return result;
+}
+
+bool Accessor::valid() const noexcept {
+  if (!shape.valid()) return false;
+  const auto gives = [&](std::uint8_t step, shape::Form form) {
+    return step < shape.steps.size() && shape.steps[step] == form;
+  };
+  return gives(static_step, shape::Form::LoadSlot) && gives(class_step, shape::Form::AddressArg1) &&
+         gives(getter_step, shape::Form::CallRelative);
+}
+
+Result find(const ImageBytes& img, const Accessor& accessor, const Config& config) {
+  Result result;
+  const SectionCopy* text = img.named(config.code);
+  if (text == nullptr || !accessor.valid()) return result;
+  const shape::Matches matches = shape::find(img, *text, accessor.shape, config.max_hits);
+  result.hits = matches.count;
+  std::map<std::string, Singleton> by_name;
+  for (const shape::Hit& hit : matches.hits) {
+    Site s;
+    s.hit = hit.rva;
+    // A shape's hit is decoded already: its places are RIP-relative operands and a relative call by its forms.
+    s.static_slot = hit.gives[accessor.static_step];
+    s.class_object = hit.gives[accessor.class_step];
+    s.getter = hit.gives[accessor.getter_step];
+    conclude(img, *text, config, std::move(s), hit.end, std::nullopt, false, by_name, result);
   }
   for (auto& [_, one] : by_name) result.singletons.push_back(std::move(one));
   return result;
