@@ -83,7 +83,7 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.9",
       "seq": 4,
       "time": "0:00:01"
     }
@@ -143,7 +143,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.8"
+        "value": "0.2.9"
       },
       {
         "label": "Game build",
@@ -183,7 +183,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.8",
+        "detail": "Connected, version 0.2.9",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -212,7 +212,7 @@
         },
         {
           "detail": "EldenNet needs GraceUI 0.2.8 or later",
-          "label": "GraceUI 0.2.8",
+          "label": "GraceUI 0.2.9",
           "state": "pass"
         }
       ]

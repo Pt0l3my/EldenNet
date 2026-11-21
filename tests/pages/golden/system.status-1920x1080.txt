@@ -75,7 +75,7 @@ text    ink.mute      589, -12   59x25   clip1 glyphs 7 "Writing"
 line    rule          365,  30 1490x1    clip1
 text    moss          365,  48   51x25   clip1 glyphs 6 "Passed"
 text    ink.body      503,  46   66x28   clip1 glyphs 7 "GraceUI"
-text    ink.mute      589,  48  202x25   clip1 glyphs 22 "Connected, version 0.2.8"
+text    ink.mute      589,  48  202x25   clip1 glyphs 22 "Connected, version 0.2.9"
 fill    ground.2      340, 125 1540x755  r5 clip1
 stroke  rule          340, 125 1540x755  r5 w1 clip1
 text    gold          365, 145  182x20   clip1 glyphs 17 "What EldenNet reads"
