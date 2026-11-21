@@ -1161,6 +1161,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     not as columns in a topic's body (WHY§281); how EldenNet uses them is GraceUI's docs/eldennet-changes.md §41.
     In game, focus now stays on its element when a topic's body arrives. EldenNet's AI pages take them in the next
     slice (S11.4.a).
+- v A row secret's refused and none states, the changed mark from the space's own list, no empty default printed (GraceUI 0.2.9) [done]
+  - refs: GraceUI:D197, GraceUI:D198, WHY§288
+  - gives: asked by EldenNet's third pages slice and done on 2026-11-21 (GraceUI feat/foundations a1d8f78), protocol
+    and ABI 1.2 unchanged. EldenNet's next pages slice uses them: "none" for a server that needs no key, "refused" for a
+    key the provider refused, a picker in the `changed` list only when the player picked a model, and "Default: the
+    preset's model." in its help (GraceUI's docs/eldennet-changes.md §42).
 
 ### S11.3 EldenNet v0.2
 

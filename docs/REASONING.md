@@ -310,6 +310,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 285 | 2026-11-21 | The AI pages' pickers: path-shaped model ids left out, a job's model row holds the model now, provider name rules | DECIDED | #engine #pages #privacy |
 | 286 | 2026-11-21 | GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it | FACT | #graceui #harness |
 | 287 | 2026-11-21 | Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words | METHOD | #privsweep #harness |
+| 288 | 2026-11-21 | A row's changed mark is the space's own list, not a value compared with its default | DECIDED | #graceui #settings |
 
 ## Entries
 
@@ -4857,3 +4858,12 @@ invariant 10, EldenNet ARCH (T3)
   use names such as `storeroom.invalid`, rather than adding allow lines.
 - (METHOD) A fake-game case whose browser starts from the game's report should have reports early: the AI case's
   browser waited for its first report and finished 0.6 s before the menu needed its result.
+
+### 288. A row's changed mark is the space's own list, not a value compared with its default
+
+`2026-11-21` · DECIDED · `#graceui` `#settings` · refs: GraceUI:D198, S11.2.v
+
+- (DECIDED) Both of GraceUI's views take a row's changed mark from the settings body's `changed` list, in the protocol
+  from the start and published by every space, rather than comparing a value with its default, which misreads a
+  setting whose default stands for something the space resolves (EldenNet's per-job model picker, whose default is the
+  preset's model). A new `default_label` field, which would have been protocol 1.3, was not needed.
