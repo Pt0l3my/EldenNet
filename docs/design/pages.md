@@ -151,6 +151,10 @@ GraceUI's (D82): GraceUI §4.3, which also lists what EldenNet's space indexes a
 | Dormant (multiplayer, loading) | All; live views paused | "Paused (multiplayer)"; settings stay editable |
 | Lost contact (browser) | The last snapshot, read-only | The stale state (GraceUI §3.9) |
 
+*2026-11-21, as built (S11.4.a's third slice; O95 (4)):* at L1, Home and the AI pages are greyed through GraceUI's
+`space.state` (D188) with en-core's banner words themselves ("EldenNet inactive: …"), one form on every page: the AI
+pages' Now card and their refusals at L1 carry the same words. System and Settings stay usable. L2 greys nothing.
+
 ### 4.5 Every setting and its home
 
 Keys are EldenNet's `settings.toml` (ARCH §11.5, schema 2) plus the keys GraceUI asks for (marked *new*; see GraceUI's
@@ -213,6 +217,14 @@ says so, "Same as Conversation", until it is changed; Decisions follows Quick li
 Without a preset, every row but Conversation starts so. A change writes the slot's `[slots.<slot>]` in
 `providers.toml`, its provider named, and Reset to preset clears it. The reserved slots, `actions` and `vision`, get
 their rows only once their features exist.
+*2026-11-21, as built (S11.4.a's third slice; GraceUI D193):* each shown job's model is a settings row,
+`slots.<slot>.model` (Conversation's, Quick lines', Prepared lines', Memory's and Self-test's model; home AI › Models;
+next request), a text setting whose choices come from a state topic of the space's own, `ai.choices.<slot>`: what the
+job's provider listed at the last model list or self-test, an id that looks like a path left out (PV5). EldenNet checks
+at its entry point that a value is one of them. The row's value is the job's model now, the preset's or the one chosen,
+and stays shown when the list lacks it; a choice writes the slot's `[slots.<slot>]` `provider` (the job's provider now)
+and `model`, any fallback there kept; the row's reset removes `[slots.<slot>]`, so the preset's models hold again. The
+provider and fallback pickers, Decisions and Profile drafts come later.
 
 **Other sources.** From 1.1, `config\plugins.toml` (each plugin's switch, its Cluster or Detached mode and the order;
 changed only through EldenNet's plugin commands) on Plugins. `providers.toml` (read and write) on AI › Providers (its
@@ -236,6 +248,8 @@ one `home`, and the home is one of the page ids `home`, `ai.models`, `voice.text
 `history.memories`, `behaviour.conversation`, `behaviour.speaking`, `behaviour.awareness`, `behaviour.reactions`,
 `behaviour.pacing`, `settings.general`, `settings.hotkeys`, `settings.menu`, `settings.browser` or `settings.developer`,
 and from 1.1 `settings.map`. AI › Providers holds `providers.toml` entries and keys, which are not settings rows.
+*2026-11-21, as built:* so it is since GraceUI 0.2.8: the second slice's key rows (`keys.<provider>`, secret settings
+homed on AI › Providers) are gone, and each key is its provider's row secret (GraceUI D194).
 
 ### 4.6 Pages
 
@@ -271,6 +285,9 @@ dialog and Related card of GraceUI §4.2.4.
 - **Rules.** SP7 on Nearby, Happening now and Recent events; Lines shows only what was displayed. Chat and model text
   only on Lines and Model calls (PV4).
 - **Keys and pad.** Cards are focus targets in reading order; ↑↓ inside a card's rows; A on a title opens its page.
+- *2026-11-21, as built (S11.4.a):* Status and Problems only. Problems reads "No problems." when there are none
+  (GraceUI D186's empty words; the moss tone is GraceUI's to give), and holds a refused providers file with why in words
+  and its line, beside a refused settings file. At L1 the page is greyed with the banner's words (§4.4).
 
 #### 4.6.2 AI
 
@@ -302,6 +319,27 @@ dialog and Related card of GraceUI §4.2.4.
   Safari, Firefox 114 and later), outside any `<form>`, and cleared once sent. In game it is GraceUI's own field, drawn
   as discs and never as text (D57). On a pad it opens the Steam keyboard, masked. No spoilers.
 - **Related.** Models, Self-test, Docs › What is sent to your provider.
+- *2026-11-21, as built (S11.4.a's third slice, GraceUI 0.2.8, protocol 1.2; D192 to D196):* header actions Add the
+  preset's provider (`providers.add` with no fields: the chosen preset's providers that providers.toml lacks) and List
+  models (`models.list`: every provider, those no job uses too). Sections: *Now* (`ai.status`); *Providers*, a table
+  (Provider, Kind, Server type, Address, Key, Requests at once, JSON answers) with a **Remove** on each row
+  (`providers.remove` with the row's id, destructive, confirmed; refused in words for a provider a job uses, naming the
+  jobs) and the **key** on each row (`providers.key` with the id and the value, the row's secret: its cells "set" or
+  "", read Set or Missing, never the key; an empty value clears it), and the preset's shortcut row; *Your own provider*,
+  a small form (`providers.add` with a Name of up to 32 letters, digits, '-', '_' or '.', unique ignoring case and no
+  name a key is kept under, and a Base URL checked as EldenNet ARCH §11.1 says, each refusal in words); *Models
+  listed*; *Health*. Advice, Advanced, Find local servers and Local servers found are not built. Writes, as built:
+  `providers.add`, `providers.remove`, `providers.key`, `models.list` and `settings.set` (`ai.preset`), not
+  `providers.update`, `secrets.set` or `secrets.clear` (GraceUI D190); on a paired device these are the commands to
+  refuse (GraceUI proposal 0007 §5). A key is refused, in words that never echo it, for a provider whose key is an
+  environment variable's and for one reached by http:// on another computer. In game a row's key reads "Key: Set" or
+  "Missing", set in the browser view, and the form reads "Filled in the browser view: Name, Base URL." (GraceUI's
+  words). A provider the form adds is OpenAI-compatible with JSON schema answers; local, with no key's place, when it is
+  reached by http:// on this PC or the home network (a key may then be set on this PC's row, never on the home
+  network's); cloud otherwise, its key in `secrets:<id>`.
+- *2026-11-21, O98 (a):* the form takes a server on another PC of the home network by its literal private address
+  (RFC 1918 IPv4, or fc00::/7 IPv6) over http://, never a host name; it takes no key, and EldenNet never probes for it:
+  only the player adds it (Find local servers probes this PC alone, EldenNet ARCH §11.4).
 
 **Models** (`ai.models`; 0.2 read-only, 0.6 writable).
 
@@ -331,6 +369,11 @@ dialog and Related card of GraceUI §4.2.4.
   writes `providers.update` is read-only, as on Providers.
 - **Keys and pad.** Pickers open as lists; type to filter in the browser.
 - **Related.** Providers, Self-test, Requests, Behaviour › Combat.
+- *2026-11-21, as built (S11.4.a's third slice):* sections Now, Preset (`ai.preset`: Cloud budget on OpenRouter, Cloud
+  on NanoGPT, Custom), Jobs (a table: Job, Provider, Model, Fallback, State; five rows, "Same as Conversation" for a job
+  that borrows) and Each job's model: five picker rows, `slots.<slot>.model` (§4.5's note), not cards per job. No
+  provider or fallback picker yet, so a provider the player adds serves a job only through the player's own file; no
+  Apply, Reset to preset (each row's reset does it for that job), Advice or fixed budgets.
 
 **Self-test** (`ai.selftest`; 0.2).
 
@@ -652,6 +695,12 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Data.** Reads `status`, `system.status`.
 - **Rules.** Checks name features, never flags, stages or characters.
 - **Related.** Performance, Logs, Docs › Troubleshooting.
+- *2026-11-21, as built (S11.4.a):* Health (the state, its reason, the start, the game build, offline and solo, the read
+  groups' count), EldenNet's parts as lamps (the start, reading the game, the core, a refused providers file with why
+  in words and its line, never its text, the anti-cheat watch, the log, the recording, GraceUI) and the read groups'
+  self-tests, whose empty words say they appear after the first reading; Compatibility as the same topic's
+  `compatibility` member (GraceUI D185), so `system.status` is the page's one topic. Logs lists newest first in the
+  browser (D187).
 
 **Performance** (`system.performance`; 0.2).
 
@@ -835,6 +884,9 @@ GraceUI's (D82): GraceUI §4.7. Each row is generated from EldenNet's settings d
 - **PV5. Scrubbing.** System › Logs and the Bug report scrub SteamID64, absolute paths and
   the Windows user name, the character's name, and base-URL hosts that are not a known public provider, and, with
   `dashboard.lan` (G9), the PC's network addresses and the paired devices' names.
+  *2026-11-21, as built (S11.4.a):* the ids a provider's model list sends reach AI › Models' pickers alone, never a
+  log, a report or another page; one that looks like a path (a backslash, a leading '/' or '~', a drive's letter,
+  `/Users/` or `/home/`), as a local server's can, is left out, since it may hold the Windows user name.
 - **PV6. No outside requests.** GraceUI's framework rule (GraceUI §4.9), binding these pages too.
 - **PV7. Clipboard only on a click.** GraceUI's framework rule (GraceUI §4.9), binding these pages too.
 - **PV8. Recordings never capture the menu.** EldenNet's session recordings skip menu content.
@@ -1003,6 +1055,10 @@ own tests run over its demo space (D82).
   the title screen, an L1 banner, multiplayer, lost contact, a second journey after NG+, a long history, every badge
   state), with invented names and our own words. Never game text or names. GraceUI's fake host, `grace-dev`, answers
   from them as EldenNet would (GraceUI §9.2).
+  *2026-11-21, as built (S11.4.a):* five states so far (starting, title, world, multiplayer, banner), their topics
+  written by en_overlay_tests, the AI pickers' `ai.choices.<slot>` among them (`system.compatibility` is folded into
+  `system.status`); grace-dev dumps each page's in-game structure over a named state into a golden, Home and Self-test
+  greyed at L1 among them (`home.banner`, `ai.selftest.banner`).
 
 | Layer | What | Where it runs |
 |---|---|---|

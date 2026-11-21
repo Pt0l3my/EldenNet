@@ -69,6 +69,16 @@ threads (GraceUI D71, D81). The game's own threads enter EldenNet's code only th
 `on_present` callback on T3, and WinHTTP's own threads only through en-llm's status callback, which queues what
 completed for the exchange's driver (WHY§102). Each of those entries is `noexcept` and starts with `ffi_guard` (R3).
 
+**The AI pages, as built** (*2026-11-21*, S11.4.a's second and third slices). T1, on the main path after the safety
+step, reads `providers.toml` and `secrets.toml`, `models.toml` beside the DLL, and makes en-llm's transport factory
+(no traffic). T6 parses them, fills the AI pages' facts each wake, and takes the space's changes and requests as
+values; a key's value is taken out of the request at once into en-llm's `Secret` and every copy EldenNet holds is
+overwritten (the request's, the parsed frame's, the poll buffer's after each command), while GraceUI's and toml++'s
+stay best effort. Each edit of `providers.toml` or `secrets.toml` is parsed before T6 takes it, then posted to T11,
+which makes the same edit on the file as it is then and writes it beside and renames it over, `secrets.toml` with
+§11.5's access list. T6 makes T7–T8 when a self-test or a model list first needs them. Log words: `ai_change
+what=add|add_own|preset|key|key_place|model|model_reset|remove`, with no URL, model id or typed name.
+
 **GraceUI's calls, as built** (the first in-game build's part 12, 2026-11-20; WHY§216 to §218, §230). T1 alone looks
 for GraceUI and connects (§1.4, §3.2), and makes, with `debug.panel`, the F11 view's context, atlas, panel and hotkey,
 and the Mark's hotkey when it is asked for then. Once T1 has published the connection, T6 alone calls GraceUI, after
@@ -2387,6 +2397,34 @@ fallback = "google/gemma-4-31b-it"
 # slot, and for the fallback the primary model's
 ```
 
+- **Base URLs, and keys in clear text** (*2026-11-21, as built: S11.4.a's third slice; O98 (a)*). One check in
+  en-proto (`base_url.hpp`) serves AI › Providers' form, `parse_config` on the player's own `providers.toml` and the
+  pages' key rows:
+  - the scheme is `https://` or `http://`; a base URL holds no name or password before its host (a key is never
+    written inline, and the URL is shown on AI › Providers, PV2) and no query or fragment, since the client appends its
+    own paths (`url_extras`);
+  - `http://` reaches this PC (`localhost`, a dotted 127.0.0.0/8 address or `[::1]`; a name that merely starts with
+    "127." is another host's, a fix of 2026-11-21) or, by a literal private address, another PC of the home network
+    (RFC 1918's IPv4 ranges, or fc00::/7; never a name, which may resolve anywhere), and nothing else, whatever the
+    provider's `kind` (`reach_of`);
+  - a key goes only over `https://` or to this PC: a `key_ref`, or a header's `secrets:`/`env:` value, on a provider
+    reached by `http://` on another computer is refused, and so is a key set on its row in the pages;
+  - a provider on a private address over `http://` is local when its `kind` is not given (one request at once); one
+    marked `cloud` there still needs `https://`.
+  Each refusal of `providers.toml` is named (en-llm's `ConfigRefusal`: the scheme, a name or password, a query or
+  fragment, http:// to a public host, http:// for a cloud provider, a key in clear text, or another) with its line,
+  logged as `ai_config result=refused file=… line=… why=…`, never with the message (which can hold an address), and
+  shown in words by the line on System › Status and Home's Problems (PAGES §4.6.7, §4.6.1). A server on the home network
+  is never probed (§11.4): only the player adds it.
+- **A provider of the player's own** (*2026-11-21, as built*). AI › Providers' form adds one by a name and a base URL,
+  both checked at EldenNet's one entry point: the name is its id, 1 to 32 of `A-Z a-z 0-9 _ - .`, unique among the
+  providers ignoring case, and never a name `secrets.toml` already keeps a key under (that key would otherwise go to
+  the new address); the base URL meets the check above, at most 200 bytes, a host of letters, digits, '-' and '.' or a
+  bracketed IPv6 address with an optional port, and a path of `A-Z a-z 0-9 - . _ ~ / %XX`, its scheme and host
+  lower-cased and a trailing '/' taken off. The entry is `flavor = "openai"`, `json_mode = "json_schema"`; local (no
+  `key_ref`) when it is reached by `http://` on this PC or the home network, cloud with `key_ref = "secrets:<id>"`
+  otherwise. A key set on the row of a provider of this PC with no `key_ref` gives it `secrets:<id>` first.
+
 ### 11.2 Error classes, actions and health
 
 | Class | Detected by | `dialogue` | `bark_live` | `bark_pool` | `memory` | Health effect |
@@ -2539,6 +2577,15 @@ all = { model_hint = ["qwen3.5-9b"], quant = "Q4" }
 - Each probe is a `GET http://127.0.0.1:<port>/v1/models` with a 500 ms connect timeout and 1.5 s total (impl).
 - A port counts only if it answers with a model list. The flavour is confirmed by `GET /api/version` (Ollama) or `/props` (llama.cpp). A port's owner is never assumed (ER06 §5.2).
 - Probes run only from the wizard and the F10 "Find local servers" button, and never while the gate is false.
+- *2026-11-21 (O98 (a)):* the probes look at this PC alone. A server on another PC of the home network is never probed
+  or found: the player adds it on AI › Providers by its private address (§11.1).
+
+*2026-11-21, as built (S11.4.a's third slice).* The pages' model list (AI › Providers' List models) asks every
+provider, those no job uses after the others, so that a provider just added is checked at once; the self-test asks the
+providers a slot in use names. Each list keeps the ids it was sent, within en-llm's limits (1000 ids of at most 256
+printable bytes), for AI › Models' pickers alone, never logged; T6 keeps each provider's newest answered list for the
+session. A job's model chosen there writes `[slots.<slot>] provider = "<the job's provider now>", model = "<id>"`,
+any `fallback` there kept; its reset removes `[slots.<slot>]`, so the preset's models hold again (PAGES §4.5).
 
 ### 11.5 Settings and secrets
 
