@@ -164,6 +164,8 @@ class Browser:
                 f = json.loads(text)
                 if f.get("t") == "state":
                     self.latest[(f.get("space"), f.get("topic"))] = f.get("body")
+                if f.get("t") == "ping":  # the protocol's liveness, every 15 s: two unanswered close the socket
+                    self.send({"v": 1, "t": "pong"})
                 return f
 
     def next(self, want, timeout=None):

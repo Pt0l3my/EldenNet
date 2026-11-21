@@ -148,10 +148,15 @@ cmake --build build-cl
   `launcher-eldennet-graceui-ai` drives the AI pages against a fake model server of the tests' own
   (`tests/pages/fake_models.py`: OpenAI-compatible, on 127.0.0.1 at a free port, in the harness's own process, with
   invented models and a new invented key each run), which a `models.toml` beside the DLL names for the two cloud
-  presets' providers: the browser adds a provider, sets the key, runs the self-test and the model list, then the menu
-  runs the self-test from its header action, and the browser removes the unused provider; the case then looks for the
-  key in every frame, log line, recording and file of the run, and for a fragment of it in what the menu draws
-  (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`).
+  presets' providers: the browser adds the preset's provider and one of its own through the form (on the fake
+  server's own path), sets the key on each one's row, runs the self-test and the model lists, picks a job's model
+  from what its provider listed and meets EldenNet's refusals in words; then the menu (fixed key presses from frame
+  2520, so the browser's first part must be done by about 44 s) removes the provider of its own from its row, steps
+  Memory's picker and runs the self-test from its header action; then the browser resets both picks, chooses the
+  NanoGPT preset and removes the unused provider. The case then looks for the key in every frame, log line, recording
+  and file of the run, and for a fragment of it in what the menu draws (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the
+  fake game's `shows=` from `FAKEGAME_SHOWS`), which also checks that the menu draws a row's key as Set and the form's
+  line.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
