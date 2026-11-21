@@ -9,7 +9,7 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 surfaces (subtitles, the chat box, the call-out box) as panels, and the rest of its pages.
 
 It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 0738fa3, GraceUI
-0.2.8; its floor, 0.2.3): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+0.2.8; its floor, 0.2.8): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -106,12 +106,13 @@ game's own text entry is not read in v0.1.
 
 - **One source**: `pages/space.toml`, in GraceUI's page format (eldennet-changes §19): the rail of PAGES §4.2.1 in its
   order (a category with no page yet holds none, and GraceUI shows no empty category), the pages (Home, System ›
-  Status and Logs, Settings › Developer from the first slice; AI › Providers, Models and Self-test from the second),
-  its topics (`settings`, `status`, `errors`, `system.status`, `system.compatibility`, `logs`; `ai.status`,
-  `providers`, `health`, `ai.slots`, `selftest`), its commands (`settings.set`, `settings.reset`, `selftest.run`,
-  `models.list`, `providers.add`, `providers.remove`) and the settings whose home is there (`debug.panel`,
-  `debug.record_sessions`, `debug.log_level`; `ai.preset`, `keys.openrouter`, `keys.nanogpt`). `python3 -I
-  tools/pages/build.py` writes `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in
+  Status and Logs, Settings › Developer from the first slice; AI › Providers, Models and Self-test from the second,
+  writable from the third on GraceUI 0.2.8's protocol 1.2: D192 to D196), its topics (`settings`, `status`, `errors`,
+  `system.status`, `system.compatibility`, `logs`; `ai.status`, `providers`, `health`, `ai.slots`, `selftest`, and
+  `ai.choices.<slot>` for each job's picker), its commands (`settings.set`, `settings.reset`, `selftest.run`,
+  `models.list`, `providers.add`, `providers.remove`, `providers.key`) and the settings whose home is there
+  (`debug.panel`, `debug.record_sessions`, `debug.log_level`; `ai.preset` and each job's model, `slots.<slot>.model`).
+  The page data says `"minor": 2`. `python3 -I tools/pages/build.py` writes `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in
   CTest); every page ships in the increment EldenNet registers or an earlier one, `0.2` since the AI pages (D173).
   Every word a player reads there is a draft for review.
 - **Registered at the connect** (T1, eldennet-changes §23 item 1): `Options::space_views`, both views on the main path,
@@ -132,25 +133,35 @@ game's own text entry is not read in v0.1.
   held, from T1's first, scrubbed again of a SteamID64's shape, PV5). The AI pages' (`SpaceFacts::ai`, en-overlay's
   own `AiFacts`, which the DLL maps from en-llm): `ai.status` the cause every AI page leads with (PAGES §4.4:
   inactive, a refused providers file, no provider, no key or a refused one, no healthy model for Conversation, the
-  gate, or v0.1's observing); `providers` the providers' table (the base URL here alone, PV2; a key's status, Set,
-  Missing, Rejected or None needed) and the model list's checks, in words; `health` each provider's state, when it
+  gate, or v0.1's observing; at L1 the banner's own words, O95); `providers` the providers' table (the base URL here
+  alone, PV2; the key column is the row's secret, D194, its cells "set" or "" and never a key; a Remove on each row,
+  D192) and the model list's checks, in words; `health` each provider's state, when it
   last answered and its jobs; `ai.slots` each job's provider, model and fallback, "Same as Conversation" for one that
   borrows (the reserved slots get no row until their features exist, PAGES §4.5); `selftest` the verdict, the steps,
-  the figures and this session's earlier runs, nothing before the first run. Never a key, an id a server listed, or
-  the model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): the AI pages greyed at L1 with the
-  banner's own words (PAGES §4.4), nothing greyed otherwise (at L2 every page stays usable, led by `ai.status`). The
+  the figures and this session's earlier runs, nothing before the first run; `ai.choices.<slot>` a job's picker's
+  choices (D193), what the job's provider listed last, in its order, at most 256, any id that looks like a path left
+  out (`pickable`: a backslash, a leading '/' or '~', a drive's letter, a home folder; PV5). Never a key or the
+  model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): the AI pages greyed at L1 with the
+  banner's own words (O95's one form), nothing greyed otherwise (at L2 every page stays usable, led by `ai.status`). The
   AI pages' blocks carry `props.empty` words for a topic that published nothing for them (D186).
 - **One command path** (GraceUI's invariant 3): `settings.set` (the key known, not locked, the value of its type and in
   its bounds or choices) and `settings.reset` (a key at once; a page or every setting only with `confirm: true`,
   D173), each refusal by its code, with words in `detail` where the code says too little; nothing while the settings
   file the player wrote was refused at the start. A secret is held and published as its status alone; one with a space
   or a control inside is refused. What a command changed is taken by the DLL (`take_changes`), which applies it and
-  writes settings.toml, or for `ai.preset` and the keys providers.toml and secrets.toml (refused while providers.toml
-  is). The AI pages' commands are answered at once and handed to the DLL (`take_requests`): `selftest.run` and
-  `models.list` (only with a provider, while the gate is open, one at a time: `busy` for the same, `not_now` in words
-  for the other), `providers.add` (the chosen preset's providers that providers.toml lacks; not for Custom) and
-  `providers.remove` (the providers no job uses, with their keys: destructive, so `confirm_required` without
-  `confirm: true`, D173, D183).
+  writes settings.toml, or for `ai.preset` and a job's model providers.toml (refused while providers.toml is). A job's
+  model must be one its picker offers (a model its provider listed, `pickable`); its reset clears the job's choice,
+  so the preset's model holds again; the model rows follow the facts' `revision` (`sync`). The AI pages' commands are
+  answered at once and handed to the DLL (`take_requests`, each an `AiRequest`): `selftest.run` and `models.list`
+  (only with a provider, while the gate is open, one at a time: `busy` for the same, `not_now` in words for the
+  other); `providers.add` with no fields (the header's: the chosen preset's providers that providers.toml lacks; not
+  for Custom) or with the form's `name` and `base_url` (a provider of one's own: the name 1 to 32 of letters, digits,
+  `-_.`, no provider's already, nor a key's already kept; the address checked by en-proto's `check_base_url`, each
+  refusal in words, never logged); `providers.remove` with a row's `id` (destructive, so `confirm_required` without
+  `confirm: true`, D173, D192; never a provider a job uses, the jobs named); and `providers.key` with a row's `id` and
+  `value` (D194: empty clears it; refused, in words that never echo it, for a provider whose key is an environment
+  variable's or whose address is http:// to another computer; the frame's copy of the value overwritten, and the
+  poll buffer's after each command). An argument of the wrong type is refused as `invalid_value`.
 - **What it publishes and when**: nothing for a topic nobody watches; a state topic when it is watched (again for each
   new watch) and when its body changes, no oftener than its rate (`status`, `providers` and `selftest` 4 a second,
   `system.status` and `health` once a second, the rest on change); the logs stream from its oldest row held, in batches of 100, then each new row once a second.

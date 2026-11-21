@@ -301,6 +301,8 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
           serving ? space->command(frame, *facts)
                   : std::string(R"({"v":1,"t":"result","space":"eldennet","id":0,"error":"internal"})");
       const GraceUiStatus answered = api_.answer(me_, event.reply, result);
+      // The frame's bytes overwritten: a row's key (providers.key, D194) is in no buffer of ours after its command.
+      std::fill(frame_.begin(), frame_.begin() + static_cast<std::ptrdiff_t>(frame.size()), '\0');
       ++out.commands;
       if (answered != GRACEUI_OK) out.page_refused = answered;
       continue;

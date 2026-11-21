@@ -208,10 +208,11 @@ void read_ai_files(Shell& s, const std::optional<std::string>& settings_text) no
 // T6, each wake before the space's step: the handle's events taken, the runs advanced, the AI pages' facts (null
 // until T1 has read the files, and on the banner path).
 const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space& space) noexcept;
-// T6: a change of the space's `ai.preset` or `keys.*`, made and written; the change's copy of a key is overwritten.
+// T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
-// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove).
-void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest request) noexcept;
+// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
+// value is taken out of the request and the request's copy overwritten.
+void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
 
 // ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
 unsigned long init_main(void* module) noexcept;

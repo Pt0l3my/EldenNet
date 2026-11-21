@@ -32,7 +32,7 @@ fill    ground.2      340, 276 1540x130  r5 clip1
 stroke  rule          340, 276 1540x130  r5 w1 clip1
 text    gold          365, 296   29x20   clip1 glyphs 3 "Now"
 text    ink.faint    1842, 296    8x25   clip1 glyphs 1 "-"
-text    ink.body      365, 346  574x25   clip1 glyphs 57 "EldenNet is inactive, so it calls no model: Home's Problems say why."
+text    ink.body      365, 346  481x25   clip1 glyphs 50 "EldenNet inactive: game build 3.14.15.0 not supported yet"
 fill    ground.2      340, 426 1540x130  r5 clip1
 stroke  rule          340, 426 1540x130  r5 w1 clip1
 text    gold          365, 446   67x20   clip1 glyphs 7 "Verdict"
@@ -67,4 +67,4 @@ text    gold         1835,1136    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  253x25   glyphs 22 "Not available now    Esc  Back"
 stroke  gold.hi      1715,  86  168x46   r5 w3 clip1
-# 68 items, 3172 vertices, 6888 indices, 4 commands; check_draw_list: passes
+# 68 items, 3144 vertices, 6846 indices, 4 commands; check_draw_list: passes

@@ -36,7 +36,7 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 3);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 8);
   std::vector<std::string> caps = {"notices", "panels",  "textures",      "faces",  "input", "world-state",
                                    "hotkeys", "pages",   "holder-events", "display"};
   std::uint32_t table_size = sizeof(GraceUiApi1);  // a shorter table: an older GraceUI (D74)

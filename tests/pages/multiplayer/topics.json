@@ -1,4 +1,124 @@
 {
+  "ai.choices.bark_live": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.bark_pool": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.dialogue": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.memory": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.selftest": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
   "ai.slots": {
     "columns": [
       {
@@ -185,7 +305,7 @@
         "address": "https://router.example.invalid/api/v1",
         "id": "openrouter",
         "json": "JSON schema",
-        "key": "Set",
+        "key": "set",
         "kind": "Cloud",
         "requests": "2",
         "type": "OpenAI-compatible"
@@ -311,7 +431,7 @@
         "state": "pass"
       },
       {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "detail": "EldenNet needs GraceUI 0.2.8 or later",
         "label": "GraceUI 0.2.8",
         "state": "pass"
       }

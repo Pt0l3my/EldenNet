@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 1,
+  "minor": 2,
   "categories": [
     {
       "id": "home",
@@ -272,12 +272,12 @@
       "name": "Providers",
       "description": "Where EldenNet's model calls go, with whose key, and whether each answers.",
       "help": {
-        "purpose": "Set up where EldenNet's model calls go: the provider your preset names, and its key.",
+        "purpose": "Set up where EldenNet's model calls go: your preset's provider or one of your own, and each one's key.",
         "steps": [
-          "Choose a preset on Models, then press Add provider: its provider joins the list.",
-          "Paste the provider's key under Keys. It is kept on this PC and never shown again.",
-          "Press List models to check that the provider answers and serves the models your jobs use.",
-          "Remove unused providers clears out those no job uses, with their keys."
+          "Press Add the preset's provider, or fill in a name and a base URL under Your own provider.",
+          "Paste each provider's key on its row. It is kept on this PC and never shown again.",
+          "Press List models to check that every provider answers and serves the models your jobs use.",
+          "Remove a provider no job uses with Remove on its row; its key goes with it."
         ]
       },
       "related": [
@@ -288,7 +288,7 @@
       "actions": [
         {
           "id": "add",
-          "label": "Add provider",
+          "label": "Add the preset's provider",
           "command": "providers.add",
           "tone": "primary"
         },
@@ -297,13 +297,6 @@
           "label": "List models",
           "command": "models.list",
           "tone": "secondary"
-        },
-        {
-          "id": "remove",
-          "label": "Remove unused providers",
-          "command": "providers.remove",
-          "tone": "destructive",
-          "confirm": "Remove every provider no job uses, with its key? Press again to remove them. Its preset adds a provider back, but you must paste its key again."
         }
       ],
       "sections": [
@@ -321,34 +314,60 @@
         {
           "id": "providers",
           "title": "Providers",
+          "description": "Each key is written to this PC only, and never shown again.",
           "blocks": [
             {
               "kind": "component",
               "component": "table",
               "topic": "providers",
               "props": {
-                "empty": "No provider yet: choose a preset on Models, then press Add provider."
+                "empty": "No provider yet: add the preset's provider, or one of your own below."
+              },
+              "row_actions": [
+                {
+                  "id": "remove",
+                  "label": "Remove",
+                  "command": "providers.remove",
+                  "key": "id",
+                  "tone": "destructive",
+                  "confirm": "Remove this provider and its key? If you add it back, you must paste its key again."
+                }
+              ],
+              "row_secret": {
+                "column": "key",
+                "command": "providers.key",
+                "key": "id"
               }
-            }
-          ]
-        },
-        {
-          "id": "keys",
-          "title": "Keys",
-          "description": "Each key is written to this PC only, and never shown again.",
-          "blocks": [
-            {
-              "kind": "settings",
-              "keys": [
-                "keys.openrouter",
-                "keys.nanogpt"
-              ]
             },
             {
               "kind": "shortcuts",
               "keys": [
                 "ai.preset"
               ]
+            }
+          ]
+        },
+        {
+          "id": "own",
+          "title": "Your own provider",
+          "description": "A server that speaks the OpenAI API: a cloud service at an https:// address, or a server on this PC.",
+          "blocks": [
+            {
+              "kind": "form",
+              "command": "providers.add",
+              "fields": [
+                {
+                  "id": "name",
+                  "label": "Name",
+                  "max": 32
+                },
+                {
+                  "id": "base_url",
+                  "label": "Base URL",
+                  "max": 200
+                }
+              ],
+              "submit": "Add"
             }
           ]
         },
@@ -388,10 +407,11 @@
       "name": "Models",
       "description": "Which model does each job, and the preset that sets them all.",
       "help": {
-        "purpose": "See which model does each job, and choose the preset that sets them all.",
+        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's model yourself.",
         "steps": [
           "Choose a preset. Cloud budget, on OpenRouter, suits most players.",
           "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.",
+          "Choose a job's model from what its provider lists: press List models on Providers first. Reset it to use the preset's again.",
           "Open Self-test to check that the models answer quickly enough."
         ]
       },
@@ -435,6 +455,23 @@
               "props": {
                 "empty": "No job has a model yet: choose a preset above."
               }
+            }
+          ]
+        },
+        {
+          "id": "choose",
+          "title": "Each job's model",
+          "description": "The choices are the models the job's provider listed when you last pressed List models on Providers.",
+          "blocks": [
+            {
+              "kind": "settings",
+              "keys": [
+                "slots.dialogue.model",
+                "slots.bark_live.model",
+                "slots.bark_pool.model",
+                "slots.memory.model",
+                "slots.selftest.model"
+              ]
             }
           ]
         }
@@ -584,6 +621,26 @@
       "shape": "state"
     },
     {
+      "id": "ai.choices.dialogue",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_live",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.bark_pool",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.memory",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.selftest",
+      "shape": "state"
+    },
+    {
       "id": "space.state",
       "shape": "state"
     }
@@ -594,6 +651,7 @@
     "selftest.run",
     "models.list",
     "providers.add",
-    "providers.remove"
+    "providers.remove",
+    "providers.key"
   ]
 }

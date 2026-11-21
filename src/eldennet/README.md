@@ -43,7 +43,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.3) and the caps it uses, and, connected, the F11 view and the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.8) and the caps it uses, and, connected, the F11 view and the
    Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
@@ -131,12 +131,17 @@ After each wake, once T1 has published the connection:
   `secrets.toml` from the config folder, `models.toml` from `content\eldenring\` beside the DLL, and makes en-llm's
   WinHTTP transport (the system's `winhttp.dll` by its full path); `ai_files providers=… models=… secrets=…
   transport=…`. T6 parses them with en-llm (`ai_config result=ready|missing|refused …`, a refusal by its file and line
-  alone, never its message), fills the space's `AiFacts` each wake (the files' parts only when they change), sets the
-  preset's and keys' rows from the files (a key's status alone), and takes the space's changes and requests: the
-  preset and Add provider (`ai_change what=preset|add`: providers.toml's `preset`, the preset's missing providers
-  added with their keys in `secrets:<id>`), a key (`ai_change what=key name=… set=…`: cleaned, the change's copy
-  overwritten), Remove unused providers (`what=remove`, with the keys no remaining provider names), each checked by
-  parsing the result first and then posted to T11, which makes the same change on the file as it is then
+  alone, never its message), fills the space's `AiFacts` each wake (the files' parts only when they change; the
+  configuration's `revision`, which rises with each edit taken; what each provider listed at its newest answered list,
+  for the pickers alone, never logged), sets the preset's row from the file, and takes the space's changes and
+  requests: the preset and Add the preset's provider (`ai_change what=preset|add`: providers.toml's `preset`, the
+  preset's missing providers added with their keys in `secrets:<id>`), a provider of one's own (`what=add_own`:
+  OpenAI-compatible, local on a loopback address with no key's place until one is set, else cloud with its key in
+  `secrets:<id>`), a job's model (`what=model|model_reset`: its `[slots.<slot>]` provider and model, or the table
+  gone), a key on a row (`what=key name=… set=…`: cleaned, the request's copy overwritten; a provider with no key's
+  place gets `secrets:<id>` first, `what=key_place`; never one whose address is http:// to another computer or whose
+  key is an environment variable's), Remove on a row (`what=remove`: only a provider no job uses, with the keys no
+  remaining provider names), each checked by parsing the result first and then posted to T11, which makes the same change on the file as it is then
   (`ai_write file=providers|secrets ok=… why=…`; secrets.toml written with an access list for this user alone,
   `write_private`). The self-test and the model list run on en-llm's handle (T7–T8), which T6 makes when one first
   needs it (`ai_service ok=1 workers=…`) and tells the core's gate at each wake; its notify sets T6's wake. Each run's

@@ -1,4 +1,19 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
   "ai.slots": {
     "columns": [
       {
@@ -25,7 +40,7 @@
     "rows": []
   },
   "ai.status": {
-    "sentence": "No provider yet: choose a preset on Models, then press Add provider on Providers."
+    "sentence": "No provider yet: on Providers, add the preset's provider or one of your own."
   },
   "errors": {
     "checks": []
@@ -153,7 +168,7 @@
         "state": "pass"
       },
       {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "detail": "EldenNet needs GraceUI 0.2.8 or later",
         "label": "GraceUI 0.2.8",
         "state": "pass"
       }

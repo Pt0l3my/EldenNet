@@ -1,4 +1,19 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
   "ai.slots": {
     "columns": [
       {
@@ -25,7 +40,7 @@
     "rows": []
   },
   "ai.status": {
-    "sentence": "EldenNet is inactive, so it calls no model: Home's Problems say why."
+    "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
   },
   "errors": {
     "checks": [
@@ -177,7 +192,7 @@
         "state": "pass"
       },
       {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
+        "detail": "EldenNet needs GraceUI 0.2.8 or later",
         "label": "GraceUI 0.2.8",
         "state": "pass"
       }
