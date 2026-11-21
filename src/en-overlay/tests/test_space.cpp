@@ -25,7 +25,7 @@ namespace {
 SpaceFacts base() {
   SpaceFacts f;
   f.version = {0, 1, 0};
-  f.graceui = GRACEUI_VERSION_PACK(0, 2, 3);
+  f.graceui = GRACEUI_VERSION_PACK(0, 2, 8);  // the GraceUI vendored (third_party/graceui-sys)
   f.floor = {0, 2, 3};
   f.build_known = true;
   f.build = {3, 14, 15, 0};
@@ -200,7 +200,7 @@ void feed(Space& s, std::string_view state) {
     s.log_line("banner reason=unknown_build detail=unknown_build", 1210);
     return;
   }
-  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3", 1830);
+  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8", 1830);
   if (state == "starting") return;
   s.log_line("init state=ready", 6120);
   s.log_line("change what=phase to=title", 6140);

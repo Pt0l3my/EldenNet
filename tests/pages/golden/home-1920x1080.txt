@@ -36,7 +36,7 @@ text    ink.hi        365, 392   75x28   clip1 glyphs 8 "EldenNet"
 text    ink.body      862, 394   42x25   clip1 glyphs 5 "0.1.0"
 line    rule          365, 436 1490x1    clip1
 text    ink.hi        365, 452   66x28   clip1 glyphs 7 "GraceUI"
-text    ink.body      862, 454   42x25   clip1 glyphs 5 "0.2.3"
+text    ink.body      862, 454   42x25   clip1 glyphs 5 "0.2.8"
 line    rule          365, 496 1490x1    clip1
 text    ink.hi        365, 512   94x28   clip1 glyphs 9 "Game build"
 text    ink.body      862, 514  169x25   clip1 glyphs 19 "3.14.15.0, supported"
