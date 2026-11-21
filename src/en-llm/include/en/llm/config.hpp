@@ -109,6 +109,9 @@ struct Config {
   std::map<std::string, SlotConfig, std::less<>> slots;  // every known slot, with or without a model
   // Each reserved slot's models as the files name them (none where they name none): checked, and used by nothing yet.
   std::map<std::string, std::vector<ModelRef>, std::less<>> reserved;
+  // The slots with no model of their own, from the preset or [slots.*], and the slot each borrows its models from
+  // (ARCH §11.4: decisions bark_live's, every other dialogue's): what the AI pages call "Same as Conversation".
+  std::map<std::string, std::string, std::less<>> borrowed;
   int requests_per_hour = 600;  // budget.requests_per_hour, 60 to 3600 (ARCH §11.4, §11.5)
   Millis backup_after{2500};    // a cloud reply's backup request (ARCH §11.2; EST)
   std::vector<std::string> warnings;  // things the loader could not resolve but that do not stop the client

@@ -26,6 +26,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages"))
 import browser  # noqa: E402  (tests/pages/browser.py: a browser of the tests' own, for GraceUI's server)
+import fake_models  # noqa: E402  (tests/pages/fake_models.py: a fake model server of the tests' own, on loopback)
 
 AV = 0xC0000005
 
@@ -1355,13 +1356,13 @@ def check_graceui_events(r):
 
 
 # EldenNet's pages (S11.4.a; GraceUI D169, D171), at the title screen (in the world the fake game's player reads as in
-# danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down twice to
-# System › Status and Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
+# danger, which keeps GraceUI's menu shut, invariant 9): F5 opens GraceUI's menu on EldenNet's Home; Page Down past AI's
+# three pages to System › Status, and once more to Logs, where Log detail's shortcut row has the focus; Enter on it opens its home, Settings ›
 # Developer, with the row focused; → there changes it (a command to EldenNet, answered); F5 closes the menu. While it
 # runs, a browser of the tests' own (tests/pages/browser.py) joins GraceUI's server on loopback, at the port the fake
 # game's report gives, reads EldenNet's topics and sends commands.
-PAGES_KEYS = "600:f5,720:next,840:next,960:return,1080:right,1200:f5"
-PAGES_REPORTS = "360,660,780,900,1020,1140,1260"
+PAGES_KEYS = "600:f5,720:next,780:next,840:next,900:next,1020:next,1140:return,1260:right,1380:f5"
+PAGES_REPORTS = "360,660,960,1080,1200,1320,1440"
 
 
 def browse_eldennet(paths, out):
@@ -1413,7 +1414,7 @@ def check_graceui_pages(r):
     # The browser: the welcome names EldenNet's space at its increment; every topic watched came back, built by
     # EldenNet from what it knows, in its own words; each command answered once, by EldenNet's one command path.
     spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
-    need(spaces.get("eldennet", {}).get("increment") == "0.1" and spaces["eldennet"].get("version") == "0.1.0",
+    need(spaces.get("eldennet", {}).get("increment") == "0.2" and spaces["eldennet"].get("version") == "0.1.0",
          "the welcome named %s" % sorted(spaces), failures)
     status = body("status")
     items = {i.get("label"): i.get("value") for i in status.get("items", [])}
@@ -1450,12 +1451,12 @@ def check_graceui_pages(r):
     # Developer, where → sends EldenNet a command it answers; F5 closes. The menu watched the settings while open.
     failures += (want_grace(r, 360, eldennet=1, server=1, spaces=1, menu_open=0) +
                  want_grace(r, 660, menu_open=1, menu_page="home") +
-                 want_grace(r, 780, menu_open=1, menu_page="system.status") +
-                 want_grace(r, 900, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
-                 want_grace(r, 1020, menu_open=1, menu_page="settings.developer",
+                 want_grace(r, 960, menu_open=1, menu_page="system.status") +
+                 want_grace(r, 1080, menu_open=1, menu_page="system.logs", menu_focused="shortcut:debug.log_level") +
+                 want_grace(r, 1200, menu_open=1, menu_page="settings.developer",
                             menu_focused="setting:debug.log_level") +
-                 want_grace(r, 1140, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
-                 want_grace(r, 1260, menu_open=0))
+                 want_grace(r, 1320, menu_open=1, menu_page="settings.developer", menu_refusals=0) +
+                 want_grace(r, 1440, menu_open=0))
     failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
                             ("LAUNCHER", "end", {"kind": "clean"}))(r)
     for name, key, result in (("settings.set", "debug.record_sessions", "ok"),
@@ -1482,7 +1483,7 @@ def check_graceui_pages(r):
 
 
 case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1380),
+     game("--d3d12", "--stay-title", "--press-keys", PAGES_KEYS, "--grace-report", PAGES_REPORTS, frames=1560),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(EN_PANEL, then=install_graceui), during=browse_eldennet,
      check=check_graceui_pages,
@@ -1490,6 +1491,249 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
           "Status and Logs, a setting changed from Logs' shortcut row and answered, and Settings › Developer; a "
           "browser on GraceUI's server reading EldenNet's topics and sending commands, each answered; settings.toml "
           "written after the pages' quiet")
+# EldenNet's AI pages (S11.4.a's second slice; PAGES §4.6.2), at the title screen, against a fake model server of the
+# tests' own on loopback (tests/pages/fake_models.py) with invented models, which the models.toml installed beside the
+# DLL names for the Cloud budget preset's provider. A browser of the tests' own adds the preset's provider, sets an
+# invented key, runs the self-test once the gate allows network, lists the models and is refused Remove unused
+# providers unconfirmed; then GraceUI's menu opens AI › Self-test (F5, Page Down three times) and runs it again from its
+# header action (Enter); then the browser chooses the NanoGPT preset, whose provider joins, and removes the unused one
+# with its key, confirmed. The key's value must then be nowhere: no topic, log line, recording, report or file.
+AI_KEYS = "2040:f5,2160:next,2280:next,2400:next,2520:return,3000:f5"
+AI_REPORTS = "1980,2100,2220,2340,2460,2940,3060"
+AI_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = true, log_level = "debug" }\n'
+AI_MODELS = ["invented-talker-small", "invented-talker-large", "invented-keeper"]
+AI_RUNS = {}  # a case's invented key and fake server, by its folder
+
+
+def install_ai(paths):
+    """GraceUI's folder; the fake model server, with a new invented key; models.toml beside the DLL naming it."""
+    install_graceui(paths)
+    key = "fk-invented-" + os.urandom(12).hex()
+    server = fake_models.FakeModels(key, AI_MODELS)
+    AI_RUNS[paths["case"]] = {"key": key, "server": server}
+    # What the menu's report looks for (GraceUI_Test_MenuShows): a fragment of the key, which it must never draw, and
+    # two texts of the self-test's that it must.
+    paths["text_ai_shows"] = key[12:24] + "|first words of a reply|Reaches openrouter"
+    content = os.path.join(paths["endir"], "content", "eldenring")
+    os.makedirs(content)
+    with open(os.path.join(content, "models.toml"), "w") as f:
+        f.write('schema = 1\n\n'
+                '[preset.cloud-budget.providers.openrouter]\nflavor = "openai"\nkind = "cloud"\n'
+                'base_url = "http://127.0.0.1:%d/v1"\n\n'
+                '[preset.cloud-budget]\n'
+                'dialogue = { provider = "openrouter", model = "invented-talker-small", '
+                'fallback = "invented-talker-large" }\n'
+                'memory = { provider = "openrouter", model = "invented-keeper" }\n\n'
+                '[preset.cloud-nanogpt.providers.nanogpt]\nflavor = "openai"\nkind = "cloud"\n'
+                'base_url = "http://127.0.0.1:%d/nano/v1"\n\n'
+                '[preset.cloud-nanogpt]\n'
+                'dialogue = { provider = "nanogpt", model = "invented-talker-small" }\n' % (server.port, server.port))
+
+
+def grace_port(paths, deadline):
+    """The port of GraceUI's server, once the fake game's report names it running with a space."""
+    while time.monotonic() < deadline:
+        try:
+            with open(paths["status"], encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        for line in text.splitlines():
+            m = re.search(r"^FAKEGAME grace .* server=1 port=([0-9]+) spaces=([1-9])", line)
+            if m:
+                return int(m.group(1))
+        time.sleep(0.25)
+    return None
+
+
+def browse_ai(paths, out):
+    run = AI_RUNS[paths["case"]]
+    key = run["key"]
+    port = grace_port(paths, time.monotonic() + 120)
+    if port is None:
+        out["error"] = "no report named the server running"
+        return
+    view = None
+    E = "eldennet"
+    try:
+        view = browser.Browser(port, timeout=10)
+        out["welcome"] = view.welcome
+        for topic in ("settings", "ai.status", "providers", "health", "ai.slots", "selftest"):
+            view.sub(E, topic)
+        out["first_status"] = view.wait(E, "ai.status", lambda b: "sentence" in b)
+        out["add"] = view.command(E, "providers.add", {})
+        out["added"] = view.wait(E, "providers", lambda b: len(b.get("rows", [])) == 1, timeout=15)
+        out["set_key"] = view.command(E, "settings.set", {"key": "keys.openrouter", "value": key})
+        out["key_row"] = view.wait(E, "settings", lambda b: b.get("values", {}).get("keys.openrouter") == "set")
+        out["with_key"] = view.wait(E, "providers", lambda b: b["rows"][0].get("key") == "Set", timeout=15)
+        # The self-test, once the gate allows network (at the title, after 5 s of clean readings).
+        tries, answer, give_up = 0, {}, time.monotonic() + 60
+        while time.monotonic() < give_up:
+            tries += 1
+            answer = view.command(E, "selftest.run", {})
+            if answer.get("error") != "not_now":
+                break
+            time.sleep(0.5)
+        out["run"], out["run_tries"] = answer, tries
+        out["selftest"] = view.wait(E, "selftest", lambda b: "sentence" in b and "running" not in b["sentence"],
+                                    timeout=60)
+        out["list"] = view.command(E, "models.list", {})
+        out["listed"] = view.wait(E, "providers", lambda b: b.get("checks") and
+                                  all(c.get("state") != "wait" for c in b["checks"]), timeout=30)
+        out["remove_unconfirmed"] = view.command(E, "providers.remove", {})
+        secrets = os.path.join(paths["appdata"], "EldenNet", "config", "secrets.toml")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and "secrets_written" not in out:
+            try:
+                with open(secrets, encoding="utf-8") as f:
+                    if key in f.read():
+                        out["secrets_written"] = True
+            except OSError:
+                pass
+            time.sleep(0.2)
+        out["browser_done_s"] = time.monotonic()
+        # The menu's run (Enter on Run self-test): its result reaches this view too, the first run among the earlier.
+        out["selftest_menu"] = view.wait(E, "selftest", lambda b: len(b.get("rows", [])) >= 1 and
+                                         "running" not in b.get("sentence", "running"), timeout=120)
+        # A new preset: its provider joins, the old one is no job's, and goes with its key once confirmed.
+        out["preset"] = view.command(E, "settings.set", {"key": "ai.preset", "value": "cloud-nanogpt"})
+        out["two"] = view.wait(E, "providers", lambda b: len(b.get("rows", [])) == 2, timeout=15)
+        out["remove"] = view.command(E, "providers.remove", {"confirm": True})
+        out["one"] = view.wait(E, "providers", lambda b: len(b.get("rows", [])) == 1, timeout=15)
+        out["key_cleared"] = view.wait(E, "settings", lambda b: b.get("values", {}).get("keys.openrouter") == "",
+                                       timeout=15)
+        out["slots"] = view.latest.get((E, "ai.slots"))
+        out["health"] = view.latest.get((E, "health"))
+    except (browser.BrowserError, OSError, ValueError, KeyError, IndexError) as e:
+        out["error"] = repr(e)
+    finally:
+        if view is not None:
+            out["received"] = list(view.received)
+            view.close()
+
+
+def files_holding(folder, needle):
+    """Every file under `folder` whose bytes hold `needle`."""
+    found = []
+    for root, _, names in os.walk(folder):
+        for name in names:
+            path = os.path.join(root, name)
+            try:
+                with open(path, "rb") as f:
+                    if needle in f.read():
+                        found.append(os.path.relpath(path, folder))
+            except OSError:
+                pass
+    return found
+
+
+def check_graceui_ai(r):
+    run = AI_RUNS.pop(r.paths["case"], None)
+    if run is None:
+        return ["the case's fake server was never made"]
+    key = run["key"]
+    counts = run["server"].snapshot()
+    run["server"].close()
+    d = r.during
+    failures = []
+    if "error" in d:
+        failures.append("the browser: %s" % d["error"])
+    body = lambda name: d.get(name) or {}
+    spaces = {s.get("id"): s for s in d.get("welcome", {}).get("spaces", [])}
+    need(spaces.get("eldennet", {}).get("increment") == "0.2", "the welcome named %s" % sorted(spaces), failures)
+    need(body("first_status").get("sentence", "").startswith("No provider yet"),
+         "the first lead: %s" % body("first_status"), failures)
+    need(d.get("add", {}).get("ok") is True, "providers.add: %s" % d.get("add"), failures)
+    added = body("added").get("rows", [{}])[0]
+    need(added.get("id") == "openrouter" and added.get("key") == "Missing" and added.get("kind") == "Cloud",
+         "the provider added: %s" % added, failures)
+    need(d.get("set_key", {}).get("ok") is True, "the key set: %s" % d.get("set_key"), failures)
+    need(body("with_key").get("rows", [{}])[0].get("key") == "Set", "the key's status", failures)
+    need(d.get("run", {}).get("ok") is True, "selftest.run: %s after %s tries" % (d.get("run"), d.get("run_tries")),
+         failures)
+    st = body("selftest")
+    need(re.match(r"^(Quick|Acceptable|Slow): the first words of a reply come in about [0-9.]+ s\.",
+                  st.get("sentence", "")) is not None, "the verdict: %s" % st.get("sentence"), failures)
+    need([c.get("state") for c in st.get("checks", [])] == ["pass", "pass", "pass"],
+         "the self-test's steps: %s" % st.get("checks"), failures)
+    figures = {i.get("label"): i.get("value") for i in st.get("items", [])}
+    need(figures.get("Model") == "invented-talker-small" and figures.get("Provider") == "openrouter" and
+         "First token" in figures and figures.get("JSON check") == "Passed", "the figures: %s" % figures, failures)
+    need(d.get("list", {}).get("ok") is True, "models.list: %s" % d.get("list"), failures)
+    checks = body("listed").get("checks", [])
+    need(len(checks) == 1 and checks[0].get("state") == "pass" and
+         checks[0].get("detail") == "Lists 3 models, every job's model among them.", "the model list: %s" % checks,
+         failures)
+    # GraceUI's server refuses a destructive command unconfirmed before EldenNet hears it (D173); EldenNet's own path
+    # refuses it too (en_overlay_tests).
+    need(d.get("remove_unconfirmed", {}).get("error") == "confirm_required",
+         "Remove unused providers unconfirmed: %s" % d.get("remove_unconfirmed"), failures)
+    need(d.get("secrets_written") is True, "secrets.toml never held the key", failures)
+    menu_run = body("selftest_menu")
+    need(len(menu_run.get("rows", [])) == 1, "the menu's run: earlier runs %s" % menu_run.get("rows"), failures)
+    need(d.get("preset", {}).get("ok") is True, "the NanoGPT preset: %s" % d.get("preset"), failures)
+    need(len(body("two").get("rows", [])) == 2, "the preset's provider added", failures)
+    need(d.get("remove", {}).get("ok") is True, "Remove unused providers: %s" % d.get("remove"), failures)
+    left = body("one").get("rows", [{}])
+    need(len(left) == 1 and left[0].get("id") == "nanogpt", "the provider left: %s" % left, failures)
+    need("key_cleared" in d, "the removed provider's key row still set", failures)
+    # The fake server: every request had the key; two runs and a list.
+    need(counts["refused"] == 0 and counts["unknown"] == 0 and counts["models"] >= 3 and counts["chats"] >= 2 and
+         counts["json"] >= 2, "the fake server answered %s" % counts, failures)
+    # In game: F5's menu on Home, Page Down to AI's three pages, Enter on Self-test's Run self-test; the menu watched the
+    # page's topics, draws the verdict and the steps, and never the key.
+    failures += (want_grace(r, 1980, eldennet=1, server=1, spaces=1, menu_open=0) +
+                 want_grace(r, 2100, menu_open=1, menu_page="home") +
+                 want_grace(r, 2220, menu_open=1, menu_page="ai.providers") +
+                 want_grace(r, 2340, menu_open=1, menu_page="ai.models") +
+                 want_grace(r, 2460, menu_open=1, menu_page="ai.selftest", menu_focused="action:run") +
+                 want_grace(r, 2940, menu_open=1, menu_page="ai.selftest", menu_refusals=0, shows="011") +
+                 want_grace(r, 3060, menu_open=0))
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "pages": 0}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    passed = [e for e in r.events("ELDENNET", "selftest") if e.get("result") == "passed"]
+    need(len(passed) == 2, "%d self-tests passed in the log, wanted 2" % len(passed), failures)
+    for kv in ({"what": "command", "name": "providers.add", "result": "ok"},
+               {"what": "command", "name": "settings.set", "key": "keys.openrouter", "result": "ok"},
+               {"what": "command", "name": "selftest.run", "result": "ok"},
+               {"what": "command", "name": "models.list", "result": "ok"},
+               {"what": "command", "name": "providers.remove", "result": "ok"},
+               {"what": "watched", "topic": "selftest"},
+               {"what": "watched", "topic": "space.state"}):
+        failures += any_line_kv(r, "ELDENNET", "page", kv)
+    failures += any_line(r, "ELDENNET", "models_list", providers=1, passed=1)
+    failures += any_line(r, "ELDENNET", "ai_write", file="secrets", ok=1)
+    failures += any_line(r, "ELDENNET", "ai_write", file="providers", ok=1)
+    failures += any_line_kv(r, "ELDENNET", "ai_config", {"result": "missing"})
+    # The key is nowhere: no frame either view could have, no log or report line, no recording, no file left (the
+    # removal took it out of secrets.toml), and a fragment of it is drawn nowhere in the menu (shows' first bit).
+    need(not any(key in text for text in d.get("received", [])), "a frame to the browser holds the key", failures)
+    need(not any(key in line for line in r.lines), "a log or report line holds the key", failures)
+    need(key not in r.out and key not in r.err, "the run's output holds the key", failures)
+    for folder in (r.paths["case"], r.paths["appdata"]):
+        held = files_holding(folder, key.encode("utf-8"))
+        need(not held, "files hold the key: %s" % held, failures)
+    need(bool(en_recordings(r)), "no recording to look in", failures)
+    path = os.path.join(r.paths["appdata"], "EldenNet", "config", "providers.toml")
+    try:
+        with open(path, encoding="utf-8") as f:
+            written = f.read()
+    except OSError:
+        written = ""
+    need(re.search(r"""preset = ["']cloud-nanogpt["']""", written) and "nanogpt" in written and
+         "openrouter" not in written, "providers.toml after the pages: %r" % written, failures)
+    return failures + en_log_is_clean(r)
+
+
+case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=3120),
+     program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
+     prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
+     what="EldenNet's AI pages through GraceUI against a fake model server on loopback: a provider added from its "
+          "preset, an invented key set, the self-test and the model list from the browser, the self-test again from "
+          "the menu's header action, a new preset and the unused provider removed with its key once confirmed; the "
+          "key in no topic, log line, recording, report or file, and drawn nowhere in the menu")
 case("launcher-eldennet-graceui", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--press-f11-at", "420,600", "--press-pause-at", "540", "--grace-report", "360,480,660,900",
           "--grace-probe", VIEW_PROBE, frames=960),
@@ -3444,7 +3688,9 @@ def cmd_run(args):
             return 1
         argv = [re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)], c.program)]
         argv += [re.sub(r"\{(\w+)\}", as_windows, a) for a in c.args]
-    env.update({k: re.sub(r"\{(\w+)\}", as_windows, v) for k, v in c.env.items()})
+    # A `{text_...}` name stands for a value of the case's own (no path): it is put in as it is.
+    env.update({k: re.sub(r"\{(\w+)\}", lambda m: paths[m.group(1)] if m.group(1).startswith("text_") else
+                          as_windows(m), v) for k, v in c.env.items()})
     if c.name.startswith("probe-exe"):
         args.set_paths = paths
         start = time.monotonic()

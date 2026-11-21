@@ -1,6 +1,55 @@
 {
+  "ai.slots": {
+    "columns": [
+      {
+        "id": "job",
+        "label": "Job"
+      },
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "fallback",
+        "label": "Fallback"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      }
+    ],
+    "rows": []
+  },
+  "ai.status": {
+    "sentence": "No provider yet: choose a preset on Models, then press Add provider on Providers."
+  },
   "errors": {
     "checks": []
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": []
   },
   "logs": [
     {
@@ -24,6 +73,45 @@
       "time": "0:00:01"
     }
   ],
+  "providers": {
+    "checks": [],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": []
+  },
+  "selftest": {},
+  "space.state": {
+    "greyed": {}
+  },
   "status": {
     "items": [
       {

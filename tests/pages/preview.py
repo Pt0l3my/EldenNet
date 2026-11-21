@@ -27,8 +27,16 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import browser  # noqa: E402
 
-PAGES = ("home", "system.status", "system.logs", "settings.developer")
+# Each page's golden, dumped over the fixture state named with it (since GraceUI 0.2.6, D184, the dump shows the
+# components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
+# a state with a provider set up and a self-test run.
+# A page dumped over a second state has its golden named for it too (ai.selftest.banner: greyed at L1, GraceUI 0.2.7's
+# space.state, D188).
+PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
+         ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
+         ("ai.providers", "starting"))
 SIZE = "1920x1080"
+INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 
 
 def free_port():
@@ -45,7 +53,7 @@ def collect(stream, into):
 def serve(grace_dev, folder, state, topics, failures):
     port = free_port()
     process = subprocess.Popen([grace_dev, "--space-dir", str(folder), "--no-scenario", "--port", str(port),
-                                "--increment", "0.1"],
+                                "--increment", INCREMENT],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
     out, err = [], []
     readers = [threading.Thread(target=collect, args=(process.stdout, out), daemon=True),
@@ -62,8 +70,8 @@ def serve(grace_dev, folder, state, topics, failures):
             time.sleep(0.05)
         view = browser.Browser(port)
         spaces = {s["id"]: s for s in view.welcome.get("spaces", [])}
-        if spaces.get("eldennet", {}).get("increment") != "0.1":
-            failures.append("%s: the welcome names no eldennet space at 0.1: %s" % (state, sorted(spaces)))
+        if spaces.get("eldennet", {}).get("increment") != INCREMENT:
+            failures.append("%s: the welcome names no eldennet space at %s: %s" % (state, INCREMENT, sorted(spaces)))
         for topic, want in topics.items():
             view.sub("eldennet", topic)
             got = view.state("eldennet", topic)
@@ -119,17 +127,21 @@ def main(argv):
         topics = json.loads((folder / "topics.json").read_text(encoding="utf-8"))
         serve(args.grace_dev, folder, state, topics, failures)
     # The in-game structure of each page, as GraceUI's menu lays it out (grace-dev --dump: the fake face, settings at
-    # their defaults, so the same for every state).
+    # their defaults, the components with the state's topics).
     update = os.environ.get("EN_UPDATE_GOLDENS") is not None
     goldens = args.fixtures / "golden"
     goldens.mkdir(exist_ok=True)
-    for page in PAGES:
+    for page, state in PAGES:
+        if state not in states:
+            failures.append("--dump %s: no fixture state %s" % (page, state))
+            continue
         done = subprocess.run([args.grace_dev, "--dump", "eldennet", page, "--size", SIZE, "--space-dir",
-                               str(args.work / states[0])], capture_output=True, text=True, encoding="utf-8")
+                               str(args.work / state)], capture_output=True, text=True, encoding="utf-8")
         if done.returncode != 0:
             failures.append("--dump %s: exit %d: %s" % (page, done.returncode, done.stderr.strip()))
             continue
-        golden = goldens / ("%s-%s.txt" % (page, SIZE))
+        first = next(s for p, s in PAGES if p == page)
+        golden = goldens / ("%s-%s.txt" % (page if state == first else "%s.%s" % (page, state), SIZE))
         if update:
             golden.write_text(done.stdout, encoding="utf-8")
         if not golden.is_file() or golden.read_text(encoding="utf-8") != done.stdout:

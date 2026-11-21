@@ -59,6 +59,7 @@ using en::proto::Epoch;
 using en::proto::EventKind;
 using en::proto::LlmEvent;
 using en::proto::LlmRequest;
+using en::proto::ModelsOutcome;
 using en::proto::RequestId;
 using en::proto::RequestKind;
 using en::proto::to_string;
@@ -132,6 +133,14 @@ class Service {
   // comes from Ollama's own endpoint, so a failure (a proxy that serves only /v1, say) says nothing about the chat
   // completions whose health the client tracks.
   std::optional<RequestId> warm_up(std::string_view slot);
+
+  // A provider's model list (en-llm's list_models: GET <base_url>/models with its key, ARCH §11.4 and §11.7's step 4a),
+  // on one of the handle's workers, for the AI pages' self-test and model list: never on the caller's thread. Returns
+  // the list's id (its own, as a warm-up's), or nothing for a provider the configuration does not name or after
+  // shutdown; the list ends with one ModelsEnded event, GateClosed at once while the gate is closed, and the gate's
+  // closing or shutdown stops one that runs. Like the warm-up, it counts in neither health nor the requests per hour:
+  // it generates nothing, and the self-test's own requests, which go through the client, give the provider's health.
+  std::optional<RequestId> list_models(std::string_view provider);
 
   // A changed configuration (Client::reload); requests waiting after Busy try again. The pool keeps its size.
   void reload(Config config);

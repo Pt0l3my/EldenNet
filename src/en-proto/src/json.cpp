@@ -133,6 +133,7 @@ void read(const json& j, const At& at, KeyProbability& out);
 void read(const json& j, const At& at, DecisionPick& out);
 void read(const json& j, const At& at, LlmRequest& out);
 void read(const json& j, const At& at, WarmUpOutcome& out);
+void read(const json& j, const At& at, ModelsOutcome& out);
 void read(const json& j, const At& at, LlmEvent& out);
 
 void read(const json& j, const At& at, bool& out) {
@@ -206,7 +207,7 @@ constexpr std::array kDecidedBy = {DecidedBy::Model, DecidedBy::Rules};
 constexpr std::array kReadAs = {ReadAs::Schema, ReadAs::Meaning, ReadAs::YesNo, ReadAs::Rules};
 constexpr std::array kRequestKinds = {RequestKind::Chat, RequestKind::Decision};
 constexpr std::array kEventKinds = {EventKind::Started, EventKind::Delta, EventKind::Reset, EventKind::Ended,
-                                    EventKind::WarmUpEnded};
+                                    EventKind::WarmUpEnded, EventKind::ModelsEnded};
 
 void read(const json& j, const At& at, Role& out) { read_enum(j, at, kRoles, out); }
 void read(const json& j, const At& at, Purpose& out) { read_enum(j, at, kPurposes, out); }
@@ -318,10 +319,17 @@ void read(const json& j, const At& at, WarmUpOutcome& out) {
   Fields(j, at)("ok", out.ok)("status", out.status)("time_ms", out.time)("error", out.error).done();
 }
 
+void read(const json& j, const At& at, ModelsOutcome& out) {
+  out = ModelsOutcome{};
+  Fields(j, at)("error", out.error)("status", out.status)("models", out.models)("omitted", out.omitted)(
+      "time_ms", out.time)
+      .done();
+}
+
 void read(const json& j, const At& at, LlmEvent& out) {
   out = LlmEvent{};
   Fields(j, at)("kind", out.kind)("id", out.id)("provider", out.provider)("model", out.model)("text", out.text)(
-      "chat", out.chat)("pick", out.pick)("warm_up", out.warm_up)
+      "chat", out.chat)("pick", out.pick)("warm_up", out.warm_up)("models", out.models)
       .done();
 }
 
@@ -345,6 +353,7 @@ json write(const KeyProbability& v);
 json write(const DecisionPick& v);
 json write(const LlmRequest& v);
 json write(const WarmUpOutcome& v);
+json write(const ModelsOutcome& v);
 json write(const LlmEvent& v);
 
 template <class T>
@@ -466,6 +475,14 @@ json write(const WarmUpOutcome& v) {
   return {{"ok", v.ok}, {"status", v.status}, {"time_ms", v.time.count()}, {"error", to_string(v.error)}};
 }
 
+json write(const ModelsOutcome& v) {
+  return {{"error", to_string(v.error)},
+          {"status", v.status},
+          {"models", v.models},
+          {"omitted", v.omitted},
+          {"time_ms", v.time.count()}};
+}
+
 json write(const LlmEvent& v) {
   return {{"kind", to_string(v.kind)},
           {"id", v.id},
@@ -474,7 +491,8 @@ json write(const LlmEvent& v) {
           {"text", v.text},
           {"chat", v.chat ? write(*v.chat) : json(nullptr)},
           {"pick", v.pick ? write(*v.pick) : json(nullptr)},
-          {"warm_up", write(v.warm_up)}};
+          {"warm_up", write(v.warm_up)},
+          {"models", write(v.models)}};
 }
 
 }  // namespace
@@ -526,6 +544,8 @@ void to_json(json& j, const LlmRequest& v) { j = write(v); }
 void from_json(const json& j, LlmRequest& v) { detail::read_root(j, "LlmRequest", v); }
 void to_json(json& j, const WarmUpOutcome& v) { j = write(v); }
 void from_json(const json& j, WarmUpOutcome& v) { detail::read_root(j, "WarmUpOutcome", v); }
+void to_json(json& j, const ModelsOutcome& v) { j = write(v); }
+void from_json(const json& j, ModelsOutcome& v) { detail::read_root(j, "ModelsOutcome", v); }
 void to_json(json& j, const LlmEvent& v) { j = write(v); }
 void from_json(const json& j, LlmEvent& v) { detail::read_root(j, "LlmEvent", v); }
 

@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "4e8d78949d7e593a"
+    "hash": "c4426fd872ff8619"
   },
   "settings": [
     {
@@ -69,6 +69,72 @@
       ],
       "home": "settings.developer",
       "effect": "now",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "ai.preset",
+      "type": "choice",
+      "default": "cloud-budget",
+      "choices": [
+        {
+          "value": "cloud-budget",
+          "label": "Cloud budget, on OpenRouter"
+        },
+        {
+          "value": "cloud-nanogpt",
+          "label": "Cloud, on NanoGPT"
+        },
+        {
+          "value": "custom",
+          "label": "Custom"
+        }
+      ],
+      "label": "Preset",
+      "help": "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its key goes.",
+      "synonyms": [
+        "preset",
+        "models",
+        "cloud",
+        "openrouter",
+        "nanogpt"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "keys.openrouter",
+      "type": "secret",
+      "default": "",
+      "label": "OpenRouter key",
+      "help": "Your OpenRouter API key, for the providers named openrouter. It is kept on this PC only and never shown again: this row says only whether it is set.",
+      "synonyms": [
+        "key",
+        "api key",
+        "openrouter",
+        "token"
+      ],
+      "home": "ai.providers",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "keys.nanogpt",
+      "type": "secret",
+      "default": "",
+      "label": "NanoGPT key",
+      "help": "Your NanoGPT API key, for the providers named nanogpt. It is kept on this PC only and never shown again: this row says only whether it is set.",
+      "synonyms": [
+        "key",
+        "api key",
+        "nanogpt",
+        "token"
+      ],
+      "home": "ai.providers",
+      "effect": "next_request",
       "availability": "live",
       "locked": false
     }

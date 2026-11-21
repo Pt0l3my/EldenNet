@@ -1,6 +1,98 @@
 {
+  "ai.slots": {
+    "columns": [
+      {
+        "id": "job",
+        "label": "Job"
+      },
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "fallback",
+        "label": "Fallback"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      }
+    ],
+    "rows": [
+      {
+        "fallback": "talker-large",
+        "job": "Conversation",
+        "model": "talker-small",
+        "provider": "openrouter",
+        "state": "Ready"
+      },
+      {
+        "fallback": "None",
+        "job": "Quick lines",
+        "model": "talker-small",
+        "provider": "openrouter",
+        "state": "Ready"
+      },
+      {
+        "fallback": "None",
+        "job": "Prepared lines",
+        "model": "pool-flash",
+        "provider": "openrouter",
+        "state": "Ready"
+      },
+      {
+        "fallback": "None",
+        "job": "Memory",
+        "model": "keeper-large",
+        "provider": "openrouter",
+        "state": "Ready"
+      },
+      {
+        "fallback": "Same as Conversation",
+        "job": "Self-test",
+        "model": "Same as Conversation",
+        "provider": "Same as Conversation",
+        "state": "Ready"
+      }
+    ]
+  },
+  "ai.status": {
+    "sentence": "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+  },
   "errors": {
     "checks": []
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": [
+      {
+        "answered": "0:11:40",
+        "id": "openrouter",
+        "jobs": "Conversation, Quick lines, Prepared lines, Memory, Self-test",
+        "state": "Healthy"
+      }
+    ]
   },
   "logs": [
     {
@@ -34,6 +126,131 @@
       "time": "0:00:06"
     }
   ],
+  "providers": {
+    "checks": [
+      {
+        "detail": "Lists 214 models, every job's model among them.",
+        "label": "openrouter",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": [
+      {
+        "address": "https://router.example.invalid/api/v1",
+        "id": "openrouter",
+        "json": "JSON schema",
+        "key": "Set",
+        "kind": "Cloud",
+        "requests": "2",
+        "type": "OpenAI-compatible"
+      }
+    ]
+  },
+  "selftest": {
+    "checks": [
+      {
+        "detail": "Lists 214 models, every job's model among them.",
+        "label": "Reaches openrouter",
+        "state": "pass"
+      },
+      {
+        "detail": "Answered and streamed its reply.",
+        "label": "A short reply",
+        "state": "pass"
+      },
+      {
+        "detail": "Answered with the object asked for.",
+        "label": "An answer in JSON",
+        "state": "pass"
+      }
+    ],
+    "columns": [
+      {
+        "id": "time",
+        "label": "Time"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "verdict",
+        "label": "Verdict"
+      }
+    ],
+    "items": [
+      {
+        "label": "Model",
+        "value": "talker-small"
+      },
+      {
+        "label": "Provider",
+        "value": "openrouter"
+      },
+      {
+        "label": "First token",
+        "value": "0.42 s"
+      },
+      {
+        "label": "Tokens per second",
+        "value": "61"
+      },
+      {
+        "label": "First page, estimated",
+        "value": "0.67 s"
+      },
+      {
+        "label": "JSON check",
+        "value": "Passed"
+      },
+      {
+        "label": "Run at",
+        "value": "0:11:30"
+      }
+    ],
+    "rows": [
+      {
+        "model": "talker-small",
+        "time": "0:10:10",
+        "verdict": "Acceptable"
+      }
+    ],
+    "sentence": "Quick: the first words of a reply come in about 0.67 s."
+  },
+  "space.state": {
+    "greyed": {}
+  },
   "status": {
     "items": [
       {

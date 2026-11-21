@@ -323,6 +323,8 @@ GRACEUI_API uint32_t GraceUI_Test_GetSetting(const char* key, char* out, uint32_
  * "rail:graceui.mods"): out[0..3] its row, out[4..7] its control (x, y, width, height in the display's pixels; the
  * control is the row for an element with none). Answers 1, or 0 if it was not drawn. Safe while GraceUI is busy. */
 GRACEUI_API uint32_t GraceUI_Test_GetMenuBounds(const char* name, float* out);
+/* 1 if the menu's last layout draws `text` within one of its texts (a component's words, D184), else 0. */
+GRACEUI_API uint32_t GraceUI_Test_MenuShows(const char* text);
 /* The anti-cheat module re-check's interval while the browser view's server runs (§7.2 item 1), in milliseconds; 0
  * keeps 60 s. With GraceUI_Test_SetAntiCheatNames after the first request, a test makes a re-check find a module. */
 GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);

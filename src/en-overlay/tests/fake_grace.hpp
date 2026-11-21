@@ -1,6 +1,6 @@
 #pragma once
 // A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.2's table, as graceui.h declares it at
-// GraceUI 8d45b20, with the calls en-overlay makes answered as GraceUI 0.2.5 answers them (eldennet-changes §14 to §36)
+// GraceUI beca859, with the calls en-overlay makes answered as GraceUI 0.2.7 answers them (eldennet-changes §14 to §38)
 // and checked as GraceUI checks them: connect's answers, notices under keys (replaced in place, withdrawn by an empty
 // text, at most four), textures in the registration window, panels hidden until shown, hotkeys (a default another mod
 // took registers unbound, GRACEUI_UNBOUND with its id, D164), poll's events by the event's size (the display's only to

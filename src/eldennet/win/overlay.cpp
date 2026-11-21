@@ -311,9 +311,14 @@ const char* note_word(en::overlay::SpaceNote::What w) noexcept {
 }
 
 // What the commands changed: the log's detail at once (its effect "now"); the rest at the next launch. Each change
-// joins the session's edits, which T11 writes once the pages have been quiet for 300 ms (D14).
-void apply_changes(SpaceState& st, std::uint64_t now) {
+// joins the session's edits, which T11 writes once the pages have been quiet for 300 ms (D14). The AI pages' preset and
+// keys are providers.toml's and secrets.toml's (ai.cpp): made at once, the next request taking them.
+void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
   for (en::overlay::Space::Change& c : st.space.take_changes()) {
+    if (c.key == "ai.preset" || c.key.rfind("keys.", 0) == 0) {
+      ai_change(s, st.space, c);
+      continue;
+    }
     en::shell::SettingsEdit e;
     e.key = c.key;
     if (c.value.is_boolean()) {
@@ -464,7 +469,10 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
     en::overlay::SpaceFacts facts;
     std::string banner_words;
     const bool pages = o.pages() && space != nullptr;
-    if (pages) fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
+    if (pages) {
+      fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
+      facts.ai = ai_tick(s, cs.gate_open, space->space);
+    }
     const en::overlay::Overlay::Step step =
         pages ? o.step(view, &space->space, &facts, now) : o.step(view);
     if (pages) {
@@ -476,7 +484,8 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
         if (!n.result.empty()) l.word("result", n.result);
         log(l);
       }
-      apply_changes(*space, now);
+      apply_changes(s, *space, now);
+      for (const en::overlay::AiRequest r : space->space.take_requests()) ai_request(s, space->space, r);
       if (step.page_refused != GRACEUI_OK && step.page_refused != link->page_refused) {
         log(Line("page").word("refused", "publish_or_answer").num("status", step.page_refused), LogLevel::Warn);
       }

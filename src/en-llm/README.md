@@ -74,6 +74,25 @@ pause rules, and the input epoch (pass a `std::stop_token`).
   most 1 MB of answer for a probe or 8 MB for a provider, and no deeper than 32 levels, checked before the parser sees
   them; a flavour check's answer, parsed whole, is held to 256 KB. Both are free functions, and the caller runs them
   only while the offline gate is open.
+- **Model lists on the handle** (`Service::list_models`): the same `list_models`, on one of the handle's workers, for
+  the AI pages, so that the core's thread never waits for one. It ends with one `ModelsEnded` event (en-proto's
+  `ModelsOutcome`: the class, the status, the ids within the limits, how many were left out), at once with
+  `GateClosed` while the gate is closed; the gate's closing and shutdown stop one that runs. Like the warm-up, it
+  counts in neither health nor the requests per hour, and its log line names the provider, the class and a count,
+  never an id the server listed.
+- **The self-test** (`selftest.hpp`, ARCH §11.7's steps 4a, 4b, 4d and 4e): a model list of each provider a slot uses,
+  passed when it lists every model of those slots it serves; a short reply on the `selftest` slot for the first
+  token's time and the tokens per second; a two-field JSON object on the `memory` slot against a schema; and the
+  verdict on the estimated first page (the first token plus 15 tokens at the measured rate: quick to 1.6 s,
+  acceptable to 3.0 s, else slow). A step on a provider that did not answer its list is skipped. The caller drives
+  it without waiting (`step` after each batch of events, `take` for each event). Its report holds numbers, classes
+  and the configuration's ids; the two requests are fixed words of our own, and their answers are read and dropped.
+  Step 4c, the voice check through the dialogue pipeline, waits for the personas in game.
+- **Edits** (`edit.hpp`) of `providers.toml` (the preset, a preset's providers added with a key of their own,
+  `secrets:<id>`, providers removed with the `[slots.*]` that name them) and of `secrets.toml` (a key set or removed,
+  the new text held as a `Secret`), for the AI pages: every other key kept, comments and layout not (toml++ writes the
+  tables again), a file that fails its checks never written over; and the presets of `models.toml`, the providers a
+  preset names that `providers.toml` lacks, the providers no slot uses, and a pasted key's cleaning.
 
 ## Configuration
 
@@ -110,6 +129,10 @@ fallback = "talker-large"
 [keys]
 router = "<the player's key>"
 ```
+
+`load_config_dir` reads the files from a folder for the tools and the tests (`config_dir.cpp`, a file of its own so
+that eldennet.dll, which reads them through its own platform layer and calls `parse_config`, links no
+`std::filesystem`).
 
 A slot without a model borrows one: `decisions` takes `bark_live`'s, every other slot `dialogue`'s. Unknown slot
 names in a request fall through to `dialogue`. `settings.toml` is read for `budget.requests_per_hour` (60 to 3600)

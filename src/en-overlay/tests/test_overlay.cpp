@@ -400,7 +400,7 @@ nlohmann::json parsed(const std::string& text) { return nlohmann::json::parse(te
 
 }  // namespace
 
-TEST_CASE("overlay: the space registered once at connect, for both views, at the slice's increment") {
+TEST_CASE("overlay: the space registered once at connect, for both views, at its increment") {
   fake::Grace g;
   Report r;
   auto o = connect(g, with_space(), r);
@@ -411,7 +411,7 @@ TEST_CASE("overlay: the space registered once at connect, for both views, at the
   CHECK(g.register_calls == 1);
   CHECK(g.space_views == (GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER));
   CHECK(g.space_version == GRACEUI_VERSION_PACK(0, 1, 0));
-  CHECK(g.space_increment == "0.1");
+  CHECK(g.space_increment == std::string(kIncrement));  // 0.2 since the AI pages
   CHECK(g.space_pages == std::string(space_pages()));
   CHECK(g.space_settings == std::string(settings_description()));
   CHECK(std::string(r.view) == "ready");  // the rest as before
@@ -477,7 +477,7 @@ TEST_CASE("overlay: watched topics published, each command answered once at once
   // A command: answered at once, exactly once, through the space's one command path; its change published.
   const std::uint64_t ok = g.command("settings.set", R"({"key":"debug.log_level","value":"debug"})");
   const std::uint64_t bad = g.command("settings.set", R"({"key":"debug.log_level","value":"loud"})");
-  const std::uint64_t unknown = g.command("selftest.run", "{}");
+  const std::uint64_t unknown = g.command("voice.sample", "{}");
   s = o->step(status(), &space, &facts, 1100);
   CHECK(s.commands == 3);
   CHECK(g.answer_refused == 0);

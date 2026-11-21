@@ -13,7 +13,6 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <initializer_list>
 #include <memory>
 #include <sstream>
@@ -31,7 +30,6 @@ namespace {
 constexpr std::int64_t kProvidersSchema = 1;
 constexpr std::int64_t kModelsSchema = 1;
 constexpr std::int64_t kSettingsSchema = 2;
-constexpr std::uintmax_t kMaxFileBytes = 64 * 1024;  // DESIGN §11.4
 
 // The levels OpenRouter's provider.quantizations takes, lowest first.
 constexpr std::array<std::string_view, 8> kQuantLevels = {"int4", "fp4", "fp6", "int8", "fp8", "fp16", "bf16", "fp32"};
@@ -576,10 +574,14 @@ void apply_slot_overrides(Config& cfg, const toml::table& slots, const PresetRes
 void fill_empty_slots(Config& cfg) {
   const auto& dialogue = cfg.slots[std::string(kDialogue)].models;
   auto& bark_live = cfg.slots[std::string(kBarkLive)].models;
-  if (bark_live.empty()) bark_live = dialogue;
+  if (bark_live.empty()) {
+    bark_live = dialogue;
+    cfg.borrowed[std::string(kBarkLive)] = std::string(kDialogue);
+  }
   for (auto& [name, slot] : cfg.slots) {
     if (!slot.models.empty() || name == kDialogue) continue;
     slot.models = name == kDecisions ? bark_live : dialogue;
+    cfg.borrowed[name] = std::string(name == kDecisions ? kBarkLive : kDialogue);
   }
 }
 
@@ -597,21 +599,6 @@ void parse_settings(Config& cfg, const std::string& text) {
   }
 }
 
-std::optional<std::string> read_file(const std::filesystem::path& path, bool required) {
-  std::error_code ec;
-  if (!std::filesystem::exists(path, ec)) {
-    if (required) throw ConfigError(path.filename().string(), "not found in the configuration folder");
-    return std::nullopt;
-  }
-  const auto size = std::filesystem::file_size(path, ec);
-  if (ec) throw ConfigError(path.filename().string(), "cannot be read");
-  if (size > kMaxFileBytes) throw ConfigError(path.filename().string(), "is larger than 64 KB");
-  std::ifstream in(path, std::ios::binary);
-  if (!in) throw ConfigError(path.filename().string(), "cannot be opened");
-  std::ostringstream text;
-  text << in.rdbuf();
-  return text.str();
-}
 
 }  // namespace
 
@@ -729,14 +716,5 @@ Config parse_config(const ConfigTexts& texts, const EnvLookup& env) {
   return cfg;
 }
 
-Config load_config_dir(const std::filesystem::path& dir, const std::optional<std::filesystem::path>& models_file,
-                       const EnvLookup& env) {
-  ConfigTexts texts;
-  texts.providers = *read_file(dir / "providers.toml", /*required=*/true);
-  texts.models = read_file(models_file ? *models_file : dir / "models.toml", /*required=*/models_file.has_value());
-  texts.settings = read_file(dir / "settings.toml", false);
-  texts.secrets = read_file(dir / "secrets.toml", false);
-  return parse_config(texts, env);
-}
 
 }  // namespace en::llm

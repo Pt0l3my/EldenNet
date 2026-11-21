@@ -1,0 +1,76 @@
+# eldennet ai.models: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.hi         30, 145   21x30   glyphs 2 "AI"
+text    ink.mute       50, 193   76x25   glyphs 9 "Providers"
+fill    tint.select     0, 225  300x40  
+fill    gold            0, 225    3x40  
+text    gold.hi        50, 233   51x25   glyphs 6 "Models"
+text    ink.mute       50, 273   76x25   glyphs 9 "Self-test"
+line    rule           30, 305  240x1   
+text    ink.mute       30, 315   64x30   glyphs 6 "System"
+line    rule           30, 355  240x1   
+text    ink.mute       30, 365   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  119x45   clip1 glyphs 6 "Models"
+text    ink.mute      340, 136  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201 1540x130  r5 clip1
+stroke  rule          340, 201 1540x130  r5 w1 clip1
+text    gold          365, 221   29x20   clip1 glyphs 3 "Now"
+text    ink.faint    1842, 221    8x25   clip1 glyphs 1 "-"
+text    ink.body      365, 271  962x25   clip1 glyphs 97 "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider meanwhile."
+fill    ground.2      340, 351 1540x155  r5 clip1
+stroke  rule          340, 351 1540x155  r5 w1 clip1
+text    gold          365, 371   58x20   clip1 glyphs 6 "Preset"
+text    ink.faint    1842, 371    8x25   clip1 glyphs 1 "-"
+line    rule          365, 406 1490x1    clip1
+text    ink.hi        365, 422   56x28   clip1 glyphs 6 "Preset"
+text    ink.mute      365, 456 1485x25   clip1 glyphs 147 "Which models do the jobs. Cloud budget, on OpenRouter, suits most players; Custom keeps what your providers file says. A new preset adds its provider to Providers, where its key goes. Default: Cloud budget, on OpenRouter."
+stroke  edge         1505, 417  350x38   r3 w1 clip1
+fill    ground.3     1506, 418  115x36   r3 clip1
+text    gold.hi      1510, 424  101x25   clip1 glyphs 11 "Cloud budget, on OpenRouter"
+text    ink.mute     1627, 424  101x25   clip1 glyphs 10 "Cloud, on NanoGPT"
+text    ink.mute     1771, 424   51x25   clip1 glyphs 6 "Custom"
+fill    ground.2      340, 526 1540x370  r5 clip1
+stroke  rule          340, 526 1540x370  r5 w1 clip1
+text    gold          365, 546   38x20   clip1 glyphs 4 "Jobs"
+text    ink.faint    1842, 546    8x25   clip1 glyphs 1 "-"
+line    rule          365, 581 1490x1    clip1
+text    ink.hi        365, 597  112x28   clip1 glyphs 12 "Conversation"
+text    ink.mute      862, 599  456x25   clip1 glyphs 42 "openrouter  ·  talker-small  ·  talker-large  ·  Ready"
+line    rule          365, 641 1490x1    clip1
+text    ink.hi        365, 657  103x28   clip1 glyphs 10 "Quick lines"
+text    ink.mute      862, 659  388x25   clip1 glyphs 34 "openrouter  ·  talker-small  ·  None  ·  Ready"
+line    rule          365, 701 1490x1    clip1
+text    ink.hi        365, 717  131x28   clip1 glyphs 13 "Prepared lines"
+text    ink.mute      862, 719  371x25   clip1 glyphs 32 "openrouter  ·  pool-flash  ·  None  ·  Ready"
+line    rule          365, 761 1490x1    clip1
+text    ink.hi        365, 777   56x28   clip1 glyphs 6 "Memory"
+text    ink.mute      862, 779  388x25   clip1 glyphs 34 "openrouter  ·  keeper-large  ·  None  ·  Ready"
+line    rule          365, 821 1490x1    clip1
+text    ink.hi        365, 837   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862, 839  675x25   clip1 glyphs 62 "Same as Conversation  ·  Same as Conversation  ·  Same as Conversation  ·  Ready"
+fill    ground.2      340, 916 1540x175  r5 clip1
+stroke  rule          340, 916 1540x175  r5 w1 clip1
+text    gold          365, 936   67x20   clip1 glyphs 7 "Related"
+line    rule          365, 966 1490x1    clip1
+text    ink.hi        365, 971   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862, 974  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1835, 971    9x28   clip1 glyphs 1 "→"
+line    rule          365,1021 1490x1    clip1
+text    ink.hi        365,1026   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1029  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1835,1026    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  304x25   glyphs 21 "← →  Choose    R  Reset    Esc  Back"
+stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
+# 74 items, 3952 vertices, 7572 indices, 4 commands; check_draw_list: passes

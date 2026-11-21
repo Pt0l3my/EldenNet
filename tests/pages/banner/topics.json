@@ -1,4 +1,32 @@
 {
+  "ai.slots": {
+    "columns": [
+      {
+        "id": "job",
+        "label": "Job"
+      },
+      {
+        "id": "provider",
+        "label": "Provider"
+      },
+      {
+        "id": "model",
+        "label": "Model"
+      },
+      {
+        "id": "fallback",
+        "label": "Fallback"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      }
+    ],
+    "rows": []
+  },
+  "ai.status": {
+    "sentence": "EldenNet is inactive, so it calls no model: Home's Problems say why."
+  },
   "errors": {
     "checks": [
       {
@@ -12,6 +40,27 @@
         "state": "warn"
       }
     ]
+  },
+  "health": {
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "state",
+        "label": "State"
+      },
+      {
+        "id": "answered",
+        "label": "Last answered"
+      },
+      {
+        "id": "jobs",
+        "label": "Jobs"
+      }
+    ],
+    "rows": []
   },
   "logs": [
     {
@@ -40,6 +89,49 @@
       "time": "0:00:01"
     }
   ],
+  "providers": {
+    "checks": [],
+    "columns": [
+      {
+        "id": "id",
+        "label": "Provider"
+      },
+      {
+        "id": "kind",
+        "label": "Kind"
+      },
+      {
+        "id": "type",
+        "label": "Server type"
+      },
+      {
+        "id": "address",
+        "label": "Address"
+      },
+      {
+        "id": "key",
+        "label": "Key"
+      },
+      {
+        "id": "requests",
+        "label": "Requests at once",
+        "numeric": true
+      },
+      {
+        "id": "json",
+        "label": "JSON answers"
+      }
+    ],
+    "rows": []
+  },
+  "selftest": {},
+  "space.state": {
+    "greyed": {
+      "ai.models": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.providers": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+    }
+  },
   "status": {
     "items": [
       {

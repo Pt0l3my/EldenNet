@@ -23,6 +23,9 @@
 #include <vector>
 
 #include "en/core/core.hpp"
+#include "en/llm/edit.hpp"
+#include "en/llm/secret.hpp"
+#include "en/overlay/space.hpp"
 #include "en/gal/discovery.hpp"
 #include "en/gal/native_sys.hpp"
 #include "en/gal/task.hpp"
@@ -65,6 +68,22 @@ bool take_log_tail(en::shell::LogEntry& out) noexcept;
 void set_settings_file(const std::wstring& path, bool probe_build) noexcept;
 // T6: every edit the pages made this session, for T11 to write to settings.toml (an older batch not yet written goes).
 void post_settings_write(std::vector<en::shell::SettingsEdit> edits) noexcept;
+// One change of the AI pages to providers.toml or secrets.toml, for T11 to make on the file as it is then (read again,
+// edited by en-llm's edit.hpp, written beside it and renamed over; secrets.toml with an access list for this user
+// alone, ARCH §11.5). A key travels as a Secret and is never logged.
+struct AiWrite {
+  enum class File : std::uint8_t { Providers, Secrets };
+  File file = File::Providers;
+  en::llm::ProvidersEdit edit;            // Providers
+  std::string name;                       // Secrets: the key's name
+  std::optional<en::llm::Secret> key;     // Secrets: the key, or none to remove it
+  static AiWrite providers(en::llm::ProvidersEdit edit);
+  static AiWrite secret(std::string name, std::optional<en::llm::Secret> key);
+};
+// T1: the folder providers.toml and secrets.toml live in (%APPDATA%\EldenNet\config).
+void set_ai_folder(const std::wstring& config) noexcept;
+// T6: queued in order; T11 makes them in that order.
+void post_ai_write(AiWrite write) noexcept;
 
 // ---- Paths and the process (platform.cpp) ----
 struct Paths {
@@ -78,6 +97,8 @@ struct Paths {
 [[nodiscard]] Paths find_paths(HMODULE module);
 [[nodiscard]] std::optional<std::string> read_text(const std::wstring& path, std::size_t max_bytes);
 bool write_text(const std::wstring& path, std::string_view text);  // to path.part, then renamed over path
+// The same with an access list that grants this user alone (no entry inherited from the folder): secrets.toml.
+bool write_private(const std::wstring& path, std::string_view text);
 bool make_dirs(const std::wstring& path);
 // A visible top-level window of this process (ARCH §3.2's WaitWindow).
 [[nodiscard]] bool main_window() noexcept;
@@ -129,6 +150,7 @@ struct Items {
 // ---- The task's channels (shell.cpp): C1 to C5, and the core thread ----
 class Io;
 struct OverlayLink;  // overlay.cpp: en-overlay's connection and what T6 last showed through it
+struct AiFilesRead;  // ai.cpp: providers.toml, models.toml and secrets.toml as T1 read them, and the transport
 struct Shell {
   en::shell::Settings settings;
   Paths paths;
@@ -151,6 +173,7 @@ struct Shell {
   std::atomic<bool> recording{false};          // T6's recorder writes (debug.record_sessions)
   std::atomic<std::uint64_t> recorded{0};      // its lines
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
+  std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -177,6 +200,18 @@ void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexc
 void overlay_event(const en::augur::Event& ev) noexcept;
 // T6: how many of Augur's events the view's list has taken, for the status line.
 std::uint64_t overlay_events_seen() noexcept;
+
+// ---- The AI pages (ai.cpp; PAGES §4.6.2) ----
+// T1, on the main path after Safety: providers.toml and secrets.toml from the config folder, models.toml from the
+// DLL's content\eldenring, settings.toml's text (its budget), and the WinHTTP transport, handed to T6.
+void read_ai_files(Shell& s, const std::optional<std::string>& settings_text) noexcept;
+// T6, each wake before the space's step: the handle's events taken, the runs advanced, the AI pages' facts (null
+// until T1 has read the files, and on the banner path).
+const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space& space) noexcept;
+// T6: a change of the space's `ai.preset` or `keys.*`, made and written; the change's copy of a key is overwritten.
+void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
+// T6: a request the space took (selftest.run, models.list, providers.add, providers.remove).
+void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest request) noexcept;
 
 // ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
 unsigned long init_main(void* module) noexcept;
