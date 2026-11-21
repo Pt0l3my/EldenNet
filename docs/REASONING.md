@@ -319,6 +319,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 294 | 2026-11-21 | A look review made from a real mod's pages finds what the demo space's goldens cannot | METHOD | #graceui #review |
 | 295 | 2026-11-21 | R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests | DECIDED | #gal #r1 #task |
 | 296 | 2026-11-21 | R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it | FACT | #gal #r1 #task |
+| 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
 
 ## Entries
 
@@ -5046,3 +5047,21 @@ invariant 10, EldenNet ARCH (T3)
 - **Next:** spike.12 reads the manager's map at the title and, after a save is loaded with no second call, in the world:
   its size and keys, and whether group 110's word is among them; it summarises 0x26A3460. If the word appears only in
   the world, the call moves there, by the owner's decision.
+
+### 297. The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9
+
+`2026-11-21` · DECIDED, with FACT readings · `#engine` `#pages` `#graceui` · refs: S11.4.a, O98, WHY§283, WHY§288
+
+- **The floor** (FACT): GraceUI 0.2.8 takes page data with D197's cells and D198's `changed` list without refusal, but
+  draws Refused and Not needed as Missing and marks every picker row changed; EldenNet's floor rose to 0.2.9.
+- **A job's provider** (DECIDED): written at once with the job's model when the provider's list holds it; otherwise held
+  in the space, unwritten, until one of its models is chosen. A reset of either row clears the job's pick, and a job's
+  rows count as changed while the providers file holds `[slots.<slot>]`, even when the pick equals the preset's.
+- **A key's cell** (DECIDED): Not needed for a provider with no key's place until a call asks for one (401 or 403), then
+  Refused, with the field; Refused also when a key sent was refused. A server on the home network (O98) never takes one.
+  A refused provider is no job's choice until its key is pasted again.
+- **Two faults fixed** (FACT): a reload of en-llm cleared its record of refused keys, so an unrelated edit made a refused
+  key read Set; the DLL now keeps each refusal until the provider answers or its key changes. And a fallback with no
+  provider of its own would have moved silently with its job; its provider is now written.
+- **A pitfall again** (METHOD): a range-for over a member of a temporary dangled in a new test, the third time
+  (WHY§269); hold the body in a variable first.

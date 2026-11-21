@@ -1251,6 +1251,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     at L1, "No problems.", Logs newest first). EldenNet's GraceUI floor is 0.2.8. Checked on the fake game in both views
     against a fake model server, the key nowhere (WHY§285 to §287). Next: a provider picker per job; three display
     requests to GraceUI (a key not needed, a key refused, a picker's default) sent the same day.
+    Fourth slice on 2026-11-21 (engine 2d125a1), at GraceUI 0.2.9 (908c179; GraceUI:D197, GraceUI:D198): a provider
+    picker per job on AI › Models (a provider whose list lacks the job's model waits, unwritten, for one of its models;
+    a reset clears the job's pick), a key's Refused and Not needed on AI › Providers (a server on this PC takes a key
+    only once a call asks for one; one on the home network never), and the changed mark from the space (a job's rows
+    only while the providers file holds its pick). EldenNet's GraceUI floor is 0.2.9, since 0.2.8 draws both new
+    states as Missing. Checked on the fake game in both views against a fake model server with a keyless path, both
+    keys nowhere (WHY§297). Left to the owner: the slice's eight readings; cards per job and a fallback picker with
+    GraceUI's proposal 0008 (S11.2.x).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
