@@ -966,7 +966,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     with the same accepted sites on invented programs (engine 33cf307; WHY§308). L2 done the same day (engine 6da3291):
     `gal/recipes.toml`'s accessor in use and `gal/patterns.toml` withdrawn, so `gal/` holds no byte of the game (O102;
     WHY§310); digests moved to L7 (WHY§311). R1's package can no longer make its call and is legacy until L5's
-    read-only package replaces it. Next: L3, the finding tool and report schema 2.
+    read-only package replaces it. L3's tool and package built the same day (engine ffc172b; WHY§312): `eldennet-engine
+    lodestar find` and report schema 2, kind `lodestar`; the owner's offline run (about 5 minutes, game closed) and its
+    review come next, then L4.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

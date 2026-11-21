@@ -334,6 +334,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 309 | 2026-11-21 | GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is | FACT | #graceui #lodestar |
 | 310 | 2026-11-21 | O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use | DECIDED | #gal #lodestar |
 | 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
+| 312 | 2026-11-21 | Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern | METHOD | #gal #lodestar #devkit |
 
 ## Entries
 
@@ -5295,3 +5296,22 @@ D76, D78, D143, D151; O101; proposal 0005 L4
 
 - A digest says a function's code is what the review saw. Under O101 (b) v1 calls no function of the game, so nothing in
   v1 would read one; digests move to L7, the task service's research, and L3 comes next.
+
+### 312. Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern
+
+`2026-11-21` · METHOD · `#gal` `#lodestar` `#devkit` · refs: proposal 0005 §6.2, §11, O102, O92, WHY§188, WHY§207, S10.1.k
+
+- **Unnamed offline** (METHOD): the finder cannot name the managers' slots offline, since the game writes their class
+  objects' names at run time (WHY§207), so it reports every slot the accessor's accepted sites load, unnamed, with its
+  witnesses; the in-game read-only round (L5) names them by their instances' classes (O92), and the table is written
+  then.
+- **Evidence before the pattern goes** (METHOD): the finder cuts the withdrawn pattern again in memory, never writing it,
+  and reports only counts: `both`, `only_shape`, `only_pattern`. A run is complete only when no site is accepted by one
+  alone.
+- **A new kind** (METHOD): the report is kind `lodestar`, schema 2, rather than new keys in derive's schema 1, which
+  DataPiler 0.2.41's guard pins; it holds whole numbers, booleans, our own words and labels, and no fraction or key of
+  the pattern type (a test pins that).
+- **Built** (FACT): en-gal's `lodestar::find`; `eldennet-engine lodestar find <exe> --gal <folder> --out <file>` with the
+  disclosure; `lint --report` knows the kind; `tools/spikepkg/build.py find` makes EldenNet-Find.zip (the engine, `gal/`,
+  `find.cmd` and README-FIND.txt; no launcher, no DLL). On the fake game the shape and the pattern accept the same 20
+  sites. Engine feat/engine ffc172b.

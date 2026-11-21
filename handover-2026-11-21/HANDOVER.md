@@ -84,6 +84,9 @@ the work becomes a proper address library of EldenNet's own, in a session of its
 - **Code.** Lodestar works on `feat/lodestar`, branched from `feat/engine`, and tells Engine when a step is ready;
   Engine merges it into `feat/engine` (Engine's own work there is the pages and the model client, away from `en-gal`
   and the probe, which are Lodestar's from now on). Pushes only at milestones: the owner is near a GitHub usage limit.
+- **Into `main`** (2026-11-21): only `design/v1-proposal` and `feat/engine` go into `main`, by the owner's pull requests.
+  Lodestar's branches reach `main` through them, so they need no pull requests of their own; merged into `main`
+  directly as well, they bring a second copy of the generated pages and a conflict in them (pull request 50).
 - **Messages** go through the cloud sessions' messaging, each swept by hand first
   (`python3 -I ~/.config/privsweep/privsweep.py text message`, the text on standard input). Each says what landed (branch
   and commit) and what the other must do. Long material goes in a commit.
