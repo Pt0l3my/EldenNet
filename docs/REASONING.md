@@ -295,6 +295,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 270 | 2026-11-20 | One body per topic: GraceUI's components read fixed fields, so a page with two lists needs two topics | FACT | #graceui #pages |
 | 271 | 2026-11-20 | GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it | FACT | #graceui #pages |
 | 272 | 2026-11-20 | F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour | DECIDED | #engine #augur #overlay #test |
+| 273 | 2026-11-20 | Check an "as the other view does" premise against the code before building to it | FACT | #graceui #pages |
 
 ## Entries
 
@@ -4663,3 +4664,13 @@ invariant 10, EldenNet ARCH (T3)
 - (FACT) On the fake game with GraceUI 0.2.5's test build (`launcher-eldennet-graceui-events`), F11 showed the ring
   full: five world events and five lifecycle events, none before F11 or after it closed. Replaying the case's
   recording gives the same 11 events, the view holding the last ten.
+
+### 273. Check an "as the other view does" premise against the code before building to it
+
+`2026-11-20` · FACT · `#graceui` `#pages` · refs: GraceUI:D189, GraceUI:DESIGN§4.7
+
+- (FACT) Proposal 0006's fifth item, drawing a shortcut row's control in game "as the browser does", rested on the
+  browser drawing it; the browser drew only the value as text, while GraceUI's DESIGN §4.7 asks for the control and
+  the link. Built to §4.7 in both views (D189).
+- (METHOD) Check a premise about what another view or module does against its code before building to it. EldenNet's
+  request 6 of its first pages had carried the same premise.
