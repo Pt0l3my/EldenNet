@@ -898,6 +898,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Run 11 (2026-11-21): the request runs at once, as its own slot 1, and passes our task on only if group 110's word
     is in a map of the manager's; it was dropped, with no copy left. Spike.12 reads that map at the title and in the
     world, after a save is loaded without a second call (WHY§296).
+    Spike.12 sent on 2026-11-21 (engine 5e21387; WHY§299).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -1053,7 +1054,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner's look review (WHY§237 to §239).
 - c The protocol, lint and contrast tests; the frame cost, the atlas size and the ABI round trip [done]
   - gives: merged into e to l and b on 2026-11-20, each part with its own tests.
-- d The owner's look review of the in-game menu, from screenshots [waiting]
+- d The owner's look review of the in-game menu, from screenshots [done]
   - needs: b
   - refs: G1, GraceUI:D177, GraceUI:D178
   - gives: first answers on 2026-11-20 from screenshots: a larger default size (GraceUI's D177, ui.scale 1.25) and a
@@ -1063,7 +1064,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     recommended, and built as D181 (S11.2.o).
     The look review's pictures made and put to the owner on 2026-11-21, as a private page: GraceUI's own pages, the
     demo space and EldenNet's pages as of engine 8008dd1, in game under the D3D12 harness and in the browser, with nine
-    things to judge (WHY§294). Waiting on the owner's answers.
+    things to judge (WHY§294). Approved by the owner on 2026-11-21, as drawn (GraceUI's D201, a dated note on G1).
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
@@ -1191,13 +1192,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     feat/foundations 913a0e2), protocol and ABI unchanged; nothing for EldenNet to change (GraceUI's
     docs/eldennet-changes.md §43).
 - x Sections as cards: a chip, a live status and a section's own actions, for AI › Models' card per job (GraceUI's
-    proposal 0008) [waiting]
+    proposal 0008; GraceUI 0.2.12) [done]
   - needs: w
-  - refs: PAGES§4.6.2
+  - refs: PAGES§4.6.2, G36, GraceUI:D202, WHY§298
   - gives: put to the owner on 2026-11-21 as GraceUI's G36 (Open): three optional fields on a section, a static chip
     (the slot id), a status from a state topic (a dot and a word in the lamp's tones) and one or two actions of a
     header action's shape ("Prepare lines now"); protocol 1.3, ABI unchanged. Recommended: all three. EldenNet's
     AI › Models then moves its jobs from the settings block under the Jobs table into one section per job.
+    Decided by the owner on 2026-11-21, (a) all three, and built the same day as GraceUI's D202 (0.2.12, protocol 1.3,
+    ABI 1.2 unchanged; feat/foundations a9aac78): `chip`, `status` {topic, field} and `actions` on a section, page data
+    using them at `"minor": 3` (GraceUI's docs/eldennet-changes.md §45). EldenNet's next pages slice uses them.
 - y A row secret's line in game only when a row takes a key (GraceUI 0.2.11) [done]
   - needs: v
   - refs: GraceUI:D200, WHY§297
