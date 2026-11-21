@@ -885,6 +885,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2026-11-20 (engine 9a6e3ea; WHY§247). Run 8: the call returns 1 and group 110's entry exists, yet nothing keeps our
     task; spike.9 reads the group's own function and its memory (WHY§248). Spike.9 sent on 2026-11-20 (engine
     a51ab03; WHY§258).
+    Run 9 (2026-11-21): the call returns 1, and the group's function only null-tests our task and hands it, with one
+    word of the entry, to a method of a second singleton (0x2658FB0, not yet read). Nothing in memory keeps our task,
+    plainly or tagged, and the group's memory did not change. The launcher's log stopped at the call, so no 30 s text
+    was shown and the crash watcher was blocked. Spike.10 reads that method and the second singleton, and the
+    launcher's console no longer blocks its watch (WHY§289, WHY§290). Spike.10 sent on 2026-11-21 (engine b5c2966;
+    WHY§291, WHY§292).
+    Run 10 (2026-11-21): G's method never reads our task; it wraps it in a 32-byte request of its own and hands that
+    at once to 0x1267F0 or queues it on G, by one byte of G's. Nothing keeps our task, and the launcher's fix held.
+    Spike.11 reads the request's methods, 0x1267F0 whole, G's queue, and the game's own requests and tasks (WHY§293).
+    Spike.11 sent on 2026-11-21 (engine da2fdfc; WHY§295).
+    Run 11 (2026-11-21): the request runs at once, as its own slot 1, and passes our task on only if group 110's word
+    is in a map of the manager's; it was dropped, with no copy left. Spike.12 reads that map at the title and in the
+    world, after a save is loaded without a second call (WHY§296).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -1048,6 +1061,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner. It stays waiting until the owner has looked at the new screenshots. The pointer (GraceUI's G31, decided
     2026-11-20): our own Grace pointer, still, built as D178 in GraceUI 67fa60f. G32 decided the same day, as
     recommended, and built as D181 (S11.2.o).
+    The look review's pictures made and put to the owner on 2026-11-21, as a private page: GraceUI's own pages, the
+    demo space and EldenNet's pages as of engine 8008dd1, in game under the D3D12 harness and in the browser, with nine
+    things to judge (WHY§294). Waiting on the owner's answers.
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
@@ -1161,6 +1177,33 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     not as columns in a topic's body (WHY§281); how EldenNet uses them is GraceUI's docs/eldennet-changes.md §41.
     In game, focus now stays on its element when a topic's body arrives. EldenNet's AI pages take them in the next
     slice (S11.4.a).
+- v A row secret's refused and none states, the changed mark from the space's own list, no empty default printed (GraceUI 0.2.9) [done]
+  - refs: GraceUI:D197, GraceUI:D198, WHY§288
+  - gives: asked by EldenNet's third pages slice and done on 2026-11-21 (GraceUI feat/foundations a1d8f78), protocol
+    and ABI 1.2 unchanged. EldenNet's next pages slice uses them: "none" for a server that needs no key, "refused" for a
+    key the provider refused, a picker in the `changed` list only when the player picked a model, and "Default: the
+    preset's model." in its help (GraceUI's docs/eldennet-changes.md §42).
+- w A picker's empty default reads Default, in both views (GraceUI 0.2.10) [done]
+  - needs: d
+  - refs: WHY§294
+  - gives: found by the owner's look review (S11.2.d), whose pictures of EldenNet's per-job model pickers showed them
+    blank; GraceUI's D199 draws an empty default as "Default" and offers it first. Done on 2026-11-21 (GraceUI
+    feat/foundations 913a0e2), protocol and ABI unchanged; nothing for EldenNet to change (GraceUI's
+    docs/eldennet-changes.md §43).
+- x Sections as cards: a chip, a live status and a section's own actions, for AI › Models' card per job (GraceUI's
+    proposal 0008) [waiting]
+  - needs: w
+  - refs: PAGES§4.6.2
+  - gives: put to the owner on 2026-11-21 as GraceUI's G36 (Open): three optional fields on a section, a static chip
+    (the slot id), a status from a state topic (a dot and a word in the lamp's tones) and one or two actions of a
+    header action's shape ("Prepare lines now"); protocol 1.3, ABI unchanged. Recommended: all three. EldenNet's
+    AI › Models then moves its jobs from the settings block under the Jobs table into one section per job.
+- y A row secret's line in game only when a row takes a key (GraceUI 0.2.11) [done]
+  - needs: v
+  - refs: GraceUI:D200, WHY§297
+  - gives: asked by EldenNet's fourth pages slice, where every row of a local server read Not needed and the line
+    "Key: set in the browser view." still showed. Done on 2026-11-21 (GraceUI feat/foundations 75cc11a), all checks
+    passed; nothing for EldenNet to change (GraceUI's docs/eldennet-changes.md §44).
 
 ### S11.3 EldenNet v0.2
 
@@ -1179,7 +1222,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, G34
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1205,6 +1248,23 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The owner approved proposal 0007 (G34, built as GraceUI 0.2.8, S11.2.u) and the slices' open choices on 2026-11-21 (O95): no lamp while starting, the
     tones, labels by the build's increment, the banner's words on greyed pages (the Now card's sentence follows in the
     next slice), and the words as drafted.
+    Third slice on 2026-11-21 (engine 8008dd1), at GraceUI 0.2.8 (0738fa3, protocol 1.2): the AI pages fully editable
+    with G34 as built (GraceUI's D192 to D196): a Remove and the key on each provider's row, a small form for a provider
+    of one's own, a model picker per job from what its provider lists. One base-URL check in en-proto serves the form,
+    the providers file and the key rows: https://, http:// to this PC, or http:// to a literal private address with no
+    key (O98); no name, password, query or fragment; each refusal in words on System › Status (WHY§283, WHY§284). O95's
+    choices applied (the Now card at L1 in the banner's words); Home and System on GraceUI 0.2.7's props (Home greyed
+    at L1, "No problems.", Logs newest first). EldenNet's GraceUI floor is 0.2.8. Checked on the fake game in both views
+    against a fake model server, the key nowhere (WHY§285 to §287). Next: a provider picker per job; three display
+    requests to GraceUI (a key not needed, a key refused, a picker's default) sent the same day.
+    Fourth slice on 2026-11-21 (engine 2d125a1), at GraceUI 0.2.9 (908c179; GraceUI:D197, GraceUI:D198): a provider
+    picker per job on AI › Models (a provider whose list lacks the job's model waits, unwritten, for one of its models;
+    a reset clears the job's pick), a key's Refused and Not needed on AI › Providers (a server on this PC takes a key
+    only once a call asks for one; one on the home network never), and the changed mark from the space (a job's rows
+    only while the providers file holds its pick). EldenNet's GraceUI floor is 0.2.9, since 0.2.8 draws both new
+    states as Missing. Checked on the fake game in both views against a fake model server with a keyless path, both
+    keys nowhere (WHY§297). Left to the owner: the slice's eight readings; cards per job and a fallback picker with
+    GraceUI's proposal 0008 (S11.2.x).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

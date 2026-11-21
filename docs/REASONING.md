@@ -305,6 +305,21 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
 | 281 | 2026-11-21 | Row actions and row secrets are declared on a table's block in the page data, not in a topic's body, so registration can check them | DECIDED | #graceui #pages |
 | 282 | 2026-11-21 | Folding O96 and O97: the player's addressee is picked before the reply, and pairs make one speaker with several addressees a decision | LIKELY | #decisions #llm #npc |
+| 283 | 2026-11-21 | en-llm took any host starting with "127." for this PC, letting a key go in clear text elsewhere; fixed | FACT | #engine #security |
+| 284 | 2026-11-21 | One base-URL check for the form, the providers file and the key rows, each refusal in words | DECIDED | #engine #pages #security |
+| 285 | 2026-11-21 | The AI pages' pickers: path-shaped model ids left out, a job's model row holds the model now, provider name rules | DECIDED | #engine #pages #privacy |
+| 286 | 2026-11-21 | GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it | FACT | #graceui #harness |
+| 287 | 2026-11-21 | Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words | METHOD | #privsweep #harness |
+| 288 | 2026-11-21 | A row's changed mark is the space's own list, not a value compared with its default | DECIDED | #graceui #settings |
+| 289 | 2026-11-21 | R1 run 9: the group's function hands our untouched task to a second singleton's method; nothing in memory keeps it | FACT | #gal #r1 #task |
+| 290 | 2026-11-21 | R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked | FACT | #launcher #r1 #console |
+| 291 | 2026-11-21 | R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites | DECIDED | #gal #r1 #task |
+| 292 | 2026-11-21 | The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off | DECIDED | #launcher #r1 #console |
+| 293 | 2026-11-21 | R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read | FACT | #gal #r1 #task |
+| 294 | 2026-11-21 | A look review made from a real mod's pages finds what the demo space's goldens cannot | METHOD | #graceui #review |
+| 295 | 2026-11-21 | R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests | DECIDED | #gal #r1 #task |
+| 296 | 2026-11-21 | R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it | FACT | #gal #r1 #task |
+| 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
 
 ## Entries
 
@@ -4804,3 +4819,249 @@ invariant 10, EldenNet ARCH (T3)
   per conversation as before. The header's new name is the only cue in v1 (marked for review). Who may answer the
   player's line, and the addressees each motive allows, are written in NPC §9.2 and §9.4 (marked for review).
 - (FACT) PAGES §4.6.2's Requests filter has no purpose for decision calls; a word for it is left to the pages work.
+
+### 283. en-llm took any host starting with "127." for this PC, letting a key go in clear text elsewhere; fixed
+
+`2026-11-21` · FACT · `#engine` `#security` · refs: ARCH§11.1, S11.4.a
+
+- (FACT) en-llm's loopback test took any host whose name began with "127." for this PC, so a provider at a name such
+  as `127.example.invalid` over `http://` passed ARCH's rule that no key crosses a network in clear text. Fixed by
+  en-proto's `is_loopback_host` (a dotted 127.0.0.0/8 address, `localhost`, `[::1]`), shared with the pages' form.
+
+### 284. One base-URL check for the form, the providers file and the key rows, each refusal in words
+
+`2026-11-21` · DECIDED · `#engine` `#pages` `#security` · refs: O98, ARCH§11.1, PAGES§4.6.2, S11.4.a
+
+- (DECIDED) en-proto's check (`check_base_url`, with `url_extras`, `is_private_host` and `reach_of`) is the one rule
+  for AI › Providers' form, the hand-written providers file and the key rows: `https://` to any host; `http://` to this
+  PC; `http://` to a literal private address (RFC 1918, fc00::/7) as a home-network server with no key (O98); never a
+  host name over `http://`, never a name, password, query or fragment in the URL. A key (`key_ref`, or a header's
+  secret) is refused on any provider reached by `http://` on another computer.
+- (FACT) A hand-written `http://` to a home server by name is now refused; only a literal private address passes.
+  Each refusal is named, with its line, on System › Status and Home's Problems.
+
+### 285. The AI pages' pickers: path-shaped model ids left out, a job's model row holds the model now, provider name rules
+
+`2026-11-21` · DECIDED · `#engine` `#pages` `#privacy` · refs: PAGES§4.6.2, PAGES§4.9, S11.4.a
+
+- (DECIDED) A server's listed model ids reach AI › Models' pickers alone, and an id shaped like a path is left out,
+  since a local server can list model files by a path holding the Windows user name (PV5).
+- (DECIDED) A job's model row holds the job's model now (the preset's or the player's pick); its reset removes the
+  pick. A provider of one's own takes a name of 1 to 32 characters, unique ignoring case, and never one a key is
+  already kept under. Remove refuses a provider a job uses, naming the jobs.
+
+### 286. GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it
+
+`2026-11-21` · FACT · `#graceui` `#harness` · refs: tests/pages/browser.py
+
+- (FACT) GraceUI's server sends `{"t":"ping"}` on each WebSocket every 15 s, not a WebSocket ping frame, and closes the
+  socket after two unanswered. EldenNet's test browser answered only the frame, so a session longer than 45 s closed;
+  it now answers `{"t":"pong"}`.
+
+### 287. Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words
+
+`2026-11-21` · METHOD · `#privsweep` `#harness` · refs: WHY§276, S11.4.a
+
+- (METHOD) The sweep refuses a private IPv4 literal in a test, and its endpoint rule matches words such as `.home`,
+  `.lan` and `.local` even inside an invented name. Tests build private addresses from their numbers at run time and
+  use names such as `storeroom.invalid`, rather than adding allow lines.
+- (METHOD) A fake-game case whose browser starts from the game's report should have reports early: the AI case's
+  browser waited for its first report and finished 0.6 s before the menu needed its result.
+
+### 288. A row's changed mark is the space's own list, not a value compared with its default
+
+`2026-11-21` · DECIDED · `#graceui` `#settings` · refs: GraceUI:D198, S11.2.v
+
+- (DECIDED) Both of GraceUI's views take a row's changed mark from the settings body's `changed` list, in the protocol
+  from the start and published by every space, rather than comparing a value with its default, which misreads a
+  setting whose default stands for something the space resolves (EldenNet's per-job model picker, whose default is the
+  preset's model). A new `default_label` field, which would have been protocol 1.3, was not needed.
+
+### 289. R1 run 9: the group's function hands our untouched task to a second singleton's method; nothing in memory keeps it
+
+`2026-11-21` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§235, WHY§240, WHY§248, WHY§258, S10.1.f
+
+- **The group's function** (FACT, spike.9, game 2.7.2.0 ww, no other mods): RVA 0xEB6040 (114 bytes, 29 instructions)
+  null-tests the task (null answers 0) and reads nothing else of it; it reads one 32-bit word of the entry, at +0x54,
+  and calls no slot of the entry. It loads a second singleton, G, from the data slot at RVA 0x48642A0 (calling the same
+  null-singleton report pair as the wrapper only when the slot is null), then tail-jumps through an 8-byte stub that
+  zeroes r9 to 0x2658FB0, with rcx G, rdx our task, r8 the entry's word and r9 0. `task_reads` and `task_stores` are 0
+  to depth 3, so the 1 the call answers is 0x2658FB0's, and whatever drops our task is there or below.
+- **The classes** (FACT): the first singleton and the entry are both RTTI-classed, and neither matches a lead.
+- **The memory** (FACT): at 2.0 and 21.6 s after the call, 8.6 of 10.7 GB read: no plain, inside or tagged copy of our
+  object's address, and none of our vtable or slots. Walks from the singleton (204 blocks) and group 110's entry (775
+  blocks) changed nothing beyond the control but one counter, which run 8's control shows changing before any call.
+  Our object was never written and no slot was called in 21 minutes at the title screen.
+- **One change unexplained** (FACT; its cause SPECULATION): in runs 7 to 9 an array behind CSTask's instance at +0x3B0,
+  then +0x3D0, elements 240 bytes apart, took fresh heap pointers after the call, never in a control. It holds nothing
+  of ours.
+- **So** (LIKELY): G's method takes our task and answers true without keeping it, because of something it reads or
+  checks. A list that runs only in a world is ruled out by the memory and by run 4. The leading candidate (SPECULATION)
+  is our zeroed object, with no derived base class (R1 never found the game's task shape), lacking fields a real task
+  has; a phase check at the title, or a function that does not register at all, remain open.
+- **Next:** spike.10 summarises 0x2658FB0 through the stub, with the task followed in, and its callees one level
+  further; reads the entry's word, G's slot and class, and whether G is the object the entries reach at +0x58; walks
+  from G with its control; times and classes the array's change; and reads what the game's own 8 call sites pass as
+  the task. A fix waits on that: building our object in the game's own task layout, never by guesswork.
+
+### 290. R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked
+
+`2026-11-21` · FACT, with a LIKELY reading · `#launcher` `#r1` `#console` · refs: O71, O90, WHY§248
+
+- **The log** (FACT): run 9's launcher log ends at the call (25.5 s), with no status, no-confirmation, end, lint or
+  finish line, though the game ran 21 more minutes and EldenNet logged and reported to the end. Run 8 carries them all.
+- **So** (LIKELY): the watch loop blocked right after it. Its next step is a console write under the output lock, and
+  the launcher writes the console before the file, so a suspended console stops the file log too. Clicking inside a
+  classic console window starts a selection, which suspends its output until Esc (SPECULATION as the cause here).
+  The owner never saw the 30 s text, which explains the 21-minute wait, and the crash watcher (O71) was blocked.
+- **Next:** the launcher turns QuickEdit off for its console, writes the file first, and keeps console output off the
+  watch loop (a writer thread with a bounded queue that drops console lines rather than waiting). Until then, the
+  README asks the player not to click inside the console.
+
+### 291. R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites
+
+`2026-11-21` · DECIDED, with FACT on the fake game · `#gal` `#r1` `#task` · refs: WHY§289, WHY§248, WHY§240, S10.1.f
+
+- **G's method** (DECIDED): the group function's first tail jump (else call) that passes our task with rcx loaded from
+  a 64-bit RIP-relative slot is the site, and rcx there is G. A stub of 16 bytes or fewer, with no call, branch or
+  return and a direct tail jump last, is followed without spending a depth level, with the registers it zeroes. G's
+  method is summarised at depth 3 and its direct callees and tail jumps at 4, within the group's 16 summaries, with
+  `task_reads`, `task_stores`, `g_reads` (loads based on G) and `word_uses` (the entry's word compared, tested, stored,
+  passed, changed or used as an index), the word followed through 32-bit moves, movsxd and lea.
+- **A fix** (METHOD): a direct jump to a function start from the exception directory now ends a summary; spike.9 let a
+  forward jump extend the code decoded.
+- **The numbers** (DECIDED), just before the call and 2 s after it: G's slot (zero or heap) and its class against the
+  leads (O92's rule); whether CSTask's instance holds G at +8 and the entry at +0x58; group 110's word, and over every
+  entry how many hold their own index and how many distinct words there are. G is walked as a fourth root, with its
+  control, unless it is a root or the object at +8 or +0x58. The array behind +0x3B0 and +0x3D0 is read again at 50 and
+  250 ms and at 2 s, its new rdata words classed, a small word compared with the main window's thread and with the
+  calling thread.
+- **The game's own tasks** (DECIDED): at each of the first 16 call sites of register_task, the task argument read back
+  along the straight line to its last write (member, static, load, result, argument, stack or other, with one level of
+  its base); the sibling at 0xEB5540 summarised to depth 4, 12 summaries at most. Past 256 KiB the forms go first, the
+  group function and G's method last (eleven passes; the fake game's report is about 210 KB).
+- **On the fake game** (FACT): its group function reproduces run 9's shape. Spike.10 finds G's method through the stub,
+  with 2 task reads (one compared with a small immediate), 3 reads of G and 4 uses of the word; G on the heap, classed,
+  no lead, held at neither offset; every word its entry's own index; the array's change seen at 50 ms and the main
+  thread's stamp from 250 ms; the four call-site forms as built. With a strict G the call answers 1 and keeps nothing,
+  as in run 9.
+- **A self-test kept honest** (METHOD): with r9 zeroed by the stub, the fake game's swapped call (the hub passed as the
+  task) ran and faulted; the fake now keeps the hub it was given, so that case is refused at the hub again.
+
+### 292. The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off
+
+`2026-11-21` · DECIDED · `#launcher` `#r1` `#console` · refs: WHY§290, O71, O90
+
+- **The order** (DECIDED): every line goes to launcher.log first, then into a queue of 256 lines for one console writer
+  thread, under the same lock; a line that finds the queue full is dropped and counted, never waited on. The first drop
+  is noted in the log, and the end logs the totals; at exit the writer gets one second at most.
+- **QuickEdit** (DECIDED): with the console (`--console`, `--probe`) the launcher turns QuickEdit off while it runs and
+  restores the mode it found; with no console (a pipe, as in the tests) it changes nothing.
+- **Tested** (FACT): with the console writer blocked after three lines, launcher.log kept every line to the end (the
+  status lines, the no-confirmation step at 43.6 s, both lints and the end), with 79 console lines dropped; a crash with
+  the console blocked is still recorded. README-R1.txt asks players not to click inside the console until this
+  launcher has replaced the old one.
+
+### 293. R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read
+
+`2026-11-21` · FACT, with LIKELY and SPECULATION readings · `#gal` `#r1` `#task` · refs: WHY§289, WHY§291, S10.1.f
+
+- **G's method** (FACT; RVA 0x2658FB0, 190 bytes, reached through the stub): it answers 0 when the task is null or G's
+  word at +0x40 is zero. Otherwise it builds a 32-byte request on its stack: a vtable of its own (rdata RVA 0x32990A0),
+  our task at +8, G's word at +0x48 at +16, the entry's word at +24 and r9's low byte (0) at +28. When G's byte at
+  +0x38 is zero it calls 0x1267F0 with the request and answers what that answers; otherwise it allocates 32 bytes
+  through an allocator object (data slot 0x4863D60, its slot at +80), copies the request in, and calls 0x26A4C10 on
+  G's +0x18, which locks (+8), adds the request to a container (+16) and unlocks. It never reads our task.
+- **The rest** (FACT): 0x1267F0's exception-directory extent is 68 bytes, yet its branches go to +126 and +267, so most
+  of it was not read. G is on the heap and unclassed, at neither +8 nor +0x58. The word is 0x9000006E (110 with high
+  flag bits); all 169 entries' words are distinct, none equal to its index. Every walk, G's (1,285 blocks) included,
+  changed as its control did; no copy of our task in 8.6 of 10.7 GB at 2.3 and 22 s; the array behind +0x3B0 did not
+  change this time. Of the game's 8 call sites, 7 pass their own function's argument and 1 a load from it (+0x218).
+- **The launcher** (FACT): its fix held: the no-confirmation step, both lints and the end are in the log; 76 console
+  lines, none dropped.
+- **So** (LIKELY): registration is a deferred request, and the request does the real work, now (0x1267F0) or later
+  (G's queue). With no copy of our task left at 2.3 s, the stack path (byte +0x38 zero) is the likelier
+  (SPECULATION). Either way, what drops our task is in 0x1267F0's unread part or in the request's own methods.
+- **Next:** spike.11 reads the fields of G the method reads (the byte says which path), the request's vtable (class,
+  slots) and its methods with its fields followed, 0x1267F0 whole, G's queue across the call, the class and bases of
+  G's +0x48, and the game's own requests in memory, whose +8 leads to the game's own tasks and their classes.
+
+### 294. A look review made from a real mod's pages finds what the demo space's goldens cannot
+
+`2026-11-21` · METHOD · `#graceui` `#review` · refs: S11.2.d, GraceUI's D199
+
+- **The review** (METHOD): the owner's look review was made from EldenNet's pages at engine 8008dd1 as well as from the
+  demo space, in game (graceui.dll in the D3D12 harness under Wine, 1920×1080) and in the browser, with invented data
+  only. It found a fault the demo space's goldens could not: a picker whose default is empty was drawn blank, which
+  EldenNet's per-job model pickers are. GraceUI fixed it as D199 (0.2.10): an empty default reads "Default" and is
+  offered first; EldenNet has nothing to change.
+- **The scenario** (METHOD): GraceUI's page-shots scenario now walks GraceUI's own pages, saves each page's end, and takes
+  a theme and a pointer position, so the next review is one command per set.
+
+### 295. R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests
+
+`2026-11-21` · DECIDED, with FACT on the fake game · `#gal` `#r1` `#task` · refs: WHY§293, WHY§291, S10.1.f
+
+- **Parts** (METHOD): a summary whose code goes past its exception-directory extent is decoded in parts: the entries
+  chained to it (UNW_FLAG_CHAININFO), and past a conditional branch's target in no entry, linear code up to 4 KiB until a
+  return, a jump through memory or a direct jump out (`unlisted`); 8 parts at most. Only conditional branches open an
+  unlisted part, since a direct jump into no entry is how a function tail-jumps to a leaf.
+- **The request** (DECIDED): found in G's method by its shape, not run 10's offsets: an rdata address stored at
+  [rsp + d] with the task at [rsp + d + 8]; each field's role from the method's entry state (vtable, task, manager from
+  G, the word, the zeroed register). Its class and slots (16 at most); its first six slots summarised at depth 4 with the
+  request in rcx, and the now path's function too, one level further, within 24 summaries: a load of the request's task
+  field is the task, so the task's later reads are `task_reads`.
+- **G and its queue** (DECIDED): the fields of G its method reads, just before the call and at about 50, 250 and 2,000
+  ms; `path_taken` now or queued, by the byte compared before the allocator. G's queue is the fifth root, walked at the
+  same times, each block whose first word is the request's vtable read as a request.
+- **The game's own** (DECIDED): each memory search counts words equal to the request's vtable outside our memory, reads
+  each of the game's (32 at most) as a request, and for each class of their tasks (8 at most) reports its slots and one
+  task's first 16 words as kinds. The classes' bases (type-descriptor RVAs only) are reported for G's manager, the
+  request, CSTask's instance, the group's entry and those tasks, with the bases they share.
+- **On the fake game** (FACT): both paths are found and reported. On the now path the second, unlisted part reads two
+  fields of the task; with a strict check it drops ours, answering 1 with no copy anywhere, as in run 10. On the queued
+  path our request sits in G's queue at 50 and 250 ms and is gone by 2 s. The game's own two waiting requests are found
+  in each search, their tasks in two classes sharing one base.
+
+### 296. R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it
+
+`2026-11-21` · FACT, with LIKELY and SPECULATION readings · `#gal` `#r1` `#task` · refs: WHY§293, WHY§295, S10.1.f
+
+- **The path** (FACT): G's byte at +0x38 was 0 at all four reads, so the request took the now path: 0x1267F0, which is
+  the request's own slot 1 (its vtable at rdata 0x32990A0 has no RTTI class). Decoded in three parts (68 bytes primary,
+  58 and 164 chained), it reads the request's word, manager and task.
+- **What it does** (FACT, from its reads and calls): it tests the word. With a word of 0 it hands our task to
+  0x26A3460 for each entry of a list on the manager (begin and end at the manager's +0x30 and +0x38). With any other
+  word, ours being 0x9000006E, it walks a tree from the manager's +0x18, testing a byte at each node's +25 and comparing
+  the word with each node's key, and on a match calls 0x26A3460 with the node's value, our task, the word and the
+  manager. Only after that does it test the request's byte at +28 (0 for us, zeroed by the stub) and, on another branch,
+  call our task's slot 1.
+- **The rest** (FACT): our slots were never called and no copy of our task was found anywhere, as before. No request of
+  the game's own was in memory and the queue held none: the game's requests are on the stack and gone at once. Every
+  entry's word has its own index in its low 16 bits and 0x9000 in its high 16 bits, so 0x9000006E is group 110's as the
+  game names it. Of the classes, only CSTask's instance and the group's entry have RTTI; G and its manager have none.
+- **So** (LIKELY): the tree is an MSVC `std::map` keyed by the group's word (the node's byte at +25 is its nil flag, and
+  the head's +8 is the root). Our task reaches 0x26A3460 only if group 110's word is in the manager's map. The leading
+  reading (SPECULATION) is that at the title screen it is not, so the request finds nothing, drops our task and answers
+  1. If the word is there, 0x26A3460 drops it instead.
+- **Next:** spike.12 reads the manager's map at the title and, after a save is loaded with no second call, in the world:
+  its size and keys, and whether group 110's word is among them; it summarises 0x26A3460. If the word appears only in
+  the world, the call moves there, by the owner's decision.
+
+### 297. The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9
+
+`2026-11-21` · DECIDED, with FACT readings · `#engine` `#pages` `#graceui` · refs: S11.4.a, O98, WHY§283, WHY§288
+
+- **The floor** (FACT): GraceUI 0.2.8 takes page data with D197's cells and D198's `changed` list without refusal, but
+  draws Refused and Not needed as Missing and marks every picker row changed; EldenNet's floor rose to 0.2.9.
+- **A job's provider** (DECIDED): written at once with the job's model when the provider's list holds it; otherwise held
+  in the space, unwritten, until one of its models is chosen. A reset of either row clears the job's pick, and a job's
+  rows count as changed while the providers file holds `[slots.<slot>]`, even when the pick equals the preset's.
+- **A key's cell** (DECIDED): Not needed for a provider with no key's place until a call asks for one (401 or 403), then
+  Refused, with the field; Refused also when a key sent was refused. A server on the home network (O98) never takes one.
+  A refused provider is no job's choice until its key is pasted again.
+- **Two faults fixed** (FACT): a reload of en-llm cleared its record of refused keys, so an unrelated edit made a refused
+  key read Set; the DLL now keeps each refusal until the provider answers or its key changes. And a fallback with no
+  provider of its own would have moved silently with its job; its provider is now written.
+- **A pitfall again** (METHOD): a range-for over a member of a temporary dangled in a new test, the third time
+  (WHY§269); hold the body in a variable first.
