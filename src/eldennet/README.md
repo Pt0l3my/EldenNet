@@ -127,6 +127,21 @@ After each wake, once T1 has published the connection:
   every change of the session is handed to T11, which reads settings.toml again, edits it (en_shell's `edit_settings`:
   every other key and table kept, comments not; a file the parse refuses is never written over) and writes it beside
   and renames it over (`settings_write ok=… keys=… why=…`). T6 does no file work for the pages.
+- **The AI pages** (`ai.cpp`; PAGES §4.6.2, ARCH §11): T1, on the main path after Safety, reads `providers.toml` and
+  `secrets.toml` from the config folder, `models.toml` from `content\eldenring\` beside the DLL, and makes en-llm's
+  WinHTTP transport (the system's `winhttp.dll` by its full path); `ai_files providers=… models=… secrets=…
+  transport=…`. T6 parses them with en-llm (`ai_config result=ready|missing|refused …`, a refusal by its file and line
+  alone, never its message), fills the space's `AiFacts` each wake (the files' parts only when they change), sets the
+  preset's and keys' rows from the files (a key's status alone), and takes the space's changes and requests: the
+  preset and Add provider (`ai_change what=preset|add`: providers.toml's `preset`, the preset's missing providers
+  added with their keys in `secrets:<id>`), a key (`ai_change what=key name=… set=…`: cleaned, the change's copy
+  overwritten), Remove unused providers (`what=remove`, with the keys no remaining provider names), each checked by
+  parsing the result first and then posted to T11, which makes the same change on the file as it is then
+  (`ai_write file=providers|secrets ok=… why=…`; secrets.toml written with an access list for this user alone,
+  `write_private`). The self-test and the model list run on en-llm's handle (T7–T8), which T6 makes when one first
+  needs it (`ai_service ok=1 workers=…`) and tells the core's gate at each wake; its notify sets T6's wake. Each run's
+  end is one line of words and numbers (`selftest result=passed verdict=quick … first_token_ms=… tps=…`,
+  `models_list providers=… passed=…`). en-llm's own log lines are not taken (a server's message could reach them).
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -317,7 +332,9 @@ greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLL
 `eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
 network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
 C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap and its
-walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`).
+walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`; the AI pages en-llm's threads, the C runtime's thread
+support with them, `GetSystemDirectoryW` for WinHTTP's full path, and advapi32's token and access-list functions for
+secrets.toml).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording
@@ -332,4 +349,7 @@ GraceUI loaded after EldenNet, by its own look, on the main path (the pre-flight
 game's Direct3D 12 frame and hidden again, the world-state provider, and the Mark handed over to GraceUI's hotkey);
 GraceUI loaded before it, on the banner path (the banner as one notice, F11's view); another mod holding Pause in
 GraceUI, so EldenNet's Mark registers unbound and the launcher keeps Pause; the anti-cheat's notice-only mode; and
-Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame.
+Augur's events from the fake game's world and the lifecycle listed in F11's view, their squares counted on the frame;
+and the AI pages against a fake model server on loopback (`launcher-eldennet-graceui-ai`): a provider added, a key set,
+the self-test from the browser and from the menu, the model list, a provider removed with its key, and the key in no
+frame, log line, recording or file.

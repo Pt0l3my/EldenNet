@@ -112,6 +112,47 @@ bool write_text(const std::wstring& path, std::string_view text) {
   return ok && MoveFileExW(part.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING) != FALSE;
 }
 
+bool write_private(const std::wstring& path, std::string_view text) {
+  // An access list of one entry, this user's full access, protected from the folder's inherited entries (ARCH §11.5).
+  // Both are built in fixed, typed buffers: TOKEN_USER and its SID, an ACL and its one entry (no cast: ARCH §2.4).
+  union {
+    TOKEN_USER user;
+    unsigned char bytes[sizeof(TOKEN_USER) + SECURITY_MAX_SID_SIZE];
+  } token_user{};
+  HANDLE token = nullptr;
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return false;
+  DWORD need = 0;
+  const BOOL got = GetTokenInformation(token, TokenUser, &token_user, sizeof token_user, &need);
+  CloseHandle(token);
+  if (!got) return false;
+  PSID sid = token_user.user.User.Sid;
+  union {
+    ACL acl;
+    unsigned char bytes[sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) + SECURITY_MAX_SID_SIZE];
+  } list{};
+  const DWORD acl_size = static_cast<DWORD>(sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid));
+  SECURITY_DESCRIPTOR sd{};
+  if (acl_size > sizeof list || !InitializeAcl(&list.acl, acl_size, ACL_REVISION) ||
+      !AddAccessAllowedAce(&list.acl, ACL_REVISION, GENERIC_ALL, sid) ||
+      !InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION) ||
+      !SetSecurityDescriptorDacl(&sd, TRUE, &list.acl, FALSE) ||
+      !SetSecurityDescriptorControl(&sd, SE_DACL_PROTECTED, SE_DACL_PROTECTED)) {
+    return false;
+  }
+  SECURITY_ATTRIBUTES sa{sizeof sa, &sd, FALSE};
+  const std::wstring part = path + L".part";
+  (void)DeleteFileW(part.c_str());  // CREATE_ALWAYS keeps an old file's access list: the part is always made anew
+  HANDLE f = CreateFileW(part.c_str(), GENERIC_WRITE, 0, &sa, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE) return false;
+  DWORD put = 0;
+  const bool ok = WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &put, nullptr) && put == text.size();
+  CloseHandle(f);
+  // A rename keeps the part's own access list.
+  if (ok && MoveFileExW(part.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING) != FALSE) return true;
+  (void)DeleteFileW(part.c_str());
+  return false;
+}
+
 bool make_dirs(const std::wstring& path) {
   if (path.empty()) return false;
   if (CreateDirectoryW(path.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS) return true;

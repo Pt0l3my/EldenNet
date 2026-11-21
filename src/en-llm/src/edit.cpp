@@ -293,6 +293,21 @@ EditedSecrets edit_secrets(std::string_view text, std::string_view name, const S
   return out;
 }
 
+std::vector<std::string> keys_set(std::string_view secrets_text) {
+  std::vector<std::string> out;
+  std::optional<toml::table> root = parse_player(secrets_text, "secrets.toml");
+  if (!root) return out;
+  if (toml::table* keys = root->get_as<toml::table>("keys")) {
+    for (auto&& [name, value] : *keys) {
+      if (toml::value<std::string>* s = value.as_string()) {
+        if (!s->get().empty()) out.emplace_back(name.str());
+        std::fill(s->get().begin(), s->get().end(), '\0');
+      }
+    }
+  }
+  return out;
+}
+
 std::optional<Secret> clean_key(std::string_view typed) {
   while (!typed.empty() && (typed.front() == ' ' || typed.front() == '\t' || typed.front() == '\r' ||
                             typed.front() == '\n')) {

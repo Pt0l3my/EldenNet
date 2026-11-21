@@ -46,6 +46,7 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/alloc_count.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/shell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/overlay.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/win/ai.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_r1.cpp)
 # One DLL per flavour: `release` links en_gal_game, `probe` en_gal_game_probe and brings EN_PROBE (ARCH §2.5).
 # Each has its own version resource, configured from win/eldennet.rc.in with the build's label (and, for the probe
@@ -62,7 +63,10 @@ function(en_dll target gal special)
   en_dll_module(${target})
   set_target_properties(${target} PROPERTIES OUTPUT_NAME eldennet)
   target_compile_definitions(${target} PRIVATE EN_DLL_VERSION_LABEL="${EN_VERSION_LABEL}")
-  target_link_libraries(${target} PRIVATE en_shell ${gal} en_core en_gal en_overlay en_proto en_third_party)
+  # en_llm: the AI pages' model client (its WinHTTP loaded by its full path, never imported); advapi32 for secrets.toml's
+  # access list (write_private).
+  target_link_libraries(${target} PRIVATE en_shell ${gal} en_core en_gal en_overlay en_llm en_proto en_third_party
+    advapi32)
 endfunction()
 en_dll(eldennet en_gal_game OFF)
 if(EN_BUILD_TESTS OR EN_PROBE)

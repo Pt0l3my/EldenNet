@@ -24,6 +24,14 @@ constinit std::atomic<TailRing*> g_tail{nullptr};
 // only, each holding every edit of the session so far.
 constinit std::atomic<std::vector<en::shell::SettingsEdit>*> g_edits{nullptr};
 constinit wchar_t g_settings[MAX_PATH] = {};
+// The AI pages' changes to providers.toml and secrets.toml, posted by T6 (a list pushed without a lock) and made here
+// in the order posted.
+struct AiWriteNode {
+  AiWriteNode* next = nullptr;
+  AiWrite write;
+};
+constinit std::atomic<AiWriteNode*> g_ai_writes{nullptr};
+constinit wchar_t g_ai_folder[MAX_PATH] = {};
 constinit bool g_probe_build = false;
 constinit std::atomic<int> g_level{static_cast<int>(en::shell::LogLevel::Info)};
 constinit std::atomic<bool> g_started{false};
@@ -72,6 +80,33 @@ void write_settings(const std::vector<en::shell::SettingsEdit>& edits) {
       ok ? en::shell::LogLevel::Info : en::shell::LogLevel::Warn);
 }
 
+// One of the AI pages' changes, made on the file as it is now (read again, en-llm's edit, written beside it and renamed
+// over it); a file whose text fails its checks is never written over. secrets.toml gets this user's access alone.
+void write_ai(const AiWrite& w) {
+  const std::wstring folder(g_ai_folder);
+  if (folder.empty()) return;
+  (void)make_dirs(folder);
+  constexpr std::size_t kMax = 64u << 10;
+  if (w.file == AiWrite::File::Providers) {
+    const std::wstring file = folder + L"\\providers.toml";
+    const std::optional<std::string> text = read_text(file, kMax);
+    const en::llm::EditedText edited = en::llm::edit_providers(text.value_or(""), w.edit);
+    const bool ok = edited.ok && write_text(file, edited.text);
+    log(en::shell::Line("ai_write").word("file", "providers").flag("ok", ok)
+            .word("why", edited.ok ? (ok ? "none" : "write") : edited.why),
+        ok ? en::shell::LogLevel::Info : en::shell::LogLevel::Warn);
+    return;
+  }
+  const std::wstring file = folder + L"\\secrets.toml";
+  std::optional<std::string> read = read_text(file, kMax);
+  const en::llm::Secret held(read ? std::move(*read) : std::string());
+  const en::llm::EditedSecrets edited = en::llm::edit_secrets(held.reveal(), w.name, w.key ? &*w.key : nullptr);
+  const bool ok = edited.ok && write_private(file, edited.text.reveal());
+  log(en::shell::Line("ai_write").word("file", "secrets").flag("ok", ok)
+          .word("why", edited.ok ? (ok ? "none" : "write") : edited.why),
+      ok ? en::shell::LogLevel::Info : en::shell::LogLevel::Warn);
+}
+
 HANDLE open_log() noexcept {
   HANDLE f = CreateFileW(g_file, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_ALWAYS,
                          FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -110,6 +145,21 @@ DWORD WINAPI writer_main(void*) noexcept {
         write_settings(*edits);
         delete edits;
       }
+      if (AiWriteNode* list = g_ai_writes.exchange(nullptr, std::memory_order_acq_rel)) {
+        AiWriteNode* ordered = nullptr;  // pushed newest first: turned round, oldest first
+        while (list != nullptr) {
+          AiWriteNode* next = list->next;
+          list->next = ordered;
+          ordered = list;
+          list = next;
+        }
+        while (ordered != nullptr) {
+          AiWriteNode* next = ordered->next;
+          write_ai(ordered->write);
+          delete ordered;
+          ordered = next;
+        }
+      }
       Sleep(50);
     }
   });
@@ -139,6 +189,21 @@ void post_settings_write(std::vector<en::shell::SettingsEdit> edits) noexcept {
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     auto* batch = new std::vector<en::shell::SettingsEdit>(std::move(edits));
     delete g_edits.exchange(batch, std::memory_order_acq_rel);  // an older batch not yet written: this one holds it all
+  });
+}
+
+void set_ai_folder(const std::wstring& config) noexcept {
+  if (config.size() >= MAX_PATH) return;
+  config.copy(g_ai_folder, config.size());
+}
+
+void post_ai_write(AiWrite write) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    auto* node = new AiWriteNode();
+    node->write = std::move(write);
+    node->next = g_ai_writes.load(std::memory_order_relaxed);
+    while (!g_ai_writes.compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)) {
+    }
   });
 }
 

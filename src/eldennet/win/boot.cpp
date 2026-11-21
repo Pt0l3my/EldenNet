@@ -251,6 +251,9 @@ void run(HMODULE module) {
   if (!*gated) return banner_path(s, BannerReason::UnknownBuild, gate_word);
   if (anticheat) return banner_path(s, BannerReason::AntiCheat, protected_parent ? "parent" : "module");
 
+  // The AI pages' files (ai.cpp), on the main path alone: at L1 EldenNet calls no model.
+  read_ai_files(s, text);
+
   // ---- WaitWindow, Connect ----
   enter(w::InitState::WaitWindow);
   if (!wait_window(kStartLimitMs)) return stop_at(s, BannerReason::NotStarted, "no_window");

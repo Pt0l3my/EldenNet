@@ -76,6 +76,10 @@ struct EditedSecrets {
 // file. A name is a provider id's form (1 to 64 letters, digits, '_', '-' or '.').
 [[nodiscard]] EditedSecrets edit_secrets(std::string_view text, std::string_view name, const Secret* value);
 
+// The names secrets.toml holds a key under (a non-empty string), by name; none when it fails its checks. For the
+// pages' key rows, which say only whether a key is set.
+[[nodiscard]] std::vector<std::string> keys_set(std::string_view secrets_text);
+
 // A key as the player typed it: surrounding spaces and line ends taken off. Nothing when what is left is empty, longer
 // than 1024 bytes, or holds a control character or a space.
 [[nodiscard]] std::optional<Secret> clean_key(std::string_view typed);

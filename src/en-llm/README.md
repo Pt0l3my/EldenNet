@@ -130,6 +130,10 @@ fallback = "talker-large"
 router = "<the player's key>"
 ```
 
+`load_config_dir` reads the files from a folder for the tools and the tests (`config_dir.cpp`, a file of its own so
+that eldennet.dll, which reads them through its own platform layer and calls `parse_config`, links no
+`std::filesystem`).
+
 A slot without a model borrows one: `decisions` takes `bark_live`'s, every other slot `dialogue`'s. Unknown slot
 names in a request fall through to `dialogue`. `settings.toml` is read for `budget.requests_per_hour` (60 to 3600)
 only; its other tables belong to other modules.

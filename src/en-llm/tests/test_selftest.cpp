@@ -386,6 +386,9 @@ key_ref = "secrets:router"
   CHECK(bad.why == "refused");
   CHECK(edit_secrets(kSecrets, "a name", &key).why == "bad_name");
   CHECK(edit_secrets("keys = 1\n", "router", &key).why == "not_a_table");
+  CHECK(keys_set(set.text.reveal()) == std::vector<std::string>{"cloud", "other", "router"});
+  CHECK(keys_set("[keys]\nempty = \"\"\n").empty());
+  CHECK(keys_set("[keys\n").empty());
 }
 
 TEST_CASE("clean_key: a pasted key's spaces and line end go; a key with spaces or controls inside is none") {
