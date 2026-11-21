@@ -1176,6 +1176,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     settings and shortcut rows, so Home's cards show in the browser alone until GraceUI draws a mod's components
     (WHY§266 to §270). AI, Tools, Content packs and Docs follow. Since GraceUI 0.2.6 (S11.2.r) the in-game menu draws
     Home's and System's cards too.
+    Second slice on 2026-11-21 (engine 80ef2fe), at GraceUI 0.2.7 (beca859): AI › Providers, Models and Self-test.
+    Providers come from the shipped presets (GraceUI has no form or per-row action yet); keys are secret settings,
+    write-only, shown as Set or Missing, kept in secrets.toml with ARCH §11.5's one-user access list; the self-test and
+    the model list are long commands answered at once. Checked on the fake game in both views against a fake model
+    server, with the key in no frame, log, report, recording or file (WHY§274 to §276). No models.toml ships yet, so in the
+    game only Custom can be chosen until X1 and S8.1.h have measured the models.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
