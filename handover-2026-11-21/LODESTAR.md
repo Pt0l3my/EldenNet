@@ -12,7 +12,7 @@ first; this file adds only where Lodestar's own work stands.
 | The resolver: placement and witness checks, `Library` (`resolve.hpp`) | engine 440233e | Done on invented images, merged; nothing in the DLL reads through it yet |
 | L2: shapes (`shape.hpp`), the accessor as a recipe (`gal/recipes.toml`, `recipes.hpp`), discovery by the shape, `gal/patterns.toml` withdrawn | engine 700d54e, 21c5b02 | Done, merged: `gal/` holds no byte of the game. The fake game's harness passes 105 of 105 with the shape in use |
 | L3: the finder (`lodestar.hpp`, `eldennet-engine lodestar find`), report kind `lodestar` schema 2, the `find` package kind | engine 9edf1c0 | Built, merged. **The owner's offline run has not happened** |
-| The package for that run, `EldenNet-Find.zip`, label 0.1.0-lodestar.1 | not in the repository | Built and checked under Wine, then **held by the privacy sweep** (below) |
+| The package for that run, `EldenNet-Find.zip`, label 0.1.0-lodestar.1 | not in the repository | Built, checked under Wine, swept and **sent to the owner** (below) |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The design document, with a code for `wp`; the text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Not started |
 
@@ -21,16 +21,19 @@ the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar'
 
 ## The package and the sweep
 
-The sweep refuses `EldenNet-Find.zip` under its rule `email`: `THIRD-PARTY-NOTICES.txt` holds toml++'s MIT licence
-unchanged, and its copyright line carries its author's address. The licence obliges us to keep the notice as it is,
-so the address cannot be removed, and the sweep is never bypassed. Asked of Engine: how R1's packages, which carry the
-same notices, passed. Proposed to the owner otherwise: one narrow, commented line in the sweep's `allow.txt`, in
-Skyrizz (rule `email`, that one address, only in `THIRD-PARTY-NOTICES.txt` and `tomlplusplus/LICENSE`). Until one of
-the two is settled the package is not sent. To rebuild it: BUILD.md, "The spike package", the `find` kind.
+The sweep at first refused `EldenNet-Find.zip` under its rule `email`: `THIRD-PARTY-NOTICES.txt` holds toml++'s MIT
+licence unchanged, and its copyright line carries its author's address. The owner chose, in Lodestar's chat on
+2026-11-21, "Allow that one address": one narrow, commented line in the sweep's `allow.txt` (rule `email`, that one
+address, only in `THIRD-PARTY-NOTICES.txt` and `tomlplusplus/LICENSE`). It is committed in Skyrizz on this session's
+branch there, `claude/serene-tesla-aan6oc` (cece89f), and takes effect for other sessions once the owner or the
+Skyrizz session merges it into Skyrizz's working branch; until then another container's sweep refuses such a package
+again. The package (SHA-256 75989ada93cae98b70515d374d3cba19ff3e42c1af6a3f4952d488e442b5bdb5, built from engine
+9edf1c0) then passed the sweep and **was sent to the owner on 2026-11-21**. To rebuild it: BUILD.md, "The spike
+package", the `find` kind.
 
 ## What comes next, in order
 
-1. **The owner's offline run** (about 5 minutes, the game closed), once the package may be sent: the owner drops the
+1. **The owner's offline run** (about 5 minutes, the game closed): the owner drops the
    game's executable onto `find.cmd` and sends back `lodestar-found.json` and the console's line. Review it as data
    (`lint --report`, then against en-tools' README): the shape's hits and accepted sites against R0c's 7,151 and
    7,081, `only_shape` and `only_pattern` (both should be 0), the statics found (R0c: 219) and class objects (217),
