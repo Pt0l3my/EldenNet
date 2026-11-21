@@ -31,13 +31,17 @@ struct ProviderEntry {
   bool operator==(const ProviderEntry&) const = default;
 };
 
-// A job's model as the pages choose it (PAGES §4.5's `[slots.<slot>]` row): the slot's `provider` and `model` written,
-// any fallback the player's file gives it kept; an empty model removes the slot's table, so the preset's models hold
-// again ("Reset to preset").
+// A job's provider and model as the pages choose them (PAGES §4.5's `[slots.<slot>]` rows): the slot's `provider` and
+// `model` written, any fallback the player's file gives it kept where it is; an empty model removes the slot's table, so
+// the preset's models hold again ("Reset to preset").
 struct SlotEdit {
   std::string slot;      // a slot in use (known_slots())
   std::string provider;  // with a model: the provider's id, which providers.toml has
   std::string model;     // empty: the slot's [slots.<slot>] removed
+  // With a model: the provider the slot's fallback is on now. Where the table gives a fallback and names no
+  // fallback_provider, that fallback would follow the job to a new provider; this one is written as its
+  // fallback_provider instead, so that it stays where it was. Empty, or the provider itself: nothing written.
+  std::string fallback_provider;
 
   bool operator==(const SlotEdit&) const = default;
 };
