@@ -1179,6 +1179,21 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and ABI 1.2 unchanged. EldenNet's next pages slice uses them: "none" for a server that needs no key, "refused" for a
     key the provider refused, a picker in the `changed` list only when the player picked a model, and "Default: the
     preset's model." in its help (GraceUI's docs/eldennet-changes.md §42).
+- w A picker's empty default reads Default, in both views (GraceUI 0.2.10) [done]
+  - needs: d
+  - refs: WHY§294
+  - gives: found by the owner's look review (S11.2.d), whose pictures of EldenNet's per-job model pickers showed them
+    blank; GraceUI's D199 draws an empty default as "Default" and offers it first. Done on 2026-11-21 (GraceUI
+    feat/foundations 913a0e2), protocol and ABI unchanged; nothing for EldenNet to change (GraceUI's
+    docs/eldennet-changes.md §43).
+- x Sections as cards: a chip, a live status and a section's own actions, for AI › Models' card per job (GraceUI's
+    proposal 0008) [waiting]
+  - needs: w
+  - refs: PAGES§4.6.2
+  - gives: put to the owner on 2026-11-21 as GraceUI's G36 (Open): three optional fields on a section, a static chip
+    (the slot id), a status from a state topic (a dot and a word in the lamp's tones) and one or two actions of a
+    header action's shape ("Prepare lines now"); protocol 1.3, ABI unchanged. Recommended: all three. EldenNet's
+    AI › Models then moves its jobs from the settings block under the Jobs table into one section per job.
 
 ### S11.3 EldenNet v0.2
 
