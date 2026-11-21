@@ -121,6 +121,16 @@ Marks), on the console the launcher was started from or one of its own, and regi
 own clock) into the block's ring of 32, where EldenNet's recorder takes it into the recording, and kept in the
 session's record.
 
+**The console never holds up the watch** (WHY§290, since spike.10). R1 run 9's launcher wrote each line to the console
+before its log, under one lock, from the watch loop; a classic console window whose text is selected (a click inside
+it, QuickEdit) suspends its output, and the loop stopped there with its status lines, R1's 30 s step, the lint and the
+crash watcher. Now every line goes to `launcher.log` first, then into a bounded queue (`LineQueue`, 256 lines) that one
+thread of its own writes to the console (or the standard output a test reads); a line that finds the queue full is
+dropped, never waited on, the first drop noted in the log (`console dropped=1 queue_full=1`) and the totals at the end
+(`console lines=… dropped=… drained=…`, after waiting a second at most for the console). QuickEdit is off for the
+launcher's console while it runs, the console's mode restored at the end. For the tests only, `ELDENNET_TEST_CONSOLE`
+blocks the writer after N lines (`block_after=N`), slows it (`slow_ms=N`) or shortens the queue (`queue=N`).
+
 **GraceUI's Mark** (part 12) is EldenNet's own: a GraceUI hotkey on the same key, Pause, which EldenNet registers when
 the console holds Pause. EldenNet then asks for the ring (the block's `marks.source`, en-proto's `MarkSource`); the
 launcher lets its key go, takes the presses already queued as its last, and hands the ring over
@@ -198,7 +208,8 @@ folders that are no backup left alone, nothing under the saves touched, a backup
 appid file (created, used, someone else's, removal only of ours and only while it holds the id) and the state file's
 round trip; `launcher.toml`; the command line and its refusals (`--probe`'s and `s0e_alone`'s among them); the spike
 folder's name and the game's environment (the variable set in an observer's run, dropped otherwise, any case of its
-name); R1's steps on the console
+name); the console's queue (a writer that blocks never holds up the lines' side or the drain past its time, a slow one
+takes every line in order, the drops counted) and its test hook; R1's steps on the console
 from EldenNet's answer and T1's state; the texts and exit codes; records, their JSON and the
 next start's explanation; the spikes' tally and rules; the pre-flight's order; the gate and the DLL check on invented
 images (en-gal's FakeImage); SHA-256 against NIST's examples (whole, in pieces, every length around the padding's
@@ -214,8 +225,9 @@ E02, E05, E08 and a usage error; with clang-cl and galtest.dll as the DLL, injec
 the title (Ready, the dev console's status, en-core's lifecycle and gate in game, a Mark pressed in the fake game and
 seen in the block), a crash on the game thread recorded through EldenNet's filter, a game that replaces the filter, a
 stand-in crash reporter loaded with `--also`, the S0-A, S0-D crash and S0-C loops, and the watcher started by
-EldenNet under another loader; and with eldennet.dll, R1 as the owner runs it (`--probe`) and `--probe` refused by the
-release DLL; the runs of GraceUI's observer (`launcher-eldennet-spike-s0e`, `-s4`, `-s0e-alone`: the folder, the
+EldenNet under another loader, and a crash while the console is blocked (`launcher-crash-console`); and with
+eldennet.dll, R1 as the owner runs it (`--probe`), the same with the console blocked (`launcher-eldennet-probe-console`:
+the status lines, the 30 s step, the lint and the end in launcher.log) and `--probe` refused by the release DLL; the runs of GraceUI's observer (`launcher-eldennet-spike-s0e`, `-s4`, `-s0e-alone`: the folder, the
 variable, no call into the game); and, with the GraceUI folder of a test build of GraceUI installed beside the fake
 game, the pre-flight passing on GraceUI's own `graceui.toml`, the Mark handed over to GraceUI's hotkey
 (`fakegame.launcher-eldennet-graceui`), the launcher keeping Pause when another mod holds it in GraceUI

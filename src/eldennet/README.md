@@ -268,7 +268,23 @@ layout fields). On T1, after the window and `settle_s` seconds:
    diff's `root`: task_hub, singleton, group_entry; their controls in `hub_diff_controls`), each root within the same
    bound of three walks; and just before the call the singleton's and the entry's **classes** are read through their
    first words by the RTTI walk and matched to the leads' names as O92 does (`singleton_class`, `entry_class`: the
-   lead's index where the innermost name is the lead's or it with Imp; numbers only).
+   lead's index where the innermost name is the lead's or it with Imp; numbers only). Since spike.10 (WHY§289: run 9's
+   group function tail-jumps through an 8-byte stub that zeroes r9 to **a method of a second singleton G**, with G,
+   loaded from a data slot, in rcx, our task in rdx and a 32-bit word of the entry in r8) the site in the group's
+   function that reaches G's method gives its entry state (`holds_g`, `holds_word` in `entry_src`); a stub (16 bytes
+   or fewer ending in a direct tail jump) is followed without spending a depth level, so G's method is `depth` 3
+   (`stub`, `zeroed`), and its direct callees and tail jumps `depth` 4, within the 16 summaries; each summary lists the
+   loads based on G (`g_reads`) and the uses of the entry's word (`word_uses`: compared with an immediate or otherwise,
+   an index, passed, stored). With no extent, a direct jump to a function's start of the exception directory ends the
+   decoding (a stub's forward tail jump). Statically, before the call, the game's own call sites of the registration
+   (derive's) are read for what they pass as the task (`game_sites`: a member with its base and displacement, a static,
+   a load, an allocator's result with its callee, the function's own argument, a stack slot, or other), and the
+   registration's sibling of the same shape (derive's next such candidate) is summarised with its callees breadth first
+   to depth 4 (`sibling`, 12 summaries at most). At the Mark G is read through its slot (`method`: null or heap, its
+   class against the leads, whether CSTask's instance holds it at +8 and the group's entry at +0x58, where run 9's
+   walks met one object, and every table entry's word at the site's offset: group 110's, how many hold their own index,
+   how many distinct values), again just before the call and 2 s after it; and G is the walk's fourth root
+   (`g_singleton`, with its control) unless it is a root's object or held there (`g_walk`).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -291,7 +307,8 @@ layout fields). On T1, after the window and `settle_s` seconds:
    listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
    in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
    inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
-   (`table.after`), and the **whole-memory
+   (`table.after`), and since spike.10 G and the entries' words (`method.after`) and the array's views (below), and the
+   **whole-memory
    search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
@@ -310,7 +327,12 @@ layout fields). On T1, after the window and `settle_s` seconds:
    (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its copies, its state) lies there,
    and the search walks that heap (`HeapWalk`) for its regions' and large blocks' allocation bases; `own_known` is
    false when the heap could not be made or walked, and then the heap's copies count as the game's. While the task
-   has not run, T1 also reads how much of our object the hub wrote (`object_written`).
+   has not run, T1 also reads how much of our object the hub wrote (`object_written`). Since spike.10 (WHY§289) the
+   four views of the array behind CSTask's +0x3B0 and +0x3D0 (run 9's paths, four sibling pointers 32 bytes apart at
+   depth 3 of the walk kept before the call) are read again about 50 and 250 ms after the call, before the control
+   diff, and at 2 s (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
+   game's rdata classed by the RTTI walk, `new_class`, and whether a changed word's 32-bit half is the main window's
+   thread id, `main_thread`, or T1's, `caller_thread`).
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
    counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
    classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'
