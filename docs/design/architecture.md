@@ -2353,6 +2353,12 @@ Toasts wait until boss fights end, are rate-limited to one per error class per m
   gets a provider of its own: replies on one, prepared lines on another, decisions on a fast one. A slot that names no
   provider takes the one its preset gives it, and a fallback that names none takes its model's provider. The reserved
   slots `actions` and `vision` are written the same way (§11.4).
+- **API style** (*2026-11-21, O96*; WHY§280). A provider has an `api_style`, `chat` (the default) or `system_one`,
+  which only the `decisions` job reads. A decision call (§11.8) to a `system_one` provider goes as a typed question over
+  the System One protocol (`POST /v1/systemone`, which OpenRouter offers, and Ollama from 0.35), through our own client
+  in en-llm, written from TypeSafe's and OpenRouter's published references and never from SkyrimNet's (O84). Every
+  other job, and a decision's chat retry (§11.8), goes over chat completions on the same provider, whatever its style.
+  Built with the decisions slot (roadmap S13.2.h), tried against Ollama locally and against OpenRouter with a real key.
 
 ```toml
 # %APPDATA%\EldenNet\config\providers.toml
@@ -2372,6 +2378,7 @@ json_mode = "json_schema"               # none | json_object | json_schema
 quant_floor = "fp8"                     # where the provider filters its upstreams by quantisation (impl)
 cache_marks = "breakpoints"             # none | breakpoints | cache_prompt: how the cache marks travel (NPC §7.1)
 logprobs = true                         # whether decision calls may ask for logprobs (§11.8)
+api_style = "chat"                      # chat | system_one: the wire format of decision calls only (§11.8, O96)
 
 [slots.dialogue]                        # optional per-slot overrides of the preset's model choice
 model = "google/gemma-4-26b-a4b-it"
@@ -2408,7 +2415,9 @@ pair; both count towards the requests per hour (§11.4). The core still sees one
 lines get no backup, and neither do local providers, which serve one request at a time (§11.3).
 
 **Decision calls** take their rules at once on every class, with no retry (§11.8); their failures count in health as
-any slot's do.
+any slot's do. *2026-11-21, O96:* a call to a `system_one` provider (§11.1) that fails on any class, is refused or is
+late goes once more, as a chat-format decision to the slot's fallback model, before the rules (§11.8); a chat call
+still takes its rules at once.
 
 **Health is tracked per (provider, model):**
 - 3 consecutive counted failures put the pair in a 60 s cooldown, during which the slot uses its fallback model (DESIGN §11.1).
@@ -2417,8 +2426,9 @@ any slot's do.
 
 ### 11.3 Local GPU priority, pause rules and warm-up
 
-- **Priority on a local provider:** replies (`dialogue`) > own-initiative `dialogue` requests, each with the
-  `decisions` call that chose it (§11.8) > `bark_live` > `memory` > `bark_pool`. An own-initiative request is
+- **Priority on a local provider:** replies (`dialogue`; *2026-11-21, O97:* each with the addressee decision that goes
+  before it, §11.8) > own-initiative `dialogue` requests, each with the `decisions` call that chose it (§11.8) >
+  `bark_live` > `memory` > `bark_pool`. An own-initiative request is
   cancelled by the input epoch, so it never delays a reply (DESIGN §8.9, O37; DESIGN §11.1). Local providers run one
   request at a time.
 - **Preemption:** a higher-priority job cancels a running `bark_pool` or `memory` job, which requeues. It never cancels dialogue.
@@ -2441,7 +2451,7 @@ any slot's do.
 | `memory` | Journal job; the lived layer's update (MEM §13.8) | 500 | 0.3 | 20 s | 60 s | 2, then requeue | Keep the journal, or the lived version |
 | `selftest` | Wizard | 32 | 0 | 10 s | 20 s | 0 | Show the error |
 | `draft` | The profile helper: one draft per click (DESIGN §7.7; NPC §4.7) | 500 | 0.7 | 20 s | 60 s | 0 | Show the error; nothing is written |
-| `decisions` | Decision calls (§11.8): the next speaker in v1, the recall gate after v1; at most 12 options, the top 5 logprobs where offered (§11.1) | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 | The rules fallback: the task's rule (§11.8) |
+| `decisions` | Decision calls (§11.8): in v1 the next speaker and whom it addresses, and whom the player's line addresses when two or more may answer (O97); the recall gate after v1; at most 12 options, the top 5 logprobs where offered (§11.1) | 100 | 0 (impl) | 1.5 s (3 s local, impl) | 5 s | 0 (a `system_one` call: one chat-format retry, O96) | The rules fallback: the task's rule (§11.8), after a `system_one` call's chat retry on the fallback model (O96) |
 | `actions` | *Reserved* (O88): NPC actions, after v1 (O31 to O42). An act is to be picked as a decision call picks, from options code builds (DESIGN §13) | 100 | 0 | Set with the feature | Set with the feature | Set with the feature | No act: the rules fallback (§11.8) |
 | `vision` | *Reserved* (O88): a later feature that lets an NPC see the screen; none is designed yet | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature | Set with the feature |
 
@@ -2451,6 +2461,17 @@ The reserved slots keep the files and Settings in the shape their features will 
 `[slots.vision]` and a preset's `actions` and `vision` are read and checked as every slot's are, but no request uses
 them yet. A request that names one falls through to `dialogue`, as an unknown name does, until its feature exists and
 brings the budgets left open above.
+
+**The API style in the files** (*2026-11-21, O96*). `api_style` is written on a provider's entry in `providers.toml`
+(§11.1). An entry that gives none takes the style of the preset's provider it matches, and otherwise `chat`; the
+player's own entry always wins. A preset's provider table (below) may carry `api_style` beside `flavor`, `kind` and
+`base_url`; it is not a matching key. Since only the `decisions` job reads it, one entry serves both styles: on an
+OpenRouter entry set to `system_one`, replies, lines and memory still go over chat completions and only decision calls
+go as System One. A `system_one` provider sends every decision call as System One whatever model the slot names, so a
+preset that gives one to `decisions` names a System One model there (such as TypeSafe's Jev through OpenRouter,
+WHY§280) and a chat model as its fallback; a model that does not take the protocol fails, and the chat retry serves
+(§11.8). No shipped preset sets `system_one` until its decisions model is measured as below, where the first token
+reads as the whole answer for a System One call; OpenRouter's `cloud-budget` may then name Jev for `decisions`.
 
 **Requests per hour** (WHY§99). Beside these budgets for each request, `budget.requests_per_hour` (§11.5) bounds what
 the client sends in any rolling hour, retries, backups and decision calls included. At the bound, replies still go out,
@@ -2482,12 +2503,15 @@ schema = 1
 flavor = "openai"
 kind = "cloud"
 base_url = "https://openrouter.ai/api/v1"
+# api_style = "system_one"                    # only once its decisions model is measured (O96); chat until then
 
 [preset.cloud-budget]
 dialogue  = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it", fallback = "google/gemma-4-31b-it" }
 bark_live = { provider = "openrouter", model = "google/gemma-4-26b-a4b-it" }
 bark_pool = { provider = "openrouter", model = "deepseek/deepseek-v4-flash" }
 memory    = { provider = "openrouter", model = "qwen/qwen3-235b-a22b-2507" }
+# decisions: none named, so the bark_live model serves; with api_style above, a System One model (O96):
+# decisions = { provider = "openrouter", model = "…", fallback = "google/gemma-4-26b-a4b-it" }
 warn_free_tier_for = ["bark_pool"]
 
 [preset.cloud-nanogpt.providers.nanogpt]     # NanoGPT's (O88)
@@ -2691,7 +2715,10 @@ line with the cause. `eldennet-engine selftest` runs steps 4a–4e outside the g
 
 A decision call asks the model to pick one of a few options that code has built. It is EldenNet's own format (O84:
 SkyrimNet's logic, not its prompts) over the same chat completions as every other request (§11.1), on the `decisions`
-slot (§11.4), which replaces the reserved `meta` slot and `DecisionRequest` (WHY§98, WHY§99).
+slot (§11.4), which replaces the reserved `meta` slot and `DecisionRequest` (WHY§98, WHY§99). *2026-11-21, O96:* on a
+provider whose `api_style` is `system_one` (§11.1), the same call goes as System One's typed question instead, with a
+chat-format retry and the rules behind it (below). *2026-11-21, O97:* in v1 decision calls pick the next speaker
+together with whom it addresses, and whom the player's line addresses when two or more may answer it (below).
 
 **The principle: code gathers, the model picks.** Every model call, a decision or a line, gets only the records it
 needs, gathered by code by id; the model never searches, joins or counts. Bookkeeping (who is present, who heard what,
@@ -2701,20 +2728,23 @@ model was handed an index or told the joins (LIKELY, WHY§99).
 
 ```text
 DecisionCall {                          // built by en-core, rendered from prompts/decisions/
-  task:     NextSpeaker | RecallGate    // RecallGate after v1
+  task:     NextSpeaker | PlayerAddressee | RecallGate   // PlayerAddressee since O97; RecallGate after v1
   kind:     Choice | YesNo
   subject:  optional ProfileId          // the NPC it is for, if one (the recall gate's)
   question: one plain question
   state:    [(name, text)]              // the records it needs, gathered by id, quoted as data
-  options:  [(key, text)]               // Choice only: short keys (A, B, … or neutral labels), and none; by code
+  options:  [(key, text)]               // Choice only: short keys (A, B, … or neutral labels), and none; by code;
+                                        // NextSpeaker: one per (speaker, addressee) pair (O97)
   rule:     the key the task's rules pick from the same state (a pure function of it, run by en-core when it
             builds the call): data, one of the options' keys, checked before anything is sent
 }
-DecisionPick { key, probs: optional [(key, f32)], by: Model | Rules, latency_ms }
+DecisionPick { key, probs: optional [(key, f32)], by: Model | Rules, via: Chat | SystemOne, latency_ms }
 ```
 
 Both are plain data in en-proto's `llm.hpp` (S8.1.j), read and acted on by en-llm's `decision.hpp` (O84, WHY§100),
-the pick with how it was read and the call's one row.
+the pick with how it was read and the call's one row. *2026-11-21, O96, O97:* `PlayerAddressee`, the pairs and `via`
+(the wire format that answered: `SystemOne`, or `Chat` for a chat provider and for a System One call's chat retry)
+come with the decisions slot (roadmap S13.2.h); the row's `backend` records `system_one`, `chat` or `rules` (MEM §8.7).
 
 - **Options are built by code.** Only legal options are offered, at most 12 (EST, as MEM §4.5's gate keeps), each a
   short key with one line that code writes from records; the model cannot name an option code did not offer, and
@@ -2730,15 +2760,36 @@ the pick with how it was read and the call's one row.
 - **Probabilities, never a cut-off.** Where the provider returns logprobs (§11.1), the call's row records each key's
   probability, for the diagnostics and the evaluation. Nothing cuts on it: the pick stands whatever its probability,
   since SkyrimNet's 0.70 cut-off lost about a quarter of right answers (WHY§99).
-- **Thinking off.** Every decision call carries the reasoning switch (§11.1, §11.2), and `<think>` is stripped as
-  anywhere. A task may turn thinking on only when its evaluation shows the plain pick failing, and then at minimal
-  effort within the slot's 5 s: thinking cost 2 to 35 s a step in the bench runs, with rare runaways near 50k tokens
-  (WHY§99).
+- **Thinking off.** Every decision call over chat carries the reasoning switch (§11.1, §11.2), and `<think>` is
+  stripped as anywhere; a System One call carries none, since the protocol returns no reasoning (WHY§280). A task may
+  turn thinking on only when its evaluation shows the plain pick failing, and then at minimal effort within the slot's
+  5 s: thinking cost 2 to 35 s a step in the bench runs, with rare runaways near 50k tokens (WHY§99).
 - **A rules fallback, always.** The task's rule decides when no model serves the slot (none set up, or none healthy),
   the gate is false (§5.1),
-  the requests per hour are spent (§11.4), the call fails or runs out of time (any class of §11.2, with no retry) or
-  its answer is a miss. Replays with `--llm mock:<script>` and the scenario tests use the rules unless the script
-  answers (§12.3).
+  the requests per hour are spent (§11.4), the call fails or runs out of time (any class of §11.2, with no retry; a
+  System One call after its one chat retry, below) or its answer is a miss. Replays with `--llm mock:<script>` and the
+  scenario tests use the rules unless the script answers (§12.3).
+- **System One** (*2026-11-21, O96*; WHY§280). On a `system_one` provider (§11.1) en-llm renders the call as System
+  One's typed question rather than as chat messages: a `Choice` as a question whose answers are the option keys, each
+  with the line code wrote for it, and a `YesNo` as a yes-or-no question, the call's `question` and quoted `state` going
+  in as the question and its state. The answer is an option key with probabilities: it is read as the enum is (a key
+  code did not offer is a miss), and its probabilities go into the row as logprobs' do, never as a cut-off. No template
+  renders it; the prompt's hash is taken over the typed question. The endpoint's fields, and whether its answer
+  streams, are taken from TypeSafe's and OpenRouter's published references when S13.2.h builds the client (WHY§280: not
+  yet read), never from SkyrimNet's (O84). The provider receives the state sent, as any cloud provider does, under the
+  same inputs rule (NPC §9.2).
+- **The fallback chain** (*2026-11-21, O96*). A chat call takes the rules at once on a failure, a timeout or a miss.
+  A System One call that fails on any class, is refused, misses or answers after the slot's first-token time (1.5 s,
+  3 s local; §11.4) goes once more, as the same call in chat format (its `prompts/decisions/` template), to the slot's
+  fallback model over chat completions, whatever that provider's style, within what is left of the slot's total time
+  (or of the task's own deadline, below); if that fails, misses or runs late too, or the slot has no healthy fallback
+  model, the rules pick. Each step counts in health (§11.2).
+- **Requests per hour** (§11.4). Every decision request counts towards `budget.requests_per_hour`, a System One call
+  and its chat retry each. At the bound every task takes its rules, so a line the player sends still goes to the
+  header's target and a reply is never held for a decision. In v1 the next-speaker decision sends at most one call per
+  moment that pacing would admit, so within the talk window (≤ 240 an hour at the defaults, DESIGN §9.8), and the
+  player's addressee at most one per line the player sends that two or more may answer (O97): a few a minute at most
+  while the player types (EST), well inside the default bound of 600.
 - **One row per call.** Each call writes exactly one row in the playthrough file's `decisions` table (MEM §8.7;
   DESIGN §13's conformance test): the task, its subject, the option keys, the pick, its probability where offered,
   whether the model or the rules decided, the latency and the prompt's hash; never the prompt's text or a name. A call
@@ -2746,18 +2797,34 @@ the pick with how it was read and the call's one row.
 - **Prompts.** The templates are `prompts/decisions/NN_*.j2`, under NPC §7.1's rules: records enter as quoted data,
   never as instructions, and examples use names no record holds.
 
-**The next speaker** (v1; NPC §9.2, DESIGN §9.7). Outside a fight, when a moment leaves two or more profiled NPCs
-eligible for the same calm motive (a heard line with no addressee, a deed several of them saw, the Tarnished coming
-near several at once at a shared place such as the Roundtable Hold), code lists the legal speakers: each one the
-motive's own rule accepts and the scheduler would admit now (DESIGN §9.4), in the audience of what it would answer
-(§8.8), never the line's own speaker and never a card. Each option is a neutral label with the candidate's `brief`,
-`public.summary` and `stirs` (NPC §9.2), never a name, and `none`, silence, is always offered. With one legal speaker
-there is no call. The model picks the speaker only: the addressee is code's, the talk target the motive sets (the
-heard line's speaker for an answer, the Tarnished for a greeting, no one for a remark on a deed). The call goes out
+**The next speaker and whom it addresses** (v1; NPC §9.2, DESIGN §9.7). Outside a fight, when a moment leaves two or
+more profiled NPCs eligible for the same calm motive (a heard line with no addressee, a deed several of them saw, the
+Tarnished coming near several at once at a shared place such as the Roundtable Hold), code lists the legal speakers:
+each one the motive's own rule accepts and the scheduler would admit now (DESIGN §9.4), in the audience of what it would
+answer (§8.8), never the line's own speaker and never a card. Each speaker is a neutral label with its `brief`,
+`public.summary` and `stirs` (NPC §9.2), never a name, and `none`, silence, is always offered. The call goes out
 when the moment arrives, so its pick is usually ready before the gap (`pacing.gap_s`) allows the next line. Combat
-speakers stay with the rules, since a combat line cannot wait for a call. The rule is the motive's own: the addressee
-or the nearest listener on the speaker's side for an answer (`addressee_or_side_listener`), otherwise the scheduler's
-order (NPC §9.4).
+speakers stay with the rules, since a combat line cannot wait for a call.
+*2026-11-21, O97, replacing "the model picks the speaker only: the addressee is code's":* each option is a pair, a
+legal speaker with one addressee the motive allows that is present and legal for it (another NPC, the Tarnished where a
+line addressed to it would pass its gates, or no one; NPC §9.2's table), and the model's pick sets both the speaker
+and the line's `to`. Code builds the pairs, at most 11 beside silence (NPC §9.2 says which are kept), and there is no
+call with one legal pair, so a moment with one speaker but several legal addressees is a decision too. The rule is the
+motive's own pair: its speaker rule (the addressee or the nearest listener on the speaker's side for an answer,
+`addressee_or_side_listener`, otherwise the scheduler's order, NPC §9.4) with its talk target (the heard line's speaker
+for an answer, the Tarnished for a greeting, no one for a remark on a deed).
+
+**The player's addressee** (v1; *2026-11-21, O97*; NPC §5.1, §9.2; DESIGN §8.1). When a line the player sends is heard
+by two or more profiled NPCs that may answer it (each conversable, NPC §5.3, and within the talk key's 8 m reach, the
+header's target among them while its conversation holds), a decision picks whom the line addresses. Each of them is an
+option under a neutral label with its `brief` and `public.summary`, at most 12 (the header's target and the nearest
+others), and no `none`: a line the player sends is always answered. The rule is the header's target, the one the talk
+key's target order chose (NPC §5.2). The call goes when the line is dispatched (NPC §6.3), before `PlayerSaid` is
+committed and the reply sent; with one who may answer, a call-out to a card, or the requests per hour spent, there is
+no call. A pick other than the header's target moves the conversation to the pick (NPC §5.7's `retarget`), and only the
+addressee answers. *For the owner's review:* the pick is due within the slot's first-token time (1.5 s, 3 s local)
+counted from dispatch, a System One call's chat retry included, after which the header's target answers; so C5's first
+page (DESIGN §1.4), counted from the line sent, holds the decision's time.
 
 **The recall gate** (after v1, with MEM §4.5's `SceneRecall`). Code gathers the candidate memories and the gate picks
 the one meant, or `none`, by a question that names the setup, the matter and the outcome, the form that did best in
@@ -2804,7 +2871,7 @@ stage's link checks for `eldennet.dll`:
 
 | Type | Modules | Examples |
 |---|---|---|
-| Unit | All (doctest) | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation, `known(P)` truth tables, the reaction-cue table and journey (MEM §12.11 T2, T12, T13), stance and concealment (§8.7), and the decision reader over keys, option words, plain yes and no, and misses (§11.8) |
+| Unit | All (doctest) | Detectors, scheduler with a simulated clock, identity, predicates, splitter, budgets, layout validation, pattern grammar, FMG and param parsing against synthetic bytes, world derivation, `known(P)` truth tables, the reaction-cue table and journey (MEM §12.11 T2, T12, T13), stance and concealment (§8.7), and the decision reader over keys, option words, plain yes and no, and misses (§11.8); *2026-11-21, O96:* a call rendered as System One and read back, and its chat retry, against a mock server |
 | Property (seeded, our own on doctest) | `en-augur`, `en-core` | §8.12; sanitizer (never throws, never shows markup or a trailer, respects caps) |
 | Fuzz (libFuzzer) | `en-gal`'s offline part, `en-augur`, `en-core`, `en-llm` | The PE parser, the pattern grammar, SSE frames and TOML content, under AddressSanitizer and UndefinedBehaviorSanitizer |
 | Windows, under Wine | Every module the MinGW-w64 build makes | The Windows-only paths that run without the game: WinHTTP's conformance suite and the handle's tests in `en-llm` (built, WHY§102), and the rest as it is built |
