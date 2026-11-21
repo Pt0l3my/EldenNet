@@ -2424,6 +2424,12 @@ fallback = "google/gemma-4-31b-it"
   lower-cased and a trailing '/' taken off. The entry is `flavor = "openai"`, `json_mode = "json_schema"`; local (no
   `key_ref`) when it is reached by `http://` on this PC or the home network, cloud with `key_ref = "secrets:<id>"`
   otherwise. A key set on the row of a provider of this PC with no `key_ref` gives it `secrets:<id>` first.
+- **A key's states** (*2026-11-21, as built, S11.4.a's fourth slice*). A provider with no `key_ref` takes no key while no
+  call has asked for one: the pages show Not needed and refuse a key on its row. Once a call is refused for want of a
+  key (HTTP 401 or 403), its row takes one, which gives it `secrets:<id>` first; a provider reached by `http://` on
+  another computer never takes one. The pages' states come from the DLL: Set, Missing (a `key_ref` naming no kept key),
+  Refused (the last call was refused for its key, or for want of one) and Not needed. A refusal is kept across reloads
+  of the configuration until the provider answers a list or a self-test, or its key or key's place changes.
 
 ### 11.2 Error classes, actions and health
 
@@ -2461,6 +2467,11 @@ still takes its rules at once.
 - 3 consecutive counted failures put the pair in a 60 s cooldown, during which the slot uses its fallback model (DESIGN §11.1).
 - A success resets the count.
 - When every model of a slot is cooling or disabled, the core sees "no healthy provider" for that slot. That gives L2 if it is `dialogue`, and seeds only if it is the bark slots.
+
+*2026-11-21, as built (S11.4.a's fifth slice).* Each job's card on AI › Models shows one word from this health, the
+job's provider's first: Failing while its key is refused (or asked for), No key yet while its `key_ref` names no kept
+key, Cooling down while it is rate-limited, Resting after failures while every model of the job is cooling, Ready
+otherwise; No model for a job with none (PAGES §4.6.2).
 
 ### 11.3 Local GPU priority, pause rules and warm-up
 
@@ -2586,6 +2597,15 @@ providers a slot in use names. Each list keeps the ids it was sent, within en-ll
 printable bytes), for AI › Models' pickers alone, never logged; T6 keeps each provider's newest answered list for the
 session. A job's model chosen there writes `[slots.<slot>] provider = "<the job's provider now>", model = "<id>"`,
 any `fallback` there kept; its reset removes `[slots.<slot>]`, so the preset's models hold again (PAGES §4.5).
+*2026-11-21, as built (S11.4.a's fourth and fifth slices; O99).* AI › Models chooses a job's provider among
+`providers.toml`'s (not one whose key was refused) and its model from that provider's newest answered list. A provider
+chosen while its list holds the job's model writes `[slots.<slot>] provider`, `model` at once; otherwise nothing is
+written until one of its models is chosen. The job's fallback is chosen the same way, never the job's own model on the
+job's provider, and only for a job with a model of its own; it is written as `fallback` and `fallback_provider`, the
+provider always named, so the fallback stays where it is when the job moves. A table that gives a fallback alone keeps
+the preset's model. A reset of the fallback removes both keys (and the table when nothing else is left); a reset of the
+job's model removes the whole table. en-llm's `Config::picked` names the slots whose table gives a model,
+`picked_fallback` those whose table gives a fallback.
 
 ### 11.5 Settings and secrets
 

@@ -225,6 +225,13 @@ at its entry point that a value is one of them. The row's value is the job's mod
 and stays shown when the list lacks it; a choice writes the slot's `[slots.<slot>]` `provider` (the job's provider now)
 and `model`, any fallback there kept; the row's reset removes `[slots.<slot>]`, so the preset's models hold again. The
 provider and fallback pickers, Decisions and Profile drafts come later.
+*2026-11-21, as built (S11.4.a's fourth and fifth slices; O99):* new rows `slots.<slot>.provider` ("Conversation's
+provider" … "Self-test's provider"), `slots.<slot>.fallback_provider` and `slots.<slot>.fallback` ("Conversation's
+fallback provider", "Conversation's fallback" …), all homed on the job's card on AI › Models, next request. A
+picker's Default is its row's reset. A reset of the job's provider or model removes its whole `[slots.<slot>]`, a
+reset of either fallback row the fallback alone. A job's rows count as changed while its table gives a model, its
+fallback rows while it gives a fallback. On a paired device, `settings.set` and `settings.reset` of these rows join
+the commands to refuse.
 
 **Other sources.** From 1.1, `config\plugins.toml` (each plugin's switch, its Cluster or Detached mode and the order;
 changed only through EldenNet's plugin commands) on Plugins. `providers.toml` (read and write) on AI › Providers (its
@@ -340,6 +347,12 @@ dialog and Related card of GraceUI §4.2.4.
 - *2026-11-21, O98 (a):* the form takes a server on another PC of the home network by its literal private address
   (RFC 1918 IPv4, or fc00::/7 IPv6) over http://, never a host name; it takes no key, and EldenNet never probes for it:
   only the player adds it (Find local servers probes this PC alone, EldenNet ARCH §11.4).
+- *2026-11-21, as built (S11.4.a's fourth slice, GraceUI 0.2.9; D197):* the Key column reads Set, Missing, Refused (the
+  last call was refused for its key, or asked for one; the field kept) or Not needed (no field); a key is refused in
+  words on a row that reads Not needed ("This provider takes no key. If it asks for one, its row says so after List
+  models."). Health says "Failing: it refused its key" or "Failing: it asks for a key". In game "Key: Refused" and
+  "Key: Not needed" are GraceUI's words, and since GraceUI 0.2.11 (D200) the line "Key: set in the browser view." shows
+  only when a row takes a key. The fourth slice's readings are with the owner (WHY§297).
 
 **Models** (`ai.models`; 0.2 read-only, 0.6 writable).
 
@@ -374,6 +387,17 @@ dialog and Related card of GraceUI §4.2.4.
   that borrows) and Each job's model: five picker rows, `slots.<slot>.model` (§4.5's note), not cards per job. No
   provider or fallback picker yet, so a provider the player adds serves a job only through the player's own file; no
   Apply, Reset to preset (each row's reset does it for that job), Advice or fixed budgets.
+- *2026-11-21, as built (S11.4.a's fourth slice):* each job's provider became a picker beside its model; a provider whose
+  list lacks the job's model takes over once one of its models is chosen; the changed mark (D198) only on the jobs the
+  providers file holds a pick for.
+- *2026-11-21, as built (S11.4.a's fifth slice, GraceUI 0.2.12, protocol 1.3; G36 (a), D202; O99):* sections Now,
+  Preset, then one card per job (Conversation, Quick lines, Prepared lines, Memory, Self-test), each a section with the
+  slot as its chip and the job's state as its live status (`ai.jobs`: Ready, Cooling down, Resting after failures,
+  Failing, No key yet, No model, in the lamp's tones), its four rows (provider, model, fallback provider, fallback) and
+  its fixed budgets read-only (`ai.budgets`: Longest answer, Temperature, First token within, Whole answer within,
+  Retries), "Same as Conversation" first in that list for a job that borrows. The Jobs table is gone; the cards are
+  open. Not built: Decisions and Profile drafts (0.4, 0.6), Advice, Apply and Reset to preset, Prepared lines' own row,
+  state and "Prepare lines now" (a section action, with the pool). EldenNet's GraceUI floor is 0.2.12.
 
 **Self-test** (`ai.selftest`; 0.2).
 

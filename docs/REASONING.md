@@ -322,6 +322,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
 | 298 | 2026-11-21 | A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change | METHOD | #graceui #pages |
 | 299 | 2026-11-21 | R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step | DECIDED | #gal #r1 #task #launcher |
+| 300 | 2026-11-21 | The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit | DECIDED | #engine #pages #graceui |
+| 301 | 2026-11-21 | GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit | FACT | #graceui #browser |
+| 302 | 2026-11-21 | R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration | FACT | #gal #r1 #task |
+| 303 | 2026-11-21 | Spike.13 not built: a safety classifier stopped the work, and the route is put to the owner (O100) | FACT | #r1 #method |
 
 ## Entries
 
@@ -5110,3 +5114,68 @@ invariant 10, EldenNet ARCH (T3)
   reads 4 nodes at the title (the word absent, between keys 4 and 7) and 9 in the world (the word present).
 - **Also** (FACT): GCC 13's Release build warned twice in rtti.cpp (`-Wmaybe-uninitialized` on two optionals), from part
   3; each optional is now copied into a plain value after its check, and GCC is checked in Release from now on.
+
+### 300. The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit
+
+`2026-11-21` · DECIDED, with FACT readings · `#engine` `#pages` `#graceui` · refs: S11.4.a, S11.2.x, G36, WHY§297
+
+- **The cards** (DECIDED): AI › Models is one section per job (GraceUI's D202): the slot as chip; the job's state as a
+  live status from its provider's health (Ready, Cooling down, Resting after failures, Failing, No key yet, No model);
+  its provider, model, fallback and fallback's provider; its fixed budgets read-only from en-llm's slot table. The
+  Jobs table is gone, each of its facts on a card.
+- **A job's fallback** (DECIDED): chosen as its model is, only for a job with a model of its own and never the job's own
+  model, written with its provider named. Its reset removes the fallback alone; the job's reset removes its whole table.
+  A picker's Default (D199) is the row's reset. The changed mark follows what the table gives (a model, a fallback).
+- **The floor** (FACT): GraceUI 0.2.9 to 0.2.11 take page data saying `"minor": 3` without refusal and draw no chip and
+  no status, so with the Jobs table gone a job's state would show nowhere; EldenNet's floor rose to 0.2.12.
+- **A rate limit** (FACT): GraceUI's server counts every message of a connection, a subscription included, against 20 a
+  second and drops the rest unread, while its web shell paces commands but not subscriptions. AI › Models reads 14
+  topics, so a browser opening it straight after connecting can lose one (a picker with no choices, a card with no
+  status). Seen in the tests' own browser, which now paces its subscriptions; GraceUI asked to pace them too.
+
+### 301. GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit
+
+`2026-11-21` · FACT · `#graceui` `#browser` · refs: GraceUI's D203, WHY§300, S11.2.z
+
+- **The fault** (FACT): the server counts every frame of a connection, subscriptions included, against 20 a second
+  (GraceUI's §6.8), while the web transport paced only commands, so a page with many topics could lose a subscription
+  right after connecting. Found by EldenNet's preview browser on AI › Models (14 topics).
+- **The fix** (FACT): pacing every frame in the page at 16 a second, in one ordered queue, keeps the server's bound and
+  loses nothing; an unsubscription of a subscription still waiting takes it back (GraceUI 0.2.13).
+
+### 302. R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration
+
+`2026-11-21` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§296, WHY§299, S10.1.f
+
+- **The map** (FACT): at the title, before the call and 131 s after it, the manager's map held 169 nodes in order, keys
+  0 to 168 in the low 16 bits and 0x9000 in the high, its count word 169: every group, group 110's word among them. So
+  the now path's lookup finds group 110 and calls 0x26A3260 with the node's value, our task, the word and the manager.
+- **0x26A3260** (FACT, 261 bytes, read whole): it takes a lock at the value's +136, searches a list of 32-byte entries
+  (begin and end at the value's +16 and +24) for one whose +8 is our task, and if it finds one destroys the object at
+  the entry's +16 (its slot 0, then a free through an allocator's slot at +104) and erases the entry; it then searches
+  a list of 24-byte entries (+48, +56) for one whose +0 is our task and erases it with a move; it answers 1 when it
+  removed something, else 0, and unlocks. It never adds anything.
+- **So** (LIKELY): the function R0c derived as register_task, 0xEB5680, removes a task from its group, and the call does
+  nothing because our task was never in the lists. Its sibling, 0xEB5540, which derive already finds with the same
+  shape, reaches G's other method, 0x26590A0, through the stub just before ours (0x2659D00, 16 bytes earlier); that
+  method calls the request's slot 5 (0x1267A0), whose callees take the request's task. The sibling is the likely
+  registration.
+- **The world step** (FACT): the 4.4 s and 21.6 s searches found two words equal to our task's vtable in the game's
+  private memory (none in runs 9 to 11), so the probe did not answer `absent`, the console kept "do not load a save",
+  and every reading was at the title. Whether those two words are a copy of our object, or a buffer of our own not
+  counted as ours, is unknown.
+- **Next:** spike.13 reads the sibling's chain as deeply as ours (its arguments, its stub, G's other method, the request
+  it builds and the slot it runs, down to the code that touches the group's lists), classes each chain's end as one that
+  appends or one that erases, and makes the Mark's one call to the sibling only when its chain appends and its
+  arguments are derived; otherwise no call. It also reads what lies around the two vtable words.
+
+### 303. Spike.13 not built: a safety classifier stopped the work, and the route is put to the owner (O100)
+
+`2026-11-21` · FACT · `#r1` `#method` · refs: WHY§302, O100, S10.1.f
+
+- **What happened** (FACT): the subagent building spike.13 had read its briefs and run 12's report. While it was
+  writing out the decoded forms of the game's functions from that report, a safety classifier blocked its output. It
+  stopped there, changed nothing and suggested the owner look at the spike's direction. Its worktree was removed unused.
+- **What follows** (DECIDED): no work of that kind goes on, and the classifier is not worked around. The rest of the
+  game-task route is more of the same reading, so the route itself is put to the owner as O100, with the option of
+  reading the game without a game task.
