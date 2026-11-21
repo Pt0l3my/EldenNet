@@ -331,6 +331,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 306 | 2026-11-21 | Lodestar L1: the registration's label is task_add, and a build's table lives in its layout file | DECIDED | #gal #lodestar |
 | 307 | 2026-11-21 | A witness says the bytes at a place refer to the id, not that an instruction starts there | FACT | #gal #lodestar |
 | 308 | 2026-11-21 | The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites | METHOD | #gal #lodestar |
+| 309 | 2026-11-21 | GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is | FACT | #graceui #lodestar |
 
 ## Entries
 
@@ -5254,3 +5255,16 @@ O101, proposal 0005 §7.2
 - **Built** (FACT): en-gal's `shape.hpp`, a run of at most 16 instruction forms in our own grammar over our decoder's
   fields, with no byte of any program; `fd4::find` runs on the shape beside the pattern (engine feat/engine 33cf307). The
   pattern stays in use until the derivation, discovery and R1 read the shape from `gal/recipes.toml`.
+
+### 309. GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is
+
+`2026-11-21` · FACT · `#graceui` `#lodestar` · refs: GraceUI's graceui.h (Panels, World-state providers), GraceUI's D24, D71,
+D76, D78, D143, D151; O101; proposal 0005 L4
+
+- **No per-frame assumption** (FACT): a panel's newest draw list is drawn every frame until replaced, with no age check,
+  hiding or smoothing (D76, D137); world-state claims hold until replaced or disconnected, with no heartbeat or expiry
+  (D78, D143); the per-frame budgets measure cost, not freshness, and D151's watchdog counts GraceUI's own frames. So
+  O101's reader, at about ten readings a second, fits ABI 1.2 as it is.
+- **Two consequences, EldenNet's** (FACT): floating labels step at the reader's rate (smoothing every frame would need
+  D71's `on_present`, designed but not in ABI 1.2, an append under a GraceUI proposal); and the danger close and the
+  open gate follow the world by up to one reading (D24's 0 ms is the close's motion, not a reaction time).
