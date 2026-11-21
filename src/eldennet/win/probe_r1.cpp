@@ -1794,12 +1794,13 @@ class Round {
   // past the request's methods); then the tail function's, the wrapper's and the group's own function's. Past that the
   // summaries are trimmed (`trimmed`: their call sites, branches and guards left out, their reads and stores kept): the
   // sibling's and the minor ones; then the sibling's callees are left out, then the minor ones past the first four
-  // (`inner_dropped`), then all of them and the sibling. WHY§293: G's method's, the request's slots' and the function
-  // G's method calls with the request keep their forms longest (pass 9), and last the group's own function, G's method
-  // and those are trimmed. The game's requests' tasks' words go at pass 4. Each pass keeps the earlier ones' cuts.
+  // (`inner_dropped`), then all of them and the sibling. WHY§293: the request's slots' functions keep their forms longer
+  // (pass 9), and G's method's and the function it calls with the request longest (pass 10); last the group's own
+  // function, G's method and those are trimmed. The game's requests' tasks' words go at pass 4. Each pass keeps the
+  // earlier ones' cuts.
   void write_report() {
     auto text = probe::write_report(f_);
-    constexpr int kPasses = 11;
+    constexpr int kPasses = 12;
     for (int pass = 0; !text && pass < kPasses && f_.callee_code; ++pass) {
       probe::Findings g = f_;
       cut(g, pass);
@@ -1827,8 +1828,12 @@ class Round {
       return is_method(in) || in.request_slot.has_value() ||
              (in.depth == 4 && f_.request && f_.request->now == std::optional<std::uint32_t>(in.rva));
     };
+    const auto is_now = [&](const probe::InnerCallee& in) {
+      return in.depth == 4 && f_.request && f_.request->now == std::optional<std::uint32_t>(in.rva);
+    };
     // Each summary's rank: when its forms go, and whether it is among those trimmed and left out first.
     const auto rank = [&](const probe::InnerCallee& in) {
+      if (is_method(in) || is_now(in)) return 10;
       if (precious(in)) return 9;
       if (in.depth == 1) return in.tail ? 2 : 1;
       if (in.depth == 2) return 4;
@@ -1856,7 +1861,7 @@ class Round {
       const int r = rank(in);
       if (pass >= r) drop_forms(in.code);
       const bool minor = in.depth >= 3 && !precious(in);
-      if ((minor && pass >= 5) || ((in.depth == 2 || precious(in)) && pass >= 10)) trim(in.code);
+      if ((minor && pass >= 5) || ((in.depth == 2 || precious(in)) && pass >= 11)) trim(in.code);
     }
     if (pass >= 3) drop_forms(*g.callee_code);
     if (pass >= 7) {
