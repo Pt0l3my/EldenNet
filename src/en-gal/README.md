@@ -191,6 +191,22 @@ of any game is in it, and every name it looks for comes from a leads file.
   the block, whatever its text, and no decoding of the hit) stays as `Config::first_reference`, for the derivation's
   comparison only. `idiom_from(spec)` builds the idiom from patterns.toml's
   `fd4_idiom`, by its captures' names (`static`, `class`, `getter`, `path`).
+- **`shape.hpp`: shapes, recipes without bytes** (proposal 0005 §6.1; O102). A shape is a run of at most 16
+  instruction forms in a grammar of our own over the decoder's fields: `load_slot` (a 64-bit load of a RIP-relative
+  slot into a register, which the shape remembers; gives the slot), `test_loaded` (a 64-bit test of that register with
+  itself), `branch_set_short` and `branch_set_near` (a branch forward taken when the test found it set, with an 8-bit
+  or a 32-bit distance), `address_arg1` (the address of a RIP-relative object into the first argument's register;
+  gives the object) and `call_relative` (gives its target). Each form is one instruction of the architecture's own
+  encoding, with no prefix but REX.W where it is 64-bit, whatever registers and distances it uses; the steps'
+  instructions follow one another. `match_at` answers the shape at one place, with what each step gives and where its
+  branch goes; `find` looks at every offset of a section, as the pattern scan does, so a site is found also where a
+  straight decode is out of step, with a three-byte test on the first step's encoding before each decode. No byte of
+  any program is in a shape. `fd4::find(img, accessor, config)` runs the finder on a shape (`fd4::Accessor`: the
+  shape and which step gives the static, the class object and the getter): every hit is a site already decoded, its
+  path found by decoding on, its placement and name judged as a pattern's site's are. On the tests' three invented
+  programs, as files and as mapped, the shape's sites are exactly the pattern's that are not refused as no idiom, with
+  every place, verdict and name the same: the test that lets `patterns.toml`'s idiom go (O102). The pattern path
+  stays until the derivation, discovery and R1 read the shape from `gal/recipes.toml` (the next step).
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
