@@ -326,6 +326,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 301 | 2026-11-21 | GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit | FACT | #graceui #browser |
 | 302 | 2026-11-21 | R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration | FACT | #gal #r1 #task |
 | 303 | 2026-11-21 | Spike.13 not built: a safety classifier stopped the work, and the route is put to the owner (O100) | FACT | #r1 #method |
+| 304 | 2026-11-21 | Lodestar's shape: a table of numbers per build, each id re-found at start through its witnesses, no bytes in gal/ | METHOD | #gal #lodestar |
+| 305 | 2026-11-21 | A function EldenNet might call carries a verdict of our own tool; unknown means no call | DECIDED | #gal #lodestar #task |
 
 ## Entries
 
@@ -5179,3 +5181,25 @@ invariant 10, EldenNet ARCH (T3)
 - **What follows** (DECIDED): no work of that kind goes on, and the classifier is not worked around. The rest of the
   game-task route is more of the same reading, so the route itself is put to the owner as O100, with the option of
   reading the game without a game task.
+
+### 304. Lodestar's shape: a table of numbers per build, each id re-found at start through its witnesses, no bytes in gal/
+
+`2026-11-21` · METHOD · `#gal` `#lodestar` · refs: O100, O48, O89, O102, proposal 0005
+
+- **The shape** (METHOD): a table of numbers per game build, each id re-found at start through its witnesses (a few
+  places in the code that use it, kept as offsets), with no search at start and no bytes in `gal/`.
+- **Why**: the handover's §3 rules out byte patterns copied from the game; a start then reads a few hundred known places
+  instead of scanning the code; a patch that only moves things needs no in-game round for most ids.
+- **Not chosen**: keeping wildcarded patterns (bytes in the repository, O102 (b)), or matching shapes over the whole code
+  at every start (seconds).
+
+### 305. A function EldenNet might call carries a verdict of our own tool; unknown means no call
+
+`2026-11-21` · DECIDED (Lodestar's, pending the owner's O101) · `#gal` `#lodestar` `#task` · refs: WHY§302, WHY§303,
+O101, proposal 0005 §7.2
+
+- **The rule** (DECIDED): a function EldenNet might call carries a verdict of our own tool: adds, removes, reads or
+  unknown; unknown means no call. The derived register_task enters the catalogue as `task_remove` with its verdict
+  recorded, and its sibling as `task_add`, a lead with none yet.
+- **The tool's output** (DECIDED): it writes out no instruction in any form; a reviewer reads our classifier and its
+  tests on the fake game.

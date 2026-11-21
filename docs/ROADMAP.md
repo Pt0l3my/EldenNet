@@ -943,12 +943,18 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O47, O48, O49, O89, WHY§302, WHY§303
+  - refs: O100, O101, O102, O103, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
     on it, first the game's own way of adding a task (WHY§302). Its first piece is proposal 0005, with its questions to
     the owner. R1's road (S10.1.f) goes on here.
+    Proposal 0005 written the same day (docs/proposals/0005-lodestar.md; WHY§304, WHY§305), its questions put to the
+    owner as O101 to O103. Its steps: L1 the catalogue, the table's schema 2, its loader and lint, the fake game's table;
+    L2 shapes for the accessor, witnesses and digests, `patterns.toml` retired; L3 `lodestar find`, `check` and `diff`,
+    report schema 2 (one offline run on 2.7.2.0, game closed); L4 the checks at start and the frame service on EldenNet's
+    own thread; L5 a read-only spike package, no call (one run); L6 the members, in read-only rounds; L7 the task
+    service's research, later and by the owner's choice. L1 started, since it holds under every answer.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
