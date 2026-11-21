@@ -462,37 +462,53 @@ std::string banner_words(const SpaceFacts& f) {
   return words;
 }
 
-// The jobs AI › Models offers rows for, in ARCH §11.4's order: each with its model row's key and its choices' topic, and
-// its provider row's key, whose choices are every job's (`ai.choices.providers`). The reserved slots (actions, vision)
-// have no rows until their features exist (PAGES §4.5).
+// The jobs AI › Models offers a card for, in ARCH §11.4's order, each with four rows: its provider and its model, and its
+// fallback's provider and its fallback, each model row with its choices' topic; every provider row's choices are every
+// job's (`ai.choices.providers`). The reserved slots (actions, vision) have no card until their features exist (PAGES
+// §4.5).
 struct Job {
   std::string_view slot;
   std::string_view key;
   std::string_view topic;
   std::string_view provider_key;
+  std::string_view fallback_key;
+  std::string_view fallback_topic;
+  std::string_view fallback_provider_key;
 };
 constexpr std::array<Job, 5> kJobs = {{
-    {proto::kDialogue, "slots.dialogue.model", "ai.choices.dialogue", "slots.dialogue.provider"},
-    {proto::kBarkLive, "slots.bark_live.model", "ai.choices.bark_live", "slots.bark_live.provider"},
-    {proto::kBarkPool, "slots.bark_pool.model", "ai.choices.bark_pool", "slots.bark_pool.provider"},
-    {proto::kMemory, "slots.memory.model", "ai.choices.memory", "slots.memory.provider"},
-    {proto::kSelftest, "slots.selftest.model", "ai.choices.selftest", "slots.selftest.provider"},
+    {proto::kDialogue, "slots.dialogue.model", "ai.choices.dialogue", "slots.dialogue.provider",
+     "slots.dialogue.fallback", "ai.choices.dialogue.fallback", "slots.dialogue.fallback_provider"},
+    {proto::kBarkLive, "slots.bark_live.model", "ai.choices.bark_live", "slots.bark_live.provider",
+     "slots.bark_live.fallback", "ai.choices.bark_live.fallback", "slots.bark_live.fallback_provider"},
+    {proto::kBarkPool, "slots.bark_pool.model", "ai.choices.bark_pool", "slots.bark_pool.provider",
+     "slots.bark_pool.fallback", "ai.choices.bark_pool.fallback", "slots.bark_pool.fallback_provider"},
+    {proto::kMemory, "slots.memory.model", "ai.choices.memory", "slots.memory.provider", "slots.memory.fallback",
+     "ai.choices.memory.fallback", "slots.memory.fallback_provider"},
+    {proto::kSelftest, "slots.selftest.model", "ai.choices.selftest", "slots.selftest.provider",
+     "slots.selftest.fallback", "ai.choices.selftest.fallback", "slots.selftest.fallback_provider"},
 }};
 constexpr std::string_view kProviderChoices = "ai.choices.providers";
+constexpr std::string_view kJobStates = "ai.jobs";  // each card's live status (GraceUI D202), a member per slot
+constexpr std::string_view kBudgets = "ai.budgets";  // each card's fixed budgets, a member per slot
 
-const Job* job_of_key(std::string_view key) {
+// Which of a job's four rows a setting's key is.
+enum class Part : std::uint8_t { Model, Provider, Fallback, FallbackProvider };
+struct JobRow {
+  const Job* job = nullptr;
+  Part part = Part::Model;
+};
+
+JobRow row_of_key(std::string_view key) {
   for (const Job& j : kJobs) {
-    if (j.key == key) return &j;
+    if (j.key == key) return {&j, Part::Model};
+    if (j.provider_key == key) return {&j, Part::Provider};
+    if (j.fallback_key == key) return {&j, Part::Fallback};
+    if (j.fallback_provider_key == key) return {&j, Part::FallbackProvider};
   }
-  return nullptr;
+  return {};
 }
 
-const Job* job_of_provider_key(std::string_view key) {
-  for (const Job& j : kJobs) {
-    if (j.provider_key == key) return &j;
-  }
-  return nullptr;
-}
+bool of_fallback(Part p) noexcept { return p == Part::Fallback || p == Part::FallbackProvider; }
 
 const Job* job_of_slot(std::string_view slot) {
   for (const Job& j : kJobs) {
@@ -508,6 +524,16 @@ bool key_refused(const AiProvider& p) noexcept { return p.disabled || p.key == A
 std::string refused_words(const AiProvider& p) {
   return p.key_place == AiKeyPlace::None ? p.id + " asks for a key: paste it on its row on Providers first."
                                          : p.id + " refused its key: paste it again on its row on Providers first.";
+}
+
+// Why a job's fallback cannot be chosen now, in the player's words, or nothing. It needs a model of the job's own: a
+// table that gives a fallback alone keeps the preset's model, and a job that borrows another's models has none to keep.
+std::string fallback_refusal(const Job& job, const AiSlot* s) {
+  if (s == nullptr || s->model.empty()) return "Choose " + owned(job.slot) + " model first.";
+  if (!s->same_as.empty()) {
+    return std::string(slot_words(job.slot)) + " uses " + owned(s->same_as) + " models: choose a model of its own first.";
+  }
+  return {};
 }
 
 // "Conversation", "Conversation and Memory", "Conversation, Memory and Self-test".
@@ -619,32 +645,73 @@ json health_body(const SpaceFacts& f) {
   return json{{"columns", std::move(columns)}, {"rows", std::move(rows)}};
 }
 
-json slots_body(const SpaceFacts& f) {
-  if (f.ai == nullptr) return json::object();
-  const AiFacts& ai = *f.ai;
-  json columns = json::array({json{{"id", "job"}, {"label", "Job"}}, json{{"id", "provider"}, {"label", "Provider"}},
-                              json{{"id", "model"}, {"label", "Model"}},
-                              json{{"id", "fallback"}, {"label", "Fallback"}},
-                              json{{"id", "state"}, {"label", "State"}}});
-  json rows = json::array();
-  for (const AiSlot& s : ai.slots) {
-    json row{{"job", slot_words(s.slot)}};
-    if (!s.same_as.empty()) {
-      const std::string same = std::string("Same as ") + slot_words(s.same_as);
-      row["provider"] = same;
-      row["model"] = same;
-      row["fallback"] = same;
-    } else {
-      row["provider"] = s.model.empty() ? std::string("None") : s.provider;
-      row["model"] = s.model.empty() ? std::string("None") : s.model;
-      row["fallback"] = s.fallback.empty() ? std::string("None")
-                                           : s.fallback_provider == s.provider ? s.fallback
-                                                                               : s.fallback + " (" + s.fallback_provider + ")";
-    }
-    row["state"] = s.model.empty() && s.same_as.empty() ? "No model" : s.healthy ? "Ready" : "Resting after failures";
-    rows.push_back(std::move(row));
+// A job's state, its card's live status (GraceUI D202) in the lamp's tones (WHY§279): from the health EldenNet keeps of
+// its provider (Health's words, shortened to the head's), and whether the job has a model.
+struct JobState {
+  const char* word;
+  const char* tone;
+};
+
+JobState job_state(const AiFacts& ai, const AiSlot& s) noexcept {
+  if (s.model.empty()) return {"No model", "glint"};
+  if (const AiProvider* p = provider_of(ai, s.provider)) {
+    if (key_refused(*p)) return {"Failing", "rot"};
+    if (p->key == AiKey::Missing) return {"No key yet", "glint"};
+    if (p->cooling_s != 0) return {"Cooling down", "ember"};
   }
-  return json{{"columns", std::move(columns)}, {"rows", std::move(rows)}};
+  if (!s.healthy) return {"Resting after failures", "ember"};
+  return {"Ready", "moss"};
+}
+
+// Each card's status: a member per job the facts hold, {word, tone}. Nothing before EldenNet has its facts (collect
+// publishes none), and no member for a job they do not hold (invariant 2).
+json jobs_body(const SpaceFacts& f) {
+  json b = json::object();
+  if (f.ai == nullptr) return b;
+  for (const AiSlot& s : f.ai->slots) {
+    if (job_of_slot(s.slot) == nullptr) continue;
+    const JobState st = job_state(*f.ai, s);
+    b[std::string(s.slot)] = json{{"word", st.word}, {"tone", st.tone}};
+  }
+  return b;
+}
+
+// A time budget in words: "6 s", "1.5 s".
+std::string budget_seconds(std::uint32_t ms) {
+  char text[32];
+  if (ms % 1000 == 0) {
+    std::snprintf(text, sizeof text, "%u s", static_cast<unsigned>(ms / 1000));
+  } else {
+    std::snprintf(text, sizeof text, "%.1f s", static_cast<double>(ms) / 1000.0);
+  }
+  return text;
+}
+
+// Each card's key-value list: "Same as Conversation" for a job that borrows another's models (PAGES §4.5), then its
+// fixed budgets, read-only (ARCH §11.4: the same in every preset). A member per job.
+json budgets_body(const SpaceFacts& f) {
+  json b = json::object();
+  if (f.ai == nullptr) return b;
+  for (const AiBudget& budget : f.ai->budgets) {
+    if (job_of_slot(budget.slot) == nullptr) continue;
+    json items = json::array();
+    if (const AiSlot* s = slot_of(*f.ai, budget.slot); s != nullptr && !s->same_as.empty()) {
+      items.push_back(item("Models", std::string("Same as ") + slot_words(s->same_as)));
+    }
+    items.push_back(item("Longest answer", std::to_string(budget.max_tokens) + " tokens"));
+    char temperature[16];
+    std::snprintf(temperature, sizeof temperature, "%g", budget.temperature);
+    items.push_back(item("Temperature", temperature));
+    std::string first = budget_seconds(budget.first_token_ms);
+    if (budget.first_token_local_ms != budget.first_token_ms) {
+      first += ", " + budget_seconds(budget.first_token_local_ms) + " on a local server";
+    }
+    items.push_back(item("First token within", std::move(first)));
+    items.push_back(item("Whole answer within", budget_seconds(budget.total_ms)));
+    items.push_back(item("Retries", budget.retries == 0 ? std::string("None") : std::to_string(budget.retries)));
+    b[std::string(budget.slot)] = json{{"items", std::move(items)}};
+  }
+  return b;
 }
 
 json selftest_body(const SpaceFacts& f) {
@@ -764,11 +831,29 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 16> kStates = {
-    "settings",          "status",       "errors",       "system.status",        "ai.status",
-    "providers",         "health",       "ai.slots",     "selftest",             "space.state",
-    "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest",
-    kProviderChoices};
+constexpr std::array<std::string_view, 22> kStates = {
+    "settings",
+    "status",
+    "errors",
+    "system.status",
+    "ai.status",
+    "providers",
+    "health",
+    kJobStates,
+    kBudgets,
+    "selftest",
+    "space.state",
+    "ai.choices.dialogue",
+    "ai.choices.bark_live",
+    "ai.choices.bark_pool",
+    "ai.choices.memory",
+    "ai.choices.selftest",
+    kProviderChoices,
+    "ai.choices.dialogue.fallback",
+    "ai.choices.bark_live.fallback",
+    "ai.choices.bark_pool.fallback",
+    "ai.choices.memory.fallback",
+    "ai.choices.selftest.fallback"};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -956,9 +1041,22 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
           facts.ai->presets.end()) {
     return refuse("not_now", "This version of EldenNet has no models file for that preset yet.");
   }
-  // A job's provider: one of providers.toml's, its key not refused (invariant 3). Chosen while the job's model is one it
-  // listed, it is written at once with that model; otherwise it waits, shown on its row, for a model of its list.
-  if (const Job* job = job_of_provider_key(key)) {
+  const JobRow row = row_of_key(key);
+  // A picker's Default (GraceUI D199: an empty default, offered first, sent back as ""): the row's reset, the preset's
+  // again.
+  if (row.job != nullptr && value == "") {
+    return reset(id, json{{"scope", "key"}, {"target", key}}, facts);
+  }
+  const auto hold = [&](const json& v) {
+    json& held = values_[s->key];
+    if (held != v) {
+      held = v;
+      ++settings_rev_;
+    }
+  };
+  // A job's provider, or its fallback's: one of providers.toml's, its key not refused (invariant 3).
+  if (row.job != nullptr && (row.part == Part::Provider || row.part == Part::FallbackProvider)) {
+    const Job* job = row.job;
     const std::string& v = value.get_ref<const std::string&>();
     const AiProvider* p = provider_of(*facts.ai, v);
     if (p == nullptr) {
@@ -966,20 +1064,37 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
     }
     if (key_refused(*p)) return refuse("invalid_value", refused_words(*p));
     const AiSlot* slot = slot_of(*facts.ai, job->slot);
-    const std::string now = slot != nullptr ? slot->provider : std::string();
-    const std::string model = slot != nullptr ? slot->model : std::string();
-    pending_.erase(std::string(job->slot));
-    json& held = values_[s->key];
-    if (held != value) {
-      held = value;
-      ++settings_rev_;
-    }
-    if (v != now) {
-      const std::vector<std::string>* ids = listed_of(*facts.ai, v);
-      if (!model.empty() && ids != nullptr && std::find(ids->begin(), ids->end(), model) != ids->end()) {
-        changes_.push_back(Change{std::string(job->key), model, v});
-      } else {
-        pending_[std::string(job->slot)] = v;
+    if (row.part == Part::Provider) {
+      // Chosen while the job's model is one it listed, it is written at once with that model; otherwise it waits,
+      // shown on its row, for a model of its list.
+      const std::string now = slot != nullptr ? slot->provider : std::string();
+      const std::string model = slot != nullptr ? slot->model : std::string();
+      pending_.erase(std::string(job->slot));
+      hold(value);
+      if (v != now) {
+        const std::vector<std::string>* ids = listed_of(*facts.ai, v);
+        if (!model.empty() && ids != nullptr && std::find(ids->begin(), ids->end(), model) != ids->end()) {
+          changes_.push_back(Change{std::string(job->key), model, v});
+        } else {
+          pending_[std::string(job->slot)] = v;
+        }
+      }
+    } else {
+      // The fallback's provider, for a job with a model of its own: chosen while the fallback now is one it listed (and
+      // not the job's own model there), it is written at once with it; otherwise it waits for a model of its list.
+      if (const std::string why = fallback_refusal(*job, slot); !why.empty()) return refuse("not_now", why);
+      const std::string now = slot->fallback.empty() ? std::string() : slot->fallback_provider;
+      pending_fallback_.erase(std::string(job->slot));
+      hold(value);
+      if (v != now) {
+        const std::vector<std::string>* ids = listed_of(*facts.ai, v);
+        if (!slot->fallback.empty() && ids != nullptr &&
+            std::find(ids->begin(), ids->end(), slot->fallback) != ids->end() &&
+            !(v == slot->provider && slot->fallback == slot->model)) {
+          changes_.push_back(Change{std::string(job->fallback_key), slot->fallback, v});
+        } else {
+          pending_fallback_[std::string(job->slot)] = v;
+        }
       }
     }
     note.result = "ok";
@@ -987,7 +1102,8 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
   }
   // A job's model: one of the choices its picker shows, what the job's provider listed (GraceUI D193; invariant 3), on
   // the provider chosen for it and waiting, else the job's own.
-  if (const Job* job = job_of_key(key)) {
+  if (row.job != nullptr && row.part == Part::Model) {
+    const Job* job = row.job;
     const AiSlot* slot = slot_of(*facts.ai, job->slot);
     const auto waiting = pending_.find(job->slot);
     const std::string provider = waiting != pending_.end() ? waiting->second
@@ -1010,12 +1126,35 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
     }
     const bool same = slot != nullptr && waiting == pending_.end() && v == slot->model;
     if (waiting != pending_.end()) pending_.erase(waiting);
-    json& held = values_[s->key];
-    if (held != value) {
-      held = value;
-      ++settings_rev_;
-    }
+    hold(value);
     if (!same) changes_.push_back(Change{s->key, value, provider});  // the job's model now again: nothing to write
+    note.result = "ok";
+    return answer(id, "", "");
+  }
+  // A job's fallback: one of what its provider listed (the provider chosen for it and waiting, else the fallback's now,
+  // else the job's), for a job with a model of its own, and not the job's own model there.
+  if (row.job != nullptr && row.part == Part::Fallback) {
+    const Job* job = row.job;
+    const AiSlot* slot = slot_of(*facts.ai, job->slot);
+    if (const std::string why = fallback_refusal(*job, slot); !why.empty()) return refuse("not_now", why);
+    const std::string provider = fallback_source(job->slot, *facts.ai);
+    const std::vector<std::string>* ids = listed_of(*facts.ai, provider);
+    if (ids == nullptr) {
+      return refuse("not_now", "Press List models on Providers first: the choices are the models " + provider +
+                                   " lists.");
+    }
+    const std::string& v = value.get_ref<const std::string&>();
+    if (!pickable(v) || std::find(ids->begin(), ids->end(), v) == ids->end()) {
+      return refuse("invalid_value", provider + " does not list that model: press List models on Providers again.");
+    }
+    if (provider == slot->provider && v == slot->model) {
+      return refuse("invalid_value", "That is " + owned(job->slot) + " own model: choose another for its fallback.");
+    }
+    const auto waiting = pending_fallback_.find(job->slot);
+    const bool same = waiting == pending_fallback_.end() && v == slot->fallback && provider == slot->fallback_provider;
+    if (waiting != pending_fallback_.end()) pending_fallback_.erase(waiting);
+    hold(value);
+    if (!same) changes_.push_back(Change{s->key, value, provider});
     note.result = "ok";
     return answer(id, "", "");
   }
@@ -1293,30 +1432,52 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
       return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
     }
   }
-  // A job's two rows reset as one: its pick removed from providers.toml (the preset's provider and model again), or, with
-  // no pick there, its provider waiting for a model dropped and its rows as the facts have them.
+  // A job's provider and model rows reset as one: its pick removed from providers.toml, its whole [slots.<slot>] (the
+  // preset's provider, model and fallback again), or, with no pick there, its provider waiting for a model dropped and
+  // its rows as the facts have them. Its two fallback rows likewise, but for the fallback alone, after the jobs' own
+  // rows, so that a page's reset removes each table once.
   std::set<std::string_view> jobs_reset;
-  for (const Setting* s : chosen) {
-    const Job* job = job_of_key(s->key);
-    if (job == nullptr) job = job_of_provider_key(s->key);
-    if (job == nullptr) {
-      change(*s, s->fallback);
-      continue;
+  std::set<std::string_view> fallbacks_reset;
+  const auto hold = [&](std::string_view key, const json& value) {
+    json& held = values_[std::string(key)];
+    if (held != value) {
+      held = value;
+      ++settings_rev_;
     }
-    if (!jobs_reset.insert(job->slot).second) continue;
-    pending_.erase(std::string(job->slot));
-    const AiSlot* slot = slot_of(*facts.ai, job->slot);
-    const bool picked = picked_.count(job->slot) != 0;
-    const json model = picked || slot == nullptr ? json("") : json(slot->model);
-    const json provider = picked || slot == nullptr ? json("") : json(slot->provider);
-    for (const auto& [key, value] : {std::pair{job->key, model}, std::pair{job->provider_key, provider}}) {
-      json& held = values_[std::string(key)];
-      if (held != value) {
-        held = value;
-        ++settings_rev_;
+  };
+  for (const bool fallbacks : {false, true}) {
+    for (const Setting* s : chosen) {
+      const JobRow row = row_of_key(s->key);
+      if (row.job == nullptr) {
+        if (!fallbacks) change(*s, s->fallback);
+        continue;
       }
+      if (of_fallback(row.part) != fallbacks) continue;
+      const Job* job = row.job;
+      const AiSlot* slot = slot_of(*facts.ai, job->slot);
+      const bool picked = picked_.count(job->slot) != 0;
+      if (!fallbacks) {
+        if (!jobs_reset.insert(job->slot).second) continue;
+        pending_.erase(std::string(job->slot));
+        pending_fallback_.erase(std::string(job->slot));
+        hold(job->key, picked || slot == nullptr ? json("") : json(slot->model));
+        hold(job->provider_key, picked || slot == nullptr ? json("") : json(slot->provider));
+        if (picked) {
+          hold(job->fallback_key, "");
+          hold(job->fallback_provider_key, "");
+          changes_.push_back(Change{std::string(job->key), "", ""});
+        }
+        continue;
+      }
+      if (!fallbacks_reset.insert(job->slot).second) continue;
+      pending_fallback_.erase(std::string(job->slot));
+      const bool fallback_picked = fallback_picked_.count(job->slot) != 0;
+      if (picked && jobs_reset.count(job->slot) != 0) continue;  // the job's table goes already, its fallback with it
+      const bool none = fallback_picked || slot == nullptr || slot->fallback.empty();
+      hold(job->fallback_key, none ? json("") : json(slot->fallback));
+      hold(job->fallback_provider_key, none ? json("") : json(slot->fallback_provider));
+      if (fallback_picked) changes_.push_back(Change{std::string(job->fallback_key), "", ""});
     }
-    if (picked) changes_.push_back(Change{std::string(job->key), "", ""});
   }
   note.result = "ok";
   return answer(id, "", "");
@@ -1355,28 +1516,46 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) 
 void Space::sync(const SpaceFacts& facts) {
   if (facts.ai == nullptr) return;
   std::set<std::string, std::less<>> picked;
+  std::set<std::string, std::less<>> fallback_picked;
   for (const AiSlot& s : facts.ai->slots) {
-    if (s.picked && job_of_slot(s.slot) != nullptr) picked.insert(std::string(s.slot));
+    if (job_of_slot(s.slot) == nullptr) continue;
+    if (s.picked) picked.insert(std::string(s.slot));
+    if (s.fallback_picked) fallback_picked.insert(std::string(s.slot));
   }
-  if (picked != picked_) {
+  if (picked != picked_ || fallback_picked != fallback_picked_) {
     picked_ = std::move(picked);
+    fallback_picked_ = std::move(fallback_picked);
     ++settings_rev_;
   }
   for (const Job& j : kJobs) {
     const AiSlot* s = slot_of(*facts.ai, j.slot);
-    // A provider waiting for its model goes once it is the job's own, or no longer in providers.toml.
+    // A provider waiting for a model goes once it is the job's own (or its fallback's), or no longer in providers.toml.
     if (const auto waiting = pending_.find(j.slot); waiting != pending_.end()) {
       if (provider_of(*facts.ai, waiting->second) == nullptr || (s != nullptr && s->provider == waiting->second)) {
         pending_.erase(waiting);
       }
     }
+    if (const auto waiting = pending_fallback_.find(j.slot); waiting != pending_fallback_.end()) {
+      if (provider_of(*facts.ai, waiting->second) == nullptr ||
+          (s != nullptr && !s->fallback.empty() && s->fallback_provider == waiting->second)) {
+        pending_fallback_.erase(waiting);
+      }
+    }
     const auto waiting = pending_.find(j.slot);
+    const auto waiting_fallback = pending_fallback_.find(j.slot);
     // GraceUI holds a picked value to 200 bytes (D193): a longer id from the player's file shows as none chosen.
     const json model = s != nullptr && s->model.size() <= 200 ? s->model : std::string();
     const json provider = waiting != pending_.end() ? waiting->second
                           : s != nullptr             ? s->provider
                                                      : std::string();
-    for (const auto& [key, value] : {std::pair{j.key, model}, std::pair{j.provider_key, provider}}) {
+    const bool fallback = s != nullptr && !s->fallback.empty() && s->fallback.size() <= 200;
+    const json fallback_model = fallback ? s->fallback : std::string();
+    const json fallback_provider = waiting_fallback != pending_fallback_.end() ? waiting_fallback->second
+                                   : fallback                                   ? s->fallback_provider
+                                                                                : std::string();
+    for (const auto& [key, value] : {std::pair{j.key, model}, std::pair{j.provider_key, provider},
+                                     std::pair{j.fallback_key, fallback_model},
+                                     std::pair{j.fallback_provider_key, fallback_provider}}) {
       if (find(key) == nullptr) continue;
       json& held = values_[std::string(key)];
       if (held != value) {
@@ -1385,6 +1564,13 @@ void Space::sync(const SpaceFacts& facts) {
       }
     }
   }
+}
+
+std::string Space::fallback_source(std::string_view slot, const AiFacts& ai) const {
+  if (const auto waiting = pending_fallback_.find(slot); waiting != pending_fallback_.end()) return waiting->second;
+  const AiSlot* s = slot_of(ai, slot);
+  if (s == nullptr) return {};
+  return s->fallback.empty() ? s->provider : s->fallback_provider;
 }
 
 std::vector<Space::Change> Space::take_changes() {
@@ -1411,15 +1597,17 @@ void Space::log_line(std::string_view text, std::uint64_t t_ms) {
 }
 
 json Space::settings_body() const {
-  // The rows changed from their defaults (GraceUI D198): a job's two rows when providers.toml holds a pick for it (their
-  // values are the job's provider and model now, whose default stands for the preset's), any other row by its value.
+  // The rows changed from their defaults (GraceUI D198): a job's provider and model rows when providers.toml holds a
+  // model of its own for it, its fallback rows when it holds a fallback (their values are the job's now, whose default
+  // stands for the preset's), any other row by its value.
   json changed = json::array();
   for (const Setting& s : settings_) {
-    const Job* job = job_of_key(s.key);
-    if (job == nullptr) job = job_of_provider_key(s.key);
-    if (job != nullptr ? picked_.count(job->slot) != 0 : values_.contains(s.key) && values_.at(s.key) != s.fallback) {
-      changed.push_back(s.key);
-    }
+    const JobRow row = row_of_key(s.key);
+    const bool is_changed =
+        row.job == nullptr    ? values_.contains(s.key) && values_.at(s.key) != s.fallback
+        : of_fallback(row.part) ? fallback_picked_.count(row.job->slot) != 0
+                                : picked_.count(row.job->slot) != 0;
+    if (is_changed) changed.push_back(s.key);
   }
   return json{{"schema", settings_description_json_.value("schema", json::object())},
               {"description", settings_description_json_.value("settings", json::array())},
@@ -1441,11 +1629,15 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "ai.status") return ai_status_body(facts);
   if (topic == "providers") return providers_body(facts);
   if (topic == "health") return health_body(facts);
-  if (topic == "ai.slots") return slots_body(facts);
+  if (topic == kJobStates) return jobs_body(facts);
+  if (topic == kBudgets) return budgets_body(facts);
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
   if (topic == kProviderChoices) return provider_choices_body(facts);
   for (const Job& j : kJobs) {
+    if (topic == j.fallback_topic) {
+      return choices_body(facts, facts.ai != nullptr ? fallback_source(j.slot, *facts.ai) : std::string());
+    }
     if (topic != j.topic) continue;
     const auto waiting = pending_.find(j.slot);
     const AiSlot* s = facts.ai != nullptr ? slot_of(*facts.ai, j.slot) : nullptr;
@@ -1464,6 +1656,7 @@ void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<s
   }
   for (const std::string_view topic : kStates) {
     if (!watching(topic)) continue;
+    if (topic == kJobStates && facts.ai == nullptr) continue;  // a card's status: nothing before EldenNet knows it
     Topic& t = topics_[std::string(topic)];
     if (!t.fresh && t.rev != 0 && now_ms - t.last_ms < interval_of(topic)) continue;
     std::string text = text_of(body(topic, facts));

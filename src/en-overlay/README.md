@@ -8,8 +8,8 @@ and browser view (PAGES; GraceUI's G20, D169). It began as the first in-game bui
 moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 and §36). Later increments add EldenNet's own
 surfaces (subtitles, the chat box, the call-out box) as panels, and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 908c179, GraceUI
-0.2.9; its floor, 0.2.9): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at a9aac78, GraceUI
+0.2.12; its floor, 0.2.12): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -107,13 +107,15 @@ game's own text entry is not read in v0.1.
 - **One source**: `pages/space.toml`, in GraceUI's page format (eldennet-changes §19): the rail of PAGES §4.2.1 in its
   order (a category with no page yet holds none, and GraceUI shows no empty category), the pages (Home, System ›
   Status and Logs, Settings › Developer from the first slice; AI › Providers, Models and Self-test from the second,
-  writable from the third on GraceUI 0.2.8's protocol 1.2: D192 to D196; the fourth on GraceUI 0.2.9's D197 and D198),
-  its topics (`settings`, `status`, `errors`, `system.status`, `logs`; `ai.status`, `providers`, `health`, `ai.slots`,
-  `selftest`, `ai.choices.<slot>` for each job's model picker and `ai.choices.providers` for every job's provider
-  picker), its commands (`settings.set`, `settings.reset`, `selftest.run`, `models.list`, `providers.add`,
-  `providers.remove`, `providers.key`) and the settings whose home is there (`debug.panel`, `debug.record_sessions`,
-  `debug.log_level`; `ai.preset` and each job's provider and model, `slots.<slot>.provider` and `slots.<slot>.model`).
-  The page data says `"minor": 2`. `python3 -I tools/pages/build.py` writes `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in
+  writable from the third on GraceUI 0.2.8's protocol 1.2: D192 to D196; the fourth on GraceUI 0.2.9's D197 and D198;
+  the fifth, AI › Models as one card per job, on GraceUI 0.2.12's protocol 1.3: D202), its topics (`settings`,
+  `status`, `errors`, `system.status`, `logs`; `ai.status`, `providers`, `health`, `selftest`, `ai.jobs` for each
+  card's live status and `ai.budgets` for its fixed budgets, a member per job, `ai.choices.<slot>` for each job's model
+  picker, `ai.choices.<slot>.fallback` for its fallback's and `ai.choices.providers` for every provider picker), its
+  commands (`settings.set`, `settings.reset`, `selftest.run`, `models.list`, `providers.add`, `providers.remove`,
+  `providers.key`) and the settings whose home is there (`debug.panel`, `debug.record_sessions`, `debug.log_level`;
+  `ai.preset` and each job's provider, model and fallback, `slots.<slot>.provider`, `.model`, `.fallback_provider` and
+  `.fallback`, on the job's card). The page data says `"minor": 3`. `python3 -I tools/pages/build.py` writes `pages/pages.json`, `pages/settings.json` and `src/space_data.cpp` from it (`--check` in
   CTest); every page ships in the increment EldenNet registers or an earlier one, `0.2` since the AI pages (D173).
   Every word a player reads there is a draft for review.
 - **Registered at the connect** (T1, eldennet-changes §23 item 1): `Options::space_views`, both views on the main path,
@@ -140,13 +142,18 @@ game's own text entry is not read in v0.1.
   alone, PV2; the key column is the row's secret, D194 and D197, its cells "set", "refused" (its last call refused
   for its key, or for want of one), "none" (no key's place and none asked for, or http:// on another computer) or "",
   never a key; a Remove on each row, D192) and the model list's checks, in words; `health` each provider's state (a
-  key refused, or asked for, among them), when it last answered and its jobs; `ai.slots` each job's provider, model and fallback, "Same as Conversation" for one that
-  borrows (the reserved slots get no row until their features exist, PAGES §4.5); `selftest` the verdict, the steps,
-  the figures and this session's earlier runs, nothing before the first run; `ai.choices.<slot>` a job's model picker's
-  choices (D193), what the job's provider (one chosen for it and waiting, else its own) listed last, in its order, at
-  most 256, any id that looks like a path left out (`pickable`: a backslash, a leading '/' or '~', a drive's letter, a
-  home folder; PV5); `ai.choices.providers` every job's provider picker's, the providers but one whose key was
-  refused. Never a key or the model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): Home and the AI pages greyed at L1 with
+  key refused, or asked for, among them), when it last answered and its jobs; `ai.jobs` each card's live status
+  (D202), a member per job, `{word, tone}` in the lamp's tones: No model (glint), Failing (rot: its provider's key
+  refused or asked for), No key yet (glint), Cooling down (ember: its provider rate-limited), Resting after failures
+  (ember: every model of the job cooling) or Ready (moss), and no frame at all before the DLL has its facts;
+  `ai.budgets` each card's key-value list, a member per job: "Same as Conversation" for one that borrows, then its fixed
+  budgets from en-llm's slot table (the reserved slots get no card until their features exist, PAGES §4.5);
+  `selftest` the verdict, the steps, the figures and this session's earlier runs, nothing before the first run;
+  `ai.choices.<slot>` a job's model picker's choices (D193), what the job's provider (one chosen for it and waiting,
+  else its own) listed last, in its order, at most 256, any id that looks like a path left out (`pickable`: a
+  backslash, a leading '/' or '~', a drive's letter, a home folder; PV5); `ai.choices.<slot>.fallback` its fallback
+  picker's, what the fallback's provider (one chosen and waiting, else the fallback's own, else the job's) listed;
+  `ai.choices.providers` every provider picker's, the providers but one whose key was refused. Never a key or the model's text. `space.state`, GraceUI's framework topic (GraceUI 0.2.7, D188): Home and the AI pages greyed at L1 with
   the banner's own words (PAGES §4.4, O95's one form), nothing greyed otherwise (at L2 every page stays usable, led by
   `ai.status`). Blocks whose topic can publish nothing for them carry `props.empty` words (D186): Home's Problems "No
   problems.", System's read groups before the first reading, the AI pages'; Logs' tail is newest first in the browser
@@ -161,10 +168,16 @@ game's own text entry is not read in v0.1.
   one change, that model on it; otherwise it waits in the space, shown on its row, until a model of its list is chosen
   (nothing written meanwhile; dropped by a reset, by the job's own provider chosen again, or when the provider goes).
   A job's model must be one its picker offers (a model its provider listed, `pickable`), and is one change, `Change`'s
-  `provider` saying which. A reset of either of a job's rows clears its pick (one change, an empty model), so the
-  preset's provider and model hold again; with no pick, it only drops a provider waiting. The rows follow the facts'
-  `revision` (`sync`), and the settings body's `changed` (GraceUI D198) names a job's two rows only while
-  providers.toml holds a pick for it (`AiSlot::picked`), any other row while its value is off its default. The AI pages' commands are
+  `provider` saying which. A job's fallback likewise, on its card's last two rows, only for a job with a model of its
+  own (not one that borrows another's): its provider waits until its list holds the fallback, and the fallback is one
+  of that provider's models (else the job's provider's), never the job's own model there; one change of
+  `slots.<slot>.fallback`. A reset of a job's provider or model row clears its pick (one change, an empty model), its
+  whole table, so the preset's provider, model and fallback hold again; a reset of either fallback row clears the
+  fallback alone (one change, an empty fallback); with no pick, a reset only drops a provider waiting. A picker's
+  Default (GraceUI D199, the value "") is the row's reset. The rows follow the facts' `revision` (`sync`), and the
+  settings body's `changed` (GraceUI D198) names a job's provider and model rows only while its table in providers.toml
+  gives a model (`AiSlot::picked`), its fallback rows while it gives a fallback (`AiSlot::fallback_picked`), any other
+  row while its value is off its default. The AI pages' commands are
   answered at once and handed to the DLL (`take_requests`, each an `AiRequest`): `selftest.run` and `models.list`
   (only with a provider, while the gate is open, one at a time: `busy` for the same, `not_now` in words for the
   other); `providers.add` with no fields (the header's: the chosen preset's providers that providers.toml lacks; not

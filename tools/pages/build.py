@@ -33,7 +33,8 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 2  # row actions, row secrets, a form and pickers are protocol 1.2's (GraceUI D192 to D196)
+PROTOCOL_MINOR = 3  # a section's chip and live status are protocol 1.3's (GraceUI D202), on 1.2's row actions, row secrets,
+#                    a form and pickers (D192 to D196)
 SPACE_FIELDS = ("id", "name", "settings_schema", "commands")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "tabs",
                "sections")
