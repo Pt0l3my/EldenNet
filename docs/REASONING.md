@@ -305,6 +305,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
 | 281 | 2026-11-21 | Row actions and row secrets are declared on a table's block in the page data, not in a topic's body, so registration can check them | DECIDED | #graceui #pages |
 | 282 | 2026-11-21 | Folding O96 and O97: the player's addressee is picked before the reply, and pairs make one speaker with several addressees a decision | LIKELY | #decisions #llm #npc |
+| 283 | 2026-11-21 | en-llm took any host starting with "127." for this PC, letting a key go in clear text elsewhere; fixed | FACT | #engine #security |
+| 284 | 2026-11-21 | One base-URL check for the form, the providers file and the key rows, each refusal in words | DECIDED | #engine #pages #security |
+| 285 | 2026-11-21 | The AI pages' pickers: path-shaped model ids left out, a job's model row holds the model now, provider name rules | DECIDED | #engine #pages #privacy |
+| 286 | 2026-11-21 | GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it | FACT | #graceui #harness |
+| 287 | 2026-11-21 | Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words | METHOD | #privsweep #harness |
 
 ## Entries
 
@@ -4804,3 +4809,51 @@ invariant 10, EldenNet ARCH (T3)
   per conversation as before. The header's new name is the only cue in v1 (marked for review). Who may answer the
   player's line, and the addressees each motive allows, are written in NPC §9.2 and §9.4 (marked for review).
 - (FACT) PAGES §4.6.2's Requests filter has no purpose for decision calls; a word for it is left to the pages work.
+
+### 283. en-llm took any host starting with "127." for this PC, letting a key go in clear text elsewhere; fixed
+
+`2026-11-21` · FACT · `#engine` `#security` · refs: ARCH§11.1, S11.4.a
+
+- (FACT) en-llm's loopback test took any host whose name began with "127." for this PC, so a provider at a name such
+  as `127.example.invalid` over `http://` passed ARCH's rule that no key crosses a network in clear text. Fixed by
+  en-proto's `is_loopback_host` (a dotted 127.0.0.0/8 address, `localhost`, `[::1]`), shared with the pages' form.
+
+### 284. One base-URL check for the form, the providers file and the key rows, each refusal in words
+
+`2026-11-21` · DECIDED · `#engine` `#pages` `#security` · refs: O98, ARCH§11.1, PAGES§4.6.2, S11.4.a
+
+- (DECIDED) en-proto's check (`check_base_url`, with `url_extras`, `is_private_host` and `reach_of`) is the one rule
+  for AI › Providers' form, the hand-written providers file and the key rows: `https://` to any host; `http://` to this
+  PC; `http://` to a literal private address (RFC 1918, fc00::/7) as a home-network server with no key (O98); never a
+  host name over `http://`, never a name, password, query or fragment in the URL. A key (`key_ref`, or a header's
+  secret) is refused on any provider reached by `http://` on another computer.
+- (FACT) A hand-written `http://` to a home server by name is now refused; only a literal private address passes.
+  Each refusal is named, with its line, on System › Status and Home's Problems.
+
+### 285. The AI pages' pickers: path-shaped model ids left out, a job's model row holds the model now, provider name rules
+
+`2026-11-21` · DECIDED · `#engine` `#pages` `#privacy` · refs: PAGES§4.6.2, PAGES§4.9, S11.4.a
+
+- (DECIDED) A server's listed model ids reach AI › Models' pickers alone, and an id shaped like a path is left out,
+  since a local server can list model files by a path holding the Windows user name (PV5).
+- (DECIDED) A job's model row holds the job's model now (the preset's or the player's pick); its reset removes the
+  pick. A provider of one's own takes a name of 1 to 32 characters, unique ignoring case, and never one a key is
+  already kept under. Remove refuses a provider a job uses, naming the jobs.
+
+### 286. GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it
+
+`2026-11-21` · FACT · `#graceui` `#harness` · refs: tests/pages/browser.py
+
+- (FACT) GraceUI's server sends `{"t":"ping"}` on each WebSocket every 15 s, not a WebSocket ping frame, and closes the
+  socket after two unanswered. EldenNet's test browser answered only the frame, so a session longer than 45 s closed;
+  it now answers `{"t":"pong"}`.
+
+### 287. Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words
+
+`2026-11-21` · METHOD · `#privsweep` `#harness` · refs: WHY§276, S11.4.a
+
+- (METHOD) The sweep refuses a private IPv4 literal in a test, and its endpoint rule matches words such as `.home`,
+  `.lan` and `.local` even inside an invented name. Tests build private addresses from their numbers at run time and
+  use names such as `storeroom.invalid`, rather than adding allow lines.
+- (METHOD) A fake-game case whose browser starts from the game's report should have reports early: the AI case's
+  browser waited for its first report and finished 0.6 s before the menu needed its result.

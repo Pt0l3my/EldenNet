@@ -1179,7 +1179,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, G34
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1205,6 +1205,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The owner approved proposal 0007 (G34, built as GraceUI 0.2.8, S11.2.u) and the slices' open choices on 2026-11-21 (O95): no lamp while starting, the
     tones, labels by the build's increment, the banner's words on greyed pages (the Now card's sentence follows in the
     next slice), and the words as drafted.
+    Third slice on 2026-11-21 (engine 8008dd1), at GraceUI 0.2.8 (0738fa3, protocol 1.2): the AI pages fully editable
+    with G34 as built (GraceUI's D192 to D196): a Remove and the key on each provider's row, a small form for a provider
+    of one's own, a model picker per job from what its provider lists. One base-URL check in en-proto serves the form,
+    the providers file and the key rows: https://, http:// to this PC, or http:// to a literal private address with no
+    key (O98); no name, password, query or fragment; each refusal in words on System › Status (WHY§283, WHY§284). O95's
+    choices applied (the Now card at L1 in the banner's words); Home and System on GraceUI 0.2.7's props (Home greyed
+    at L1, "No problems.", Logs newest first). EldenNet's GraceUI floor is 0.2.8. Checked on the fake game in both views
+    against a fake model server, the key nowhere (WHY§285 to §287). Next: a provider picker per job; three display
+    requests to GraceUI (a key not needed, a key refused, a picker's default) sent the same day.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
