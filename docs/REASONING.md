@@ -315,6 +315,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 290 | 2026-11-21 | R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked | FACT | #launcher #r1 #console |
 | 291 | 2026-11-21 | R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites | DECIDED | #gal #r1 #task |
 | 292 | 2026-11-21 | The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off | DECIDED | #launcher #r1 #console |
+| 293 | 2026-11-21 | R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -4956,3 +4957,27 @@ invariant 10, EldenNet ARCH (T3)
   status lines, the no-confirmation step at 43.6 s, both lints and the end), with 79 console lines dropped; a crash with
   the console blocked is still recorded. README-R1.txt asks players not to click inside the console until this
   launcher has replaced the old one.
+
+### 293. R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read
+
+`2026-11-21` · FACT, with LIKELY and SPECULATION readings · `#gal` `#r1` `#task` · refs: WHY§289, WHY§291, S10.1.f
+
+- **G's method** (FACT; RVA 0x2658FB0, 190 bytes, reached through the stub): it answers 0 when the task is null or G's
+  word at +0x40 is zero. Otherwise it builds a 32-byte request on its stack: a vtable of its own (rdata RVA 0x32990A0),
+  our task at +8, G's word at +0x48 at +16, the entry's word at +24 and r9's low byte (0) at +28. When G's byte at
+  +0x38 is zero it calls 0x1267F0 with the request and answers what that answers; otherwise it allocates 32 bytes
+  through an allocator object (data slot 0x4863D60, its slot at +80), copies the request in, and calls 0x26A4C10 on
+  G's +0x18, which locks (+8), adds the request to a container (+16) and unlocks. It never reads our task.
+- **The rest** (FACT): 0x1267F0's exception-directory extent is 68 bytes, yet its branches go to +126 and +267, so most
+  of it was not read. G is on the heap and unclassed, at neither +8 nor +0x58. The word is 0x9000006E (110 with high
+  flag bits); all 169 entries' words are distinct, none equal to its index. Every walk, G's (1,285 blocks) included,
+  changed as its control did; no copy of our task in 8.6 of 10.7 GB at 2.3 and 22 s; the array behind +0x3B0 did not
+  change this time. Of the game's 8 call sites, 7 pass their own function's argument and 1 a load from it (+0x218).
+- **The launcher** (FACT): its fix held: the no-confirmation step, both lints and the end are in the log; 76 console
+  lines, none dropped.
+- **So** (LIKELY): registration is a deferred request, and the request does the real work, now (0x1267F0) or later
+  (G's queue). With no copy of our task left at 2.3 s, the stack path (byte +0x38 zero) is the likelier
+  (SPECULATION). Either way, what drops our task is in 0x1267F0's unread part or in the request's own methods.
+- **Next:** spike.11 reads the fields of G the method reads (the byte says which path), the request's vtable (class,
+  slots) and its methods with its fields followed, 0x1267F0 whole, G's queue across the call, the class and bases of
+  G's +0x48, and the game's own requests in memory, whose +8 leads to the game's own tasks and their classes.

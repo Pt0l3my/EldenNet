@@ -891,6 +891,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     was shown and the crash watcher was blocked. Spike.10 reads that method and the second singleton, and the
     launcher's console no longer blocks its watch (WHY§289, WHY§290). Spike.10 sent on 2026-11-21 (engine b5c2966;
     WHY§291, WHY§292).
+    Run 10 (2026-11-21): G's method never reads our task; it wraps it in a 32-byte request of its own and hands that
+    at once to 0x1267F0 or queues it on G, by one byte of G's. Nothing keeps our task, and the launcher's fix held.
+    Spike.11 reads the request's methods, 0x1267F0 whole, G's queue, and the game's own requests and tasks (WHY§293).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
