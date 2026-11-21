@@ -1138,6 +1138,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     page data: the menu subscribes to the open page's topics as a browser does, and the registry keeps a topic's
     newest state while any view watches it (WHY§271). The other five requests of EldenNet's first pages are GraceUI's
     proposal 0006 (G33), put to the owner and EldenNet the same day.
+- s Five additions to mods' pages: a block's field, an empty-state text, a newest-first log tail, a space's greyed pages, shortcut rows as controls (GraceUI 0.2.7) [done]
+  - refs: GraceUI:D185, GraceUI:D186, GraceUI:D187, GraceUI:D188, GraceUI:D189
+  - gives: proposal 0006 (G33), decided by the owner on 2026-11-20 ("Agreed to proposal 0006") with EldenNet's
+    per-page greying, and built the same day (GraceUI feat/foundations beca859), no change of the ABI. EldenNet's
+    pages take them as each slice is built; Home and System are reworked to use them in a later slice (WHY§273).
 
 ### S11.3 EldenNet v0.2
 
