@@ -898,6 +898,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Run 11 (2026-11-21): the request runs at once, as its own slot 1, and passes our task on only if group 110's word
     is in a map of the manager's; it was dropped, with no copy left. Spike.12 reads that map at the title and in the
     world, after a save is loaded without a second call (WHY§296).
+    Spike.12 sent on 2026-11-21 (engine 5e21387; WHY§299).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175

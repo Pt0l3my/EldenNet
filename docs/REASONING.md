@@ -321,6 +321,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 296 | 2026-11-21 | R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it | FACT | #gal #r1 #task |
 | 297 | 2026-11-21 | The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9 | DECIDED | #engine #pages #graceui |
 | 298 | 2026-11-21 | A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change | METHOD | #graceui #pages |
+| 299 | 2026-11-21 | R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step | DECIDED | #gal #r1 #task #launcher |
 
 ## Entries
 
@@ -5048,6 +5049,10 @@ invariant 10, EldenNet ARCH (T3)
 - **Next:** spike.12 reads the manager's map at the title and, after a save is loaded with no second call, in the world:
   its size and keys, and whether group 110's word is among them; it summarises 0x26A3460. If the word appears only in
   the world, the call moves there, by the owner's decision.
+- **Later (2026-11-21):** two numbers above are wrong, misread from run 11's decimal RVAs: the function the match calls
+  is 0x26A3260 (40,514,144), not 0x26A3460, and the call before our task's slot on the other branch goes to 0x1EC9340
+  (32,281,408), not 0x1EC8E40. Run 11 had summarised both at depth 5, but the report's size passes left them out.
+  Spike.12 finds both from the code, never by number (WHY§299).
 
 ### 297. The AI pages' fourth slice: a job's provider, a key's other states, the changed mark, and the floor at GraceUI 0.2.9
 
@@ -5076,3 +5081,32 @@ invariant 10, EldenNet ARCH (T3)
   it in every Linux tree; fixed before GraceUI 0.2.12 was pushed.
 - **The method** (METHOD): run every Linux tree's full ctest before pushing a schema change, not only the suites the
   change touches.
+
+### 299. R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step
+
+`2026-11-21` · DECIDED, with FACT on the fake game · `#gal` `#r1` `#task` `#launcher` · refs: WHY§296, WHY§295, S10.1.f
+
+- **The map's layout** (DECIDED): read from the now path's function's summary, never from run 11's numbers: the head is
+  the manager's field used as a base, the root the head's +8, the nil byte the root's 1-byte field compared with 0, the
+  key the memory operand of the word's compares, the value the match call's rcx (else 8 bytes past the key). MSVC's
+  children (+0, +16) are assumed; another root displacement fails as `shape`.
+- **The walk** (DECIDED): in order, with an explicit stack; the head and every node on the heap, nil bytes as expected,
+  no node met twice, 4,096 at most; a failed check names itself and reads no further. Reported: the node count, the keys'
+  low halves in order (256 at most) and high halves counted, whether group 110's word is present or else its nearest keys
+  below and above, and the values' kinds and classes; the manager's list's count and kinds too.
+- **When** (DECIDED): just before the call, at about 50 ms, 250 ms and 2 s after it, then every 10 s while the game runs;
+  kept are the first, each reading where the node count, the word's presence, a failure or the stage changes (24 at
+  most, each logged), and the newest. The stage is world while a derived singleton's instance points to an object of a
+  character class from the leads (title otherwise, loading screens included), since R1 builds no world snapshot.
+- **The two functions** (DECIDED): the match's call (0x26A3260 in run 11) is summarised at depth 5 with the map's value,
+  our task, the word and the manager, and the other branch's call with the task; their callees at depth 6. Their forms
+  and the now path's function's are kept to the last of the size passes; past 256 KiB the report is first written on one
+  line (run 11's was 96 KB that way).
+- **The owner's world step** (DECIDED): after the 2 s search, when our task has not run and the complete search found
+  no copy of it, R1 answers `absent` through the watch block, and the launcher's no-confirmation line asks the owner to
+  load a save, stay two minutes in the world and quit; otherwise the old "do not load a save" stands.
+- **On the fake game** (FACT): with the word present at the title our task runs through the match's stand-in; with the
+  map filled late (run 11's end) the call drops our task, no copy is found, the console gives the world step, and the map
+  reads 4 nodes at the title (the word absent, between keys 4 and 7) and 9 in the world (the word present).
+- **Also** (FACT): GCC 13's Release build warned twice in rtti.cpp (`-Wmaybe-uninitialized` on two optionals), from part
+  3; each optional is now copied into a plain value after its check, and GCC is checked in Release from now on.
