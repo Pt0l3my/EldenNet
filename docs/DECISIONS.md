@@ -66,7 +66,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
   accepted as written the same day; O100 (where the per-frame reading runs) put and decided the same day, by an
   option of the owner's own: EldenNet's own address library, built by the Lodestar session; O101 to O103 (Lodestar's
-  proposal 0005) put to the owner and decided the same day, as recommended.
+  proposal 0005) put to the owner and decided the same day, as recommended; O104 (the fourth pages slice's
+  readings) the same day, as built.
 - **Open.** None.
 
 ## O1
@@ -1964,4 +1965,27 @@ stand behind.
 **Owner's words.** "(a) EldenNet only in v1 (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
 
 **Follows from.** O65 to O70; proposal 0005 §9.8, §12.
+
+## O104
+
+**The AI pages' fourth slice: its readings** · *2026-11-21 · Decided by the owner, as recommended*
+
+**Question.** The fourth pages slice (S11.4.a; WHY§297) left eight readings in its notes. Four were settled since: the
+changed rule (Q3) by O99 (the fifth slice's refined rule), the layout (Q6) by G36 (a) and O99, the in-game key line
+(Q7) by GraceUI's D200, and the floor (Q8) by O99 (now 0.2.12). The other four were put to the owner:
+(1) a model server on this PC reads Not needed until a call is refused for want of a key, then Refused with a field;
+(2) a provider chosen for a job that does not list the job's model is held, unsaved, until one of its models is chosen;
+(3) a provider whose key was refused is no job's choice until its key is pasted again;
+(4) a hand-written provider with no key entry reads Not needed until a call asks for one.
+**Options:** for each, as built, or its alternative: (1) always Not needed, a key only by hand; (2) save at once with
+the old model, or refuse the choice; (3) allow it anyway; (4) Missing with a field.
+
+**Recommendation.** As built, all four.
+
+**Decision.** All four as built, in the fourth slice (engine feat/engine 2d125a1).
+
+**Owner's words.** "As built (Recommended)", "Hold it (Recommended)", "Not until fixed (Recommended)", "\"Not needed\"
+(Recommended)" (the owner's choices in the question dialog, 2026-11-21).
+
+**Follows from.** PAGES §4.6.2, §4.5; ARCH §11.1, §11.4; O98, O99; S11.4.a; WHY§297.
 

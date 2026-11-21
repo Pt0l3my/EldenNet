@@ -352,7 +352,7 @@ dialog and Related card of GraceUI §4.2.4.
   words on a row that reads Not needed ("This provider takes no key. If it asks for one, its row says so after List
   models."). Health says "Failing: it refused its key" or "Failing: it asks for a key". In game "Key: Refused" and
   "Key: Not needed" are GraceUI's words, and since GraceUI 0.2.11 (D200) the line "Key: set in the browser view." shows
-  only when a row takes a key. The fourth slice's readings are with the owner (WHY§297).
+  only when a row takes a key. The fourth slice's readings were decided as built (O104).
 
 **Models** (`ai.models`; 0.2 read-only, 0.6 writable).
 
