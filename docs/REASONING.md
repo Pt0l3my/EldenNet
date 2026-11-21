@@ -296,6 +296,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 271 | 2026-11-20 | GraceUI's menu kept its copy of a topic only while it watched it, so a static status watched first by the browser would never have reached it | FACT | #graceui #pages |
 | 272 | 2026-11-20 | F11's view lists Augur's events in Augur's own words, en-core's changes kept second, each event's source marked by colour | DECIDED | #engine #augur #overlay #test |
 | 273 | 2026-11-20 | Check an "as the other view does" premise against the code before building to it | FACT | #graceui #pages |
+| 274 | 2026-11-21 | EldenNet's AI pages: keys as GraceUI secret settings, kept with a one-user access list, and what GraceUI 0.2 cannot yet do for them | DECIDED | #engine #pages #security |
+| 275 | 2026-11-21 | Keeping std::filesystem's imports out of eldennet.dll, the handle told the gate when made, and toml++'s output | FACT | #engine |
+| 276 | 2026-11-21 | A key-shaped value in a test and the sweep: allowed by a pattern, since an allow line holding the literal is itself a finding | METHOD | #privsweep #engine |
 
 ## Entries
 
@@ -4674,3 +4677,49 @@ invariant 10, EldenNet ARCH (T3)
   the link. Built to §4.7 in both views (D189).
 - (METHOD) Check a premise about what another view or module does against its code before building to it. EldenNet's
   request 6 of its first pages had carried the same premise.
+
+### 274. EldenNet's AI pages: keys as GraceUI secret settings, kept with a one-user access list, and what GraceUI 0.2 cannot yet do for them
+
+`2026-11-21` · DECIDED · `#engine` `#pages` `#security` · refs: PAGES§4.6.2, PAGES§4.5, ARCH§11.5, ARCH§12.1, O88, GraceUI:D183, engine 80ef2fe
+
+- (DECIDED) Each provider's key is a GraceUI secret setting: write-only, published as its status ("set" or ""),
+  never logged or put in a report. It is held as en-llm's Secret (wiped after use) and written to secrets.toml through
+  `write_private`, whose access list is the current user's alone, as ARCH §11.5 says. PAGES §4.5's "keys are not
+  settings rows" is amended in practice and is to be amended in text: GraceUI 0.2's only write-only input is a secret
+  setting.
+- (DECIDED) eldennet.dll now imports advapi32.dll for that access list, together with the C runtime's thread-support
+  functions from kernel32, all reviewed into `tests/imports.allow` (ARCH §12.1). A key also passes briefly through
+  GraceUI's frame and the poll buffer, which EldenNet cannot wipe: best effort, accepted.
+- (DECIDED) Until GraceUI has a form, a per-row action and a picker fed at run time (asked of GraceUI):
+  - providers come only from the shipped presets, and keys only under a preset provider's name;
+  - Remove is "Remove unused providers", with D183's confirm text;
+  - a custom provider and its key stay in the player's files.
+- (DECIDED) The handle (T7 and T8) is made on the first self-test or model list, not at Ready, until v0.2's dialogue
+  needs it. A hand edit of providers.toml during a session is read at the next start, until T10's hot reload.
+  en-llm's own log lines are not copied into eldennet.log, since a server's text could reach them. The AI pages grey at
+  L1 only: PAGES §4.4 keeps them usable at L2 and when paused, with the cause leading.
+
+### 275. Keeping std::filesystem's imports out of eldennet.dll, the handle told the gate when made, and toml++'s output
+
+`2026-11-21` · FACT · `#engine` · refs: ARCH§12.1, engine 80ef2fe
+
+- (FACT) Linking en-llm into eldennet.dll pulled in std::filesystem's imports through config.cpp's folder loader
+  (CopyFileW, CreateHardLinkW, SetCurrentDirectoryW and more). Moving `load_config_dir` to a file of its own keeps
+  them out, since a static library's object is linked only when named.
+- (FACT) en-llm's handle must be told the core's gate when T6 makes it, not at the next wake: the first self-test from
+  the browser otherwise ended GateClosed at once.
+- (FACT) toml++ 3.4.0 writes strings in single quotes and a table's keys in name order, so a rewritten models.toml
+  comes back sorted.
+- (METHOD) The AI case's fake model server runs in the harness's own process. The invented key is made each run and
+  never stands on a command line. After the case removes its provider, no file, frame, log or report line of the run
+  holds it.
+
+### 276. A key-shaped value in a test and the sweep: allowed by a pattern, since an allow line holding the literal is itself a finding
+
+`2026-11-21` · METHOD · `#privsweep` `#engine` · refs: Skyrizz tools/privsweep/allow.txt, WHY§257
+
+- (FACT) The AI page's test needs a key-shaped value to prove that a key never reaches a topic, log or report. The
+  sweep's secret rule refused the push for that invented value in `src/en-overlay/tests/test_space.cpp`.
+- (METHOD) An allow line in Skyrizz names that one file and matches the value by a pattern, not the literal. A line
+  holding the literal was itself refused by the sweep on Skyrizz's own push, so it was rewritten before the unpushed
+  commit was pushed.
