@@ -57,7 +57,7 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-beca859 (GraceUI 0.2.7, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
+0738fa3 (GraceUI 0.2.8, protocol 1.2, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
 configured. `en_overlay_tests.exe` runs the connection's
 tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines (Augur's
 events and en-core's changes among them), its rings and the world-state claims.
@@ -139,7 +139,7 @@ cmake --build build-cl
   holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (beca859, GraceUI 0.2.7), so the space meets the checks it will meet.
+  third_party/graceui-sys comes from (0738fa3, GraceUI 0.2.8), so the space meets the checks it will meet.
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI: F5's menu and, from Linux, a browser
   of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names; it uses
   that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
@@ -148,16 +148,21 @@ cmake --build build-cl
   `launcher-eldennet-graceui-ai` drives the AI pages against a fake model server of the tests' own
   (`tests/pages/fake_models.py`: OpenAI-compatible, on 127.0.0.1 at a free port, in the harness's own process, with
   invented models and a new invented key each run), which a `models.toml` beside the DLL names for the two cloud
-  presets' providers: the browser adds a provider, sets the key, runs the self-test and the model list, then the menu
-  runs the self-test from its header action, and the browser removes the unused provider; the case then looks for the
-  key in every frame, log line, recording and file of the run, and for a fragment of it in what the menu draws
-  (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`).
+  presets' providers: the browser adds the preset's provider and one of its own through the form (on the fake
+  server's own path), sets the key on each one's row, runs the self-test and the model lists, picks a job's model
+  from what its provider listed and meets EldenNet's refusals in words; then the menu (fixed key presses from frame
+  2520, so the browser's first part must be done by about 44 s) removes the provider of its own from its row, steps
+  Memory's picker and runs the self-test from its header action; then the browser resets both picks, chooses the
+  NanoGPT preset and removes the unused provider. The case then looks for the key in every frame, log line, recording
+  and file of the run, and for a fragment of it in what the menu draws (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the
+  fake game's `shows=` from `FAKEGAME_SHOWS`), which also checks that the menu draws a row's key as Set and the form's
+  line.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
-  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at beca859>` (`tests/pages/lint.py` checks the lint's files against their
+  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 0738fa3>` (`tests/pages/lint.py` checks the lint's files against their
   SHA-256 first); and, in a Linux build, `en_pages_preview` with `-DEN_GRACE_DEV=<grace-dev of a Linux build of GraceUI
-  at beca859>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
+  at 0738fa3>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
   commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.

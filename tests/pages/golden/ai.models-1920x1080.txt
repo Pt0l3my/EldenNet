@@ -59,18 +59,53 @@ text    ink.mute      862, 779  388x25   clip1 glyphs 34 "openrouter  ·  keeper
 line    rule          365, 821 1490x1    clip1
 text    ink.hi        365, 837   84x28   clip1 glyphs 9 "Self-test"
 text    ink.mute      862, 839  675x25   clip1 glyphs 62 "Same as Conversation  ·  Same as Conversation  ·  Same as Conversation  ·  Ready"
-fill    ground.2      340, 916 1540x175  r5 clip1
-stroke  rule          340, 916 1540x175  r5 w1 clip1
-text    gold          365, 936   67x20   clip1 glyphs 7 "Related"
-line    rule          365, 966 1490x1    clip1
-text    ink.hi        365, 971   84x28   clip1 glyphs 9 "Providers"
-text    ink.mute      862, 974  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
-text    gold         1835, 971    9x28   clip1 glyphs 1 "→"
-line    rule          365,1021 1490x1    clip1
-text    ink.hi        365,1026   84x28   clip1 glyphs 9 "Self-test"
-text    ink.mute      862,1029  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
-text    gold         1835,1026    9x28   clip1 glyphs 1 "→"
+fill    ground.2      340, 916 1540x395  r5 clip1
+stroke  rule          340, 916 1540x395  r5 w1 clip1
+text    gold          365, 936  154x20   clip1 glyphs 14 "Each job's model"
+text    ink.faint    1842, 936    8x25   clip1 glyphs 1 "-"
+text    ink.mute      365, 961  844x25   clip1 glyphs 84 "The choices are the models the job's provider listed when you last pressed List models on Providers."
+line    rule          365, 996 1490x1    clip1
+text    ink.hi        365,1012  188x28   clip1 glyphs 19 "Conversation's model"
+fill    ground.well  1505,1009  350x35   r3 clip1
+stroke  edge         1505,1009  350x35   r3 w1 clip1
+text    ink.mute     1518,1014    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1014    8x25   clip1 glyphs 1 "→"
+line    rule          365,1056 1490x1    clip1
+text    ink.hi        365,1072  169x28   clip1 glyphs 16 "Quick lines' model"
+fill    ground.well  1505,1069  350x35   r3 clip1
+stroke  edge         1505,1069  350x35   r3 w1 clip1
+text    ink.mute     1518,1074    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1074    8x25   clip1 glyphs 1 "→"
+line    rule          365,1116 1490x1    clip1
+text    ink.hi        365,1132  197x28   clip1 glyphs 19 "Prepared lines' model"
+fill    ground.well  1505,1129  350x35   r3 clip1
+stroke  edge         1505,1129  350x35   r3 w1 clip1
+text    ink.mute     1518,1134    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1134    8x25   clip1 glyphs 1 "→"
+line    rule          365,1176 1490x1    clip1
+text    ink.hi        365,1192  131x28   clip1 glyphs 13 "Memory's model"
+fill    ground.well  1505,1189  350x35   r3 clip1
+stroke  edge         1505,1189  350x35   r3 w1 clip1
+text    ink.mute     1518,1194    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1194    8x25   clip1 glyphs 1 "→"
+line    rule          365,1236 1490x1    clip1
+text    ink.hi        365,1252  159x28   clip1 glyphs 16 "Self-test's model"
+fill    ground.well  1505,1249  350x35   r3 clip1
+stroke  edge         1505,1249  350x35   r3 w1 clip1
+text    ink.mute     1518,1254    8x25   clip1 glyphs 1 "←"
+text    ink.mute     1834,1254    8x25   clip1 glyphs 1 "→"
+fill    ground.2      340,1331 1540x175  r5 clip1
+stroke  rule          340,1331 1540x175  r5 w1 clip1
+text    gold          365,1351   67x20   clip1 glyphs 7 "Related"
+line    rule          365,1381 1490x1    clip1
+text    ink.hi        365,1386   84x28   clip1 glyphs 9 "Providers"
+text    ink.mute      862,1389  624x25   clip1 glyphs 63 "Where EldenNet's model calls go, with whose key, and whether each answers."
+text    gold         1835,1386    9x28   clip1 glyphs 1 "→"
+line    rule          365,1436 1490x1    clip1
+text    ink.hi        365,1441   84x28   clip1 glyphs 9 "Self-test"
+text    ink.mute      862,1444  489x25   clip1 glyphs 50 "Is the model fast and well-formed enough for conversation?"
+text    gold         1835,1441    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  304x25   glyphs 21 "← →  Choose    R  Reset    Esc  Back"
 stroke  gold.hi      1502, 414  356x44   r5 w3 clip1
-# 74 items, 3952 vertices, 7572 indices, 4 commands; check_draw_list: passes
+# 109 items, 5196 vertices, 10770 indices, 4 commands; check_draw_list: passes

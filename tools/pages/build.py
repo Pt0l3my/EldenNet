@@ -33,12 +33,12 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 1  # the components these pages draw are protocol 1.1's (GraceUI D172)
+PROTOCOL_MINOR = 2  # row actions, row secrets, a form and pickers are protocol 1.2's (GraceUI D192 to D196)
 SPACE_FIELDS = ("id", "name", "settings_schema", "commands")
 PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "tabs",
                "sections")
-SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "third", "label", "help", "synonyms",
-                  "home", "effect", "availability", "locked")
+SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "choices_from", "third", "label",
+                  "help", "synonyms", "home", "effect", "availability", "locked")
 DELIMITER = ")space\""
 
 

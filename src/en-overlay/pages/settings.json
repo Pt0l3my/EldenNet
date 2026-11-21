@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "c4426fd872ff8619"
+    "hash": "bea173ef024c5e8c"
   },
   "settings": [
     {
@@ -105,35 +105,89 @@
       "locked": false
     },
     {
-      "key": "keys.openrouter",
-      "type": "secret",
+      "key": "slots.dialogue.model",
+      "type": "text",
       "default": "",
-      "label": "OpenRouter key",
-      "help": "Your OpenRouter API key, for the providers named openrouter. It is kept on this PC only and never shown again: this row says only whether it is set.",
+      "choices_from": "ai.choices.dialogue",
+      "label": "Conversation's model",
+      "help": "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's model again.",
       "synonyms": [
-        "key",
-        "api key",
-        "openrouter",
-        "token"
+        "model",
+        "conversation",
+        "dialogue",
+        "chat"
       ],
-      "home": "ai.providers",
+      "home": "ai.models",
       "effect": "next_request",
       "availability": "live",
       "locked": false
     },
     {
-      "key": "keys.nanogpt",
-      "type": "secret",
+      "key": "slots.bark_live.model",
+      "type": "text",
       "default": "",
-      "label": "NanoGPT key",
-      "help": "Your NanoGPT API key, for the providers named nanogpt. It is kept on this PC only and never shown again: this row says only whether it is set.",
+      "choices_from": "ai.choices.bark_live",
+      "label": "Quick lines' model",
+      "help": "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's model again.",
       "synonyms": [
-        "key",
-        "api key",
-        "nanogpt",
-        "token"
+        "model",
+        "quick lines",
+        "barks",
+        "call-outs"
       ],
-      "home": "ai.providers",
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_pool.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.bark_pool",
+      "label": "Prepared lines' model",
+      "help": "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's model again.",
+      "synonyms": [
+        "model",
+        "prepared lines",
+        "pool",
+        "batches"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.memory.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.memory",
+      "label": "Memory's model",
+      "help": "The model that writes what characters remember of what happened. Reset it to use the preset's model again.",
+      "synonyms": [
+        "model",
+        "memory",
+        "journal"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.selftest.model",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.selftest",
+      "label": "Self-test's model",
+      "help": "The model the self-test measures. Reset it to use the preset's model again.",
+      "synonyms": [
+        "model",
+        "self-test",
+        "test"
+      ],
+      "home": "ai.models",
       "effect": "next_request",
       "availability": "live",
       "locked": false

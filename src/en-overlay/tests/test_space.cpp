@@ -5,6 +5,7 @@
 // topics.json, which grace-dev previews (tests/pages; EN_UPDATE_FIXTURES=1 writes them anew).
 #include <doctest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -25,8 +26,8 @@ namespace {
 SpaceFacts base() {
   SpaceFacts f;
   f.version = {0, 1, 0};
-  f.graceui = GRACEUI_VERSION_PACK(0, 2, 3);
-  f.floor = {0, 2, 3};
+  f.graceui = GRACEUI_VERSION_PACK(0, 2, 8);  // the GraceUI vendored (third_party/graceui-sys)
+  f.floor = {0, 2, 8};
   f.build_known = true;
   f.build = {3, 14, 15, 0};
   f.build_supported = true;
@@ -103,29 +104,32 @@ AiFacts ai_ready() {
   p.flavor = AiFlavor::OpenAI;
   p.base_url = "https://router.example.invalid/api/v1";
   p.key = AiKey::Set;
+  p.key_place = AiKeyPlace::Secrets;
+  p.key_name = "openrouter";
   p.concurrency = 2;
   p.json = AiJson::Schema;
   p.answered_ms = 700'000;
   p.slots = {en::proto::kDialogue, en::proto::kBarkLive, en::proto::kBarkPool, en::proto::kMemory,
              en::proto::kSelftest};
   ai.providers.push_back(p);
+  // As the DLL fills them: a slot that borrows another's models has that slot's provider and models too.
   auto slot = [](std::string_view name, std::string model, std::string fallback, std::string_view same) {
     AiSlot s;
     s.slot = name;
-    if (same.empty()) {
-      s.provider = "openrouter";
-      s.model = std::move(model);
-      if (!fallback.empty()) {
-        s.fallback_provider = "openrouter";
-        s.fallback = std::move(fallback);
-      }
+    s.provider = "openrouter";
+    s.model = std::move(model);
+    if (!fallback.empty()) {
+      s.fallback_provider = "openrouter";
+      s.fallback = std::move(fallback);
     }
     s.same_as = same;
     return s;
   };
   ai.slots = {slot(en::proto::kDialogue, "talker-small", "talker-large", ""),
               slot(en::proto::kBarkLive, "talker-small", "", ""), slot(en::proto::kBarkPool, "pool-flash", "", ""),
-              slot(en::proto::kMemory, "keeper-large", "", ""), slot(en::proto::kSelftest, "", "", en::proto::kDialogue)};
+              slot(en::proto::kMemory, "keeper-large", "", ""),
+              slot(en::proto::kSelftest, "talker-small", "talker-large", en::proto::kDialogue)};
+  ai.revision = 3;
   ai.unused = {};
   ai.listed = true;
   AiList l;
@@ -133,6 +137,9 @@ AiFacts ai_ready() {
   l.state = AiStep::Passed;
   l.listed = 214;
   ai.lists = {l};
+  // What the provider listed (invented ids; one shaped like a local server's model file, which no picker shows).
+  ai.models = {AiModels{"openrouter", {"talker-small", "talker-large", "pool-flash", "keeper-large", "keeper-small",
+                                        "C:\\Users\\someone\\models\\invented.gguf"}}};
   AiSelfTest& st = ai.selftest;
   st.ran = true;
   st.at_ms = 690'000;
@@ -200,7 +207,7 @@ void feed(Space& s, std::string_view state) {
     s.log_line("banner reason=unknown_build detail=unknown_build", 1210);
     return;
   }
-  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3", 1830);
+  s.log_line("connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8", 1830);
   if (state == "starting") return;
   s.log_line("init state=ready", 6120);
   s.log_line("change what=phase to=title", 6140);
@@ -224,7 +231,10 @@ SpaceFacts facts_of(std::string_view state) {
   return f;
 }
 
-const char* const kAiTopics[] = {"ai.status", "providers", "health", "ai.slots", "selftest", "space.state"};
+const char* const kAiTopics[] = {"ai.status",           "providers",           "health",
+                                 "ai.slots",            "selftest",            "space.state",
+                                 "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool",
+                                 "ai.choices.memory",   "ai.choices.selftest"};
 
 json frame(const std::string& text) { return json::parse(text); }
 
@@ -292,15 +302,65 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     }
   }
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
-                                          "providers.add", "providers.remove"}));
+                                          "providers.add", "providers.remove", "providers.key"}));
+  CHECK(pages["minor"] == 2);  // row actions, a row secret, a form and pickers: protocol 1.2's (GraceUI D196)
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
-  // not GraceUI's reserved one, and every destructive action has its confirmation's text (Remove unused providers).
+  // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");
   for (const json& t : pages["topics"]) CHECK(t["id"] != "pages");
+  int row_actions = 0;
+  int forms = 0;
   for (const json& p : pages["pages"]) {
     for (const json& a : p.value("actions", json::array())) {
       if (a["tone"] == "destructive") CHECK_FALSE(a.value("confirm", std::string()).empty());
     }
+    for (const json& sec : p.value("sections", json::array())) {
+      for (const json& b : sec["blocks"]) {
+        for (const json& a : b.value("row_actions", json::array())) {
+          ++row_actions;
+          CHECK(a["command"] == "providers.remove");
+          CHECK(a["tone"] == "destructive");
+          CHECK_FALSE(a.value("confirm", std::string()).empty());
+        }
+        if (b.contains("row_secret")) CHECK(b["row_secret"] == json{{"column", "key"}, {"command", "providers.key"},
+                                                                    {"key", "id"}});
+        if (b["kind"] == "form") {
+          ++forms;
+          CHECK(b["command"] == "providers.add");
+        }
+      }
+    }
+  }
+  CHECK(row_actions == 1);
+  CHECK(forms == 1);
+  // Home's and System's blocks on GraceUI 0.2.7's props (D185 to D187): one topic for System › Status, its own words
+  // for an empty list, the log newest first.
+  std::vector<std::string> topics;
+  for (const json& t : pages["topics"]) topics.push_back(t["id"].get<std::string>());
+  CHECK(std::find(topics.begin(), topics.end(), "system.compatibility") == topics.end());
+  const auto block_of = [&](std::string_view page, std::string_view section) {
+    for (const json& p : pages["pages"]) {
+      if (p["id"].get<std::string>() != page) continue;
+      std::vector<json> all = p.value("sections", json::array());
+      for (const json& tab : p.value("tabs", json::array())) {
+        for (const json& sec : tab["sections"]) all.push_back(sec);
+      }
+      for (const json& sec : all) {
+        if (sec["id"].get<std::string>() == section) return sec["blocks"][0];
+      }
+    }
+    return json();
+  };
+  CHECK(block_of("home", "problems")["props"]["empty"] == "No problems.");
+  CHECK(block_of("system.logs", "log")["props"]["newest_first"] == true);
+  CHECK(block_of("system.status", "versions")["props"]["field"] == "compatibility");
+  CHECK(block_of("system.status", "versions")["topic"] == "system.status");
+  // Each job's model row is a picker on a topic of the space's own (D193).
+  for (const json& s : settings["settings"]) {
+    if (s["key"].get<std::string>().rfind("slots.", 0) != 0) continue;
+    CHECK(s["type"] == "text");
+    CHECK(s["choices_from"].get<std::string>().rfind("ai.choices.", 0) == 0);
+    CHECK(s["home"] == "ai.models");
   }
   // The settings topic sends the description and schema as registered, and no other.
   const json body = s.settings_body();
@@ -311,15 +371,22 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
 TEST_CASE("space: settings start at their defaults; settings.set validated at its one entry point") {
   Space s;
   REQUIRE(s.valid());
-  CHECK(s.values() == json{{"debug.panel", false}, {"debug.record_sessions", false}, {"debug.log_level", "info"},
-                           {"ai.preset", "cloud-budget"}, {"keys.openrouter", ""}, {"keys.nanogpt", ""}});
+  CHECK(s.values() == json{{"debug.panel", false},
+                           {"debug.record_sessions", false},
+                           {"debug.log_level", "info"},
+                           {"ai.preset", "cloud-budget"},
+                           {"slots.dialogue.model", ""},
+                           {"slots.bark_live.model", ""},
+                           {"slots.bark_pool.model", ""},
+                           {"slots.memory.model", ""},
+                           {"slots.selftest.model", ""}});
   s.set_value("debug.panel", true);  // as settings.toml had it at the start
   s.set_value("debug.unknown", 3);   // not one it describes: ignored
-  CHECK(s.values().size() == 6);
+  CHECK(s.values().size() == 9);
   json body = s.settings_body();
   CHECK(body["values"]["debug.panel"] == true);
   CHECK(body["changed"] == json::array({"debug.panel"}));
-  CHECK(body["description"].size() == 6);
+  CHECK(body["description"].size() == 9);
   CHECK(body["schema"]["number"] == 2);
 
   const SpaceFacts f = title();
@@ -536,11 +603,14 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   for (const json& c : s.body("system.status", title())["checks"]) CHECK(c["label"] != "Recording");
   CHECK(s.body("errors", title())["checks"].empty());
   CHECK(s.body("system.status", world())["rows"].size() == en::proto::kGroupCount);
+  // The Compatibility tab reads the same topic's `compatibility` member (GraceUI D185).
+  const json compatibility = s.body("system.status", title())["compatibility"]["checks"];
+  REQUIRE(compatibility.size() == 3);
+  CHECK(compatibility[0]["label"] == "Game build 3.14.15.0");
+  CHECK(compatibility[2]["detail"] == "EldenNet needs GraceUI 0.2.8 or later");
 
   for (const char* state : kStates) {
-    for (const char* topic : {"status", "errors", "system.status", "system.compatibility"}) {
-      CHECK(clean(s.body(topic, facts_of(state))));
-    }
+    for (const char* topic : {"status", "errors", "system.status"}) CHECK(clean(s.body(topic, facts_of(state))));
   }
 }
 
@@ -565,16 +635,26 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(row["kind"] == "Cloud");
   CHECK(row["type"] == "OpenAI-compatible");
   CHECK(row["address"] == "https://router.example.invalid/api/v1");  // on this page alone (PV2)
-  CHECK(row["key"] == "Set");
+  CHECK(row["key"] == "set");  // the row's secret (GraceUI D194): its status alone
   CHECK(row["requests"] == "2");
   CHECK(row["json"] == "JSON schema");
   REQUIRE(providers["checks"].size() == 1);
   CHECK(providers["checks"][0]["state"] == "pass");
   CHECK(providers["checks"][0]["detail"] == "Lists 214 models, every job's model among them.");
-  for (const char* topic : {"ai.status", "health", "ai.slots", "selftest"}) {
+  for (const char* topic : {"ai.status", "health", "ai.slots", "selftest", "ai.choices.dialogue", "ai.choices.memory"}) {
     CHECK_FALSE(holds(s.body(topic, f), "example.invalid"));
     CHECK_FALSE(holds(s.body(topic, f), "://"));
   }
+  // A job's picker: what its provider listed, in its order, with nothing shaped like a path (PV5); a job that borrows
+  // another's models picks from the same provider's list.
+  const json choices = s.body("ai.choices.memory", f)["choices"];
+  REQUIRE(choices.size() == 5);
+  CHECK(choices[0] == json{{"value", "talker-small"}, {"label", "talker-small"}});
+  CHECK(choices[4]["value"] == "keeper-small");
+  CHECK_FALSE(holds(choices, "Users"));
+  CHECK(s.body("ai.choices.selftest", f)["choices"].size() == 5);
+  CHECK(s.body("ai.choices.dialogue", facts_of("starting")) == json{{"choices", json::array()}});  // nothing listed
+  CHECK(s.body("ai.choices.dialogue", title()) == json{{"choices", json::array()}});
   CHECK(s.body("ai.status", f)["sentence"].get<std::string>().find("only observes in this version") !=
         std::string::npos);
   const json slots = s.body("ai.slots", f);
@@ -600,11 +680,12 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   // GraceUI's space.state (D188): nothing greyed but at L1, where the AI pages carry the banner's words.
   CHECK(s.body("space.state", f) == json{{"greyed", json::object()}});
   const json greyed = s.body("space.state", facts_of("banner"))["greyed"];
-  CHECK(greyed.size() == 3);
+  CHECK(greyed.size() == 4);  // Home and AI (PAGES §4.4): System and Settings stay usable
   CHECK(greyed["ai.selftest"] == "EldenNet inactive: game build 3.14.15.0 not supported yet");
+  CHECK(greyed["home"] == greyed["ai.selftest"]);
   CHECK(greyed.contains("ai.providers"));
-  CHECK_FALSE(greyed.contains("home"));
   CHECK_FALSE(greyed.contains("system.status"));
+  CHECK_FALSE(greyed.contains("settings.developer"));
   SpaceFacts long_banner = facts_of("banner");
   const std::string words(300, 'w');
   long_banner.stop_text = words;
@@ -616,7 +697,9 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(s.body("ai.status", facts_of("multiplayer"))["sentence"] ==
         "Model calls wait while you play with others online.");
   CHECK(s.body("ai.status", facts_of("starting"))["sentence"].get<std::string>().rfind("No provider yet", 0) == 0);
-  CHECK(s.body("ai.status", facts_of("banner"))["sentence"].get<std::string>().rfind("EldenNet is inactive", 0) == 0);
+  // At L1 the lead takes the banner's own words, the greyed page's one form (O95).
+  CHECK(s.body("ai.status", facts_of("banner"))["sentence"] ==
+        "EldenNet inactive: game build 3.14.15.0 not supported yet");
   // Absence is silent: no table rows for providers there are not, no self-test before one runs, nothing without facts.
   CHECK(s.body("providers", facts_of("starting"))["rows"].empty());
   CHECK(s.body("selftest", facts_of("starting")).empty());
@@ -629,10 +712,11 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   missing.providers[0].key = AiKey::Missing;
   SpaceFacts m = title();
   m.ai = &missing;
-  CHECK(s.body("ai.status", m)["sentence"] == "openrouter has no key yet: paste it under Keys on Providers.");
+  CHECK(s.body("ai.status", m)["sentence"] == "openrouter has no key yet: paste it on its row on Providers.");
+  CHECK(s.body("providers", m)["rows"][0]["key"] == "");
   missing.providers[0].key = AiKey::Rejected;
-  CHECK(s.body("providers", m)["rows"][0]["key"] == "Rejected");
-  CHECK(s.body("ai.status", m)["sentence"] == "openrouter refused its key: paste it again under Keys on Providers.");
+  CHECK(s.body("providers", m)["rows"][0]["key"] == "set");  // kept, though refused: Health and the lead say so
+  CHECK(s.body("ai.status", m)["sentence"] == "openrouter refused its key: paste it again on its row on Providers.");
   // A list that missed a job's model, and a self-test that could not run its steps.
   missing.lists[0].state = AiStep::Failed;
   missing.lists[0].missing = {en::proto::kDialogue, en::proto::kMemory};
@@ -652,6 +736,62 @@ TEST_CASE("space: the AI pages' topics: projections only, the address on Provide
   CHECK(s.body("selftest", m)["sentence"] == "The self-test is running: it takes a few seconds.");
 }
 
+namespace {
+
+AiRequest request(AiRequest::Kind kind, std::string id = {}) {
+  AiRequest r;
+  r.kind = kind;
+  r.id = std::move(id);
+  return r;
+}
+
+}  // namespace
+
+TEST_CASE("space: a refused providers file says why on System › Status and Home, by its line, never its text") {
+  const Space s;
+  AiFacts ai = ai_ready();
+  ai.files = AiFiles::Refused;
+  ai.refusal = AiRefusal::PlainKey;
+  ai.refusal_line = 7;
+  SpaceFacts f = title();
+  f.ai = &ai;
+  const auto part = [&]() {
+    const json body = s.body("system.status", f);  // bound first: a member of a temporary dangles (WHY§269)
+    for (const json& c : body["checks"]) {
+      if (c["label"] == "The providers file") return c;
+    }
+    return json();
+  };
+  REQUIRE(part().is_object());
+  CHECK(part()["state"] == "fail");
+  CHECK(part()["detail"] == "A provider with a key uses http:// to another computer, where its key would cross the "
+                            "network unencrypted: use https://, or remove its key. Correct providers.toml at line 7, "
+                            "then start the game again.");
+  const json problems = s.body("errors", f)["checks"];
+  REQUIRE(problems.size() == 1);
+  CHECK(problems[0]["label"] == "Your providers file has a problem, so EldenNet calls no model.");
+  CHECK(problems[0]["detail"] == part()["detail"]);
+  CHECK(s.body("ai.status", f)["sentence"] ==
+        "Your providers file has a problem, so EldenNet calls no model: System › Status says what.");
+  const std::pair<AiRefusal, const char*> words[] = {
+      {AiRefusal::Scheme, "starts with neither https:// nor http://"},
+      {AiRefusal::Credentials, "holds a name or password"},
+      {AiRefusal::QueryOrFragment, "has a ? or # in it"},
+      {AiRefusal::PlainPublic, "neither this PC nor a private address"},
+      {AiRefusal::PlainCloud, "A cloud provider's base_url uses http://"},
+      {AiRefusal::Other, "something EldenNet cannot use"}};
+  for (const auto& [refusal, said] : words) {
+    ai.refusal = refusal;
+    CHECK(part()["detail"].get<std::string>().find(said) != std::string::npos);
+  }
+  ai.refusal_line = 0;
+  CHECK(part()["detail"].get<std::string>().find("Correct providers.toml, then") != std::string::npos);
+  // A file read: nothing to say.
+  ai.files = AiFiles::Ready;
+  CHECK_FALSE(part().is_object());
+  CHECK(s.body("errors", f)["checks"].empty());
+}
+
 TEST_CASE("space: the AI pages' commands, each answered at once; the long ones handed to the DLL") {
   Space s;
   AiFacts ai = ai_ready();
@@ -660,9 +800,10 @@ TEST_CASE("space: the AI pages' commands, each answered at once; the long ones h
   const auto answer_of = [&](std::string_view name, const json& args = json::object()) {
     return frame(s.command(cmd(args, name), f));
   };
+  using K = AiRequest::Kind;
   CHECK(answer_of("selftest.run")["ok"] == true);
   CHECK(answer_of("models.list")["ok"] == true);
-  CHECK(s.take_requests() == std::vector<AiRequest>{AiRequest::SelfTest, AiRequest::ListModels});
+  CHECK(s.take_requests() == std::vector<AiRequest>{request(K::SelfTest), request(K::ListModels)});
   ai.selftest.running = true;
   CHECK(answer_of("selftest.run")["error"] == "busy");
   CHECK(answer_of("models.list")["error"] == "not_now");
@@ -680,10 +821,10 @@ TEST_CASE("space: the AI pages' commands, each answered at once; the long ones h
   CHECK(answer_of("models.list")["detail"].get<std::string>().find("providers file") != std::string::npos);
   CHECK(s.take_requests().empty());
 
-  // Add provider: the chosen preset's providers that providers.toml lacks.
+  // The header's Add the preset's provider: the chosen preset's providers that providers.toml lacks.
   ai = ai_first_run();
   CHECK(answer_of("providers.add")["ok"] == true);
-  CHECK(s.take_requests() == std::vector<AiRequest>{AiRequest::AddProviders});
+  CHECK(s.take_requests() == std::vector<AiRequest>{request(K::AddPreset)});
   ai.preset_missing.clear();
   CHECK(answer_of("providers.add")["detail"] == "Your providers already include every one this preset uses.");
   ai.preset_needs_probe = true;
@@ -692,69 +833,239 @@ TEST_CASE("space: the AI pages' commands, each answered at once; the long ones h
   ai.preset_needs_probe = false;
   CHECK(answer_of("providers.add")["detail"].get<std::string>().rfind("Custom keeps your providers file", 0) == 0);
 
-  // Remove unused providers: destructive, so confirmed (D173, D183).
+  // Remove on a provider's row: destructive, so confirmed (D173, D192); never one a job uses, and the answer says why.
   ai = ai_ready();
-  CHECK(answer_of("providers.remove")["error"] == "confirm_required");
-  CHECK(answer_of("providers.remove", {{"confirm", true}})["error"] == "not_now");  // every one in use
+  CHECK(answer_of("providers.remove", {{"id", "openrouter"}})["error"] == "confirm_required");
+  CHECK(answer_of("providers.remove", {{"id", "openrouter"}, {"confirm", "yes"}})["error"] == "confirm_required");
+  json r = answer_of("providers.remove", {{"id", "openrouter"}, {"confirm", true}});
+  CHECK(r["error"] == "not_now");
+  CHECK(r["detail"] == "Conversation, Quick lines, Prepared lines, Memory and Self-test use it: on Models, choose another "
+                       "preset, or reset a job's model to the preset's.");
+  CHECK(answer_of("providers.remove", {{"id", "nobody"}, {"confirm", true}})["error"] == "invalid_value");
+  CHECK(answer_of("providers.remove", {{"confirm", true}})["error"] == "invalid_value");
+  AiProvider spare;
+  spare.id = "spare";
+  spare.base_url = "https://spare.example.invalid/v1";
+  ai.providers.push_back(spare);
   ai.unused = {"spare"};
-  CHECK(answer_of("providers.remove", {{"confirm", true}})["ok"] == true);
-  CHECK(s.take_requests() == std::vector<AiRequest>{AiRequest::RemoveUnused});
+  CHECK(answer_of("providers.remove", {{"id", "spare"}, {"confirm", true}})["ok"] == true);
+  CHECK(s.take_requests() == std::vector<AiRequest>{request(K::Remove, "spare")});
+  ai.listing = true;
+  CHECK(answer_of("providers.remove", {{"id", "spare"}, {"confirm", true}})["error"] == "not_now");
+  ai.listing = false;
+  // A provider one job uses names it alone.
+  ai.unused.clear();
+  ai.providers[1].slots = {en::proto::kMemory};
+  CHECK(answer_of("providers.remove", {{"id", "spare"}, {"confirm", true}})["detail"].get<std::string>().rfind(
+            "Memory uses it:", 0) == 0);
 
-  // While EldenNet starts or is inactive, nothing.
+  // While EldenNet starts or is inactive, nothing; inactive, the banner's own words.
   f.level = Level::Inactive;
-  CHECK(answer_of("selftest.run")["error"] == "not_now");
+  f.stop_text = "EldenNet inactive: an invented reason";
+  CHECK(answer_of("selftest.run")["detail"] == "EldenNet inactive: an invented reason");
   f.ai = nullptr;
   f.level = Level::Observing;
   CHECK(answer_of("providers.add")["error"] == "not_now");
   CHECK(s.take_requests().empty());
+
+  // An argument of the wrong type is refused, and changes nothing.
+  f.ai = &ai;
+  CHECK(answer_of("settings.set", {{"key", 3}, {"value", "x"}})["error"] == "invalid_value");
+  CHECK(answer_of("providers.key", {{"id", 3}, {"value", 4}})["error"] == "invalid_value");
+  CHECK(s.take_requests().empty());
+  CHECK(s.take_changes().empty());
 }
 
-TEST_CASE("space: the preset and the keys through settings.set; a key's value only in the change, never published") {
+TEST_CASE("space: a provider of one's own from the form: its name and base URL checked here, refusals in words") {
+  Space s;
+  AiFacts ai = ai_ready();
+  SpaceFacts f = title();
+  f.ai = &ai;
+  const auto add = [&](const json& name, const json& url) {
+    return frame(s.command(cmd({{"name", name}, {"base_url", url}}, "providers.add"), f));
+  };
+  json r = add("lantern-box", " http://127.0.0.1:1234/v1/ ");
+  CHECK(r["ok"] == true);
+  std::vector<AiRequest> taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK(taken[0].kind == AiRequest::Kind::AddOwn);
+  CHECK(taken[0].id == "lantern-box");
+  CHECK(taken[0].base_url == "http://127.0.0.1:1234/v1");
+  CHECK(taken[0].local);
+  r = add("far.cloud", "https://models.example.invalid/api/v1");
+  CHECK(r["ok"] == true);
+  taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK_FALSE(taken[0].local);
+  // A server on another PC of the home network, by its private address (O98 (a)): a local one, which takes no key.
+  // The IPv4 one is built from its numbers, so that no file holds a home network's address as text (the sweep).
+  CHECK(add("other-pc", "http://[fd00::20]:1234/v1")["ok"] == true);
+  const std::string home_v4 = "http://" + std::to_string(192) + "." + std::to_string(168) + ".1.20:1234/v1";
+  CHECK(add("other-pc-2", home_v4)["ok"] == true);
+  taken = s.take_requests();
+  REQUIRE(taken.size() == 2);
+  CHECK(taken[0].local);
+  CHECK(taken[0].base_url == "http://[fd00::20]:1234/v1");
+  CHECK(taken[1].local);
+
+  const auto refusal = [&](const json& name, const json& url) {
+    const json a = add(name, url);
+    CHECK(a["error"] == "invalid_value");
+    return a.value("detail", std::string());
+  };
+  CHECK(refusal("", "https://models.example.invalid/v1") == "Give the provider a name.");
+  CHECK(refusal("two words", "https://models.example.invalid/v1").rfind("A provider's name is up to 32", 0) == 0);
+  CHECK(refusal(std::string(33, 'a'), "https://models.example.invalid/v1").rfind("A provider's name", 0) == 0);
+  CHECK(refusal("OpenRouter", "https://models.example.invalid/v1") ==
+        "A provider is already called that: choose another name.");
+  ai.keys_set = {"openrouter", "spare-key"};
+  CHECK(refusal("Spare-Key", "https://models.example.invalid/v1") ==
+        "A key is already kept under that name: choose another name.");
+  CHECK(refusal("box", "") == "Give the provider's base URL, such as https://api.example.com/v1.");
+  CHECK(refusal("box", "ftp://models.example.invalid/v1").rfind("A base URL starts with https://", 0) == 0);
+  CHECK(refusal("box", "https://someone:secret@models.example.invalid/v1").rfind("A base URL holds no name", 0) == 0);
+  CHECK(refusal("box", "https://models.example.invalid/v1?key=1") ==
+        "A base URL ends at its path, with no ? or # after it.");
+  CHECK(refusal("box", "https://models.example.invalid:99999/v1").find("port") != std::string::npos);
+  CHECK(refusal("box", "https://models example/v1").find("character") != std::string::npos);
+  CHECK(refusal("box", "http://192.0.2.7:1234/v1") ==
+        "http:// goes only to this PC, or to another PC of your home network by its private address, not its name: "
+        "give this server's https:// address.");
+  CHECK(refusal("box", "http://storeroom.invalid:1234/v1").rfind("http:// goes only to this PC", 0) == 0);  // a name
+  CHECK(refusal("box", "http://127.example.invalid/v1").rfind("http:// goes only to this PC", 0) == 0);
+  CHECK(refusal("box", 12).rfind("Give the provider's base URL", 0) == 0);
+  CHECK(refusal(12, "https://models.example.invalid/v1") == "Give the provider a name.");
+  CHECK(s.take_requests().empty());
+  // No typed name or address reaches a note (the log): only the command and its result.
+  for (const SpaceNote& n : s.take_notes()) {
+    CHECK(n.key.empty());
+    CHECK(n.result.find("example") == std::string::npos);
+  }
+  // While a run goes on, not now.
+  ai.selftest.running = true;
+  CHECK(add("box", "https://models.example.invalid/v1")["error"] == "not_now");
+}
+
+TEST_CASE("space: a key on a provider's row: write-only, never echoed, never published; where no key may go, words") {
   Space s;
   AiFacts ai = ai_ready();
   SpaceFacts f = title();
   f.ai = &ai;
   const std::string key = "sk-invented-0123456789abcdef";
-  json r = frame(s.command(cmd({{"key", "keys.openrouter"}, {"value", "  " + key + "\n"}}), f));
+  const auto put = [&](const std::string& id, const json& value) {
+    return frame(s.command(cmd({{"id", id}, {"value", value}}, "providers.key"), f));
+  };
+  json r = put("openrouter", "  " + key + "\n");
   CHECK(r["ok"] == true);
-  CHECK(s.values()["keys.openrouter"] == "set");
-  std::vector<Space::Change> changes = s.take_changes();
-  REQUIRE(changes.size() == 1);
-  CHECK(changes[0].key == "keys.openrouter");
-  CHECK(changes[0].value.get<std::string>().find(key) != std::string::npos);  // for the DLL to store
-  // A key with a space inside is no key.
-  r = frame(s.command(cmd({{"key", "keys.nanogpt"}, {"value", "two words"}}), f));
+  CHECK_FALSE(r.contains("body"));
+  std::vector<AiRequest> taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK(taken[0].kind == AiRequest::Kind::SetKey);
+  CHECK(taken[0].id == "openrouter");
+  CHECK(taken[0].key == key);  // for the DLL to store and overwrite, never to publish
+  // Cleared with an empty value.
+  CHECK(put("openrouter", "")["ok"] == true);
+  CHECK(s.take_requests() == std::vector<AiRequest>{request(AiRequest::Kind::ClearKey, "openrouter")});
+  // Refused, in words that never echo it.
+  r = put("openrouter", "two words");
   CHECK(r["error"] == "invalid_value");
   CHECK(r["detail"].get<std::string>().find("two words") == std::string::npos);
-  // Cleared: a reset of the key (Clear key) changes it to empty.
-  CHECK(frame(s.command(cmd({{"scope", "key"}, {"target", "keys.openrouter"}}, "settings.reset"), f))["ok"] == true);
-  CHECK(s.values()["keys.openrouter"] == "");
-  changes = s.take_changes();
-  REQUIRE(changes.size() == 1);
-  CHECK(changes[0].value == "");
-  // The preset: one of models.toml's, or custom.
-  CHECK(frame(s.command(cmd({{"key", "ai.preset"}, {"value", "cloud-nanogpt"}}), f))["ok"] == true);
-  CHECK(frame(s.command(cmd({{"key", "ai.preset"}, {"value", "custom"}}), f))["ok"] == true);
-  CHECK(frame(s.command(cmd({{"key", "ai.preset"}, {"value", "local-12gb"}}), f))["error"] == "invalid_value");
-  ai.presets = {"cloud-budget"};
-  CHECK(frame(s.command(cmd({{"key", "ai.preset"}, {"value", "cloud-nanogpt"}}), f))["error"] == "not_now");
-  CHECK(s.take_changes().size() == 2);
-  // A refused settings.toml does not hold them; a refused providers.toml does.
-  f.settings_refused = true;
-  CHECK(frame(s.command(cmd({{"key", "keys.openrouter"}, {"value", key}}), f))["ok"] == true);
+  CHECK(put("openrouter", std::string(1025, 'k'))["error"] == "invalid_value");
+  CHECK(put("nobody", key)["error"] == "invalid_value");
+  CHECK(put("openrouter", 5)["error"] == "invalid_value");
+  // Never to an address a key would reach in clear text, nor where the file keeps it in the environment.
+  ai.providers[0].plain = true;
+  r = put("openrouter", key);
+  CHECK(r["error"] == "not_now");
+  CHECK(r["detail"].get<std::string>().find("no key") != std::string::npos);
+  ai.providers[0].plain = false;
+  ai.providers[0].key_place = AiKeyPlace::Env;
+  CHECK(put("openrouter", key)["detail"].get<std::string>().find("environment variable") != std::string::npos);
+  // A provider with no key's place yet (a server of one's own on this PC) takes one; clearing none is no request.
+  ai.providers[0].key_place = AiKeyPlace::None;
+  CHECK(put("openrouter", key)["ok"] == true);
+  CHECK(put("openrouter", "")["ok"] == true);
+  taken = s.take_requests();
+  REQUIRE(taken.size() == 1);
+  CHECK(taken[0].kind == AiRequest::Kind::SetKey);
   ai.files = AiFiles::Refused;
-  CHECK(frame(s.command(cmd({{"key", "keys.openrouter"}, {"value", key}}), f))["error"] == "not_now");
+  CHECK(put("openrouter", key)["error"] == "not_now");
   // The key is in no frame published, no answer, no note.
   std::vector<std::string> frames;
   s.watched(sub("settings"));
   for (const char* topic : kAiTopics) s.watched(sub(topic));
+  ai.files = AiFiles::Ready;
   s.collect(f, 1000, frames);
-  CHECK(frames.size() == 7);
+  CHECK(frames.size() == 12);
   for (const std::string& text : frames) CHECK(text.find(key) == std::string::npos);
   for (const SpaceNote& n : s.take_notes()) {
     CHECK(n.key.find(key) == std::string::npos);
     CHECK(n.result.find(key) == std::string::npos);
   }
+}
+
+TEST_CASE("space: the preset and each job's model through settings.set: a model only from what its provider lists") {
+  Space s;
+  AiFacts ai = ai_ready();
+  SpaceFacts f = title();
+  f.ai = &ai;
+  // The model rows follow the facts: each job's model now.
+  std::vector<std::string> frames;
+  s.collect(f, 0, frames);
+  CHECK(s.values()["slots.dialogue.model"] == "talker-small");
+  CHECK(s.values()["slots.memory.model"] == "keeper-large");
+  CHECK(s.values()["slots.selftest.model"] == "talker-small");  // borrowed from Conversation
+  const auto set = [&](const std::string& key, const json& value) {
+    return frame(s.command(cmd({{"key", key}, {"value", value}}), f));
+  };
+  json r = set("slots.memory.model", "keeper-small");
+  CHECK(r["ok"] == true);
+  std::vector<Space::Change> changes = s.take_changes();
+  REQUIRE(changes.size() == 1);
+  CHECK(changes[0].key == "slots.memory.model");
+  CHECK(changes[0].value == "keeper-small");
+  CHECK(s.values()["slots.memory.model"] == "keeper-small");
+  // Not one it listed, or shaped like a path, or nothing: refused, in words.
+  r = set("slots.memory.model", "invented-elsewhere");
+  CHECK(r["error"] == "invalid_value");
+  CHECK(r["detail"] == "openrouter does not list that model: press List models on Providers again.");
+  CHECK(set("slots.memory.model", "C:\\Users\\someone\\models\\invented.gguf")["error"] == "invalid_value");
+  CHECK(set("slots.memory.model", "")["error"] == "invalid_value");
+  CHECK(set("slots.memory.model", 4)["error"] == "invalid_value");
+  // Before a list has answered, not now.
+  ai.models.clear();
+  CHECK(set("slots.dialogue.model", "talker-large")["detail"].get<std::string>().rfind("Press List models", 0) == 0);
+  ai = ai_ready();
+  ai.slots[1].provider.clear();
+  CHECK(set("slots.bark_live.model", "talker-large")["detail"].get<std::string>().rfind("Quick lines has no provider", 0) ==
+        0);
+  CHECK(s.take_changes().empty());
+  // A reset: the preset's model again (the DLL clears the job's [slots.*]).
+  ai = ai_ready();
+  CHECK(frame(s.command(cmd({{"scope", "key"}, {"target", "slots.memory.model"}}, "settings.reset"), f))["ok"] == true);
+  changes = s.take_changes();
+  REQUIRE(changes.size() == 1);
+  CHECK(changes[0].value == "");
+  // Once the DLL takes the edited configuration (its revision), the rows follow it again.
+  ai.revision = 4;
+  ai.slots[3].model = "keeper-large";
+  s.collect(f, 10, frames);
+  CHECK(s.values()["slots.memory.model"] == "keeper-large");
+  // A refused settings.toml does not hold them; a refused providers.toml does.
+  f.settings_refused = true;
+  CHECK(set("slots.memory.model", "keeper-small")["ok"] == true);
+  ai.files = AiFiles::Refused;
+  CHECK(set("slots.memory.model", "talker-small")["error"] == "not_now");
+  CHECK(frame(s.command(cmd({{"scope", "key"}, {"target", "slots.memory.model"}}, "settings.reset"), f))["error"] ==
+        "not_now");
+  ai.files = AiFiles::Ready;
+  // The preset: one of models.toml's, or custom.
+  CHECK(set("ai.preset", "cloud-nanogpt")["ok"] == true);
+  CHECK(set("ai.preset", "custom")["ok"] == true);
+  CHECK(set("ai.preset", "local-12gb")["error"] == "invalid_value");
+  ai.presets = {"cloud-budget"};
+  CHECK(set("ai.preset", "cloud-nanogpt")["error"] == "not_now");
+  CHECK(s.take_changes().size() == 3);
 }
 
 TEST_CASE("space: the log's rows are scrubbed of a SteamID64's shape; the clock") {
@@ -779,9 +1090,7 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     feed(s, state);
     const SpaceFacts f = facts_of(state);
     json topics = json::object();
-    for (const char* topic : {"status", "errors", "system.status", "system.compatibility"}) {
-      topics[topic] = s.body(topic, f);
-    }
+    for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
     topics["logs"] = s.log_rows();
     const std::string text = topics.dump(2) + "\n";

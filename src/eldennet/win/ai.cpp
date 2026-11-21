@@ -19,6 +19,7 @@
 #include "en/llm/selftest.hpp"
 #include "en/llm/service.hpp"
 #include "en/llm/transport.hpp"
+#include "en/proto/base_url.hpp"
 #include "en/proto/ffi_guard.hpp"
 
 namespace eldennet {
@@ -42,8 +43,6 @@ namespace {
 // The jobs this increment's Models page shows, in ARCH §11.4's order (Decisions from 0.4, Profile drafts from 0.6).
 constexpr std::array<std::string_view, 5> kShownSlots = {llm::kDialogue, llm::kBarkLive, llm::kBarkPool, llm::kMemory,
                                                          llm::kSelftest};
-// The keys the pages set, by their row (space.toml): the name in secrets.toml is the part after "keys.".
-constexpr std::array<std::string_view, 2> kKeyRows = {"keys.openrouter", "keys.nanogpt"};
 
 // T6's own, made at the first wake that finds T1's files, never destroyed (R14).
 struct AiState {
@@ -53,6 +52,8 @@ struct AiState {
   llm::Secret secrets;    // secrets.toml likewise
   std::optional<llm::Config> config;
   bool refused = false;
+  ov::AiRefusal refusal = ov::AiRefusal::Other;  // the last refusal's kind and line, for the pages' words
+  std::uint32_t refusal_line = 0;
   std::unique_ptr<llm::Service> service;
   bool gate = false;      // as the handle was last told
   bool gate_now = false;  // the core's, at the last wake
@@ -66,7 +67,10 @@ struct AiState {
   std::map<std::string, std::int64_t, std::less<>> answered;  // provider → when it last answered (since T1's start)
   std::set<std::string, std::less<>> rejected;                // providers whose key a model list refused
   ov::AiFacts facts;
-  bool values_set = false;  // the space's ai.preset and key rows from the files
+  bool values_set = false;  // the space's ai.preset from the files
+  std::uint64_t revision = 1;  // the configuration's, each time one is taken (the space's model rows follow it)
+  // What each provider listed at its newest answered list (the model list or a self-test): the pickers' choices.
+  std::map<std::string, std::vector<std::string>, std::less<>> listed;
   // What only the files and the chosen preset decide, worked out again when either changes (toml++ reads the files):
   // not on every wake.
   bool dirty = true;
@@ -74,19 +78,51 @@ struct AiState {
 };
 constinit AiState* g_ai = nullptr;
 
-// A configuration error, for the log: the file and the line alone (the message can hold an address).
-void log_refusal(const llm::ConfigError& e) {
+ov::AiRefusal refusal_of(llm::ConfigRefusal r) noexcept {
+  switch (r) {
+    case llm::ConfigRefusal::Other: return ov::AiRefusal::Other;
+    case llm::ConfigRefusal::Scheme: return ov::AiRefusal::Scheme;
+    case llm::ConfigRefusal::Credentials: return ov::AiRefusal::Credentials;
+    case llm::ConfigRefusal::QueryOrFragment: return ov::AiRefusal::QueryOrFragment;
+    case llm::ConfigRefusal::PlainPublic: return ov::AiRefusal::PlainPublic;
+    case llm::ConfigRefusal::PlainCloud: return ov::AiRefusal::PlainCloud;
+    case llm::ConfigRefusal::PlainKey: return ov::AiRefusal::PlainKey;
+  }
+  return ov::AiRefusal::Other;
+}
+
+const char* refusal_word(llm::ConfigRefusal r) noexcept {
+  switch (r) {
+    case llm::ConfigRefusal::Other: return "other";
+    case llm::ConfigRefusal::Scheme: return "scheme";
+    case llm::ConfigRefusal::Credentials: return "credentials";
+    case llm::ConfigRefusal::QueryOrFragment: return "query";
+    case llm::ConfigRefusal::PlainPublic: return "plain_public";
+    case llm::ConfigRefusal::PlainCloud: return "plain_cloud";
+    case llm::ConfigRefusal::PlainKey: return "plain_key";
+  }
+  return "other";
+}
+
+// A configuration error, for the log and the pages: the file, the line and the refusal's kind alone (the message can
+// hold an address).
+void log_refusal(AiState& st, const llm::ConfigError& e) {
   const std::string what = e.what();
   const std::string file = what.substr(0, what.find(':'));
-  std::uint64_t line = 0;
-  if (const std::size_t at = what.rfind("(line "); at != std::string::npos) {
-    line = std::strtoull(what.c_str() + at + 6, nullptr, 10);
-  } else if (const std::size_t at2 = what.find(": line "); at2 != std::string::npos) {
-    line = std::strtoull(what.c_str() + at2 + 7, nullptr, 10);
+  std::uint64_t line = e.line();
+  if (line == 0) {
+    if (const std::size_t at = what.rfind("(line "); at != std::string::npos) {
+      line = std::strtoull(what.c_str() + at + 6, nullptr, 10);
+    } else if (const std::size_t at2 = what.find(": line "); at2 != std::string::npos) {
+      line = std::strtoull(what.c_str() + at2 + 7, nullptr, 10);
+    }
   }
   const bool known = file == "providers.toml" || file == "models.toml" || file == "secrets.toml" ||
                      file == "settings.toml";
-  log(Line("ai_config").word("result", "refused").word("file", known ? file : "unknown").num("line", line),
+  st.refusal = refusal_of(e.refusal());
+  st.refusal_line = line <= 0xFFFFFFFFu ? static_cast<std::uint32_t>(line) : 0;
+  log(Line("ai_config").word("result", "refused").word("file", known ? file : "unknown").num("line", line)
+          .word("why", refusal_word(e.refusal())),
       LogLevel::Warn);
 }
 
@@ -104,10 +140,12 @@ std::optional<llm::Config> load(AiState& st, std::string_view providers, const l
     return cfg;
   } catch (const llm::ConfigError& e) {
     std::fill(texts.secrets->begin(), texts.secrets->end(), '\0');
-    log_refusal(e);
+    log_refusal(st, e);
     return std::nullopt;
   } catch (const std::exception&) {
     std::fill(texts.secrets->begin(), texts.secrets->end(), '\0');
+    st.refusal = ov::AiRefusal::Other;
+    st.refusal_line = 0;
     log(Line("ai_config").word("result", "refused").word("file", "unknown").num("line", 0), LogLevel::Warn);
     return std::nullopt;
   }
@@ -219,6 +257,8 @@ void fill_preset(AiState& st, const std::string& chosen) {
 void fill_facts(AiState& st, const ov::Space& space) {
   ov::AiFacts& f = st.facts;
   f.files = st.refused ? ov::AiFiles::Refused : st.config ? ov::AiFiles::Ready : ov::AiFiles::Missing;
+  f.refusal = st.refusal;
+  f.refusal_line = st.refusal_line;
   f.preset = st.config ? st.config->preset : std::string();
   const std::string chosen = space.values().value("ai.preset", std::string("custom"));
   if (st.dirty || chosen != st.chosen) {
@@ -261,6 +301,13 @@ void fill_facts(AiState& st, const ov::Space& space) {
       for (const auto& pair : health.pairs) {
         if (pair.provider == p.id && pair.cooling_left.count() > 0) ++a.pairs_cooling;
       }
+      if (p.key_ref.rfind("secrets:", 0) == 0) {
+        a.key_place = ov::AiKeyPlace::Secrets;
+        a.key_name = p.key_ref.substr(8);
+      } else if (p.key_ref.rfind("env:", 0) == 0) {
+        a.key_place = ov::AiKeyPlace::Env;
+      }
+      a.plain = en::proto::plain_remote(p.base_url);
       if (p.key_ref.empty()) {
         a.key = ov::AiKey::NotNeeded;
       } else if (a.disabled || st.rejected.count(p.id) != 0) {
@@ -298,6 +345,9 @@ void fill_facts(AiState& st, const ov::Space& space) {
     }
     f.unused = llm::unused_providers(cfg);
   }
+  f.revision = st.revision;
+  f.models.clear();
+  for (const auto& [provider, ids] : st.listed) f.models.push_back(ov::AiModels{provider, ids});
   // The runs.
   f.listing = st.listing && !st.listing->done();
   f.listed = st.listing.has_value();
@@ -333,6 +383,7 @@ void commit(AiState& st, std::string providers, llm::Secret secrets, llm::Config
   st.refused = false;
   st.rejected.clear();
   st.dirty = true;
+  ++st.revision;
   if (st.service) st.service->reload(*st.config);
 }
 
@@ -373,7 +424,10 @@ void note_answers(AiState& st, const llm::SelfTestReport& r) {
   const std::int64_t now = static_cast<std::int64_t>(since_ms());
   for (const llm::ListCheck& c : r.lists) {
     if (c.state == llm::CheckState::Running || c.state == llm::CheckState::Waiting) continue;
-    if (c.error == llm::ErrorClass::None) st.answered[c.provider] = now;
+    if (c.error == llm::ErrorClass::None) {
+      st.answered[c.provider] = now;
+      st.listed[c.provider] = c.models;  // the pickers' choices: never logged
+    }
     if (c.error == llm::ErrorClass::Auth) st.rejected.insert(c.provider);
   }
   if (r.latency == llm::CheckState::Passed) st.answered[r.provider] = now;
@@ -500,15 +554,11 @@ const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space
     st->gate_now = gate_open;
     if (!st->values_set) {
       st->values_set = true;
-      // The rows as the files have them: the preset (a choice the page offers, else Custom), each key's status.
+      // The preset's row as the file has it (a choice the page offers, else Custom). Each job's model row follows the
+      // facts (the space's sync); each key's status is its provider's row (the providers topic).
       std::string preset = st->config ? st->config->preset : std::string("cloud-budget");
       if (preset != "cloud-budget" && preset != "cloud-nanogpt" && preset != "custom") preset = "custom";
       space.set_value("ai.preset", preset);
-      const std::vector<std::string> set = llm::keys_set(st->secrets.reveal());
-      for (const std::string_view row : kKeyRows) {
-        const std::string name(row.substr(5));
-        space.set_value(row, std::find(set.begin(), set.end(), name) != set.end() ? "set" : "");
-      }
     }
     if (st->service) {
       if (gate_open != st->gate) {
@@ -546,13 +596,6 @@ const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& c) noexcept {
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
     AiState* st = state(s);
-    // A key's value, taken out of the change at once and the change's copy overwritten.
-    std::optional<llm::Secret> key;
-    if (c.value.is_string()) {
-      std::string& typed = c.value.get_ref<std::string&>();
-      if (c.key != "ai.preset") key = llm::clean_key(typed);
-      if (c.key != "ai.preset") std::fill(typed.begin(), typed.end(), '\0');
-    }
     if (st == nullptr) return;
     if (c.key == "ai.preset") {
       const std::string preset = c.value.is_string() ? c.value.get<std::string>() : std::string("custom");
@@ -562,20 +605,57 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
       }
       return;
     }
-    const std::string name = c.key.substr(5);  // "keys.<name>"
-    if (!edit_key(*st, name, key ? &*key : nullptr)) {
-      const std::vector<std::string> set = llm::keys_set(st->secrets.reveal());
-      space.set_value(c.key, std::find(set.begin(), set.end(), name) != set.end() ? "set" : "");
+    // A job's model: "slots.<slot>.model", on the provider the job uses now (the space checked it is one that provider
+    // listed); an empty one is a reset, the preset's model again. The model's id is not logged.
+    constexpr std::string_view kSuffix = ".model";
+    if (c.key.rfind("slots.", 0) != 0 || c.key.size() <= 6 + kSuffix.size() ||
+        c.key.compare(c.key.size() - kSuffix.size(), kSuffix.size(), kSuffix) != 0) {
+      return;
     }
+    const std::string slot = c.key.substr(6, c.key.size() - 6 - kSuffix.size());
+    const std::string model = c.value.is_string() ? c.value.get<std::string>() : std::string();
+    const auto restore = [&] {
+      std::string now;
+      if (st->config) {
+        const llm::SlotConfig& sc = st->config->slot(slot);
+        if (!sc.models.empty()) now = sc.models.front().model;
+      }
+      space.set_value(c.key, now);
+    };
+    if (std::find(kShownSlots.begin(), kShownSlots.end(), slot) == kShownSlots.end() || !st->config) {
+      restore();
+      return;
+    }
+    llm::ProvidersEdit edit;
+    llm::SlotEdit pick;
+    pick.slot = slot;
+    if (!model.empty()) {
+      const llm::SlotConfig& sc = st->config->slot(slot);
+      if (sc.models.empty()) {
+        restore();
+        return;
+      }
+      pick.provider = sc.models.front().provider;
+      pick.model = model;
+    }
+    edit.slots.push_back(std::move(pick));
+    if (!change_providers(*st, edit, model.empty() ? "model_reset" : "model")) restore();
   });
 }
 
-void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest r) noexcept {
+void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& r) noexcept {
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    // A key's value, taken out of the request at once and the request's copy overwritten.
+    std::optional<llm::Secret> key;
+    if (r.kind == ov::AiRequest::Kind::SetKey) {
+      key = llm::clean_key(r.key);
+      std::fill(r.key.begin(), r.key.end(), '\0');
+    }
     AiState* st = state(s);
     if (st == nullptr) return;
-    switch (r) {
-      case en::overlay::AiRequest::SelfTest:
+    const llm::ProviderConfig* provider = st->config ? st->config->provider(r.id) : nullptr;
+    switch (r.kind) {
+      case ov::AiRequest::Kind::SelfTest:
         if (!st->config || !ensure_service(s, *st)) return;
         if (st->selftest) {
           const llm::SelfTestReport& prev = st->selftest->report();
@@ -590,38 +670,69 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest r) n
         st->selftest->step(*st->service);
         log(Line("selftest").word("result", "started").num("lists", st->selftest->report().lists.size()));
         return;
-      case en::overlay::AiRequest::ListModels:
+      case ov::AiRequest::Kind::ListModels:
         if (!st->config || !ensure_service(s, *st)) return;
         st->listing.emplace(*st->config, true, st->next_id);
         st->next_id += 2;
         st->listing_logged = false;
         st->listing->step(*st->service);
         return;
-      case en::overlay::AiRequest::AddProviders:
+      case ov::AiRequest::Kind::AddPreset:
         (void)apply_preset(*st, space.values().value("ai.preset", std::string("custom")), "add");
         return;
-      case en::overlay::AiRequest::RemoveUnused: {
-        if (!st->config) return;
+      case ov::AiRequest::Kind::AddOwn: {
+        // The space checked the name and the address (en-proto's check_base_url); parse_config checks the result.
         llm::ProvidersEdit edit;
-        edit.remove = llm::unused_providers(*st->config);
-        if (edit.remove.empty()) return;
-        // Their keys go too, where no provider that stays names them.
+        edit.add.push_back(llm::own_provider(r.id, r.base_url, r.local));
+        (void)change_providers(*st, edit, "add_own");
+        return;
+      }
+      case ov::AiRequest::Kind::Remove: {
+        if (provider == nullptr) return;
+        const std::vector<std::string> unused = llm::unused_providers(*st->config);
+        if (std::find(unused.begin(), unused.end(), r.id) == unused.end()) {
+          log(Line("ai_change").word("what", "remove").flag("ok", false).word("why", "in_use"), LogLevel::Warn);
+          return;
+        }
+        llm::ProvidersEdit edit;
+        edit.remove.push_back(r.id);
+        // Its key goes too, where no provider that stays names it.
         std::vector<llm::ProviderConfig> staying;
         std::vector<llm::ProviderConfig> going;
-        for (const llm::ProviderConfig& p : st->config->providers) {
-          (std::find(edit.remove.begin(), edit.remove.end(), p.id) != edit.remove.end() ? going : staying).push_back(p);
-        }
+        for (const llm::ProviderConfig& p : st->config->providers) (p.id == r.id ? going : staying).push_back(p);
         const std::vector<std::string> kept = llm::secret_names(staying);
         if (!change_providers(*st, edit, "remove")) return;
+        st->listed.erase(r.id);
         for (const std::string& name : llm::secret_names(going)) {
-          if (std::find(kept.begin(), kept.end(), name) != kept.end()) continue;
-          if (edit_key(*st, name, nullptr)) {
-            const std::string row = "keys." + name;
-            if (space.has_setting(row)) space.set_value(row, "");
-          }
+          if (std::find(kept.begin(), kept.end(), name) == kept.end()) (void)edit_key(*st, name, nullptr);
         }
         return;
       }
+      case ov::AiRequest::Kind::SetKey: {
+        if (provider == nullptr || !key) return;
+        // Never a key to an address it would reach in clear text, nor over an environment variable's (the space
+        // refused both; checked again here).
+        if (en::proto::plain_remote(provider->base_url) || provider->key_ref.rfind("env:", 0) == 0) {
+          log(Line("ai_change").word("what", "key").flag("ok", false).word("why", "not_here"), LogLevel::Warn);
+          return;
+        }
+        std::string name;
+        if (provider->key_ref.rfind("secrets:", 0) == 0) {
+          name = provider->key_ref.substr(8);
+        } else {
+          // A provider whose entry had no key's place (a server of the player's own on this PC): it gets its own.
+          llm::ProvidersEdit edit;
+          edit.key_refs.push_back(llm::KeyRefEdit{r.id, "secrets:" + r.id});
+          if (!change_providers(*st, edit, "key_place")) return;
+          name = r.id;
+        }
+        (void)edit_key(*st, name, &*key);
+        return;
+      }
+      case ov::AiRequest::Kind::ClearKey:
+        if (provider == nullptr || provider->key_ref.rfind("secrets:", 0) != 0) return;
+        (void)edit_key(*st, provider->key_ref.substr(8), nullptr);
+        return;
     }
   });
 }

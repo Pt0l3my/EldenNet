@@ -5,7 +5,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <optional>
 
+#include "en/proto/base_url.hpp"
 #include "graceui.h"
 
 namespace en::overlay {
@@ -140,6 +142,30 @@ std::string duration_of(std::uint64_t ms) {
   return std::to_string(minutes / 60) + " h " + std::to_string(minutes % 60) + " min";
 }
 
+// Why providers.toml was refused, in the player's words, with where (the file's line, never its text).
+std::string refusal_words(AiRefusal r, std::uint32_t line) {
+  std::string what;
+  switch (r) {
+    case AiRefusal::Scheme: what = "A provider's base_url starts with neither https:// nor http://."; break;
+    case AiRefusal::Credentials:
+      what = "A provider's base_url holds a name or password: its key goes in secrets.toml, named by key_ref.";
+      break;
+    case AiRefusal::QueryOrFragment: what = "A provider's base_url has a ? or # in it: it ends at its path."; break;
+    case AiRefusal::PlainPublic:
+      what = "A provider's base_url uses http:// to a host that is neither this PC nor a private address: use https://.";
+      break;
+    case AiRefusal::PlainCloud: what = "A cloud provider's base_url uses http://: use https://."; break;
+    case AiRefusal::PlainKey:
+      what = "A provider with a key uses http:// to another computer, where its key would cross the network "
+             "unencrypted: use https://, or remove its key.";
+      break;
+    case AiRefusal::Other: what = "It holds something EldenNet cannot use."; break;
+  }
+  what += line != 0 ? " Correct providers.toml at line " + std::to_string(line) + ", then start the game again."
+                    : " Correct providers.toml, then start the game again.";
+  return what;
+}
+
 json item(std::string_view label, std::string value) { return json{{"label", label}, {"value", std::move(value)}}; }
 
 json check(std::string_view label, std::string_view state, std::string detail) {
@@ -190,8 +216,14 @@ json errors_body(const SpaceFacts& f) {
     checks.push_back(check("Your settings file has a problem, so EldenNet uses its defaults.", "warn",
                            "System › Logs names the setting. Correct it in settings.toml, then start the game again."));
   }
+  if (f.ai != nullptr && f.ai->files == AiFiles::Refused) {
+    checks.push_back(check("Your providers file has a problem, so EldenNet calls no model.", "warn",
+                           refusal_words(f.ai->refusal, f.ai->refusal_line)));
+  }
   return json{{"checks", std::move(checks)}};
 }
+
+json compatibility_body(const SpaceFacts& f);
 
 json system_status_body(const SpaceFacts& f) {
   const Lamp lamp = lamp_of(f);
@@ -230,6 +262,10 @@ json system_status_body(const SpaceFacts& f) {
     case Reading::Inert: checks.push_back(check("Reading the game", "fail", "Stopped")); break;
   }
   checks.push_back(check("The core", "pass", "Running"));
+  // The providers file, once read: refused, in words (its line, never its text); else nothing to say here.
+  if (f.ai != nullptr && f.ai->files == AiFiles::Refused) {
+    checks.push_back(check("The providers file", "fail", refusal_words(f.ai->refusal, f.ai->refusal_line)));
+  }
   checks.push_back(check("Anti-cheat watch", f.watcher ? "pass" : "fail",
                          f.watcher ? "Checks the game's modules every minute" : "Not running"));
   if (!f.logger) {
@@ -256,8 +292,10 @@ json system_status_body(const SpaceFacts& f) {
     }
   }
   json columns = json::array({json{{"id", "group"}, {"label", "Group"}}, json{{"id", "state"}, {"label", "Self-test"}}});
-  return json{{"items", std::move(items)}, {"checks", std::move(checks)}, {"columns", std::move(columns)},
-              {"rows", std::move(rows)}};
+  // The Compatibility tab's checks, a member of the same body (GraceUI D185's `props.field`): one topic for the page.
+  return json{{"items", std::move(items)},     {"checks", std::move(checks)},
+              {"columns", std::move(columns)}, {"rows", std::move(rows)},
+              {"compatibility", compatibility_body(f)}};
 }
 
 json compatibility_body(const SpaceFacts& f) {
@@ -307,16 +345,6 @@ const char* json_words(AiJson j) noexcept {
     case AiJson::None: return "Off";
     case AiJson::Object: return "JSON object";
     case AiJson::Schema: return "JSON schema";
-  }
-  return "";
-}
-
-const char* key_words(AiKey k) noexcept {
-  switch (k) {
-    case AiKey::NotNeeded: return "None needed";
-    case AiKey::Set: return "Set";
-    case AiKey::Missing: return "Missing";
-    case AiKey::Rejected: return "Rejected";
   }
   return "";
 }
@@ -398,15 +426,74 @@ const AiProvider* provider_of(const AiFacts& ai, std::string_view id) {
   return nullptr;
 }
 
+const AiSlot* slot_of(const AiFacts& ai, std::string_view slot) {
+  for (const AiSlot& s : ai.slots) {
+    if (s.slot == slot) return &s;
+  }
+  return nullptr;
+}
+
+// What a provider listed last, or null when it has not answered a list this session.
+const std::vector<std::string>* listed_of(const AiFacts& ai, std::string_view provider) {
+  for (const AiModels& m : ai.models) {
+    if (m.provider == provider) return &m.ids;
+  }
+  return nullptr;
+}
+
+// The banner's own words at L1 (en-core's, "EldenNet inactive: …", O95's one form), at most 200 bytes, cut at a
+// character: the greyed pages' words, the AI pages' lead and their refusals alike.
+std::string banner_words(const SpaceFacts& f) {
+  std::string words = f.stop_text.empty() ? std::string("EldenNet inactive: Home's Problems say why.")
+                                          : std::string(f.stop_text);
+  if (words.size() > 200) {
+    std::size_t cut = 200;
+    while (cut > 0 && (static_cast<unsigned char>(words[cut]) & 0xC0) == 0x80) --cut;  // at a character
+    words.resize(cut);
+  }
+  return words;
+}
+
+// The jobs AI › Models offers a model row for, in ARCH §11.4's order, each with its row's key and its choices' topic.
+struct Job {
+  std::string_view slot;
+  std::string_view key;
+  std::string_view topic;
+};
+constexpr std::array<Job, 5> kJobs = {{
+    {proto::kDialogue, "slots.dialogue.model", "ai.choices.dialogue"},
+    {proto::kBarkLive, "slots.bark_live.model", "ai.choices.bark_live"},
+    {proto::kBarkPool, "slots.bark_pool.model", "ai.choices.bark_pool"},
+    {proto::kMemory, "slots.memory.model", "ai.choices.memory"},
+    {proto::kSelftest, "slots.selftest.model", "ai.choices.selftest"},
+}};
+
+const Job* job_of_key(std::string_view key) {
+  for (const Job& j : kJobs) {
+    if (j.key == key) return &j;
+  }
+  return nullptr;
+}
+
+// "Conversation", "Conversation and Memory", "Conversation, Memory and Self-test".
+std::string jobs_named(const std::vector<std::string_view>& slots) {
+  std::string out;
+  for (std::size_t i = 0; i < slots.size(); ++i) {
+    if (i != 0) out += i + 1 == slots.size() ? " and " : ", ";
+    out += slot_words(slots[i]);
+  }
+  return out;
+}
+
 // What the AI can do now and why, which every AI page leads with (PAGES §4.4: L2, no healthy model, the gate).
 std::string ai_cause(const SpaceFacts& f) {
   const AiFacts& ai = *f.ai;
-  if (f.level == Level::Inactive) return "EldenNet is inactive, so it calls no model: Home's Problems say why.";
+  if (f.level == Level::Inactive) return banner_words(f);  // the greyed page's one form (O95)
   if (ai.files == AiFiles::Refused) {
-    return "Your providers file has a problem, so EldenNet calls no model. System › Logs names the line.";
+    return "Your providers file has a problem, so EldenNet calls no model: System › Status says what.";
   }
   if (ai.providers.empty()) {
-    return "No provider yet: choose a preset on Models, then press Add provider on Providers.";
+    return "No provider yet: on Providers, add the preset's provider or one of your own.";
   }
   const AiSlot* talk = nullptr;
   for (const AiSlot& s : ai.slots) {
@@ -416,8 +503,8 @@ std::string ai_cause(const SpaceFacts& f) {
     return "Conversation has no model yet: choose a preset on Models, or name one in your providers file.";
   }
   if (const AiProvider* p = provider_of(ai, talk->provider)) {
-    if (p->key == AiKey::Missing) return p->id + " has no key yet: paste it under Keys on Providers.";
-    if (p->key == AiKey::Rejected) return p->id + " refused its key: paste it again under Keys on Providers.";
+    if (p->key == AiKey::Missing) return p->id + " has no key yet: paste it on its row on Providers.";
+    if (p->key == AiKey::Rejected) return p->id + " refused its key: paste it again on its row on Providers.";
   }
   if (!talk->healthy) {
     return "No model answers Conversation now: its models are resting after failures, and try again within a minute.";
@@ -447,9 +534,12 @@ json providers_body(const SpaceFacts& f) {
                               json{{"id", "requests"}, {"label", "Requests at once"}, {"numeric", true}},
                               json{{"id", "json"}, {"label", "JSON answers"}}});
   json rows = json::array();
+  // The key column is the row's secret (GraceUI D194): its status alone, "set" (a key is kept, refused or not: Health
+  // and the lead say which) or "", never the key.
   for (const AiProvider& p : ai.providers) {
+    const bool kept = p.key == AiKey::Set || p.key == AiKey::Rejected;
     rows.push_back(json{{"id", p.id}, {"kind", p.cloud ? "Cloud" : "Local"}, {"type", flavor_words(p.flavor)},
-                        {"address", p.base_url}, {"key", key_words(p.key)}, {"requests", std::to_string(p.concurrency)},
+                        {"address", p.base_url}, {"key", kept ? "set" : ""}, {"requests", std::to_string(p.concurrency)},
                         {"json", json_words(p.json)}});
   }
   // The model list's last result, a check per provider.
@@ -580,19 +670,32 @@ json selftest_body(const SpaceFacts& f) {
   return b;
 }
 
-// GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 the AI pages, with the banner's own
-// words (PAGES §4.4: "EldenNet is inactive: reason"); at L2, or with no healthy model, every page stays usable and the
-// AI pages lead with the cause (ai.status). Home's greying at L1 is the slice's that reworks Home.
+// A job's model picker's choices (GraceUI D193): what its provider listed last, in its order, each id pickable, at most
+// 256 (what GraceUI reads). None before a list has answered: the picker says so, and keeps the job's model shown.
+json choices_body(const SpaceFacts& f, std::string_view slot) {
+  json choices = json::array();
+  if (f.ai != nullptr) {
+    const AiSlot* s = slot_of(*f.ai, slot);
+    const std::vector<std::string>* ids = s != nullptr ? listed_of(*f.ai, s->provider) : nullptr;
+    if (ids != nullptr) {
+      for (const std::string& id : *ids) {
+        if (!pickable(id)) continue;
+        choices.push_back(json{{"value", id}, {"label", id}});
+        if (choices.size() == 256) break;
+      }
+    }
+  }
+  return json{{"choices", std::move(choices)}};
+}
+
+// GraceUI's framework topic (D188): the pages greyed, each with its words. At L1 Home and the AI pages (PAGES §4.4; System
+// and Settings stay usable), with the banner's own words (O95: one form, en-core's "EldenNet inactive: …"); at L2, or
+// with no healthy model, every page stays usable and the AI pages lead with the cause (ai.status).
 json space_state_body(const SpaceFacts& f) {
   json greyed = json::object();
   if (f.level == Level::Inactive) {
-    std::string words = f.stop_text.empty() ? std::string("EldenNet is inactive.") : std::string(f.stop_text);
-    if (words.size() > 200) {
-      std::size_t cut = 200;
-      while (cut > 0 && (static_cast<unsigned char>(words[cut]) & 0xC0) == 0x80) --cut;  // at a character
-      words.resize(cut);
-    }
-    for (const char* page : {"ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
+    const std::string words = banner_words(f);
+    for (const char* page : {"home", "ai.providers", "ai.models", "ai.selftest"}) greyed[page] = words;
   }
   return json{{"greyed", std::move(greyed)}};
 }
@@ -607,9 +710,10 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 11> kStates = {"settings", "status",    "errors",   "system.status",
-                                                      "system.compatibility", "ai.status", "providers", "health",
-                                                      "ai.slots",             "selftest",  "space.state"};
+constexpr std::array<std::string_view, 15> kStates = {
+    "settings",          "status",       "errors",       "system.status",        "ai.status",
+    "providers",         "health",       "ai.slots",     "selftest",             "space.state",
+    "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest"};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -643,6 +747,20 @@ std::string scrubbed(std::string_view line) {
     i = j;
   }
   return out;
+}
+
+bool pickable(std::string_view id) noexcept {
+  if (id.empty() || id.size() > 200) return false;
+  if (std::any_of(id.begin(), id.end(), [](char c) {
+        const auto u = static_cast<unsigned char>(c);
+        return u < 0x20 || u == 0x7F;
+      })) {
+    return false;
+  }
+  // A path's marks: a backslash, a leading '/' or '~', a drive's letter, a home folder.
+  if (id.find('\\') != std::string_view::npos || id.front() == '/' || id.front() == '~') return false;
+  if (id.size() >= 2 && std::isalpha(static_cast<unsigned char>(id[0])) != 0 && id[1] == ':') return false;
+  return id.find("/Users/") == std::string_view::npos && id.find("/home/") == std::string_view::npos;
 }
 
 Space::Space(std::string_view description) {
@@ -740,12 +858,12 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
   };
   if (s == nullptr) return refuse("unknown_key", "");
   if (s->locked) return refuse("locked", "");
-  // The AI pages' settings live in providers.toml and secrets.toml, not settings.toml.
-  const bool ai = key == "ai.preset" || key.rfind("keys.", 0) == 0;
+  // The AI pages' settings live in providers.toml, not settings.toml: the preset and each job's model (`slots.*`).
+  const bool ai = key == "ai.preset" || key.rfind("slots.", 0) == 0;
   if (ai) {
     if (facts.ai == nullptr) return refuse("not_now", "EldenNet's model settings are not ready yet.");
     if (facts.ai->files == AiFiles::Refused) {
-      return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+      return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
     }
   } else if (facts.settings_refused) {
     return refuse("not_now", "Your settings file has a problem: correct it first. System › Logs names the setting.");
@@ -783,34 +901,102 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
           facts.ai->presets.end()) {
     return refuse("not_now", "This version of EldenNet has no models file for that preset yet.");
   }
+  // A job's model: one of the choices its picker shows, what the job's provider listed (GraceUI D193; invariant 3).
+  if (const Job* job = job_of_key(key)) {
+    const AiSlot* slot = slot_of(*facts.ai, job->slot);
+    if (slot == nullptr || slot->provider.empty()) {
+      return refuse("not_now", std::string(slot_words(job->slot)) +
+                                   " has no provider yet: on Providers, add the preset's provider or one of your own.");
+    }
+    const std::vector<std::string>* ids = listed_of(*facts.ai, slot->provider);
+    if (ids == nullptr) {
+      return refuse("not_now", "Press List models on Providers first: the choices are the models " + slot->provider +
+                                   " lists.");
+    }
+    const std::string& v = value.get_ref<const std::string&>();
+    if (!pickable(v) || std::find(ids->begin(), ids->end(), v) == ids->end()) {
+      return refuse("invalid_value", slot->provider + " does not list that model: press List models on Providers "
+                                                      "again.");
+    }
+  }
   change(*s, value);
   note.result = "ok";
   return answer(id, "", "");
 }
 
-std::string Space::ai_command(const json& id, std::string_view name, const json& args, const SpaceFacts& facts) {
+namespace {
+
+// A command's text argument: its string, or nothing when it is absent or not a string.
+std::optional<std::string_view> text_arg(const json& args, const char* name) {
+  if (!args.is_object()) return std::nullopt;
+  const auto it = args.find(name);
+  if (it == args.end() || !it->is_string()) return std::nullopt;
+  return std::string_view(it->get_ref<const std::string&>());
+}
+
+bool name_char(char c) noexcept {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.';
+}
+
+bool same_name(std::string_view a, std::string_view b) noexcept {
+  if (a.size() != b.size()) return false;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i]))) return false;
+  }
+  return true;
+}
+
+// Why a base URL is refused, in the player's words (en-proto's check_base_url).
+const char* url_words(proto::UrlProblem p) noexcept {
+  switch (p) {
+    case proto::UrlProblem::None: return "";
+    case proto::UrlProblem::Empty: return "Give the provider's base URL, such as https://api.example.com/v1.";
+    case proto::UrlProblem::TooLong: return "A base URL is at most 200 characters long.";
+    case proto::UrlProblem::Scheme:
+      return "A base URL starts with https://, or http:// for a server on this PC or your home network.";
+    case proto::UrlProblem::Credentials:
+      return "A base URL holds no name or password: once the provider is added, put its key on its row.";
+    case proto::UrlProblem::Host: return "That base URL has no host EldenNet can use: check the address.";
+    case proto::UrlProblem::Port: return "That base URL's port is not a number from 1 to 65535.";
+    case proto::UrlProblem::Characters:
+      return "That base URL holds a character no base URL has: check for spaces, and letters outside A to Z.";
+    case proto::UrlProblem::QueryOrFragment: return "A base URL ends at its path, with no ? or # after it.";
+    case proto::UrlProblem::PlainRemote:
+      return "http:// goes only to this PC, or to another PC of your home network by its private address, not its "
+             "name: give this server's https:// address.";
+  }
+  return "";
+}
+
+}  // namespace
+
+std::string Space::ai_command(const json& id, std::string_view name, json& args, const SpaceFacts& facts) {
   SpaceNote& note = notes_.back();
   const auto refuse = [&](std::string_view code, std::string_view detail) {
     note.result = code;
     return answer(id, code, detail);
   };
+  const auto take = [&](AiRequest r) {
+    requests_.push_back(std::move(r));
+    note.result = "ok";
+    return answer(id, "", "");
+  };
   const AiFacts* ai = facts.ai;
   if (ai == nullptr || facts.level == Level::Starting) return refuse("not_now", "EldenNet is still starting.");
-  if (facts.level == Level::Inactive) {
-    return refuse("not_now", "EldenNet is inactive, so it calls no model: Home's Problems say why.");
-  }
+  if (facts.level == Level::Inactive) return refuse("not_now", banner_words(facts));
   if (ai->files == AiFiles::Refused) {
-    return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+    return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
   }
+  const bool running = ai->selftest.running || ai->listing;
   const bool calls = name == "selftest.run" || name == "models.list";
   if (calls) {
     if (ai->providers.empty()) {
-      return refuse("not_now", "Add a provider first: choose a preset on Models, then press Add provider on Providers.");
+      return refuse("not_now", "Add a provider first: on Providers, add the preset's provider or one of your own.");
     }
     if ((name == "selftest.run" && ai->selftest.running) || (name == "models.list" && ai->listing)) {
       return refuse("busy", "");
     }
-    if (ai->selftest.running || ai->listing) {
+    if (running) {
       return refuse("not_now", name == "selftest.run" ? "The model list is running: try again when it ends."
                                                       : "The self-test is running: try again when it ends.");
     }
@@ -818,38 +1004,140 @@ std::string Space::ai_command(const json& id, std::string_view name, const json&
     if (!facts.gate_open) {
       return refuse("not_now", "Model calls wait until EldenNet has confirmed that this session is offline and solo.");
     }
-    requests_.push_back(name == "selftest.run" ? AiRequest::SelfTest : AiRequest::ListModels);
-    note.result = "ok";
-    return answer(id, "", "");
+    AiRequest r;
+    r.kind = name == "selftest.run" ? AiRequest::Kind::SelfTest : AiRequest::Kind::ListModels;
+    return take(std::move(r));
   }
+
   if (name == "providers.add") {
-    const std::string preset = values_.value("ai.preset", std::string("custom"));
-    if (preset == "custom") {
-      return refuse("not_now", "Custom keeps your providers file as it is: choose a preset on Models to add its "
-                               "provider.");
+    // The header action sends nothing: the chosen preset's providers. The form sends its two fields: one's own.
+    const bool own = args.is_object() && (args.contains("name") || args.contains("base_url"));
+    if (!own) {
+      const std::string preset = values_.value("ai.preset", std::string("custom"));
+      if (preset == "custom") {
+        return refuse("not_now", "Custom keeps your providers file as it is: choose a preset on Models to add its "
+                                 "provider, or add one of your own below.");
+      }
+      if (ai->preset_needs_probe) {
+        return refuse("not_now", "This preset finds its server on this PC with Find local servers, which comes in a "
+                                 "later version.");
+      }
+      if (ai->preset_missing.empty()) {
+        return refuse("not_now", "Your providers already include every one this preset uses.");
+      }
+      AiRequest r;
+      r.kind = AiRequest::Kind::AddPreset;
+      return take(std::move(r));
     }
-    if (ai->preset_needs_probe) {
-      return refuse("not_now", "This preset finds its server on this PC with Find local servers, which comes in a "
-                               "later version.");
+    // A provider of one's own: its name and its base URL, both checked here (invariant 3), never logged.
+    const std::optional<std::string_view> typed = text_arg(args, "name");
+    const std::optional<std::string_view> url_typed = text_arg(args, "base_url");
+    if (!typed || typed->empty()) return refuse("invalid_value", "Give the provider a name.");
+    if (typed->size() > 32 || !std::all_of(typed->begin(), typed->end(), name_char)) {
+      return refuse("invalid_value", "A provider's name is up to 32 letters, digits, '-', '_' or '.', with no spaces.");
     }
-    if (ai->preset_missing.empty()) {
-      return refuse("not_now", "Your providers already include every one this preset uses.");
+    for (const AiProvider& p : ai->providers) {
+      if (same_name(p.id, *typed)) return refuse("invalid_value", "A provider is already called that: choose another name.");
     }
-    requests_.push_back(AiRequest::AddProviders);
-    note.result = "ok";
-    return answer(id, "", "");
+    // Its key would be kept under its name: never one already kept for another (that key would go to this address).
+    const bool kept = std::any_of(ai->keys_set.begin(), ai->keys_set.end(),
+                                  [&](const std::string& k) { return same_name(k, *typed); }) ||
+                      std::any_of(ai->providers.begin(), ai->providers.end(), [&](const AiProvider& p) {
+                        return p.key_place == AiKeyPlace::Secrets && same_name(p.key_name, *typed);
+                      });
+    if (kept) return refuse("invalid_value", "A key is already kept under that name: choose another name.");
+    const proto::BaseUrl url = proto::check_base_url(url_typed.value_or(std::string_view()));
+    if (url.problem != proto::UrlProblem::None) return refuse("invalid_value", url_words(url.problem));
+    if (running) return refuse("not_now", "A self-test or a model list is running: try again when it ends.");
+    AiRequest r;
+    r.kind = AiRequest::Kind::AddOwn;
+    r.id = std::string(*typed);
+    r.base_url = url.url;
+    r.local = !url.https;  // this PC's, or the home network's by a private address (O98 (a))
+    return take(std::move(r));
   }
-  // providers.remove: destructive, so only once confirmed (GraceUI D173, D183); a view sends the confirmation after
-  // the action's second press.
-  const bool confirmed = args.is_object() && args.value("confirm", false);
-  if (!confirmed) return refuse("confirm_required", "");
-  if (ai->selftest.running || ai->listing) {
-    return refuse("not_now", "A self-test or a model list is running: try again when it ends.");
+
+  // The row's provider, for Remove and its key: one providers.toml has.
+  const std::optional<std::string_view> row = text_arg(args, "id");
+  const AiProvider* p = row ? provider_of(*ai, *row) : nullptr;
+
+  if (name == "providers.remove") {
+    // Destructive, so only once confirmed (GraceUI D173, D192); a view sends the confirmation after the second press.
+    const auto confirm = args.is_object() ? args.find("confirm") : args.end();
+    if (!args.is_object() || confirm == args.end() || !confirm->is_boolean() || !confirm->get<bool>()) {
+      return refuse("confirm_required", "");
+    }
+    if (p == nullptr) return refuse("invalid_value", "That provider is not in your providers file any more.");
+    note.key = p->id;
+    if (running) return refuse("not_now", "A self-test or a model list is running: try again when it ends.");
+    if (std::find(ai->unused.begin(), ai->unused.end(), p->id) == ai->unused.end()) {
+      const std::string jobs = jobs_named(p->slots);
+      const std::string who = jobs.empty() ? std::string("A job uses it")
+                              : p->slots.size() == 1 ? jobs + " uses it"
+                                                     : jobs + " use it";
+      return refuse("not_now", who + ": on Models, choose another preset, or reset a job's model to the preset's.");
+    }
+    AiRequest r;
+    r.kind = AiRequest::Kind::Remove;
+    r.id = p->id;
+    return take(std::move(r));
   }
-  if (ai->unused.empty()) return refuse("not_now", "Every provider is used by a job: there is none to remove.");
-  requests_.push_back(AiRequest::RemoveUnused);
-  note.result = "ok";
-  return answer(id, "", "");
+
+  // providers.key: the row's key (GraceUI D194), the value written to secrets.toml and never sent back: the answer is
+  // ok or words that never echo it. The frame's copy of the value is overwritten here.
+  const auto wipe = [&] {
+    if (args.is_object()) {
+      const auto v = args.find("value");
+      if (v != args.end() && v->is_string()) {
+        std::string& s = v->get_ref<std::string&>();
+        std::fill(s.begin(), s.end(), '\0');
+      }
+    }
+  };
+  if (p == nullptr) {
+    wipe();
+    return refuse("invalid_value", "That provider is not in your providers file any more.");
+  }
+  note.key = p->id;
+  std::optional<std::string_view> typed = text_arg(args, "value");
+  if (!typed) return refuse("invalid_value", "");
+  std::string_view v = *typed;
+  while (!v.empty() && (v.front() == ' ' || v.front() == '\t' || v.front() == '\r' || v.front() == '\n')) {
+    v.remove_prefix(1);
+  }
+  while (!v.empty() && (v.back() == ' ' || v.back() == '\t' || v.back() == '\r' || v.back() == '\n')) v.remove_suffix(1);
+  AiRequest r;
+  r.id = p->id;
+  if (p->key_place == AiKeyPlace::Env) {
+    wipe();
+    return refuse("not_now", "This provider takes its key from an environment variable, as your providers file says.");
+  }
+  if (v.empty()) {
+    wipe();
+    if (p->key_place != AiKeyPlace::Secrets) {
+      note.result = "ok";
+      return answer(id, "", "");  // no key to clear
+    }
+    r.kind = AiRequest::Kind::ClearKey;
+    return take(std::move(r));
+  }
+  if (p->plain) {
+    wipe();
+    return refuse("not_now", "A key goes only to an https:// address or to this PC: this provider is reached by "
+                             "http:// on your home network, so it takes no key.");
+  }
+  if (std::any_of(v.begin(), v.end(), [](char c) { return static_cast<unsigned char>(c) <= 0x20 || c == 0x7F; })) {
+    wipe();
+    return refuse("invalid_value", "A key has no spaces or line breaks in it: paste it again.");
+  }
+  if (v.size() > 1024) {
+    wipe();
+    return refuse("invalid_value", "That is longer than any key: paste it again.");
+  }
+  r.kind = AiRequest::Kind::SetKey;
+  r.key = std::string(v);
+  wipe();
+  return take(std::move(r));
 }
 
 std::string Space::reset(const json& id, const json& args, const SpaceFacts& facts) {
@@ -862,9 +1150,6 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
     note.result = code;
     return answer(id, code, detail);
   };
-  if (facts.settings_refused) {
-    return refuse("not_now", "Your settings file has a problem: correct it first. System › Logs names the setting.");
-  }
   std::vector<const Setting*> chosen;
   if (scope == "key") {
     const Setting* s = find(target);
@@ -881,28 +1166,76 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
   } else {
     return refuse("invalid_value", "");
   }
+  // The AI pages' rows are providers.toml's (a job's model back to its preset's, the preset to the default), the rest
+  // settings.toml's: neither is written while its file is refused. A page's or every setting's reset leaves the AI's
+  // rows as they are while their file cannot be written; a row's own reset says why.
+  const auto is_ai = [](const Setting* s) { return s->key == "ai.preset" || s->key.rfind("slots.", 0) == 0; };
+  const bool ai_writable = facts.ai != nullptr && facts.ai->files != AiFiles::Refused;
+  if (scope != "key" && !ai_writable) {
+    chosen.erase(std::remove_if(chosen.begin(), chosen.end(), is_ai), chosen.end());
+    if (chosen.empty()) {
+      return refuse("not_now", facts.ai == nullptr ? "EldenNet's model settings are not ready yet."
+                                                   : "Your providers file has a problem: correct it first. System › "
+                                                     "Status says what.");
+    }
+  }
+  if (facts.settings_refused && std::any_of(chosen.begin(), chosen.end(), [&](const Setting* s) { return !is_ai(s); })) {
+    return refuse("not_now", "Your settings file has a problem: correct it first. System › Logs names the setting.");
+  }
+  if (std::any_of(chosen.begin(), chosen.end(), is_ai)) {
+    if (facts.ai == nullptr) return refuse("not_now", "EldenNet's model settings are not ready yet.");
+    if (facts.ai->files == AiFiles::Refused) {
+      return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
+    }
+  }
   for (const Setting* s : chosen) change(*s, s->fallback);
   note.result = "ok";
   return answer(id, "", "");
 }
 
 std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) {
-  const json f = json::parse(cmd_frame, nullptr, false);
+  json f = json::parse(cmd_frame, nullptr, false);
   const json id = !f.is_discarded() && f.is_object() && f.contains("id") ? f["id"] : json(0);
-  const std::string name = !f.is_discarded() && f.is_object() ? f.value("name", "") : "";
+  const auto named = !f.is_discarded() && f.is_object() ? f.find("name") : f.end();
+  const std::string name = !f.is_discarded() && f.is_object() && named != f.end() && named->is_string()
+                               ? named->get<std::string>()
+                               : std::string();
   notes_.push_back(SpaceNote{SpaceNote::What::Command, name.empty() ? "none" : name, {}, {}});
   if (f.is_discarded() || !f.is_object() || name.empty()) {
     notes_.back().result = "bad_message";
     return answer(id, "bad_message", "");
   }
-  const json args = f.contains("args") ? f["args"] : json::object();
-  if (name == "settings.set") return set(id, args, facts);
-  if (name == "settings.reset") return reset(id, args, facts);
-  if (name == "selftest.run" || name == "models.list" || name == "providers.add" || name == "providers.remove") {
-    return ai_command(id, name, args, facts);
+  json none = json::object();
+  json& args = f.contains("args") ? f["args"] : none;
+  try {
+    if (name == "settings.set") return set(id, args, facts);
+    if (name == "settings.reset") return reset(id, args, facts);
+    if (name == "selftest.run" || name == "models.list" || name == "providers.add" || name == "providers.remove" ||
+        name == "providers.key") {
+      return ai_command(id, name, args, facts);
+    }
+  } catch (const json::exception&) {
+    // An argument of the wrong type, which `value` throws for: no change was made.
+    notes_.back().result = "invalid_value";
+    return answer(id, "invalid_value", "");
   }
   notes_.back().result = "unknown_command";
   return answer(id, "unknown_command", "");
+}
+
+void Space::sync(const SpaceFacts& facts) {
+  if (facts.ai == nullptr) return;
+  for (const Job& j : kJobs) {
+    if (find(j.key) == nullptr) continue;
+    const AiSlot* s = slot_of(*facts.ai, j.slot);
+    // GraceUI holds a picked value to 200 bytes (D193): a longer id from the player's file shows as none chosen.
+    const json model = s != nullptr && s->model.size() <= 200 ? s->model : std::string();
+    json& held = values_[std::string(j.key)];
+    if (held != model) {
+      held = model;
+      ++settings_rev_;
+    }
+  }
 }
 
 std::vector<Space::Change> Space::take_changes() {
@@ -950,17 +1283,24 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "status") return status_body(facts);
   if (topic == "errors") return errors_body(facts);
   if (topic == "system.status") return system_status_body(facts);
-  if (topic == "system.compatibility") return compatibility_body(facts);
   if (topic == "ai.status") return ai_status_body(facts);
   if (topic == "providers") return providers_body(facts);
   if (topic == "health") return health_body(facts);
   if (topic == "ai.slots") return slots_body(facts);
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
+  for (const Job& j : kJobs) {
+    if (topic == j.topic) return choices_body(facts, j.slot);
+  }
   return json::object();
 }
 
 void Space::collect(const SpaceFacts& facts, std::uint64_t now_ms, std::vector<std::string>& frames) {
+  if (facts.ai != nullptr && (!synced_once_ || facts.ai->revision != synced_)) {
+    sync(facts);
+    synced_once_ = true;
+    synced_ = facts.ai->revision;
+  }
   for (const std::string_view topic : kStates) {
     if (!watching(topic)) continue;
     Topic& t = topics_[std::string(topic)];

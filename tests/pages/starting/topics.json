@@ -1,4 +1,19 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
   "ai.slots": {
     "columns": [
       {
@@ -25,7 +40,7 @@
     "rows": []
   },
   "ai.status": {
-    "sentence": "No provider yet: choose a preset on Models, then press Add provider on Providers."
+    "sentence": "No provider yet: on Providers, add the preset's provider or one of your own."
   },
   "errors": {
     "checks": []
@@ -68,7 +83,7 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8",
       "seq": 4,
       "time": "0:00:01"
     }
@@ -128,7 +143,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.3"
+        "value": "0.2.8"
       },
       {
         "label": "Game build",
@@ -137,25 +152,6 @@
       {
         "label": "This session",
         "value": "Under a minute"
-      }
-    ]
-  },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Supported",
-        "label": "Game build 3.14.15.0",
-        "state": "pass"
-      },
-      {
-        "detail": "Started by the EldenNet launcher",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
-        "label": "GraceUI 0.2.3",
-        "state": "pass"
       }
     ]
   },
@@ -187,7 +183,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.3",
+        "detail": "Connected, version 0.2.8",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -202,6 +198,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Supported",
+          "label": "Game build 3.14.15.0",
+          "state": "pass"
+        },
+        {
+          "detail": "Started by the EldenNet launcher",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.8 or later",
+          "label": "GraceUI 0.2.8",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

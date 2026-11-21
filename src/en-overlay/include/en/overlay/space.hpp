@@ -55,12 +55,18 @@ enum class Reading : std::uint8_t { None, Registered, PhaseA, Running, Inert }; 
 
 // ---- AI (PAGES §4.6.2): en-llm's configuration, health and runs as the DLL knows them, in en-overlay's own types (it
 // links no en-llm, ARCH §2.3; the DLL maps them). Ids are the configuration's (providers.toml's provider ids, its model
-// ids); a base URL is shown on AI › Providers alone (PV2). Never a key: a key's status alone. Never an id a server
-// listed, never the model's text.
+// ids); a base URL is shown on AI › Providers alone (PV2). Never a key: a key's status alone. A server's listed ids
+// reach AI › Models' pickers alone, any that looks like a path left out (PV5); never the model's text.
 enum class AiFiles : std::uint8_t { Missing, Refused, Ready };  // providers.toml: none, refused (its checks), read
+// Why providers.toml was refused, as en-llm names it (its ConfigRefusal, mapped by the DLL): a provider's base URL's
+// scheme, a name or password in it, a query or fragment, http:// to a public host, http:// for a cloud provider, a key
+// over http:// to another computer, or anything else.
+enum class AiRefusal : std::uint8_t { Other, Scheme, Credentials, QueryOrFragment, PlainPublic, PlainCloud, PlainKey };
 enum class AiFlavor : std::uint8_t { OpenAI, Ollama, LlamaCpp, LmStudio, KoboldCpp };
 enum class AiJson : std::uint8_t { None, Object, Schema };
 enum class AiKey : std::uint8_t { NotNeeded, Set, Missing, Rejected };
+// Where a provider's key is kept (its key_ref): nowhere yet, secrets.toml under a name, or an environment variable.
+enum class AiKeyPlace : std::uint8_t { None, Secrets, Env };
 // An outcome's class in the player's words (ARCH §11.2's classes, folded).
 enum class AiFailure : std::uint8_t {
   None, Unreachable, KeyRefused, RateLimited, TimedOut, BadReply, BadRequest, Refused, GateClosed, Busy, NoProvider,
@@ -75,6 +81,9 @@ struct AiProvider {
   AiFlavor flavor = AiFlavor::OpenAI;
   std::string base_url;
   AiKey key = AiKey::NotNeeded;
+  AiKeyPlace key_place = AiKeyPlace::None;
+  std::string key_name;  // with Secrets: the name secrets.toml keeps it under
+  bool plain = false;    // its base URL is http:// to a host that is not this PC's: no key is set on its row
   int concurrency = 1;
   AiJson json = AiJson::None;
   bool disabled = false;           // its key was rejected (health)
@@ -127,8 +136,18 @@ struct AiSelfTest {
   std::vector<AiRun> earlier;  // this session's runs before this one, newest first
 };
 
+// What one provider listed at the last model list or self-test that it answered: the ids as it sent them, within
+// en-llm's limits (EldenNet's space chooses which a picker may show).
+struct AiModels {
+  std::string provider;
+  std::vector<std::string> ids;
+};
+
 struct AiFacts {
   AiFiles files = AiFiles::Missing;
+  AiRefusal refusal = AiRefusal::Other;  // with files Refused: why
+  std::uint32_t refusal_line = 0;        // and the line, 0 when the refusal names none
+  std::uint64_t revision = 0;          // the configuration's: it changes whenever the DLL takes an edited one
   std::string preset;                  // providers.toml's, as the file names it
   std::vector<std::string> presets;    // models.toml's
   std::vector<std::string> keys_set;   // the names secrets.toml holds a key under (for the key rows' status)
@@ -141,6 +160,7 @@ struct AiFacts {
   bool listing = false;                // the model list runs
   bool listed = false;                 // it has run this session
   std::vector<AiList> lists;           // its last result
+  std::vector<AiModels> models;        // each provider's ids, from its newest answered list (the list or a self-test)
 };
 
 struct SpaceFacts {
@@ -177,10 +197,27 @@ struct SpaceFacts {
   const AiFacts* ai = nullptr;    // the AI pages' facts; null: none yet (their topics publish nothing)
 };
 
-// A long command the space took (selftest.run, models.list) or a change of providers.toml it asked for
-// (providers.add, providers.remove): answered `ok` at once, for the DLL to start; its progress reaches the views
-// through the facts.
-enum class AiRequest : std::uint8_t { SelfTest, ListModels, AddProviders, RemoveUnused };
+// A long command the space took (selftest.run, models.list) or a change of providers.toml or secrets.toml it asked for
+// (providers.add, providers.remove, providers.key): answered `ok` at once, for the DLL to make; its progress and its
+// outcome reach the views through the facts. A key's value travels in `key` alone, for the DLL to store and overwrite.
+struct AiRequest {
+  enum class Kind : std::uint8_t {
+    SelfTest,
+    ListModels,
+    AddPreset,  // the chosen preset's providers that providers.toml lacks
+    AddOwn,     // a provider of the player's own: `id` and `base_url`, both checked here
+    Remove,     // `id`, which no job uses, with its key where no other provider names it
+    SetKey,     // `id`'s key: `key`
+    ClearKey,   // `id`'s key, cleared
+  };
+  Kind kind = Kind::SelfTest;
+  std::string id;
+  std::string base_url;   // AddOwn: as en-proto's check_base_url wrote it
+  bool local = false;     // AddOwn: http:// to this PC or to a private address of the home network
+  std::string key;        // SetKey: the key as typed, spaces round it taken off: never logged, published or kept here
+
+  bool operator==(const AiRequest&) const = default;
+};
 
 // What happened at the space on a step, for the DLL's log: our own words only (topic and command names are the space's
 // declared ids; a key is a setting's key; never a value).
@@ -216,6 +253,9 @@ class Space {
   // it does takes long in this slice; a later long command answers at once and publishes its progress (§23 item 4).
   // `facts` says whether settings.toml may be written (not while the file the player wrote was refused).
   [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts);
+  // AI › Models' model rows (`slots.<slot>.model`) as the facts have them: each job's model, the one its preset gives it
+  // or the one chosen. collect calls it when the facts' revision changes; the tests and the fixtures call it too.
+  void sync(const SpaceFacts& facts);
 
   // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml.
   struct Change {
@@ -269,7 +309,7 @@ class Space {
   std::string answer(const nlohmann::json& id, std::string_view error, std::string_view detail) const;
   std::string set(const nlohmann::json& id, const nlohmann::json& args, const SpaceFacts& facts);
   std::string reset(const nlohmann::json& id, const nlohmann::json& args, const SpaceFacts& facts);
-  std::string ai_command(const nlohmann::json& id, std::string_view name, const nlohmann::json& args,
+  std::string ai_command(const nlohmann::json& id, std::string_view name, nlohmann::json& args,
                          const SpaceFacts& facts);
   void change(const Setting& s, const nlohmann::json& value);
   nlohmann::json settings_description_json_;
@@ -284,6 +324,8 @@ class Space {
   std::vector<Change> changes_;
   std::vector<AiRequest> requests_;
   std::vector<SpaceNote> notes_;
+  bool synced_once_ = false;  // collect has set the model rows from the facts
+  std::uint64_t synced_ = 0;   // from the facts of this revision
   bool valid_ = false;
 };
 
@@ -291,5 +333,8 @@ class Space {
 [[nodiscard]] std::string clock_of(std::uint64_t ms);
 // A log line as the logs stream holds it: any run of 17 digits starting 7656119 (a SteamID64's shape) "redacted" (PV5).
 [[nodiscard]] std::string scrubbed(std::string_view line);
+// Whether an id a server listed may be one of a picker's choices: 1 to 200 bytes, and nothing that looks like a path
+// (a local server's ids can be its model files' paths, which hold the Windows user name: PV5).
+[[nodiscard]] bool pickable(std::string_view id) noexcept;
 
 }  // namespace en::overlay

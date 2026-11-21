@@ -12,8 +12,9 @@
 //   (1.6 s or less), acceptable (3.0 s or less) or slow (C5's cloud targets).
 // ARCH §11.7's 4c, the voice check through the dialogue pipeline, waits for the personas and the prompts in game.
 //
-// The report holds numbers, error classes and ids from the configuration only: never a key, an address, the model's
-// text or an id a server listed. The two requests are our own fixed words; their answers are read here and dropped.
+// The report holds numbers, error classes and ids from the configuration only, and each list's ids for the pages'
+// pickers: never a key, an address or the model's text. The two requests are our own fixed words; their answers are
+// read here and dropped. The model list (lists_only) asks every provider; the self-test those a slot in use names.
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -44,6 +45,9 @@ struct ListCheck {
   int status = 0;
   int listed = 0;
   std::vector<std::string> missing;  // the slots (their names) whose model on this provider it does not list
+  // The ids it listed, within en-llm's limits, for the pages' model pickers alone (EldenNet's space leaves out any that
+  // look like a path, PV5): never logged, and never in the report's words.
+  std::vector<std::string> models;
 };
 
 struct SelfTestReport {

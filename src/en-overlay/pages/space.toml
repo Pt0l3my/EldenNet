@@ -6,19 +6,22 @@
 #
 # The first slice (roadmap S11.4.a): Home and System as far as v0.1 has data, and Settings › Developer, the home of the
 # developer settings v0.1 reads (PAGES §4.5). The second: AI's Providers, Models and Self-test (PAGES §4.6.2), as far as
-# the engine has them: the presets of O88 and their providers, each provider's key as a secret, the model of each job,
-# the providers' health, and the model list and the self-test as long commands. The rail holds every category of PAGES §4.2.1 in its order; a category with
-# no page yet holds none, and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft
-# for the owner's review (the slice's notes list them). Names of the game's places and characters never appear here
-# (PAGES §4.1 item 6, SP3).
+# the engine has them: the presets of O88 and their providers, the providers' health, and the model list and the
+# self-test as long commands. The third, on GraceUI 0.2.8's protocol 1.2 (D192 to D196, G34): a Remove and a key on each
+# provider's row, a small form for a provider of one's own, and a model picker for each job, its choices what the job's
+# provider lists. The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
+# and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
+# (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
 
 [space]
 id = "eldennet"
 name = "EldenNet"
 settings_schema = 2
-commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove"]
+commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
+            "providers.key"]
 
-# ---- Topics (GraceUI DESIGN §6.5's names; `system.compatibility` is this slice's, for its notes).
+# ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
+# member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
 
 [[topic]]
 id = "settings"
@@ -34,10 +37,6 @@ shape = "state"
 
 [[topic]]
 id = "system.status"
-shape = "state"
-
-[[topic]]
-id = "system.compatibility"
 shape = "state"
 
 [[topic]]
@@ -68,8 +67,30 @@ shape = "state"
 id = "selftest"
 shape = "state"
 
-# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 the AI pages are greyed with
-# the banner's words (PAGES §4.4); Home's greying at L1 waits for the slice that reworks Home.
+# Each job's model picker's choices (GraceUI D193): what the job's provider listed last, as {"choices": [...]}.
+
+[[topic]]
+id = "ai.choices.dialogue"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_live"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.bark_pool"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.memory"
+shape = "state"
+
+[[topic]]
+id = "ai.choices.selftest"
+shape = "state"
+
+# GraceUI's framework topic (D188, GraceUI 0.2.7): the pages greyed and their words. At L1 Home and the AI pages are
+# greyed with the banner's words (PAGES §4.4, O95).
 
 [[topic]]
 id = "space.state"
@@ -165,10 +186,12 @@ home = "settings.developer"
 effect = "now"
 availability = "live"
 
-# The AI pages' settings: the preset in use, providers.toml's `preset` (PAGES §4.5's `[slots]` row: AI › Models), and a
-# key for each cloud provider the shipped presets name (O88: OpenRouter and NanoGPT), written to secrets.toml under the
-# provider's id and never shown again (GraceUI's invariant 5, PV2): their rows read Set or Missing. Their effect is the
-# next request: en-llm takes a changed configuration at once. The local presets wait for Find local servers.
+# The AI pages' settings: the preset in use, providers.toml's `preset`, and each job's model, its `[slots.<slot>]`
+# (PAGES §4.5's row per slot, home AI › Models): a picker whose choices are what the job's provider lists (GraceUI
+# D193), its value the model the job uses now, the preset's or the one chosen; a reset clears the choice, so the
+# preset's model holds again. Their effect is the next request: en-llm takes a changed configuration at once. Keys are
+# no settings rows since GraceUI 0.2.8: each is its provider's row secret on Providers (D194). The local presets wait
+# for Find local servers.
 
 [[setting]]
 key = "ai.preset"
@@ -183,24 +206,62 @@ effect = "next_request"
 availability = "live"
 
 [[setting]]
-key = "keys.openrouter"
-type = "secret"
+key = "slots.dialogue.model"
+type = "text"
+choices_from = "ai.choices.dialogue"
 default = ""
-label = "OpenRouter key"
-help = "Your OpenRouter API key, for the providers named openrouter. It is kept on this PC only and never shown again: this row says only whether it is set."
-synonyms = ["key", "api key", "openrouter", "token"]
-home = "ai.providers"
+label = "Conversation's model"
+help = "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's model again."
+synonyms = ["model", "conversation", "dialogue", "chat"]
+home = "ai.models"
 effect = "next_request"
 availability = "live"
 
 [[setting]]
-key = "keys.nanogpt"
-type = "secret"
+key = "slots.bark_live.model"
+type = "text"
+choices_from = "ai.choices.bark_live"
 default = ""
-label = "NanoGPT key"
-help = "Your NanoGPT API key, for the providers named nanogpt. It is kept on this PC only and never shown again: this row says only whether it is set."
-synonyms = ["key", "api key", "nanogpt", "token"]
-home = "ai.providers"
+label = "Quick lines' model"
+help = "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's model again."
+synonyms = ["model", "quick lines", "barks", "call-outs"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.bark_pool.model"
+type = "text"
+choices_from = "ai.choices.bark_pool"
+default = ""
+label = "Prepared lines' model"
+help = "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's model again."
+synonyms = ["model", "prepared lines", "pool", "batches"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.memory.model"
+type = "text"
+choices_from = "ai.choices.memory"
+default = ""
+label = "Memory's model"
+help = "The model that writes what characters remember of what happened. Reset it to use the preset's model again."
+synonyms = ["model", "memory", "journal"]
+home = "ai.models"
+effect = "next_request"
+availability = "live"
+
+[[setting]]
+key = "slots.selftest.model"
+type = "text"
+choices_from = "ai.choices.selftest"
+default = ""
+label = "Self-test's model"
+help = "The model the self-test measures. Reset it to use the preset's model again."
+synonyms = ["model", "self-test", "test"]
+home = "ai.models"
 effect = "next_request"
 availability = "live"
 
@@ -224,7 +285,7 @@ blocks = [{ kind = "component", component = "key_value_list", topic = "status" }
 [[page.sections]]
 id = "problems"
 title = "Problems"
-blocks = [{ kind = "component", component = "check_list", topic = "errors" }]
+blocks = [{ kind = "component", component = "check_list", topic = "errors", props = { empty = "No problems." } }]
 
 [[page]]
 id = "system.status"
@@ -239,12 +300,12 @@ help.steps = ["On Health, read the state and its reason, then whether this game 
 [[page.tabs]]
 id = "health"
 name = "Health"
-sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status" }] }]
+sections = [{ id = "health", title = "Health", blocks = [{ kind = "component", component = "key_value_list", topic = "system.status" }] }, { id = "parts", title = "EldenNet's parts", blocks = [{ kind = "component", component = "check_list", topic = "system.status" }] }, { id = "reads", title = "What EldenNet reads", description = "Each group of the game's state EldenNet reads, with its self-test.", blocks = [{ kind = "component", component = "table", topic = "system.status", props = { empty = "Each group appears here after EldenNet's first reading of the game." } }] }]
 
 [[page.tabs]]
 id = "compatibility"
 name = "Compatibility"
-sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.compatibility" }] }]
+sections = [{ id = "versions", title = "Versions and start", blocks = [{ kind = "component", component = "check_list", topic = "system.status", props = { field = "compatibility" } }] }]
 
 [[page]]
 id = "system.logs"
@@ -254,12 +315,12 @@ description = "EldenNet's own log of this session, with nothing personal in it."
 increment = "0.1"
 related = ["system.status", "settings.developer"]
 help.purpose = "Read what EldenNet has written to its log this session. It holds EldenNet's own words and numbers only."
-help.steps = ["Read the newest lines at the end of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
+help.steps = ["Read the newest lines at the top of the log.", "Change how much it writes with Log detail; the change applies at once.", "Keep the page open while you play: new lines join the log as they are written."]
 
 [[page.sections]]
 id = "log"
 title = "Log"
-blocks = [{ kind = "component", component = "log_tail", topic = "logs" }]
+blocks = [{ kind = "component", component = "log_tail", topic = "logs", props = { newest_first = true } }]
 
 [[page.sections]]
 id = "detail"
@@ -291,12 +352,12 @@ name = "Providers"
 description = "Where EldenNet's model calls go, with whose key, and whether each answers."
 increment = "0.2"
 related = ["ai.models", "ai.selftest"]
-help.purpose = "Set up where EldenNet's model calls go: the provider your preset names, and its key."
-help.steps = ["Choose a preset on Models, then press Add provider: its provider joins the list.", "Paste the provider's key under Keys. It is kept on this PC and never shown again.", "Press List models to check that the provider answers and serves the models your jobs use.", "Remove unused providers clears out those no job uses, with their keys."]
+help.purpose = "Set up where EldenNet's model calls go: your preset's provider or one of your own, and each one's key."
+help.steps = ["Press Add the preset's provider, or fill in a name and a base URL under Your own provider.", "Paste each provider's key on its row. It is kept on this PC and never shown again.", "Press List models to check that every provider answers and serves the models your jobs use.", "Remove a provider no job uses with Remove on its row; its key goes with it."]
 
 [[page.actions]]
 id = "add"
-label = "Add provider"
+label = "Add the preset's provider"
 command = "providers.add"
 tone = "primary"
 
@@ -306,13 +367,6 @@ label = "List models"
 command = "models.list"
 tone = "secondary"
 
-[[page.actions]]
-id = "remove"
-label = "Remove unused providers"
-command = "providers.remove"
-tone = "destructive"
-confirm = "Remove every provider no job uses, with its key? Press again to remove them. Its preset adds a provider back, but you must paste its key again."
-
 [[page.sections]]
 id = "now"
 title = "Now"
@@ -321,13 +375,14 @@ blocks = [{ kind = "component", component = "computed_sentence", topic = "ai.sta
 [[page.sections]]
 id = "providers"
 title = "Providers"
-blocks = [{ kind = "component", component = "table", topic = "providers", props = { empty = "No provider yet: choose a preset on Models, then press Add provider." } }]
+description = "Each key is written to this PC only, and never shown again."
+blocks = [{ kind = "component", component = "table", topic = "providers", props = { empty = "No provider yet: add the preset's provider, or one of your own below." }, row_actions = [{ id = "remove", label = "Remove", command = "providers.remove", key = "id", tone = "destructive", confirm = "Remove this provider and its key? If you add it back, you must paste its key again." }], row_secret = { column = "key", command = "providers.key", key = "id" } }, { kind = "shortcuts", keys = ["ai.preset"] }]
 
 [[page.sections]]
-id = "keys"
-title = "Keys"
-description = "Each key is written to this PC only, and never shown again."
-blocks = [{ kind = "settings", keys = ["keys.openrouter", "keys.nanogpt"] }, { kind = "shortcuts", keys = ["ai.preset"] }]
+id = "own"
+title = "Your own provider"
+description = "A server that speaks the OpenAI API: a cloud service at an https:// address, a server on this PC, or one on another PC of your home network by its private address, which takes no key."
+blocks = [{ kind = "form", command = "providers.add", fields = [{ id = "name", label = "Name", max = 32 }, { id = "base_url", label = "Base URL", max = 200 }], submit = "Add" }]
 
 [[page.sections]]
 id = "listed"
@@ -346,8 +401,8 @@ name = "Models"
 description = "Which model does each job, and the preset that sets them all."
 increment = "0.2"
 related = ["ai.providers", "ai.selftest"]
-help.purpose = "See which model does each job, and choose the preset that sets them all."
-help.steps = ["Choose a preset. Cloud budget, on OpenRouter, suits most players.", "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.", "Open Self-test to check that the models answer quickly enough."]
+help.purpose = "See which model does each job, choose the preset that sets them all, and choose a job's model yourself."
+help.steps = ["Choose a preset. Cloud budget, on OpenRouter, suits most players.", "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.", "Choose a job's model from what its provider lists: press List models on Providers first. Reset it to use the preset's again.", "Open Self-test to check that the models answer quickly enough."]
 
 [[page.sections]]
 id = "now"
@@ -363,6 +418,12 @@ blocks = [{ kind = "settings", keys = ["ai.preset"] }]
 id = "jobs"
 title = "Jobs"
 blocks = [{ kind = "component", component = "table", topic = "ai.slots", props = { empty = "No job has a model yet: choose a preset above." } }]
+
+[[page.sections]]
+id = "choose"
+title = "Each job's model"
+description = "The choices are the models the job's provider listed when you last pressed List models on Providers."
+blocks = [{ kind = "settings", keys = ["slots.dialogue.model", "slots.bark_live.model", "slots.bark_pool.model", "slots.memory.model", "slots.selftest.model"] }]
 
 [[page]]
 id = "ai.selftest"

@@ -84,6 +84,19 @@ SelfTest::SelfTest(const Config& config, bool lists_only, RequestId first_id) : 
       }
     }
   }
+  // The model list (Providers' "List models") asks every provider, those no job uses after: whether a provider of the
+  // player's own answers, and what it lists for the pages' model pickers.
+  if (lists_only) {
+    for (const ProviderConfig& p : config.providers) {
+      if (std::any_of(report_.lists.begin(), report_.lists.end(), [&](const ListCheck& c) { return c.provider == p.id; })) {
+        continue;
+      }
+      ListCheck c;
+      c.provider = p.id;
+      report_.lists.push_back(std::move(c));
+      wants_.emplace_back();
+    }
+  }
   list_ids_.resize(report_.lists.size());
   if (lists_only) return;
   const SlotConfig& selftest = config.slot(kSelftest);
@@ -197,6 +210,7 @@ bool SelfTest::take(const LlmEvent& event) {
       c.error = m.error;
       c.status = m.status;
       c.listed = static_cast<int>(m.models.size());
+      c.models = m.models;
       if (m.error != ErrorClass::None) {
         c.state = CheckState::Failed;
         return true;

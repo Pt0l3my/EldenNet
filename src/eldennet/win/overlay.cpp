@@ -312,10 +312,10 @@ const char* note_word(en::overlay::SpaceNote::What w) noexcept {
 
 // What the commands changed: the log's detail at once (its effect "now"); the rest at the next launch. Each change
 // joins the session's edits, which T11 writes once the pages have been quiet for 300 ms (D14). The AI pages' preset and
-// keys are providers.toml's and secrets.toml's (ai.cpp): made at once, the next request taking them.
+// each job's model are providers.toml's (ai.cpp): made at once, the next request taking them.
 void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
   for (en::overlay::Space::Change& c : st.space.take_changes()) {
-    if (c.key == "ai.preset" || c.key.rfind("keys.", 0) == 0) {
+    if (c.key == "ai.preset" || c.key.rfind("slots.", 0) == 0) {
       ai_change(s, st.space, c);
       continue;
     }
@@ -485,7 +485,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
         log(l);
       }
       apply_changes(s, *space, now);
-      for (const en::overlay::AiRequest r : space->space.take_requests()) ai_request(s, space->space, r);
+      for (en::overlay::AiRequest& r : space->space.take_requests()) ai_request(s, space->space, r);
       if (step.page_refused != GRACEUI_OK && step.page_refused != link->page_refused) {
         log(Line("page").word("refused", "publish_or_answer").num("status", step.page_refused), LogLevel::Warn);
       }

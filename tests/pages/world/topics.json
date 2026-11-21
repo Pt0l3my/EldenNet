@@ -1,4 +1,124 @@
 {
+  "ai.choices.bark_live": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.bark_pool": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.dialogue": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.memory": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
+  "ai.choices.selftest": {
+    "choices": [
+      {
+        "label": "talker-small",
+        "value": "talker-small"
+      },
+      {
+        "label": "talker-large",
+        "value": "talker-large"
+      },
+      {
+        "label": "pool-flash",
+        "value": "pool-flash"
+      },
+      {
+        "label": "keeper-large",
+        "value": "keeper-large"
+      },
+      {
+        "label": "keeper-small",
+        "value": "keeper-small"
+      }
+    ]
+  },
   "ai.slots": {
     "columns": [
       {
@@ -117,7 +237,7 @@
       "time": "0:00:00"
     },
     {
-      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.3",
+      "line": "connect ok=1 outcome=connected path=main how=path looks=1 installed=1 graceui=0.2.8",
       "seq": 4,
       "time": "0:00:01"
     },
@@ -186,7 +306,7 @@
         "address": "https://router.example.invalid/api/v1",
         "id": "openrouter",
         "json": "JSON schema",
-        "key": "Set",
+        "key": "set",
         "kind": "Cloud",
         "requests": "2",
         "type": "OpenAI-compatible"
@@ -283,7 +403,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.3"
+        "value": "0.2.8"
       },
       {
         "label": "Game build",
@@ -298,25 +418,6 @@
     "reason": "EldenNet reads the game. NPCs speak from a later version.",
     "tone": "ember",
     "word": "Observing"
-  },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Supported",
-        "label": "Game build 3.14.15.0",
-        "state": "pass"
-      },
-      {
-        "detail": "Started by the EldenNet launcher",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
-        "label": "GraceUI 0.2.3",
-        "state": "pass"
-      }
-    ]
   },
   "system.status": {
     "checks": [
@@ -351,7 +452,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.3",
+        "detail": "Connected, version 0.2.8",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -366,6 +467,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Supported",
+          "label": "Game build 3.14.15.0",
+          "state": "pass"
+        },
+        {
+          "detail": "Started by the EldenNet launcher",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.8 or later",
+          "label": "GraceUI 0.2.8",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

@@ -31,19 +31,47 @@ struct ProviderEntry {
   bool operator==(const ProviderEntry&) const = default;
 };
 
+// A job's model as the pages choose it (PAGES §4.5's `[slots.<slot>]` row): the slot's `provider` and `model` written,
+// any fallback the player's file gives it kept; an empty model removes the slot's table, so the preset's models hold
+// again ("Reset to preset").
+struct SlotEdit {
+  std::string slot;      // a slot in use (known_slots())
+  std::string provider;  // with a model: the provider's id, which providers.toml has
+  std::string model;     // empty: the slot's [slots.<slot>] removed
+
+  bool operator==(const SlotEdit&) const = default;
+};
+
+// Where a provider's key is kept, set on its entry: `secrets:<name>`, for a key the pages set on a provider whose entry
+// had none (a server of the player's own on this PC).
+struct KeyRefEdit {
+  std::string id;
+  std::string key_ref;
+
+  bool operator==(const KeyRefEdit&) const = default;
+};
+
 struct ProvidersEdit {
   std::optional<std::string> preset;  // providers.toml's preset ("custom" or a preset of models.toml)
   std::vector<ProviderEntry> add;     // appended, each once: an id providers.toml has already is refused
   std::vector<std::string> remove;    // by id, with every [slots.*] entry that names one of them
+  std::vector<SlotEdit> slots;        // made after the rest, in order
+  std::vector<KeyRefEdit> key_refs;   // likewise
 };
 
 struct EditedText {
   bool ok = false;
   std::string text;
   // When not ok: "refused" (the file's text fails its checks: it is never written over), "not_a_table",
-  // "duplicate_id", "unknown_id", "bad_entry".
+  // "duplicate_id", "unknown_id", "bad_entry", "unknown_slot".
   std::string why;
 };
+
+// A provider of the player's own, from AI › Providers' form: an OpenAI-compatible endpoint (ARCH §11.1's default
+// flavour), local when it is reached by http:// on this PC or the home network (one request at once, no key's place:
+// this PC's may take one on its row, the home network's never), and cloud otherwise, its key then in secrets:<id>.
+// `base_url` is as en-proto's check_base_url wrote it.
+[[nodiscard]] ProviderEntry own_provider(std::string id, std::string base_url, bool local);
 
 // providers.toml's text with `edit` made; an empty text makes a new file (`schema = 1` and the edit).
 [[nodiscard]] EditedText edit_providers(std::string_view text, const ProvidersEdit& edit);

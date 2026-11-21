@@ -1,4 +1,19 @@
 {
+  "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_pool": {
+    "choices": []
+  },
+  "ai.choices.dialogue": {
+    "choices": []
+  },
+  "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.selftest": {
+    "choices": []
+  },
   "ai.slots": {
     "columns": [
       {
@@ -25,7 +40,7 @@
     "rows": []
   },
   "ai.status": {
-    "sentence": "EldenNet is inactive, so it calls no model: Home's Problems say why."
+    "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
   },
   "errors": {
     "checks": [
@@ -129,7 +144,8 @@
     "greyed": {
       "ai.models": "EldenNet inactive: game build 3.14.15.0 not supported yet",
       "ai.providers": "EldenNet inactive: game build 3.14.15.0 not supported yet",
-      "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet"
+      "ai.selftest": "EldenNet inactive: game build 3.14.15.0 not supported yet",
+      "home": "EldenNet inactive: game build 3.14.15.0 not supported yet"
     }
   },
   "status": {
@@ -148,7 +164,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.3"
+        "value": "0.2.8"
       },
       {
         "label": "Game build",
@@ -163,25 +179,6 @@
     "reason": "EldenNet inactive: game build 3.14.15.0 not supported yet",
     "tone": "rot",
     "word": "Inactive"
-  },
-  "system.compatibility": {
-    "checks": [
-      {
-        "detail": "Not supported yet",
-        "label": "Game build 3.14.15.0",
-        "state": "fail"
-      },
-      {
-        "detail": "Started by another loader; EldenNet started its crash watch itself",
-        "label": "EldenNet 0.1.0",
-        "state": "pass"
-      },
-      {
-        "detail": "EldenNet needs GraceUI 0.2.3 or later",
-        "label": "GraceUI 0.2.3",
-        "state": "pass"
-      }
-    ]
   },
   "system.status": {
     "checks": [
@@ -211,7 +208,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.3",
+        "detail": "Connected, version 0.2.8",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -226,6 +223,25 @@
         "label": "Self-test"
       }
     ],
+    "compatibility": {
+      "checks": [
+        {
+          "detail": "Not supported yet",
+          "label": "Game build 3.14.15.0",
+          "state": "fail"
+        },
+        {
+          "detail": "Started by another loader; EldenNet started its crash watch itself",
+          "label": "EldenNet 0.1.0",
+          "state": "pass"
+        },
+        {
+          "detail": "EldenNet needs GraceUI 0.2.8 or later",
+          "label": "GraceUI 0.2.8",
+          "state": "pass"
+        }
+      ]
+    },
     "items": [
       {
         "label": "State",

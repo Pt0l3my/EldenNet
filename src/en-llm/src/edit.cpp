@@ -7,6 +7,7 @@
 
 #include <toml.hpp>
 
+#include "en/proto/base_url.hpp"
 #include "en/proto/toml_check.hpp"
 
 namespace en::llm {
@@ -44,6 +45,11 @@ std::string normalised(std::string url) {
   while (!url.empty() && (url.back() == '/' || url.back() == ' ')) url.pop_back();
   while (!url.empty() && url.front() == ' ') url.erase(url.begin());
   return url;
+}
+
+bool known_slot(std::string_view slot) {
+  const auto slots = known_slots();
+  return std::find(slots.begin(), slots.end(), slot) != slots.end();
 }
 
 std::optional<Flavor> flavor_of(std::string_view word) {
@@ -124,7 +130,10 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
     t.insert_or_assign("json_mode", std::string(json_word(e.json_mode)));
     list->push_back(std::move(t));
   }
-  if (list != nullptr && list->empty()) root.erase("provider");
+  if (list != nullptr && list->empty()) {
+    root.erase("provider");
+    list = nullptr;
+  }
 
   // A [slots.*] entry that names a removed provider goes with it, so that the file still names only providers it has.
   if (!edit.remove.empty()) {
@@ -146,9 +155,79 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
       if (slots->empty()) root.erase("slots");
     }
   }
+  // A key's place on a provider's entry.
+  for (const KeyRefEdit& k : edit.key_refs) {
+    if (k.key_ref.rfind("secrets:", 0) != 0 || !valid_name(std::string_view(k.key_ref).substr(8))) {
+      out.why = "bad_entry";
+      return out;
+    }
+    toml::table* entry = nullptr;
+    if (list != nullptr) {
+      for (toml::node& n : *list) {
+        if (id_of(n) == k.id) entry = n.as_table();
+      }
+    }
+    if (entry == nullptr) {
+      out.why = "unknown_id";
+      return out;
+    }
+    entry->insert_or_assign("key_ref", k.key_ref);
+  }
+
+  // A job's model: its [slots.<slot>] provider and model, the rest of the table kept; or the table gone.
+  for (const SlotEdit& s : edit.slots) {
+    if (!known_slot(s.slot)) {
+      out.why = "unknown_slot";
+      return out;
+    }
+    if (!s.model.empty() && !valid_name(s.provider)) {
+      out.why = "bad_entry";
+      return out;
+    }
+    toml::node* slots_node = root.get("slots");
+    if (slots_node != nullptr && !slots_node->is_table()) {
+      out.why = "not_a_table";
+      return out;
+    }
+    if (s.model.empty()) {
+      if (slots_node != nullptr) {
+        toml::table* slots = slots_node->as_table();
+        slots->erase(s.slot);
+        if (slots->empty()) root.erase("slots");
+      }
+      continue;
+    }
+    if (slots_node == nullptr) {
+      root.insert_or_assign("slots", toml::table{});
+      slots_node = root.get("slots");
+    }
+    toml::table* slots = slots_node->as_table();
+    toml::node* slot_node = slots->get(s.slot);
+    if (slot_node != nullptr && !slot_node->is_table()) {
+      out.why = "not_a_table";
+      return out;
+    }
+    if (slot_node == nullptr) {
+      slots->insert_or_assign(s.slot, toml::table{});
+      slot_node = slots->get(s.slot);
+    }
+    toml::table* slot = slot_node->as_table();
+    slot->insert_or_assign("provider", s.provider);
+    slot->insert_or_assign("model", s.model);
+  }
   out.text = text_of(root);
   out.ok = true;
   return out;
+}
+
+ProviderEntry own_provider(std::string id, std::string base_url, bool local) {
+  ProviderEntry e;
+  e.flavor = Flavor::OpenAI;
+  e.kind = local ? ProviderKind::Local : ProviderKind::Cloud;
+  e.base_url = normalised(std::move(base_url));
+  if (e.kind == ProviderKind::Cloud) e.key_ref = "secrets:" + id;
+  e.id = std::move(id);
+  return e;
 }
 
 std::vector<std::string> preset_ids(std::string_view models_text) {
@@ -207,9 +286,7 @@ std::vector<ProviderEntry> preset_providers(std::string_view models_text, std::s
     e.id = name;
     e.flavor = flavor.value_or(Flavor::OpenAI);
     e.base_url = normalised(*url);
-    const bool loopback = e.base_url.find("://127.") != std::string::npos ||
-                          e.base_url.find("://localhost") != std::string::npos ||
-                          e.base_url.find("://[::1]") != std::string::npos;
+    const bool loopback = proto::is_loopback_host(proto::host_of_url(e.base_url));
     e.kind = kind.value_or(loopback ? ProviderKind::Local : ProviderKind::Cloud);
     if (e.kind == ProviderKind::Cloud) e.key_ref = "secrets:" + name;
     out.push_back(std::move(e));
