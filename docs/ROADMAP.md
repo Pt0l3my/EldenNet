@@ -1144,6 +1144,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: proposal 0006 (G33), decided by the owner on 2026-11-20 ("Agreed to proposal 0006") with EldenNet's
     per-page greying, and built the same day (GraceUI feat/foundations beca859), no change of the ABI. EldenNet's
     pages take them as each slice is built; Home and System are reworked to use them in a later slice (WHY§273).
+- t The browser view's rail and tables match the game's (page-less categories hidden, column gaps, a one-line top bar), and a page-shots harness scenario for look reviews (GraceUI D191) [done]
+  - refs: WHY§278, WHY§279
+  - gives: found and done on 2026-11-21 (GraceUI's D191 on feat/foundations c397464, in design/v1 at its next sync;
+    no change of the ABI) while making the owner's "Decisions in pictures" page from EldenNet's pages as built
+    (engine 80ef2fe), in both views.
 
 ### S11.3 EldenNet v0.2
 

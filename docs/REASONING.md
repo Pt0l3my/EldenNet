@@ -300,6 +300,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 275 | 2026-11-21 | Keeping std::filesystem's imports out of eldennet.dll, the handle told the gate when made, and toml++'s output | FACT | #engine |
 | 276 | 2026-11-21 | A key-shaped value in a test and the sweep: allowed by a pattern, since an allow line holding the literal is itself a finding | METHOD | #privsweep #engine |
 | 277 | 2026-11-21 | The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4 | LIKELY | #input #hotkeys |
+| 278 | 2026-11-21 | GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages | FACT | #graceui #pages |
+| 279 | 2026-11-21 | The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey | FACT | #graceui #lamp |
 
 ## Entries
 
@@ -4739,3 +4741,22 @@ invariant 10, EldenNet ARCH (T3)
   list is from the search results (Shacknews' "Elden Ring controls and PC keybindings", PC Gamer's "Elden Ring's
   half-assed mouse and keyboard controls", keymap.io's Elden Ring page). Not a FACT until S4 presses `T` in game in
   the default layout and the game does nothing.
+
+### 278. GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages
+
+`2026-11-21` · FACT · `#graceui` `#pages` · refs: GraceUI D191 (feat/foundations c397464), S11.2.t
+
+- (FACT) The browser view's rail kept a category with no page whenever no page was of a later increment (its
+  increment check returned early), while the game's view skips any category with no page present. EldenNet's space
+  declares six categories with no page yet (Voice, Characters, Map, History, Behaviour, Tools), so the two views
+  differed. Fixed in GraceUI's D191 (feat/foundations c397464).
+- (METHOD) Compare both views' pictures of a real mod's pages, not only the demo space's goldens.
+
+### 279. The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey
+
+`2026-11-21` · FACT · `#graceui` `#lamp` · refs: GraceUI invariant 13, S11.4.a
+
+- (FACT) On the lamp's ground, in both themes: moss 7.7:1, ember 7.0:1, glint 8.2:1, rot 6.0:1; the word 10.2:1.
+  A graphic needs 3:1, and each clears the 4.5:1 GraceUI asks of readable text. Glint is a pale blue-grey, not gold.
+- (FACT) The lamp is drawn only in the browser view, in the top bar beside the theme switch, not beside the name;
+  the game's menu has none today.
