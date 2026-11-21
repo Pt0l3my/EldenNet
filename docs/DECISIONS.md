@@ -66,8 +66,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
   accepted as written the same day; O100 (where the per-frame reading runs) put and decided the same day, by an
   option of the owner's own: EldenNet's own address library, built by the Lodestar session; O101 to O103 (Lodestar's
-  proposal 0005) put to the owner the same day.
-- **Open.** O101, O102, O103.
+  proposal 0005) put to the owner and decided the same day, as recommended.
+- **Open.** None.
 
 ## O1
 
@@ -1589,6 +1589,10 @@ task group's index), at the owner's Mark at the title with no save loaded, the l
 patterns cut from the file (`probe-exe --static`), and the layout's fields are searched by invariant in a later
 in-game run. Steps (3) and (4) of the decision are unchanged.
 
+*2026-11-21, by O102 (a):* the patterns this entry let leave the owner's PC (at most 64 bytes, addresses wildcarded) are
+withdrawn: `gal/` holds no bytes from the game, only shapes in our own grammar, numbers and digests (proposal 0005).
+The one pattern in `gal/patterns.toml` is retired when its shape passes the same tests.
+
 ## O90
 
 **Spikes before GraceUI's host** · *2026-11-16 · Decided by the owner, as recommended*
@@ -1899,7 +1903,7 @@ such as what SKSE and address library does for Skyrim. This will still be EldenN
 
 ## O101
 
-**Where v1's per-frame reading runs** · *2026-11-21 · Open*
+**Where v1's per-frame reading runs** · *2026-11-21 · Decided by the owner, as recommended*
 
 **Question.** O100 left this to Lodestar's proposal 0005 (§10, §14 A): EldenNet v1 reads the game every frame or so for
 its world snapshot and Augur's events. Where does that reading run?
@@ -1912,13 +1916,15 @@ game's thread; (c) pause the in-game work.
 call into the game and writes nothing to it, the release build drops the getter fallback (proposal 0005 §10), and the
 in-game work goes on from today. Engine agrees.
 
-**Decision.** Open.
+**Decision.** (b). EldenNet v1 reads the game from its own thread, about ten times a second, with proposal 0005 §10's checks; it makes no call into the game and writes nothing to it, and the release build drops the getter fallback. The game's own task system stays Lodestar's later task service (proposal 0005 §9.6, step L7), and the owner decides again when it is confirmed.
+
+**Owner's words.** "(b) Own thread now (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
 
 **Follows from.** O100, O49, O89 to O92; proposal 0005 §9.4, §9.6, §10; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§302 to §305.
 
 ## O102
 
-**May `gal/` hold bytes cut from the game?** · *2026-11-21 · Open*
+**May `gal/` hold bytes cut from the game?** · *2026-11-21 · Decided by the owner, as recommended*
 
 **Question.** O89 let patterns of at most 64 bytes, their addresses wildcarded, leave the owner's PC, and
 `gal/patterns.toml` holds one (24 bytes, 7 of them fixed). The handover of 2026-11-21 rules out byte patterns copied
@@ -1931,13 +1937,15 @@ allowed, the handover's rule covering longer listings only.
 (seconds), since a start no longer searches. What it gains: nothing of the game is in the repository at all, and a
 recipe survives a patch that changes registers or distances.
 
-**Decision.** Open.
+**Decision.** (a). `gal/` holds no bytes from the game: recipes are shapes in our own grammar, and the tables hold numbers and digests. `gal/patterns.toml`'s one pattern is retired when its shape passes the same tests (step L2). O89 is amended by a dated note.
+
+**Owner's words.** "(a) No bytes at all (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
 
 **Follows from.** O89, O47, O48; proposal 0005 §5, §6; CLAUDE.md's rule on game files; WHY§304.
 
 ## O103
 
-**Who may use the library?** · *2026-11-21 · Open*
+**Who may use the library?** · *2026-11-21 · Decided by the owner, as recommended*
 
 **Question.** Skyrim's Address Library and SKSE serve every mod. Who may use Lodestar's library (proposal 0005 §9.8,
 §14 C)?
@@ -1951,7 +1959,9 @@ get projections only and no hook service). What it gives up: other mods cannot b
 library stays small and ours to change while it is young, and nothing published can be turned to uses we would not
 stand behind.
 
-**Decision.** Open.
+**Decision.** (a). In v1 the library serves EldenNet and its devkit only; its data is in the open repository under EldenNet's licence, with no interface for other mods. Whether to publish one is asked again after v1.0, with the plugin interface (O65 to O69).
+
+**Owner's words.** "(a) EldenNet only in v1 (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
 
 **Follows from.** O65 to O70; proposal 0005 §9.8, §12.
 
