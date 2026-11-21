@@ -205,8 +205,20 @@ of any game is in it, and every name it looks for comes from a leads file.
   shape and which step gives the static, the class object and the getter): every hit is a site already decoded, its
   path found by decoding on, its placement and name judged as a pattern's site's are. On the tests' three invented
   programs, as files and as mapped, the shape's sites are exactly the pattern's that are not refused as no idiom, with
-  every place, verdict and name the same: the test that lets `patterns.toml`'s idiom go (O102). The pattern path
-  stays until the derivation, discovery and R1 read the shape from `gal/recipes.toml` (the next step).
+  every place, verdict and name the same: the test that let `gal/patterns.toml`'s idiom go (O102).
+- **`recipes.hpp`: `gal/recipes.toml`** (proposal 0005 §6; O102). `parse_recipes(text, required_ids)` reads the
+  recipes, one kind so far: an `accessor`, with its `steps` (1 to 16 forms of the grammar; a test before any load is
+  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it), its
+  `path_suffix`, and, as a pattern has, `section`, `expect_matches` (a range up to 65,536), `builds` and `provenance`
+  (`own-derivation`). No key of a recipe can hold bytes. `RecipeSpec::accessor()` is what the finder takes. Discovery
+  takes the file's text in `DiscoveryOptions::recipes`: with an `accessor` recipe (`roles::kAccessorRecipeId`) the FD4
+  singletons are found by its shape and `patterns.toml` needs no `fd4_idiom`, nor is one read; a text that does not
+  read is a refusal. On the tests' fake world discovery finds the same items, sites and names by either. The DLL and
+  the test DLL read `recipes.toml` when the folder holds it, and a folder with it and no `patterns.toml` is read as
+  having no pattern. The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
+  the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
+  until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
+  no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with

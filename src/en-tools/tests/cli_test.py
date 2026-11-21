@@ -154,11 +154,25 @@ checks = ["placement", "verdict"]
 """
 
 
-def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True, ids=None):
+# Lodestar's recipes (proposal 0005 §6; O102): the accessor as a shape, with no bytes, and its note.
+INVENTED_RECIPES = """schema = 1
+[[recipe]]
+id = "invented_accessor"
+kind = "accessor"
+steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 3, getter = 4 }
+path_suffix = "Invented.h"
+provenance = { method = "own-derivation", leads = ["none"], evidence = "docs/ops/probes/invented.md", date = "2026-11-21" }
+"""
+
+
+def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True, ids=None,
+              recipes=None, recipe_note=True):
     os.makedirs(os.path.join(folder, "layouts"), exist_ok=True)
     os.makedirs(os.path.join(folder, "derivations"), exist_ok=True)
     for name, text in (("builds.toml", builds), ("layouts/9.8.7.0-ww.toml", layout), ("patterns.toml", patterns),
-                       ("ids.toml", ids),
+                       ("ids.toml", ids), ("recipes.toml", recipes),
+                       ("derivations/invented_accessor.md", "An invented note.\n" if recipes and recipe_note else None),
                        ("derivations/invented_idiom.md", "An invented note.\n" if note else None)):
         path = os.path.join(folder, name)
         if text is None:
@@ -184,7 +198,22 @@ def check_gal(a):
     code, so, _ = run(a.engine, "lint", "--gal",
                       write_gal(os.path.join(base, "table"), layout=INVENTED_TABLE, ids=INVENTED_IDS))
     need(code == 0 and "ids 2" in so, "lint --gal, an invented table: exit %s %r" % (code, so))
+    # Lodestar's recipes: a shape with its note is clean, also in a folder with no patterns.toml at all.
+    code, so, _ = run(a.engine, "lint", "--gal", write_gal(os.path.join(base, "recipes"), recipes=INVENTED_RECIPES))
+    need(code == 0 and "recipes 1" in so, "lint --gal, an invented recipe: exit %s %r" % (code, so))
+    code, so, _ = run(a.engine, "lint", "--gal",
+                      write_gal(os.path.join(base, "recipes-only"), patterns=None, note=False, recipes=INVENTED_RECIPES))
+    need(code == 0 and "patterns 0" in so and "recipes 1" in so,
+         "lint --gal, recipes and no patterns.toml: exit %s %r" % (code, so))
     cases = [
+        ("recipe-no-note", dict(recipes=INVENTED_RECIPES, recipe_note=False),
+         "recipes.toml: recipe[0]: has no derivation note, derivations/invented_accessor.md"),
+        ("recipe-bytes", dict(recipes=INVENTED_RECIPES.replace("path_suffix", 'bytes = "48 8B ?? ??"\npath_suffix')),
+         'recipes.toml: recipe[0]: has an unknown key "bytes"'),
+        ("recipe-unknown-form", dict(recipes=INVENTED_RECIPES.replace('"test_loaded"', '"test"')),
+         "recipes.toml: recipe[0].steps[1]: must be one of"),
+        ("recipe-unknown-build", dict(recipes=INVENTED_RECIPES.replace("path_suffix", 'builds = ["1.2.3.4-jp"]\npath_suffix')),
+         "recipes.toml: recipe[0].builds: names a build builds.toml lacks"),
         ("table-no-catalogue", dict(layout=INVENTED_TABLE), "layouts/9.8.7.0-ww.toml: item: needs the catalogue"),
         ("table-other-number", dict(layout=INVENTED_TABLE, ids=INVENTED_IDS.replace("n = 1001", "n = 1002")),
          "layouts/9.8.7.0-ww.toml: item.lantern.id: is not the catalogue's number for this label"),

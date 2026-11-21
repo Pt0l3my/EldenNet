@@ -65,6 +65,10 @@ struct DiscoveryOptions {
   LayoutMode mode = LayoutMode::Release;  // a dev build accepts a layout's leads, with a banner
   // The probe round's slots of statics (R1; the derivation's --static label=rva): such a static needs no pattern.
   std::vector<std::pair<std::string, std::uint32_t>> static_slots;
+  // gal/recipes.toml's text, or empty for none (proposal 0005 §6; O102). With an `accessor` recipe in it, the FD4
+  // singletons are found by its shape, and patterns.toml needs no fd4_idiom. A text that does not read is a refusal,
+  // as a patterns.toml that does not read is.
+  std::string recipes;
 };
 
 enum class ItemStatus : std::uint8_t {
