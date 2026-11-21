@@ -1,7 +1,7 @@
 // libFuzzer target: the schemas of gal/'s files on arbitrary text (ARCH §6.3): patterns.toml (parse_patterns),
 // builds.toml (parse_builds), a layout (load_layout, for a build gated on an invented FakeImage, its items checked
-// against an invented catalogue) and ids.toml (parse_ids). The first byte picks the file (its value modulo 4); the rest
-// is the text. Besides any sanitizer report, a broken property is a finding:
+// against an invented catalogue), ids.toml (parse_ids) and recipes.toml (parse_recipes). The first byte picks the file
+// (its value modulo 8: 0 to 4 in that order, a layout otherwise); the rest is the text. Besides any sanitizer report, a broken property is a finding:
 // - a refusal lists 1 to kMaxSchemaErrors + 1 problems, each with where and what;
 // - what patterns.toml accepts holds unique ids, own-derivation provenance and captures within their patterns;
 // - what builds.toml accepts holds keys that are their version and region joined, layouts under layouts/ and a
@@ -9,7 +9,9 @@
 // - what a layout accepts is the gated build's, with every field within its class's bound and every `to` and `elem`
 //   naming a class of the file, and every item an id of the catalogue under its number and kind, inside the image,
 //   found by recipes of its kind;
-// - what ids.toml accepts holds numbers that ascend, each in its kind's block, and labels of ours, none twice.
+// - what ids.toml accepts holds numbers that ascend, each in its kind's block, and labels of ours, none twice;
+// - what recipes.toml accepts holds ids of ours, none twice, shapes of the grammar with each place given by a step of
+//   the form that gives it, a path suffix, counts in order and own-derivation provenance.
 // toml++ is built without exceptions in en-gal; an exception that escapes is a finding too, so this entry has no
 // ffi_guard.
 #include <cstddef>
@@ -23,6 +25,7 @@
 #include "en/gal/ids.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
+#include "en/gal/recipes.hpp"
 #include "fake_image.hpp"
 
 namespace {
@@ -95,7 +98,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   // the characters they are, and ends where they end.
   const std::string_view input(reinterpret_cast<const char*>(data), size);
   const std::string_view text = input.substr(1);
-  switch (static_cast<std::uint8_t>(input[0]) % 4) {
+  switch (static_cast<std::uint8_t>(input[0]) % 8) {
     case 0: {
       const auto set = parse_patterns(text, {});
       if (!set) {
@@ -142,6 +145,21 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         require(ids->find(e.label, true) == &e && ids->find(e.number) == &e, "no label or number twice");
         require(!e.means.empty() && !e.needs.empty(), "a meaning and a need");
         require(e.status == IdStatus::Active || !e.required, "a retired id is not required");
+      }
+      return 0;
+    }
+    case 4: {
+      const auto set = parse_recipes(text, {});
+      if (!set) {
+        check_errors(set.error());
+        return 0;
+      }
+      for (const RecipeSpec& r : set->recipes) {
+        require(is_id_label(r.id) && set->find(r.id) == &r, "ids of ours, none twice");
+        require(r.shape.valid() && r.accessor().valid(), "a shape of the grammar whose steps give its places");
+        require(!r.path_suffix.empty() && r.path_suffix.size() <= 64, "a path suffix");
+        require(r.expect_min >= 1 && r.expect_min <= r.expect_max && r.expect_max <= kMaxRecipeMatches, "counts");
+        require(r.provenance.method == "own-derivation", "provenance is own-derivation");
       }
       return 0;
     }

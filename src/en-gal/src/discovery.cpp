@@ -8,6 +8,7 @@
 #include "en/gal/fd4.hpp"
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/patterns.hpp"
+#include "en/gal/recipes.hpp"
 #include "en/gal/rtti.hpp"
 
 namespace en::gal {
@@ -122,7 +123,15 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
                                            std::string_view layout_text, const DiscoveryOptions& options) {
   const std::uint64_t t0 = sys.now_us();
   // The files first: a refusal is permanent.
-  std::vector<std::string_view> required = {roles::kFd4IdiomId, roles::info(Item::RegisterTask).label};
+  std::optional<RecipeSet> recipes;
+  if (!options.recipes.empty()) {
+    auto parsed = parse_recipes(options.recipes, {});
+    if (!parsed) return Unexpected{std::move(parsed.error())};
+    recipes = std::move(*parsed);
+  }
+  const RecipeSpec* accessor = recipes ? recipes->find(roles::kAccessorRecipeId) : nullptr;
+  std::vector<std::string_view> required = {roles::info(Item::RegisterTask).label};
+  if (accessor == nullptr) required.push_back(roles::kFd4IdiomId);  // the idiom, where no recipe replaces it
   for (const Item i : kAllItems) {
     const roles::ItemInfo& info = roles::info(i);
     if (info.kind != ItemKind::Static || !info.required) continue;
@@ -187,14 +196,17 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
   for (const SectionCopy& s : img.sections()) r.image_unreadable += s.unreadable;
 
   // ---- The FD4 singletons ----
-  const PatternSpec* idiom_spec = patterns->find(roles::kFd4IdiomId);
+  // By the accessor's shape where recipes.toml gives one (no byte of the game), else by patterns.toml's idiom.
+  const PatternSpec* idiom_spec = accessor == nullptr ? patterns->find(roles::kFd4IdiomId) : nullptr;
   const std::optional<fd4::Idiom> idiom = idiom_spec != nullptr ? fd4::idiom_from(*idiom_spec) : std::nullopt;
-  if (idiom) {
+  if (accessor != nullptr || idiom) {
     fd4::Config config;
-    config.path_suffix = idiom_spec->path_suffix;
+    config.path_suffix = accessor != nullptr ? accessor->path_suffix : idiom_spec->path_suffix;
+    if (accessor != nullptr) config.code = accessor->section;
     const bool name_layout = gated.profile.entry().dlrf_name_layout && d.layout().dlrf().has_value();
     if (name_layout) config.names = fd4::NameLayout{d.layout().dlrf()->name_ptr_off, fd4::NameEncoding::Ascii};
-    const fd4::Result found = fd4::find(img, *idiom, config);
+    const fd4::Result found =
+        accessor != nullptr ? fd4::find(img, accessor->accessor(), config) : fd4::find(img, *idiom, config);
     r.fd4_hits = found.hits;
     struct Named {
       std::uint32_t static_slot = 0;
@@ -239,7 +251,7 @@ Expected<Discovery, SchemaErrors> discover(SysLayer& sys, const Gated& gated, st
     }
   } else {
     for (const Item i : kAllItems) {
-      if (roles::info(i).kind == ItemKind::Singleton) r.items[roles::index(i)].why = "patterns.toml has no fd4_idiom";
+      if (roles::info(i).kind == ItemKind::Singleton) r.items[roles::index(i)].why = "no accessor recipe and no fd4_idiom";
     }
   }
 

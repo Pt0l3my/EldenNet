@@ -15,8 +15,9 @@
 // JSON Lines file whose every line is a report of the kind `recording` (en_shell's record.hpp), where a key may hold a
 // finite number. Each problem is printed with where it is (a recording's with its line), never with what was there.
 //
-// --gal reads builds.toml, ids.toml, patterns.toml and leads.toml as the DLL and probe-exe do (each optional but
-// builds.toml), and each build's layout with load_layout's checks in a dev build's mode (leads allowed; what the read
+// --gal reads builds.toml, ids.toml, recipes.toml, patterns.toml and leads.toml as the DLL and probe-exe do (each
+// optional but builds.toml; a recipe needs its derivation note as a pattern does, and names only builds builds.toml
+// holds), and each build's layout with load_layout's checks in a dev build's mode (leads allowed; what the read
 // groups need is the DLL's to check at boot); every pattern needs its derivation note, derivations/<id>.md (ARCH §6.3,
 // DESIGN O27), and every build a pattern lists as confirmed must be one builds.toml holds. ids.toml is Lodestar's
 // catalogue (proposal 0005 §4): a layout that holds a table's items (schema 2) is checked against it, each item under
@@ -37,6 +38,7 @@
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/probe_report.hpp"
+#include "en/gal/recipes.hpp"
 #include "en/gal/report.hpp"
 #include "en/shell/record.hpp"
 
@@ -131,6 +133,27 @@ int lint_gal(const std::filesystem::path& dir) {
   } else if (std::error_code ec; std::filesystem::exists(dir / "patterns.toml", ec)) {
     say("patterns.toml: cannot be read, or is larger than 256 KiB");
   }
+  // Lodestar's recipes: shapes in our own grammar, each with its note, as a pattern has (O27).
+  std::size_t recipes = 0;
+  if (const std::optional<std::string> text = read_file(dir / "recipes.toml", gal::kMaxGalFileBytes)) {
+    const auto set = gal::parse_recipes(*text, {}, "recipes.toml");
+    if (!set) errors(set.error());
+    for (std::size_t i = 0; set && i < set->recipes.size(); ++i) {
+      const gal::RecipeSpec& r = set->recipes[i];
+      ++recipes;
+      const std::optional<std::string> note = read_file(dir / "derivations" / (r.id + ".md"), 64u << 10);
+      if (!note || note->find_first_not_of(" \t\r\n") == std::string::npos) {
+        say("recipes.toml: recipe[" + std::to_string(i) + "]: has no derivation note, derivations/" + r.id + ".md");
+      }
+      for (const std::string& b : r.builds) {
+        const bool known = builds && std::any_of(builds->entries.begin(), builds->entries.end(),
+                                                 [&](const gal::BuildEntry& e) { return e.key == b; });
+        if (!known) say("recipes.toml: recipe[" + std::to_string(i) + "].builds: names a build builds.toml lacks");
+      }
+    }
+  } else if (std::error_code ec; std::filesystem::exists(dir / "recipes.toml", ec)) {
+    say("recipes.toml: cannot be read, or is larger than 256 KiB");
+  }
   bool leads = false;
   if (const std::optional<std::string> text = read_file(dir / "leads.toml", 64u << 10)) {
     leads = true;
@@ -141,9 +164,9 @@ int lint_gal(const std::filesystem::path& dir) {
   }
   if (problems == 0) {
     std::printf("lint: gal/ is clean: builds %zu, layouts %zu, patterns %zu (confirmed in no build: %zu), leads.toml %s, "
-                "ids %zu\n",
+                "ids %zu, recipes %zu\n",
                 builds ? builds->entries.size() : 0, layouts, patterns, unconfirmed, leads ? "read" : "absent",
-                catalogue ? catalogue->entries().size() : 0);
+                catalogue ? catalogue->entries().size() : 0, recipes);
     return 0;
   }
   std::printf("lint: gal/ is refused (%zu problems)\n", problems);

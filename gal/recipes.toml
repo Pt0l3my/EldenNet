@@ -1,0 +1,24 @@
+# Lodestar's recipes (proposal 0005 section 6; O102): how our own tools find an id in a build nobody has seen. A recipe
+# is a shape in a grammar of our own over our own decoder's fields: which kind of instruction stands at each step and
+# what it refers to. It holds no byte of the game, and no pattern cut from its code; gal/ holds numbers, our labels and
+# shapes only. Each recipe has its note in derivations/<id>.md, in our own words (O27), and its provenance is our own
+# derivation (O4, O48). Nothing here is relied on until a reviewed round and the self-tests confirm it (ARCH 6.3,
+# "Lead and confirmed"): `builds` lists where that has happened, and is empty until then.
+schema = 1
+
+# The accessor: the short sequence the compiler writes wherever the game fetches one of its managers. It loads the
+# manager's slot, tests what it loaded, skips ahead when it is set, and otherwise hands the manager's class object to a
+# helper and reports, naming a source file whose path ends with the suffix below. The first step gives the slot (the
+# static), the fourth the class object, the fifth the helper (the getter). It replaces patterns.toml's fd4_idiom, the
+# same head as 24 bytes with wildcards, which is withdrawn (O102; derivations/accessor.md).
+[[recipe]]
+id = "accessor"
+kind = "accessor"
+section = ".text"
+steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 3, getter = 4 }
+path_suffix = "FD4Singleton.h"      # ARCH 6.2, the finder's step 2
+# expect_matches is left at its widest until the shape has been counted on the owner's own executable (step L3): the
+# withdrawn pattern had 7,151 hits there, of which 7,081 were accepted as accessors (R0c).
+builds = []
+provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2", "ER01 \u00A74"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-21" }

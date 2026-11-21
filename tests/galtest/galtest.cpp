@@ -2,7 +2,7 @@
 // game. DllMain only starts a thread (ARCH §3.1); that thread gates the image, runs discovery with its retries,
 // registers the task once and then reports, every 500 ms, numbers only: what was found, what the snapshots hold, the
 // groups' states, the task's cost. Its settings come from the environment, which the harness sets:
-//   EN_GALTEST_DIR      the gal/ folder (builds.toml, patterns.toml, layouts/)          (required)
+//   EN_GALTEST_DIR      the gal/ folder (builds.toml, patterns.toml, layouts/; recipes.toml if there) (required)
 //   EN_GALTEST_STATUS   a file the lines are appended to as well (a run with no console, on Windows)
 //   EN_GALTEST_COPY     seh (default) or rpm: the copy primitive (ARCH §6.5, S0-D)
 //   EN_GALTEST_FAULT    <group>:<every>: the probe's fault injection, from EN_GALTEST_FAULT_AFTER s in the world
@@ -448,6 +448,7 @@ DWORD WINAPI t1(void*) noexcept {
     }
     DiscoveryOptions options;
     options.mode = LayoutMode::Release;
+    if (const auto recipes = read_file(dir + "\\recipes.toml")) options.recipes = *recipes;  // the accessor's shape
     Retried found = discover_with_retries(*sys, *gated, *patterns, *layout, options, [&](std::uint64_t at_ms) {
       while (sys->now_us() - t0 < at_ms * 1000) Sleep(100);
     });

@@ -276,10 +276,15 @@ void run(HMODULE module) {
   // ---- Discover (ARCH §3.2's ReadyScan and Discover; the retries at +5, +15 and +30 s) ----
   enter(w::InitState::Discover);
   const en::gal::Gated& g = **gated;
-  const std::optional<std::string> patterns = gal_text(s, "patterns.toml");
+  // recipes.toml holds the accessor as a shape (proposal 0005 §6; O102); with it, patterns.toml may be absent, and is
+  // then read as a file of no pattern. Without either, there is nothing to discover by.
+  const std::optional<std::string> recipes = gal_text(s, "recipes.toml");
+  std::optional<std::string> patterns = gal_text(s, "patterns.toml");
+  if (!patterns && recipes) patterns = "schema = 1\n";
   const std::optional<std::string> layout = gal_text(s, g.profile.entry().layout);
   if (!patterns || !layout) return stop_at(s, BannerReason::DiscoveryFailed, "files");
   en::gal::DiscoveryOptions options;
+  if (recipes) options.recipes = *recipes;
   options.mode = kProbeBuild ? en::gal::LayoutMode::Dev : en::gal::LayoutMode::Release;
   const std::uint64_t pass0 = since_ms();
   en::gal::Retried found = en::gal::discover_with_retries(*s.sys, g, *patterns, *layout, options,
