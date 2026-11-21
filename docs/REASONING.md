@@ -330,6 +330,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 305 | 2026-11-21 | A function EldenNet might call carries a verdict of our own tool; unknown means no call | DECIDED | #gal #lodestar #task |
 | 306 | 2026-11-21 | Lodestar L1: the registration's label is task_add, and a build's table lives in its layout file | DECIDED | #gal #lodestar |
 | 307 | 2026-11-21 | A witness says the bytes at a place refer to the id, not that an instruction starts there | FACT | #gal #lodestar |
+| 308 | 2026-11-21 | The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites | METHOD | #gal #lodestar |
 
 ## Entries
 
@@ -5236,3 +5237,20 @@ O101, proposal 0005 §7.2
   at a start the function table lists, a table within one section that is not run, a class's method tables in read-only
   data) and its witnesses (one read of at most 15 bytes at each recorded place, decoded by our own decoder, which must
   refer to the id); only a checked item's place is handed out. Nothing in the DLL reads through it yet.
+
+### 308. The accessor's shape is stricter than the pattern it replaces, and loses none of its accepted sites
+
+`2026-11-21` · METHOD, with a LIKELY · `#gal` `#lodestar` · refs: O102, proposal 0005 §6.1, WHY§181, WHY§197, S10.1.k
+
+- **Stricter** (METHOD): the load must be 64-bit, the test must be of the register just loaded, and the branch must go
+  forward; the pattern wildcarded those bytes and left the rest to the finder's decoding. So what the pattern hit and
+  then refused as no idiom, the shape never hits, and on the tests' three invented programs the accepted sites are the
+  same, with every place, verdict and name.
+- **On the real game** (LIKELY): the shape's hits are fewer than R0c's 7,151 and its accepted sites equal R1's 7,081;
+  L3's offline run reports both counts, and a difference in accepted sites is a finding to read before the pattern goes.
+- **Every offset** (METHOD): the shape is looked for at every offset of a section, not only where a straight decode
+  lands, since a pattern scan finds a site wherever it lies and the shape must lose none; a three-byte test on the first
+  form's encoding keeps it as cheap.
+- **Built** (FACT): en-gal's `shape.hpp`, a run of at most 16 instruction forms in our own grammar over our decoder's
+  fields, with no byte of any program; `fd4::find` runs on the shape beside the pattern (engine feat/engine 33cf307). The
+  pattern stays in use until the derivation, discovery and R1 read the shape from `gal/recipes.toml`.

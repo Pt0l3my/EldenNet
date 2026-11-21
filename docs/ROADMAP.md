@@ -961,7 +961,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The owner decided O101 to O103 the same day, as recommended: v1 reads from EldenNet's own thread with no call into
     the game, `gal/` holds no bytes from the game (O89 amended), and the library serves EldenNet alone in v1.
     Of L2 and L4, the resolver with its placement and witness checks built on invented images the same day (engine
-    c2401d0; WHY§307); L2's shapes and digests next, then L3.
+    c2401d0; WHY§307). L2's first half the same day: the accessor's shape in our own grammar, matched beside the pattern
+    with the same accepted sites on invented programs (engine 33cf307; WHY§308). Next: `gal/recipes.toml`, the three
+    readers moved to it, `patterns.toml` retired, digests; then L3.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
