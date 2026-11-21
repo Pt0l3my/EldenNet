@@ -26,7 +26,9 @@
 //    the request G's method builds (its vtable, fields, class and slots), its slots' functions and the function G's
 //    method calls with it summarised with the request in rcx, one level further each, every summary in parts where its
 //    code goes past its extent; the fields of G the method reads, and G's queue (a fifth root), are read just before
-//    the call and 50 and 250 ms after it.
+//    the call and 50 and 250 ms after it. Since spike.12 (WHY§296) the manager's map's layout from the now path's
+//    function's summary, the function a match calls (the map's value in rcx) and the other branch's call summarised
+//    with one level further, and the map and the manager's list read just before the call and 50 and 250 ms after it.
 // 3. The call, at the first Mark (the launcher's Pause, which the owner presses at the title with no save loaded;
 //    `probe.register = "auto"` calls at once, "never" not at all): our task object of `probe.object_size` zeroed bytes
 //    with a fake vtable of guarded slots, each counting its calls and running the probe's body (the run slot is what
@@ -44,7 +46,10 @@
 //    object's and vtable's under a high-bit tag; and, while the task has not run, how much of our object the hub wrote.
 //    At 2 s the table is read again (WHY§240), and G, the entries' words and the array's views (WHY§289); since
 //    spike.11 G's fields and its queue again, the searches count the request's vtable (each hit read as a request, its
-//    task's class), and the classes met are given with their bases.
+//    task's class), and the classes met are given with their bases. Since spike.12 (WHY§296) the map and the list at
+//    2 s and every 10 s while the game runs, each reading with its stage (title or world, by the singletons'
+//    instances), and, where the 2 s search found no copy of our task, the launcher told (`absent`) so that the owner
+//    loads the save.
 // Every file is numbers and the leads' labels only (O75); the reviewing agent turns them into gal/ data.
 #include "dll.hpp"
 
@@ -102,8 +107,15 @@ constexpr std::uint32_t kMaxSiteSpan = 64u << 10;  // a call site at most this f
 constexpr std::uint32_t kGAtHub = 0x08, kGAtEntry = 0x58;
 constexpr std::array<std::array<std::uint32_t, 3>, 4> kViewPaths = {
     {{0x3B0, 0x3D0, 200}, {0x3B0, 0x3D0, 232}, {0x3B0, 0x3D0, 264}, {0x3B0, 0x3D0, 296}}};
-// After the call, before the 2 s reads: since spike.11 G's fields and its queue (the array's views at 2 s only).
+// After the call, before the 2 s reads: since spike.11 G's fields and its queue (the array's views at 2 s only); since
+// spike.12 the manager's map and list too, which are then read every 10 s for as long as the game runs (WHY§296).
 constexpr std::array<std::uint64_t, 2> kEarlyReadsMs = {50, 250};
+constexpr std::uint64_t kMapEveryMs = 10'000;
+// The stage (WHY§296): the first 128 KiB of each singleton's instance, read page by page, and the distinct pointers in
+// it followed, at most kStageDerefs a reading (more than 11 instances' worth), to an object whose first word is a
+// vtable of the leads' sets.
+constexpr std::uint64_t kStageSpan = 128u << 10;
+constexpr std::size_t kStageDerefs = 1u << 18;
 
 // The probe's body on the game thread (every slot of our fake vtable runs it for our own object).
 class R1Body final : public en::gal::TaskBody {
@@ -263,6 +275,7 @@ class Round {
       read_g_fields(0);  // WHY§293: and the path the method will take
       read_queue(0, roots_[4].address != 0 ? &roots_[4].before : nullptr);
     }
+    read_map(0);  // WHY§296: the manager's map and list, just before the call
     main_thread_ = main_window_thread();
     enter_state(w::InitState::Register);
     en::gal::TaskShape shape;
@@ -280,6 +293,7 @@ class Round {
       while (since_ms() - called_ms_ < at) Sleep(1);
       read_g_fields(since_ms() - called_ms_);
       read_queue(since_ms() - called_ms_);
+      read_map(since_ms() - called_ms_);  // WHY§296
     }
     control_diff();
     if (!called) {
@@ -1166,6 +1180,152 @@ class Round {
     }
   }
 
+  // WHY§296: the manager's map and list (its layout derived from the now path's function's summary), read as the
+  // request's manager field of G's holds it now: the walk's numbers, the values' and the list's entries' kinds and
+  // classes counted, the stage, and the manager's word beside the head as a kind. The first reading is kept, then each
+  // whose map's node count, the word's presence or the stage changes (at most kMaxMapChanges, each noted in the log),
+  // and the newest.
+  void read_map(std::uint64_t at_ms) {
+    if (!f_.map || !f_.map->shape.failed.empty()) return;
+    probe::ManagerMap& m = *f_.map;
+    if (!m.word && f_.method && f_.method->before && f_.method->before->word) m.word = *f_.method->before->word;
+    const probe::DiffSpec kinds = value_kinds();
+    const probe::HeapTest heap = [&](std::uint64_t a) {
+      return probe::classify_value(a, kinds).kind == probe::ValueKind::Heap;
+    };
+    const std::optional<std::uint64_t> manager = manager_now();
+    probe::MapWalk walk = probe::walk_map(block_reader(), heap, manager.value_or(0), m.shape, m.word.value_or(0));
+    probe::MapRead r = std::move(walk.read);
+    if (!m.word) {  // no group's entry, so no word to look for (--table-gap's case)
+      r.word_present.reset();
+      r.below.reset();
+      r.above.reset();
+    }
+    r.at_ms = at_ms;
+    r.stage = stage_now();
+    if (walk.count_word) r.count_word = probe::classify_value(*walk.count_word, kinds);
+    r.values = count_values(walk.values, kinds);
+    r.list_values = count_values(walk.list, kinds);
+    ++m.made;
+    map_read_ms_ = since_ms();
+    const MapState now{r.failed, r.nodes, r.word_present, r.stage};
+    const bool first = m.made == 1;
+    const bool changed = !first && now != map_state_;
+    map_state_ = now;
+    if (changed) {
+      ++m.changes;
+      log(Line("r1").word("stage", "map_change").num("at_ms", at_ms).num("nodes", r.nodes)
+              .word("word", !r.word_present ? "none" : *r.word_present ? "present" : "absent")
+              .word("world", r.stage).word("failed", r.failed.empty() ? "none" : r.failed)
+              .num("list", r.list_count.value_or(0)));
+    } else if (first) {
+      log(Line("r1").word("stage", "map").num("at_ms", at_ms).num("nodes", r.nodes)
+              .word("word", !r.word_present ? "none" : *r.word_present ? "present" : "absent")
+              .word("world", r.stage).word("failed", r.failed.empty() ? "none" : r.failed)
+              .num("list", r.list_count.value_or(0)));
+    }
+    const bool keep = first || (changed && m.changes <= probe::kMaxMapChanges);
+    if (m.readings.size() > map_kept_) m.readings.pop_back();  // the newest so far, unless it was kept
+    m.readings.push_back(std::move(r));
+    if (keep) map_kept_ = m.readings.size();
+  }
+  struct MapState {
+    std::string_view failed;
+    std::uint32_t nodes = 0;
+    std::optional<bool> word;
+    std::string_view stage;
+    friend bool operator==(const MapState&, const MapState&) = default;
+  };
+  // Values by kind (its section, for the game's image) and class, counted, the first kMaxValueClasses distinct.
+  std::vector<probe::ValueCount> count_values(std::span<const std::uint64_t> values,
+                                              const probe::DiffSpec& kinds) const {
+    std::vector<probe::ValueCount> out;
+    for (const std::uint64_t v : values) {
+      probe::WordValue k = probe::classify_value(v, kinds);
+      probe::WordValue plain;
+      plain.kind = k.kind;
+      plain.section = k.section;
+      std::optional<probe::ClassMatch> cls;
+      if (k.kind == probe::ValueKind::Heap || k.kind == probe::ValueKind::Game) cls = class_of(v);
+      const auto same = std::find_if(out.begin(), out.end(), [&](const probe::ValueCount& c) {
+        const bool same_class = c.cls.has_value() == cls.has_value() &&
+                                (!cls || (c.cls->vtable == cls->vtable && c.cls->classed == cls->classed &&
+                                          c.cls->type_descriptor == cls->type_descriptor));
+        return c.kind.kind == plain.kind && c.kind.section == plain.section && same_class;
+      });
+      if (same != out.end()) {
+        ++same->count;
+      } else if (out.size() < probe::kMaxValueClasses) {
+        out.push_back(probe::ValueCount{plain, cls, 1});
+      }
+    }
+    return out;
+  }
+  // WHY§296: the stage at a reading, without a world snapshot (R1's task builds none): world while one of the
+  // singletons' instances holds, in its first kStageSpan bytes, a pointer to an object whose first word is a vtable of
+  // the leads' vtable sets (the characters' classes, which a world has and the title screen has not); title when none
+  // does (loading screens read as title); unknown with no set, no instance read, or past kStageDerefs pointers.
+  std::string_view stage_now() {
+    if (!stage_ready_) {
+      stage_ready_ = true;
+      for (const derive::VtableSetResult& v : result_.sets) {
+        if (v.status != derive::Status::Derived) continue;
+        for (const std::uint32_t r : v.primary) stage_vtables_.push_back(base_ + r);
+        for (const std::uint32_t r : v.subobject) stage_vtables_.push_back(base_ + r);
+      }
+      std::sort(stage_vtables_.begin(), stage_vtables_.end());
+      stage_vtables_.erase(std::unique(stage_vtables_.begin(), stage_vtables_.end()), stage_vtables_.end());
+    }
+    if (stage_vtables_.empty() || !image_) return "unknown";
+    const probe::BlockReader read = block_reader();
+    const std::uint64_t image_end = base_ + image_->size_of_image;
+    std::vector<std::byte> page(0x1000);
+    std::vector<std::uint64_t> words;
+    std::size_t derefs = 0;
+    bool any = false;
+    for (const derive::SingletonResult& sr : result_.fd4.singletons) {
+      if (sr.status != derive::Status::Derived) continue;
+      std::array<std::byte, 8> v{};
+      std::uint64_t inst = 0;
+      if (!s_.sys->image().read(sr.static_slot, v)) continue;
+      std::memcpy(&inst, v.data(), 8);
+      if (inst == 0 || (inst >= base_ && inst < image_end)) continue;
+      words.clear();
+      for (std::uint64_t at = inst; at < inst + kStageSpan;) {
+        const std::uint64_t len = std::min<std::uint64_t>(0x1000 - (at & 0xFFF), inst + kStageSpan - at);
+        const std::span<std::byte> chunk(page.data(), static_cast<std::size_t>(len));
+        if (!read(at, chunk)) break;
+        any = true;
+        for (std::size_t o = (8 - (at & 7)) & 7; o + 8 <= chunk.size(); o += 8) {
+          std::uint64_t w = 0;
+          std::memcpy(&w, chunk.data() + o, 8);
+          if (w < 0x10000 || w >= 0x8000'0000'0000ull || (w & 7) != 0 || (w >= base_ && w < image_end)) continue;
+          words.push_back(w);
+        }
+        at += len;
+      }
+      std::sort(words.begin(), words.end());
+      words.erase(std::unique(words.begin(), words.end()), words.end());
+      for (const std::uint64_t w : words) {
+        if (++derefs > kStageDerefs) return "unknown";
+        const std::optional<std::uint64_t> first = word_at(w, 8);
+        if (first && std::binary_search(stage_vtables_.begin(), stage_vtables_.end(), *first)) return "world";
+      }
+    }
+    return any ? "title" : "unknown";
+  }
+  // WHY§296: after the 2 s search, while our task has not run and the search, done, found no copy of it (plain or
+  // tagged, its vtable's or a slot's): R1's answer to the launcher says so, and the console tells the owner to load
+  // the save (the map is read in the world too).
+  void not_in_game(const R1Body& body) {
+    if (body.invocations() != 0 || f_.memory_search.empty()) return;
+    const probe::MemorySearch& m = f_.memory_search.back();
+    const bool none = m.stopped == probe::SearchStop::Done && m.found == 0 && m.inside == 0 && m.tagged_found == 0 &&
+                      m.vtable_found == 0 && m.vtable_tagged_found == 0 && m.slot_found == 0;
+    log(Line("r1").word("stage", "task_search").flag("found", !none).num("at_ms", m.at_ms));
+    if (none) block::probe_answer(w::ProbeRequest::Absent);
+  }
+
   // The diff's classification of values: our task's block, our vtable, our module, the game's image by its sections,
   // what any other pointer points into.
   probe::DiffSpec kinds_spec() const {
@@ -1416,19 +1576,61 @@ class Round {
           further.emplace_back(at, further_entry_);
         }
       }
-      // One level further (5), within the cap.
+      // One level further (5), within the cap. WHY§296: in the now path's function, the map's layout from its summary;
+      // the function a match calls, entered with the map's value in rcx, the task, the word and the manager (the
+      // match's site, whichever site reaches it first), and the call before the task's slot on the other branch; and
+      // their callees one level further (6), before the slots' level.
       for (const auto& [at, from] : further) {
         const std::vector<probe::CalleeCall> calls = group[at].code.calls;
         const std::uint32_t parent = group[at].rva;
+        const bool now_fn = f_.request && f_.request->now == std::optional<std::uint32_t>(parent) &&
+                            group[at].depth == 4 && !f_.map;
+        if (now_fn) {
+          f_.map = probe::ManagerMap{};
+          f_.map->shape = probe::map_shape(group[at].code, from, *f_.request, task);
+          const probe::MapShape& s = f_.map->shape;
+          log(Line("r1").word("stage", "map_shape").word("failed", s.failed.empty() ? "none" : s.failed)
+                  .num("head", static_cast<std::uint64_t>(s.head_disp))
+                  .num("key", static_cast<std::uint64_t>(s.key_disp)).hex("call", s.call.value_or(0))
+                  .hex("other", s.other.value_or(0)).flag("list", s.list_begin.has_value()));
+        }
+        std::vector<std::pair<std::size_t, probe::EntryState>> sixth;
         for (const probe::CalleeCall& k : calls) {
           if (group.size() >= kMaxGroup) break;
           if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail) ||
               !seen.insert(*k.target).second) {
             continue;
           }
-          const probe::EntryState e = entry_of(k, from);
-          group.push_back(inner_at(*k.target, k, e, 5, parent, k.form == probe::CallForm::Tail));
-          (void)follow(k, e, 5, parent);
+          const probe::MapShape* s = now_fn ? &f_.map->shape : nullptr;
+          const bool to_map = s != nullptr && s->failed.empty() && s->call == k.target && s->call_site;
+          const probe::CalleeCall* site = &k;
+          if (to_map) {
+            for (const probe::CalleeCall& c : calls) {
+              if (c.offset == *s->call_site) site = &c;
+            }
+          }
+          probe::EntryState e = entry_of(*site, from);
+          if (to_map) {
+            e[0] = probe::EntryArg{};
+            e[0].value = true;
+          }
+          group.push_back(inner_at(*k.target, *site, e, 5, parent, k.form == probe::CallForm::Tail));
+          const std::size_t i = follow(*site, e, 5, parent);
+          if (to_map || (s != nullptr && s->other == k.target)) sixth.emplace_back(i, further_entry_);
+        }
+        for (const auto& [i6, from6] : sixth) {
+          const std::vector<probe::CalleeCall> calls6 = group[i6].code.calls;
+          const std::uint32_t parent6 = group[i6].rva;
+          for (const probe::CalleeCall& k : calls6) {
+            if (group.size() >= kMaxGroup) break;
+            if (!k.target || (k.form != probe::CallForm::Direct && k.form != probe::CallForm::Tail) ||
+                !seen.insert(*k.target).second) {
+              continue;
+            }
+            const probe::EntryState e = entry_of(k, from6);
+            group.push_back(inner_at(*k.target, k, e, 6, parent6, k.form == probe::CallForm::Tail));
+            (void)follow(k, e, 6, parent6);
+          }
         }
       }
     }
@@ -1464,6 +1666,18 @@ class Round {
       e.holds_word = entry[i].word;
       e.holds_request = entry[i].request;
       e.holds_manager = entry[i].manager;
+      e.holds_value = entry[i].value;  // WHY§296
+      in.entry_src.push_back(std::move(e));
+    }
+    // WHY§296: the map's value, held in rcx where the site's paths disagree on it (no source known): listed all the same.
+    static constexpr std::array<std::uint8_t, 4> kRegs = {1, 2, 8, 9};
+    for (std::size_t i = 0; i < entry.size(); ++i) {
+      const bool listed = std::any_of(in.entry_src.begin(), in.entry_src.end(),
+                                      [&](const probe::PassedSource& p) { return p.reg == kRegs[i]; });
+      if (!entry[i].value || listed) continue;
+      probe::PassedSource e;
+      e.reg = kRegs[i];
+      e.holds_value = true;
       in.entry_src.push_back(std::move(e));
     }
     probe::mark_sections(in.code, sections());
@@ -1472,7 +1686,7 @@ class Round {
             .num("entry_reads", in.code.entry_read_count).num("task_stores", in.code.task_store_count)
             .num("g_reads", in.code.g_read_count).num("word_uses", in.code.word_use_count)
             .num("parts", in.code.parts.size()).num("request_reads", in.code.request_read_count)
-            .num("manager_reads", in.code.manager_read_count));
+            .num("manager_reads", in.code.manager_read_count).num("value_reads", in.code.value_read_count));
     return in;
   }
 
@@ -1767,11 +1981,17 @@ class Round {
           if (f_.method) f_.method->after = read_method(since_ms() - called_ms_);
           read_g_fields(since_ms() - called_ms_);
           read_queue(since_ms() - called_ms_);
+          read_map(since_ms() - called_ms_);  // WHY§296
         }
         search_hub();
         search_memory();
         if (body->invocations() == 0) object_from_t1();
+        if (searches == 0) not_in_game(*body);
         ++searches;
+      }
+      // WHY§296: the map every 10 s after the 2 s reading, for as long as the game runs.
+      if (called_ms_ != 0 && map_read_ms_ != 0 && since_ms() - map_read_ms_ >= kMapEveryMs) {
+        read_map(since_ms() - called_ms_);
       }
       if (body != nullptr) {
         update(*body);
@@ -1797,14 +2017,23 @@ class Round {
   // (`inner_dropped`), then all of them and the sibling. WHY§293: the request's slots' functions keep their forms longer
   // (pass 9), and G's method's and the function it calls with the request longest (pass 10); last the group's own
   // function, G's method and those are trimmed. The game's requests' tasks' words go at pass 4. Each pass keeps the
-  // earlier ones' cuts.
+  // earlier ones' cuts. WHY§296: past 256 KiB pretty-printed, the report is first written on one line, and every pass
+  // after that too; the map's readings between the first and the last lose their keys at pass 4; the now path's
+  // function's forms and those of the function its match calls go last of all (pass 12).
   void write_report() {
     auto text = probe::write_report(f_);
-    constexpr int kPasses = 12;
+    if (!text) {
+      text = probe::write_report(f_, en::gal::report::Style::Line);
+      if (text && !line_said_) {
+        line_said_ = true;
+        log(Line("r1").word("report", "one_line"), LogLevel::Warn);
+      }
+    }
+    constexpr int kPasses = 13;
     for (int pass = 0; !text && pass < kPasses && f_.callee_code; ++pass) {
       probe::Findings g = f_;
       cut(g, pass);
-      text = probe::write_report(g);
+      text = probe::write_report(g, en::gal::report::Style::Line);
       if (text) log(Line("r1").word("report", "forms_dropped").num("pass", pass), LogLevel::Warn);
     }
     if (!text) {
@@ -1831,9 +2060,15 @@ class Round {
     const auto is_now = [&](const probe::InnerCallee& in) {
       return in.depth == 4 && f_.request && f_.request->now == std::optional<std::uint32_t>(in.rva);
     };
+    // WHY§296: the function the now path's function's match calls (at 5, or the target of the stub it is reached by).
+    const auto is_map_call = [&](const probe::InnerCallee& in) {
+      return in.depth == 5 && f_.map && f_.map->shape.call &&
+             (in.rva == *f_.map->shape.call || in.stub == f_.map->shape.call);
+    };
     // Each summary's rank: when its forms go, and whether it is among those trimmed and left out first.
     const auto rank = [&](const probe::InnerCallee& in) {
-      if (is_method(in) || is_now(in)) return 10;
+      if (is_now(in) || is_map_call(in)) return 12;
+      if (is_method(in)) return 10;
       if (precious(in)) return 9;
       if (in.depth == 1) return in.tail ? 2 : 1;
       if (in.depth == 2) return 4;
@@ -1856,12 +2091,16 @@ class Round {
       for (probe::RequestSearch& rs : g.request_search) {
         for (probe::GameTask& t : rs.tasks) t.words.clear();
       }
+      if (g.map && g.map->readings.size() > 2) {  // WHY§296: the keys of the readings between the first and the last
+        for (std::size_t i = 1; i + 1 < g.map->readings.size(); ++i) g.map->readings[i].key_lows.clear();
+      }
     }
     for (probe::InnerCallee& in : g.callee_inner) {
       const int r = rank(in);
       if (pass >= r) drop_forms(in.code);
-      const bool minor = in.depth >= 3 && !precious(in);
-      if ((minor && pass >= 5) || ((in.depth == 2 || precious(in)) && pass >= 11)) trim(in.code);
+      const bool last = is_now(in) || is_map_call(in);
+      const bool minor = in.depth >= 3 && !precious(in) && !last;
+      if ((minor && pass >= 5) || ((in.depth == 2 || precious(in)) && !last && pass >= 11)) trim(in.code);
     }
     if (pass >= 3) drop_forms(*g.callee_code);
     if (pass >= 7) {
@@ -1869,7 +2108,7 @@ class Round {
       const std::size_t keep = pass == 7 ? 4 : 0;
       const auto before = g.callee_inner.size();
       std::erase_if(g.callee_inner, [&](const probe::InnerCallee& in) {
-        const bool minor = in.depth >= 3 && !precious(in);
+        const bool minor = in.depth >= 3 && !precious(in) && !is_map_call(in);
         return minor && kept++ >= keep;
       });
       g.inner_dropped = static_cast<std::uint32_t>(before - g.callee_inner.size());
@@ -1940,6 +2179,14 @@ class Round {
   DWORD main_thread_ = 0;                         // the game's main window's thread, read just before the call
   bool group_done_ = false;                       // WHY§248: the group's function and its callees summarised
   probe::EntryState further_entry_{};             // WHY§293: the entry of the summary a stub led to
+  // WHY§296: the map's readings: when the last was made, how many of f_.map's are kept (a newer one follows them),
+  // the last reading's state, and the stage's vtables (the leads' sets, absolute, sorted).
+  std::uint64_t map_read_ms_ = 0;
+  std::size_t map_kept_ = 0;
+  MapState map_state_{};
+  std::vector<std::uint64_t> stage_vtables_;
+  bool stage_ready_ = false;
+  bool line_said_ = false;  // the report written on one line, logged once
   std::uint64_t vtable_ = 0;                      // our fake vtable's address, read back after the call
   std::vector<std::uint64_t> thunks_;             // its slots'
 };

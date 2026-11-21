@@ -94,7 +94,7 @@ const char* r1_word(R1Step s) noexcept {
   return "asked";
 }
 
-std::string r1_text(R1Step s) {
+std::string r1_text(R1Step s, bool absent) {
   switch (s) {
     case R1Step::Asked:
       return "R1 is on. The game starts now. Stay at the title screen and do not load a save until this window says "
@@ -113,7 +113,11 @@ std::string r1_text(R1Step s) {
       return "Task confirmed. You may now load your save and play for about ten minutes: near NPCs and enemies, rest "
              "at a grace, fast travel once, then quit the game as usual.";
     case R1Step::NoConfirmation:
-      return "No confirmation 30 seconds after the call. Do not load a save: quit the game, and send the files.";
+      // WHY§296: where the probe found no copy of our task, the map it reads matters in the world too.
+      return absent ? "No confirmation 30 seconds after the call. Our task is not in the game. Load your save now, "
+                      "stay in the world for two minutes, then quit the game as usual."
+                    : "No confirmation 30 seconds after the call. Do not load a save: quit the game, and send the "
+                      "files.";
     case R1Step::NotCalled:
       return "A check did not pass, so EldenNet made no call into the game. Quit the game without loading a save, "
              "and send the files: the report says which check it was.";
@@ -135,7 +139,7 @@ std::optional<R1Step> r1_step(proto::watch::ProbeRequest answer, proto::watch::I
   using proto::watch::InitState;
   using proto::watch::ProbeRequest;
   if (answer == ProbeRequest::Refused) return R1Step::Refused;
-  if (answer != ProbeRequest::Accepted) {
+  if (answer != ProbeRequest::Accepted && answer != ProbeRequest::Absent) {
     // No answer, but T1 is past Settings: a DLL that does not know --probe, which runs as it always does.
     const bool past = init != InitState::None && init != InitState::Pin && init != InitState::Gate &&
                       init != InitState::Safety && init != InitState::Settings;

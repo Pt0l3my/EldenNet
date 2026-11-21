@@ -325,6 +325,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--table-gap") o.table_gap = true;
     else if (n == L"--task-gate") o.task_gate = true;
     else if (n == L"--task-queue") o.task_queue = true;
+    else if (n == L"--map-late") o.map_late = true;
     else if (n == L"--press-pause-at") ok = p.number(o.press_pause_at);
     else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
@@ -439,7 +440,7 @@ void print_usage() {
       "  --crash-at F  --crash-thread game|worker  --handled-every N  --handled-kind seh|cxx",
       "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
-      "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --task-queue",
+      "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --task-queue  --map-late",
       "  --press-pause-at F  --press-pause-every N  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b (up to 3 times)",
       "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",

@@ -43,6 +43,16 @@
 #define FG_REQUEST_FLAG_OFF 0x1C      // r9's low byte (zero); the game's own requests that wait for ever hold 1
 #define FG_REQUEST_BYTES 0x20
 #define FG_MANAGER_FLAGS_OFF 0x08     // FG::TaskManagerImp: bit 0, strict (--task-gate): only tasks of the game's kind
+// Since spike.12 (R1 run 11's shape, WHY§296) the manager's map, keyed by the shelves' words, at offsets of our own:
+// its head (an MSVC-shaped tree's: the node's left at +0, parent +8, right +16, its nil byte at +25, a 4-byte key at
+// +32, the value at +40), its count beside it; and its list (begin, end, capacity), the bins a word of 0 goes to.
+#define FG_MANAGER_MAP_OFF 0x30
+#define FG_MANAGER_LIST_OFF 0x40
+#define FG_NODE_NIL_OFF 25
+#define FG_NODE_KEY_OFF 32
+#define FG_NODE_VALUE_OFF 40
+#define FG_BIN_GROUP_OFF 0x08         // FG::TaskBin: its group, which a match hands the task to
+#define FG_BIN_KEPT_OFF 0x0C          // and the tasks handed to it
 #define FG_QUEUE_DRAIN_MS 1000        // a queued request is run once it has waited this long
 #define FG_TASK_HUB_OFF 0x10          // a task's hub field (FG::TaskFields::hub, at +0x08 + 0x08)
 #define FG_TASK_STATE_OFF 0x0C        // a task's state (FG::TaskFields::state): 0 before the hub takes it
@@ -66,6 +76,8 @@ class TaskUnit;
 class TaskLoomImp;
 class TaskRequest;
 class TaskQueueImp;
+class TaskManagerImp;
+class TaskBin;
 }  // namespace FG
 
 extern "C" {
@@ -157,6 +169,15 @@ std::uint32_t fg_request_cancel(FG::TaskRequest* request);  // the request's oth
 std::uint32_t fg_request_word(FG::TaskRequest* request);    // and its word
 extern std::uint8_t fg_gated;                     // set where the check dropped a request, its word in fg_gated_word
 extern std::uint32_t fg_gated_word;
+// Since spike.12 (R1 run 11's shape, WHY§296) the hand-over is the manager's: with a word of 0 the now path's function
+// calls fg_map_take for each bin of the manager's list; with any other it walks the manager's map for the word and, on
+// a match, calls fg_map_take with the node's bin, the task, the word and the manager, which hands the task to the work
+// with the bin's group; no match drops the task (its word kept in fg_missed_word). Then, where the request's flag is
+// set (the game's own requests' that wait for ever), it calls fg_task_other with the task and the task's slot 1.
+std::uint64_t fg_map_take(FG::TaskBin* bin, FG::TaskUnit* task, std::uint32_t word, FG::TaskManagerImp* manager);
+std::uint32_t fg_task_other(FG::TaskUnit* task);
+extern std::uint8_t fg_missed;
+extern std::uint32_t fg_missed_word;
 void* fg_request_alloc(std::uint32_t bytes);      // a queued request's memory (C++)
 std::uint64_t fg_queue_push(FG::TaskQueueImp* queue, FG::TaskRequest* request);  // under the queue's lock (C++)
 // The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
@@ -323,10 +344,46 @@ class TallyChore final : public Chore {
   void step() override;
 };
 class TaskManagerImp;
+// Spike.12 (WHY§296): a group's bin, the map's value; the bins of the groups the world adds are of a class of their
+// own.
+struct BinFields {                        // from +0x08
+  std::uint32_t group;                    // 0x08 (FG_BIN_GROUP_OFF)
+  std::uint32_t kept;                     // 0x0C (FG_BIN_KEPT_OFF)
+};
+class TaskBin {
+ public:
+  TaskBin() = default;
+  TaskBin(const TaskBin&) = delete;
+  TaskBin& operator=(const TaskBin&) = delete;
+  virtual ~TaskBin() = default;
+  virtual std::uint32_t bin_kind() const;
+  BinFields b{};
+};
+class WorldBin final : public TaskBin {
+ public:
+  std::uint32_t bin_kind() const override;
+};
+// A node of the manager's map, MSVC's tree's shape (the head's nil byte 1, every node's 0).
+struct MapNode {
+  MapNode* left;                          // 0x00
+  MapNode* parent;                        // 0x08 (the head's: the root)
+  MapNode* right;                         // 0x10
+  std::uint8_t colour;                    // 0x18
+  std::uint8_t nil;                       // 0x19 (FG_NODE_NIL_OFF)
+  std::uint8_t spare[6];
+  std::uint32_t key;                      // 0x20 (FG_NODE_KEY_OFF): a shelf's word
+  std::uint32_t spare1;
+  TaskBin* value;                         // 0x28 (FG_NODE_VALUE_OFF)
+};
 struct ManagerFields {                    // from +0x08
   std::uint32_t flags;                    // 0x08 (FG_MANAGER_FLAGS_OFF): bit 0 strict (--task-gate)
   std::uint32_t count;                    // 0x0C
   Chore* chores[4];                       // 0x10
+  MapNode* map_head;                      // 0x30 (FG_MANAGER_MAP_OFF)
+  std::uint64_t map_count;                // 0x38
+  TaskBin** list_begin;                   // 0x40 (FG_MANAGER_LIST_OFF)
+  TaskBin** list_end;                     // 0x48
+  TaskBin** list_cap;                     // 0x50
 };
 class TaskManagerImp {
  public:

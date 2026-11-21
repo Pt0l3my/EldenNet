@@ -36,14 +36,20 @@ bool type_descriptor_ok(const ImageBytes& img, std::uint32_t td) {
 std::optional<std::vector<std::uint32_t>> hierarchy_bases(const ImageBytes& img, std::uint32_t chd,
                                                           const Limits& limits) {
   const std::optional<std::uint32_t> signature = img.u32(chd);
-  const std::optional<std::uint32_t> count = chd <= 0xFFFFFFFFu - 12 ? img.u32(chd + 8) : std::nullopt;
-  const std::optional<std::uint32_t> array = chd <= 0xFFFFFFFFu - 12 ? img.u32(chd + 12) : std::nullopt;
-  if (!signature || *signature != 0 || !count || *count == 0 || *count > limits.max_bases || !array)
-    return std::nullopt;
+  if (!signature || *signature != 0 || chd > 0xFFFFFFFFu - 12) return std::nullopt;
+  // Each optional checked and copied into a plain value before use (GCC 13's Release build warned of the optionals'
+  // use as maybe uninitialised once inlined into walk).
+  const std::optional<std::uint32_t> count_read = img.u32(chd + 8);
+  if (!count_read) return std::nullopt;
+  const std::uint32_t count = *count_read;
+  const std::optional<std::uint32_t> array_read = img.u32(chd + 12);
+  if (!array_read) return std::nullopt;
+  const std::uint32_t array = *array_read;
+  if (count == 0 || count > limits.max_bases) return std::nullopt;
   std::vector<std::uint32_t> bases;
-  bases.reserve(*count);
-  for (std::uint32_t i = 0; i < *count; ++i) {
-    const std::optional<std::uint64_t> entry_at = bytes::add(*array, std::uint64_t{4} * i);
+  bases.reserve(count);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    const std::optional<std::uint64_t> entry_at = bytes::add(array, std::uint64_t{4} * i);
     if (!entry_at || *entry_at > 0xFFFFFFFFu) return std::nullopt;
     const std::optional<std::uint32_t> bcd = img.u32(static_cast<std::uint32_t>(*entry_at));
     if (!bcd) return std::nullopt;

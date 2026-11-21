@@ -112,14 +112,23 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   // R1's steps (--probe), each told once as it changes.
   std::optional<R1Step> r1_said;
   bool r1_pressed = false;
+  bool r1_absent_said = false;
   std::uint64_t first_tick_at = 0;
-  const auto r1_tell = [&](R1Step step) {
+  // WHY§296: NoConfirmation says whether the probe found no copy of our task (EldenNet's answer Absent), told again
+  // where that answer comes after the step.
+  const auto r1_tell = [&](R1Step step, bool absent) {
     r1_said = step;
     r1_pressed = r1_pressed || step == R1Step::PressMark;
-    say("r1 step=%s", r1_word(step));
-    console_line(r1_text(step));
+    absent = absent && step == R1Step::NoConfirmation;
+    r1_absent_said = absent;
+    if (absent) {
+      say("r1 step=%s absent=1", r1_word(step));
+    } else {
+      say("r1 step=%s", r1_word(step));
+    }
+    console_line(r1_text(step, absent));
   };
-  if (plan.probe) r1_tell(R1Step::Asked);
+  if (plan.probe) r1_tell(R1Step::Asked, false);
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
     if (list.empty()) return;
@@ -202,7 +211,10 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
       }
       const auto answer = static_cast<w::ProbeRequest>(b.control.probe.load(std::memory_order_acquire));
       const auto step = r1_step(answer, st.init, r1_pressed, first_tick_at == 0 ? 0 : now - first_tick_at);
-      if (step && step != r1_said) r1_tell(*step);
+      const bool absent = answer == w::ProbeRequest::Absent;
+      if (step && (step != r1_said || (*step == R1Step::NoConfirmation && absent && !r1_absent_said))) {
+        r1_tell(*step, absent);
+      }
     }
     if (plan.console && now - last_print >= 1000 &&
         (st.snapshots != printed.snapshots || st.init != printed.init || st.flags != printed.flags ||

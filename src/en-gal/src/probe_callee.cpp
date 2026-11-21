@@ -310,14 +310,15 @@ bool flags_untouched(const Instruction& in) noexcept {
 
 // What a value is, as the field reads follow it (spike.9): our task's (the task argument, a value loaded from it, or one
 // of those changed), the group entry's (the same from the entry), since spike.10 the second singleton G's, or neither.
-// Spike.11: the request G's method builds, and G's manager (the request's field of G's).
-enum class Follow : std::uint8_t { None, Task, Entry, G, Request, Manager };
+// Spike.11: the request G's method builds, and G's manager (the request's field of G's). Spike.12: the manager's map's
+// value, which the now path's function passes on a match.
+enum class Follow : std::uint8_t { None, Task, Entry, G, Request, Manager, Value };
 constexpr std::size_t kMaxWordUses = 16;
 
 // Which of rcx to r9 hold what at the entry (spike.9 to spike.11): the group's entry, G, the entry's word, the request
-// G's method builds, G's manager.
+// G's method builds, G's manager; since spike.12 the map's value.
 struct Holds {
-  std::array<bool, 4> entry{}, g{}, word{}, request{}, manager{};
+  std::array<bool, 4> entry{}, g{}, word{}, request{}, manager{}, value{};
 };
 
 class Summariser {
@@ -330,11 +331,13 @@ class Summariser {
              std::optional<std::uint8_t> task = std::nullopt, const Holds& holds = {},
              const RequestShape* layout = nullptr, std::vector<std::pair<std::uint32_t, std::uint32_t>> parts = {})
       : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(holds.entry), g_(holds.g),
-        word_(holds.word), request_(holds.request), manager_(holds.manager), layout_(layout), parts_(std::move(parts)) {
+        word_(holds.word), request_(holds.request), manager_(holds.manager), value_(holds.value), layout_(layout),
+        parts_(std::move(parts)) {
     out_.args.resize(kArgs.size());
     for (std::size_t i = 0; i < kArgs.size(); ++i) out_.args[i].reg = kArgs[i];
     const auto any = [](const std::array<bool, 4>& a) { return std::find(a.begin(), a.end(), true) != a.end(); };
-    following_ = task_.has_value() || any(entry_) || any(g_) || any(word_) || any(request_) || any(manager_);
+    following_ = task_.has_value() || any(entry_) || any(g_) || any(word_) || any(request_) || any(manager_) ||
+                 any(value_);
     if (layout_ != nullptr) {
       task_field_ = layout_->task_field;
       for (const RequestField& f : layout_->fields) {
@@ -388,6 +391,7 @@ class Summariser {
                : g_[h.arg]       ? Follow::G
                : request_[h.arg] ? Follow::Request
                : manager_[h.arg] ? Follow::Manager
+               : value_[h.arg]   ? Follow::Value
                                  : Follow::None;
       case Held::Kind::Loaded: {
         const Src& s = sources_.at(h.id);
@@ -502,6 +506,7 @@ class Summariser {
       case Follow::Entry: return out_.entry_reads;
       case Follow::Request: return out_.request_reads;
       case Follow::Manager: return out_.manager_reads;
+      case Follow::Value: return out_.value_reads;
       default: return out_.g_reads;
     }
   }
@@ -511,6 +516,7 @@ class Summariser {
       case Follow::Entry: return out_.entry_read_count;
       case Follow::Request: return out_.request_read_count;
       case Follow::Manager: return out_.manager_read_count;
+      case Follow::Value: return out_.value_read_count;
       default: return out_.g_read_count;
     }
   }
@@ -857,8 +863,24 @@ class Summariser {
     if (compares.size() >= kMaxCompares) return;
     compares.push_back(ArgCompare{at_, static_cast<std::uint8_t>(reg & 15), small_immediate(*in_, bytes_, width)});
   }
-  void compare_other(std::uint8_t reg) {
-    use(regs_[reg & 15], use_at(UseKind::ComparedOther));
+  // Spike.12: with `memory`, the instruction's memory operand is the other side, kept with the use (its base, what
+  // that holds, its displacement and its width).
+  void compare_other(std::uint8_t reg, std::uint8_t memory = 0) {
+    FieldUse u = use_at(UseKind::ComparedOther);
+    if (memory != 0) {
+      const Mem m = memory_operand(*in_, bytes_);
+      u.base = m.base;
+      if (m.base) u.base_src = sources_.describe(regs_[*m.base & 15]);
+      u.index = m.index;
+      u.rip = m.rip;
+      u.disp = m.disp;
+      if (m.rip) {
+        const auto slot = x86::rip_target(*in_, bytes_, std::uint64_t{rva_} + at_);
+        u.disp = slot ? static_cast<std::int64_t>(*slot) : 0;
+      }
+      u.width = memory;
+    }
+    use(regs_[reg & 15], std::move(u));
     if (const auto arg = value(reg); arg && keep()) ++out_.args[*arg].compared_other;
   }
   void tested(std::uint8_t reg) {
@@ -999,7 +1021,7 @@ class Summariser {
       switch (op & 7) {
         case 0: case 1:  // r/m, r
           if (cmp) {
-            compare_other(r8(byte_form, in.reg()));
+            compare_other(r8(byte_form, in.reg()), reg_form ? 0 : width);
             if (reg_form) compare_other(r8(byte_form, in.rm()));
           } else if (reg_form) {
             if (change == InsnClass::Other) {
@@ -1011,7 +1033,7 @@ class Summariser {
           return true;
         case 2: case 3:  // r, r/m
           if (cmp) {
-            compare_other(r8(byte_form, in.reg()));
+            compare_other(r8(byte_form, in.reg()), reg_form ? 0 : width);
             if (reg_form) compare_other(r8(byte_form, in.rm()));
           } else if (change == InsnClass::Other) {
             kill(r8(byte_form, in.reg()));
@@ -1276,6 +1298,7 @@ class Summariser {
   std::array<bool, 4> word_{};
   std::array<bool, 4> request_{};
   std::array<bool, 4> manager_{};
+  std::array<bool, 4> value_{};
   const RequestShape* layout_ = nullptr;
   std::uint64_t task_field_ = 0;
   std::vector<std::uint64_t> manager_fields_;
@@ -1690,6 +1713,7 @@ EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept {
     e[*to].zero = e[*to].zero || was.zero;
     e[*to].request = e[*to].request || was.request;  // spike.11
     e[*to].manager = e[*to].manager || was.manager;
+    e[*to].value = e[*to].value || was.value;  // spike.12
   }
   return e;
 }
@@ -2105,6 +2129,7 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
     holds.word[i] = entry[i].word && none;
     holds.request[i] = entry[i].request && none;
     holds.manager[i] = entry[i].manager && none;
+    holds.value[i] = entry[i].value && none;
   }
   Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), holds,
                options.request, ranges);
