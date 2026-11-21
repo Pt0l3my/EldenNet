@@ -1,0 +1,179 @@
+# Lodestar's catalogue: every place of the game that EldenNet needs, under a number and a label of our own (proposal
+# 0005 section 4; O100). An id is permanent: its number is given once and never reused or renumbered, its label is our
+# own word for what the thing is to EldenNet, never the game's name for it, and an id EldenNet stops using stays here,
+# marked retired. Numbers go by kind: statics from 1000, functions from 2000, classes from 3000, tables from 4000, and
+# the file lists them in ascending order.
+#
+# Nothing here is a fact about any build. Where an id lies in a build is that build's table (layouts/<build>.toml's
+# [item.*]), found by our own tools on the player's own copy and checked before EldenNet relies on it (O48). `was` is
+# the label that older files and the derivation's schema-1 reports use for the same thing.
+schema = 1
+
+# ---- Statics: slots in the game's data that hold a pointer or a value ----
+
+[[id]]
+n = 1001
+label = "module_handle"
+kind = "static"
+means = "A slot that holds the game's own module handle once the game is up: non-null means ready."
+needs = "boot"
+required = false
+
+[[id]]
+n = 1002
+label = "save_data"
+kind = "static"
+means = "The slot of the object that holds the playthrough's running data: play time, deaths, the player's sheet and the settings."
+needs = "player"
+required = true
+
+[[id]]
+n = 1003
+label = "game_state"
+kind = "static"
+means = "The slot of the object that holds the save slot in use and the talk camera's id."
+needs = "player"
+required = true
+
+[[id]]
+n = 1004
+label = "field_area"
+kind = "static"
+means = "The slot of the object that holds the id of the place the player is in."
+needs = "place"
+required = false
+
+[[id]]
+n = 1005
+label = "task_hub"
+kind = "static"
+means = "The slot of the manager that owns the game's per-frame tasks."
+needs = "task_service"
+required = true
+
+[[id]]
+n = 1006
+label = "characters"
+kind = "static"
+means = "The slot of the manager that holds the characters near the player, the main player and the player set."
+needs = "world"
+required = true
+
+[[id]]
+n = 1007
+label = "session"
+kind = "static"
+means = "The slot of the manager that holds the online session's state, read only to know that the player is alone."
+needs = "session"
+required = true
+
+[[id]]
+n = 1008
+label = "event_flags"
+kind = "static"
+means = "The slot of the manager that holds the event flags."
+needs = "flags"
+required = false
+
+[[id]]
+n = 1009
+label = "hud"
+kind = "static"
+means = "The slot of the manager that holds the HUD's state, the banner and the boss bars."
+needs = "ui"
+required = false
+
+[[id]]
+n = 1010
+label = "menus"
+kind = "static"
+means = "The slot of the manager that holds the screen state and the talk popup."
+needs = "ui"
+required = false
+
+[[id]]
+n = 1011
+label = "loading"
+kind = "static"
+means = "The slot of the helper that counts the loading screens."
+needs = "ui"
+required = false
+
+[[id]]
+n = 1012
+label = "world_clock"
+kind = "static"
+means = "The slot of the manager that holds the time of day."
+needs = "place"
+required = false
+
+[[id]]
+n = 1013
+label = "camera"
+kind = "static"
+means = "The slot of the manager that holds the view."
+needs = "camera"
+required = false
+
+[[id]]
+n = 1014
+label = "param_store"
+kind = "static"
+means = "The slot of the store that holds the param tables."
+needs = "params"
+required = false
+
+[[id]]
+n = 1015
+label = "messages"
+kind = "static"
+means = "The slot of the store that holds the text tables."
+needs = "text"
+required = false
+
+# ---- Functions ----
+
+[[id]]
+n = 2001
+label = "task_add"
+was = "register_task"
+kind = "function"
+means = "The function that adds a task to one of the game's task groups. Never called unless its verdict in the build's table is adds."
+needs = "task_service"
+required = true
+
+[[id]]
+n = 2002
+label = "task_remove"
+kind = "function"
+means = "The function that removes a task from its group. EldenNet never calls it; it is kept so that it is never taken for task_add again."
+needs = "task_service"
+required = false
+
+# ---- Classes: known by their run-time type information ----
+
+[[id]]
+n = 3001
+label = "character"
+kind = "class"
+means = "The class every character object derives from: the set of method tables a character may carry."
+needs = "world"
+required = true
+
+[[id]]
+n = 3002
+label = "player_character"
+kind = "class"
+means = "The class of a player's character object."
+needs = "player"
+required = true
+
+# ---- Tables ----
+
+[[id]]
+n = 4001
+label = "task_groups"
+kind = "table"
+means = "The table that names the game's task groups in order; a group's place in it is its index."
+needs = "task_service"
+required = false

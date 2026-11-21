@@ -45,6 +45,44 @@ const char* to_string(ArgRegister r) noexcept {
   return "rcx";
 }
 
+const char* to_string(Recipe r) noexcept {
+  switch (r) {
+    case Recipe::Accessor: return "accessor";
+    case Recipe::Class: return "class";
+    case Recipe::InstanceClass: return "instance_class";
+    case Recipe::Table: return "table";
+    case Recipe::Relation: return "relation";
+    case Recipe::Invariant: return "invariant";
+  }
+  return "accessor";
+}
+
+const char* to_string(ItemCheck c) noexcept {
+  switch (c) {
+    case ItemCheck::Placement: return "placement";
+    case ItemCheck::Agree: return "agree";
+    case ItemCheck::Witness: return "witness";
+    case ItemCheck::Digest: return "digest";
+    case ItemCheck::Class: return "class";
+    case ItemCheck::SelfTest: return "self_test";
+    case ItemCheck::SecondSource: return "second_source";
+    case ItemCheck::Verdict: return "verdict";
+  }
+  return "placement";
+}
+
+const char* to_string(Verdict v) noexcept {
+  switch (v) {
+    case Verdict::Adds: return "adds";
+    case Verdict::Removes: return "removes";
+    case Verdict::Reads: return "reads";
+    case Verdict::Unknown: return "unknown";
+  }
+  return "unknown";
+}
+
+bool ItemEntry::passed(ItemCheck c) const noexcept { return std::find(checks.begin(), checks.end(), c) != checks.end(); }
+
 const FieldLayout* ClassLayout::field(std::string_view name) const noexcept {
   for (const FieldLayout& f : fields) {
     if (f.name == name) return &f;
@@ -81,13 +119,28 @@ const ParamLayout* Layout::find_param(std::string_view name) const noexcept {
   return nullptr;
 }
 
+const ItemEntry* Layout::find_item(std::string_view label) const noexcept {
+  for (const ItemEntry& i : items_) {
+    if (i.label == label) return &i;
+  }
+  return nullptr;
+}
+
+const ItemEntry* Layout::find_item(std::uint32_t id) const noexcept {
+  for (const ItemEntry& i : items_) {
+    if (i.id == id) return &i;
+  }
+  return nullptr;
+}
+
 bool Layout::has_leads() const noexcept {
   const auto lead = [](LayoutStatus s) { return s == LayoutStatus::Lead; };
   if (task_ && lead(task_->status)) return true;
   if (fmg_ && lead(fmg_->status)) return true;
   if (dlrf_ && lead(dlrf_->status)) return true;
   return std::any_of(classes_.begin(), classes_.end(), [&](const ClassLayout& c) { return lead(c.status); }) ||
-         std::any_of(params_.begin(), params_.end(), [&](const ParamLayout& p) { return lead(p.status); });
+         std::any_of(params_.begin(), params_.end(), [&](const ParamLayout& p) { return lead(p.status); }) ||
+         std::any_of(items_.begin(), items_.end(), [&](const ItemEntry& i) { return lead(i.status); });
 }
 
 std::uint32_t Layout::max_copy_size() const noexcept {
@@ -416,6 +469,254 @@ std::vector<std::uint32_t> read_ids(Table& t, std::string_view key, Errors& erro
   return out;
 }
 
+// ---- The build's table (schema 2) ----
+
+template <class E, std::size_t N>
+using Words = std::array<std::pair<std::string_view, E>, N>;
+
+constexpr Words<Recipe, 6> kRecipes = {{{"accessor", Recipe::Accessor},
+                                        {"class", Recipe::Class},
+                                        {"instance_class", Recipe::InstanceClass},
+                                        {"table", Recipe::Table},
+                                        {"relation", Recipe::Relation},
+                                        {"invariant", Recipe::Invariant}}};
+constexpr Words<ItemCheck, 8> kChecks = {{{"placement", ItemCheck::Placement},
+                                          {"agree", ItemCheck::Agree},
+                                          {"witness", ItemCheck::Witness},
+                                          {"digest", ItemCheck::Digest},
+                                          {"class", ItemCheck::Class},
+                                          {"self_test", ItemCheck::SelfTest},
+                                          {"second_source", ItemCheck::SecondSource},
+                                          {"verdict", ItemCheck::Verdict}}};
+constexpr Words<Verdict, 4> kVerdicts = {
+    {{"adds", Verdict::Adds}, {"removes", Verdict::Removes}, {"reads", Verdict::Reads}, {"unknown", Verdict::Unknown}}};
+constexpr Words<IdKind, kIdKindCount> kItemKinds = {
+    {{"static", IdKind::Static}, {"function", IdKind::Function}, {"class", IdKind::Class}, {"table", IdKind::Table}}};
+
+template <class E, std::size_t N>
+std::optional<E> word_of(const Words<E, N>& words, std::string_view text) noexcept {
+  for (const auto& [name, value] : words) {
+    if (name == text) return value;
+  }
+  return std::nullopt;
+}
+
+// Which kinds a recipe finds (proposal 0005 §6.1).
+bool recipe_finds(Recipe r, IdKind kind) noexcept {
+  switch (r) {
+    case Recipe::Accessor:
+    case Recipe::InstanceClass:
+    case Recipe::Invariant: return kind == IdKind::Static;
+    case Recipe::Class: return kind == IdKind::Class;
+    case Recipe::Table: return kind == IdKind::Table;
+    case Recipe::Relation: return kind == IdKind::Function || kind == IdKind::Static;
+  }
+  return false;
+}
+
+// A list of distinct words of one of the closed sets above, 0 to `max` of them.
+template <class E, std::size_t N>
+std::vector<E> read_words(Table& t, std::string_view key, bool required, const Words<E, N>& words, std::size_t max,
+                          const char* problem, Errors& errors) {
+  std::vector<E> out;
+  const toml::array* list = t.array(key, required);
+  if (list == nullptr) return out;
+  if (list->size() > max) errors.add(t.where(key), "has more than " + std::to_string(max) + " items");
+  for (std::size_t i = 0; i < list->size() && i < max; ++i) {
+    const toml::node* node = list->get(i);
+    const auto* text = node != nullptr ? node->as_string() : nullptr;
+    const std::optional<E> value = text != nullptr ? word_of(words, text->get()) : std::nullopt;
+    if (!value) {
+      errors.add(toml_read::indexed(t.where(key), i), problem);
+    } else if (std::find(out.begin(), out.end(), *value) != out.end()) {
+      errors.add(toml_read::indexed(t.where(key), i), "is listed twice");
+    } else {
+      out.push_back(*value);
+    }
+  }
+  return out;
+}
+
+// A list of offsets from the start of the image, each above 0 and below `image_size`, none twice; `ascending` wants
+// them in order too.
+std::vector<std::uint32_t> read_rvas(Table& t, std::string_view key, bool required, std::size_t max,
+                                     std::uint32_t image_size, bool ascending, Errors& errors) {
+  std::vector<std::uint32_t> out;
+  const toml::array* list = t.array(key, required);
+  if (list == nullptr) return out;
+  if (list->size() > max) errors.add(t.where(key), "has more than " + std::to_string(max) + " offsets");
+  for (std::size_t i = 0; i < list->size() && i < max; ++i) {
+    const toml::node* node = list->get(i);
+    const std::string path = toml_read::indexed(t.where(key), i);
+    if (node == nullptr) continue;
+    const auto rva = toml_read::integer_of(*node, path, errors, 1, 0xFFFFFFFFLL);
+    if (!rva) continue;
+    const auto value = static_cast<std::uint32_t>(*rva);
+    if (value >= image_size) {
+      errors.add(path, "lies outside the build's image");
+    } else if (std::find(out.begin(), out.end(), value) != out.end()) {
+      errors.add(path, "is listed twice");
+    } else if (ascending && !out.empty() && value < out.back()) {
+      errors.add(path, "must be above the offset before it");
+    } else {
+      out.push_back(value);
+    }
+  }
+  return out;
+}
+
+bool lower_hex(std::string_view s, std::size_t digits) noexcept {
+  return s.size() == digits &&
+         std::all_of(s.begin(), s.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+}
+
+// One [item.<label>]: { id, kind, rva | vtables, length?, stride?, count?, found_by, witnesses?, digest?, verdict?,
+// checks?, status? }. Numbers, our labels and fixed words only: no key of it can carry a byte of the game.
+void read_item(const toml::table& t, std::string label, const std::string& path, std::uint32_t image_size,
+               Errors& errors, ItemEntry& out) {
+  Table i(t, path, errors);
+  out.label = std::move(label);
+  std::optional<IdKind> kind;
+  if (const auto text = i.text("kind", true)) {
+    kind = word_of(kItemKinds, *text);
+    if (!kind) errors.add(i.where("kind"), "must be one of static, function, class, table");
+  }
+  if (kind) out.kind = *kind;
+  if (const auto id = i.integer("id", true, 1000, 4999)) {
+    out.id = static_cast<std::uint32_t>(*id);
+    if (kind && kind_of_number(out.id) != kind) errors.add(i.where("id"), "lies outside its kind's block");
+  }
+  const bool is_class = kind == IdKind::Class;
+  // Where it is: a class has its tables of methods, everything else one offset.
+  if (kind && is_class) {
+    out.vtables = read_rvas(i, "vtables", true, kMaxVtables, image_size, true, errors);
+    if (i.has("vtables") && out.vtables.empty()) errors.add(i.where("vtables"), "must list 1 to 64 offsets");
+  } else if (kind) {
+    if (const auto rva = i.integer("rva", true, 1, 0xFFFFFFFFLL)) {
+      out.rva = static_cast<std::uint32_t>(*rva);
+      if (out.rva >= image_size) {
+        errors.add(i.where("rva"), "lies outside the build's image");
+      } else if (kind == IdKind::Static && out.rva % 8 != 0) {
+        errors.add(i.where("rva"), "must be a multiple of 8 for a static");
+      }
+    }
+  }
+  if (kind == IdKind::Function) {
+    if (const auto length = i.integer("length", true, 1, kMaxFunctionLength)) {
+      out.length = static_cast<std::uint32_t>(*length);
+      if (out.rva < image_size && out.length > image_size - out.rva) {
+        errors.add(i.where("length"), "runs past the build's image");
+      }
+    }
+    if (const auto digest = i.text("digest", false)) {
+      if (!lower_hex(*digest, kDigestHexDigits)) {
+        errors.add(i.where("digest"), "must be 32 lower-case hex digits");
+      } else {
+        out.digest = *digest;
+      }
+    }
+    if (const auto verdict = i.text("verdict", false)) {
+      out.verdict = word_of(kVerdicts, *verdict);
+      if (!out.verdict) errors.add(i.where("verdict"), "must be one of adds, removes, reads, unknown");
+    }
+  }
+  if (kind == IdKind::Table) {
+    if (const auto stride = i.integer("stride", true, 8, 64)) out.stride = static_cast<std::uint32_t>(*stride);
+    if (const auto count = i.integer("count", true, 1, 65536)) out.count = static_cast<std::uint32_t>(*count);
+    if (out.rva < image_size && static_cast<std::uint64_t>(out.stride) * out.count > image_size - out.rva) {
+      errors.add(i.where("count"), "runs past the build's image");
+    }
+  }
+  out.found_by = read_words(i, "found_by", true, kRecipes, kRecipes.size(),
+                            "must be one of accessor, class, instance_class, table, relation, invariant", errors);
+  if (i.has("found_by") && out.found_by.empty()) errors.add(i.where("found_by"), "must name at least one recipe");
+  for (const Recipe r : out.found_by) {
+    if (kind && !recipe_finds(r, *kind)) {
+      errors.add(i.where("found_by"), std::string("names ") + to_string(r) + ", which finds no " + to_string(*kind));
+    }
+  }
+  if (kind && !is_class) {
+    out.witnesses = read_rvas(i, "witnesses", false, kMaxWitnesses, image_size, false, errors);
+  }
+  out.checks = read_words(i, "checks", false, kChecks, kChecks.size(),
+                          "must be one of placement, agree, witness, digest, class, self_test, second_source, verdict",
+                          errors);
+  if (const auto status = read_status(i, errors)) out.status = *status;
+  i.done();
+
+  // A check an entry claims must have what it checks; one recipe alone never confirms an id (proposal 0005 §7.1).
+  if (out.passed(ItemCheck::Witness) && out.witnesses.empty()) {
+    errors.add(path + ".checks", "names witness, but the entry has no witnesses");
+  }
+  if (out.passed(ItemCheck::Digest) && out.digest.empty()) {
+    errors.add(path + ".checks", "names digest, but the entry has no digest");
+  }
+  if (out.passed(ItemCheck::Verdict) && !out.verdict) {
+    errors.add(path + ".checks", "names verdict, but the entry has no verdict");
+  }
+  if (out.status == LayoutStatus::Confirmed && kind) {
+    const auto lacks = [&](ItemCheck c) {
+      if (!out.passed(c)) errors.add(path + ".status", std::string("is confirmed without the check ") + to_string(c));
+    };
+    lacks(ItemCheck::Placement);
+    lacks(ItemCheck::Agree);
+    if (is_class) {
+      lacks(ItemCheck::Class);
+    } else {
+      lacks(ItemCheck::Witness);
+    }
+    if (kind == IdKind::Function) lacks(ItemCheck::Digest);
+  }
+}
+
+// [provenance]: { method, tool, tool_sha256, round, date, leads? }.
+TableProvenance read_provenance(const toml::table& t, Errors& errors) {
+  Table p(t, "provenance", errors);
+  TableProvenance out;
+  if (const auto method = p.text("method", true)) {
+    if (*method != "own-derivation") errors.add(p.where("method"), "must be own-derivation");  // O4, O48
+  }
+  const auto version_form = [](std::string_view s) {
+    return !s.empty() && s.size() <= 48 && std::all_of(s.begin(), s.end(), [](char c) {
+      return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' ||
+             c == '+' || c == '-';
+    });
+  };
+  if (const auto tool = p.text("tool", true)) {
+    if (!version_form(*tool)) {
+      errors.add(p.where("tool"), "must be a version label of 1 to 48 letters, digits and . _ + -");
+    } else {
+      out.tool = *tool;
+    }
+  }
+  if (const auto sha = p.text("tool_sha256", true)) {
+    if (!lower_hex(*sha, 64)) {
+      errors.add(p.where("tool_sha256"), "must be 64 lower-case hex digits");
+    } else {
+      out.tool_sha256 = *sha;
+    }
+  }
+  if (const auto round = p.text("round", true)) {
+    if (!is_id_label(*round)) {
+      errors.add(p.where("round"), "must be a label of ours: lower-case letters, digits and _");
+    } else {
+      out.round = *round;
+    }
+  }
+  if (const auto date = p.text("date", true)) {
+    if (!toml_read::is_date(*date)) {
+      errors.add(p.where("date"), "must be a date, YYYY-MM-DD");
+    } else {
+      out.date = *date;
+    }
+  }
+  if (const toml::array* leads = p.array("leads", false)) {
+    if (auto list = toml_read::strings_of(*leads, p.where("leads"), errors, 16, 64)) out.leads = std::move(*list);
+  }
+  p.done();
+  return out;
+}
+
 // Each enum table total over the range of every field that uses it.
 void check_enum_use(const std::vector<FieldLayout>& fields, const std::string& path,
                     const std::vector<EnumTable>& enums, Errors& errors) {
@@ -445,25 +746,26 @@ void check_enum_use(const std::vector<FieldLayout>& fields, const std::string& p
 
 Expected<Layout, SchemaErrors> load_layout(const BuildProfile& profile, std::string_view text, const LayoutNeeds& needs,
                                            LayoutMode mode, std::string_view file) {
-  return Layout::read(profile.entry().key, profile.key(), text, needs, mode, file);
+  return Layout::read(profile.entry(), profile.key(), text, needs, mode, file);
 }
 
 SchemaErrors check_layout(const BuildEntry& entry, std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
                           std::string_view file) {
-  auto layout = Layout::read(entry.key, proto::BuildKey{}, text, needs, mode, file);
+  auto layout = Layout::read(entry, proto::BuildKey{}, text, needs, mode, file);
   return layout ? SchemaErrors{} : std::move(layout.error());
 }
 
-Expected<Layout, SchemaErrors> Layout::read(std::string_view build_text, proto::BuildKey build_key,
+Expected<Layout, SchemaErrors> Layout::read(const BuildEntry& entry, proto::BuildKey build_key,
                                             std::string_view text, const LayoutNeeds& needs, LayoutMode mode,
                                             std::string_view file) {
+  const std::string_view build_text = entry.key;
   Errors errors{std::string(file)};
   const std::optional<toml::table> doc = toml_read::parse(text, errors);
   if (!doc) return Unexpected{errors.take()};
   Table root(*doc, "", errors);
   Layout layout;
   layout.build_key_ = build_key;
-  (void)root.integer("schema", true, 1, 1);
+  if (const auto schema = root.integer("schema", true, 1, 2)) layout.schema_ = static_cast<std::uint32_t>(*schema);
   if (const auto build = root.text("build", true)) {
     if (*build != build_text) errors.add("build", "is not the build the gate matched");  // R7
     layout.build_ = *build;
@@ -550,7 +852,47 @@ Expected<Layout, SchemaErrors> Layout::read(std::string_view build_text, proto::
     layout.selftest_.npc_param_ids = read_ids(s, "npc_param_ids", errors);
     s.done();
   }
+  // The build's table, since schema 2 (proposal 0005 §5): in a schema 1 file both keys are unknown, and refused so.
+  if (layout.schema_ >= 2) {
+    if (const toml::table* provenance = root.table("provenance", true)) {
+      layout.provenance_ = read_provenance(*provenance, errors);
+    }
+    if (const toml::table* items = root.table("item", false)) {
+      if (items->size() > kMaxIds) errors.add("item", "has more than 4000 items");
+      for (auto&& [key, node] : *items) {
+        const toml::table* t = node.as_table();
+        if (!is_id_label(key.str()) || t == nullptr) {
+          errors.add("item", "has an entry that is not a table named with a label of ours");
+          continue;
+        }
+        const std::string path = "item." + std::string(key.str());
+        ItemEntry item;
+        read_item(*t, std::string(key.str()), path, entry.size_of_image, errors, item);
+        if (item.id != 0 && layout.find_item(item.id) != nullptr) errors.add(path + ".id", "is another item's id");
+        layout.items_.push_back(std::move(item));
+      }
+    }
+  }
   root.done();
+
+  // The table against the catalogue: every item is an id of gal/ids.toml, under its label, number and kind.
+  if (!layout.items_.empty() && needs.ids == nullptr) {
+    errors.add("item", "needs the catalogue, gal/ids.toml, which was not given");
+  }
+  for (const ItemEntry& item : layout.items_) {
+    if (needs.ids == nullptr) break;
+    const std::string path = "item." + item.label;
+    const IdEntry* id = needs.ids->find(item.label);
+    if (id == nullptr) {
+      errors.add(path, "is no label of the catalogue");
+    } else if (id->number != item.id) {
+      errors.add(path + ".id", "is not the catalogue's number for this label");
+    } else if (id->kind != item.kind) {
+      errors.add(path + ".kind", "is not the catalogue's kind for this id");
+    } else if (id->status == IdStatus::Retired) {
+      errors.add(path, "is a retired id");
+    }
+  }
 
   // Across the file: what fields point at, enum tables, what the groups need, and leads.
   for (const ClassLayout& c : layout.classes_) {
@@ -604,6 +946,9 @@ Expected<Layout, SchemaErrors> Layout::read(std::string_view build_text, proto::
     }
     for (const ParamLayout& p : layout.params_) {
       if (p.status == LayoutStatus::Lead) refuse("param." + p.name);
+    }
+    for (const ItemEntry& i : layout.items_) {
+      if (i.status == LayoutStatus::Lead) refuse("item." + i.label);
     }
   }
   if (!errors.empty()) return Unexpected{errors.take()};

@@ -10,23 +10,26 @@ namespace {
 
 using proto::Group;
 
+// Each item's id is its number in Lodestar's catalogue, gal/ids.toml (proposal 0005 §4): the catalogue's label is the
+// item's, or, for the function, its earlier label (`was`), which schema 1's reports and patterns.toml keep. A test
+// holds the two together.
 constexpr std::array<ItemInfo, kItemCount> kItems = {{
-    {"register_task", ItemKind::Function, true},
-    {"module_handle", ItemKind::Static, false},
-    {"save_data", ItemKind::Static, true},
-    {"game_state", ItemKind::Static, true},
-    {"field_area", ItemKind::Static, false},
-    {"task_hub", ItemKind::Singleton, true},
-    {"characters", ItemKind::Singleton, true},
-    {"session", ItemKind::Singleton, true},
-    {"event_flags", ItemKind::Singleton, false},
-    {"hud", ItemKind::Singleton, false},
-    {"menus", ItemKind::Singleton, false},
-    {"loading", ItemKind::Singleton, false},
-    {"world_clock", ItemKind::Singleton, false},
-    {"camera", ItemKind::Singleton, false},
-    {"param_store", ItemKind::Singleton, false},
-    {"messages", ItemKind::Singleton, false},
+    {"register_task", ItemKind::Function, true, 2001},
+    {"module_handle", ItemKind::Static, false, 1001},
+    {"save_data", ItemKind::Static, true, 1002},
+    {"game_state", ItemKind::Static, true, 1003},
+    {"field_area", ItemKind::Static, false, 1004},
+    {"task_hub", ItemKind::Singleton, true, 1005},
+    {"characters", ItemKind::Singleton, true, 1006},
+    {"session", ItemKind::Singleton, true, 1007},
+    {"event_flags", ItemKind::Singleton, false, 1008},
+    {"hud", ItemKind::Singleton, false, 1009},
+    {"menus", ItemKind::Singleton, false, 1010},
+    {"loading", ItemKind::Singleton, false, 1011},
+    {"world_clock", ItemKind::Singleton, false, 1012},
+    {"camera", ItemKind::Singleton, false, 1013},
+    {"param_store", ItemKind::Singleton, false, 1014},
+    {"messages", ItemKind::Singleton, false, 1015},
 }};
 
 constexpr std::array<std::string_view, kClsCount> kClasses = {
