@@ -316,6 +316,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 291 | 2026-11-21 | R1 spike.10: G's method read through its stub, the entries' words, G's walk, the array's views and the game's own call sites | DECIDED | #gal #r1 #task |
 | 292 | 2026-11-21 | The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off | DECIDED | #launcher #r1 #console |
 | 293 | 2026-11-21 | R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read | FACT | #gal #r1 #task |
+| 294 | 2026-11-21 | A look review made from a real mod's pages finds what the demo space's goldens cannot | METHOD | #graceui #review |
 
 ## Entries
 
@@ -4981,3 +4982,15 @@ invariant 10, EldenNet ARCH (T3)
 - **Next:** spike.11 reads the fields of G the method reads (the byte says which path), the request's vtable (class,
   slots) and its methods with its fields followed, 0x1267F0 whole, G's queue across the call, the class and bases of
   G's +0x48, and the game's own requests in memory, whose +8 leads to the game's own tasks and their classes.
+
+### 294. A look review made from a real mod's pages finds what the demo space's goldens cannot
+
+`2026-11-21` · METHOD · `#graceui` `#review` · refs: S11.2.d, GraceUI's D199
+
+- **The review** (METHOD): the owner's look review was made from EldenNet's pages at engine 8008dd1 as well as from the
+  demo space, in game (graceui.dll in the D3D12 harness under Wine, 1920×1080) and in the browser, with invented data
+  only. It found a fault the demo space's goldens could not: a picker whose default is empty was drawn blank, which
+  EldenNet's per-job model pickers are. GraceUI fixed it as D199 (0.2.10): an empty default reads "Default" and is
+  offered first; EldenNet has nothing to change.
+- **The scenario** (METHOD): GraceUI's page-shots scenario now walks GraceUI's own pages, saves each page's end, and takes
+  a theme and a pointer position, so the next review is one command per set.

@@ -1057,6 +1057,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner. It stays waiting until the owner has looked at the new screenshots. The pointer (GraceUI's G31, decided
     2026-11-20): our own Grace pointer, still, built as D178 in GraceUI 67fa60f. G32 decided the same day, as
     recommended, and built as D181 (S11.2.o).
+    The look review's pictures made and put to the owner on 2026-11-21, as a private page: GraceUI's own pages, the
+    demo space and EldenNet's pages as of engine 8008dd1, in game under the D3D12 harness and in the browser, with nine
+    things to judge (WHY§294). Waiting on the owner's answers.
 - e Tokens: tokens/grace.toml, its build step (CSS custom properties and a C++ header), the contrast check and the no-loop lint; 0.1's notices drawn from the header [done]
   - refs: GraceUI:DESIGN§3.15, GraceUI:D108, GraceUI:D157
   - gives: built on 2026-11-20 (GraceUI feat/foundations 2ae00d0): tokens/grace.toml, tools/tokens/build.py with the
