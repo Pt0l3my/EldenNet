@@ -1208,6 +1208,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: asked by EldenNet's fourth pages slice, where every row of a local server read Not needed and the line
     "Key: set in the browser view." still showed. Done on 2026-11-21 (GraceUI feat/foundations 75cc11a), all checks
     passed; nothing for EldenNet to change (GraceUI's docs/eldennet-changes.md §44).
+- z The browser view paces every frame it sends, subscriptions included (GraceUI 0.2.13) [done]
+  - needs: x
+  - refs: GraceUI:D203, WHY§300, WHY§301
+  - gives: asked by EldenNet's fifth pages slice, whose AI › Models reads 14 topics and could lose one right after
+    connecting. The server's limit stays (every frame counted, 20 a second, the rest dropped unread); the web transport
+    now sends subscriptions, unsubscriptions and commands through one queue, in order, at 16 a second, and an
+    unsubscription of a subscription still waiting takes it back. Done on 2026-11-21 (GraceUI feat/foundations
+    162148f), web only; nothing for EldenNet to change (GraceUI's docs/eldennet-changes.md §46).
 
 ### S11.3 EldenNet v0.2
 
@@ -1278,7 +1286,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Left: the Decisions (0.4) and Profile drafts (0.6) cards, Prepared lines' pool row, state and "Prepare lines now"
     (its section action, with the pool), Advice, Apply and Reset to preset; GraceUI's pacing of a page's
     subscriptions, asked the same day. The owner accepted the slice's eleven readings as written (O99), and both slices
-    are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings wait.
+    are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings wait. GraceUI paced the
+    subscriptions the same day (S11.2.z).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2

@@ -323,6 +323,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 298 | 2026-11-21 | A schema's field order is held by a round-trip test; run every tree's full suite before pushing a schema change | METHOD | #graceui #pages |
 | 299 | 2026-11-21 | R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step | DECIDED | #gal #r1 #task #launcher |
 | 300 | 2026-11-21 | The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit | DECIDED | #engine #pages #graceui |
+| 301 | 2026-11-21 | GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit | FACT | #graceui #browser |
 
 ## Entries
 
@@ -5129,3 +5130,13 @@ invariant 10, EldenNet ARCH (T3)
   second and drops the rest unread, while its web shell paces commands but not subscriptions. AI › Models reads 14
   topics, so a browser opening it straight after connecting can lose one (a picker with no choices, a card with no
   status). Seen in the tests' own browser, which now paces its subscriptions; GraceUI asked to pace them too.
+
+### 301. GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit
+
+`2026-11-21` · FACT · `#graceui` `#browser` · refs: GraceUI's D203, WHY§300, S11.2.z
+
+- **The fault** (FACT): the server counts every frame of a connection, subscriptions included, against 20 a second
+  (GraceUI's §6.8), while the web transport paced only commands, so a page with many topics could lose a subscription
+  right after connecting. Found by EldenNet's preview browser on AI › Models (14 topics).
+- **The fix** (FACT): pacing every frame in the page at 16 a second, in one ordered queue, keeps the server's bound and
+  loses nothing; an unsubscription of a subscription still waiting takes it back (GraceUI 0.2.13).
