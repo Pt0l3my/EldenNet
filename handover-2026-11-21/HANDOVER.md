@@ -35,9 +35,11 @@ the work becomes a proper address library of EldenNet's own, in a session of its
 
 ## 2. What Lodestar does first
 
-1. **Set up.** Attach the Skyrizz repository (read only) and install the privacy sweep from it as CLAUDE.md says; check
-   out `feat/engine` beside the docs branch (`git worktree add ../eldennet-engine feat/engine`); build the engine once
-   as BUILD.md says, at most two build trees.
+1. **Set up.** The session must be created with the Skyrizz repository attached beside EldenNet: the session-start hook
+   installs the privacy sweep from that checkout, and until it is installed the project's hook refuses every shell
+   command, a clone of Skyrizz included, so Skyrizz cannot be added later. Check that `~/.config/privsweep` exists; then
+   check out `feat/engine` beside the docs branch (`git worktree add ../eldennet-engine feat/engine`) and build the
+   engine once as BUILD.md says, at most two build trees.
 2. **A proposal, 0005** (`docs/proposals/0005-lodestar.md`, on `docs/lodestar`): what the library is and is not, for the
    owner, in plain words first. At least: the id scheme (our own stable names and numbers, never the game's); the data
    it keeps per game build (ids, offsets and RVAs as numbers, our own labels, a provenance block) and where (`gal/`);
