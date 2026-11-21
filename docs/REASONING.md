@@ -325,6 +325,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 300 | 2026-11-21 | The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit | DECIDED | #engine #pages #graceui |
 | 301 | 2026-11-21 | GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit | FACT | #graceui #browser |
 | 302 | 2026-11-21 | R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration | FACT | #gal #r1 #task |
+| 303 | 2026-11-21 | Spike.13 not built: a safety classifier stopped the work, and the route is put to the owner (O100) | FACT | #r1 #method |
 
 ## Entries
 
@@ -5167,3 +5168,14 @@ invariant 10, EldenNet ARCH (T3)
   it builds and the slot it runs, down to the code that touches the group's lists), classes each chain's end as one that
   appends or one that erases, and makes the Mark's one call to the sibling only when its chain appends and its
   arguments are derived; otherwise no call. It also reads what lies around the two vtable words.
+
+### 303. Spike.13 not built: a safety classifier stopped the work, and the route is put to the owner (O100)
+
+`2026-11-21` · FACT · `#r1` `#method` · refs: WHY§302, O100, S10.1.f
+
+- **What happened** (FACT): the subagent building spike.13 had read its briefs and run 12's report. While it was
+  writing out the decoded forms of the game's functions from that report, a safety classifier blocked its output. It
+  stopped there, changed nothing and suggested the owner look at the spike's direction. Its worktree was removed unused.
+- **What follows** (DECIDED): no work of that kind goes on, and the classifier is not worked around. The rest of the
+  game-task route is more of the same reading, so the route itself is put to the owner as O100, with the option of
+  reading the game without a game task.

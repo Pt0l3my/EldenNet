@@ -64,8 +64,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
   key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
   the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
-  accepted as written the same day.
-- **Open.** None.
+  accepted as written the same day; O100 (where the per-frame reading runs) put to the owner the same day.
+- **Open.** O100.
 
 ## O1
 
@@ -1853,4 +1853,35 @@ the cards open (Q9); the cards' words (Q10); a fallback counting as a provider's
 **Owner's words.** "Choices for you (or reply “accept as written”): accept as written"
 
 **Follows from.** PAGES §4.6.2, §4.5; ARCH §11.2, §11.4; G36; S11.4.a; WHY§297, WHY§300.
+
+## O100
+
+**Where EldenNet's per-frame reading runs, now that R1's route to a game task needs deeper reading of the game's code** · *2026-11-21 · Open*
+
+**Question.** EldenNet's design runs its reading of the game (the world snapshot, Augur's events) in a task of its own
+that the game calls every frame, registered by one call into the game's code (ARCH §6, DESIGN §16.1; O89 to O91). Twelve
+R1 runs showed that the function R0c derived for that call removes a task rather than adding one (WHY§302); the likely
+registration is its sibling, but reaching it safely means reading the game's task system more deeply still. On
+2026-11-21 the build of spike.13, which was to do that reading, stopped: a safety classifier blocked a subagent's output
+while it was writing out decoded game code from run 12's report (WHY§303). How should EldenNet go on?
+**Options:**
+(a) keep the game-task route: continue spike.13 as briefed (the sibling's chain read in depth, and one call to it only
+when it is shown to add), accepting that the same kind of work may be stopped again;
+(b) read without a game task: EldenNet's own thread reads the game at a fixed rate (about 10 a second) through the
+guarded copies R1 already uses, with checks against torn reads (a value read twice, or a sequence word), and EldenNet
+makes no call into the game's code at all; the present thread still only draws (GraceUI's invariant 10);
+(c) pause the in-game build and go on with the work that needs no game (pages, prompts, content, the engine off game)
+until the route is chosen.
+
+**Recommendation.** (b). Across twelve runs the probe's guarded reads from its own thread made no fault, and they
+already read everything a snapshot needs. Dropping the call removes the one place where EldenNet runs the game's code,
+so EldenNet becomes read-only towards the game, as GraceUI already is. The cost: reads are not in step with the game's
+frame, so a value can be read mid-update, which the double read or a sequence check catches, and events are timed to
+the reading rate rather than the frame; neither matters for a dialogue-only v1. The R1 work done stays useful: the
+derivation, the singletons, the checks and the crash watcher carry over, and the game-task route can be taken up again
+later if a feature needs the game's thread.
+
+**Decision.** Open.
+
+**Follows from.** O49, O89 to O91; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§289 to §303; S10.1.f.
 

@@ -2569,7 +2569,7 @@ plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 00
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
 C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) and O95 (the first pages' choices), O96 (System One for decisions) and O97 (decisions choose the addressee) on
-2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. None is Open.**
+2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. O100 (where the per-frame reading runs) is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2679,3 +2679,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O97](../DECISIONS.md#o97) | A decision for whom the player addressed, as SkyrimNet has? | The owner's own: in v1, decisions choose the addressee of the player's lines and of NPC-to-NPC lines | Decided 2026-11-21 |
 | [O98](../DECISIONS.md#o98) | May a player add a model server on another PC of their home network? | (a) yes, `http://` to a literal private address, with no key | Decided 2026-11-21 |
 | [O99](../DECISIONS.md#o99) | The fifth pages slice's eleven readings (AI › Models as one card per job)? | Accepted as written | Decided 2026-11-21 |
+| [O100](../DECISIONS.md#o100) | Where does EldenNet's per-frame reading run, now that the game-task route needs deeper reading of the game's code? | Recommended: (b) EldenNet's own thread, guarded reads, no call into the game | **Open** |

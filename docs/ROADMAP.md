@@ -902,6 +902,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Run 12 (2026-11-21): every group, 110 included, is in the manager's map at the title, and the function it leads
     to removes a task from the group's lists: the derived register_task is the game's unregistration, and its sibling
     is the likely registration. Spike.13 reads the sibling's chain and calls it only if its chain appends (WHY§302).
+    Spike.13 not built: on 2026-11-21 a safety classifier stopped the work while game code was being written out, and
+    the route is with the owner as O100 (WHY§303).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
