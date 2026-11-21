@@ -899,6 +899,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     is in a map of the manager's; it was dropped, with no copy left. Spike.12 reads that map at the title and in the
     world, after a save is loaded without a second call (WHY§296).
     Spike.12 sent on 2026-11-21 (engine 5e21387; WHY§299).
+    Run 12 (2026-11-21): every group, 110 included, is in the manager's map at the title, and the function it leads
+    to removes a task from the group's lists: the derived register_task is the game's unregistration, and its sibling
+    is the likely registration. Spike.13 reads the sibling's chain and calls it only if its chain appends (WHY§302).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175

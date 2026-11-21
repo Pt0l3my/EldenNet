@@ -324,6 +324,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 299 | 2026-11-21 | R1 spike.12: the manager's map read at the title and in the world, the match's call, and the owner's world step | DECIDED | #gal #r1 #task #launcher |
 | 300 | 2026-11-21 | The AI pages' fifth slice: one card per job, a job's fallback and status, and a page's subscriptions against GraceUI's rate limit | DECIDED | #engine #pages #graceui |
 | 301 | 2026-11-21 | GraceUI's browser view paces every frame it sends, so a page with many topics loses none against the server's limit | FACT | #graceui #browser |
+| 302 | 2026-11-21 | R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -5140,3 +5141,29 @@ invariant 10, EldenNet ARCH (T3)
   right after connecting. Found by EldenNet's preview browser on AI › Models (14 topics).
 - **The fix** (FACT): pacing every frame in the page at 16 a second, in one ordered queue, keeps the server's bound and
   loses nothing; an unsubscription of a subscription still waiting takes it back (GraceUI 0.2.13).
+
+### 302. R1 run 12: group 110 is in the manager's map at the title, and the code it leads to removes a task: we have been calling the game's unregistration
+
+`2026-11-21` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§296, WHY§299, S10.1.f
+
+- **The map** (FACT): at the title, before the call and 131 s after it, the manager's map held 169 nodes in order, keys
+  0 to 168 in the low 16 bits and 0x9000 in the high, its count word 169: every group, group 110's word among them. So
+  the now path's lookup finds group 110 and calls 0x26A3260 with the node's value, our task, the word and the manager.
+- **0x26A3260** (FACT, 261 bytes, read whole): it takes a lock at the value's +136, searches a list of 32-byte entries
+  (begin and end at the value's +16 and +24) for one whose +8 is our task, and if it finds one destroys the object at
+  the entry's +16 (its slot 0, then a free through an allocator's slot at +104) and erases the entry; it then searches
+  a list of 24-byte entries (+48, +56) for one whose +0 is our task and erases it with a move; it answers 1 when it
+  removed something, else 0, and unlocks. It never adds anything.
+- **So** (LIKELY): the function R0c derived as register_task, 0xEB5680, removes a task from its group, and the call does
+  nothing because our task was never in the lists. Its sibling, 0xEB5540, which derive already finds with the same
+  shape, reaches G's other method, 0x26590A0, through the stub just before ours (0x2659D00, 16 bytes earlier); that
+  method calls the request's slot 5 (0x1267A0), whose callees take the request's task. The sibling is the likely
+  registration.
+- **The world step** (FACT): the 4.4 s and 21.6 s searches found two words equal to our task's vtable in the game's
+  private memory (none in runs 9 to 11), so the probe did not answer `absent`, the console kept "do not load a save",
+  and every reading was at the title. Whether those two words are a copy of our object, or a buffer of our own not
+  counted as ours, is unknown.
+- **Next:** spike.13 reads the sibling's chain as deeply as ours (its arguments, its stub, G's other method, the request
+  it builds and the slot it runs, down to the code that touches the group's lists), classes each chain's end as one that
+  appends or one that erases, and makes the Mark's one call to the sibling only when its chain appends and its
+  arguments are derived; otherwise no call. It also reads what lies around the two vtable words.
