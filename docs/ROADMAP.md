@@ -955,6 +955,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     report schema 2 (one offline run on 2.7.2.0, game closed); L4 the checks at start and the frame service on EldenNet's
     own thread; L5 a read-only spike package, no call (one run); L6 the members, in read-only rounds; L7 the task
     service's research, later and by the owner's choice. L1 started, since it holds under every answer.
+    L1 done on 2026-11-21 (engine fb999ca): `gal/ids.toml`, the catalogue of 20 ids of our own, and layout schema 2 with
+    its loader and lint; nothing that runs in the game changes yet (WHY§306). L2's shapes wait on O102; meanwhile the
+    resolver's placement and witness checks, on invented images.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
