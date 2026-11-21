@@ -317,6 +317,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 292 | 2026-11-21 | The launcher's console off its watch loop: the log first, a bounded queue, QuickEdit off | DECIDED | #launcher #r1 #console |
 | 293 | 2026-11-21 | R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read | FACT | #gal #r1 #task |
 | 294 | 2026-11-21 | A look review made from a real mod's pages finds what the demo space's goldens cannot | METHOD | #graceui #review |
+| 295 | 2026-11-21 | R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests | DECIDED | #gal #r1 #task |
 
 ## Entries
 
@@ -4994,3 +4995,28 @@ invariant 10, EldenNet ARCH (T3)
   offered first; EldenNet has nothing to change.
 - **The scenario** (METHOD): GraceUI's page-shots scenario now walks GraceUI's own pages, saves each page's end, and takes
   a theme and a pointer position, so the next review is one command per set.
+
+### 295. R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests
+
+`2026-11-21` · DECIDED, with FACT on the fake game · `#gal` `#r1` `#task` · refs: WHY§293, WHY§291, S10.1.f
+
+- **Parts** (METHOD): a summary whose code goes past its exception-directory extent is decoded in parts: the entries
+  chained to it (UNW_FLAG_CHAININFO), and past a conditional branch's target in no entry, linear code up to 4 KiB until a
+  return, a jump through memory or a direct jump out (`unlisted`); 8 parts at most. Only conditional branches open an
+  unlisted part, since a direct jump into no entry is how a function tail-jumps to a leaf.
+- **The request** (DECIDED): found in G's method by its shape, not run 10's offsets: an rdata address stored at
+  [rsp + d] with the task at [rsp + d + 8]; each field's role from the method's entry state (vtable, task, manager from
+  G, the word, the zeroed register). Its class and slots (16 at most); its first six slots summarised at depth 4 with the
+  request in rcx, and the now path's function too, one level further, within 24 summaries: a load of the request's task
+  field is the task, so the task's later reads are `task_reads`.
+- **G and its queue** (DECIDED): the fields of G its method reads, just before the call and at about 50, 250 and 2,000
+  ms; `path_taken` now or queued, by the byte compared before the allocator. G's queue is the fifth root, walked at the
+  same times, each block whose first word is the request's vtable read as a request.
+- **The game's own** (DECIDED): each memory search counts words equal to the request's vtable outside our memory, reads
+  each of the game's (32 at most) as a request, and for each class of their tasks (8 at most) reports its slots and one
+  task's first 16 words as kinds. The classes' bases (type-descriptor RVAs only) are reported for G's manager, the
+  request, CSTask's instance, the group's entry and those tasks, with the bases they share.
+- **On the fake game** (FACT): both paths are found and reported. On the now path the second, unlisted part reads two
+  fields of the task; with a strict check it drops ours, answering 1 with no copy anywhere, as in run 10. On the queued
+  path our request sits in G's queue at 50 and 250 ms and is gone by 2 s. The game's own two waiting requests are found
+  in each search, their tasks in two classes sharing one base.
