@@ -18,18 +18,31 @@ static_assert(offsetof(FG::TaskFields, hub) + 8 == FG_TASK_HUB_OFF);
 static_assert(offsetof(FG::TaskFields, kind) + 8 == FG_TASK_KIND_OFF);
 static_assert(offsetof(FG::ShelfFields, word) + 8 == FG_SHELF_WORD_OFF);
 static_assert(offsetof(FG::ShelfFields, shared) + 8 == FG_SHELF_SHARED_OFF);
-static_assert(offsetof(FG::LedgerFields, flags) + 8 == FG_LEDGER_FLAGS_OFF);
-static_assert(offsetof(FG::LedgerFields, count) + 8 == FG_LEDGER_COUNT_OFF);
+static_assert(offsetof(FG::TaskFields, state) + 8 == FG_TASK_STATE_OFF);
 static_assert(offsetof(FG::LedgerFields, groups) + 8 == FG_LEDGER_GROUPS_OFF);
-static_assert(offsetof(FG::LedgerFields, seen) + 8 == FG_LEDGER_SEEN_OFF);
-static_assert(offsetof(FG::LedgerFields, items) + 8 == FG_LEDGER_ITEMS_OFF);
-static_assert(sizeof(FG::LedgerFields::items) / sizeof(std::uint64_t) == FG_LEDGER_ITEMS);
+static_assert(offsetof(FG::LedgerFields, queue) + 8 == FG_LEDGER_QUEUE_OFF);
+static_assert(offsetof(FG::LedgerFields, deferred) + 8 == FG_LEDGER_DEFER_OFF);
+static_assert(offsetof(FG::LedgerFields, open) + 8 == FG_LEDGER_OPEN_OFF);
+static_assert(offsetof(FG::LedgerFields, manager) + 8 == FG_LEDGER_MANAGER_OFF);
+static_assert(offsetof(FG::ManagerFields, flags) + 8 == FG_MANAGER_FLAGS_OFF);
+static_assert(sizeof(FG::TaskRequest) == FG_REQUEST_BYTES);
+static_assert(offsetof(FG::RequestFields, task) + 8 == FG_REQUEST_TASK_OFF);
+static_assert(offsetof(FG::RequestFields, manager) + 8 == FG_REQUEST_MANAGER_OFF);
+static_assert(offsetof(FG::RequestFields, word) + 8 == FG_REQUEST_WORD_OFF);
+static_assert(offsetof(FG::RequestFields, flag) + 8 == FG_REQUEST_FLAG_OFF);
 static_assert(offsetof(FG::TaskLoomFields, desk) + 8 == FG_LOOM_DESK_OFF);
 static_assert(offsetof(FgTaskBench, task) == FG_BENCH_TASK_OFF);
 static_assert(offsetof(FG::RackFields, shelves) + 8 == FG_RACK_SHELVES_OFF);
 
 #define FG_STR(x) #x
 #define FG_XSTR(x) FG_STR(x)
+
+// The request's vtable (FG::TaskRequest's, the compiler's), by its symbol in each ABI (spike.11): its first slot.
+#if defined(_MSC_VER)
+#define FG_REQUEST_VTABLE "\"??_7TaskRequest@FG@@6B@\""
+#else
+#define FG_REQUEST_VTABLE "_ZTVN2FG11TaskRequestE+16"
+#endif
 
 #define FG_FUNC_BEGIN(fn)                       \
   "  .p2align 4, 0xcc\n"                        \
@@ -122,6 +135,10 @@ __asm__(
     FG_STATIC(fg_static_ledger)
     FG_STATIC(fg_ledger_blank)
     FG_STATIC(fg_ledger_given)
+    "  .globl fg_gated_word\n"
+    "fg_gated_word:\n  .long 0\n"
+    "  .globl fg_gated\n"
+    "fg_gated:\n  .byte 0\n"
     "  .globl fg_save_ledger_ready\n"
     "fg_save_ledger_ready:\n  .byte 0\n"
     FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
@@ -553,61 +570,142 @@ __asm__(
     "1:\n"
     "  int3\n"
 
-    // ---- The ledger's method (G's, spike.10): the ledger in rcx, the task in rdx, the shelf's word in r8d, r9 zero. It
-    // notes the task in the hub's rows; refuses a word past the rack's bound, or at or past the ledger's groups; reads
-    // the task's hub field (kept on the ledger) and its kind; where the ledger is strict (--task-gate) and the kind is
-    // not the game's, answers 1 keeping nothing (R1 run 9's end); else keeps the task in its list under the tag while
-    // the list has room, and hands it to the work with the word as its group. It answers 1.
+    // ---- The ledger's method (G's; since spike.11 R1 run 10's shape, WHY§293): the ledger in rcx, the task in rdx,
+    // the shelf's word in r8d, r9 zero. A null task, or a ledger not open, answers 0. Else it builds a request of 32
+    // bytes at [rsp + FG_REQUEST_DISP] (its vtable, the task, the ledger's manager, the word, r9's low byte); where the
+    // ledger's deferred byte is zero it calls fg_request_now with the request's address and answers what that answers,
+    // else it copies the request to 32 bytes from fg_request_alloc and hands the copy to the ledger's queue, answering
+    // 1. It never reads the task.
     FG_FUNC_BEGIN(fg_ledger_admit)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  push rdi\n"
+    "  .seh_pushreg rdi\n"
+    "  sub rsp, 0x48\n"
+    "  .seh_stackalloc 0x48\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, rcx\n"
+    "  test rdx, rdx\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "9:\n"
+    "  xor eax, eax\n"
+    "  .byte 0xE9\n"  // jmp 8: the end, always in its long form
+    "  .long 8f - 3f\n"
+    "3:\n"
+    "1:\n"
+    "  cmp qword ptr [rbx + " FG_XSTR(FG_LEDGER_OPEN_OFF) "], 0\n"
+    "  .byte 0x74, 9b - 4f\n"
+    "4:\n"
+    "  lea rdi, [rip + " FG_REQUEST_VTABLE "]\n"
+    "  mov qword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) "], rdi\n"
+    "  mov rax, qword ptr [rbx + " FG_XSTR(FG_LEDGER_MANAGER_OFF) "]\n"
+    "  mov qword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_TASK_OFF) "], rdx\n"
+    "  mov qword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "], rax\n"
+    "  mov dword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_WORD_OFF) "], r8d\n"
+    "  mov byte ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_FLAG_OFF) "], r9b\n"
+    "  cmp byte ptr [rbx + " FG_XSTR(FG_LEDGER_DEFER_OFF) "], 0\n"
+    "  .byte 0x75, 5f - 6f\n"
+    "6:\n"
+    "  lea rcx, [rsp + " FG_XSTR(FG_REQUEST_DISP) "]\n"
+    "  call fg_request_now\n"
+    "  .byte 0xEB, 8f - 7f\n"
+    "7:\n"
+    "5:\n"
+    "  mov ecx, " FG_XSTR(FG_REQUEST_BYTES) "\n"
+    "  call fg_request_alloc\n"
+    "  test rax, rax\n"
+    "  .byte 0x74, 8f - 1f\n"
+    "1:\n"
+    "  mov qword ptr [rax], rdi\n"
+    "  mov rcx, qword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_TASK_OFF) "]\n"
+    "  mov qword ptr [rax + " FG_XSTR(FG_REQUEST_TASK_OFF) "], rcx\n"
+    "  mov rcx, qword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "]\n"
+    "  mov qword ptr [rax + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "], rcx\n"
+    "  mov ecx, dword ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
+    "  mov dword ptr [rax + " FG_XSTR(FG_REQUEST_WORD_OFF) "], ecx\n"
+    "  movzx ecx, byte ptr [rsp + " FG_XSTR(FG_REQUEST_DISP) " + " FG_XSTR(FG_REQUEST_FLAG_OFF) "]\n"
+    "  mov byte ptr [rax + " FG_XSTR(FG_REQUEST_FLAG_OFF) "], cl\n"
+    "  mov rdx, rax\n"
+    "  mov rcx, qword ptr [rbx + " FG_XSTR(FG_LEDGER_QUEUE_OFF) "]\n"
+    "  call fg_queue_push\n"
+    "8:\n"
+    "  add rsp, 0x48\n"
+    "  pop rdi\n"
+    "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+
+    // ---- The request's work, now (spike.11, R1 run 10's 0x1267F0 shape): the request in rcx. Its entry reads the task
+    // and the word, notes the task in the hub's rows and tests the manager's strict flag: not strict, it hands the task
+    // to the work with the word as its group and answers 1; strict (--task-gate), it branches past its extent to its
+    // second part below, which lies in no entry of the exception directory (unlisted).
+    FG_FUNC_BEGIN(fg_request_now)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
     "  push rsi\n"
     "  .seh_pushreg rsi\n"
-    "  push rdi\n"
-    "  .seh_pushreg rdi\n"
-    "  sub rsp, 0x20\n"
-    "  .seh_stackalloc 0x20\n"
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
     "  .seh_endprologue\n"
     "  mov rbx, rcx\n"
-    "  mov rsi, rdx\n"
-    "  mov edi, r8d\n"
-    "  call fg_ledger_note\n"
-    "  cmp edi, " FG_XSTR(FG_RACK_BOUND) "\n"
-    "  .byte 0x77, 1f - 2f\n"
-    "2:\n"
-    "  cmp edi, dword ptr [rbx + " FG_XSTR(FG_LEDGER_GROUPS_OFF) "]\n"
-    "  .byte 0x73, 1f - 3f\n"
-    "3:\n"
-    "  mov r10, qword ptr [rsi + " FG_XSTR(FG_TASK_HUB_OFF) "]\n"
-    "  mov qword ptr [rbx + " FG_XSTR(FG_LEDGER_SEEN_OFF) "], r10\n"
-    "  mov r11d, dword ptr [rsi + " FG_XSTR(FG_TASK_KIND_OFF) "]\n"
-    "  test byte ptr [rbx + " FG_XSTR(FG_LEDGER_FLAGS_OFF) "], 1\n"
-    "  .byte 0x74, 4f - 5f\n"
-    "5:\n"
-    "  cmp r11d, " FG_XSTR(FG_TASK_KIND) "\n"
-    "  .byte 0x75, 1f - 4f\n"
-    "4:\n"
-    "  mov eax, dword ptr [rbx + " FG_XSTR(FG_LEDGER_COUNT_OFF) "]\n"
-    "  cmp eax, " FG_XSTR(FG_LEDGER_ITEMS) "\n"
-    "  .byte 0x73, 6f - 7f\n"
-    "7:\n"
+    "  mov rsi, qword ptr [rcx + " FG_XSTR(FG_REQUEST_TASK_OFF) "]\n"
     "  mov rcx, rsi\n"
-    "  movabs rdx, " FG_XSTR(FG_TASK_TAG) "\n"
-    "  or rcx, rdx\n"
-    "  mov qword ptr [rbx + rax*8 + " FG_XSTR(FG_LEDGER_ITEMS_OFF) "], rcx\n"
-    "  inc eax\n"
-    "  mov dword ptr [rbx + " FG_XSTR(FG_LEDGER_COUNT_OFF) "], eax\n"
-    "6:\n"
-    "  mov rcx, rbx\n"
-    "  mov edx, edi\n"
+    "  mov edx, dword ptr [rbx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
+    "  call fg_ledger_note\n"
+    "  mov rax, qword ptr [rbx + " FG_XSTR(FG_REQUEST_MANAGER_OFF) "]\n"
+    "  test byte ptr [rax + " FG_XSTR(FG_MANAGER_FLAGS_OFF) "], 1\n"
+    "  .byte 0x0F, 0x85\n"  // jne fg_request_check: the second part
+    "  .long fg_request_check - 1f\n"
+    "1:\n"
+    ".Lrequest_keep:\n"
+    "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
+    "  mov edx, dword ptr [rbx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
     "  mov r8, rsi\n"
     "  call fg_ledger_keep\n"
-    "1:\n"
+    ".Lrequest_done:\n"
     "  mov eax, 1\n"
-    "  add rsp, 0x20\n"
-    "  pop rdi\n"
+    "  add rsp, 0x28\n"
     "  pop rsi\n"
     "  pop rbx\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+    // Its second part (no entry of its own): a task of the game's kind and of state 0 branches back to the hand-over;
+    // any other is dropped, its word kept for the log, and the part jumps back to the entry's end (answering 1).
+    "  .p2align 4, 0xcc\n"
+    "  .globl fg_request_check\n"
+    "fg_request_check:\n"
+    "  cmp dword ptr [rsi + " FG_XSTR(FG_TASK_KIND_OFF) "], " FG_XSTR(FG_TASK_KIND) "\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  cmp dword ptr [rsi + " FG_XSTR(FG_TASK_STATE_OFF) "], 0\n"
+    "  .byte 0x0F, 0x84\n"  // je .Lrequest_keep: back into the entry
+    "  .long .Lrequest_keep - 3f\n"
+    "3:\n"
+    "1:\n"
+    "  mov ecx, dword ptr [rbx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
+    "  mov dword ptr [rip + fg_gated_word], ecx\n"
+    "  mov byte ptr [rip + fg_gated], 1\n"
+    "  .byte 0xE9\n"  // jmp .Lrequest_done: back into the entry
+    "  .long .Lrequest_done - 4f\n"
+    "4:\n"
+    "  int3\n"
+
+    // ---- The request's other slots (spike.11): its cancel resets its task's state; its word answers the word ----
+    FG_FUNC_BEGIN(fg_request_cancel)
+    "  .seh_endprologue\n"
+    "  mov rax, qword ptr [rcx + " FG_XSTR(FG_REQUEST_TASK_OFF) "]\n"
+    "  test rax, rax\n"
+    "  .byte 0x74, 1f - 2f\n"
+    "2:\n"
+    "  mov dword ptr [rax + " FG_XSTR(FG_TASK_STATE_OFF) "], 0\n"
+    "1:\n"
+    "  xor eax, eax\n"
+    "  ret\n"
+    "  .seh_endproc\n"
+    FG_FUNC_BEGIN(fg_request_word)
+    "  .seh_endprologue\n"
+    "  mov eax, dword ptr [rcx + " FG_XSTR(FG_REQUEST_WORD_OFF) "]\n"
     "  ret\n"
     "  .seh_endproc\n"
 

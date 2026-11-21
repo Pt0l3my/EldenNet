@@ -2193,15 +2193,14 @@ def check_r1_group(p, task, jump, entry):
 
 
 def check_r1_g_method(p, task, site):
-    """Spike.10 (WHY§289): G's method, reached through the stub at the same depth (3), entered with G in rcx, the task
-    in rdx, the entry's word in r8 and r9 zero: its two reads of the task (the hub field, kept on G; the kind, compared
-    with the game's kind), its three reads of G (its groups compared with the word, its strict flag tested, its count
-    compared with the list's length), the word's four uses (passed to the note, compared with the bound, compared with
-    G's groups, passed to the work), the task's stores (the hub field on G, the task in G's list under its tag), and its
-    two callees one level further (4), the work entered with G and the word."""
+    """Spike.10 and spike.11 (WHY§289, WHY§293): G's method, reached through the stub at the same depth (3), entered with
+    G in rcx, the task in rdx, the entry's word in r8 and r9 zero, of R1 run 10's shape: it never reads the task, which
+    it stores into the request it builds on its stack; it reads four fields of G (its open word and its deferred byte
+    compared in place, its manager stored into the request, its queue passed in rcx to the queued path's call); the
+    word is stored into the request, and still in r8 at the first two calls; its three callees are the now path's
+    function (with the request's stack address in rcx), the allocator and the queue's push."""
     failures = []
     c = p["callee_code"]
-    task_reg, _, _ = p["register"]["registers"]
     rack = task["register_rack"]
     inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
     m = inner.get((rack["admit_rva"], 3), {})
@@ -2209,53 +2208,129 @@ def check_r1_g_method(p, task, site):
     need(m and m.get("stub") == rack["stub_rva"] and m.get("zeroed") == [9] and m.get("parent") == rack["take_rva"] and
          m.get("site") == site and m["read"] and m["extent"] > 0 and m["bytes"] == m["extent"] and
          "modelled_to" not in m and mentry.get(1, {}).get("holds_g") is True and
-         mentry.get(8, {}).get("holds_word") is True,
+         mentry.get(8, {}).get("holds_word") is True and "parts" not in m,
          "G's method: %s" % {k: v for k, v in m.items() if k not in ("forms", "args", "guard")}, failures)
+    need("task_read_count" not in m and m.get("task_store_count") == 1 and
+         m.get("task_stores", [{}])[0].get("base") == 4 and
+         m.get("task_stores", [{}])[0].get("disp") == rack["request_disp"] + rack["request_task_off"],
+         "G's method's task: %s" % {k: m.get(k) for k in ("task_read_count", "task_stores")}, failures)
     on_g = {"src": "entry", "reg": 1}
-    arg = {"src": "argument", "from": task_reg}
-    reads = {(r["disp"], r["width"]): r for r in m.get("task_reads", [])}
-    seen = reads.get((rack["task_hub_off"], 8), {})
-    kind = reads.get((rack["task_kind_off"], 4), {})
-    need(m.get("task_read_count") == 2 and seen.get("base_src") == arg and
-         [(u["use"], u.get("base_src"), u.get("disp")) for u in seen.get("uses", [])] ==
-         [("stored", on_g, rack["ledger_seen_off"])] and kind.get("base_src") == arg and
-         [(u["use"], u.get("imm")) for u in kind.get("uses", [])] == [("compared", rack["kind"])],
-         "G's method's task reads: %s" % m.get("task_reads"), failures)
     greads = {r["disp"]: r for r in m.get("g_reads", [])}
-    groups = greads.get(rack["ledger_groups_off"], {})
-    flags = greads.get(rack["ledger_flags_off"], {})
-    count = greads.get(rack["ledger_count_off"], {})
-    need(m.get("g_read_count") == 3 and all(r.get("base_src") == on_g for r in greads.values()) and
-         groups.get("direct") and [u["use"] for u in groups.get("uses", [])] == ["compared_other"] and
-         flags.get("direct") and flags.get("width") == 1 and [u["use"] for u in flags.get("uses", [])] == ["tested"] and
-         not count.get("direct") and [(u["use"], u.get("imm")) for u in count.get("uses", [])] ==
-         [("compared", rack["ledger_items"]), ("index", None)], "G's reads: %s" % m.get("g_reads"), failures)
-    uses = [(u["use"], u.get("reg"), u.get("target"), u.get("imm")) for u in m.get("word_uses", [])]
-    need(m.get("word_use_count") == 4 and uses == [("passed", 8, rack["note_rva"], None),
-                                                   ("compared", None, None, rack["bound"]),
-                                                   ("compared_other", None, None, None),
-                                                   ("passed", 2, rack["keep_rva"], None)],
-         "the entry's word's uses: %s" % m.get("word_uses"), failures)
-    stores = m.get("task_stores", [])
-    tagged = [x for x in stores if x["source"].get("src") == "modified"]
-    need(m.get("task_store_count") == 2 and len(tagged) == 1 and tagged[0]["source"].get("class") == "or" and
-         tagged[0]["source"].get("origin") == arg and tagged[0].get("base_src") == on_g and "index" in tagged[0] and
-         tagged[0]["disp"] == rack["ledger_items_off"] and
-         any(x["source"].get("src") == "memory" and x["disp"] == rack["ledger_seen_off"] for x in stores),
-         "G's method's task stores: %s" % stores, failures)
-    calls = [k.get("target") for k in m.get("call_sites", []) if k["form"] == "direct"]
-    need(calls == [rack["note_rva"], rack["keep_rva"]], "G's method's calls: %s" % m.get("call_sites"), failures)
-    keep = inner.get((rack["keep_rva"], 4), {})
-    note = inner.get((rack["note_rva"], 4), {})
-    kentry = {x["reg"]: x for x in keep.get("entry_src", [])}
-    need(keep and note and keep.get("parent") == rack["admit_rva"] and note.get("parent") == rack["admit_rva"] and
-         kentry.get(1, {}).get("holds_g") is True and kentry.get(2, {}).get("holds_word") is True,
-         "G's method's callees, one level further: %s" %
-         [(i["rva"], i.get("depth"), i.get("parent")) for i in c.get("inner", [])], failures)
+    opened = greads.get(rack["ledger_open_off"], {})
+    defer = greads.get(rack["ledger_defer_off"], {})
+    manager = greads.get(rack["ledger_manager_off"], {})
+    queue = greads.get(rack["ledger_queue_off"], {})
+    need(m.get("g_read_count") == 4 and all(r.get("base_src") == on_g for r in greads.values()) and
+         opened.get("direct") and opened.get("width") == 8 and
+         [(u["use"], u.get("imm")) for u in opened.get("uses", [])] == [("compared", 0)] and
+         defer.get("direct") and defer.get("width") == 1 and
+         [(u["use"], u.get("imm")) for u in defer.get("uses", [])] == [("compared", 0)] and
+         [u["use"] for u in manager.get("uses", [])] == ["stored"] and
+         [(u["use"], u.get("reg"), u.get("target")) for u in queue.get("uses", [])] ==
+         [("passed", 1, rack["push_rva"])], "G's reads: %s" % m.get("g_reads"), failures)
+    uses = [(u["use"], u.get("base"), u.get("disp"), u.get("width"), u.get("target")) for u in m.get("word_uses", [])]
+    need(m.get("word_use_count") == len(uses) == 3 and
+         uses[0] == ("stored", 4, rack["request_disp"] + rack["request_word_off"], 4, None) and
+         [(u[0], u[4]) for u in uses[1:]] == [("passed", rack["now_rva"]), ("passed", rack["request_alloc_rva"])],
+         "the entry's word's uses (stored into the request, still in r8 at the two calls): %s" % m.get("word_uses"),
+         failures)
+    calls = [k for k in m.get("call_sites", []) if k["form"] == "direct"]
+    rcx = next((x["source"] for x in calls[0].get("pass_src", []) if x["reg"] == 1), {}) if calls else {}
+    need([k.get("target") for k in calls] == [rack["now_rva"], rack["request_alloc_rva"], rack["push_rva"]] and
+         rcx == {"src": "stack", "disp": rack["request_disp"]},
+         "G's method's calls: %s" % m.get("call_sites"), failures)
     return failures
 
 
-def check_r1_method(p, task, group, gap=False, gate=False):
+def check_r1_request(p, task):
+    """Spike.11 (WHY§293): the request G's method builds, as R1 read it: its vtable (the fake game's FG::TaskRequest's,
+    classed, no lead's) at the method's stack place, its five fields (the vtable, the task at +8, G's manager, the word,
+    the zeroed byte), the function the method calls with it, and its three slots (5-byte jumps to the now path's
+    function, the cancel and the word); each slot summarised at depth 4 with the request in rcx, the now path's
+    function in two parts (its entry and, past its extent in no entry, its check) with the request's fields followed:
+    the task, the word, the manager; the task's kind and state read in the second part, the manager's strict flag
+    tested; and one level further (5) the note and the work, the task and the word carried in."""
+    failures = []
+    c = p["callee_code"]
+    rack = task["register_rack"]
+    task_reg = p["register"]["registers"][0]
+    r = p.get("request", {})
+    fields = [(f["offset"], f["width"], f["field"]) for f in r.get("fields", [])]
+    cls = r.get("request_class", {})
+    need(r.get("vtable") == rack["request_vtable_rva"] and r.get("disp") == rack["request_disp"] and
+         r.get("task_field") == rack["request_task_off"] and r.get("now") == rack["now_rva"] and
+         fields == [(0, 8, "vtable"), (rack["request_task_off"], 8, "task"), (rack["request_manager_off"], 8, "manager"),
+                    (rack["request_word_off"], 4, "word"), (rack["request_flag_off"], 1, "zero")] and
+         r.get("fields", [{}])[0].get("source") == {"src": "address", "target": rack["request_vtable_rva"]} and
+         cls.get("vtable_known") and cls.get("classed") and cls.get("match") == "none" and
+         r.get("slot_count") == 3 and r.get("slots") == rack["slot_rvas"],
+         "the request: %s" % r, failures)
+    inner = {(i["rva"], i.get("depth", 1)): i for i in c.get("inner", [])}
+    now = inner.get((rack["now_rva"], 4), {})
+    parts = [(x["rva"], x["how"]) for x in now.get("parts", [])]
+    nentry = {x["reg"]: x for x in now.get("entry_src", [])}
+    need(now and now.get("parent") == rack["admit_rva"] and now.get("extent", 0) > 0 and
+         parts == [(rack["now_rva"], "primary"), (rack["check_rva"], "unlisted")] and
+         now["parts"][0]["bytes"] == now["extent"] and now["bytes"] == sum(x["bytes"] for x in now["parts"]) and
+         nentry.get(1, {}).get("holds_request") is True and now.get("request_slot") == 0 and
+         not now.get("returns_early") and "modelled_to" not in now, "the now path's function: %s" %
+         {k: v for k, v in now.items() if k not in ("forms", "args", "guard")}, failures)
+    on_request = {"src": "entry", "reg": 1}
+    rreads = {(x["disp"], x["width"]) for x in now.get("request_reads", []) if x["base_src"] == on_request}
+    treads = sorted((x["disp"], x["width"]) for x in now.get("task_reads", []))
+    mreads = now.get("manager_reads", [])
+    need({(rack["request_task_off"], 8), (rack["request_word_off"], 4), (rack["request_manager_off"], 8)} <= rreads and
+         treads == sorted([(rack["task_state_off"], 4), (rack["task_kind_off"], 4)]) and
+         all(x["offset"] >= rack["check_rva"] - rack["now_rva"] for x in now.get("task_reads", [])) and
+         len(mreads) == 1 and mreads[0]["disp"] == rack["manager_flags_off"] and mreads[0].get("direct") and
+         [u["use"] for u in mreads[0].get("uses", [])] == ["tested"],
+         "the now path's function's reads: request %s, task %s, manager %s" %
+         (now.get("request_reads"), now.get("task_reads"), mreads), failures)
+    calls = [k for k in now.get("call_sites", []) if k["form"] == "direct"]
+    tails = [k for k in now.get("call_sites", []) if k["form"] != "direct"]
+    need([k.get("target") for k in calls] == [rack["note_rva"], rack["keep_rva"]] and not tails,
+         "the now path's function's calls (the jumps back into its entry no tail calls): %s" % now.get("call_sites"),
+         failures)
+    forms = now.get("forms", [])
+    need(len(forms) == now.get("instructions") and
+         any(f["offset"] == rack["check_rva"] - rack["now_rva"] for f in forms),
+         "the now path's function's forms, its second part among them: %s" % len(forms), failures)
+    for i, (slot, target) in enumerate(zip(rack["slot_rvas"], rack["slot_targets"])):
+        s = inner.get((slot, 4), {})
+        jumps = [k for k in s.get("call_sites", []) if k["form"] == "tail"]
+        sentry = {x["reg"]: x for x in s.get("entry_src", [])}
+        need(s and s.get("request_slot") == i and s.get("parent") == rack["admit_rva"] and s["bytes"] == 5 and
+             len(jumps) == 1 and jumps[0].get("target") == target and
+             sentry.get(1, {}).get("holds_request") is True and
+             sentry.get(1, {}).get("source") == {"src": "stack", "disp": rack["request_disp"]},
+             "the request's slot %d: %s" % (i, {k: v for k, v in s.items() if k not in ("forms", "args", "guard")}),
+             failures)
+        if target == rack["now_rva"]:
+            continue
+        t = inner.get((target, 4), {})
+        need(t and t.get("stub") == slot and t.get("request_slot") == i and t.get("request_read_count", 0) >= 1,
+             "the request's slot %d's work: %s" % (i, {k: v for k, v in t.items() if k not in ("forms", "args")}),
+             failures)
+    cancel = inner.get((rack["cancel_rva"], 4), {})
+    need([(x["disp"], x["width"]) for x in cancel.get("request_reads", [])] == [(rack["request_task_off"], 8)],
+         "the cancel's request reads: %s" % cancel.get("request_reads"), failures)
+    word = inner.get((rack["word_rva"], 4), {})
+    need([(x["disp"], x["width"]) for x in word.get("request_reads", [])] == [(rack["request_word_off"], 4)],
+         "the word's request reads: %s" % word.get("request_reads"), failures)
+    keep = inner.get((rack["keep_rva"], 5), {})
+    note = inner.get((rack["note_rva"], 5), {})
+    kentry = {x["reg"]: x for x in keep.get("entry_src", [])}
+    held = kentry.get(8, {}).get("source", {})
+    need(keep and note and keep.get("parent") == rack["now_rva"] and note.get("parent") == rack["now_rva"] and
+         held.get("src") == "memory" and held.get("disp") == rack["request_task_off"] and
+         held.get("base_src") == on_request and kentry.get(2, {}).get("holds_word") is True,
+         "one level further: %s; the work's entry %s" %
+         ([(i["rva"], i.get("depth"), i.get("parent")) for i in c.get("inner", [])], kentry), failures)
+    del task_reg
+    return failures
+
+
+def check_r1_method(p, task, group, gap=False, gate=False, queued=False):
     """Spike.10 (WHY§289): G's method as R1 found it (the group's function's site, G's slot, the stub, the method, the
     entry's word at its offset), and the three numbers before and after the call: G on the heap, classed but no lead's;
     not the object the hub holds at +8; the object the shelf holds at +0x58 only with --task-gate (then not walked,
@@ -2286,14 +2361,120 @@ def check_r1_method(p, task, group, gap=False, gate=False):
                  failures)
     need(m.get("before", {}).get("at_ms") == 0 and m.get("after", {}).get("at_ms", 0) >= 2000,
          "G's reads' times: %s" % [m.get(k, {}).get("at_ms") for k in ("before", "after")], failures)
+    # Spike.11 (WHY§293): every shelf's word holds its own index in its low 16 bits too, and its high 16 bits are 0.
+    for key in ("before", "after"):
+        r = m.get(key, {})
+        need(r.get("own_low") == len(shelves) and r.get("highs") == [{"value": 0, "count": len(shelves)}],
+             "the words' halves %s the call: %s" % (key, r), failures)
+    return failures + check_r1_g_fields(p, task, queued)
+
+
+def check_r1_g_fields(p, task, queued=False):
+    """Spike.11 (WHY§293): the four fields of G its method reads, just before the call and about 50 and 250 ms and 2 s
+    after it: its open word 1, its manager and its queue on the heap and classed (no lead's), its deferred byte 0 (1
+    with --task-queue); the byte the method compares first is that one, and the path it took the one --describe says."""
+    failures = []
+    rack = task["register_rack"]
+    m = p.get("method", {})
+    reads = m.get("g_fields", [])
+    times = [r["at_ms"] for r in reads]
+    need(len(reads) == 4 and times[0] == 0 and 45 <= times[1] < 250 <= times[2] < 2000 <= times[3],
+         "G's fields' reads: %s" % times, failures)
+    defer = 1 if queued else 0
+
+    def heap(x):
+        return (x.get("field_value", {}).get("kind") == "heap" and x.get("field_class", {}).get("classed") and
+                x.get("field_class", {}).get("match") == "none")
+
+    for r in reads:
+        f = {x["disp"]: x for x in r.get("fields", [])}
+        need(r.get("read") and len(f) == 4 and all(x["read"] for x in f.values()) and
+             f.get(rack["ledger_open_off"], {}).get("field_value") == {"kind": "small", "value": 1} and
+             f.get(rack["ledger_defer_off"], {}).get("value") == defer and
+             f.get(rack["ledger_defer_off"], {}).get("width") == 1 and
+             heap(f.get(rack["ledger_manager_off"], {})) and heap(f.get(rack["ledger_queue_off"], {})),
+             "G's fields at %s ms: %s" % (r.get("at_ms"), r), failures)
+    need(m.get("defer_disp") == rack["ledger_defer_off"] and m.get("path_taken") == ("queued" if queued else "now"),
+         "the deciding byte and the path: %s, %s" % (m.get("defer_disp"), m.get("path_taken")), failures)
+    return failures
+
+
+def check_r1_queue(p, task, gap=False, queued=False):
+    """Spike.11 (WHY§293): G's queue (G's field passed to the queued path's call) walked as a fifth root, at the same
+    four times: the two requests of the game's own that wait there for ever (their tasks the manager's, classed, their
+    manager field G's, their words and flag 1), and with --task-queue ours at 50 and 250 ms (our task, G's manager, the
+    group's word, flag 0), drained by 2 s."""
+    failures = []
+    rack = task["register_rack"]
+    group = p["register"]["group_index"]
+    q = p.get("queue", {})
+    reads = q.get("reads", [])
+    need(q.get("g_disp") == rack["ledger_queue_off"] and q.get("queue_walk") == "walked" and len(reads) == 4,
+         "G's queue: %s" % {k: v for k, v in q.items() if k != "reads"}, failures)
+    queued = queued and not gap
+    for r in reads:
+        reqs = r.get("requests", [])
+        ours = [x for x in reqs if x.get("ours")]
+        theirs = [x for x in reqs if x.get("ours") is False]
+        early = 0 < r["at_ms"] < 2000
+        need(r.get("read") and r.get("found") == len(reqs) and
+             sorted(x.get("word") for x in theirs) == rack["lingering_words"] and
+             all(x.get("flag") == 1 and x.get("manager") is True and x.get("task_value", {}).get("kind") == "heap" and
+                 x.get("task_class", {}).get("classed") for x in theirs) and
+             len(ours) == (1 if queued and early else 0) and
+             all(x.get("word") == group and x.get("flag") == 0 and x.get("manager") is True for x in ours),
+             "the queue at %s ms: %s" % (r.get("at_ms"), r), failures)
+    return failures
+
+
+def check_r1_request_search(p, task):
+    """Spike.11 (WHY§293): in each whole-memory search, the game's requests: the two that wait in G's queue (private
+    memory), each read as a request (not our task, its manager G's, its word and flag 1), and their tasks' two classes,
+    each with its vtable's slots and 16 words (the first its vtable, classed)."""
+    failures = []
+    rack = task["register_rack"]
+    for m in p.get("memory_search", []):
+        hits = m.get("request_hits", [])
+        tasks = m.get("request_tasks", [])
+        need(m.get("request_found") == rack["lingering"] and len(hits) == rack["lingering"] and
+             all(h["region"] == "private" and h.get("ours") is False and h.get("manager") is True and
+                 h.get("flag") == 1 and h.get("task_class", {}).get("classed") for h in hits) and
+             sorted(h.get("word") for h in hits) == rack["lingering_words"],
+             "the game's requests: %s" % {k: m.get(k) for k in ("request_found", "own_request_found", "request_hits")},
+             failures)
+        need(sorted(t["vtable"] for t in tasks) == sorted(rack["chore_vtable_rvas"]) and
+             all(t["count"] == 1 and t["slot_count"] >= 2 and len(t["words"]) == 16 and
+                 t["words"][0].get("kind") == "game" and t["words"][0].get("word_class", {}).get("classed")
+                 for t in tasks), "their tasks: %s" % tasks, failures)
+    return failures
+
+
+def check_r1_classes(p, gap=False):
+    """Spike.11 (WHY§293): the classes met, with their bases: G's manager, the request (one base), CSTask's instance,
+    the group's entry (none with --table-gap), G, and the game's two task classes (one base each, the same: the one
+    shared base, listed twice)."""
+    failures = []
+    classes = {}
+    for x in p.get("classes", []):
+        classes.setdefault(x["object"], []).append(x)
+    want = {"manager", "request", "task_hub", "g", "game_task"} | (set() if gap else {"group_entry"})
+    need(set(classes) == want and len(classes.get("game_task", [])) == 2 and
+         all(x["classed"] for v in classes.values() for x in v),
+         "the classes: %s" % p.get("classes"), failures)
+    request = classes.get("request", [{}])[0]
+    chores = classes.get("game_task", [])
+    shared = p.get("shared_bases", [])
+    need(len(chores) == 2 and request.get("base_count") == 1 and all(x.get("base_count") == 1 for x in chores) and
+         len({tuple(x.get("base_rvas", [])) for x in chores}) == 1 and
+         shared == [{"type_descriptor": chores[0]["base_rvas"][0], "count": 2}],
+         "the bases: request %s, tasks %s, shared %s" % (request, chores, shared), failures)
     return failures
 
 
 def check_r1_views(p, task, gap=False):
-    """Spike.10 (WHY§289): the hub's four views of its rows (run 9's paths, 1 KiB each), read again about 50 and 250 ms
-    after the call and at 2 s: the note the call made (with --table-gap none), its vtable in rdata classed as a class of
-    ours, a fresh pointer, and the game thread's stamp seen only once it was made (FG_NOTE_STAMP_MS after the call); our
-    calling thread's id nowhere."""
+    """Spike.10 (WHY§289): the hub's four views of its rows (run 9's paths, 1 KiB each), read again at 2 s (since
+    spike.11 only then): the note the request's work made (with --table-gap none), its vtable in rdata classed as a
+    class of ours, a fresh pointer, and the game thread's stamp; our calling thread's id nowhere."""
     failures = []
     rack = task["register_rack"]
     v = p.get("array_views", {})
@@ -2302,7 +2483,7 @@ def check_r1_views(p, task, gap=False):
          "the views: %s" % views, failures)
     reads = v.get("reads", [])
     times = sorted({r["at_ms"] for r in reads})
-    need(len(reads) == 12 and len(times) == 3 and 45 <= times[0] < 250 <= times[1] < 2000 <= times[2],
+    need(len(reads) == 4 and len(times) == 1 and 2000 <= times[0],
          "the views' reads: %s" % [(r["at_ms"], r["view"]) for r in reads], failures)
     for r in reads:
         need(r["read"] and not r["caller_thread"], "a view's read: %s" % r, failures)
@@ -2314,10 +2495,7 @@ def check_r1_views(p, task, gap=False):
         need(r["changed"] == (3 if r["main_thread"] else 2) and {"kind": "game", "section": "rdata", "rva": rack["note_vtable_rva"]} in news and
              any(n["kind"] == "heap" for n in news) and len(classed) == 1 and
              classed[0]["new_class"].get("match") == "none", "a view's changes: %s" % r, failures)
-        if r["at_ms"] >= 250:
-            need(r["main_thread"], "the game thread's stamp, at %s ms: %s" % (r["at_ms"], r), failures)
-        elif r["at_ms"] < 100:
-            need(not r["main_thread"], "the game thread's stamp before it was made: %s" % r, failures)
+        need(r["main_thread"], "the game thread's stamp, at %s ms: %s" % (r["at_ms"], r), failures)
     return failures
 
 
@@ -2441,18 +2619,15 @@ def check_r1_memory(p, task):
 
 
 def check_r1_tagged(p, task):
-    """Spike.9 (WHY§248): in each whole-memory search, our object's address under the tag, once in the game's memory:
-    since spike.10 in G's list (a private region), its high 16 bits the tag; none of our vtable's. Our own copies (the
-    walks of G kept on our heap) are counted apart."""
+    """Spike.9 (WHY§248): in each whole-memory search, our object's address under a tag: since spike.11 (R1 run 10's
+    shape: G keeps no list) none in the game's memory, nor of our vtable's."""
     failures = []
-    tag = task["register_rack"]["tag"]
     for m in p.get("memory_search", []):
-        hits = [h for h in m.get("tagged_hits", []) if not h["own"]]
-        need(m.get("tagged_found") == 1 and m.get("vtable_tagged_found") == 0 and len(hits) == 1 and
-             hits[0]["points_to"] == "object" and hits[0].get("tag") == tag and hits[0]["region"] == "private" and
-             all(h.get("tag") == tag for h in m.get("tagged_hits", [])),
+        need(m.get("tagged_found") == 0 and m.get("vtable_tagged_found") == 0 and
+             not [h for h in m.get("tagged_hits", []) if not h["own"]],
              "the tagged copies of our address: %s" %
              {k: m.get(k) for k in ("tagged_found", "own_tagged_found", "vtable_tagged_found", "tagged_hits")}, failures)
+    del task
     return failures
 
 
@@ -2461,16 +2636,14 @@ def r1_diffs(p, root):
 
 
 def check_r1_roots(p, task, gap=False, gate=False):
-    """Spike.9 and spike.10 (WHY§248, WHY§289): the walk and its diffs from three more roots, the rack (the singleton),
-    the stand-in group's shelf (its entry) and G, each at 2 and 20 s with its control. Across the call G's list gains our
-    task's address under the tag (task_tagged at depth 0, its high bits the tag), and the rack's and the shelf's walks
-    hold nothing of ours. With --task-gate G keeps nothing and is the shelf's (held by a root: not walked); with
-    --table-gap there is no entry to walk, and G keeps nothing. Every control changes nothing."""
+    """Spike.9 to spike.11 (WHY§248, WHY§289, WHY§293): the walk and its diffs from four more roots, the rack (the
+    singleton), the stand-in group's shelf (its entry), G and G's queue, each at 2 and 20 s with its control. Since
+    spike.11 (R1 run 10's shape) G keeps nothing of our task, and no walk but the hub's holds anything of ours. With
+    --task-gate G is the shelf's (held by a root: not walked); with --table-gap there is no entry to walk. Every control
+    changes nothing."""
     failures = []
-    tag = task["register_rack"]["tag"]
-    rack = task["register_rack"]
-    roots = ["singleton"] + ([] if gap else ["group_entry"]) + ([] if gate else ["g_singleton"])
-    for root in ("singleton", "group_entry", "g_singleton"):
+    roots = ["singleton"] + ([] if gap else ["group_entry"]) + ([] if gate else ["g_singleton"]) + ["g_queue"]
+    for root in ("singleton", "group_entry", "g_singleton", "g_queue"):
         ds = r1_diffs(p, root)
         if root not in roots:
             need(not ds, "a diff from %s: %s" % (root, ds), failures)
@@ -2478,17 +2651,9 @@ def check_r1_roots(p, task, gap=False, gate=False):
         need(len(ds) == 2 and ds[0]["at_ms"] >= 2000 and ds[1]["at_ms"] >= 20000 and
              all(not d["capped"] and d["compared"] > 0 and "in_control_words" in d for d in ds),
              "the %s's diffs: %s" % (root, [{k: v for k, v in d.items() if k != "words"} for d in ds]), failures)
-        tagged = [w for d in ds for w in d["words"] if w["new"]["kind"] == "task_tagged"]
-        if root != "g_singleton" or gap:
-            need(not tagged and all(w["new"]["kind"] not in ("task", "vtable", "ours") for d in ds for w in d["words"]),
-                 "the %s's diffs, with nothing of ours: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
-                                                                     for d in ds]), failures)
-        else:
-            need(any(w["new"].get("tag") == tag and w["depth"] == 0 and w["old"]["kind"] == "zero" and
-                     w["path"][-1] >= rack["ledger_items_off"] and w.get("in_control") is False for w in tagged) and
-                 all(w["new"].get("tag") == tag for w in tagged) and len(tagged) >= 2,
-                 "G's diffs: our task under its tag: %s" % [[(w["path"], w["new"]) for w in d["words"]] for d in ds],
-                 failures)
+        need(all(w["new"]["kind"] not in ("task", "task_tagged", "vtable", "ours") for d in ds for w in d["words"]),
+             "the %s's diffs, with nothing of ours: %s" % (root, [[(w["path"], w["new"]) for w in d["words"]]
+                                                                 for d in ds]), failures)
     ctls = {d.get("root"): d for d in p.get("hub_diff_controls", [])}
     need(set(ctls) == set(roots) and all(1900 <= d["at_ms"] <= 6000 and d["changed"] == 0 for d in ctls.values()),
          "the roots' controls: %s" % [{k: v for k, v in d.items() if k != "words"} for d in ctls.values()], failures)
@@ -2497,11 +2662,15 @@ def check_r1_roots(p, task, gap=False, gate=False):
     return failures
 
 
-def check_r1_spike10(p, task, gap=False, gate=False):
-    """Spike.10's own checks (WHY§289): G and its method, the array's views, the game's call sites, the sibling."""
+def check_r1_spike10(p, task, gap=False, gate=False, queued=False):
+    """Spike.10's own checks (WHY§289): G and its method, the array's views, the game's call sites, the sibling; and
+    spike.11's (WHY§293): G's fields and the path, the request and its methods, G's queue, the game's requests in the
+    searches, the classes and their bases."""
     group = p["register"]["group_index"]
-    return (check_r1_method(p, task, group, gap=gap, gate=gate) + check_r1_views(p, task, gap=gap) +
-            check_r1_sites(p, task) + check_r1_sibling(p, task))
+    return (check_r1_method(p, task, group, gap=gap, gate=gate, queued=queued) + check_r1_views(p, task, gap=gap) +
+            check_r1_sites(p, task) + check_r1_sibling(p, task) + check_r1_request(p, task) +
+            check_r1_queue(p, task, gap=gap, queued=queued) + check_r1_request_search(p, task) +
+            check_r1_classes(p, gap=gap))
 
 
 def check_r1_control(p, ds):
@@ -2575,9 +2744,10 @@ def r1_reports(result, failures):
     return reports if len(reports) == 2 else None
 
 
-def check_r1(result):
+def check_r1(result, queued=False):
     """R1's two reports against --describe's truth: lint-clean, the checks confirmed, one call, the slot counts, our
-    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots."""
+    object's written bytes, the census's base and its run slot, the hinstance and the statics' slots. Since spike.11
+    `queued`: the ledger queued the request (--task-queue), and a later frame ran it."""
     failures = []
     truth = result.truth
     reports = r1_reports(result, failures)
@@ -2617,7 +2787,7 @@ def check_r1(result):
     need(p["allocations"] == 0, "%s allocations on the game thread" % p["allocations"], failures)
     failures += (check_r1_callee(p, task) + check_r1_table(p, task, r1_lead(result, "task_loom")) +
                  check_r1_memory(p, task) + check_r1_diff(p, task) + check_r1_roots(p, task) +
-                 check_r1_spike10(p, task))
+                 check_r1_spike10(p, task, queued=queued))
     # r1-derive.json: the singletons named from the live class objects, and patterns at the statics' slots.
     need(d["fd4"]["status"] == "derived" and all(s["status"] == "derived" for s in d["fd4"]["singletons"]),
          "the live derivation's singletons: %s" % [(s["label"], s["status"]) for s in d["fd4"]["singletons"]], failures)
@@ -2785,6 +2955,26 @@ case("launcher-eldennet-probe-gate", LBASE + ["--no-steam-check", "--game", "{ga
      what="R1 as the owner runs it, on a fake game whose ledger (G) keeps only tasks of the game's kind (R1 run 9's "
           "end): the call answers 1, G's method keeps nothing of our task, the task never runs, the searches find no "
           "copy, plain or tagged, G is the shelf's and not walked, and both reports lint clean")
+# Spike.11's case (WHY§293): the ledger's deferred byte set (--task-queue), G's method takes R1 run 10's other path: it
+# copies the request to the heap and hands it to G's queue, where R1 finds it at 50 and 250 ms; a later frame drains it
+# (after FG_QUEUE_DRAIN_MS) and runs it, so the task runs, as in the default case, a second late.
+def check_r1_queued(result):
+    failures = check_r1(result, queued=True)
+    failures += any_line(result, "FAKEGAME", "ledger", queued=str(result.truth["task"]["standin"]["index"]))
+    failures += any_line(result, "FAKEGAME", "ledger", drained=str(result.truth["task"]["standin"]["index"]))
+    return failures + any_line(result, "ELDENNET", "r1", stage="queue")
+
+
+case("launcher-eldennet-probe-queue", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                               "--probe"] +
+     game("--title-frames", "1800", "--press-pause-at", "600", "--press-pause-every", "60", "--task-queue",
+          "--reload-every", "360", "--load-frames", "180", frames=3300),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, leads_base="Leads::NoTaskBaseGiven", then=with_saves),
+     check=check_r1_queued,
+     what="R1 as the owner runs it, on a fake game whose ledger (G) queues each request (R1 run 10's other path): the "
+          "request in G's queue at 50 and 250 ms, drained and run by a later frame, the task confirmed, and both "
+          "reports lint clean")
 # Spike.10 (WHY§290): R1 run 9's launcher stopped logging at the call: its console's output was suspended (a click inside
 # a classic console window, LIKELY), and the watch loop with it. Here the launcher's console writer blocks for good after
 # a few lines (its test hook ELDENNET_TEST_CONSOLE, with a queue of a few lines): launcher.log still carries every line,
