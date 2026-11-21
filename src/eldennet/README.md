@@ -284,7 +284,25 @@ layout fields). On T1, after the window and `settle_s` seconds:
    class against the leads, whether CSTask's instance holds it at +8 and the group's entry at +0x58, where run 9's
    walks met one object, and every table entry's word at the site's offset: group 110's, how many hold their own index,
    how many distinct values), again just before the call and 2 s after it; and G is the walk's fourth root
-   (`g_singleton`, with its control) unless it is a root's object or held there (`g_walk`).
+   (`g_singleton`, with its control) unless it is a root's object or held there (`g_walk`). Since spike.11 (WHY§293:
+   run 10's G method builds a 32-byte **request** on its stack and either calls a function with it at once or copies
+   it to the heap for G's queue) every summary with an extent is decoded **in parts** where its code goes past it
+   (`parts`: the primary entry, the exception directory's entries chained to it, and the code a conditional branch
+   past the extent reaches in no entry, `unlisted`); the request is read from G's method (`request`: its vtable in
+   rdata, its stack displacement, each field's offset, width, source and role: vtable, task, manager (G's field),
+   word, zero; the function called with its address, `now`; its class by RTTI and its slots, the vtable's words into
+   the game's code); its slots' functions (the first six) are summarised at depth 4 with the request in rcx
+   (`request_slot`, `holds_request`), the request's fields followed (`request_reads`; a load of its task field is the
+   task, of its manager field G's manager, `manager_reads`; of its word the entry's word), the function G's method
+   calls with it too, each with its direct callees and tail jumps one level further (depth 5), 24 summaries at most.
+   The fields of G that G's method reads (by offset and width from its summary) are read just before the call and
+   about 50, 250 and 2,000 ms after it (`method.g_fields`: a narrow field's value, an 8-byte one's kind and a
+   pointer's class), the byte the method compares first deciding the path (`defer_disp`, `path_taken`: now or
+   queued); and G's queue (the G field the method passes in rcx to the queued path's call, `queue.g_disp`) is the
+   walk's fifth root (`g_queue`, with its control) and is walked at the same four times (`queue.reads`: the blocks
+   whose first word is the request's vtable, each read as a request: its task ours or its kind and class, its manager
+   field G's or not, its word, its zeroed byte). Every entry's word is also read for its own index in its low 16 bits
+   (`own_low`) and its high 16 bits' values (`highs`).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -307,8 +325,8 @@ layout fields). On T1, after the window and `settle_s` seconds:
    listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
    in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
    inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
-   (`table.after`), and since spike.10 G and the entries' words (`method.after`) and the array's views (below), and the
-   **whole-memory
+   (`table.after`), and since spike.10 G and the entries' words (`method.after`) and the array's views (below), since
+   spike.11 G's fields and its queue, and the **whole-memory
    search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
    committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
    T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
@@ -318,7 +336,12 @@ layout fields). On T1, after the window and `settle_s` seconds:
    (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
    apart, with how many different slots the game's words name, and since spike.9 the words whose low 48 bits equal our
    object's or our vtable's address while their high 16 bits are not zero (`tagged_found`, `vtable_tagged_found`,
-   ours apart; `tagged_hits`, each with its `tag`). Each side keeps up to eight hits of each kind, each
+   ours apart; `tagged_hits`, each with its `tag`), and since spike.11 the words equal to the request's vtable
+   (`request_found`, ours apart: the game's requests; `request_hits`, 32 at most, each read by T1 as a request, and
+   `request_tasks`: for each distinct class of their tasks, 8 at most, its vtable's slots and the first 16 words of one
+   such task as kinds, a pointer's with its class). After each search the classes met are given with their RTTI bases
+   (`classes`: G's manager, the request, CSTask's instance, the group's entry, G, the game's tasks; each base count
+   and its bases' type descriptors; `shared_bases`, those met in two or more). Each side keeps up to eight hits of each kind, each
    giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
    game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
    to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
@@ -329,8 +352,8 @@ layout fields). On T1, after the window and `settle_s` seconds:
    false when the heap could not be made or walked, and then the heap's copies count as the game's. While the task
    has not run, T1 also reads how much of our object the hub wrote (`object_written`). Since spike.10 (WHY§289) the
    four views of the array behind CSTask's +0x3B0 and +0x3D0 (run 9's paths, four sibling pointers 32 bytes apart at
-   depth 3 of the walk kept before the call) are read again about 50 and 250 ms after the call, before the control
-   diff, and at 2 s (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
+   depth 3 of the walk kept before the call) are read again at 2 s (since spike.11 only then; spike.10 read them at
+   about 50 and 250 ms too) (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
    game's rdata classed by the RTTI walk, `new_class`, and whether a changed word's 32-bit half is the main window's
    thread id, `main_thread`, or T1's, `caller_thread`).
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the

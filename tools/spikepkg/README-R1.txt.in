@@ -49,8 +49,6 @@ Before you start
     played with mods into online play.
   - The launcher's messages appear in a console window behind the game. Setting the game to windowed mode first makes
     them easy to read; otherwise press Alt+Tab to look, and Alt+Tab back.
-  - Do not click inside the console window. If its text stops changing, wait two minutes, then quit the game from
-    the title screen.
   - You will press the Pause key once. On a laptop without one it is often Fn+B, Fn+P or Ctrl+Fn+B; Windows'
     On-Screen Keyboard (osk) has one too.
   - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
