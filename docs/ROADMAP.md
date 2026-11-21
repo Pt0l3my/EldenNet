@@ -903,7 +903,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     to removes a task from the group's lists: the derived register_task is the game's unregistration, and its sibling
     is the likely registration. Spike.13 reads the sibling's chain and calls it only if its chain appends (WHY§302).
     Spike.13 not built: on 2026-11-21 a safety classifier stopped the work while game code was being written out, and
-    the route is with the owner as O100 (WHY§303).
+    the route is with the owner as O100 (WHY§303). O100 decided the same day: R1's road goes on as Lodestar's work,
+    EldenNet's own address library (S10.1.k).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -939,6 +940,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (merge of docs/s10-fold-j) into ARCH §11.1 to §11.4, §11.8 and §12.2; DESIGN §0, §1.2, §7.8, §8.1, §8.2, §9.7, §11.1,
     §11.2, §16.2, §16.3 and §18; NPC §3.1, §4.5, §5.1, §5.2, §5.7, §6.1, §7.8, §9.2, §9.4, §9.6, §9.8 and §13; PAGES
     §4.6.2, §4.10 and §4.11. Six readings are marked for the owner's review (WHY§282).
+- k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
+    built on it, by the Lodestar session (proposal 0005) [active]
+  - needs: f
+  - refs: O100, O47, O48, O49, O89, WHY§302, WHY§303
+  - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
+    larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
+    and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
+    on it, first the game's own way of adding a task (WHY§302). Its first piece is proposal 0005, with its questions to
+    the owner. R1's road (S10.1.f) goes on here.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

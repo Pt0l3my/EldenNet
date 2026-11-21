@@ -64,8 +64,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
   key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
   the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
-  accepted as written the same day; O100 (where the per-frame reading runs) put to the owner the same day.
-- **Open.** O100.
+  accepted as written the same day; O100 (where the per-frame reading runs) put and decided the same day, by an
+  option of the owner's own: EldenNet's own address library, built by the Lodestar session.
+- **Open.** None.
 
 ## O1
 
@@ -1856,7 +1857,7 @@ the cards open (Q9); the cards' words (Q10); a fallback counting as a provider's
 
 ## O100
 
-**Where EldenNet's per-frame reading runs, now that R1's route to a game task needs deeper reading of the game's code** · *2026-11-21 · Open*
+**Where EldenNet's per-frame reading runs, now that R1's route to a game task needs deeper reading of the game's code** · *2026-11-21 · Decided by the owner: an option of their own*
 
 **Question.** EldenNet's design runs its reading of the game (the world snapshot, Augur's events) in a task of its own
 that the game calls every frame, registered by one call into the game's code (ARCH §6, DESIGN §16.1; O89 to O91). Twelve
@@ -1881,7 +1882,17 @@ the reading rate rather than the frame; neither matters for a dialogue-only v1. 
 derivation, the singletons, the checks and the crash watcher carry over, and the game-task route can be taken up again
 later if a feature needs the game's thread.
 
-**Decision.** Open.
+**Decision.** The owner's own option, after asking what the per-frame calls and the call into the game are for and
+whether SkyrimNet does the same with Skyrim (it does, through SKSE's task queue, its event sources and CommonLib's
+addresses): EldenNet builds **its own address library for Elden Ring**, as SKSE and its Address Library do for Skyrim,
+as a part of EldenNet and not a separate project, and the work goes to a session of its own on a larger model, at high
+effort, named **Lodestar** (roadmap S10.1.k; handover-2026-11-21). Lodestar's first piece is a proposal (0005) that
+puts its own questions to the owner, among them how v1's per-frame reading runs ((a) to (c) above stay as input). The
+rules that bind R1 bind Lodestar too: O47 and O48, facts verified independently, nothing of the game in any file, and
+no work that a safety system has stopped worked around (WHY§303).
 
-**Follows from.** O49, O89 to O91; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§289 to §303; S10.1.f.
+**Owner's words.** "then we should delegate this job to a bigger model that will create our own game address library,
+such as what SKSE and address library does for Skyrim. This will still be EldenNet's part, not separate."
+
+**Follows from.** O49, O89 to O91; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§289 to §303; S10.1.f, S10.1.k.
 
