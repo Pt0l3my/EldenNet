@@ -302,7 +302,17 @@ layout fields). On T1, after the window and `settle_s` seconds:
    walk's fifth root (`g_queue`, with its control) and is walked at the same four times (`queue.reads`: the blocks
    whose first word is the request's vtable, each read as a request: its task ours or its kind and class, its manager
    field G's or not, its word, its zeroed byte). Every entry's word is also read for its own index in its low 16 bits
-   (`own_low`) and its high 16 bits' values (`highs`).
+   (`own_low`) and its high 16 bits' values (`highs`). Since spike.12 (WHY§296: run 11's now path's function looks the
+   word up in a tree from the manager's +0x18, or with a word of 0 walks a list at its +0x30 and +0x38) the **manager's
+   map**'s layout is derived from that function's summary (`map`: the head's displacement in the manager, the root's in
+   the head, the byte compared with 0 at each node, the key compared with the word and its width, the value passed on a
+   match, from the call's rcx where the summary knows it, `value_known`, else 8 past the key; the children at +0 and
+   +16, MSVC's node; the list's begin and end; the function a match calls, `map_call`, and the one called before the task's
+   slot on the other branch, `other_call`; or the first part not found, `shape_failed`), and the two functions are
+   summarised at depth 5 (the match's call with the map's value in rcx, `holds_value`, its loads `value_reads`, the
+   task, the word and the manager) with their callees one level further (6), before the slots' level, within the 24.
+   A compare's memory operand is kept where a followed value is compared with it (the key, `compared_other` with its
+   displacement and width).
 3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
    `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
    vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
@@ -356,6 +366,24 @@ layout fields). On T1, after the window and `settle_s` seconds:
    about 50 and 250 ms too) (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
    game's rdata classed by the RTTI walk, `new_class`, and whether a changed word's 32-bit half is the main window's
    thread id, `main_thread`, or T1's, `caller_thread`).
+   Since spike.12 (WHY§296) the manager's map and list are read just before the call, at about 50 and 250 ms and 2 s
+   after it, and then every 10 s for as long as the game runs (`map.readings`: the first, each reading whose node
+   count, the presence of the group's word or the stage changes, 24 at most, each noted in eldennet.log as
+   `stage=map_change`, and the newest; `readings_made`, `changes`). Each reading walks the tree as the manager holds
+   it then, checking before it reads on: the head on the heap with its nil byte not zero, each node on the heap with
+   its nil byte zero, none met twice, at most 4,096 (else `map_failed`: manager, head, head_nil, pointer, unread,
+   node_nil, cycle, too_many, and nothing more of it is read); it gives the manager's word beside the head as a kind
+   (`count_word`), the nodes, whether their keys rose in order and the root's parent and the head's children are
+   MSVC's, the keys' low 16 bits in order (256 at most) and their high halves counted, whether the group's word is
+   among them (`word_present`) or else the nearest keys below and above it, the values' kinds and classes counted;
+   and the list's count and its entries' kinds and classes (`list_failed` where it cannot be read). The **stage** of
+   each reading (`world_stage`) comes from no world snapshot, which R1's task never builds: world while a singleton's
+   instance holds, in its first 128 KiB, a pointer to an object of the leads' vtable sets (the characters' classes),
+   title when none does (loading screens too), unknown when nothing could be read. After the 2 s search, while our
+   task has not run and the search, complete, found no copy of it (plain or tagged, its vtable's or a slot's), R1
+   answers the launcher `absent` (`stage=task_search found=0`), and the console's no-confirmation line then has the
+   owner load the save and stay two minutes in the world. Past 256 KiB pretty-printed the report is written on one
+   line before anything is cut, and the now path's function's forms and the match's call's go last of all.
 5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
    counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
    classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'
