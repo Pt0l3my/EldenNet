@@ -63,8 +63,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
 - **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
   key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
-  the addressee) put to the owner and decided on 2026-11-21.
-- **Open.** None.
+  the addressee) put to the owner and decided on 2026-11-21; O98 put to the owner the same day.
+- **Open.** O98 (a model server on another PC of the home network).
 
 ## O1
 
@@ -1805,3 +1805,22 @@ never the model's choice. How it applies, by the design's rules for every decisi
 **Owner's words.** "O97: add decision job in v1 for both player and NPC to NPC target selector."
 
 **Follows from.** NPC §5.1, §9.4, §9.7; ARCH §11.8; SN02 §13.2; SN07.
+
+## O98
+
+**A model server on another PC of the home network** · *2026-11-21 · Open*
+
+**Question.** AI › Providers' form (S11.4.a, third slice) takes a provider of the player's own by a name and a base URL.
+ARCH says no key crosses a network in clear text, and EldenNet probes only this PC (127.0.0.1) for local servers; it
+says nothing of a server on another PC of the home network, such as Ollama or LM Studio on a second machine. The form
+now allows `http://` to this PC alone and refuses it to any other host, a private address included; anything else
+needs `https://`. Should a player be able to add a server on another PC of their home network?
+**Options:** (a) yes: `http://` to a literal private address (RFC 1918, or fc00::/7 for IPv6), never a name, with no key
+on its row (a key needs `https://` or this PC), and still never probed, only added by the player; (b) as (a), and a key
+allowed too, sent in clear text on the home network; (c) no: `http://` to this PC only, any other server over `https://`.
+
+**Recommendation.** (a). A second PC serving a model is a common set-up, and a server on the home network rarely needs
+a key; keeping keys off clear text keeps ARCH's rule whole. A literal address, not a name, means a name that resolves to
+a public host cannot pass as a home server.
+
+**Follows from.** ARCH §11.1, §11.5; PAGES §4.6.2, §4.9; S11.4.a.
