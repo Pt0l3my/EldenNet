@@ -18,6 +18,7 @@ set(EN_GAL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/pe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/patterns.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/builds.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ids.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/layout.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/toml_reader.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/x86.cpp
@@ -86,7 +87,9 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_patterns.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_builds.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_table.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_x86.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_report.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_program.cpp
@@ -109,6 +112,13 @@ if(EN_BUILD_TESTS)
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sys.cpp)
   endif()
   add_executable(en_gal_tests ${EN_GAL_TESTS})
+  # gal/ids.toml as the repository holds it, compiled into the tests byte for byte (tests/gal_ids_text.hpp.in), so that
+  # the catalogue EldenNet ships is the one the tests read, under Wine too.
+  file(READ ${PROJECT_SOURCE_DIR}/gal/ids.toml EN_GAL_IDS_TOML)
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/tests/gal_ids_text.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gen/gal_ids_text.hpp @ONLY)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/gal/ids.toml)
+  target_include_directories(en_gal_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/gen)
   target_link_libraries(en_gal_tests PRIVATE en_gal_game_probe en_gal en_doctest)
   target_include_directories(en_gal_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)  # the derivation's internals
   add_test(NAME en_gal_tests COMMAND en_gal_tests)

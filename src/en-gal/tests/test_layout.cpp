@@ -297,7 +297,9 @@ TEST_CASE("the task, the provenance and the self-test ids keep to their forms") 
                   "layout.toml: selftest.npc_param_ids[0]", "must be between 0 and 4294967295"));
   CHECK(has_error(refusal(changed("indexing = \"flat\"", "indexing = \"nested\"")), "layout.toml: fmg.indexing",
                   "must be flat"));
-  CHECK(has_error(refusal(changed("schema = 1", "schema = 2")), "layout.toml: schema", "must be between 1 and 1"));
+  CHECK(has_error(refusal(changed("schema = 1", "schema = 3")), "layout.toml: schema", "must be between 1 and 2"));
+  // Schema 2 is the build's table (test_table.cpp): it needs its provenance.
+  CHECK(has_error(refusal(changed("schema = 1", "schema = 2")), "layout.toml: provenance", "is missing"));
   CHECK(has_error(refusal(std::string(kSample) + "\n[extra]\nx = 1\n"), "layout.toml", "has an unknown key \"extra\""));
   CHECK(has_error(refusal("not toml\n"), "layout.toml", "is not valid TOML"));
 }

@@ -108,10 +108,57 @@ provenance = { method = "own-derivation", leads = ["none"], evidence = "docs/ops
 """
 
 
-def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True):
+# Lodestar's catalogue and a build's table (proposal 0005 §4, §5), invented: two ids, and where they lie in the build.
+INVENTED_IDS = """schema = 1
+[[id]]
+n = 1001
+label = "lantern"
+kind = "static"
+means = "An invented slot."
+needs = "world"
+required = true
+[[id]]
+n = 2001
+label = "ring_bell"
+kind = "function"
+means = "An invented function."
+needs = "task_service"
+required = false
+"""
+INVENTED_TABLE = """schema = 2
+build = "9.8.7.0-ww"
+derived_from = "probe"
+probe_record = "docs/ops/probes/invented.md"
+[provenance]
+method = "own-derivation"
+tool = "0.1.0-test.1"
+tool_sha256 = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+round = "l3"
+date = "2026-11-21"
+[item.lantern]
+id = 1001
+kind = "static"
+rva = 0x30000
+found_by = ["accessor", "instance_class"]
+witnesses = [0x1010, 0x1200]
+checks = ["placement", "agree", "witness"]
+status = "confirmed"
+[item.ring_bell]
+id = 2001
+kind = "function"
+rva = 0x2000
+length = 93
+found_by = ["relation"]
+verdict = "removes"
+checks = ["placement", "verdict"]
+"""
+
+
+def write_gal(folder, builds=INVENTED_BUILDS, layout=INVENTED_LAYOUT, patterns=INVENTED_PATTERNS, note=True, ids=None):
     os.makedirs(os.path.join(folder, "layouts"), exist_ok=True)
     os.makedirs(os.path.join(folder, "derivations"), exist_ok=True)
     for name, text in (("builds.toml", builds), ("layouts/9.8.7.0-ww.toml", layout), ("patterns.toml", patterns),
+                       ("ids.toml", ids),
                        ("derivations/invented_idiom.md", "An invented note.\n" if note else None)):
         path = os.path.join(folder, name)
         if text is None:
@@ -131,8 +178,23 @@ def check_gal(a):
         need(code == 0 and "gal/ is clean" in so, "lint --gal on the repository's gal/: exit %s %r %r" % (code, so, se))
     base = os.path.join(a.work, "gal-cases")
     code, so, _ = run(a.engine, "lint", "--gal", write_gal(os.path.join(base, "clean")))
-    need(code == 0 and "patterns 1 (confirmed in no build: 1)" in so, "lint --gal, invented: exit %s %r" % (code, so))
+    need(code == 0 and "patterns 1 (confirmed in no build: 1)" in so and "ids 0" in so,
+         "lint --gal, invented: exit %s %r" % (code, so))
+    # Lodestar's catalogue and a build's table: clean together, and the table refused without or against its catalogue.
+    code, so, _ = run(a.engine, "lint", "--gal",
+                      write_gal(os.path.join(base, "table"), layout=INVENTED_TABLE, ids=INVENTED_IDS))
+    need(code == 0 and "ids 2" in so, "lint --gal, an invented table: exit %s %r" % (code, so))
     cases = [
+        ("table-no-catalogue", dict(layout=INVENTED_TABLE), "layouts/9.8.7.0-ww.toml: item: needs the catalogue"),
+        ("table-other-number", dict(layout=INVENTED_TABLE, ids=INVENTED_IDS.replace("n = 1001", "n = 1002")),
+         "layouts/9.8.7.0-ww.toml: item.lantern.id: is not the catalogue's number for this label"),
+        ("table-outside-image", dict(layout=INVENTED_TABLE.replace("rva = 0x30000", "rva = 0x40000"), ids=INVENTED_IDS),
+         "layouts/9.8.7.0-ww.toml: item.lantern.rva: lies outside the build's image"),
+        ("table-bytes", dict(layout=INVENTED_TABLE.replace("length = 93", 'length = 93\nbytes = "48 8B"'),
+                             ids=INVENTED_IDS),
+         'layouts/9.8.7.0-ww.toml: item.ring_bell: has an unknown key "bytes"'),
+        ("ids-renumbered", dict(ids=INVENTED_IDS.replace("n = 2001", "n = 1000")),
+         "ids.toml: id[1].n: lies outside its kind's block"),
         ("no-note", dict(note=False), "patterns.toml: pattern[0]: has no derivation note, derivations/invented_idiom.md"),
         ("other-build", dict(layout=INVENTED_LAYOUT.replace('build = "9.8.7.0-ww"', 'build = "9.8.7.1-jp"')),
          "layouts/9.8.7.0-ww.toml: build: is not the build the gate matched"),

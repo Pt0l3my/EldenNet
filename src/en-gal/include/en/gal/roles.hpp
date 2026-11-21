@@ -49,6 +49,7 @@ struct ItemInfo {
   std::string_view label;
   ItemKind kind;
   bool required;  // ARCH §3.2: missing after the last retry → banner; an optional item only turns its group off
+  std::uint32_t id;  // its number in Lodestar's catalogue (gal/ids.toml; ids.hpp)
 };
 
 [[nodiscard]] const ItemInfo& info(Item item) noexcept;

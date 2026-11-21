@@ -15,10 +15,12 @@
 // JSON Lines file whose every line is a report of the kind `recording` (en_shell's record.hpp), where a key may hold a
 // finite number. Each problem is printed with where it is (a recording's with its line), never with what was there.
 //
-// --gal reads builds.toml, patterns.toml and leads.toml as the DLL and probe-exe do (each optional but builds.toml),
-// and each build's layout with load_layout's checks in a dev build's mode (leads allowed; what the read groups need is
-// the DLL's to check at boot); every pattern needs its derivation note, derivations/<id>.md (ARCH §6.3, DESIGN O27),
-// and every build a pattern lists as confirmed must be one builds.toml holds.
+// --gal reads builds.toml, ids.toml, patterns.toml and leads.toml as the DLL and probe-exe do (each optional but
+// builds.toml), and each build's layout with load_layout's checks in a dev build's mode (leads allowed; what the read
+// groups need is the DLL's to check at boot); every pattern needs its derivation note, derivations/<id>.md (ARCH §6.3,
+// DESIGN O27), and every build a pattern lists as confirmed must be one builds.toml holds. ids.toml is Lodestar's
+// catalogue (proposal 0005 §4): a layout that holds a table's items (schema 2) is checked against it, each item under
+// the catalogue's label, number and kind, and is refused when the folder has no catalogue.
 //
 // Exit codes: 0 clean; 1 refused (each problem on standard output); 2 a usage error, or the file could not be read or
 // is larger than 256 KiB (a report) or 512 MiB (a recording), or the folder holds no builds.toml.
@@ -31,6 +33,7 @@
 
 #include "en/gal/builds.hpp"
 #include "en/gal/derive.hpp"
+#include "en/gal/ids.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
 #include "en/gal/probe_report.hpp"
@@ -79,10 +82,23 @@ int lint_gal(const std::filesystem::path& dir) {
   }
   const auto builds = gal::parse_builds(*builds_text, "builds.toml");
   if (!builds) errors(builds.error());
+  // Lodestar's catalogue, which the layouts' items are checked against.
+  std::optional<gal::Catalogue> catalogue;
+  if (const std::optional<std::string> text = read_file(dir / "ids.toml", gal::kMaxGalFileBytes)) {
+    auto parsed = gal::parse_ids(*text, "ids.toml");
+    if (parsed) {
+      catalogue = std::move(*parsed);
+    } else {
+      errors(parsed.error());
+    }
+  } else if (std::error_code ec; std::filesystem::exists(dir / "ids.toml", ec)) {
+    say("ids.toml: cannot be read, or is larger than 256 KiB");
+  }
   std::size_t layouts = 0;
   if (builds) {
     gal::LayoutNeeds needs;
     needs.task = false;  // what the groups need, the [task] table included, is the DLL's to check at boot
+    needs.ids = catalogue ? &*catalogue : nullptr;
     for (const gal::BuildEntry& e : builds->entries) {
       const std::optional<std::string> text = read_file(dir / e.layout, gal::kMaxGalFileBytes);
       if (!text) {
@@ -124,8 +140,10 @@ int lint_gal(const std::filesystem::path& dir) {
     say("leads.toml: cannot be read, or is larger than 64 KiB");
   }
   if (problems == 0) {
-    std::printf("lint: gal/ is clean: builds %zu, layouts %zu, patterns %zu (confirmed in no build: %zu), leads.toml %s\n",
-                builds ? builds->entries.size() : 0, layouts, patterns, unconfirmed, leads ? "read" : "absent");
+    std::printf("lint: gal/ is clean: builds %zu, layouts %zu, patterns %zu (confirmed in no build: %zu), leads.toml %s, "
+                "ids %zu\n",
+                builds ? builds->entries.size() : 0, layouts, patterns, unconfirmed, leads ? "read" : "absent",
+                catalogue ? catalogue->entries().size() : 0);
     return 0;
   }
   std::printf("lint: gal/ is refused (%zu problems)\n", problems);

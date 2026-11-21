@@ -82,6 +82,33 @@ value read from an image, no lock, and no raw address, `reinterpret_cast` or poi
   `run_slot` and `object_size` are the in-game round's to find, left out rather than guessed): it is `partial`, and
   discovery is never ready with it, `install_task` refuses it and the first tick reads nothing (the real game's draft
   layout, `gal/layouts/2.7.2.0-ww.toml`). A confirmed `[task]`, or a lead with any of those keys, needs them all.
+- **`ids.hpp`: Lodestar's catalogue, `gal/ids.toml`** (proposal 0005 §4; O100). Lodestar is EldenNet's own address
+  library, and an id is a number and a label, both ours and both permanent. `parse_ids(text)` reads the catalogue and
+  reports every problem: a number outside its kind's block (statics from 1000, functions from 2000, classes from 3000,
+  tables from 4000) or not above the one before it (the file ascends, so a new id never takes an old number's place);
+  a label, or an earlier label (`was`), that is not ours in form (`[a-z][a-z0-9_]*`, at most 48 bytes) or is used
+  twice; a meaning that is empty, over 400 bytes or not printable ASCII; a `needs` that is not `boot`, a read group's
+  name or `task_service`; a retired id still required. The catalogue holds no fact about any build: an offset, a byte
+  or a name there is an unknown key. `roles.hpp`'s items each carry their catalogue number (`ItemInfo::id`), and a
+  test holds the two together on the repository's own `gal/ids.toml`, compiled into the tests byte for byte; a second
+  test pins each number to its label, so that a renumbering fails the build. The function's catalogue label is
+  `task_add`; `register_task`, which schema 1's reports and `patterns.toml` keep, is its `was`.
+- **`layout.hpp`, schema 2: the build's table** (proposal 0005 §5 to §7). A schema 2 layout is also where each id lies
+  in that build: `[item.<label>]` holds the id's number and kind; its place as numbers (`rva` for a static, a function
+  or a table; `length` for a function; `stride` and `count` for a table; `vtables`, ascending, for a class), every one
+  inside the build's image (builds.toml's SizeOfImage); `found_by`, the recipes that gave the value, each of which
+  must find that kind (`accessor`, `instance_class` and `invariant` a static, `class` a class, `table` a table,
+  `relation` a function or a static); up to 8 `witnesses` (places in the code that use it); for a function a `digest`
+  (32 lower-case hex digits) and a `verdict` (`adds`, `removes`, `reads`, `unknown`); the `checks` it passed; and its
+  `status`. A check an entry claims must have what it checks (`witness` its witnesses, `digest` its digest, `verdict`
+  its verdict), and a `confirmed` item must have passed `placement` and `agree` (one recipe alone never confirms an
+  id), then `witness` (a class: `class`), and a function `digest` too. `[provenance]` is required: `method =
+  "own-derivation"`, the tool's version and SHA-256, the round's label, its date and the leads. Items are read against
+  the catalogue the caller gives (`LayoutNeeds::ids`): each under the catalogue's label, number and kind, none
+  retired, and a file with items is refused without one. A release build refuses a lead item as any other lead. No
+  key of an item can hold a byte of the game: `bytes`, `pattern`, `text`, `name` and the like are unknown keys, and
+  refused. Nothing reads the items yet: resolving through them is the next step (the proposal's L2 to L4). A schema 1
+  layout reads as before and holds neither key.
   `check_layout(entry, text, needs, mode)` makes the same checks for builds.toml's entry without the gate and keeps no
   `Layout` (R7 still keeps that to `load_layout`): `eldennet-engine lint --gal` runs it.
 
