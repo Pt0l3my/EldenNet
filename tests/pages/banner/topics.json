@@ -1,14 +1,148 @@
 {
+  "ai.budgets": {
+    "bark_live": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "32 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.9"
+        },
+        {
+          "label": "First token within",
+          "value": "1.5 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "3 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    },
+    "bark_pool": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "600 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "1"
+        },
+        {
+          "label": "First token within",
+          "value": "15 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "60 s"
+        },
+        {
+          "label": "Retries",
+          "value": "1"
+        }
+      ]
+    },
+    "dialogue": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "140 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.8"
+        },
+        {
+          "label": "First token within",
+          "value": "6 s, 10 s on a local server"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "20 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    },
+    "memory": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "500 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0.3"
+        },
+        {
+          "label": "First token within",
+          "value": "20 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "60 s"
+        },
+        {
+          "label": "Retries",
+          "value": "2"
+        }
+      ]
+    },
+    "selftest": {
+      "items": [
+        {
+          "label": "Longest answer",
+          "value": "32 tokens"
+        },
+        {
+          "label": "Temperature",
+          "value": "0"
+        },
+        {
+          "label": "First token within",
+          "value": "10 s"
+        },
+        {
+          "label": "Whole answer within",
+          "value": "20 s"
+        },
+        {
+          "label": "Retries",
+          "value": "None"
+        }
+      ]
+    }
+  },
   "ai.choices.bark_live": {
+    "choices": []
+  },
+  "ai.choices.bark_live.fallback": {
     "choices": []
   },
   "ai.choices.bark_pool": {
     "choices": []
   },
+  "ai.choices.bark_pool.fallback": {
+    "choices": []
+  },
   "ai.choices.dialogue": {
     "choices": []
   },
+  "ai.choices.dialogue.fallback": {
+    "choices": []
+  },
   "ai.choices.memory": {
+    "choices": []
+  },
+  "ai.choices.memory.fallback": {
     "choices": []
   },
   "ai.choices.providers": {
@@ -17,31 +151,10 @@
   "ai.choices.selftest": {
     "choices": []
   },
-  "ai.slots": {
-    "columns": [
-      {
-        "id": "job",
-        "label": "Job"
-      },
-      {
-        "id": "provider",
-        "label": "Provider"
-      },
-      {
-        "id": "model",
-        "label": "Model"
-      },
-      {
-        "id": "fallback",
-        "label": "Fallback"
-      },
-      {
-        "id": "state",
-        "label": "State"
-      }
-    ],
-    "rows": []
+  "ai.choices.selftest.fallback": {
+    "choices": []
   },
+  "ai.jobs": {},
   "ai.status": {
     "sentence": "EldenNet inactive: game build 3.14.15.0 not supported yet"
   },
@@ -167,7 +280,7 @@
       },
       {
         "label": "GraceUI",
-        "value": "0.2.9"
+        "value": "0.2.12"
       },
       {
         "label": "Game build",
@@ -211,7 +324,7 @@
         "state": "pass"
       },
       {
-        "detail": "Connected, version 0.2.9",
+        "detail": "Connected, version 0.2.12",
         "label": "GraceUI",
         "state": "pass"
       }
@@ -239,8 +352,8 @@
           "state": "pass"
         },
         {
-          "detail": "EldenNet needs GraceUI 0.2.9 or later",
-          "label": "GraceUI 0.2.9",
+          "detail": "EldenNet needs GraceUI 0.2.12 or later",
+          "label": "GraceUI 0.2.12",
           "state": "pass"
         }
       ]

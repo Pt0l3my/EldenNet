@@ -224,6 +224,51 @@ EditedText edit_providers(std::string_view text, const ProvidersEdit& edit) {
     slot->insert_or_assign("provider", s.provider);
     slot->insert_or_assign("model", s.model);
   }
+
+  // A job's fallback: its [slots.<slot>] fallback and fallback_provider, the rest of the table kept; or both gone.
+  for (const FallbackEdit& fb : edit.fallbacks) {
+    if (!known_slot(fb.slot)) {
+      out.why = "unknown_slot";
+      return out;
+    }
+    if (!fb.model.empty() && !valid_name(fb.provider)) {
+      out.why = "bad_entry";
+      return out;
+    }
+    toml::node* slots_node = root.get("slots");
+    if (slots_node != nullptr && !slots_node->is_table()) {
+      out.why = "not_a_table";
+      return out;
+    }
+    toml::node* slot_node = slots_node != nullptr ? slots_node->as_table()->get(fb.slot) : nullptr;
+    if (slot_node != nullptr && !slot_node->is_table()) {
+      out.why = "not_a_table";
+      return out;
+    }
+    if (fb.model.empty()) {
+      if (slot_node != nullptr) {
+        toml::table* slot = slot_node->as_table();
+        slot->erase("fallback");
+        slot->erase("fallback_provider");
+        toml::table* slots = slots_node->as_table();
+        if (slot->empty()) slots->erase(fb.slot);
+        if (slots->empty()) root.erase("slots");
+      }
+      continue;
+    }
+    if (slots_node == nullptr) {
+      root.insert_or_assign("slots", toml::table{});
+      slots_node = root.get("slots");
+    }
+    toml::table* slots = slots_node->as_table();
+    if (slot_node == nullptr) {
+      slots->insert_or_assign(fb.slot, toml::table{});
+      slot_node = slots->get(fb.slot);
+    }
+    toml::table* slot = slot_node->as_table();
+    slot->insert_or_assign("fallback", fb.model);
+    slot->insert_or_assign("fallback_provider", fb.provider);
+  }
   out.text = text_of(root);
   out.ok = true;
   return out;

@@ -1,7 +1,7 @@
 {
   "schema": {
     "number": 2,
-    "hash": "7170a209bcc976e9"
+    "hash": "9b9d71e5248e1582"
   },
   "settings": [
     {
@@ -128,8 +128,47 @@
       "default": "",
       "choices_from": "ai.choices.dialogue",
       "label": "Conversation's model",
-      "help": "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "help": "The model that answers when you talk to a character, from the models its provider lists. Reset it to use the preset's provider, model and fallback again. Default: the preset's model.",
       "synonyms": [
+        "model",
+        "conversation",
+        "dialogue",
+        "chat"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.dialogue.fallback_provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Conversation's fallback provider",
+      "help": "Where Conversation's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none.",
+      "synonyms": [
+        "fallback",
+        "provider",
+        "conversation",
+        "dialogue",
+        "chat"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.dialogue.fallback",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.dialogue.fallback",
+      "label": "Conversation's fallback",
+      "help": "The model that stands in when Conversation's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none.",
+      "synonyms": [
+        "fallback",
+        "backup",
         "model",
         "conversation",
         "dialogue",
@@ -164,8 +203,47 @@
       "default": "",
       "choices_from": "ai.choices.bark_live",
       "label": "Quick lines' model",
-      "help": "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "help": "The model for short lines said in the moment, such as a call-out in a fight. It needs a fast first word. Reset it to use the preset's provider, model and fallback again. Default: the preset's model.",
       "synonyms": [
+        "model",
+        "quick lines",
+        "barks",
+        "call-outs"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_live.fallback_provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Quick lines' fallback provider",
+      "help": "Where Quick lines' fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none.",
+      "synonyms": [
+        "fallback",
+        "provider",
+        "quick lines",
+        "barks",
+        "call-outs"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_live.fallback",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.bark_live.fallback",
+      "label": "Quick lines' fallback",
+      "help": "The model that stands in when Quick lines' model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none.",
+      "synonyms": [
+        "fallback",
+        "backup",
         "model",
         "quick lines",
         "barks",
@@ -200,8 +278,47 @@
       "default": "",
       "choices_from": "ai.choices.bark_pool",
       "label": "Prepared lines' model",
-      "help": "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "help": "The model that prepares lines ahead of time, in batches, while nothing waits for them. Reset it to use the preset's provider, model and fallback again. Default: the preset's model.",
       "synonyms": [
+        "model",
+        "prepared lines",
+        "pool",
+        "batches"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_pool.fallback_provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Prepared lines' fallback provider",
+      "help": "Where Prepared lines' fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none.",
+      "synonyms": [
+        "fallback",
+        "provider",
+        "prepared lines",
+        "pool",
+        "batches"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.bark_pool.fallback",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.bark_pool.fallback",
+      "label": "Prepared lines' fallback",
+      "help": "The model that stands in when Prepared lines' model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none.",
+      "synonyms": [
+        "fallback",
+        "backup",
         "model",
         "prepared lines",
         "pool",
@@ -235,8 +352,45 @@
       "default": "",
       "choices_from": "ai.choices.memory",
       "label": "Memory's model",
-      "help": "The model that writes what characters remember of what happened. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "help": "The model that writes what characters remember of what happened. Reset it to use the preset's provider, model and fallback again. Default: the preset's model.",
       "synonyms": [
+        "model",
+        "memory",
+        "journal"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.memory.fallback_provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Memory's fallback provider",
+      "help": "Where Memory's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none.",
+      "synonyms": [
+        "fallback",
+        "provider",
+        "memory",
+        "journal"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.memory.fallback",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.memory.fallback",
+      "label": "Memory's fallback",
+      "help": "The model that stands in when Memory's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none.",
+      "synonyms": [
+        "fallback",
+        "backup",
         "model",
         "memory",
         "journal"
@@ -269,8 +423,45 @@
       "default": "",
       "choices_from": "ai.choices.selftest",
       "label": "Self-test's model",
-      "help": "The model the self-test measures. Reset it to use the preset's provider and model again. Default: the preset's model.",
+      "help": "The model the self-test measures. Reset it to use the preset's provider, model and fallback again. Default: the preset's model.",
       "synonyms": [
+        "model",
+        "self-test",
+        "test"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.selftest.fallback_provider",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.providers",
+      "label": "Self-test's fallback provider",
+      "help": "Where Self-test's fallback is: one of the providers on Providers. If it does not list the fallback, choose one of its models below. Default: the preset's, or none.",
+      "synonyms": [
+        "fallback",
+        "provider",
+        "self-test",
+        "test"
+      ],
+      "home": "ai.models",
+      "effect": "next_request",
+      "availability": "live",
+      "locked": false
+    },
+    {
+      "key": "slots.selftest.fallback",
+      "type": "text",
+      "default": "",
+      "choices_from": "ai.choices.selftest.fallback",
+      "label": "Self-test's fallback",
+      "help": "The model that stands in when Self-test's model fails or rests after failures, from the models its provider lists. Reset it to use the preset's fallback again. Default: the preset's fallback, or none.",
+      "synonyms": [
+        "fallback",
+        "backup",
         "model",
         "self-test",
         "test"

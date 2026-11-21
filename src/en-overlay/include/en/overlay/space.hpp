@@ -102,9 +102,21 @@ struct AiSlot {
   std::string model;
   std::string fallback_provider;
   std::string fallback;
-  std::string_view same_as;  // the slot it borrows its models from, or empty
-  bool healthy = true;       // a model of it is usable now
-  bool picked = false;       // providers.toml gives it a [slots.<slot>] table of its own: not the preset's choice
+  std::string_view same_as;     // the slot it borrows its models from, or empty
+  bool healthy = true;          // a model of it is usable now
+  bool picked = false;          // its [slots.<slot>] table in providers.toml gives a model: not the preset's choice
+  bool fallback_picked = false;  // and that table gives a fallback: not the preset's either
+};
+
+// A job's fixed budgets (ARCH §11.4: en-llm's slot table, the same in every preset), which AI › Models shows read-only.
+struct AiBudget {
+  std::string_view slot;  // en-proto's slot names
+  int max_tokens = 0;
+  double temperature = 0;
+  std::uint32_t first_token_ms = 0;
+  std::uint32_t first_token_local_ms = 0;  // on a local provider
+  std::uint32_t total_ms = 0;
+  int retries = 0;
 };
 
 struct AiList {
@@ -157,6 +169,7 @@ struct AiFacts {
   std::vector<std::string> keys_set;   // the names secrets.toml holds a key under (for the key rows' status)
   std::vector<AiProvider> providers;   // providers.toml's, in its order
   std::vector<AiSlot> slots;           // the jobs this increment shows, in ARCH §11.4's order
+  std::vector<AiBudget> budgets;       // theirs, in the same order, whether or not providers.toml is read
   std::vector<std::string> preset_missing;  // the chosen preset's providers that providers.toml lacks
   bool preset_needs_probe = false;          // one of them has no address: Find local servers finds it (later)
   std::vector<std::string> unused;          // the providers no job uses
@@ -257,15 +270,18 @@ class Space {
   // it does takes long in this slice; a later long command answers at once and publishes its progress (§23 item 4).
   // `facts` says whether settings.toml may be written (not while the file the player wrote was refused).
   [[nodiscard]] std::string command(std::string_view cmd_frame, const SpaceFacts& facts);
-  // AI › Models' rows of each job (`slots.<slot>.provider` and `slots.<slot>.model`) as the facts have them: the job's
-  // provider and model now, the preset's or the ones chosen, a provider chosen and waiting for its model kept; and which
-  // jobs providers.toml holds a pick for, the rows its `changed` list names (GraceUI D198). collect calls it when the
-  // facts' revision changes; the tests and the fixtures call it too.
+  // AI › Models' rows of each job (`slots.<slot>.provider`, `.model`, `.fallback_provider` and `.fallback`) as the facts
+  // have them: the job's provider, model and fallback now, the preset's or the ones chosen, a provider chosen and waiting
+  // for a model of its list kept; and which jobs providers.toml holds a pick of a model or a fallback for, the rows its
+  // `changed` list names (GraceUI D198). collect calls it when the facts' revision changes; the tests and the fixtures
+  // call it too.
   void sync(const SpaceFacts& facts);
 
   // A setting a command changed, for the DLL to apply (its effect) and to write to settings.toml. A job's pick is one
   // change of its model row (`slots.<slot>.model`): the model and the provider to write it with, or an empty model, the
-  // job's [slots.<slot>] removed (a reset of either of its rows).
+  // job's [slots.<slot>] removed, its fallback with it (a reset of the job's provider or model row). A job's fallback is
+  // one change of its fallback row (`slots.<slot>.fallback`): the model and its provider, or an empty model, the table's
+  // fallback removed (a reset of either fallback row).
   struct Change {
     std::string key;
     nlohmann::json value;
@@ -335,10 +351,16 @@ class Space {
   std::vector<SpaceNote> notes_;
   bool synced_once_ = false;  // collect has set the model rows from the facts
   std::uint64_t synced_ = 0;   // from the facts of this revision
+  // The provider a job's fallback model is chosen from: one chosen for it and waiting, else its fallback's now, else the
+  // job's own.
+  std::string fallback_source(std::string_view slot, const AiFacts& ai) const;
   // A job's provider chosen whose list lacks the job's model: held here, by slot, until a model of its list is chosen
   // (nothing is written before), and dropped by a reset, by choosing the job's provider again, or when it is gone.
   std::map<std::string, std::string, std::less<>> pending_;
-  std::set<std::string, std::less<>> picked_;  // the jobs providers.toml holds a pick for, as the facts last said
+  // The same for a job's fallback: its provider chosen whose list lacks the fallback now.
+  std::map<std::string, std::string, std::less<>> pending_fallback_;
+  std::set<std::string, std::less<>> picked_;           // the jobs providers.toml holds a model for, as the facts said
+  std::set<std::string, std::less<>> fallback_picked_;  // and a fallback for
   bool valid_ = false;
 };
 

@@ -39,7 +39,7 @@ text    ink.hi        365, 431   75x28   clip1 glyphs 8 "EldenNet"
 text    ink.body      862, 433   42x25   clip1 glyphs 5 "0.1.0"
 line    rule          365, 475 1490x1    clip1
 text    ink.hi        365, 491   66x28   clip1 glyphs 7 "GraceUI"
-text    ink.body      862, 493   42x25   clip1 glyphs 5 "0.2.9"
+text    ink.body      862, 493   51x25   clip1 glyphs 6 "0.2.12"
 line    rule          365, 535 1490x1    clip1
 text    ink.hi        365, 551   94x28   clip1 glyphs 9 "Game build"
 text    ink.body      862, 553  236x25   clip1 glyphs 25 "3.14.15.0, not supported yet"
@@ -72,4 +72,4 @@ text    gold         1835,1010    9x28   clip1 glyphs 1 "→"
 line    rule          300,1035 1620x1   
 text    ink.faint     340,1045  202x25   glyphs 16 "Enter  Open    Esc  Back"
 stroke  gold.hi       362, 947 1496x61   r5 w3 clip1
-# 73 items, 3432 vertices, 6366 indices, 4 commands; check_draw_list: passes
+# 73 items, 3436 vertices, 6372 indices, 4 commands; check_draw_list: passes

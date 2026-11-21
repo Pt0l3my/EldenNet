@@ -278,7 +278,7 @@ TEST_CASE("edit_providers: a new file, a preset's provider added, the preset set
 }
 
 TEST_CASE("edit_providers: a removed provider takes the [slots.*] that name it; a refused file is never written") {
-  const EditedText removed = edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"other"}, {}, {}});
+  const EditedText removed = edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"other"}, {}, {}, {}});
   REQUIRE(removed.ok);
   CHECK(removed.text.find("other.example.invalid") == std::string::npos);
   CHECK(removed.text.find("[slots") == std::string::npos);  // dialogue's slot named "other" for its fallback
@@ -286,9 +286,10 @@ TEST_CASE("edit_providers: a removed provider takes the [slots.*] that name it; 
   texts.providers = removed.text;
   texts.secrets = kSecrets;
   CHECK(parse_config(texts, no_env).providers.size() == 1);
-  CHECK(edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"nobody"}, {}, {}}).why == "unknown_id");
+  CHECK(edit_providers(kTwoClouds, ProvidersEdit{std::nullopt, {}, {"nobody"}, {}, {}, {}}).why == "unknown_id");
   CHECK(edit_providers("schema = 1\n[provider\n", ProvidersEdit{}).why == "refused");
-  CHECK(edit_providers("schema = 1\nprovider = 3\n", ProvidersEdit{std::nullopt, {}, {"x"}, {}, {}}).why == "not_a_table");
+  CHECK(edit_providers("schema = 1\nprovider = 3\n", ProvidersEdit{std::nullopt, {}, {"x"}, {}, {}, {}}).why ==
+        "not_a_table");
 }
 
 TEST_CASE("edit_providers: a job's model chosen and reset, its fallback kept; a key's place set on an entry") {
@@ -316,11 +317,12 @@ TEST_CASE("edit_providers: a job's model chosen and reset, its fallback kept; a 
   const EditedText none = edit_providers(back.text, reset);
   REQUIRE(none.ok);
   CHECK(none.text.find("slots") == std::string::npos);
-  CHECK(edit_providers(kCloud, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{"chatter", "cloud", "x", ""}}, {}}).why ==
-        "unknown_slot");
-  CHECK(edit_providers(kCloud, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "a b", "x", ""}}, {}})
+  CHECK(edit_providers(kCloud, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{"chatter", "cloud", "x", ""}}, {}, {}})
+            .why == "unknown_slot");
+  CHECK(edit_providers(kCloud,
+                       ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "a b", "x", ""}}, {}, {}})
             .why == "bad_entry");
-  const ProvidersEdit memory_pick{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "c", "x", ""}}, {}};
+  const ProvidersEdit memory_pick{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory), "c", "x", ""}}, {}, {}};
   CHECK(edit_providers("schema = 1\nslots = 2\n", memory_pick).why == "not_a_table");
 
   // A key's place on a provider of the player's own (a server on this PC, which had none).
@@ -341,16 +343,16 @@ TEST_CASE("edit_providers: a job's model chosen and reset, its fallback kept; a 
   REQUIRE(keyed.ok);
   texts.providers = keyed.text;
   CHECK(parse_config(texts, no_env).provider("box")->key.has_value());
-  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"nobody", "secrets:x"}}}).why ==
-        "unknown_id");
-  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"box", "env:X"}}}).why ==
+  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"nobody", "secrets:x"}}, {}})
+            .why == "unknown_id");
+  CHECK(edit_providers(added.text, ProvidersEdit{std::nullopt, {}, {}, {}, {KeyRefEdit{"box", "env:X"}}, {}}).why ==
         "bad_entry");
   // A cloud one keeps its key under its own name from the start.
   const ProviderEntry cloud = own_provider("far", "https://far.example.invalid/v1", false);
   CHECK(cloud.kind == ProviderKind::Cloud);
   CHECK(cloud.key_ref == "secrets:far");
   // Removing every provider leaves no list behind, and a key's place for a gone one is refused.
-  const ProvidersEdit both_gone{std::nullopt, {}, {"other", "box"}, {}, {KeyRefEdit{"box", "secrets:box"}}};
+  const ProvidersEdit both_gone{std::nullopt, {}, {"other", "box"}, {}, {KeyRefEdit{"box", "secrets:box"}}, {}};
   CHECK(edit_providers(added.text, both_gone).why == "unknown_id");
 }
 
@@ -399,19 +401,94 @@ fallback = "model-b"
   CHECK(cfg.slot(kDialogue).models[1].provider == "cloud");
   const EditedText same = edit_providers(two, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kDialogue),
                                                                                            "cloud", "model-c", "cloud"}},
-                                                            {}});
+                                                            {}, {}});
   REQUIRE(same.ok);
   CHECK(same.text.find("fallback_provider") == std::string::npos);
-  CHECK(edit_providers(two, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kDialogue), "own", "m", "a b"}}, {}})
+  CHECK(edit_providers(two,
+                       ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kDialogue), "own", "m", "a b"}}, {}, {}})
             .why == "bad_entry");
   // A reset takes the table away, and the slot is no longer picked.
   const EditedText reset = edit_providers(moved.text, ProvidersEdit{std::nullopt, {}, {}, {SlotEdit{std::string(kMemory),
                                                                                                    "", "", ""}},
-                                                                    {}});
+                                                                    {}, {}});
   REQUIRE(reset.ok);
   CHECK(make_config(reset.text).picked == std::set<std::string, std::less<>>{std::string(kDialogue)});
   CHECK(make_config(kTwoClouds).picked.size() == 1);
   CHECK(make_config(kLocal).picked.count(std::string(kMemory)) == 0);
+}
+
+TEST_CASE("edit_providers: a job's fallback chosen and removed, the rest of its table kept; what each table gives") {
+  const std::string two = R"(
+schema = 1
+
+[[provider]]
+id = "cloud"
+base_url = "https://llm.example.invalid/api/v1"
+key_ref = "secrets:cloud"
+
+[[provider]]
+id = "own"
+kind = "local"
+base_url = "http://127.0.0.1:1234/v1"
+
+[slots.dialogue]
+provider = "cloud"
+model = "model-a"
+
+[slots.memory]
+provider = "cloud"
+model = "model-m"
+fallback = "model-b"
+)";
+  Config cfg = make_config(two);
+  CHECK(cfg.picked == std::set<std::string, std::less<>>{std::string(kDialogue), std::string(kMemory)});
+  CHECK(cfg.picked_fallback == std::set<std::string, std::less<>>{std::string(kMemory)});
+  // Dialogue's fallback on "own": written with its provider named, the job's own pick kept.
+  ProvidersEdit pick;
+  pick.fallbacks.push_back(FallbackEdit{std::string(kDialogue), "own", "model-own"});
+  const EditedText picked = edit_providers(two, pick);
+  REQUIRE(picked.ok);
+  cfg = make_config(picked.text);
+  REQUIRE(cfg.slot(kDialogue).models.size() == 2);
+  CHECK(cfg.slot(kDialogue).models[0].model == "model-a");
+  CHECK(cfg.slot(kDialogue).models[1].provider == "own");
+  CHECK(cfg.slot(kDialogue).models[1].model == "model-own");
+  CHECK(cfg.picked_fallback.count(std::string(kDialogue)) == 1);
+  // A job moved afterwards leaves its fallback where it was.
+  ProvidersEdit move;
+  move.slots.push_back(SlotEdit{std::string(kDialogue), "own", "model-own-2", "own"});
+  cfg = make_config(edit_providers(picked.text, move).text);
+  CHECK(cfg.slot(kDialogue).models[1].provider == "own");
+  CHECK(cfg.slot(kDialogue).models[1].model == "model-own");
+  // Memory's fallback removed: the job's pick stays, with no fallback; dialogue's removed too.
+  ProvidersEdit gone;
+  gone.fallbacks.push_back(FallbackEdit{std::string(kMemory), "", ""});
+  gone.fallbacks.push_back(FallbackEdit{std::string(kDialogue), "", ""});
+  const EditedText removed = edit_providers(picked.text, gone);
+  REQUIRE(removed.ok);
+  CHECK(removed.text.find("fallback") == std::string::npos);
+  cfg = make_config(removed.text);
+  CHECK(cfg.slot(kMemory).models.size() == 1);
+  CHECK(cfg.slot(kMemory).models[0].model == "model-m");
+  CHECK(cfg.picked == std::set<std::string, std::less<>>{std::string(kDialogue), std::string(kMemory)});
+  CHECK(cfg.picked_fallback.empty());
+  // A table that gives a fallback alone goes with it; a slot with no table has nothing to remove.
+  const std::string only = std::string(two) + "\n[slots.bark_pool]\nfallback = \"model-p\"\nfallback_provider = \"own\"\n";
+  ProvidersEdit pool;
+  pool.fallbacks.push_back(FallbackEdit{std::string(kBarkPool), "", ""});
+  pool.fallbacks.push_back(FallbackEdit{std::string(kSelftest), "", ""});
+  const EditedText back = edit_providers(only, pool);
+  REQUIRE(back.ok);
+  CHECK(back.text.find("bark_pool") == std::string::npos);
+  CHECK(back.text.find("model-b") != std::string::npos);  // memory's, untouched
+  // Refused: a slot that is not one, a provider that is no name, slots that are not a table.
+  CHECK(edit_providers(two, ProvidersEdit{std::nullopt, {}, {}, {}, {}, {FallbackEdit{"chatter", "own", "x"}}}).why ==
+        "unknown_slot");
+  CHECK(edit_providers(two, ProvidersEdit{std::nullopt, {}, {}, {}, {}, {FallbackEdit{"memory", "a b", "x"}}}).why ==
+        "bad_entry");
+  CHECK(edit_providers("schema = 1\nslots = 2\n", ProvidersEdit{std::nullopt, {}, {}, {}, {},
+                                                                {FallbackEdit{"memory", "own", "x"}}})
+            .why == "not_a_table");
 }
 
 TEST_CASE("the model list asks every provider, a provider no job uses too, and keeps what each listed") {
@@ -486,7 +563,7 @@ all = { model_hint = ["small"] }
   CHECK(one[0].base_url == "https://one.example.invalid/v1");
 
   // Matched by base_url: nothing to add once providers.toml has it, and the preset's configuration then loads.
-  ProvidersEdit add{std::string("two"), two, {}, {}, {}};
+  ProvidersEdit add{std::string("two"), two, {}, {}, {}, {}};
   const EditedText written = edit_providers("", add);
   REQUIRE(written.ok);
   ConfigTexts texts;
@@ -497,6 +574,20 @@ all = { model_hint = ["small"] }
   CHECK(cfg.slot(kDialogue).models.front().provider == "main");
   CHECK(cfg.slot(kBarkLive).models.front().provider == "fast");
   CHECK(unused_providers(cfg).empty());
+  // A job's fallback alone in a table of its own, over the preset's model: the model stays the preset's, and the table
+  // counts as a pick of the fallback only.
+  ConfigTexts fallback = texts;
+  fallback.providers = edit_providers(written.text, ProvidersEdit{std::nullopt, {}, {}, {}, {},
+                                                                  {FallbackEdit{std::string(kBarkLive), "main", "spare"}}})
+                           .text;
+  const Config with = parse_config(fallback, no_env);
+  REQUIRE(with.slot(kBarkLive).models.size() == 2);
+  CHECK(with.slot(kBarkLive).models[0].provider == "fast");
+  CHECK(with.slot(kBarkLive).models[0].model == "quick");
+  CHECK(with.slot(kBarkLive).models[1].provider == "main");
+  CHECK(with.slot(kBarkLive).models[1].model == "spare");
+  CHECK(with.picked.empty());
+  CHECK(with.picked_fallback == std::set<std::string, std::less<>>{std::string(kBarkLive)});
 
   CHECK_THROWS_AS((void)preset_providers(models, "missing", {}), ConfigError);
   CHECK_THROWS_AS((void)preset_providers(models, "near", {}), ConfigError);  // the probe finds a local server
