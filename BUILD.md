@@ -145,6 +145,13 @@ cmake --build build-cl
   that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
   `launcher-eldennet-graceui-events` opens F11's view on Augur's events from the fake game's world and the lifecycle,
   and counts each list line's square on the frame by its source's colour (`--grace-probe` given three times).
+  `launcher-eldennet-graceui-ai` drives the AI pages against a fake model server of the tests' own
+  (`tests/pages/fake_models.py`: OpenAI-compatible, on 127.0.0.1 at a free port, in the harness's own process, with
+  invented models and a new invented key each run), which a `models.toml` beside the DLL names for the two cloud
+  presets' providers: the browser adds a provider, sets the key, runs the self-test and the model list, then the menu
+  runs the self-test from its header action, and the browser removes the unused provider; the case then looks for the
+  key in every frame, log line, recording and file of the run, and for a fragment of it in what the menu draws
+  (GraceUI 0.2.6's `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`).
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with

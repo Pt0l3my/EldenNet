@@ -361,6 +361,24 @@ void grace_report(std::uint64_t frame) {
     std::snprintf(server_part, sizeof server_part, " server=%u port=%u spaces=%u pending=%u", server.running,
                   server.port, server.spaces, server.pending);
   }
+  // GraceUI 0.2.6's MenuShows (D184): for each text FAKEGAME_SHOWS names ('|' between them, at most four), whether the
+  // menu's last layout draws it within one of its texts; `shows` holds a 1 or a 0 for each, in order. A case names
+  // words it wants drawn, and fragments of what must never be (an invented key's) through the environment, so that
+  // they stand in no command line.
+  const auto menu_shows = export_of<uint32_t (*)(const char*)>(grace, "GraceUI_Test_MenuShows");
+  char shows_part[16] = "";
+  char wanted[512] = "";
+  const DWORD got = GetEnvironmentVariableA("FAKEGAME_SHOWS", wanted, sizeof wanted);
+  if (menu_shows != nullptr && got > 0 && got < sizeof wanted) {
+    std::string bits;
+    for (char* text = wanted; text != nullptr && bits.size() < 4;) {
+      char* bar = std::strchr(text, '|');
+      if (bar != nullptr) *bar = '\0';
+      bits += menu_shows(text) != 0 ? '1' : '0';
+      text = bar != nullptr ? bar + 1 : nullptr;
+    }
+    std::snprintf(shows_part, sizeof shows_part, " shows=%s", bits.c_str());
+  }
   char tail[240] = "";
   const Options& o = options();
   std::size_t at = 0;
@@ -376,12 +394,12 @@ void grace_report(std::uint64_t frame) {
   }
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
-         "world=0x%X providers=%u window_filter=%u presents=%llu%s%s%s",
+         "world=0x%X providers=%u window_filter=%u presents=%llu%s%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
-         input.window_filter, static_cast<unsigned long long>(st.presents), menu_part, server_part, tail);
+         input.window_filter, static_cast<unsigned long long>(st.presents), menu_part, server_part, shows_part, tail);
 }
 
 }  // namespace fakegame
