@@ -318,6 +318,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 293 | 2026-11-21 | R1 run 10: G's method wraps our task in a 32-byte request and runs it at once or queues it; the task itself is never read | FACT | #gal #r1 #task |
 | 294 | 2026-11-21 | A look review made from a real mod's pages finds what the demo space's goldens cannot | METHOD | #graceui #review |
 | 295 | 2026-11-21 | R1 spike.11: the request G's method builds, its methods read in parts, G's fields and queue, and the game's own requests | DECIDED | #gal #r1 #task |
+| 296 | 2026-11-21 | R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it | FACT | #gal #r1 #task |
 
 ## Entries
 
@@ -5020,3 +5021,28 @@ invariant 10, EldenNet ARCH (T3)
   fields of the task; with a strict check it drops ours, answering 1 with no copy anywhere, as in run 10. On the queued
   path our request sits in G's queue at 50 and 250 ms and is gone by 2 s. The game's own two waiting requests are found
   in each search, their tasks in two classes sharing one base.
+
+### 296. R1 run 11: the request runs at once and looks the group's word up in the manager's map; our task never reaches the code that uses it
+
+`2026-11-21` · FACT, with LIKELY and SPECULATION readings · `#gal` `#r1` `#task` · refs: WHY§293, WHY§295, S10.1.f
+
+- **The path** (FACT): G's byte at +0x38 was 0 at all four reads, so the request took the now path: 0x1267F0, which is
+  the request's own slot 1 (its vtable at rdata 0x32990A0 has no RTTI class). Decoded in three parts (68 bytes primary,
+  58 and 164 chained), it reads the request's word, manager and task.
+- **What it does** (FACT, from its reads and calls): it tests the word. With a word of 0 it hands our task to
+  0x26A3460 for each entry of a list on the manager (begin and end at the manager's +0x30 and +0x38). With any other
+  word, ours being 0x9000006E, it walks a tree from the manager's +0x18, testing a byte at each node's +25 and comparing
+  the word with each node's key, and on a match calls 0x26A3460 with the node's value, our task, the word and the
+  manager. Only after that does it test the request's byte at +28 (0 for us, zeroed by the stub) and, on another branch,
+  call our task's slot 1.
+- **The rest** (FACT): our slots were never called and no copy of our task was found anywhere, as before. No request of
+  the game's own was in memory and the queue held none: the game's requests are on the stack and gone at once. Every
+  entry's word has its own index in its low 16 bits and 0x9000 in its high 16 bits, so 0x9000006E is group 110's as the
+  game names it. Of the classes, only CSTask's instance and the group's entry have RTTI; G and its manager have none.
+- **So** (LIKELY): the tree is an MSVC `std::map` keyed by the group's word (the node's byte at +25 is its nil flag, and
+  the head's +8 is the root). Our task reaches 0x26A3460 only if group 110's word is in the manager's map. The leading
+  reading (SPECULATION) is that at the title screen it is not, so the request finds nothing, drops our task and answers
+  1. If the word is there, 0x26A3460 drops it instead.
+- **Next:** spike.12 reads the manager's map at the title and, after a save is loaded with no second call, in the world:
+  its size and keys, and whether group 110's word is among them; it summarises 0x26A3460. If the word appears only in
+  the world, the call moves there, by the owner's decision.
