@@ -5335,3 +5335,6 @@ S10.1.k
   Skyrizz on Lodestar's branch (cece89f), for the owner or Skyrizz's session to bring into `feat/skyrizz-lite`.
 - **Sent** (FACT): EldenNet-Find.zip, label 0.1.0-lodestar.1, built from engine 9edf1c0, checked as BUILD.md says and
   swept, sent to the owner by Lodestar on 2026-11-21.
+- **Later (2026-11-21):** with the sweep installed from `feat/skyrizz-lite`, the package sweeps clean as it is, under
+  the existing line. The narrower line on Lodestar's Skyrizz branch (cece89f) is redundant and is not to be merged;
+  Lodestar told the owner so. Lodestar's earlier install was the stricter one, so nothing passed that should not have.
