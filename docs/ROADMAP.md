@@ -885,6 +885,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2026-11-20 (engine 9a6e3ea; WHY§247). Run 8: the call returns 1 and group 110's entry exists, yet nothing keeps our
     task; spike.9 reads the group's own function and its memory (WHY§248). Spike.9 sent on 2026-11-20 (engine
     a51ab03; WHY§258).
+    Run 9 (2026-11-21): the call returns 1, and the group's function only null-tests our task and hands it, with one
+    word of the entry, to a method of a second singleton (0x2658FB0, not yet read). Nothing in memory keeps our task,
+    plainly or tagged, and the group's memory did not change. The launcher's log stopped at the call, so no 30 s text
+    was shown and the crash watcher was blocked. Spike.10 reads that method and the second singleton, and the
+    launcher's console no longer blocks its watch (WHY§289, WHY§290).
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175

@@ -311,6 +311,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 286 | 2026-11-21 | GraceUI's server pings each WebSocket with a protocol message every 15 s; a test browser must answer it | FACT | #graceui #harness |
 | 287 | 2026-11-21 | Test literals and the sweep: private addresses built at run time, invented names clear of its endpoint words | METHOD | #privsweep #harness |
 | 288 | 2026-11-21 | A row's changed mark is the space's own list, not a value compared with its default | DECIDED | #graceui #settings |
+| 289 | 2026-11-21 | R1 run 9: the group's function hands our untouched task to a second singleton's method; nothing in memory keeps it | FACT | #gal #r1 #task |
+| 290 | 2026-11-21 | R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked | FACT | #launcher #r1 #console |
 
 ## Entries
 
@@ -4867,3 +4869,44 @@ invariant 10, EldenNet ARCH (T3)
   from the start and published by every space, rather than comparing a value with its default, which misreads a
   setting whose default stands for something the space resolves (EldenNet's per-job model picker, whose default is the
   preset's model). A new `default_label` field, which would have been protocol 1.3, was not needed.
+
+### 289. R1 run 9: the group's function hands our untouched task to a second singleton's method; nothing in memory keeps it
+
+`2026-11-21` · FACT, with a LIKELY reading · `#gal` `#r1` `#task` · refs: WHY§235, WHY§240, WHY§248, WHY§258, S10.1.f
+
+- **The group's function** (FACT, spike.9, game 2.7.2.0 ww, no other mods): RVA 0xEB6040 (114 bytes, 29 instructions)
+  null-tests the task (null answers 0) and reads nothing else of it; it reads one 32-bit word of the entry, at +0x54,
+  and calls no slot of the entry. It loads a second singleton, G, from the data slot at RVA 0x48642A0 (calling the same
+  null-singleton report pair as the wrapper only when the slot is null), then tail-jumps through an 8-byte stub that
+  zeroes r9 to 0x2658FB0, with rcx G, rdx our task, r8 the entry's word and r9 0. `task_reads` and `task_stores` are 0
+  to depth 3, so the 1 the call answers is 0x2658FB0's, and whatever drops our task is there or below.
+- **The classes** (FACT): the first singleton and the entry are both RTTI-classed, and neither matches a lead.
+- **The memory** (FACT): at 2.0 and 21.6 s after the call, 8.6 of 10.7 GB read: no plain, inside or tagged copy of our
+  object's address, and none of our vtable or slots. Walks from the singleton (204 blocks) and group 110's entry (775
+  blocks) changed nothing beyond the control but one counter, which run 8's control shows changing before any call.
+  Our object was never written and no slot was called in 21 minutes at the title screen.
+- **One change unexplained** (FACT; its cause SPECULATION): in runs 7 to 9 an array behind CSTask's instance at +0x3B0,
+  then +0x3D0, elements 240 bytes apart, took fresh heap pointers after the call, never in a control. It holds nothing
+  of ours.
+- **So** (LIKELY): G's method takes our task and answers true without keeping it, because of something it reads or
+  checks. A list that runs only in a world is ruled out by the memory and by run 4. The leading candidate (SPECULATION)
+  is our zeroed object, with no derived base class (R1 never found the game's task shape), lacking fields a real task
+  has; a phase check at the title, or a function that does not register at all, remain open.
+- **Next:** spike.10 summarises 0x2658FB0 through the stub, with the task followed in, and its callees one level
+  further; reads the entry's word, G's slot and class, and whether G is the object the entries reach at +0x58; walks
+  from G with its control; times and classes the array's change; and reads what the game's own 8 call sites pass as
+  the task. A fix waits on that: building our object in the game's own task layout, never by guesswork.
+
+### 290. R1 run 9: the launcher's log stopped at the call, so no 30 s text showed and the crash watcher was blocked
+
+`2026-11-21` · FACT, with a LIKELY reading · `#launcher` `#r1` `#console` · refs: O71, O90, WHY§248
+
+- **The log** (FACT): run 9's launcher log ends at the call (25.5 s), with no status, no-confirmation, end, lint or
+  finish line, though the game ran 21 more minutes and EldenNet logged and reported to the end. Run 8 carries them all.
+- **So** (LIKELY): the watch loop blocked right after it. Its next step is a console write under the output lock, and
+  the launcher writes the console before the file, so a suspended console stops the file log too. Clicking inside a
+  classic console window starts a selection, which suspends its output until Esc (SPECULATION as the cause here).
+  The owner never saw the 30 s text, which explains the 21-minute wait, and the crash watcher (O71) was blocked.
+- **Next:** the launcher turns QuickEdit off for its console, writes the file first, and keeps console output off the
+  watch loop (a writer thread with a bounded queue that drops console lines rather than waiting). Until then, the
+  README asks the player not to click inside the console.
