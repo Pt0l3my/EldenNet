@@ -203,6 +203,19 @@ TEST_CASE("texts: R1's steps on the console follow EldenNet's answer and T1's st
   }
   CHECK(r1_text(R1Step::PressMark).find("press Pause") != std::string::npos);
   CHECK(std::string(r1_word(R1Step::Confirmed)) == "task_confirmed");
+  // R1 spike.12 (WHY§296): EldenNet's answer Absent is an accepted R1 whose probe found no copy of our task: the same
+  // steps, and no confirmation then tells the owner to load the save, in place of "do not load a save".
+  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 29999) == R1Step::Called);
+  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
+  CHECK(r1_step(ProbeRequest::Absent, InitState::Ready, true, 0) == R1Step::Confirmed);
+  CHECK(std::string(w::to_string(ProbeRequest::Absent)) == "absent");
+  const std::string kept = r1_text(R1Step::NoConfirmation);
+  const std::string absent = r1_text(R1Step::NoConfirmation, true);
+  CHECK(kept.find("Do not load a save") != std::string::npos);
+  CHECK(absent.find("Do not load a save") == std::string::npos);
+  CHECK(absent.find("Our task is not in the game. Load your save now, stay in the world for two minutes, then quit "
+                    "the game as usual.") != std::string::npos);
+  CHECK(r1_text(R1Step::Confirmed, true) == r1_text(R1Step::Confirmed));  // only no confirmation has the variant
 }
 
 TEST_CASE("texts: ARCH §4.7's wording, the ids and the exit codes") {

@@ -51,6 +51,8 @@ const char* to_string(ProbeRequest p) noexcept {
       return "accepted";
     case ProbeRequest::Refused:
       return "refused";
+    case ProbeRequest::Absent:
+      return "absent";
   }
   return "none";
 }

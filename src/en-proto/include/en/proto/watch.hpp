@@ -78,9 +78,11 @@ inline constexpr std::uint32_t kSpikeCount = 9;
 
 // The launcher's --probe (O89's in-game round R1): asked by the launcher before it loads anything, answered by
 // EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in
-// settings.toml, refuses it and calls nothing.
-enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused };
-[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused"
+// settings.toml, refuses it and calls nothing. Since R1 spike.12 (WHY§296), `Absent`: accepted, and after the call the
+// probe's 2 s search found no copy of its task in the game's memory (the console then has the owner load the save).
+// Append only.
+enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent };
+[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent"
 
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 

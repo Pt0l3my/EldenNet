@@ -146,15 +146,19 @@ GraceUI, nothing asks, and the launcher's Pause stays the Mark, as R1's `--probe
 `--console` (the Mark), and goes with a start only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The
 save backup is made first, and with `--probe` a failed one ends the launcher (E07, with no "continue without a
 backup"). Before it loads anything the launcher writes R1 into the watch block's `control.probe`, and EldenNet answers
-there: accepted, or refused (not a probe build, or turned off), when it stops and calls nothing.
+there: accepted, or refused (not a probe build, or turned off), when it stops and calls nothing. Since R1 spike.12
+(WHY§296) it may answer `absent` later, after the call: accepted, and its 2 s search found no copy of its task in the
+game's memory.
 
 The console then tells each step once, in plain words (`EldenNet R1: …`, on the console only), beside the log's
 `r1 step=<word>` (`texts.hpp`'s `R1Step`): `asked` (stay at the title, load no save), `reading` (the live derivation
 and its checks), `press_mark` (the checks passed: press Pause at the title with no save loaded), `called`,
 `task_confirmed` (the game runs our task: load the save and play), or `refused`, `not_called` (a check failed),
-`call_failed`, `no_confirmation` (30 s after the call). When the game ends, the launcher lints both reports in
-`%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses (`r1 report=<name>
-lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
+`call_failed`, `no_confirmation` (30 s after the call: quit, loading no save; with `absent`, logged as
+`r1 step=no_confirmation absent=1` and told again if that answer comes after the step, the owner loads the save and
+stays two minutes in the world, so that R1 reads the manager's map there too). When the game ends, the launcher lints
+both reports in `%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses
+(`r1 report=<name> lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
 
 ## The S0 spikes (DESIGN §16.1, the plan's §1.2)
 

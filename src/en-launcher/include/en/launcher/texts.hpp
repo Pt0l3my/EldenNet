@@ -41,7 +41,8 @@ enum class R1Step : std::uint8_t {
   PressMark,       // the checks passed: press Pause at the title, with no save loaded
   Called,          // the one call was made; waiting for the game to run our task
   Confirmed,       // the game runs our task: "task confirmed"
-  NoConfirmation,  // 30 s after the call, and the game has not run our task
+  NoConfirmation,  // 30 s after the call, and the game has not run our task (since R1 spike.12, with `absent` where
+                   // the probe found no copy of it in the game's memory: then the owner loads the save, WHY§296)
   NotCalled,       // a check did not pass, so nothing was called
   CallFailed,      // the call itself did not complete
   ReportsClean,    // after the game: both reports passed the lint
@@ -49,9 +50,11 @@ enum class R1Step : std::uint8_t {
   ReportsMissing,  // after the game: a report is missing
 };
 [[nodiscard]] const char* r1_word(R1Step s) noexcept;  // "asked", "refused", ..., "reports_missing"
-[[nodiscard]] std::string r1_text(R1Step s);
+// `absent` (NoConfirmation only): the probe's own search found no copy of our task in the game.
+[[nodiscard]] std::string r1_text(R1Step s, bool absent = false);
 // The step the console shows for EldenNet's answer and T1's state: `pressed` once PressMark has been shown,
 // `in_first_tick_ms` how long T1 has been in FirstTick. Nothing while the answer has not come and T1 is still early.
+// EldenNet's answer Absent is Accepted's, with the search's finding (r1_absent).
 [[nodiscard]] std::optional<R1Step> r1_step(proto::watch::ProbeRequest answer, proto::watch::InitState init,
                                             bool pressed, std::uint64_t in_first_tick_ms) noexcept;
 
