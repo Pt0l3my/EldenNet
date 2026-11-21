@@ -65,7 +65,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   key, one key) and O95 (the first pages' choices) decided; O96 (System One for decisions) and O97 (decisions choose
   the addressee) put to the owner and decided on 2026-11-21; O98 (a home-network model server) put and decided the same day; O99 (the fifth pages slice's readings)
   accepted as written the same day; O100 (where the per-frame reading runs) put and decided the same day, by an
-  option of the owner's own: EldenNet's own address library, built by the Lodestar session.
+  option of the owner's own: EldenNet's own address library, built by the Lodestar session; O101 to O103 (Lodestar's
+  proposal 0005) put to the owner and decided the same day, as recommended; O104 (the fourth pages slice's
+  readings) the same day, as built.
 - **Open.** None.
 
 ## O1
@@ -1588,6 +1590,10 @@ task group's index), at the owner's Mark at the title with no save loaded, the l
 patterns cut from the file (`probe-exe --static`), and the layout's fields are searched by invariant in a later
 in-game run. Steps (3) and (4) of the decision are unchanged.
 
+*2026-11-21, by O102 (a):* the patterns this entry let leave the owner's PC (at most 64 bytes, addresses wildcarded) are
+withdrawn: `gal/` holds no bytes from the game, only shapes in our own grammar, numbers and digests (proposal 0005).
+The one pattern in `gal/patterns.toml` is retired when its shape passes the same tests.
+
 ## O90
 
 **Spikes before GraceUI's host** · *2026-11-16 · Decided by the owner, as recommended*
@@ -1895,4 +1901,91 @@ no work that a safety system has stopped worked around (WHY§303).
 such as what SKSE and address library does for Skyrim. This will still be EldenNet's part, not separate."
 
 **Follows from.** O49, O89 to O91; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§289 to §303; S10.1.f, S10.1.k.
+
+## O101
+
+**Where v1's per-frame reading runs** · *2026-11-21 · Decided by the owner, as recommended*
+
+**Question.** O100 left this to Lodestar's proposal 0005 (§10, §14 A): EldenNet v1 reads the game every frame or so for
+its world snapshot and Augur's events. Where does that reading run?
+**Options:** (a) the game's own task first: v0.1 waits for Lodestar's task service; (b) EldenNet's own thread now,
+reading about ten times a second with the checks of proposal 0005 §10, the task service staying Lodestar's work and
+the owner deciding again when it is confirmed; (b2) as (b), with the task service shelved until a feature needs the
+game's thread; (c) pause the in-game work.
+
+**Recommendation.** (b). What it gives up: readings in step with the game's frame, for v1. What it gains: v1 makes no
+call into the game and writes nothing to it, the release build drops the getter fallback (proposal 0005 §10), and the
+in-game work goes on from today. Engine agrees.
+
+**Decision.** (b). EldenNet v1 reads the game from its own thread, about ten times a second, with proposal 0005 §10's checks; it makes no call into the game and writes nothing to it, and the release build drops the getter fallback. The game's own task system stays Lodestar's later task service (proposal 0005 §9.6, step L7), and the owner decides again when it is confirmed.
+
+**Owner's words.** "(b) Own thread now (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
+
+**Follows from.** O100, O49, O89 to O92; proposal 0005 §9.4, §9.6, §10; ARCH §2, §6; DESIGN §2.1, §16.1; WHY§302 to §305.
+
+## O102
+
+**May `gal/` hold bytes cut from the game?** · *2026-11-21 · Decided by the owner, as recommended*
+
+**Question.** O89 let patterns of at most 64 bytes, their addresses wildcarded, leave the owner's PC, and
+`gal/patterns.toml` holds one (24 bytes, 7 of them fixed). The handover of 2026-11-21 rules out byte patterns copied
+from the game in any file (proposal 0005 §6, §14 B).
+**Options:** (a) no bytes: recipes as shapes in our own grammar, tables of numbers and digests; the existing pattern
+retired when its shape passes the same tests; O89 amended by a dated note; (b) keep short wildcarded patterns, as O89
+allowed, the handover's rule covering longer listings only.
+
+**Recommendation.** (a). What it gives up: matching a shape is slower than matching bytes, which matters only offline
+(seconds), since a start no longer searches. What it gains: nothing of the game is in the repository at all, and a
+recipe survives a patch that changes registers or distances.
+
+**Decision.** (a). `gal/` holds no bytes from the game: recipes are shapes in our own grammar, and the tables hold numbers and digests. `gal/patterns.toml`'s one pattern is retired when its shape passes the same tests (step L2). O89 is amended by a dated note.
+
+**Owner's words.** "(a) No bytes at all (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
+
+**Follows from.** O89, O47, O48; proposal 0005 §5, §6; CLAUDE.md's rule on game files; WHY§304.
+
+## O103
+
+**Who may use the library?** · *2026-11-21 · Decided by the owner, as recommended*
+
+**Question.** Skyrim's Address Library and SKSE serve every mod. Who may use Lodestar's library (proposal 0005 §9.8,
+§14 C)?
+**Options:** (a) in v1, EldenNet and its devkit only: the data is in the open repository under EldenNet's licence, but
+there is no interface for other mods, and whether to publish one is asked again after v1.0, with the plugin interface
+(O65 to O69); (b) design a public interface now, for other native mods, bound by the same gate (offline, solo, no
+anti-cheat); (c) never public.
+
+**Recommendation.** (a), which is also what O65 to O70 already imply for v1 (game facts stay EldenNet's; code plugins
+get projections only and no hook service). What it gives up: other mods cannot build on it yet. What it gains: the
+library stays small and ours to change while it is young, and nothing published can be turned to uses we would not
+stand behind.
+
+**Decision.** (a). In v1 the library serves EldenNet and its devkit only; its data is in the open repository under EldenNet's licence, with no interface for other mods. Whether to publish one is asked again after v1.0, with the plugin interface (O65 to O69).
+
+**Owner's words.** "(a) EldenNet only in v1 (Recommended)" (the owner's choice in the question dialog, 2026-11-21)
+
+**Follows from.** O65 to O70; proposal 0005 §9.8, §12.
+
+## O104
+
+**The AI pages' fourth slice: its readings** · *2026-11-21 · Decided by the owner, as recommended*
+
+**Question.** The fourth pages slice (S11.4.a; WHY§297) left eight readings in its notes. Four were settled since: the
+changed rule (Q3) by O99 (the fifth slice's refined rule), the layout (Q6) by G36 (a) and O99, the in-game key line
+(Q7) by GraceUI's D200, and the floor (Q8) by O99 (now 0.2.12). The other four were put to the owner:
+(1) a model server on this PC reads Not needed until a call is refused for want of a key, then Refused with a field;
+(2) a provider chosen for a job that does not list the job's model is held, unsaved, until one of its models is chosen;
+(3) a provider whose key was refused is no job's choice until its key is pasted again;
+(4) a hand-written provider with no key entry reads Not needed until a call asks for one.
+**Options:** for each, as built, or its alternative: (1) always Not needed, a key only by hand; (2) save at once with
+the old model, or refuse the choice; (3) allow it anyway; (4) Missing with a field.
+
+**Recommendation.** As built, all four.
+
+**Decision.** All four as built, in the fourth slice (engine feat/engine 2d125a1).
+
+**Owner's words.** "As built (Recommended)", "Hold it (Recommended)", "Not until fixed (Recommended)", "\"Not needed\"
+(Recommended)" (the owner's choices in the question dialog, 2026-11-21).
+
+**Follows from.** PAGES §4.6.2, §4.5; ARCH §11.1, §11.4; O98, O99; S11.4.a; WHY§297.
 

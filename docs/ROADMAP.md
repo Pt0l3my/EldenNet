@@ -943,12 +943,23 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O47, O48, O49, O89, WHY§302, WHY§303
+  - refs: O100, O101, O102, O103, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
     on it, first the game's own way of adding a task (WHY§302). Its first piece is proposal 0005, with its questions to
     the owner. R1's road (S10.1.f) goes on here.
+    Proposal 0005 written the same day (docs/proposals/0005-lodestar.md; WHY§304, WHY§305), its questions put to the
+    owner as O101 to O103. Its steps: L1 the catalogue, the table's schema 2, its loader and lint, the fake game's table;
+    L2 shapes for the accessor, witnesses and digests, `patterns.toml` retired; L3 `lodestar find`, `check` and `diff`,
+    report schema 2 (one offline run on 2.7.2.0, game closed); L4 the checks at start and the frame service on EldenNet's
+    own thread; L5 a read-only spike package, no call (one run); L6 the members, in read-only rounds; L7 the task
+    service's research, later and by the owner's choice. L1 started, since it holds under every answer.
+    L1 done on 2026-11-21 (engine fb999ca): `gal/ids.toml`, the catalogue of 20 ids of our own, and layout schema 2 with
+    its loader and lint; nothing that runs in the game changes yet (WHY§306). L2's shapes wait on O102; meanwhile the
+    resolver's placement and witness checks, on invented images.
+    The owner decided O101 to O103 the same day, as recommended: v1 reads from EldenNet's own thread with no call into
+    the game, `gal/` holds no bytes from the game (O89 amended), and the library serves EldenNet alone in v1.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1249,7 +1260,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S11.4.a The GraceUI folder in EldenNet's release, and the first pages in the browser: Home, AI, System, Tools, Content packs, Docs [active]
   - needs: S11.2.h
-  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, G34, G36
+  - refs: G2, G20, PAGES§4.6, GraceUI:D163, GraceUI:D190, O95, O98, O99, O104, G34, G36
   - gives: since G20 these are EldenNet's pages, built from EldenNet's page descriptions in S11.2.h's format. The
     allowances' and reactions' inherit tri-states (PAGES) use GraceUI's third = "inherit" and the settings topic's
     `inherited` list, added on 2026-11-20 at EldenNet's request (GraceUI feat/foundations ac4bc39). Since GraceUI
@@ -1301,8 +1312,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Left: the Decisions (0.4) and Profile drafts (0.6) cards, Prepared lines' pool row, state and "Prepare lines now"
     (its section action, with the pool), Advice, Apply and Reset to preset; GraceUI's pacing of a page's
     subscriptions, asked the same day. The owner accepted the slice's eleven readings as written (O99), and both slices
-    are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings wait. GraceUI paced the
-    subscriptions the same day (S11.2.z).
+    are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings were decided as built the
+    same day (O104). GraceUI paced the subscriptions the same day (S11.2.z).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
