@@ -167,8 +167,8 @@ cmake --build build-cl
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 20 minutes for the clang-cl build's 109 tests of the harness (the prefix and 108 cases, 46 of them the
-  launcher's, 25 of those eldennet.dll's and eight of these with GraceUI, above; counted on 2026-11-21): 52 of about
+- About 22 minutes for the clang-cl build's 111 tests of the harness (the prefix and 110 cases, 48 of them the
+  launcher's, 26 of those eldennet.dll's and eight of these with GraceUI, above; counted on 2026-11-21): 52 of about
   2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
   on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
   offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
@@ -180,11 +180,16 @@ cmake --build build-cl
   its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
   forms, the sources, the tail function's table read before and after the call, the call's answer and the control
   diff, and since spike.9 the group's function with the task's and the entry's reads and the task's tagged store, the
-  rack's and the shelf's classes, the tagged search and the diffs from the rack and the shelf;
+  rack's and the shelf's classes, the tagged search and the diffs from the rack and the shelf, and since spike.10
+  (run 9's shape) the group's function's jump through the stub to G's method with its task reads, G's reads and the
+  word's uses, its callees, G and the entries' words before and after the call, G's diffs, the array's views at 50 and
+  250 ms and 2 s, the call sites' tasks and the sibling;
   `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
   (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-gate` on one
-  whose hub runs only tasks of the game's kind (`--task-gate`: the call answers 1, the shelf keeps our task under a tag
-  and the task never runs, as in R1 run 8); `launcher-eldennet-probe-release` gives
+  whose ledger keeps only tasks of the game's kind (`--task-gate`: the call answers 1, G's method keeps nothing of our
+  task and it never runs, as in R1 run 9); `launcher-eldennet-probe-console` the gate's run with the launcher's console
+  writer blocked after three lines (`ELDENNET_TEST_CONSOLE`, WHY§290: launcher.log keeps every line, the dropped ones
+  counted), and `launcher-crash-console` a crash with the console blocked; `launcher-eldennet-probe-release` gives
   `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
   `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
 - The runs of GraceUI's observer (S0-E's present-hook half and S4, roadmap S10.1.g and S11.1.a; EldenNet's side):
@@ -214,7 +219,7 @@ configuration if either reaches any other target of the build, en-core or en_she
 `ctest -R en_link_rules` checks the rule itself on a project of its own (`tests/linkrules/`).
 
 The launcher's end-to-end cases join the fake game's harness (`ctest -R fakegame.launcher`): 11 in both Windows builds
-(no DLL), and 10 more in the clang-cl build with `tests/galtest/galtest.dll` as the DLL, which now also does EldenNet's
+(no DLL), and 11 more in the clang-cl build with `tests/galtest/galtest.dll` as the DLL, which now also does EldenNet's
 part of the watch block (`watch_client.cpp`) and steps en-core's slice on its snapshots. A case that starts a process
 of its own (the watcher galtest starts) waits for every process of the prefix to end before the next case
 (`settle`). About 3 minutes for the 21 clang-cl cases; the S0 loops and the injections are the longest (10 to 20 s).
@@ -261,7 +266,7 @@ Its README has the start as built, the threads, the settings, the recorder and R
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 17 cases,
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 18 cases,
   about 7 minutes, and with `EN_GRACEUI_DIR` seven more with GraceUI (`launcher-eldennet-probe`,
   `launcher-eldennet-probe-gap` and `launcher-eldennet-probe-gate` are the longest, about 65 s each). Each installs
   the DLL in its own folder with gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which
@@ -279,7 +284,7 @@ A spike package is a development build for the owner's PC, labelled `0.1.0-spike
 
 ```sh
 cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.9 -DPython3_EXECUTABLE=/usr/local/bin/python3
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.10 -DPython3_EXECUTABLE=/usr/local/bin/python3
 cmake --build build-cl-rel
 python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
   --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
@@ -296,7 +301,13 @@ the same crash-guarded copy; every summary's instructions are given as forms (no
 function (the tail function's direct jump) and its callees are summarised with the entry and our task followed in (16
 summaries at most), the walk and its diffs start from the table's singleton and the group's entry too (three walks'
 blocks at most per root, the fake game's report about 113 KB), the searches count our object's and vtable's addresses
-under a high-bit tag, and the singleton's and the entry's RTTI classes are matched to the leads' names.
+under a high-bit tag, and the singleton's and the entry's RTTI classes are matched to the leads' names. Since spike.10
+(WHY§289) the second singleton G's method is summarised through its stub, with its callees one level further, G's loads
+and the entry's word's uses; G, its class and the entries' words are read before and 2 s after the call, and G is the
+walk's fourth root unless a root holds it; the array behind CSTask's +0x3B0 and +0x3D0 is read again 50 and 250 ms
+after the call; the game's own call sites are read for what they pass as the task; and the registration's sibling is
+summarised the same way (the fake game's report about 210 KB, within 256 KiB with every form). The launcher writes its
+log first and its console through a queue of its own (WHY§290).
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
 `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.

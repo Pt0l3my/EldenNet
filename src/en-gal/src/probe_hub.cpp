@@ -371,8 +371,10 @@ TableRead read_table(const Table& shape, const TableReadSpec& spec, const BlockR
   if (!read(table + static_cast<std::uint64_t>(shape.disp), entries)) return r;
   r.read = true;
   r.entries = count;
+  at.entries.resize(count);
   for (std::uint32_t i = 0; i < count; ++i) {
-    if (word_at(entries, std::size_t{i} * 8) != 0) {
+    at.entries[i] = word_at(entries, std::size_t{i} * 8);
+    if (at.entries[i] != 0) {
       ++r.nonzero;
       r.nonzero_at.push_back(i);
     }
@@ -406,6 +408,28 @@ void match_lead(ClassMatch& m, std::string_view cls, std::span<const std::string
       return;
     }
   }
+}
+
+ViewRead diff_view(std::span<const std::byte> before, std::span<const std::byte> after, const DiffSpec& kinds,
+                   std::uint32_t main_thread, std::uint32_t caller_thread) {
+  ViewRead r;
+  r.read = true;
+  const std::size_t words = std::min(before.size(), after.size()) / 8;
+  const auto half = [](std::uint64_t v, std::uint32_t id) {
+    return id != 0 && (static_cast<std::uint32_t>(v) == id || static_cast<std::uint32_t>(v >> 32) == id);
+  };
+  for (std::size_t i = 0; i < words; ++i) {
+    const std::uint64_t was = word_at(before, i * 8), now = word_at(after, i * 8);
+    if (was == now) continue;
+    ++r.changed;
+    r.main_thread = r.main_thread || half(now, main_thread);
+    r.caller_thread = r.caller_thread || half(now, caller_thread);
+    if (r.words.size() < kMaxViewWords) {
+      r.words.push_back(ViewWord{static_cast<std::uint32_t>(i * 8), classify_value(was, kinds),
+                                 classify_value(now, kinds), std::nullopt});
+    }
+  }
+  return r;
 }
 
 }  // namespace en::gal::probe

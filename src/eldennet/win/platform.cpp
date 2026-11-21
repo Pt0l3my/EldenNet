@@ -34,15 +34,18 @@ std::wstring parent_of(const std::wstring& path) {
   return at == std::wstring::npos ? std::wstring() : path.substr(0, at);
 }
 
-// The window search's answer, per thread (only T1 searches): no LPARAM carries a pointer, so nothing is cast.
+// The window search's answer, per thread (only T1 searches): no LPARAM carries a pointer, so nothing is cast. Since
+// spike.10 also the thread that owns the window (WHY§289).
 constinit thread_local bool t_window_found = false;
+constinit thread_local DWORD t_window_thread = 0;
 
 BOOL CALLBACK window_of_ours(HWND hwnd, LPARAM) noexcept {
   return en::proto::ffi_guard(en::proto::Component::DllMain, TRUE, [&]() -> BOOL {
     DWORD pid = 0;
-    GetWindowThreadProcessId(hwnd, &pid);
+    const DWORD thread = GetWindowThreadProcessId(hwnd, &pid);
     if (pid == GetCurrentProcessId() && IsWindowVisible(hwnd) != FALSE && GetWindow(hwnd, GW_OWNER) == nullptr) {
       t_window_found = true;
+      t_window_thread = thread;
       return FALSE;
     }
     return TRUE;
@@ -165,6 +168,13 @@ bool main_window() noexcept {
   t_window_found = false;
   EnumWindows(&window_of_ours, 0);
   return t_window_found;
+}
+
+DWORD main_window_thread() noexcept {
+  t_window_found = false;
+  t_window_thread = 0;
+  EnumWindows(&window_of_ours, 0);
+  return t_window_found ? t_window_thread : 0;
 }
 
 std::vector<std::wstring> module_names() {

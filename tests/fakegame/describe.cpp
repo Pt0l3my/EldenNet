@@ -365,13 +365,19 @@ int describe(HINSTANCE instance) {
       // The registration is a wrapper of R1 run 7's shape (spike.8): it loads its rack from the static at `slot_rva`
       // (making it with `alloc` and `build` while it is null) and tail-jumps to `tail`, which bounds the group by
       // `bound` and tests the rack's shelf at `shelves_off` + group*8; then (run 8's shape, spike.9) it moves the task
-      // into rdx and jumps directly to `take`, the group's own function, which reads the task's hub field at
-      // `task_hub_off` (kept at the shelf's `seen_off`) and its kind at `task_kind_off` (compared with `kind`), reads
-      // the shelf's count at `count_off`, keeps the task in the shelf's list at `items_off` under the tag whose high 16
-      // bits are `tag`, and calls `offer`, which hands it to the work (the hub in rcx, the group in edx, the task in r8)
-      // unless --task-gate (`gate`) is on and its kind is not the game's. The shelves' class's innermost name is the
-      // hub's (`shelf_matches`, the leads' singleton it names); the rack's names none. With --table-gap the stand-in
-      // group has no shelf (`gap`), and the registration answers 0.
+      // into rdx and jumps directly to `take`, the group's own function. Since spike.10 (run 9's shape) that function
+      // reads nothing of the task: it loads the ledger (G) from `ledger_slot_rva` (made by `missing` while null), puts
+      // the shelf's word at `word_off` (its group's own index) in r8 and tail-jumps through `stub_rva` (which zeroes
+      // r9) to `admit_rva`, G's method. That method calls `note_rva` (a TaskNote in the hub's rows: its vtable
+      // `note_vtable_rva`, stamped with the game thread's id `stamp_ms` later), compares the word with `bound` and with
+      // G's groups at `ledger_groups_off`, reads the task's hub field at `task_hub_off` (kept at G's `ledger_seen_off`)
+      // and its kind at `task_kind_off`, tests G's strict flag at `ledger_flags_off` and, where set, compares the kind
+      // with `kind` (not equal: it answers 1 keeping nothing); else keeps the task in G's list at `ledger_items_off`
+      // (count at `ledger_count_off`, `ledger_items` long) under the tag whose high 16 bits are `tag`, and calls
+      // `keep_rva`, which hands it to the work. The shelf holds, at `shared_off`, the rack, or with --task-gate (`gate`,
+      // G strict) G itself (`ledger_shared`). The shelves' class's innermost name is the hub's (`shelf_matches`); the
+      // rack's and G's name none. With --table-gap the stand-in group has no shelf (`gap`), and the registration answers
+      // 0.
       {"register_rack",
        {{"slot_rva", rva(&fg_static_rack)},
         {"alloc_rva", fn_rva(fg_rack_alloc)},
@@ -380,17 +386,46 @@ int describe(HINSTANCE instance) {
         {"bound", FG_RACK_BOUND},
         {"shelves_off", FG_RACK_SHELVES_OFF},
         {"take_rva", fn_rva(fg_shelf_take)},
-        {"offer_rva", fn_rva(fg_shelf_offer)},
+        {"missing_rva", fn_rva(fg_ledger_missing)},
+        {"ledger_slot_rva", rva(&fg_static_ledger)},
+        {"stub_rva", fn_rva(fg_ledger_stub)},
+        {"admit_rva", fn_rva(fg_ledger_admit)},
+        {"note_rva", fn_rva(fg_ledger_note)},
+        {"keep_rva", fn_rva(fg_ledger_keep)},
+        {"word_off", FG_SHELF_WORD_OFF},
+        {"shared_off", FG_SHELF_SHARED_OFF},
+        {"ledger_shared", options().task_gate},
         {"task_hub_off", FG_TASK_HUB_OFF},
         {"task_kind_off", FG_TASK_KIND_OFF},
         {"kind", FG_TASK_KIND},
-        {"seen_off", FG_SHELF_SEEN_OFF},
-        {"count_off", FG_SHELF_COUNT_OFF},
-        {"items_off", FG_SHELF_ITEMS_OFF},
-        {"items", FG_SHELF_ITEMS},
+        {"ledger_flags_off", FG_LEDGER_FLAGS_OFF},
+        {"ledger_count_off", FG_LEDGER_COUNT_OFF},
+        {"ledger_groups_off", FG_LEDGER_GROUPS_OFF},
+        {"ledger_seen_off", FG_LEDGER_SEEN_OFF},
+        {"ledger_items_off", FG_LEDGER_ITEMS_OFF},
+        {"ledger_items", FG_LEDGER_ITEMS},
         {"tag", static_cast<std::uint64_t>(FG_TASK_TAG) >> 48},
         {"shelf_vtable_rva", rva(vtable_of<FG::TaskShelf>())},
         {"rack_vtable_rva", rva(vtable_of<FG::TaskRackImp>())},
+        {"ledger_vtable_rva", rva(vtable_of<FG::TaskLedgerImp>())},
+        {"note_vtable_rva", rva(vtable_of<FG::TaskNote>())},
+        {"stamp_ms", FG_NOTE_STAMP_MS},
+        // The hub's desk and its rows (R1 run 9's walks): the views' paths from the hub, each row's length.
+        {"views", json::array({json::array({FG_LOOM_DESK_OFF, FG_DESK_INDEX_OFF, FG_INDEX_VIEWS_OFF}),
+                               json::array({FG_LOOM_DESK_OFF, FG_DESK_INDEX_OFF, FG_INDEX_VIEWS_OFF + 32}),
+                               json::array({FG_LOOM_DESK_OFF, FG_DESK_INDEX_OFF, FG_INDEX_VIEWS_OFF + 64}),
+                               json::array({FG_LOOM_DESK_OFF, FG_DESK_INDEX_OFF, FG_INDEX_VIEWS_OFF + 96})})},
+        {"row_bytes", FG_ROW_BYTES},
+        // The registration's sibling of the same shape (two call sites, never run), and the task each of the
+        // registration's own call sites passes (rcx): its form, the base register and displacement, or the callee.
+        {"sibling_rva", fn_rva(fg_unregister_task)},
+        {"sibling_sites", 2},
+        {"forget_rva", fn_rva(fg_ledger_forget)},
+        {"site_args", json::array({{{"arg", "load"}, {"base", 3}, {"disp", 0}, {"base_form", "argument"}},
+                                   {{"arg", "member"}, {"base", 6}, {"disp", FG_BENCH_TASK_OFF},
+                                    {"base_form", "argument"}},
+                                   {{"arg", "result"}, {"target", fn_rva(fg_task_make)}},
+                                   {{"arg", "load"}, {"base", 3}, {"disp", 0x30}, {"base_form", "argument"}}})},
         {"shelf_matches", "task_loom"},
         {"gate", options().task_gate},
         {"gap", options().table_gap},

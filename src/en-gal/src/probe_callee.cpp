@@ -294,19 +294,23 @@ bool flags_untouched(const Instruction& in) noexcept {
 }
 
 // What a value is, as the field reads follow it (spike.9): our task's (the task argument, a value loaded from it, or one
-// of those changed), the group entry's (the same from the entry), or neither.
-enum class Follow : std::uint8_t { None, Task, Entry };
+// of those changed), the group entry's (the same from the entry), since spike.10 the second singleton G's, or neither.
+enum class Follow : std::uint8_t { None, Task, Entry, G };
+constexpr std::size_t kMaxWordUses = 16;
 
 class Summariser {
  public:
   // `end`: the function's length, when the exception directory gives it, or with none the bytes decoded (a jump past it
-  // is a tail jump). `task`: our task's argument, into kArgs; `entry`: which of rcx to r9 hold the group's entry.
+  // is a tail jump). `task`: our task's argument, into kArgs; `entry`: which of rcx to r9 hold the group's entry;
+  // spike.10: `g`, which hold the second singleton G, and `word`, which the entry's word.
   Summariser(std::uint32_t rva, std::uint32_t end, CalleeCode& out, Sources& sources,
-             std::optional<std::uint8_t> task = std::nullopt, std::array<bool, 4> entry = {})
-      : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(entry) {
+             std::optional<std::uint8_t> task = std::nullopt, std::array<bool, 4> entry = {},
+             std::array<bool, 4> g = {}, std::array<bool, 4> word = {})
+      : rva_(rva), end_(end), out_(out), sources_(sources), task_(task), entry_(entry), g_(g), word_(word) {
     out_.args.resize(kArgs.size());
     for (std::size_t i = 0; i < kArgs.size(); ++i) out_.args[i].reg = kArgs[i];
-    following_ = task_.has_value() || std::find(entry_.begin(), entry_.end(), true) != entry_.end();
+    const auto any = [](const std::array<bool, 4>& a) { return std::find(a.begin(), a.end(), true) != a.end(); };
+    following_ = task_.has_value() || any(entry_) || any(g_) || any(word_);
   }
 
   // One instruction's effect on `regs`, nothing recorded (the passes over the flow).
@@ -348,7 +352,7 @@ class Summariser {
       case Held::Kind::Deref:
         return task_ && h.arg == *task_ ? Follow::Task : Follow::None;
       case Held::Kind::Entry:
-        return entry_[h.arg] ? Follow::Entry : Follow::None;
+        return entry_[h.arg] ? Follow::Entry : g_[h.arg] ? Follow::G : Follow::None;
       case Held::Kind::Loaded: {
         const Src& s = sources_.at(h.id);
         return s.rip || !s.base_reg ? Follow::None : follows(s.base, depth + 1);
@@ -380,6 +384,7 @@ class Summariser {
     const std::uint8_t sub = static_cast<std::uint8_t>((in.modrm >> 3) & 7);
     if (legacy && in.map == 0 && op == 0x8D) return p;  // lea reads no memory (its base's use is a change: modify)
     p.mem = memory_operand(in, bytes_);
+    if (p.mem.index) use(regs_[*p.mem.index & 15], use_at(UseKind::Index));  // spike.10: a value as an index
     if (!p.mem.base) return p;
     p.base = regs_[*p.mem.base & 15];
     use(p.base, use_at(UseKind::Base));  // a value read before, the base of this one
@@ -445,11 +450,16 @@ class Summariser {
     return p;
   }
 
+  // The list of reads of a followed value, and its count.
+  std::vector<FieldRead>& reads_list(Follow f) noexcept {
+    return f == Follow::Task ? out_.task_reads : f == Follow::Entry ? out_.entry_reads : out_.g_reads;
+  }
   // A load or an in-place use of a followed field, kept in its list; a loaded value is mapped to it for its uses.
   void add_read(const Planned& p) {
-    const bool task = p.follow == Follow::Task;
-    std::vector<FieldRead>& list = task ? out_.task_reads : out_.entry_reads;
-    ++(task ? out_.task_read_count : out_.entry_read_count);
+    std::vector<FieldRead>& list = reads_list(p.follow);
+    ++(p.follow == Follow::Task ? out_.task_read_count
+       : p.follow == Follow::Entry ? out_.entry_read_count
+                                   : out_.g_read_count);
     Held value;
     if (p.dest) value = regs_[*p.dest & 15];
     if (list.size() >= kMaxFieldReads) return;
@@ -469,7 +479,7 @@ class Summariser {
     list.push_back(std::move(r));
     const bool known = value.kind == Held::Kind::Loaded || value.kind == Held::Kind::Deref;
     if (known && std::none_of(reads_.begin(), reads_.end(), [&](const ReadOf& o) { return o.value == value; })) {
-      reads_.push_back(ReadOf{value, !task, list.size() - 1});
+      reads_.push_back(ReadOf{value, p.follow, list.size() - 1});
     }
   }
 
@@ -477,7 +487,7 @@ class Summariser {
   FieldRead* read_of(const Held& h, int depth = 0) {
     if (h.kind == Held::Kind::None || depth > 4) return nullptr;
     for (const ReadOf& o : reads_) {
-      if (o.value == h) return &(o.entry ? out_.entry_reads : out_.task_reads)[o.index];
+      if (o.value == h) return &reads_list(o.which)[o.index];
     }
     if (h.kind == Held::Kind::Modified) return read_of(sources_.mod(h.id).origin, depth + 1);
     return nullptr;
@@ -488,9 +498,22 @@ class Summariser {
     u.offset = at_;
     return u;
   }
-  // A use of the value a register holds, kept with its read, in the recording pass.
+  // Spike.10: whether a register holds the entry's word (as G's method is entered with it in r8), or it changed.
+  [[nodiscard]] bool is_word(const Held& h, int depth = 0) const noexcept {
+    if (depth > 4) return false;
+    if (h.kind == Held::Kind::Entry) return word_[h.arg];
+    if (h.kind == Held::Kind::Modified) return is_word(sources_.mod(h.id).origin, depth + 1);
+    return false;
+  }
+  // A use of the value a register holds, kept with its read (spike.10: or as a use of the entry's word), in the
+  // recording pass.
   void use(const Held& h, FieldUse u) {
     if (!recording_ || !reached_) return;
+    if (is_word(h)) {
+      ++out_.word_use_count;
+      if (out_.word_uses.size() < kMaxWordUses) out_.word_uses.push_back(std::move(u));
+      return;
+    }
     FieldRead* r = read_of(h);
     if (r == nullptr) return;
     ++r->use_count;
@@ -552,7 +575,7 @@ class Summariser {
   // dst := `h` changed (`h` the value dst held, or for a lea its base's).
   void change(const Held h, std::uint8_t dst, InsnClass op, std::uint8_t width, std::optional<std::uint64_t> imm,
               bool large, std::optional<std::uint8_t> by) {
-    if (following_ && width >= 4 && follows(h) != Follow::None) {
+    if (following_ && width >= 4 && (follows(h) != Follow::None || is_word(h))) {
       if (op != InsnClass::Lea) {  // a lea's base is used as one, which plan_read does not see (it reads nothing)
         FieldUse u = use_at(UseKind::Changed);
         u.op = op;
@@ -575,7 +598,8 @@ class Summariser {
     if (m.rip || !m.base) return kill(dst);
     const Held base = regs_[*m.base & 15];
     use(base, use_at(UseKind::Base));
-    if (!following_ || follows(base) == Follow::None) return kill(dst);
+    if (m.index) use(regs_[*m.index & 15], use_at(UseKind::Index));
+    if (!following_ || (follows(base) == Follow::None && !is_word(base))) return kill(dst);
     const std::uint8_t width = width_of(in, false);
     if (!m.index && m.disp == 0) {
       if (width == 8) {
@@ -641,7 +665,7 @@ class Summariser {
   // loaded 32 bits wide or less.
   void copy(std::uint8_t dst, std::uint8_t src, std::uint8_t width) {
     Held h = regs_[src & 15];
-    const bool narrow = h.kind == Held::Kind::Value ||
+    const bool narrow = h.kind == Held::Kind::Value || (h.kind == Held::Kind::Entry && word_[h.arg]) ||
                         (h.kind == Held::Kind::Loaded && sources_.at(h.id).width <= 4) ||
                         (h.kind == Held::Kind::Modified && sources_.mod(h.id).width <= 4);
     if (width < 4 || (width == 4 && !narrow)) h = Held{};
@@ -921,7 +945,7 @@ class Summariser {
       case 0x63:  // movsxd: a 32-bit value's copy (an index), or a load
         if (reg_form) {
           const Held h = regs_[in.rm()];
-          regs_[in.reg()] = h.kind == Held::Kind::Value ? h : Held{};
+          regs_[in.reg()] = h.kind == Held::Kind::Value || (h.kind == Held::Kind::Entry && word_[h.arg]) ? h : Held{};
         } else {
           load(in.reg(), 4);
         }
@@ -1141,7 +1165,7 @@ class Summariser {
 
   struct ReadOf {
     Held value;
-    bool entry = false;
+    Follow which = Follow::Task;
     std::size_t index = 0;
   };
 
@@ -1151,6 +1175,8 @@ class Summariser {
   Sources& sources_;
   std::optional<std::uint8_t> task_;
   std::array<bool, 4> entry_{};
+  std::array<bool, 4> g_{};
+  std::array<bool, 4> word_{};
   bool following_ = false;
   std::vector<ReadOf> reads_;  // the loaded values of the reads, each with its read (the first that loaded it)
   Regs regs_{};
@@ -1552,7 +1578,86 @@ EntryState entry_at(const CalleeCall& call, const EntryState& parent) noexcept {
   for (const PassedSource& p : call.pass_src) {
     const auto to = arg_index(p.reg);
     const auto from = p.source.kind == Source::Kind::Entry ? arg_index(p.source.from) : std::nullopt;
-    if (to && from && parent[*from].entry && e[*to].from == 0) e[*to].entry = true;
+    if (!to || !from || e[*to].from != 0) continue;
+    const EntryArg& was = parent[*from];
+    e[*to].entry = e[*to].entry || was.entry;
+    e[*to].g = e[*to].g || was.g;
+    e[*to].word = e[*to].word || was.word;
+    e[*to].zero = e[*to].zero || was.zero;
+  }
+  return e;
+}
+
+EntryState method_entry_at(const CalleeCall& site, const EntryState& parent) noexcept {
+  EntryState e = entry_at(site, parent);
+  for (const PassedSource& p : site.pass_src) {
+    const auto to = arg_index(p.reg);
+    if (!to || e[*to].from != 0) continue;
+    if (p.reg == 1 && p.source.kind == Source::Kind::Rip && p.source.width == 8) e[*to].g = true;
+    if (p.source.kind == Source::Kind::Memory && p.source.base_src.size() == 1 &&
+        p.source.base_src[0].kind == Source::Kind::Entry) {
+      const auto from = arg_index(p.source.base_src[0].from);
+      if (from && parent[*from].entry) e[*to].word = true;
+    }
+  }
+  return e;
+}
+
+const CalleeCall* method_site(const CalleeCode& group, std::uint8_t task) noexcept {
+  for (const CallForm form : {CallForm::Tail, CallForm::Direct}) {  // a tail jump first, as run 9's
+    for (const CalleeCall& c : group.calls) {
+      if (!c.reached || !c.target || c.form != form) continue;
+      const bool passes_task = std::any_of(c.pass.begin(), c.pass.end(),
+                                           [&](const PassedArg& p) { return p.from == task && !p.first_word; });
+      const auto rcx =
+          std::find_if(c.pass_src.begin(), c.pass_src.end(), [](const PassedSource& p) { return p.reg == 1; });
+      if (passes_task && rcx != c.pass_src.end() && rcx->source.kind == Source::Kind::Rip && rcx->source.width == 8) {
+        return &c;
+      }
+    }
+  }
+  return nullptr;
+}
+
+const CalleeCall* stub_jump(const CalleeCode& stub) noexcept {
+  if (!stub.read || stub.bytes == 0 || stub.bytes > kMaxStubBytes || stub.call_count != 0 || stub.branch_count != 0 ||
+      stub.first_ret || stub.calls.size() != 1 || stub.forms.empty()) {
+    return nullptr;
+  }
+  const CalleeCall& j = stub.calls.front();
+  const Form& last = stub.forms.back();
+  if (j.form != CallForm::Tail || !j.reached || !j.target || last.offset != j.offset || last.cls != InsnClass::Jmp ||
+      last.offset + last.length != stub.bytes) {
+    return nullptr;
+  }
+  return &j;
+}
+
+EntryState through_stub(const CalleeCode& stub, const EntryState& stub_entry) noexcept {
+  const CalleeCall* j = stub_jump(stub);
+  if (j == nullptr) return {};
+  EntryState e = entry_at(*j, stub_entry);
+  std::array<bool, 4> zero{};
+  for (const Form& f : stub.forms) {
+    if (f.offset >= j->offset) break;
+    if (f.operands.empty() || f.operands[0].form != OperandForm::Register || !f.operands[0].reg) continue;
+    const auto i = arg_index(*f.operands[0].reg);
+    if (!i) continue;
+    const Operand& dst = f.operands[0];
+    const bool self_xor = f.cls == InsnClass::Xor && f.operands.size() == 2 &&
+                          f.operands[1].form == OperandForm::Register && f.operands[1].reg == dst.reg;
+    const bool mov_zero = f.cls == InsnClass::Mov && f.operands.size() == 2 &&
+                          f.operands[1].form == OperandForm::Immediate && f.operands[1].imm == std::optional<std::uint64_t>(0);
+    switch (f.cls) {
+      case InsnClass::Cmp: case InsnClass::Test: case InsnClass::Push: case InsnClass::Nop:
+        break;
+      default:
+        zero[*i] = (self_xor || mov_zero) && dst.width >= 4;
+        break;
+    }
+  }
+  for (std::size_t i = 0; i < zero.size(); ++i) {
+    if (zero[i]) e[i] = EntryArg{0, false, false, false, false, true};
   }
   return e;
 }
@@ -1564,7 +1669,7 @@ EntryState group_entry_at(const CalleeCall& site) noexcept {
 }
 
 CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, std::uint32_t extent,
-                            const EntryState& entry, std::uint8_t task) {
+                            const EntryState& entry, std::uint8_t task, std::span<const std::uint32_t> starts) {
   CalleeCode out;
   out.read = !code.empty();
   out.extent = extent;
@@ -1591,7 +1696,9 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
     // jump decoded so far goes past it (a tail jump's padding is the next function's, never its own).
     if (insn->flow == Flow::Branch || insn->flow == Flow::Jump) {
       const auto to = x86::branch_target(*insn, code.subspan(from, insn->length), std::uint64_t{rva} + from);
-      if (to && *to >= rva) past = std::max<std::uint64_t>(past, *to - rva);
+      const bool to_function = insn->flow == Flow::Jump && to && *to > rva && *to <= 0xFFFF'FFFFull &&
+                               std::binary_search(starts.begin(), starts.end(), static_cast<std::uint32_t>(*to));
+      if (to && *to >= rva && !to_function) past = std::max<std::uint64_t>(past, *to - rva);
     }
     const bool leaves = insn->flow == Flow::Return || insn->flow == Flow::Jump || insn->flow == Flow::JumpIndirect;
     if (insn->flow == Flow::Return || (leaves && past < at)) {
@@ -1607,9 +1714,14 @@ CalleeCode summarise_callee(std::span<const std::byte> code, std::uint32_t rva, 
 
   // What each instruction's registers hold along the flow, to a fixed point: a register only ever loses what it holds.
   Sources sources;
-  std::array<bool, 4> entries{};
-  for (std::size_t i = 0; i < kArgs.size(); ++i) entries[i] = entry[i].entry && entry[i].from == 0;
-  Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), entries);
+  std::array<bool, 4> entries{}, gs{}, words{};
+  for (std::size_t i = 0; i < kArgs.size(); ++i) {
+    entries[i] = entry[i].entry && entry[i].from == 0;
+    gs[i] = entry[i].g && entry[i].from == 0;
+    words[i] = entry[i].word && entry[i].from == 0;
+  }
+  Summariser s(rva, extent != 0 ? extent : static_cast<std::uint32_t>(at), out, sources, arg_index(task), entries, gs,
+               words);
   std::vector<State> states(decoded.size());
   if (!decoded.empty()) {
     states[0].reached = true;

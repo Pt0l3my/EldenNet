@@ -358,7 +358,15 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   (Source's `modified`); `search_memory` counts words whose low 48 bits are our object's or vtable's address under a
   non-zero tag, and `classify_value` names such a word `task_tagged` with its high bits; `read_table` can answer the
   addresses it read for T1 (the walk's roots, the classes), never reported; `match_lead` names a class against the
-  leads' names as O92 does (derive's `innermost_class` gives the name).
+  leads' names as O92 does (derive's `innermost_class` gives the name). Spike.10 (WHY§289) reads the second
+  singleton's method run 9 found: `method_site` finds the group function's site that passes our task with rcx loaded
+  from a slot (a tail jump first), `method_entry_at` gives G's method its entry (`EntryArg::g`, `word`), `stub_jump`
+  knows a stub and `through_stub` carries the state through it (`zero` where it zeroes a register), and
+  `entry_at(call, parent)` carries G, the word and a zero into callees; `summarise_callee` lists the loads based on G
+  (`g_reads`) and the uses of the entry's word (`word_uses`), a use as an index is `index`, and with `starts` (the
+  exception directory's) a direct jump to a function's start goes past nothing; `task_argument` reads what a call site
+  passes as the task (the function decoded from its start onto the call, read back to the register's last write);
+  `diff_view` compares one of the array's views across the call; `read_table` answers every entry's address.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -453,7 +461,12 @@ entry's count, the task's store in the entry's list as a tagged pointer (an or b
 into its call; a function reading the task's vtable and calling through its slot, a pointer read from the task and
 read from in turn, fields compared and tested in place, a lea into the task stored to a global and a bit set in the
 task stored through it; a diff word and the whole-memory search's words holding our address under a tag (ours apart,
-our vtable's too, none for a tagged pointer inside our object); a class's innermost name against the leads' names; the
+our vtable's too, none for a tagged pointer inside our object); spike.10's on code of our own: a group function of run
+9's shape (its site the tail jump, not the report's call), its stub (r9 zeroed, G and the word carried; one whose
+target follows it ends at its jump only with the starts) and a method of G's with its task reads, three reads of G,
+four uses of the word and its call carrying both; a call site's task as a load, a member, a result, a static and a
+stack slot with a branch landing on the call; a view's changed words with the threads' ids; a class's innermost name
+against the leads' names; the
 table's addresses for T1; and the report of all of it, lint-clean). The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls

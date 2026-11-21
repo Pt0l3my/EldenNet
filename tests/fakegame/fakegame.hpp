@@ -24,15 +24,30 @@
 #define FG_GROUP_BOUND 0x200          // the registration refuses a group index at or past it, before the count
 #define FG_RACK_SHELVES_OFF 0x10      // FG::TaskRackImp: its table of shelves, one per group (spike.8's shape, WHY§240)
 #define FG_RACK_BOUND 31              // the tail function answers 0 for a group past it (entries 0 to 31)
-// A shelf (the group's entry, spike.9's shape, WHY§248): its fields, and those of a task it reads.
-#define FG_SHELF_COUNT_OFF 0x0C       // FG::Rack::TaskLoomImp: how many tasks its list holds
-#define FG_SHELF_SEEN_OFF 0x18        // the last task's hub field, as the shelf read it
-#define FG_SHELF_ITEMS_OFF 0x20       // its list of tasks, each a pointer under a tag
-#define FG_SHELF_ITEMS 8              // the list's length
+// A shelf (the group's entry; since spike.10 R1 run 9's shape, WHY§289): its word, and the object it holds where run 9's
+// entries held one.
+#define FG_SHELF_WORD_OFF 0x54        // FG::Rack::TaskLoomImp: its word, the group's own index, passed on in r8
+#define FG_SHELF_SHARED_OFF 0x58      // the rack (with --task-gate the ledger)
+// The ledger (the second singleton G, spike.10): its fields, and those of a task its method reads.
+#define FG_LEDGER_FLAGS_OFF 0x08      // FG::TaskLedgerImp: bit 0, strict (--task-gate): only tasks of the game's kind
+#define FG_LEDGER_COUNT_OFF 0x0C      // how many tasks its list holds
+#define FG_LEDGER_GROUPS_OFF 0x10     // the hub's groups: a word at or past it is refused
+#define FG_LEDGER_SEEN_OFF 0x18       // the last task's hub field, as the method read it
+#define FG_LEDGER_ITEMS_OFF 0x20      // its list of tasks, each a pointer under a tag
+#define FG_LEDGER_ITEMS 8             // the list's length
 #define FG_TASK_HUB_OFF 0x10          // a task's hub field (FG::TaskFields::hub, at +0x08 + 0x08)
 #define FG_TASK_KIND_OFF 0x20         // a task's kind (FG::TaskFields::kind): the game's own tasks hold FG_TASK_KIND
-#define FG_TASK_KIND 0x51             // the kind the shelf compares, and with --task-gate the only one the hub runs
-#define FG_TASK_TAG 0x7E01000000000000  // the high-bit tag the shelf keeps a task's pointer under (high 16: 0x7E01)
+#define FG_TASK_KIND 0x51             // the kind the ledger's method compares; with --task-gate the only one it keeps
+#define FG_TASK_TAG 0x7E01000000000000  // the high-bit tag the ledger keeps a task's pointer under (high 16: 0x7E01)
+// The hub's desk (spike.10, R1 run 9's walks): at +0x3B0 of the hub, at +0x3D0 of the desk its index, whose four
+// pointers 32 bytes apart from +200 lead to rows of the ledger's notes 240 bytes apart (four views of one array).
+#define FG_LOOM_DESK_OFF 0x3B0
+#define FG_DESK_INDEX_OFF 0x3D0
+#define FG_INDEX_VIEWS_OFF 200
+#define FG_ROW_BYTES 240
+#define FG_NOTE_STAMP_MS 120          // the game thread stamps a note with its thread id this long after it is made
+// The program's own call sites: the second's task a member of a bench at this offset (spike.10's call-site forms).
+#define FG_BENCH_TASK_OFF 0x10
 #define FG_WARDEN_SAVE_SLOT_OFF 0x14  // FG::RunWardenImp: the save slot
 #define FG_PLOT_PLACE_OFF 0x1C        // FG::FieldPlotImp: the place id
 #define FG_RTCLASS_NAME_OFF 0x18      // a runtime-class object: its name pointer (DLRF's role; ARCH §6.2 step 3)
@@ -105,29 +120,54 @@ std::uint64_t fg_register_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::ui
 // answers 0; else (R1 run 8's shape, WHY§248) it moves the task into rdx and jumps directly to fg_shelf_take, the
 // shelf in rcx and the hub still in r9.
 std::uint64_t fg_register_rack(void* rack, std::uint32_t group, FG::TaskUnit* task, FG::TaskLoomImp* hub);
-// The group's own function: it reads two fields of the task (its hub field, kept on the shelf, and its kind, compared
-// with FG_TASK_KIND), keeps the task in the shelf's list as a pointer under FG_TASK_TAG, and offers it to the hub
-// (fg_shelf_offer, with whether its kind is the game's); answers 1.
+// The group's own function (since spike.10 R1 run 9's shape, WHY§289): null for a null task; else it loads the ledger
+// from fg_static_ledger (while that is null, fg_ledger_missing makes it), puts the shelf's word in r8 and tail-jumps
+// through fg_ledger_stub (which zeroes r9) to the ledger's method, the ledger in rcx and the task in rdx.
 std::uint64_t fg_shelf_take(void* shelf, FG::TaskUnit* task, FG::TaskUnit* same_task, FG::TaskLoomImp* hub);
 extern void* fg_static_rack;                  // FG::TaskRackImp*: the registration's own singleton, made lazily
+extern void* fg_static_ledger;                // FG::TaskLedgerImp*: the second singleton G, made with the hub
+extern std::uint64_t fg_ledger_blank;         // a static word the hub's rows point at before their first note
+extern void* fg_ledger_given;                 // the hub the last registration was given, for the work
+std::uint64_t fg_ledger_stub(void* ledger, FG::TaskUnit* task, std::uint32_t word, std::uint64_t zero);
+// The ledger's method (G's): it notes the task in the hub's rows (fg_ledger_note), refuses a word past FG_RACK_BOUND
+// or at or past its groups, reads the task's hub field (kept on the ledger) and kind, and, where the ledger is strict
+// (--task-gate) and the kind is not FG_TASK_KIND, answers 1 keeping nothing (R1 run 9's end); else it keeps the task in
+// its list under FG_TASK_TAG and hands it to the work (fg_ledger_keep). It answers 1.
+std::uint64_t fg_ledger_admit(void* ledger, FG::TaskUnit* task, std::uint32_t word, std::uint64_t zero);
 // The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
 void fg_register_keep(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
-// The program's own call sites into it: four tasks, each {task, group}, registered in order.
+// The program's own call sites into it: four tasks, each {task, group}, registered in order, each passed as a call
+// site of a game might pass it (spike.10): a load from the rows, the bench's member (FG_BENCH_TASK_OFF), an allocator's
+// result (fg_task_make), a load.
 struct FgBootTask {
   FG::TaskUnit* task;
   std::uint32_t group;
   std::uint32_t spare;
 };
-void fg_boot_register_tasks(const FgBootTask* tasks);  // exactly four entries
+struct FgTaskBench {
+  std::uint64_t id;
+  std::uint64_t spare;
+  alignas(8) unsigned char task[0x30];  // FG_BENCH_TASK_OFF: a task object made in place
+};
+void fg_boot_register_tasks(const FgBootTask* tasks, FgTaskBench* bench);  // exactly four entries
+FG::TaskUnit* fg_task_make(std::uint32_t which);  // the boot task `which`, as an allocator would answer it
+// The registration's sibling of the same argument shape (spike.10): it hands the task to the ledger to forget; its two
+// call sites (fg_boot_forget_tasks) are never run, only there to be found.
+std::uint64_t fg_unregister_task(FG::TaskUnit* task, FG::TaskLoomImp* hub, std::uint32_t group);
+void fg_boot_forget_tasks(const FgBootTask* tasks);
 
 // Called from the assembly (defined in C++).
 void fg_fd4_unset(const char* path, const char* name, std::uint32_t site);  // a singleton used before it was set
 void fg_hub_enqueue(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 void* fg_rack_alloc();                               // the rack's memory, zeroed
 void* fg_rack_build(void* memory, FG::TaskLoomImp* hub);  // a shelf for each group of the hub's (but the gap's)
-// The hub's side of a shelf's take (spike.9): the work, with the hub the registration was given, unless --task-gate
-// is on and the task's kind is not the game's (`awake` 0), when the hub never runs it.
-void fg_shelf_offer(void* shelf, FG::TaskUnit* task, std::uint32_t awake, FG::TaskLoomImp* hub);
+// The ledger's side (spike.10): made while its static is null; a note of each task it is given in the hub's rows (an
+// object of FG::TaskNote, a fresh record, stamped with the game thread's id FG_NOTE_STAMP_MS later); the work, with the
+// hub; and the sibling's forgetting, which keeps nothing.
+void fg_ledger_missing();
+void fg_ledger_note(void* ledger, FG::TaskUnit* task, std::uint32_t word);
+void fg_ledger_keep(void* ledger, std::uint32_t group, FG::TaskUnit* task);
+std::uint64_t fg_ledger_forget(void* ledger, FG::TaskUnit* task, std::uint32_t group, FG::TaskLoomImp* hub);
 void fg_register_rejected(std::uint32_t reason);  // 1 hub, 2 group, 3 task; it faults, as a game given bad input would
 }
 
@@ -191,20 +231,25 @@ struct TaskLoomFields {       // from +0x08
   void* last_vtable;          // 0x38 (FG_LOOM_LAST_VTABLE_OFF): that task's vtable, as a hub might cache it
   void** run_fns;             // 0x40: each active task's run slot, in the order of `live`, as a hub might cache them
   std::uint64_t spare;        // 0x48
+  std::uint8_t spare_desk[FG_LOOM_DESK_OFF - 0x50];  // 0x50
+  void* desk;                 // 0x3B0 (FG_LOOM_DESK_OFF): the desk, its index and the rows (spike.10)
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
 
 // The registration's own singleton (spike.8's shape, WHY§240): a shelf per group. Made by the registration's first call;
 // with --table-gap the stand-in group has no shelf. Since spike.9 (WHY§248) each shelf is an object of a class of the
-// rack's own, whose list keeps the tasks it took, each under a high-bit tag. Its class's innermost name is the hub's
-// (FG::Rack::TaskLoomImp), so R1, naming classes as O92 does, matches it to the hub's lead; the rack's matches none.
+// rack's own; its class's innermost name is the hub's (FG::Rack::TaskLoomImp), so R1, naming classes as O92 does, matches
+// it to the hub's lead; the rack's matches none. Since spike.10 (WHY§289, R1 run 9's shape) a shelf holds a word, its
+// group's own index, which the group's function passes to the ledger's method, and the rack where run 9's entries held
+// one object (the ledger with --task-gate).
 inline constexpr std::uint32_t kRackGroups = FG_RACK_BOUND + 1;
 struct ShelfFields {                      // from +0x08
   std::uint32_t group;                    // 0x08
-  std::uint32_t count;                    // 0x0C (FG_SHELF_COUNT_OFF)
-  std::uint64_t spare;                    // 0x10
-  void* seen;                             // 0x18 (FG_SHELF_SEEN_OFF): the last task's hub field, as read
-  std::uint64_t items[FG_SHELF_ITEMS];    // 0x20 (FG_SHELF_ITEMS_OFF): tagged pointers
+  std::uint32_t spare0;                   // 0x0C
+  std::uint64_t spare[8];                 // 0x10
+  std::uint32_t spare1;                   // 0x50
+  std::uint32_t word;                     // 0x54 (FG_SHELF_WORD_OFF)
+  void* shared;                           // 0x58 (FG_SHELF_SHARED_OFF)
 };
 namespace Rack {
 class TaskLoomImp {
@@ -222,6 +267,29 @@ class TaskRackImp {
  public:
   virtual std::uint32_t rack_kind() const;
   RackFields r{};
+};
+
+// The second singleton G (spike.10, WHY§289): the ledger the group's function hands each task to. Its class names no lead.
+struct LedgerFields {                     // from +0x08
+  std::uint32_t flags;                    // 0x08 (FG_LEDGER_FLAGS_OFF)
+  std::uint32_t count;                    // 0x0C (FG_LEDGER_COUNT_OFF)
+  std::uint32_t groups;                   // 0x10 (FG_LEDGER_GROUPS_OFF)
+  std::uint32_t spare;                    // 0x14
+  void* seen;                             // 0x18 (FG_LEDGER_SEEN_OFF): the last task's hub field, as read
+  std::uint64_t items[FG_LEDGER_ITEMS];   // 0x20 (FG_LEDGER_ITEMS_OFF): tagged pointers
+};
+class TaskLedgerImp {
+ public:
+  virtual std::uint32_t ledger_kind() const;
+  LedgerFields l{};
+};
+// A note in the hub's rows (spike.10): its vtable in the game's rdata, a fresh record, the game thread's stamp.
+class TaskNote {
+ public:
+  virtual std::uint32_t note_kind() const;
+  void* record = nullptr;                 // +0x08: a fresh heap block (before the first note: fg_ledger_blank)
+  std::uint32_t stamp = 0;                // +0x10: the game thread's id, FG_NOTE_STAMP_MS after the note
+  std::uint32_t spare = 0;
 };
 
 // Every singleton class has a virtual function of its own, so each has a vtable and RTTI.

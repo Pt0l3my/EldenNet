@@ -102,6 +102,8 @@ bool write_private(const std::wstring& path, std::string_view text);
 bool make_dirs(const std::wstring& path);
 // A visible top-level window of this process (ARCH §3.2's WaitWindow).
 [[nodiscard]] bool main_window() noexcept;
+// The thread that owns that window (the game's main thread), or 0 (spike.10, WHY§289).
+[[nodiscard]] DWORD main_window_thread() noexcept;
 // The process's modules' file names, and whether one is ours by its marker (another module exporting
 // eldennet_instance_marker: R16's second copy).
 [[nodiscard]] std::vector<std::wstring> module_names();

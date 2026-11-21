@@ -14,7 +14,9 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About 30 minutes: 5 to unzip and start, 1 to 3 at the title screen, 10 to play, a few to quit and send the files.
+The run usually ends at the title screen, in about 5 to 10 minutes: 5 to unzip and start, 1 to 3 at the title
+screen, then a minute or two before you quit, and a few to send the files. Only if the console says "Task confirmed."
+do you play, for about ten minutes more.
 
 
 What is in it
@@ -47,6 +49,8 @@ Before you start
     played with mods into online play.
   - The launcher's messages appear in a console window behind the game. Setting the game to windowed mode first makes
     them easy to read; otherwise press Alt+Tab to look, and Alt+Tab back.
+  - Do not click inside the console window. If its text stops changing, wait two minutes, then quit the game from
+    the title screen.
   - You will press the Pause key once. On a laptop without one it is often Fn+B, Fn+P or Ctrl+Fn+B; Windows'
     On-Screen Keyboard (osk) has one too.
   - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
@@ -112,9 +116,11 @@ What it does
     only when every check has passed and you have pressed Pause: it asks the game to run EldenNet's task, a small
     object of ours, every frame. That task then counts how the game calls it, follows the game's own task list to
     learn the task's shape, and watches a few numbers rise and stand still (the play time) to find where they live.
-  - Before the call it reads the code that the call will run, and the code that code calls in turn, two levels
-    further down than before (to the task group's own code), and summarises them: which parts of EldenNet's task
-    that code reads, and what it does with them. Just before the call it copies, into EldenNet's own memory, the part
+  - Before the call it reads the code that the call will run, and the code that code calls in turn, down to the code
+    of a second object of the game's that the task group hands EldenNet's task to, and one level below it, and
+    summarises them: which parts of EldenNet's task, of that object and of the group's entry that code reads, and what
+    it does with them. It also reads, from the game's code only, what the game's own calls of the same function hand
+    over as their task, and summarises a second function of the same shape for comparison. Just before the call it copies, into EldenNet's own memory, the part
     of the game's memory that the game's task list leads to, and the parts the group's table and its entry lead to,
     and twice after the call it compares those parts again, counting the numbers that changed and saying only what
     kind each is (zero, a small count, a pointer and to what kind of memory). Twice after the call it also looks
@@ -122,11 +128,14 @@ What it does
     EldenNet's task or the parts of it, also with a mark in the top bits of their addresses; it reports only counts
     and the kinds of memory it found them in, never what the memory holds.
   - Just before the call and 2 s after it, it reads the table that code looks the group up in: which entries are set,
-    and, by number only, which kind of object the table and the group's entry are.
+    and, by number only, which kind of object the table, the group's entry and that second object are, and one number
+    each entry of the table holds. It compares the second object's part of memory across the call too, and reads one
+    small part of the game's task list again a twentieth and a quarter of a second after the call.
   - Every two seconds it writes the two reports into %APPDATA%\EldenNet\probe. They hold only numbers (offsets,
     sizes, counts) and our own labels: no names, no text, no paths, nothing of your character or your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
-    in and the time, never a memory dump.
+    in and the time, never a memory dump. It writes its log before the console, and never waits for the console, so a
+    console that stops showing text no longer stops it watching.
 
 
 What it never does
