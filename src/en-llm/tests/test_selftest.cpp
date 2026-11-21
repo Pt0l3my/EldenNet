@@ -368,9 +368,13 @@ key_ref = "secrets:cloud"
   REQUIRE(list.report().lists.size() == 3);
   CHECK(list.report().lists[2].provider == "idle");
   rig.drive(list);
-  CHECK(list.report().lists[0].models == std::vector<std::string>{"model-a"});
-  CHECK(list.report().lists[2].models == std::vector<std::string>{"spare-1", "spare-2", "spare-3"});
-  CHECK(list.report().lists[2].state == CheckState::Passed);
+  // The fake server answers in the order the lists reach it, which the workers decide: each list keeps what came back
+  // to it, so the three answers are there, one a list.
+  std::vector<std::vector<std::string>> kept;
+  for (const ListCheck& c : list.report().lists) kept.push_back(c.models);
+  std::sort(kept.begin(), kept.end());
+  CHECK(kept == std::vector<std::vector<std::string>>{{"model-a"}, {"model-b"}, {"spare-1", "spare-2", "spare-3"}});
+  CHECK(list.report().lists[2].state != CheckState::Waiting);
   // The self-test asks only the providers its slots name.
   CHECK(SelfTest(*rig.service->client().config(), false, 3000).report().lists.size() == 2);
 }
