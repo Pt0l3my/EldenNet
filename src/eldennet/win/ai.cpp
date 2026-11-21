@@ -435,7 +435,12 @@ void note_answers(AiState& st, const llm::SelfTestReport& r) {
       st.listed[c.provider] = c.models;  // the pickers' choices: never logged
       st.rejected.erase(c.provider);
     }
-    if (c.error == llm::ErrorClass::Auth) st.rejected.insert(c.provider);
+    // Refused for its key, or for want of one: never for a key that was not sent (its key_ref names none kept yet),
+    // whose row says Missing.
+    if (c.error == llm::ErrorClass::Auth) {
+      const llm::ProviderConfig* p = st.config ? st.config->provider(c.provider) : nullptr;
+      if (p != nullptr && p->keys_resolved()) st.rejected.insert(c.provider);
+    }
   }
   if (r.latency == llm::CheckState::Passed) {
     st.answered[r.provider] = now;
