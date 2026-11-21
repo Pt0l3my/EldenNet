@@ -52,6 +52,8 @@ struct AiState {
   llm::Secret secrets;    // secrets.toml likewise
   std::optional<llm::Config> config;
   bool refused = false;
+  ov::AiRefusal refusal = ov::AiRefusal::Other;  // the last refusal's kind and line, for the pages' words
+  std::uint32_t refusal_line = 0;
   std::unique_ptr<llm::Service> service;
   bool gate = false;      // as the handle was last told
   bool gate_now = false;  // the core's, at the last wake
@@ -76,19 +78,51 @@ struct AiState {
 };
 constinit AiState* g_ai = nullptr;
 
-// A configuration error, for the log: the file and the line alone (the message can hold an address).
-void log_refusal(const llm::ConfigError& e) {
+ov::AiRefusal refusal_of(llm::ConfigRefusal r) noexcept {
+  switch (r) {
+    case llm::ConfigRefusal::Other: return ov::AiRefusal::Other;
+    case llm::ConfigRefusal::Scheme: return ov::AiRefusal::Scheme;
+    case llm::ConfigRefusal::Credentials: return ov::AiRefusal::Credentials;
+    case llm::ConfigRefusal::QueryOrFragment: return ov::AiRefusal::QueryOrFragment;
+    case llm::ConfigRefusal::PlainPublic: return ov::AiRefusal::PlainPublic;
+    case llm::ConfigRefusal::PlainCloud: return ov::AiRefusal::PlainCloud;
+    case llm::ConfigRefusal::PlainKey: return ov::AiRefusal::PlainKey;
+  }
+  return ov::AiRefusal::Other;
+}
+
+const char* refusal_word(llm::ConfigRefusal r) noexcept {
+  switch (r) {
+    case llm::ConfigRefusal::Other: return "other";
+    case llm::ConfigRefusal::Scheme: return "scheme";
+    case llm::ConfigRefusal::Credentials: return "credentials";
+    case llm::ConfigRefusal::QueryOrFragment: return "query";
+    case llm::ConfigRefusal::PlainPublic: return "plain_public";
+    case llm::ConfigRefusal::PlainCloud: return "plain_cloud";
+    case llm::ConfigRefusal::PlainKey: return "plain_key";
+  }
+  return "other";
+}
+
+// A configuration error, for the log and the pages: the file, the line and the refusal's kind alone (the message can
+// hold an address).
+void log_refusal(AiState& st, const llm::ConfigError& e) {
   const std::string what = e.what();
   const std::string file = what.substr(0, what.find(':'));
-  std::uint64_t line = 0;
-  if (const std::size_t at = what.rfind("(line "); at != std::string::npos) {
-    line = std::strtoull(what.c_str() + at + 6, nullptr, 10);
-  } else if (const std::size_t at2 = what.find(": line "); at2 != std::string::npos) {
-    line = std::strtoull(what.c_str() + at2 + 7, nullptr, 10);
+  std::uint64_t line = e.line();
+  if (line == 0) {
+    if (const std::size_t at = what.rfind("(line "); at != std::string::npos) {
+      line = std::strtoull(what.c_str() + at + 6, nullptr, 10);
+    } else if (const std::size_t at2 = what.find(": line "); at2 != std::string::npos) {
+      line = std::strtoull(what.c_str() + at2 + 7, nullptr, 10);
+    }
   }
   const bool known = file == "providers.toml" || file == "models.toml" || file == "secrets.toml" ||
                      file == "settings.toml";
-  log(Line("ai_config").word("result", "refused").word("file", known ? file : "unknown").num("line", line),
+  st.refusal = refusal_of(e.refusal());
+  st.refusal_line = line <= 0xFFFFFFFFu ? static_cast<std::uint32_t>(line) : 0;
+  log(Line("ai_config").word("result", "refused").word("file", known ? file : "unknown").num("line", line)
+          .word("why", refusal_word(e.refusal())),
       LogLevel::Warn);
 }
 
@@ -106,10 +140,12 @@ std::optional<llm::Config> load(AiState& st, std::string_view providers, const l
     return cfg;
   } catch (const llm::ConfigError& e) {
     std::fill(texts.secrets->begin(), texts.secrets->end(), '\0');
-    log_refusal(e);
+    log_refusal(st, e);
     return std::nullopt;
   } catch (const std::exception&) {
     std::fill(texts.secrets->begin(), texts.secrets->end(), '\0');
+    st.refusal = ov::AiRefusal::Other;
+    st.refusal_line = 0;
     log(Line("ai_config").word("result", "refused").word("file", "unknown").num("line", 0), LogLevel::Warn);
     return std::nullopt;
   }
@@ -221,6 +257,8 @@ void fill_preset(AiState& st, const std::string& chosen) {
 void fill_facts(AiState& st, const ov::Space& space) {
   ov::AiFacts& f = st.facts;
   f.files = st.refused ? ov::AiFiles::Refused : st.config ? ov::AiFiles::Ready : ov::AiFiles::Missing;
+  f.refusal = st.refusal;
+  f.refusal_line = st.refusal_line;
   f.preset = st.config ? st.config->preset : std::string();
   const std::string chosen = space.values().value("ai.preset", std::string("custom"));
   if (st.dirty || chosen != st.chosen) {

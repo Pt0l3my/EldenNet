@@ -142,6 +142,30 @@ std::string duration_of(std::uint64_t ms) {
   return std::to_string(minutes / 60) + " h " + std::to_string(minutes % 60) + " min";
 }
 
+// Why providers.toml was refused, in the player's words, with where (the file's line, never its text).
+std::string refusal_words(AiRefusal r, std::uint32_t line) {
+  std::string what;
+  switch (r) {
+    case AiRefusal::Scheme: what = "A provider's base_url starts with neither https:// nor http://."; break;
+    case AiRefusal::Credentials:
+      what = "A provider's base_url holds a name or password: its key goes in secrets.toml, named by key_ref.";
+      break;
+    case AiRefusal::QueryOrFragment: what = "A provider's base_url has a ? or # in it: it ends at its path."; break;
+    case AiRefusal::PlainPublic:
+      what = "A provider's base_url uses http:// to a host that is neither this PC nor a private address: use https://.";
+      break;
+    case AiRefusal::PlainCloud: what = "A cloud provider's base_url uses http://: use https://."; break;
+    case AiRefusal::PlainKey:
+      what = "A provider with a key uses http:// to another computer, where its key would cross the network "
+             "unencrypted: use https://, or remove its key.";
+      break;
+    case AiRefusal::Other: what = "It holds something EldenNet cannot use."; break;
+  }
+  what += line != 0 ? " Correct providers.toml at line " + std::to_string(line) + ", then start the game again."
+                    : " Correct providers.toml, then start the game again.";
+  return what;
+}
+
 json item(std::string_view label, std::string value) { return json{{"label", label}, {"value", std::move(value)}}; }
 
 json check(std::string_view label, std::string_view state, std::string detail) {
@@ -192,6 +216,10 @@ json errors_body(const SpaceFacts& f) {
     checks.push_back(check("Your settings file has a problem, so EldenNet uses its defaults.", "warn",
                            "System › Logs names the setting. Correct it in settings.toml, then start the game again."));
   }
+  if (f.ai != nullptr && f.ai->files == AiFiles::Refused) {
+    checks.push_back(check("Your providers file has a problem, so EldenNet calls no model.", "warn",
+                           refusal_words(f.ai->refusal, f.ai->refusal_line)));
+  }
   return json{{"checks", std::move(checks)}};
 }
 
@@ -234,6 +262,10 @@ json system_status_body(const SpaceFacts& f) {
     case Reading::Inert: checks.push_back(check("Reading the game", "fail", "Stopped")); break;
   }
   checks.push_back(check("The core", "pass", "Running"));
+  // The providers file, once read: refused, in words (its line, never its text); else nothing to say here.
+  if (f.ai != nullptr && f.ai->files == AiFiles::Refused) {
+    checks.push_back(check("The providers file", "fail", refusal_words(f.ai->refusal, f.ai->refusal_line)));
+  }
   checks.push_back(check("Anti-cheat watch", f.watcher ? "pass" : "fail",
                          f.watcher ? "Checks the game's modules every minute" : "Not running"));
   if (!f.logger) {
@@ -458,7 +490,7 @@ std::string ai_cause(const SpaceFacts& f) {
   const AiFacts& ai = *f.ai;
   if (f.level == Level::Inactive) return banner_words(f);  // the greyed page's one form (O95)
   if (ai.files == AiFiles::Refused) {
-    return "Your providers file has a problem, so EldenNet calls no model. System › Logs names the line.";
+    return "Your providers file has a problem, so EldenNet calls no model: System › Status says what.";
   }
   if (ai.providers.empty()) {
     return "No provider yet: on Providers, add the preset's provider or one of your own.";
@@ -831,7 +863,7 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
   if (ai) {
     if (facts.ai == nullptr) return refuse("not_now", "EldenNet's model settings are not ready yet.");
     if (facts.ai->files == AiFiles::Refused) {
-      return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+      return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
     }
   } else if (facts.settings_refused) {
     return refuse("not_now", "Your settings file has a problem: correct it first. System › Logs names the setting.");
@@ -951,7 +983,7 @@ std::string Space::ai_command(const json& id, std::string_view name, json& args,
   if (ai == nullptr || facts.level == Level::Starting) return refuse("not_now", "EldenNet is still starting.");
   if (facts.level == Level::Inactive) return refuse("not_now", banner_words(facts));
   if (ai->files == AiFiles::Refused) {
-    return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+    return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
   }
   const bool running = ai->selftest.running || ai->listing;
   const bool calls = name == "selftest.run" || name == "models.list";
@@ -1141,7 +1173,7 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
     if (chosen.empty()) {
       return refuse("not_now", facts.ai == nullptr ? "EldenNet's model settings are not ready yet."
                                                    : "Your providers file has a problem: correct it first. System › "
-                                                     "Logs names the line.");
+                                                     "Status says what.");
     }
   }
   if (facts.settings_refused && std::any_of(chosen.begin(), chosen.end(), [&](const Setting* s) { return !is_ai(s); })) {
@@ -1150,7 +1182,7 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
   if (std::any_of(chosen.begin(), chosen.end(), is_ai)) {
     if (facts.ai == nullptr) return refuse("not_now", "EldenNet's model settings are not ready yet.");
     if (facts.ai->files == AiFiles::Refused) {
-      return refuse("not_now", "Your providers file has a problem: correct it first. System › Logs names the line.");
+      return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
     }
   }
   for (const Setting* s : chosen) change(*s, s->fallback);

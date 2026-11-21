@@ -747,6 +747,51 @@ AiRequest request(AiRequest::Kind kind, std::string id = {}) {
 
 }  // namespace
 
+TEST_CASE("space: a refused providers file says why on System › Status and Home, by its line, never its text") {
+  const Space s;
+  AiFacts ai = ai_ready();
+  ai.files = AiFiles::Refused;
+  ai.refusal = AiRefusal::PlainKey;
+  ai.refusal_line = 7;
+  SpaceFacts f = title();
+  f.ai = &ai;
+  const auto part = [&]() {
+    const json body = s.body("system.status", f);  // bound first: a member of a temporary dangles (WHY§269)
+    for (const json& c : body["checks"]) {
+      if (c["label"] == "The providers file") return c;
+    }
+    return json();
+  };
+  REQUIRE(part().is_object());
+  CHECK(part()["state"] == "fail");
+  CHECK(part()["detail"] == "A provider with a key uses http:// to another computer, where its key would cross the "
+                            "network unencrypted: use https://, or remove its key. Correct providers.toml at line 7, "
+                            "then start the game again.");
+  const json problems = s.body("errors", f)["checks"];
+  REQUIRE(problems.size() == 1);
+  CHECK(problems[0]["label"] == "Your providers file has a problem, so EldenNet calls no model.");
+  CHECK(problems[0]["detail"] == part()["detail"]);
+  CHECK(s.body("ai.status", f)["sentence"] ==
+        "Your providers file has a problem, so EldenNet calls no model: System › Status says what.");
+  const std::pair<AiRefusal, const char*> words[] = {
+      {AiRefusal::Scheme, "starts with neither https:// nor http://"},
+      {AiRefusal::Credentials, "holds a name or password"},
+      {AiRefusal::QueryOrFragment, "has a ? or # in it"},
+      {AiRefusal::PlainPublic, "neither this PC nor a private address"},
+      {AiRefusal::PlainCloud, "A cloud provider's base_url uses http://"},
+      {AiRefusal::Other, "something EldenNet cannot use"}};
+  for (const auto& [refusal, said] : words) {
+    ai.refusal = refusal;
+    CHECK(part()["detail"].get<std::string>().find(said) != std::string::npos);
+  }
+  ai.refusal_line = 0;
+  CHECK(part()["detail"].get<std::string>().find("Correct providers.toml, then") != std::string::npos);
+  // A file read: nothing to say.
+  ai.files = AiFiles::Ready;
+  CHECK_FALSE(part().is_object());
+  CHECK(s.body("errors", f)["checks"].empty());
+}
+
 TEST_CASE("space: the AI pages' commands, each answered at once; the long ones handed to the DLL") {
   Space s;
   AiFacts ai = ai_ready();

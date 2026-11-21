@@ -58,6 +58,10 @@ enum class Reading : std::uint8_t { None, Registered, PhaseA, Running, Inert }; 
 // ids); a base URL is shown on AI › Providers alone (PV2). Never a key: a key's status alone. A server's listed ids
 // reach AI › Models' pickers alone, any that looks like a path left out (PV5); never the model's text.
 enum class AiFiles : std::uint8_t { Missing, Refused, Ready };  // providers.toml: none, refused (its checks), read
+// Why providers.toml was refused, as en-llm names it (its ConfigRefusal, mapped by the DLL): a provider's base URL's
+// scheme, a name or password in it, a query or fragment, http:// to a public host, http:// for a cloud provider, a key
+// over http:// to another computer, or anything else.
+enum class AiRefusal : std::uint8_t { Other, Scheme, Credentials, QueryOrFragment, PlainPublic, PlainCloud, PlainKey };
 enum class AiFlavor : std::uint8_t { OpenAI, Ollama, LlamaCpp, LmStudio, KoboldCpp };
 enum class AiJson : std::uint8_t { None, Object, Schema };
 enum class AiKey : std::uint8_t { NotNeeded, Set, Missing, Rejected };
@@ -141,6 +145,8 @@ struct AiModels {
 
 struct AiFacts {
   AiFiles files = AiFiles::Missing;
+  AiRefusal refusal = AiRefusal::Other;  // with files Refused: why
+  std::uint32_t refusal_line = 0;        // and the line, 0 when the refusal names none
   std::uint64_t revision = 0;          // the configuration's: it changes whenever the DLL takes an edited one
   std::string preset;                  // providers.toml's, as the file names it
   std::vector<std::string> presets;    // models.toml's

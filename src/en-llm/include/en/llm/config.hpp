@@ -2,6 +2,7 @@
 // Providers, models, slots, presets, the request budget and keys (ARCH §11.1, §11.4, §11.5): the part of the
 // configuration the model client reads.
 #include <array>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -122,9 +123,23 @@ struct Config {
 };
 
 // A configuration problem. The message names the file and what is wrong; it never quotes a key.
+// What a refusal of providers.toml's provider entry was, for words the pages may show (the message itself can hold an
+// address, so it is logged by its file and line alone): its base URL's scheme, a name or password in it, a query or
+// fragment, http:// to a host that is neither this PC nor a private address, http:// for a cloud provider, or a key
+// (key_ref or a header's secret) on a provider reached by http:// on another computer; every other refusal is Other.
+enum class ConfigRefusal : std::uint8_t { Other, Scheme, Credentials, QueryOrFragment, PlainPublic, PlainCloud, PlainKey };
+
 class ConfigError : public std::runtime_error {
  public:
-  ConfigError(const std::string& file, const std::string& what) : std::runtime_error(file + ": " + what) {}
+  ConfigError(const std::string& file, const std::string& what, ConfigRefusal refusal = ConfigRefusal::Other,
+              std::uint32_t line = 0)
+      : std::runtime_error(file + ": " + what), refusal_(refusal), line_(line) {}
+  [[nodiscard]] ConfigRefusal refusal() const noexcept { return refusal_; }
+  [[nodiscard]] std::uint32_t line() const noexcept { return line_; }  // 0 when the refusal names none
+
+ private:
+  ConfigRefusal refusal_;
+  std::uint32_t line_;
 };
 
 using EnvLookup = std::function<std::optional<std::string>(const std::string&)>;

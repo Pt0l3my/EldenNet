@@ -45,11 +45,16 @@ struct Ctx {
   std::string where;
 
   [[noreturn]] void fail(const std::string& what, const toml::node* at = nullptr) const {
+    fail(ConfigRefusal::Other, what, at);
+  }
+  [[noreturn]] void fail(ConfigRefusal refusal, const std::string& what, const toml::node* at) const {
     std::string message = where.empty() ? what : where + ": " + what;
+    std::uint32_t line = 0;
     if (at != nullptr && at->source().begin.line > 0) {
-      message += " (line " + std::to_string(at->source().begin.line) + ")";
+      line = at->source().begin.line;
+      message += " (line " + std::to_string(line) + ")";
     }
-    throw ConfigError(file, message);
+    throw ConfigError(file, message, refusal, line);
   }
   Ctx sub(std::string inner) const { return Ctx{file, std::move(inner)}; }
 };
@@ -192,26 +197,6 @@ bool valid_id(std::string_view id) {
   });
 }
 
-std::string lower(std::string s) {
-  for (char& c : s) {
-    if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
-  }
-  return s;
-}
-
-std::string url_host(std::string_view url) {
-  const auto scheme_end = url.find("://");
-  std::string_view rest = scheme_end == std::string_view::npos ? url : url.substr(scheme_end + 3);
-  rest = rest.substr(0, rest.find_first_of("/?#"));
-  if (const auto at = rest.rfind('@'); at != std::string_view::npos) rest = rest.substr(at + 1);
-  if (!rest.empty() && rest.front() == '[') return lower(std::string(rest.substr(0, rest.find(']') + 1)));
-  return lower(std::string(rest.substr(0, rest.find(':'))));
-}
-
-// This PC's hosts: `localhost`, a dotted address of 127.0.0.0/8, `[::1]` (en-proto's, shared with the pages' form). A
-// name that merely starts with "127." is another host's.
-bool is_loopback_host(const std::string& host) { return proto::is_loopback_host(host); }
-
 std::string normalise_base_url(std::string url) {
   while (!url.empty() && (url.back() == '/' || url.back() == ' ')) url.pop_back();
   while (!url.empty() && url.front() == ' ') url.erase(url.begin());
@@ -255,21 +240,49 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
 
   p.flavor = parse_choice(get_string(table, "flavor", pctx).value_or("openai"), kFlavors, "flavor", pctx);
   p.base_url = normalise_base_url(require_string(table, "base_url", pctx));
+  const toml::node* url_node = table.get("base_url");
   if (p.base_url.rfind("https://", 0) != 0 && p.base_url.rfind("http://", 0) != 0) {
-    pctx.fail("base_url must start with https:// or http://");
+    pctx.fail(ConfigRefusal::Scheme, "base_url must start with https:// or http://", url_node);
   }
-  const bool loopback = is_loopback_host(url_host(p.base_url));
+  // en-proto's check, which AI › Providers' form makes too: a key is never written inline, and the client appends its
+  // own paths. Neither message quotes the address.
+  switch (proto::url_extras(p.base_url)) {
+    case proto::UrlProblem::Credentials:
+      pctx.fail(ConfigRefusal::Credentials,
+                "base_url must hold no name or password: a key goes in secrets.toml, named by key_ref", url_node);
+    case proto::UrlProblem::QueryOrFragment:
+      pctx.fail(ConfigRefusal::QueryOrFragment, "base_url must end at its path, with no ? or #", url_node);
+    default: break;
+  }
+  // A key must never cross a network in clear text (ARCH §11.1): http:// goes to this PC, or to a literal private
+  // address of the home network as a local server with no key; never to a public host or a name, whatever the
+  // provider's kind. en-proto's reach_of, which the pages' form and key rows share.
+  const proto::Reach reach = proto::reach_of(p.base_url);
+  const bool plain_remote = reach == proto::Reach::HomeNetwork || reach == proto::Reach::Public;
+  if (reach == proto::Reach::Public) {
+    pctx.fail(ConfigRefusal::PlainPublic,
+              "base_url uses http:// to a host that is neither this PC nor a private address: it must use https://",
+              url_node);
+  }
   if (auto kind = get_string(table, "kind", pctx)) {
     p.kind = parse_choice(*kind, kKinds, "kind", pctx);
   } else {
-    p.kind = loopback ? ProviderKind::Local : ProviderKind::Cloud;
+    p.kind = reach == proto::Reach::ThisPc ? ProviderKind::Local : ProviderKind::Cloud;
   }
-  // A key must never cross a network in clear text.
-  if (p.base_url.rfind("http://", 0) == 0 && !loopback && p.kind == ProviderKind::Cloud) {
-    pctx.fail("a cloud provider's base_url must use https://");
+  if (plain_remote && p.kind == ProviderKind::Cloud) {
+    pctx.fail(ConfigRefusal::PlainCloud, "a cloud provider's base_url must use https://", url_node);
   }
+  const auto no_key_in_clear = [&](const char* where, const toml::node* at) {
+    if (plain_remote) {
+      pctx.fail(ConfigRefusal::PlainKey,
+                std::string(where) + " names a key, which would go over http:// to another computer: use https://, "
+                                     "or no key",
+                at);
+    }
+  };
 
   if (auto ref = get_string(table, "key_ref", pctx)) {
+    no_key_in_clear("key_ref", table.get("key_ref"));
     p.key_ref = *ref;
     p.key = resolve_ref(*ref, keys, env, pctx, "key_ref");
     if (!p.key) p.unresolved_refs.push_back(*ref);
@@ -280,6 +293,7 @@ ProviderConfig parse_provider(const toml::table& table, std::size_t index, const
       if (!value.is_string()) pctx.fail("headers." + std::string(name.str()) + " must be a string", &value);
       std::string text = value.as_string()->get();
       if (is_ref(text)) {
+        no_key_in_clear(("headers." + std::string(name.str())).c_str(), &value);
         if (auto secret = resolve_ref(text, keys, env, pctx, "headers." + std::string(name.str()))) {
           p.secret_headers.emplace_back(std::string(name.str()), std::move(*secret));
         } else {

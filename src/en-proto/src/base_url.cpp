@@ -44,27 +44,58 @@ bool name_ok(std::string_view host) noexcept {
   }
 }
 
-// A dotted IPv4 address whose first number is 127: four numbers of 0 to 255, each of one to three digits.
-bool loopback_v4(std::string_view host) noexcept {
+// A dotted IPv4 address: four numbers of 0 to 255, each of one to three digits, into `out`.
+bool dotted_v4(std::string_view host, int (&out)[4]) noexcept {
   int numbers = 0;
-  int first = -1;
   std::size_t at = 0;
   while (at <= host.size()) {
     const std::size_t dot = host.find('.', at);
     const std::string_view part = host.substr(at, dot == std::string_view::npos ? std::string_view::npos : dot - at);
-    if (part.empty() || part.size() > 3 || !std::all_of(part.begin(), part.end(), is_digit)) return false;
+    if (numbers == 4 || part.empty() || part.size() > 3 || !std::all_of(part.begin(), part.end(), is_digit)) {
+      return false;
+    }
     int value = 0;
     for (const char c : part) value = value * 10 + (c - '0');
     if (value > 255) return false;
-    if (numbers == 0) first = value;
-    ++numbers;
+    out[numbers++] = value;
     if (dot == std::string_view::npos) break;
     at = dot + 1;
   }
-  return numbers == 4 && first == 127;
+  return numbers == 4;
+}
+
+bool loopback_v4(std::string_view host) noexcept {
+  int n[4] = {};
+  return dotted_v4(host, n) && n[0] == 127;
 }
 
 }  // namespace
+
+bool is_private_host(std::string_view host) noexcept {
+  int n[4] = {};
+  if (dotted_v4(host, n)) {
+    return n[0] == 10 || (n[0] == 172 && n[1] >= 16 && n[1] <= 31) || (n[0] == 192 && n[1] == 168);
+  }
+  // [fc00::/7]: the first group, one to four hex digits before ':', with its top seven bits 1111 110.
+  if (host.size() < 4 || host.front() != '[' || host.back() != ']') return false;
+  const std::string_view inside = host.substr(1, host.size() - 2);
+  const std::size_t colon = inside.find(':');
+  if (colon == 0 || colon == std::string_view::npos || colon > 4) return false;
+  unsigned value = 0;
+  for (const char c : inside.substr(0, colon)) {
+    if (!is_hex(c)) return false;
+    value = value * 16 + static_cast<unsigned>(is_digit(c) ? c - '0' : lower(c) - 'a' + 10);
+  }
+  return (value & 0xFE00u) == 0xFC00u;
+}
+
+UrlProblem url_extras(std::string_view url) noexcept {
+  const std::size_t scheme = url.find("://");
+  const std::string_view rest = scheme == std::string_view::npos ? url : url.substr(scheme + 3);
+  if (rest.substr(0, rest.find_first_of("/?#")).find('@') != std::string_view::npos) return UrlProblem::Credentials;
+  if (rest.find_first_of("?#") != std::string_view::npos) return UrlProblem::QueryOrFragment;
+  return UrlProblem::None;
+}
 
 bool is_loopback_host(std::string_view host) noexcept {
   const std::string h = lowered(host);
@@ -83,8 +114,16 @@ std::string host_of_url(std::string_view url) {
   return lowered(rest.substr(0, rest.find(':')));
 }
 
+Reach reach_of(std::string_view url) {
+  if (starts_with_nocase(url, "https://")) return Reach::Encrypted;
+  const std::string host = host_of_url(url);
+  if (is_loopback_host(host)) return Reach::ThisPc;
+  return is_private_host(host) ? Reach::HomeNetwork : Reach::Public;
+}
+
 bool plain_remote(std::string_view url) {
-  return !starts_with_nocase(url, "https://") && !is_loopback_host(host_of_url(url));
+  const Reach r = reach_of(url);
+  return r == Reach::HomeNetwork || r == Reach::Public;
 }
 
 BaseUrl check_base_url(std::string_view typed) {
@@ -114,11 +153,11 @@ BaseUrl check_base_url(std::string_view typed) {
   } else {
     return fail(UrlProblem::Scheme);
   }
-  if (rest.find_first_of("?#") != std::string_view::npos) return fail(UrlProblem::QueryOrFragment);
+  // The check the player's own file meets too: a name or password, then a query or fragment.
+  if (const UrlProblem extras = url_extras(typed); extras != UrlProblem::None) return fail(extras);
   const std::size_t slash = rest.find('/');
   const std::string_view authority = rest.substr(0, slash);
   const std::string_view path = slash == std::string_view::npos ? std::string_view() : rest.substr(slash);
-  if (authority.find('@') != std::string_view::npos) return fail(UrlProblem::Credentials);
 
   // host[:port], or [v6]:port
   std::string_view host;
