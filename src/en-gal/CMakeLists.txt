@@ -100,7 +100,8 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_request.cpp)
   if(MSVC)
     list(APPEND EN_GAL_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_reader.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sys.cpp)

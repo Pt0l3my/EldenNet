@@ -47,6 +47,9 @@ class Search {
     skip_.push_back(AddressRange{at, at + buf_.size()});
     for (std::vector<MemoryHit>& list : lists_) list.reserve(kMaxHits);
     for (std::vector<MemoryHit>& list : tagged_) list.reserve(kMaxHits);
+    out_.request_searched = spec.request_vtable != 0;  // spike.11
+    out_.request_hits.reserve(kMaxRequestHits);
+    out_.request_at.reserve(kMaxRequestHits);
     heads_.reserve(kMaxModules);
     end_ = spec.target + std::max<std::uint64_t>(spec.object_bytes, 1);
     for (std::size_t i = 0; i < spec.slots.size(); ++i) {
@@ -148,7 +151,9 @@ class Search {
         }
         continue;
       }
-      if (w >= spec_.target && w < end_) {
+      if (w == spec_.request_vtable && w != 0) {  // spike.11: a request object of the game's
+        request(at + o, dst, o, r);
+      } else if (w >= spec_.target && w < end_) {
         hit(at + o, PointsTo::Object, w - spec_.target, std::nullopt, dst, o, r);
       } else if (w == spec_.vtable && w != 0) {
         hit(at + o, PointsTo::Vtable, 0, std::nullopt, dst, o, r);
@@ -188,6 +193,15 @@ class Search {
     h.slot = slot;
     h.offset = offset;
     list.push_back(h);
+  }
+
+  // Spike.11: a word equal to the request's vtable address: ours counted apart, the game's kept with its address.
+  void request(std::uint64_t at, std::span<const std::byte> d, std::size_t o, const MemoryRegion& r) {
+    const bool mine = own(r);
+    ++(mine ? out_.own_request_found : out_.request_found);
+    if (mine || out_.request_hits.size() >= kMaxRequestHits) return;
+    out_.request_hits.push_back(where(at, false, d, o, r));
+    out_.request_at.push_back(at);
   }
 
   // Spike.9: a word whose low 48 bits are our object's (or vtable's) address and whose high 16 bits are `tag`.
