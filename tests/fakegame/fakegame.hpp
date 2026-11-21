@@ -127,6 +127,7 @@ std::uint64_t fg_shelf_take(void* shelf, FG::TaskUnit* task, FG::TaskUnit* same_
 extern void* fg_static_rack;                  // FG::TaskRackImp*: the registration's own singleton, made lazily
 extern void* fg_static_ledger;                // FG::TaskLedgerImp*: the second singleton G, made with the hub
 extern std::uint64_t fg_ledger_blank;         // a static word the hub's rows point at before their first note
+extern void* fg_ledger_given;                 // the hub the last registration was given, for the work
 std::uint64_t fg_ledger_stub(void* ledger, FG::TaskUnit* task, std::uint32_t word, std::uint64_t zero);
 // The ledger's method (G's): it notes the task in the hub's rows (fg_ledger_note), refuses a word past FG_RACK_BOUND
 // or at or past its groups, reads the task's hub field (kept on the ledger) and kind, and, where the ledger is strict

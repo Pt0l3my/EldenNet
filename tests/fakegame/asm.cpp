@@ -121,6 +121,7 @@ __asm__(
     FG_STATIC(fg_static_rack)
     FG_STATIC(fg_static_ledger)
     FG_STATIC(fg_ledger_blank)
+    FG_STATIC(fg_ledger_given)
     "  .globl fg_save_ledger_ready\n"
     "fg_save_ledger_ready:\n  .byte 0\n"
     FG_RTCLASS(fg_rtclass_taskloom, fg_name_taskloom, 0x48)
@@ -502,8 +503,9 @@ __asm__(
 
     // ---- The group's own function (since spike.10 R1 run 9's shape, WHY§289): the shelf in rcx, the task in rdx (and
     // r8), the hub in r9. A null task answers 0. Else it loads the ledger (G) from its static, while that is null has it
-    // made (fg_ledger_missing) and loads it again, puts the shelf's word in r8 and tail-jumps through the stub to the
-    // ledger's method, the ledger in rcx and the task in rdx. It reads nothing of the task.
+    // made (fg_ledger_missing) and loads it again, keeps the hub it was given in fg_ledger_given (for the work: a call
+    // with its arguments swapped is still refused at the hub), puts the shelf's word in r8 and tail-jumps through the
+    // stub to the ledger's method, the ledger in rcx and the task in rdx. It reads nothing of the task.
     FG_FUNC_BEGIN(fg_shelf_take)
     "  push rbx\n"
     "  .seh_pushreg rbx\n"
@@ -524,6 +526,7 @@ __asm__(
     "  call fg_ledger_missing\n"
     "  mov rcx, qword ptr [rip + fg_static_ledger]\n"
     "3:\n"
+    "  mov qword ptr [rip + fg_ledger_given], r9\n"
     "  mov r8d, dword ptr [rdi + " FG_XSTR(FG_SHELF_WORD_OFF) "]\n"
     "  mov rdx, rbx\n"
     "  add rsp, 0x28\n"

@@ -351,8 +351,9 @@ extern "C" void fg_ledger_note(void* ledger_ptr, FG::TaskUnit* task, std::uint32
   if ((g->l.flags & 1u) != 0 && kind != FG_TASK_KIND) status("register gated=%u kept=%u", word, g->l.count);
 }
 
+// The work, with the hub the registration was given (fg_shelf_take keeps it): a swapped call is refused there.
 extern "C" void fg_ledger_keep(void*, std::uint32_t group, FG::TaskUnit* task) {
-  fg_register_keep(static_cast<FG::TaskLoomImp*>(fg_static_taskloom), group, task);
+  fg_register_keep(static_cast<FG::TaskLoomImp*>(fg_ledger_given), group, task);
 }
 
 extern "C" std::uint64_t fg_ledger_forget(void*, FG::TaskUnit*, std::uint32_t, FG::TaskLoomImp*) { return 0; }
