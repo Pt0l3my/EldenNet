@@ -990,11 +990,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - refs: DESIGN§16.1
 - S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
-  - refs: GraceUI:D175
+  - refs: GraceUI:D175, O94
   - gives: GraceUI's side built on 2026-11-20 with S10.1.g's (run B: 60 s of typing in the observer's panel, a held
     key across the menu's open, a pad's close). Until R1 gets our task running, the movement row is the owner's word
     and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
-    measures it once the task runs.
+    measures it once the task runs. The talk key is one key, T by default (O94, 2026-11-21; no published default
+    layout binds it, WHY§277), so S4 also presses T in game in the default layout and checks the game does nothing.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
 - c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
   - refs: NPC§12.2, ARCH§12.3

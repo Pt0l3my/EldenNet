@@ -1292,7 +1292,7 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
 
 ### 8.1 Starting
 
-- **Hotkey:** rebindable, always masked from the game. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). On a pad, hold View + D-pad Up to open the Steam floating keyboard, if S4 passes (O11). In the default layout View opens the map and D-pad Up switches spells, so View is masked while D-pad Up is held and replayed as a tap if the chord is abandoned; S4 confirms the chord or picks another (NPC §5.6). The keyboard is opened through Steam's own `ISteamUtils::ShowFloatingGamepadTextInput` in the already-loaded `steam_api64.dll`, never through game code (R2).
+- **Hotkey:** rebindable, always masked from the game. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). *2026-11-21, O94:* the owner decided one key on the keyboard, `T` by default, which no published default layout binds (WHY§277); S4 checks it in game, and the pad's gesture never replaces it. On a pad, hold View + D-pad Up to open the Steam floating keyboard, if S4 passes (O11). In the default layout View opens the map and D-pad Up switches spells, so View is masked while D-pad Up is held and replayed as a tap if the chord is abandoned; S4 confirms the chord or picks another (NPC §5.6). The keyboard is opened through Steam's own `ISteamUtils::ShowFloatingGamepadTextInput` in the already-loaded `steam_api64.dll`, never through game code (R2).
 - **Talk hint and header:** "[T] Speak — Kalé" plus a target marker whenever chat is possible. The box header reads "Speak to Kalé — heard by: Kalé" (P2 §5.1, P3 §5.1).
 - **Target order:**
   1. a native talk menu with a persona is open → the key *arms* chat, which opens when the menu closes;
@@ -2542,7 +2542,7 @@ since superseded), O54–O57, O59 and O60 on 2026-11-08, O61–O63 on 2026-11-09
 plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 0002) on 2026-11-15; O80–O83 (proposal
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
-C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20. None is Open.**
+C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) on 2026-11-21. None is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2646,3 +2646,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O91](../DECISIONS.md#o91) | When do S0's third-party rows run? | (b) as the owner can; a row not run moves to v0.1's compatibility rows, which still block v0.1 | Decided 2026-11-16 |
 | [O92](../DECISIONS.md#o92) | How does R1 name the FD4 singletons, whose names are not in the image? | (a) by their instances' RTTI, one guarded read each | Decided 2026-11-17 |
 | [O93](../DECISIONS.md#o93) | Does EldenNet's in-game text grow with GraceUI's larger default size (1.25, GraceUI D177)? | (a) no: its sizes are as designed at the new default | Decided 2026-11-20 |
+| [O94](../DECISIONS.md#o94) | Is the talk key one key on the keyboard, and which? | (a) one key, `T` by default, checked in game by S4 | Decided 2026-11-21 |

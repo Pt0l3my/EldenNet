@@ -1685,3 +1685,26 @@ with the menu, as any change of the setting does.
 **Owner's words.** "Keep text as designed (Recommended)".
 
 **Follows from.** GraceUI's D177, G6; NPC §10.7; S11.2.d.
+
+## O94
+
+**The talk key: one key on the keyboard, T by default** · *2026-11-21 · Decided by the owner*
+
+**Question.** The design left the talk key's default to spike S4, from keys the game's default layout leaves free
+(candidate `T`, NPC §5.1), and a pad opens the chat box with a two-button gesture (NPC §5.6; GraceUI's proposal
+0005). Asked what the pad gesture was, the owner asked that the keyboard keep a single key.
+**Options:** (a) one key with no modifier, `T` by default, rebindable; S4 checks in game that the default layout
+leaves it free, and if it does not, the default becomes another single key S4 finds free, by a dated note here;
+(b) leave the default to S4 as before, a chord allowed.
+
+**Recommendation.** (a). No published default PC layout binds `T` (WHY§277), and `T` sits in the same place on
+QWERTY, QWERTZ and AZERTY keyboards.
+
+**Decision.** (a). The talk key is one key on the keyboard, `T` by default, rebindable in Settings › Hotkeys and
+masked from the game as NPC §5.1 says. The pad's gesture is for a pad only and never replaces it. S4 (roadmap
+S11.1.a) checks in game that `T` does nothing in the default layout.
+
+**Owner's words.** "I still want a simple 1 key hotkey for EldenNet default key map if possible (double check the
+default Elden Ring key map is left free) for PC (keyboard and mouse)."
+
+**Follows from.** NPC §5.1, §5.6; DESIGN §8.1; O11; WHY§277; S11.1.a.

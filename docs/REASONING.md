@@ -299,6 +299,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 274 | 2026-11-21 | EldenNet's AI pages: keys as GraceUI secret settings, kept with a one-user access list, and what GraceUI 0.2 cannot yet do for them | DECIDED | #engine #pages #security |
 | 275 | 2026-11-21 | Keeping std::filesystem's imports out of eldennet.dll, the handle told the gate when made, and toml++'s output | FACT | #engine |
 | 276 | 2026-11-21 | A key-shaped value in a test and the sweep: allowed by a pattern, since an allow line holding the literal is itself a finding | METHOD | #privsweep #engine |
+| 277 | 2026-11-21 | The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4 | LIKELY | #input #hotkeys |
 
 ## Entries
 
@@ -4723,3 +4724,18 @@ invariant 10, EldenNet ARCH (T3)
 - (METHOD) An allow line in Skyrizz names that one file and matches the value by a pattern, not the literal. A line
   holding the literal was itself refused by the sweep on Skyrizz's own push, so it was rewritten before the unpushed
   commit was pushed.
+
+### 277. The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4
+
+`2026-11-21` · LIKELY · `#input` `#hotkeys` · refs: O94, NPC§5.1, S11.1.a
+
+- (LIKELY) Published guides to the game's default PC keyboard and mouse layout agree on: W, A, S, D to move; Alt to
+  walk; Space to dodge, backstep and dash; F to jump; X to crouch; Q (or the wheel click) to lock on; R to use an item;
+  E for the event action, and with the mouse buttons to two-hand, with the arrows for the pouch; G for the map; Esc for
+  the menu; the left button to attack and the right to guard, with Shift for the strong attack and the skill; the
+  arrows to switch spells, items and armaments. None binds `T`. G and Esc cannot be rebound in the game. They
+  disagree in two places (one gives C for crouch, one Ctrl for guard). One counts 22 default keyboard binds.
+- (METHOD) Found by web search on 2026-11-21; the guide pages themselves were outside this session's network, so the
+  list is from the search results (Shacknews' "Elden Ring controls and PC keybindings", PC Gamer's "Elden Ring's
+  half-assed mouse and keyboard controls", keymap.io's Elden Ring page). Not a FACT until S4 presses `T` in game in
+  the default layout and the game does nothing.
