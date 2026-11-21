@@ -329,6 +329,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 304 | 2026-11-21 | Lodestar's shape: a table of numbers per build, each id re-found at start through its witnesses, no bytes in gal/ | METHOD | #gal #lodestar |
 | 305 | 2026-11-21 | A function EldenNet might call carries a verdict of our own tool; unknown means no call | DECIDED | #gal #lodestar #task |
 | 306 | 2026-11-21 | Lodestar L1: the registration's label is task_add, and a build's table lives in its layout file | DECIDED | #gal #lodestar |
+| 307 | 2026-11-21 | A witness says the bytes at a place refer to the id, not that an instruction starts there | FACT | #gal #lodestar |
 
 ## Entries
 
@@ -5219,3 +5220,19 @@ O101, proposal 0005 §7.2
   schema 2 (items with placement, witnesses, digest, verdict, checks and status, and a provenance block; no key can carry
   bytes); `lint --gal` and the galtoml fuzz target read the catalogue. Every build passes with no warning (engine
   feat/engine fb999ca).
+
+### 307. A witness says the bytes at a place refer to the id, not that an instruction starts there
+
+`2026-11-21` · FACT, with a DECIDED · `#gal` `#lodestar` · refs: proposal 0005 §7.1, WHY§304, S10.1.k
+
+- **The finding** (FACT): a witness one byte into a prefixed load still decodes, with our decoder, to a load of the same
+  static (the prefix is skipped and the displacement's end does not move), so the check accepts it.
+- **Decided** (DECIDED): a witness says that the bytes at a place refer to the id, not that an instruction starts there.
+  On a build the gate has matched, a wrong table or a patched place is what the check must catch, and it does; proving
+  an instruction boundary would need a decode from the function's start, which a start does not otherwise make. Tested,
+  and said in en-gal's README.
+- **Built** (FACT): en-gal's resolver (`resolve.hpp`, engine feat/engine c2401d0): an item of a build's table is re-found
+  in the image as loaded with no search, by its placement (a static in written data with room for a pointer, a function
+  at a start the function table lists, a table within one section that is not run, a class's method tables in read-only
+  data) and its witnesses (one read of at most 15 bytes at each recorded place, decoded by our own decoder, which must
+  refer to the id); only a checked item's place is handed out. Nothing in the DLL reads through it yet.
