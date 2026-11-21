@@ -419,11 +419,11 @@
       "name": "Models",
       "description": "Which model does each job, and the preset that sets them all.",
       "help": {
-        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's model yourself.",
+        "purpose": "See which model does each job, choose the preset that sets them all, and choose a job's provider and model yourself.",
         "steps": [
           "Choose a preset. Cloud budget, on OpenRouter, suits most players.",
           "Read each job's provider, model and fallback. A job with no model of its own uses Conversation's.",
-          "Choose a job's model from what its provider lists: press List models on Providers first. Reset it to use the preset's again.",
+          "Choose a job's provider, then its model from what that provider lists: press List models on Providers first. Reset either to use the preset's again.",
           "Open Self-test to check that the models answer quickly enough."
         ]
       },
@@ -472,16 +472,21 @@
         },
         {
           "id": "choose",
-          "title": "Each job's model",
-          "description": "The choices are the models the job's provider listed when you last pressed List models on Providers.",
+          "title": "Each job's provider and model",
+          "description": "A job's models are those its provider listed when you last pressed List models on Providers. A provider that does not list the job's model takes over once you choose one of its models.",
           "blocks": [
             {
               "kind": "settings",
               "keys": [
+                "slots.dialogue.provider",
                 "slots.dialogue.model",
+                "slots.bark_live.provider",
                 "slots.bark_live.model",
+                "slots.bark_pool.provider",
                 "slots.bark_pool.model",
+                "slots.memory.provider",
                 "slots.memory.model",
+                "slots.selftest.provider",
                 "slots.selftest.model"
               ]
             }
@@ -646,6 +651,10 @@
     },
     {
       "id": "ai.choices.selftest",
+      "shape": "state"
+    },
+    {
+      "id": "ai.choices.providers",
       "shape": "state"
     },
     {

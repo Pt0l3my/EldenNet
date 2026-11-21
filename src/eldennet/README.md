@@ -43,7 +43,7 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.8) and the caps it uses, and, connected, the F11 view and the
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.9) and the caps it uses, and, connected, the F11 view and the
    Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
@@ -138,10 +138,12 @@ After each wake, once T1 has published the connection:
   requests: the preset and Add the preset's provider (`ai_change what=preset|add`: providers.toml's `preset`, the
   preset's missing providers added with their keys in `secrets:<id>`), a provider of one's own (`what=add_own`:
   OpenAI-compatible; local when reached by http:// on this PC or the home network, with no key's place, which this PC's
-  may get on its row and the home network's never; else cloud with its key in `secrets:<id>`), a job's model (`what=model|model_reset`: its `[slots.<slot>]` provider and model, or the table
-  gone), a key on a row (`what=key name=… set=…`: cleaned, the request's copy overwritten; a provider with no key's
-  place gets `secrets:<id>` first, `what=key_place`; never one whose address is http:// to another computer or whose
-  key is an environment variable's), Remove on a row (`what=remove`: only a provider no job uses, with the keys no
+  may get on its row once a call asks for a key and the home network's never; else cloud with its key in
+  `secrets:<id>`), a job's pick (`what=model|provider|model_reset`: its `[slots.<slot>]` provider and model, on the
+  provider the space names, a fallback with no provider of its own kept where it was, or the table gone), a key on a
+  row (`what=key name=… set=…`: cleaned, the request's copy overwritten; a provider with no key's place gets
+  `secrets:<id>` first, `what=key_place`, but only once a call was refused for want of a key; never one whose address
+  is http:// to another computer or whose key is an environment variable's), Remove on a row (`what=remove`: only a provider no job uses, with the keys no
   remaining provider names), each checked by parsing the result first and then posted to T11, which makes the same change on the file as it is then
   (`ai_write file=providers|secrets ok=… why=…`; secrets.toml written with an access list for this user alone,
   `write_private`). The self-test and the model list run on en-llm's handle (T7–T8), which T6 makes when one first

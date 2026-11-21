@@ -31,10 +31,10 @@ import browser  # noqa: E402
 # components with that state's topics): the title screen, where the fake game's pages case runs, and for the AI pages
 # a state with a provider set up and a self-test run.
 # A page dumped over a second state has its golden named for it too (ai.selftest.banner and home.banner: greyed at L1,
-# GraceUI 0.2.7's space.state, D188).
+# GraceUI 0.2.7's space.state, D188; ai.providers.world: a key refused, GraceUI 0.2.9's D197).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
-         ("ai.providers", "starting"), ("home", "banner"))
+         ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 

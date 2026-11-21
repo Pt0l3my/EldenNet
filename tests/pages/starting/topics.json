@@ -11,6 +11,9 @@
   "ai.choices.memory": {
     "choices": []
   },
+  "ai.choices.providers": {
+    "choices": []
+  },
   "ai.choices.selftest": {
     "choices": []
   },
@@ -211,7 +214,7 @@
           "state": "pass"
         },
         {
-          "detail": "EldenNet needs GraceUI 0.2.8 or later",
+          "detail": "EldenNet needs GraceUI 0.2.9 or later",
           "label": "GraceUI 0.2.9",
           "state": "pass"
         }

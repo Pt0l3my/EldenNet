@@ -6,6 +6,8 @@
 #include <cmath>
 #include <cstdio>
 #include <optional>
+#include <set>
+#include <utility>
 
 #include "en/proto/base_url.hpp"
 #include "graceui.h"
@@ -384,12 +386,18 @@ std::string seconds_of(std::int64_t ms) {
   return text;
 }
 
+// A job's name as its owner: "Conversation's", "Quick lines'".
+std::string owned(std::string_view slot) {
+  const std::string name = slot_words(slot);
+  return !name.empty() && name.back() == 's' ? name + "'" : name + "'s";
+}
+
 // "Conversation's", "Conversation's or Memory's".
 std::string slots_owned(const std::vector<std::string_view>& slots) {
   std::string out;
   for (std::size_t i = 0; i < slots.size(); ++i) {
     if (i != 0) out += i + 1 == slots.size() ? " or " : ", ";
-    out += std::string(slot_words(slots[i])) + "'s";
+    out += owned(slots[i]);
   }
   return out;
 }
@@ -454,25 +462,52 @@ std::string banner_words(const SpaceFacts& f) {
   return words;
 }
 
-// The jobs AI › Models offers a model row for, in ARCH §11.4's order, each with its row's key and its choices' topic.
+// The jobs AI › Models offers rows for, in ARCH §11.4's order: each with its model row's key and its choices' topic, and
+// its provider row's key, whose choices are every job's (`ai.choices.providers`). The reserved slots (actions, vision)
+// have no rows until their features exist (PAGES §4.5).
 struct Job {
   std::string_view slot;
   std::string_view key;
   std::string_view topic;
+  std::string_view provider_key;
 };
 constexpr std::array<Job, 5> kJobs = {{
-    {proto::kDialogue, "slots.dialogue.model", "ai.choices.dialogue"},
-    {proto::kBarkLive, "slots.bark_live.model", "ai.choices.bark_live"},
-    {proto::kBarkPool, "slots.bark_pool.model", "ai.choices.bark_pool"},
-    {proto::kMemory, "slots.memory.model", "ai.choices.memory"},
-    {proto::kSelftest, "slots.selftest.model", "ai.choices.selftest"},
+    {proto::kDialogue, "slots.dialogue.model", "ai.choices.dialogue", "slots.dialogue.provider"},
+    {proto::kBarkLive, "slots.bark_live.model", "ai.choices.bark_live", "slots.bark_live.provider"},
+    {proto::kBarkPool, "slots.bark_pool.model", "ai.choices.bark_pool", "slots.bark_pool.provider"},
+    {proto::kMemory, "slots.memory.model", "ai.choices.memory", "slots.memory.provider"},
+    {proto::kSelftest, "slots.selftest.model", "ai.choices.selftest", "slots.selftest.provider"},
 }};
+constexpr std::string_view kProviderChoices = "ai.choices.providers";
 
 const Job* job_of_key(std::string_view key) {
   for (const Job& j : kJobs) {
     if (j.key == key) return &j;
   }
   return nullptr;
+}
+
+const Job* job_of_provider_key(std::string_view key) {
+  for (const Job& j : kJobs) {
+    if (j.provider_key == key) return &j;
+  }
+  return nullptr;
+}
+
+const Job* job_of_slot(std::string_view slot) {
+  for (const Job& j : kJobs) {
+    if (j.slot == slot) return &j;
+  }
+  return nullptr;
+}
+
+// A provider whose last call was refused for its key, or for want of one: no job's choice until it has a key again.
+bool key_refused(const AiProvider& p) noexcept { return p.disabled || p.key == AiKey::Rejected; }
+
+// Why a refused provider is not a job's choice, in the player's words.
+std::string refused_words(const AiProvider& p) {
+  return p.key_place == AiKeyPlace::None ? p.id + " asks for a key: paste it on its row on Providers first."
+                                         : p.id + " refused its key: paste it again on its row on Providers first.";
 }
 
 // "Conversation", "Conversation and Memory", "Conversation, Memory and Self-test".
@@ -504,6 +539,9 @@ std::string ai_cause(const SpaceFacts& f) {
   }
   if (const AiProvider* p = provider_of(ai, talk->provider)) {
     if (p->key == AiKey::Missing) return p->id + " has no key yet: paste it on its row on Providers.";
+    if (p->key == AiKey::Rejected && p->key_place == AiKeyPlace::None) {
+      return p->id + " asks for a key: paste it on its row on Providers.";
+    }
     if (p->key == AiKey::Rejected) return p->id + " refused its key: paste it again on its row on Providers.";
   }
   if (!talk->healthy) {
@@ -534,12 +572,16 @@ json providers_body(const SpaceFacts& f) {
                               json{{"id", "requests"}, {"label", "Requests at once"}, {"numeric", true}},
                               json{{"id", "json"}, {"label", "JSON answers"}}});
   json rows = json::array();
-  // The key column is the row's secret (GraceUI D194): its status alone, "set" (a key is kept, refused or not: Health
-  // and the lead say which) or "", never the key.
+  // The key column is the row's secret (GraceUI D194, D197): its status alone, never the key: "set" (one kept), "refused"
+  // (its last call was refused for its key, or for want of one: the field stays for a new one), "none" (no key's place
+  // and none asked for, or http:// on another computer: no field) or "" (none kept yet).
   for (const AiProvider& p : ai.providers) {
-    const bool kept = p.key == AiKey::Set || p.key == AiKey::Rejected;
+    const char* key = p.key == AiKey::Set        ? "set"
+                      : p.key == AiKey::Rejected ? "refused"
+                      : p.key == AiKey::NotNeeded ? "none"
+                                                  : "";
     rows.push_back(json{{"id", p.id}, {"kind", p.cloud ? "Cloud" : "Local"}, {"type", flavor_words(p.flavor)},
-                        {"address", p.base_url}, {"key", kept ? "set" : ""}, {"requests", std::to_string(p.concurrency)},
+                        {"address", p.base_url}, {"key", key}, {"requests", std::to_string(p.concurrency)},
                         {"json", json_words(p.json)}});
   }
   // The model list's last result, a check per provider.
@@ -559,8 +601,8 @@ json health_body(const SpaceFacts& f) {
   json rows = json::array();
   for (const AiProvider& p : ai.providers) {
     std::string state = "Healthy";
-    if (p.disabled) {
-      state = "Failing: it refused its key";
+    if (key_refused(p)) {
+      state = p.key_place == AiKeyPlace::None ? "Failing: it asks for a key" : "Failing: it refused its key";
     } else if (p.cooling_s != 0) {
       state = "Cooling down, " + std::to_string(p.cooling_s) + " s left";
     } else if (p.pairs_cooling != 0) {
@@ -670,19 +712,31 @@ json selftest_body(const SpaceFacts& f) {
   return b;
 }
 
-// A job's model picker's choices (GraceUI D193): what its provider listed last, in its order, each id pickable, at most
-// 256 (what GraceUI reads). None before a list has answered: the picker says so, and keeps the job's model shown.
-json choices_body(const SpaceFacts& f, std::string_view slot) {
+// A job's model picker's choices (GraceUI D193): what the job's provider (the one chosen and waiting for its model, else
+// the job's now) listed last, in its order, each id pickable, at most 256 (what GraceUI reads). None before a list has
+// answered: the picker says so, and keeps the job's model shown.
+json choices_body(const SpaceFacts& f, std::string_view provider) {
   json choices = json::array();
   if (f.ai != nullptr) {
-    const AiSlot* s = slot_of(*f.ai, slot);
-    const std::vector<std::string>* ids = s != nullptr ? listed_of(*f.ai, s->provider) : nullptr;
+    const std::vector<std::string>* ids = provider.empty() ? nullptr : listed_of(*f.ai, provider);
     if (ids != nullptr) {
       for (const std::string& id : *ids) {
         if (!pickable(id)) continue;
         choices.push_back(json{{"value", id}, {"label", id}});
         if (choices.size() == 256) break;
       }
+    }
+  }
+  return json{{"choices", std::move(choices)}};
+}
+
+// Every job's provider picker's choices: providers.toml's providers, in its order, but one whose last call was refused
+// for its key (a job's pick of it stays shown, unlisted, and Health says why).
+json provider_choices_body(const SpaceFacts& f) {
+  json choices = json::array();
+  if (f.ai != nullptr) {
+    for (const AiProvider& p : f.ai->providers) {
+      if (!key_refused(p)) choices.push_back(json{{"value", p.id}, {"label", p.id}});
     }
   }
   return json{{"choices", std::move(choices)}};
@@ -710,10 +764,11 @@ std::uint64_t interval_of(std::string_view topic) noexcept {
   return 0;  // on change
 }
 
-constexpr std::array<std::string_view, 15> kStates = {
+constexpr std::array<std::string_view, 16> kStates = {
     "settings",          "status",       "errors",       "system.status",        "ai.status",
     "providers",         "health",       "ai.slots",     "selftest",             "space.state",
-    "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest"};
+    "ai.choices.dialogue", "ai.choices.bark_live", "ai.choices.bark_pool", "ai.choices.memory", "ai.choices.selftest",
+    kProviderChoices};
 
 std::string frame_topic(std::string_view frame) {
   const json f = json::parse(frame, nullptr, false);
@@ -843,7 +898,7 @@ void Space::change(const Setting& s, const json& value) {
   if (values_[s.key] == shown && s.type != "secret") return;
   values_[s.key] = shown;
   ++settings_rev_;
-  changes_.push_back(Change{s.key, value});
+  changes_.push_back(Change{s.key, value, {}});
 }
 
 std::string Space::set(const json& id, const json& args, const SpaceFacts& facts) {
@@ -901,23 +956,68 @@ std::string Space::set(const json& id, const json& args, const SpaceFacts& facts
           facts.ai->presets.end()) {
     return refuse("not_now", "This version of EldenNet has no models file for that preset yet.");
   }
-  // A job's model: one of the choices its picker shows, what the job's provider listed (GraceUI D193; invariant 3).
+  // A job's provider: one of providers.toml's, its key not refused (invariant 3). Chosen while the job's model is one it
+  // listed, it is written at once with that model; otherwise it waits, shown on its row, for a model of its list.
+  if (const Job* job = job_of_provider_key(key)) {
+    const std::string& v = value.get_ref<const std::string&>();
+    const AiProvider* p = provider_of(*facts.ai, v);
+    if (p == nullptr) {
+      return refuse("invalid_value", "That provider is not in your providers file: add it on Providers first.");
+    }
+    if (key_refused(*p)) return refuse("invalid_value", refused_words(*p));
+    const AiSlot* slot = slot_of(*facts.ai, job->slot);
+    const std::string now = slot != nullptr ? slot->provider : std::string();
+    const std::string model = slot != nullptr ? slot->model : std::string();
+    pending_.erase(std::string(job->slot));
+    json& held = values_[s->key];
+    if (held != value) {
+      held = value;
+      ++settings_rev_;
+    }
+    if (v != now) {
+      const std::vector<std::string>* ids = listed_of(*facts.ai, v);
+      if (!model.empty() && ids != nullptr && std::find(ids->begin(), ids->end(), model) != ids->end()) {
+        changes_.push_back(Change{std::string(job->key), model, v});
+      } else {
+        pending_[std::string(job->slot)] = v;
+      }
+    }
+    note.result = "ok";
+    return answer(id, "", "");
+  }
+  // A job's model: one of the choices its picker shows, what the job's provider listed (GraceUI D193; invariant 3), on
+  // the provider chosen for it and waiting, else the job's own.
   if (const Job* job = job_of_key(key)) {
     const AiSlot* slot = slot_of(*facts.ai, job->slot);
-    if (slot == nullptr || slot->provider.empty()) {
-      return refuse("not_now", std::string(slot_words(job->slot)) +
-                                   " has no provider yet: on Providers, add the preset's provider or one of your own.");
+    const auto waiting = pending_.find(job->slot);
+    const std::string provider = waiting != pending_.end() ? waiting->second
+                                 : slot != nullptr         ? slot->provider
+                                                           : std::string();
+    if (provider.empty()) {
+      return refuse("not_now", facts.ai->providers.empty()
+                                   ? std::string("Add a provider first: on Providers, add the preset's provider or one "
+                                                 "of your own.")
+                                   : "Choose " + owned(job->slot) + " provider first.");
     }
-    const std::vector<std::string>* ids = listed_of(*facts.ai, slot->provider);
+    const std::vector<std::string>* ids = listed_of(*facts.ai, provider);
     if (ids == nullptr) {
-      return refuse("not_now", "Press List models on Providers first: the choices are the models " + slot->provider +
+      return refuse("not_now", "Press List models on Providers first: the choices are the models " + provider +
                                    " lists.");
     }
     const std::string& v = value.get_ref<const std::string&>();
     if (!pickable(v) || std::find(ids->begin(), ids->end(), v) == ids->end()) {
-      return refuse("invalid_value", slot->provider + " does not list that model: press List models on Providers "
-                                                      "again.");
+      return refuse("invalid_value", provider + " does not list that model: press List models on Providers again.");
     }
+    const bool same = slot != nullptr && waiting == pending_.end() && v == slot->model;
+    if (waiting != pending_.end()) pending_.erase(waiting);
+    json& held = values_[s->key];
+    if (held != value) {
+      held = value;
+      ++settings_rev_;
+    }
+    if (!same) changes_.push_back(Change{s->key, value, provider});  // the job's model now again: nothing to write
+    note.result = "ok";
+    return answer(id, "", "");
   }
   change(*s, value);
   note.result = "ok";
@@ -1126,6 +1226,11 @@ std::string Space::ai_command(const json& id, std::string_view name, json& args,
     return refuse("not_now", "A key goes only to an https:// address or to this PC: this provider is reached by "
                              "http:// on your home network, so it takes no key.");
   }
+  // A row that reads Not needed (GraceUI D197) takes none: no key's place, and no call refused for want of one.
+  if (p->key == AiKey::NotNeeded) {
+    wipe();
+    return refuse("not_now", "This provider takes no key. If it asks for one, its row says so after List models.");
+  }
   if (std::any_of(v.begin(), v.end(), [](char c) { return static_cast<unsigned char>(c) <= 0x20 || c == 0x7F; })) {
     wipe();
     return refuse("invalid_value", "A key has no spaces or line breaks in it: paste it again.");
@@ -1188,7 +1293,31 @@ std::string Space::reset(const json& id, const json& args, const SpaceFacts& fac
       return refuse("not_now", "Your providers file has a problem: correct it first. System › Status says what.");
     }
   }
-  for (const Setting* s : chosen) change(*s, s->fallback);
+  // A job's two rows reset as one: its pick removed from providers.toml (the preset's provider and model again), or, with
+  // no pick there, its provider waiting for a model dropped and its rows as the facts have them.
+  std::set<std::string_view> jobs_reset;
+  for (const Setting* s : chosen) {
+    const Job* job = job_of_key(s->key);
+    if (job == nullptr) job = job_of_provider_key(s->key);
+    if (job == nullptr) {
+      change(*s, s->fallback);
+      continue;
+    }
+    if (!jobs_reset.insert(job->slot).second) continue;
+    pending_.erase(std::string(job->slot));
+    const AiSlot* slot = slot_of(*facts.ai, job->slot);
+    const bool picked = picked_.count(job->slot) != 0;
+    const json model = picked || slot == nullptr ? json("") : json(slot->model);
+    const json provider = picked || slot == nullptr ? json("") : json(slot->provider);
+    for (const auto& [key, value] : {std::pair{job->key, model}, std::pair{job->provider_key, provider}}) {
+      json& held = values_[std::string(key)];
+      if (held != value) {
+        held = value;
+        ++settings_rev_;
+      }
+    }
+    if (picked) changes_.push_back(Change{std::string(job->key), "", ""});
+  }
   note.result = "ok";
   return answer(id, "", "");
 }
@@ -1225,15 +1354,35 @@ std::string Space::command(std::string_view cmd_frame, const SpaceFacts& facts) 
 
 void Space::sync(const SpaceFacts& facts) {
   if (facts.ai == nullptr) return;
+  std::set<std::string, std::less<>> picked;
+  for (const AiSlot& s : facts.ai->slots) {
+    if (s.picked && job_of_slot(s.slot) != nullptr) picked.insert(std::string(s.slot));
+  }
+  if (picked != picked_) {
+    picked_ = std::move(picked);
+    ++settings_rev_;
+  }
   for (const Job& j : kJobs) {
-    if (find(j.key) == nullptr) continue;
     const AiSlot* s = slot_of(*facts.ai, j.slot);
+    // A provider waiting for its model goes once it is the job's own, or no longer in providers.toml.
+    if (const auto waiting = pending_.find(j.slot); waiting != pending_.end()) {
+      if (provider_of(*facts.ai, waiting->second) == nullptr || (s != nullptr && s->provider == waiting->second)) {
+        pending_.erase(waiting);
+      }
+    }
+    const auto waiting = pending_.find(j.slot);
     // GraceUI holds a picked value to 200 bytes (D193): a longer id from the player's file shows as none chosen.
     const json model = s != nullptr && s->model.size() <= 200 ? s->model : std::string();
-    json& held = values_[std::string(j.key)];
-    if (held != model) {
-      held = model;
-      ++settings_rev_;
+    const json provider = waiting != pending_.end() ? waiting->second
+                          : s != nullptr             ? s->provider
+                                                     : std::string();
+    for (const auto& [key, value] : {std::pair{j.key, model}, std::pair{j.provider_key, provider}}) {
+      if (find(key) == nullptr) continue;
+      json& held = values_[std::string(key)];
+      if (held != value) {
+        held = value;
+        ++settings_rev_;
+      }
     }
   }
 }
@@ -1262,9 +1411,15 @@ void Space::log_line(std::string_view text, std::uint64_t t_ms) {
 }
 
 json Space::settings_body() const {
+  // The rows changed from their defaults (GraceUI D198): a job's two rows when providers.toml holds a pick for it (their
+  // values are the job's provider and model now, whose default stands for the preset's), any other row by its value.
   json changed = json::array();
   for (const Setting& s : settings_) {
-    if (values_.contains(s.key) && values_.at(s.key) != s.fallback) changed.push_back(s.key);
+    const Job* job = job_of_key(s.key);
+    if (job == nullptr) job = job_of_provider_key(s.key);
+    if (job != nullptr ? picked_.count(job->slot) != 0 : values_.contains(s.key) && values_.at(s.key) != s.fallback) {
+      changed.push_back(s.key);
+    }
   }
   return json{{"schema", settings_description_json_.value("schema", json::object())},
               {"description", settings_description_json_.value("settings", json::array())},
@@ -1289,8 +1444,14 @@ json Space::body(std::string_view topic, const SpaceFacts& facts) const {
   if (topic == "ai.slots") return slots_body(facts);
   if (topic == "selftest") return selftest_body(facts);
   if (topic == "space.state") return space_state_body(facts);
+  if (topic == kProviderChoices) return provider_choices_body(facts);
   for (const Job& j : kJobs) {
-    if (topic == j.topic) return choices_body(facts, j.slot);
+    if (topic != j.topic) continue;
+    const auto waiting = pending_.find(j.slot);
+    const AiSlot* s = facts.ai != nullptr ? slot_of(*facts.ai, j.slot) : nullptr;
+    return choices_body(facts, waiting != pending_.end() ? std::string_view(waiting->second)
+                               : s != nullptr          ? std::string_view(s->provider)
+                                                       : std::string_view());
   }
   return json::object();
 }
