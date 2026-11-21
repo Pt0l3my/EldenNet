@@ -61,7 +61,9 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
 - **2026-11-15.** O86 (spoilers by positive grounding alone, the playthrough state telling each NPC what it knows),
   put and decided the same day, as recommended; O36's guards dropped.
 - **2026-11-16.** O46 (the bio in five layers, proposal 0004) and O85 (followers after v1.0) decided, as recommended.
-- **Open.** None.
+- **2026-11-17 to 2026-11-21.** O92 (R1's naming route), O93 (EldenNet's text at GraceUI's default size), O94 (the talk
+  key, one key) and O95 (the first pages' choices) decided. O96 and O97 put to the owner on 2026-11-21.
+- **Open.** O96 (a System One provider for the decisions job), O97 (a decision for whom the player addressed).
 
 ## O1
 
@@ -1685,3 +1687,97 @@ with the menu, as any change of the setting does.
 **Owner's words.** "Keep text as designed (Recommended)".
 
 **Follows from.** GraceUI's D177, G6; NPC §10.7; S11.2.d.
+
+## O94
+
+**The talk key: one key on the keyboard, T by default** · *2026-11-21 · Decided by the owner*
+
+**Question.** The design left the talk key's default to spike S4, from keys the game's default layout leaves free
+(candidate `T`, NPC §5.1), and a pad opens the chat box with a two-button gesture (NPC §5.6; GraceUI's proposal
+0005). Asked what the pad gesture was, the owner asked that the keyboard keep a single key.
+**Options:** (a) one key with no modifier, `T` by default, rebindable; S4 checks in game that the default layout
+leaves it free, and if it does not, the default becomes another single key S4 finds free, by a dated note here;
+(b) leave the default to S4 as before, a chord allowed.
+
+**Recommendation.** (a). No published default PC layout binds `T` (WHY§277), and `T` sits in the same place on
+QWERTY, QWERTZ and AZERTY keyboards.
+
+**Decision.** (a). The talk key is one key on the keyboard, `T` by default, rebindable in Settings › Hotkeys and
+masked from the game as NPC §5.1 says. The pad's gesture is for a pad only and never replaces it. S4 (roadmap
+S11.1.a) checks in game that `T` does nothing in the default layout.
+
+**Owner's words.** "I still want a simple 1 key hotkey for EldenNet default key map if possible (double check the
+default Elden Ring key map is left free) for PC (keyboard and mouse)."
+
+**Follows from.** NPC §5.1, §5.6; DESIGN §8.1; O11; WHY§277; S11.1.a.
+
+## O95
+
+**EldenNet's first pages: the lamp, the version labels, the greyed words and the wording** · *2026-11-21 · Decided by
+the owner, as recommended*
+
+**Question.** The first two slices of EldenNet's pages (S11.4.a) left five choices to the owner, put on a decisions page
+with pictures of both views (the Grace session's "Decisions in pictures"): (1) the lamp while EldenNet starts; (2) the
+lamp's tones; (3) which increment the AI pages are labelled while EldenNet is 0.1; (4) the words on a greyed page; (5)
+the draft words of Home, System, Settings › Developer and the AI pages, the eight empty-state texts among them.
+**Options:** (1) (a) no lamp until EldenNet has a state, Home's card saying "Starting" and its step, or (b) a Starting
+lamp of its own; (2) Ready moss, Reduced and Observing ember, Paused and Dormant glint, Inactive rot, or others; (3) (a)
+the increment a build carries, so the AI pages say 0.2 now, or (b) everything 0.1 until v0.2 is released; (4) (a) one
+form everywhere, in en-core's banner words ("EldenNet inactive: …"), or (b) PAGES' separate form ("EldenNet is
+inactive: reason"); (5) accept, or change words.
+
+**Recommendation.** (1) (a); (2) the tones listed, which measure 6.0 to 8.2:1 on their ground (WHY§279); (3) (a); (4)
+(a); (5) accept.
+
+**Decision.** All as recommended. Under (4), the AI pages' Now card, which still says "EldenNet is inactive, so it calls
+no model", takes the banner's form in the next slice. The same words approved GraceUI's proposal 0005 (the pad gesture
+of NPC §5.6) and its proposal 0007 (G34: row actions, live pickers, row keys and small forms), which GraceUI records.
+
+**Owner's words.** "I am fine with everything you and grace done so far, so that's approved."
+
+**Follows from.** S11.4.a; PAGES §4.4, §4.8; GraceUI's invariant 13; WHY§266 to §279.
+
+## O96
+
+**A System One provider for the decisions job** · *2026-11-21 · Open*
+
+**Question.** The owner asked: "will you also add chat/completions or systemone selection for providers that could use
+decision models?" EldenNet's decision calls (ARCH §11.8) go over chat completions to any model: code builds the
+options, the reply is held to an enum schema or read by meaning, and a rules fallback stands behind every call.
+SkyrimNet lets each provider choose an API style (Chat Completions, Decisions or System One) and sends its typed
+decisions to a classifier, TypeSafe's Jev, which answers with an option and its probabilities rather than prose (SN01
+§6.1, SN07). System One is a published protocol (`POST /v1/systemone`), offered by OpenRouter (its Decisions and
+System One APIs) and by Ollama from 0.35 (WHY§280).
+**Options:** (a) an `api_style` per provider, `chat` (the default) or `system_one`, used by the `decisions` job alone:
+en-llm renders a DecisionCall (Choice, YesNo) as System One's typed question, with our own client written from the
+published protocol (O84); a chat-format decision and then the rules stand behind it; built with the first decision task
+(the next speaker, NPC §9.7), tested against Ollama locally and against OpenRouter with the owner's key, and a preset
+may name Jev for `decisions`; (b) as (a), after v1.0; (c) chat completions only, as now.
+
+**Recommendation.** (a). It is one more wire format in en-llm, not a new path: code still builds the options, and the
+rules still stand behind every call. A classifier answers in a fraction of a second with probabilities, which suits a
+pick made while the player waits, and it is reachable on the OpenRouter key the default preset already uses. One
+provider calls Jev experimental, so chat stays the default and the fallback.
+
+**Follows from.** ARCH §11.1, §11.8; DESIGN §11.2; O84, O88; SN01 §6.1; WHY§280.
+
+## O97
+
+**A decision for whom the player addressed** · *2026-11-21 · Open*
+
+**Question.** The owner asked whether EldenNet will include the decision job "for target selection that SkyrimNet has".
+SkyrimNet asks its decisions model whom the player addressed (`player_dialogue_target_selector`) and who speaks next
+(`dialogue_speaker_selector`, with "none" among the options), each falling back to a chat prompt (SN07). EldenNet has
+the second: the `decisions` job picks the next speaker at a shared place, silence always offered (NPC §9.7). The first
+it settles by rules: the talk key's target order (active talk, lock-on, the forward cone, the nearest; NPC §5.1), shown
+in the hint before the player types, and while a conversation is open the other personas overhear but never answer
+(NPC §9.4).
+**Options:** (a) the rules in v1, and a "who was addressed" decision once more than one persona may answer a line of the
+player's (a later version); (b) in v1, as a tie-breaker only, when two candidates stand equally for the hint; (c) in v1,
+for every typed line heard by more than one persona, which may hand the line to a persona other than the one in the
+header.
+
+**Recommendation.** (a). The player sees whom they speak to before typing, the box opens in under 50 ms with no model
+call, and a line never goes to someone the header did not name. The hint's 500 ms lead already settles near-ties.
+
+**Follows from.** NPC §5.1, §9.4, §9.7; ARCH §11.8; SN02 §13.2; SN07.

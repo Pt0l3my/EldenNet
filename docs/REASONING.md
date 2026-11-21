@@ -299,6 +299,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 274 | 2026-11-21 | EldenNet's AI pages: keys as GraceUI secret settings, kept with a one-user access list, and what GraceUI 0.2 cannot yet do for them | DECIDED | #engine #pages #security |
 | 275 | 2026-11-21 | Keeping std::filesystem's imports out of eldennet.dll, the handle told the gate when made, and toml++'s output | FACT | #engine |
 | 276 | 2026-11-21 | A key-shaped value in a test and the sweep: allowed by a pattern, since an allow line holding the literal is itself a finding | METHOD | #privsweep #engine |
+| 277 | 2026-11-21 | The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4 | LIKELY | #input #hotkeys |
+| 278 | 2026-11-21 | GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages | FACT | #graceui #pages |
+| 279 | 2026-11-21 | The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey | FACT | #graceui #lamp |
+| 280 | 2026-11-21 | System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama | LIKELY | #llm #decisions |
 
 ## Entries
 
@@ -4723,3 +4727,50 @@ invariant 10, EldenNet ARCH (T3)
 - (METHOD) An allow line in Skyrizz names that one file and matches the value by a pattern, not the literal. A line
   holding the literal was itself refused by the sweep on Skyrizz's own push, so it was rewritten before the unpushed
   commit was pushed.
+
+### 277. The game's default PC layout leaves `T` free: the talk key's default (O94), to be checked in game by S4
+
+`2026-11-21` · LIKELY · `#input` `#hotkeys` · refs: O94, NPC§5.1, S11.1.a
+
+- (LIKELY) Published guides to the game's default PC keyboard and mouse layout agree on: W, A, S, D to move; Alt to
+  walk; Space to dodge, backstep and dash; F to jump; X to crouch; Q (or the wheel click) to lock on; R to use an item;
+  E for the event action, and with the mouse buttons to two-hand, with the arrows for the pouch; G for the map; Esc for
+  the menu; the left button to attack and the right to guard, with Shift for the strong attack and the skill; the
+  arrows to switch spells, items and armaments. None binds `T`. G and Esc cannot be rebound in the game. They
+  disagree in two places (one gives C for crouch, one Ctrl for guard). One counts 22 default keyboard binds.
+- (METHOD) Found by web search on 2026-11-21; the guide pages themselves were outside this session's network, so the
+  list is from the search results (Shacknews' "Elden Ring controls and PC keybindings", PC Gamer's "Elden Ring's
+  half-assed mouse and keyboard controls", keymap.io's Elden Ring page). Not a FACT until S4 presses `T` in game in
+  the default layout and the game does nothing.
+
+### 278. GraceUI's browser rail kept categories with no page, which the game's rail leaves out: compare both views on a real mod's pages
+
+`2026-11-21` · FACT · `#graceui` `#pages` · refs: GraceUI D191 (feat/foundations c397464), S11.2.t
+
+- (FACT) The browser view's rail kept a category with no page whenever no page was of a later increment (its
+  increment check returned early), while the game's view skips any category with no page present. EldenNet's space
+  declares six categories with no page yet (Voice, Characters, Map, History, Behaviour, Tools), so the two views
+  differed. Fixed in GraceUI's D191 (feat/foundations c397464).
+- (METHOD) Compare both views' pictures of a real mod's pages, not only the demo space's goldens.
+
+### 279. The lamp's four tones measure 6.0 to 8.2:1 on their ground, its word 10.2:1; glint is a pale blue-grey
+
+`2026-11-21` · FACT · `#graceui` `#lamp` · refs: GraceUI invariant 13, S11.4.a
+
+- (FACT) On the lamp's ground, in both themes: moss 7.7:1, ember 7.0:1, glint 8.2:1, rot 6.0:1; the word 10.2:1.
+  A graphic needs 3:1, and each clears the 4.5:1 GraceUI asks of readable text. Glint is a pale blue-grey, not gold.
+- (FACT) The lamp is drawn only in the browser view, in the top bar beside the theme switch, not beside the name;
+  the game's menu has none today.
+
+### 280. System One, the decision protocol SkyrimNet uses for its classifier, is published and offered by OpenRouter and Ollama
+
+`2026-11-21` · LIKELY · `#llm` `#decisions` · refs: O96, ARCH§11.8, SN01§6.1
+
+- (LIKELY) Jev is TypeSafe's first System One model: it answers typed questions about a given state with an option and
+  probabilities, not prose, and returns no reasoning. System One is the protocol `POST /v1/systemone`. OpenRouter offers
+  Jev through two of its APIs, Decisions and System One; Ollama added a matching endpoint in 0.35; TypeSafe's SDKs work
+  against any server that implements System One, by its base URL. The provider receives the state sent, as any cloud
+  provider does. One provider's documentation calls Jev experimental.
+- (METHOD) From web search results on 2026-11-21 (Spring AI's System One decision page, OpenRouter's Jev guide,
+  LangChain's TypeSafe integration, AIMLAPI's model page); the pages themselves were not read. A client of ours would be
+  written from TypeSafe's and OpenRouter's published references, never from SkyrimNet's (O84).
