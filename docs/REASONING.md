@@ -466,6 +466,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 441 | 2026-11-22 | From the talk key to the box's first frame: 1 ms on the fake game | FACT | #engine #conversation #fakegame |
 | 442 | 2026-11-22 | What part C left to the core: the refusal's toast and the pages' speaking level | LIKELY | #engine #conversation |
 | 443 | 2026-11-22 | The content's problems reach the player as one notice, never a value | DECIDED | #engine #conversation #notices |
+| 444 | 2026-11-22 | The tester's panel is a window of the launcher's own, not GraceUI's overlay, since a read-only round hooks nothing | DECIDED | #lodestar #launcher |
+| 445 | 2026-11-22 | The tester's confirmations are Marks in the watch block's ring, with no new field | METHOD | #lodestar |
 
 ## Entries
 
@@ -6993,3 +6995,26 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   content load's first error, else its first warning (`content_warnings()`), is shown once for 15 s as a GraceUI notice
   under EldenNet's key 5, in en-core's fixed words (`file:line: key: problem`) and "(and N more)", never a value of the
   file. The log holds the counts alone. The words are drafts.
+
+### 444. The tester's panel is a window of the launcher's own, not GraceUI's overlay, since a read-only round hooks nothing
+
+`2026-11-22` · DECIDED · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§398, S10.1.l
+
+- It is always on top and never takes the keyboard. GraceUI's overlay hooks have not had their spikes on the owner's PC
+  (S10.1.g, S11.1.a), and Grace advises keeping read-only rounds on the launcher's window even after.
+- The list is data in one place, and the confirm is one named action, so the panel can move to a GraceUI panel later.
+  Built in the eighth round (engine 3030114, package 0.1.0-lodestar.11): eight tasks in order, each with its
+  description and timer; the done ones greyed with the time they took; the one under way highlighted. A waiting task
+  ends by itself; a tester's task ends at Pause (the launcher's system hotkey, as the Mark always was) or a click.
+
+### 445. The tester's confirmations are Marks in the watch block's ring, with no new field
+
+`2026-11-22` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§396, WHY§444
+
+- The launcher stamps a Mark at a marked task's confirmation, and the round reads it with `block::marks()`, as the
+  shell does. en-proto is unchanged.
+- The sweep keeps the flips seen from 15 s before a mark to 60 s after it under that mark, and starts a pass at once.
+  It gives up a target of which more than 1,024 words change again and again. Its sizes are unchanged (about 24 MiB at
+  most), within the owner's yes (O105's note).
+- The same round writes the clock's static into the draft table as `world_clock`, by what its object holds (minutes
+  going round twice with hours beside them). The play time's invariant now asks what a play time does (WHY§397).

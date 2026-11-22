@@ -1073,12 +1073,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     an accessor's static, told by the owner's two passings of time), candidates for the flags' blocks and tree, the
     reader at 9.97 a second. 1012 `world_clock` is that object (WHY§359's Later line). Next: the clock into the table by
     what its object holds; a flag the owner sets checked against the blocks, with the tester's marks (S10.1.l).
-- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [next]
+    L6's fourth round built the same day (engine 9ba4556, Lodestar's 3030114; WHY§444, §445): the tester's panel and
+    its marks for the sweep, the clock written by what its object holds, the play time judged by what it does.
+    Package 0.1.0-lodestar.11, for the owner's run.
+- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
-  - refs: WHY§398, WHY§396
+  - refs: WHY§398, WHY§396, WHY§444, WHY§445
   - gives: asked by the owner on 2026-11-22, after the seventh read-only round. By Lodestar: in game through GraceUI if
     its overlay can show it there today, else a window of the launcher's own. The tester's marks also tell the round
-    when to look.
+    when to look. Built the same day with the eighth round (engine 3030114): the launcher's task panel, with --read,
+    the tasks in order, timers, Pause or a click to confirm; the confirmations are Marks in the watch block's ring
+    (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
