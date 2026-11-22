@@ -456,7 +456,9 @@ Caret paint_box(Painter& p, const Faces& f, const Display& d, const proto::ChatB
   };
   std::vector<Line> strip;
   const auto add = [&](const std::u32string& t, std::uint32_t colour) {
-    for (std::u32string& l : wrap(f.serif, kHistoryPx * s, t, w - 2 * pad, 2)) strip.push_back(Line{std::move(l), colour});
+    for (std::u32string& l : wrap(f.serif, kHistoryPx * s, t, w - 2 * pad, 2)) {
+      strip.push_back(Line{std::move(l), colour});
+    }
   };
   const std::size_t from = box.history.size() > kHistoryShown ? box.history.size() - kHistoryShown : 0;
   for (std::size_t i = from; i < box.history.size(); ++i) {
@@ -636,7 +638,9 @@ std::vector<ToastBook::Call> ToastBook::update(std::span<const proto::Toast> toa
       on_[k] = 0;
     }
   }
-  if (done_.size() > kDoneKept) done_.erase(done_.begin(), done_.begin() + static_cast<std::ptrdiff_t>(done_.size() - kDoneKept));
+  if (done_.size() > kDoneKept) {
+    done_.erase(done_.begin(), done_.begin() + static_cast<std::ptrdiff_t>(done_.size() - kDoneKept));
+  }
   for (const proto::Toast& t : toasts) {
     if (t.id == 0 || t.text.empty()) continue;
     if (std::find(on_.begin(), on_.end(), t.id) != on_.end()) continue;

@@ -600,7 +600,9 @@ void Grace::type(const std::string& utf8) {
     const auto b = static_cast<unsigned char>(utf8[i]);
     const std::size_t n = b < 0x80 ? 1 : (b & 0xE0) == 0xC0 ? 2 : (b & 0xF0) == 0xE0 ? 3 : 4;
     std::uint32_t c = n == 1 ? b : n == 2 ? (b & 0x1Fu) : n == 3 ? (b & 0x0Fu) : (b & 0x07u);
-    for (std::size_t k = 1; k < n && i + k < utf8.size(); ++k) c = (c << 6) | (static_cast<unsigned char>(utf8[i + k]) & 0x3Fu);
+    for (std::size_t k = 1; k < n && i + k < utf8.size(); ++k) {
+      c = (c << 6) | (static_cast<unsigned char>(utf8[i + k]) & 0x3Fu);
+    }
     GraceUiEvent e = event_of(GRACEUI_EVENT_CHARACTER);
     e.code_point = c;
     queue(*this, e);

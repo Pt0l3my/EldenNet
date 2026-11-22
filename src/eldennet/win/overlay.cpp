@@ -375,7 +375,8 @@ GraceFonts grace_fonts() {
 }
 
 std::span<const unsigned char> bytes_of(const std::string& s) noexcept {
-  return std::span<const unsigned char>(static_cast<const unsigned char*>(static_cast<const void*>(s.data())), s.size());
+  const void* data = s.data();
+  return std::span<const unsigned char>(static_cast<const unsigned char*>(data), s.size());
 }
 
 const char* close_word(en::proto::CloseReason r) noexcept { return en::proto::to_string(r); }

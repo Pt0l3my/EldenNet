@@ -95,7 +95,8 @@ void read_folder(const std::wstring& root, const std::wstring& rel, int depth, C
         ++out.refused;
         continue;
       }
-      out.overrides.push_back(en::core::ContentFile{std::move(key), std::move(*text), en::core::ContentOrigin::Override});
+      out.overrides.push_back(
+          en::core::ContentFile{std::move(key), std::move(*text), en::core::ContentOrigin::Override});
     }
   } while (FindNextFileW(h, &f));
   FindClose(h);
@@ -158,7 +159,8 @@ void conversation_out(Shell& s, en::core::Outputs& out) noexcept {
         l.num("chars", c.text.size());
       }
       if (c.kind == en::core::Commit::Kind::Ended) {
-        l.word("reason", en::core::to_string(c.reason)).num("player_lines", c.player_lines).num("committed", c.committed);
+        l.word("reason", en::core::to_string(c.reason)).num("player_lines", c.player_lines);
+        l.num("committed", c.committed);
       }
       log(l);
     }

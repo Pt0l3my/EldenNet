@@ -281,7 +281,9 @@ bool Surfaces::take(const GraceUiEvent& e, std::uint64_t now, std::vector<proto:
       }
       if (e.hotkey_id != 0 && e.hotkey_id == skip_) {
         const auto& page = lower_.current();
-        if (page && page->kind == proto::PageKind::Speech) out.push_back(proto::UiEvent{proto::UiEvent::Skip{page->id}});
+        if (page && page->kind == proto::PageKind::Speech) {
+          out.push_back(proto::UiEvent{proto::UiEvent::Skip{page->id}});
+        }
         return true;
       }
       return false;
@@ -400,7 +402,8 @@ bool Surfaces::panels(std::uint64_t) {
   page.desc = surfaces::page_panel(display_);
   box.desc = surfaces::box_panel(display_);
   hint.desc = surfaces::hint_panel(display_);
-  if (api_.create_panel(me_, page.desc, page.id) != GRACEUI_OK || api_.create_panel(me_, box.desc, box.id) != GRACEUI_OK ||
+  if (api_.create_panel(me_, page.desc, page.id) != GRACEUI_OK ||
+      api_.create_panel(me_, box.desc, box.id) != GRACEUI_OK ||
       api_.create_panel(me_, hint.desc, hint.id) != GRACEUI_OK) {
     ++counts_.refused;
     return page_.id != 0;  // the old set, if there is one

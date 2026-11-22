@@ -17,9 +17,11 @@ the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it wai
 
 ## Two parts
 
-- **Portable, in every build** (tested on Linux with GCC and Clang too): `view.hpp`, the F11 view's lines, and
-  `world.hpp`, the world-state claims. Both are pure, on en-proto and `graceui.h`, which is plain C.
-- **The Windows builds** (MinGW-w64 and clang-cl): `overlay.hpp`, the connection, and Dear ImGui's core
+- **Portable, in every build** (tested on Linux with GCC and Clang too): `view.hpp`, the F11 view's lines,
+  `world.hpp`, the world-state claims, and `surfaces.hpp`, the conversation's surfaces laid out. All are pure, on
+  en-proto and `graceui.h`, which is plain C.
+- **The Windows builds** (MinGW-w64 and clang-cl): `overlay.hpp`, the connection, `chat.hpp`, the surfaces' calls
+  into GraceUI, and Dear ImGui's core
   (`en_imgui_core`), downloaded at configure time at GraceUI's own pin (the commit of tag v1.93.0, each file by its
   SHA-256) and compiled with GraceUI's `gu_imgui_core` definitions: no demo, debug tools, file, shell or Win32 functions.
   Its warnings are off as third-party code's, but for `en_dll_module`'s two rules, which Clang keeps as errors (the DLL

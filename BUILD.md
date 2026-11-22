@@ -186,9 +186,9 @@ cmake --build build-cl
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- The clang-cl build's harness has 122 tests with every optional part given (the prefix and 121 cases, 52 of them the
-  launcher's, 24 of those eldennet.dll's and eight of these with GraceUI, above, and six the spikes' package's; counted
-  on 2026-11-22, after R1's eight cases went and the read round's console case came). Without GraceUI's parts 109
+- The clang-cl build's harness has 125 tests with every optional part given (the prefix and 124 cases, 55 of them the
+  launcher's, 27 of those eldennet.dll's and ten of these with GraceUI, above, and six the spikes' package's; counted
+  on 2026-11-22, after the first conversation's three cases came). Without GraceUI's parts 110
   tests run, in about 18 minutes (2026-11-22): 52 of about 2 to 8 s each, and the `gal-*` cases of part 4, 12 to 25 s each, which first write
   gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as an in-game round finds them) and
   `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the fake game with
