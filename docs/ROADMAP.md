@@ -999,6 +999,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     under each lead's name and its name with Imp, and those deriving from them; a lead with no class of its own named by
     the one deriving from it; naming with no cap; the trial by stage. Its offline run (package 0.1.0-lodestar.4, game
     closed, about 5 minutes) is with the owner; its answer decides how event_flags, world_clock and messages are found.
+    The count's run the same day (WHY§331, WHY§332): messages and event_flags have classes of their names, so they can be
+    named by their instances; world_clock has none and needs L6's invariants. Next: one more read-only in-game round, with
+    instances inside the image read, a read-only search of the data slots for a lead's class, and L6's first invariant
+    searches (the play time) on the reader's thread.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

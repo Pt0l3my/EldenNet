@@ -353,6 +353,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 328 | 2026-11-22 | The image as loaded gives the finder the same statics, class objects, sites and witnesses as the file | FACT | #gal #lodestar |
 | 329 | 2026-11-22 | A third of the game's managers hold objects with no type information the walk reads | LIKELY | #gal #lodestar |
 | 330 | 2026-11-22 | A round's report must tell "not there" from "there under another name" | METHOD | #gal #lodestar |
+| 331 | 2026-11-22 | Ten of the eleven managers' leads have exactly one class of their name in the image; world_clock's has none | FACT | #gal #lodestar #owner-run |
+| 332 | 2026-11-22 | A manager with a class of its name that the round did not name was not missed for want of type information | LIKELY | #gal #lodestar |
 
 ## Entries
 
@@ -5534,3 +5536,24 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   with Imp). This round did not, and so left its one open question open. Two shortcomings for the next round: naming
   stopped after 60 passes (ten minutes), so the world had only about five; and the trial did not count its readings by
   stage.
+
+### 331. Ten of the eleven managers' leads have exactly one class of their name in the image; world_clock's has none
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: O92, WHY§329, docs/ops/probes/2026-11-22-l5.md, S10.1.k
+
+- The owner's offline count (package 0.1.0-lodestar.4, the game closed): on 2.7.2.0 ten of the eleven managers' leads
+  have exactly one class of their name in the image (nine by the name with Imp, event_flags by the plain name), each
+  with one table of methods; the eight the in-game round named agree. world_clock's lead has none, and its name stands
+  nowhere in the image as a type's name: O92's way cannot name it, so it needs the invariant recipe (L6), or its lead's
+  name is not the game's.
+
+### 332. A manager with a class of its name that the round did not name was not missed for want of type information
+
+`2026-11-22` · LIKELY · `#gal` `#lodestar` · refs: O92, WHY§329, WHY§331, docs/ops/probes/2026-11-22-l5.md
+
+- messages and event_flags have classes of their names, yet the round found no instance of either. Likely causes, in
+  the order Lodestar will try them: the instance lies inside the image, where the round refused to read it as an instance
+  (it counted one static unread), a rule R1's derivation had too; the manager was among the six statics still empty
+  when naming stopped; or its static is none of the accessor's 217. The next in-game round, read-only as the last, reads
+  an instance inside the image through the image's own view, searches the data slots for an object of a lead's class
+  (R1's slot search, which only reads), and starts L6's invariant searches on the reader's thread with the play time.
