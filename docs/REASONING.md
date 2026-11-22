@@ -366,6 +366,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 341 | 2026-11-22 | 97 in 100 of the data's values that could be a heap address are refused when Windows is asked | LIKELY | #lodestar #probe |
 | 342 | 2026-11-22 | 56 of the accessor's 217 statics hold a manager only while a save is loaded | FACT | #lodestar |
 | 343 | 2026-11-22 | The accessor's other shapes are recipes of the same kind under ids of their own | METHOD | #lodestar #gal |
+| 344 | 2026-11-22 | Third read-only round: messages named by the search of the data's slots; twelve leads in the build's table | FACT | #lodestar #probe |
+| 345 | 2026-11-22 | The second round's refusals were values that are no addresses | FACT | #lodestar #probe |
+| 346 | 2026-11-22 | The accessor's other shapes confirm the 217 statics rather than add to them | FACT | #lodestar #gal |
+| 347 | 2026-11-22 | event_flags is behind none of the places looked; world_clock has a class only under a longer name | FACT | #lodestar #probe |
+| 348 | 2026-11-22 | The play time: one field behind one slot rose by the clock in two sessions, a lead for L6 | LIKELY | #lodestar #l6 |
 
 ## Entries
 
@@ -5657,6 +5662,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   reads and the ask-first copy's refusals were the same number, 1,662,371: no read faulted, each was refused beforehand.
   Those values are LIKELY no addresses (two small numbers read as one). The third round asks Windows once for every
   candidate before searching, and counts the refusals by reason.
+- **Later (2026-11-22), the third round:** confirmed. Of 123,336 values that could be a heap address, 119,045 had no
+  memory behind them, none had memory that may not be read, 4,291 were live (WHY§345).
 
 ### 342. 56 of the accessor's 217 statics hold a manager only while a save is loaded
 
@@ -5680,3 +5687,47 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   searches sharing 4 ms of each reader step, the rising search ranking its hits, and a member search (the first 0x800
   bytes of each static's object, for an unnamed lead's object or a pointer to one), all read-only. The report is schema 3,
   new keys only, still a closed vocabulary.
+
+### 344. Third read-only round: messages named by the search of the data's slots; twelve leads in the build's table
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§340, S10.1.k
+
+- The owner's third read-only round (package 0.1.0-lodestar.6) named messages by the slot search: 2 slots of the data
+  hold one object of its class, named by the first; neither is a static of any accessor shape. The trial read it 3,557
+  times with its class, 52 empty, no fault. The eight others, the 217 statics, the two classes and the groups' table
+  were unchanged, a third session. The build's table (`gal/layouts/2.7.2.0-ww.toml`) now holds 12 leads, messages added
+  with no witness (engine feat/engine f95f3cb).
+- The reader: 3,960 readings in 403 s (9.8 a second), 21 steps a second, a p99 of 5 microseconds and the longest 17,
+  103,547 copies with none refused; the searches used their 4 ms in 7,808 of 7,844 steps.
+
+### 345. The second round's refusals were values that are no addresses
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§341
+
+- Of 123,336 values of the data that could be a heap address, 119,045 had no memory behind them (asked of Windows,
+  nothing read), none had memory that may not be read, and 4,291 were live. Of 590,869 reads asked, 14,850 were refused
+  as gone since, none failed once allowed, and nothing faulted.
+
+### 346. The accessor's other shapes confirm the 217 statics rather than add to them
+
+`2026-11-22` · FACT · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§343, gal/recipes.toml
+
+- On 2.7.2.0: gap 675 places, compare 598, near 2, compare_near 4, all accepted, reaching 89 of the 217 statics with
+  the same class objects and 2 new ones (1,279 places beside the 7,077). gap_near stands nowhere and is withdrawn with its
+  note; the four standing variants have their expected counts.
+
+### 347. event_flags is behind none of the places looked; world_clock has a class only under a longer name
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§331, WHY§338
+
+- event_flags is not behind any static, any slot of the data, in the image's data, or within 0x800 bytes or one pointer
+  of a static's object, in six tries over 6 minutes of play (3,938 to 4,174 live candidates; the member search's 1,270
+  object copies and 72,001 pointers followed). world_clock has no class of its name or with Imp, but one class whose name
+  holds the lead's (`related` 1). No clock in minutes and hours in the first 256 bytes of 211 unnamed statics' objects.
+
+### 348. The play time: one field behind one slot rose by the clock in two sessions, a lead for L6
+
+`2026-11-22` · LIKELY · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§338
+
+- One 32-bit field behind one slot of the data rose by the clock in 107 of 119 passes in the second round and in 85 of
+  90 a session later, same slot and offset; the next best rose in 14. A lead for L6.

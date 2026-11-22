@@ -1014,6 +1014,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     fault of the round's and mended; the event flags behind no slot. The third round built (engine 8815db2; WHY§343):
     searches keep what they find, candidates asked for first, a 4 ms share, a member search, five variant recipes of the
     accessor; with the owner (package 0.1.0-lodestar.6).
+    The third round reviewed the same day (engine f95f3cb; WHY§344 to §348): nine of the eleven managers named (messages
+    by the slot search), twelve leads in the build's table; event_flags and world_clock still open; the variants counted,
+    gap_near withdrawn; the play time's candidate the same across two sessions. Next: a fourth round for the last two.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
