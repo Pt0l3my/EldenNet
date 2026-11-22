@@ -29,7 +29,7 @@ std::optional<Unsafe> safe_context(const Surroundings& w) noexcept {
     if (w.hostile_m <= 12.0f) return Unsafe::Hostiles;
     if (!w.caps_combat && w.hostile_m <= 25.0f) return Unsafe::Hostiles;  // stricter without the combat group
   }
-  if (w.menu) return Unsafe::Menu;  // §5.8 before S3
+  if (w.menu || w.banner) return Unsafe::Menu;  // §5.8 before S3; an open box ignores the banner (O108)
   return std::nullopt;
 }
 

@@ -412,3 +412,20 @@ TEST_CASE("on an end the input epoch moves and own-initiative lines stay quiet f
   CHECK(r.conv.epoch() == e0 + 2);
   CHECK(r.conv.barks_quiet_until() == r.now + 3000);
 }
+
+TEST_CASE("a game banner stops the box opening but never closes an open one (O108)") {
+  Rig r;
+  r.open_box();
+  r.snap.ui.banner = 3;
+  r.wait(500);
+  CHECK(r.conv.box_open());
+  CHECK_FALSE(r.toasted("The moment has passed."));
+  r.close(proto::CloseReason::Escape, "a half line");
+  REQUIRE_FALSE(r.conv.box_open());
+  r.open();  // the banner still shows: the box does not open
+  CHECK_FALSE(r.conv.box_open());
+  r.snap.ui.banner.reset();
+  r.wait(500);
+  r.open();
+  CHECK(r.conv.box_open());
+}
