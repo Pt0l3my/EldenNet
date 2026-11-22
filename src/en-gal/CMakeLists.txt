@@ -111,6 +111,7 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_guarded.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery_table.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lodestar_game.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frame.cpp

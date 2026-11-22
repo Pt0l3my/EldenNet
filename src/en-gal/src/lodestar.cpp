@@ -9,7 +9,9 @@
 
 #include "en/gal/fd4.hpp"
 #include "en/gal/image_bytes.hpp"
+#include "en/gal/resolve.hpp"
 #include "en/gal/roles.hpp"
+#include "en/gal/rtti.hpp"
 
 namespace en::gal::lodestar {
 
@@ -168,6 +170,212 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
   return out;
 }
 
+InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
+                              const derive::Leads& leads, const Catalogue& ids, const ReadWord& read_word) {
+  InstancesFound out;
+  const ImageBytes img(image, live);
+  const rtti::Walk walk = rtti::walk(img);
+  std::map<std::uint32_t, std::size_t> vtables;  // by offset: its place in the walk's
+  for (std::size_t i = 0; i < walk.vtables.size(); ++i) vtables.emplace(walk.vtables[i].rva, i);
+  // By static: its instance's class and table of methods. The names stay here: nothing below writes one.
+  struct Classed {
+    std::string cls;
+    std::uint32_t vtable = 0;
+  };
+  std::map<std::uint32_t, Classed> classes;
+  for (const StaticFound& s : accessor.statics) {
+    ++out.tried;
+    const std::optional<std::uint64_t> instance = img.u64(s.rva);
+    if (!instance || *instance == 0) {
+      ++out.null;
+      continue;
+    }
+    // An instance is a heap object: one that lies in the image is no instance, and is not read as one.
+    const std::optional<std::uint64_t> word =
+        img.rva_of(*instance) || !read_word ? std::nullopt : read_word(*instance);
+    if (!word) {
+      ++out.unread;
+      continue;
+    }
+    const std::optional<std::uint32_t> rva = img.rva_of(*word);
+    const auto it = rva ? vtables.find(*rva) : vtables.end();
+    if (it == vtables.end()) {
+      ++out.unclassed;
+      continue;
+    }
+    const rtti::Locator& locator = walk.locators[walk.vtables[it->second].locator];
+    const std::optional<std::string> cls =
+        locator.offset == 0 ? derive::innermost_class(img, locator.type_descriptor) : std::nullopt;
+    if (!cls) {
+      ++out.unclassed;
+      continue;
+    }
+    ++out.classed;
+    classes.emplace(s.rva, Classed{*cls, *rva});
+  }
+  for (const derive::NamedLead& lead : leads.singletons) {
+    ++out.leads;
+    const IdEntry* id = ids.find(lead.label, true);
+    if (id == nullptr || id->kind != IdKind::Static || id->status != IdStatus::Active) {
+      ++out.unlisted;
+      continue;
+    }
+    ManagerFound m;
+    m.label = id->label;
+    m.id = id->number;
+    std::uint32_t matches = 0;
+    for (const auto& [slot, c] : classes) {
+      const bool plain = c.cls == lead.name;
+      if (!plain && c.cls != lead.name + "Imp") continue;
+      if (matches++ != 0) continue;  // the first stands for an ambiguous one, as the derivation reports it
+      m.rva = slot;
+      m.vtable = c.vtable;
+      m.imp = !plain;
+    }
+    if (matches != 0) {
+      m.status = matches == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
+      for (const StaticFound& s : accessor.statics) {
+        if (s.rva != m.rva) continue;
+        m.sites = s.sites;
+        m.witnesses = s.witnesses;
+      }
+    }
+    out.named += m.status == derive::Status::Derived ? 1 : 0;
+    out.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
+    out.managers.push_back(std::move(m));
+  }
+  std::sort(out.managers.begin(), out.managers.end(),
+            [](const ManagerFound& a, const ManagerFound& b) { return a.id < b.id; });
+  return out;
+}
+
+namespace {
+
+std::string hex(std::uint32_t v) {
+  static constexpr char kDigits[] = "0123456789ABCDEF";
+  std::string out;
+  do {
+    out.insert(out.begin(), kDigits[v & 0xF]);
+    v >>= 4;
+  } while (v != 0);
+  return "0x" + out;
+}
+
+std::string hex_list(const std::vector<std::uint32_t>& values) {
+  std::string out = "[";
+  for (std::size_t i = 0; i < values.size(); ++i) out += (i != 0 ? ", " : "") + hex(values[i]);
+  return out + "]";
+}
+
+template <typename T>
+std::string word_list(const std::vector<T>& words) {
+  std::string out = "[";
+  for (std::size_t i = 0; i < words.size(); ++i) out += std::string(i != 0 ? ", " : "") + "\"" + to_string(words[i]) + "\"";
+  return out + "]";
+}
+
+std::string quoted_list(const std::vector<std::string>& texts) {
+  std::string out = "[";
+  for (std::size_t i = 0; i < texts.size(); ++i) out += std::string(i != 0 ? ", " : "") + "\"" + texts[i] + "\"";
+  return out + "]";
+}
+
+}  // namespace
+
+DraftTable draft_table(const Found& found, const Catalogue& ids, const TableProvenance& provenance,
+                       const ImageInfo& image, const ByteSource& source) {
+  // What was found, as entries; the catalogue's labels, numbers and kinds.
+  std::vector<ItemEntry> entries;
+  if (found.instances) {
+    for (const ManagerFound& m : found.instances->managers) {
+      if (m.status != derive::Status::Derived) continue;
+      ItemEntry e;
+      e.label = m.label;
+      e.id = m.id;
+      e.kind = IdKind::Static;
+      e.rva = m.rva;
+      e.found_by = {Recipe::Accessor, Recipe::InstanceClass};
+      e.witnesses = m.witnesses;
+      if (e.witnesses.size() > kMaxWitnesses) e.witnesses.resize(kMaxWitnesses);
+      e.checks = {ItemCheck::Agree, ItemCheck::Class};  // two recipes give the slot; its instance has the class
+      entries.push_back(std::move(e));
+    }
+  }
+  for (const ClassFound& c : found.classes) {
+    const IdEntry* id = ids.find(c.label, true);
+    if (c.status != derive::Status::Derived || c.vtables.empty() || id == nullptr || id->kind != IdKind::Class ||
+        id->status != IdStatus::Active) {
+      continue;
+    }
+    ItemEntry e;
+    e.label = id->label;
+    e.id = id->number;
+    e.kind = IdKind::Class;
+    e.vtables = c.vtables;
+    std::sort(e.vtables.begin(), e.vtables.end());
+    if (e.vtables.size() > kMaxVtables) e.vtables.resize(kMaxVtables);
+    e.found_by = {Recipe::Class};
+    entries.push_back(std::move(e));
+  }
+  if (found.table.status == derive::Status::Derived && found.table.entries != 0) {
+    for (const IdEntry& id : ids.entries()) {
+      if (id.kind != IdKind::Table || id.status != IdStatus::Active) continue;
+      ItemEntry e;
+      e.label = id.label;
+      e.id = id.number;
+      e.kind = IdKind::Table;
+      e.rva = found.table.rva;
+      e.stride = found.table.stride;
+      e.count = found.table.entries;
+      e.found_by = {Recipe::Table};
+      entries.push_back(std::move(e));
+      break;  // the catalogue's first table is the task groups'
+    }
+  }
+  std::sort(entries.begin(), entries.end(), [](const ItemEntry& a, const ItemEntry& b) { return a.id < b.id; });
+
+  DraftTable out;
+  out.text = "[provenance]\nmethod = \"own-derivation\"\ntool = \"" + provenance.tool + "\"\ntool_sha256 = \"" +
+             provenance.tool_sha256 + "\"\nround = \"" + provenance.round + "\"\ndate = \"" + provenance.date + "\"\n";
+  if (!provenance.leads.empty()) out.text += "leads = " + quoted_list(provenance.leads) + "\n";
+  for (ItemEntry& e : entries) {
+    // Each entry against the image, as a start will check it: first its placement alone, then each witness.
+    ItemEntry bare = e;
+    bare.witnesses.clear();
+    if (!check_item(image, source, bare).ok()) {
+      ++out.left_out;
+      continue;
+    }
+    e.checks.insert(e.checks.begin(), ItemCheck::Placement);
+    std::vector<std::uint32_t> standing;
+    for (const std::uint32_t w : e.witnesses) {
+      bare.witnesses = {w};
+      if (check_item(image, source, bare).ok()) {
+        standing.push_back(w);
+      } else {
+        ++out.witnesses_dropped;
+      }
+    }
+    e.witnesses = std::move(standing);
+    if (!e.witnesses.empty()) e.checks.push_back(ItemCheck::Witness);
+    std::sort(e.checks.begin(), e.checks.end());
+    out.text += "\n[item." + e.label + "]\nid = " + std::to_string(e.id) + "\nkind = \"" + to_string(e.kind) + "\"\n";
+    if (e.kind == IdKind::Class) {
+      out.text += "vtables = " + hex_list(e.vtables) + "\n";
+    } else {
+      out.text += "rva = " + hex(e.rva) + "\n";
+    }
+    if (e.kind == IdKind::Table) {
+      out.text += "stride = " + std::to_string(e.stride) + "\ncount = " + std::to_string(e.count) + "\n";
+    }
+    out.text += "found_by = " + word_list(e.found_by) + "\n";
+    if (!e.witnesses.empty()) out.text += "witnesses = " + hex_list(e.witnesses) + "\n";
+    out.text += "checks = " + word_list(e.checks) + "\nstatus = \"lead\"\n";
+    ++out.entries;
+  }
+  return out;
+}
+
 bool complete(const Found& found) {
   const AccessorFound& a = found.accessor;
   if (!a.recipe || a.expect != Expect::Within || a.accepted == 0) return false;
@@ -216,7 +424,8 @@ constexpr auto kKeys = std::to_array<Key>({
     W("differs", kDiffers), AO("only_pattern_statics"),
     // classes and the groups' table
     AO("classes"), Key{"label", Type::Label}, W("status", kStatus), U("type_descriptor"), U("classes_derived"),
-    AU("vtables"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
+    AU("vtables"), O("instances"), U("tried"), U("null"), U("unread"), U("unclassed"), U("classed"), U("leads"),
+    U("unlisted"), U("named"), U("ambiguous"), AO("managers"), U("id"), U("vtable"), B("imp"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
 constexpr report::Vocabulary kVocabulary{"lodestar", 2, kKeys};
@@ -336,6 +545,35 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.end_object();
   }
   w.end_array();
+
+  if (found.instances) {
+    const InstancesFound& n = *found.instances;
+    w.begin_object("instances");
+    w.number("tried", n.tried);
+    w.number("null", n.null);
+    w.number("unread", n.unread);
+    w.number("unclassed", n.unclassed);
+    w.number("classed", n.classed);
+    w.number("leads", n.leads);
+    w.number("unlisted", n.unlisted);
+    w.number("named", n.named);
+    w.number("ambiguous", n.ambiguous);
+    w.begin_array("managers");
+    for (const ManagerFound& m : n.managers) {
+      w.begin_object();
+      w.number("id", m.id);
+      w.label("label", m.label);
+      w.word("status", status_word(m.status));
+      w.number("rva", m.rva);
+      w.number("vtable", m.vtable);
+      w.number("sites", m.sites);
+      w.boolean("imp", m.imp);
+      numbers(w, "witnesses", m.witnesses);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
 
   w.begin_object("table");
   w.word("status", status_word(found.table.status));

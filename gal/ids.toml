@@ -14,6 +14,7 @@ schema = 1
 [[id]]
 n = 1001
 label = "module_handle"
+was = "global_hinstance"
 kind = "static"
 means = "A slot that holds the game's own module handle once the game is up: non-null means ready."
 needs = "boot"
@@ -22,6 +23,7 @@ required = false
 [[id]]
 n = 1002
 label = "save_data"
+was = "game_data_man"
 kind = "static"
 means = "The slot of the object that holds the playthrough's running data: play time, deaths, the player's sheet and the settings."
 needs = "player"
@@ -46,6 +48,7 @@ required = false
 [[id]]
 n = 1005
 label = "task_hub"
+was = "cs_task"
 kind = "static"
 means = "The slot of the manager that owns the game's per-frame tasks."
 needs = "task_service"
@@ -54,6 +57,7 @@ required = true
 [[id]]
 n = 1006
 label = "characters"
+was = "world_chr_man"
 kind = "static"
 means = "The slot of the manager that holds the characters near the player, the main player and the player set."
 needs = "world"
@@ -62,6 +66,7 @@ required = true
 [[id]]
 n = 1007
 label = "session"
+was = "cs_session_manager"
 kind = "static"
 means = "The slot of the manager that holds the online session's state, read only to know that the player is alone."
 needs = "session"
@@ -70,6 +75,7 @@ required = true
 [[id]]
 n = 1008
 label = "event_flags"
+was = "cs_event_flag_man"
 kind = "static"
 means = "The slot of the manager that holds the event flags."
 needs = "flags"
@@ -78,6 +84,7 @@ required = false
 [[id]]
 n = 1009
 label = "hud"
+was = "cs_fe_man"
 kind = "static"
 means = "The slot of the manager that holds the HUD's state, the banner and the boss bars."
 needs = "ui"
@@ -86,6 +93,7 @@ required = false
 [[id]]
 n = 1010
 label = "menus"
+was = "cs_menu_man"
 kind = "static"
 means = "The slot of the manager that holds the screen state and the talk popup."
 needs = "ui"
@@ -94,6 +102,7 @@ required = false
 [[id]]
 n = 1011
 label = "loading"
+was = "cs_now_loading_helper"
 kind = "static"
 means = "The slot of the helper that counts the loading screens."
 needs = "ui"
@@ -102,6 +111,7 @@ required = false
 [[id]]
 n = 1012
 label = "world_clock"
+was = "world_area_time"
 kind = "static"
 means = "The slot of the manager that holds the time of day."
 needs = "place"
@@ -110,6 +120,7 @@ required = false
 [[id]]
 n = 1013
 label = "camera"
+was = "cs_camera"
 kind = "static"
 means = "The slot of the manager that holds the view."
 needs = "camera"
@@ -118,6 +129,7 @@ required = false
 [[id]]
 n = 1014
 label = "param_store"
+was = "solo_param_repository"
 kind = "static"
 means = "The slot of the store that holds the param tables."
 needs = "params"
@@ -126,6 +138,7 @@ required = false
 [[id]]
 n = 1015
 label = "messages"
+was = "msg_repository"
 kind = "static"
 means = "The slot of the store that holds the text tables."
 needs = "text"
@@ -155,6 +168,7 @@ required = false
 [[id]]
 n = 3001
 label = "character"
+was = "chr_ins"
 kind = "class"
 means = "The class every character object derives from: the set of method tables a character may carry."
 needs = "world"
@@ -163,6 +177,7 @@ required = true
 [[id]]
 n = 3002
 label = "player_character"
+was = "player_ins"
 kind = "class"
 means = "The class of a player's character object."
 needs = "player"
