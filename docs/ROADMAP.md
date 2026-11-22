@@ -1010,6 +1010,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     again without fault; no clock in whole minutes and hours; one candidate for the play time; event_flags and messages
     still unnamed. Next: an offline run counting a second accessor shape and alternative names for the three leads, then
     an in-game round with the searches budgeted by time and their hits ranked.
+    The second round reviewed with its logs the same day (WHY§340 to §342): messages found behind two slots, lost by a
+    fault of the round's and mended; the event flags behind no slot. The third round built (engine 8815db2; WHY§343):
+    searches keep what they find, candidates asked for first, a 4 ms share, a member search, five variant recipes of the
+    accessor; with the owner (package 0.1.0-lodestar.6).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
