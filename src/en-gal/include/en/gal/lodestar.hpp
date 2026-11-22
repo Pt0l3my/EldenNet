@@ -31,6 +31,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -155,6 +156,8 @@ struct ManagerFound {
   std::uint32_t sites = 0;   // the accessor's sites that load the static
   bool imp = false;          // named by the lead's name with Imp
   bool by_base = false;      // named by a class that derives from the lead's class, not by the class itself
+  bool by_related = false;   // named by a class whose name holds the lead's (the image has none of its name, with or
+                             // without Imp, and none deriving from such): weaker than the others, and marked
   bool variant = false;      // its static is one only a variant of the accessor's shape reaches
   bool by_search = false;    // its static is none of the accessor's: found by the search of the data's slots
   std::uint32_t search_found = 0;  // slots that search found holding an object of its class
@@ -167,6 +170,10 @@ struct ManagerFound {
   std::uint32_t search_unreadable = 0;
   std::uint32_t search_objects = 0;
   std::vector<std::uint32_t> search_slots;  // by offset, the first 16
+  // The code's references to each of those slots, in the same order (instructions with a RIP-relative operand that
+  // is the slot): where the slots found hold one object, the one the code refers to most is the manager's, and its
+  // references are its sites and witnesses.
+  std::vector<std::uint32_t> search_refs;
   // Objects of its class that lie in the image's own data, not on the heap (the image's data holds one of its
   // tables of methods at an 8-aligned place): how many, and the first.
   std::uint32_t in_data = 0;
@@ -198,6 +205,15 @@ struct OtherLead {
   std::uint32_t vtable = 0;
 };
 
+// What a static that only a variant of the accessor's shape reaches held at a pass.
+enum class Holds : std::uint8_t { Nothing, Unread, Unclassed, Classed };
+struct NewStatic {
+  std::uint32_t rva = 0;
+  Holds holds = Holds::Nothing;
+  std::uint32_t vtable = 0;  // its object's table of methods, where the image's type information knows it
+  bool lead = false;         // that class answers one of the leads
+};
+
 // The in-game round's naming (O92), per distinct static of the accessor's accepted sites.
 struct InstancesFound {
   std::uint64_t tried = 0;      // statics looked at
@@ -214,6 +230,7 @@ struct InstancesFound {
   std::uint32_t passes = 0;            // how many times the round named (merge counts them)
   std::vector<ManagerFound> managers;  // by number: every lead the catalogue holds, found or not
   std::vector<OtherLead> others;       // the leads the catalogue does not hold, in the leads' order
+  std::vector<NewStatic> new_statics;  // what the statics only a variant reaches held at this pass
 };
 
 inline constexpr std::size_t kTrialFaultKinds = 6;  // guarded.hpp's kFaultKinds (checked where the trial is built)
@@ -319,6 +336,37 @@ struct MembersFound {
   std::vector<MemberHit> hits;   // at most 32
 };
 
+// The object scan (in game; probe.hpp's ObjectScan): the game's readable private memory gone through once for an
+// object of an unnamed lead's class (a word that is one of its tables of methods), then, up to three times more, for
+// what holds the address of what was found. A node is an object: of a lead's class (level 0), or one that holds the
+// address of a node one level down, or encloses it. Places are offsets into objects and into the image; no address of
+// the heap and nothing of what the memory held is written.
+struct ScanNode {
+  std::uint32_t level = 0;
+  std::uint32_t id = 0;       // the lead's number; 0 for one the catalogue does not hold
+  std::string label;          // the lead's
+  std::uint32_t vtable = 0;   // the node's own class: its first word, as an offset in the image; 0 where the holder
+                              // lies in no object the image's type information knows (an array, say)
+  std::uint32_t parent = 0;   // level 1 and up: which node (by place in the list) it holds the address of
+  std::uint32_t offset = 0;   // level 1 and up: where in the node that address lies
+  bool embedded = false;      // level 1: no pointer to the parent was found, and the parent lies inside this object
+  std::uint32_t holders = 0;  // words of the memory gone through that hold this node's address
+  std::uint32_t slots = 0;    // slots of the image's data that hold this node's address
+  std::uint32_t slot = 0;     // the first of them
+  bool is_static = false;     // that slot is one of the accessor's statics, of any shape
+};
+
+struct ScanFound {
+  std::uint64_t regions = 0;     // regions of private, writable memory gone through, over all sweeps
+  std::uint64_t mib = 0;         // what was read, in MiB
+  std::uint64_t unreadable = 0;  // pieces a read was refused for
+  std::uint64_t sweeps = 0;      // sweeps finished
+  std::uint64_t elapsed_ms = 0;
+  bool done = false;
+  bool own_known = false;        // our own memory was known and left out
+  std::vector<ScanNode> nodes;   // at most 64
+};
+
 struct Found {
   ImageFound image;
   AccessorFound accessor;
@@ -331,6 +379,7 @@ struct Found {
   std::optional<RisingFound> rising;
   std::optional<SearchFound> search;
   std::optional<MembersFound> members;
+  std::optional<ScanFound> scan;
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With
@@ -353,7 +402,8 @@ using ReadWord = std::function<std::optional<std::uint64_t>(std::uint64_t addres
 // the game runs), then asked as often as the round likes: a pass reads each static's slot, 8 bytes through `live`,
 // and one word at each instance through `read_word`, and nothing else.
 // A lead names the one static whose instance's class has its name or its name with Imp; where no static does, the
-// one whose instance's class derives from such a class (`by_base`). Two statics that match the same way leave the lead
+// one whose instance's class derives from such a class (`by_base`); and where the image has no class of its name at
+// all, the one whose instance's class has a name that holds the lead's (`by_related`). Two statics that match the same way leave the lead
 // ambiguous. A lead's label is the catalogue's label for the same thing, or the label it had before (`was`).
 class Namer {
  public:
@@ -378,6 +428,9 @@ class Namer {
     std::string label;
   };
   [[nodiscard]] std::vector<LeadTable> lead_tables() const;
+  // Every class's primary table of methods the image's type information gives, as offsets, ascending: what an
+  // object's first word is compared with to tell where an object starts.
+  [[nodiscard]] std::vector<std::uint32_t> primary_tables() const;
 
  private:
   struct State;
@@ -409,6 +462,24 @@ struct SlotSearchResult {
   std::uint32_t unreadable = 0;
 };
 void set_by_search(InstancesFound& held, std::uint32_t id, const SlotSearchResult& result);
+
+// The code's references to the slots a search found, in search_slots' order, and the first places that refer to each
+// (at most kMaxSiteWitnesses a slot). Where the search named the manager (one object), its slot becomes the one the
+// code refers to most (the first by offset among equals), with those references as its sites and witnesses.
+void set_search_refs(InstancesFound& held, std::uint32_t id, const std::vector<std::uint32_t>& counts,
+                     const std::vector<std::vector<std::uint32_t>>& places);
+
+// For each of `rvas` (slots), the places in a section of the image's code whose instruction has a RIP-relative
+// operand that is the slot: how many there are, and the first `max`, each the instruction's start, ascending. The
+// image is read from `source` once. What the resolver checks a witness by (resolve.hpp) is the same reading of one
+// instruction.
+struct References {
+  std::uint64_t count = 0;
+  std::vector<std::uint32_t> places;
+};
+[[nodiscard]] std::vector<References> references(const ImageInfo& image, const ByteSource& source,
+                                                 std::string_view section, std::span<const std::uint32_t> rvas,
+                                                 std::size_t max);
 
 // Objects of a manager's class in the image's own data: how many, and the first. Reported, never a name by itself.
 void set_in_data(InstancesFound& held, std::uint32_t id, std::uint32_t count, std::uint32_t first);

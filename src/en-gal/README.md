@@ -246,7 +246,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 3, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 4, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -255,7 +255,9 @@ of any game is in it, and every name it looks for comes from a leads file.
   the instance it holds as the game runs (8 bytes through `live`) and that instance's first word through the
   caller's guarded read (one word, never at an address inside the image), and takes the word's class from what it
   read at the start. A lead names the one static whose class has its name, or its name with Imp; where no static
-  does, the one whose class derives from such a class (`by_base`); two that match the same way leave it ambiguous.
+  does, the one whose class derives from such a class (`by_base`); and where the image has no class of the lead's
+  name at all, the one whose class has a name that holds the lead's (`by_related`, weaker and marked; the third
+  round of 2026-11-22 found the world's clock has only such a class); two that match the same way leave it ambiguous.
   `name_instances(...)` is one pass of a namer made for the call. `lead_classes()`, offline too and in every
   report, counts what the image holds under each lead's name: classes of that name and of that name with Imp, the
   tables of methods of those and of every class deriving from them, and the places where a type's name of either
@@ -270,7 +272,13 @@ of any game is in it, and every name it looks for comes from a leads file.
   `set_by_search(held, id, result)` takes a slot search's result: the slots found name the manager when they hold
   one object between them (one slot, or several that are copies of one address; the first by offset is taken), two
   objects leave it ambiguous, and the search's own numbers (runs, candidates, checked, unreadable, the slots) are
-  kept either way; `set_in_data` records the objects of its class in the image's own data. The report's
+  kept either way; `set_in_data` records the objects of its class in the image's own data.
+  `references(image, source, section, rvas, max)` counts, for each slot, the instructions of the code whose
+  RIP-relative operand is the slot, and gives the first places (each found by reading on from its function's start,
+  as the resolver reads a witness); `set_search_refs` then makes the slot the code refers to most the manager's,
+  with those places as its sites and witnesses, so a manager no accessor loads has witnesses too. A pass also says
+  what each static only a variant reaches holds (`new_statics`: nothing, unread, unclassed, or classed with its
+  table of methods and whether a lead asks for it). The report's
   `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
   `draft_table(found, ids, provenance, image, source)` writes the findings as `[provenance]` and `[item.*]` entries
   (managers, the leads' two classes, the groups' table), each checked first as a start will check it: an entry whose
@@ -286,10 +294,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   `null_longest`) and by stage (`null_world`), so a report says when a manager was away, not only how often. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
   `trial` object. `ClockSearch` looks, in the first bytes of the objects behind the statics no lead named, for a
   field that behaves as a clock's minutes do with one beside it that behaves as hours. `MemberSearch` looks for a
-  lead's object that no slot of the data points at: it copies the first bytes of each static's object (0x800 at
+  lead's object that no slot of the data points at: it copies the first bytes of each static's object (0x4000 at
   most, less where its memory ends sooner) and, for every 8-aligned word after the first, takes a table of methods
   of a lead's class as an object lying there itself (`embedded`), and follows what could be a heap address by one
-  8-byte read; a hit is a static and an offset into its object, for the review and never a name. A pass goes
+  8-byte read; a hit is a static and an offset into its object, for the review and never a name. (It copied 0x800
+  bytes until the third round found nothing that near; now the reader's longest copy, 0x4000.) A pass goes
   through every static once and the next starts 30 s later. Both read through the guarded reader and allocate
   nothing on the reader's thread.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
@@ -492,7 +501,16 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   stood still in or changed otherwise (a play time stands still at the title and while loading; a candidate that
   faults is not copied again); its hits are the 32 fields that rose in the most passes, chosen again as each pass
   ends (the best, not the first met), and a sweep that copied nothing is no pass; for
-  a static whose class has no RTTI; `Census` copies the task hub's instance and what it points at to a depth of three
+  a static whose class has no RTTI; `ObjectScan` answers where an object is that nothing known points at: the
+  process's private, plainly writable memory (outside the image and the caller's own heap; never a stack) is gone
+  through once, 16 KiB at a time, for a word that is one of the targets' tables of methods (a node of level 0),
+  then up to three times more for words that hold the address of a node of the level before; each holder's object
+  is taken to start at the nearest word before it that is some class's primary table of methods (within 16 KiB, in
+  the same region), and a level-0 node that nothing holds is looked at the same way (`embedded`). It asks for each
+  region first and again after every mebibyte of it (`RegionQuery`; VirtualQuery in the round), so its reader need
+  not ask before each piece. A node is a class, an offset and an address that is never reported; the caller
+  compares each node's address with the image's data, where a chain ends. Every node is a lead for a review: a
+  found object may be stale, and an owner a neighbour; `Census` copies the task hub's instance and what it points at to a depth of three
   (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),
   and counts the objects whose first 8 bytes are one of the image's vtables (the hub's own tasks, whose shared class is
   the task's base); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied object's

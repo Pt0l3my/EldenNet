@@ -154,7 +154,7 @@ class ClockSearch {
 // when it is made; the reader's thread allocates nothing.
 class MemberSearch {
  public:
-  static constexpr std::uint32_t kSpan = 0x800;
+  static constexpr std::uint32_t kSpan = 0x4000;  // guarded.hpp's longest copy
   static constexpr std::size_t kMaxStatics = 1024;
   static constexpr std::size_t kMaxHits = 32;
   static constexpr std::uint64_t kPassEveryUs = 30'000'000;

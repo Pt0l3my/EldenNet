@@ -8,11 +8,13 @@
 #include <string_view>
 #include <utility>
 
+#include "code.hpp"
 #include "en/gal/fd4.hpp"
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/resolve.hpp"
 #include "en/gal/roles.hpp"
 #include "en/gal/rtti.hpp"
+#include "en/gal/x86.hpp"
 
 namespace en::gal::lodestar {
 
@@ -239,7 +241,7 @@ struct Namer::State {
     std::string label;
     bool listed = false;  // the catalogue holds it as an active static
   };
-  enum Match : std::uint8_t { kExact, kImp, kBase };
+  enum Match : std::uint8_t { kExact, kImp, kBase, kRelated };
   struct Accepts {
     std::size_t lead = 0;
     Match match = kExact;
@@ -324,6 +326,12 @@ Namer::Namer(const ImageInfo& image, const ByteSource& source, const derive::Lea
           if (exact_tds.count(b) != 0 || imp_tds.count(b) != 0) match = State::kBase;
         }
       }
+      // A class under a longer name answers only for a lead the image has no class of its own name for.
+      if (!match && exact_tds.empty() && imp_tds.empty() && related_tds.count(loc.type_descriptor) != 0) {
+        match = State::kRelated;
+        st.accepts.emplace(v.rva, State::Accepts{index, *match});
+        continue;  // not counted among the lead's own tables of methods
+      }
       if (!match) continue;
       if (counted.insert(v.rva).second) ++c.vtables;
       st.accepts.emplace(v.rva, State::Accepts{index, *match});
@@ -348,9 +356,16 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
     std::uint32_t slot = 0;
     std::uint32_t vtable = 0;
   };
-  std::vector<std::array<std::vector<Hit>, 3>> hits(st.leads.size());  // by lead, by how it matched
+  std::vector<std::array<std::vector<Hit>, 4>> hits(st.leads.size());  // by lead, by how it matched
   const std::vector<StaticFound> statics = all_statics(accessor);
-  for (const StaticFound& s : statics) {
+  for (std::size_t n = 0; n < statics.size(); ++n) {
+    const StaticFound& s = statics[n];
+    // A static only a variant reaches: what it holds is said for itself, whatever it is.
+    NewStatic* fresh = nullptr;
+    if (n >= accessor.statics.size()) {
+      out.new_statics.push_back(NewStatic{s.rva, Holds::Nothing, 0, false});
+      fresh = &out.new_statics.back();
+    }
     ++out.tried;
     std::array<std::byte, 8> raw{};
     std::uint64_t instance = 0;
@@ -375,16 +390,23 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
     }
     if (!word) {
       ++out.unread;
+      if (fresh != nullptr) fresh->holds = Holds::Unread;
       continue;
     }
     const std::uint32_t rva = in_image(*word) ? static_cast<std::uint32_t>(*word - st.base) : 0;
     const auto known = rva != 0 ? st.vtables.find(rva) : st.vtables.end();
     if (known == st.vtables.end() || !known->second) {
       ++out.unclassed;
+      if (fresh != nullptr) fresh->holds = Holds::Unclassed;
       continue;
     }
     ++out.classed;
     const auto range = st.accepts.equal_range(rva);
+    if (fresh != nullptr) {
+      fresh->holds = Holds::Classed;
+      fresh->vtable = rva;
+      fresh->lead = range.first != range.second;
+    }
     for (auto it = range.first; it != range.second; ++it) {
       hits[it->second.lead][it->second.match].push_back(Hit{s.rva, rva});
     }
@@ -395,8 +417,9 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
     // The class itself (by its name, or its name with Imp) before a class that only derives from it.
     std::vector<Hit> own = hits[i][State::kExact];
     own.insert(own.end(), hits[i][State::kImp].begin(), hits[i][State::kImp].end());
-    const bool by_base = own.empty();
-    const std::vector<Hit>& chosen = by_base ? hits[i][State::kBase] : own;
+    const bool by_base = own.empty() && !hits[i][State::kBase].empty();
+    const bool by_related = own.empty() && !by_base;
+    const std::vector<Hit>& chosen = by_base ? hits[i][State::kBase] : by_related ? hits[i][State::kRelated] : own;
     const Hit first = chosen.empty() ? Hit{}
                                      : *std::min_element(chosen.begin(), chosen.end(),
                                                          [](const Hit& a, const Hit& b) { return a.slot < b.slot; });
@@ -413,7 +436,8 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
       m.rva = first.slot;
       m.vtable = first.vtable;
       m.by_base = by_base;
-      m.imp = !by_base && hits[i][State::kExact].empty();
+      m.by_related = by_related;
+      m.imp = !by_base && !by_related && hits[i][State::kExact].empty();
       for (std::size_t k = 0; k < statics.size(); ++k) {
         if (statics[k].rva != m.rva) continue;
         m.sites = statics[k].sites;
@@ -438,6 +462,14 @@ std::vector<std::uint32_t> Namer::vtables(std::uint32_t id) const {
   std::sort(out.begin(), out.end());
   out.erase(std::unique(out.begin(), out.end()), out.end());
   return out;
+}
+
+std::vector<std::uint32_t> Namer::primary_tables() const {
+  std::vector<std::uint32_t> out;
+  for (const auto& [rva, primary] : state_->vtables) {
+    if (primary) out.push_back(rva);
+  }
+  return out;  // the map's order: ascending
 }
 
 std::vector<Namer::LeadTable> Namer::lead_tables() const {
@@ -469,6 +501,7 @@ void keep_searches(ManagerFound& m, const ManagerFound& before) {
   m.search_unreadable = before.search_unreadable;
   m.search_objects = before.search_objects;
   m.search_slots = before.search_slots;
+  m.search_refs = before.search_refs;
   m.in_data = before.in_data;
   m.in_data_rva = before.in_data_rva;
 }
@@ -497,12 +530,80 @@ void set_by_search(InstancesFound& held, std::uint32_t id, const SlotSearchResul
     m.by_search = true;
     m.variant = false;
     m.by_base = false;
+    m.by_related = false;
     m.imp = false;
     m.sites = 0;
     m.witnesses.clear();
     m.pass = held.passes;
   }
   recount(held);
+}
+
+void set_search_refs(InstancesFound& held, std::uint32_t id, const std::vector<std::uint32_t>& counts,
+                     const std::vector<std::vector<std::uint32_t>>& places) {
+  for (ManagerFound& m : held.managers) {
+    if (m.id != id || counts.size() != m.search_slots.size() || places.size() != counts.size()) continue;
+    m.search_refs = counts;
+    if (!m.by_search || m.status != derive::Status::Derived || counts.empty()) continue;
+    const std::size_t best =
+        static_cast<std::size_t>(std::max_element(counts.begin(), counts.end()) - counts.begin());  // the first of equals
+    m.rva = m.search_slots[best];
+    m.sites = counts[best];
+    m.witnesses = places[best];
+    if (m.witnesses.size() > kMaxSiteWitnesses) m.witnesses.resize(kMaxSiteWitnesses);
+  }
+}
+
+std::vector<References> references(const ImageInfo& image, const ByteSource& source, std::string_view section,
+                                   std::span<const std::uint32_t> rvas, std::size_t max) {
+  std::vector<References> out(rvas.size());
+  if (rvas.empty()) return out;
+  const ImageBytes img(image, source);
+  const SectionCopy* text = img.named(section);
+  if (text == nullptr || text->bytes.size() < 8) return out;
+  const std::size_t size = text->bytes.size();
+  const auto limit = static_cast<std::uint32_t>(text->rva + size);
+  std::vector<std::uint32_t> last(rvas.size(), 0);
+  // Every place where four bytes, read as a displacement from the instruction's end, lead to a slot (the end is
+  // right after them, or after an immediate of 1, 2 or 4 bytes); then the instruction that holds them, looked for a
+  // few bytes back and read as the resolver reads a witness.
+  for (std::size_t p = 0; p + 4 <= size; ++p) {
+    std::int32_t disp = 0;
+    std::memcpy(&disp, text->bytes.data() + p, 4);
+    const std::int64_t reach = static_cast<std::int64_t>(text->rva) + static_cast<std::int64_t>(p) + 4 + disp;
+    for (std::size_t k = 0; k < rvas.size(); ++k) {
+      const std::int64_t gap = static_cast<std::int64_t>(rvas[k]) - reach;
+      if (gap != 0 && gap != 1 && gap != 2 && gap != 4) continue;
+      // The instruction that holds those four bytes. First by reading on from the start of the function they lie
+      // in, which keeps to the instructions' own borders; where that does not arrive at them (data among the code),
+      // by the longest reading a few bytes back (a reading that leaves a prefix off is an instruction too).
+      const auto here = static_cast<std::uint32_t>(text->rva + p);
+      std::optional<std::uint32_t> found;
+      const auto refers = [&](std::uint32_t at) {
+        const std::optional<x86::Instruction> insn = code::detail::step(*text, at, limit);
+        if (!insn || !insn->rip_relative || insn->disp_size != 4 || at + insn->disp_at != here) return false;
+        const std::optional<std::uint32_t> to = code::rip_target(img, *text, code::Decoded{at, *insn});
+        return to && *to == rvas[k];
+      };
+      for (std::uint32_t at = code::sync_point(image, *text, here); at <= here;) {
+        const std::optional<x86::Instruction> insn = code::detail::step(*text, at, limit);
+        if (!insn || insn->length == 0) break;
+        if (at + insn->length > here) {
+          if (refers(at)) found = at;
+          break;
+        }
+        at += insn->length;
+      }
+      for (std::uint32_t back = 4; !found && back >= 1 && back <= p; --back) {
+        if (refers(here - back)) found = here - back;
+      }
+      if (!found || (out[k].count != 0 && *found == last[k])) continue;
+      last[k] = *found;
+      ++out[k].count;
+      if (out[k].places.size() < max) out[k].places.push_back(*found);
+    }
+  }
+  return out;
 }
 
 void set_in_data(InstancesFound& held, std::uint32_t id, std::uint32_t count, std::uint32_t first) {
@@ -680,7 +781,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 3, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 4, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -693,6 +794,7 @@ constexpr std::array<std::string_view, 7> kStatus = {"derived",    "ambiguous", 
 constexpr std::array<std::string_view, 4> kGate = {"known", "no_version", "unknown_build", "fingerprint_differs"};
 constexpr std::array<std::string_view, 3> kExpect = {"within", "below", "above"};
 constexpr std::array<std::string_view, 4> kDiffers = {"narrow", "other_register", "other", "undecodable"};
+constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclassed", "classed"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -726,7 +828,7 @@ constexpr auto kKeys = std::to_array<Key>({
     B("by_base"), AO("lead_classes"), U("named_imp"), U("vtable_count"), U("texts"), U("in_image"), B("by_search"),
     U("search_found"), B("variant"), U("search_runs"), U("search_candidates"), U("search_checked"),
     U("search_unreadable"), U("search_objects"), AU("search_slots"), U("in_data"), U("in_data_rva"), U("related"),
-    AO("others"), U("held"),
+    AO("others"), U("held"), B("by_related"), AU("search_refs"), AO("new_statics"), W("holds", kHolds), B("lead"),
     // The reader's trial (in game)
     O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
     U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
@@ -738,10 +840,13 @@ constexpr auto kKeys = std::to_array<Key>({
     U("risen"), O("search"), U("pointer_like"), U("live"), U("not_committed"), U("no_access"), U("asked"),
     U("refused_gone"), U("refused_access"), U("copy_failed"), U("steps_cut"), O("members"), U("objects"),
     U("pointers"), AO("member_hits"), B("embedded"),
+    // The object scan (in game)
+    O("scan"), U("regions"), U("mib"), U("sweeps"), B("done"), B("own_known"), AO("nodes"), U("level"), U("parent"),
+    U("holders"), U("slots"), U("slot"), B("is_static"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 3, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 4, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -918,6 +1023,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("sites", m.sites);
       w.boolean("imp", m.imp);
       w.boolean("by_base", m.by_base);
+      w.boolean("by_related", m.by_related);
       w.boolean("variant", m.variant);
       w.boolean("by_search", m.by_search);
       w.number("search_found", m.search_found);
@@ -927,6 +1033,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("search_unreadable", m.search_unreadable);
       w.number("search_objects", m.search_objects);
       numbers(w, "search_slots", m.search_slots);
+      numbers(w, "search_refs", m.search_refs);
       w.number("in_data", m.in_data);
       w.number("in_data_rva", m.in_data_rva);
       w.number("pass", m.pass);
@@ -941,6 +1048,17 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("held", o.held);
       w.number("rva", o.rva);
       w.number("vtable", o.vtable);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("new_statics");
+    for (const NewStatic& x : n.new_statics) {
+      w.begin_object();
+      w.number("rva", x.rva);
+      const auto holds = static_cast<std::size_t>(x.holds);
+      w.word("holds", kHolds[holds < kHolds.size() ? holds : 0]);
+      w.number("vtable", x.vtable);
+      w.boolean("lead", x.lead);
       w.end_object();
     }
     w.end_array();
@@ -1055,6 +1173,36 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("offset", h.offset);
       w.boolean("embedded", h.embedded);
       w.number("vtable", h.vtable);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.scan) {
+    const ScanFound& f = *found.scan;
+    w.begin_object("scan");
+    w.boolean("done", f.done);
+    w.boolean("own_known", f.own_known);
+    w.number("regions", f.regions);
+    w.number("mib", f.mib);
+    w.number("unreadable", f.unreadable);
+    w.number("sweeps", f.sweeps);
+    w.number("elapsed_ms", f.elapsed_ms);
+    w.begin_array("nodes");
+    for (const ScanNode& x : f.nodes) {
+      w.begin_object();
+      w.number("level", x.level);
+      w.number("id", x.id);
+      w.label("label", x.label);
+      w.number("vtable", x.vtable);
+      w.number("parent", x.parent);
+      w.number("offset", x.offset);
+      w.boolean("embedded", x.embedded);
+      w.number("holders", x.holders);
+      w.number("slots", x.slots);
+      w.number("slot", x.slot);
+      w.boolean("is_static", x.is_static);
       w.end_object();
     }
     w.end_array();
