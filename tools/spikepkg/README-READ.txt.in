@@ -9,9 +9,9 @@ the game as it runs, which of those places holds which of the eleven managers El
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
 This is the fourth such round. The first three (22 November) named nine of the eleven between them, at the same places
-each time, and read them for 19, 9 and 7 minutes without a fault. Two are still missing: the one that keeps the game's event
-flags, which was in none of the places the third round looked, and the world's clock, which goes by a longer name
-than expected. This round looks for both more widely: once your save is loaded, it goes through all of the game's
+each time, and read them for 19, 9 and 7 minutes without a fault. Two are still missing: the one that keeps the game's
+event flags, which was in none of the places the third round looked, and the world's clock, which goes by a longer
+name than expected. This round looks for both more widely: once your save is loaded, it goes through all of the game's
 own working memory once for an object of the missing kinds, and then for what points at it.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. There is no key to press.
