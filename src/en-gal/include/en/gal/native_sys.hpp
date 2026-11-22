@@ -51,6 +51,9 @@ class NativeSys final : public SysLayer {
   bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override;
 
   [[nodiscard]] CopyKind copy_kind() const noexcept { return kind_; }
+  // One of the two copy primitives, whichever the settings chose: a reader that expects to meet unreadable memory
+  // (a search over stale pointers) asks for Rpm, which raises no exception in the process, whatever the address.
+  [[nodiscard]] Copier& copier_of(CopyKind kind) noexcept;
   // The copy primitive the settings chose (gal.copy): on T1, before the task is registered and reads anything.
   void set_copy_kind(CopyKind kind) noexcept { kind_ = kind; }
   // Walks the process's memory again for guard pages (the stacks of threads made since); answers how many ranges the

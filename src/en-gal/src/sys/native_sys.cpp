@@ -117,6 +117,11 @@ Copier& NativeSys::copier() noexcept {
   return impl_->seh;
 }
 
+Copier& NativeSys::copier_of(CopyKind kind) noexcept {
+  if (kind == CopyKind::Rpm) return impl_->rpm;
+  return impl_->seh;
+}
+
 void NativeSys::note_own_stack() noexcept {
   ULONG_PTR low = 0, high = 0;
   GetCurrentThreadStackLimits(&low, &high);

@@ -199,6 +199,43 @@ struct TrialFound {
   std::vector<TrialManager> managers;                // by number
 };
 
+// A field that behaves as a clock's minutes do, in the object behind one of the accessor's statics (the clock
+// search, lodestar_trial.hpp): where it is and how it behaved. Numbers only.
+struct ClockHit {
+  std::uint32_t rva = 0;         // the static
+  std::uint32_t offset = 0;      // the field, from the object's start
+  std::uint32_t width = 1;       // its size in bytes: 1 or 4
+  std::uint32_t ticks = 0;       // readings at which it had stepped forward, by 1 to 5, round 60
+  std::uint32_t wraps = 0;       // of those, the ones at which it went round
+  bool has_hour = false;         // a field of the same size beside it stayed under 24 and stepped by one
+  std::uint32_t hour_offset = 0;
+  std::uint32_t hour_steps = 0;
+};
+
+struct ClockFound {
+  std::uint64_t candidates = 0;
+  std::uint64_t passes = 0;
+  std::uint64_t unreadable = 0;  // candidates whose object could not be copied
+  std::vector<ClockHit> hits;    // the most ticks first, at most 32
+};
+
+// A 32-bit field that rose by the clock's milliseconds, in the object behind a slot of the data (probe.hpp's
+// RisingSearch: the play time rises in the world and stands still at the title and in menus). Numbers only.
+struct RisingHit {
+  std::uint32_t rva = 0;     // the slot
+  std::uint32_t offset = 0;  // the field, from the object's start
+  std::uint32_t rose = 0;    // passes it rose in by the time between them
+  std::uint32_t still = 0;   // passes it held its value in
+  std::uint32_t other = 0;   // passes it changed otherwise
+};
+
+struct RisingFound {
+  std::uint64_t candidates = 0;
+  std::uint64_t passes = 0;
+  std::uint64_t unreadable = 0;
+  std::vector<RisingHit> hits;
+};
+
 struct Found {
   ImageFound image;
   AccessorFound accessor;
@@ -207,6 +244,8 @@ struct Found {
   std::vector<LeadClasses> lead_classes;    // for each manager the leads ask for, offline and in game
   std::optional<InstancesFound> instances;  // the in-game round's; nothing offline
   std::optional<TrialFound> trial;          // the in-game round's
+  std::optional<ClockFound> clock;          // the in-game round's searches by what an object holds (step L6)
+  std::optional<RisingFound> rising;
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With

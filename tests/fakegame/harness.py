@@ -3158,6 +3158,9 @@ READ_SINGLETONS = {"TaskLoom": "task_hub", "ActorRoster": "characters", "LobbyWa
                    "SkyClock": "world_clock", "EyeRig": "camera", "TableVault": "param_store", "PhraseBook": "messages"}
 
 
+READ_SEARCHED = {"save_data": "SaveLedger", "game_state": "RunWarden", "field_area": "FieldPlot"}
+
+
 def read_round_gal(gal):
     path = os.path.join(gal, "leads.toml")
     with open(path) as f:
@@ -3165,6 +3168,10 @@ def read_round_gal(gal):
     for old, new in READ_LABELS.items():
         text = re.sub(r"(?m)^%s = " % old, "%s = " % new, text)
         text = text.replace('instance = "%s"' % old, 'instance = "%s"' % new)
+    # Three managers that no accessor's static holds (the fake game's statics with a class of their own): the round
+    # finds them by the search of the data's slots for an object of their class.
+    text = text.replace("[singletons]", "[singletons]\n" + "".join('%s = "%s"\n' % kv for kv in READ_SEARCHED.items()),
+                        1)
     with open(path, "w") as f:
         f.write(text)
     shutil.copy2(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "gal", "ids.toml"),
@@ -3183,10 +3190,16 @@ def check_read(result, by_flag=False):
     # The first pass comes before the game has made its managers (--statics-delay-ms): it names none. A later pass
     # names every one, and the trial then reads them.
     failures += want(result, "ELDENNET", "read", which="first", stage="named", **{"pass": "1"}, named=0)
-    failures += want(result, "ELDENNET", "read", stage="named", named=11, of=11, ambiguous=0, unlisted=0)
-    failures += want(result, "ELDENNET", "read", stage="trial", named=11, managers=11, readings=(20, 1e6),
+    # Eleven managers by the passes over the accessor's statics; three more by the search of the data's slots.
+    failures += want(result, "ELDENNET", "read", stage="named", named=(11, 14), of=14, ambiguous=0, unlisted=0)
+    failures += want(result, "ELDENNET", "read", stage="search", found=1, named=14)
+    failures += want(result, "ELDENNET", "read", stage="trial", named=14, managers=14, readings=(20, 1e6),
                      same=(11 * 20, 1e9), other=0, fault=0, torn=0, faults=0)
-    failures += want(result, "ELDENNET", "read", stage="table", entries=(13, 14), left_out=0, witnesses_dropped=0)
+    failures += want(result, "ELDENNET", "read", stage="table", entries=(16, 17), left_out=0, witnesses_dropped=0)
+    failures += want(result, "ELDENNET", "read", stage="searches", clock_candidates=(1, 64), rising_candidates=(1, 1e6))
+    # The searches' faults are caught ones, by design: a candidate whose object is shorter than the copy, or gone.
+    failures += want(result, "ELDENNET", "read", stage="held", clock_passes=(3, 1e6), rising_passes=(1, 1e6),
+                     search_faults=(0, 1e9))
     failures += ready_no_call(result)
     need(not result.events("ELDENNET", "r1"), "the read-only round ran R1", failures)
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
@@ -3203,19 +3216,44 @@ def check_read(result, by_flag=False):
     need(d["report"] == "lodestar" and d["schema"] == 2, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
-    for name in list(READ_SINGLETONS) + ["FG::", "Imp", "task_loom", "Fg_"]:
+    for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["FG::", "Imp", "task_loom", "Fg_"]:
         need(name not in text and name not in draft, "a name of the game's in the round's files: %s" % name, failures)
     inst, trial = d.get("instances"), d.get("trial")
     if not inst or not trial:
         return failures + ["the report has no instances or no trial"]
-    need(inst["named"] == 11 and inst["ambiguous"] == 0 and inst["passes"] >= 2 and inst["leads"] == 11,
+    need(inst["named"] == 14 and inst["ambiguous"] == 0 and inst["passes"] >= 2 and inst["leads"] == 14,
          "instances: %s" % {k: inst[k] for k in ("named", "ambiguous", "passes", "leads", "unlisted")}, failures)
     truth = {READ_SINGLETONS[s["name"]]: s["static_rva"] for s in result.truth["fd4"]["singletons"]}
+    aob = {a["role"]: a["target_rva"] for a in result.truth["aob"] if a["kind"] == "static"}
+    searched = {"save_data": aob["GameDataMan"], "game_state": aob["GameMan"], "field_area": aob["FieldArea"]}
     for m in inst["managers"]:
-        need(m["status"] == "derived" and m["rva"] == truth.get(m["label"]) and m["pass"] >= 2 and m["witnesses"] and
-             m["vtable"] != 0, "manager %s: %s" % (m["label"], m), failures)
+        if m["label"] in searched:
+            # No accessor's static: found by the search, one slot, with no site and no witness, and so in the table
+            # by its instance's class alone.
+            need(m["status"] == "derived" and m["by_search"] and m["search_found"] == 1 and
+                 m["rva"] == searched[m["label"]] and m["sites"] == 0 and not m["witnesses"] and m["vtable"] != 0,
+                 "manager %s, by the search: %s" % (m["label"], m), failures)
+        else:
+            need(m["status"] == "derived" and not m["by_search"] and m["rva"] == truth.get(m["label"]) and
+                 m["pass"] >= 2 and m["witnesses"] and m["vtable"] != 0, "manager %s: %s" % (m["label"], m), failures)
         need(("[item.%s]" % m["label"]) in draft, "the draft table lacks %s" % m["label"], failures)
-    need(len(trial["managers"]) == 11 and trial["readings"] >= 20 and trial["fault_copy"] == 0 and
+    # Each lead has a class of its name; the hub's name is shared by a second class of the fake game's (its rack's),
+    # and one static still names it.
+    need(all(c["named"] + c["named_imp"] >= 1 and c["vtable_count"] >= 1 for c in d["lead_classes"]) and
+         len(d["lead_classes"]) == 14, "the leads' classes: %s" %
+         [c for c in d["lead_classes"] if c["named"] + c["named_imp"] < 1 or c["vtable_count"] < 1], failures)
+    need(any(h["rose"] >= 5 and h["other"] == 0 for h in (d.get("rising") or {}).get("rising_hits", [])),
+         "the rising search did not find the play time: %s" % (d.get("rising") or {}).get("rising_hits"), failures)
+    # The searches by what an object holds ran, read-only: the clock search over the statics no lead named, and the
+    # rising-counter search, which finds the fake game's play time.
+    clock, rising = d.get("clock"), d.get("rising")
+    need(clock is not None and clock["candidates"] >= 1 and clock["passes"] >= 3 and clock["unreadable"] == 0,
+         "the clock search: %s" % ({k: v for k, v in clock.items() if k != "clock_hits"} if clock else None), failures)
+    need(rising is not None and rising["candidates"] >= 1 and rising["passes"] >= 1,
+         "the rising search: %s" % ({k: v for k, v in rising.items() if k != "rising_hits"} if rising else None),
+         failures)
+    need(trial["world_readings"] >= 20, "the trial's world readings: %s" % trial["world_readings"], failures)
+    need(len(trial["managers"]) == 14 and trial["readings"] >= 20 and trial["fault_copy"] == 0 and
          trial["fault_stack"] == 0 and trial["fault_thread"] == 0,
          "the trial: %s" % {k: trial[k] for k in trial if k != "managers"}, failures)
     for m in trial["managers"]:
@@ -3227,7 +3265,7 @@ def check_read(result, by_flag=False):
 
 
 case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--statics-delay-ms", "6000", frames=1800),
+     game("--statics-delay-ms", "6000", frames=3000),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet('probe = { round = "read", settle_s = 1 }\n', probe=True, gal_change=read_round_gal),
      check=lambda r: check_read(r) + want(r, "LAUNCHER", "status", init="ready"),
@@ -3238,7 +3276,7 @@ case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
 
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
 # save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
-# its managers ("Now load your save."), a later one that names them all ("All 11 managers are named."); the game ends
+# its managers ("Now load your save."), a later one that names them all ("All 14 managers are named."); the game ends
 # and the launcher
 # checks both files.
 def read_steps(result):
@@ -3254,8 +3292,8 @@ def check_read_owner(result):
          steps == [x for x in ("asked", "reading", "load_save", "done", "reports_clean") if x in steps],
          "the console's steps: %s" % steps, failures)
     plain = [l for l in result.lines if l.startswith("EldenNet read: ")]
-    need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 11") for l in plain) and
-         any(l.startswith("EldenNet read: All 11 managers are named.") for l in plain) and
+    need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 14") for l in plain) and
+         any(l.startswith("EldenNet read: All 14 managers are named.") for l in plain) and
          not any("Pause" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
     need(not any(l.startswith("EldenNet R1: ") for l in result.lines) and not result.events("LAUNCHER", "r1"),
          "the read-only round spoke as R1", failures)
@@ -3268,7 +3306,7 @@ def check_read_owner(result):
 
 
 case("launcher-eldennet-read-owner", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
-                                              "--read"] + game("--statics-delay-ms", "20000", frames=2700),
+                                              "--read"] + game("--statics-delay-ms", "20000", frames=3900),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(None, probe=True, gal_change=read_round_gal, then=with_saves),
      check=check_read_owner,

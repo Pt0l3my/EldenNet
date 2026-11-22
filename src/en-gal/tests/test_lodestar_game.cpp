@@ -623,3 +623,115 @@ TEST_CASE("in game: a lead's tables of methods, and a manager set by the search 
   CHECK(entry.find("agree") == std::string::npos);
   CHECK(entry.find("witnesses") == std::string::npos);
 }
+
+TEST_CASE("in game: the clock search knows the world's clock by how its minutes and hours behave") {
+  FakeWorld w;
+  Round r = round_of(w);
+  std::vector<std::uint32_t> statics;
+  for (const lodestar::StaticFound& s : r.found.accessor.statics) statics.push_back(s.rva);
+  lodestar::ClockSearch search(statics, w.base, r.gated.image.size_of_image);
+  GuardedReader reader(*w.sys);
+
+  struct Body final : TaskBody {
+    Body(lodestar::ClockSearch& s, GuardedReader& r) : search(s), reader(r) {}
+    void run(const en::proto::GameThread& gt, const FrameCtx& frame) override {
+      reader.begin_tick();
+      (void)search.step(gt, reader, 64, frame.qpc_now_us);
+    }
+    lodestar::ClockSearch& search;
+    GuardedReader& reader;
+  } body(search, reader);
+  ReaderLoop loop(*w.sys, body);
+
+  // The world's clock here: the hour one byte at 0x10, the minute at 0x11. A game minute a second; two and a half
+  // hours go by. The HUD's object holds a counter that jumps about, the menus' one that counts down.
+  const std::uint64_t clock = w.instance("world_clock");
+  const std::uint64_t hud = w.instance("hud");
+  const std::uint64_t menus = w.instance("menus");
+  std::uint8_t hour = 9, minute = 30;
+  std::uint64_t now = 5'000'000;
+  for (int second = 0; second < 150; ++second) {
+    now += 1'000'000;
+    w.sys->set_now_us(now);
+    (void)loop.step();
+    minute = static_cast<std::uint8_t>((minute + 1) % 60);
+    if (minute == 0) hour = static_cast<std::uint8_t>((hour + 1) % 24);
+    w.mem.put<std::uint8_t>(clock + 0x10, hour);
+    w.mem.put<std::uint8_t>(clock + 0x11, minute);
+    w.mem.put<std::uint8_t>(hud + 0x08, static_cast<std::uint8_t>((second * 17) % 60));
+    w.mem.put<std::uint8_t>(menus + 0x08, static_cast<std::uint8_t>(59 - second % 60));
+  }
+  const lodestar::ClockFound found = search.found();
+  CHECK(found.candidates == 11);
+  CHECK(found.passes >= 140);
+  CHECK(found.unreadable == 0);
+  REQUIRE(found.hits.size() == 1);  // the jumping counter and the one that counts down are no minutes
+  const lodestar::ClockHit& hit = found.hits[0];
+  CHECK(hit.rva == w.at("st_world_clock") - w.base);
+  CHECK(hit.offset == 0x11);
+  CHECK(hit.width == 1);
+  CHECK(hit.ticks >= 140);
+  CHECK(hit.wraps == 2);
+  CHECK(hit.has_hour);
+  CHECK(hit.hour_offset == 0x10);
+  CHECK(hit.hour_steps == 2);
+
+  // In the report: numbers only.
+  r.found.clock = found;
+  r.found.rising = lodestar::RisingFound{12, 3, 0, {lodestar::RisingHit{0x1000, 0x20, 5, 2, 0}}};
+  const auto report = lodestar::write_report(r.found);
+  if (!report) MESSAGE(report::describe(report.error()));
+  REQUIRE(report.has_value());
+  CHECK(report->find("\"clock_hits\"") != std::string::npos);
+  CHECK(report->find("\"rising_hits\"") != std::string::npos);
+}
+
+TEST_CASE("in game: the clock search takes a new object as new, skips an empty slot, and gives up on what it cannot read") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const std::uint32_t clock_slot = static_cast<std::uint32_t>(w.at("st_world_clock") - w.base);
+  const std::uint32_t eye_slot = static_cast<std::uint32_t>(w.at("st_camera") - w.base);
+  lodestar::ClockSearch search({clock_slot, eye_slot}, w.base, r.gated.image.size_of_image);
+  GuardedReader reader(*w.sys);
+  struct Body final : TaskBody {
+    Body(lodestar::ClockSearch& s, GuardedReader& r) : search(s), reader(r) {}
+    void run(const en::proto::GameThread& gt, const FrameCtx& frame) override {
+      reader.begin_tick();
+      (void)search.step(gt, reader, 8, frame.qpc_now_us);
+    }
+    lodestar::ClockSearch& search;
+    GuardedReader& reader;
+  } body(search, reader);
+  ReaderLoop loop(*w.sys, body);
+  // The camera's static points at memory that cannot be read: counted once, and not tried again.
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0x7000'0000'1000);
+  const std::uint64_t first = w.instance("world_clock");
+  std::uint64_t now = 5'000'000;
+  std::uint8_t minute = 30;  // where this world's clock stands
+  const auto second = [&](std::uint64_t object) {
+    now += 1'000'000;
+    w.sys->set_now_us(now);
+    (void)loop.step();
+    minute = static_cast<std::uint8_t>((minute + 1) % 60);
+    if (object != 0) w.mem.put<std::uint8_t>(object + 0x11, minute);
+  };
+  for (int i = 0; i < 8; ++i) second(first);
+  // A loading screen: the slot empty for a while, then a new clock object whose minutes start elsewhere. The jump
+  // between the two objects is no jump of a field: the new object's first copy is compared with nothing.
+  w.mem.put<std::uint64_t>(w.at("st_world_clock"), 0);
+  for (int i = 0; i < 3; ++i) second(0);
+  const std::uint64_t other = w.instance("hud");  // any other readable object stands in for the new clock
+  w.mem.put<std::uint8_t>(other + 0x10, 3);
+  minute = 40;
+  w.mem.put<std::uint8_t>(other + 0x11, minute);
+  w.mem.put<std::uint64_t>(w.at("st_world_clock"), other);
+  for (int i = 0; i < 8; ++i) second(other);
+  const lodestar::ClockFound found = search.found();
+  CHECK(found.candidates == 2);
+  CHECK(found.unreadable == 1);
+  REQUIRE(found.hits.size() == 1);
+  CHECK(found.hits[0].rva == clock_slot);
+  CHECK(found.hits[0].offset == 0x11);
+  CHECK(found.hits[0].ticks >= 12);
+  CHECK(found.hits[0].ticks <= 15);
+}

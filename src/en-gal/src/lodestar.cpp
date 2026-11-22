@@ -611,7 +611,11 @@ constexpr auto kKeys = std::to_array<Key>({
     O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
     U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
     U("fault_thread"), U("fault_injected"), U("same"), U("other"), U("fault"), U("torn"), U("world_readings"),
-    U("stage_changes"), U("null_runs"), U("null_longest"), U("null_world"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
+    U("stage_changes"), U("null_runs"), U("null_longest"), U("null_world"),
+    // The searches by what an object holds (in game)
+    O("clock"), U("candidates"), U("unreadable"), AO("clock_hits"), U("offset"), U("width"), U("ticks"), U("wraps"),
+    B("has_hour"), U("hour_offset"), U("hour_steps"), O("rising"), AO("rising_hits"), U("rose"), U("still"),
+    O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
 constexpr report::Vocabulary kVocabulary{"lodestar", 2, kKeys};
@@ -808,6 +812,48 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("other", m.other);
       w.number("fault", m.fault);
       w.number("torn", m.torn);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.clock) {
+    const ClockFound& c = *found.clock;
+    w.begin_object("clock");
+    w.number("candidates", c.candidates);
+    w.number("passes", c.passes);
+    w.number("unreadable", c.unreadable);
+    w.begin_array("clock_hits");
+    for (const ClockHit& h : c.hits) {
+      w.begin_object();
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.number("width", h.width);
+      w.number("ticks", h.ticks);
+      w.number("wraps", h.wraps);
+      w.boolean("has_hour", h.has_hour);
+      w.number("hour_offset", h.hour_offset);
+      w.number("hour_steps", h.hour_steps);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+  if (found.rising) {
+    const RisingFound& r = *found.rising;
+    w.begin_object("rising");
+    w.number("candidates", r.candidates);
+    w.number("passes", r.passes);
+    w.number("unreadable", r.unreadable);
+    w.begin_array("rising_hits");
+    for (const RisingHit& h : r.hits) {
+      w.begin_object();
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.number("rose", h.rose);
+      w.number("still", h.still);
+      w.number("other", h.other);
       w.end_object();
     }
     w.end_array();

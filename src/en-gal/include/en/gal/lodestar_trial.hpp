@@ -11,7 +11,9 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
+#include <vector>
 
 #include "en/gal/guarded.hpp"
 #include "en/gal/health.hpp"
@@ -77,6 +79,68 @@ class Trial final : public TaskBody {
   Histogram reading_us_;
   std::uint64_t next_us_ = 0;  // the reader's thread only
   bool bound_ = false;
+};
+
+// The clock search (step L6's first invariant of our own; proposal 0005 §6.1): which manager holds the time of day,
+// by what its object holds. A manager with no type information cannot be named by its class (on 2.7.2.0 the world's
+// clock has none: docs/ops/probes/2026-11-22-l5.md), so it is known by how its fields behave.
+// Each candidate is one of the accessor's statics. About once a second, on the reader's thread, its slot is read and
+// the first bytes of the object behind it copied, through the guarded reader. In those bytes, every 1-byte field and
+// every 4-aligned 32-bit field is watched: one that has only ever held 0 to 59 and has only ever stood still or
+// stepped forward by 1 to 5, round 60, behaves as minutes do; one that has only ever held 0 to 23 and stepped by one,
+// round 24, as hours do. A hit is a minutes field that has stepped at least kMinTicks times; a field of the same size
+// beside it that behaves as hours makes it a clock. Nothing is concluded here: the hits are counts for the review.
+// It reads, at most, kSpan bytes of each candidate a second, and writes nothing. Everything is allocated when it is
+// made; the reader's thread allocates nothing.
+class ClockSearch {
+ public:
+  static constexpr std::uint32_t kSpan = 0x100;
+  static constexpr std::size_t kMaxCandidates = 256;
+  static constexpr std::size_t kMaxHits = 32;
+  static constexpr std::uint32_t kMinTicks = 10;
+  static constexpr std::uint64_t kMinIntervalUs = 1'000'000;
+
+  // `statics` are offsets of the candidates' slots; `base` and `size` the image's address as loaded and its size.
+  ClockSearch(std::vector<std::uint32_t> statics, std::uint64_t base, std::uint64_t size);
+
+  // Reads up to `copies` candidates at `now_us`; answers whether a pass over all of them ended on this call. A pass
+  // is a sweep in which at least one candidate was read.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies, std::uint64_t now_us);
+
+  // The counts and the hits as the last pass left them, from any thread.
+  [[nodiscard]] ClockFound found() const;
+
+ private:
+  static constexpr std::size_t kFields = kSpan + kSpan / 4;  // every byte, then every 4-aligned 32-bit field
+  struct Field {
+    std::uint8_t minute_dead = 0;
+    std::uint8_t hour_dead = 0;
+    std::uint16_t ticks = 0;
+    std::uint16_t wraps = 0;
+    std::uint16_t hour_steps = 0;
+  };
+  struct Candidate {
+    std::uint32_t rva = 0;
+    std::uint32_t span = kSpan;      // shortened when the object is smaller than the span
+    std::uint64_t instance = 0;      // the object the last copy was of; 0 before the first
+    std::uint64_t last_us = 0;
+    bool dead = false;               // its object cannot be copied at any span
+    bool seen = false;               // `last` holds a copy of the same object
+    std::array<std::byte, kSpan> last{};
+    std::array<Field, kFields> fields{};
+  };
+  void compare(Candidate& c, std::span<const std::byte> now) noexcept;
+  void publish() noexcept;
+
+  std::uint64_t base_;
+  std::uint64_t size_;
+  std::vector<Candidate> candidates_;
+  std::size_t next_ = 0;
+  bool read_in_sweep_ = false;  // a sweep that read no candidate (each was read under a second ago) is no pass
+  std::array<ClockHit, kMaxHits> hits_{};
+  std::atomic<std::size_t> hit_count_{0};
+  std::atomic<std::uint64_t> passes_{0};
+  std::atomic<std::uint64_t> unreadable_{0};
 };
 
 }  // namespace en::gal::lodestar

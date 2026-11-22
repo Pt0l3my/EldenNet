@@ -429,6 +429,18 @@ for the address library's needs. On T1, after Connect and `settle_s` seconds:
 3. **The reader's trial** on T2, a thread of our own as in a v1 start (Reader, FirstReading, Ready): en-gal's `Trial`
    under `ReaderLoop`, each named manager read about ten times a second. `read stage=trial … readings=… same=…
    null=… other=… fault=… torn=… faults=… p99_us=…` every 10 s.
+   The trial counts its readings by stage (those made while the characters' manager has an instance are the
+   world's) and each manager's empty stretches.
+   **The searches by what an object holds** start once a save is loaded (the trial's first reading in the world), or
+   three minutes after the trial began: for a lead that has a class of its name and still no static, en-gal's
+   `probe::SlotSearch` over the data's slots, one lead at a time, again a minute later while it finds none
+   (`read stage=search id=… candidates=… found=…`; one slot names the manager, `by_search`); `lodestar::ClockSearch`
+   over the accessor's statics no lead has named; and `probe::RisingSearch` over the data's slots that point at the
+   heap (`read stage=searches …`, then `read stage=held clock_passes=… clock_hits=… clocks=… rising_passes=…
+   rising_hits=… search_faults=…` every 10 s). T1 makes each search and T2 steps it; a slot search T1 takes back is
+   freed two of T2's steps later. The searches, and T1's one read at each instance, read through `QuietSys`
+   (ReadProcessMemory on our own process: no exception is raised in the game whatever the address); the trial reads
+   as v1 will.
 4. **Two files in `%APPDATA%\EldenNet\probe`**, every 2 s: `lodestar-found.json` (kind `lodestar`, schema 2: the
    finder's numbers, `instances` and `trial`), and, when the names change, `lodestar-table.toml` (`draft_table`: the
    build's table as leads, each entry checked against the image; its `tool_sha256` is zeros, which the review
