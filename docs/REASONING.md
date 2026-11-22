@@ -6614,7 +6614,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   separators; a chunk's edge separators and `!` go; letters lose accents and case; in a chunk with a letter, inner
   separators go and look-alikes become letters; three or more one-letter words in a row are one word; a repeated letter
   becomes one. A reply's words, and their runs of two and three, are looked up.
-- The lint reads the sanitized sentence, what the player would read: a look-alike outside the whitelist (a Cyrillic
+- The lint reads the sanitised sentence, what the player would read: a look-alike outside the whitelist (a Cyrillic
   letter) is already gone.
 - `lexicon fingerprint` prints the fingerprints sorted and without repeats, so the order of the owner's list leaks
   nothing, and names a refused line by its number alone. `safety.toml` ships with no entries: filling it is the
