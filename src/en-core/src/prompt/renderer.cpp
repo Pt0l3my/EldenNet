@@ -285,10 +285,20 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
     if (!context.recap[i].empty()) recap.push_back(context.recap[i]);
   }
   d["recap"] = recap;
-  json spent = json::array();
-  for (std::size_t i = 0; i < tics.size() && i < context.tally.tics.size(); ++i) {
-    if (context.tally.tics[i] >= tic_caps[i]) spent.push_back(tics[i]);
+  // Block 11 carries one tic note at most, the newest (WHY§388): the tally's `spent`, else the last tic at its cap.
+  const auto at_cap = [&](std::size_t i) {
+    return i < tics.size() && i < context.tally.tics.size() && context.tally.tics[i] >= tic_caps[i];
+  };
+  std::optional<std::size_t> newest;
+  if (context.tally.spent && at_cap(*context.tally.spent)) {
+    newest = *context.tally.spent;
+  } else {
+    for (std::size_t i = 0; i < tics.size(); ++i) {
+      if (at_cap(i)) newest = i;
+    }
   }
+  json spent = json::array();
+  if (newest) spent.push_back(tics[*newest]);
   d["spent_tics"] = spent;
   d["reminder"] = std::string(reminder_name(context.reminder));
   d["actions_block"] = "";  // the seams for actions (DESIGN §13): empty in v1
@@ -388,6 +398,18 @@ proto::Expected<RenderedPrompt, PromptError> DialoguePrompt::render(const Dialog
   auto r = report(context);
   if (!r) return proto::Unexpected{std::move(r.error())};
   return std::move(r->prompt);
+}
+
+proto::Expected<std::uint32_t, PromptError> DialoguePrompt::block_tokens(const DialogueContext& context,
+                                                                         Block block) const {
+  auto data = dialogue_data(context);
+  if (!data) return proto::Unexpected{std::move(data.error())};
+  const std::string persona = context.persona.empty() ? std::string("(unnamed)") : std::string(context.persona);
+  try {
+    return tokens_of(impl_->block(static_cast<std::size_t>(block), *data));
+  } catch (const std::exception& e) {
+    return proto::Unexpected{refusal(PromptRefusal::Template, "persona " + persona + ": " + e.what())};
+  }
 }
 
 proto::Expected<PromptReport, PromptError> DialoguePrompt::report(const DialogueContext& context) const {

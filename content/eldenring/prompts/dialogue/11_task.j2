@@ -1,5 +1,5 @@
-{# Block 11, the task (NPC §7.3, §8.4): the ask, a note for each tic that has had its turn, the regeneration's reminder
-   by category (never the word that hit), and the empty seam for actions. At most 40 tokens. #}
+{# Block 11, the task (NPC §7.3, §8.4): the ask, a note for the tic that last had its turn (one at most, WHY§388), the
+   regeneration's reminder by category (never the word that hit), and the empty seam for actions. At most 70 tokens. #}
 [ user ]
 Your turn:
-Answer as {{ name }}, in {{ possessive }} own voice, in at most {{ words_max }} words.{% for tic in spent_tics %} {{ quote(tic) }} has had its turn in this talk; say the rest in other words.{% endfor %}{% if reminder == "banned" %} Use only words a person of this land would use.{% endif %}{% if reminder == "promise" %} Your part is talk alone; speak of what you think and feel.{% endif %}{% if reminder == "safety" %} Stay within decency, in your own voice.{% endif %}{{ actions_tail }}
+Answer as {{ name }}, in {{ possessive }} own voice, in at most {{ words_max }} words.{% for tic in spent_tics %} {{ quote(tic) }} has had its turn; say the rest in other words.{% endfor %}{% if reminder == "banned" %} Use only words a person of this land would use.{% endif %}{% if reminder == "promise" %} Your part is talk alone; speak of what you think and feel.{% endif %}{% if reminder == "safety" %} Stay within decency, in your own voice.{% endif %}{{ actions_tail }}

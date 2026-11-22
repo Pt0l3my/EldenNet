@@ -5,6 +5,13 @@ budget, each block against its cap and the trim) changes only with an entry here
 hash, which `eldennet-engine golden update <fixture>.prompt.json` prints; `golden check` fails without it, as a route's
 golden does (ARCH §8.12). Newest first. The fixtures' persona, names and lines are invented.
 
+- 2026-11-22 `crowded_regen` fnv1a64:e3c324ab19b937f7: block 11's cap rises from 40 to 70 tokens and carries one tic
+  note at most, the newest (WHY§388): of the two spent tics only the last is noted, and the note loses "in this talk"
+  so the ask, a note and the promise reminder fit (67/70); 1,517 tokens in all.
+- 2026-11-22 `long_talk` fnv1a64:e940e657a3239436: block 11's cap rises to 70 (WHY§388), so its one note is within it
+  (46/70), and the note loses "in this talk".
+- 2026-11-22 `first_meeting` fnv1a64:e61106e8951bf2c2: block 11's cap rises from 40 to 70 (WHY§388); its text is
+  unchanged.
 - 2026-11-22 `first_meeting` fnv1a64:58ce3b5f3d01b03d: first golden (the first conversation's part A).
 - 2026-11-22 `long_talk` fnv1a64:a5bb610a80f26900: first golden (the first conversation's part A).
 - 2026-11-22 `crowded_regen` fnv1a64:f3a2c0c4f2f64ee5: first golden (the first conversation's part A).

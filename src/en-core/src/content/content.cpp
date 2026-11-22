@@ -10,6 +10,7 @@
 
 #include <toml.hpp>
 
+#include "en/core/prompt.hpp"  // kRecordFields
 #include "en/proto/toml_check.hpp"
 
 namespace en::core {
@@ -557,6 +558,7 @@ std::optional<Persona> read_persona(const ContentFile& file, const PersonaRow& r
   Persona p;
   p.id = t["id"].value_or(std::string());
   p.file = file.path;
+  p.origin = file.origin;
   if (p.id != row.id) errors.add(file.path, line_of(*t.get("id")), "id: must be the id its row in identity/personas.toml gives");
   if (const auto honesty = t["private"]["honesty"].value<std::string>()) {
     const std::string_view h = *honesty;
@@ -648,33 +650,40 @@ const char* to_string(Conscious v) noexcept {
 }
 
 nlohmann::json Persona::resolved(std::size_t active) const {
-  nlohmann::json out = record;
-  out.erase("stages");
-  out.erase("seed");
-  out.erase("deflections");
-  if (auto it = out.find("awareness"); it != out.end() && it->is_object()) {
-    it->erase("sleep_leads");
-    it->erase("skip");
-    it->erase("news");
-  }
-  const auto rs = record.find("stages");
-  if (rs == record.end() || !rs->is_array() || rs->empty()) return out;
-  const std::size_t last = std::min(active, rs->size() - 1);
-  nlohmann::json stage = (*rs)[last];
-  for (const char* k : {"road", "at", "hears", "knows"}) {
-    if (stage.contains(k)) continue;
-    for (std::size_t i = last; i-- > 0;) {
-      if ((*rs)[i].contains(k)) {
-        stage[k] = (*rs)[i][k];
-        break;
+  // The record with `stages` replaced by the active stage, §3.2's inheritance applied (`road`, `at`, `hears` and
+  // `knows` from the last stage that set them)...
+  nlohmann::json full = record;
+  full.erase("stages");
+  if (const auto rs = record.find("stages"); rs != record.end() && rs->is_array() && !rs->empty()) {
+    const std::size_t last = std::min(active, rs->size() - 1);
+    nlohmann::json stage = (*rs)[last];
+    for (const char* k : {"road", "at", "hears", "knows"}) {
+      if (stage.contains(k)) continue;
+      for (std::size_t i = last; i-- > 0;) {
+        if ((*rs)[i].contains(k)) {
+          stage[k] = (*rs)[i][k];
+          break;
+        }
       }
     }
+    full["stage"] = std::move(stage);
   }
-  for (const char* k : {"forbid", "when", "chat", "state", "approach", "approach_m", "approach_played", "talked",
-                        "awaits", "beckon", "beckon_src"}) {
-    stage.erase(k);
+  // ...then only the fields the dialogue prompt reads (kRecordFields), so nothing that is never rendered reaches the
+  // renderer: the stages' `forbid` (eval-only, O36, O86), `when` and gate fields, the seed, the deflections, awareness.
+  nlohmann::json out = nlohmann::json::object();
+  for (const std::string_view path : kRecordFields) {
+    const nlohmann::json* v = &full;
+    std::string pointer;
+    for (std::size_t start = 0; v != nullptr && start <= path.size();) {
+      const std::size_t dot = std::min(path.find('.', start), path.size());
+      const std::string key(path.substr(start, dot - start));
+      const auto it = v->is_object() ? v->find(key) : v->end();
+      v = v->is_object() && it != v->end() ? &*it : nullptr;
+      pointer += "/" + key;
+      start = dot + 1;
+    }
+    if (v != nullptr) out[nlohmann::json::json_pointer(pointer)] = *v;
   }
-  out["stage"] = std::move(stage);
   return out;
 }
 

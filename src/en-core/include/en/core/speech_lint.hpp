@@ -12,8 +12,9 @@
 //   - soft: openers (the reply's leading interjections: one from the persona's openers at most, none from the global
 //     set that the persona lacks, and not the last reply's: the others are stripped, the sentence fixed in place, and a
 //     sentence left with no word is dropped), a duplicate (dropped), a tic past its cap and the told name's second use
-//     (logged, for block 11's note), the wider promise list, an unknown proper noun, archaic forms in a register that
-//     has none, and third-person self-reference (logged).
+//     (logged; the tally names the tic that reached its cap most recently, block 11's one note, WHY§388), the wider
+//     promise list, an unknown proper noun, archaic forms in a register that has none, and third-person self-reference
+//     (logged).
 // Banned and promise entries match whole words, any case, accents ignored, in order; a last word ending in '*'
 // matches any word it begins. Pure (ARCH §2.3); the lint never keeps or reports the text that hit.
 #include <cstddef>

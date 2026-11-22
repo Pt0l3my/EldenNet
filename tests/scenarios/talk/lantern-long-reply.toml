@@ -1,0 +1,53 @@
+# The pager's cap cutting the stream (NPC §8.5): the reply's second sentence takes it past the test persona's 30 words,
+# within the cap and 10, so the reply is full and the stream is cancelled while it streams; what came after is never
+# shown or committed. Our own scenario, with invented data: the persona is bound to the fake game's invented row 81100
+# by the overrides folder, in the eval's realm only (NPC §2.1).
+schema = 1
+name = "lantern-long-reply"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "lantern-long-reply.mock.toml"
+recorded = "lantern-long-reply.llm.jsonl"
+
+[world]
+param = 81100
+distance_m = 2.0
+bearing_deg = 0.0
+clock = [23, 0]
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "How do you keep the lamp?"
+
+[[step]]
+do = "wait"
+ms = 2500
+
+[[step]]
+do = "expect"
+cancels = 1
+regenerations = 0
+
+[[step]]
+do = "wait"
+ms = 12000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+cancels = 1
+failures = 0
+last_npc = "The lamp burns all night, and the oil runs low by dawn most days. I trim the wick at dusk and again near midnight, when the wind turns cold off the hills."
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"

@@ -193,6 +193,31 @@ TEST_CASE("the other soft items: duplicates, tics, the told name, wider promises
   CHECK(!has(reply->check(s1), SoftHit::TicOverCap));
   CHECK(has(reply->check(s2), SoftHit::TicOverCap));
   CHECK(reply->tally().tics[0] == 2);
+  CHECK(reply->tally().spent == std::optional<std::uint8_t>(0));
+
+  // The tally's `spent` is the tic that reached its cap most recently (block 11's one note, WHY§388), carried over.
+  const V two = {"by the reeds", "mark the tide"};
+  const std::vector<std::uint8_t> caps = {1, 2};
+  c.tics = two;
+  c.tic_max = caps;
+  c.tally = LintTally{};
+  reply = l.open(c);
+  Sentence t1{"Mark the tide, and wait.", 0, {}};
+  Sentence t2{"It is cold by the reeds.", 1, {}};
+  (void)reply->check(t1);
+  CHECK_FALSE(reply->tally().spent.has_value());  // its cap is 2
+  (void)reply->check(t2);
+  CHECK(reply->tally().spent == std::optional<std::uint8_t>(0));
+  c.tally = reply->tally();
+  reply = l.open(c);
+  Sentence t3{"Mark the tide.", 0, {}};
+  (void)reply->check(t3);
+  CHECK(reply->tally().spent == std::optional<std::uint8_t>(1));
+  c.tally = reply->tally();
+  reply = l.open(c);
+  Sentence t4{"By the reeds, again.", 0, {}};  // past its cap already: not newly spent
+  (void)reply->check(t4);
+  CHECK(reply->tally().spent == std::optional<std::uint8_t>(1));
 
   c = LintContext{};
   c.told_name = "Odwen";

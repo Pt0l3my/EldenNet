@@ -1,6 +1,6 @@
 # prompt golden: first_meeting (format 1)
 # tokens 1191 (target 2800, hard cap 3500); 2 messages, 3 cache breakpoints
-# blocks (tokens/cap): 1=402/450 2=102/120 3=198/350 4=215/230 5=73/110 5b=38/200 6=0/900 7=64/280 8=0/450 9=50/210 10=24/120 11=26/40
+# blocks (tokens/cap): 1=402/450 2=102/120 3=198/350 4=215/230 5=73/110 5b=38/200 6=0/900 7=64/280 8=0/450 9=50/210 10=24/120 11=26/70
 # trimmed: earlier lines 0, exchanges 0, nearby others 0
 [ system ]
 You are a person of an old and broken land, and you speak as someone who lives in it, from the inside.
