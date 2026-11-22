@@ -5,7 +5,7 @@
 #   launcher's state, launcher.toml, the command line, the texts, the watcher's records, the S0 spikes' tally, and the
 #   observer's runs' folder and the game's environment (S0-E, S4), and the console's bounded queue of lines (WHY§290).
 # - eldennet-launcher (Windows builds): processes, injection, the watch block, the dev console and the Mark (src/win/).
-# It depends on en-gal's offline part only (the PE reader, builds.toml's gate and R1's report vocabularies; ARCH §2.3),
+# It depends on en-gal's offline part only (the PE reader, builds.toml's gate and the reports' vocabularies; ARCH §2.3),
 # and through it on en-proto, whose watch block it shares with EldenNet in the game: never on en-core, en_shell or any
 # other module of ours, which the link rules below refuse when the build is configured.
 set(EN_LAUNCHER_CORE_SOURCES
@@ -40,8 +40,8 @@ if(WIN32)
   set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc APPEND PROPERTY OBJECT_DEPENDS ${EN_LAUNCHER_MANIFEST})
   add_executable(eldennet-launcher WIN32 ${EN_LAUNCHER_WIN_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/launcher.rc
     ${_en_manifest_source})
-  # R1's report vocabularies, with which the launcher lints the probe's two reports after an R1 session (--probe), are
-  # en-gal's offline part's (derive.hpp, probe_report.hpp), which en_launcher_core brings.
+  # The report's vocabulary, with which the launcher lints the read-only round's report after its session (--read), is
+  # en-gal's offline part's (lodestar.hpp), which en_launcher_core brings.
   target_link_libraries(eldennet-launcher PRIVATE en_launcher_core comdlg32 shell32 ole32 advapi32 iphlpapi)
   if(MSVC)
     target_link_options(eldennet-launcher PRIVATE /MANIFEST:NO)

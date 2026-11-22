@@ -26,8 +26,8 @@ What is in it
                           loads the run's DLLs, and watches the game until it ends.
   eldennet.dll            EldenNet in the game: the release build. In these runs it stops before its one call into
                           the game and shows its banner instead.
-  gal\                    What R0c found, which EldenNet checks your game against as it starts, as in R1's package:
-                          numbers and names of the design's own, nothing taken from the game.
+  gal\                    What R0c found, which EldenNet checks your game against as it starts: numbers and names
+                          of the design's own, nothing taken from the game.
   GraceUI\                GraceUI @GRACE_VERSION@, its test build (the same code as a release, with read-only counters
                           for the observer): graceui.dll, its version file graceui.toml, its fonts, its licence and its
                           notices.

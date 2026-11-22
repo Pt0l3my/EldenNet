@@ -123,12 +123,12 @@ void ready_ms(std::uint32_t ms) noexcept;
 void items(std::uint32_t resolved, std::uint32_t total, std::uint32_t passes) noexcept;
 void counts(std::uint64_t snapshots, std::uint64_t faults, std::uint64_t tripped, std::uint32_t p99) noexcept;
 void core(std::uint32_t phase, std::uint32_t level, std::uint32_t banner, std::uint32_t flags) noexcept;
-void game_thread(std::uint32_t tid) noexcept;    // the game's own: a registered task's (R1), else its window's
+void game_thread(std::uint32_t tid) noexcept;    // the game's own: its window's
 void reader_thread(std::uint32_t tid) noexcept;  // T2, EldenNet's reader
 void init_thread(std::uint32_t tid) noexcept;
 [[nodiscard]] en::proto::watch::Spike spike() noexcept;
 [[nodiscard]] bool crash_requested() noexcept;
-// The launcher's --probe: what it asked (R1, before it loaded us), and EldenNet's answer in the same field.
+// The launcher's --read: what it asked (before it loaded us), and EldenNet's answer in the same field.
 [[nodiscard]] en::proto::watch::ProbeRequest probe_request() noexcept;
 void probe_answer(en::proto::watch::ProbeRequest answer) noexcept;
 // The Marks: the block's ring, or EldenNet's own with no block. The launcher's Pause stamps them until EldenNet's own
@@ -218,12 +218,11 @@ void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& 
 // value is taken out of the request and the request's copy overwritten.
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
 
-// ---- T1 (boot.cpp) and R1 (probe_r1.cpp) ----
+// ---- T1 (boot.cpp) and the read-only round (probe_read.cpp) ----
 unsigned long init_main(void* module) noexcept;
-// R1's round on T1, in a probe build (probe_r1.cpp): T1 stays its reporter for the session. A release build has none.
-void run_r1(Shell& s, const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) noexcept;
 // The read-only round (probe_read.cpp; Lodestar's step L5): on T1 after Connect, in a probe build with
-// `probe = { round = "read" }`. It calls nothing of the game and registers nothing; T1 stays as its reporter.
+// `probe = { round = "read" }`. It calls nothing of the game and registers nothing; T1 stays as its reporter. A release
+// build has none.
 void run_read(Shell& s, const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) noexcept;
 
 // The file a log, a record or a report may name: the file name only, made a word (anything else is "redacted").

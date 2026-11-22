@@ -110,8 +110,6 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = flag())) set_action(Action::Help);
     } else if (arg == "--console") {
       if ((ok = flag())) o.console = true;
-    } else if (arg == "--probe") {
-      if ((ok = flag())) o.probe = true;
     } else if (arg == "--read") {
       if ((ok = flag())) o.read = true;
     } else if (arg == "--no-dialogs") {
@@ -207,20 +205,12 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
     return proto::Unexpected{std::string("--spike s0e_alone loads no eldennet.dll: not with --dll")};
   }
   if (o.yes && !o.no_dialogs) return proto::Unexpected{std::string("--yes goes with --no-dialogs")};
-  if (o.probe) {
-    // R1 (O89): the one call into the game rests on a save backup made first, EldenNet's own DLL and one plain start.
-    if (o.action != Action::Start || o.no_backup || o.vanilla || o.spike != Spike::None) {
-      return proto::Unexpected{
-          std::string("--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike")};
-    }
-    o.console = true;  // its Mark (Pause) and its plain lines
-  }
   if (o.read) {
     // The read-only round (Lodestar's L5): nothing is called, but it is a development run all the same: a save
-    // backup made first, EldenNet's own DLL, one plain start, and never beside R1.
-    if (o.action != Action::Start || o.no_backup || o.vanilla || o.spike != Spike::None || o.probe) {
+    // backup made first, EldenNet's own DLL and one plain start.
+    if (o.action != Action::Start || o.no_backup || o.vanilla || o.spike != Spike::None) {
       return proto::Unexpected{
-          std::string("--read goes with a start, and not with --no-backup, --vanilla-offline, --spike or --probe")};
+          std::string("--read goes with a start, and not with --no-backup, --vanilla-offline or --spike")};
     }
     o.console = true;  // its plain lines
   }
@@ -244,8 +234,6 @@ std::string usage_text() {
          "  --also PATH          load this DLL too, before EldenNet's, unchecked\n"
          "  --appid-method file|env   --remove-after window|exit|never   (else launcher.toml's)\n"
          "  --console            the development console: status lines, and the Mark on the Pause key\n"
-         "  --probe              the derivation's in-game round R1, with the probe build of eldennet.dll: the console,\n"
-         "                       one call into the game at the Mark (Pause, at the title, with no save loaded)\n"
          "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"
          "                       names the managers it reads and tries its reader, and calls nothing in the game\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"

@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """Builds a spike package of EldenNet for the owner's PC (the first in-game build's part 10): a development build,
-labelled 0.1.0-spike.N (0.1.0-spikes.N for GraceUI's spikes) and never shipped to players, zipped with gal/, the
-licences and SHA256SUMS. Run it with `python3 -I`, from anywhere:
+labelled 0.1.0-spikes.N (GraceUI's spikes) or 0.1.0-lodestar.N (Lodestar's runs) and never shipped to players, zipped
+with gal/, the licences and SHA256SUMS. Run it with `python3 -I`, from anywhere:
 
-    build.py r1 --build build-cl-rel --out EldenNet-R1.zip [--engine build/src/en-tools/eldennet-engine]
     build.py s0e-s4 --build build-cl-rel --graceui <graceui>/build-cl-test --out EldenNet-Spikes.zip
     build.py find --build build-cl-rel --out EldenNet-Find.zip [--engine build/src/en-tools/eldennet-engine]
     build.py read --build build-cl-rel --out EldenNet-Read.zip [--engine build/src/en-tools/eldennet-engine]
 
-`r1` is the derivation's in-game round (O89): the clang-cl Release tree's eldennet-launcher.exe, the probe build of
-eldennet.dll (EN_PROBE) and eldennet-engine.exe, the repository's gal/ and README-R1.txt, in one folder, EldenNet-R1/.
-The build tree must be a Release one with EN_PROBE on and its label set (EN_VERSION_LABEL); the label must be a spike
-package's. `--engine` is a Linux eldennet-engine of the same commit, which checks gal/ (lint --gal) before it is
-packed. The zip is the same for the same inputs: its entries are sorted and dated 2026-01-01.
+The build tree must be a clang-cl Release one with its label set (EN_VERSION_LABEL), as its kind asks. `--engine` is a
+Linux eldennet-engine of the same commit, which checks gal/ (lint --gal) before it is packed. The zip is the same for
+the same inputs: its entries are sorted and dated 2026-01-01. (The `r1` kind, the package of the round with one call
+into the game, went with R1: retired 2026-11-22, O106.)
 
 `s0e-s4` is GraceUI's in-game spikes S0-E and S4 with EldenNet (GraceUI D175; EldenNet's side WHY§249 to §251): the
 clang-cl Release tree's eldennet-launcher.exe and release eldennet.dll (EN_PROBE off, a 0.1.0-spikes.N label), gal/,
@@ -45,7 +43,6 @@ import zipfile
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATE = (2026, 1, 1, 0, 0, 0)
-LABEL = re.compile(r"0\.1\.0-spike\.[0-9]+")
 SPIKES_LABEL = re.compile(r"0\.1\.0-spikes\.[0-9]+")
 FIND_LABEL = re.compile(r"0\.1\.0-lodestar\.[0-9]+")
 DISCLOSURE_SOURCE = os.path.join(REPO, "src", "en-tools", "src", "probe_exe.cpp")
@@ -162,7 +159,7 @@ def pack(files, folder, out, label):
 
 
 def launcher_checks(name, data, label):
-    """What both kinds check in eldennet-launcher.exe and eldennet.dll: the label, no merged manifest, and the
+    """What the kinds check in eldennet-launcher.exe and eldennet.dll: the label, no merged manifest, and the
     launcher's own manifest embedded as written."""
     if label.encode("utf-16-le") not in data and label.encode() not in data:
         fail("%s does not carry the label %s" % (name, label))
@@ -466,9 +463,9 @@ def read(a):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("kind", choices=["r1", "s0e-s4", "find", "read"])
-    p.add_argument("--build", required=True, help="the clang-cl Release tree, with EN_PROBE and a spike label (r1), or "
-                   "with EN_PROBE off and a 0.1.0-spikes.N label (s0e-s4)")
+    p.add_argument("kind", choices=["s0e-s4", "find", "read"])
+    p.add_argument("--build", required=True, help="the clang-cl Release tree: with EN_PROBE off and a 0.1.0-spikes.N "
+                   "label (s0e-s4), or with a 0.1.0-lodestar.N label (find; read, with EN_PROBE on)")
     p.add_argument("--graceui", help="s0e-s4: GraceUI's clang-cl Release tree with GRACEUI_TEST_EXPORTS")
     p.add_argument("--out", required=True, help="the zip to write")
     p.add_argument("--engine", help="a Linux eldennet-engine of the same commit, for lint --gal")
@@ -477,48 +474,7 @@ def main():
         return spikes(a)
     if a.kind == "find":
         return find(a)
-    if a.kind == "read":
-        return read(a)
-    c = cache(a.build)
-    label = c.get("EN_VERSION_LABEL", "")
-    if c.get("CMAKE_BUILD_TYPE") != "Release" or c.get("EN_PROBE") != "ON" or not LABEL.fullmatch(label):
-        fail("the build tree must be Release, with EN_PROBE=ON and EN_VERSION_LABEL=0.1.0-spike.N")
-    if "clang-cl" not in c.get("CMAKE_TOOLCHAIN_FILE", ""):
-        fail("the build tree must be the clang-cl one")
-    gal = os.path.join(REPO, "gal")
-    if a.engine:
-        r = subprocess.run([a.engine, "lint", "--gal", gal], capture_output=True, text=True)
-        if r.returncode != 0:
-            fail("lint --gal refused gal/:\n" + r.stdout)
-        print(r.stdout.strip())
-    binaries = [("eldennet-launcher.exe", os.path.join(a.build, "src", "en-launcher", "eldennet-launcher.exe")),
-                ("eldennet.dll", os.path.join(a.build, "src", "eldennet", "probe", "eldennet.dll")),
-                ("eldennet-engine.exe", os.path.join(a.build, "src", "en-tools", "eldennet-engine.exe"))]
-    files = []  # (name in the package, bytes)
-    for name, path in binaries:
-        with open(path, "rb") as f:
-            data = f.read()
-        if name == "eldennet.dll" and b"S\x00p\x00e\x00c\x00i\x00a\x00l\x00B\x00u\x00i\x00l\x00d" not in data:
-            fail("eldennet.dll is not the probe build (no SpecialBuild in its version resource)")
-        launcher_checks(name, data, label)
-        files.append((name, data))
-    files += gal_files()
-    with open(os.path.join(HERE, "README-R1.txt.in"), encoding="utf-8") as f:
-        title = "EldenNet, round R1 (package %s)" % label
-        readme = (f.read().replace("@LABEL@", label).replace("@UNDERLINE@", "=" * len(title))
-                  .replace("@COMMIT@", git_commit()).replace("@DISCLOSURE@", disclosure()))
-    if re.search(r"@[A-Z]+@", readme):
-        fail("README-R1.txt has a placeholder left")
-    files.append(("README-R1.txt", crlf(readme)))
-    with open(os.path.join(REPO, "LICENSE"), encoding="utf-8") as f:
-        files.append(("LICENSE.txt", crlf(f.read())))
-    with open(os.path.join(REPO, "THIRD_PARTY.md"), encoding="utf-8") as f:
-        files.append(("THIRD_PARTY.md", crlf(f.read())))
-    files.append(("THIRD-PARTY-NOTICES.txt", crlf(notices(a.build))))
-    for name, data in files:
-        if not name.endswith((".exe", ".dll")) and PERSONAL.search(data.decode("utf-8")):
-            fail("%s holds a path of this PC" % name)
-    return pack(files, "EldenNet-R1", a.out, label)
+    return read(a)
 
 
 if __name__ == "__main__":

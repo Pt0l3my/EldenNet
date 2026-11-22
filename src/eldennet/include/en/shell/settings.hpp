@@ -4,7 +4,8 @@
 // type or out of its range refuses the whole file, and the defaults are used, with the problems for the log (never a
 // value of the file). The tables ARCH §11.5 defines for later increments (features, autonomy, range, pacing, ui, pools,
 // budget, safety, hotkeys, augur, reactions, allow) are accepted as tables and not read yet. Two tables are this
-// build's own: `gal` (the copy primitive, S0-D) and, in a probe build only (EN_PROBE), `probe` (the R1 round, O89).
+// build's own: `gal` (the copy primitive, S0-D) and, in a probe build only (EN_PROBE), `probe` (the read-only round
+// and S0-D's fault injection).
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -16,24 +17,19 @@ namespace en::shell {
 
 enum class LogLevel : std::uint8_t { Error, Warn, Info, Debug };
 enum class CopyMode : std::uint8_t { Seh, Rpm };
-// Which round a probe build runs. None: the normal start, with the probe's fault injection if asked. R1 (O89): the
-// derivation's in-game round, with its one call. Read (Lodestar's step L5; proposal 0005 §6.2): the read-only round,
-// which names the managers by their instances, tries the reader on them and calls nothing.
-enum class ProbeRound : std::uint8_t { None, R1, Read };
-// When R1 makes its one call into the game, once its checks have passed: at the first Mark (the launcher's Pause,
-// pressed at the title with no save loaded: O89, O90), at once, or never (the facts that need no call only).
-enum class ProbeRegister : std::uint8_t { Mark, Auto, Never };
+// Which round a probe build runs. None: the normal start, with the probe's fault injection if asked. Read (Lodestar's
+// step L5; proposal 0005 §6.2): the read-only round, which names the managers by their instances, tries the reader on
+// them and calls nothing. (R1, the round with one call into the game, was retired 2026-11-22, O106: its word and its
+// keys are refused like any unknown one.)
+enum class ProbeRound : std::uint8_t { None, Read };
 
 [[nodiscard]] const char* to_string(LogLevel l) noexcept;
 [[nodiscard]] const char* to_string(CopyMode c) noexcept;
 [[nodiscard]] const char* to_string(ProbeRound r) noexcept;
-[[nodiscard]] const char* to_string(ProbeRegister r) noexcept;
 
 struct ProbeSettings {
   ProbeRound round = ProbeRound::None;
-  ProbeRegister register_when = ProbeRegister::Mark;
-  std::uint32_t object_size = 0x800;  // R1's task object: generous, since the game's own size is what R1 measures
-  std::uint32_t settle_s = 10;        // R1: after the window, before the live derivation's first pass
+  std::uint32_t settle_s = 10;  // the read-only round: after the window, before its first reading
   // S0-D's fault injection (part 4's probe option): every `fault_every`-th read of `fault_group`, from
   // `fault_after_s` seconds after the first world snapshot. 0: off.
   proto::Group fault_group = proto::Group::Camera;

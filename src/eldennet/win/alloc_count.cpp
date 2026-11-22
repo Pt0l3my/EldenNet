@@ -2,10 +2,10 @@
 // after warm-up, and a check asserts none): the DLL's own operator new and delete, all twenty forms, counting while
 // the game thread has armed them. A release build has none of this, and uses the C runtime's.
 //
-// Since spike.6 (WHY§227) they allocate from a heap of the DLL's own (HeapCreate), not the process's: R1's
-// whole-memory search tells the probe's own copies of our task's address apart from the game's by the heap they lie in
-// (own_heap_bases). An alignment above the heap's 16 bytes is made by allocating more and keeping the block's start
-// just before the aligned address. If the heap cannot be made, the process's is used and own_heap_bases says so.
+// Since spike.6 (WHY§227) they allocate from a heap of the DLL's own (HeapCreate), not the process's, so that the
+// probe's own blocks lie apart from the game's (R1, retired 2026-11-22, O106, told them apart by that heap). An
+// alignment above the heap's 16 bytes is made by allocating more and keeping the block's start just before the aligned
+// address. If the heap cannot be made, the process's is used.
 #include "dll.hpp"
 
 #if EN_PROBE
@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <cstring>
 #include <new>
-#include <span>
 
 namespace eldennet {
 
@@ -76,40 +75,6 @@ P* or_throw(P* p) {
 
 void arm_allocation_watch(bool armed) noexcept { t_armed = armed; }
 std::uint64_t allocations_watched() noexcept { return g_news.load(std::memory_order_relaxed); }
-
-// The allocation bases of our heap's regions and large blocks (HeapWalk under the heap's lock; VirtualQuery reads the
-// page tables only), into `out`; how many, or nothing when our allocations cannot be told apart (the process's heap in
-// use, or the walk refused). Nothing is allocated while the heap is locked.
-std::optional<std::size_t> own_heap_bases(std::span<std::uint64_t> out) noexcept {
-  HANDLE h = g_heap.load(std::memory_order_acquire);
-  if (h == nullptr || h == GetProcessHeap() || !HeapLock(h)) return std::nullopt;
-  std::size_t n = 0;
-  bool whole = true;
-  std::uint64_t region = 0, region_end = 0;  // the last region VirtualQuery described
-  PROCESS_HEAP_ENTRY e{};
-  e.lpData = nullptr;
-  while (HeapWalk(h, &e) != FALSE) {
-    const std::uint64_t at = number(e.lpData);
-    if (at >= region && at < region_end) continue;
-    MEMORY_BASIC_INFORMATION mbi{};
-    if (VirtualQuery(e.lpData, &mbi, sizeof mbi) == 0) continue;
-    region = number(mbi.BaseAddress);
-    region_end = region + mbi.RegionSize;
-    const std::uint64_t base = number(mbi.AllocationBase);
-    bool known = false;
-    for (std::size_t i = 0; i < n && !known; ++i) known = out[i] == base;
-    if (known) continue;
-    if (n == out.size()) {
-      whole = false;
-      break;
-    }
-    out[n++] = base;
-  }
-  const bool ended = GetLastError() == ERROR_NO_MORE_ITEMS;
-  HeapUnlock(h);
-  if (!whole || !ended) return std::nullopt;
-  return n;
-}
 
 }  // namespace eldennet
 

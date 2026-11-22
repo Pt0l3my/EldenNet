@@ -23,18 +23,7 @@ const char* to_string(LogLevel l) noexcept {
 
 const char* to_string(CopyMode c) noexcept { return c == CopyMode::Rpm ? "rpm" : "seh"; }
 
-const char* to_string(ProbeRound r) noexcept {
-  return r == ProbeRound::R1 ? "r1" : r == ProbeRound::Read ? "read" : "none";
-}
-
-const char* to_string(ProbeRegister r) noexcept {
-  switch (r) {
-    case ProbeRegister::Mark: return "mark";
-    case ProbeRegister::Auto: return "auto";
-    case ProbeRegister::Never: return "never";
-  }
-  return "mark";
-}
+const char* to_string(ProbeRound r) noexcept { return r == ProbeRound::Read ? "read" : "none"; }
 
 namespace {
 
@@ -116,15 +105,9 @@ void read_probe(Reader& r, const toml::table& t, Settings& s) {
     const std::string key(k.str());
     const std::string where = "probe." + key;
     if (key == "round") {
-      if (const auto w = r.word(v, where, std::array<std::string_view, 3>{"none", "r1", "read"})) {
+      if (const auto w = r.word(v, where, std::array<std::string_view, 2>{"none", "read"})) {
         p.round = static_cast<ProbeRound>(*w);
       }
-    } else if (key == "register") {
-      if (const auto w = r.word(v, where, std::array<std::string_view, 3>{"mark", "auto", "never"})) {
-        p.register_when = static_cast<ProbeRegister>(*w);
-      }
-    } else if (key == "object_size") {
-      if (const auto n = r.integer(v, where, 0x10, 0x4000)) p.object_size = static_cast<std::uint32_t>(*n);
     } else if (key == "settle_s") {
       if (const auto n = r.integer(v, where, 0, 120)) p.settle_s = static_cast<std::uint32_t>(*n);
     } else if (key == "fault_group") {

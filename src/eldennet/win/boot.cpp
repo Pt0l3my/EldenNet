@@ -11,13 +11,12 @@
 //   → Reader (T2, a thread of EldenNet's own, started: proposal 0005 §9.4, §10; O101)
 //   → FirstReading (≤ 30 s: phase A and the first snapshot, on T2) → Ready (R16's marker scan) → end.
 //   A start calls nothing of the game and registers nothing with it: the game's task (en-gal's install_task) is not
-//   v1's (O101 (b)), and only the probe's R1 round still makes that call (probe_r1.cpp), until L5 replaces the round.
+//   v1's (O101 (b)), and no round of the probe makes that call (R1, which did, was retired 2026-11-22, O106).
 //   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
 //   mode with anti-cheat), the banner, end.
-//   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp), and with "read" the
-//   read-only round (probe_read.cpp).
+//   A probe build with probe.round = "read" runs the read-only round after WaitWindow instead (probe_read.cpp).
 //   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Reader with the spike_run banner, before
-//   the reader is made; R1 is set aside in such a run.
+//   the reader is made; the read-only round is set aside in such a run.
 #include <cstring>
 
 #include "dll.hpp"
@@ -243,26 +242,8 @@ void run(HMODULE module) {
   for (const en::shell::SettingsProblem& p : loaded.problems) {
     log(Line("settings_problem").word("where", p.where.empty() ? "file" : p.where), LogLevel::Warn);
   }
-  // The launcher's --probe (O89): R1, in a probe build only, with the file's other probe settings, and always at the
-  // Mark (the owner's Pause at the title) unless the file says never. A release build, or EldenNet turned off, refuses.
-  if (block::probe_request() == w::ProbeRequest::R1) {
-    const bool accept = kProbeBuild && s.settings.enabled;
-    if (accept) {
-      s.settings.probe.round = en::shell::ProbeRound::R1;
-      if (s.settings.probe.register_when == en::shell::ProbeRegister::Auto) {
-        s.settings.probe.register_when = en::shell::ProbeRegister::Mark;
-      }
-    }
-    block::probe_answer(accept ? w::ProbeRequest::Accepted : w::ProbeRequest::Refused);
-    log(Line("probe").word("asked", "r1").flag("accepted", accept).flag("probe_build", kProbeBuild)
-            .flag("enabled", s.settings.enabled),
-        accept ? LogLevel::Info : LogLevel::Warn);
-    if (!accept) {
-      finish(w::InitState::Exit);  // the owner asked for R1 alone: no other start, and nothing called
-      return;
-    }
-  }
-  // The launcher's --read (Lodestar's step L5): the read-only round, in a probe build only. It calls nothing.
+  // The launcher's --read (Lodestar's step L5): the read-only round, in a probe build only. It calls nothing. A
+  // release build, or EldenNet turned off, refuses.
   if (block::probe_request() == w::ProbeRequest::Read) {
     const bool accept = kProbeBuild && s.settings.enabled;
     if (accept) s.settings.probe.round = en::shell::ProbeRound::Read;
@@ -304,17 +285,9 @@ void run(HMODULE module) {
   connect_overlay(s, false);
 
 #if EN_PROBE
-  if (s.settings.probe.round == en::shell::ProbeRound::R1) {
-    // R1's one call (at the Mark) never joins an observer's run: settings.toml's round is set aside, and the start
-    // goes on to its stop at Register (the launcher refuses --probe with these spikes).
-    if (!w::observer_run(block::spike())) {
-      run_r1(s, gated);
-      return;
-    }
-    log(Line("probe").word("round", "r1").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
-  }
   if (s.settings.probe.round == en::shell::ProbeRound::Read) {
-    // The read-only round (Lodestar's L5) never joins an observer's run either.
+    // The read-only round (Lodestar's L5) never joins an observer's run: settings.toml's round is set aside, and the
+    // start goes on to its stop at Reader.
     if (!w::observer_run(block::spike())) {
       run_read(s, gated);
       return;

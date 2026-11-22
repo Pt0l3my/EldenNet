@@ -82,7 +82,7 @@ TEST_CASE("settings: a problem refuses the whole file, worded without its values
 }
 
 TEST_CASE("settings: the probe table only in a probe build") {
-  const char* text = R"(probe = { round = "r1", register = "auto", object_size = 0x400, settle_s = 3, fault_group = "world", fault_every = 5 }
+  const char* text = R"(probe = { round = "read", settle_s = 3, fault_group = "world", fault_every = 5 }
 )";
   const LoadedSettings release = parse_settings(text, false);
   CHECK(release.refused);
@@ -90,13 +90,11 @@ TEST_CASE("settings: the probe table only in a probe build") {
   CHECK(release.problems[0].where == "probe");
   const LoadedSettings probe = parse_settings(text, true);
   REQUIRE_FALSE(probe.refused);
-  CHECK(probe.settings.probe.round == ProbeRound::R1);
-  CHECK(probe.settings.probe.register_when == ProbeRegister::Auto);
-  CHECK(probe.settings.probe.object_size == 0x400);
+  CHECK(probe.settings.probe.round == ProbeRound::Read);
   CHECK(probe.settings.probe.settle_s == 3);
   CHECK(probe.settings.probe.fault_group == en::proto::Group::World);
   CHECK(probe.settings.probe.fault_every == 5);
-  CHECK(parse_settings("probe = { object_size = 0x8000 }\n", true).refused);
+  CHECK(parse_settings("probe = { settle_s = 121 }\n", true).refused);
   // The read-only round (Lodestar's L5): a probe build's too, and a word of its own.
   const LoadedSettings read = parse_settings("probe = { round = \"read\", settle_s = 1 }\n", true);
   REQUIRE_FALSE(read.refused);
@@ -104,6 +102,14 @@ TEST_CASE("settings: the probe table only in a probe build") {
   CHECK(std::string(to_string(read.settings.probe.round)) == "read");
   CHECK(parse_settings("probe = { round = \"read\" }\n", false).refused);
   CHECK(parse_settings("probe = { round = \"write\" }\n", true).refused);
+  // R1 was retired (O106): its word and its own keys are refused as any unknown one is.
+  const LoadedSettings r1 = parse_settings("probe = { round = \"r1\" }\n", true);
+  CHECK(r1.refused);
+  REQUIRE(r1.problems.size() == 1);
+  CHECK(r1.problems[0].where == "probe.round");
+  CHECK(r1.settings.probe.round == ProbeRound::None);
+  CHECK(parse_settings("probe = { register = \"auto\" }\n", true).refused);
+  CHECK(parse_settings("probe = { object_size = 0x400 }\n", true).refused);
 }
 
 TEST_CASE("settings: the pages' edits, written over an accepted file and never over a refused one") {

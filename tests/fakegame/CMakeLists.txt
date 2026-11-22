@@ -64,8 +64,8 @@ if(TARGET eldennet-launcher)
   list(APPEND _en_set --set launcher=$<TARGET_FILE:eldennet-launcher>)
 endif()
 
-# EldenNet's DLL (part 6): eldennet.dll, and with the probe option probe/eldennet.dll (R1), each installed by a case
-# beside its gal/ and injected by the launcher (clang-cl).
+# EldenNet's DLL (part 6): eldennet.dll, and with the probe option probe/eldennet.dll (the read-only round), each
+# installed by a case beside its gal/ and injected by the launcher (clang-cl).
 if(TARGET eldennet AND TARGET eldennet-launcher AND TARGET eldennet-engine)
   list(APPEND _en_have eldennet)
   list(APPEND _en_set --set eldennet=$<TARGET_FILE:eldennet>)

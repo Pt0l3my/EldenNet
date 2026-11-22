@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "en/gal/probe_report.hpp"
+#include "en/gal/derive.hpp"
 #include "en/gal/report.hpp"
 #include "en/shell/record.hpp"
 
@@ -18,7 +18,8 @@ namespace proto = en::proto;
 
 namespace {
 
-const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(), &en::gal::probe::vocabulary()};
+const std::array<const en::gal::report::Vocabulary*, 2> kKnown = {&recording_vocabulary(),
+                                                                  &en::gal::derive::vocabulary()};
 
 void lints(const std::string& line) {
   INFO(line.substr(0, 300));

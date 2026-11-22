@@ -13,7 +13,8 @@
 //   under SEH, from T1; the task object and its fake vtable of guarded no-ops, with the run slot our trampoline
 //   (sys/trampoline.cpp), made once and never freed (R14);
 // - the clock (QPC, µs) and the thread's id;
-// - in a probe build, the regions of the process as VirtualQuery describes them (R1's whole-memory search).
+// - in a probe build, the regions of the process as VirtualQuery describes them (the read-only round's question of
+//   what is live at an address).
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -67,8 +68,8 @@ class NativeSys final : public SysLayer {
   // An address that faults when read, for the probe's fault injection: a page reserved with no access, never freed.
   [[nodiscard]] std::uint64_t no_access_page() noexcept;
 #if EN_PROBE
-  // R1's whole-memory search (WHY§227): the region holding `at`, as VirtualQuery describes it (nothing is read there),
-  // or nothing past user space.
+  // The region holding `at`, as VirtualQuery describes it (nothing is read there), or nothing past user space
+  // (WHY§227).
   [[nodiscard]] std::optional<probe::MemoryRegion> region_at(std::uint64_t at) const noexcept;
 #endif
 
