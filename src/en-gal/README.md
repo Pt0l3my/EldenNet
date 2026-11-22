@@ -221,8 +221,8 @@ of any game is in it, and every name it looks for comes from a leads file.
   read is a refusal. On the tests' fake world discovery finds the same items, sites and names by either. The DLL and
   the test DLL read `recipes.toml` when the folder holds it, and a folder with it and no `patterns.toml` is read as
   having no pattern. A file may hold more recipes of the accessor's kind under other ids (the accessor's other
-  shapes: `accessor_near`, `accessor_gap`, `accessor_gap_near`, `accessor_compare`, `accessor_compare_near`, each a
-  lead with its note): discovery reads `accessor` alone, and Lodestar's finder counts the others beside it.
+  shapes: `accessor_near`, `accessor_gap`, `accessor_compare`, `accessor_compare_near`, each a lead with its note
+  and its count on 2.7.2.0; a fifth stood nowhere there and was withdrawn): discovery reads `accessor` alone, and Lodestar's finder counts the others beside it.
   The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
   the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
   until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds

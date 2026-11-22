@@ -1,7 +1,7 @@
 # accessor_gap: the accessor with one instruction between its load and its test
 
-*A lead, written 2026-11-22 from R0c's counts and the second in-game round; counted on no build yet, and
-confirmed in none.*
+*A lead, written 2026-11-22 from R0c's counts and the second in-game round; counted on 2.7.2.0 WW in the third
+round the same day, and confirmed in no build.*
 
 **What it finds.** The accessor of `accessor.md` with one more instruction: a 64-bit load of the manager's slot
 (`load_slot`, the static), then any one instruction that falls through and does not load the same register anew
@@ -25,11 +25,16 @@ path as any accessor, or it is refused), how many statics those places reach, ho
 places reach too and with the same class object, and the statics that are new, each with its class object, its count
 of places and its first places. The in-game round then names over the new statics as over the 217 (O92).
 
+**Counted on the game** (2026-11-22, the third read-only round, over the image as the game runs it;
+`docs/ops/probes/2026-11-22-l5.md`). 675 places, all accepted, reaching 89 statics: 87 of the accessor's own 217, each
+with the same class object, and 2 new ones (one with 7 places, one with 1 whose class object lies 7 bytes before the
+static itself, which is odd and is taken for nothing until a round says what that slot holds). Neither new static
+holds a manager the leads ask for. `expect_matches` holds the count.
+
 **How it is to be confirmed.** By its count on the owner's own executable first: a variant that stands nowhere is
 withdrawn; one that reaches no new static is kept only as a cross-check. A new static enters a build's table only as
 the 217 did: named by its instance's class in game, checked against the image, and a lead until S0-A's launches and
-the self-tests confirm it (ARCH §6.3). `expect_matches` is set when a round has counted it, and `builds` stays empty
-until then.
+the self-tests confirm it (ARCH §6.3). `builds` stays empty until then.
 
 **Evidence.** The shape's forms are the processor's documented encodings; that such places exist is R0c's own count
 of the references to the accessor's path (`docs/ops/probes/2026-11-16-r0c.md`, "What R0c leaves for R1": 26 places
