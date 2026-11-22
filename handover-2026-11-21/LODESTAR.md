@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (step L5 built; the owner's read-only run is next)
+# Lodestar's status, 22 November 2026 (after the owner's read-only run)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -14,12 +14,13 @@ first; this file adds only where Lodestar's own work stands.
 | L3: the finder (`lodestar.hpp`, `eldennet-engine lodestar find`), report kind `lodestar` schema 2, the `find` package kind | engine 9edf1c0, 4569730 and the commit after | **Done.** The owner ran it twice on 2.7.2.0 (2026-11-22; `docs/ops/probes/2026-11-22-l3.md`): the shape stands at 7,077 places, all accepted, 217 statics to 217 class objects; the pattern's 4 further sites are rightly left out. `gal/recipes.toml` holds the count |
 | L4: the reader on a thread of EldenNet's own (`ReaderLoop`, steady reading), a start through the build's table (`Library` in discovery), eldennet.dll's T2 | engine 4741f2a | **Done.** The DLL starts Discover, WaitEngine, Reader, FirstReading, Ready, calls nothing of the game and registers nothing; on the fake game under Wine it reads ten times a second, the hub's tasks stay the program's own and none of our slots is ever called. The watch block's `reader` and `first_reading` states and the `reader` thread kind were appended. `install_task` and the getter remain only for the probe's R1 round, until L5 |
 | L5: the read-only round. `lodestar::name_instances`, `merge`, `draft_table` and `Trial` in en-gal; `probe_read.cpp` in the DLL's probe build; the launcher's `--read`; the `read` package kind and `README-READ.txt.in` | engine 1cc712a, e82d795, 0c2a25a, 0fca63e | **Built; the owner's run is to come.** On the fake game under Wine the round names all eleven managers by their instances' classes (none at a first pass made before the game has them, all at a later one), reads them about 340 times in 34 s with no fault, writes a lint-clean report and a draft table of 14 leads, and the fake hub sees no task of ours. `gal/ids.toml` records each manager's and class's older label (`was`), by which a lead finds its id |
+| The owner's read-only run (2026-11-22; `docs/ops/probes/2026-11-22-l5.md`) | package 0.1.0-lodestar.3; the table in the engine's `gal/layouts/2.7.2.0-ww.toml` | **Done, reviewed.** Eight of the eleven managers named and placed (`task_hub`, `characters`, `session`, `hud`, `menus`, `loading`, `camera`, `param_store`), the two character classes and the groups' table: 11 entries in the build's table, all leads. The reader read for 19 minutes, 11,552 readings, with no fault of any kind. Not named: `event_flags`, `world_clock`, `messages` |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
 
-Engine holds the numbers: O101 to O103; Lodestar's drafts are placed up to WHY§321 (L4's are §317 to §321); S10.1.k
-carries the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar's branches reach it through them.
+Engine holds the numbers: O101 to O103; Lodestar's drafts are placed up to WHY§325 (next free: 326); S10.1.k carries
+the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar's branches reach it through them.
 
 ## The package and the sweep
 
@@ -39,15 +40,13 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.3; BUILD.md, "The spike package",
-   the `read` kind): about 15 minutes, no key to press. Two files come back, `lodestar-found.json` and
-   `lodestar-table.toml`. Review them as data (each upload in a folder of its own, read with `python3 -I` from a
-   script kept elsewhere; `lint --report` first), write the record in `docs/ops/probes/` (counts only), then place
-   the draft's entries in `gal/layouts/2.7.2.0-ww.toml` as schema 2, with `tool_sha256` set to the package's own
-   digest of the DLL (the draft carries zeros) and each entry still a lead until the review confirms it. With that
-   table a v1 start names the managers without any search. Until then today's DLL stops at the discovery banner on
-   the real build, as it must: the name layout is dead there (WHY§314) and the getter is never called (O101).
-2. After that run: retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
+1. **The three managers the round could not name** (`event_flags`, `world_clock`, `messages`). The report cannot
+   say why: 71 of the 217 statics held an object with no type information, 6 were empty, and the leads' names may
+   differ from the classes'. First, for no cost in game: have the finder count, for each lead, the classes of its name
+   (and its name with Imp) that the image holds, offline and in game. Then, by what that says: other names for the
+   leads, or the `invariant` recipe (step L6), which finds a static by what its instance holds. The round's cap of 60
+   naming passes is to go (it names while a lead is missing), and the trial should count its readings by stage.
+2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
    owner's and Engine's word; `lodestar check` and `diff` against a table.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
    smoothing every frame would need GraceUI's `on_present` callback, by a GraceUI proposal.
