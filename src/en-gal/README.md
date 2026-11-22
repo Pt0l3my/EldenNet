@@ -229,8 +229,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   derivation does, and counts the accepted sites the two share and those only one accepts; for the sites the pattern
   alone accepts it says why the shape does not stand there (`shape::mismatch_at`: the first step that differs, and
   whether it is the form in all but its width, a test of another register, or something else) and which statics only
-  those sites load; the pattern is never written. `complete` says the accessor has a recipe, its count within range, an accepted site, and no site that only
-  one of the two accepts. `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
+  those sites load; the pattern is never written. `complete` says the accessor has a recipe, its count within range, an accepted site, one class object
+  for each static and the reverse (`shared_class_objects`, `shared_statics`), and no site that the shape alone
+  accepts; a site the pattern alone accepts is reported with its reason and does not count against the run (on
+  2.7.2.0 there are 4, each a test of another register than the one loaded: the pattern took another load for the
+  manager's slot there). `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never

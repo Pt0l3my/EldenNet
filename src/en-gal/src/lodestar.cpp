@@ -88,6 +88,8 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
   std::map<std::uint32_t, StaticFound> statics;
   std::set<std::uint32_t> class_objects;
   std::set<std::uint32_t> getters;
+  std::map<std::uint32_t, std::set<std::uint32_t>> statics_of_class;  // by class object
+  std::map<std::uint32_t, std::set<std::uint32_t>> classes_of_static;
   for (const fd4::Site& s : by_shape.sites) {
     if (s.refused) {
       const auto reason = static_cast<std::size_t>(*s.refused);
@@ -102,7 +104,11 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
     if (one.witnesses.size() < kMaxSiteWitnesses) one.witnesses.push_back(s.hit);
     class_objects.insert(s.class_object);
     getters.insert(s.getter);
+    statics_of_class[s.class_object].insert(s.static_slot);
+    classes_of_static[s.static_slot].insert(s.class_object);
   }
+  for (const auto& [object, slots] : statics_of_class) a.shared_class_objects += slots.size() > 1 ? 1 : 0;
+  for (const auto& [slot, objects] : classes_of_static) a.shared_statics += objects.size() > 1 ? 1 : 0;
   a.statics_found = statics.size();
   a.class_objects = class_objects.size();
   for (const auto& [rva, one] : statics) {
@@ -165,7 +171,8 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
 bool complete(const Found& found) {
   const AccessorFound& a = found.accessor;
   if (!a.recipe || a.expect != Expect::Within || a.accepted == 0) return false;
-  return !a.pattern || (a.only_shape == 0 && a.only_pattern == 0);
+  if (a.shared_class_objects != 0 || a.shared_statics != 0) return false;
+  return !a.pattern || a.only_shape == 0;
 }
 
 // ---- The report: schema 2, kind `lodestar`. No key takes a pattern, and there is no free string. ----
@@ -202,7 +209,7 @@ constexpr auto kKeys = std::to_array<Key>({
     U("sections"), U("functions"), W("build", kGate),
     // accessor
     O("accessor"), B("recipe"), U("hits"), U("sites"), U("accepted"), AO("refused"), W("reason", kRefusal), U("count"),
-    W("expect", kExpect), U("statics_found"), U("class_objects"), AO("statics"), U("rva"), U("class_object"),
+    W("expect", kExpect), U("statics_found"), U("class_objects"), U("shared_class_objects"), U("shared_statics"), AO("statics"), U("rva"), U("class_object"),
     AU("witnesses"), AU("getters"),
     // the comparison with the withdrawn pattern: counts only
     O("pattern"), B("cut"), U("both"), U("only_shape"), U("only_pattern"), AO("why"), U("step"),
@@ -274,6 +281,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
   w.word("expect", kExpect[static_cast<std::size_t>(a.expect) < kExpect.size() ? static_cast<std::size_t>(a.expect) : 0]);
   w.number("statics_found", a.statics_found);
   w.number("class_objects", a.class_objects);
+  w.number("shared_class_objects", a.shared_class_objects);
+  w.number("shared_statics", a.shared_statics);
   w.begin_array("statics");
   for (const StaticFound& s : a.statics) {
     w.begin_object();
