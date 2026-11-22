@@ -355,6 +355,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 330 | 2026-11-22 | A round's report must tell "not there" from "there under another name" | METHOD | #gal #lodestar |
 | 331 | 2026-11-22 | Ten of the eleven managers' leads have exactly one class of their name in the image; world_clock's has none | FACT | #gal #lodestar #owner-run |
 | 332 | 2026-11-22 | A manager with a class of its name that the round did not name was not missed for want of type information | LIKELY | #gal #lodestar |
+| 333 | 2026-11-22 | A search that follows pointers it has not validated asks before it reads | DECIDED | #gal #lodestar #safety |
+| 334 | 2026-11-22 | The first invariant recipe of our own, the clock: minutes and hours by how they step | METHOD | #gal #lodestar |
+| 335 | 2026-11-22 | A manager no accessor's static holds is looked for among all the data's slots, and stays a lead | METHOD | #gal #lodestar |
 
 ## Entries
 
@@ -5557,3 +5560,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   when naming stopped; or its static is none of the accessor's 217. The next in-game round, read-only as the last, reads
   an instance inside the image through the image's own view, searches the data slots for an object of a lead's class
   (R1's slot search, which only reads), and starts L6's invariant searches on the reader's thread with the play time.
+
+### 333. A search that follows pointers it has not validated asks before it reads
+
+`2026-11-22` · DECIDED · `#gal` `#lodestar` `#safety` · refs: WHY§111, WHY§160, O91, S10.1.k
+
+- A read of a guard page lifts the guard, by an exception or by ReadProcessMemory alike, and a search that follows
+  whatever a data slot holds could land on one. So a search asks first: every page of the range committed and readable,
+  none a guard page or no-access, by VirtualQuery, which reads nothing; only then is the range copied, by
+  ReadProcessMemory on our own process. It raises no exception in the game and lifts no guard, whatever a pointer holds;
+  what it leaves alone is counted (`search_refused`). The v1 reader follows only objects it has checked and keeps its
+  own copy primitive; this rule is for searches. Engine feat/engine merge of 2ebeb19.
+
+### 334. The first invariant recipe of our own, the clock: minutes and hours by how they step
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: proposal 0005 §6.1, WHY§331, S10.1.k
+
+- A field that only ever held 0 to 59 and only ever stood still or stepped forward by 1 to 5, round 60, behaves as
+  minutes; one beside it that only held 0 to 23 and stepped by one, as hours. It concludes nothing: its hits are counts
+  for the review. A counter that jumps or counts down is no hit. The play time is looked for by the rising search.
+
+### 335. A manager no accessor's static holds is looked for among all the data's slots, and stays a lead
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: O92, WHY§332, S10.1.k
+
+- A manager whose class the image holds but which no accessor's static holds is looked for among all the data's slots
+  (the slot search, en-gal's own). One slot names it; the table then gives it by its instance's class alone, with no
+  agreement claimed and no witness, so it stays a lead until a second recipe agrees. An instance inside the image is now
+  read through the image's view, which the first round refused.

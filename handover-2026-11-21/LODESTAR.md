@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (after the owner's read-only run)
+# Lodestar's status, 22 November 2026 (the second read-only round is with the owner)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -19,8 +19,8 @@ first; this file adds only where Lodestar's own work stands.
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
 
-Engine holds the numbers: O101 to O103; Lodestar's drafts are placed up to WHY§325 (next free: 326); S10.1.k carries
-the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar's branches reach it through them.
+Engine holds the numbers: O101 to O103; Lodestar's drafts are placed up to WHY§332 (next free: 333, before the
+three sent with the second round); S10.1.k carries the steps. Only `design/v1-proposal` and `feat/engine` go into `main`; Lodestar's branches reach it through them.
 
 ## The package and the sweep
 
@@ -40,12 +40,17 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The three managers the round could not name** (`event_flags`, `world_clock`, `messages`). The report cannot
-   say why: 71 of the 217 statics held an object with no type information, 6 were empty, and the leads' names may
-   differ from the classes'. First, for no cost in game: have the finder count, for each lead, the classes of its name
-   (and its name with Imp) that the image holds, offline and in game. Then, by what that says: other names for the
-   leads, or the `invariant` recipe (step L6), which finds a static by what its instance holds. The round's cap of 60
-   naming passes is to go (it names while a lead is missing), and the trial should count its readings by stage.
+1. **The owner's second read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.5, from engine 2ebeb19; its
+   eldennet.dll's SHA-256 begins 21943391). The offline count (package 0.1.0-lodestar.4; the record's last section)
+   showed that `messages` and `event_flags` each have a class of their name and `world_clock` has none. So this round
+   reads an instance that lies inside the image, looks for a classed manager among all the data's slots once a save is
+   loaded (`by_search`), and starts step L6 with two searches by what an object holds: the clock (`clock_hits`) and
+   the play time (`rising_hits`). Its searches ask before each read (VirtualQuery, then ReadProcessMemory), so they
+   raise no exception in the game and lift no guard page. Review its two files as the first run's (`$S/review/l5.py`
+   in the scratchpad is gone with the container: it only prints the report's counts), add a section to
+   `docs/ops/probes/2026-11-22-l5.md` or a new record, and place what it names in the build's table as leads.
+   The clock's and the play time's hits are for the review to judge: nothing enters the table from them without a
+   second look in a later round.
 2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
    owner's and Engine's word; `lodestar check` and `diff` against a table.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
@@ -58,7 +63,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against: `en_gal_tests` 227 cases on GCC, Clang and MinGW, 242 on clang-cl; ctest 29 of 29 on
+- Counts to compare against: `en_gal_tests` 233 cases on GCC, Clang and MinGW, 248 on clang-cl; ctest 29 of 29 on
   GCC; the harness 115 of 115 (seven `gal-own-*` cases and three `launcher-eldennet-read*` cases joined it).
 - A class that holds a `GuardedReader` belongs to the part of en-gal that is built both with and without the probe
   option (`EN_GAL_GAME_SOURCES`), never to the offline part: the reader's shape differs between the two, and the
