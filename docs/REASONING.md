@@ -6067,6 +6067,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
     through.
   - (7) The harness's fd4_idiom pattern in the fake game's patterns.toml: remove it, since patterns.toml is withdrawn
     (O102).
+- *Later, 2026-11-22:* done in engine 532e751 (merged as the commit after it). Item 2 kept, by Lodestar's call (L6's fields
+  are found that way); of item 3, task_from_base kept, since the offline derivation uses it for the leads' task base.
 
 ### 373. A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll
 
