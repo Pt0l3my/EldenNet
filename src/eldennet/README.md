@@ -421,9 +421,10 @@ for the address library's needs. On T1, after Connect and `settle_s` seconds:
 1. **The finder over the live image** (en-gal's `lodestar::find`, with gal/'s `leads.toml`, `recipes.toml`,
    `ids.toml` and `builds.toml`): the accessor's shape and the statics its sites load, the leads' classes, the
    groups' table. `read stage=found known_build=… recipe=… hits=… accepted=… statics=… ms=…`.
-2. **The managers, by their instances** (`name_instances`, O92): one 8-byte read at each instance, through the
-   guarded copy under the reader's plausibility rules. Again every 10 s while a lead is unnamed, at most 60 passes,
-   each folded in (`merge`): `read stage=named pass=… tried=… null=… classed=… named=… of=…`. The watch block's
+2. **The managers, by their instances** (`lodestar::Namer`, O92): the image's type information read once, then each
+   pass reads the statics' slots and one 8-byte word at each instance, through the guarded copy under the reader's
+   plausibility rules. Again every 10 s for as long as a lead is unnamed (the round of 2026-11-22 stopped after 60
+   passes, and the world got five), each folded in (`merge`): `read stage=named pass=… tried=… null=… classed=… named=… of=…`. The watch block's
    items carry named, asked and passes, for the launcher's console.
 3. **The reader's trial** on T2, a thread of our own as in a v1 start (Reader, FirstReading, Ready): en-gal's `Trial`
    under `ReaderLoop`, each named manager read about ten times a second. `read stage=trial … readings=… same=…

@@ -89,7 +89,7 @@ Round round_of(FakeWorld& w, std::uint64_t* reads = nullptr) {
   const auto recipes = parse_recipes(kRecipes, {});
   REQUIRE(recipes.has_value());
   Round r{std::move(*gated), std::move(*ids), std::move(*leads), {}};
-  r.found = lodestar::find(r.gated.image, w.sys->image(), 0, r.leads, *recipes, nullptr);
+  r.found = lodestar::find(r.gated.image, w.sys->image(), 0, r.leads, *recipes, nullptr, &r.ids);
   r.found.instances =
       lodestar::name_instances(r.gated.image, w.sys->image(), r.found.accessor, r.leads, r.ids, reader_of(w, reads));
   return r;
@@ -137,11 +137,29 @@ TEST_CASE("in game: each manager is named by its instance's class, under the cat
     CHECK(m.witnesses[0] == w.at("get_" + std::string(info.label)) + 5 - w.base);  // the load itself
   }
 
+  // What the image holds under each lead's name, counted: a class of that name with one table of methods for each
+  // manager here, and nothing at all for the lead that names no class of this world.
+  REQUIRE(r.found.lead_classes.size() == 12);
+  for (const lodestar::LeadClasses& c : r.found.lead_classes) {
+    CAPTURE(c.label);
+    if (c.label == "no_such_thing") {
+      CHECK(c.id == 0);
+      CHECK(c.named + c.named_imp + c.vtables + c.texts == 0);
+    } else {
+      CHECK(c.id >= 1005);
+      CHECK(c.named == 1);
+      CHECK(c.named_imp == 0);
+      CHECK(c.vtables == 1);
+      CHECK(c.texts == 1);
+    }
+  }
+
   // The report: numbers and the catalogue's labels. No class's name, as a lead gives it or as the image holds it.
   const auto report = lodestar::write_report(r.found);
   if (!report) MESSAGE(report::describe(report.error()));
   REQUIRE(report.has_value());
   CHECK(report->find("\"instances\"") != std::string::npos);
+  CHECK(report->find("\"lead_classes\"") != std::string::npos);
   CHECK(report->find("\"task_hub\"") != std::string::npos);
   for (const char* name : {"Roster", "TaskHub", "Lobby", "Nowhere", "cs_task", "W_Settle", ".?AV"}) {
     CAPTURE(name);
@@ -342,6 +360,9 @@ TEST_CASE("in game: the reader's trial counts what each manager's readings saw, 
     return *it;
   };
   CHECK(of("camera").null == later);
+  CHECK(of("camera").null_runs == 1);  // one stretch of empty readings, as long as it lasted
+  CHECK(of("camera").null_longest == later);
+  CHECK(of("session").null_runs == 0);
   CHECK(of("hud").other == later);
   CHECK(of("world_clock").fault == later);
   CHECK(of("session").same == t.readings);
@@ -410,4 +431,115 @@ TEST_CASE("in game: a later pass names what was null at the first, and what was 
   CHECK(of("hud").status == Status::Derived);
   CHECK(of("hud").pass == 1);
   CHECK(of("hud").rva == hud);
+}
+
+TEST_CASE("in game: where no static holds the lead's own class, one that holds a class deriving from it names it") {
+  FakeWorld w;
+  auto gated = gate_image(*w.sys, w.builds);
+  REQUIRE(gated.has_value());
+  auto ids = parse_ids(kRepositoryIdsToml);
+  REQUIRE(ids.has_value());
+  // The camera's lead asks for the characters' base class, which no manager is; the camera's static is given a
+  // character object of a class that derives from it (the hero's), and the HUD's lead stays as it was.
+  std::string text = kLeads;
+  const std::size_t at = text.find("camera = \"Eye\"");
+  REQUIRE(at != std::string::npos);
+  text.replace(at, 14, "camera = \"Chr\"");
+  const auto leads = derive::parse_leads(text);
+  REQUIRE(leads.has_value());
+  const auto recipes = parse_recipes(kRecipes, {});
+  REQUIRE(recipes.has_value());
+  const lodestar::Found found = lodestar::find(gated->image, w.sys->image(), 0, *leads, *recipes, nullptr, &*ids);
+  w.set_vtable(w.instance("camera"), "hero");
+  const lodestar::Namer namer(gated->image, w.sys->image(), *leads, *ids);
+  const auto of = [](const lodestar::InstancesFound& n, std::string_view label) {
+    const auto it = std::find_if(n.managers.begin(), n.managers.end(), [&](const auto& m) { return m.label == label; });
+    REQUIRE(it != n.managers.end());
+    return *it;
+  };
+  std::uint64_t reads = 0;
+  const lodestar::InstancesFound n = namer.pass(w.sys->image(), found.accessor, reader_of(w, &reads));
+  CHECK(of(n, "camera").status == Status::Derived);
+  CHECK(of(n, "camera").by_base);
+  CHECK_FALSE(of(n, "camera").imp);
+  CHECK(of(n, "camera").rva == w.at("st_camera") - w.base);
+  CHECK(of(n, "hud").status == Status::Derived);
+  CHECK_FALSE(of(n, "hud").by_base);
+  CHECK(n.named == 11);
+  // The lead's class has more tables of methods than its own: every class deriving from it counts.
+  const auto cls = std::find_if(found.lead_classes.begin(), found.lead_classes.end(),
+                                [](const auto& c) { return c.label == "camera"; });
+  REQUIRE(cls != found.lead_classes.end());
+  CHECK(cls->named == 1);
+  CHECK(cls->vtables == 4);  // the base, and the three that derive from it here
+  // An object of the class itself takes precedence over one of a class that derives from it.
+  w.set_vtable(w.instance("hud"), "chr");
+  const lodestar::InstancesFound both = namer.pass(w.sys->image(), found.accessor, reader_of(w));
+  CHECK(of(both, "camera").status == Status::Derived);
+  CHECK_FALSE(of(both, "camera").by_base);
+  CHECK(of(both, "camera").rva == w.at("st_hud") - w.base);
+  // A second pass costs one word an instance, and reads the image no more than its slots: the namer was made once.
+  reads = 0;
+  (void)namer.pass(w.sys->image(), found.accessor, reader_of(w, &reads));
+  CHECK(reads == 11);
+}
+
+TEST_CASE("in game: the trial counts its readings by stage, and each manager's empty stretches") {
+  FakeWorld w;
+  Round r = round_of(w);
+  lodestar::Trial trial(*w.sys, w.base);
+  for (const lodestar::ManagerFound& m : r.found.instances->managers) REQUIRE(trial.add(m));
+  trial.set_stage(roles::info(Item::Characters).id);
+  ReaderLoop loop(*w.sys, trial);
+  std::uint64_t now = 2'000'000;
+  const auto read = [&](int readings) {
+    for (int i = 0; i < readings * 3; ++i) {
+      now += 33'334;
+      w.sys->set_now_us(now);
+      (void)loop.step();
+    }
+    return trial.found();
+  };
+  const auto of = [](const lodestar::TrialFound& t, std::string_view label) {
+    const auto it = std::find_if(t.managers.begin(), t.managers.end(), [&](const auto& m) { return m.label == label; });
+    REQUIRE(it != t.managers.end());
+    return *it;
+  };
+  // The title: no characters' manager yet, and the camera not made either.
+  const std::uint64_t roster = w.instance("characters");
+  const std::uint64_t eye = w.instance("camera");
+  w.mem.put<std::uint64_t>(w.at("st_characters"), 0);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  const lodestar::TrialFound title = read(10);
+  CHECK(title.world_readings == 0);
+  CHECK(title.stage_changes == 0);
+  CHECK(of(title, "camera").null == title.readings);
+  CHECK(of(title, "camera").null_world == 0);
+  // The world: both made. Then a loading screen takes the camera away twice, for a while each time.
+  w.mem.put<std::uint64_t>(w.at("st_characters"), roster);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), eye);
+  (void)read(10);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  (void)read(4);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), eye);
+  (void)read(5);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  (void)read(7);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), eye);
+  const lodestar::TrialFound world = read(5);
+  CHECK(world.stage_changes == 1);
+  CHECK(world.world_readings == world.readings - title.readings);
+  CHECK(of(world, "camera").null_runs == 3);  // the title's stretch, then the two in the world
+  CHECK(of(world, "camera").null_longest == title.readings);
+  CHECK(of(world, "camera").null_world >= 9);
+  CHECK(of(world, "camera").null_world <= 13);
+  CHECK(of(world, "camera").null == title.readings + of(world, "camera").null_world);
+  CHECK(of(world, "characters").null == title.readings);
+  CHECK(of(world, "characters").null_world == 0);
+  CHECK(of(world, "session").null == 0);
+  // Back to the title: the stage changes again, and its readings are no longer the world's.
+  w.mem.put<std::uint64_t>(w.at("st_characters"), 0);
+  const lodestar::TrialFound back = read(5);
+  CHECK(back.stage_changes == 2);
+  CHECK(back.world_readings == world.world_readings);
 }

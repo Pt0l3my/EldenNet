@@ -280,6 +280,13 @@ def check_lodestar(a, exe, leads):
     # The invented builds.toml holds this version with another fingerprint: the gate's own word for it.
     need(d["image"]["build"] == "fingerprint_differs" and d["table"]["status"] == "derived" and
          all(c["status"] == "derived" and c["vtables"] for c in d["classes"]), "the image, the table and the classes")
+    # What the image holds under each lead's name, in counts: one entry a lead (the sample's seven), under the lead's
+    # own label where the invented catalogue does not hold it, each count a whole number, and never a name.
+    lc = d["lead_classes"]
+    need(len(lc) == 7 and all(set(c) == {"id", "label", "named", "named_imp", "vtable_count", "texts"} and
+                              all(isinstance(c[k], int) for k in c if k != "label") for c in lc),
+         "the leads' classes: %s" % lc[:2])
+    need("leads have a class of their name" in so, "the console's line names the leads' classes: %r" % so)
     # Nothing but numbers, booleans, fixed words and labels: no string longer than a word, none with a byte's look.
     strings = re.findall(r'"([^"]*)"\s*[,\]}\n]', text)
     need(all(re.fullmatch(r"[a-z][a-z0-9_]{0,47}", v) for v in strings), "a string that is no word or label: %s" %

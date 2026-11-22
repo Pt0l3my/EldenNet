@@ -107,7 +107,7 @@ What it does
   - For each of those places it reads the address kept there and, where there is one, the first eight bytes of the
     object at that address, once. Those eight bytes say what kind of object it is, and the game's own type
     information, already read from its code, gives that kind a class. Where the class is one of the eleven EldenNet
-    asks for, the place is that manager's. It does this again every ten seconds, for at most ten minutes, while any of
+    asks for, the place is that manager's. It does this again every ten seconds, for as long as any of
     the eleven is still missing.
   - From a thread of its own, about ten times a second, it reads each named manager's place and the first eight bytes
     of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
