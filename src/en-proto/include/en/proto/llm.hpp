@@ -82,6 +82,10 @@ struct ChatRequest {
   std::optional<double> temperature;          // the slot's when unset
   std::optional<nlohmann::json> json_schema;  // the reply is held to it where the provider takes a schema
   int top_logprobs = 0;                       // where the provider offers logprobs
+  // Stop sequences: the reply ends before the first of them the model writes (a dialogue's two, NPC §7.3). en-llm sends
+  // the first four that are not empty, as `stop`, to every flavour, and none in a stripped retry, so a model that
+  // refuses the field (OpenAI's reasoning models) is still answered; the sanitizer cuts the same run-on in any case.
+  std::vector<std::string> stop;
 
   bool operator==(const ChatRequest&) const = default;
 };
@@ -324,6 +328,19 @@ struct LlmEvent {
   bool operator==(const LlmEvent&) const = default;
 };
 
+// ---- The model client's health, as the core's ladder reads it ----
+
+// What the shell reads from en-llm's handle (its health report and configuration) and passes to the core when it
+// changes, for ARCH §6.8's ladder: L3 and L4 need a healthy provider. One flag per slot the core uses; the slots of
+// barks and memory join as their users do. It names no provider, model or key.
+struct NetHealth {
+  // The dialogue slot has a model it can use now: a configured provider whose keys resolved, neither cooling nor
+  // disabled, and a pair that is not cooling.
+  bool dialogue = false;
+
+  bool operator==(const NetHealth&) const = default;
+};
+
 // ---- Names: the JSON forms' words for each enum ----
 
 const char* to_string(Role role);                // system, user, assistant
@@ -394,5 +411,7 @@ void to_json(nlohmann::json& j, const ModelsOutcome& v);
 void from_json(const nlohmann::json& j, ModelsOutcome& v);
 void to_json(nlohmann::json& j, const LlmEvent& v);
 void from_json(const nlohmann::json& j, LlmEvent& v);
+void to_json(nlohmann::json& j, const NetHealth& v);
+void from_json(const nlohmann::json& j, NetHealth& v);
 
 }  // namespace en::proto
