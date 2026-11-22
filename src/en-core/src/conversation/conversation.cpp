@@ -3,10 +3,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <type_traits>
 #include <unordered_map>
 #include <variant>
 
+#include "en/core/speech_lint.hpp"  // DeflectionRing
 #include "en/core/toasts.hpp"
 
 namespace en::core {
@@ -175,6 +177,7 @@ struct Conversation::Impl {
   std::optional<Mono> quiet_until;
   Toasts toasts;
   std::vector<KeptDraft> drafts;
+  std::map<std::string, DeflectionRing> rings;  // each persona's deflections, least recently used first (§8.4)
   std::optional<std::pair<std::string, Mono>> shut_for;  // the persona a Close{Shut} after an end belongs to
 
   // What the snapshots showed.
@@ -557,10 +560,21 @@ struct Conversation::Impl {
 
   void open_parts(ReplyRun& r) {
     const Persona& p = cast()->persona(conv->persona);
-    const std::vector<std::string> names = {p.display_name_fallback};
-    r.stream = parts.sanitizer.open(SanitizeContext{names});
+    // The persona's own names: as the game shows it, and its record's fallback. Step 5 strips them as a leading
+    // "Name:", and the lint reads them for third-person self-reference.
+    std::vector<std::string> self = {conv->name};
+    if (p.display_name_fallback != conv->name) self.push_back(p.display_name_fallback);
+    r.stream = parts.sanitizer.open(SanitizeContext{self});
     std::vector<std::string> tics;
-    for (const Tic& t : p.tics) tics.push_back(t.text);
+    std::vector<std::uint8_t> tic_max;
+    for (const Tic& t : p.tics) {
+      tics.push_back(t.text);
+      tic_max.push_back(t.max_per_conversation);
+    }
+    // The proper nouns this turn shows (the lint's unknown nouns): the persona's names and its forms of address; the
+    // places, the lexicons' names and the KB join with the scene's place and knowledge (S11.3.c, v0.3).
+    std::vector<std::string> names = self;
+    for (const std::string& a : p.address_forms) names.push_back(a);
     LintContext lc;
     lc.regeneration = r.regenerated;
     lc.archaic = p.reg == Register::ArchaicRegal;
@@ -568,6 +582,8 @@ struct Conversation::Impl {
     lc.tics = tics;
     lc.names = names;
     lc.tally = conv->tally;
+    lc.self_names = self;
+    lc.tic_max = tic_max;
     r.lint = parts.lint.open(lc);
     r.pager = parts.pager.open(PageContext{p.reply_words_max});
     r.sentences_done = false;
@@ -602,6 +618,8 @@ struct Conversation::Impl {
     ctx.scene = scene();
     ctx.recap = recap;
     ctx.reminder = r.reminder;
+    ctx.tally = conv->tally;  // block 11's tic note, carried from reply to reply
+    // Block 5b's tied and land stay empty until the known set lands (S11.3.c).
     auto rendered = parts.prompt.render(ctx);
     if (!rendered) return false;
     r.request = next_request++;
@@ -731,9 +749,10 @@ struct Conversation::Impl {
         case LintAction::Pass: {
           const Take t = r.pager->push(std::move(s));
           if (t != Take::Over) r.kept_any = true;
-          if (t == Take::Full) {
+          if (t != Take::Kept) {  // the reply is full (§8.5): Full, or Over when no Full came first
             cancel_request(r);
             end_sentences(r);
+            return;
           }
           break;
         }
@@ -773,8 +792,12 @@ struct Conversation::Impl {
       failure(ToastClass::Provider, proto::ToastLevel::Error, kProviderFailed);
       return;
     }
+    // The least recently used line in this session (DeflectionRing; the store keeps its order per journey, v0.3).
+    auto ring = rings.find(conv->persona_id);
+    if (ring == rings.end()) ring = rings.emplace(conv->persona_id, DeflectionRing(p.deflections.size())).first;
+    if (ring->second.order().size() != p.deflections.size()) ring->second = DeflectionRing(p.deflections.size());
     Sentence s;
-    s.text = p.deflections[r.id % p.deflections.size()];
+    s.text = p.deflections[ring->second.next().value_or(0) % p.deflections.size()];
     if (r.pager->push(std::move(s)) != Take::Over) r.kept_any = true;
     end_sentences(r);
   }

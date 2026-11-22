@@ -119,6 +119,7 @@ struct PersonaStage {
 struct Persona {
   std::string id;
   std::string file;
+  ContentOrigin origin = ContentOrigin::Shipped;  // its file's: the shipped pack's, or the player's overrides'
   std::string display_name_fallback;  // the runtime NpcName wins once text is read (§2.7)
   Register reg = Register::Formal;
   std::uint8_t reply_words_max = 40;
@@ -129,12 +130,12 @@ struct Persona {
   std::vector<PersonaStage> stages;      // in file order; the first is the base stage, `when = "true"`
   nlohmann::json record;                 // the file as it is, tables as objects
 
-  // The record for a dialogue prompt at stage `active` (prompt.hpp's DialogueContext::record): the persona's fields as
-  // the file holds them, with `stages` replaced by `stage`, the active stage with §3.2's inheritance applied (`road`,
-  // `at`, `hears`, `knows` from the last stage that set them), and without what is never rendered: the stages'
-  // `forbid` (eval-only, O36, O86), `when`, `chat`, `state`, `approach`, `approach_m`, `approach_played`, `talked`,
-  // `awaits`, `beckon` and `beckon_src`; the record's `seed` and `deflections` (shown directly, never prompted); and
-  // awareness's `sleep_leads`, `skip` and `news` (code-only). An index past the last stage is the last stage.
+  // The record for a dialogue prompt at stage `active` (prompt.hpp's DialogueContext::record), exactly what the
+  // renderer reads (prompt.hpp's kRecordFields) as the file holds it: `stage` is the active stage with §3.2's
+  // inheritance applied (`road`, `at`, `hears`, `knows` from the last stage that set them), and nothing else is kept,
+  // so what is never rendered never reaches the renderer: the stages' `forbid` (eval-only, O36, O86), `when`, gate
+  // fields, `beckon` and the rest; the record's id, `seed` and `deflections` (shown directly, never prompted); its
+  // knowledge and awareness. An index past the last stage is the last stage.
   [[nodiscard]] nlohmann::json resolved(std::size_t active) const;
   // The gate fields at stage `active`, inheritance applied: the state (the base stage sets it), the approach (unset
   // reads unknown) and the chat mode.

@@ -7,7 +7,10 @@
 #include <type_traits>
 #include <utility>
 
-#include "en/core/stubs.hpp"
+#include "en/core/speech_content.hpp"
+#include "en/core/speech_lint.hpp"
+#include "en/core/speech_pager.hpp"
+#include "en/core/speech_sanitizer.hpp"
 
 namespace en::core {
 
@@ -190,12 +193,45 @@ augur::WorldFacts world_facts() {
   return f;
 }
 
-// The built-in speech parts: the stubs until part A's sanitizer, lint, pager and prompt land (WHY§364).
+// The built-in speech parts (WHY§364): part A's sanitizer and pager, and its lint and prompt over the loaded content's
+// lexicon and templates (speech_content.hpp). The conversation holds the parts by reference for the core's life, so the
+// lint and the prompt stand for whichever content is loaded now: a load swaps what they forward to (a reply's lint
+// keeps the lexicon it opened with). Before any load no persona exists, so neither is reached; if one were, it fails
+// closed: every render refuses and every sentence stops.
 struct BuiltinSpeech {
-  stubs::StubSpeech parts;
+  class LoadedLint final : public Lint {
+   public:
+    [[nodiscard]] std::unique_ptr<ReplyLint> open(const LintContext& context) const override {
+      if (current) return current->open(context);
+      return std::make_unique<Closed>();
+    }
+    std::shared_ptr<const SpeechLint> current;
+
+   private:
+    class Closed final : public ReplyLint {
+     public:
+      LintVerdict check(Sentence&) override { return LintVerdict{LintAction::Stop, HardList::Banned, {}}; }
+      [[nodiscard]] LintTally tally() const override { return {}; }
+    };
+  };
+  class LoadedPrompt final : public PromptRenderer {
+   public:
+    [[nodiscard]] proto::Expected<RenderedPrompt, PromptError> render(const DialogueContext& context) const override {
+      if (current) return current->render(context);
+      return proto::Unexpected{PromptError{PromptRefusal::Template, "no content is loaded"}};
+    }
+    std::shared_ptr<const DialoguePrompt> current;
+  };
+
+  SpeechSanitizer sanitizer;
+  LoadedLint lint;
+  SpeechPager pager;
+  LoadedPrompt prompt;
+
+  [[nodiscard]] SpeechParts parts() const { return SpeechParts{sanitizer, lint, pager, prompt}; }
 };
 
-Core::Core() : augur_(world_facts()), builtin_(std::make_unique<BuiltinSpeech>()), conversation_(builtin_->parts.parts()) {
+Core::Core() : augur_(world_facts()), builtin_(std::make_unique<BuiltinSpeech>()), conversation_(builtin_->parts()) {
   init();
 }
 
@@ -221,6 +257,15 @@ std::vector<ContentFile> builtin_content() {
 std::vector<ContentError> Core::load_content(std::span<const ContentFile> files, Realm realm) {
   auto pack = core::load_content(files);
   if (!pack) return pack.error();  // the old content stays
+  // The pack's prompts and lexicon, and block 2's content lint: any error refuses the pack (WHY§388). The pack is
+  // checked whole whichever speech parts the core was given.
+  auto speech = load_speech(*pack);
+  if (!speech) return speech.error();
+  content_warnings_ = std::move(speech->warnings);
+  if (builtin_) {
+    builtin_->lint.current = std::move(speech->lint);
+    builtin_->prompt.current = std::move(speech->prompt);
+  }
   directory_ = Directory::build(std::move(*pack), realm, predicates_);
   content_loaded_ = true;
   return {};

@@ -198,8 +198,8 @@ struct BuiltinFile {
 // the throw states of a critical hit, §6.5; the open world's areas, ARCH §8.8). teams.toml joins with content.
 [[nodiscard]] augur::WorldFacts world_facts();
 
-// The speech parts the core uses when it is given none (part A's sanitizer, lint, pager and prompt; the stubs of
-// stubs.hpp until they land). Defined in core.cpp.
+// The speech parts the core uses when it is given none: part A's sanitizer, lint, pager and prompt, the lint and the
+// prompt over the loaded content's lexicon and templates (speech_content.hpp). Defined in core.cpp.
 struct BuiltinSpeech;
 
 class Core {
@@ -228,8 +228,12 @@ class Core {
   // Replaces the rule set (tests and tools); on any error the old set is kept and the errors are answered.
   std::vector<augur::RuleError> load_rules(std::span<const augur::RuleFile> files);
   // Loads the content the shell read (content.hpp), for the realm (identity.hpp: the DLL's is Game), and answers its
-  // errors; on any error the old content is kept. Before any load the core knows no persona, so no conversation opens.
+  // errors; on any error the old content is kept. The pack's prompts and lexicon load with it (speech_content.hpp), and
+  // a pack whose prompts or lexicon fail is refused; the built-in speech's lint and prompt then read the new ones.
+  // Before any load the core knows no persona, so no conversation opens.
   std::vector<ContentError> load_content(std::span<const ContentFile> files, Realm realm);
+  // The last load's warnings: the player's own records whose block 2 passes its cap (WHY§388), which still render.
+  [[nodiscard]] const std::vector<ContentError>& content_warnings() const noexcept { return content_warnings_; }
 
   [[nodiscard]] const Directory& directory() const noexcept { return directory_; }
   [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
@@ -278,6 +282,7 @@ class Core {
   Conversation conversation_;
   Directory directory_;
   bool content_loaded_ = false;
+  std::vector<ContentError> content_warnings_;
   MemoryLog log_;
   proto::NetHealth net_;
   bool optional_tripped_ = false;   // an optional group tripped: L3 at most (ARCH §6.8)
