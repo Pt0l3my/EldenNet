@@ -403,6 +403,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 378 | 2026-11-22 | GraceUI's own text field in game: one field model for every kind, every character handed over in order, a secret never laid out | DECIDED | #graceui #input |
 | 379 | 2026-11-22 | Posted key messages do not order as a keyboard's: the character comes after the key-up, so the harness types through SendInput | FACT | #graceui #harness |
 | 380 | 2026-11-22 | A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure | FACT | #graceui #pages |
+| 381 | 2026-11-22 | The sixth read-only round: save_data in the table by the invariant recipe, 14 leads, the reader at 9.6 a second | FACT | #lodestar #gal |
+| 382 | 2026-11-22 | No clock packed into bits in any static's object, nor in 16 KiB of the clock class's object; one slowly rising fraction is the only candidate | FACT | #lodestar #l6 |
+| 383 | 2026-11-22 | Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail | DECIDED | #graceui #pages |
+| 384 | 2026-11-22 | A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation | METHOD | #graceui #serve |
 
 ## Entries
 
@@ -6048,6 +6052,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   100 s, so what was sent is the round as it stood then. A round must bound what it writes (the watch's words), or stop
   adding to it. Also to mend before another run: the search named the HUD before a pass did, and the round kept the
   search's weaker entry.
+- *Later, 2026-11-22 (the sixth round):* the fallback must be graded. The sixth round's report passed the limit when its
+  two 16 KiB ways joined (415 s in), and the fallback dropped every watched word at once, the flags' next step's among
+  them; finds and counts were kept. A long way writes only the words that changed, and an over-large report loses the
+  largest object's words first.
 
 ### 372. R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use
 
@@ -6182,3 +6190,50 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - Until 0.2.18 both opened the page's first tab, with the row unfocused. They now open the row's own tab, its section
   and its Advanced disclosure.
+
+### 381. The sixth read-only round: save_data in the table by the invariant recipe, 14 leads, the reader at 9.6 a second
+
+`2026-11-22` · FACT · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§374, WHY§370
+
+- Package 0.1.0-lodestar.9, the owner's run, 17.7 minutes, no scan. save_data is the slot behind which the play time
+  rises: the field rose in 33 of 36 comparisons, the next best in 5, at the same slot and offset as in four sessions
+  before. 736 instructions refer to the slot. The build's table has 14 entries (engine 8e7295d), the HUD named by a pass
+  again.
+- The reader: 10,082 readings in 1,054 s, 9.6 a second (8.7 before) and 24.9 steps a second (11.9 before). The median by
+  ten-second stretches was 9.8, the least 7.6. 296,651 guarded copies, no fault. With the share checked after every
+  ask-first read, it ran out in 25,802 of 26,270 steps, as intended. Ten managers where they were, a sixth session.
+
+### 382. No clock packed into bits in any static's object, nor in 16 KiB of the clock class's object; one slowly rising fraction is the only candidate
+
+`2026-11-22` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§355
+
+- 219 wide ways of 72 readings each, and 16 KiB of the object of the clock's class and of its manager (589 readings
+  each): no run of bits went round as minutes do, over 17 minutes of play.
+- Three fractions kept rising in three statics' objects. Two rose by about one a second, likely seconds as fractions.
+  One rose by one to two thousandths a second, the only candidate for a time of day kept as a fraction. A rate written in
+  thousandths a second is too coarse for so slow a rise.
+- The flags' next step, the objects behind the store's addresses 40, 56, 80 and 136 bytes in, was read about 978 times
+  each; its words were lost to the report's fallback (WHY§371's Later line).
+
+### 383. Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D215, GraceUI's D36, GraceUI's proposal 0010 §3.2, S7.2.c, S11.2.af
+
+- GraceUI 0.2.19, protocol 1.5, no ABI change. A page's master list chooses a row, and the page's own tabs and sections
+  are its detail. A block bound to the master's family draws the chosen row's member. Proposal 0010 §3.2 had it as a
+  block, which would have needed blocks and tabs nested in the page data. Named NPCs' list, then its Profile, Allowances
+  and Reactions tabs, is the page's own shape.
+- A family is a state topic declared `family = true`, whose members `<family>/<key>` are topics of their own, each heard
+  as WATCHED and UNWATCHED under its own id. EldenNet's `named/<id>`, `journal/<id>`, `conversation/<id>` and
+  `profiles/<target>` fit. The first row is chosen as soon as the list has one, and a page keeps its chosen row for the
+  session, never in the address, storage or a log.
+
+### 384. A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation
+
+`2026-11-22` · METHOD · `#graceui` `#serve` · refs: GraceUI's D215, WHY§383
+
+- Each space has 64 slots after its declared topics. A slot is taken by a member's first watch, and given back only once
+  nobody watches it and the space has polled its unwatch, so the space hears every member's watch and unwatch under its
+  own id.
+- A slot's generation is set when it is taken and carried by each published state. It keeps a state published for one
+  member from reaching the next member in the slot.
