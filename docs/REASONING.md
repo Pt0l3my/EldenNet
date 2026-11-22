@@ -336,6 +336,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
 | 312 | 2026-11-21 | Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern | METHOD | #gal #lodestar #devkit |
 | 313 | 2026-11-21 | A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only | FACT | #process #privacy #spike |
+| 314 | 2026-11-22 | The accessors' class objects are no objects with a table of methods; O92's way is the only one | FACT | #gal #lodestar #derive |
+| 315 | 2026-11-22 | On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more | FACT | #gal #lodestar |
 
 ## Entries
 
@@ -5338,3 +5340,30 @@ S10.1.k
 - **Later (2026-11-21):** with the sweep installed from `feat/skyrizz-lite`, the package sweeps clean as it is, under
   the existing line. The narrower line on Lodestar's Skyrizz branch (cece89f) is redundant and is not to be merged;
   Lodestar told the owner so. Lodestar's earlier install was the stricter one, so nothing passed that should not have.
+
+### 314. The accessors' class objects are no objects with a table of methods; O92's way is the only one
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#derive` · refs: WHY§206, WHY§207, O92, docs/ops/probes/2026-11-22-l3.md, S10.1.k
+
+- **The finding** (FACT): of the 217 class objects the shape's accepted sites pass to the getter on 2.7.2.0, 110 lie at
+  odd offsets, 46 at offsets aligned to 8, and 54 are one byte from the next. They are not objects with a table of
+  methods, so no name layout can be read from them, in the file or in memory.
+- **What follows** (FACT): builds.toml's `dlrf_name_layout` can never become true for this game, and O92's way (the
+  instance's own class) is the only one. This is the cause behind R1's runs 1 and 2. The name-layout branch of discovery
+  and of the layout schema (`[dlrf]`) is dead for this game and can go when discovery moves to the table (L4).
+
+### 315. On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more
+
+`2026-11-22` · FACT, with a LIKELY · `#gal` `#lodestar` · refs: WHY§308, WHY§312, WHY§208, O102,
+docs/ops/probes/2026-11-22-l3.md, S10.1.k
+
+- **The owner's run** (FACT): on 2.7.2.0 with the game closed (package 0.1.0-lodestar.1), the finder reproduces R0c: the
+  withdrawn pattern, cut again in memory, has 7,151 hits and 7,081 accepted; 11 sections, 235,897 functions; the
+  character set of 6 classes and the player's of 2; the groups' table of 168 entries of 32 bytes, the lead's group at
+  index 110; a known build. The shape stands at 7,077 places, every one accepted, none refused, all among the pattern's
+  accepted sites; the pattern accepts 4 sites the shape does not, and reaches 219 statics to the shape's 217.
+- **Likely** (LIKELY): those 4 sites load the 2 statics whose instance R1's run 3 could not read at all, so no pointers to
+  objects, and the shape is right to leave them out. The second run's report says which step of the shape they fail.
+- **Built for it** (FACT): the finder now says, for each site the pattern alone accepts, the first step of the shape that
+  differs and how, and the statics only those sites load (engine feat/engine ddd7e63). A second package, 0.1.0-lodestar.2,
+  went to the owner for the same five-minute run.

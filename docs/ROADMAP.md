@@ -970,6 +970,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     lodestar find` and report schema 2, kind `lodestar`; the owner's offline run (about 5 minutes, game closed) and its
     review come next, then L4.
     The finding package (EldenNet-Find.zip, 0.1.0-lodestar.1) sent to the owner the same day (WHY§313).
+    The owner's run on 2026-11-22 (docs/ops/probes/2026-11-22-l3.md): R0c reproduced; the shape at 7,077 places, all also
+    the pattern's, the pattern 4 more; the class objects no objects with methods, so O92's way is the only one (WHY§314,
+    WHY§315). A second package (0.1.0-lodestar.2) asks why those 4 differ; then the recipe's expected count, then L4.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
