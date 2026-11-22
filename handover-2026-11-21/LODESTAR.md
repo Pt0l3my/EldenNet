@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (the third read-only round is built)
+# Lodestar's status, 22 November 2026 (the fourth read-only round is built)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -17,6 +17,8 @@ first; this file adds only where Lodestar's own work stands.
 | The owner's read-only run (2026-11-22; `docs/ops/probes/2026-11-22-l5.md`) | package 0.1.0-lodestar.3; the table in the engine's `gal/layouts/2.7.2.0-ww.toml` | **Done, reviewed.** Eight of the eleven managers named and placed (`task_hub`, `characters`, `session`, `hud`, `menus`, `loading`, `camera`, `param_store`), the two character classes and the groups' table: 11 entries in the build's table, all leads. The reader read for 19 minutes, 11,552 readings, with no fault of any kind. Not named: `event_flags`, `world_clock`, `messages` |
 | The second read-only run and its logs (2026-11-22; the same record) | package 0.1.0-lodestar.5 | **Done, reviewed.** The same eight at the same places; 4,402 readings with no fault. Its logs showed that `messages` was found behind two slots of the data and the report lost it (`merge`), that `event_flags` is behind no slot, and that 97 in 100 of the searches' candidates were refused when asked. No clock found; one strong candidate for the play time |
 | The search fixes and the accessor's other shapes | engine 66c8675 | **Built, not yet run by the owner.** What a search finds is kept through later passes; several slots with one object name the manager; candidates are asked for first and refusals counted by reason; the searches share 4 ms of a step; the rising search keeps the best; a member search and a count of a class's objects in the image's data; five variant recipes (`accessor_near`, `accessor_gap`, `accessor_gap_near`, `accessor_compare`, `accessor_compare_near`) on two new forms (`skip_one`, `compare_slot`), counted beside the accessor's own; report schema 3 |
+| The third read-only run (2026-11-22; the same record, "The third round in game") | package 0.1.0-lodestar.6; engine 546b085 | **Done, reviewed.** `messages` named (two slots of the data, one object); 12 leads in the build's table; the eight others unchanged a third time; the refused values were no addresses; the reader kept 9.8 readings a second; the variants counted (1,279 places, the same managers again, 2 new statics; `accessor_gap_near` withdrawn). `event_flags` in none of the places looked; `world_clock` has only a class under a longer name |
+| The fourth round's build | engine 606167d | **Built, not yet run by the owner** (the owner agreed to the wide scan on 2026-11-22: "Yes, scan it"). Naming by a class under a longer name (`by_related`); the flags' store as a lead on trial (`flag_store`, no id); the member search over 0x4000 bytes; what the two new statics hold; the code's references to a slot as a search-named manager's witnesses; and the object scan (`probe.hpp`'s `ObjectScan`): the game's private, writable memory gone through once for an unnamed lead's table of methods, then up to three times for what holds what was found. Report schema 4 |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -42,21 +44,22 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's third read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.6, from engine 66c8675).
-   Review its two files and its logs as the others' (`python3 -I`, a folder of its own; the scratchpad's review
-   scripts are gone with the container: they only print the report's counts). What to look for, in this order:
-   - `accessor.variants`: where each of the five other shapes stands, and the statics only they reach. Set each
-     variant's `expect_matches` to its count, and withdraw one that stands nowhere.
-   - `instances.managers`: whether `messages` and `event_flags` are named now (`variant`, or `by_search` with
-     `search_objects` 1), and each search's own numbers.
-   - `search`: of the values that could be an address, how many had no memory behind them (`not_committed`) and how
-     many memory that may not be read (`no_access`); that settles what the 97 in 100 were.
-   - `members.member_hits`: a static and an offset where an unnamed lead's object lies or is pointed at.
-   - `rising`: the best hits, by passes risen; `trial`: the reader's rate with the searches running (10 a second
-     is the aim), and `search.steps_cut`.
+1. **The owner's fourth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.7, from engine 606167d;
+   ten minutes in the world this time). Review its two files and its logs as the others' (`python3 -I`, a folder of
+   its own). What to look for, in this order:
+   - `scan`: `done`, `mib` and `elapsed_ms` (how much of the game's memory it went through, and how fast), then its
+     `nodes`. A level-0 node labelled `event_flags` or `flag_store` says such an object exists; its `slots` say
+     whether the image's data holds its address; the nodes above it (level 1 to 3: a class, an offset, `embedded`)
+     are the way to it, ending where a node has `slots` (and `is_static`). Each is a lead: a found object may be
+     stale and an owner a neighbour, so a chain counts only if a later round reads along it and arrives.
+   - `instances.managers`: `world_clock` named `by_related`? `messages`' `search_refs`, sites and witnesses (which of
+     its two slots the code uses); `instances.others` for `flag_store`; `instances.new_statics`.
+   - `members.member_hits` (now over 0x4000 bytes of each static's object).
+   - `trial` and `search`: the reader's rate with the scan running (the scan has 6 ms of a step, the other searches
+     4), and whether the owner saw the game stutter.
    Add a section to `docs/ops/probes/2026-11-22-l5.md` or a new record, and place what it names in the build's
-   table as leads. The clock's, the play time's and the members' hits are for the review to judge: nothing enters
-   the table from them without a second look in a later round.
+   table as leads. Nothing from the scan, the clock, the play time or the members enters the table without a second
+   look in a later round.
 2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
    owner's and Engine's word; `lodestar check` and `diff` against a table.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
@@ -69,7 +72,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against: `en_gal_tests` 243 cases on GCC, Clang and MinGW, 258 on clang-cl; ctest 29 of 29 on
+- Counts to compare against: `en_gal_tests` 247 cases on GCC, Clang and MinGW, 262 on clang-cl; ctest 29 of 29 on
   GCC; the harness 115 of 115 (seven `gal-own-*` cases and three `launcher-eldennet-read*` cases joined it).
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
