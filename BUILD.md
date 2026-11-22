@@ -58,7 +58,7 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-a9aac78 (GraceUI 0.2.12, protocol 1.3, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
+798934f (GraceUI 0.2.20, protocol 1.6, ABI 1.5), all five from that one commit, each checked against its SHA-256 when the build is
 configured. `en_overlay_tests.exe` runs the connection's
 tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines (Augur's
 events and en-core's changes among them), its rings and the world-state claims.
@@ -140,7 +140,8 @@ cmake --build build-cl
   holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (a9aac78, GraceUI 0.2.12), so the space meets the checks it will meet.
+  third_party/graceui-sys comes from (798934f, GraceUI 0.2.20), so the space and the surfaces meet the checks they will
+  meet. (The page lint and the preview keep their own pin, a9aac78, `tests/pages/lint.py`: the page data is protocol 1.3's.)
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI: F5's menu and, from Linux, a browser
   of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names; it uses
   that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
