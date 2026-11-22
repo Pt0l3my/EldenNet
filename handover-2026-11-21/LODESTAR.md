@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (six read-only rounds run, the seventh built; 14 leads in the build's table)
+# Lodestar's status, 22 November 2026 (seven read-only rounds run; 14 leads in the build's table; the time of day found)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -23,7 +23,7 @@ first; this file adds only where Lodestar's own work stands.
 | The fifth read-only run (2026-11-22; the same record, "The fifth round in game") | package 0.1.0-lodestar.8; engine d613651 | **Done, reviewed.** `event_flags` named (the store; 183 sites): ten of eleven managers, 13 leads. 15,878 readings with no fault. The play time's field found. The object of the clock's class does not hold the time. The report passed its size limit after half an hour; the careful reads proved slow (half a millisecond each) |
 | R1's clean-up (O106) | engine 3e11238 | **Done, merged.** The first in-game round's code, launcher step, package and cases removed |
 | The sixth read-only run (2026-11-22; the same record, "The sixth round in game") | package 0.1.0-lodestar.9; engine 8e7295d | **Done, reviewed.** `save_data` in the table by the invariant recipe: 14 leads. The reader at 9.6 readings a second. No slow clock in any static's object; a fast one not ruled out there. The report lost every watched word (the fallback was too blunt) |
-| The seventh round's build | package 0.1.0-lodestar.10; engine 9f451ec, its README at b0a2fa7 | **Built, not yet run by the owner** (the owner agreed to the sweep on 2026-11-22: "Yes, include it"). The clock by a jump when time is let pass; the flags two steps on, with a sweep for bits that flip once; the report mended and its fallback graded |
+| The seventh read-only run (2026-11-22; the same record, "The seventh round in game") | package 0.1.0-lodestar.10; engine b0a2fa7 | **Done, reviewed.** The time of day found (hour and minute packed into one word behind static 64422792; told by the owner's two passings of time). The flags' blocks and tree have candidates. The reader at 9.97 readings a second. The sweep's list missed what the owner did; the play time's invariant was refused by its margin rule |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -49,22 +49,22 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's seventh read-only run** (package 0.1.0-lodestar.10, engine 9f451ec, its README at b0a2fa7; built, not yet run). The
-   sixth round (the record's "The sixth round in game") put `save_data` into the table by the invariant recipe (14
-   leads), brought the reader back to 9.6 readings a second, and found no slow clock in any static's object (a fast
-   one would have passed unseen there: the record says why). Its report lost every watched word when two 16 KiB ways
-   joined. The seventh round (the record's "What was changed for the seventh round"):
-   - the report: a long way writes only changed words; an over-large report loses one object's words at a time, the
-     flags' last; rates in millionths a second;
-   - the clock by a jump: steady rises and jumps of fractions and whole numbers, hours standing alone, each jump's
-     second and its number before and after. The owner lets time pass at a grace twice (README step 3);
-   - the flags two steps on from the store, their words written, and a sweep of the stretches they start (about
-     24 MiB, paced) for single bits that flip once. The owner does one or two things the game remembers, and says
-     when.
-   When the files come back: read the jumps first (two fields or runs that jumped at the same two seconds, the owner's
-   b and c, are the clock; the numbers before and after say how it is kept), then the sweep's flips against the
-   owner's d and e (which target, which offset; a flag's block is 125 bytes by our notes' lead, to be checked), then
-   the hop objects' words (which are addresses, which change). If the game stuttered, the sweep goes first.
+1. **The next round of step L6** (not built). The seventh round (the record's "The seventh round in game") found
+   the time of day: the hour (five bits from bit 34) and the minute (six bits from bit 39) of the 8-byte word 8
+   bytes into the object behind static 64422792, told by the two moments the owner let time pass (the hour went to
+   12 and to 20). It also found the first candidate for the flags' blocks (the stretch behind the store's address 40
+   bytes in) and for the tree that leads to them (56 bytes in: records of 64 bytes). To do:
+   - the clock into the table: a round names it by what its object holds (hours that step by one, minutes beside
+     them that step far more often and go round), with the code's references as witnesses; check the seconds, and
+     whether the two objects that hold the time are one;
+   - the flags: keep the sweep's flips by the moment the tester marks a task done (the seventh round's list was
+     filled by the first comparison); read the tree's records (their key, what names the block) and check one flag
+     the owner sets against the blocks;
+   - the play time's invariant by what a play time does, not by a margin over the next field;
+   - **the tester's panel (the owner asked, 2026-11-22):** a frame that lists the round's tasks in order, each with
+     its timer, greyed once done, with a way for the tester to confirm a task. Grace has been asked whether its
+     overlay can show it now; failing that, a window of the launcher's own. The confirmations are the marks the
+     sweep needs.
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
