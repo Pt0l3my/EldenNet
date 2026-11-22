@@ -44,7 +44,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fourth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.7, from engine 606167d;
+1. **The owner's fourth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.7, from engine f951a08;
    ten minutes in the world this time). Review its two files and its logs as the others' (`python3 -I`, a folder of
    its own). What to look for, in this order:
    - `scan`: `done`, `mib` and `elapsed_ms` (how much of the game's memory it went through, and how fast), then its
