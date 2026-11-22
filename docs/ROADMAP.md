@@ -1033,7 +1033,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (O106; WHY§363): Lodestar removes its package, the DLL's R1 mode and the launcher's `--probe`.
     L6's first round built the same day (engine 4c882c3, Lodestar's 24e2918; WHY§365): the watch on the named managers,
     the world's clock and the play time; event_flags named through the store; no scan, after the owner saw the fourth
-    round's scan stutter the game for a few seconds (WHY§357). Package 0.1.0-lodestar.8, for the owner's run.
+    round's scan stutter the game for a few seconds (WHY§357). Package 0.1.0-lodestar.8 sent to the owner the same day
+    (engine 8e09907; no "Pass time" at a grace in this round, since a jump of hours counts against the clock's test).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
