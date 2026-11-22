@@ -1003,6 +1003,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     named by their instances; world_clock has none and needs L6's invariants. Next: one more read-only in-game round, with
     instances inside the image read, a read-only search of the data slots for a lead's class, and L6's first invariant
     searches (the play time) on the reader's thread.
+    The second read-only round built the same day (engine merge of 2ebeb19; WHY§333 to §335), with the owner (package
+    0.1.0-lodestar.5): it looks again for event_flags and messages, and starts L6 with the clock and the play time by what
+    their objects hold; its searches ask Windows before they read.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
