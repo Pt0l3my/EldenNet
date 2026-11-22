@@ -387,6 +387,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 362 | 2026-11-22 | Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults | DECIDED | #graceui #hotkeys #pages |
 | 363 | 2026-11-22 | R1 is retired: what goes, what stays, and who removes it | DECIDED | #engine #lodestar #probe |
 | 364 | 2026-11-22 | The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points | DECIDED | #engine #conversation |
+| 365 | 2026-11-22 | L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves | METHOD | #lodestar #l6 |
 
 ## Entries
 
@@ -5839,6 +5840,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   while the scan ran. Whether the game stuttered is asked of the owner.
 - The scan stays off from here. Were one ever wanted again: only pages already in use, the time checked after every
   piece, one sweep, and the owner asked again (O105's note).
+- *Later, 2026-11-22:* the owner saw the game stutter during the scan: "yes it did several minutes in. but only a few
+  times within a few seconds, and then I had no more stutters." The fifth round no longer starts the scan; ObjectScan
+  stays in en-gal with its test (WHY§365).
 
 ### 358. A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes
 
@@ -5936,3 +5940,19 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   - (12) The since-line waits for v0.3.
 - Asked elsewhere: the slurs' list (13) became O107, decided as hashed. The chat box's faces (2) and the 50 ms open
   against T6's wait (4) are asked of Grace, and part C waits for the answer.
+
+### 365. L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: proposal 0005 §6.1, docs/ops/probes/2026-11-22-l5.md, WHY§355, WHY§359
+
+- The fifth read-only round (engine 24e2918, package 0.1.0-lodestar.8), on the reader's thread within the searches'
+  4 ms. A way to an object is a static, an offset and at most one more read. Once a second the watch copies the first
+  512 bytes through the ask-first copy: each named manager's object, the world's clock (the pointer 192 bytes into its
+  manager's object, and the object 1,024 bytes in) with the object it was found in, and the object whose field rose by
+  the clock.
+- For each 8-byte word that was ever not zero, it counts how often each half changed and rose, and what the word looked
+  like (zero, small, a table of methods, the image, the heap, other; heap asked of VirtualQuery, nothing read). In the
+  clock it also counts runs of 6 bits that behave as minutes with runs of 5 that behave as hours, and 32-bit fields that
+  rise steadily read as a fraction. Counts and offsets only, never what a word held.
+- The same round names 1008 `event_flags` through the store's class (WHY§359), and its counts are the fullest pass's,
+  not the closing game's (WHY§358). No scan.

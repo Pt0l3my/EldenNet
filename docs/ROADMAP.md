@@ -1031,6 +1031,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     flags are read through, and 1012 `world_clock` waits for L6 (WHY§359). Next: a round that names the store by O92's
     rule, then L6's first round (the clock's and the play time's fields), no scan. The owner retired R1 the same day
     (O106; WHY§363): Lodestar removes its package, the DLL's R1 mode and the launcher's `--probe`.
+    L6's first round built the same day (engine 4c882c3, Lodestar's 24e2918; WHY§365): the watch on the named managers,
+    the world's clock and the play time; event_flags named through the store; no scan, after the owner saw the fourth
+    round's scan stutter the game for a few seconds (WHY§357). Package 0.1.0-lodestar.8, for the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
