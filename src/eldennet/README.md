@@ -78,7 +78,7 @@ step L5 replaces that round.
 A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
 (below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
 (`probe round=r1 skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--probe` with those
-spikes.
+spikes. With `probe = { round = "read" }` a probe build runs the read-only round instead (below).
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
@@ -189,6 +189,7 @@ overlay = { connect = true }                    # GraceUI's connect (part 12); f
 gal = { copy = "seh" }                          # or "rpm": ReadProcessMemory on our own process (S0-D)
 probe = { round = "r1", register = "mark", object_size = 0x800, settle_s = 10,
           fault_group = "camera", fault_every = 0, fault_after_s = 2 }   # a probe build's only (EN_PROBE)
+                                                # round = "read": the read-only round (no call; below)
 ```
 
 Strict: a key no schema defines, a value of the wrong type or out of range refuses the whole file, and the defaults
@@ -411,6 +412,31 @@ Both files are numbers and the leads' labels only (O75). T1 stays the probe's re
 fields (ARCH §6.10's invariants over objects) wait for the reviewer's next round: the probe's object searches
 (`vtable_offsets`, `meter_offsets`, `utf16_offsets`, `u32_offsets`) need the classes' instances that r1-derive.json
 gives.
+
+## The read-only round (Lodestar's step L5; a probe build with `probe = { round = "read" }`)
+
+`probe_read.cpp`. It calls nothing of the game, registers nothing and writes nothing to it; it replaces R1's package
+for the address library's needs. On T1, after Connect and `settle_s` seconds:
+
+1. **The finder over the live image** (en-gal's `lodestar::find`, with gal/'s `leads.toml`, `recipes.toml`,
+   `ids.toml` and `builds.toml`): the accessor's shape and the statics its sites load, the leads' classes, the
+   groups' table. `read stage=found known_build=… recipe=… hits=… accepted=… statics=… ms=…`.
+2. **The managers, by their instances** (`name_instances`, O92): one 8-byte read at each instance, through the
+   guarded copy under the reader's plausibility rules. Again every 10 s while a lead is unnamed, at most 60 passes,
+   each folded in (`merge`): `read stage=named pass=… tried=… null=… classed=… named=… of=…`. The watch block's
+   items carry named, asked and passes, for the launcher's console.
+3. **The reader's trial** on T2, a thread of our own as in a v1 start (Reader, FirstReading, Ready): en-gal's `Trial`
+   under `ReaderLoop`, each named manager read about ten times a second. `read stage=trial … readings=… same=…
+   null=… other=… fault=… torn=… faults=… p99_us=…` every 10 s.
+4. **Two files in `%APPDATA%\EldenNet\probe`**, every 2 s: `lodestar-found.json` (kind `lodestar`, schema 2: the
+   finder's numbers, `instances` and `trial`), and, when the names change, `lodestar-table.toml` (`draft_table`: the
+   build's table as leads, each entry checked against the image; its `tool_sha256` is zeros, which the review
+   replaces with the package's own digest of the DLL).
+
+Numbers, fixed words and the catalogue's labels only (O75): no class's name is written. T1 stays the round's reporter
+for the session. On the fake game under Wine (`launcher-eldennet-read`): a first pass before the managers exist names
+none, a later one names all eleven, the trial reads them about 340 times in 34 s with no fault, and the fake hub sees
+no task of ours.
 
 ## Tests
 

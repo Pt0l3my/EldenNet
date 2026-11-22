@@ -373,6 +373,24 @@ written beside it. Before it leaves: unzip it, `sha256sum -c SHA256SUMS`, `elden
 `find.cmd` under Wine on the clang-cl `fakegame.exe` (a report written and linted clean), and the privacy sweep on
 the zip.
 
+Lodestar's read-only round in game (step L5) has the `read` kind: the launcher, the probe build of the DLL and the
+engine, from a Release tree with `EN_PROBE=ON` and a `0.1.0-lodestar.N` label:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-lodestar.3 \
+  -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel --target eldennet-launcher eldennet_probe eldennet-engine
+python3 -I tools/spikepkg/build.py read --build build-cl-rel --out EldenNet-Read.zip \
+  --engine build/src/en-tools/eldennet-engine
+```
+
+The zip's one folder, `EldenNet-Read`, holds `eldennet-launcher.exe`, `eldennet.dll` (the probe build),
+`eldennet-engine.exe`, gal/ (with `recipes.toml`, `ids.toml` and `leads.toml`, and no `patterns.toml`), `read.cmd`
+(the launcher with `--read`, then a pause) and `README-READ.txt`. The fake game's cases `launcher-eldennet-read`,
+`launcher-eldennet-read-owner` and `launcher-eldennet-read-release` run the round as the package does. Before it
+leaves: unzip it, `sha256sum -c SHA256SUMS`, and the privacy sweep on the zip.
+
 GraceUI's in-game spikes S0-E and S4 (GraceUI D175, its `tools/grace-spike/README.md`) have a package of their own,
 `s0e-s4`, with the release DLL and GraceUI's test build:
 

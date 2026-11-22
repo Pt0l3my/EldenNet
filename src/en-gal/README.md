@@ -236,6 +236,26 @@ of any game is in it, and every name it looks for comes from a leads file.
   manager's slot there). `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
+  **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
+  `name_instances(image, live, accessor, leads, ids, read_word)`, which names the managers: for each static the
+  accessor's sites load, the instance it holds as the game runs, that instance's first word through the caller's
+  guarded read (one word, never at an address inside the image), and the word's class by the type information of
+  the image as loaded; a lead names the one static whose class has its name, or its name with Imp, and two leave it
+  ambiguous. A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
+  the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
+  a save is loaded is null at the title; what was named stays named, with the pass that named it. The report's
+  `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
+  `draft_table(found, ids, provenance, image, source)` writes the findings as `[provenance]` and `[item.*]` entries
+  (managers, the leads' two classes, the groups' table), each checked first as a start will check it: an entry whose
+  placement fails is left out, a witness that refers elsewhere is dropped, `checks` lists what passed, and every
+  entry is a lead until its review.
+- **`lodestar_trial.hpp`: the reader's trial** (in the part that runs in the game: it holds a `GuardedReader`, whose
+  shape depends on the probe option). `Trial` is a task body for the frame service's own thread: about ten times a
+  second it reads each named manager's slot, its instance's first word, and the slot again, and counts what was
+  null, what still had the class it was named by, what had another, what faulted (caught) and what changed between
+  the two reads (`torn`, which judges nothing). Managers are added by the naming thread at any time; nothing is
+  removed. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
+  `trial` object.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with

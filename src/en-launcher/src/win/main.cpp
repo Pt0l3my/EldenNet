@@ -16,6 +16,7 @@
 #include "en/launcher/spikes.hpp"
 #include "en/launcher/steam.hpp"
 #include "en/gal/derive.hpp"
+#include "en/gal/lodestar.hpp"
 #include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
 #include "en/proto/ffi_guard.hpp"
@@ -238,6 +239,35 @@ void check_r1_reports(const Paths& p) {
   console_line(r1_text(step));
 }
 
+// After a read-only round (--read): the report by the lint it must pass before it leaves the PC, and the draft table
+// by what such a table may hold, each told as a line, and the result to the owner.
+void check_read_reports(const Paths& p) {
+  const fs::path folder = p.en / L"probe";
+  const gal::report::Vocabulary* kinds[] = {&gal::lodestar::vocabulary()};
+  bool missing = false;
+  bool refused = false;
+  if (const auto text = read_text(folder / "lodestar-found.json", gal::report::kMaxReportBytes)) {
+    const auto result = gal::report::lint(*text, kinds);
+    refused = refused || !result;
+    say("read report=lodestar-found.json lint=%s problems=%zu bytes=%zu", result ? "clean" : "refused",
+        result ? std::size_t{0} : result.error().size(), text->size());
+  } else {
+    missing = true;
+    say("read report=lodestar-found.json lint=missing");
+  }
+  if (const auto text = read_text(folder / "lodestar-table.toml", gal::report::kMaxReportBytes)) {
+    const bool clean = table_text_clean(*text);
+    refused = refused || !clean;
+    say("read report=lodestar-table.toml lint=%s bytes=%zu", clean ? "clean" : "refused", text->size());
+  } else {
+    missing = true;
+    say("read report=lodestar-table.toml lint=missing");
+  }
+  const ReadStep step = missing ? ReadStep::ReportsMissing : refused ? ReadStep::ReportsRefused : ReadStep::ReportsClean;
+  say("read step=%s", read_word(step));
+  console_line(read_text(step), "EldenNet read: ");
+}
+
 // ---- One start, watched to its end ----
 
 struct Run {
@@ -335,6 +365,9 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
     if (c.o.probe) {
       wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::R1), std::memory_order_release);
     }
+    if (c.o.read) {
+      wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::Read), std::memory_order_release);
+    }
   }
 
   std::vector<fs::path> dlls;
@@ -400,6 +433,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   WatchPlan plan;
   plan.console = c.o.console;
   plan.probe = c.o.probe && inject_dll;
+  plan.read = c.o.read && inject_dll;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;
@@ -410,6 +444,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   WatchResult res = watch_game(s.pi.hProcess, pid, *wb, plan);
   if (created && remove_after != RemoveAfter::Never) save_state(c.p, std::nullopt);
   if (plan.probe) check_r1_reports(c.p);
+  if (plan.read) check_read_reports(c.p);
 
   SessionRecord& rec = res.record;
   rec.launcher_version = EN_LAUNCHER_VERSION;
@@ -499,7 +534,7 @@ int do_start(Ctx& c) {
     const GraceReport gr = check_graceui(exe->parent_path() / L"GraceUI");
     say("preflight graceui=%s version=%u.%u.%u abi=%u.%u files=%zu checked=%zu", to_string(gr.result), gr.version[0],
         gr.version[1], gr.version[2], gr.abi_major, gr.abi_minor, gr.files, gr.checked);
-    if (gr.result != GraceCheck::Ok && !c.o.probe && c.o.spike == proto::watch::Spike::None) {
+    if (gr.result != GraceCheck::Ok && !c.o.probe && !c.o.read && c.o.spike == proto::watch::Spike::None) {
       tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
     }
   }
@@ -519,10 +554,12 @@ int do_start(Ctx& c) {
         back_up_saves(BackupSpec{c.p.saves, c.p.backups, elden_ring_save_files(), 10, local_stamp()});
     say("backup folders=%zu made=%zu unchanged=%zu empty=%zu removed=%zu problems=%zu", b.folders, b.made, b.unchanged,
         b.empty, b.removed, b.problems.size());
-    // R1 (--probe) never goes on without a backup: its one call into the game rests on one (O89).
-    if (!b.ok() && (c.o.probe || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
-      if (c.o.probe) say("r1 backup=failed");
-      return c.o.probe ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
+    // R1 (--probe) never goes on without a backup: its one call into the game rests on one (O89). The read-only round
+    // (--read) calls nothing, and keeps the same rule: a development build in the game goes with a backup.
+    const bool development = c.o.probe || c.o.read;
+    if (!b.ok() && (development || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
+      if (development) say("%s backup=failed", c.o.probe ? "r1" : "read");
+      return development ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
     }
   }
 

@@ -83,9 +83,11 @@ inline constexpr std::uint32_t kSpikeCount = 9;
 // EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in
 // settings.toml, refuses it and calls nothing. Since R1 spike.12 (WHY§296), `Absent`: accepted, and after the call the
 // probe's 2 s search found no copy of its task in the game's memory (the console then has the owner load the save).
+// `Read` (appended): the launcher's --read, Lodestar's read-only round (step L5), asked and answered the same way: a
+// probe build accepts it and calls nothing of the game at all.
 // Append only.
-enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent };
-[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent"
+enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent, Read };
+[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent", "read"
 
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 

@@ -222,6 +222,9 @@ void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& req
 unsigned long init_main(void* module) noexcept;
 // R1's round on T1, in a probe build (probe_r1.cpp): T1 stays its reporter for the session. A release build has none.
 void run_r1(Shell& s, const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) noexcept;
+// The read-only round (probe_read.cpp; Lodestar's step L5): on T1 after Connect, in a probe build with
+// `probe = { round = "read" }`. It calls nothing of the game and registers nothing; T1 stays as its reporter.
+void run_read(Shell& s, const en::proto::Expected<en::gal::Gated, en::gal::GateFailure>* gated) noexcept;
 
 // The file a log, a record or a report may name: the file name only, made a word (anything else is "redacted").
 [[nodiscard]] std::string word_of(std::wstring_view name);
