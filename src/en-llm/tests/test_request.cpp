@@ -1,6 +1,9 @@
 // Request bodies, cache marks and HTTP requests (ARCH §11.1, §11.2; NPC §7.1).
 #include <doctest.h>
 
+#include <string>
+#include <vector>
+
 #include <nlohmann/json.hpp>
 
 #include "en/llm/message.hpp"
@@ -76,6 +79,43 @@ TEST_CASE("a stripped body keeps the reasoning switch and the floor, and drops t
   const json local_body = body_for(local.providers[0], BodyMode::Stripped);
   CHECK(local_body["chat_template_kwargs"]["enable_thinking"] == false);
   CHECK(local_body["cache_prompt"] == true);
+}
+
+TEST_CASE("stop sequences: every flavour takes them in a full body, at most four and none empty; a stripped body none") {
+  // A dialogue's two (NPC §7.3), in invented words.
+  const std::vector<std::string> two = {"\nThe Wanderer:", "\nWanderer:"};
+  const auto body_with = [](const ProviderConfig& p, const std::vector<std::string>* stop, BodyMode mode) {
+    BodyInputs in;
+    in.provider = &p;
+    in.model = "model-a";
+    in.messages = &kMessages;
+    in.stop = stop;
+    in.mode = mode;
+    return build_chat_body(in);
+  };
+  // Each flavour's chat completions take `stop`: OpenAI's API (and OpenRouter's, the cloud preset's), and the
+  // OpenAI-compatible endpoints of Ollama, llama.cpp, LM Studio and KoboldCpp. None is left out.
+  for (const char* providers : {en::llm::test::kCloud, en::llm::test::kLocal}) {
+    for (const Flavor flavor : {Flavor::OpenAI, Flavor::Ollama, Flavor::LlamaCpp, Flavor::LmStudio, Flavor::KoboldCpp}) {
+      Config cfg = make_config(providers);
+      cfg.providers[0].flavor = flavor;
+      INFO(to_string(flavor) << " " << to_string(cfg.providers[0].kind));
+      CHECK(body_with(cfg.providers[0], &two, BodyMode::Full)["stop"] == json(two));
+      // The stripped retry after a 400 sends none: a model that refuses the field (OpenAI's reasoning models) still
+      // answers, and the sanitizer cuts the same run-on (NPC §8.2, step 3).
+      CHECK_FALSE(body_with(cfg.providers[0], &two, BodyMode::Stripped).contains("stop"));
+    }
+  }
+  const Config cfg = make_config(en::llm::test::kCloud);
+  const ProviderConfig& p = cfg.providers[0];
+  CHECK_FALSE(body_with(p, nullptr, BodyMode::Full).contains("stop"));
+  const std::vector<std::string> none;
+  CHECK_FALSE(body_with(p, &none, BodyMode::Full).contains("stop"));
+  const std::vector<std::string> empties = {"", ""};
+  CHECK_FALSE(body_with(p, &empties, BodyMode::Full).contains("stop"));
+  const std::vector<std::string> six = {"a", "", "b", "c", "d", "e"};
+  CHECK(body_with(p, &six, BodyMode::Full)["stop"] == json({"a", "b", "c", "d"}));
+  CHECK(kMaxStops == 4);
 }
 
 TEST_CASE("a local provider gets no quantisation floor") {

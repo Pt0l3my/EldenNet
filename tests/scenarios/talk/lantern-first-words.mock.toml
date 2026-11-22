@@ -1,0 +1,17 @@
+# The scripted model for lantern-first-words.toml (mockllm): invented replies in our own words, one per request.
+schema = 1
+
+[[reply]]
+text = "Hm. The road runs on past the lamp, further than most walk it."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "It drinks oil. It gives light. It asks for nothing else."
+first_token_ms = 500
+chunk_ms = 250
+chunk_chars = 8
+
+[[reply]]
+text = "As you like. Mind the dark between lamps."
+first_token_ms = 600

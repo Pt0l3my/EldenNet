@@ -314,6 +314,10 @@ TEST_CASE("provider rules: https for cloud keys, client fields stay the client's
   CHECK(error_of(providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"https://x.example.invalid\"\n"
                                 "extra_body = { model = \"other\" }\n"))
             .find("extra_body may not set \"model\"") != std::string::npos);
+  // The stop sequences are the request's (a dialogue's two, NPC §7.3), so a provider's extra_body may not set them.
+  CHECK(error_of(providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"https://x.example.invalid\"\n"
+                                "extra_body = { stop = [\"###\"] }\n"))
+            .find("extra_body may not set \"stop\"") != std::string::npos);
   CHECK(error_of(providers_only("schema = 1\n[[provider]]\nid = \"x\"\nbase_url = \"https://x.example.invalid\"\n"
                                 "quant_floor = \"fp7\"\n"))
             .find("quant_floor") != std::string::npos);

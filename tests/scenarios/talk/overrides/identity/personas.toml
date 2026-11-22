@@ -1,0 +1,10 @@
+# An overrides folder for the tests (DESIGN §11.4; WHY§364 (1)): this index replaces the shipped one whole and binds
+# the test persona to an invented character of the fake game, NpcParam row 81100 (tests/fakegame). The persona stays
+# test_only, so the binding holds in the eval's and the tests' realm and never in the game's (NPC §2.1). Invented data.
+schema = 1
+
+[[persona]]
+id = "lantern_keeper"
+file = "personas/lantern_keeper.toml"
+npc_params = [ { param = 81100, form = "default", expect_name_id = 0, verified = true } ]
+test_only = true

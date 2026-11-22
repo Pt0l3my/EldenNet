@@ -1,5 +1,6 @@
 #pragma once
 // The chat-completion bodies and HTTP requests the client sends (ARCH §11.1, §11.2).
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -13,7 +14,8 @@
 namespace en::llm {
 
 // Full sends every optional field. Stripped is the retry after a BadRequest: no json_schema, no stream_options, no
-// logprobs and none of extra_body but the reasoning switch, and still the quantisation floor (ARCH §11.2; WHY§98).
+// logprobs, no stop sequences and none of extra_body but the reasoning switch, and still the quantisation floor (ARCH
+// §11.2; WHY§98).
 enum class BodyMode { Full, Stripped };
 
 struct BodyInputs {
@@ -25,9 +27,16 @@ struct BodyInputs {
   bool stream = true;
   const nlohmann::json* json_schema = nullptr;  // only where the provider takes one; the client decides
   int top_logprobs = 0;                         // 0: none
+  // The request's stop sequences: sent as `stop`, the first kMaxStops that are not empty, in a full body only. Every
+  // flavour takes the field (OpenAI's and OpenRouter's API, Ollama's, llama.cpp's, LM Studio's and KoboldCpp's
+  // OpenAI-compatible endpoints); a model that refuses it (OpenAI's reasoning models answer 400) gets the stripped retry.
+  const std::vector<std::string>* stop = nullptr;
   BodyMode mode = BodyMode::Full;
   bool minimal_effort = false;                  // the model refused reasoning off: ask for the lowest effort instead
 };
+
+// At most four stop sequences: OpenAI's limit, and more than a dialogue's two.
+inline constexpr std::size_t kMaxStops = 4;
 
 nlohmann::json build_chat_body(const BodyInputs& in);
 

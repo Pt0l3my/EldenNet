@@ -2,7 +2,8 @@
 
 The command-line host that runs EldenNet's engine outside the game (ARCH §12.3), C++20, MIT. One program,
 `eldennet-engine`, with a subcommand each: `render-prompt`, `chat`, `decide`, `probe`, `models`, the devkit's
-`probe-exe` and `lint`, the spikes' `rec-stats`, `replay` and `spike-report`, and Augur's `golden` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
+`probe-exe` and `lint`, the spikes' `rec-stats`, `replay` and `spike-report`, Augur's `golden`, and the first
+conversation's `eval` and `mockllm` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
 
 ## probe-exe: the derivation's offline round (R0, O89)
 
@@ -275,6 +276,51 @@ as `[a,b]`, a number within 1e-6. The player plays the lifecycle messages a sess
 playthrough's), and a snapshot every step: a solo world of one's own, every group Ok, the Tarnished at the given
 place, its play time rising.
 
+## eval and mockllm: the first conversation, offline (S11.3, part B; WHY§364)
+
+```sh
+eldennet-engine eval <scenario.toml> --llm mock|recorded [--report FILE]
+eldennet-engine mockllm --script <mock.toml> [--requests N]
+```
+
+`eval` (DESIGN §14, NPC §12.1, ARCH §12.2 and §12.3) runs a scripted conversation through the real core, with its
+built-in speech and prompt (part A's sanitizer, lint, pager and renderer; part 0's stubs until they land), the
+built-in content and the scenario's overrides folder, in the eval's realm (en-core's identity.hpp), on a simulated
+clock: a solo world of one's own, the persona's invented character near the Tarnished, a snapshot every 250 ms and a
+tick every 100 ms, and a stand-in for the surfaces that acknowledges each page 16 ms after it is put up and answers a
+box the core closes with `Shut`. `--llm mock` answers the requests with the scenario's script (`lib/mockllm`), `--llm
+recorded` with its recorded events, each request's from its own start with the live id in place of the recorded one.
+`--llm live` and the judged sets wait for a key and the judge's check (DESIGN §14; WHY§364 (10)).
+
+A scenario (`tests/scenarios/talk/*.toml`, `lib/eval_run.hpp` has its schema) names its persona, its overrides, its
+script and recording, one invented character (its NpcParam row, distance, bearing; the clock and the subtitles), and
+its steps from when the world is ready and the observer allows chat: `open`, `say`, `wait`, `esc`, `skip`, `move` and
+`expect`, whose fields (the state, the box, the lines, the "…" pages, the deflections, the last ending, the last
+reply's text, a toast that went up) are each checked. `tests/scenarios/talk/` holds two, `lantern-first-words` (the
+test persona's first words, a cut-off, Esc) and `lantern-no-answer` (no answer in 20 s, a 429, a reply, walking away).
+
+**The report is local-only.** `--report FILE` writes JSON (schema 1, `kind = "eval-local"`): each line of the
+Tarnished's and the reply shown, as committed, with its pages, words, cut-off, "…" page, deflection, requests and the
+time to its first page; the metrics (replies shown, the share within `reply_words_max`, "…" pages, deflections,
+cut-offs, regenerations, requests, cancels, the first page's median and maximum); the toasts, the endings and the
+expectations that failed. It holds model text, unlike the numbers-only reports, so it is written only where
+`--report` says, never into the repository (`eval-reports/` is ignored by git) and never uploaded (PV rules); there is
+no default path. What `eval` prints is numbers only, and a failed `last_npc` names its line, not the text. Exit codes:
+0 every expectation held; 1 one failed; 2 a usage error, an input that cannot be read, parsed or loaded, or a report
+that cannot be written.
+
+`mockllm` checks a script and prints the events it gives its first N requests, one JSON line each (`{"request": n,
+"after_ms": t, "event": {...}}`), which is the form `--llm recorded` reads: `lantern-first-words.llm.jsonl` is its
+script's three requests, so. A script (`lib/mockllm.hpp` has its schema) gives each request, in order, a reply: its
+text cut into chunks at a pace, its first token's delay, a `<think>` leak with an optional Reset, a trailer, and
+en-llm's error class to end with once en-llm's own retries and fallback are spent; the last repeats unless
+`repeat_last = false`; a cancelled request ends with Cancelled at once. ARCH §12.3's `mockllm` as a local SSE server
+(for en-llm's live path) is not built: the eval and the tests need only the scripted model.
+
+CTest runs each scenario's `eval --llm mock`, and `--llm recorded` where it has a recording, as `en_eval.<name>.<llm>`
+with the label `eval`, on demand only (`ctest -C eval -L eval`, BUILD.md), its reports in the build tree's
+`src/en-tools/eval-reports/`; `en_tools_tests` runs both scenarios through the runner in every Linux test run.
+
 ## gal/ for the owner's 2.7.2.0 WW (R0c's leads)
 
 The repository's `gal/` holds what R0c, the second offline run (2026-11-16), gave (its idiom until 2026-11-21 only,
@@ -303,7 +349,10 @@ about any build; the layout stays schema 1, with no item, until a table is found
 and golden files (exact, and CHANGES.md naming each), determinism (byte-identical over 10 runs, with and without a
 seeded loss), 50% snapshot loss against the dense run (src/en-augur/README.md, "Snapshot loss"), a recording of a
 route's inputs written as the DLL writes it replaying to the same events, and the diff. CTest's `en_golden.<route>`
-runs `golden check` on each route as CI does.
+runs `golden check` on each route as CI does. And `test_eval.cpp`: the scripted model's events and times (chunks, a
+think leak and its reset, a trailer, the error classes, a cancel, the last reply repeating), its script's refusals by
+line and key, the recorded model with the live ids, and both conversation scenarios through `eval --llm mock` to a
+report, every expectation holding, with a summary that holds no line of the conversation.
 
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's
