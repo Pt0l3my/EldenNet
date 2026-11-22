@@ -355,7 +355,7 @@ reported to Engine for merging. Steps 1 to 4 need no game.
 | L1 | The catalogue, the table's schema 2, its loader and lint; `roles.hpp` on ids. *Done 2026-11-21 (engine dc18c95, merged as fb999ca); the fake game's own table comes with L3, which writes tables.* The resolver's placement and witness checks, first planned for L2 and L4, are built too (feat/lodestar 440233e) | Nothing |
 | L2 | Shapes for the accessor; witnesses and digests; `patterns.toml` retired once the shape passes the same tests | Nothing |
 | L3 | `lodestar find`, `check` and `diff`; report schema 2 | One offline run on 2.7.2.0, about 5 minutes, game closed |
-| L4 | The checks at start; the frame service with the `own thread` provider; the fake game's harness under Wine | Nothing |
+| L4 | The checks at start; the frame service with the `own thread` provider; the fake game's harness under Wine. *Done 2026-11-22 (engine 4741f2a): a start takes what the build's table holds from the table and checks it, eldennet.dll reads on a thread of its own and calls nothing of the game, and the fake game's hub sees no task of ours. The real build's table, which makes the start search nothing, comes with L5.* | Nothing |
 | L5 | A read-only spike package: the managers named, the witnesses checked, the reader run at the title and in the world, faults and dropped readings counted; no call | One run, about 15 minutes |
 | L6 | The members: fields found by `invariant` recipes on the instances L5 gave, in read-only rounds (S1's precondition) | A few runs |
 | L7 | The task service's research: the `effect` recipe and the fake game's variants, then a probe round (§9.6) | Later, by the owner's choice |
