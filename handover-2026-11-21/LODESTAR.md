@@ -23,7 +23,7 @@ first; this file adds only where Lodestar's own work stands.
 | The fifth read-only run (2026-11-22; the same record, "The fifth round in game") | package 0.1.0-lodestar.8; engine d613651 | **Done, reviewed.** `event_flags` named (the store; 183 sites): ten of eleven managers, 13 leads. 15,878 readings with no fault. The play time's field found. The object of the clock's class does not hold the time. The report passed its size limit after half an hour; the careful reads proved slow (half a millisecond each) |
 | R1's clean-up (O106) | engine 3e11238 | **Done, merged.** The first in-game round's code, launcher step, package and cases removed |
 | The sixth read-only run (2026-11-22; the same record, "The sixth round in game") | package 0.1.0-lodestar.9; engine 8e7295d | **Done, reviewed.** `save_data` in the table by the invariant recipe: 14 leads. The reader at 9.6 readings a second. No slow clock in any static's object; a fast one not ruled out there. The report lost every watched word (the fallback was too blunt) |
-| The seventh round's build | package 0.1.0-lodestar.10; engine 9f451ec | **Built, not yet run by the owner.** The clock by a jump when time is let pass; the flags two steps on, with a sweep for bits that flip once; the report mended and its fallback graded |
+| The seventh round's build | package 0.1.0-lodestar.10; engine 9f451ec, its README at b0a2fa7 | **Built, not yet run by the owner** (the owner agreed to the sweep on 2026-11-22: "Yes, include it"). The clock by a jump when time is let pass; the flags two steps on, with a sweep for bits that flip once; the report mended and its fallback graded |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -49,7 +49,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's seventh read-only run** (package 0.1.0-lodestar.10, engine 9f451ec; built, not yet run). The
+1. **The owner's seventh read-only run** (package 0.1.0-lodestar.10, engine 9f451ec, its README at b0a2fa7; built, not yet run). The
    sixth round (the record's "The sixth round in game") put `save_data` into the table by the invariant recipe (14
    leads), brought the reader back to 9.6 readings a second, and found no slow clock in any static's object (a fast
    one would have passed unseen there: the record says why). Its report lost every watched word when two 16 KiB ways
