@@ -1035,6 +1035,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the world's clock and the play time; event_flags named through the store; no scan, after the owner saw the fourth
     round's scan stutter the game for a few seconds (WHY§357). Package 0.1.0-lodestar.8 sent to the owner the same day
     (engine 8e09907; no "Pass time" at a grace in this round, since a jump of hours counts against the clock's test).
+    L6's first round reviewed the same day (engine 9050db4; WHY§368 to §371): event_flags named (10 of 11 managers, 13
+    leads), the play time's field found in four sessions, the clock not where its class is. R1 removed (O106; WHY§363,
+    §372). Next: mend the report's size and the ask-first share, then look for the clock more widely and read along the
+    way to a flag.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
