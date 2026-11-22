@@ -2342,9 +2342,10 @@ def read_round_gal(gal):
                 % (suffix, GAL_PROVENANCE, suffix, GAL_PROVENANCE))
 
 
-def check_read(result, by_flag=False):
+def check_read(result, by_flag=False, events=False):
     """The read-only round's two files against --describe's truth, and that nothing was called. `by_flag`: the round
-    was asked for by the launcher's --read, not by settings.toml."""
+    was asked for by the launcher's --read, not by settings.toml. `events`: the fake game let time pass twice and set
+    a flag (--pass-time, --flag-set), and the round is to have seen both."""
     failures = [] if by_flag else want(result, "ELDENNET", "settings", probe="read")
     failures += check_lines(("ELDENNET", "reader", {"started": 1, "round": "read"}),
                            ("ELDENNET", "first_reading", {"state": "running"}),
@@ -2382,7 +2383,7 @@ def check_read(result, by_flag=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 6, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 7, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2465,13 +2466,47 @@ def check_read(result, by_flag=False):
     if not watch:
         failures.append("the report has no watch")
     else:
-        ways = {(o["label"], o["rva"], o["offset"], o["deref"]): o for o in watch["watched"]}
+        ways = {(o["label"], o["rva"], o["offset"], o["deref"], o["deeper"], o["via"], o["wide"]): o
+                for o in watch["watched"]}
         managers = [o for o in watch["watched"] if o["id"] != 0 and o["offset"] == 0 and not o["deref"]]
         # One step on from the flags' store: the objects its first words point at, watched under its label.
-        hops = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deref"]]
-        need(1 <= len(hops) <= 4 and all(o["readings"] >= 3 and o["offset"] % 8 == 0 and o["offset"] > 0 for o in hops),
+        hops = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deref"] and not o["deeper"]]
+        need(1 <= len(hops) <= 8 and all(o["readings"] >= 2 and o["offset"] % 8 == 0 and o["offset"] > 0 for o in hops),
              "the flags' next step: %s" % [{k: o[k] for k in ("offset", "readings", "empty", "unreadable")}
                                            for o in hops], failures)
+        need(not any(o["words_left_out"] for o in watch["watched"]), "an object's words were left out", failures)
+        # The sweep: the stretches of memory those objects start, gone through for bits that flip once.
+        sweep = d.get("sweep") or {"targets": [], "passes": 0}
+        need(1 <= len([t for t in sweep["targets"] if not t["deeper"]]) <= 8 and
+             all(t["id"] == 1008 and t["label"] == "event_flags" and t["offset"] % 8 == 0 for t in sweep["targets"]),
+             "the sweep's targets: %s" % [{k: t[k] for k in ("offset", "deeper", "via", "bytes", "readings")}
+                                          for t in sweep["targets"]], failures)
+        if events:
+            # One step more: what the first step's objects point at, watched and swept too.
+            deeper = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deeper"]]
+            need(1 <= len(deeper) <= 32 and all(o["deref"] and o["via"] % 8 == 0 for o in deeper) and
+                 any(t["deeper"] for t in sweep["targets"]),
+                 "the flags' second step: %s" % [{k: o[k] for k in ("offset", "via", "readings", "empty")}
+                                                 for o in deeper], failures)
+            # Time was let pass twice (--pass-time): the clock's hour of the day, a fraction 0x18 bytes into the sky
+            # clock's object, rose at its pace and jumped twice, by five hours and by three.
+            clock = [o for o in watch["watched"] if o["label"] == "world_clock" and not o["wide"] and not o["deref"]]
+            hits = [h for h in clock[0]["rise_hits"] if not h["whole"]] if clock else []
+            jumps = [e for e in clock[0]["jump_events"] if e["as"] == "fraction" and e["offset"] == 0x18] if clock else []
+            need(len(hits) == 1 and hits[0]["offset"] == 0x18 and hits[0]["jumps"] == 2 and hits[0]["rises"] >= 10 and
+                 10_000 <= hits[0]["rate_micro"] <= 25_000 and len(jumps) == 2 and
+                 4_900 <= jumps[0]["to"] - jumps[0]["from"] <= 5_300 and
+                 2_900 <= jumps[1]["to"] - jumps[1]["from"] <= 3_300 and jumps[0]["second"] < jumps[1]["second"],
+                 "the clock's jumps: %s %s" % (hits, clock[0]["jump_events"] if clock else None), failures)
+            # A flag was set (--flag-set): flag 7123, the bit of value 16 in byte 15 of the holder's second block of
+            # 125 bytes. The sweep of the stretch the store's holder (0x20 bytes in) starts saw that bit go up.
+            holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
+            flips = [e for e in holder[0]["flip_events"] if e["offset"] == 125 + 15] if holder else []
+            need(sweep["passes"] >= 2 and len(holder) == 1 and holder[0]["readings"] >= 2 and
+                 holder[0]["bytes"] >= 250 and len(flips) == 1 and flips[0]["bit"] == 4 and flips[0]["set"] is True,
+                 "the sweep's flag: passes %s, %s" % (sweep["passes"], [
+                     {k: t[k] for k in ("offset", "bytes", "readings", "unreadable", "changed_words", "flip_events")}
+                     for t in holder]), failures)
         need(watch["passes"] >= 5 and watch["wide_ways"] >= 13 and len(managers) == 13 and
              len(ways) == len(watch["watched"]) and all(o["for_clock"] for o in managers) and
              all(o["readings"] >= 5 and o["vtable_same"] >= o["readings"] - 1 and o["unreadable"] == 0 and
@@ -2530,10 +2565,10 @@ def check_read(result, by_flag=False):
 
 
 case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
-     game("--statics-delay-ms", "6000", "--field-mirror", frames=3000),
+     game("--statics-delay-ms", "6000", "--field-mirror", "--pass-time", "--flag-set", frames=3900),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet('probe = { round = "read", settle_s = 1 }\n', probe=True, gal_change=read_round_gal),
-     check=lambda r: check_read(r) + want(r, "LAUNCHER", "status", init="ready"),
+     check=lambda r: check_read(r, events=True) + want(r, "LAUNCHER", "status", init="ready"),
      what="the read-only round in a probe build: a first pass before the game has made its managers, a later one that "
           "names all eleven by their instances' classes, the reader's trial on them from a thread of our own, a "
           "lint-clean report of numbers and a draft table, and no call into the game")

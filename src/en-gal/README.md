@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 6, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 7, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -306,15 +306,24 @@ of any game is in it, and every name it looks for comes from a leads file.
   followed and the object's first 0x200 bytes copied, and from one copy to the next every 8-byte word's halves are
   counted for changes and rises, and now and then the word is looked at (nothing, a small number, a table of
   methods, an address in the image, an address of live memory, something else). A way marked for a clock also has
-  every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word), and every 32-bit
-  field read as a fraction for a steady rise. Two ways of one label say how often they arrived at one object
-  (`same_address`). It keeps counts and offsets, never what a word held. A way may ask for a longer span (to the
-  reader's longest copy, 0x4000) and a slower pace, and many may be `wide`: every static's object watched only for a
-  clock, followed after the plain ways and listed only where something was found. In the report a word's counts of
-  nothing are left out. The round watches each named manager, the objects the event flags' store's first addresses
-  lead to, each place the member search found a pointer to an unnamed lead's object at with the object that holds
-  it (0x4000 bytes of both for the world's clock), the object whose field rose by the clock, and, as wide ways, the
-  object behind every static. That field's slot is also a static found by what its object holds (`InvariantFound`:
+  every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word; the hours are also
+  judged alone, whatever the minutes' pace), and every 32-bit field read as a fraction or as a whole number for a
+  steady rise: a rise far above the field's pace, or a fall, is a jump, which is what a clock does when the player
+  lets time pass; a field's or a run's first three jumps are kept with their second and the number before and
+  after (`RiseHit`, `HourHit`, `JumpEvent`). Two ways of one label say how often they arrived at one object
+  (`same_address`). Apart from those jumps it keeps counts and offsets, never what a word held. A way may ask for a
+  longer span (to the reader's longest copy, 0x4000; past its first 0x200 bytes only words that changed are
+  written), a slower pace, and one step more (`deeper`: the object whose address is kept `via` bytes into the one
+  the way led to); and many may be `wide`: every static's object watched only for a clock, followed after the plain
+  ways (less often once it has proved still) and listed only where something was found. In the report a word's
+  counts of nothing are left out. `Sweep` goes through longer stretches (to 2 MiB a target, a piece of 0x4000 bytes
+  a call, a pass every 30 s at most) from the address a way leads to, compares each piece with its copy, and keeps,
+  page by page, the single bits that flipped in words and pages that otherwise kept still (`SweepFlip`: the place,
+  the bit, the direction, the second; nothing of what the memory holds): a flag set by something the player does.
+  The round watches each named manager, the objects the event flags' store's first addresses lead to and the
+  objects those lead to (and sweeps the stretches all of them start), each place the member search found a
+  pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's
+  clock), the object whose field rose by the clock, and, as wide ways, the object behind every static. That field's slot is also a static found by what its object holds (`InvariantFound`:
   proposal 0005's `invariant` recipe), which `draft_table` writes with the code's references as its witnesses. A
   pass that names a manager the search named first takes the entry over (`merge`).
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never

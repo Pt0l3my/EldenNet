@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 6, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 7, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -827,6 +827,7 @@ constexpr std::array<std::string_view, 3> kExpect = {"within", "below", "above"}
 constexpr std::array<std::string_view, 4> kDiffers = {"narrow", "other_register", "other", "undecodable"};
 constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclassed", "classed"};
 constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable", "image", "heap", "other"};
+constexpr std::array<std::string_view, 3> kJumpAs = {"fraction", "whole", "hour"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -878,12 +879,17 @@ constexpr auto kKeys = std::to_array<Key>({
     // The watch (in game)
     O("watch"), AO("watched"), B("deref"), B("for_clock"), U("empty"), U("moved"), U("vtable_same"), U("same_address"),
     U("span"), AO("words"), W("kind", kWordKinds), U("flips"), U("changes_low"), U("rises_low"), U("changes_high"),
-    U("rises_high"), AO("bit_hits"), U("bit"), U("jumps"), U("hour_bit"), AO("float_hits"), U("rises"),
-    U("rate_milli"), U("wide_ways"), B("wide"), AO("invariants"),
+    U("rises_high"), AO("bit_hits"), U("bit"), U("jumps"), U("hour_bit"), AO("rise_hits"), U("rises"), B("whole"),
+    U("rate_micro"), AO("hour_hits"), AO("jump_events"), W("as", kJumpAs), U("second"), U("from"), U("to"),
+    B("deeper"), U("via"), B("words_left_out"), U("wide_ways"), AO("invariants"),
+    // The sweep (in game)
+    O("sweep"), AO("targets"), U("bytes"), U("changed_words"), U("busy_words"), U("changed_pages"),
+    U("quiet_pages"), U("single_flips"),
+    U("other_changes"), AO("flip_events"), B("set"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 6, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 7, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1262,8 +1268,11 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("rva", o.rva);
       w.number("offset", o.offset);
       w.boolean("deref", o.deref);
+      w.boolean("deeper", o.deeper);
+      w.number("via", o.via);
       w.boolean("for_clock", o.clock);
       w.boolean("wide", o.wide);
+      w.boolean("words_left_out", o.words_left_out);
       w.number("readings", o.readings);
       w.number("empty", o.empty);
       w.number("unreadable", o.unreadable);
@@ -1302,12 +1311,77 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.end_object();
       }
       w.end_array();
-      w.begin_array("float_hits");
-      for (const FloatHit& h : o.floats) {
+      w.begin_array("rise_hits");
+      for (const RiseHit& h : o.rises) {
         w.begin_object();
         w.number("offset", h.offset);
+        w.boolean("whole", h.whole);
         w.number("rises", h.rises);
-        w.number("rate_milli", h.rate_milli);
+        w.number("jumps", h.jumps);
+        w.number("rate_micro", h.rate_micro);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("hour_hits");
+      for (const HourHit& h : o.hours) {
+        w.begin_object();
+        w.number("offset", h.offset);
+        w.number("bit", h.bit);
+        w.number("steps", h.steps);
+        w.number("jumps", h.jumps);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("jump_events");
+      for (const JumpEvent& e : o.jumps) {
+        w.begin_object();
+        w.number("offset", e.offset);
+        w.number("bit", e.bit);
+        const auto as = static_cast<std::size_t>(e.as);
+        w.word("as", kJumpAs[as < kJumpAs.size() ? as : 0]);
+        w.number("second", e.second);
+        w.number("from", e.from);
+        w.number("to", e.to);
+        w.end_object();
+      }
+      w.end_array();
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.sweep) {
+    const SweepFound& f = *found.sweep;
+    w.begin_object("sweep");
+    w.number("passes", f.passes);
+    w.begin_array("targets");
+    for (const SweepTarget& t : f.targets) {
+      w.begin_object();
+      w.label("label", t.label);
+      w.number("id", t.id);
+      w.number("rva", t.rva);
+      w.number("offset", t.offset);
+      w.boolean("deeper", t.deeper);
+      w.number("via", t.via);
+      w.number("bytes", t.bytes);
+      w.number("readings", t.readings);
+      w.number("empty", t.empty);
+      w.number("unreadable", t.unreadable);
+      w.number("moved", t.moved);
+      w.number("changed_words", t.changed_words);
+      w.number("busy_words", t.busy_words);
+      w.number("changed_pages", t.changed_pages);
+      w.number("quiet_pages", t.quiet_pages);
+      w.number("single_flips", t.single_flips);
+      w.number("other_changes", t.other_changes);
+      w.begin_array("flip_events");
+      for (const SweepFlip& e : t.flips) {
+        w.begin_object();
+        w.number("offset", e.offset);
+        w.number("bit", e.bit);
+        w.boolean("set", e.set);
+        w.number("second", e.second);
         w.end_object();
       }
       w.end_array();

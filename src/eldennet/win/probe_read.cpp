@@ -82,6 +82,9 @@ constexpr std::uint64_t kSearchAfterMs = 180'000;  // the searches start then, i
 constexpr std::uint64_t kSearchAgainMs = 60'000;   // a slot search that found nothing is made again
 constexpr std::size_t kMaxSlotCandidates = std::size_t{1} << 20;
 constexpr std::size_t kMaxRisingCandidates = std::size_t{1} << 14;
+constexpr std::size_t kFlagHops = 8;            // objects one step on from the flags' store
+constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from each of those
+constexpr std::size_t kFlagHopsDeeperAll = 32;  // and of those in all
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
 
 void state(w::InitState s) {
@@ -212,8 +215,11 @@ class Body final : public en::gal::TaskBody {
     auto* members = members_.load(std::memory_order_acquire);
     auto* rising = rising_.load(std::memory_order_acquire);
     auto* watch = watch_.load(std::memory_order_acquire);
+    auto* sweep = sweep_.load(std::memory_order_acquire);
+    if (sweep != nullptr && !sweep->due(frame.qpc_now_us)) sweep = nullptr;  // it rests between its passes
     const std::uint64_t active = (slots != nullptr ? 1u : 0u) + (members != nullptr ? 1u : 0u) +
-                                 (rising != nullptr ? 1u : 0u) + (watch != nullptr ? 1u : 0u);
+                                 (rising != nullptr ? 1u : 0u) + (watch != nullptr ? 1u : 0u) +
+                                 (sweep != nullptr ? 1u : 0u);
     if (active != 0) {
       const std::uint64_t part = kSearchShareUs / active;
       bool cut = false;
@@ -237,6 +243,7 @@ class Body final : public en::gal::TaskBody {
       if (slots != nullptr) drive([&] { return slots->step(gt, reader_, 1); });
       if (members != nullptr) drive([&] { return members->step(gt, reader_, 1, frame.qpc_now_us); });
       if (rising != nullptr) drive([&] { return rising->step(gt, reader_, 1, frame.qpc_now_us); });
+      if (sweep != nullptr) drive([&] { return sweep->step(gt, reader_, frame.qpc_now_us); });
       search_steps_.fetch_add(1, std::memory_order_relaxed);
       if (cut) search_cut_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -252,6 +259,7 @@ class Body final : public en::gal::TaskBody {
   void set_members(lodestar::MemberSearch* search) noexcept { members_.store(search, std::memory_order_release); }
   void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
   void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
+  void set_sweep(lodestar::Sweep* sweep) noexcept { sweep_.store(sweep, std::memory_order_release); }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
   [[nodiscard]] const AskFirstCopier& asks() const noexcept { return quiet_.asks(); }
 
@@ -263,6 +271,7 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::MemberSearch*> members_{nullptr};
   std::atomic<en::gal::probe::RisingSearch*> rising_{nullptr};
   std::atomic<lodestar::Watch*> watch_{nullptr};
+  std::atomic<lodestar::Sweep*> sweep_{nullptr};
   std::atomic<std::uint64_t> steps_{0};
   std::atomic<std::uint64_t> search_steps_{0};
   std::atomic<std::uint64_t> search_cut_{0};
@@ -596,7 +605,9 @@ class Round {
     const std::uint32_t flags_id = en::gal::roles::info(en::gal::roles::Item::EventFlags).id;
     for (const lodestar::ManagerFound& m : held_.managers) {
       if (m.status != en::gal::derive::Status::Derived) continue;
-      if (watch_->add(Way{m.label, m.id, m.rva, 0, false, m.vtable, true})) said_ways_ = false;
+      Way way{m.label, m.id, m.rva, 0, false, m.vtable, true};
+      way.every_us = 2'000'000;  // every two seconds: the reads are wanted elsewhere (the sixth round)
+      if (watch_->add(way)) said_ways_ = false;
     }
     if (members_ != nullptr) {
       std::size_t taken = 0;
@@ -607,6 +618,8 @@ class Round {
         // neither change in play (the fifth round).
         Way to{h.label, h.id, h.rva, h.offset, true, h.vtable, true};
         Way holder{"holder", 0, h.rva, 0, false, 0, true};
+        to.every_us = 2'000'000;
+        holder.every_us = 2'000'000;
         if (h.id == clock_id) {
           to.span = lodestar::Watch::kMaxSpan;
           holder.span = lodestar::Watch::kMaxSpan;
@@ -616,16 +629,51 @@ class Round {
       }
     }
     // One step on from the flags' store: the objects its first words point at (the watch says which words are
-    // addresses of live memory), each watched as the store is.
-    if (!flag_hops_) {
+    // addresses of live memory), each watched as the store is, and each the start of a stretch the sweep goes
+    // through for bits that flip once. Then one step more: what those objects' first words point at.
+    const auto sweep_target = [&](const lodestar::Sweep::Target& target) {
+      if (sweep_ == nullptr) sweep_ = new lodestar::Sweep(s_.sys->module_base());  // lives for the process
+      if (sweep_->add(target)) said_ways_ = false;
+      body_->set_sweep(sweep_);
+    };
+    if (!flag_hops_ && body_ != nullptr) {
       for (const lodestar::WatchObject& o : watch_->found().objects) {
         if (o.id != flags_id || o.offset != 0 || o.deref || o.readings < 3) continue;
         flag_hops_ = true;
         std::size_t hops = 0;
         for (const lodestar::WatchWord& word : o.words) {
           if (word.kind != lodestar::WordKind::Heap || word.offset == 0) continue;
-          if (++hops > 4) break;
-          if (watch_->add(Way{o.label, o.id, o.rva, word.offset, true, 0, false})) said_ways_ = false;
+          if (++hops > kFlagHops) break;
+          Way hop{o.label, o.id, o.rva, word.offset, true, 0, false};
+          hop.every_us = 3'000'000;
+          if (watch_->add(hop)) said_ways_ = false;
+          sweep_target(lodestar::Sweep::Target{o.label, o.id, o.rva, word.offset, false, 0,
+                                               lodestar::Sweep::kMaxPieces});
+        }
+      }
+    } else if (flag_hops_ && !flag_hops2_) {
+      std::vector<lodestar::WatchObject> first;
+      bool ready = true;
+      for (lodestar::WatchObject& o : watch_->found().objects) {
+        if (o.id != flags_id || !o.deref || o.deeper) continue;
+        if (o.readings + o.empty + o.unreadable < 3) ready = false;
+        first.push_back(std::move(o));
+      }
+      if (ready) {
+        flag_hops2_ = true;
+        std::size_t deeper = 0;
+        for (const lodestar::WatchObject& o : first) {
+          std::size_t hops = 0;
+          for (const lodestar::WatchWord& word : o.words) {
+            if (word.kind != lodestar::WordKind::Heap) continue;
+            if (++hops > kFlagHopsDeeper || ++deeper > kFlagHopsDeeperAll) break;
+            Way hop{o.label, o.id, o.rva, o.offset, true, 0, false};
+            hop.every_us = 10'000'000;
+            hop.deeper = true;
+            hop.via = word.offset;
+            if (watch_->add(hop)) said_ways_ = false;
+            sweep_target(lodestar::Sweep::Target{o.label, o.id, o.rva, o.offset, true, word.offset, 16});
+          }
         }
       }
     }
@@ -664,11 +712,28 @@ class Round {
         found_.invariants[0].passes = hits[0].rose + hits[0].still + hits[0].other;  // the times it was compared
       }
     }
+    // The rising search has done its work once its first field has risen in a dozen passes: the watch follows that
+    // field from then on, and the search's reads go to the others.
+    if (rising_ != nullptr && !rising_stopped_ && play_time_way_ && body_ != nullptr) {
+      const auto hits = rising_->hits();
+      if (!hits.empty() && hits[0].rose >= 12) {
+        rising_stopped_ = true;
+        body_->set_rising(nullptr);  // the search itself stays, for the report
+        log(Line("read").word("stage", "rising_done").num("rose", hits[0].rose).num("passes", rising_->passes()));
+      }
+    }
     if (!said_ways_) {
       said_ways_ = true;
       log(Line("read").word("stage", "watch").num("ways", watch_->ways()).flag("play_time", play_time_way_)
-              .flag("flag_hops", flag_hops_));
+              .flag("flag_hops", flag_hops_).flag("flag_hops_deeper", flag_hops2_)
+              .num("sweep_targets", sweep_ != nullptr ? sweep_->targets() : 0));
     }
+  }
+
+  // What tells one watched object from another: its way.
+  using WayKey = std::array<std::uint32_t, 5>;
+  static WayKey way_key(const lodestar::WatchObject& o) {
+    return WayKey{o.rva, o.offset, (o.deref ? 1u : 0u) | (o.deeper ? 2u : 0u) | (o.wide ? 4u : 0u), o.via, o.id};
   }
 
   // The report, and the table when the names changed (or `table` asks).
@@ -700,21 +765,68 @@ class Round {
     if (watch_ != nullptr) {
       add_ways();
       found_.watch = watch_->found();
+      // An object whose words were once left out stays without them: the report only grows.
+      for (lodestar::WatchObject& o : found_.watch->objects) {
+        if (std::find(left_out_.begin(), left_out_.end(), way_key(o)) == left_out_.end()) continue;
+        o.words.clear();
+        o.words_left_out = true;
+      }
     }
-    // A report the writer refuses (too large, most likely: a long round's watch) is written again without the
-    // watch's words, and failing that without the watch: a smaller report is better than a stale one.
+    if (sweep_ != nullptr) found_.sweep = sweep_->found();
+    // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
+    // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
+    // last (theirs are what this round is after); with no words left, the sweep's flips go, the longest list
+    // first; then the watch, then the sweep. The sixth round dropped every object's words at once.
+    const std::uint32_t flags_id = en::gal::roles::info(en::gal::roles::Item::EventFlags).id;
     auto text = lodestar::write_report(found_);
-    for (int smaller = 0; !text && smaller < 2; ++smaller) {
+    for (int smaller = 0; !text && smaller < 400; ++smaller) {
       if (refusals_++ < 4) {
         log(Line("read").word("report", "refused").num("try", static_cast<std::uint64_t>(smaller))
                 .flag("too_large", text.error().problem.find("larger") != std::string::npos),
             LogLevel::Error);
       }
-      if (!found_.watch) break;
-      if (smaller == 0) {
-        for (lodestar::WatchObject& o : found_.watch->objects) o.words.clear();
-      } else {
+      if (!found_.watch && !found_.sweep) break;
+      lodestar::WatchObject* most = nullptr;
+      if (found_.watch) {
+        const auto ahead = [&](const lodestar::WatchObject& a, const lodestar::WatchObject& b) {
+          if ((a.id == flags_id) != (b.id == flags_id)) return b.id == flags_id;
+          return a.words.size() > b.words.size();
+        };
+        for (lodestar::WatchObject& o : found_.watch->objects) {
+          if (!o.words.empty() && (most == nullptr || ahead(o, *most))) most = &o;
+        }
+      }
+      lodestar::SweepTarget* longest = nullptr;
+      if (found_.sweep) {
+        for (lodestar::SweepTarget& t : found_.sweep->targets) {
+          if (!t.flips.empty() && (longest == nullptr || t.flips.size() > longest->flips.size())) longest = &t;
+        }
+      }
+      // With no words left: the object with the most runs of bits listed loses them (its rises and their jumps
+      // stay).
+      lodestar::WatchObject* fullest = nullptr;
+      if (found_.watch && most == nullptr) {
+        for (lodestar::WatchObject& o : found_.watch->objects) {
+          const std::size_t runs = o.bits.size() + o.hours.size();
+          if (runs != 0 && (fullest == nullptr || runs > fullest->bits.size() + fullest->hours.size())) fullest = &o;
+        }
+      }
+      if (most != nullptr) {
+        log(Line("read").word("report", "smaller").num("rva", most->rva).num("offset", most->offset)
+                .num("via", most->via).num("words", most->words.size()));
+        left_out_.push_back(way_key(*most));
+        most->words.clear();
+        most->words_left_out = true;
+      } else if (fullest != nullptr) {
+        fullest->bits.clear();
+        fullest->hours.clear();
+        std::erase_if(fullest->jumps, [](const lodestar::JumpEvent& e) { return e.as == lodestar::JumpAs::Hour; });
+      } else if (longest != nullptr) {
+        longest->flips.clear();
+      } else if (found_.watch) {
         found_.watch.reset();
+      } else {
+        found_.sweep.reset();
       }
       text = lodestar::write_report(found_);
     }
@@ -780,6 +892,17 @@ class Round {
                   .num("refused_access", body_->asks().refused_access())
                   .num("copy_failed", body_->asks().copy_failed()).num("search_steps", body_->search_steps())
                   .num("search_cut", body_->search_cut()));
+          if (sweep_ != nullptr) {
+            const lodestar::SweepFound swept = sweep_->found();
+            std::uint64_t bytes = 0, flips = 0, changed = 0;
+            for (const lodestar::SweepTarget& t : swept.targets) {
+              bytes += t.bytes;
+              flips += t.flips.size();
+              changed += t.changed_words;
+            }
+            log(Line("read").word("stage", "sweep").num("passes", swept.passes).num("targets", swept.targets.size())
+                    .num("kib", bytes >> 10).num("changed_words", changed).num("flips", flips));
+          }
         }
       }
     }
@@ -801,7 +924,11 @@ class Round {
   lodestar::MemberSearch* members_ = nullptr;
   lodestar::Watch* watch_ = nullptr;
   bool play_time_way_ = false;
+  lodestar::Sweep* sweep_ = nullptr;
   bool flag_hops_ = false;
+  bool flag_hops2_ = false;
+  bool rising_stopped_ = false;
+  std::vector<WayKey> left_out_;  // the watched objects whose words the report leaves out
   bool said_ways_ = true;
   std::uint32_t refusals_ = 0;
   lodestar::SearchFound search_;

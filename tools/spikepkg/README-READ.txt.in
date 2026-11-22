@@ -8,17 +8,27 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the sixth such round. The first five (22 November) named ten of the eleven, at the same places each time, and
-read them without a fault; the fifth found where the play time is kept. Still missing is the time of day: the object
-that should hold it does not change while you play. So this round looks for a clock in the object behind every one of
-the known places, and further into the two objects nearest to it. It also follows the game's event flags one step
-further from where they start, and writes the place of the play time into its table.
+This is the seventh such round. The first six (22 November) named ten of the eleven, at the same places each time,
+and read them without a fault; they found where the play time is kept, and the sixth wrote that place into its table.
+Still missing is the time of day. The sixth round looked for it in the object behind every one of the known places and
+found nothing that behaves as minutes and hours do; but that test could not have seen a clock whose minutes go by
+faster than one in three seconds. So this round uses a surer sign, and needs your help for it: when you let time pass
+at a grace, the clock jumps. The round looks for a number that rises steadily while you play and jumps exactly then.
 
-Two faults of the fifth round are mended. Its report grew past its size limit after half an hour and was not written
-for the last 100 seconds; and the round's careful reads proved slow on your PC, which held EldenNet's own reader
-below its ten readings a second. The report is smaller now, and the round looks at its clock after every careful read.
+It also follows the game's event flags two steps from where they start, and goes through the memory there for single
+bits that change once: a flag set by something you do. For that it asks you to do one or two things the game remembers
+for good (step 3 says which).
 
-It has no wide search of the game's memory: that one made the game stutter in the fourth round and stays off.
+Two faults of the sixth round are mended. Its report grew past its size limit after seven minutes, and the round then
+left out every detail of what it watched, the event flags' among them; now it writes less to begin with, and when the
+report is still too large it leaves out one object's detail at a time, the largest first, and says which. And a slow
+rise was written too coarsely to judge; it is written a thousand times finer now.
+
+It has no wide search of the game's memory: that one made the game stutter in the fourth round and stays off. What is
+new is much smaller and aimed: up to 2 MiB of memory from each of at most eight addresses the event flags' own object
+keeps, and up to 256 KiB from each of at most 32 addresses one step further (about 24 MiB in all), read a piece at a
+time at the same careful pace as the sixth round's reads, a pass every thirty seconds at most. If the game stutters
+all the same, quit it and tell us.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. There is no key to press.
 Nothing in this package is for playing with yet.
@@ -30,9 +40,8 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About 20 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 10 in the world with your save loaded, and a
-few to send the files. The ten minutes matter: a clock's hours are only seen to step if enough of them go by. Longer
-does no harm.
+About 25 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 15 in the world with your save loaded, and a
+few to send the files. The order and the pauses of step 3 matter more than the exact minutes. Longer does no harm.
 
 
 What is in it
@@ -82,13 +91,28 @@ The steps
 
 3. The console then says "Now load your save." with how many of the eleven managers it has named so far (some exist
    only once a save is loaded), or, if all eleven are there already, "All 11 managers are named. If you have not
-   loaded your save yet, load it now." Either way, load your save. Walk about for about ten minutes: go near an NPC
-   or an enemy, open the map, rest at a grace, and fast travel once. Please do not use "Pass time" at the grace in
-   this round: a clock that jumps by hours would confuse the test for its minutes and hours. Every ten seconds the
-   round looks again for the managers it has not named yet, and all the while it reads the ones it has.
+   loaded your save yet, load it now." Either way, load your save. Then, in the world, in this order (a watch or a
+   phone's clock beside you helps; a minute more or less does not matter):
 
-4. After about ten minutes in the world, quit the game as you usually do, whatever the console has said. The console
-   then says whether the two files passed their check, and the launcher ends.
+     a. For the first five minutes, walk about: go near an NPC or an enemy, and open the map once. Do not rest at a
+        grace yet. The round needs this time to learn how fast each number rises.
+     b. After about five minutes, rest at a grace and let time pass until the middle of the day. Get up.
+     c. Walk about for three minutes. Then rest at a grace again (the same one will do) and let time pass until
+        night. Get up.
+     d. Walk about for two minutes. Then do one thing the game remembers for good, for example: pick up an item
+        from a body or a chest that you have not taken yet, open a door or a chest that stays open, discover a
+        grace, or defeat an enemy that does not come back. If nothing of the kind is at hand, buy one thing from a
+        merchant who has only a few of it.
+     e. Two minutes later, do a second such thing if one is at hand. If not, never mind.
+     f. Walk about for two more minutes.
+
+   If your grace does not offer to let time pass, skip b and c, do the rest, and tell us.
+
+   Please note roughly when you did b, c, d and e (minutes after loading the save) and what d and e were, and tell
+   us with the files: "b at 5, c at 8, d at 10: opened a chest" is all we need.
+
+4. Then quit the game as you usually do, whatever the console has said. The console then says whether the two files
+   passed their check, and the launcher ends.
 
 5. Send these files back to us:
 
@@ -131,17 +155,27 @@ What it does
     of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
     how often a read was refused, and how long a reading took. This is the way EldenNet v1 will read the game, tried
     here on sixteen bytes a manager.
-  - From the same thread, once a second, the watch: it follows the way to each named manager's object and copies
-    its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every eight
-    bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
+  - From the same thread, every two seconds, the watch: it follows the way to each named manager's object and
+    copies its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every
+    eight bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
     number, a kind of object, an address in the game's code or data, an address of memory in use, or something
     else. It also counts, for every run of six bits, whether it behaves as a clock's minutes do (never 60 or more,
-    stepping forward and going round), for every run of five whether it behaves as hours, and for every four bytes
-    whether, read as a fraction, they keep rising. Beside the managers it watches: the objects the event flags'
-    first addresses lead to (four at most); the object where the play time is kept; 16,384 bytes of the object of
-    the clock's kind and of the manager that points at it; and, once your save is loaded and every six seconds,
-    the object behind each of the other known places, for a clock only. It writes counts and offsets: never a time,
-    a value or anything else the memory held.
+    stepping forward and going round), for every run of five whether it behaves as hours (never 24 or more,
+    stepping by one), and for every four bytes whether, read as a fraction or as a whole number, they keep rising
+    at a steady pace; and when such hours or such a number jump instead (a rise far above the pace, or a fall), it
+    keeps the first three jumps: after how many seconds, and the number before and after. Beside the managers it
+    watches: the objects the event flags' first addresses lead to (eight at most) and the objects those lead to
+    (four each at most); the object where the play time is kept; 16,384 bytes of the object of the clock's kind and
+    of the manager that points at it; and, once your save is loaded and every six seconds (less often where
+    nothing ever changes), the object behind each of the other known places, for a clock only. It writes counts
+    and offsets, and for a number that jumped the number before and after each of its first three jumps (the
+    clock's own reading, if it is the clock): nothing else the memory held.
+  - From the same thread, the sweep: from each address the event flags' own object keeps (eight at most) it copies
+    up to 2 MiB of memory, and from each address one step further (32 at most) up to 256 KiB, a piece of 16,384
+    bytes at a time, and compares each piece with the copy before. Where one single bit of a byte has changed, in
+    eight bytes that otherwise keep still, it writes where (the offset from the address), which bit, whether it
+    went up or down, and after how many seconds: never what the memory holds. A pass through all of it is followed
+    by a rest, so that a pass starts every thirty seconds at most.
   - Once your save is loaded, from the same thread, three searches, each of which only reads:
       - For a manager whose kind of object the game has but which none of those places holds: it goes through the
         game's own data for another place that points at an object of that kind, reading the first eight bytes of
@@ -152,7 +186,7 @@ What it does
         What it finds, the watch then follows.
       - For the play time: over the objects the game's data points at, it looks for a number that rises by the
         clock while you play. The place it finds goes into the table, with the places in the game's code that refer
-        to it; the watch then follows the object.
+        to it; the watch then follows the object, and this search ends.
     The searches and the watch follow pointers that may no longer be good. So the round first asks Windows, for
     every number in the game's data that could be an address, whether there is memory there that may be read
     (VirtualQuery, which reads nothing), and keeps only those; 96 in 100 of them are no address at all. Before each
@@ -163,9 +197,10 @@ What it does
     thread, give or take one read; the game's own threads are never used. What they find is written as counts and
     places, never as what the memory held.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
-    another manager is named. If the report ever grows past its limit, it is written without the watch's detail
-    rather than not at all. They hold only numbers (offsets, sizes, counts) and EldenNet's own labels: no names of
-    the game's, no text, no paths, nothing of your character or your PC.
+    another manager is named. If the report ever grows past its limit, it is written without the detail of the
+    watched object that has the most, then of the next, and says which were left out. They hold only numbers
+    (offsets, sizes, counts, and the jumps' numbers named above) and EldenNet's own labels: no names of the game's,
+    no text, no paths, nothing of your character or your PC.
   - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
     in and the time, never a memory dump.
 
