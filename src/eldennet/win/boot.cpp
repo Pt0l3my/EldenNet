@@ -262,6 +262,19 @@ void run(HMODULE module) {
       return;
     }
   }
+  // The launcher's --read (Lodestar's step L5): the read-only round, in a probe build only. It calls nothing.
+  if (block::probe_request() == w::ProbeRequest::Read) {
+    const bool accept = kProbeBuild && s.settings.enabled;
+    if (accept) s.settings.probe.round = en::shell::ProbeRound::Read;
+    block::probe_answer(accept ? w::ProbeRequest::Accepted : w::ProbeRequest::Refused);
+    log(Line("probe").word("asked", "read").flag("accepted", accept).flag("probe_build", kProbeBuild)
+            .flag("enabled", s.settings.enabled),
+        accept ? LogLevel::Info : LogLevel::Warn);
+    if (!accept) {
+      finish(w::InitState::Exit);  // the owner asked for the round alone: no other start
+      return;
+    }
+  }
   if (!s.settings.enabled) {
     finish(w::InitState::Exit);  // Off: nothing more this session (ARCH §1.5)
     return;

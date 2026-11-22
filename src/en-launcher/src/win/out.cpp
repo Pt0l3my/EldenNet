@@ -185,8 +185,8 @@ void say(const char* fmt, ...) {
   ReleaseSRWLockExclusive(&g_lock);
 }
 
-void console_line(std::string_view text) {
-  std::string line = "EldenNet R1: ";
+void console_line(std::string_view text, std::string_view who) {
+  std::string line(who);
   line.append(text);
   line += "\r\n";
   AcquireSRWLockExclusive(&g_lock);

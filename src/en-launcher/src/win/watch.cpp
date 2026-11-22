@@ -129,6 +129,14 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     console_line(r1_text(step, absent));
   };
   if (plan.probe) r1_tell(R1Step::Asked, false);
+  // The read-only round's steps (--read), each told once as it changes.
+  std::optional<ReadStep> read_said;
+  const auto read_tell = [&](ReadStep step, std::uint32_t named, std::uint32_t of) {
+    read_said = step;
+    say("read step=%s named=%u of=%u", read_word(step), named, of);
+    console_line(read_text(step, named, of), "EldenNet read: ");
+  };
+  if (plan.read) read_tell(ReadStep::Asked, 0, 0);
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
     if (list.empty()) return;
@@ -215,6 +223,11 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
       if (step && (step != r1_said || (*step == R1Step::NoConfirmation && absent && !r1_absent_said))) {
         r1_tell(*step, absent);
       }
+    }
+    if (plan.read) {
+      const auto answer = static_cast<w::ProbeRequest>(b.control.probe.load(std::memory_order_acquire));
+      const auto step = read_step(answer, st.init, st.items_resolved, st.items_total, st.discovery_passes);
+      if (step && step != read_said) read_tell(*step, st.items_resolved, st.items_total);
     }
     if (plan.console && now - last_print >= 1000 &&
         (st.snapshots != printed.snapshots || st.init != printed.init || st.flags != printed.flags ||

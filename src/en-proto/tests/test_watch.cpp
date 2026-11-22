@@ -122,5 +122,7 @@ TEST_CASE("watch block: names") {
   }
   CHECK(std::string(to_string(ThreadKind::Game)) == "game");
   CHECK(static_cast<std::uint32_t>(ThreadKind::Reader) == 4);  // appended
+  CHECK(static_cast<std::uint32_t>(ProbeRequest::Read) == 5);  // appended
+  CHECK(std::string(to_string(ProbeRequest::Read)) == "read");
   CHECK(std::string(to_string(ThreadKind::Reader)) == "reader");
 }

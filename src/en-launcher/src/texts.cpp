@@ -134,6 +134,122 @@ std::string r1_text(R1Step s, bool absent) {
   return {};
 }
 
+const char* read_word(ReadStep s) noexcept {
+  switch (s) {
+    case ReadStep::Asked: return "asked";
+    case ReadStep::Refused: return "refused";
+    case ReadStep::Reading: return "reading";
+    case ReadStep::LoadSave: return "load_save";
+    case ReadStep::Done: return "done";
+    case ReadStep::Stopped: return "stopped";
+    case ReadStep::ReportsClean: return "reports_clean";
+    case ReadStep::ReportsRefused: return "reports_refused";
+    case ReadStep::ReportsMissing: return "reports_missing";
+  }
+  return "asked";
+}
+
+std::string read_text(ReadStep s, std::uint32_t named, std::uint32_t of) {
+  const std::string count = std::to_string(named) + " of " + std::to_string(of);
+  switch (s) {
+    case ReadStep::Asked:
+      return "The read-only round is on. The game starts now. Wait at the title screen: there is no key to press, and "
+             "EldenNet calls nothing in the game.";
+    case ReadStep::Refused:
+      return "This eldennet.dll cannot run the read-only round (it is not the probe build, or EldenNet is turned off "
+             "in settings.toml), so nothing will be read. Quit the game.";
+    case ReadStep::Reading:
+      return "EldenNet is reading the game as it is loaded. This takes about a minute. Stay at the title screen.";
+    case ReadStep::LoadSave:
+      return "Now load your save. " + count + " managers are named so far; the rest exist only in the world. Walk "
+             "about for about five minutes: go near an NPC or an enemy, open the map, rest at a grace, and fast "
+             "travel once.";
+    case ReadStep::Done:
+      return "Done. All " + std::to_string(of) + " managers are named. Stay in the world for two more minutes, then "
+             "quit the game as usual.";
+    case ReadStep::Stopped:
+      return "The round stopped early. Quit the game, and send the two logs.";
+    case ReadStep::ReportsClean:
+      return "Both files passed the check. Send lodestar-found.json and lodestar-table.toml from "
+             "%APPDATA%\\EldenNet\\probe.";
+    case ReadStep::ReportsRefused:
+      return "A file did not pass the check. Do not send it; send the launcher's console output instead.";
+    case ReadStep::ReportsMissing:
+      return "A file is missing from %APPDATA%\\EldenNet\\probe. Send the launcher's console output instead.";
+  }
+  return {};
+}
+
+std::optional<ReadStep> read_step(proto::watch::ProbeRequest answer, proto::watch::InitState init, std::uint32_t named,
+                                  std::uint32_t of, std::uint32_t passes) noexcept {
+  using proto::watch::InitState;
+  using proto::watch::ProbeRequest;
+  if (answer == ProbeRequest::Refused) return ReadStep::Refused;
+  if (answer != ProbeRequest::Accepted) {
+    // No answer, but T1 is past Settings: a DLL that does not know --read, which runs as it always does.
+    const bool past = init != InitState::None && init != InitState::Pin && init != InitState::Gate &&
+                      init != InitState::Safety && init != InitState::Settings;
+    return past ? std::optional<ReadStep>(ReadStep::Refused) : std::nullopt;
+  }
+  switch (init) {
+    case InitState::Discover: return ReadStep::Reading;
+    case InitState::Reader:
+    case InitState::FirstReading:
+    case InitState::Ready:
+      if (passes == 0) return ReadStep::Reading;
+      return of != 0 && named >= of ? ReadStep::Done : ReadStep::LoadSave;
+    case InitState::Banner:
+    case InitState::Inert:
+    case InitState::Exit: return ReadStep::Stopped;
+    default: return std::nullopt;
+  }
+}
+
+bool table_text_clean(std::string_view text) noexcept {
+  static constexpr std::string_view kKeys[] = {"method", "tool",   "tool_sha256", "round",  "date",     "leads",
+                                               "id",     "kind",   "rva",         "vtables", "length",  "stride",
+                                               "count",  "found_by", "witnesses", "digest", "verdict",  "checks",
+                                               "status"};
+  const auto label = [](std::string_view s) {
+    if (s.empty() || s.size() > 48 || s[0] < 'a' || s[0] > 'z') return false;
+    for (const char c : s) {
+      if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    }
+    return true;
+  };
+  if (text.empty() || text.size() > (256u << 10)) return false;
+  if (text.find("\"/") != std::string_view::npos || text.find("//") != std::string_view::npos) return false;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    std::size_t end = text.find('\n', at);
+    if (end == std::string_view::npos) end = text.size();
+    std::string_view line = text.substr(at, end - at);
+    at = end + 1;
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+    if (line.empty()) continue;
+    if (line == "[provenance]") continue;
+    if (line.size() > 7 && line.substr(0, 6) == "[item." && line.back() == ']') {
+      if (!label(line.substr(6, line.size() - 7))) return false;
+      continue;
+    }
+    const std::size_t eq = line.find(" = ");
+    if (eq == std::string_view::npos) return false;
+    const std::string_view key = line.substr(0, eq);
+    bool known = false;
+    for (const std::string_view k : kKeys) known = known || k == key;
+    if (!known) return false;
+    // A value: numbers, hex, lists, and quoted words of letters, digits and . _ + - / (a version label, a date, a
+    // word of ours, a file of gal/ by its relative name). Nothing a path of a PC or a text could be written with.
+    for (const char c : line.substr(eq + 3)) {
+      const bool ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == ' ' ||
+                      c == ',' || c == '[' || c == ']' || c == '"' || c == '.' || c == '_' || c == '+' || c == '-' ||
+                      c == '/';
+      if (!ok) return false;
+    }
+  }
+  return true;
+}
+
 std::optional<R1Step> r1_step(proto::watch::ProbeRequest answer, proto::watch::InitState init, bool pressed,
                               std::uint64_t in_first_tick_ms) noexcept {
   using proto::watch::InitState;

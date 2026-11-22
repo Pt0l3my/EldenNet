@@ -3171,10 +3171,11 @@ def read_round_gal(gal):
                  os.path.join(gal, "ids.toml"))
 
 
-def check_read(result):
-    """The read-only round's two files against --describe's truth, and that nothing was called."""
-    failures = check_lines(("ELDENNET", "settings", {"probe": "read"}),
-                           ("ELDENNET", "reader", {"started": 1, "round": "read"}),
+def check_read(result, by_flag=False):
+    """The read-only round's two files against --describe's truth, and that nothing was called. `by_flag`: the round
+    was asked for by the launcher's --read, not by settings.toml."""
+    failures = [] if by_flag else want(result, "ELDENNET", "settings", probe="read")
+    failures += check_lines(("ELDENNET", "reader", {"started": 1, "round": "read"}),
                            ("ELDENNET", "first_reading", {"state": "running"}),
                            ("ELDENNET", "init", {"state": "ready"}),
                            ("LAUNCHER", "end", {"kind": "clean"}))(result)
@@ -3233,6 +3234,59 @@ case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      what="the read-only round in a probe build: a first pass before the game has made its managers, a later one that "
           "names all eleven by their instances' classes, the reader's trial on them from a thread of our own, a "
           "lint-clean report of numbers and a draft table, and no call into the game")
+
+
+# The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
+# save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
+# its managers ("Now load your save."), a later one that names them all ("Done."); the game ends and the launcher
+# checks both files.
+def read_steps(result):
+    return [e.get("step") for e in result.events("LAUNCHER", "read") if "step" in e]
+
+
+def check_read_owner(result):
+    failures = check_read(result, by_flag=True)
+    steps = read_steps(result)
+    # The console polls the block every 200 ms, so "reading" may pass unseen; the others are always told, in order.
+    essential = [x for x in steps if x != "reading"]
+    need(essential == ["asked", "load_save", "done", "reports_clean"] and
+         steps == [x for x in ("asked", "reading", "load_save", "done", "reports_clean") if x in steps],
+         "the console's steps: %s" % steps, failures)
+    plain = [l for l in result.lines if l.startswith("EldenNet read: ")]
+    need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 11") for l in plain) and
+         any(l.startswith("EldenNet read: Done. All 11 managers") for l in plain) and
+         not any("Pause" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
+    need(not any(l.startswith("EldenNet R1: ") for l in result.lines) and not result.events("LAUNCHER", "r1"),
+         "the read-only round spoke as R1", failures)
+    for name in ("lodestar-found.json", "lodestar-table.toml"):
+        failures += any_line(result, "LAUNCHER", "read", report=name, lint="clean")
+    failures += want(result, "ELDENNET", "probe", asked="read", accepted=1, probe_build=1)
+    failures += want(result, "ELDENNET", "settings", file=0)
+    failures += want(result, "LAUNCHER", "backup", folders=2, made=2)
+    return failures
+
+
+case("launcher-eldennet-read-owner", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                              "--read"] + game("--statics-delay-ms", "20000", frames=2700),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, gal_change=read_round_gal, then=with_saves),
+     check=check_read_owner,
+     what="the read-only round as the owner runs it: --read (no settings.toml), the backup first, the console's steps "
+          "in plain words with no key to press, the managers named once the game has made them, the trial, no call, "
+          "and both files checked clean by the launcher when the game ends")
+case("launcher-eldennet-read-release", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                "--read"] + game("--stay-title", frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=120,
+     prepare=install_eldennet(None),
+     check=lambda r: (want(r, "ELDENNET", "probe", asked="read", accepted=0, probe_build=0) +
+                      want(r, "LAUNCHER", "init", state="exit") +
+                      ([] if read_steps(r) == ["asked", "refused", "reports_missing"] else
+                       ["the console's steps: %s" % read_steps(r)]) +
+                      any_line(r, "LAUNCHER", "read", report="lodestar-found.json", lint="missing") +
+                      ["the release DLL went on: %s" % e for e in r.events("ELDENNET", "init")
+                       if e.get("state") in ("discover", "reader", "first_reading", "ready")] +
+                      (["the fake game's registration was called"] if r.events("FAKEGAME", "register") else [])),
+     what="--read with the release DLL: refused at Settings, nothing read and nothing called, and the console says so")
 
 
 # R1 as the owner runs it (README-R1.txt): `eldennet-launcher --probe`, with no settings.toml and the save backup made
