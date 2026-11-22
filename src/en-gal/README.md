@@ -528,8 +528,8 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   `u32_offsets` search one copied object's bytes by invariant and answer offsets only; `searchable` says which regions
   a search reads (readable, not a guard page, no-access, uncached or write-combined), and NativeSys's `region_at`
   (probe builds) is the VirtualQuery behind a caller's question; `GuardedReader::inject` makes every n-th read of a
-  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, `TaskShape::every_slot` makes every
-  slot count its calls and run the body for our own object, and `SysLayer::task_object` gives our object's address.
+  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, and `SysLayer::task_object` gives our
+  object's address.
   Everything they need on the game thread is allocated on T1. What R1 added on T1 around its one call into the game
   (the hub census, the callee's summaries, the whole-memory search, the hub's walks and diffs, the table, the request
   and the map, with `probe_report.hpp`'s report of them) went with it: R1, retired 2026-11-22, O106.

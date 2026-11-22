@@ -3558,19 +3558,10 @@ def make_gal(args, env):
         pats.append('[[pattern]]\nid = "%s"\nkind = "static"\nsection = ".text"\nbytes = "%s"\n'
                     'capture = { at = %d, kind = "rip_rel32", insn_end = %d }\ntarget_section = ".data"\n%s'
                     % (item, p["bytes"], p["capture_at"], p["capture_insn_end"], GAL_PROVENANCE))
-    idiom = d["fd4"]["idiom"]
-    caps = ", ".join('%s = { at = %d, kind = "rip_rel32", insn_end = %d, section = "%s"%s%s }'
-                     % (c["capture"], c["at"], c["insn_end"], c["section"],
-                        ", align = %d" % c["align"] if c["align"] > 1 else "",
-                        ", function = true" if c["function"] else "") for c in idiom["captures"])
-    pats.append('[[pattern]]\nid = "fd4_idiom"\nkind = "idiom"\nsection = ".text"\nbytes = "%s"\n'
-                'expect_matches = [1, 256]\npath_suffix = "%s"\ncaptures = { %s }\n%s'
-                % (idiom["bytes"], leads["fd4"]["path_suffix"], caps, GAL_PROVENANCE))
     with open(os.path.join(gal, "patterns.toml"), "w") as f:
         f.write("\n".join(pats) + "\n")
-    # Lodestar's recipe for the same accessors, as a shape with no bytes (proposal 0005 §6; O102): where the folder
-    # holds it, discovery finds the singletons by it and reads no idiom. The idiom above stays in the file all the
-    # same (R1's own check read it; R1, retired 2026-11-22, O106).
+    # Lodestar's recipe for the accessors, as a shape with no bytes (proposal 0005 §6; O102): discovery finds the
+    # singletons by it, and patterns.toml holds no idiom.
     with open(os.path.join(gal, "recipes.toml"), "w") as f:
         f.write('schema = 1\n[[recipe]]\nid = "accessor"\nkind = "accessor"\n'
                 'steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]\n'

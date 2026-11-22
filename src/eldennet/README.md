@@ -278,9 +278,8 @@ greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLL
 `eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
 network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
 C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap,
-`HeapCreate`, with the walk R1 made of it, `HeapLock`, `HeapWalk` and `HeapUnlock`, still on the list; the AI pages
-en-llm's threads, the C runtime's thread support with them, `GetSystemDirectoryW` for WinHTTP's full path, and
-advapi32's token and access-list functions for secrets.toml).
+`HeapCreate`; the AI pages en-llm's threads, the C runtime's thread support with them, `GetSystemDirectoryW` for
+WinHTTP's full path, and advapi32's token and access-list functions for secrets.toml).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording

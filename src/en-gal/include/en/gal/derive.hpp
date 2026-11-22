@@ -12,7 +12,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -173,13 +172,6 @@ struct Fd4Diagnostics {
   std::optional<fd4::NameLayout> best_names;
   std::uint64_t names_qualified = 0;  // of names_best, the qualified ones (identifiers joined by ::)
   std::vector<NameSlot> name_slots;   // every offset tried, in order
-  // Naming by the instances' RTTI (O92), per distinct static of the accepted sites.
-  std::uint64_t inst_statics = 0;     // statics tried
-  std::uint64_t inst_null = 0;        // the static still null (no instance yet)
-  std::uint64_t inst_unread = 0;      // the instance's first word could not be read
-  std::uint64_t inst_unclassed = 0;   // read, but not a vtable the RTTI walk knows
-  std::uint64_t inst_classed = 0;     // an instance whose class the RTTI walk gives
-  std::uint64_t inst_matched = 0;     // leads named this way
   std::uint64_t class_fixups = 0;     // class objects with a base relocation in their first 128 bytes
   std::uint64_t class_beyond_file = 0;  // class objects past the raw data the file holds (zeros once mapped)
 };
@@ -338,9 +330,6 @@ struct Result {
 
 struct Options {
   std::uint64_t file_size = 0;
-  // In game only (R1): one guarded 8-byte read at an address outside the image, nothing when the read is refused or
-  // faults. With it, singletons the class objects leave unnamed are named by their instances' RTTI (O92).
-  std::function<std::optional<std::uint64_t>(std::uint64_t address)> read_instance_word;
   std::vector<std::pair<std::string, std::uint32_t>> static_slots;  // R1's slots, by the statics' labels
 };
 

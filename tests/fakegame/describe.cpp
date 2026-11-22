@@ -382,20 +382,15 @@ int describe(HINSTANCE instance) {
       // r9) to `admit_rva`, G's method. Since spike.11 (run 10's shape) that method answers 0 for a null task or a zero
       // at G's `ledger_open_off`; else it builds a request (vtable `request_vtable_rva`, at [rsp + `request_disp`]: the
       // task at `request_task_off`, G's manager (G's `ledger_manager_off`) at `request_manager_off`, the word at
-      // `request_word_off`, r9's byte at `request_flag_off`) and, where G's byte at `ledger_defer_off` is zero (`path`
-      // now), calls `now_rva` with it; else (--task-queue, `path` queued) it copies it to memory from
-      // `request_alloc_rva` and hands the copy to G's queue at `ledger_queue_off` through `push_rva`, which a later
-      // frame drains after `drain_ms`. `now_rva` (two parts: its entry, and `check_rva` past it in no entry) reads the
+      // `request_word_off`, r9's byte at `request_flag_off`) and calls `now_rva` with it. `now_rva` reads the
       // request's task and word, calls `note_rva` (a TaskNote in the hub's rows: its vtable `note_vtable_rva`, stamped
-      // with the game thread's id `stamp_ms` later), tests the manager's strict flag at `manager_flags_off` and, not
-      // strict, calls `keep_rva`, which hands the task to the work; strict (--task-gate, `gate`), the second part
-      // compares the task's kind at `task_kind_off` with `kind` and its state at `task_state_off` with 0, and drops any
-      // other task (it answers 1 keeping nothing: R1 run 10's end). The request's slots are `slot_rvas` (each a 5-byte jump to
-      // `slot_targets`: `now_rva`, `cancel_rva`, `word_rva`). G's queue (its vtable `queue_vtable_rva`) holds
-      // `lingering` requests of the game's own (words `lingering_words`, flag 1), whose tasks are the manager's
-      // (`chore_vtable_rvas`, two classes of one base). The shelf holds, at `shared_off`, the rack, or with --task-gate
-      // G itself (`ledger_shared`). The shelves' class's innermost name is the hub's (`shelf_matches`); the rack's, G's
-      // and the others' none. With --table-gap the stand-in group has no shelf (`gap`), and the registration answers 0.
+      // with the game thread's id `stamp_ms` later) and `keep_rva`, which hands the task to the work. The game's own
+      // tasks hold `kind` at `task_kind_off`; a task's state is at `task_state_off`. The request's slots are
+      // `slot_rvas` (each a 5-byte jump to `slot_targets`: `now_rva`, `cancel_rva`, `word_rva`). G's queue (at
+      // `ledger_queue_off`, its vtable `queue_vtable_rva`) holds `lingering` requests of the game's own (words
+      // `lingering_words`, flag 1), whose tasks are the manager's (`chore_vtable_rvas`, two classes of one base). The
+      // shelf holds, at `shared_off`, the rack. The shelves' class's innermost name is the hub's (`shelf_matches`);
+      // the rack's, G's and the others' none.
       {"register_rack",
        {{"slot_rva", rva(&fg_static_rack)},
         {"alloc_rva", fn_rva(fg_rack_alloc)},
@@ -412,17 +407,14 @@ int describe(HINSTANCE instance) {
         {"keep_rva", fn_rva(fg_ledger_keep)},
         {"word_off", FG_SHELF_WORD_OFF},
         {"shared_off", FG_SHELF_SHARED_OFF},
-        {"ledger_shared", options().task_gate},
         {"task_hub_off", FG_TASK_HUB_OFF},
         {"task_kind_off", FG_TASK_KIND_OFF},
         {"kind", FG_TASK_KIND},
         {"task_state_off", FG_TASK_STATE_OFF},
         {"ledger_groups_off", FG_LEDGER_GROUPS_OFF},
         {"ledger_queue_off", FG_LEDGER_QUEUE_OFF},
-        {"ledger_defer_off", FG_LEDGER_DEFER_OFF},
         {"ledger_open_off", FG_LEDGER_OPEN_OFF},
         {"ledger_manager_off", FG_LEDGER_MANAGER_OFF},
-        {"manager_flags_off", FG_MANAGER_FLAGS_OFF},
         {"request_vtable_rva", rva(vtable_of<FG::TaskRequest>())},
         {"request_disp", FG_REQUEST_DISP},
         {"request_task_off", FG_REQUEST_TASK_OFF},
@@ -430,11 +422,8 @@ int describe(HINSTANCE instance) {
         {"request_word_off", FG_REQUEST_WORD_OFF},
         {"request_flag_off", FG_REQUEST_FLAG_OFF},
         {"now_rva", fn_rva(fg_request_now)},
-        {"check_rva", fn_rva(fg_request_check)},
         {"cancel_rva", fn_rva(fg_request_cancel)},
         {"word_rva", fn_rva(fg_request_word)},
-        {"request_alloc_rva", fn_rva(fg_request_alloc)},
-        {"push_rva", fn_rva(fg_queue_push)},
         {"slot_rvas", request_slots()},
         {"slot_targets", json::array({fn_rva(fg_request_now), fn_rva(fg_request_cancel), fn_rva(fg_request_word)})},
         {"queue_vtable_rva", rva(vtable_of<FG::TaskQueueImp>())},
@@ -442,12 +431,10 @@ int describe(HINSTANCE instance) {
         {"chore_vtable_rvas", json::array({rva(vtable_of<FG::SweepChore>()), rva(vtable_of<FG::TallyChore>())})},
         {"lingering", 2},
         {"lingering_words", json::array({3, 7})},
-        {"drain_ms", FG_QUEUE_DRAIN_MS},
-        {"path", options().task_queue ? "queued" : "now"},
         // Spike.12 (R1 run 11's shape, WHY§296): the manager's map (its head's place, MSVC's node shape: the nil byte,
         // the 4-byte key and the value; the bins' classes, the title's and the world's) and its list (begin, then end;
-        // one bin, group 0's), the words at the title and those the world's first load adds (with --map-late the
-        // stand-in group's among them), the hand-over a match calls and the other branch's call.
+        // one bin, group 0's), the words at the title and those the world's first load adds, the hand-over a match
+        // calls and the other branch's call.
         {"map_head_off", FG_MANAGER_MAP_OFF},
         {"map_list_off", FG_MANAGER_LIST_OFF},
         {"node_nil_off", FG_NODE_NIL_OFF},
@@ -460,7 +447,6 @@ int describe(HINSTANCE instance) {
         {"task_other_rva", fn_rva(fg_task_other)},
         {"map_title_words", map_title_words()},
         {"map_world_words", map_world_words()},
-        {"map_late", options().map_late},
         {"list_count", 1},
         {"shelf_vtable_rva", rva(vtable_of<FG::TaskShelf>())},
         {"rack_vtable_rva", rva(vtable_of<FG::TaskRackImp>())},
@@ -484,8 +470,6 @@ int describe(HINSTANCE instance) {
                                    {{"arg", "result"}, {"target", fn_rva(fg_task_make)}},
                                    {{"arg", "load"}, {"base", 3}, {"disp", 0x30}, {"base_form", "argument"}}})},
         {"shelf_matches", "task_loom"},
-        {"gate", options().task_gate},
-        {"gap", options().table_gap},
         {"made", fg_static_rack != nullptr}}},
       {"register_work_rva", fn_rva(fg_register_keep)},
       {"hub_run_fns_off", 8 + offsetof(FG::TaskLoomFields, run_fns)},
