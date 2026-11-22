@@ -408,6 +408,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 383 | 2026-11-22 | Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail | DECIDED | #graceui #pages |
 | 384 | 2026-11-22 | A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation | METHOD | #graceui #serve |
 | 385 | 2026-11-22 | A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump | METHOD | #lodestar #l6 |
+| 386 | 2026-11-22 | A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent | DECIDED | #graceui #protocol |
+| 387 | 2026-11-22 | EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon | DECIDED | #engine #editor #pages |
 
 ## Entries
 
@@ -6251,3 +6253,26 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Test the hours alone: five bits, never 24 or more, stepping by one. And look for a steady rise with a jump when the
   player lets time pass. The seventh round, being built, tells the clock by such a jump: steady rises and jumps of
   fractions and whole numbers, the hours standing alone, and each jump's second with its number before and after.
+
+### 386. A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent
+
+`2026-11-22` · DECIDED · `#graceui` `#protocol` · refs: GraceUI's D216, GraceUI's D169, GraceUI's proposal 0010 §3.4, S7.2.c
+
+- GraceUI 0.2.20, protocol 1.6; the ABI unchanged but for a constant. A space names at most 8 of its own commands in
+  `slow_commands`, never `settings.set` or `settings.reset`. GraceUI waits up to 90 s for such an answer from either
+  view, instead of 10 s, and answers internal past that.
+- In game the control reads "Working…" and takes no press until the answer comes. The browser waits 95 s. A slow command
+  still counts in a view's 20 a second and in the space's queue of 32. EldenNet names `profile.draft`.
+
+### 387. EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon
+
+`2026-11-22` · DECIDED · `#engine` `#editor` `#pages` · refs: GraceUI's D215, NPC§4.7, WHY§383, S7.2.b
+
+- Grace widens D215 for part d: on a page with a master list, a block bound to any family the space declares draws
+  `<that family>/<the chosen row's key>`. Named NPCs can then carry a "Your notes" tab whose editor is bound to
+  `profiles`.
+- A family key takes only a-z, 0-9, '.', '_' and '-', so a slot's colon becomes a dot: `persona.<id>`,
+  `character.<id>`, `mine.<id>`, `named.<param>`, `card.<id>` (NPC §4.7). A list row and its profile member share that
+  key, so GraceUI needs no field naming a second key's column.
+- When the player writes a profile for a `named.<param>` row, the row becomes `mine.<id>`, as NPC §4.7 has it, and the
+  page chooses the new row. If S7.2.b finds a case this does not cover, EldenNet asks for the column field then.
