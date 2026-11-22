@@ -77,61 +77,80 @@ bool Shape::valid() const noexcept {
   return true;
 }
 
-std::optional<Hit> match_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::uint32_t rva) {
-  if (!shape.valid() || rva < text.rva) return std::nullopt;
+namespace {
+
+// A load or a test of the one-byte map that is its form in all but its width: no 64-bit operand size.
+bool plain_narrow(const x86::Instruction& i, std::uint8_t opcode) noexcept {
+  return i.encoding == x86::Encoding::Legacy && i.map == 0 && i.opcode == opcode && !i.wide && i.has_modrm &&
+         i.prefixes <= 1 && !i.lock && i.rep == 0 && i.segment == 0;
+}
+
+// The shape's steps at `rva`, one after another. On the first step that is not its form: `miss`, when given, says
+// which and how, and the answer is nothing.
+std::optional<Hit> walk(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::uint32_t rva,
+                        Mismatch* miss) {
+  const auto fail = [&](std::size_t step, Differs differs) -> std::optional<Hit> {
+    if (miss != nullptr) *miss = Mismatch{static_cast<std::uint8_t>(step), differs};
+    return std::nullopt;
+  };
   const std::uint64_t section_end = std::uint64_t{text.rva} + text.bytes.size();
-  if (section_end > 0xFFFFFFFFu) return std::nullopt;
+  if (rva < text.rva || section_end > 0xFFFFFFFFu) return fail(0, Differs::Undecodable);
   const auto limit = static_cast<std::uint32_t>(section_end);
   Hit hit;
   hit.rva = rva;
   std::uint32_t at = rva;
   std::optional<std::uint8_t> loaded;  // the register the last load wrote
   for (std::size_t k = 0; k < shape.steps.size() && k < kMaxSteps; ++k) {
-    if (at >= limit) return std::nullopt;
+    if (at >= limit) return fail(k, Differs::Undecodable);
     const std::optional<x86::Instruction> insn = code::detail::step(text, at, limit);
-    if (!insn) return std::nullopt;
+    if (!insn) return fail(k, Differs::Undecodable);
     const code::Decoded d{at, *insn};
     std::optional<std::uint32_t> place;
     switch (shape.steps[k]) {
       case Form::LoadSlot:
-        if (!plain_wide(*insn, kOpLoad) || !insn->rip_relative || insn->disp_size != 4) return std::nullopt;
+        if (!plain_wide(*insn, kOpLoad) || !insn->rip_relative || insn->disp_size != 4) {
+          const bool narrow = plain_narrow(*insn, kOpLoad) && insn->rip_relative && insn->disp_size == 4;
+          return fail(k, narrow ? Differs::Narrow : Differs::Other);
+        }
         place = code::rip_target(img, text, d);
-        if (!place) return std::nullopt;
+        if (!place) return fail(k, Differs::Other);
         loaded = insn->reg();
         break;
       case Form::TestLoaded:
-        if (!loaded || !plain_wide(*insn, kOpTest) || insn->mod() != 3 || insn->reg() != *loaded ||
-            insn->rm() != *loaded) {
-          return std::nullopt;
+        if (!loaded) return fail(k, Differs::Other);
+        if (!plain_wide(*insn, kOpTest) || insn->mod() != 3 || insn->reg() != *loaded || insn->rm() != *loaded) {
+          if (plain_wide(*insn, kOpTest) && insn->mod() == 3) return fail(k, Differs::OtherRegister);
+          const bool narrow = plain_narrow(*insn, kOpTest) && insn->mod() == 3 && insn->reg() == insn->rm();
+          return fail(k, narrow ? Differs::Narrow : Differs::Other);
         }
         break;
       case Form::BranchSetShort:
       case Form::BranchSetNear: {
         const bool near = shape.steps[k] == Form::BranchSetNear;
-        if (!no_prefix(*insn) || insn->flow != x86::Flow::Branch || !insn->relative) return std::nullopt;
+        if (!no_prefix(*insn) || insn->flow != x86::Flow::Branch || !insn->relative) return fail(k, Differs::Other);
         if (near ? (insn->map != 1 || insn->opcode != kOpBranchSet32 || insn->imm_size != 4)
                  : (insn->map != 0 || insn->opcode != kOpBranchSet8 || insn->imm_size != 1)) {
-          return std::nullopt;
+          return fail(k, Differs::Other);
         }
         const std::optional<std::uint32_t> to = code::branch_target(img, text, d);
-        if (!to || *to <= d.end()) return std::nullopt;  // forward, past the branch itself
+        if (!to || *to <= d.end()) return fail(k, Differs::Other);  // forward, past the branch itself
         hit.branch_to = *to;
         break;
       }
       case Form::AddressArg1:
         if (!plain_wide(*insn, kOpAddress) || !insn->rip_relative || insn->disp_size != 4 || insn->reg() != kArg1) {
-          return std::nullopt;
+          return fail(k, Differs::Other);
         }
         place = code::rip_target(img, text, d);
-        if (!place) return std::nullopt;
+        if (!place) return fail(k, Differs::Other);
         break;
       case Form::CallRelative:
         if (!no_prefix(*insn) || insn->flow != x86::Flow::Call || !insn->relative || insn->map != 0 ||
             insn->opcode != kOpCall || insn->imm_size != 4) {
-          return std::nullopt;
+          return fail(k, Differs::Other);
         }
         place = code::branch_target(img, text, d);
-        if (!place) return std::nullopt;
+        if (!place) return fail(k, Differs::Other);
         break;
     }
     if (place) hit.gives[k] = *place;
@@ -139,6 +158,31 @@ std::optional<Hit> match_at(const ImageBytes& img, const SectionCopy& text, cons
   }
   hit.end = at;
   return hit;
+}
+
+}  // namespace
+
+const char* to_string(Differs differs) noexcept {
+  switch (differs) {
+    case Differs::Narrow: return "narrow";
+    case Differs::OtherRegister: return "other_register";
+    case Differs::Other: return "other";
+    case Differs::Undecodable: return "undecodable";
+  }
+  return "other";
+}
+
+std::optional<Hit> match_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::uint32_t rva) {
+  if (!shape.valid()) return std::nullopt;
+  return walk(img, text, shape, rva, nullptr);
+}
+
+std::optional<Mismatch> mismatch_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape,
+                                    std::uint32_t rva) {
+  if (!shape.valid()) return std::nullopt;
+  Mismatch miss;
+  if (walk(img, text, shape, rva, &miss)) return std::nullopt;
+  return miss;
 }
 
 Matches find(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::size_t max) {

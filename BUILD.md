@@ -352,6 +352,24 @@ Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `
 `launcher-eldennet-probe-map`, the steps with the world's two minutes), and sweep it
 (`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
 
+Lodestar's offline finding run (proposal 0005, step L3) has a package of its own, `find`, with no launcher and no
+DLL, since nothing in it starts or enters the game:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_VERSION_LABEL=0.1.0-lodestar.1 -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel --target eldennet-engine
+python3 -I tools/spikepkg/build.py find --build build-cl-rel --out EldenNet-Find.zip \
+  --engine build/src/en-tools/eldennet-engine
+```
+
+The zip's one folder, `EldenNet-Find`, holds `eldennet-engine.exe`, gal/ (which must hold `recipes.toml` and no
+`patterns.toml`, O102), `find.cmd` and `README-FIND.txt`. The owner drops the game's executable file onto `find.cmd`,
+which runs `lodestar find` on it with the package's gal/, lints the report and pauses; `lodestar-found.json` is
+written beside it. Before it leaves: unzip it, `sha256sum -c SHA256SUMS`, `eldennet-engine.exe version` under Wine,
+`find.cmd` under Wine on the clang-cl `fakegame.exe` (a report written and linted clean), and the privacy sweep on
+the zip.
+
 GraceUI's in-game spikes S0-E and S4 (GraceUI D175, its `tools/grace-spike/README.md`) have a package of their own,
 `s0e-s4`, with the release DLL and GraceUI's test build:
 

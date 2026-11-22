@@ -18,7 +18,11 @@ section = ".text"
 steps = ["load_slot", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
 gives = { static = 0, class = 3, getter = 4 }
 path_suffix = "FD4Singleton.h"      # ARCH 6.2, the finder's step 2
-# expect_matches is left at its widest until the shape has been counted on the owner's own executable (step L3): the
-# withdrawn pattern had 7,151 hits there, of which 7,081 were accepted as accessors (R0c).
+# Counted on the owner's own executable of 2.7.2.0 WW on 2026-11-22 (docs/ops/probes/2026-11-22-l3.md): the shape
+# stands at 7,077 places, each accepted, reaching 217 statics through 217 class objects, one of each for the other.
+# The withdrawn pattern had 7,151 hits and accepted 7,081: the same 7,077 and 4 more, where the test is of another
+# register than the one just loaded, so the load there is of something else than the manager's slot. When a second
+# build is counted the range widens to hold both.
+expect_matches = [7077, 7077]
 builds = []
 provenance = { method = "own-derivation", leads = ["ARCH \u00A76.2", "ER01 \u00A74"], evidence = "docs/ops/probes/2026-11-16-r0c.md", date = "2026-11-21" }

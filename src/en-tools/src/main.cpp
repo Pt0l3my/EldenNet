@@ -16,6 +16,7 @@ int run_decide(int argc, char** argv);
 int run_probe(int argc, char** argv);
 int run_models(int argc, char** argv);
 int run_probe_exe(int argc, char** argv);
+int run_lodestar(int argc, char** argv);
 int run_lint(int argc, char** argv);
 int run_rec_stats(int argc, char** argv);
 int run_replay(int argc, char** argv);
@@ -32,6 +33,7 @@ void usage() {
       "  probe          find the local model servers on this PC's usual ports\n"
       "  models         list the models each configured provider offers\n"
       "  probe-exe      read a game's executable file and derive what the game access layer needs (devkit)\n"
+      "  lodestar       find where EldenNet's ids lie in a game's executable file, as a report of numbers (devkit)\n"
       "  lint           check a numbers-only report (--report), a recording (--recording) or gal/ (--gal)\n"
       "  rec-stats      what a recording holds, as a numbers-only report\n"
       "  replay         step a recording's inputs through the core (and Augur) again, and compare its changes\n"
@@ -54,6 +56,7 @@ int main(int argc, char** argv) {
   if (cmd == "probe") return run_probe(argc - 1, argv + 1);
   if (cmd == "models") return run_models(argc - 1, argv + 1);
   if (cmd == "probe-exe") return run_probe_exe(argc - 1, argv + 1);
+  if (cmd == "lodestar") return run_lodestar(argc - 1, argv + 1);
   if (cmd == "lint") return run_lint(argc - 1, argv + 1);
   if (cmd == "rec-stats") return run_rec_stats(argc - 1, argv + 1);
   if (cmd == "replay") return run_replay(argc - 1, argv + 1);
