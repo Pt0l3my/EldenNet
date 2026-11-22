@@ -1052,6 +1052,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     L6's second round built the same day (engine eff28bf, Lodestar's 48e5003; WHY§374): the clock looked for in every
     static's object, the flags one step on, save_data by invariant; the report bounded and the ask-first share checked
     after every read. Package 0.1.0-lodestar.9, for the owner's run.
+    L6's second round reviewed the same day (engine 0b958f2; WHY§381, §382): save_data placed by invariant (14 leads),
+    the reader at 9.6 a second, no clock in any static's object. Next: the clock by a jump (the owner lets time pass at a
+    grace), the flags' next step reported and watched bit by bit, and the report's fallback graded. Lodestar puts that
+    round's plan to the owner first, since it asks more of them than walking about.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
