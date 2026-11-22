@@ -20,8 +20,10 @@
 //      object are copies of one address and name it; and a count of its class's objects in the image's own data;
 //    - the member search (lodestar_trial.hpp): what the objects behind the statics hold, or point at, of an unnamed
 //      lead's class;
-//    - the object scan (probe.hpp's ObjectScan): the game's private, writable memory gone through once for an object
-//      of an unnamed lead's class, then up to three times for what holds it; our own heap is left out;
+//    - the watch (lodestar_trial.hpp; from the moment the trial starts): once a second it follows the way to each
+//      named manager's object, to each place the member search found an unnamed lead's object, and to the object
+//      whose field rose by the clock, and counts how the first 512 bytes behave; the world's clock is also watched
+//      for minutes and hours packed into bits and for a rising fraction;
 //    - the clock search (lodestar_trial.hpp) over the accessor's statics that no lead has named: a manager with no type
 //      information is known by how its fields behave;
 //    - the rising-counter search (probe::RisingSearch) over the data's slots that point at the heap: the play time.
@@ -71,8 +73,6 @@ using en::core::BannerReason;
 using en::shell::Line;
 using en::shell::LogLevel;
 
-std::optional<std::size_t> own_heap_bases(std::span<std::uint64_t> out) noexcept;  // alloc_count.cpp
-
 namespace {
 
 constexpr std::uint64_t kNameEveryMs = 10'000;  // between naming passes, for as long as a lead is unnamed
@@ -83,7 +83,6 @@ constexpr std::uint64_t kSearchAgainMs = 60'000;   // a slot search that found n
 constexpr std::size_t kMaxSlotCandidates = std::size_t{1} << 20;
 constexpr std::size_t kMaxRisingCandidates = std::size_t{1} << 14;
 constexpr std::uint64_t kSearchShareUs = 4'000;  // of each step of the reader's thread, for all the searches together
-constexpr std::uint64_t kScanShareUs = 6'000;    // and for the object scan, while it runs
 
 void state(w::InitState s) {
   block::state(s);
@@ -165,9 +164,7 @@ class AskFirstCopier final : public en::gal::Copier {
 // anything.
 class QuietSys final : public en::gal::SysLayer {
  public:
-  // `ask`: every copy asks first. Without it the copy is ReadProcessMemory alone, for a caller that has asked for the
-  // whole stretch itself a moment ago (the object scan, a mebibyte at a time).
-  explicit QuietSys(en::gal::NativeSys& sys, bool ask = true) : sys_(sys), copier_(sys), ask_(ask) {}
+  explicit QuietSys(en::gal::NativeSys& sys) : sys_(sys), copier_(sys) {}
   [[nodiscard]] const AskFirstCopier& asks() const noexcept { return copier_; }
   [[nodiscard]] std::uint64_t module_base() const noexcept override { return sys_.module_base(); }
   [[nodiscard]] const en::gal::ByteSource& image() const noexcept override { return sys_.image(); }
@@ -179,9 +176,7 @@ class QuietSys final : public en::gal::SysLayer {
       std::uint64_t, std::uint64_t, const en::gal::TaskShape&, en::gal::TaskBody&) noexcept override {
     return en::proto::Unexpected{en::gal::SysError::Unsupported};
   }
-  [[nodiscard]] en::gal::Copier& copier() noexcept override {
-    return ask_ ? static_cast<en::gal::Copier&>(copier_) : sys_.copier_of(en::gal::CopyKind::Rpm);
-  }
+  [[nodiscard]] en::gal::Copier& copier() noexcept override { return copier_; }
   [[nodiscard]] en::gal::StackRanges& stacks() noexcept override { return sys_.stacks(); }
   void note_own_stack() noexcept override { sys_.note_own_stack(); }
   [[nodiscard]] std::uint64_t now_us() const noexcept override { return sys_.now_us(); }
@@ -195,7 +190,6 @@ class QuietSys final : public en::gal::SysLayer {
  private:
   en::gal::NativeSys& sys_;
   AskFirstCopier copier_;
-  bool ask_;
 };
 
 // The trial's body on T2: the thread named for the crash filter, then the trial, then the searches T1 has handed
@@ -205,30 +199,25 @@ class QuietSys final : public en::gal::SysLayer {
 class Body final : public en::gal::TaskBody {
  public:
   Body(en::gal::NativeSys& sys, lodestar::Trial& trial)
-      : trial_(trial),
-        quiet_(sys),
-        reader_(quiet_, en::gal::ReadBudget{2048, 1u << 20}),
-        plain_(sys, false),
-        scan_reader_(plain_, en::gal::ReadBudget{16384, 256u << 20}) {}
+      : trial_(trial), quiet_(sys), reader_(quiet_, en::gal::ReadBudget{2048, 1u << 20}) {}
   void run(const en::proto::GameThread& gt, const en::gal::FrameCtx& frame) override {
     if (!named_) {
       named_ = true;
       block::reader_thread(GetCurrentThreadId());
       reader_.bind_thread();
-      scan_reader_.bind_thread();
     }
     trial_.run(gt, frame);
     reader_.begin_tick();
-    scan_reader_.begin_tick();
     auto* slots = slots_.load(std::memory_order_acquire);
     auto* members = members_.load(std::memory_order_acquire);
     auto* clock = clock_.load(std::memory_order_acquire);
     auto* rising = rising_.load(std::memory_order_acquire);
+    auto* watch = watch_.load(std::memory_order_acquire);
     const std::uint64_t active = (slots != nullptr ? 1u : 0u) + (members != nullptr ? 1u : 0u) +
-                                 (clock != nullptr ? 1u : 0u) + (rising != nullptr ? 1u : 0u);
-    auto* scan = scan_.load(std::memory_order_acquire);
-    if (active != 0 || scan != nullptr) {
-      const std::uint64_t part = active != 0 ? kSearchShareUs / active : 0;
+                                 (clock != nullptr ? 1u : 0u) + (rising != nullptr ? 1u : 0u) +
+                                 (watch != nullptr ? 1u : 0u);
+    if (active != 0) {
+      const std::uint64_t part = kSearchShareUs / active;
       bool cut = false;
       // A search is stepped a few reads at a time until it has nothing to do just now (a call that copied nothing),
       // or its part of the step is over.
@@ -244,18 +233,12 @@ class Body final : public en::gal::TaskBody {
           }
         }
       };
+      // The watch first: it has the least to read, and wants its second kept.
+      if (watch != nullptr) drive([&] { return watch->step(gt, reader_, 4, frame.qpc_now_us); });
       if (slots != nullptr) drive([&] { return slots->step(gt, reader_, 16); });
       if (members != nullptr) drive([&] { return members->step(gt, reader_, 16, frame.qpc_now_us); });
       if (clock != nullptr) drive([&] { return clock->step(gt, reader_, 8, frame.qpc_now_us); });
       if (rising != nullptr) drive([&] { return rising->step(gt, reader_, 16, frame.qpc_now_us); });
-      // The object scan has a part of its own: it has the most to read, and reads it once.
-      // It asks Windows for each stretch itself (a mebibyte at a time), so its reader copies without asking again.
-      if (scan != nullptr && !scan->done()) {
-        const std::uint64_t start = quiet_.now_us();
-        while (!scan_reader_.spent() && quiet_.now_us() - start < kScanShareUs) {
-          if (scan->step(gt, scan_reader_, 8)) break;
-        }
-      }
       search_steps_.fetch_add(1, std::memory_order_relaxed);
       if (cut) search_cut_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -271,7 +254,7 @@ class Body final : public en::gal::TaskBody {
   void set_members(lodestar::MemberSearch* search) noexcept { members_.store(search, std::memory_order_release); }
   void set_clock(lodestar::ClockSearch* search) noexcept { clock_.store(search, std::memory_order_release); }
   void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
-  void set_scan(en::gal::probe::ObjectScan* scan) noexcept { scan_.store(scan, std::memory_order_release); }
+  void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
   [[nodiscard]] const AskFirstCopier& asks() const noexcept { return quiet_.asks(); }
 
@@ -279,13 +262,11 @@ class Body final : public en::gal::TaskBody {
   lodestar::Trial& trial_;
   QuietSys quiet_;
   en::gal::GuardedReader reader_;  // the searches', over QuietSys; the trial has its own, over the game's
-  QuietSys plain_;                 // the object scan's: no question before each copy, since it asks by the stretch
-  en::gal::GuardedReader scan_reader_;
   std::atomic<en::gal::probe::SlotSearch*> slots_{nullptr};
   std::atomic<lodestar::MemberSearch*> members_{nullptr};
   std::atomic<lodestar::ClockSearch*> clock_{nullptr};
   std::atomic<en::gal::probe::RisingSearch*> rising_{nullptr};
-  std::atomic<en::gal::probe::ObjectScan*> scan_{nullptr};
+  std::atomic<lodestar::Watch*> watch_{nullptr};
   std::atomic<std::uint64_t> steps_{0};
   std::atomic<std::uint64_t> search_steps_{0};
   std::atomic<std::uint64_t> search_cut_{0};
@@ -358,6 +339,17 @@ class Round {
     trial_->set_stage(en::gal::roles::info(en::gal::roles::Item::Characters).id);
     add_named();
     body_ = new Body(*s_.sys, *trial_);
+    // The watch: what the named managers' objects hold, by how their first bytes behave. It asks before each read,
+    // as the searches do, and asks Windows what stands behind a word that could be an address (nothing is read).
+    {
+      en::gal::NativeSys* sys = s_.sys;
+      watch_ = new lodestar::Watch(  // lives for the process
+          s_.sys->module_base(), image_->size_of_image, namer_->primary_tables(), [sys](std::uint64_t at) {
+            return liveness(sys->region_at(at)) == en::gal::probe::Liveness::Live;
+          });
+      add_ways();
+      body_->set_watch(watch_);
+    }
     auto* body = body_;
     auto* start = new ReaderStart{s_.sys, body};
     // Made suspended, so that the stack table is made again with its stack in it and without T1's (boot.cpp; WHY§190).
@@ -491,30 +483,6 @@ class Round {
     }
     const std::size_t member_tables = tables.size();
     if (!tables.empty()) {
-      // The object scan, for the same leads: the game's private, writable memory gone through for an object of
-      // their class, then for what holds it. Our own memory is left out (our heap's regions, as they are now).
-      std::vector<en::gal::probe::ObjectScan::Target> targets;
-      for (const lodestar::Namer::LeadTable& t : tables) {
-        std::uint32_t lead = 0;
-        while (lead < scan_leads_.size() && (scan_leads_[lead].first != t.id || scan_leads_[lead].second != t.label)) {
-          ++lead;
-        }
-        if (lead == scan_leads_.size()) scan_leads_.emplace_back(t.id, t.label);
-        targets.push_back({t.vtable, lead});
-      }
-      std::array<std::uint64_t, 1024> bases{};
-      const std::optional<std::size_t> own = own_heap_bases(bases);
-      scan_own_known_ = own.has_value();
-      std::vector<std::uint64_t> ours;
-      if (own) ours.assign(bases.begin(), bases.begin() + static_cast<std::ptrdiff_t>(*own));
-      en::gal::NativeSys* sys = s_.sys;
-      scan_ = new en::gal::probe::ObjectScan(  // lives for the process
-          [sys](std::uint64_t at) { return sys->region_at(at); }, std::move(targets), namer_->primary_tables(), base,
-          image_->size_of_image, std::move(ours));
-      scan_at_ms_ = since_ms();
-      body_->set_scan(scan_);
-      log(Line("read").word("stage", "scan").word("state", "started").num("leads", scan_leads_.size())
-              .flag("own_known", scan_own_known_).num("own_regions", own ? *own : 0));
       members_ = new lodestar::MemberSearch(std::move(every), std::move(tables), base, image_->size_of_image);
       body_->set_members(members_);
     }
@@ -619,56 +587,41 @@ class Round {
     }
   }
 
-  // The object scan's nodes for the report. A node's address is compared with the image's data here, once for each
-  // node (a read of the image): the slots that hold it, the first, and whether that is one of the accessor's statics.
-  lodestar::ScanFound scanned() {
-    lodestar::ScanFound out;
-    out.done = scan_->done();
-    if (out.done && scan_done_ms_ == 0) scan_done_ms_ = since_ms();
-    out.own_known = scan_own_known_;
-    out.regions = scan_->regions();
-    out.mib = scan_->bytes() >> 20;
-    out.unreadable = scan_->unreadable();
-    out.sweeps = scan_->sweeps();
-    out.elapsed_ms = (scan_done_ms_ != 0 ? scan_done_ms_ : since_ms()) - scan_at_ms_;
-    const auto nodes = scan_->nodes();
-    if (scan_statics_.empty()) {
-      for (const lodestar::StaticFound& st : lodestar::all_statics(found_.accessor)) scan_statics_.insert(st.rva);
+  // The watch's ways, as the round finds what to watch: each named manager's object; each place the member search
+  // found an unnamed lead's object at (the world's clock among them, watched for a clock); and the object behind the
+  // slot whose field rose by the clock in nearly every pass (the play time's).
+  void add_ways() {
+    using Way = lodestar::Watch::Way;
+    const std::uint32_t clock_id = en::gal::roles::info(en::gal::roles::Item::WorldClock).id;
+    for (const lodestar::ManagerFound& m : held_.managers) {
+      if (m.status != en::gal::derive::Status::Derived) continue;
+      if (watch_->add(Way{m.label, m.id, m.rva, 0, false, m.vtable, m.id == clock_id})) said_ways_ = false;
     }
-    for (std::size_t i = scan_notes_.size(); i < nodes.size(); ++i) {
-      const en::gal::probe::Holding held = en::gal::probe::slots_holding(*s_.sys, *image_, nodes[i].address, 1);
-      ScanNote note;
-      note.slots = static_cast<std::uint32_t>(std::min<std::uint64_t>(held.count, 0xFFFFFFFFu));
-      note.slot = held.slots.empty() ? 0 : held.slots.front();
-      note.is_static = !held.slots.empty() && scan_statics_.count(note.slot) != 0;
-      scan_notes_.push_back(note);
-    }
-    for (std::size_t i = 0; i < nodes.size(); ++i) {
-      const en::gal::probe::ObjectScan::Node& n = nodes[i];
-      lodestar::ScanNode x;
-      x.level = n.level;
-      if (n.lead < scan_leads_.size()) {
-        x.id = scan_leads_[n.lead].first;
-        x.label = scan_leads_[n.lead].second;
+    if (members_ != nullptr) {
+      std::size_t taken = 0;
+      for (const lodestar::MemberHit& h : members_->found().hits) {
+        if (++taken > 8) break;
+        if (watch_->add(Way{h.label, h.id, h.rva, h.offset, !h.embedded, h.vtable, h.id == clock_id})) {
+          said_ways_ = false;
+        }
+        // And the object it was found in or through, from its start: the manager that holds it.
+        if (watch_->add(Way{"holder", 0, h.rva, 0, false, 0, false})) said_ways_ = false;
       }
-      x.vtable = n.vtable;
-      x.parent = n.parent;
-      x.offset = n.offset;
-      x.embedded = n.embedded;
-      x.holders = n.holders;
-      x.slots = scan_notes_[i].slots;
-      x.slot = scan_notes_[i].slot;
-      x.is_static = scan_notes_[i].is_static;
-      out.nodes.push_back(std::move(x));
     }
-    if (out.sweeps != scan_said_ || (out.done && !scan_said_done_)) {
-      scan_said_ = out.sweeps;
-      scan_said_done_ = out.done;
-      log(Line("read").word("stage", "scan").word("state", out.done ? "done" : "sweeping").num("sweeps", out.sweeps)
-              .num("regions", out.regions).num("mib", out.mib).num("unreadable", out.unreadable)
-              .num("nodes", out.nodes.size()).num("ms", out.elapsed_ms));
+    if (rising_ != nullptr && !play_time_way_) {
+      const auto hits = rising_->hits();
+      // One field far ahead of the rest: ten passes risen at least, and three times the next.
+      if (!hits.empty() && hits[0].rose >= 10 && (hits.size() < 2 || hits[0].rose >= 3 * hits[1].rose)) {
+        // Where that object is a named manager's it is watched already, under the manager's label.
+        play_time_way_ = true;
+        said_ways_ = false;
+        (void)watch_->add(Way{"play_time", 0, hits[0].slot, 0, false, 0, false});
+      }
     }
-    return out;
+    if (!said_ways_) {
+      said_ways_ = true;
+      log(Line("read").word("stage", "watch").num("ways", watch_->ways()).flag("play_time", play_time_way_));
+    }
   }
 
   // The report, and the table when the names changed (or `table` asks).
@@ -698,7 +651,10 @@ class Round {
       found_.search = search_;
     }
     if (members_ != nullptr) found_.members = members_->found();
-    if (scan_ != nullptr) found_.scan = scanned();
+    if (watch_ != nullptr) {
+      add_ways();
+      found_.watch = watch_->found();
+    }
     const auto text = lodestar::write_report(found_);
     if (!text) {
       log(Line("read").word("report", "refused"), LogLevel::Error);
@@ -786,20 +742,9 @@ class Round {
   lodestar::ClockSearch* clock_ = nullptr;
   en::gal::probe::RisingSearch* rising_ = nullptr;
   lodestar::MemberSearch* members_ = nullptr;
-  en::gal::probe::ObjectScan* scan_ = nullptr;
-  std::vector<std::pair<std::uint32_t, std::string>> scan_leads_;  // by the scan's own number: the lead's id and label
-  struct ScanNote {
-    std::uint32_t slots = 0;
-    std::uint32_t slot = 0;
-    bool is_static = false;
-  };
-  std::vector<ScanNote> scan_notes_;  // by node: what the image's data holds of it
-  std::set<std::uint32_t> scan_statics_;
-  bool scan_own_known_ = false;
-  std::uint64_t scan_at_ms_ = 0;
-  std::uint64_t scan_done_ms_ = 0;
-  std::uint64_t scan_said_ = 0;
-  bool scan_said_done_ = false;
+  lodestar::Watch* watch_ = nullptr;
+  bool play_time_way_ = false;
+  bool said_ways_ = true;
   lodestar::SearchFound search_;
   en::gal::probe::SlotSearch* slot_search_ = nullptr;  // the one T2 is stepping, if any
   en::gal::VtableSet* slot_set_ = nullptr;

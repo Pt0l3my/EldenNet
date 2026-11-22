@@ -390,4 +390,342 @@ MembersFound MemberSearch::found() const {
   return out;
 }
 
+// ---- The watch ----
+
+struct Watch::Object {
+  static constexpr std::size_t kWords = kSpan / 8;
+  static constexpr std::size_t kBits = 59;  // a run of 6 bits starts at bit 0 to 58 of a word
+  struct Half {
+    std::uint16_t changes = 0;
+    std::uint16_t rises = 0;
+    std::uint16_t float_rises = 0;
+    float rose_by = 0.0f;  // the sum of its rises, read as a fraction
+  };
+  struct Run {
+    std::uint8_t minute_dead = 0;
+    std::uint8_t hour_dead = 0;
+    std::uint16_t ticks = 0;
+    std::uint16_t wraps = 0;
+    std::uint16_t jumps = 0;
+    std::uint16_t hour_steps = 0;
+    std::uint16_t hour_jumps = 0;
+  };
+  Way way;
+  std::uint32_t span = kSpan;
+  std::uint64_t address = 0;   // the object the last reading was of; 0: none
+  std::uint64_t last_us = 0;
+  std::uint64_t kind_us = 0;
+  bool seen = false;           // `last` holds a copy of the same object
+  bool kinds_seen = false;
+  std::array<std::byte, kSpan> last{};
+  std::array<Half, kWords * 2> halves{};
+  std::array<std::uint8_t, kWords> kinds{};
+  std::array<std::uint16_t, kWords> flips{};
+  std::array<std::uint8_t, kWords> lived{};  // the word was once not zero, or once changed
+  std::vector<Run> runs;                     // by word and bit, for a clock's way
+  std::uint64_t elapsed_us = 0;              // between the readings compared
+  std::atomic<std::uint64_t> readings{0};
+  std::atomic<std::uint64_t> empty{0};
+  std::atomic<std::uint64_t> unreadable{0};
+  std::atomic<std::uint64_t> moved{0};
+  std::atomic<std::uint64_t> vtable_same{0};
+  std::atomic<std::uint64_t> same_address{0};
+  std::atomic<std::uint32_t> vtable{0};
+  std::atomic<std::uint32_t> watched{0};  // the span of the last reading
+};
+
+Watch::Watch(std::uint64_t base, std::uint64_t size, std::vector<std::uint32_t> primary, Live live)
+    : base_(base), size_(size), primary_(std::move(primary)), live_(std::move(live)) {
+  std::sort(primary_.begin(), primary_.end());
+}
+
+Watch::~Watch() = default;
+
+bool Watch::add(const Way& way) {
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  if (n >= kMaxObjects) return false;
+  for (std::size_t i = 0; i < n; ++i) {
+    const Way& w = objects_[i]->way;
+    if (w.static_rva == way.static_rva && w.offset == way.offset && w.deref == way.deref) return false;
+  }
+  auto o = std::make_unique<Object>();
+  o->way = way;
+  if (way.clock) o->runs.assign(Object::kWords * Object::kBits, Object::Run{});
+  objects_[n] = std::move(o);  // not yet the reader's: it sees an object only once the count says so
+  count_.store(n + 1, std::memory_order_release);
+  return true;
+}
+
+WordKind Watch::kind_of(std::uint64_t word) const {
+  if (word == 0) return WordKind::Zero;
+  if (word < kLowestAddress) return WordKind::Small;
+  if (word >= base_ && word - base_ < size_) {
+    const auto rva = static_cast<std::uint32_t>(word - base_);
+    return std::binary_search(primary_.begin(), primary_.end(), rva) ? WordKind::Vtable : WordKind::Image;
+  }
+  if (word <= kAddressEnd && word % 8 == 0 && live_ && live_(word)) return WordKind::Heap;
+  return WordKind::Other;
+}
+
+void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now_us) noexcept {
+  const std::size_t words = now.size() / 8;
+  const auto count = [](std::uint16_t& n) {
+    if (n < 0xFFFF) ++n;
+  };
+  if (o.seen) {
+    o.elapsed_us += now_us - o.last_us;
+    for (std::size_t w = 0; w < words; ++w) {
+      std::uint64_t a = 0, b = 0;
+      std::memcpy(&a, o.last.data() + w * 8, 8);
+      std::memcpy(&b, now.data() + w * 8, 8);
+      if (b != 0) o.lived[w] = 1;
+      if (a == b && o.runs.empty()) continue;
+      for (std::size_t h = 0; h < 2; ++h) {
+        const auto x = static_cast<std::uint32_t>(a >> (h * 32));
+        const auto y = static_cast<std::uint32_t>(b >> (h * 32));
+        if (x == y) continue;
+        Object::Half& half = o.halves[w * 2 + h];
+        o.lived[w] = 1;
+        count(half.changes);
+        if (y > x) count(half.rises);
+        if (!o.runs.empty()) {
+          // Read as a fraction: a rise between two plain, positive numbers of an ordinary size.
+          float f = 0.0f, g = 0.0f;
+          std::memcpy(&f, &x, 4);
+          std::memcpy(&g, &y, 4);
+          if (f >= 1e-3f && g > f && g <= 1e7f) {
+            count(half.float_rises);
+            half.rose_by += g - f;
+          }
+        }
+      }
+      if (o.runs.empty()) continue;
+      // Every run of 6 bits as a clock's minutes, and of 5 bits as its hours.
+      for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
+        Object::Run& run = o.runs[w * Object::kBits + bit];
+        const auto was = static_cast<std::uint32_t>((a >> bit) & 63);
+        const auto is = static_cast<std::uint32_t>((b >> bit) & 63);
+        if (is >= 60) run.minute_dead = 1;
+        if (run.minute_dead == 0 && was < 60 && is != was) {
+          const std::uint32_t d = (is + 60 - was) % 60;
+          if (d >= 1 && d <= 5) {
+            count(run.ticks);
+            if (is < was) count(run.wraps);
+          } else {
+            count(run.jumps);
+          }
+        }
+        const std::uint32_t hour_was = was & 31, hour_is = is & 31;
+        if (hour_is >= 24) run.hour_dead = 1;
+        if (run.hour_dead == 0 && hour_was < 24 && hour_is != hour_was) {
+          if ((hour_is + 24 - hour_was) % 24 == 1) {
+            count(run.hour_steps);
+          } else {
+            count(run.hour_jumps);
+          }
+        }
+      }
+    }
+  } else {
+    for (std::size_t w = 0; w < words; ++w) {
+      std::uint64_t b = 0;
+      std::memcpy(&b, now.data() + w * 8, 8);
+      if (b != 0) o.lived[w] = 1;
+      if (o.runs.empty()) continue;
+      for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
+        Object::Run& run = o.runs[w * Object::kBits + bit];
+        if (((b >> bit) & 63) >= 60) run.minute_dead = 1;
+        if (((b >> bit) & 31) >= 24) run.hour_dead = 1;
+      }
+    }
+  }
+  // What each word looks like, now and then: a look asks about the memory behind an address, and reads nothing.
+  if (!o.kinds_seen || now_us - o.kind_us >= kKindEveryUs) {
+    for (std::size_t w = 0; w < words; ++w) {
+      std::uint64_t b = 0;
+      std::memcpy(&b, now.data() + w * 8, 8);
+      const auto kind = static_cast<std::uint8_t>(kind_of(b));
+      if (o.kinds_seen && kind != o.kinds[w]) count(o.flips[w]);
+      o.kinds[w] = kind;
+    }
+    o.kinds_seen = true;
+    o.kind_us = now_us;
+  }
+}
+
+bool Watch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t objects, std::uint64_t now_us) {
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  if (n == 0) return false;
+  bool ended = false;
+  for (std::uint32_t done = 0; done < objects;) {
+    if (next_ >= n) next_ = 0;
+    Object& o = *objects_[next_];
+    if (o.last_us == 0 || now_us >= o.last_us + kEveryUs) {
+      ++done;
+      read_in_sweep_ = true;
+      // The way: the static's slot, the offset, and for a pointer kept there one more read.
+      const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + o.way.static_rva);
+      if (!slot && reader.spent()) return false;
+      std::uint64_t at = slot && *slot != 0 ? *slot + o.way.offset : 0;
+      bool broken = false;  // an address on the way could not be read
+      if (at != 0 && o.way.deref) {
+        const auto kept = reader.copy<std::uint64_t>(gt, proto::Group::Session, at);
+        if (!kept && reader.spent()) return false;
+        broken = !kept;
+        at = kept ? *kept : 0;
+      }
+      std::array<std::byte, kSpan> now{};
+      bool copied = false;
+      if (at != 0) {
+        while (!copied) {
+          copied = reader.copy_into(gt, proto::Group::Session, at, std::span<std::byte>(now).first(o.span), 8)
+                       .has_value();
+          if (copied) break;
+          if (reader.spent()) return false;  // the same way again at the next step
+          if (o.span <= 0x10) break;
+          o.span /= 2;  // a smaller object: its end is nearer
+          o.seen = false;
+        }
+      }
+      if (!copied) {
+        (at == 0 && !broken ? o.empty : o.unreadable).fetch_add(1, std::memory_order_relaxed);
+        o.seen = false;
+        o.address = 0;
+      } else {
+        if (o.seen && at != o.address) {
+          o.moved.fetch_add(1, std::memory_order_relaxed);
+          o.seen = false;  // another object: its first copy is compared with nothing
+        }
+        o.readings.fetch_add(1, std::memory_order_relaxed);
+        o.watched.store(o.span, std::memory_order_relaxed);
+        std::uint64_t first = 0;
+        std::memcpy(&first, now.data(), 8);
+        const bool in_image = first >= base_ && first - base_ < size_;
+        const std::uint32_t rva = in_image ? static_cast<std::uint32_t>(first - base_) : 0;
+        o.vtable.store(rva != 0 && std::binary_search(primary_.begin(), primary_.end(), rva) ? rva : 0,
+                       std::memory_order_relaxed);
+        if (o.way.expect != 0 && rva == o.way.expect) o.vtable_same.fetch_add(1, std::memory_order_relaxed);
+        // Is it the very object the first way of the same label led to at its last reading?
+        for (std::size_t i = 0; i < next_; ++i) {
+          if (objects_[i]->way.label != o.way.label) continue;
+          if (objects_[i]->address == at) o.same_address.fetch_add(1, std::memory_order_relaxed);
+          break;
+        }
+        compare(o, std::span<const std::byte>(now).first(o.span), now_us);
+        o.last = now;
+        o.address = at;
+        o.seen = true;
+      }
+      o.last_us = now_us;
+    }
+    if (++next_ >= n) {
+      next_ = 0;
+      if (read_in_sweep_) {
+        read_in_sweep_ = false;
+        passes_.fetch_add(1, std::memory_order_release);
+        ended = true;
+      }
+      break;
+    }
+  }
+  return ended;
+}
+
+WatchFound Watch::found() const {
+  WatchFound out;
+  out.passes = passes_.load(std::memory_order_acquire);
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  for (std::size_t i = 0; i < n; ++i) {
+    const Object& o = *objects_[i];
+    WatchObject x;
+    x.label = o.way.label;
+    x.id = o.way.id;
+    x.rva = o.way.static_rva;
+    x.offset = o.way.offset;
+    x.deref = o.way.deref;
+    x.clock = o.way.clock;
+    x.readings = o.readings.load(std::memory_order_relaxed);
+    x.empty = o.empty.load(std::memory_order_relaxed);
+    x.unreadable = o.unreadable.load(std::memory_order_relaxed);
+    x.moved = o.moved.load(std::memory_order_relaxed);
+    x.vtable_same = o.vtable_same.load(std::memory_order_relaxed);
+    x.same_address = o.same_address.load(std::memory_order_relaxed);
+    x.span = o.watched.load(std::memory_order_relaxed);
+    x.vtable = o.vtable.load(std::memory_order_relaxed);
+    const std::size_t words = x.span / 8;
+    for (std::size_t w = 0; w < words && w < Object::kWords; ++w) {
+      if (o.lived[w] == 0) continue;  // never anything but zero, and never changed
+      WatchWord word;
+      word.offset = static_cast<std::uint32_t>(w * 8);
+      word.kind = static_cast<WordKind>(o.kinds[w] <= 5 ? o.kinds[w] : 5);
+      word.flips = o.flips[w];
+      word.changes_low = o.halves[w * 2].changes;
+      word.rises_low = o.halves[w * 2].rises;
+      word.changes_high = o.halves[w * 2 + 1].changes;
+      word.rises_high = o.halves[w * 2 + 1].rises;
+      x.words.push_back(word);
+    }
+    if (!o.runs.empty()) {
+      // The runs that behaved as minutes: forward steps well above jumps; one that went round before one that did
+      // not, then the most steps.
+      std::vector<BitHit> hits;
+      for (std::size_t w = 0; w < words && w < Object::kWords; ++w) {
+        for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
+          const Object::Run& run = o.runs[w * Object::kBits + bit];
+          if (run.minute_dead != 0 || run.ticks < kMinTicks || run.ticks <= 4u * run.jumps) continue;
+          BitHit h;
+          h.offset = static_cast<std::uint32_t>(w * 8);
+          h.bit = static_cast<std::uint32_t>(bit);
+          h.ticks = run.ticks;
+          h.wraps = run.wraps;
+          h.jumps = run.jumps;
+          // Its hours: a run of 5 bits in the same word or the one beside it that stepped by one, about as often
+          // as the minutes went round, and never otherwise.
+          std::uint32_t best_gap = ~0u;
+          for (std::size_t v = (w == 0 ? 0 : w - 1); v <= w + 1 && v < words && v < Object::kWords; ++v) {
+            for (std::size_t b = 0; b < Object::kBits; ++b) {
+              const Object::Run& hour = o.runs[v * Object::kBits + b];
+              if (hour.hour_dead != 0 || hour.hour_steps == 0 || hour.hour_jumps != 0) continue;
+              const std::uint32_t gap = hour.hour_steps > run.wraps ? hour.hour_steps - run.wraps
+                                                                    : run.wraps - hour.hour_steps;
+              if (gap > 1 || gap >= best_gap) continue;
+              best_gap = gap;
+              h.has_hour = true;
+              h.hour_offset = static_cast<std::uint32_t>(v * 8);
+              h.hour_bit = static_cast<std::uint32_t>(b);
+              h.hour_steps = hour.hour_steps;
+            }
+          }
+          hits.push_back(h);
+        }
+      }
+      std::stable_sort(hits.begin(), hits.end(), [](const BitHit& a, const BitHit& b) {
+        if ((a.wraps != 0) != (b.wraps != 0)) return a.wraps != 0;
+        if (a.has_hour != b.has_hour) return a.has_hour;
+        return a.ticks - 4u * a.jumps > b.ticks - 4u * b.jumps;
+      });
+      if (hits.size() > kMaxBitHits) hits.resize(kMaxBitHits);
+      x.bits = std::move(hits);
+      // The fields that kept rising as fractions: in four readings of five at least.
+      const std::uint64_t compared = x.readings > x.moved + 1 ? x.readings - x.moved - 1 : 0;
+      std::vector<FloatHit> floats;
+      for (std::size_t f = 0; f < words * 2 && f < Object::kWords * 2; ++f) {
+        const Object::Half& half = o.halves[f];
+        if (half.float_rises < 10 || std::uint64_t{half.float_rises} * 5 < compared * 4 || o.elapsed_us == 0) continue;
+        FloatHit h;
+        h.offset = static_cast<std::uint32_t>(f * 4);
+        h.rises = half.float_rises;
+        const double rate = static_cast<double>(half.rose_by) * 1e6 / static_cast<double>(o.elapsed_us) * 1000.0;
+        h.rate_milli = rate >= 4.0e9 ? 0xFFFFFFFFu : static_cast<std::uint32_t>(rate);
+        floats.push_back(h);
+      }
+      std::stable_sort(floats.begin(), floats.end(), [](const FloatHit& a, const FloatHit& b) { return a.rises > b.rises; });
+      if (floats.size() > kMaxFloatHits) floats.resize(kMaxFloatHits);
+      x.floats = std::move(floats);
+    }
+    out.objects.push_back(std::move(x));
+  }
+  return out;
+}
+
 }  // namespace en::gal::lodestar

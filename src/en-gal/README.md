@@ -246,7 +246,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 4, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 5, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -265,7 +265,9 @@ of any game is in it, and every name it looks for comes from a leads file.
   a longer name). So a reviewer can tell a manager that is not there from one under another name, or one with
   no type information; the round of 2026-11-22 could not (`docs/ops/probes/2026-11-22-l5.md`). A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
   the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
-  a save is loaded is null at the title; what was named stays named, with the pass that named it, and what the
+  a save is loaded is null at the title; the counts and what each static held (`held`, every static's object by
+  its class, a number; `new_statics`; `others`) are the fullest pass's, since the last pass of a session is made as
+  the game closes; what was named stays named, with the pass that named it, and what the
   searches found for a manager stays with it through every later pass (the second round of 2026-11-22 lost it
   there). A pass goes through `all_statics`, marks a manager behind a variant's static (`variant`), and counts for
   each lead the catalogue does not hold how many statics hold an object of its class (`others`: a lead on trial).
@@ -300,7 +302,16 @@ of any game is in it, and every name it looks for comes from a leads file.
   8-byte read; a hit is a static and an offset into its object, for the review and never a name. (It copied 0x800
   bytes until the third round found nothing that near; now the reader's longest copy, 0x4000.) A pass goes
   through every static once and the next starts 30 s later. Both read through the guarded reader and allocate
-  nothing on the reader's thread.
+  nothing on the reader's thread. `Watch` is step L6's first tool: a way leads to an object (a static's slot, an
+  offset added to the address it holds, and for a pointer kept there one more read); once a second each way is
+  followed and the object's first 0x200 bytes copied, and from one copy to the next every 8-byte word's halves are
+  counted for changes and rises, and now and then the word is looked at (nothing, a small number, a table of
+  methods, an address in the image, an address of live memory, something else). A way marked for a clock also has
+  every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word), and every 32-bit
+  field read as a fraction for a steady rise. Two ways of one label say how often they arrived at one object
+  (`same_address`). It keeps counts and offsets, never what a word held. The round watches each named manager, each
+  place the member search found an unnamed lead's object at with the object it was found in, and the object whose
+  field rose by the clock.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -508,7 +519,10 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   is taken to start at the nearest word before it that is some class's primary table of methods (within 16 KiB, in
   the same region), and a level-0 node that nothing holds is looked at the same way (`embedded`). It asks for each
   region first and again after every mebibyte of it (`RegionQuery`; VirtualQuery in the round), so its reader need
-  not ask before each piece. A node is a class, an offset and an address that is never reported; the caller
+  not ask before each piece. (The fourth round of 2026-11-22 ran it: it found what it was for, read 19.75 GiB in 13
+  minutes without finishing, slowed the reader and made the game stutter; the round no longer starts it. Before it
+  is used again it must read only pages already in use, check its time after every piece and stop after one sweep.)
+  A node is a class, an offset and an address that is never reported; the caller
   compares each node's address with the image's data, where a chain ends. Every node is a lead for a review: a
   found object may be stale, and an owner a neighbour; `Census` copies the task hub's instance and what it points at to a depth of three
   (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),

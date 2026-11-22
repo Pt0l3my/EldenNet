@@ -3218,7 +3218,7 @@ def check_read(result, by_flag=False):
     # The searches' faults are caught ones, by design: a candidate whose object is shorter than the copy, or gone.
     failures += want(result, "ELDENNET", "read", stage="held", clock_passes=(3, 1e6), rising_passes=(1, 1e6),
                      search_faults=(0, 1e9), asked=(1, 1e9), search_steps=(1, 1e9), member_passes=(1, 1e6))
-    failures += want(result, "ELDENNET", "read", stage="scan", state="done", sweeps=(1, 4), mib=(1, 1e6))
+    failures += want(result, "ELDENNET", "read", stage="watch", ways=(14, 24), play_time=1)
     failures += want(result, "ELDENNET", "read", stage="search", found=2, objects=1, most_refs=(1, 1e6))
     failures += ready_no_call(result)
     need(not result.events("ELDENNET", "r1"), "the read-only round ran R1", failures)
@@ -3233,7 +3233,7 @@ def check_read(result, by_flag=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 4, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 5, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["FG::", "Imp", "task_loom", "Fg_"]:
@@ -3292,19 +3292,35 @@ def check_read(result, by_flag=False):
     need(set(fresh) == set(by_variant.values()) and
          all(x["holds"] == "classed" and x["lead"] and x["vtable"] != 0 for x in fresh.values()),
          "the new statics: %s" % inst["new_statics"], failures)
-    # The object scan: the field plot's class looked for in the game's private memory (the one lead no pass had
-    # named when the searches began). Its object is found; the image's data holds its address twice (the static and
-    # its mirror), which is where the chain ends.
-    scan = d.get("scan")
-    if not scan:
-        failures.append("the report has no scan")
+    # What every static held at the fullest pass: one entry a static, the managers' classed.
+    need(len(inst["held_statics"]) == inst["tried"] and
+         sum(1 for x in inst["held_statics"] if x["holds"] == "classed" and x["lead"]) >= 13,
+         "what the statics held: %s" % [x for x in inst["held_statics"] if x["holds"] != "classed"][:4], failures)
+    need("scan" not in d, "the round ran the object scan", failures)
+    # The watch: each named manager's object followed once a second, its first word the class it was named by; and
+    # the object whose field rose by the clock (the fake game's play time), where one half of a word keeps rising.
+    watch = d.get("watch")
+    if not watch:
+        failures.append("the report has no watch")
     else:
-        plots = [n for n in scan["nodes"] if n["level"] == 0 and n["label"] == "field_area"]
-        need(scan["done"] and scan["own_known"] and scan["sweeps"] >= 1 and scan["regions"] >= 1 and
-             scan["mib"] >= 1 and len(scan["nodes"]) <= 64 and
-             any(n["slots"] == 2 and n["slot"] == searched["field_area"] and not n["is_static"] and n["vtable"] != 0
-                 for n in plots),
-             "the object scan: %s" % {k: v for k, v in scan.items() if k != "nodes"} + " %s" % scan["nodes"][:6],
+        ways = {(o["label"], o["rva"], o["offset"], o["deref"]): o for o in watch["watched"]}
+        managers = [o for o in watch["watched"] if o["id"] != 0]
+        need(watch["passes"] >= 5 and len(managers) == 14 and len(ways) == len(watch["watched"]) and
+             all(o["readings"] >= 5 and o["vtable_same"] >= o["readings"] - 1 and o["unreadable"] == 0 and
+                 o["span"] >= 16 and o["words"] and o["words"][0]["offset"] == 0 and o["words"][0]["kind"] == "vtable"
+                 for o in managers),
+             "the watch's managers: %s" % [{k: o[k] for k in ("label", "readings", "vtable_same", "unreadable", "span")}
+                                           for o in managers][:6], failures)
+        # The fake game keeps its play time in its save ledger, a named manager: the watch has that object already,
+        # under the manager's label, and adds no second way to it.
+        best = (d.get("rising") or {}).get("rising_hits") or [{}]
+        play = [o for o in watch["watched"] if o["rva"] == best[0].get("rva") and o["offset"] == 0]
+        need(len(play) == 1 and play[0]["label"] == "save_data" and play[0]["readings"] >= 5 and
+             not any(o["label"] == "play_time" for o in watch["watched"]) and
+             any(x["offset"] == best[0].get("offset") // 8 * 8 and
+                 (x["rises_low"] >= 5 and x["rises_low"] == x["changes_low"] or
+                  x["rises_high"] >= 5 and x["rises_high"] == x["changes_high"]) for x in play[0]["words"]),
+             "the watch's play time: %s" % [{k: o[k] for k in ("label", "readings", "span", "words")} for o in play],
              failures)
     # What the searches had to go on, and what became of their reads: counted, with the reasons.
     search, members = d.get("search"), d.get("members")

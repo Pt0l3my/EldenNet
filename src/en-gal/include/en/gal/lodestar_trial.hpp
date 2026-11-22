@@ -11,6 +11,8 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
@@ -207,6 +209,69 @@ class MemberSearch {
   std::atomic<std::uint64_t> objects_{0};
   std::atomic<std::uint64_t> unreadable_{0};
   std::atomic<std::uint64_t> pointers_{0};
+  std::atomic<std::uint64_t> passes_{0};
+};
+
+// The watch (step L6's first; in game, read-only): what do the objects the round has found hold, by how their first
+// bytes behave? A way leads to an object: a static's slot, an offset added to the address it holds, and, for a
+// pointer kept there, one more read. About once a second, on the reader's thread, each way is followed and the first
+// kSpan bytes of its object copied (fewer where its memory ends sooner). From one copy to the next, for every 8-byte
+// word: whether each half changed and whether it rose; and now and then what the word looks like (nothing, a small
+// number, a table of methods, an address in the image, an address of live memory, something else). For a way marked
+// `clock`, every run of 6 bits is also watched for a clock's minutes (never 60 or more; steps forward by 1 to 5,
+// round 60) and every run of 5 bits for its hours, and every 32-bit field read as a fraction for a steady rise.
+// What it keeps is counts; found() gives them from any thread. Ways are added by the naming thread at any time and
+// never removed. Everything is allocated when a way is added; the reader's thread allocates nothing.
+class Watch {
+ public:
+  static constexpr std::size_t kMaxObjects = 24;
+  static constexpr std::uint32_t kSpan = 0x200;
+  static constexpr std::uint64_t kEveryUs = 1'000'000;
+  static constexpr std::uint64_t kKindEveryUs = 20'000'000;
+  static constexpr std::size_t kMaxBitHits = 16;
+  static constexpr std::size_t kMaxFloatHits = 8;
+  static constexpr std::uint32_t kMinTicks = 5;
+
+  struct Way {
+    std::string label;
+    std::uint32_t id = 0;
+    std::uint32_t static_rva = 0;
+    std::uint32_t offset = 0;
+    bool deref = false;
+    std::uint32_t expect = 0;  // the table of methods its first word should be, as an offset; 0: none expected
+    bool clock = false;
+  };
+  // Whether memory that may be read stands at an address, asked without reading it (VirtualQuery in the round).
+  using Live = std::function<bool(std::uint64_t address)>;
+
+  // `primary`: every class's primary table of methods, as offsets, ascending.
+  Watch(std::uint64_t base, std::uint64_t size, std::vector<std::uint32_t> primary, Live live);
+  ~Watch();
+  Watch(const Watch&) = delete;
+  Watch& operator=(const Watch&) = delete;
+
+  // Adds a way; false when the watch is full or holds the same way already. From one thread at a time.
+  bool add(const Way& way);
+  [[nodiscard]] std::size_t ways() const noexcept { return count_.load(std::memory_order_acquire); }
+
+  // Follows up to `objects` ways that are due at `now_us`; answers whether a pass over all of them ended on this call.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t objects, std::uint64_t now_us);
+
+  [[nodiscard]] WatchFound found() const;
+
+ private:
+  struct Object;
+  [[nodiscard]] WordKind kind_of(std::uint64_t word) const;
+  void compare(Object& o, std::span<const std::byte> now, std::uint64_t now_us) noexcept;
+
+  std::uint64_t base_;
+  std::uint64_t size_;
+  std::vector<std::uint32_t> primary_;
+  Live live_;
+  std::array<std::unique_ptr<Object>, kMaxObjects> objects_;
+  std::atomic<std::size_t> count_{0};
+  std::size_t next_ = 0;
+  bool read_in_sweep_ = false;
   std::atomic<std::uint64_t> passes_{0};
 };
 
