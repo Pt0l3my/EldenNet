@@ -436,7 +436,9 @@ Work beside the engine and the increments, and the owner's housekeeping.
     built now, in the order text field in game, topic families with master-detail, slow commands, the editor, each
     tried on the demo space. Being built. Part a done on 2026-11-22: GraceUI's own text field in game, GraceUI 0.2.18
     (GraceUI's D214, WHY§378; protocol 1.4 and ABI 1.5 unchanged). Next: topic families and master-detail (part b),
-    slow commands (c), and the editor block with EldenNet's five additions (d; GraceUI's proposal 0010 §7).
+    slow commands (c), and the editor block with EldenNet's five additions (d; GraceUI's proposal 0010 §7). Part b done
+    the same day: topic families and master-detail, GraceUI 0.2.19, protocol 1.5 (GraceUI's D215, WHY§383). Next: slow
+    commands (c), then the editor block with EldenNet's five additions (d).
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1374,6 +1376,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - gives: built on 2026-11-22 (GraceUI feat/foundations a170951) as S7.2.c's part a. EldenNet's fields that read "set
     in the browser view" in game can be typed in game too from 0.2.18 (PAGES §4.6.2's note; GraceUI's
     docs/eldennet-changes.md §52).
+- af Topic families and a page's master list in both views (GraceUI 0.2.19, protocol 1.5) [done]
+  - refs: G38, GraceUI:D215, GraceUI:D36, WHY§383, WHY§384
+  - gives: built on 2026-11-22 (GraceUI feat/foundations fbd4ec3) as S7.2.c's part b; for Named NPCs, NPC types,
+    Playthrough, History and the editor's lists (GraceUI's docs/eldennet-changes.md §53).
 
 ### S11.3 EldenNet v0.2
 

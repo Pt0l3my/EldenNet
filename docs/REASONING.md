@@ -405,6 +405,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 380 | 2026-11-22 | A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure | FACT | #graceui #pages |
 | 381 | 2026-11-22 | The sixth read-only round: save_data in the table by the invariant recipe, 14 leads, the reader at 9.6 a second | FACT | #lodestar #gal |
 | 382 | 2026-11-22 | No clock packed into bits in any static's object, nor in 16 KiB of the clock class's object; one slowly rising fraction is the only candidate | FACT | #lodestar #l6 |
+| 383 | 2026-11-22 | Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail | DECIDED | #graceui #pages |
+| 384 | 2026-11-22 | A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation | METHOD | #graceui #serve |
 
 ## Entries
 
@@ -6212,3 +6214,26 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   thousandths a second is too coarse for so slow a rise.
 - The flags' next step, the objects behind the store's addresses 40, 56, 80 and 136 bytes in, was read about 978 times
   each; its words were lost to the report's fallback (WHY§371's Later line).
+
+### 383. Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D215, GraceUI's D36, GraceUI's proposal 0010 §3.2, S7.2.c, S11.2.af
+
+- GraceUI 0.2.19, protocol 1.5, no ABI change. A page's master list chooses a row, and the page's own tabs and sections
+  are its detail. A block bound to the master's family draws the chosen row's member. Proposal 0010 §3.2 had it as a
+  block, which would have needed blocks and tabs nested in the page data. Named NPCs' list, then its Profile, Allowances
+  and Reactions tabs, is the page's own shape.
+- A family is a state topic declared `family = true`, whose members `<family>/<key>` are topics of their own, each heard
+  as WATCHED and UNWATCHED under its own id. EldenNet's `named/<id>`, `journal/<id>`, `conversation/<id>` and
+  `profiles/<target>` fit. The first row is chosen as soon as the list has one, and a page keeps its chosen row for the
+  session, never in the address, storage or a log.
+
+### 384. A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation
+
+`2026-11-22` · METHOD · `#graceui` `#serve` · refs: GraceUI's D215, WHY§383
+
+- Each space has 64 slots after its declared topics. A slot is taken by a member's first watch, and given back only once
+  nobody watches it and the space has polled its unwatch, so the space hears every member's watch and unwatch under its
+  own id.
+- A slot's generation is set when it is taken and carried by each published state. It keeps a state published for one
+  member from reaching the next member in the slot.
