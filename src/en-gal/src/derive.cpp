@@ -44,8 +44,6 @@ struct Context {
   const SectionCopy* text;
   std::vector<Fixup> fixups;
   Result& result;
-  std::vector<fd4::Site> accepted;   // the FD4 finder's accepted sites (derive_fd4)
-  std::optional<rtti::Walk> walk;    // the RTTI walk (derive_rtti)
 };
 
 bool data_section(const ImageBytes& img, const SectionCopy& c) {
@@ -570,7 +568,6 @@ void derive_fd4(Context& cx) {
       if (i < r.refused.size()) ++r.refused[i];
     } else {
       ++r.accepted;
-      cx.accepted.push_back(s);
     }
   }
   r.unnamed = found.unnamed;
@@ -725,8 +722,7 @@ ClassResult class_result(Context& cx, const rtti::Walk& walk, std::string_view c
 }
 
 void derive_rtti(Context& cx) {
-  cx.walk = rtti::walk(cx.img);
-  const rtti::Walk& walk = *cx.walk;
+  const rtti::Walk walk = rtti::walk(cx.img);
   cx.result.stats.locators = walk.locators.size();
   cx.result.stats.vtables = walk.vtables.size();
 
@@ -1430,71 +1426,6 @@ std::optional<std::string> class_of(const ImageBytes& img, std::uint32_t type_de
   return inner;
 }
 
-// O92: in game, the singletons the class objects leave unnamed are named by their instances. For each distinct static
-// of the accepted sites: the instance it holds (the live data section), the instance's first word read once through
-// the guarded copy (its vtable), and that vtable's class from the RTTI walk. A lead names the one static whose class is
-// its name or its name with Imp (the game's implementation classes, ER01 §3.2); two such statics leave it ambiguous.
-// Nothing about the instances is written but counts and the slots the leads already ask for.
-void name_by_instances(Context& cx) {
-  Fd4Result& r = cx.result.fd4;
-  Fd4Diagnostics& g = r.diagnostics;
-  if (r.names || !cx.options.read_instance_word || !cx.walk || cx.accepted.empty()) return;
-  std::map<std::uint32_t, std::size_t> vtables;  // RVA, index into the walk's vtables
-  for (std::size_t i = 0; i < cx.walk->vtables.size(); ++i) vtables.emplace(cx.walk->vtables[i].rva, i);
-  std::map<std::uint32_t, std::string> classes;  // static slot, its instance's class
-  std::set<std::uint32_t> seen;
-  for (const fd4::Site& s : cx.accepted) {
-    if (!seen.insert(s.static_slot).second) continue;
-    ++g.inst_statics;
-    const std::optional<std::uint64_t> instance = cx.img.u64(s.static_slot);
-    if (!instance || *instance == 0) {
-      ++g.inst_null;
-      continue;
-    }
-    const std::optional<std::uint64_t> vtable =
-        cx.img.rva_of(*instance) ? std::nullopt : cx.options.read_instance_word(*instance);
-    if (!vtable) {
-      ++g.inst_unread;
-      continue;
-    }
-    const std::optional<std::uint32_t> rva = cx.img.rva_of(*vtable);
-    const auto it = rva ? vtables.find(*rva) : vtables.end();
-    if (it == vtables.end()) {
-      ++g.inst_unclassed;
-      continue;
-    }
-    const rtti::Locator& loc = cx.walk->locators[cx.walk->vtables[it->second].locator];
-    const std::optional<std::string> cls = loc.offset == 0 ? class_of(cx.img, loc.type_descriptor) : std::nullopt;
-    if (!cls) {
-      ++g.inst_unclassed;
-      continue;
-    }
-    ++g.inst_classed;
-    classes.emplace(s.static_slot, *cls);
-  }
-  for (std::size_t i = 0; i < r.singletons.size() && i < cx.leads.singletons.size(); ++i) {
-    SingletonResult& one = r.singletons[i];
-    const std::string& name = cx.leads.singletons[i].name;
-    if (one.status == Status::Derived) continue;
-    std::vector<std::uint32_t> statics;
-    for (const auto& [slot, cls] : classes) {
-      if (cls == name || cls == name + "Imp") statics.push_back(slot);
-    }
-    if (statics.empty()) continue;
-    one.status = statics.size() == 1 ? Status::Derived : Status::Ambiguous;
-    one.static_slot = statics.front();
-    one.sites = 0;
-    for (const fd4::Site& s : cx.accepted) {
-      if (s.static_slot != one.static_slot) continue;
-      if (one.sites++ == 0) {
-        one.class_object = s.class_object;
-        one.getter = s.getter;
-      }
-    }
-    if (one.status == Status::Derived) ++g.inst_matched;
-  }
-}
-
 }  // namespace
 
 std::optional<std::string> innermost_class(const ImageBytes& img, std::uint32_t type_descriptor) {
@@ -1505,13 +1436,12 @@ Result derive(const ImageInfo& image, const ByteSource& source, const Leads& lea
   Result result;
   result.file_size = options.file_size;
   const ImageBytes img(image, source);
-  Context cx{image, source, leads, options, img, img.named(kText), {}, result, {}, {}};
+  Context cx{image, source, leads, options, img, img.named(kText), {}, result};
   if (auto fixups = read_relocations(image, source)) cx.fixups = std::move(*fixups);
   result.stats.fixups = cx.fixups.size();
   fingerprint(cx);
   derive_fd4(cx);
   derive_rtti(cx);
-  name_by_instances(cx);
   const std::vector<std::uint32_t> path_targets = path_strings(img, leads.fd4_path_suffix);
 
   // One sweep for every reference the rest needs: the registration's instance, the group's name, the statics' slots.

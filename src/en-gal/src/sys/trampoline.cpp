@@ -42,28 +42,11 @@ std::uint64_t slot_noop(void*, void*, void*, void*) noexcept {
   });
 }
 
-std::uint64_t run_body(void* self) noexcept;
-
-// R1's slots (TaskShape::every_slot): each counts its calls and runs the body for our own object, whichever the game
-// calls every frame.
-template <std::size_t N>
-std::uint64_t slot_run(void* self, void*, void*, void*) noexcept {
-  return proto::ffi_guard(proto::Component::Task, std::uint64_t{0}, [&] {
-    g_calls[N].fetch_add(1, std::memory_order_relaxed);
-    return run_body(self);
-  });
-}
-
 template <std::size_t... I>
 constexpr std::array<SlotFn, sizeof...(I)> make_slots(std::index_sequence<I...>) {
   return {&slot_noop<I>...};
 }
-template <std::size_t... I>
-constexpr std::array<SlotFn, sizeof...(I)> make_run_slots(std::index_sequence<I...>) {
-  return {&slot_run<I>...};
-}
 constexpr std::array<SlotFn, kMaxTaskSlots> kSlots = make_slots(std::make_index_sequence<kMaxTaskSlots>{});
-constexpr std::array<SlotFn, kMaxTaskSlots> kRunSlots = make_run_slots(std::make_index_sequence<kMaxTaskSlots>{});
 
 template <class Fn>
 std::uint64_t address_of(Fn fn) {
@@ -102,9 +85,7 @@ std::uint64_t make_task_object(const TaskShape& shape, TaskBody& body) noexcept 
   auto* block = static_cast<std::byte*>(VirtualAlloc(nullptr, block_bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
   if (vtable == nullptr || block == nullptr) return 0;
   for (std::uint32_t i = 0; i < shape.vtable_slots; ++i) {
-    vtable[i] = shape.every_slot      ? address_of(kRunSlots[i])
-                : i == shape.run_slot ? address_of(&en_task_run)
-                                      : address_of(kSlots[i]);
+    vtable[i] = i == shape.run_slot ? address_of(&en_task_run) : address_of(kSlots[i]);
   }
   DWORD old = 0;
   VirtualProtect(vtable, vt_bytes, PAGE_READONLY, &old);  // the game reads it; nothing writes it again

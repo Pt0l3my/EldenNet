@@ -112,9 +112,6 @@ struct TaskShape {
   std::uint32_t object_size = 0;   // the zeroed bytes after the vtable pointer, which the game's hub owns
   std::uint32_t group_index = 0;   // the group our task joins
   RegisterAbi abi;                 // which register carries the task, the instance and the group
-  // R1 (the probe round, O89): the run slot is not known yet, so every slot counts its calls and runs the body; the
-  // slot counts then say which one the game calls every frame. `run_slot` is ignored.
-  bool every_slot = false;
 };
 
 inline constexpr std::uint32_t kMaxTaskSlots = 64;

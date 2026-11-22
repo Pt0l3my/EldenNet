@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 5, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 6, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -308,9 +308,15 @@ of any game is in it, and every name it looks for comes from a leads file.
   methods, an address in the image, an address of live memory, something else). A way marked for a clock also has
   every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word), and every 32-bit
   field read as a fraction for a steady rise. Two ways of one label say how often they arrived at one object
-  (`same_address`). It keeps counts and offsets, never what a word held. The round watches each named manager, each
-  place the member search found an unnamed lead's object at with the object it was found in, and the object whose
-  field rose by the clock.
+  (`same_address`). It keeps counts and offsets, never what a word held. A way may ask for a longer span (to the
+  reader's longest copy, 0x4000) and a slower pace, and many may be `wide`: every static's object watched only for a
+  clock, followed after the plain ways and listed only where something was found. In the report a word's counts of
+  nothing are left out. The round watches each named manager, the objects the event flags' store's first addresses
+  lead to, each place the member search found a pointer to an unnamed lead's object at with the object that holds
+  it (0x4000 bytes of both for the world's clock), the object whose field rose by the clock, and, as wide ways, the
+  object behind every static. That field's slot is also a static found by what its object holds (`InvariantFound`:
+  proposal 0005's `invariant` recipe), which `draft_table` writes with the code's references as its witnesses. A
+  pass that names a manager the search named first takes the entry over (`merge`).
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -522,8 +528,8 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   `u32_offsets` search one copied object's bytes by invariant and answer offsets only; `searchable` says which regions
   a search reads (readable, not a guard page, no-access, uncached or write-combined), and NativeSys's `region_at`
   (probe builds) is the VirtualQuery behind a caller's question; `GuardedReader::inject` makes every n-th read of a
-  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, `TaskShape::every_slot` makes every
-  slot count its calls and run the body for our own object, and `SysLayer::task_object` gives our object's address.
+  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, and `SysLayer::task_object` gives our
+  object's address.
   Everything they need on the game thread is allocated on T1. What R1 added on T1 around its one call into the game
   (the hub census, the callee's summaries, the whole-memory search, the hub's walks and diffs, the table, the request
   and the map, with `probe_report.hpp`'s report of them) went with it: R1, retired 2026-11-22, O106.

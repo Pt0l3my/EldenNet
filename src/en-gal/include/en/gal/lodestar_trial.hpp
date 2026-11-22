@@ -220,13 +220,17 @@ class MemberSearch {
 // number, a table of methods, an address in the image, an address of live memory, something else). For a way marked
 // `clock`, every run of 6 bits is also watched for a clock's minutes (never 60 or more; steps forward by 1 to 5,
 // round 60) and every run of 5 bits for its hours, and every 32-bit field read as a fraction for a steady rise.
+// A way may ask for a longer span (to kMaxSpan) and a slower pace, and many ways may be `wide`: every static's object
+// watched only for a clock, of which found() lists those where something was found.
 // What it keeps is counts; found() gives them from any thread. Ways are added by the naming thread at any time and
 // never removed. Everything is allocated when a way is added; the reader's thread allocates nothing.
 class Watch {
  public:
-  static constexpr std::size_t kMaxObjects = 24;
-  static constexpr std::uint32_t kSpan = 0x200;
+  static constexpr std::size_t kMaxObjects = 320;
+  static constexpr std::uint32_t kSpan = 0x200;       // a way's span unless it asks for another
+  static constexpr std::uint32_t kMaxSpan = 0x4000;   // the guarded reader's longest copy
   static constexpr std::uint64_t kEveryUs = 1'000'000;
+  static constexpr std::size_t kMaxWideListed = 40;
   static constexpr std::uint64_t kKindEveryUs = 20'000'000;
   static constexpr std::size_t kMaxBitHits = 16;
   static constexpr std::size_t kMaxFloatHits = 8;
@@ -240,6 +244,9 @@ class Watch {
     bool deref = false;
     std::uint32_t expect = 0;  // the table of methods its first word should be, as an offset; 0: none expected
     bool clock = false;
+    std::uint32_t span = kSpan;            // bytes watched: 16 to kMaxSpan, a multiple of 8
+    std::uint64_t every_us = kEveryUs;     // how often it is followed
+    bool wide = false;                     // one of many watched only for a clock: found() lists it only with a find
   };
   // Whether memory that may be read stands at an address, asked without reading it (VirtualQuery in the round).
   using Live = std::function<bool(std::uint64_t address)>;
@@ -254,7 +261,8 @@ class Watch {
   bool add(const Way& way);
   [[nodiscard]] std::size_t ways() const noexcept { return count_.load(std::memory_order_acquire); }
 
-  // Follows up to `objects` ways that are due at `now_us`; answers whether a pass over all of them ended on this call.
+  // Follows up to `objects` ways that are due at `now_us`, the plain ones before the wide ones; answers whether a pass
+  // ended on this call (every plain way that was due has been followed).
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t objects, std::uint64_t now_us);
 
   [[nodiscard]] WatchFound found() const;
@@ -270,7 +278,8 @@ class Watch {
   Live live_;
   std::array<std::unique_ptr<Object>, kMaxObjects> objects_;
   std::atomic<std::size_t> count_{0};
-  std::size_t next_ = 0;
+  std::size_t next_ = 0;       // the plain ways' turn
+  std::size_t next_wide_ = 0;  // the wide ways' turn
   bool read_in_sweep_ = false;
   std::atomic<std::uint64_t> passes_{0};
 };

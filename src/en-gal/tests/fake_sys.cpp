@@ -79,8 +79,7 @@ proto::Expected<std::uint64_t, SysError> FakeSys::call_getter(std::uint64_t g, s
 proto::Expected<std::uint64_t, SysError> FakeSys::register_task(std::uint64_t function, std::uint64_t instance,
                                                                 const TaskShape& shape, TaskBody& body) noexcept {
   if (registration) return proto::Unexpected{SysError::Twice};
-  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots ||
-      (!shape.every_slot && shape.run_slot >= shape.vtable_slots)) {
+  if (shape.vtable_slots == 0 || shape.vtable_slots > kMaxTaskSlots || shape.run_slot >= shape.vtable_slots) {
     return proto::Unexpected{SysError::BadShape};
   }
   if (fault_register) return proto::Unexpected{SysError::Faulted};

@@ -24,8 +24,8 @@
 //      named manager's object, to each place the member search found an unnamed lead's object, and to the object
 //      whose field rose by the clock, and counts how the first 512 bytes behave; the world's clock is also watched
 //      for minutes and hours packed into bits and for a rising fraction;
-//    - the clock search (lodestar_trial.hpp) over the accessor's statics that no lead has named: a manager with no type
-//      information is known by how its fields behave;
+//    - for the world's clock, the watch's wide ways: the object behind every static, every six seconds, for minutes
+//      and hours packed into bits and for a rising fraction;
 //    - the rising-counter search (probe::RisingSearch) over the data's slots that point at the heap: the play time.
 //    The candidates are the data's slots whose value is an address where Windows says memory may be read (most
 //    values that could be an address are not one); the searches share 4 ms of each of T2's steps.
@@ -210,17 +210,16 @@ class Body final : public en::gal::TaskBody {
     reader_.begin_tick();
     auto* slots = slots_.load(std::memory_order_acquire);
     auto* members = members_.load(std::memory_order_acquire);
-    auto* clock = clock_.load(std::memory_order_acquire);
     auto* rising = rising_.load(std::memory_order_acquire);
     auto* watch = watch_.load(std::memory_order_acquire);
     const std::uint64_t active = (slots != nullptr ? 1u : 0u) + (members != nullptr ? 1u : 0u) +
-                                 (clock != nullptr ? 1u : 0u) + (rising != nullptr ? 1u : 0u) +
-                                 (watch != nullptr ? 1u : 0u);
+                                 (rising != nullptr ? 1u : 0u) + (watch != nullptr ? 1u : 0u);
     if (active != 0) {
       const std::uint64_t part = kSearchShareUs / active;
       bool cut = false;
-      // A search is stepped a few reads at a time until it has nothing to do just now (a call that copied nothing),
-      // or its part of the step is over.
+      // A search is stepped one read at a time until it has nothing to do just now (a call that copied nothing), or
+      // its part of the step is over: a read that asks first costs about half a millisecond on the owner's PC (the
+      // fifth round), so the clock is looked at after every one.
       const auto drive = [&](auto&& step) {
         const std::uint64_t start = quiet_.now_us();
         for (;;) {
@@ -234,11 +233,10 @@ class Body final : public en::gal::TaskBody {
         }
       };
       // The watch first: it has the least to read, and wants its second kept.
-      if (watch != nullptr) drive([&] { return watch->step(gt, reader_, 4, frame.qpc_now_us); });
-      if (slots != nullptr) drive([&] { return slots->step(gt, reader_, 16); });
-      if (members != nullptr) drive([&] { return members->step(gt, reader_, 16, frame.qpc_now_us); });
-      if (clock != nullptr) drive([&] { return clock->step(gt, reader_, 8, frame.qpc_now_us); });
-      if (rising != nullptr) drive([&] { return rising->step(gt, reader_, 16, frame.qpc_now_us); });
+      if (watch != nullptr) drive([&] { return watch->step(gt, reader_, 1, frame.qpc_now_us); });
+      if (slots != nullptr) drive([&] { return slots->step(gt, reader_, 1); });
+      if (members != nullptr) drive([&] { return members->step(gt, reader_, 1, frame.qpc_now_us); });
+      if (rising != nullptr) drive([&] { return rising->step(gt, reader_, 1, frame.qpc_now_us); });
       search_steps_.fetch_add(1, std::memory_order_relaxed);
       if (cut) search_cut_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -252,7 +250,6 @@ class Body final : public en::gal::TaskBody {
 
   void set_slots(en::gal::probe::SlotSearch* search) noexcept { slots_.store(search, std::memory_order_release); }
   void set_members(lodestar::MemberSearch* search) noexcept { members_.store(search, std::memory_order_release); }
-  void set_clock(lodestar::ClockSearch* search) noexcept { clock_.store(search, std::memory_order_release); }
   void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
   void set_watch(lodestar::Watch* watch) noexcept { watch_.store(watch, std::memory_order_release); }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
@@ -264,7 +261,6 @@ class Body final : public en::gal::TaskBody {
   en::gal::GuardedReader reader_;  // the searches', over QuietSys; the trial has its own, over the game's
   std::atomic<en::gal::probe::SlotSearch*> slots_{nullptr};
   std::atomic<lodestar::MemberSearch*> members_{nullptr};
-  std::atomic<lodestar::ClockSearch*> clock_{nullptr};
   std::atomic<en::gal::probe::RisingSearch*> rising_{nullptr};
   std::atomic<lodestar::Watch*> watch_{nullptr};
   std::atomic<std::uint64_t> steps_{0};
@@ -455,14 +451,17 @@ class Round {
     searching_ = true;
     const std::uint64_t base = s_.sys->module_base();
     const std::vector<lodestar::StaticFound> statics = lodestar::all_statics(found_.accessor);
-    // The clock: every static, of any of the accessor's shapes, that no lead has named.
-    std::vector<std::uint32_t> unnamed, every;
+    // The clock: the object behind every static, of any of the accessor's shapes, watched for minutes and hours
+    // packed into bits and for a rising fraction (the watch's wide ways), every six seconds.
+    std::vector<std::uint32_t> every;
+    std::size_t wide = 0;
     for (const lodestar::StaticFound& st : statics) {
       every.push_back(st.rva);
-      if (!named_at(st.rva)) unnamed.push_back(st.rva);
+      lodestar::Watch::Way way{"static", 0, st.rva, 0, false, 0, true};
+      way.wide = true;
+      way.every_us = 6'000'000;
+      wide += watch_ != nullptr && watch_->add(way) ? 1 : 0;
     }
-    clock_ = new lodestar::ClockSearch(std::move(unnamed), base, image_->size_of_image);  // lives for the process
-    body_->set_clock(clock_);
     // The play time: every slot of the data that points at memory that may be read.
     en::gal::probe::HeapSlots slots = live_slots(kMaxSlotCandidates);
     search_.pointer_like = slots.pointer_like;
@@ -486,7 +485,7 @@ class Round {
       members_ = new lodestar::MemberSearch(std::move(every), std::move(tables), base, image_->size_of_image);
       body_->set_members(members_);
     }
-    log(Line("read").word("stage", "searches").num("clock_candidates", clock_->found().candidates)
+    log(Line("read").word("stage", "searches").num("wide_ways", wide)
             .num("pointer_like", search_.pointer_like).num("live", search_.live)
             .num("not_committed", search_.not_committed).num("no_access", search_.no_access)
             .num("rising_candidates", rising_->candidates()).num("member_tables", member_tables)
@@ -559,7 +558,8 @@ class Round {
     }
     for (const lodestar::ManagerFound& m : held_.managers) {
       // Named, or the search has found its class behind slots already (two objects: that is for the review).
-      if (m.status == en::gal::derive::Status::Derived || m.search_found != 0) continue;
+      // And no lead is searched for more than three times: what three searches did not find, a fourth will not.
+      if (m.status == en::gal::derive::Status::Derived || m.search_found != 0 || m.search_runs >= 3) continue;
       const auto last = searched_at_.find(m.id);
       if (last != searched_at_.end() && since_ms() - last->second < kSearchAgainMs) continue;
       const std::vector<std::uint32_t> tables = namer_->vtables(m.id);
@@ -593,19 +593,40 @@ class Round {
   void add_ways() {
     using Way = lodestar::Watch::Way;
     const std::uint32_t clock_id = en::gal::roles::info(en::gal::roles::Item::WorldClock).id;
+    const std::uint32_t flags_id = en::gal::roles::info(en::gal::roles::Item::EventFlags).id;
     for (const lodestar::ManagerFound& m : held_.managers) {
       if (m.status != en::gal::derive::Status::Derived) continue;
-      if (watch_->add(Way{m.label, m.id, m.rva, 0, false, m.vtable, m.id == clock_id})) said_ways_ = false;
+      if (watch_->add(Way{m.label, m.id, m.rva, 0, false, m.vtable, true})) said_ways_ = false;
     }
     if (members_ != nullptr) {
       std::size_t taken = 0;
       for (const lodestar::MemberHit& h : members_->found().hits) {
-        if (++taken > 8) break;
-        if (watch_->add(Way{h.label, h.id, h.rva, h.offset, !h.embedded, h.vtable, h.id == clock_id})) {
-          said_ways_ = false;
+        // A pointer to the lead's object is a way; an object "inside" another has proved a neighbour in memory.
+        if (h.embedded || ++taken > 4) continue;
+        // The clock's: 16 KiB of the object and of the manager that points at it, since the first 512 bytes of
+        // neither change in play (the fifth round).
+        Way to{h.label, h.id, h.rva, h.offset, true, h.vtable, true};
+        Way holder{"holder", 0, h.rva, 0, false, 0, true};
+        if (h.id == clock_id) {
+          to.span = lodestar::Watch::kMaxSpan;
+          holder.span = lodestar::Watch::kMaxSpan;
         }
-        // And the object it was found in or through, from its start: the manager that holds it.
-        if (watch_->add(Way{"holder", 0, h.rva, 0, false, 0, false})) said_ways_ = false;
+        if (watch_->add(to)) said_ways_ = false;
+        if (watch_->add(holder)) said_ways_ = false;
+      }
+    }
+    // One step on from the flags' store: the objects its first words point at (the watch says which words are
+    // addresses of live memory), each watched as the store is.
+    if (!flag_hops_) {
+      for (const lodestar::WatchObject& o : watch_->found().objects) {
+        if (o.id != flags_id || o.offset != 0 || o.deref || o.readings < 3) continue;
+        flag_hops_ = true;
+        std::size_t hops = 0;
+        for (const lodestar::WatchWord& word : o.words) {
+          if (word.kind != lodestar::WordKind::Heap || word.offset == 0) continue;
+          if (++hops > 4) break;
+          if (watch_->add(Way{o.label, o.id, o.rva, word.offset, true, 0, false})) said_ways_ = false;
+        }
       }
     }
     if (rising_ != nullptr && !play_time_way_) {
@@ -616,11 +637,37 @@ class Round {
         play_time_way_ = true;
         said_ways_ = false;
         (void)watch_->add(Way{"play_time", 0, hits[0].slot, 0, false, 0, false});
+        // The slot is the save data's static, by what its object holds (proposal 0005 6.1's invariant): unless a
+        // lead's manager sits there already. The code's references to it are its sites and witnesses.
+        const en::gal::roles::ItemInfo save = en::gal::roles::info(en::gal::roles::Item::SaveData);
+        if (!named_at(hits[0].slot)) {
+          const std::vector<std::uint32_t> slot = {hits[0].slot};
+          const std::vector<lodestar::References> refs =
+              lodestar::references(*image_, s_.sys->image(), ".text", slot, lodestar::kMaxSiteWitnesses);
+          lodestar::InvariantFound v;
+          v.label = std::string(save.label);
+          v.id = save.id;
+          v.rva = hits[0].slot;
+          v.offset = hits[0].offset;
+          v.sites = static_cast<std::uint32_t>(std::min<std::uint64_t>(refs[0].count, 0xFFFFFFFFu));
+          v.witnesses = refs[0].places;
+          found_.invariants.assign(1, std::move(v));
+          log(Line("read").word("stage", "invariant").num("id", save.id).num("sites", found_.invariants[0].sites));
+        }
+      }
+    }
+    // The invariant's counts follow the rising search for as long as its field stays the first.
+    if (!found_.invariants.empty() && rising_ != nullptr) {
+      const auto hits = rising_->hits();
+      if (!hits.empty() && hits[0].slot == found_.invariants[0].rva && hits[0].offset == found_.invariants[0].offset) {
+        found_.invariants[0].rose = hits[0].rose;
+        found_.invariants[0].passes = hits[0].rose + hits[0].still + hits[0].other;  // the times it was compared
       }
     }
     if (!said_ways_) {
       said_ways_ = true;
-      log(Line("read").word("stage", "watch").num("ways", watch_->ways()).flag("play_time", play_time_way_));
+      log(Line("read").word("stage", "watch").num("ways", watch_->ways()).flag("play_time", play_time_way_)
+              .flag("flag_hops", flag_hops_));
     }
   }
 
@@ -628,7 +675,6 @@ class Round {
   void write(bool table) {
     found_.instances = held_;
     if (trial_ != nullptr) found_.trial = trial_->found();
-    if (clock_ != nullptr) found_.clock = clock_->found();
     if (rising_ != nullptr) {
       lodestar::RisingFound r;
       r.candidates = rising_->candidates();
@@ -655,14 +701,27 @@ class Round {
       add_ways();
       found_.watch = watch_->found();
     }
-    const auto text = lodestar::write_report(found_);
-    if (!text) {
-      log(Line("read").word("report", "refused"), LogLevel::Error);
-    } else {
-      (void)write_text(folder_ + L"\\lodestar-found.json", *text);
+    // A report the writer refuses (too large, most likely: a long round's watch) is written again without the
+    // watch's words, and failing that without the watch: a smaller report is better than a stale one.
+    auto text = lodestar::write_report(found_);
+    for (int smaller = 0; !text && smaller < 2; ++smaller) {
+      if (refusals_++ < 4) {
+        log(Line("read").word("report", "refused").num("try", static_cast<std::uint64_t>(smaller))
+                .flag("too_large", text.error().problem.find("larger") != std::string::npos),
+            LogLevel::Error);
+      }
+      if (!found_.watch) break;
+      if (smaller == 0) {
+        for (lodestar::WatchObject& o : found_.watch->objects) o.words.clear();
+      } else {
+        found_.watch.reset();
+      }
+      text = lodestar::write_report(found_);
     }
-    if (!table && held_.named == tabled_) return;
-    tabled_ = held_.named;
+    if (text) (void)write_text(folder_ + L"\\lodestar-found.json", *text);
+    const std::uint64_t placed = held_.named + found_.invariants.size();
+    if (!table && placed == tabled_) return;
+    tabled_ = placed;
     const lodestar::DraftTable draft = lodestar::draft_table(found_, ids_, provenance_, *image_, s_.sys->image());
     (void)write_text(folder_ + L"\\lodestar-table.toml", draft.text);
     log(Line("read").word("stage", "table").num("entries", draft.entries).num("left_out", draft.left_out)
@@ -708,11 +767,10 @@ class Round {
                 .num("same", same).num("null", null).num("other", other).num("fault", fault).num("torn", torn)
                 .num("faults", faults).num("world", t.world_readings).num("stage_changes", t.stage_changes)
                 .num("p99_us", t.reading_p99_us).num("max_us", t.reading_max_us));
-        if (clock_ != nullptr && rising_ != nullptr) {
-          const lodestar::ClockFound c = clock_->found();
-          log(Line("read").word("stage", "held").num("clock_passes", c.passes).num("clock_hits", c.hits.size())
-                  .num("clocks", static_cast<std::uint64_t>(
-                                     std::count_if(c.hits.begin(), c.hits.end(), [](const auto& h) { return h.has_hour; })))
+        if (watch_ != nullptr && rising_ != nullptr) {
+          const lodestar::WatchFound seen = watch_->found();
+          log(Line("read").word("stage", "held").num("watch_passes", seen.passes).num("wide_ways", seen.wide_ways)
+                  .num("watched", seen.objects.size())
                   .num("rising_passes", rising_->passes()).num("rising_hits", rising_->hits().size())
                   .num("risen", rising_->risen())
                   .num("member_passes", members_ != nullptr ? members_->found().passes : 0)
@@ -739,12 +797,13 @@ class Round {
   lodestar::Namer* namer_ = nullptr;
   lodestar::Trial* trial_ = nullptr;
   Body* body_ = nullptr;
-  lodestar::ClockSearch* clock_ = nullptr;
   en::gal::probe::RisingSearch* rising_ = nullptr;
   lodestar::MemberSearch* members_ = nullptr;
   lodestar::Watch* watch_ = nullptr;
   bool play_time_way_ = false;
+  bool flag_hops_ = false;
   bool said_ways_ = true;
+  std::uint32_t refusals_ = 0;
   lodestar::SearchFound search_;
   en::gal::probe::SlotSearch* slot_search_ = nullptr;  // the one T2 is stepping, if any
   en::gal::VtableSet* slot_set_ = nullptr;
