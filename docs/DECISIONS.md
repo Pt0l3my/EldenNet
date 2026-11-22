@@ -1722,6 +1722,10 @@ default Elden Ring key map is left free) for PC (keyboard and mouse)."
 
 **Follows from.** NPC §5.1, §5.6; DESIGN §8.1; O11; WHY§277; S11.1.a.
 
+*Note, 2026-11-22 (GraceUI's G37, the owner's choice; WHY§362).* The talk key is rebound on GraceUI › Hotkeys, not in
+EldenNet's Settings › Hotkeys: `hotkeys.talk` stops being an EldenNet setting and becomes the default EldenNet
+registers, `T` as before. The call-out names the key as the player bound it (GraceUI's ABI 1.4).
+
 ## O95
 
 **EldenNet's first pages: the lamp, the version labels, the greyed words and the wording** · *2026-11-21 · Decided by

@@ -382,6 +382,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 357 | 2026-11-22 | The object scan read 19,750 MiB in 781 s without finishing and slowed the reader's thread; it stays off | FACT | #lodestar #probe |
 | 358 | 2026-11-22 | A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes | METHOD | #lodestar |
 | 359 | 2026-11-22 | event_flags (1008) is the object the event flags are read through, the store's class its lead; world_clock (1012) waits for L6 | DECIDED | #lodestar #gal |
+| 360 | 2026-11-22 | A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes | FACT | #graceui #input |
+| 361 | 2026-11-22 | GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names | DECIDED | #graceui #hotkeys |
+| 362 | 2026-11-22 | Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults | DECIDED | #graceui #hotkeys #pages |
 
 ## Entries
 
@@ -5853,3 +5856,38 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   accessor's sites as witnesses. A new id with 1008 retired was the alternative: rejected, since nothing used 1008.
 - 1012 `world_clock` stays reserved and unplaced until L6 gives the clock's manager an id and the clock a field under it.
   Nothing in v1's start needs the clock as a static. ARCH §6.1 carries a dated note.
+
+### 360. A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes
+
+`2026-11-22` · FACT · `#graceui` `#input` · refs: GraceUI's D207, GraceUI's D176, S11.4.c
+
+- D176's box pushes the end, and when full empties the ring and pushes again. In Vyukov's bounded queue a slot that
+  another thread's pop has claimed is not free until that pop stores its sequence, so the second push could still read
+  full and drop the end, and EldenNet's chat box would not hear that it lost input. Now such an end waits in the box's
+  own slot, given first by take(); nothing is reordered, since an ended holder's events are discarded anyway.
+- Found by GraceUI's TSan tree under load, in the holder-mail stress test, whose own check (reading its ended flag after
+  take) raced its other taker and now reads it before.
+
+### 361. GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` · refs: GraceUI's D206, GraceUI:DESIGN§5.9, S11.2.ab
+
+- KeyboardEvent.code without its Key and Digit prefixes, 1 to 12 letters and digits as the settings' key names allow
+  (A, 7, F5, PageUp, NumpadEnter), so a browser capture maps across. Pad buttons as the Xbox pad prints them (A, B, X,
+  Y, LB, RB, LS, RS, View, Menu, D-pad Up).
+
+### 362. Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` `#pages` · refs: G37, GraceUI's proposal 0009, O94, O77, PAGES§4, S11.2.ac
+
+- The owner's answers to GraceUI's G37, put by Engine with Grace's and Engine's shared recommendation (2026-11-22):
+  "GraceUI's Hotkeys page (Recommended)", "Ask, then move it (Recommended)", "Pad chords by two pickers (Recommended)", "Mods read their key (Recommended)", "Now, in 0.2.x (Recommended)". So: (1) every binding is changed on GraceUI › Hotkeys and kept in GraceUI's settings under the mod's and the
+  action's ids; (2) a taken key is asked about, then moved, leaving the other unbound; (3) pad chords are chosen with two
+  pickers, and capture on a pad waits for testers; (4) ABI 1.4's describe_hotkey and a changed event; built now, in
+  0.2.x, not in 0.6.
+- EldenNet's answer to proposal 0009 §8 item 5: yes. `hotkeys.talk`, `hotkeys.skip_page` and `hotkeys.debug` stop being
+  EldenNet settings and become the defaults it registers (T, its skip key, F11). EldenNet's Settings › Hotkeys becomes a
+  read-only list of its own hotkeys from GraceUI's topic, with a link to GraceUI › Hotkeys. O94 stands: T is the default,
+  rebound on GraceUI's page. The call-out names the key from describe_hotkey.
+- Off game (O76, O77): the bindings follow where GraceUI's Hotkeys page is served. If the launcher's host does not
+  serve it, they are on O77's short list of settings that need the live game. Asked of Grace.

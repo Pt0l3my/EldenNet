@@ -194,9 +194,9 @@ them, under "Shortcuts on". The two settings that arrange EldenNet's own pages a
 | `pools.max_jobs_per_session` | Prepared-line batches per session | AI › Models (Prepared lines) | Combat | Next request |
 | `[slots.<slot>]` `provider`, `model`, `fallback`, `fallback_provider` (`providers.toml`, ARCH §11.1; O88) | Each job's provider, model and fallback | AI › Models (one row per slot) | — | Next request |
 | `safety.level` | Content safety: faithful or gentle (O17) | Behaviour › Conversation | — | Next request |
-| `hotkeys.talk`, `hotkeys.skip_page` | Talk; skip page | Settings › Hotkeys | Conversation | Now |
+| `hotkeys.talk`, `hotkeys.skip_page` | Talk; skip page (*since G37, 2026-11-22: defaults EldenNet registers, rebound on GraceUI › Hotkeys; WHY§362*) | Settings › Hotkeys | Conversation | Now |
 | `hotkeys.menu` *new*, *GraceUI's*, replacing `hotkeys.settings` | Open the menu (F5) | GraceUI › Hotkeys | Settings › Hotkeys (a link) | Now |
-| `hotkeys.debug` | Debug view (F11) | Settings › Hotkeys | Settings › Developer | Now |
+| `hotkeys.debug` | Debug view (F11) (*since G37, 2026-11-22: a default EldenNet registers, rebound on GraceUI › Hotkeys; WHY§362*) | Settings › Hotkeys | Settings › Developer | Now |
 | `ui.menu.theme` *new*, *GraceUI's* | Grace or Grace Clear | GraceUI › Menu | Top bar | Now |
 | `ui.menu.plain_text`, `.reduce_motion`, `.key_hints`, `.pad_glyphs`, `.backdrop`, `.compact_rows` *new*, *GraceUI's* | The menu's own options (D19) | GraceUI › Menu | — | Now |
 | `ui.show_world` *new*, EldenNet's (GraceUI's D115; was `ui.menu.show_world`) | Show the World page | Settings › General | — | Now |
@@ -792,7 +792,9 @@ a later version (O41, EldenNet DESIGN §13); v1 is dialogue only and never write
 - **Tabs.** *Settings*: two columns. Left, a navigator card with a search box, then groups. Groups that are homes here:
   **General** (`enabled`, with "Safety and spoiler rules always apply"; `ui.show_world`), **Hotkeys** (`hotkeys.talk`,
   `hotkeys.skip_page`, `hotkeys.debug`; capture, conflicts, reset; pad chords only if S4 finds one, D33; a link to
-  GraceUI › Hotkeys for the menu key and every mod's bindings), **Developer** (`debug.panel`, `debug.record_sessions`,
+  GraceUI › Hotkeys for the menu key and every mod's bindings; *since 2026-11-22, GraceUI's G37 (WHY§362): a read-only
+  list of EldenNet's hotkeys from GraceUI's topic, with that link, the three keys being defaults EldenNet registers and
+  every binding changed on GraceUI › Hotkeys*), **Developer** (`debug.panel`, `debug.record_sessions`,
   `debug.record_redact_text`, `debug.log_level`, `ui.latency_toasts`). Groups that link out, each sub-item with an
   outward arrow and no rows: GraceUI (Menu, Hotkeys, Browser view; its own pages, GraceUI's D115), AI (Providers,
   Models), Voice (Text and subtitles), Characters (NPC types), History (Memories), Behaviour (Conversation, Speaking up,
