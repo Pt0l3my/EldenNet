@@ -136,6 +136,7 @@ __asm__(
     FG_STATIC(fg_static_save_ledger)
     FG_STATIC(fg_static_run_warden)
     FG_STATIC(fg_static_field_plot)
+    FG_STATIC(fg_field_plot_mirror)
     FG_STATIC(fg_static_hinstance)
     FG_STATIC(fg_hinstance_check)
     FG_STATIC(fg_static_rack)
@@ -168,6 +169,8 @@ __asm__(
     FG_RTCLASS(fg_rtclass_strayling, fg_name_strayling, 0x10)
     FG_RTCLASS(fg_rtclass_rockbound, fg_name_rockbound, 0x10)
     FG_RTCLASS(fg_rtclass_mimic, fg_name_mimic, 0x10)
+    FG_RTCLASS(fg_rtclass_save_ledger, fg_name_save_ledger, 0x40)
+    FG_RTCLASS(fg_rtclass_run_warden, fg_name_run_warden, 0x20)
 
     // ---- Strings and tables in .rdata ----
     "  .section .rdata,\"dr\"\n"
@@ -198,6 +201,8 @@ __asm__(
     "fg_name_strayling:\n  .asciz \"Strayling\"\n"
     "fg_name_rockbound:\n  .asciz \"Rockbound\"\n"
     "fg_name_mimic:\n  .asciz \"Mimicry\"\n"
+    "fg_name_save_ledger:\n  .asciz \"SaveLedger\"\n"
+    "fg_name_run_warden:\n  .asciz \"RunWarden\"\n"
     // Every FD4-style site, for --describe: {idiom start, static, runtime class, path}, then a row of zeros.
     "  .p2align 3\n"
     "  .globl fg_fd4_site_table\n"
@@ -388,6 +393,47 @@ __asm__(
     "  lea rcx, [rip + fg_fd4_path]\n"
     "  call fg_fd4_unset\n"
     FG_VARIANT_END(rbx, 0x20, "  pop rbx\n")
+
+    // ---- Two accessors of other shapes (Lodestar's variants; never called: they are there to be found). Neither
+    // is the idiom's 24 bytes, and neither has a row in the site table: the withdrawn pattern and R0's rule pass them
+    // by. The SaveLedger's: an instruction between the load of its static and the test.
+    FG_FUNC_BEGIN(fg_get_save_ledger_gap)
+    "  push rbx\n"
+    "  .seh_pushreg rbx\n"
+    "  sub rsp, 0x20\n"
+    "  .seh_stackalloc 0x20\n"
+    "  .seh_endprologue\n"
+    "  mov rbx, qword ptr [rip + fg_static_save_ledger]\n"
+    "  mov rdx, rcx\n"
+    "  test rbx, rbx\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_save_ledger]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    "  mov r8d, 141\n"
+    "  lea rcx, [rip + fg_fd4_path]\n"
+    "  call fg_fd4_unset\n"
+    FG_VARIANT_END(rbx, 0x20, "  pop rbx\n")
+    // The RunWarden's: its static compared with zero where it lies, and loaded only afterwards.
+    FG_FUNC_BEGIN(fg_get_run_warden_compare)
+    "  sub rsp, 0x28\n"
+    "  .seh_stackalloc 0x28\n"
+    "  .seh_endprologue\n"
+    "  cmp qword ptr [rip + fg_static_run_warden], 0\n"
+    "  .byte 0x75, 1f - 2f\n"
+    "2:\n"
+    "  lea rcx, [rip + fg_rtclass_run_warden]\n"
+    "  call fg_rtclass_name\n"
+    "  mov rdx, rax\n"
+    "  mov r8d, 142\n"
+    "  lea rcx, [rip + fg_fd4_path]\n"
+    "  call fg_fd4_unset\n"
+    "1:\n"
+    "  mov rax, qword ptr [rip + fg_static_run_warden]\n"
+    "  add rsp, 0x28\n"
+    "  ret\n"
+    "  .seh_endproc\n"
 
     // ---- global_hinstance's role: stores the module handle and a check word made from it; answers the old value.
     // Pattern from entry + 5; the static is the third RIP-relative operand.

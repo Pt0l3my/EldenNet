@@ -18,6 +18,8 @@ constexpr std::array<std::pair<std::string_view, Form>, kFormCount> kWords = {{
     {"branch_set_near", Form::BranchSetNear},
     {"address_arg1", Form::AddressArg1},
     {"call_relative", Form::CallRelative},
+    {"skip_one", Form::SkipOne},
+    {"compare_slot", Form::CompareSlot},
 }};
 
 // The architecture's encodings the forms name (its documented opcodes; no program's bytes).
@@ -27,6 +29,9 @@ constexpr std::uint8_t kOpAddress = 0x8D;      // the address of a memory operan
 constexpr std::uint8_t kOpBranchSet8 = 0x75;   // branch when the result was not zero, 8-bit distance
 constexpr std::uint8_t kOpBranchSet32 = 0x85;  // the same in the two-byte map, 32-bit distance
 constexpr std::uint8_t kOpCall = 0xE8;         // call, 32-bit distance
+constexpr std::uint8_t kOpGroup1Imm8 = 0x83;   // an arithmetic group on register or memory with an 8-bit immediate
+constexpr std::uint8_t kOpGroup1Imm32 = 0x81;  // the same with a 32-bit immediate
+constexpr std::uint8_t kGroup1Compare = 7;     // the group's compare
 constexpr std::uint8_t kArg1 = 1;              // the first argument's register in the Windows x64 convention (rcx)
 
 // An instruction of the one-byte map with no prefix but REX.W: a plain 64-bit form.
@@ -40,11 +45,14 @@ bool no_prefix(const x86::Instruction& i) noexcept { return i.encoding == x86::E
 // Whether the bytes at `at` could start the form at all: a cheap test before a decode, for the form find() starts
 // with most often. True for a form it has no test for.
 bool could_start(Form form, const SectionCopy& text, std::size_t at) noexcept {
-  if (form != Form::LoadSlot) return true;
+  if (form != Form::LoadSlot && form != Form::CompareSlot) return true;
   if (at + 2 >= text.bytes.size()) return false;
   const auto b = [&](std::size_t k) { return std::to_integer<std::uint8_t>(text.bytes[at + k]); };
   // REX with W set, the load's opcode, and a ModRM that names a RIP-relative operand.
-  return (b(0) & 0xF8) == 0x48 && b(1) == kOpLoad && (b(2) & 0xC7) == 0x05;
+  if (form == Form::LoadSlot) return (b(0) & 0xF8) == 0x48 && b(1) == kOpLoad && (b(2) & 0xC7) == 0x05;
+  // REX with W set, the group's opcode, and a ModRM that names the compare of a RIP-relative operand.
+  return (b(0) & 0xF8) == 0x48 && (b(1) == kOpGroup1Imm8 || b(1) == kOpGroup1Imm32) &&
+         b(2) == (0x05 | (kGroup1Compare << 3));
 }
 
 }  // namespace
@@ -64,7 +72,8 @@ std::optional<Form> form_of(std::string_view word) noexcept {
 }
 
 bool gives_place(Form form) noexcept {
-  return form == Form::LoadSlot || form == Form::AddressArg1 || form == Form::CallRelative;
+  return form == Form::LoadSlot || form == Form::AddressArg1 || form == Form::CallRelative ||
+         form == Form::CompareSlot;
 }
 
 bool Shape::valid() const noexcept {
@@ -72,6 +81,7 @@ bool Shape::valid() const noexcept {
   bool loaded = false;
   for (const Form f : steps) {
     if (f == Form::LoadSlot) loaded = true;
+    if (f == Form::CompareSlot) loaded = false;          // a compare in memory leaves nothing in a register
     if (f == Form::TestLoaded && !loaded) return false;  // nothing to test yet
   }
   return true;
@@ -152,6 +162,37 @@ std::optional<Hit> walk(const ImageBytes& img, const SectionCopy& text, const Sh
         place = code::branch_target(img, text, d);
         if (!place) return fail(k, Differs::Other);
         break;
+      case Form::CompareSlot: {
+        const bool group = insn->encoding == x86::Encoding::Legacy && insn->map == 0 && insn->has_modrm &&
+                           (insn->opcode == kOpGroup1Imm8 || insn->opcode == kOpGroup1Imm32) &&
+                           ((insn->modrm >> 3) & 7) == kGroup1Compare && insn->rip_relative && insn->disp_size == 4;
+        if (!group || insn->prefixes > 1 || insn->lock || insn->rep != 0 || insn->segment != 0) {
+          return fail(k, Differs::Other);
+        }
+        if (!insn->wide) return fail(k, Differs::Narrow);
+        // The immediate must be zero: a compare with anything else asks another question than "is it there".
+        const std::size_t imm = static_cast<std::size_t>(at - text.rva) + insn->imm_at;
+        if (insn->imm_size == 0 || imm + insn->imm_size > text.bytes.size()) return fail(k, Differs::Other);
+        for (std::size_t b = 0; b < insn->imm_size; ++b) {
+          if (text.bytes[imm + b] != std::byte{0}) return fail(k, Differs::Other);
+        }
+        place = code::rip_target(img, text, d);
+        if (!place) return fail(k, Differs::Other);
+        loaded.reset();  // nothing is in a register: a test_loaded after it has nothing to test
+        break;
+      }
+      case Form::SkipOne: {
+        // Any instruction that falls through. One that writes the remembered register by a load, an address or a
+        // widening move would make the test that follows a test of something else: that is no accessor's.
+        if (insn->flow != x86::Flow::None) return fail(k, Differs::Other);
+        const bool one_byte_load = insn->map == 0 && (insn->opcode == kOpLoad || insn->opcode == kOpAddress);
+        const bool widening = insn->map == 1 && (insn->opcode == 0xB6 || insn->opcode == 0xB7 ||
+                                                 insn->opcode == 0xBE || insn->opcode == 0xBF);
+        if (loaded && insn->has_modrm && (one_byte_load || widening) && insn->reg() == *loaded) {
+          return fail(k, Differs::OtherRegister);
+        }
+        break;
+      }
     }
     if (place) hit.gives[k] = *place;
     at = d.end();

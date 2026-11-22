@@ -274,4 +274,120 @@ ClockFound ClockSearch::found() const {
   return out;
 }
 
+// ---- The member search ----
+
+MemberSearch::MemberSearch(std::vector<std::uint32_t> statics, std::vector<Namer::LeadTable> tables, std::uint64_t base,
+                           std::uint64_t size)
+    : base_(base), size_(size), statics_(std::move(statics)) {
+  if (statics_.size() > kMaxStatics) statics_.resize(kMaxStatics);
+  for (Namer::LeadTable& t : tables) {
+    std::uint32_t lead = 0;
+    while (lead < leads_.size() && (leads_[lead].id != t.id || leads_[lead].label != t.label)) ++lead;
+    if (lead == leads_.size()) leads_.push_back(Lead{t.id, std::move(t.label)});
+    tables_.push_back(Table{base + t.vtable, lead});
+  }
+  std::sort(tables_.begin(), tables_.end(), [](const Table& a, const Table& b) { return a.address < b.address; });
+}
+
+const MemberSearch::Table* MemberSearch::table_at(std::uint64_t word) const noexcept {
+  const auto it = std::lower_bound(tables_.begin(), tables_.end(), word,
+                                   [](const Table& t, std::uint64_t w) { return t.address < w; });
+  return it != tables_.end() && it->address == word ? &*it : nullptr;
+}
+
+void MemberSearch::hit(const Table& t, std::uint32_t rva, std::uint32_t offset, bool embedded) noexcept {
+  const std::size_t n = hit_count_.load(std::memory_order_relaxed);
+  for (std::size_t i = 0; i < n; ++i) {
+    if (hits_[i].rva == rva && hits_[i].offset == offset && hits_[i].lead == t.lead) return;  // met in an earlier pass
+  }
+  if (n >= kMaxHits) return;
+  hits_[n] = Hit{t.lead, rva, offset, static_cast<std::uint32_t>(t.address - base_), embedded};
+  hit_count_.store(n + 1, std::memory_order_release);  // a reader sees a hit only once it is whole
+}
+
+bool MemberSearch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t reads,
+                        std::uint64_t now_us) {
+  if (statics_.empty() || tables_.empty()) return false;
+  if (resting_) {
+    if (now_us < pass_end_us_ + kPassEveryUs) return false;
+    resting_ = false;
+  }
+  const auto in_image = [&](std::uint64_t v) { return v >= base_ && v - base_ < size_; };
+  for (std::uint32_t done = 0; done < reads;) {
+    const std::uint32_t rva = statics_[next_];
+    if (copied_ == 0) {
+      // The static's object: its slot, then its first bytes, at a shorter length where its memory ends sooner.
+      ++done;
+      const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + rva);
+      if (!slot && reader.spent()) return false;
+      instance_ = slot ? *slot : 0;
+      std::uint32_t span = kSpan;
+      bool copied = false;
+      if (instance_ != 0) {
+        while (!copied) {
+          copied = reader.copy_into(gt, proto::Group::Session, instance_, std::span<std::byte>(copy_).first(span), 8)
+                       .has_value();
+          if (copied) break;
+          if (reader.spent()) return false;  // the same static again at the next step
+          if (span <= 0x10) break;
+          span /= 2;
+        }
+        objects_.fetch_add(1, std::memory_order_relaxed);
+        if (!copied) unreadable_.fetch_add(1, std::memory_order_relaxed);
+      }
+      copied_ = copied ? span : 0;
+      word_ = 8;
+      if (!copied) copied_ = 0;
+    }
+    // The words of the copy, from where the last step stopped.
+    while (copied_ != 0 && word_ + 8 <= copied_ && done < reads) {
+      std::uint64_t w = 0;
+      std::memcpy(&w, copy_.data() + word_, 8);
+      const std::uint32_t at = word_;
+      word_ += 8;
+      if (const Table* t = table_at(w)) {
+        hit(*t, rva, at, true);
+        continue;
+      }
+      if (w < kLowestAddress || w > kAddressEnd || w % 8 != 0 || in_image(w) || w == instance_) continue;
+      ++done;
+      pointers_.fetch_add(1, std::memory_order_relaxed);
+      const auto first = reader.copy<std::uint64_t>(gt, proto::Group::Session, w);
+      if (!first) {
+        if (reader.spent()) {
+          word_ = at;  // not judged: the same word again at the next step
+          return false;
+        }
+        continue;
+      }
+      if (const Table* t = table_at(*first)) hit(*t, rva, at, false);
+    }
+    if (copied_ != 0 && word_ + 8 <= copied_) return false;  // this step's reads are spent inside the object
+    // On to the next static; after the last, the pass has ended.
+    copied_ = 0;
+    if (++next_ >= statics_.size()) {
+      next_ = 0;
+      passes_.fetch_add(1, std::memory_order_release);
+      pass_end_us_ = now_us;
+      resting_ = true;
+      return true;
+    }
+  }
+  return false;
+}
+
+MembersFound MemberSearch::found() const {
+  MembersFound out;
+  out.objects = objects_.load(std::memory_order_relaxed);
+  out.unreadable = unreadable_.load(std::memory_order_relaxed);
+  out.pointers = pointers_.load(std::memory_order_relaxed);
+  out.passes = passes_.load(std::memory_order_acquire);
+  const std::size_t n = hit_count_.load(std::memory_order_acquire);
+  for (std::size_t i = 0; i < n && i < kMaxHits; ++i) {
+    const Hit& h = hits_[i];
+    out.hits.push_back(MemberHit{leads_[h.lead].id, leads_[h.lead].label, h.rva, h.offset, h.embedded, h.vtable});
+  }
+  return out;
+}
+
 }  // namespace en::gal::lodestar

@@ -582,6 +582,7 @@ TEST_CASE("in game: a lead's tables of methods, and a manager set by the search 
   // The HUD and the camera not named by a pass (their statics empty); the search then finds the HUD's object behind
   // one slot, and the camera's behind two.
   lodestar::InstancesFound held;
+  const std::uint64_t eye = w.instance("camera");
   w.mem.put<std::uint64_t>(w.at("st_hud"), 0);
   w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
   lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
@@ -591,7 +592,28 @@ TEST_CASE("in game: a lead's tables of methods, and a manager set by the search 
     REQUIRE(it != held.managers.end());
     return *it;
   };
-  lodestar::set_by_search(held, hud, 0x1238, tables[0], 1);
+  const auto searched = [](std::vector<std::uint32_t> slots, std::uint32_t objects, std::uint32_t vtable) {
+    lodestar::SlotSearchResult out;
+    out.slots = std::move(slots);
+    out.objects = objects;
+    out.vtable = vtable;
+    out.candidates = 400;
+    out.checked = 400;
+    out.unreadable = 7;
+    return out;
+  };
+  // A search that finds nothing leaves the manager as it was, and its own numbers with it.
+  lodestar::set_by_search(held, hud, searched({}, 0, 0));
+  CHECK(held.named == 9);
+  CHECK(of("hud").status == Status::Missing);
+  CHECK(of("hud").search_runs == 1);
+  CHECK(of("hud").search_candidates == 400);
+  CHECK(of("hud").search_checked == 400);
+  CHECK(of("hud").search_unreadable == 7);
+  lodestar::set_by_search(held, hud, searched({0x1238}, 1, tables[0]));
+  CHECK(of("hud").search_runs == 2);
+  CHECK(of("hud").search_objects == 1);
+  CHECK(of("hud").search_slots == std::vector<std::uint32_t>{0x1238});
   CHECK(held.named == 10);
   CHECK(of("hud").status == Status::Derived);
   CHECK(of("hud").by_search);
@@ -599,16 +621,60 @@ TEST_CASE("in game: a lead's tables of methods, and a manager set by the search 
   CHECK(of("hud").sites == 0);
   CHECK(of("hud").witnesses.empty());
   CHECK(of("hud").pass == 1);
-  lodestar::set_by_search(held, roles::info(Item::Camera).id, 0x2000, 0x3000, 2);
+  // Two slots that hold two objects of the class leave it ambiguous.
+  const std::uint32_t camera = roles::info(Item::Camera).id;
+  lodestar::set_by_search(held, camera, searched({0x2008, 0x2000}, 2, 0x3000));
   CHECK(of("camera").status == Status::Ambiguous);
   CHECK(of("camera").search_found == 2);
+  CHECK(of("camera").rva == 0x2000);  // the first by offset
   CHECK(held.ambiguous == 1);
-  // What the search named stays named through a later pass, and a manager a pass named is not touched by a search.
+  // What the search found stays through a later pass: the named one named, the ambiguous one ambiguous, and the
+  // search's numbers with both. (The second round in game lost them here: docs/ops/probes/2026-11-22-l5.md.)
+  lodestar::set_in_data(held, camera, 3, 0x7000);
   lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
   CHECK(of("hud").by_search);
   CHECK(of("hud").rva == 0x1238);
-  lodestar::set_by_search(held, roles::info(Item::Session).id, 0x4000, 0x5000, 1);
+  CHECK(of("hud").search_runs == 2);
+  CHECK(of("camera").status == Status::Ambiguous);
+  CHECK(of("camera").by_search);
+  CHECK(of("camera").search_found == 2);
+  CHECK(of("camera").search_slots == std::vector<std::uint32_t>{0x2000, 0x2008});
+  CHECK(of("camera").in_data == 3);
+  CHECK(of("camera").in_data_rva == 0x7000);
+  CHECK(held.named == 10);
+  CHECK(held.ambiguous == 1);
+  // A later search that finds nothing does not undo an earlier finding.
+  lodestar::set_by_search(held, camera, searched({}, 0, 0));
+  CHECK(of("camera").search_found == 2);
+  CHECK(of("camera").search_runs == 2);
+  // Two slots that hold one object are copies of one address: the manager is named, by the first, and both are kept.
+  lodestar::set_by_search(held, camera, searched({0x2008, 0x2000}, 1, 0x3000));
+  CHECK(of("camera").status == Status::Derived);
+  CHECK(of("camera").rva == 0x2000);
+  CHECK(of("camera").search_objects == 1);
+  CHECK(of("camera").search_found == 2);
+  CHECK(held.named == 11);
+  CHECK(held.ambiguous == 0);
+  // A manager a pass named is not renamed by a search; the search's numbers are kept all the same.
+  lodestar::set_by_search(held, roles::info(Item::Session).id, searched({0x4000}, 1, 0x5000));
   CHECK_FALSE(of("session").by_search);
+  CHECK(of("session").search_found == 1);
+  // A pass that names a manager the search left ambiguous takes it over, and the search's numbers stay.
+  {
+    lodestar::InstancesFound two;
+    lodestar::merge(two, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+    lodestar::set_by_search(two, camera, searched({0x2008, 0x2000}, 2, 0x3000));
+    w.mem.put<std::uint64_t>(w.at("st_camera"), eye);
+    lodestar::merge(two, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+    const auto it = std::find_if(two.managers.begin(), two.managers.end(), [&](const auto& m) { return m.id == camera; });
+    REQUIRE(it != two.managers.end());
+    CHECK(it->status == Status::Derived);
+    CHECK_FALSE(it->by_search);
+    CHECK(it->rva == w.at("st_camera") - w.base);
+    CHECK(it->pass == 2);
+    CHECK(it->search_found == 2);
+    w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  }
   // The draft table: a static the search found is given by its instance's class alone, with no agreement claimed.
   r.found.instances = held;
   for (lodestar::ManagerFound& m : r.found.instances->managers) {
@@ -678,12 +744,16 @@ TEST_CASE("in game: the clock search knows the world's clock by how its minutes 
 
   // In the report: numbers only.
   r.found.clock = found;
-  r.found.rising = lodestar::RisingFound{12, 3, 0, {lodestar::RisingHit{0x1000, 0x20, 5, 2, 0}}};
+  r.found.rising = lodestar::RisingFound{12, 3, 0, 1, {lodestar::RisingHit{0x1000, 0x20, 5, 2, 0}}};
+  r.found.search = lodestar::SearchFound{120, 20, 95, 5, 300, 4, 1, 0, 50, 2};
+  r.found.members = lodestar::MembersFound{11, 0, 40, 1, {lodestar::MemberHit{0, "messages", 0x1000, 0x18, false, 0x2000}}};
   const auto report = lodestar::write_report(r.found);
   if (!report) MESSAGE(report::describe(report.error()));
   REQUIRE(report.has_value());
   CHECK(report->find("\"clock_hits\"") != std::string::npos);
   CHECK(report->find("\"rising_hits\"") != std::string::npos);
+  CHECK(report->find("\"pointer_like\"") != std::string::npos);
+  CHECK(report->find("\"member_hits\"") != std::string::npos);
 }
 
 TEST_CASE("in game: the clock search takes a new object as new, skips an empty slot, and gives up on what it cannot read") {
@@ -734,4 +804,171 @@ TEST_CASE("in game: the clock search takes a new object as new, skips an empty s
   CHECK(found.hits[0].offset == 0x11);
   CHECK(found.hits[0].ticks >= 12);
   CHECK(found.hits[0].ticks <= 15);
+}
+
+TEST_CASE("in game: the member search finds a lead's object inside another object, or behind a pointer in it") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  const std::uint32_t messages = roles::info(Item::Messages).id;
+  // What the search looks for: the tables of methods of the messages' class (a lead not named, say).
+  std::vector<lodestar::Namer::LeadTable> tables;
+  for (lodestar::Namer::LeadTable& t : namer.lead_tables()) {
+    if (t.id == messages) tables.push_back(std::move(t));
+  }
+  REQUIRE(tables.size() == 1);
+  CHECK(tables[0].label == "messages");
+  CHECK(tables[0].vtable == w.vtable("words") - w.base);
+  // The messages' static is empty; the session's object points at the messages' object from its 0x18, and the HUD's
+  // object holds a table of methods of that class at its 0x38, as an object lying inside it would.
+  const std::uint64_t words = w.instance("messages");
+  w.mem.put<std::uint64_t>(w.at("st_messages"), 0);
+  w.mem.put<std::uint64_t>(w.instance("session") + 0x18, words);
+  w.mem.put<std::uint64_t>(w.instance("hud") + 0x38, w.vtable("words"));
+  std::vector<std::uint32_t> statics;
+  for (const lodestar::StaticFound& st : lodestar::all_statics(r.found.accessor)) statics.push_back(st.rva);
+  lodestar::MemberSearch search(statics, tables, w.base, r.gated.image.size_of_image);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 1'000'000;
+  bool ended = false;
+  int steps = 0;
+  for (; steps < 1000 && !ended; ++steps) {
+    reader.begin_tick();
+    ended = search.step(gt, reader, 4, now);  // a few reads a step: an object is gone through over several steps
+    now += 33'000;
+  }
+  REQUIRE(ended);
+  CHECK(steps >= 3);
+  lodestar::MembersFound found = search.found();
+  CHECK(found.passes == 1);
+  CHECK(found.objects == 10);  // eleven statics, one of them empty
+  CHECK(found.unreadable == 0);
+  CHECK(found.pointers > 0);
+  REQUIRE(found.hits.size() == 2);
+  const auto hit_at = [&](std::uint64_t slot) {
+    const auto it = std::find_if(found.hits.begin(), found.hits.end(),
+                                 [&](const lodestar::MemberHit& h) { return h.rva == slot - w.base; });
+    REQUIRE(it != found.hits.end());
+    return *it;
+  };
+  const lodestar::MemberHit behind = hit_at(w.at("st_session"));
+  CHECK(behind.id == messages);
+  CHECK(behind.label == "messages");
+  CHECK(behind.offset == 0x18);
+  CHECK_FALSE(behind.embedded);
+  CHECK(behind.vtable == w.vtable("words") - w.base);
+  const lodestar::MemberHit inside = hit_at(w.at("st_hud"));
+  CHECK(inside.offset == 0x38);
+  CHECK(inside.embedded);
+  // It rests between passes: nothing is read until the next is due, and a second pass finds the same two, once.
+  const std::uint64_t pointers = found.pointers;
+  reader.begin_tick();
+  CHECK_FALSE(search.step(gt, reader, 64, now + 1'000'000));
+  CHECK(search.found().pointers == pointers);
+  now += lodestar::MemberSearch::kPassEveryUs + 1'000'000;
+  ended = false;
+  for (int k = 0; k < 1000 && !ended; ++k) {
+    reader.begin_tick();
+    ended = search.step(gt, reader, 64, now);
+  }
+  REQUIRE(ended);
+  found = search.found();
+  CHECK(found.passes == 2);
+  CHECK(found.hits.size() == 2);
+  // The object's own first word is not a member: a static that holds the lead's object itself is no hit.
+  w.mem.put<std::uint64_t>(w.at("st_messages"), words);
+  lodestar::MemberSearch again(statics, tables, w.base, r.gated.image.size_of_image);
+  ended = false;
+  for (int k = 0; k < 1000 && !ended; ++k) {
+    reader.begin_tick();
+    ended = again.step(gt, reader, 64, now);
+  }
+  REQUIRE(ended);
+  for (const lodestar::MemberHit& h : again.found().hits) CHECK(h.rva != w.at("st_messages") - w.base);
+  // Nothing to look for, or nowhere to look: it does nothing.
+  lodestar::MemberSearch none(statics, {}, w.base, r.gated.image.size_of_image);
+  CHECK_FALSE(none.step(gt, reader, 64, now));
+  CHECK(none.found().objects == 0);
+}
+
+TEST_CASE("in game: a lead the catalogue does not hold is counted by the statics that hold its class") {
+  FakeWorld w;
+  Round r = round_of(w);
+  // The lead `no_such_thing` has no class here: counted, with nothing held.
+  REQUIRE(r.found.instances->others.size() == 1);
+  CHECK(r.found.instances->others[0].label == "no_such_thing");
+  CHECK(r.found.instances->others[0].held == 0);
+  // With a class one static's object has, it is counted with that static and its table of methods; never named.
+  std::string leads_text(kLeads);
+  const std::size_t at = leads_text.find("\"Nowhere\"");
+  REQUIRE(at != std::string::npos);
+  leads_text.replace(at, 9, "\"Save\"");
+  auto leads = derive::parse_leads(leads_text);
+  REQUIRE(leads.has_value());
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), *leads, r.ids);
+  lodestar::AccessorFound accessor = r.found.accessor;
+  // The save's static is none of the accessor's here: it stands in as a variant's new static.
+  lodestar::VariantFound variant;
+  variant.label = "accessor_compare";
+  variant.statics.push_back(lodestar::StaticFound{static_cast<std::uint32_t>(w.at("st_save_data") - w.base), 0, 3, {}});
+  accessor.variants.push_back(variant);
+  const lodestar::InstancesFound pass = namer.pass(w.sys->image(), accessor, reader_of(w));
+  CHECK(pass.tried == 12);
+  CHECK(pass.named == 11);
+  REQUIRE(pass.others.size() == 1);
+  CHECK(pass.others[0].held == 1);
+  CHECK(pass.others[0].rva == w.at("st_save_data") - w.base);
+  CHECK(pass.others[0].vtable == w.vtable("save") - w.base);
+  const auto text = [&] {
+    lodestar::Found f = r.found;
+    f.instances = pass;
+    return lodestar::write_report(f);
+  }();
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"others\"") != std::string::npos);
+  CHECK(text->find("\"held\": 1") != std::string::npos);
+}
+
+TEST_CASE("in game: a manager behind a static only a variant of the accessor's shape reaches is named, and marked") {
+  FakeWorld w;
+  Round r = round_of(w);
+  // The camera's static taken out of the accessor's own and handed back as a variant's new static.
+  lodestar::AccessorFound accessor = r.found.accessor;
+  const std::uint32_t slot = static_cast<std::uint32_t>(w.at("st_camera") - w.base);
+  const auto it = std::find_if(accessor.statics.begin(), accessor.statics.end(),
+                               [&](const lodestar::StaticFound& s) { return s.rva == slot; });
+  REQUIRE(it != accessor.statics.end());
+  lodestar::VariantFound variant;
+  variant.label = "accessor_gap";
+  variant.statics.push_back(*it);
+  accessor.statics.erase(it);
+  accessor.variants.push_back(variant);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  const lodestar::InstancesFound pass = namer.pass(w.sys->image(), accessor, reader_of(w));
+  CHECK(pass.tried == 11);
+  CHECK(pass.named == 11);
+  for (const lodestar::ManagerFound& m : pass.managers) {
+    CAPTURE(m.label);
+    CHECK(m.variant == (m.label == "camera"));
+    if (m.label == "camera") {
+      CHECK(m.rva == slot);
+      CHECK(m.sites == variant.statics[0].sites);
+      CHECK(m.witnesses == variant.statics[0].witnesses);
+    }
+  }
+  // In the draft table it is an accessor's static like the others: two recipes agree, and its witnesses stand.
+  lodestar::Found f = r.found;
+  f.accessor = accessor;
+  f.instances = pass;
+  const TableProvenance provenance{"0.1.0-test.1", std::string(64, 'a'), "l5", "2026-01-02", {}};
+  const lodestar::DraftTable draft = lodestar::draft_table(f, r.ids, provenance, r.gated.image, w.sys->image());
+  const std::size_t at = draft.text.find("[item.camera]");
+  REQUIRE(at != std::string::npos);
+  const std::string entry = draft.text.substr(at, draft.text.find("[item.", at + 5) - at);
+  CHECK(entry.find("found_by = [\"accessor\", \"instance_class\"]") != std::string::npos);
+  CHECK(entry.find("witnesses = [") != std::string::npos);
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"variant\": true") != std::string::npos);
 }

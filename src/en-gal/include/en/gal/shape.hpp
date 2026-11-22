@@ -31,8 +31,12 @@ enum class Form : std::uint8_t {
   BranchSetNear,   // the same with a 32-bit distance
   AddressArg1,     // the address of a RIP-relative object into the first argument's register; gives the object
   CallRelative,    // a relative call; gives its target
+  SkipOne,         // any one instruction that falls through and does not load the remembered register anew: the
+                   // compiler now and then puts one between a load and its test
+  CompareSlot,     // a 64-bit compare of a RIP-relative slot with zero, in memory: where the slot's value is not
+                   // needed in a register, the compiler tests it there; gives the slot. A branch_set step may follow
 };
-inline constexpr std::size_t kFormCount = 6;
+inline constexpr std::size_t kFormCount = 8;
 
 [[nodiscard]] const char* to_string(Form form) noexcept;  // "load_slot", "test_loaded", "branch_set_short", ...
 [[nodiscard]] std::optional<Form> form_of(std::string_view word) noexcept;

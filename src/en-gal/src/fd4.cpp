@@ -354,7 +354,8 @@ bool Accessor::valid() const noexcept {
   const auto gives = [&](std::uint8_t step, shape::Form form) {
     return step < shape.steps.size() && shape.steps[step] == form;
   };
-  return gives(static_step, shape::Form::LoadSlot) && gives(class_step, shape::Form::AddressArg1) &&
+  return (gives(static_step, shape::Form::LoadSlot) || gives(static_step, shape::Form::CompareSlot)) &&
+         gives(class_step, shape::Form::AddressArg1) &&
          gives(getter_step, shape::Form::CallRelative);
 }
 

@@ -196,7 +196,11 @@ of any game is in it, and every name it looks for comes from a leads file.
   slot into a register, which the shape remembers; gives the slot), `test_loaded` (a 64-bit test of that register with
   itself), `branch_set_short` and `branch_set_near` (a branch forward taken when the test found it set, with an 8-bit
   or a 32-bit distance), `address_arg1` (the address of a RIP-relative object into the first argument's register;
-  gives the object) and `call_relative` (gives its target). Each form is one instruction of the architecture's own
+  gives the object) and `call_relative` (gives its target); and, for the accessor's other shapes, `skip_one` (any one
+  instruction that falls through and does not load the remembered register anew: a call, a jump, a return, or a
+  load, an address or a widening move into that register is refused) and `compare_slot` (a 64-bit compare of a
+  RIP-relative slot with zero where it lies; gives the slot, leaves nothing in a register, and a branch form may
+  follow it). Each form is one instruction of the architecture's own
   encoding, with no prefix but REX.W where it is 64-bit, whatever registers and distances it uses; the steps'
   instructions follow one another. `match_at` answers the shape at one place, with what each step gives and where its
   branch goes; `find` looks at every offset of a section, as the pattern scan does, so a site is found also where a
@@ -208,14 +212,18 @@ of any game is in it, and every name it looks for comes from a leads file.
   every place, verdict and name the same: the test that let `gal/patterns.toml`'s idiom go (O102).
 - **`recipes.hpp`: `gal/recipes.toml`** (proposal 0005 §6; O102). `parse_recipes(text, required_ids)` reads the
   recipes, one kind so far: an `accessor`, with its `steps` (1 to 16 forms of the grammar; a test before any load is
-  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it), its
+  refused), `gives` (which step gives the `static`, the `class` and the `getter`, each of the form that gives it; the
+  static by a `load_slot` or a `compare_slot`), its
   `path_suffix`, and, as a pattern has, `section`, `expect_matches` (a range up to 65,536), `builds` and `provenance`
   (`own-derivation`). No key of a recipe can hold bytes. `RecipeSpec::accessor()` is what the finder takes. Discovery
   takes the file's text in `DiscoveryOptions::recipes`: with an `accessor` recipe (`roles::kAccessorRecipeId`) the FD4
   singletons are found by its shape and `patterns.toml` needs no `fd4_idiom`, nor is one read; a text that does not
   read is a refusal. On the tests' fake world discovery finds the same items, sites and names by either. The DLL and
   the test DLL read `recipes.toml` when the folder holds it, and a folder with it and no `patterns.toml` is read as
-  having no pattern. The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
+  having no pattern. A file may hold more recipes of the accessor's kind under other ids (the accessor's other
+  shapes: `accessor_near`, `accessor_gap`, `accessor_compare`, `accessor_compare_near`, each a lead with its note
+  and its count on 2.7.2.0; a fifth stood nowhere there and was withdrawn): discovery reads `accessor` alone, and Lodestar's finder counts the others beside it.
+  The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
   the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
   until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
   no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
@@ -233,7 +241,12 @@ of any game is in it, and every name it looks for comes from a leads file.
   for each static and the reverse (`shared_class_objects`, `shared_statics`), and no site that the shape alone
   accepts; a site the pattern alone accepts is reported with its reason and does not count against the run (on
   2.7.2.0 there are 4, each a test of another register than the one loaded: the pattern took another load for the
-  manager's slot there). `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
+  manager's slot there). Every other recipe of the accessor's kind is a variant, run the same way and reported under
+  its id (`AccessorFound::variants`): its hits, the sites accepted and refused, the statics they reach, how many of
+  those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
+  that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
+  then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
+  `complete`. `write_report` writes kind `lodestar`, schema 3, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -246,10 +259,18 @@ of any game is in it, and every name it looks for comes from a leads file.
   `name_instances(...)` is one pass of a namer made for the call. `lead_classes()`, offline too and in every
   report, counts what the image holds under each lead's name: classes of that name and of that name with Imp, the
   tables of methods of those and of every class deriving from them, and the places where a type's name of either
-  form stands at all. So a reviewer can tell a manager that is not there from one under another name, or one with
+  form stands at all, and the classes whose name holds the lead's and is neither (`related`: a manager that goes by
+  a longer name). So a reviewer can tell a manager that is not there from one under another name, or one with
   no type information; the round of 2026-11-22 could not (`docs/ops/probes/2026-11-22-l5.md`). A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
   the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
-  a save is loaded is null at the title; what was named stays named, with the pass that named it. The report's
+  a save is loaded is null at the title; what was named stays named, with the pass that named it, and what the
+  searches found for a manager stays with it through every later pass (the second round of 2026-11-22 lost it
+  there). A pass goes through `all_statics`, marks a manager behind a variant's static (`variant`), and counts for
+  each lead the catalogue does not hold how many statics hold an object of its class (`others`: a lead on trial).
+  `set_by_search(held, id, result)` takes a slot search's result: the slots found name the manager when they hold
+  one object between them (one slot, or several that are copies of one address; the first by offset is taken), two
+  objects leave it ambiguous, and the search's own numbers (runs, candidates, checked, unreadable, the slots) are
+  kept either way; `set_in_data` records the objects of its class in the image's own data. The report's
   `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
   `draft_table(found, ids, provenance, image, source)` writes the findings as `[provenance]` and `[item.*]` entries
   (managers, the leads' two classes, the groups' table), each checked first as a start will check it: an entry whose
@@ -263,7 +284,14 @@ of any game is in it, and every name it looks for comes from a leads file.
   removed. With `set_stage(id)` a reading made while that manager has an instance counts as one in the world
   (`world_readings`, `stage_changes`), and each manager's empty readings are counted in stretches (`null_runs`,
   `null_longest`) and by stage (`null_world`), so a report says when a manager was away, not only how often. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
-  `trial` object.
+  `trial` object. `ClockSearch` looks, in the first bytes of the objects behind the statics no lead named, for a
+  field that behaves as a clock's minutes do with one beside it that behaves as hours. `MemberSearch` looks for a
+  lead's object that no slot of the data points at: it copies the first bytes of each static's object (0x800 at
+  most, less where its memory ends sooner) and, for every 8-aligned word after the first, takes a table of methods
+  of a lead's class as an object lying there itself (`embedded`), and follows what could be a heap address by one
+  8-byte read; a hit is a static and an offset into its object, for the review and never a name. A pass goes
+  through every static once and the next starts 30 s later. Both read through the guarded reader and allocate
+  nothing on the reader's thread.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -452,10 +480,18 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
   instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
   game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any
-  discovery); `slots_holding` finds the data slots holding a value (R1's `global_hinstance`: the module's base);
-  `RisingSearch` copies each candidate's instance again a second or more after its last copy and keeps the 32-bit
-  fields that rose by the elapsed milliseconds (within a fifth), with how often each rose, stood still or changed
-  otherwise (a play time stands still at the title and while loading; a candidate that faults is not copied again), for
+  discovery), or over candidates the caller collected; it keeps the slots found with the object each held
+  (`found_objects`: two slots with one object are copies of one address) and how many there were in all.
+  `heap_slots` takes an optional question of what is live at a value (`LiveFn`: memory that may be read, none, or
+  memory that may not be read; on Windows the caller answers it with VirtualQuery, which reads nothing): only live
+  values are kept, and the rest are counted by the answer. Most 8-aligned values of a game's data that could be a
+  heap address are not one (in the second round of 2026-11-22 about 97 in 100 were refused when asked). `slots_holding` finds the data slots
+  holding a value (R1's `global_hinstance`: the module's base);
+  `RisingSearch` copies each candidate's instance again a second or more after its last copy and counts, for every
+  32-bit field, the passes it rose in by the elapsed milliseconds (within a fifth), and from its first rise those it
+  stood still in or changed otherwise (a play time stands still at the title and while loading; a candidate that
+  faults is not copied again); its hits are the 32 fields that rose in the most passes, chosen again as each pass
+  ends (the best, not the first met), and a sweep that copied nothing is no pass; for
   a static whose class has no RTTI; `Census` copies the task hub's instance and what it points at to a depth of three
   (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),
   and counts the objects whose first 8 bytes are one of the image's vtables (the hub's own tasks, whose shared class is

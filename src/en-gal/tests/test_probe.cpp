@@ -131,6 +131,97 @@ TEST_CASE("probe: the rising-counter search finds the play time by the clock, an
   CHECK(it->other == 0);
 }
 
+TEST_CASE("probe: the heap slots with a question of what is live keep the live ones and count the rest") {
+  FakeWorld w;
+  const Discovery d = discovered(w);
+  const probe::HeapSlots all = probe::heap_slots(*w.sys, d.image());
+  CHECK(all.pointer_like == all.slots.size());
+  CHECK(all.not_committed == 0);
+  // The save's object is said to be gone, the game state's to be behind a guard: neither is a candidate.
+  const std::uint64_t save = w.instance("save_data"), game = w.instance("game_state");
+  std::uint64_t asked = 0;
+  const probe::LiveFn live = [&](std::uint64_t v) {
+    ++asked;
+    return v == save ? probe::Liveness::NotCommitted : v == game ? probe::Liveness::NoAccess : probe::Liveness::Live;
+  };
+  const probe::HeapSlots some = probe::heap_slots(*w.sys, d.image(), 1u << 16, &live);
+  CHECK(asked == all.slots.size());
+  CHECK(some.pointer_like == all.slots.size());
+  CHECK(some.not_committed == 1);
+  CHECK(some.no_access == 1);
+  CHECK(some.slots.size() == all.slots.size() - 2);
+  CHECK(std::find(some.values.begin(), some.values.end(), save) == some.values.end());
+  CHECK(std::find(some.values.begin(), some.values.end(), game) == some.values.end());
+  // `max` counts what is kept.
+  const probe::HeapSlots three = probe::heap_slots(*w.sys, d.image(), 3, &live);
+  CHECK(three.slots.size() == 3);
+}
+
+TEST_CASE("probe: two slots that hold one object are found as two slots with one object") {
+  FakeWorld w;
+  const Discovery d = discovered(w);
+  // The save's slot holds the game state's object too: a copy of one address.
+  const std::uint64_t game = w.instance("game_state");
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), game);
+  probe::SlotSearch search(probe::heap_slots(*w.sys, d.image()), d.vtables(roles::Cls::GameState));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  for (int tick = 0; tick < 100 && !search.step(gt, reader, 8); ++tick) reader.begin_tick();
+  CHECK(search.checked() == search.candidates());
+  REQUIRE(search.found().size() == 2);
+  CHECK(search.found_total() == 2);
+  REQUIRE(search.found_objects().size() == 2);
+  CHECK(search.found_objects()[0] == game);
+  CHECK(search.found_objects()[1] == game);
+}
+
+TEST_CASE("probe: the rising-counter search keeps the fields that rose most, not the first it met") {
+  FakeWorld w;
+  // Forty objects whose field rises once and never again, then one whose field rises at every pass: with room for
+  // 32 hits, the one that keeps rising must be among them, and first.
+  probe::HeapSlots candidates;
+  std::vector<std::uint64_t> objects;
+  for (std::uint32_t i = 0; i < 41; ++i) {
+    objects.push_back(w.mem.alloc(0x40));
+    candidates.slots.push_back(0x1000 + 8 * i);
+    candidates.values.push_back(objects.back());
+    w.mem.put<std::uint32_t>(objects.back() + 0x20, 5000);
+  }
+  probe::RisingSearch search(std::move(candidates), 0x40);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  const auto pass = [&] {
+    for (int tick = 0; tick < 1000; ++tick) {
+      reader.begin_tick();
+      if (search.step(gt, reader, 16, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  pass();
+  CHECK(search.risen() == 0);
+  for (int p = 0; p < 6; ++p) {
+    now += 1'000'000;
+    for (std::uint32_t i = 0; i < 41; ++i) {
+      const bool rises = i == 40 || p == 0;
+      if (rises) w.mem.put<std::uint32_t>(objects[i] + 0x20, w.mem.get<std::uint32_t>(objects[i] + 0x20) + 1000);
+    }
+    pass();
+  }
+  CHECK(search.passes() == 7);
+  CHECK(search.risen() == 41);
+  const auto hits = search.hits();
+  REQUIRE(hits.size() == probe::RisingSearch::kMaxHits);
+  CHECK(hits[0].slot == 0x1000 + 8 * 40);
+  CHECK(hits[0].offset == 0x20);
+  CHECK(hits[0].rose == 6);
+  CHECK(hits[0].still == 0);
+  CHECK(hits[1].rose == 1);
+  CHECK(hits[1].still == 5);
+  CHECK(hits[1].slot == 0x1000);  // among equals, the first met
+  CHECK(std::is_sorted(hits.begin(), hits.end(), [](const auto& a, const auto& b) { return a.rose > b.rose; }));
+}
+
 TEST_CASE("probe: the hub census finds the objects the hub points at by their vtables, to a depth of three") {
   FakeWorld w;
   const Discovery d = discovered(w);
