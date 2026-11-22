@@ -2,7 +2,39 @@
 
 The command-line host that runs EldenNet's engine outside the game (ARCH §12.3), C++20, MIT. One program,
 `eldennet-engine`, with a subcommand each: `render-prompt`, `chat`, `decide`, `probe`, `models`, the devkit's
-`probe-exe` and `lint`, the spikes' `rec-stats`, `replay` and `spike-report`, and Augur's `golden` (this file's subject). `eldennet-engine <command> --help` lists a command's options.
+`probe-exe` and `lint`, the spikes' `rec-stats`, `replay` and `spike-report`, Augur's `golden` (this file's subject),
+which also checks the prompt goldens, and the lint's `lexicon`. `eldennet-engine <command> --help` lists a command's
+options.
+
+## render-prompt --fixture: the dialogue prompt a fixture gives (the first conversation's part A)
+
+```text
+eldennet-engine render-prompt --fixture <fixture.prompt.json> [--content <pack>] [--json]
+```
+
+Renders the dialogue prompt with en-core's `DialoguePrompt` (src/en-core/src/prompt/README.md) over the pack's
+`prompts/` (`--content`, `content/eldenring` by default), from a fixture: an invented persona's record in NPC §3.1's
+form with its stage resolved, and optionally the earlier and the current history, the scene, the recap, the reminder,
+the tally and block 5b's lines (src/en-tools/lib/prompt_fixture.hpp). It prints the prompt goldens' form: header lines
+(the estimate against the 2,800 target and the 3,500 cap, the messages and breakpoints, each block against its cap with
+`!` past it, and what the trim took), then the messages in marker form, `[ cache ]` after each breakpoint; or with
+`--json` the messages, their parts and marks, the estimate, the blocks and the trim. A refused render prints the
+refusal and exits 1: nothing would be sent. The fixtures and their goldens are in `tests/fixtures/prompt/`.
+
+## lexicon: the lint's lexicon (NPC §8.3; O107)
+
+```text
+eldennet-engine lexicon fingerprint [--toml]
+eldennet-engine lexicon check [--content <pack>]
+```
+
+`fingerprint` reads words or short phrases (at most three words) from standard input, one a line, and prints the
+safety list's fingerprint of each (SHA-256, in hex, of `eldennet.safety.v1:` and the word as the lint normalises it:
+content/eldenring/lexicon/README.md), sorted and without repeats, one a line, or with `--toml` as entries of a TOML list.
+It writes the words nowhere, not to a file, a log or its own output; a line that normalises to no word or to more than
+three is named on standard error by its number alone, and the run exits 1 with the other lines printed. `check` reads
+the pack's `lexicon/banned.toml` and `safety.toml` as the lint does and prints each list's size, or the first problem
+(its file, line and key, never an entry) and exits 1.
 
 ## probe-exe: the derivation's offline round (R0, O89)
 
@@ -231,11 +263,17 @@ Exit codes: 0 written (replay agreeing; spike-report passing); 1 replay disagree
 refused (a recording by the lint, a log line that is not the launcher's); 5 a report refused by its own writer (a
 defect of ours). No message quotes what a file held.
 
-## golden: Augur's golden files (part 11)
+## golden: Augur's golden files (part 11) and the prompt goldens
 
 ```text
-eldennet-engine golden [check|update] <route.scn | recording.ensnap.jsonl> [--golden FILE] [--changes FILE]
+eldennet-engine golden [check|update] <route.scn | recording.ensnap.jsonl | fixture.prompt.json>
+                       [--golden FILE] [--changes FILE] [--content DIR]
 ```
+
+A prompt fixture (`tests/fixtures/prompt/<name>.prompt.json`) is rendered as `render-prompt --fixture` renders it, over
+the pack `--content` names (else the nearest `content/eldenring` above the fixture), twice, each time with the
+templates loaded afresh: the two must agree byte for byte (MEM §12.11's T5), or the check fails. Its golden file is
+`golden/<name>.prompt.txt` beside the fixture, with its own `CHANGES.md` beside it, checked and updated as a route's is.
 
 Runs a scenario or a recording through en-core and Augur, checks a scenario's expectations, and compares the events,
 in the golden files' form (src/en-augur/README.md), with the route's golden file: `tests/golden/<route>.events.jsonl`
@@ -303,7 +341,17 @@ about any build; the layout stays schema 1, with no item, until a table is found
 and golden files (exact, and CHANGES.md naming each), determinism (byte-identical over 10 runs, with and without a
 seeded loss), 50% snapshot loss against the dense run (src/en-augur/README.md, "Snapshot loss"), a recording of a
 route's inputs written as the DLL writes it replaying to the same events, and the diff. CTest's `en_golden.<route>`
-runs `golden check` on each route as CI does.
+runs `golden check` on each route as CI does, and `en_golden_prompt.<name>` on each prompt fixture. Its
+`test_dialogue_prompt.cpp` runs the first conversation's part A on the shipped content: the pack loads, the frame and
+the registers keep their caps, blocks 1 to 5 never move with the turn and 5b only with the stage and its lines (T5),
+each fixture renders as its golden says, the Tarnished's words stay quoted text, the shipped lexicon lints invented
+lines, and a recorded stream goes through the sanitizer, the lint and the pager into pages.
+
+`tests/speech_cli_test.py` (CTest's `en_tools_speech_cli`, in the Linux builds) runs `render-prompt --fixture` (the
+golden's form, `--json`, a refused render, usage errors), `golden` on the prompt fixtures and on a copy (no golden yet,
+no CHANGES.md entry, a golden changed by hand) and `lexicon` (fingerprints of invented words, their order and repeats,
+the refused lines named by number with no word written out, `--toml`, `check` on the shipped pack and on a broken one
+without quoting the entry).
 
 `tests/cli_test.py` (CTest's `en_tools_cli`, in the Linux builds) runs both commands as DataPiler's job would, on the
 derivation tests' invented program that `en_tools_write_sample` writes as a file: every exit code above, derive.json's

@@ -36,9 +36,7 @@ bool any_of(const std::vector<std::string>& words, const std::vector<LexiconEntr
 
 LexiconEntry entry_of(std::string_view text) { return LexiconEntry{lint_words(text), false}; }
 
-bool punctuation(char c) {
-  return c == '.' || c == ',' || c == '!' || c == '?' || c == ';' || c == ':' || c == '-';
-}
+bool punctuation(char c) { return c == '.' || c == ',' || c == '!' || c == '?' || c == ';' || c == ':' || c == '-'; }
 
 // A token of the sanitized text without its punctuation at either end, and whether it had some after it. The em and en
 // dashes are three bytes each in UTF-8, so they are trimmed as strings.
@@ -48,8 +46,8 @@ std::string_view core_of(std::string_view token, bool& trailing) {
     if (!token.empty() && punctuation(token.back())) {
       token.remove_suffix(1);
       trailing = true;
-    } else if (token.size() >= 3 && (token.substr(token.size() - 3) == "\xE2\x80\x94" ||
-                                     token.substr(token.size() - 3) == "\xE2\x80\x93")) {
+    } else if (token.size() >= 3 &&
+               (token.substr(token.size() - 3) == "\xE2\x80\x94" || token.substr(token.size() - 3) == "\xE2\x80\x93")) {
       token.remove_suffix(3);
       trailing = true;
     } else {
@@ -180,8 +178,8 @@ class Reply final : public ReplyLint {
       const std::string w = lowered(core_of(tokens[k], trailing));
       if (w.empty() || (!trailing && k + 1 < tokens.size())) break;
       const auto own = std::find(openers_.begin(), openers_.end(), w);
-      const bool global = std::find(lex_->interjections.begin(), lex_->interjections.end(), w) !=
-                          lex_->interjections.end();
+      const bool global =
+          std::find(lex_->interjections.begin(), lex_->interjections.end(), w) != lex_->interjections.end();
       if (own == openers_.end() && !global) break;
       if (own == openers_.end()) {
         v.soft.push_back(SoftHit::Opener);  // the global set's, not the persona's
@@ -244,9 +242,8 @@ class Reply final : public ReplyLint {
       std::vector<speech::Cp> cps;
       speech::decode_utf8(t, true, cps);
       if (cps.empty() || !speech::is_upper(cps[0].cp)) continue;
-      const bool capitals = cps.size() > 1 && std::all_of(cps.begin(), cps.end(), [](const speech::Cp& c) {
-                              return !speech::is_lower(c.cp);
-                            });
+      const bool capitals = cps.size() > 1 && std::all_of(cps.begin(), cps.end(),
+                                                          [](const speech::Cp& c) { return !speech::is_lower(c.cp); });
       if (capitals) continue;
       const std::vector<std::string> parts = lint_words(t);
       if (parts.empty()) continue;
@@ -260,8 +257,8 @@ class Reply final : public ReplyLint {
 
   // One of the persona's own names, not where it names itself ("I am", "call me", "my name is").
   bool third_person(const std::vector<std::string>& words) const {
-    static constexpr std::array<std::string_view, 8> kNaming = {"am", "i'm", "me", "is", "called", "named", "as",
-                                                                "myself"};
+    static constexpr std::array<std::string_view, 8> kNaming = {"am",     "i'm",   "me", "is",
+                                                                "called", "named", "as", "myself"};
     for (const LexiconEntry& self : self_) {
       for (std::size_t i = 0; i + self.words.size() <= words.size(); ++i) {
         if (!std::equal(self.words.begin(), self.words.end(), words.begin() + static_cast<std::ptrdiff_t>(i))) continue;

@@ -19,8 +19,22 @@ using speech::Cp;
 
 bool separator(char32_t c) {
   switch (c) {
-    case '.': case ',': case ';': case ':': case '-': case '_': case '*': case '`': case '~': case '\'':
-    case U'\u2013': case U'\u2014': case U'\u2026': case U'\u2018': case U'\u2019': case U'\u02BC':
+    case '.':
+    case ',':
+    case ';':
+    case ':':
+    case '-':
+    case '_':
+    case '*':
+    case '`':
+    case '~':
+    case '\'':
+    case U'\u2013':
+    case U'\u2014':
+    case U'\u2026':
+    case U'\u2018':
+    case U'\u2019':
+    case U'\u02BC':
       return true;
     default:
       return false;
@@ -29,18 +43,30 @@ bool separator(char32_t c) {
 
 char lookalike(char32_t c) {
   switch (c) {
-    case '0': return 'o';
-    case '1': return 'i';
-    case '3': return 'e';
-    case '4': return 'a';
-    case '5': return 's';
-    case '7': return 't';
-    case '8': return 'b';
-    case '@': return 'a';
-    case '$': return 's';
-    case '!': return 'i';
-    case '|': return 'i';
-    default: return 0;
+    case '0':
+      return 'o';
+    case '1':
+      return 'i';
+    case '3':
+      return 'e';
+    case '4':
+      return 'a';
+    case '5':
+      return 's';
+    case '7':
+      return 't';
+    case '8':
+      return 'b';
+    case '@':
+      return 'a';
+    case '$':
+      return 's';
+    case '!':
+      return 'i';
+    case '|':
+      return 'i';
+    default:
+      return 0;
   }
 }
 
@@ -196,7 +222,8 @@ std::optional<LexiconError> read_banned(std::string_view text, Lexicon& lex) {
   toml::parse_result parsed = toml::parse(text);
   if (!parsed) {
     const toml::parse_error& e = parsed.error();
-    return error(file, static_cast<std::size_t>(e.source().begin.line), "is not valid TOML: " + std::string(e.description()));
+    return error(file, static_cast<std::size_t>(e.source().begin.line),
+                 "is not valid TOML: " + std::string(e.description()));
   }
   const toml::table& root = parsed.table();
   bool format = false;
@@ -251,7 +278,8 @@ std::optional<LexiconError> read_safety(std::string_view text, Lexicon& lex) {
   toml::parse_result parsed = toml::parse(text);
   if (!parsed) {
     const toml::parse_error& e = parsed.error();
-    return error(file, static_cast<std::size_t>(e.source().begin.line), "is not valid TOML: " + std::string(e.description()));
+    return error(file, static_cast<std::size_t>(e.source().begin.line),
+                 "is not valid TOML: " + std::string(e.description()));
   }
   bool format = false;
   for (auto&& [k, v] : parsed.table()) {

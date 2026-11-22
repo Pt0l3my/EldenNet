@@ -109,6 +109,10 @@ std::size_t hard_cut(std::string_view before, std::string_view s) {
     best = j;
     i = j;
   }
+  // Not even one character fits: text that is no UTF-8 (a run of continuation bytes), cut at a byte.
+  if (best == 0 && before.empty()) {
+    while (best < s.size() && page_fits(s.substr(0, best + 1))) ++best;
+  }
   return best;
 }
 
@@ -159,7 +163,7 @@ class Reply final : public ReplyPager {
     // Pack the page: whole pieces while they fit; a first piece too long alone, or one after short sentences only, is
     // split.
     std::string page;
-    std::size_t used = 0;     // pieces placed whole
+    std::size_t used = 0;       // pieces placed whole
     std::size_t last_long = 0;  // pieces placed whole up to the last that is not short
     bool only_short = true;
     std::optional<std::pair<std::string, std::string>> split;  // the head placed and the rest left

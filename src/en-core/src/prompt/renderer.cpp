@@ -1,4 +1,4 @@
-// The dialogue prompt's renderer (NPC §7.1 to §7.3): dialogue_prompt.hpp has the rules, prompts/README.md the data's
+// The dialogue prompt's renderer (NPC §7.1 to §7.3): dialogue_prompt.hpp has the rules, README.md here the data's
 // names. Every en-prompt error is caught here and answered as a PromptError: a failed render sends nothing.
 #include <algorithm>
 #include <exception>
@@ -152,16 +152,20 @@ json standing(const Standing& s) {
 std::string_view reminder_name(const std::optional<HardList>& r) {
   if (!r) return "";
   switch (*r) {
-    case HardList::Banned: return "banned";
-    case HardList::Promise: return "promise";
-    case HardList::Safety: return "safety";
+    case HardList::Banned:
+      return "banned";
+    case HardList::Promise:
+      return "promise";
+    case HardList::Safety:
+      return "safety";
   }
   return "";
 }
 
 // ---- Trimming ----
 
-// Where each exchange of the history starts: at each of the Tarnished's lines (persona lines before the first form one).
+// Where each exchange of the history starts: at each of the Tarnished's lines (persona lines before the first form
+// one).
 std::vector<std::size_t> exchange_starts(const json& history) {
   std::vector<std::size_t> starts;
   for (std::size_t i = 0; i < history.size(); ++i) {
@@ -173,9 +177,15 @@ std::vector<std::size_t> exchange_starts(const json& history) {
 proto::Message to_proto(const prompt::Message& m) {
   proto::Message out;
   switch (m.role) {
-    case prompt::Role::system: out.role = proto::Role::System; break;
-    case prompt::Role::user: out.role = proto::Role::User; break;
-    case prompt::Role::assistant: out.role = proto::Role::Assistant; break;
+    case prompt::Role::system:
+      out.role = proto::Role::System;
+      break;
+    case prompt::Role::user:
+      out.role = proto::Role::User;
+      break;
+    case prompt::Role::assistant:
+      out.role = proto::Role::Assistant;
+      break;
   }
   for (const prompt::Part& p : m.parts) out.parts.push_back(proto::Part{p.text, p.cache});
   proto::normalise(out);
@@ -190,7 +200,8 @@ std::uint32_t tokens_of(const std::vector<prompt::Message>& messages) {
 
 proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context) {
   const std::string persona = context.persona.empty() ? std::string("(unnamed)") : std::string(context.persona);
-  if (context.record == nullptr) return proto::Unexpected{refusal(PromptRefusal::NoRecord, "persona " + persona + ": no record")};
+  if (context.record == nullptr)
+    return proto::Unexpected{refusal(PromptRefusal::NoRecord, "persona " + persona + ": no record")};
   if (!context.record->is_object()) {
     return proto::Unexpected{refusal(PromptRefusal::Template, "persona " + persona + ": the record is not an object")};
   }
@@ -241,7 +252,11 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
   }
   d["register"] = reg;
   const std::string pr = pronoun.is_null() ? std::string("they") : pronoun.get<std::string>();
-  const char* possessive = pr == "he" ? "his" : pr == "she" ? "her" : pr == "it" ? "its" : pr == "they" ? "their" : nullptr;
+  const char* possessive = pr == "he"     ? "his"
+                           : pr == "she"  ? "her"
+                           : pr == "it"   ? "its"
+                           : pr == "they" ? "their"
+                                          : nullptr;
   if (possessive == nullptr) {
     return proto::Unexpected{
         refusal(PromptRefusal::Template, "persona " + persona + ": the record's pronouns is not he, she, they or it")};
@@ -261,8 +276,8 @@ proto::Expected<json, PromptError> dialogue_data(const DialogueContext& context)
   for (const std::string& n : s.just_now) {
     if (!n.empty() && just_now.size() < 3) just_now.push_back(n);
   }
-  d["scene"] = {{"place", s.place},         {"time_word", s.time_word}, {"weather_word", s.weather_word},
-                {"nearby", nearby},         {"tarnished", s.tarnished}, {"just_now", just_now},
+  d["scene"] = {{"place", s.place},    {"time_word", s.time_word}, {"weather_word", s.weather_word},
+                {"nearby", nearby},    {"tarnished", s.tarnished}, {"just_now", just_now},
                 {"you_now", s.you_now}};
   json recap = json::array();
   const std::size_t from = context.recap.size() > 3 ? context.recap.size() - 3 : 0;
@@ -320,21 +335,23 @@ proto::Expected<std::unique_ptr<DialoguePrompt>, PromptError> DialoguePrompt::lo
       for (std::size_t i = 0; i < kBlockCount; ++i) {
         if (kBlocks[i].number != number) continue;
         if (!impl->parts[i].empty()) {
-          return proto::Unexpected{refusal(PromptRefusal::Template, "prompts/dialogue/ has two parts " + std::string(number))};
+          return proto::Unexpected{
+              refusal(PromptRefusal::Template, "prompts/dialogue/ has two parts " + std::string(number))};
         }
         impl->parts[i] = f.find('/') == std::string::npos ? std::string(kDialogueFolder) + "/" + f : f;
         known = true;
       }
       const bool numbered = !number.empty() && number.front() >= '0' && number.front() <= '9';
       if (!known && numbered) {
-        return proto::Unexpected{refusal(PromptRefusal::Template, "prompts/dialogue/ has a part " + std::string(number) +
-                                                                      " that is no block of the dialogue prompt")};
+        return proto::Unexpected{refusal(
+            PromptRefusal::Template,
+            "prompts/dialogue/ has a part " + std::string(number) + " that is no block of the dialogue prompt")};
       }
     }
     for (std::size_t i = 0; i < kBlockCount; ++i) {
       if (impl->parts[i].empty()) {
-        return proto::Unexpected{refusal(PromptRefusal::Template,
-                                         "prompts/dialogue/ has no part " + std::string(kBlocks[i].number))};
+        return proto::Unexpected{
+            refusal(PromptRefusal::Template, "prompts/dialogue/ has no part " + std::string(kBlocks[i].number))};
       }
     }
     for (const std::string_view r : kRegisters) {
@@ -350,13 +367,20 @@ proto::Expected<std::unique_ptr<DialoguePrompt>, PromptError> DialoguePrompt::lo
     probe.record = &sample;
     auto data = dialogue_data(probe);
     if (!data) return proto::Unexpected{data.error()};
-    const std::vector<prompt::Finding> findings = impl->env.lint(kDialogueFolder, &*data);
-    if (!findings.empty()) return proto::Unexpected{refusal(PromptRefusal::Template, prompt::to_string(findings.front()))};
+    std::vector<prompt::Finding> findings = impl->env.lint(kDialogueFolder, &*data);
+    for (const std::string_view r : kRegisters) {  // named by a computed name, so the folder's lint does not reach them
+      if (!findings.empty()) break;
+      findings = impl->env.lint(std::string(kRegisterFolder) + "/" + std::string(r) + ".md", &*data);
+    }
+    if (!findings.empty()) {
+      return proto::Unexpected{refusal(PromptRefusal::Template, prompt::to_string(findings.front()))};
+    }
     return std::unique_ptr<DialoguePrompt>(new DialoguePrompt(std::move(impl)));
   } catch (const prompt::TemplateError& e) {
     return proto::Unexpected{refusal(PromptRefusal::Template, e.what())};
   } catch (const std::exception& e) {
-    return proto::Unexpected{refusal(PromptRefusal::Template, std::string("the templates could not load: ") + e.what())};
+    return proto::Unexpected{
+        refusal(PromptRefusal::Template, std::string("the templates could not load: ") + e.what())};
   }
 }
 

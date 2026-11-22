@@ -157,9 +157,15 @@ TEST_CASE("a recorded stream becomes pages: the sanitizer, the lint and the page
   auto pages = pager.open(PageContext{35});
   // An invented reply, as a model might stream it: reasoning, a name prefix, a stage direction, an opener off the
   // persona's list, and the start of the Tarnished's turn.
-  const std::vector<std::string> deltas = {"<thi", "nk>She is wary.</think>Ysolde of the Weir: ", "*looks up* Well, the ",
-                                           "ford's safe enough", " at low water. The tide turns at mid", "night, mind.",
-                                           " Cross before then", ".\nThe Tarnished: Thank", " you."};
+  const std::vector<std::string> deltas = {"<thi",
+                                           "nk>She is wary.</think>Ysolde of the Weir: ",
+                                           "*looks up* Well, the ",
+                                           "ford's safe enough",
+                                           " at low water. The tide turns at mid",
+                                           "night, mind.",
+                                           " Cross before then",
+                                           ".\nThe Tarnished: Thank",
+                                           " you."};
   std::vector<Sentence> sentences;
   Flow flow = Flow::More;
   for (const std::string& d : deltas) {

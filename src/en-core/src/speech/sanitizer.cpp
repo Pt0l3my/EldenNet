@@ -79,7 +79,8 @@ class Analyser {
     speech::decode_utf8(raw_, ended_, raw_cps);
     open_ = !ended_;
     if (over_ > 0) {
-      found_.push_back({Removed::OverLimit, static_cast<std::uint32_t>(raw_.size()), static_cast<std::uint32_t>(over_)});
+      found_.push_back(
+          {Removed::OverLimit, static_cast<std::uint32_t>(raw_.size()), static_cast<std::uint32_t>(over_)});
     }
     std::vector<Cp> out;
     out.reserve(raw_cps.size());
@@ -369,7 +370,7 @@ class Analyser {
         std::size_t run = i;
         while (run < n && c[run].cp == ch) ++run;
         if (run >= n && open_) return stop(out);  // the run may grow
-        if (run - i >= 2) {  // a bold marker: taken out alone
+        if (run - i >= 2) {                       // a bold marker: taken out alone
           remove(Removed::Markup, i, run);
           i = run;
           continue;
@@ -444,8 +445,8 @@ class Analyser {
       }
       std::size_t j = i;
       while (j < n && is_terminator(c[j].cp)) ++j;
-      const bool ellipsis = c[j - 1].cp == U'\u2026' ||
-                            (j - i >= 3 && c[j - 1].cp == '.' && c[j - 2].cp == '.' && c[j - 3].cp == '.');
+      const bool ellipsis =
+          c[j - 1].cp == U'\u2026' || (j - i >= 3 && c[j - 1].cp == '.' && c[j - 2].cp == '.' && c[j - 3].cp == '.');
       while (j < n && is_quote(c[j].cp)) ++j;
       if (j == n) break;  // the stream's end is a boundary only once the stream has ended
       if (c[j].cp != ' ') {
@@ -473,11 +474,10 @@ class Analyser {
     for (std::size_t k = 0; k < cands.size(); ++k) {
       const bool has_next = k + 1 < cands.size() || start < n;
       if (!has_next && open_) break;
-      const std::uint32_t until =
-          !has_next ? UINT32_MAX : c[k + 1 < cands.size() ? cands[k + 1].first : start].at;
+      const std::uint32_t until = !has_next ? UINT32_MAX : c[k + 1 < cands.size() ? cands[k + 1].first : start].at;
       const bool last = !has_next;
-      std::string text = clean(std::span(c).subspan(cands[k].first, cands[k].end - cands[k].first), k == 0, last,
-                               pending);
+      std::string text =
+          clean(std::span(c).subspan(cands[k].first, cands[k].end - cands[k].first), k == 0, last, pending);
       if (text.empty()) continue;  // its removals go to the next sentence
       std::vector<Removal> removed = std::move(pending);
       pending.clear();
@@ -541,8 +541,8 @@ class Analyser {
       char32_t ch = s[k].cp;
       if (is_single_quote(ch)) ch = '\'';
       const bool ok = speech::is_letter(ch) || speech::is_digit(ch) || ch == ' ' || ch == '.' || ch == ',' ||
-                      ch == ';' || ch == ':' || ch == '!' || ch == '?' || ch == '\'' || ch == '-' ||
-                      ch == U'\u2014' || ch == U'\u2013' || ch == U'\u2026';
+                      ch == ';' || ch == ':' || ch == '!' || ch == '?' || ch == '\'' || ch == '-' || ch == U'\u2014' ||
+                      ch == U'\u2013' || ch == U'\u2026';
       if (!ok) {
         add(removed, Removed::Character, s[k].bytes);
         continue;

@@ -16,7 +16,8 @@
 // sentence too long for a page alone splits at its last ';', '—', ':' or ',' among characters 40 to 116 that leaves a
 // first part that fits, else at its last space that does, never inside a word; the rest starts the next page with no
 // extra pause. A page's hold is clamp(1200 + 55 × characters, 2000, 6500) ms, and 400 ms more when it ends in "...";
-// Tab ends a hold early, but not before 300 ms (hold_ends). Pure (ARCH §2.3): time is the `now` the conversation passes.
+// Tab ends a hold early, but not before 300 ms (hold_ends). Pure (ARCH §2.3): time is the `now` the conversation
+// passes.
 #include <cstddef>
 #include <cstdint>
 #include <memory>

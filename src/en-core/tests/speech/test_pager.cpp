@@ -210,9 +210,20 @@ TEST_CASE("an over-long sentence splits at its last mark among characters 40 to 
 namespace {
 
 std::string random_sentence(std::mt19937& rng) {
-  static const std::vector<std::string> kWords = {"the", "reeds", "weir", "a", "tide-water", "boatman's", "cold,",
-                                                  "low;", "\xC3\xA9t\xC3\xA9", "stone", "\xE2\x80\x94", "night",
-                                                  "xxxxxxxxxxxxxxxxxxxxxxxx", "ford"};
+  static const std::vector<std::string> kWords = {"the",
+                                                  "reeds",
+                                                  "weir",
+                                                  "a",
+                                                  "tide-water",
+                                                  "boatman's",
+                                                  "cold,",
+                                                  "low;",
+                                                  "\xC3\xA9t\xC3\xA9",
+                                                  "stone",
+                                                  "\xE2\x80\x94",
+                                                  "night",
+                                                  "xxxxxxxxxxxxxxxxxxxxxxxx",
+                                                  "ford"};
   std::uniform_int_distribution<std::size_t> count(1, 30);
   std::uniform_int_distribution<std::size_t> pick(0, kWords.size() - 1);
   std::string s;

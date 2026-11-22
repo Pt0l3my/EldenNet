@@ -84,7 +84,8 @@ TEST_CASE("the safety normalisation: case, accents, look-alikes, separators, spe
   CHECK(safety_words("z o r b l a t") == V{"zorblat"});
   CHECK(safety_words("$orbl@t |n") == V{"sorblat", "in"});
   CHECK(safety_words("in 1000 years") == V{"in", "10", "years"});  // no letter: digits kept, squeezed
-  CHECK(safety_words("Stra\xC3\x9F" "e, \xC3\x86on.") == V{"strase", "aeon"});
+  CHECK(safety_words("Stra\xC3\x9F"
+                     "e, \xC3\x86on.") == V{"strase", "aeon"});
   CHECK(safety_words("...!!! --") == V{});
   CHECK(safety_words("a b") == V{"a", "b"});  // two one-letter words are left alone
   CHECK(safety_fingerprint("zorblat") == speech::sha256_hex("eldennet.safety.v1:zorblat"));
@@ -103,8 +104,8 @@ TEST_CASE("the safety list: fingerprints match a reply's words and runs, at both
     CHECK(v.hit == HardList::Safety);
   }
   CHECK(one(l, c, "A quix came, and a vandle.").action == LintAction::Pass);  // not in a row
-  CHECK(one(l, c, "Zorblatter.").action == LintAction::Pass);                // a whole word only
-  CHECK(one(l, c, "The grubbleflesh.").action == LintAction::Pass);          // faithful: gore passes
+  CHECK(one(l, c, "Zorblatter.").action == LintAction::Pass);                 // a whole word only
+  CHECK(one(l, c, "The grubbleflesh.").action == LintAction::Pass);           // faithful: gore passes
   c.safety = Safety::Gentle;
   CHECK(one(l, c, "The grubbleflesh.").hit == HardList::Safety);
 }

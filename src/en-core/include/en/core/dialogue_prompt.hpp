@@ -9,8 +9,9 @@
 // and 11 the task (user). Consecutive messages of one role are merged with a blank line, keeping the breakpoints.
 //
 // The template data is built here from the context, with every name always present (null, "" or [] when unset), so a
-// template's names are fixed and checked when the pack loads (prompts/README.md lists them). The record's fields are
-// read with their types checked: a field of the wrong type refuses the render, naming the field, never its value.
+// template's names are fixed and checked when the pack loads (src/en-core/src/prompt/README.md lists them). The
+// record's fields are read with their types checked: a field of the wrong type refuses the render, naming the field,
+// never its value.
 // The Tarnished's words enter quoted; no input carries the player's name, which appears in no prompt until told
 // (DESIGN §8.8; the told-name line of block 8 comes with memory, v0.3).
 //
@@ -111,7 +112,7 @@ class DialoguePrompt final : public PromptRenderer {
   std::unique_ptr<Impl> impl_;
 };
 
-// The template data a context gives, before any trim (prompts/README.md lists its names).
+// The template data a context gives, before any trim (src/en-core/src/prompt/README.md lists its names).
 [[nodiscard]] proto::Expected<nlohmann::json, PromptError> dialogue_data(const DialogueContext& context);
 
 }  // namespace en::core

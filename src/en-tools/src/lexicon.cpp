@@ -67,10 +67,11 @@ int check(const fs::path& pack) {
     std::fprintf(stderr, "lexicon: %s\n", lex.error().c_str());
     return 1;
   }
-  std::printf("lexicon: banned %zu, promise %zu, wider %zu, archaic %zu, interjections %zu, safety always %zu, "
-              "safety gentle %zu\n",
-              lex->banned.size(), lex->promise.size(), lex->wider.size(), lex->archaic.size(),
-              lex->interjections.size(), lex->safety_always.size(), lex->safety_gentle.size());
+  std::printf(
+      "lexicon: banned %zu, promise %zu, wider %zu, archaic %zu, interjections %zu, safety always %zu, "
+      "safety gentle %zu\n",
+      lex->banned.size(), lex->promise.size(), lex->wider.size(), lex->archaic.size(), lex->interjections.size(),
+      lex->safety_always.size(), lex->safety_gentle.size());
   return 0;
 }
 

@@ -68,7 +68,8 @@ bool turns_of(const json& o, const char* key, std::vector<core::Turn>& out, std:
     const auto text = e.is_object() ? e.find("text") : e.end();
     if (!e.is_object() || who == e.end() || text == e.end() || !who->is_string() || !text->is_string() ||
         (*who != "tarnished" && *who != "persona")) {
-      problem = std::string("\"") + key + "\" holds a turn that is not {\"who\": \"tarnished\" | \"persona\", \"text\"}";
+      problem =
+          std::string("\"") + key + "\" holds a turn that is not {\"who\": \"tarnished\" | \"persona\", \"text\"}";
       return false;
     }
     out.push_back(core::Turn{*who == "tarnished" ? core::Turn::Who::Tarnished : core::Turn::Who::Persona,
@@ -90,27 +91,42 @@ bool standing_of(const json& o, const char* key, core::Standing& out, std::strin
 
 const char* block_name(core::Block b) {
   switch (b) {
-    case core::Block::Frame: return "1";
-    case core::Block::Identity: return "2";
-    case core::Block::Private: return "3";
-    case core::Block::Voice: return "4";
-    case core::Block::Contract: return "5";
-    case core::Block::Standing: return "5b";
-    case core::Block::History: return "6";
-    case core::Block::Knowledge: return "7";
-    case core::Block::Tarnished: return "8";
-    case core::Block::Scene: return "9";
-    case core::Block::Recap: return "10";
-    case core::Block::Task: return "11";
+    case core::Block::Frame:
+      return "1";
+    case core::Block::Identity:
+      return "2";
+    case core::Block::Private:
+      return "3";
+    case core::Block::Voice:
+      return "4";
+    case core::Block::Contract:
+      return "5";
+    case core::Block::Standing:
+      return "5b";
+    case core::Block::History:
+      return "6";
+    case core::Block::Knowledge:
+      return "7";
+    case core::Block::Tarnished:
+      return "8";
+    case core::Block::Scene:
+      return "9";
+    case core::Block::Recap:
+      return "10";
+    case core::Block::Task:
+      return "11";
   }
   return "?";
 }
 
 const char* refusal_name(core::PromptRefusal r) {
   switch (r) {
-    case core::PromptRefusal::NoRecord: return "NoRecord";
-    case core::PromptRefusal::Template: return "Template";
-    case core::PromptRefusal::OverCap: return "OverCap";
+    case core::PromptRefusal::NoRecord:
+      return "NoRecord";
+    case core::PromptRefusal::Template:
+      return "Template";
+    case core::PromptRefusal::OverCap:
+      return "OverCap";
   }
   return "?";
 }
@@ -135,7 +151,8 @@ proto::Expected<std::map<std::string, std::string>, std::string> read_pack_promp
 proto::Expected<core::Lexicon, std::string> read_pack_lexicon(const fs::path& pack) {
   const auto banned = slurp(pack / "lexicon" / "banned.toml");
   const auto safety = slurp(pack / "lexicon" / "safety.toml");
-  if (!banned || !safety) return proto::Unexpected{std::string("the pack's lexicon/banned.toml or safety.toml cannot be read")};
+  if (!banned || !safety)
+    return proto::Unexpected{std::string("the pack's lexicon/banned.toml or safety.toml cannot be read")};
   auto lex = core::parse_lexicon(*banned, *safety);
   if (!lex) {
     const core::LexiconError& e = lex.error();
@@ -163,10 +180,11 @@ core::DialogueContext PromptFixture::context() const {
 proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::string& text) {
   const json j = json::parse(text, nullptr, false);
   if (j.is_discarded() || !j.is_object()) return proto::Unexpected{std::string("the fixture is not a JSON object")};
-  if (!j.contains("fixture") || j["fixture"] != 1) return proto::Unexpected{std::string("the fixture's format is not 1")};
-  static constexpr std::array<std::string_view, 12> kKeys = {"fixture", "persona", "name", "record", "earlier",
-                                                              "history", "scene", "recap", "reminder", "tally",
-                                                              "tied", "land"};
+  if (!j.contains("fixture") || j["fixture"] != 1)
+    return proto::Unexpected{std::string("the fixture's format is not 1")};
+  static constexpr std::array<std::string_view, 12> kKeys = {"fixture",  "persona", "name",  "record",
+                                                             "earlier",  "history", "scene", "recap",
+                                                             "reminder", "tally",   "tied",  "land"};
   for (const auto& [k, v] : j.items()) {
     if (std::find(kKeys.begin(), kKeys.end(), k) == kKeys.end()) {
       return proto::Unexpected{"the fixture has an unknown key \"" + k + "\""};
@@ -179,7 +197,8 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
   if (!persona || !name) return proto::Unexpected{problem};
   f.persona = *persona;
   f.name = *name;
-  if (!j.contains("record") || !j["record"].is_object()) return proto::Unexpected{std::string("the fixture has no record")};
+  if (!j.contains("record") || !j["record"].is_object())
+    return proto::Unexpected{std::string("the fixture has no record")};
   f.record = j["record"];
   if (!turns_of(j, "earlier", f.earlier, problem) || !turns_of(j, "history", f.history, problem) ||
       !texts_of(j, "recap", f.recap, problem) || !standing_of(j, "tied", f.tied, problem) ||
@@ -189,8 +208,8 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
   if (const auto s = j.find("scene"); s != j.end() && !s->is_null()) {
     if (!s->is_object()) return proto::Unexpected{std::string("\"scene\" is not an object")};
     for (const auto& [k, v] : s->items()) {
-      static constexpr std::array<std::string_view, 7> kScene = {"place", "time_word", "weather_word", "nearby",
-                                                                  "tarnished", "just_now", "you_now"};
+      static constexpr std::array<std::string_view, 7> kScene = {"place",     "time_word", "weather_word", "nearby",
+                                                                 "tarnished", "just_now",  "you_now"};
       if (std::find(kScene.begin(), kScene.end(), k) == kScene.end()) {
         return proto::Unexpected{"\"scene\" has an unknown key \"" + k + "\""};
       }
@@ -262,7 +281,9 @@ std::string prompt_golden_text(const std::string& name,
   out += "\n# trimmed: earlier lines " + std::to_string(r.earlier_trimmed) + ", exchanges " +
          std::to_string(r.exchanges_trimmed) + ", nearby others " + std::to_string(r.nearby_trimmed) + "\n";
   for (const proto::Message& m : r.prompt.messages) {
-    out += m.role == proto::Role::System ? "[ system ]\n" : m.role == proto::Role::User ? "[ user ]\n" : "[ assistant ]\n";
+    out += m.role == proto::Role::System ? "[ system ]\n"
+           : m.role == proto::Role::User ? "[ user ]\n"
+                                         : "[ assistant ]\n";
     for (std::size_t i = 0; i < m.parts.size(); ++i) {
       std::string_view text = m.parts[i].text;
       if (i > 0 && !text.empty() && text.front() == '\n') text.remove_prefix(1);

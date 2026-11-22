@@ -56,22 +56,16 @@ constexpr std::array<Composition, 161> kCompositions = {{
 
 // The ASCII form of each letter from U+00C0 to U+017F, case kept ("" for U+00D7 and U+00F7, which are not letters).
 constexpr std::array<std::string_view, 0x180 - 0xC0> kStripped = {
-    "A", "A", "A", "A", "A", "A", "AE", "C", "E", "E", "E", "E",
-    "I", "I", "I", "I", "D", "N", "O", "O", "O", "O", "O", "",
-    "O", "U", "U", "U", "U", "Y", "TH", "ss", "a", "a", "a", "a",
-    "a", "a", "ae", "c", "e", "e", "e", "e", "i", "i", "i", "i",
-    "d", "n", "o", "o", "o", "o", "o", "", "o", "u", "u", "u",
-    "u", "y", "th", "y", "A", "a", "A", "a", "A", "a", "C", "c",
-    "C", "c", "C", "c", "C", "c", "D", "d", "D", "d", "E", "e",
-    "E", "e", "E", "e", "E", "e", "E", "e", "G", "g", "G", "g",
-    "G", "g", "G", "g", "H", "h", "H", "h", "I", "i", "I", "i",
-    "I", "i", "I", "i", "I", "i", "IJ", "ij", "J", "j", "K", "k",
-    "k", "L", "l", "L", "l", "L", "l", "L", "l", "L", "l", "N",
-    "n", "N", "n", "N", "n", "n", "N", "n", "O", "o", "O", "o",
-    "O", "o", "OE", "oe", "R", "r", "R", "r", "R", "r", "S", "s",
-    "S", "s", "S", "s", "S", "s", "T", "t", "T", "t", "T", "t",
-    "U", "u", "U", "u", "U", "u", "U", "u", "U", "u", "U", "u",
-    "W", "w", "Y", "y", "Y", "Z", "z", "Z", "z", "Z", "z", "s",
+    "A", "A", "A",  "A", "A", "A", "AE", "C",  "E", "E", "E",  "E",  "I", "I", "I",  "I",  "D", "N", "O",  "O",
+    "O", "O", "O",  "",  "O", "U", "U",  "U",  "U", "Y", "TH", "ss", "a", "a", "a",  "a",  "a", "a", "ae", "c",
+    "e", "e", "e",  "e", "i", "i", "i",  "i",  "d", "n", "o",  "o",  "o", "o", "o",  "",   "o", "u", "u",  "u",
+    "u", "y", "th", "y", "A", "a", "A",  "a",  "A", "a", "C",  "c",  "C", "c", "C",  "c",  "C", "c", "D",  "d",
+    "D", "d", "E",  "e", "E", "e", "E",  "e",  "E", "e", "E",  "e",  "G", "g", "G",  "g",  "G", "g", "G",  "g",
+    "H", "h", "H",  "h", "I", "i", "I",  "i",  "I", "i", "I",  "i",  "I", "i", "IJ", "ij", "J", "j", "K",  "k",
+    "k", "L", "l",  "L", "l", "L", "l",  "L",  "l", "L", "l",  "N",  "n", "N", "n",  "N",  "n", "n", "N",  "n",
+    "O", "o", "O",  "o", "O", "o", "OE", "oe", "R", "r", "R",  "r",  "R", "r", "S",  "s",  "S", "s", "S",  "s",
+    "S", "s", "T",  "t", "T", "t", "T",  "t",  "U", "u", "U",  "u",  "U", "u", "U",  "u",  "U", "u", "U",  "u",
+    "W", "w", "Y",  "y", "Y", "Z", "z",  "Z",  "z", "Z", "z",  "s",
 };
 
 struct Range {
@@ -186,10 +180,9 @@ std::size_t utf8_chars(std::string_view text) {
 
 char32_t compose(char32_t base, char32_t mark) {
   if (base >= 0x80 || !is_combining_mark(mark)) return 0;
-  const auto it = std::lower_bound(kCompositions.begin(), kCompositions.end(), Composition{mark, static_cast<char>(base), 0},
-                                   [](const Composition& a, const Composition& b) {
-                                     return a.mark != b.mark ? a.mark < b.mark : a.base < b.base;
-                                   });
+  const auto it = std::lower_bound(
+      kCompositions.begin(), kCompositions.end(), Composition{mark, static_cast<char>(base), 0},
+      [](const Composition& a, const Composition& b) { return a.mark != b.mark ? a.mark < b.mark : a.base < b.base; });
   if (it == kCompositions.end() || it->mark != mark || it->base != static_cast<char>(base)) return 0;
   return it->composed;
 }

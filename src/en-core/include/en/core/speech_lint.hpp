@@ -35,12 +35,12 @@ namespace en::core {
 // A fingerprint is SHA-256, in lower-case hex, of kSafetyDomain followed by a normalised word or phrase of at most
 // three words, the words joined by one space. The normalisation, fixed here and the same for the list's words and a
 // reply's: text is cut into chunks at white space and at any character that is not a letter, a digit, a look-alike
-// (@ $ ! |) or a separator (. , ; : - – — … _ * ` ~ and the apostrophes); a chunk's separators and its '!' at either end
-// are dropped; letters lose their accents and their case (Latin-1 and Latin Extended-A: "é" is "e", "Æ" is "ae", "ß" is
-// "ss"); in a chunk with a letter, separators inside are dropped and look-alikes become letters (0 o, 1 i, 3 e, 4 a,
-// 5 s, 7 t, 8 b, @ a, $ s, ! i, | i), while a chunk with no letter keeps its digits alone; three or more one-letter words
-// in a row become one word; and a run of one letter repeated becomes one ("fooo" is "fo"). A reply's words, and each
-// run of two and three of them, are looked up.
+// (@ $ ! |) or a separator (. , ; : - – — … _ * ` ~ and the apostrophes); a chunk's separators and its '!' at either
+// end are dropped; letters lose their accents and their case (Latin-1 and Latin Extended-A: "é" is "e", "Æ" is "ae",
+// "ß" is "ss"); in a chunk with a letter, separators inside are dropped and look-alikes become letters (0 o, 1 i, 3 e,
+// 4 a, 5 s, 7 t, 8 b, @ a, $ s, ! i, | i), while a chunk with no letter keeps its digits alone; three or more
+// one-letter words in a row become one word; and a run of one letter repeated becomes one ("fooo" is "fo"). A reply's
+// words, and each run of two and three of them, are looked up.
 inline constexpr std::string_view kSafetyDomain = "eldennet.safety.v1:";
 inline constexpr std::size_t kSafetyPhraseWords = 3;
 
@@ -56,26 +56,26 @@ struct LexiconEntry {
 };
 
 struct Lexicon {
-  std::vector<LexiconEntry> banned;       // hard: [hard]'s lists
-  std::vector<LexiconEntry> promise;      // hard: [promise].hard
-  std::vector<LexiconEntry> wider;        // soft: [promise].wider
-  std::vector<LexiconEntry> archaic;      // soft: [soft].archaic
-  std::vector<std::string> interjections; // soft: [soft].interjections, the global opener set
-  std::vector<std::string> safety_always; // fingerprints, sorted: both safety levels
-  std::vector<std::string> safety_gentle; // fingerprints, sorted: `gentle` only
+  std::vector<LexiconEntry> banned;        // hard: [hard]'s lists
+  std::vector<LexiconEntry> promise;       // hard: [promise].hard
+  std::vector<LexiconEntry> wider;         // soft: [promise].wider
+  std::vector<LexiconEntry> archaic;       // soft: [soft].archaic
+  std::vector<std::string> interjections;  // soft: [soft].interjections, the global opener set
+  std::vector<std::string> safety_always;  // fingerprints, sorted: both safety levels
+  std::vector<std::string> safety_gentle;  // fingerprints, sorted: `gentle` only
 };
 
 struct LexiconError {
-  std::string file;     // "banned.toml" or "safety.toml"
-  std::size_t line = 0; // 0 when not known
-  std::string problem;  // names a key and an index, never an entry's text
+  std::string file;      // "banned.toml" or "safety.toml"
+  std::size_t line = 0;  // 0 when not known
+  std::string problem;   // names a key and an index, never an entry's text
 };
 
 inline constexpr std::int64_t kLexiconFormat = 1;
 
 // Reads banned.toml's and safety.toml's texts (the content loader reads the files: en-core does no I/O).
 [[nodiscard]] proto::Expected<Lexicon, LexiconError> parse_lexicon(std::string_view banned_toml,
-                                                                    std::string_view safety_toml);
+                                                                   std::string_view safety_toml);
 
 // ---- The lint ----
 

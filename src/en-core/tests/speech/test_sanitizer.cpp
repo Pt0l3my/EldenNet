@@ -47,7 +47,8 @@ Run whole(std::string_view text, const std::vector<std::string>& names = names_n
   return r;
 }
 
-Run pieces(std::string_view text, const std::vector<std::size_t>& cuts, const std::vector<std::string>& names = names_none) {
+Run pieces(std::string_view text, const std::vector<std::size_t>& cuts,
+           const std::vector<std::string>& names = names_none) {
   const SpeechSanitizer s;
   auto stream = s.open(SanitizeContext{names});
   Run r;
@@ -137,11 +138,17 @@ TEST_CASE("step 0: lossy UTF-8, NFC within Latin, a character split across delta
   CHECK(texts(broken) == V{"Bad byte.", "Fine."});
   CHECK(removed(broken.sentences[0], Removed::Character) == 1);
   // e and a combining acute are é; two bytes of the raw stream become one letter.
-  const Run nfc = whole("Caf" "e\xCC\x81" " by the weir.");
+  const Run nfc = whole(
+      "Caf"
+      "e\xCC\x81"
+      " by the weir.");
   CHECK(texts(nfc) == V{"Caf\xC3\xA9 by the weir."});
   CHECK(nfc.sentences[0].removed.empty());
   // Split inside a character, and between a letter and its mark.
-  CHECK(texts(pieces("Caf" "e\xCC\x81" " by the weir.", {4, 5})) == V{"Caf\xC3\xA9 by the weir."});
+  CHECK(texts(pieces("Caf"
+                     "e\xCC\x81"
+                     " by the weir.",
+                     {4, 5})) == V{"Caf\xC3\xA9 by the weir."});
   CHECK(texts(pieces("Na\xC3\xAFve.", {3})) == V{"Na\xC3\xAFve."});
   // The cap: what is past 4 KB is OverLimit, and the stream stops.
   std::string big;
@@ -222,7 +229,9 @@ TEST_CASE("step 4: markup, emoji and controls, each with its reason and bytes") 
   const Run controls = whole("Line one\nline two\x07.");
   CHECK(texts(controls) == V{"Line one line two."});
   CHECK(removed(controls, Removed::Control) == 1);
-  CHECK(removed(whole("A\x01" "b.\xC2\x85"), Removed::Control) == 3);  // C0 and C1
+  CHECK(removed(whole("A\x01"
+                      "b.\xC2\x85"),
+                Removed::Control) == 3);  // C0 and C1
 }
 
 TEST_CASE("step 5: a leading Name:, and quotation marks at a sentence's edges") {
@@ -237,7 +246,8 @@ TEST_CASE("step 5: a leading Name:, and quotation marks at a sentence's edges") 
   CHECK(texts(quoted) == V{"The weir holds.", "Mostly."});
   CHECK(removed(quoted, Removed::Quotes) == 2);
   CHECK(texts(whole("'Hold fast.' Then go.")) == V{"Hold fast.", "Then go."});
-  CHECK(texts(whole("\xE2\x80\x9C" "Curly.\xE2\x80\x9D")) == V{"Curly."});
+  CHECK(texts(whole("\xE2\x80\x9C"
+                    "Curly.\xE2\x80\x9D")) == V{"Curly."});
   CHECK(texts(whole("'Tis late, lads.")) == V{"'Tis late, lads."});  // an elision stays
   CHECK(texts(whole("The lads' boat.")) == V{"The lads' boat."});
   CHECK(texts(whole("He said \"go\" twice.")) == V{"He said go twice."});
@@ -254,7 +264,8 @@ TEST_CASE("step 6: the whitelist, apostrophes, the ellipsis, collapsed spaces an
   const Run long_token = whole("A antidisestablishmentarianisms word.");
   CHECK(texts(long_token) == V{"A word."});
   CHECK(removed(long_token.sentences[0], Removed::LongToken) == 29);
-  CHECK(texts(whole("Fine. \xE2\x98\x85\xE2\x98\x85. Next.")) == V{"Fine.", "Next."});  // a sentence with no word is none
+  CHECK(texts(whole("Fine. \xE2\x98\x85\xE2\x98\x85. Next.")) ==
+        V{"Fine.", "Next."});  // a sentence with no word is none
 }
 
 TEST_CASE("removals between sentences go with the earlier, and leading ones with the first") {
@@ -284,13 +295,70 @@ namespace {
 // A random reply of invented pieces: words, punctuation, markup, reasoning, emoji, controls, broken bytes, newlines,
 // trailers and run-ons.
 std::string random_stream(std::mt19937& rng) {
-  static const std::vector<std::string> kPieces = {
-      "the", "weir", "Holds", "cold", "Water", "reed", "tide", " ", " ", " ", " ", ".", ". ", "! ", "? ", "...", "... ",
-      "\xE2\x80\xA6 ", ",", ";", "'", "\"", "\xE2\x80\x99", "\xE2\x80\x9C", "*", "**", "_", "(", ")", "[", "]", "<",
-      ">", "<b>", "</b>", "<think>", "</think>", "<THINKING>", "#", "- ", "> ", "`", "\n", "\r\n", "\t", "\x01",
-      "\xC2\x85", "\xC3\xA9", "e\xCC\x81", "\xF0\x9F\x94\xA5", "\xEF\xB8\x8F", "\xC3", "\xFF", "\xE2\x82",
-      "\nACT: nods", "\nThe Tarnished: so", "\ntarnished:", "Brannoch: ", "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", "3.5",
-      "[a](b)", "'tis", "\xCE\xA9", "\xE2\x80\x94"};
+  static const std::vector<std::string> kPieces = {"the",
+                                                   "weir",
+                                                   "Holds",
+                                                   "cold",
+                                                   "Water",
+                                                   "reed",
+                                                   "tide",
+                                                   " ",
+                                                   " ",
+                                                   " ",
+                                                   " ",
+                                                   ".",
+                                                   ". ",
+                                                   "! ",
+                                                   "? ",
+                                                   "...",
+                                                   "... ",
+                                                   "\xE2\x80\xA6 ",
+                                                   ",",
+                                                   ";",
+                                                   "'",
+                                                   "\"",
+                                                   "\xE2\x80\x99",
+                                                   "\xE2\x80\x9C",
+                                                   "*",
+                                                   "**",
+                                                   "_",
+                                                   "(",
+                                                   ")",
+                                                   "[",
+                                                   "]",
+                                                   "<",
+                                                   ">",
+                                                   "<b>",
+                                                   "</b>",
+                                                   "<think>",
+                                                   "</think>",
+                                                   "<THINKING>",
+                                                   "#",
+                                                   "- ",
+                                                   "> ",
+                                                   "`",
+                                                   "\n",
+                                                   "\r\n",
+                                                   "\t",
+                                                   "\x01",
+                                                   "\xC2\x85",
+                                                   "\xC3\xA9",
+                                                   "e\xCC\x81",
+                                                   "\xF0\x9F\x94\xA5",
+                                                   "\xEF\xB8\x8F",
+                                                   "\xC3",
+                                                   "\xFF",
+                                                   "\xE2\x82",
+                                                   "\nACT: nods",
+                                                   "\nThe Tarnished: so",
+                                                   "\ntarnished:",
+                                                   "Brannoch: ",
+                                                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                                                   "3.5",
+                                                   "[a](b)",
+                                                   "'tis",
+                                                   "\xCE\xA9",
+                                                   "\xE2\x80\x94"};
   std::uniform_int_distribution<std::size_t> count(0, 60);
   std::uniform_int_distribution<std::size_t> pick(0, kPieces.size() - 1);
   std::string s;
