@@ -66,6 +66,8 @@ struct Rig {
     head("branch_when_clear", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0}, {0x74, 0x0C}, {0x48, 0x8D, 0x0D});
     head("branch_back", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0}, {0x75, 0xF0}, {0x48, 0x8D, 0x0D});
     head("second_argument", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x15});
+    head("narrow_load", {0x44, 0x8B, 0x05}, {0x45, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
+    head("narrow_test", {0x48, 0x8B, 0x05}, {0x90, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
     head("something_between", {0x48, 0x8B, 0x05}, {0x90, 0x48, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
     // The branch with a 32-bit distance: another form.
     head("near_branch", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0}, {0x0F, 0x85, 0x0C, 0x00, 0x00, 0x00},
@@ -164,7 +166,8 @@ TEST_CASE("a shape refuses its look-alikes: each form is the instruction it name
   const Rig rig;
   const Opened o(rig.built.file);
   for (const char* label : {"tests_another", "half_width_load", "branch_when_clear", "branch_back", "second_argument",
-                            "something_between", "near_branch", "not_a_slot", "call_through"}) {
+                            "something_between", "near_branch", "not_a_slot", "call_through", "narrow_load",
+                            "narrow_test"}) {
     CAPTURE(label);
     CHECK_FALSE(shape::match_at(o.img, o.text(), kAccessor, rig.at(label)).has_value());
   }
@@ -186,6 +189,32 @@ TEST_CASE("a shape refuses its look-alikes: each form is the instruction it name
   CHECK_FALSE(shape::match_at(o.img, o.text(), kAccessor, rig.at("plain") + 1).has_value());
 }
 
+TEST_CASE("a mismatch names the first step that differs, and how") {
+  const Rig rig;
+  const Opened o(rig.built.file);
+  const auto miss = [&](const char* label) { return shape::mismatch_at(o.img, o.text(), kAccessor, rig.at(label)); };
+  using shape::Differs;
+  using shape::Mismatch;
+  CHECK_FALSE(miss("plain").has_value());
+  CHECK_FALSE(miss("high_register").has_value());
+  // A load that is the form in all but its width: a 32-bit value is no pointer to a manager.
+  CHECK(miss("narrow_load") == Mismatch{0, Differs::Narrow});
+  CHECK(miss("not_a_slot") == Mismatch{0, Differs::Other});
+  CHECK(miss("half_width_load") == Mismatch{0, Differs::Other});  // another instruction stands first
+  CHECK(miss("tests_another") == Mismatch{1, Differs::OtherRegister});
+  CHECK(miss("something_between") == Mismatch{1, Differs::Other});
+  CHECK(miss("branch_when_clear") == Mismatch{2, Differs::Other});
+  CHECK(miss("branch_back") == Mismatch{2, Differs::Other});
+  CHECK(miss("near_branch") == Mismatch{2, Differs::Other});
+  CHECK(miss("second_argument") == Mismatch{3, Differs::Other});
+  CHECK(miss("call_through") == Mismatch{4, Differs::Other});
+  CHECK(shape::mismatch_at(o.img, o.text(), kAccessor, rig.at("text_end") - 1).has_value());
+  CHECK(shape::mismatch_at(o.img, o.text(), kAccessor, 0x10) == Mismatch{0, Differs::Undecodable});
+  CHECK_FALSE(shape::mismatch_at(o.img, o.text(), shape::Shape{}, rig.at("plain")).has_value());
+  CHECK(std::string(shape::to_string(Differs::Narrow)) == "narrow");
+  CHECK(std::string(shape::to_string(Differs::OtherRegister)) == "other_register");
+}
+
 TEST_CASE("find looks at every offset: a site a straight decode would miss is found, and the cap keeps the count") {
   const Rig rig;
   const Opened o(rig.built.file);
@@ -201,8 +230,8 @@ TEST_CASE("find looks at every offset: a site a straight decode would miss is fo
   CHECK(capped.hits.size() == 2);
   // A shape that starts with another form is looked for at every offset too.
   const shape::Shape calls{{Form::AddressArg1, Form::CallRelative}};
-  // Thirteen heads: all but the one into the second argument's register and the one that calls through a register.
-  CHECK(shape::find(o.img, o.text(), calls, 64).count == 11);
+  // Fifteen heads: all but the one into the second argument's register and the one that calls through a register.
+  CHECK(shape::find(o.img, o.text(), calls, 64).count == 13);
 }
 
 TEST_CASE("a shape's words and its validity") {
