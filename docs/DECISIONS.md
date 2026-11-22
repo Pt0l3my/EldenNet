@@ -2015,3 +2015,8 @@ before each piece, in a share of 6 ms a step of its own while the scan runs.
 **Owner's words.** "Yes, scan it (Recommended)" (the owner's choice in Lodestar's question dialog, 2026-11-22).
 
 **Follows from.** O48, O100, O101, O102; proposal 0005; S10.1.k; WHY§343, WHY§347, WHY§351.
+
+*Note, 2026-11-22.* The round ran the same day (WHY§354 to §357). The scan found the flags' store and the clock, but
+read 19,750 MiB in 781 s without finishing its third sweep and slowed EldenNet's reader to 7.5 readings a second; no
+call, nothing written, no fault. It stays off in later rounds. Any later scan comes back to the owner first, with the
+changes WHY§357 lists.

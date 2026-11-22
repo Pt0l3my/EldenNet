@@ -947,6 +947,13 @@ values to filter by.
 
 **Group labels.** The boss bars belong to `ui`. The lifecycle subset is `WorldChrMan.main_player` (in `world`) plus the screen state and load counter (in `ui`). The `boss_fight_active` cross-check is in `player`. That keeps exactly the eleven breaker groups of DESIGN §4.3 (DESIGN §4.1 now uses the same labels). `status` is optional, off until S8 passes; its trip turns off status awareness and the runtime sleep signal only (DESIGN O40).
 
+*Since 2026-11-22 (Lodestar's fourth read-only round; WHY§354, §355, §359).* Two rows above are not as 2.7.2.0 has
+them. No object of the flags' manager's class was found in the game's memory: the event flags are read through another
+object, the flags' store, behind one of the accessor's statics from the title on, so the catalogue's 1008
+`event_flags` means the object the flags are read through, with the store's class as its lead. The clock is no FD4
+singleton but one object inside the object behind another static: 1012 `world_clock` stays reserved and unplaced
+until L6 gives that manager an id and the clock a field under it. Nothing in v1's start needs the clock as a static.
+
 ### 6.2 Discovery
 
 *Since 2026-11-22 (Lodestar: proposal 0005, O100 to O103; WHY§310 to §316).* Discovery at start is becoming "load the
