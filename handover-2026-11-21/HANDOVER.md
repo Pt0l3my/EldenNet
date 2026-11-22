@@ -37,7 +37,9 @@ the work becomes a proper address library of EldenNet's own, in a session of its
 
 1. **Set up.** The session must be created with the Skyrizz repository attached beside EldenNet: the session-start hook
    installs the privacy sweep from that checkout, and until it is installed the project's hook refuses every shell
-   command, a clone of Skyrizz included, so Skyrizz cannot be added later. Check that `~/.config/privsweep` exists; then
+   command, a clone of Skyrizz included, so Skyrizz cannot be added later. The sweep's current rules and allow list are
+   on Skyrizz's working branch `feat/skyrizz-lite`, not its default `main`: check that branch out in the Skyrizz checkout
+   and run `python3 -I tools/privsweep/privsweep.py install` there. Check that `~/.config/privsweep` exists; then
    check out `feat/engine` beside the docs branch (`git worktree add ../eldennet-engine feat/engine`) and build the
    engine once as BUILD.md says, at most two build trees.
 2. **A proposal, 0005** (`docs/proposals/0005-lodestar.md`, on `docs/lodestar`): what the library is and is not, for the
@@ -84,6 +86,9 @@ the work becomes a proper address library of EldenNet's own, in a session of its
 - **Code.** Lodestar works on `feat/lodestar`, branched from `feat/engine`, and tells Engine when a step is ready;
   Engine merges it into `feat/engine` (Engine's own work there is the pages and the model client, away from `en-gal`
   and the probe, which are Lodestar's from now on). Pushes only at milestones: the owner is near a GitHub usage limit.
+- **Into `main`** (2026-11-21): only `design/v1-proposal` and `feat/engine` go into `main`, by the owner's pull requests.
+  Lodestar's branches reach `main` through them, so they need no pull requests of their own; merged into `main`
+  directly as well, they bring a second copy of the generated pages and a conflict in them (pull request 50).
 - **Messages** go through the cloud sessions' messaging, each swept by hand first
   (`python3 -I ~/.config/privsweep/privsweep.py text message`, the text on standard input). Each says what landed (branch
   and commit) and what the other must do. Long material goes in a commit.

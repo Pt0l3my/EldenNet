@@ -334,6 +334,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 309 | 2026-11-21 | GraceUI assumes nothing per frame of a mod's data, so O101's reader fits ABI 1.2 as it is | FACT | #graceui #lodestar |
 | 310 | 2026-11-21 | O102 carried out: gal/patterns.toml's idiom withdrawn, gal/recipes.toml's accessor in use | DECIDED | #gal #lodestar |
 | 311 | 2026-11-21 | Digests move from L2 to L7, since under O101 (b) nothing in v1 would read one | DECIDED | #gal #lodestar |
+| 312 | 2026-11-21 | Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern | METHOD | #gal #lodestar #devkit |
+| 313 | 2026-11-21 | A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only | FACT | #process #privacy #spike |
+| 314 | 2026-11-22 | The accessors' class objects are no objects with a table of methods; O92's way is the only one | FACT | #gal #lodestar #derive |
+| 315 | 2026-11-22 | On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more | FACT | #gal #lodestar |
 
 ## Entries
 
@@ -5295,3 +5299,71 @@ D76, D78, D143, D151; O101; proposal 0005 L4
 
 - A digest says a function's code is what the review saw. Under O101 (b) v1 calls no function of the game, so nothing in
   v1 would read one; digests move to L7, the task service's research, and L3 comes next.
+
+### 312. Lodestar L3: offline, the finder reports the managers' slots unnamed, and counts the shape against the pattern
+
+`2026-11-21` · METHOD · `#gal` `#lodestar` `#devkit` · refs: proposal 0005 §6.2, §11, O102, O92, WHY§188, WHY§207, S10.1.k
+
+- **Unnamed offline** (METHOD): the finder cannot name the managers' slots offline, since the game writes their class
+  objects' names at run time (WHY§207), so it reports every slot the accessor's accepted sites load, unnamed, with its
+  witnesses; the in-game read-only round (L5) names them by their instances' classes (O92), and the table is written
+  then.
+- **Evidence before the pattern goes** (METHOD): the finder cuts the withdrawn pattern again in memory, never writing it,
+  and reports only counts: `both`, `only_shape`, `only_pattern`. A run is complete only when no site is accepted by one
+  alone.
+- **A new kind** (METHOD): the report is kind `lodestar`, schema 2, rather than new keys in derive's schema 1, which
+  DataPiler 0.2.41's guard pins; it holds whole numbers, booleans, our own words and labels, and no fraction or key of
+  the pattern type (a test pins that).
+- **Built** (FACT): en-gal's `lodestar::find`; `eldennet-engine lodestar find <exe> --gal <folder> --out <file>` with the
+  disclosure; `lint --report` knows the kind; `tools/spikepkg/build.py find` makes EldenNet-Find.zip (the engine, `gal/`,
+  `find.cmd` and README-FIND.txt; no launcher, no DLL). On the fake game the shape and the pattern accept the same 20
+  sites. Engine feat/engine ffc172b.
+
+### 313. A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only
+
+`2026-11-21` · FACT, with a DECIDED (the owner's) · `#process` `#privacy` `#spike` · refs: O75, BUILD.md "The spike package",
+S10.1.k
+
+- **The refusal** (FACT): the sweep reads archives member by member, and refused Lodestar's finding package because its
+  THIRD-PARTY-NOTICES.txt holds toml++'s MIT licence, whose copyright line carries its author's address (rule email).
+  The licence obliges us to keep the notice unchanged, so the address is neither removed nor the licence left out. Any
+  package with `notices()` or `spikes_notices()` meets this.
+- **Why earlier packages passed** (FACT): Skyrizz's working branch `feat/skyrizz-lite` already allows rule email only in a
+  file whose place ends in THIRD-PARTY-NOTICES.txt (since 2026-11-15, Skyrizz c68a948); a zip member's place is
+  `<zip>!<path>`, so it covers notices inside a package. Skyrizz's default branch `main` lacks that line, and Lodestar's
+  sweep was installed from `main`. The handover now says to install from `feat/skyrizz-lite`.
+- **The owner's decision** (DECIDED): in Lodestar's chat, "Allow that one address (Recommended)": one narrower line,
+  rule email, that address only, only in THIRD-PARTY-NOTICES.txt and tomlplusplus/LICENSE, with its reason, committed in
+  Skyrizz on Lodestar's branch (cece89f), for the owner or Skyrizz's session to bring into `feat/skyrizz-lite`.
+- **Sent** (FACT): EldenNet-Find.zip, label 0.1.0-lodestar.1, built from engine 9edf1c0, checked as BUILD.md says and
+  swept, sent to the owner by Lodestar on 2026-11-21.
+- **Later (2026-11-21):** with the sweep installed from `feat/skyrizz-lite`, the package sweeps clean as it is, under
+  the existing line. The narrower line on Lodestar's Skyrizz branch (cece89f) is redundant and is not to be merged;
+  Lodestar told the owner so. Lodestar's earlier install was the stricter one, so nothing passed that should not have.
+
+### 314. The accessors' class objects are no objects with a table of methods; O92's way is the only one
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#derive` · refs: WHY§206, WHY§207, O92, docs/ops/probes/2026-11-22-l3.md, S10.1.k
+
+- **The finding** (FACT): of the 217 class objects the shape's accepted sites pass to the getter on 2.7.2.0, 110 lie at
+  odd offsets, 46 at offsets aligned to 8, and 54 are one byte from the next. They are not objects with a table of
+  methods, so no name layout can be read from them, in the file or in memory.
+- **What follows** (FACT): builds.toml's `dlrf_name_layout` can never become true for this game, and O92's way (the
+  instance's own class) is the only one. This is the cause behind R1's runs 1 and 2. The name-layout branch of discovery
+  and of the layout schema (`[dlrf]`) is dead for this game and can go when discovery moves to the table (L4).
+
+### 315. On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more
+
+`2026-11-22` · FACT, with a LIKELY · `#gal` `#lodestar` · refs: WHY§308, WHY§312, WHY§208, O102,
+docs/ops/probes/2026-11-22-l3.md, S10.1.k
+
+- **The owner's run** (FACT): on 2.7.2.0 with the game closed (package 0.1.0-lodestar.1), the finder reproduces R0c: the
+  withdrawn pattern, cut again in memory, has 7,151 hits and 7,081 accepted; 11 sections, 235,897 functions; the
+  character set of 6 classes and the player's of 2; the groups' table of 168 entries of 32 bytes, the lead's group at
+  index 110; a known build. The shape stands at 7,077 places, every one accepted, none refused, all among the pattern's
+  accepted sites; the pattern accepts 4 sites the shape does not, and reaches 219 statics to the shape's 217.
+- **Likely** (LIKELY): those 4 sites load the 2 statics whose instance R1's run 3 could not read at all, so no pointers to
+  objects, and the shape is right to leave them out. The second run's report says which step of the shape they fail.
+- **Built for it** (FACT): the finder now says, for each site the pattern alone accepts, the first step of the shape that
+  differs and how, and the statics only those sites load (engine feat/engine ddd7e63). A second package, 0.1.0-lodestar.2,
+  went to the owner for the same five-minute run.
