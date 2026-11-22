@@ -415,6 +415,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 390 | 2026-11-22 | A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held | DECIDED | #lodestar #probe |
 | 391 | 2026-11-22 | An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing | DECIDED | #graceui #pages |
 | 392 | 2026-11-22 | Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout | METHOD | #graceui #view |
+| 393 | 2026-11-22 | A save names the row the list chooses next, since a list alone cannot tell a renamed row from a removed one | DECIDED | #graceui #pages |
 
 ## Entries
 
@@ -6339,3 +6340,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - grace-view's layout keeps each boundary's offset, x and line top for the prose field being edited. Up, down and the
   pointer take the nearest boundary on the line above, below or under it.
+
+### 393. A save names the row the list chooses next, since a list alone cannot tell a renamed row from a removed one
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D218, GraceUI's D215, WHY§387, S7.2.c
+
+- GraceUI 0.2.22, protocol 1.7 and the ABI unchanged. A save's answer body may carry `chosen: "<key>"`, a member's key of
+  the page's master family. The view that saved takes it as the chosen row once its list has that row, whichever of the
+  answer and the list's new state comes first, unless the player chooses a row by hand in between. Focus stays on Save
+  once the new row's member draws. A key that is no member's, or one on any answer but an ok save, is ignored.
+- EldenNet sends it when a `named.<param>` row becomes `mine.<id>` (WHY§387). Also fixed: for one render after a block's
+  topic changed, the browser could still draw the last topic's body.

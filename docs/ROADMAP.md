@@ -442,7 +442,9 @@ Work beside the engine and the increments, and the owner's housekeeping.
     answered within 90 s, GraceUI 0.2.20, protocol 1.6 (GraceUI's D216, WHY§386). Next: the editor block with
     EldenNet's five additions (d), a profile's member keyed as its row (WHY§387). Part d done the same day: the editor
     block in both views with EldenNet's five additions, GraceUI 0.2.21, protocol 1.7 (GraceUI's D217, WHY§391). All four
-    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them.
+    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them. A save's answer may name the
+    master list's next row, chosen: "<key>" (GraceUI 0.2.22, GraceUI's D218, WHY§393), for a named.<param> row that
+    becomes mine.<id> (WHY§387).
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1397,6 +1399,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G38, GraceUI:D217, WHY§391, WHY§392, WHY§377
   - gives: built on 2026-11-22 (GraceUI feat/foundations f35f495) as S7.2.c's part d; for the profile editor's Profile
     tab (S7.2.b; GraceUI's docs/eldennet-changes.md §55).
+- ai A save's chosen row in both views (GraceUI 0.2.22) [done]
+  - refs: GraceUI:D218, GraceUI:D215, WHY§393, WHY§387
+  - gives: built on 2026-11-22 (GraceUI feat/foundations 62f492e) at EldenNet's request; for the profile editor
+    (S7.2.b; GraceUI's docs/eldennet-changes.md §56).
 
 ### S11.3 EldenNet v0.2
 
