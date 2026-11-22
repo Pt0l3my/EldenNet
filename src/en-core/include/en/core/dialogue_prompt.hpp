@@ -20,7 +20,9 @@
 // conversation's oldest exchanges, always keeping the last two), then block 9's nearby others (the last listed first).
 // Keepsakes (block 8) and topic entries (block 7) join the order when they exist. Past the hard cap of 3,500 after
 // every trim the render is refused (OverCap). The other blocks are never trimmed; one over its cap is reported, not
-// refused. The same context renders byte for byte the same (T5).
+// refused. Block 2 is checked whole when the pack loads instead (WHY§388; speech_content.hpp): past its 120 an error for
+// shipped and test content, a warning for the player's own files. Block 11 carries one tic note at most, the newest.
+// The same context renders byte for byte the same (T5).
 #include <array>
 #include <cstdint>
 #include <map>
@@ -68,10 +70,17 @@ inline constexpr std::array<BlockSpec, kBlockCount> kBlocks = {{
     {Block::Tarnished, "08", 450},
     {Block::Scene, "09", 210},
     {Block::Recap, "10", 120},
-    {Block::Task, "11", 40},
+    {Block::Task, "11", 70},  // 40 in NPC §7.3 until WHY§388: the ask, one tic note and a reminder
 }};
 inline constexpr std::uint32_t kPromptTarget = 2800;
 inline constexpr std::uint32_t kPromptHardCap = 3500;
+// The caps' sum stays within the hard cap (NPC §4.5; 3,490 since WHY§388).
+inline constexpr std::uint32_t kBlockCapsSum = [] {
+  std::uint32_t sum = 0;
+  for (const BlockSpec& b : kBlocks) sum += b.cap;
+  return sum;
+}();
+static_assert(kBlockCapsSum == 3490 && kBlockCapsSum <= kPromptHardCap);
 inline constexpr std::size_t kKeptExchanges = 2;
 inline constexpr std::array<std::string_view, 5> kRegisters = {"archaic-regal", "formal", "colloquial", "broken",
                                                                "chant"};
@@ -104,6 +113,10 @@ class DialoguePrompt final : public PromptRenderer {
 
   [[nodiscard]] proto::Expected<RenderedPrompt, PromptError> render(const DialogueContext& context) const override;
   [[nodiscard]] proto::Expected<PromptReport, PromptError> report(const DialogueContext& context) const;
+  // One block's estimate, rendered alone: the content's load checks each persona's block 2 against its cap with it
+  // (speech_content.hpp; WHY§388).
+  [[nodiscard]] proto::Expected<std::uint32_t, PromptError> block_tokens(const DialogueContext& context,
+                                                                         Block block) const;
 
   struct Impl;
 

@@ -154,6 +154,7 @@ int golden_prompt(const fs::path& in, bool update, const std::optional<std::stri
   const std::string name = file.substr(0, file.size() - std::string_view(".prompt.json").size());
   // Twice, each from templates loaded afresh: the same input renders byte for byte the same (T5).
   std::string rendered[2];
+  std::optional<std::uint32_t> identity_over;  // block 2 past its cap: test content is held to it (WHY§388)
   for (std::string& out : rendered) {
     std::map<std::string, std::string> templates;
     std::string problem;
@@ -166,10 +167,19 @@ int golden_prompt(const fs::path& in, bool update, const std::optional<std::stri
       std::fprintf(stderr, "golden: the pack's prompts: %s\n", renderer.error().detail.c_str());
       return 2;
     }
-    out = en::tools::prompt_golden_text(name, (*renderer)->report(fixture->context()));
+    const auto report = (*renderer)->report(fixture->context());
+    constexpr auto kIdentity = static_cast<std::size_t>(en::core::Block::Identity);
+    if (report && report->blocks[kIdentity].over_cap) identity_over = report->blocks[kIdentity].tokens;
+    out = en::tools::prompt_golden_text(name, report);
   }
   if (rendered[0] != rendered[1]) {
     std::fprintf(stderr, "golden: %s: two renders of one fixture differ (T5)\n", name.c_str());
+    return 1;
+  }
+  if (identity_over) {
+    std::fprintf(stderr, "golden: %s: block 2 comes to about %u tokens, past its cap of %u; a fixture is held to it\n",
+                 name.c_str(), static_cast<unsigned>(*identity_over),
+                 static_cast<unsigned>(en::core::kBlocks[static_cast<std::size_t>(en::core::Block::Identity)].cap));
     return 1;
   }
   const fs::path gpath = golden ? fs::path(*golden) : in.parent_path() / "golden" / (name + ".prompt.txt");

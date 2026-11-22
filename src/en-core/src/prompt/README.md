@@ -36,7 +36,8 @@ checks them: `name` (as the game shows it), `pronoun`, `possessive`, `register`,
 `stage.*` (above); `standing.tied` and `standing.land`, each `{known, heard, believed}` (block 5b's lines); `earlier`
 and `history`, each `[{tarnished, text}]`; `scene` (`place`, `time_word`, `weather_word`, `nearby` (at most four),
 `tarnished`, `just_now` (at most three), `you_now`: the words after "You, now:"); `recap` (the newest three);
-`spent_tics` (each tic whose count in the context's tally has reached its `max_per_conversation`); `reminder` (`""`,
+`spent_tics` (one tic at most, the newest whose count in the context's tally has reached its `max_per_conversation`:
+the tally's `spent`, else the last such in the file's order; WHY§388); `reminder` (`""`,
 `"banned"`, `"promise"` or `"safety"`); and the empty seams `actions_block` and `actions_tail` (DESIGN §13).
 
 No name carries the player's name: it appears in no prompt until told (DESIGN §8.8), and the told-name line of block 8
@@ -48,9 +49,15 @@ The templates are `prompts/dialogue/NN_*.j2|md`, one per block: `01` to `05`, `0
 part refuses the load. Each block is rendered alone (a block that renders nothing is left out), and the blocks'
 messages are merged by role, keeping their breakpoints: cache A after block 1, one after block 5, cache B after 5b
 (left out with 5b when it is empty). `report()` gives each block's estimate against its cap and what the trim took;
-the trim and the budgets are dialogue_prompt.hpp's. Blocks 2 and 11 can pass their caps with fields within the schema's
-own caps (block 2: identity, role, summary and appearance at most come to about 300 tokens against 120; block 11: two
-tic notes and a reminder come to about 95 against 40): they are reported, never refused.
+the trim and the budgets are dialogue_prompt.hpp's, whose cap table sums to 3,490 (`kBlockCapsSum`, within the 3,500
+hard cap). Engine's ruling on the two blocks whose fields could pass their caps (WHY§388):
+
+- **Block 2** stays at 120 tokens and is never trimmed, though identity, role, summary and appearance at their schema
+  caps come to about 300. The content's load checks it whole for each persona's every stage (`block_tokens`,
+  speech_content.hpp): past its cap it is an error for shipped and test content, and a warning for the player's own
+  files, which still render under the hard cap. The prompt goldens' fixtures are held to it too (`golden check`).
+- **Block 11** rose from 40 to 70 tokens and carries one tic note at most, the newest, beside the reminder: the ask
+  (about 26), a note (about 20) and a reminder (about 12) fit.
 
 ## Tests
 

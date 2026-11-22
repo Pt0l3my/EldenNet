@@ -6,8 +6,8 @@
 // A fixture (format 1) is JSON: {"fixture": 1, "persona": id, "name": the name as the game would show it, "record": the
 // persona's record as the content pack holds it with its stage resolved (NPC §3.1, under "stage"), and, each optional,
 // "earlier" and "history" ([{"who": "tarnished" | "persona", "text"}]), "scene" (Scene's fields), "recap" ([text]),
-// "reminder" ("banned" | "promise" | "safety"), "tally" ({"tics": [n, n, n]}), "tied" and "land" ({"known", "heard",
-// "believed"}: [text])}. Every name and line in one is invented.
+// "reminder" ("banned" | "promise" | "safety"), "tally" ({"tics": [n, n, n], "spent": the newest spent tic's index}),
+// "tied" and "land" ({"known", "heard", "believed"}: [text])}. Every name and line in one is invented.
 #include <filesystem>
 #include <map>
 #include <optional>

@@ -136,7 +136,7 @@ TEST_CASE("history as user and assistant messages, the Tarnished quoted; records
   CHECK(r->messages[3].role == proto::Role::User);
 }
 
-TEST_CASE("block 11: the spent tics' notes from the tally, and the regeneration's reminder by category") {
+TEST_CASE("block 11: one tic note at most, the newest spent, and the regeneration's reminder by category") {
   const auto prompt = loaded();
   const Ctx ctx;
   DialogueContext c = ctx.context();
@@ -144,10 +144,46 @@ TEST_CASE("block 11: the spent tics' notes from the tally, and the regeneration'
   c.reminder = HardList::Promise;
   auto r = prompt->render(c);
   REQUIRE(r);
-  const std::string text = r->messages.back().joined();
-  CHECK(text.find("\"by the reeds\" is spent.") != std::string::npos);
-  CHECK(text.find("mark my words") != std::string::npos);  // its cap is 1 too (a bare text)
+  std::string text = r->messages.back().joined();
+  // No `spent` in the tally: the last at its cap, in the file's order (a bare text's cap is 1).
+  CHECK(text.find("\"mark my words\" is spent.") != std::string::npos);
+  CHECK(text.find("by the reeds") == std::string::npos);  // WHY§388: one note at most
   CHECK(text.find("Talk alone.") != std::string::npos);
+  c.tally.spent = 0;  // the lint's newest
+  r = prompt->render(c);
+  REQUIRE(r);
+  text = r->messages.back().joined();
+  CHECK(text.find("\"by the reeds\" is spent.") != std::string::npos);
+  CHECK(text.find("mark my words") == std::string::npos);
+  c.tally.tics = {0, 1, 0};  // a `spent` no longer at its cap is passed over
+  r = prompt->render(c);
+  REQUIRE(r);
+  text = r->messages.back().joined();
+  CHECK(text.find("\"mark my words\" is spent.") != std::string::npos);
+  CHECK(text.find("by the reeds") == std::string::npos);
+  c.tally = LintTally{};
+  r = prompt->render(c);
+  REQUIRE(r);
+  CHECK(r->messages.back().joined().find("is spent") == std::string::npos);
+}
+
+TEST_CASE("block_tokens: one block's estimate, rendered alone; the cap table's sum") {
+  const auto prompt = loaded();
+  const Ctx ctx;
+  const DialogueContext c = ctx.context();
+  const auto full = prompt->report(c);
+  REQUIRE(full);
+  for (const Block b : {Block::Identity, Block::Task, Block::Frame}) {
+    const auto t = prompt->block_tokens(c, b);
+    REQUIRE(t);
+    CHECK(*t == full->blocks[static_cast<std::size_t>(b)].tokens);
+  }
+  DialogueContext none = c;
+  none.record = nullptr;
+  CHECK(prompt->block_tokens(none, Block::Identity).error().why == PromptRefusal::NoRecord);
+  CHECK(kBlocks[static_cast<std::size_t>(Block::Identity)].cap == 120);
+  CHECK(kBlocks[static_cast<std::size_t>(Block::Task)].cap == 70);
+  CHECK(kBlockCapsSum == 3490);
 }
 
 TEST_CASE("the data: every name present, the record's types checked, defaults, nothing of a value in an error") {

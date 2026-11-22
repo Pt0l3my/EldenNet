@@ -138,6 +138,8 @@ struct LintTally {
   std::optional<std::uint8_t> opener;    // the opener the reply used, by its index in the persona's openers
   std::array<std::uint8_t, 3> tics{};    // one count per tic in this conversation (at most three tics, §3.1)
   std::uint8_t name_uses = 0;            // the told name's uses in this conversation
+  // The tic whose count reached its max_per_conversation most recently, by its index: block 11's one note (WHY§388).
+  std::optional<std::uint8_t> spent;
 
   friend bool operator==(const LintTally&, const LintTally&) = default;
 };
