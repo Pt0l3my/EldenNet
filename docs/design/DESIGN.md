@@ -2576,7 +2576,7 @@ plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 00
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
 C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) and O95 (the first pages' choices), O96 (System One for decisions) and O97 (decisions choose the addressee) on
-2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. O100 (EldenNet's own address library, built by the Lodestar session) the same day. O101 to O103 (Lodestar's proposal 0005) the same day, as recommended, and O104 (the fourth pages slice's readings). O105 (the fourth read-only round's wide search) on 2026-11-22, as recommended. None is Open.**
+2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. O100 (EldenNet's own address library, built by the Lodestar session) the same day. O101 to O103 (Lodestar's proposal 0005) the same day, as recommended, and O104 (the fourth pages slice's readings). O105 (the fourth read-only round's wide search) on 2026-11-22, as recommended, and O106 (retire R1) the same day. None is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2692,3 +2692,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O103](../DECISIONS.md#o103) | Who may use Lodestar's library? | (a) EldenNet and its devkit only in v1; asked again after v1.0 | Decided 2026-11-21 |
 | [O104](../DECISIONS.md#o104) | The fourth pages slice's readings (a key's states, a waiting provider, a refused provider)? | As built | Decided 2026-11-21 |
 | [O105](../DECISIONS.md#o105) | May the fourth read-only round search all of the game's readable private memory once for a missing manager's object? | Yes, once, read-only, counts and places only | Decided 2026-11-22 |
+| [O106](../DECISIONS.md#o106) | Retire R1 (its package, the DLL's R1 probe mode, the launcher's `--probe`)? | Yes: remove what is confirmed obsolete, keep the records | Decided 2026-11-22 |

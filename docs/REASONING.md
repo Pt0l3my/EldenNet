@@ -385,6 +385,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 360 | 2026-11-22 | A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes | FACT | #graceui #input |
 | 361 | 2026-11-22 | GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names | DECIDED | #graceui #hotkeys |
 | 362 | 2026-11-22 | Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults | DECIDED | #graceui #hotkeys #pages |
+| 363 | 2026-11-22 | R1 is retired: what goes, what stays, and who removes it | DECIDED | #engine #lodestar #probe |
 
 ## Entries
 
@@ -5891,3 +5892,16 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   rebound on GraceUI's page. The call-out names the key from describe_hotkey.
 - Off game (O76, O77): the bindings follow where GraceUI's Hotkeys page is served. If the launcher's host does not
   serve it, they are on O77's short list of settings that need the live game. Asked of Grace.
+
+### 363. R1 is retired: what goes, what stays, and who removes it
+
+`2026-11-22` · DECIDED · `#engine` `#lodestar` `#probe` · refs: O106, S10.1.f, S10.1.k, WHY§302, WHY§303
+
+- By O106. What goes, from the engine: R1's package and its README, the DLL's R1 probe mode (`probe_r1.cpp`), the
+  launcher's `--probe` and its texts, R1's request in the watch block, the fake game's R1 cases, and the derivation and
+  call of `register_task`, wherever nothing else uses them.
+- Lodestar removes them, since the probe and en-gal are its area. It works on feat/lodestar, so nothing conflicts with
+  its next round, and it puts dated notes in the design's sections that describe R1 (ARCH §2, §3.2, §4.1, §4.14, §6.1,
+  §6.2, §6.10; DESIGN §16.1).
+- What stays: R0, as Lodestar's `lodestar find`; the read-only probe build (`--read`); the findings, in WHY§206 to §303
+  and `docs/ops/probes/`; and the code in git history. O92's naming rule stays too, since Lodestar names managers by it.

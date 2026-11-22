@@ -854,7 +854,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     scenario language, `eldennet-engine golden` and three synthetic routes with golden files; `replay` driving Augur
     from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226). Part 12 moved to
     GraceUI 3f1352b the same day: an unbound hotkey answered as such, the helper's stop-if-absent, GraceUI's own
-    folder and graceui.toml (WHY§230 to §233).
+    folder and graceui.toml (WHY§230 to §233). Since 2026-11-22 (O106) R1 is retired, so part 10's R1 package and probe
+    mode go (S10.1.f); the S0 package waits on Lodestar's table instead of R1's review (S10.1.b, S10.1.k).
 - b Spikes S0-A to S0-D: the untouched image, the reader without dearxan (the task before O101), the launcher and offline play, guarded reads [waiting]
   - needs: a, f
   - gives: since 2026-11-22 (O101, Lodestar's L4) S0-A checks the ids of the build's table in place of the finder's hits
@@ -869,7 +870,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
-- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [active]
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [done]
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
@@ -909,6 +910,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the route is with the owner as O100 (WHY§303). O100 decided the same day: R1's road goes on as Lodestar's work,
     EldenNet's own address library (S10.1.k).
     Since 2026-11-21 (O101, O102) R1's package can make no call: it is legacy until Lodestar's read-only L5 package.
+    Superseded by S10.1.k and retired by the owner on 2026-11-22 (O106; WHY§363): R0 lives on as `lodestar find`, and
+    R1's package, the DLL's R1 mode and the launcher's `--probe` are removed by Lodestar. What R1 found stays in the log
+    and `docs/ops/probes/`.
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -947,7 +951,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O101, O102, O103, O105, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
+  - refs: O100, O101, O102, O103, O105, O106, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
@@ -1025,7 +1029,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     accessor's statics, the world's clock a field of another manager, messages with eight witnesses; 12 leads in the
     table. The scan did not finish and slowed the reader, and stays off (WHY§357). 1008 `event_flags` is the object the
     flags are read through, and 1012 `world_clock` waits for L6 (WHY§359). Next: a round that names the store by O92's
-    rule, then L6's first round (the clock's and the play time's fields), no scan.
+    rule, then L6's first round (the clock's and the play time's fields), no scan. The owner retired R1 the same day
+    (O106; WHY§363): Lodestar removes its package, the DLL's R1 mode and the launcher's `--probe`.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
