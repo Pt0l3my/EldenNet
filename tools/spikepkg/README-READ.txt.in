@@ -80,8 +80,9 @@ The steps
 3. The console then says "Now load your save." with how many of the eleven managers it has named so far (some exist
    only once a save is loaded), or, if all eleven are there already, "All 11 managers are named. If you have not
    loaded your save yet, load it now." Either way, load your save. Walk about for about ten minutes: go near an NPC
-   or an enemy, open the map, rest at a grace, and fast travel once. Every ten seconds the round looks again for the
-   managers it has not named yet, and all the while it reads the ones it has.
+   or an enemy, open the map, rest at a grace, and fast travel once. Please do not use "Pass time" at the grace in
+   this round: a clock that jumps by hours would confuse the test for its minutes and hours. Every ten seconds the
+   round looks again for the managers it has not named yet, and all the while it reads the ones it has.
 
 4. After about ten minutes in the world, quit the game as you usually do, whatever the console has said. The console
    then says whether the two files passed their check, and the launcher ends.
@@ -133,7 +134,7 @@ What it does
     number, a kind of object, an address in the game's code or data, an address of memory in use, or something
     else. In the world's clock it also counts, for every run of six bits, whether it behaves as minutes do (never 60
     or more, stepping forward and going round), for every run of five whether it behaves as hours, and for every
-    four bytes whether, read as a fraction, they keep rising. It writes counts and offsets: never a time, a number
+    four bytes whether, read as a fraction, they keep rising. It writes counts and offsets: never a time, a value
     or anything else the memory held.
   - Once your save is loaded, from the same thread, four searches, each of which only reads:
       - For a manager whose kind of object the game has but which none of those places holds: it goes through the
