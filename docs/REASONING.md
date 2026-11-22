@@ -362,6 +362,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 337 | 2026-11-22 | A manager's slot is empty for seconds in the ordinary course of the game; v1 must treat it so | FACT | #gal #lodestar #owner-run |
 | 338 | 2026-11-22 | No clock in whole minutes and hours among the unnamed managers' objects; one candidate for the play time | FACT | #gal #lodestar #owner-run |
 | 339 | 2026-11-22 | Searches on the reader's thread must be budgeted by time, not by count | METHOD | #gal #lodestar |
+| 340 | 2026-11-22 | The second round's logs: the slot search found the messages manager, and the report lost it | FACT | #lodestar #probe |
+| 341 | 2026-11-22 | 97 in 100 of the data's values that could be a heap address are refused when Windows is asked | LIKELY | #lodestar #probe |
+| 342 | 2026-11-22 | 56 of the accessor's 217 statics hold a manager only while a save is loaded | FACT | #lodestar |
+| 343 | 2026-11-22 | The accessor's other shapes are recipes of the same kind under ids of their own | METHOD | #lodestar #gal |
 
 ## Entries
 
@@ -5635,3 +5639,44 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   a second to 14, so this run's trial rate (8.2 readings a second) is the searches' doing; the game's own threads are not
   touched. Searches get a time budget per step, and a trial that measures the reader does not share its thread's step
   with a search, or says when it did. The rising search is to rank its hits, not keep the first 32.
+
+### 340. The second round's logs: the slot search found the messages manager, and the report lost it
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§336, S10.1.k
+
+- The second read-only round's slot search found the messages manager behind 2 slots, seven times over; the report said 0
+  because `merge()` dropped a search's finding at the next naming pass. The event flags' search found no slot. Mended in
+  engine 66c8675 (merged as 8815db2), with a test: a search's finding and numbers are kept, several slots holding one
+  object name the manager, two objects leave it ambiguous, and a search that found something is not rerun.
+
+### 341. 97 in 100 of the data's values that could be a heap address are refused when Windows is asked
+
+`2026-11-22` · LIKELY · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§333
+
+- A slot search had about 121,000 candidates and found about 118,000 unreadable; over the round the searches' failed
+  reads and the ask-first copy's refusals were the same number, 1,662,371: no read faulted, each was refused beforehand.
+  Those values are LIKELY no addresses (two small numbers read as one). The third round asks Windows once for every
+  candidate before searching, and counts the refusals by reason.
+
+### 342. 56 of the accessor's 217 statics hold a manager only while a save is loaded
+
+`2026-11-22` · FACT · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- 62 of the 217 statics are empty at the title, 6 with a save loaded, and 62 again back at the title: 56 hold a manager
+  only while a save is loaded.
+
+### 343. The accessor's other shapes are recipes of the same kind under ids of their own
+
+`2026-11-22` · METHOD · `#lodestar` `#gal` · refs: O102, O48, docs/ops/probes/2026-11-16-r0c.md, WHY§338, S10.1.k
+
+- Five variant recipes of the accessor's kind (`accessor_near`, `accessor_gap`, `accessor_gap_near`, `accessor_compare`,
+  `accessor_compare_near`), each with its note in `gal/derivations/`, from R0c's own counts of the path's references
+  (26 places with five other heads; 1,379 references after a 64-bit load of a static; 676 after a compare of a quadword
+  with zero) and, for the gap, our research notes as a lead; two new forms in the grammar, `skip_one` and `compare_slot`.
+  No byte of the game and nothing from another project. Discovery still reads `accessor` alone; the finder counts each
+  variant beside it and never changes its counts; a variant gets its expected count only from a count on the owner's
+  executable, and is withdrawn if it stands nowhere.
+- **Also in the third round** (DECIDED, Lodestar's): candidates asked for first (VirtualQuery, which reads nothing), the
+  searches sharing 4 ms of each reader step, the rising search ranking its hits, and a member search (the first 0x800
+  bytes of each static's object, for an unnamed lead's object or a pointer to one), all read-only. The report is schema 3,
+  new keys only, still a closed vocabulary.
