@@ -1,0 +1,20 @@
+# A fixture flag state (MEM §7.8, §12.11): the castle's lord, the queen and the manor's lord fallen.
+# Invented test data, our own: catalogue aliases (MEM §6.1) and their values, every one verified; an alias not
+# listed reads false (verified). No flag id and no text of the game: the catalogue maps the aliases (S6).
+schema = 1
+state = "after_rykard"
+journey = 1
+
+[flags]
+"boss.godrick" = true
+"boss.rennala" = true
+"boss.rykard" = true
+"runes.ge1" = true
+"runes.ge2" = true
+"runes.ge3" = true
+
+[blocks]                          # persona blocks: offsets set (true) and, where named, clear (false)
+patches = { set = [10], clear = [11, 12] }
+
+[tracks]                          # non-persona tracks (world/tracks.toml): the steps whose flags are set
+tanith = ["hosting", "vigil"]
