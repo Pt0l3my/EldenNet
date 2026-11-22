@@ -396,6 +396,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 371 | 2026-11-22 | A long round's report can pass the writer's 256 KiB and is then refused whole, so a round bounds what it writes | METHOD | #lodestar |
 | 372 | 2026-11-22 | R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use | DECIDED | #engine #lodestar #probe |
 | 373 | 2026-11-22 | A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll | FACT | #graceui #abi |
+| 374 | 2026-11-22 | A static with no class to name it by is found by what its object holds: save_data by the play time | METHOD | #lodestar #l6 |
 
 ## Entries
 
@@ -6073,3 +6074,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   function pointers taking no lock, so the I/O thread's wake cannot meet the registry's lock.
 - Under Wine: 1 to 5 ms from a hotkey's key to the wake, about 1 ms after a holder's key, 2.5 to 7 ms after a resize;
   with nothing to poll it stayed unset. T6 waits on it, with its 100 ms as the fallback.
+
+### 374. A static with no class to name it by is found by what its object holds: save_data by the play time
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: proposal 0005 §6.1, gal/leads.toml, WHY§369
+
+- The slot behind which one field rises by the clock in nearly every pass is the save data's (1002 `save_data`, found_by
+  invariant). It must lead in at least ten passes, by three times the next best, and no lead's manager may sit at it. The
+  code's references to the slot are its sites and witnesses. This is proposal 0005 §6.1's invariant recipe, which the
+  lead in `gal/leads.toml` has asked for since R0c. Four sessions gave the same slot and offset before the round was let
+  write it (the sixth round, engine 48e5003, package 0.1.0-lodestar.9).

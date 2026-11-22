@@ -1039,6 +1039,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     leads), the play time's field found in four sessions, the clock not where its class is. R1 removed (O106; WHY§363,
     §372). Next: mend the report's size and the ask-first share, then look for the clock more widely and read along the
     way to a flag.
+    L6's second round built the same day (engine eff28bf, Lodestar's 48e5003; WHY§374): the clock looked for in every
+    static's object, the flags one step on, save_data by invariant; the report bounded and the ask-first share checked
+    after every read. Package 0.1.0-lodestar.9, for the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
