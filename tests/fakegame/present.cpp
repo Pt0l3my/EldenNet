@@ -432,14 +432,14 @@ void grace_report(std::uint64_t frame) {
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
          "world=0x%X providers=%u window_filter=%u presents=%llu holder=%u holder_kind=%u closes=%u close_reason=%u"
-         "%s%s%s%s",
+         " game_keys=%u game_chars=%u%s%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
          input.window_filter, static_cast<unsigned long long>(st.presents),
          input.holder_owner == 0 ? 0u : input.holder_owner == owner ? 2u : 1u, input.holder_kind, input.closes,
-         input.last_close_reason, menu_part, server_part, shows_part, tail);
+         input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, tail);
 }
 
 }  // namespace fakegame

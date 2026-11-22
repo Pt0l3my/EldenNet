@@ -2170,6 +2170,57 @@ case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--con
           "realm, the talk key opening the chat box within 50 ms, a line typed and sent with the key's own character "
           "swallowed, a scripted reply from a local model server shown in the lower third, acknowledged on its first "
           "frame and committed on display, and Esc closing the box; no chat text in the log")
+# No input leaks across the box, GraceUI's menu and F11's view (GraceUI's invariants 7, 8 and 17): the box takes the
+# typing and F11 while it holds input, and the game's window gets none of it; the player's exit (the menu key twice)
+# ends the box's holder with its draft kept, which the box opened again gives back; Esc closes the box and never reaches
+# the game; after it, typing reaches the game and F11 opens the view.
+LEAK_KEYS = "1500:t,1620:f11,1680:f5,1700:f5,1800:escape,1900:t,1960:return,2000:escape,2200:f11"
+LEAK_REPORTS = "1440,1540,1660,1690,1760,1860,1940,1990,2040,2160,2260"
+LEAK_SETTINGS = 'schema = 2\ndebug = { panel = true, record_sessions = false, log_level = "debug" }\n'
+
+
+def check_talk_leaks(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    if server is not None:
+        server.close()
+    grace = {e.get("frame"): e for e in r.events("FAKEGAME", "grace")}
+    keys = lambda f: int(grace.get(str(f), {}).get("game_keys", "-1"))
+    chars = lambda f: int(grace.get(str(f), {}).get("game_chars", "-1"))
+    failures = []
+    failures += check_lines(("ELDENNET", "surfaces", {"state": "ready", "talk": "bound"}),
+                            ("ELDENNET", "content_load", {"ok": 1, "bound": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    # The box holds input: the T, the typing and F11 reach neither the game's window nor the view.
+    failures += want_grace(r, 1540, holder=2) + want_grace(r, 1660, holder=2)
+    need(keys(1660) == keys(1440) and chars(1660) == chars(1440),
+         "keys or characters reached the game while the box held input: %s %s, %s %s" %
+         (keys(1440), keys(1660), chars(1440), chars(1660)), failures)
+    presses = [e for e in r.events("ELDENNET", "view") if "presses" in e]
+    need(len(presses) == 1, "F11 reached the view %d times (once, after the box closed)" % len(presses), failures)
+    # The menu key twice: the player's exit ends the box's holder; its draft kept.
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="input_lost", draft=3)
+    failures += want_grace(r, 1760, holder=lambda h: h != "2")
+    # The box again: its draft back, sent; Esc closes it and never reaches the game.
+    failures += want_grace(r, 1940, holder=2)
+    failures += any_line(r, "ELDENNET", "chat", what="submit", chars=3)
+    failures += want_grace(r, 2040, holder=0)
+    need(keys(2040) == keys(1940), "the Esc that closed the box reached the game (%s, %s)" % (keys(1940), keys(2040)),
+         failures)
+    # After it the game has its keys, and F11 opens the view.
+    failures += any_line(r, "ELDENNET", "view", presses=1, open=1)
+    failures += en_log_is_clean(r)
+    return failures
+
+
+case("launcher-eldennet-graceui-talk-leaks", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", LEAK_KEYS, "--type-at", "1560:abc,2100:x",
+          "--grace-report", LEAK_REPORTS, frames=2400),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(LEAK_SETTINGS, probe=True, then=install_talk), check=check_talk_leaks,
+     what="No input leak across the chat box, GraceUI's menu and F11's view: the typing and F11 the box's while it "
+          "holds input and none of it the game's, the player's exit keeping the draft, the box's Esc never the game's, "
+          "and the game's keys and the view again once the box has closed")
 case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,

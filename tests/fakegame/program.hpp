@@ -113,6 +113,9 @@ bool present_start(HWND window);
 void present_frame();
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
+// The keys (WM_KEYDOWN, WM_SYSKEYDOWN) and characters (WM_CHAR) that reached the game's own window procedure.
+std::uint32_t game_keys() noexcept;
+std::uint32_t game_chars() noexcept;
 // --type-at: each character of `text` as a Unicode key press (KEYEVENTF_UNICODE), as press_key_into presses a key.
 void type_into(HWND window, const std::wstring& text);
 // What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.

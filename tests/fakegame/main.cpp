@@ -2,6 +2,7 @@
 // shows them to EldenNet: a window, then global_hinstance, then the statics), and the frame loop, which runs every
 // registered task at a set rate, with hitches, stalls, moves, loading screens, faults and DLL loads on request.
 #include <algorithm>
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -70,7 +71,14 @@ void load_dlls(LoadMoment moment) {
   }
 }
 
+// The keys and characters that reach the game's own window procedure, past GraceUI's filter (its holder's, its
+// hotkeys' and its menu's never do): the conversation's cases count them for input leaks (GraceUI invariants 7, 8).
+std::atomic<std::uint32_t> g_game_keys{0};
+std::atomic<std::uint32_t> g_game_chars{0};
+
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN) g_game_keys.fetch_add(1, std::memory_order_relaxed);
+  if (message == WM_CHAR) g_game_chars.fetch_add(1, std::memory_order_relaxed);
   if (message == WM_CLOSE) {
     g_quit = true;
     DestroyWindow(window);
@@ -235,6 +243,9 @@ struct Parser {
 };
 
 }  // namespace
+
+std::uint32_t game_keys() noexcept { return g_game_keys.load(std::memory_order_relaxed); }
+std::uint32_t game_chars() noexcept { return g_game_chars.load(std::memory_order_relaxed); }
 
 bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
   Parser p{argc, argv, 1, {}, {}, false, error};
