@@ -179,6 +179,11 @@ TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's 
   CHECK(parse_error({"--read=1"}) == "--read takes no value");
   CHECK_FALSE(parse_ok({}).read);
   CHECK(usage_text().find("--read") != std::string::npos);
+  // The tests' pace for the round's tasks goes with --read only, and is 1 to 600 seconds.
+  CHECK(parse_ok({"--read", "--read-pace-s", "5"}).read_pace_s == 5);
+  CHECK(rd.read_pace_s == 0);
+  CHECK(parse_error({"--read-pace-s", "5"}) == "--read-pace-s goes with --read");
+  CHECK(parse_error({"--read", "--read-pace-s", "0"}) == "--read-pace-s is 1 to 600 seconds");
   // --probe went with R1 (retired 2026-11-22, O106): an unknown option now, alone or beside --read.
   CHECK(parse_error({"--probe"}) == "unknown option: --probe");
   CHECK(parse_error({"--read", "--probe"}) == "unknown option: --probe");
@@ -204,7 +209,8 @@ TEST_CASE("texts: the read-only round's steps follow EldenNet's answer, T1's sta
   CHECK(read_step(ProbeRequest::Accepted, InitState::Ready, 0, 0, 2) == ReadStep::LoadSave);  // nothing asked for: never done
   CHECK(read_step(ProbeRequest::Accepted, InitState::Banner, 0, 0, 0) == ReadStep::Stopped);
   CHECK(read_step(ProbeRequest::Accepted, InitState::Inert, 3, 11, 1) == ReadStep::Stopped);
-  // The words and the lines: each step has its own, the counts are said, and no line tells the owner to press a key.
+  // The words and the lines: each step has its own and the counts are said. Only the two lines that send the owner
+  // to the panel speak of its key; none says "press".
   std::vector<std::string> words;
   for (const ReadStep s : {ReadStep::Asked, ReadStep::Refused, ReadStep::Reading, ReadStep::LoadSave, ReadStep::Done,
                            ReadStep::Stopped, ReadStep::ReportsClean, ReadStep::ReportsRefused,
@@ -212,7 +218,7 @@ TEST_CASE("texts: the read-only round's steps follow EldenNet's answer, T1's sta
     words.emplace_back(read_word(s));
     const std::string text = read_text(s, 7, 11);
     CHECK_FALSE(text.empty());
-    CHECK(text.find("Pause") == std::string::npos);
+    CHECK((text.find("Pause") == std::string::npos) == (s != ReadStep::LoadSave));
     CHECK(text.find("press ") == std::string::npos);
   }
   std::sort(words.begin(), words.end());

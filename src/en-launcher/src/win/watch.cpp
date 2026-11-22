@@ -78,15 +78,18 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   b.control.spike.store(static_cast<std::uint32_t>(plan.spike), std::memory_order_relaxed);
   b.control.watcher_pid.store(GetCurrentProcessId(), std::memory_order_release);
   bool hotkey = false;
+  bool ring = false;  // the launcher stamps the Marks: by its hotkey, and in the read-only round by the tasks
   if (plan.console) {
     hotkey = RegisterHotKey(nullptr, kMarkHotkey, MOD_NOREPEAT, VK_PAUSE) != 0;
     say("mark hotkey=pause registered=%d", hotkey ? 1 : 0);
-    if (hotkey) {
+    if (hotkey || plan.read) {
       w::launcher_holds(b.marks);
+      ring = true;
       if (w::mark_source(b.marks) != w::MarkSource::Launcher) {
         // EldenNet's own Mark took the ring first (GraceUI's hotkey on Pause): the key is its.
-        UnregisterHotKey(nullptr, kMarkHotkey);
+        if (hotkey) UnregisterHotKey(nullptr, kMarkHotkey);
         hotkey = false;
+        ring = false;
         say("mark hotkey=pause released=1 source=%s", w::to_string(w::mark_source(b.marks)));
       }
     }
@@ -117,6 +120,31 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     console_line(read_text(step, named, of), "EldenNet read: ");
   };
   if (plan.read) read_tell(ReadStep::Asked, 0, 0);
+  // The tester's tasks (--read): the list, its panel beside the game, and a line for each task as it is done. The
+  // Pause key (or a click on the panel's button) confirms the task under way; a marked task's confirmation stamps a
+  // Mark, which the round reads.
+  std::optional<TaskList> tasks;
+  TaskPanel panel;
+  bool panel_placed = false;
+  std::string panel_footer;
+  const auto task_done = [&](const TaskList::Change& c, const char* by, std::uint64_t at) {
+    if (!c.changed) return;
+    say("task n=%zu of=%zu by=%s mark=%d", c.task + 1, tasks->size(), by, c.mark ? 1 : 0);
+    if (c.mark && ring) own_mark(at);
+    if (!tasks->finished()) {
+      const TaskRow row = tasks->rows(at)[tasks->current()];
+      console_line("Task " + std::to_string(tasks->current() + 1) + " of " + std::to_string(tasks->size()) + ": " +
+                       row.title + ". " + row.detail,
+                   "EldenNet read: ");
+    }
+  };
+  if (plan.read) {
+    tasks.emplace(read_tasks());
+    tasks->set_pace(plan.read_pace_s);
+    tasks->start(mono_ms());
+    const bool opened = panel.open(nullptr);
+    say("tasks count=%zu panel=%d pace_s=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s);
+  }
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
     if (list.empty()) return;
@@ -148,7 +176,33 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     }
     MSG msg;
     while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
-      if (msg.message == WM_HOTKEY && msg.wParam == kMarkHotkey && hotkey) own_mark(now);
+      const bool key = msg.message == WM_HOTKEY && msg.wParam == kMarkHotkey && hotkey;
+      const bool click = msg.message == kPanelConfirm && msg.hwnd == nullptr;
+      if (tasks && (key || click)) {
+        // The tester's confirmation: it does something only for a task that is theirs to confirm.
+        const TaskList::Change c = tasks->confirm(now);
+        if (c.changed) {
+          task_done(c, key ? "key" : "click", now);
+        } else {
+          say("task key=1 confirmed=0 current=%zu", tasks->current() + 1);
+        }
+      } else if (key) {
+        own_mark(now);
+      } else if (msg.hwnd != nullptr) {
+        DispatchMessageW(&msg);  // the panel's own messages
+      }
+    }
+    if (tasks) {
+      task_done(tasks->tick(now), "time", now);
+      if (!panel_placed && panel.is_open()) {
+        // Once the game's window shows, the panel moves to its monitor.
+        if (const HWND game = main_window(pid)) {
+          panel_placed = true;
+          panel.close();
+          (void)panel.open(game);
+        }
+      }
+      panel.show(tasks->rows(now), panel_footer, hotkey);
     }
     // EldenNet's own Mark, GraceUI's hotkey on Pause (part 12), asks for the ring: the key goes, the presses already
     // queued are the launcher's last, and the ring is handed over (watch.hpp's MarkSource). From then on EldenNet alone
@@ -162,6 +216,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         }
       }
       w::launcher_hands_over(b.marks);
+      ring = false;
       say("mark hotkey=pause released=1 source=%s", w::to_string(w::mark_source(b.marks)));
     }
     if (w::mark_source(b.marks) == w::MarkSource::EldenNet) {
@@ -194,7 +249,13 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     if (plan.read) {
       const auto answer = static_cast<w::ProbeRequest>(b.control.probe.load(std::memory_order_acquire));
       const auto step = read_step(answer, st.init, st.items_resolved, st.items_total, st.discovery_passes);
-      if (step && step != read_said) read_tell(*step, st.items_resolved, st.items_total);
+      if (step && step != read_said) {
+        read_tell(*step, st.items_resolved, st.items_total);
+        // The round's own task ends when the round says to load the save (or has everything already); a round
+        // that will read nothing says so on the panel.
+        if (*step == ReadStep::LoadSave || *step == ReadStep::Done) task_done(tasks->round_step(now), "round", now);
+        if (*step == ReadStep::Refused || *step == ReadStep::Stopped) panel_footer = read_text(*step);
+      }
     }
     if (plan.console && now - last_print >= 1000 &&
         (st.snapshots != printed.snapshots || st.init != printed.init || st.flags != printed.flags ||
@@ -232,6 +293,8 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   r.exit_code = code;
   r.ms = end - t0;
   if (hotkey) UnregisterHotKey(nullptr, kMarkHotkey);
+  panel.close();
+  if (tasks) say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
   b.control.watcher_pid.store(0, std::memory_order_release);
   r.last_init = copy_status(b).init;
   if (!r.crash_signalled && copy_crash(b)) r.crash_signalled = true;  // written, but the event came too late

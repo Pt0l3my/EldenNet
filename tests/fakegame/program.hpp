@@ -33,6 +33,9 @@ struct Options {
   std::uint32_t boot_delay_ms = 0;     // before the window
   std::uint32_t statics_delay_ms = 0;  // between the window and the statics
   bool field_mirror = false;           // a second word of the data holds the FieldPlot's address (a copy of one address)
+  std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
+  bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
+                                       // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names
   bool pass_time = false;              // the clock jumps twice in the world: five hours 14 s in, three hours 26 s in
   bool flag_set = false;               // a flag of the store's second block is set 30 s into the world
   std::uint64_t title_frames = 30;

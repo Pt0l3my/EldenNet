@@ -405,6 +405,7 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   WatchPlan plan;
   plan.console = c.o.console;
   plan.read = c.o.read && inject_dll;
+  plan.read_pace_s = c.o.read_pace_s;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;

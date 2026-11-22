@@ -19,6 +19,7 @@ set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/options.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/texts.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/spikes.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/exe.cpp

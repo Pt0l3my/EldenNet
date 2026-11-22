@@ -20,6 +20,7 @@
 #include "en/launcher/options.hpp"
 #include "en/launcher/record.hpp"
 #include "en/launcher/spikes.hpp"
+#include "en/launcher/tasks.hpp"
 #include "en/launcher/texts.hpp"
 #include "en/proto/watch.hpp"
 
@@ -125,11 +126,49 @@ class WatchBlock {
   bool created_ = false;
 };
 
+// The tester's panel (panel.cpp): a window of the launcher's own that lists a round's tasks, on top of the game's
+// window, never taking the keyboard. A click on its button posts kPanelConfirm to the thread that made it.
+inline constexpr UINT kPanelConfirm = WM_APP + 0x45;
+class TaskPanel {
+ public:
+  TaskPanel() = default;
+  ~TaskPanel();
+  TaskPanel(const TaskPanel&) = delete;
+  TaskPanel& operator=(const TaskPanel&) = delete;
+
+  // Makes the window at the top right of the monitor `beside` is on (the primary one for null). False: no window
+  // could be made; the tasks are still told on the console.
+  bool open(HWND beside);
+  [[nodiscard]] bool is_open() const noexcept { return hwnd_ != nullptr; }
+  // What it shows: painted again only when it changes. `key_works`: the Pause key confirms (else only the click).
+  void show(const std::vector<TaskRow>& rows, std::string_view footer, bool key_works);
+  void close();
+
+  // For the window's own procedure.
+  void paint(HDC dc);
+  [[nodiscard]] int header_height() const noexcept;
+  [[nodiscard]] bool in_button(int x, int y) const noexcept;
+
+ private:
+  int layout(HDC measure, HDC draw);
+
+  HWND hwnd_ = nullptr;
+  HFONT title_font_ = nullptr;
+  HFONT text_font_ = nullptr;
+  int dpi_ = 96;
+  std::vector<TaskRow> rows_;
+  std::wstring footer_;
+  std::string said_;
+  bool key_works_ = true;
+  RECT button_{0, 0, 0, 0};
+};
+
 // What the watch loop is asked to do beyond watching (a spike's run).
 struct WatchPlan {
   bool console = false;  // status lines and the Mark
   bool read = false;     // --read: the read-only round's steps in plain words (the block's probe request was written
-                         // before loading)
+                         // before loading), and the tester's panel with the round's tasks
+  std::uint32_t read_pace_s = 0;  // --read-pace-s: the tests' pace for the tasks (tasks.hpp); 0 none
   proto::watch::Spike spike = proto::watch::Spike::None;
   std::uint32_t run_timeout_s = 0;          // > 0: end the run once T1 stops, or at this limit
   bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 is Ready
