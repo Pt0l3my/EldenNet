@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (the fourth read-only round is built)
+# Lodestar's status, 22 November 2026 (four read-only rounds run; step L6 is next)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -19,6 +19,7 @@ first; this file adds only where Lodestar's own work stands.
 | The search fixes and the accessor's other shapes | engine 66c8675 | **Built, not yet run by the owner.** What a search finds is kept through later passes; several slots with one object name the manager; candidates are asked for first and refusals counted by reason; the searches share 4 ms of a step; the rising search keeps the best; a member search and a count of a class's objects in the image's data; five variant recipes (`accessor_near`, `accessor_gap`, `accessor_gap_near`, `accessor_compare`, `accessor_compare_near`) on two new forms (`skip_one`, `compare_slot`), counted beside the accessor's own; report schema 3 |
 | The third read-only run (2026-11-22; the same record, "The third round in game") | package 0.1.0-lodestar.6; engine 546b085 | **Done, reviewed.** `messages` named (two slots of the data, one object); 12 leads in the build's table; the eight others unchanged a third time; the refused values were no addresses; the reader kept 9.8 readings a second; the variants counted (1,279 places, the same managers again, 2 new statics; `accessor_gap_near` withdrawn). `event_flags` in none of the places looked; `world_clock` has only a class under a longer name |
 | The fourth round's build | engine 606167d | **Built, not yet run by the owner** (the owner agreed to the wide scan on 2026-11-22: "Yes, scan it"). Naming by a class under a longer name (`by_related`); the flags' store as a lead on trial (`flag_store`, no id); the member search over 0x4000 bytes; what the two new statics hold; the code's references to a slot as a search-named manager's witnesses; and the object scan (`probe.hpp`'s `ObjectScan`): the game's private, writable memory gone through once for an unnamed lead's table of methods, then up to three times for what holds what was found. Report schema 4 |
+| The fourth read-only run (2026-11-22; the same record, "The fourth round in game") | package 0.1.0-lodestar.7; engine f857bfb | **Done, reviewed.** The event flags' store is behind one of the accessor's 217 statics (held from the title on), and no object of the flags' manager's class exists in the 7.7 GiB the scan read; the world's clock is a part of another manager's object (1,024 bytes in, a pointer to it 192 bytes in), with no static of its own; `messages` has its witnesses (the slot 238 instructions refer to). The scan was far slower than estimated (19.75 GiB in 13 minutes, unfinished) and slowed the reader to 7.5 readings a second |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -44,22 +45,17 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fourth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.7, from engine f951a08;
-   ten minutes in the world this time). Review its two files and its logs as the others' (`python3 -I`, a folder of
-   its own). What to look for, in this order:
-   - `scan`: `done`, `mib` and `elapsed_ms` (how much of the game's memory it went through, and how fast), then its
-     `nodes`. A level-0 node labelled `event_flags` or `flag_store` says such an object exists; its `slots` say
-     whether the image's data holds its address; the nodes above it (level 1 to 3: a class, an offset, `embedded`)
-     are the way to it, ending where a node has `slots` (and `is_static`). Each is a lead: a found object may be
-     stale and an owner a neighbour, so a chain counts only if a later round reads along it and arrives.
-   - `instances.managers`: `world_clock` named `by_related`? `messages`' `search_refs`, sites and witnesses (which of
-     its two slots the code uses); `instances.others` for `flag_store`; `instances.new_statics`.
-   - `members.member_hits` (now over 0x4000 bytes of each static's object).
-   - `trial` and `search`: the reader's rate with the scan running (the scan has 6 ms of a step, the other searches
-     4), and whether the owner saw the game stutter.
-   Add a section to `docs/ops/probes/2026-11-22-l5.md` or a new record, and place what it names in the build's
-   table as leads. Nothing from the scan, the clock, the play time or the members enters the table without a second
-   look in a later round.
+1. **Settle what the fourth round found, then step L6.** Open with Engine (message 29): which id the event flags'
+   store takes (Lodestar's proposal: the catalogue's `event_flags`, 1008, comes to mean the object the flags are read
+   through, and its lead becomes the store's class), and that `world_clock` is a field of another manager, not a
+   static (its id's kind is to change, or it moves to the fields). Then the next round, which is L6's first proper
+   one and needs no scan: it names the store under its id and writes it to the draft table; reads along the clock's
+   way (the manager's static, the pointer 192 bytes in, the object 1,024 bytes in) and watches that object's fields
+   for the time of day; watches the play time's field; says what each of the accessor's statics holds by class (a
+   number), so that the clock's manager can be told; and keeps, for `others` and `new_statics`, what was seen in the
+   world and not the closing game's state.
+   The object scan stays in the code, off: if it is ever wanted again it must read only pages already in use, check
+   its time after every piece, and stop after one sweep (the record's "What it cost").
 2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
    owner's and Engine's word; `lodestar check` and `diff` against a table.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
