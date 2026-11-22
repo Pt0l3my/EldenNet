@@ -69,7 +69,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   proposal 0005) put to the owner and decided the same day, as recommended; O104 (the fourth pages slice's
   readings) the same day, as built.
 - **2026-11-22.** O105 (the fourth read-only round's wide search of the game's memory) put to the owner by Lodestar and
-  decided the same day, as recommended.
+  decided the same day, as recommended; O106 (retire R1) the same day, as recommended; O107 (the lint's list of slurs
+  kept hashed) the same day, as recommended.
 - **Open.** None.
 
 ## O1
@@ -1267,6 +1268,9 @@ applied when EldenNet next loads; secrets stay write-only.
 
 **Owner's words.** "All but a short list (Recommended)".
 
+*Note, 2026-11-22 (GraceUI's D211; WHY§362, §366).* Hotkey bindings are on the short list: they are changed on GraceUI ›
+Hotkeys in game only, since a hotkey exists only as a mod's registration there.
+
 ## O78
 
 **What do the devkit's browser tools show?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*
@@ -1596,6 +1600,9 @@ in-game run. Steps (3) and (4) of the decision are unchanged.
 withdrawn: `gal/` holds no bytes from the game, only shapes in our own grammar, numbers and digests (proposal 0005).
 The one pattern in `gal/patterns.toml` is retired when its shape passes the same tests.
 
+*2026-11-22, by O106:* R1 is retired. R0 stays as Lodestar's `lodestar find`; R1's package, the DLL's R1 probe mode
+and the launcher's `--probe` are removed from the engine, and what R1 found stays in the log and in `docs/ops/probes/`.
+
 ## O90
 
 **Spikes before GraceUI's host** · *2026-11-16 · Decided by the owner, as recommended*
@@ -1721,6 +1728,10 @@ S11.1.a) checks in game that `T` does nothing in the default layout.
 default Elden Ring key map is left free) for PC (keyboard and mouse)."
 
 **Follows from.** NPC §5.1, §5.6; DESIGN §8.1; O11; WHY§277; S11.1.a.
+
+*Note, 2026-11-22 (GraceUI's G37, the owner's choice; WHY§362).* The talk key is rebound on GraceUI › Hotkeys, not in
+EldenNet's Settings › Hotkeys: `hotkeys.talk` stops being an EldenNet setting and becomes the default EldenNet
+registers, `T` as before. The call-out names the key as the player bound it (GraceUI's ABI 1.4).
 
 ## O95
 
@@ -2020,3 +2031,48 @@ before each piece, in a share of 6 ms a step of its own while the scan runs.
 read 19,750 MiB in 781 s without finishing its third sweep and slowed EldenNet's reader to 7.5 readings a second; no
 call, nothing written, no fault. It stays off in later rounds. Any later scan comes back to the owner first, with the
 changes WHY§357 lists.
+
+## O106
+
+**Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
+
+**Question.** R1, the in-game derivation round, ran twelve times on the owner's PC (packages 0.1.0-spike.1 to
+spike.12). It was built to find the game's managers and to add EldenNet's task to the game's own task list with one call
+into the game's code. Lodestar's read-only rounds now find the managers (S10.1.k). v1 reads on EldenNet's own thread
+with no call (O101 (b)). Since O102, R1's package can no longer make its call. **Options:** retire R1, removing its
+package, the DLL's R1 probe mode, the launcher's `--probe` and whatever only they use, with the findings kept in the log
+and the round records and the code in git history; or keep it as a head start for L7, the task service's research.
+
+**Recommendation.** Retire it. It is the only code in EldenNet that calls the game's code, it is built and tested on
+four toolchains with every change, and nothing uses it (Lodestar confirmed). L7, if the owner ever chooses it, would be
+built on Lodestar's library, with the owner's approval for any call.
+
+**Decision.** Retire it: remove what is confirmed obsolete. Lodestar removes the code in its area, keeps anything
+that another part of EldenNet still uses, and lists what it removed and what it kept, with the reasons. The records
+stay: WHY§206 to §303, `docs/ops/probes/` and the design's dated notes.
+
+**Owner's words.** "alright then clean up those that are confirmed obsolete" (2026-11-22, after Engine explained what retiring means, in answer to "why would I retire
+R1?").
+
+**Follows from.** O89, O92, O100, O101, O102; S10.1.f, S10.1.k; WHY§302, WHY§303, WHY§363.
+
+## O107
+
+**How the lint's list of slurs is kept in a public repository** · *2026-11-22 · Decided by the owner, as recommended*
+
+**Question.** The reply lint (NPC §8.3, `lexicon/safety.toml`) must catch slurs and words like them in what an NPC
+says, and its list would sit in EldenNet's public repository (the survey for S11.3, WHY§364). **Options:** (a) kept
+hashed: the repository holds only fingerprints of the words, never the words; a reply is normalised first (case,
+accents, look-alike letters), then its words are fingerprinted and compared, a little narrower in what it catches; (b)
+a plain list in the repository, widest matching, with the slurs themselves in a public repository; (c) none in the
+repository: the launcher fetches a pinned list at install, a network step and a third-party source to vet.
+
+**Recommendation.** (a).
+
+**Decision.** (a). `lexicon/safety.toml` holds fingerprints only, of normalised words (and short phrases), with the
+normalisation and the hash fixed in the lint and tested on invented words; no slur is written in the repository, its
+tests or its reports.
+
+**Owner's words.** "Kept hashed (Recommended)" (the question dialog, 2026-11-22).
+
+**Follows from.** NPC §8.3, §8.4; S11.3.b; WHY§364.

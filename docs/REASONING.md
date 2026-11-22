@@ -382,6 +382,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 357 | 2026-11-22 | The object scan read 19,750 MiB in 781 s without finishing and slowed the reader's thread; it stays off | FACT | #lodestar #probe |
 | 358 | 2026-11-22 | A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes | METHOD | #lodestar |
 | 359 | 2026-11-22 | event_flags (1008) is the object the event flags are read through, the store's class its lead; world_clock (1012) waits for L6 | DECIDED | #lodestar #gal |
+| 360 | 2026-11-22 | A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes | FACT | #graceui #input |
+| 361 | 2026-11-22 | GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names | DECIDED | #graceui #hotkeys |
+| 362 | 2026-11-22 | Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults | DECIDED | #graceui #hotkeys #pages |
+| 363 | 2026-11-22 | R1 is retired: what goes, what stays, and who removes it | DECIDED | #engine #lodestar #probe |
+| 364 | 2026-11-22 | The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points | DECIDED | #engine #conversation |
+| 365 | 2026-11-22 | L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves | METHOD | #lodestar #l6 |
+| 366 | 2026-11-22 | Rebinding is built: one home for every binding, kept by mod and action ids, applied at each registration | DECIDED | #graceui #hotkeys |
+| 367 | 2026-11-22 | A mod may register before GraceUI reads its settings file, so kept bindings also go over registered hotkeys; that path is reviewed, not yet seen run | FACT | #graceui #hotkeys |
 
 ## Entries
 
@@ -5834,6 +5842,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   while the scan ran. Whether the game stuttered is asked of the owner.
 - The scan stays off from here. Were one ever wanted again: only pages already in use, the time checked after every
   piece, one sweep, and the owner asked again (O105's note).
+- *Later, 2026-11-22:* the owner saw the game stutter during the scan: "yes it did several minutes in. but only a few
+  times within a few seconds, and then I had no more stutters." The fifth round no longer starts the scan; ObjectScan
+  stays in en-gal with its test (WHY§365).
 
 ### 358. A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes
 
@@ -5853,3 +5864,126 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   accessor's sites as witnesses. A new id with 1008 retired was the alternative: rejected, since nothing used 1008.
 - 1012 `world_clock` stays reserved and unplaced until L6 gives the clock's manager an id and the clock a field under it.
   Nothing in v1's start needs the clock as a static. ARCH §6.1 carries a dated note.
+
+### 360. A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes
+
+`2026-11-22` · FACT · `#graceui` `#input` · refs: GraceUI's D207, GraceUI's D176, S11.4.c
+
+- D176's box pushes the end, and when full empties the ring and pushes again. In Vyukov's bounded queue a slot that
+  another thread's pop has claimed is not free until that pop stores its sequence, so the second push could still read
+  full and drop the end, and EldenNet's chat box would not hear that it lost input. Now such an end waits in the box's
+  own slot, given first by take(); nothing is reordered, since an ended holder's events are discarded anyway.
+- Found by GraceUI's TSan tree under load, in the holder-mail stress test, whose own check (reading its ended flag after
+  take) raced its other taker and now reads it before.
+
+### 361. GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` · refs: GraceUI's D206, GraceUI:DESIGN§5.9, S11.2.ab
+
+- KeyboardEvent.code without its Key and Digit prefixes, 1 to 12 letters and digits as the settings' key names allow
+  (A, 7, F5, PageUp, NumpadEnter), so a browser capture maps across. Pad buttons as the Xbox pad prints them (A, B, X,
+  Y, LB, RB, LS, RS, View, Menu, D-pad Up).
+
+### 362. Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` `#pages` · refs: G37, GraceUI's proposal 0009, O94, O77, PAGES§4, S11.2.ac
+
+- The owner's answers to GraceUI's G37, put by Engine with Grace's and Engine's shared recommendation (2026-11-22):
+  "GraceUI's Hotkeys page (Recommended)", "Ask, then move it (Recommended)", "Pad chords by two pickers (Recommended)", "Mods read their key (Recommended)", "Now, in 0.2.x (Recommended)". So: (1) every binding is changed on GraceUI › Hotkeys and kept in GraceUI's settings under the mod's and the
+  action's ids; (2) a taken key is asked about, then moved, leaving the other unbound; (3) pad chords are chosen with two
+  pickers, and capture on a pad waits for testers; (4) ABI 1.4's describe_hotkey and a changed event; built now, in
+  0.2.x, not in 0.6.
+- EldenNet's answer to proposal 0009 §8 item 5: yes. `hotkeys.talk`, `hotkeys.skip_page` and `hotkeys.debug` stop being
+  EldenNet settings and become the defaults it registers (T, its skip key, F11). EldenNet's Settings › Hotkeys becomes a
+  read-only list of its own hotkeys from GraceUI's topic, with a link to GraceUI › Hotkeys. O94 stands: T is the default,
+  rebound on GraceUI's page. The call-out names the key from describe_hotkey.
+- Off game (O76, O77): the bindings follow where GraceUI's Hotkeys page is served. If the launcher's host does not
+  serve it, they are on O77's short list of settings that need the live game. Asked of Grace.
+- *Later, 2026-11-22:* Grace answered (GraceUI's D211): not for now. A hotkey exists only as a mod's registration in
+  game, and the launcher's host holds neither GraceUI's own space nor its hotkey table, so the bindings are on O77's
+  short list, in game only (O77's note). Built as GraceUI 0.2.16 the same day (WHY§366).
+
+### 363. R1 is retired: what goes, what stays, and who removes it
+
+`2026-11-22` · DECIDED · `#engine` `#lodestar` `#probe` · refs: O106, S10.1.f, S10.1.k, WHY§302, WHY§303
+
+- By O106. What goes, from the engine: R1's package and its README, the DLL's R1 probe mode (`probe_r1.cpp`), the
+  launcher's `--probe` and its texts, R1's request in the watch block, the fake game's R1 cases, and the derivation and
+  call of `register_task`, wherever nothing else uses them.
+- Lodestar removes them, since the probe and en-gal are its area. It works on feat/lodestar, so nothing conflicts with
+  its next round, and it puts dated notes in the design's sections that describe R1 (ARCH §2, §3.2, §4.1, §4.14, §6.1,
+  §6.2, §6.10; DESIGN §16.1).
+- What stays: R0, as Lodestar's `lodestar find`; the read-only probe build (`--read`); the findings, in WHY§206 to §303
+  and `docs/ops/probes/`; and the code in git history. O92's naming rule stays too, since Lodestar names managers by it.
+
+### 364. The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: S11.3.a, S11.3.b, S11.3.e, S11.4.c, O107, DESIGN§8, DESIGN§14, NPC§5, NPC§7, NPC§8
+
+- The owner chose it on 2026-11-22, while Lodestar removes R1: v0.2's talk with one NPC, built and tested with no game,
+  on the fake game and a fake model server. A read-only survey mapped the design against the engine. Four parts follow.
+  Part 0 is the shared types: en-proto's UI model and events, the chat request's stop sequences, and the core's wider
+  input and output. Then two parts in parallel: A, speech and the prompt (the prompt's blocks, the sanitizer, the
+  lint, pages, `render-prompt --fixture`); and B, the conversation and the eval (content and identity, the states and
+  timers, gating, commit on display, `eval --llm mock`, `mockllm`). Last, C, the surfaces in the DLL (the chat box,
+  subtitles and hint as GraceUI panels, holder input, the pad chord), under Wine.
+- Engine's rulings on the open points, from the design:
+  - (1) The end-to-end test uses an invented test persona, bound to an invented fake-game character through the
+    overrides folder (DESIGN §11.4), in tests only.
+  - (3) With no `on_present` in GraceUI's ABI yet, T6 submits at most 10 times a second: fades step, and `PageShown`
+    means the first submitted frame.
+  - (5) The call-out box waits for v0.6, as DESIGN §16.2 has it.
+  - (6) The pad chord's order is GraceUI's, D-pad Up then View (its D204), and the Steam floating keyboard stays
+    unbuilt in v0.2.
+  - (7) v0.2 keeps the event log in memory behind the store's interface; the log written per page waits for the store
+    (v0.3).
+  - (8) Since G15 T6 alone calls GraceUI, so ARCH §1.3's present-thread channels get a dated note.
+  - (9) Prompts use en-prompt's syntax (`[ system ]`, `[ cache ]`, `join()`) in place of NPC §7.3's sketch.
+  - (10) CI's eval runs mock and recorded models only; live and judged sets wait for a key. A report holding model text
+    is a local-only kind, never committed or uploaded.
+  - (11) The truth tables are written now and gated until S11.3.c's `known(P)` lands.
+  - (12) The since-line waits for v0.3.
+- Asked elsewhere: the slurs' list (13) became O107, decided as hashed. The chat box's faces (2) and the 50 ms open
+  against T6's wait (4) are asked of Grace, and part C waits for the answer.
+- *Later, 2026-11-22:* Grace answered. (2) Faces as (a): the chat box's text is built from GraceUI's glyph_table
+  (advances, quads, UVs into the shared atlas, the face's metrics, the atlas's texture id and generation; no kerning).
+  If Dear ImGui 1.93 will not take glyphs baked elsewhere, EldenNet emits each glyph's quad itself. A scale change waits
+  for the next load until GraceUI rebuilds its atlas; then the box re-reads the table when the generation changes.
+  `on_present` is not planned soon, so ten submits a second stand. (4) A wait handle per mod (GraceUI's D71) comes as
+  ABI 1.5: GraceUI sets a mod's Win32 event whenever something is queued for it, never a callback. T6 then waits on it,
+  with its 100 ms as the fallback (S11.2.ad).
+
+### 365. L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: proposal 0005 §6.1, docs/ops/probes/2026-11-22-l5.md, WHY§355, WHY§359
+
+- The fifth read-only round (engine 24e2918, package 0.1.0-lodestar.8), on the reader's thread within the searches'
+  4 ms. A way to an object is a static, an offset and at most one more read. Once a second the watch copies the first
+  512 bytes through the ask-first copy: each named manager's object, the world's clock (the pointer 192 bytes into its
+  manager's object, and the object 1,024 bytes in) with the object it was found in, and the object whose field rose by
+  the clock.
+- For each 8-byte word that was ever not zero, it counts how often each half changed and rose, and what the word looked
+  like (zero, small, a table of methods, the image, the heap, other; heap asked of VirtualQuery, nothing read). In the
+  clock it also counts runs of 6 bits that behave as minutes with runs of 5 that behave as hours, and 32-bit fields that
+  rise steadily read as a fraction. Counts and offsets only, never what a word held.
+- The same round names 1008 `event_flags` through the store's class (WHY§359), and its counts are the fullest pass's,
+  not the closing game's (WHY§358). No scan.
+
+### 366. Rebinding is built: one home for every binding, kept by mod and action ids, applied at each registration
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` · refs: G37, GraceUI's proposal 0009, GraceUI's D208 to D211, GraceUI's D115, S11.2.ac, WHY§362
+
+- GraceUI 0.2.16 (protocol 1.4, ABI 1.4). Every binding lives on GraceUI › Hotkeys, kept by mod and action ids and
+  applied at each registration. A hotkey that lost its key to a move is kept with none, so the next session's order of
+  registration cannot undo the move. The menu's key is never moved from it. Off game, bindings are in game only for now
+  (D211; O77's note).
+- describe_hotkey (has_cap("hotkey-bindings")) and GRACEUI_EVENT_HOTKEY_CHANGED reach only a mod connected with minor 4
+  or more. EldenNet keeps its hotkeys' action ids stable across releases, since the bindings are kept by them.
+
+### 367. A mod may register before GraceUI reads its settings file, so kept bindings also go over registered hotkeys; that path is reviewed, not yet seen run
+
+`2026-11-22` · FACT · `#graceui` `#hotkeys` · refs: GraceUI's D208, WHY§366
+
+- A mod's hotkeys then register with their defaults, so when the file is read the kept bindings go over them, each kept
+  one freed first so that a key one gives up is free for another. In the harness's runs the file was read before the mods
+  registered, so the at-registration path ran and the late one did not: the late path is reviewed, not yet seen run.

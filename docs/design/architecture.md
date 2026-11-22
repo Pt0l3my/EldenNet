@@ -391,7 +391,7 @@ module builds the same with it on or off.
 
 | Option | Modules | Enables | Release CI |
 |---|---|---|---|
-| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | The derivation round's R1 (§6.2, §6.10): the live derivation, the one call at the Mark, the slot counts, the hub census, the statics' slot searches and the invariant searches for a draft layout; the fault injection used by S0-D and the C1 forced fail-closed launches; the launcher's crash request (`s0d-crash`). Built as its own DLL, `probe/eldennet.dll`, and `settings.toml`'s `probe` table is refused by any other (§11.5) | Refused |
+| `probe` (`EN_PROBE`) | `en-gal`, `eldennet` | *Since 2026-11-22 (O106): R1 is retired; the probe build runs the read-only rounds (`probe = { round = "read" }`, the launcher's `--read`; proposal 0005, L5 and L6), which call nothing in the game. The rest of this row is history.* The derivation round's R1 (§6.2, §6.10): the live derivation, the one call at the Mark, the slot counts, the hub census, the statics' slot searches and the invariant searches for a draft layout; the fault injection used by S0-D and the C1 forced fail-closed launches; the launcher's crash request (`s0d-crash`). Built as its own DLL, `probe/eldennet.dll`, and `settings.toml`'s `probe` table is refused by any other (§11.5) | Refused |
 | `hooks` (`EN_HOOKS`) | `en-augur`, `en-gal` | Hook sources H1–H3 (§8.11), and with them EldenNet's own hook library, in `en-gal`'s `hooks` (O65). Compiled out in v1 | Refused |
 | `actions` (`EN_ACTIONS`) | `en-proto`, `en-core` | `GameCommand::Action`, executors, prompt partials | Refused |
 | `freeze` (`EN_FREEZE`) | `en-proto`, `en-gal` | `GameCommand::Freeze` | Refused |
@@ -478,7 +478,7 @@ stateDiagram-v2
   WaitWindow_B --> ConnectB: window exists
   ConnectB --> Banner
   Connect --> Discover
-  Connect --> R1: probe build, R1 asked (§6.2)
+  Connect --> R1: probe build, R1 asked (§6.2; retired 2026-11-22, O106)
   Discover --> Discover: retry at +5, +15, +30 s
   Discover --> WaitEngine: required items resolved
   Discover --> Banner: required item missing after +30 s
@@ -506,7 +506,7 @@ stateDiagram-v2
 | Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2), the readiness items among them: there is no separate readiness scan (WHY§191). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5); since the game writes the FD4 class objects' names at run time, the retries are also the wait for the names | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
 | WaitEngine | Poll every 100 ms until a static the game sets as it starts is non-null: the task hub's instance (`CSTask`) where discovery has it, else the module handle's static; with neither, nothing is waited on. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
 | Reader | *Since 2026-11-22 (O101 (b); proposal 0005 §9.4, §10).* Build the task object, make T2 (the reader, §1.2) suspended, make the stack table again with T2's stack in it and without T1's (§6.5), then let T2 go (`reader started=1`). Nothing of the game is called and nothing is registered with it: `register_task` is no part of a v1 start. In a run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, read from the watch block), T1 stops at the start of Reader, before the reader is made (`reader skipped=1 why=spike`), raises the `spike_run` banner and ends at L1; T6, T10, T11, the connect, F11's view and the recorder run on, and nothing waits for the task. Discovery's and WaitEngine's guarded reads have run before the stop. A probe build sets R1 aside in such a run. *Before:* Register, the one call of `register_task` from T1 (§6.4), which only the probe's R1 round still makes; the watch block keeps its states `register` and `first_tick` for that round, and `reader` and `first_reading` were appended | — | The thread cannot be made → banner. Nothing else is retried |
-| R1 | A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
+| R1 | *Since 2026-11-22 (O106): retired; a probe build asked for the read-only round goes Discover, WaitEngine, Reader, FirstReading, Ready and then reads (proposal 0005 §10). The rest of this row is history.* A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
 | FirstReading | Wait for the reader's first snapshot. On T2, the task runs the phase-A self-tests over ≤ 8 steps (§6.7), then builds a snapshot; there is no group check, since the reader is in no group of the game's (the check that the group at the layout's index is named `ChrIns_PostPhysics`, §6.3, belongs to the game's task) | 30 s for the first reading (impl) | No reading or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
 | Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; another module exporting `eldennet_instance_marker` is noted as an idle second copy (§1.6); T1 exits | — | — |
 
@@ -589,7 +589,7 @@ listed apart in `--help`, and none changes anything unless given (§2.5 has no o
 | `--also <path>` | Load a DLL that is not ours before EldenNet's: a stand-in for another mod, such as the tests' stand-in crash reporter with a vectored handler (S0-D, O91) |
 | `--appid-method file\|env`, `--remove-after window\|exit\|never` | `launcher.toml`'s choices for one run (§4.5, pending S0-C) |
 | `--console` | The dev console: EldenNet's status from the watch block every second while it changes, and the development Mark (§4.14, O90) |
-| `--probe` | The derivation round's R1 (O89; §4.14): brings `--console`; refuses `--no-backup`, `--vanilla-offline` and `--spike`; a failed backup ends the launcher |
+| `--probe` | *Since 2026-11-22 (O106): retired with R1; `--read` runs the read-only round (the same console, the save backup first, no key to press). The rest of this row is history.* The derivation round's R1 (O89; §4.14): brings `--console`; refuses `--no-backup`, `--vanilla-offline` and `--spike`; a failed backup ends the launcher |
 | `--spike s0a\|s0b\|s0c\|s0d\|s0d-crash` | Run an S0 spike (DESIGN §16.1) and keep its numbers-only log; with `--runs <n>` and `--run-timeout <s>` for the loops (§4.14). *2026-11-20 (WHY§249 to §251):* also `s0e`, `s0e_alone` and `s4`, the runs of GraceUI's observer (S0-E's present-hook half and S4), each one watched session in its own folder `spikes\<word>-<n>`, named to the game as `ELDENNET_SPIKE_DIR`; with `s0e` and `s4` EldenNet stops at Register and makes no call into the game (§3.2), `s0e_alone` loads no eldennet.dll (no `--dll`), and `--probe` goes with none of them (§4.14) |
 | `--no-dialogs [--yes]`, `--no-steam-check`, `--gal <dir>`, `--steam <dir>`, `--appdata <dir>` | For the tests and the harness: no task dialogs (an answer given by `--yes`), no Steam check, and other folders for `gal/`, Steam and `%APPDATA%` |
 
@@ -814,6 +814,10 @@ is unchanged; without a block, EldenNet keeps a ring of its own. When another mo
 EldenNet's registers unbound (`GRACEUI_UNBOUND`, a success with an id, GraceUI D164): it never asks, and the launcher's
 Pause stays the Mark. Until the hand-over, a press of EldenNet's hotkey is logged as not taken.
 
+*Since 2026-11-22 (O106): R1 is retired, and `--probe` with it. The launcher's `--read` asks for the read-only round
+through the same field of the block, and EldenNet answers there as before; the field's old value for R1 is kept
+reserved and never written. The paragraph below is history.*
+
 **R1 with `--probe`** (O89; decided 2026-11-17, WHY§199). Before it loads anything, the launcher writes R1 into the
 block's `control.probe` (a spare field: the block's version is kept, and 0 means no request), and EldenNet answers there
 at Settings (§3.2): a probe build accepts and runs R1 with its `settings.toml`'s other `probe` settings, `register =
@@ -914,7 +918,7 @@ Types are our own. Offsets and copy sizes live in `gal/layouts/<build>.toml` (§
 | Object | Discovery | Fields read (type) | Group | Copy-size source |
 |---|---|---|---|---|
 | Executable image | PE headers of the main module | `FileVersion` (4×u16), `ProductName` (UTF-16), translation (u16 lang, u16 codepage), `TimeDateStamp` (u32), `SizeOfImage` (u32), section table (name, RVA, size, flags) | gate | PE structures (fixed) |
-| `register_task` | Interior-anchored AOB → containing function from `.pdata` | Code address only; called once | boot | — |
+| `register_task` | *Since 2026-11-22 (O106): not derived and not called: R1, its only caller, is retired, and v1 calls nothing in the game (O101). History:* Interior-anchored AOB → containing function from `.pdata` | Code address only; called once | boot | — |
 | `global_hinstance` | AOB → RIP-relative static in `.data` | `hinstance: u64` (non-null = ready) | boot | 8 |
 | `GameDataMan` | AOB static | `play_time: u32` (ms), `death_count: u32`, `ng_lvl: u32`, `boss_fight_active: u8`, `show_subtitles: u8` (inside the settings block via `settings: ptr`), `player_game_data: ptr` | player, session, ui | `class.GameDataMan.copy_size` |
 | `PlayerGameData` | Via `GameDataMan.player_game_data` | `name: u16[17]` (raw name; lead `+0x9C`, ER05 §2), `level: u32`, `archetype: u8`, `body: u8`, `keepsake: u8`, `runes: u32`, `multiplay_role: u8`, `is_my_world: u8`, `gear: u32[6]` (right and left weapon, head, chest, hands, legs) | player, session | `class.PlayerGameData.copy_size` |
@@ -996,7 +1000,10 @@ on before its review:
    bytes with their addresses wildcarded (no code dump, text, param or path), and packs it for the owner to send.
    DataPiler reads only the file, never the game's memory (O73). The report, `derive.json`, keeps schema 1, whose keys
    and words DataPiler's guard holds a copy of: a new key needs a schema 2 and a DataPiler that reads it (WHY§188).
-2. **R1, in game, from the launcher.** `eldennet-launcher --probe` (§4.14) runs the probe build of `eldennet.dll`
+2. *Since 2026-11-22 (O106): R1 is retired. The in-game step is the read-only round, `eldennet-launcher --read`: it
+   names the statics by their instances' classes, checks every entry against the image and calls nothing (proposal
+   0005, L5; `docs/ops/probes/2026-11-22-l5.md`). The step below is history.*
+   **R1, in game, from the launcher.** `eldennet-launcher --probe` (§4.14) runs the probe build of `eldennet.dll`
    (`EN_PROBE`, §2.5), which derives again over the live image (`ImageLayout::Memory`, where the game has filled what
    the file leaves empty) and checks the result against what R0's review put in `gal/`: the gate, the FD4 idiom byte
    for byte and capture for capture, and the task group's index (WHY§198). Only if every check passes does it make its
@@ -1548,7 +1555,8 @@ The cost is one descent and one 125-byte copy per group, not per flag.
 
 *Since 2026-11-22 (Lodestar, proposal 0005 §8, §13).* The runbook is changing with the address library, step by step:
 R0 (step 2) is `eldennet-engine lodestar find` on the new executable, whose report (kind `lodestar`, numbers and our
-own labels) is reviewed into a draft table; R1's call (step 3) leaves the round, replaced at L5 by a read-only round
+own labels) is reviewed into a draft table; R1's call (step 3) leaves the round (R1 itself is retired since
+2026-11-22, O106), replaced at L5 by a read-only round
 in game that names the statics by their instances' classes and adds the witnesses; and the release of `gal/` carries
 the new build's table, `ids.toml` and `recipes.toml`, with no pattern cut from the game. The steps below describe the
 rounds as they ran on 2.7.2.0 and stay until L5 lands.

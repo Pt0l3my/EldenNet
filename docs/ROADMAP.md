@@ -854,7 +854,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     scenario language, `eldennet-engine golden` and three synthetic routes with golden files; `replay` driving Augur
     from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226). Part 12 moved to
     GraceUI 3f1352b the same day: an unbound hotkey answered as such, the helper's stop-if-absent, GraceUI's own
-    folder and graceui.toml (WHY§230 to §233).
+    folder and graceui.toml (WHY§230 to §233). Since 2026-11-22 (O106) R1 is retired, so part 10's R1 package and probe
+    mode go (S10.1.f); the S0 package waits on Lodestar's table instead of R1's review (S10.1.b, S10.1.k).
 - b Spikes S0-A to S0-D: the untouched image, the reader without dearxan (the task before O101), the launcher and offline play, guarded reads [waiting]
   - needs: a, f
   - gives: since 2026-11-22 (O101, Lodestar's L4) S0-A checks the ids of the build's table in place of the finder's hits
@@ -869,7 +870,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e What the review left to measure: the fallback copy's cost, MinHook in the first build (GraceUI's host since G15; with Dear ImGui in place of hudhook since 2026-11-16, O25), the play-time width, a Proton path
   - needs: b, c
   - refs: REVIEW§4.2, REVIEW§4.3
-- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [active]
+- f The derivation round: the game's executable read with the game closed, as a DataPiler job (S7.11.h), then one probe session from the launcher; each returned file reviewed, and its derivation notes written, before anything is relied on [done]
   - needs: a
   - refs: O89, ARCH§6.2, ARCH§6.10
   - gives: R0 ran on the owner's PC (two fixes, then R0c settled the offline facts: WHY§180 to §189,
@@ -909,6 +910,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the route is with the owner as O100 (WHY§303). O100 decided the same day: R1's road goes on as Lodestar's work,
     EldenNet's own address library (S10.1.k).
     Since 2026-11-21 (O101, O102) R1's package can make no call: it is legacy until Lodestar's read-only L5 package.
+    Superseded by S10.1.k and retired by the owner on 2026-11-22 (O106; WHY§363): R0 lives on as `lodestar find`, and
+    R1's package, the DLL's R1 mode and the launcher's `--probe` are removed by Lodestar. What R1 found stays in the log
+    and `docs/ops/probes/`.
 - g Spike S0-E's present-hook half on GraceUI's 0.1 Host, in both load orders, beside another overlay [waiting]
   - needs: a, S10.4.a
   - refs: O90, G15, GraceUI:D175
@@ -947,7 +951,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O101, O102, O103, O105, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
+  - refs: O100, O101, O102, O103, O105, O106, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
@@ -1025,7 +1029,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     accessor's statics, the world's clock a field of another manager, messages with eight witnesses; 12 leads in the
     table. The scan did not finish and slowed the reader, and stays off (WHY§357). 1008 `event_flags` is the object the
     flags are read through, and 1012 `world_clock` waits for L6 (WHY§359). Next: a round that names the store by O92's
-    rule, then L6's first round (the clock's and the play time's fields), no scan.
+    rule, then L6's first round (the clock's and the play time's fields), no scan. The owner retired R1 the same day
+    (O106; WHY§363): Lodestar removes its package, the DLL's R1 mode and the launcher's `--probe`.
+    L6's first round built the same day (engine 4c882c3, Lodestar's 24e2918; WHY§365): the watch on the named managers,
+    the world's clock and the play time; event_flags named through the store; no scan, after the owner saw the fourth
+    round's scan stutter the game for a few seconds (WHY§357). Package 0.1.0-lodestar.8 sent to the owner the same day
+    (engine 8e09907; no "Pass time" at a grace in this round, since a jump of hours counts against the clock's test).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1319,6 +1328,25 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     a1b09a9), ahead of S4's second round. Every pad behaviour is checked without a pad, by unit timelines and the
     harness under Wine (GraceUI's D205); what only a real pad shows waits for testers (S11.1.a). EldenNet's side is the
     opt-in only (S11.4.c; GraceUI's docs/eldennet-changes.md §47).
+- ab The Hotkeys page lists every hotkey, live (GraceUI 0.2.15) [done]
+  - refs: GraceUI:D115, GraceUI:D204, GraceUI:D206, WHY§361
+  - gives: shipped in 0.2 instead of 0.6, at the owner's word, on 2026-11-22 (GraceUI feat/foundations f6fb731): the
+    menu's key, then each mod's hotkeys with their names, keys, pad chords and states. The menu's key is shown locked,
+    "Later version", until rebinding (S11.2.ac). EldenNet gives each hotkey a player's name (GraceUI's
+    docs/eldennet-changes.md §48).
+- ac Rebinding hotkeys on GraceUI's Hotkeys page, for every mod (GraceUI's proposal 0009) [done]
+  - needs: ab
+  - refs: G37, O94, O77, GraceUI:D115, GraceUI:D205, GraceUI:D208, GraceUI:D209, GraceUI:D210, GraceUI:D211, WHY§362, WHY§366
+  - gives: put to the owner on 2026-11-22 and decided the same day, as Grace and Engine recommended: every binding on
+    GraceUI › Hotkeys, a taken key asked about and then moved, pad chords by two pickers, ABI 1.4's describe_hotkey,
+    and built now, in 0.2.x. EldenNet's side is S11.4.c. Built the same day as GraceUI 0.2.16 (protocol 1.4, ABI 1.4;
+    feat/foundations bc211cc): Change key, Change pad chord, Reset, a taken key confirmed then moved, hotkeys.menu live,
+    describe_hotkey and a changed event; the bindings in game only (O77's note; GraceUI's docs/eldennet-changes.md §49).
+- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [next]
+  - refs: NPC§5.1, WHY§364
+  - gives: asked by EldenNet's first conversation on 2026-11-22, for T6's opening within 50 ms: a mod gives GraceUI a
+    Win32 event, set whenever something is queued for it (a hotkey's press or change, a holder's event, a protocol
+    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback.
 
 ### S11.3 EldenNet v0.2
 
@@ -1408,7 +1436,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246). The pad chord built on 2026-11-22 in
     GraceUI 0.2.14 (GraceUI's D204, ABI 1.3, has_cap("pad-chords"); S11.2.aa): GRACEUI_PAD_CHORD(XINPUT_GAMEPAD_DPAD_UP,
     XINPUT_GAMEPAD_BACK) on the talk hotkey, one GRACEUI_EVENT_HOTKEY on completion; EldenNet's floor for the chord is
-    0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet.
+    0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet. GraceUI 0.2.15 fixes a rare lost end of a
+    holder (GraceUI's D207, WHY§360): the chat box hears every end from 0.2.15. By G37 (2026-11-22, WHY§362, S11.2.ac)
+    EldenNet's three key settings become the defaults it registers, its Settings › Hotkeys a read-only list with a link
+    to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4). From GraceUI 0.2.16 the talk
+    key and chord are rebound on GraceUI › Hotkeys, and describe_hotkey's floor is 0.2.16. The chat box's text uses
+    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364).
 
 ### S11.5 v0.2's exit checks
 
