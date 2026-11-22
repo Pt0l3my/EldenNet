@@ -16,8 +16,10 @@ namespace en::shell {
 
 enum class LogLevel : std::uint8_t { Error, Warn, Info, Debug };
 enum class CopyMode : std::uint8_t { Seh, Rpm };
-// R1 (O89): which round a probe build runs. None: the normal start, with the probe's fault injection if asked.
-enum class ProbeRound : std::uint8_t { None, R1 };
+// Which round a probe build runs. None: the normal start, with the probe's fault injection if asked. R1 (O89): the
+// derivation's in-game round, with its one call. Read (Lodestar's step L5; proposal 0005 §6.2): the read-only round,
+// which names the managers by their instances, tries the reader on them and calls nothing.
+enum class ProbeRound : std::uint8_t { None, R1, Read };
 // When R1 makes its one call into the game, once its checks have passed: at the first Mark (the launcher's Pause,
 // pressed at the title with no save loaded: O89, O90), at once, or never (the facts that need no call only).
 enum class ProbeRegister : std::uint8_t { Mark, Auto, Never };

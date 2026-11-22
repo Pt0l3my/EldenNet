@@ -56,6 +56,7 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_trial.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_callee.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp

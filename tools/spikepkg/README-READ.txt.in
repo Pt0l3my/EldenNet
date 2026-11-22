@@ -1,0 +1,158 @@
+EldenNet, the read-only round (package @LABEL@)
+@UNDERLINE@
+
+This package runs a read-only round of EldenNet's address library (Lodestar; EldenNet's decisions O100 to O102) on
+your own PC. The two offline runs you made read the game's executable file and found the 217 places where the game
+keeps its managers, without knowing which is which. This round starts the game with EldenNet loaded and reads, from
+the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
+minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
+
+It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. There is no key to press.
+Nothing in this package is for playing with yet.
+
+Built from EldenNet's engine branch at commit @COMMIT@ with clang-cl (Release). Never shared: a test build for you
+alone, labelled @LABEL@.
+
+
+How long it takes
+-----------------
+
+About 15 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 5 in the world with your save loaded, and a
+few to send the files.
+
+
+What is in it
+-------------
+
+  read.cmd                Double-click this to start the round.
+  eldennet-launcher.exe   EldenNet's launcher: backs up your saves, starts the game offline without Easy Anti-Cheat,
+                          loads EldenNet, and watches the game until it ends.
+  eldennet.dll            EldenNet in the game: the probe build, which runs this round and nothing else.
+  eldennet-engine.exe     EldenNet's command-line tool, here to check the report (its lint command).
+  gal\                    What the round works from: the build's fingerprint (builds.toml), how a manager's place is
+                          recognised (recipes.toml, with its note in derivations\), EldenNet's own numbers and labels
+                          for the places it needs (ids.toml), and what to look for (leads.toml). Numbers and names of
+                          the design's own, nothing taken from the game.
+  README-READ.txt         This file.
+  SHA256SUMS              The SHA-256 of every other file in this package.
+  LICENSE.txt             EldenNet's licence (MIT).
+  THIRD_PARTY.md          What EldenNet is built with, and its credits.
+  THIRD-PARTY-NOTICES.txt The licences of the libraries inside the programs.
+
+
+Before you start
+----------------
+
+  - Close the game, and start Steam.
+  - Unzip this package into a folder of its own, anywhere but the game's folder.
+  - The launcher backs up your saves before it starts the game (in %APPDATA%\EldenNet\save-backups), and the round
+    does not run without that backup. If you want a copy of your own as well, copy the folder %APPDATA%\EldenRing
+    somewhere first.
+  - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
+    played with mods into online play.
+  - The launcher's messages appear in a console window behind the game. Setting the game to windowed mode first makes
+    them easy to read; otherwise press Alt+Tab to look, and Alt+Tab back.
+  - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
+    (below); otherwise stop and tell us.
+
+
+The steps
+---------
+
+1. Double-click read.cmd. (Or, in a command prompt in this folder: eldennet-launcher.exe --read)
+
+   The first time, the launcher asks where eldenring.exe is if it cannot find it through Steam, and shows its notices.
+
+2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
+   reading the game, and then how many of the eleven managers it has named so far. Some exist only once a save is
+   loaded, so it will not reach eleven here. This takes about a minute.
+
+3. When the console says "Now load your save.", load your save. Walk about for about five minutes: go near an NPC or
+   an enemy, open the map, rest at a grace, and fast travel once. Every ten seconds the round looks again for the
+   managers it has not named yet, and all the while it reads the ones it has.
+
+4. When the console says "Done.", or after five minutes in the world whatever it says, quit the game as you usually
+   do. The console then says whether the two files passed their check, and the launcher ends.
+
+5. Send these files back to us:
+
+     %APPDATA%\EldenNet\probe\lodestar-found.json   required
+     %APPDATA%\EldenNet\probe\lodestar-table.toml   required
+     %APPDATA%\EldenNet\logs\eldennet.log           helpful
+     %APPDATA%\EldenNet\logs\launcher.log           helpful
+     %APPDATA%\EldenNet\crashes\                    the newest file there, only if the game crashed
+
+   (Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) You can check the report yourself:
+
+     eldennet-engine.exe lint --report "%APPDATA%\EldenNet\probe\lodestar-found.json"
+
+   It must say "lint: the report is clean". The launcher has checked it the same way already.
+
+If anything else happens (the console says the build is not supported, or that the round stopped, or the game closes),
+do not try again: send the two logs and tell us what the console said. That is a useful result too.
+
+
+What it does
+------------
+
+  - Backs up your saves (it only copies them), checks that Steam is running and that the game is not, and checks that
+    your game is the build the offline runs read (2.7.2.0, worldwide). If the launcher says the build is not
+    supported, stop: the game has been updated since, and the offline run must be made again first.
+  - Starts the game offline without Easy Anti-Cheat, by writing the game's Steam app id into steam_appid.txt beside
+    the game while it starts, and removing it again (eldennet-launcher.exe --cleanup removes it if a crash left it).
+  - Loads eldennet.dll into the game. In the game, EldenNet reads the game's code and data as they are loaded,
+    read-only and through guarded copies, and finds again the 217 places the offline runs found.
+  - For each of those places it reads the address kept there and, where there is one, the first eight bytes of the
+    object at that address, once. Those eight bytes say what kind of object it is, and the game's own type
+    information, already read from its code, gives that kind a class. Where the class is one of the eleven EldenNet
+    asks for, the place is that manager's. It does this again every ten seconds, for at most ten minutes, while any of
+    the eleven is still missing.
+  - From a thread of its own, about ten times a second, it reads each named manager's place and the first eight bytes
+    of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
+    how often a read was refused, and how long a reading took. This is the way EldenNet v1 will read the game, tried
+    here on sixteen bytes a manager.
+  - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
+    another manager is named. They hold only numbers (offsets, sizes, counts) and EldenNet's own labels: no names of
+    the game's, no text, no paths, nothing of your character or your PC.
+  - Watches the game until it ends, and keeps a short record if it ends badly: the error's code, which module it was
+    in and the time, never a memory dump.
+
+
+What it never does
+------------------
+
+  - It never calls anything in the game, never adds anything to the game's own lists, and never changes the game's
+    code or data. It reads them.
+  - It never goes online, and the game cannot reach FromSoftware's servers without Easy Anti-Cheat.
+  - It never changes your saves or the game's files (steam_appid.txt aside, which it removes).
+  - It never runs anything else, uses the network, keeps keys or sends anything anywhere. You send the files yourself.
+
+
+If the game crashes or freezes
+------------------------------
+
+  - Your saves were backed up before the game started: each backup is a folder in %APPDATA%\EldenNet\save-backups,
+    named by date and time, with a manifest of the files' sizes and hashes. The game's own save is not touched by
+    EldenNet; only if the game itself reports a damaged save, copy ER0000.sl2 (and ER0000.sl2.bak) from the newest
+    backup back into %APPDATA%\EldenRing\<the same number>\, with the game closed.
+  - If the game freezes, close it with Alt+F4, or end eldenring.exe in Task Manager.
+  - Send the files of step 5, the newest crash record included. The next start of the launcher explains it once.
+  - To play normally again, start the game from Steam as usual. Nothing of EldenNet stays loaded.
+
+
+Check the files
+---------------
+
+In PowerShell, in this folder:
+
+  Get-FileHash -Algorithm SHA256 eldennet-launcher.exe, eldennet.dll, eldennet-engine.exe
+
+Each value must equal its line in SHA256SUMS (letter case aside).
+
+
+Safe use, and what we condemn
+-----------------------------
+
+The devkit's own words, as "eldennet-engine.exe probe-exe --help" prints them:
+
+@DISCLOSURE@

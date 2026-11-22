@@ -14,7 +14,8 @@
 //   v1's (O101 (b)), and only the probe's R1 round still makes that call (probe_r1.cpp), until L5 replaces the round.
 //   An unknown build, or anti-cheat, takes the banner path: WaitWindow, the crash filter, ConnectB (GraceUI's notice-only
 //   mode with anti-cheat), the banner, end.
-//   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp).
+//   A probe build with probe.round = "r1" runs R1 after WaitWindow instead (probe_r1.cpp), and with "read" the
+//   read-only round (probe_read.cpp).
 //   A run of GraceUI's observer (the launcher's --spike s0e or s4) stops at Reader with the spike_run banner, before
 //   the reader is made; R1 is set aside in such a run.
 #include <cstring>
@@ -298,6 +299,14 @@ void run(HMODULE module) {
       return;
     }
     log(Line("probe").word("round", "r1").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
+  }
+  if (s.settings.probe.round == en::shell::ProbeRound::Read) {
+    // The read-only round (Lodestar's L5) never joins an observer's run either.
+    if (!w::observer_run(block::spike())) {
+      run_read(s, gated);
+      return;
+    }
+    log(Line("probe").word("round", "read").flag("skipped", true).word("why", "spike"), LogLevel::Warn);
   }
 #endif
 

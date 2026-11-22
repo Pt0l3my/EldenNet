@@ -3145,6 +3145,96 @@ case("launcher-eldennet-r1", LGAME + ["--dll", "{eldennetdll}", "--console"] +
           "reports")
 
 
+# The read-only round (Lodestar's step L5; proposal 0005 §6.2): a probe build with `probe = { round = "read" }` names the
+# managers by their instances' classes, tries the reader on them from a thread of its own, and writes a report of
+# numbers and a draft table. It calls nothing: the fake hub sees no task of ours. The round's leads go by the
+# catalogue's labels, so the fake game's leads are relabelled for it, and gal/ gets the repository's ids.toml.
+READ_LABELS = {"task_loom": "task_hub", "actor_roster": "characters", "lobby_warden": "session",
+               "mark_ledger": "event_flags", "gauge_board": "hud", "menu_desk": "menus", "veil_keeper": "loading",
+               "sky_clock": "world_clock", "eye_rig": "camera", "table_vault": "param_store",
+               "phrase_book": "messages", "actor": "character", "player": "player_character"}
+READ_SINGLETONS = {"TaskLoom": "task_hub", "ActorRoster": "characters", "LobbyWarden": "session",
+                   "MarkLedger": "event_flags", "GaugeBoard": "hud", "MenuDesk": "menus", "VeilKeeper": "loading",
+                   "SkyClock": "world_clock", "EyeRig": "camera", "TableVault": "param_store", "PhraseBook": "messages"}
+
+
+def read_round_gal(gal):
+    path = os.path.join(gal, "leads.toml")
+    with open(path) as f:
+        text = f.read()
+    for old, new in READ_LABELS.items():
+        text = re.sub(r"(?m)^%s = " % old, "%s = " % new, text)
+        text = text.replace('instance = "%s"' % old, 'instance = "%s"' % new)
+    with open(path, "w") as f:
+        f.write(text)
+    shutil.copy2(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "gal", "ids.toml"),
+                 os.path.join(gal, "ids.toml"))
+
+
+def check_read(result):
+    """The read-only round's two files against --describe's truth, and that nothing was called."""
+    failures = check_lines(("ELDENNET", "settings", {"probe": "read"}),
+                           ("ELDENNET", "reader", {"started": 1, "round": "read"}),
+                           ("ELDENNET", "first_reading", {"state": "running"}),
+                           ("ELDENNET", "init", {"state": "ready"}),
+                           ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    failures += want(result, "ELDENNET", "read", stage="found", known_build=1, recipe=1, statics=(11, 64))
+    # The first pass comes before the game has made its managers (--statics-delay-ms): it names none. A later pass
+    # names every one, and the trial then reads them.
+    failures += want(result, "ELDENNET", "read", which="first", stage="named", **{"pass": "1"}, named=0)
+    failures += want(result, "ELDENNET", "read", stage="named", named=11, of=11, ambiguous=0, unlisted=0)
+    failures += want(result, "ELDENNET", "read", stage="trial", named=11, managers=11, readings=(20, 1e6),
+                     same=(11 * 20, 1e9), other=0, fault=0, torn=0, faults=0)
+    failures += want(result, "ELDENNET", "read", stage="table", entries=(13, 14), left_out=0, witnesses_dropped=0)
+    failures += ready_no_call(result)
+    need(not result.events("ELDENNET", "r1"), "the read-only round ran R1", failures)
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report, table = os.path.join(folder, "lodestar-found.json"), os.path.join(folder, "lodestar-table.toml")
+    if not (os.path.exists(report) and os.path.exists(table)):
+        return failures + ["no lodestar-found.json or lodestar-table.toml in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        text = f.read()
+    with open(table) as f:
+        draft = f.read()
+    d = json.loads(text)
+    need(d["report"] == "lodestar" and d["schema"] == 2, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+         failures)
+    # Numbers and the catalogue's labels: no name of the fake game's, in either file.
+    for name in list(READ_SINGLETONS) + ["FG::", "Imp", "task_loom", "Fg_"]:
+        need(name not in text and name not in draft, "a name of the game's in the round's files: %s" % name, failures)
+    inst, trial = d.get("instances"), d.get("trial")
+    if not inst or not trial:
+        return failures + ["the report has no instances or no trial"]
+    need(inst["named"] == 11 and inst["ambiguous"] == 0 and inst["passes"] >= 2 and inst["leads"] == 11,
+         "instances: %s" % {k: inst[k] for k in ("named", "ambiguous", "passes", "leads", "unlisted")}, failures)
+    truth = {READ_SINGLETONS[s["name"]]: s["static_rva"] for s in result.truth["fd4"]["singletons"]}
+    for m in inst["managers"]:
+        need(m["status"] == "derived" and m["rva"] == truth.get(m["label"]) and m["pass"] >= 2 and m["witnesses"] and
+             m["vtable"] != 0, "manager %s: %s" % (m["label"], m), failures)
+        need(("[item.%s]" % m["label"]) in draft, "the draft table lacks %s" % m["label"], failures)
+    need(len(trial["managers"]) == 11 and trial["readings"] >= 20 and trial["fault_copy"] == 0 and
+         trial["fault_stack"] == 0 and trial["fault_thread"] == 0,
+         "the trial: %s" % {k: trial[k] for k in trial if k != "managers"}, failures)
+    for m in trial["managers"]:
+        need(m["same"] >= 20 and m["other"] == 0 and m["fault"] == 0 and m["torn"] == 0, "trial of %s: %s" %
+             (m["label"], m), failures)
+    need("[item.character]" in draft and "[item.player_character]" in draft and 'status = "confirmed"' not in draft and
+         draft.startswith("[provenance]"), "the draft table's classes, statuses or head", failures)
+    return failures + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--statics-delay-ms", "6000", frames=1800),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet('probe = { round = "read", settle_s = 1 }\n', probe=True, gal_change=read_round_gal),
+     check=lambda r: check_read(r) + want(r, "LAUNCHER", "status", init="ready"),
+     what="the read-only round in a probe build: a first pass before the game has made its managers, a later one that "
+          "names all eleven by their instances' classes, the reader's trial on them from a thread of our own, a "
+          "lint-clean report of numbers and a draft table, and no call into the game")
+
+
 # R1 as the owner runs it (README-R1.txt): `eldennet-launcher --probe`, with no settings.toml and the save backup made
 # first; the console's steps in plain words; Pause pressed at the title until it is taken (the default settle of 10 s,
 # then the live derivation); the one call; "task confirmed"; a while in the world with loading screens; the game ends

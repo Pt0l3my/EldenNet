@@ -20,6 +20,11 @@
 //   name with Imp. The classes' names stay in memory: the report carries the catalogue's labels and numbers.
 // - draft_table: what the round found, as the entries of a build's table (layout.hpp, schema 2), each checked against
 //   the image before it is written and each a lead until its review.
+// - Trial (lodestar_trial.hpp, in the part that runs in the game): the reader tried on the managers just named. On the
+//   thread that will read in v1 (the frame service's own
+//   thread, O101), about ten times a second, each manager's slot and its instance's first word are read through the
+//   guarded reader, and the slot read again: what was null, what still had its class, what had another, what faulted
+//   and what changed between the two reads are counted. It reads sixteen bytes a manager and writes nothing.
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -127,6 +132,7 @@ struct ManagerFound {
   std::uint32_t vtable = 0;  // its instance's table of methods
   std::uint32_t sites = 0;   // the accessor's sites that load the static
   bool imp = false;          // named by the lead's name with Imp
+  std::uint32_t pass = 0;    // the round's pass that named it (1 the first); 0 while unnamed
   std::vector<std::uint32_t> witnesses;  // the first of those sites, each the load itself
 };
 
@@ -141,7 +147,33 @@ struct InstancesFound {
   std::uint64_t unlisted = 0;   // of those, the ones whose label the catalogue does not hold as a static
   std::uint64_t named = 0;
   std::uint64_t ambiguous = 0;
+  std::uint32_t passes = 0;            // how many times the round named (merge counts them)
   std::vector<ManagerFound> managers;  // by number: every lead the catalogue holds, found or not
+};
+
+inline constexpr std::size_t kTrialFaultKinds = 6;  // guarded.hpp's kFaultKinds (checked where the trial is built)
+
+// The reader's trial on one manager: what its readings saw.
+struct TrialManager {
+  std::uint32_t id = 0;
+  std::string label;
+  std::uint64_t null = 0;   // the slot held no instance
+  std::uint64_t same = 0;   // the instance's first word was the table of methods it was named by
+  std::uint64_t other = 0;  // another word there: an object of another class, or none
+  std::uint64_t fault = 0;  // a read was refused or faulted (caught)
+  std::uint64_t torn = 0;   // the slot changed between its two reads: the reading judged nothing
+};
+
+struct TrialFound {
+  std::uint64_t steps = 0;       // times the reader's thread ran the trial
+  std::uint64_t readings = 0;    // of those, the ones that read (one each period)
+  std::uint64_t elapsed_ms = 0;  // from the first reading to the last
+  std::uint64_t reading_p50_us = 0;
+  std::uint64_t reading_p99_us = 0;
+  std::uint64_t reading_max_us = 0;
+  std::uint64_t copies = 0;
+  std::array<std::uint64_t, kTrialFaultKinds> faults{};  // the guarded reader's, by kind (guarded.hpp's FaultKind)
+  std::vector<TrialManager> managers;                // by number
 };
 
 struct Found {
@@ -150,6 +182,7 @@ struct Found {
   std::vector<ClassFound> classes;
   TableFound table;
   std::optional<InstancesFound> instances;  // the in-game round's; nothing offline
+  std::optional<TrialFound> trial;          // the in-game round's
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown).
@@ -169,6 +202,11 @@ using ReadWord = std::function<std::optional<std::uint64_t>(std::uint64_t addres
 // label for the same thing, or the label it had before (`was`). Reads the image and one word at each instance.
 [[nodiscard]] InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
                                             const derive::Leads& leads, const Catalogue& ids, const ReadWord& read_word);
+
+// Folds a later pass into what the round holds (a manager the game makes only once a save is loaded is null at the
+// title): the counts become the later pass's, a manager once named stays as it was named, and one still unnamed takes
+// the later pass's finding, with the pass that named it. `named` and `ambiguous` are counted again over the whole.
+void merge(InstancesFound& held, const InstancesFound& later);
 
 // The round's findings as a build's table: `[provenance]` and one `[item.<label>]` for each manager named, each class
 // the leads' sets gave and the groups' table, in the catalogue's order. Each entry is checked against the image first

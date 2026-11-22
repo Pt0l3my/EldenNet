@@ -97,6 +97,13 @@ TEST_CASE("settings: the probe table only in a probe build") {
   CHECK(probe.settings.probe.fault_group == en::proto::Group::World);
   CHECK(probe.settings.probe.fault_every == 5);
   CHECK(parse_settings("probe = { object_size = 0x8000 }\n", true).refused);
+  // The read-only round (Lodestar's L5): a probe build's too, and a word of its own.
+  const LoadedSettings read = parse_settings("probe = { round = \"read\", settle_s = 1 }\n", true);
+  REQUIRE_FALSE(read.refused);
+  CHECK(read.settings.probe.round == ProbeRound::Read);
+  CHECK(std::string(to_string(read.settings.probe.round)) == "read");
+  CHECK(parse_settings("probe = { round = \"read\" }\n", false).refused);
+  CHECK(parse_settings("probe = { round = \"write\" }\n", true).refused);
 }
 
 TEST_CASE("settings: the pages' edits, written over an accepted file and never over a refused one") {

@@ -249,6 +249,27 @@ InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, co
   return out;
 }
 
+void merge(InstancesFound& held, const InstancesFound& later) {
+  const std::uint32_t pass = held.passes + 1;
+  std::vector<ManagerFound> managers = std::move(held.managers);
+  held = later;
+  held.passes = pass;
+  for (ManagerFound& m : held.managers) {
+    const auto it = std::find_if(managers.begin(), managers.end(), [&](const ManagerFound& o) { return o.id == m.id; });
+    if (it != managers.end() && it->status == derive::Status::Derived) {
+      m = *it;  // named once, named for the round
+    } else if (m.status == derive::Status::Derived) {
+      m.pass = pass;
+    }
+  }
+  held.named = 0;
+  held.ambiguous = 0;
+  for (const ManagerFound& m : held.managers) {
+    held.named += m.status == derive::Status::Derived ? 1 : 0;
+    held.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
+  }
+}
+
 namespace {
 
 std::string hex(std::uint32_t v) {
@@ -425,7 +446,11 @@ constexpr auto kKeys = std::to_array<Key>({
     // classes and the groups' table
     AO("classes"), Key{"label", Type::Label}, W("status", kStatus), U("type_descriptor"), U("classes_derived"),
     AU("vtables"), O("instances"), U("tried"), U("null"), U("unread"), U("unclassed"), U("classed"), U("leads"),
-    U("unlisted"), U("named"), U("ambiguous"), AO("managers"), U("id"), U("vtable"), B("imp"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
+    U("unlisted"), U("named"), U("ambiguous"), U("passes"), AO("managers"), U("id"), U("vtable"), B("imp"), U("pass"),
+    // The reader's trial (in game)
+    O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
+    U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
+    U("fault_thread"), U("fault_injected"), U("same"), U("other"), U("fault"), U("torn"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
 constexpr report::Vocabulary kVocabulary{"lodestar", 2, kKeys};
@@ -558,6 +583,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("unlisted", n.unlisted);
     w.number("named", n.named);
     w.number("ambiguous", n.ambiguous);
+    w.number("passes", n.passes);
     w.begin_array("managers");
     for (const ManagerFound& m : n.managers) {
       w.begin_object();
@@ -568,7 +594,37 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("vtable", m.vtable);
       w.number("sites", m.sites);
       w.boolean("imp", m.imp);
+      w.number("pass", m.pass);
       numbers(w, "witnesses", m.witnesses);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.trial) {
+    const TrialFound& t = *found.trial;
+    static constexpr std::array<std::string_view, kTrialFaultKinds> kFaultKeys = {
+        "fault_implausible", "fault_stack", "fault_copy", "fault_budget", "fault_thread", "fault_injected"};
+    w.begin_object("trial");
+    w.number("steps", t.steps);
+    w.number("readings", t.readings);
+    w.number("elapsed_ms", t.elapsed_ms);
+    w.number("reading_p50_us", t.reading_p50_us);
+    w.number("reading_p99_us", t.reading_p99_us);
+    w.number("reading_max_us", t.reading_max_us);
+    w.number("copies", t.copies);
+    for (std::size_t k = 0; k < kTrialFaultKinds; ++k) w.number(kFaultKeys[k], t.faults[k]);
+    w.begin_array("managers");
+    for (const TrialManager& m : t.managers) {
+      w.begin_object();
+      w.number("id", m.id);
+      w.label("label", m.label);
+      w.number("null", m.null);
+      w.number("same", m.same);
+      w.number("other", m.other);
+      w.number("fault", m.fault);
+      w.number("torn", m.torn);
       w.end_object();
     }
     w.end_array();
