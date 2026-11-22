@@ -131,6 +131,7 @@ struct Active {
   std::optional<ReplyRun> reply;
   std::optional<Tail> tail;
   std::optional<Mono> failure_until;
+  proto::ReplyId failure_reply = 0;  // the reply the "…" page stands for: each failure a page of its own
   std::vector<Turn> turns;                  // committed, oldest first
   std::vector<proto::HistoryLine> strip;    // the history strip: committed lines
   LintTally tally;
@@ -633,6 +634,7 @@ struct Conversation::Impl {
 
   // NPC §6.2: the "…" page, never acknowledged or committed, and a toast; back to Open. A queued line goes next.
   void failure(ToastClass cls, proto::ToastLevel level, std::string_view text) {
+    conv->failure_reply = conv->reply ? conv->reply->id : conv->next_reply++;
     if (conv->reply) {
       cancel_request(*conv->reply);
       if (conv->reply->lint) conv->tally = conv->reply->lint->tally();
@@ -1201,7 +1203,7 @@ struct Conversation::Impl {
     if (st == proto::ConvState::Held) return m;  // nothing over the game's own talk, and nothing while hidden
     if (conv->failure_until) {
       proto::PageView v;
-      v.id = proto::PageId{conv->id, 0, 0};
+      v.id = proto::PageId{conv->id, conv->failure_reply, 0};
       v.kind = proto::PageKind::Failure;
       v.surface = surface();
       v.speaker = conv->name;
