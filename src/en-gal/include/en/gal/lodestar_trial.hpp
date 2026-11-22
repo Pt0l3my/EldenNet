@@ -95,7 +95,7 @@ class Trial final : public TaskBody {
 class ClockSearch {
  public:
   static constexpr std::uint32_t kSpan = 0x100;
-  static constexpr std::size_t kMaxCandidates = 256;
+  static constexpr std::size_t kMaxCandidates = 512;  // the accessor's statics and those its other shapes add
   static constexpr std::size_t kMaxHits = 32;
   static constexpr std::uint32_t kMinTicks = 10;
   static constexpr std::uint64_t kMinIntervalUs = 1'000'000;
@@ -141,6 +141,73 @@ class ClockSearch {
   std::atomic<std::size_t> hit_count_{0};
   std::atomic<std::uint64_t> passes_{0};
   std::atomic<std::uint64_t> unreadable_{0};
+};
+
+// The member search (in game, read-only): a lead's manager that no slot of the image's data points at may be held
+// by another object, as a member of it or behind a pointer in it. For each static given, its slot is read and the
+// first bytes of the object behind it copied; every 8-aligned word of the copy after the first is looked at: one that
+// is a table of methods of a lead's class says an object of that class lies there itself (`embedded`); one that could
+// be a heap address is followed by one 8-byte read, and a lead's table of methods there says the member points at
+// the lead's object. The hits are places for the review (a static and an offset into its object), never a name.
+// A pass goes through every static once; the next starts kPassEveryUs later. It copies kSpan bytes of an object at
+// most (less where the object's memory ends sooner) and reads 8 bytes behind each pointer. Everything is allocated
+// when it is made; the reader's thread allocates nothing.
+class MemberSearch {
+ public:
+  static constexpr std::uint32_t kSpan = 0x800;
+  static constexpr std::size_t kMaxStatics = 1024;
+  static constexpr std::size_t kMaxHits = 32;
+  static constexpr std::uint64_t kPassEveryUs = 30'000'000;
+
+  // `statics`: offsets of the slots; `tables`: what to look for (Namer::lead_tables(), or a part of it); `base` and
+  // `size`: the image's address as loaded and its size.
+  MemberSearch(std::vector<std::uint32_t> statics, std::vector<Namer::LeadTable> tables, std::uint64_t base,
+               std::uint64_t size);
+
+  // Up to `reads` reads at `now_us` (an object's copy is one, a pointer followed is one); answers whether a pass ended
+  // on this call.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t reads, std::uint64_t now_us);
+
+  // The counts and the hits so far, from any thread.
+  [[nodiscard]] MembersFound found() const;
+
+ private:
+  struct Table {
+    std::uint64_t address = 0;  // the table of methods, absolute
+    std::uint32_t lead = 0;     // which of leads_
+  };
+  struct Lead {
+    std::uint32_t id = 0;
+    std::string label;
+  };
+  struct Hit {
+    std::uint32_t lead = 0;
+    std::uint32_t rva = 0;
+    std::uint32_t offset = 0;
+    std::uint32_t vtable = 0;
+    bool embedded = false;
+  };
+  [[nodiscard]] const Table* table_at(std::uint64_t word) const noexcept;
+  void hit(const Table& t, std::uint32_t rva, std::uint32_t offset, bool embedded) noexcept;
+
+  std::uint64_t base_;
+  std::uint64_t size_;
+  std::vector<std::uint32_t> statics_;
+  std::vector<Table> tables_;  // by address
+  std::vector<Lead> leads_;
+  std::array<std::byte, kSpan> copy_{};
+  std::uint32_t copied_ = 0;     // bytes of copy_ that hold the current static's object; 0: not copied yet
+  std::uint64_t instance_ = 0;
+  std::size_t next_ = 0;         // the current static
+  std::uint32_t word_ = 8;       // the next offset of its copy to look at
+  std::uint64_t pass_end_us_ = 0;
+  bool resting_ = false;
+  std::array<Hit, kMaxHits> hits_{};
+  std::atomic<std::size_t> hit_count_{0};
+  std::atomic<std::uint64_t> objects_{0};
+  std::atomic<std::uint64_t> unreadable_{0};
+  std::atomic<std::uint64_t> pointers_{0};
+  std::atomic<std::uint64_t> passes_{0};
 };
 
 }  // namespace en::gal::lodestar

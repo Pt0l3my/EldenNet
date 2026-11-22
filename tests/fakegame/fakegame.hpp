@@ -99,6 +99,7 @@ extern void* fg_static_strayling;     // decoy: its site's path does not end in 
 extern void* fg_static_save_ledger;   // AOB statics: FG::SaveLedgerImp* (GameDataMan's role)
 extern void* fg_static_run_warden;    // FG::RunWardenImp* (GameMan's role)
 extern void* fg_static_field_plot;    // FG::FieldPlotImp* (FieldArea's role)
+extern void* fg_field_plot_mirror;    // with --field-mirror: the same address again, in a second word of the data
 extern void* fg_static_hinstance;     // the module handle, non-null once the program is up (global_hinstance's role)
 extern std::uint64_t fg_hinstance_check;
 extern std::uint8_t fg_save_ledger_ready;

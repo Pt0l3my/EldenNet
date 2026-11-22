@@ -108,7 +108,7 @@ TEST_CASE("recipes.toml: the shape keeps to the grammar, and a place is given by
                      many),
                 "recipes.toml: recipe[0].steps", "must list 1 to 16 forms"));
   CHECK(refused(with(kAccessor, "static = 0", "static = 1"), "recipes.toml: recipe[0].gives.static",
-                "must be a load_slot step"));
+                "must be a load_slot or a compare_slot step"));
   CHECK(refused(with(kAccessor, "class = 3", "class = 4"), "recipes.toml: recipe[0].gives.class",
                 "must be an address_arg1 step"));
   CHECK(refused(with(kAccessor, "getter = 4", "getter = 5"), "recipes.toml: recipe[0].gives.getter",
@@ -157,4 +157,37 @@ TEST_CASE("no key of a recipe can carry a byte of the game") {
     CHECK(refused(with(kAccessor, "path_suffix", std::string(key) + " = \"48 8B ?? ??\"\npath_suffix"),
                   "recipes.toml: recipe[0]", "has an unknown key \"" + std::string(key) + "\""));
   }
+}
+
+TEST_CASE("recipes.toml: a second recipe of the accessor's kind, whose static is given by a compare of the slot") {
+  const std::string second = std::string(kAccessor) + R"(
+[[recipe]]
+id = "accessor_compare"
+kind = "accessor"
+steps = ["compare_slot", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 2, getter = 3 }
+path_suffix = "Lone.h"
+provenance = { method = "own-derivation", evidence = "docs/ops/probes/invented.md", date = "2026-01-02" }
+)";
+  const auto set = parse_recipes(file(second), {});
+  if (!set) {
+    for (const SchemaError& e : set.error()) MESSAGE(e.where << ": " << e.problem);
+  }
+  REQUIRE(set.has_value());
+  REQUIRE(set->recipes.size() == 2);
+  const RecipeSpec* r = set->find("accessor_compare");
+  REQUIRE(r != nullptr);
+  CHECK(r->shape.steps.size() == 4);
+  CHECK(r->static_step == 0);
+  CHECK(r->class_step == 2);
+  CHECK(r->getter_step == 3);
+  CHECK(r->accessor().valid());
+  CHECK(r->expect_min == 1);  // not counted yet: any number of places is within its range
+  CHECK(r->expect_max == kMaxRecipeMatches);
+  // The static's step must be a load or a compare of a slot: a skipped instruction gives nothing.
+  CHECK(refused(with(second, "steps = [\"compare_slot\", \"branch_set_short\"", "steps = [\"skip_one\", \"branch_set_short\""),
+                "recipes.toml: recipe[1].gives.static", "must be a load_slot or a compare_slot step"));
+  // A test of a loaded register has nothing to test after a compare in memory.
+  CHECK(refused(with(second, "\"compare_slot\", \"branch_set_short\"", "\"compare_slot\", \"test_loaded\""),
+                "recipes.toml: recipe[1].steps", "tests a register before any load"));
 }

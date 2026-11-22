@@ -47,11 +47,12 @@ void read_provenance(const toml::table& t, const std::string& path, Errors& erro
 
 // The step a place is given by: within the shape, and of the form that gives that place.
 std::optional<std::uint8_t> read_step(Table& g, std::string_view key, const shape::Shape& shape, shape::Form form,
-                                      const char* problem, Errors& errors) {
+                                      const char* problem, Errors& errors,
+                                      std::optional<shape::Form> or_form = std::nullopt) {
   const auto step = g.integer(key, true, 0, static_cast<std::int64_t>(shape::kMaxSteps) - 1);
   if (!step) return std::nullopt;
   const auto at = static_cast<std::size_t>(*step);
-  if (at >= shape.steps.size() || shape.steps[at] != form) {
+  if (at >= shape.steps.size() || (shape.steps[at] != form && !(or_form && shape.steps[at] == *or_form))) {
     errors.add(g.where(key), problem);
     return std::nullopt;
   }
@@ -92,7 +93,7 @@ void read_recipe(const toml::table& t, const std::string& path, Errors& errors, 
         if (!form) {
           errors.add(toml_read::indexed(r.where("steps"), i),
                      "must be one of load_slot, test_loaded, branch_set_short, branch_set_near, address_arg1, "
-                     "call_relative");
+                     "call_relative, skip_one, compare_slot");
           steps_read = false;
         } else {
           out.shape.steps.push_back(*form);
@@ -107,7 +108,8 @@ void read_recipe(const toml::table& t, const std::string& path, Errors& errors, 
   if (const toml::table* gives = r.table("gives", true)) {
     Table g(*gives, r.where("gives"), errors);
     if (steps_read) {
-      if (const auto s = read_step(g, "static", out.shape, shape::Form::LoadSlot, "must be a load_slot step", errors)) {
+      if (const auto s = read_step(g, "static", out.shape, shape::Form::LoadSlot,
+                                   "must be a load_slot or a compare_slot step", errors, shape::Form::CompareSlot)) {
         out.static_step = *s;
       }
       if (const auto s =

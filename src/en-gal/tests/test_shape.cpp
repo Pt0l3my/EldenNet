@@ -52,6 +52,20 @@ struct Rig {
     p.align(P::Text, 16, 0xCC);
   }
 
+  // A compare of the slot in memory with an immediate, then branch, address, call.
+  void compare_head(const std::string& label, std::vector<std::uint8_t> compare, std::vector<std::uint8_t> immediate) {
+    p.label(label, P::Text);
+    p.bytes(P::Text, compare);
+    p.rel32(P::Text, "slot", static_cast<std::uint32_t>(immediate.size()));
+    p.bytes(P::Text, immediate);
+    p.bytes(P::Text, {0x75, 0x0C, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "object");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "helper");
+    p.bytes(P::Text, {0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90});
+    p.align(P::Text, 16, 0xCC);
+  }
+
   Rig() {
     p.label("helper", P::Text);
     p.bytes(P::Text, {0xC3});
@@ -69,6 +83,17 @@ struct Rig {
     head("narrow_load", {0x44, 0x8B, 0x05}, {0x45, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
     head("narrow_test", {0x48, 0x8B, 0x05}, {0x90, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
     head("something_between", {0x48, 0x8B, 0x05}, {0x90, 0x48, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
+    // Between the load and the test, a move that loads the same register anew: the test is then of something else.
+    head("reloads_between", {0x48, 0x8B, 0x05}, {0x48, 0x8B, 0x03, 0x48, 0x85, 0xC0}, {0x75, 0x0C}, {0x48, 0x8D, 0x0D});
+    // And a call between them: no instruction that falls through.
+    head("calls_between", {0x48, 0x8B, 0x05}, {0xE8, 0x00, 0x00, 0x00, 0x00, 0x48, 0x85, 0xC0}, {0x75, 0x0C},
+         {0x48, 0x8D, 0x0D});
+    // The slot compared with zero where it lies, with an 8-bit and a 32-bit immediate; with another number; and as
+    // a 32-bit compare.
+    compare_head("compare", {0x48, 0x83, 0x3D}, {0x00});
+    compare_head("compare_wide_immediate", {0x48, 0x81, 0x3D}, {0x00, 0x00, 0x00, 0x00});
+    compare_head("compare_with_one", {0x48, 0x83, 0x3D}, {0x01});
+    compare_head("compare_narrow", {0x83, 0x3D}, {0x00});
     // The branch with a 32-bit distance: another form.
     head("near_branch", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0}, {0x0F, 0x85, 0x0C, 0x00, 0x00, 0x00},
          {0x48, 0x8D, 0x0D});
@@ -230,13 +255,13 @@ TEST_CASE("find looks at every offset: a site a straight decode would miss is fo
   CHECK(capped.hits.size() == 2);
   // A shape that starts with another form is looked for at every offset too.
   const shape::Shape calls{{Form::AddressArg1, Form::CallRelative}};
-  // Fifteen heads: all but the one into the second argument's register and the one that calls through a register.
-  CHECK(shape::find(o.img, o.text(), calls, 64).count == 13);
+  // Twenty-one heads: all but the one into the second argument's register and the one that calls through a register.
+  CHECK(shape::find(o.img, o.text(), calls, 64).count == 19);
 }
 
 TEST_CASE("a shape's words and its validity") {
   for (const Form f : {Form::LoadSlot, Form::TestLoaded, Form::BranchSetShort, Form::BranchSetNear, Form::AddressArg1,
-                       Form::CallRelative}) {
+                       Form::CallRelative, Form::SkipOne, Form::CompareSlot}) {
     CHECK(shape::form_of(shape::to_string(f)) == f);
   }
   CHECK(std::string(shape::to_string(Form::AddressArg1)) == "address_arg1");
@@ -315,4 +340,63 @@ TEST_CASE("on the invented programs the shape accepts exactly the sites the patt
       }
     }
   }
+}
+
+TEST_CASE("skip_one allows one instruction that falls through between two steps, and no reload of the register") {
+  const Rig rig;
+  const Opened o(rig.built.file);
+  const shape::Shape gap{
+      {Form::LoadSlot, Form::SkipOne, Form::TestLoaded, Form::BranchSetShort, Form::AddressArg1, Form::CallRelative}};
+  REQUIRE(gap.valid());
+  const auto between = shape::match_at(o.img, o.text(), gap, rig.at("something_between"));
+  REQUIRE(between.has_value());
+  CHECK(between->gives[0] == rig.at("slot"));
+  CHECK(between->gives[1] == 0);  // the skipped instruction gives nothing
+  CHECK(between->gives[4] == rig.at("object"));
+  CHECK(between->gives[5] == rig.at("helper"));
+  // The plain head has nothing between: the gap's shape does not stand there, nor the plain shape at the gap.
+  CHECK_FALSE(shape::match_at(o.img, o.text(), gap, rig.at("plain")).has_value());
+  CHECK_FALSE(shape::match_at(o.img, o.text(), kAccessor, rig.at("something_between")).has_value());
+  // A reload of the remembered register, or a call, between the two: refused, each with its reason.
+  CHECK(shape::mismatch_at(o.img, o.text(), gap, rig.at("reloads_between")) ==
+        shape::Mismatch{1, shape::Differs::OtherRegister});
+  CHECK(shape::mismatch_at(o.img, o.text(), gap, rig.at("calls_between")) == shape::Mismatch{1, shape::Differs::Other});
+  CHECK(shape::find(o.img, o.text(), gap, 64).count == 1);
+  CHECK(std::string(shape::to_string(Form::SkipOne)) == "skip_one");
+  CHECK_FALSE(shape::gives_place(Form::SkipOne));
+}
+
+TEST_CASE("compare_slot is a 64-bit compare of a slot with zero where it lies, and gives the slot") {
+  const Rig rig;
+  const Opened o(rig.built.file);
+  const shape::Shape compare{{Form::CompareSlot, Form::BranchSetShort, Form::AddressArg1, Form::CallRelative}};
+  REQUIRE(compare.valid());
+  for (const char* label : {"compare", "compare_wide_immediate"}) {
+    CAPTURE(label);
+    const auto hit = shape::match_at(o.img, o.text(), compare, rig.at(label));
+    REQUIRE(hit.has_value());
+    CHECK(hit->gives[0] == rig.at("slot"));
+    CHECK(hit->gives[2] == rig.at("object"));
+    CHECK(hit->gives[3] == rig.at("helper"));
+    REQUIRE(hit->branch_to.has_value());
+  }
+  // A compare with another number asks another question; a 32-bit compare is narrow; a load is no compare.
+  CHECK(shape::mismatch_at(o.img, o.text(), compare, rig.at("compare_with_one")) ==
+        shape::Mismatch{0, shape::Differs::Other});
+  CHECK(shape::mismatch_at(o.img, o.text(), compare, rig.at("compare_narrow")) ==
+        shape::Mismatch{0, shape::Differs::Narrow});
+  CHECK(shape::mismatch_at(o.img, o.text(), compare, rig.at("plain")) == shape::Mismatch{0, shape::Differs::Other});
+  CHECK_FALSE(shape::match_at(o.img, o.text(), kAccessor, rig.at("compare")).has_value());
+  // Looked for at every offset, as a load is.
+  const shape::Matches all = shape::find(o.img, o.text(), compare, 64);
+  CHECK(all.count == 2);
+  REQUIRE(all.hits.size() == 2);
+  CHECK(all.hits[0].rva == rig.at("compare"));
+  CHECK(all.hits[1].rva == rig.at("compare_wide_immediate"));
+  // A compare leaves nothing in a register: a test of the loaded register cannot follow it without a new load.
+  CHECK_FALSE(shape::Shape{{Form::CompareSlot, Form::TestLoaded}}.valid());
+  CHECK_FALSE(shape::Shape{{Form::LoadSlot, Form::CompareSlot, Form::TestLoaded}}.valid());
+  CHECK(shape::Shape{{Form::CompareSlot, Form::LoadSlot, Form::TestLoaded}}.valid());
+  CHECK(shape::gives_place(Form::CompareSlot));
+  CHECK(std::string(shape::to_string(Form::CompareSlot)) == "compare_slot");
 }

@@ -77,6 +77,22 @@ struct Why {
   std::uint64_t count = 0;
 };
 
+// Another shape of the accessor (a recipe of the same kind under another id: the compiler does not write every
+// accessor the same way), counted beside the accessor's own: where it stands, and which statics it reaches that the
+// accessor's own sites do not. Counts and places only.
+struct VariantFound {
+  std::string label;  // the recipe's id
+  std::uint64_t hits = 0;
+  std::uint64_t accepted = 0;
+  std::array<std::uint64_t, 9> refused{};  // by fd4::Refusal
+  Expect expect = Expect::Within;          // the hits against the recipe's expect_matches
+  std::uint64_t statics_found = 0;         // distinct statics of its accepted sites
+  std::uint64_t known = 0;                 // of those, statics the accessor's own sites load too
+  std::uint64_t agreeing = 0;              // of the known, those it gives the same class object
+  std::uint64_t shared_class_objects = 0;  // class objects its new statics share with another static, of any shape
+  std::vector<StaticFound> statics;        // the statics only it reaches, by offset, the first 64
+};
+
 struct AccessorFound {
   bool recipe = false;  // recipes.toml holds an accessor
   std::uint64_t hits = 0;
@@ -104,7 +120,12 @@ struct AccessorFound {
   std::uint64_t pattern_statics = 0;              // distinct statics of the pattern's accepted sites
   std::vector<Why> only_pattern_why;              // for the sites the pattern alone accepts, by step and kind
   std::vector<StaticFound> only_pattern_statics;  // the statics only those sites load, each with those sites
+  std::vector<VariantFound> variants;             // the other recipes of the accessor's kind, in the file's order
 };
+
+// Every static the naming looks at: the accessor's own, then each variant's new ones (a static two variants reach is
+// taken once).
+[[nodiscard]] std::vector<StaticFound> all_statics(const AccessorFound& accessor);
 
 struct ClassFound {
   std::string label;  // the lead's
@@ -134,8 +155,22 @@ struct ManagerFound {
   std::uint32_t sites = 0;   // the accessor's sites that load the static
   bool imp = false;          // named by the lead's name with Imp
   bool by_base = false;      // named by a class that derives from the lead's class, not by the class itself
+  bool variant = false;      // its static is one only a variant of the accessor's shape reaches
   bool by_search = false;    // its static is none of the accessor's: found by the search of the data's slots
-  std::uint32_t search_found = 0;  // slots that search found holding an object of its class (1 names it)
+  std::uint32_t search_found = 0;  // slots that search found holding an object of its class
+  // The search's own numbers, kept from its last run: how often it ran, how many slots it had to look at, how many it
+  // looked at, how many pointed at memory it could not read, how many distinct objects the slots found hold (one
+  // object behind several slots names the manager: the slots are copies of one address), and the slots themselves.
+  std::uint32_t search_runs = 0;
+  std::uint32_t search_candidates = 0;
+  std::uint32_t search_checked = 0;
+  std::uint32_t search_unreadable = 0;
+  std::uint32_t search_objects = 0;
+  std::vector<std::uint32_t> search_slots;  // by offset, the first 16
+  // Objects of its class that lie in the image's own data, not on the heap (the image's data holds one of its
+  // tables of methods at an 8-aligned place): how many, and the first.
+  std::uint32_t in_data = 0;
+  std::uint32_t in_data_rva = 0;
   std::uint32_t pass = 0;    // the round's pass that named it (1 the first); 0 while unnamed
   std::vector<std::uint32_t> witnesses;  // the first of those sites, each the load itself
 };
@@ -150,6 +185,17 @@ struct LeadClasses {
   std::uint32_t vtables = 0;    // primary tables of methods of those classes and of every class deriving from them
   std::uint32_t texts = 0;      // places in the image where a type's name of either form stands, in any namespace,
                                 // with or without tables of methods
+  std::uint32_t related = 0;    // classes with tables of methods whose innermost name holds the lead's name and is
+                                // neither of the two above: a manager that goes by a longer name
+};
+
+// A lead the catalogue does not hold as a static (a lead on trial: it gets a number once a round has counted it):
+// how many of the statics hold an object of its class at this pass, and the first.
+struct OtherLead {
+  std::string label;
+  std::uint32_t held = 0;
+  std::uint32_t rva = 0;
+  std::uint32_t vtable = 0;
 };
 
 // The in-game round's naming (O92), per distinct static of the accessor's accepted sites.
@@ -167,6 +213,7 @@ struct InstancesFound {
   std::uint64_t ambiguous = 0;
   std::uint32_t passes = 0;            // how many times the round named (merge counts them)
   std::vector<ManagerFound> managers;  // by number: every lead the catalogue holds, found or not
+  std::vector<OtherLead> others;       // the leads the catalogue does not hold, in the leads' order
 };
 
 inline constexpr std::size_t kTrialFaultKinds = 6;  // guarded.hpp's kFaultKinds (checked where the trial is built)
@@ -233,7 +280,43 @@ struct RisingFound {
   std::uint64_t candidates = 0;
   std::uint64_t passes = 0;
   std::uint64_t unreadable = 0;
-  std::vector<RisingHit> hits;
+  std::uint64_t risen = 0;      // fields that rose in at least one pass
+  std::vector<RisingHit> hits;  // of those, the ones that rose in the most passes, at most 32
+};
+
+// What the searches had to go on (in game): the data's 8-aligned slots whose value could be a heap address, sorted
+// by what Windows says of the memory there when the round asks (VirtualQuery, which reads nothing), and what became
+// of the reads the searches then asked for. Counts only.
+struct SearchFound {
+  std::uint64_t pointer_like = 0;  // slots whose value lies in user space, outside the image, 8-aligned
+  std::uint64_t live = 0;          // of those, values where memory is committed and may be read: the candidates
+  std::uint64_t not_committed = 0; // values where there is no memory (free or only reserved): not addresses
+  std::uint64_t no_access = 0;     // values at a guard page or a page that may not be read
+  std::uint64_t asked = 0;         // reads the searches asked for
+  std::uint64_t refused_gone = 0;  // of those, refused because the memory was no longer committed
+  std::uint64_t refused_access = 0;// refused because of a guard page or a page that may not be read
+  std::uint64_t copy_failed = 0;   // asked, allowed, and Windows could not copy it all the same
+  std::uint64_t steps = 0;         // the reader's steps that gave the searches time
+  std::uint64_t steps_cut = 0;     // of those, the ones a search's share of the step ran out in
+};
+
+// An object of a lead's class found through another object (the member search, in game): a named or classed
+// static's object holds, within its first bytes, either the lead's object itself or a pointer to it.
+struct MemberHit {
+  std::uint32_t id = 0;        // the lead's number; 0 for a lead the catalogue does not hold
+  std::string label;
+  std::uint32_t rva = 0;       // the static whose object holds it
+  std::uint32_t offset = 0;    // where in that object
+  bool embedded = false;       // the lead's object lies there itself; else a pointer to it does
+  std::uint32_t vtable = 0;    // the table of methods found
+};
+
+struct MembersFound {
+  std::uint64_t objects = 0;     // statics' objects gone through
+  std::uint64_t unreadable = 0;  // of those, the ones that could not be copied
+  std::uint64_t pointers = 0;    // pointers followed, one read each
+  std::uint64_t passes = 0;
+  std::vector<MemberHit> hits;   // at most 32
 };
 
 struct Found {
@@ -246,6 +329,8 @@ struct Found {
   std::optional<TrialFound> trial;          // the in-game round's
   std::optional<ClockFound> clock;          // the in-game round's searches by what an object holds (step L6)
   std::optional<RisingFound> rising;
+  std::optional<SearchFound> search;
+  std::optional<MembersFound> members;
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With
@@ -285,6 +370,14 @@ class Namer {
   // it), as offsets, ascending: what a search for its instance looks for. Nothing for an id no lead asks for, or for a
   // lead with no class of its name.
   [[nodiscard]] std::vector<std::uint32_t> vtables(std::uint32_t id) const;
+  // The same for every lead at once, the catalogue's or not: each table of methods with the lead it answers (the
+  // lead's number, 0 where the catalogue does not hold it, and its label). What the member search looks for.
+  struct LeadTable {
+    std::uint32_t vtable = 0;
+    std::uint32_t id = 0;
+    std::string label;
+  };
+  [[nodiscard]] std::vector<LeadTable> lead_tables() const;
 
  private:
   struct State;
@@ -298,14 +391,27 @@ class Namer {
 
 // Folds a later pass into what the round holds (a manager the game makes only once a save is loaded is null at the
 // title): the counts become the later pass's, a manager once named stays as it was named, and one still unnamed takes
-// the later pass's finding, with the pass that named it. `named` and `ambiguous` are counted again over the whole.
+// the later pass's finding, with the pass that named it; what the searches found for a manager (set_by_search,
+// set_in_data) is kept through every later pass. `named` and `ambiguous` are counted again over the whole.
 void merge(InstancesFound& held, const InstancesFound& later);
 
-// A manager that no accessor's static holds, found by the search of the data's slots for an object of its class
-// (probe.hpp's SlotSearch, read-only): `found` slots held one, `slot` the first, `vtable` its object's table of
-// methods. One slot names the manager; more leave it ambiguous; none changes nothing. A manager already named stays.
-void set_by_search(InstancesFound& held, std::uint32_t id, std::uint32_t slot, std::uint32_t vtable,
-                   std::uint32_t found);
+// A manager that no accessor's static holds, looked for by the search of the data's slots for an object of its class
+// (probe.hpp's SlotSearch, read-only). The slots found name the manager when they hold one object between them: one
+// slot, or several that are copies of one address (the first by offset is taken, and the others are reported). Two
+// objects leave it ambiguous; none changes only the search's own numbers. A manager already named by a static of the
+// accessor's keeps its name, and one the search named keeps the search's finding through later passes (merge).
+struct SlotSearchResult {
+  std::vector<std::uint32_t> slots;  // by offset
+  std::uint32_t objects = 0;         // distinct objects behind them
+  std::uint32_t vtable = 0;          // the first slot's object's table of methods
+  std::uint32_t candidates = 0;
+  std::uint32_t checked = 0;
+  std::uint32_t unreadable = 0;
+};
+void set_by_search(InstancesFound& held, std::uint32_t id, const SlotSearchResult& result);
+
+// Objects of a manager's class in the image's own data: how many, and the first. Reported, never a name by itself.
+void set_in_data(InstancesFound& held, std::uint32_t id, std::uint32_t count, std::uint32_t first);
 
 // The round's findings as a build's table: `[provenance]` and one `[item.<label>]` for each manager named, each class
 // the leads' sets gave and the groups' table, in the catalogue's order. Each entry is checked against the image first

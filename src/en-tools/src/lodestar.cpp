@@ -198,6 +198,18 @@ int run_find(int argc, char** argv) {
               static_cast<unsigned long long>(a.statics_found), a.pattern ? "cut" : "not cut",
               static_cast<unsigned long long>(a.only_shape + a.only_pattern), found.classes.size(),
               g::derive::to_string(found.table.status), leads_with_class, found.lead_classes.size());
+  // The accessor's other shapes, in one more line: where they stand and what they reach that is new.
+  if (!a.variants.empty()) {
+    std::uint64_t places = 0, accepted = 0, fresh = 0;
+    for (const g::lodestar::VariantFound& v : a.variants) {
+      places += v.hits;
+      accepted += v.accepted;
+      fresh += v.statics_found - v.known;
+    }
+    std::printf("lodestar: the accessor's %zu other shapes: %llu places, %llu accepted, %llu new statics\n",
+                a.variants.size(), static_cast<unsigned long long>(places),
+                static_cast<unsigned long long>(accepted), static_cast<unsigned long long>(fresh));
+  }
   return complete ? 0 : 1;
 }
 

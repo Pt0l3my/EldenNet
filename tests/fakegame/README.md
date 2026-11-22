@@ -13,6 +13,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | Part | Stands in for |
 |---|---|
 | A visible top-level window, then a non-null `fg_static_hinstance`, then the statics (`--boot-delay-ms`, `--statics-delay-ms`, `--no-window`) | The game's start as T1 meets it: readiness 1 (the window) and 2 (statics non-null; ARCH §1.4, §3.2) |
+| Two accessors of other shapes, never called: the save ledger's with an instruction between the load of its static and the test, the run warden's comparing its static with zero where it lies; and, with `--field-mirror`, a second word of the data that holds the field plot's address | The accessor as the compiler writes it otherwise (Lodestar's variants, `gal/recipes.toml`), and a manager's address kept twice: two slots, one object |
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
 | The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
 | The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which R1's census follows to the tasks' classes and their base (part 6) |
