@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (five read-only rounds run; the sixth is built)
+# Lodestar's status, 22 November 2026 (six read-only rounds run; 14 leads in the build's table)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -45,21 +45,19 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's sixth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.9, from engine 48e5003;
-   ten minutes in the world; no scan). The fifth round named `event_flags` (10 of 11 managers; 13 leads in the
-   table) and found the play time's field; this round mends its two faults (the report's size; the share of time
-   checked after every ask-first read) and looks further. Review its two files and its logs as the others'. What to
-   look for, in this order:
-   - `trial`: 10 readings a second again? `search.steps_cut` against `search.steps`. No `report=refused` in the log.
-   - `invariants`: `save_data` at the play time's slot, with its sites; in the draft table (14 entries).
-   - `watch.watched` with `wide: true`: any static's object where a run of bits went round as minutes do with hours
-     beside it, or a fraction kept rising: the time of day. Then the two deep ways (`world_clock` through the
-     pointer, and `holder`), 16 KiB each: `bit_hits`, `float_hits`, and failing those the words that changed.
-   - The ways labelled `event_flags` with `deref`: what the objects one step on from the store look like, and which
-     of their words change in play: where the flags themselves are.
-   - `instances.managers`: the HUD by a pass again (not `by_search`).
-   Nothing from the watch enters the table by itself: a field needs a place in the build's layout (L6's design) and
-   a second look in a later round.
+1. **The next round of step L6** (not built). The sixth round (the record's "The sixth round in game") put
+   `save_data` into the table by the invariant recipe (14 leads), brought the reader back to 9.6 readings a second,
+   and found no clock in any static's object. Its report lost every watched word when two 16 KiB ways joined: the
+   fallback for an over-large report dropped all words at once. Before another run:
+   - a way writes only the words that changed (or that a review needs: the first 64 for a plain way), and a report
+     that is still too large loses the largest object's words first;
+   - a rising fraction's rate is written finely enough (millionths a second);
+   - the clock by a jump: the owner lets time pass at a grace, twice, and the round looks for a field that rises
+     steadily and jumps then (a count of jumps beside the steady rises), in every static's object and deeper in the
+     few candidates (the slowly rising fraction of the sixth round among them);
+   - the flags: the words of the four objects one step on from the store, reported this time, and a bit-level look
+     at what changes there while the owner does something that sets a flag (resting at a grace, by our notes' lead).
+   Decide the owner's part with the owner first: it asks more of them than walking about.
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
