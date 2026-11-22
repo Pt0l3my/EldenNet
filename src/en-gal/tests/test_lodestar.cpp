@@ -18,6 +18,7 @@
 #include "en/gal/recipes.hpp"
 #include "en/gal/report.hpp"
 #include "en/gal/resolve.hpp"
+#include "fake_program.hpp"
 #include "sample_program.hpp"
 
 using namespace en::gal;
@@ -74,6 +75,9 @@ TEST_CASE("the finder counts the accessor's shape, and the withdrawn pattern acc
   CHECK(a.both == 6);
   CHECK(a.only_shape == 0);
   CHECK(a.only_pattern == 0);
+  CHECK(a.pattern_statics == a.statics_found);
+  CHECK(a.only_pattern_why.empty());
+  CHECK(a.only_pattern_statics.empty());
   CHECK(lodestar::complete(r.found));
   // The variants: the pattern also hits a look-alike and refuses it; the shape never hits it.
   const Run v = run(build_variants(), kVariantLeads);
@@ -83,6 +87,85 @@ TEST_CASE("the finder counts the accessor's shape, and the withdrawn pattern acc
   CHECK(v.found.accessor.pattern_accepted == 6);
   CHECK(v.found.accessor.only_shape + v.found.accessor.only_pattern == 0);
   CHECK(lodestar::complete(v.found));
+}
+
+TEST_CASE("a site the pattern alone accepts is counted with why the shape leaves it out, and the static it loads") {
+  // Three accessors that load a pointer, in three registers, and a fourth place with the same look that loads a
+  // 32-bit value: the pattern, cut with the registers' bytes wildcarded, accepts all four; the shape only the three.
+  using P = FakeProgram;
+  Sample sample;
+  P& p = sample.program;
+  p.label("path", P::Rdata);
+  p.ascii(P::Rdata, "invented\\core\\Lone.h");
+  for (const char* n : {"a", "b", "c", "n"}) {
+    p.align(P::Data, 8);
+    p.label(std::string("st_") + n, P::Data);
+    p.u64(P::Data, 0);
+    p.label(std::string("cls_") + n, P::Data);
+    p.zeros(P::Data, 8);
+  }
+  const auto fn = [&](const std::string& name, std::initializer_list<std::uint8_t> body) {
+    p.align(P::Text, 16, 0xCC);
+    p.label(name, P::Text);
+    p.bytes(P::Text, body);
+    p.label(name + "_end", P::Text);
+    p.function(name, name + "_end");
+  };
+  fn("getter", {0x48, 0x89, 0xC8, 0xC3});
+  fn("log", {0xC3});
+  const auto accessor = [&](const std::string& n, std::vector<std::uint8_t> load, std::vector<std::uint8_t> test) {
+    p.align(P::Text, 16, 0xCC);
+    p.label("get_" + n, P::Text);
+    p.bytes(P::Text, {0x48, 0x83, 0xEC, 0x28, 0x90});  // the function's own start, before the head
+    p.bytes(P::Text, load);
+    p.rel32(P::Text, "st_" + n);
+    p.bytes(P::Text, test);
+    p.bytes(P::Text, {0x75, 0x18, 0x48, 0x8D, 0x0D});  // skip the block when set; else the class object's address
+    p.rel32(P::Text, "cls_" + n);
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "getter");
+    p.bytes(P::Text, {0x48, 0x8D, 0x15});  // the path, loaded in the block the branch skips
+    p.rel32(P::Text, "path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "log");
+    p.bytes(P::Text, {0x48, 0x83, 0xC4, 0x28, 0xC3});
+    p.label("get_" + n + "_end", P::Text);
+    p.function("get_" + n, "get_" + n + "_end");
+  };
+  accessor("a", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0});
+  accessor("b", {0x48, 0x8B, 0x3D}, {0x48, 0x85, 0xFF});
+  accessor("c", {0x4C, 0x8B, 0x0D}, {0x4D, 0x85, 0xC9});
+  accessor("n", {0x44, 0x8B, 0x05}, {0x45, 0x85, 0xC0});  // a 32-bit load and test: no pointer
+  sample.built = p.build();
+
+  const Run r = run(sample, kSampleLeadsClean);
+  const lodestar::AccessorFound& a = r.found.accessor;
+  CHECK(a.hits == 3);
+  CHECK(a.accepted == 3);
+  CHECK(a.statics_found == 3);
+  REQUIRE(a.pattern);
+  CHECK(a.pattern_accepted == 4);
+  CHECK(a.pattern_statics == 4);
+  CHECK(a.both == 3);
+  CHECK(a.only_shape == 0);
+  CHECK(a.only_pattern == 1);
+  CHECK_FALSE(lodestar::complete(r.found));
+  REQUIRE(a.only_pattern_why.size() == 1);
+  CHECK(a.only_pattern_why[0].step == 0);
+  CHECK(a.only_pattern_why[0].differs == shape::Differs::Narrow);
+  CHECK(a.only_pattern_why[0].count == 1);
+  REQUIRE(a.only_pattern_statics.size() == 1);
+  CHECK(a.only_pattern_statics[0].rva == p.rva("st_n"));
+  CHECK(a.only_pattern_statics[0].class_object == p.rva("cls_n"));
+  CHECK(a.only_pattern_statics[0].sites == 1);
+  CHECK(a.only_pattern_statics[0].witnesses == std::vector<std::uint32_t>{p.rva("get_n") + 5});
+  // The report carries them, and still lints clean.
+  const auto text = lodestar::write_report(r.found);
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"differs\": \"narrow\"") != std::string::npos);
+  CHECK(text->find("\"only_pattern_statics\"") != std::string::npos);
 }
 
 TEST_CASE("every static the finder gives is one the resolver re-finds from its witnesses") {

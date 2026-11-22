@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <string_view>
+#include <utility>
 
 #include "en/gal/fd4.hpp"
 #include "en/gal/image_bytes.hpp"
@@ -104,9 +105,9 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
   }
   a.statics_found = statics.size();
   a.class_objects = class_objects.size();
-  for (auto& [rva, one] : statics) {
+  for (const auto& [rva, one] : statics) {
     if (a.statics.size() >= kMaxStaticsReported) break;
-    a.statics.push_back(std::move(one));
+    a.statics.push_back(one);
   }
   for (const std::uint32_t g : getters) {
     if (a.getters.size() >= kMaxListed) break;
@@ -131,6 +132,32 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
       }
     }
     a.only_pattern = p.size() - a.both;
+    // The sites the pattern alone accepts: why the shape does not stand there, and the statics only they load.
+    const SectionCopy* text = img.named(config.code);
+    std::set<std::uint32_t> pattern_statics;
+    std::map<std::pair<std::uint8_t, std::uint8_t>, std::uint64_t> why;
+    std::map<std::uint32_t, StaticFound> extra;
+    for (const fd4::Site& site : by_pattern.sites) {
+      if (site.refused) continue;
+      pattern_statics.insert(site.static_slot);
+      if (s.count(site.hit) != 0 || text == nullptr) continue;
+      const std::optional<shape::Mismatch> miss = shape::mismatch_at(img, *text, recipe->shape, site.hit);
+      if (miss) ++why[{miss->step, static_cast<std::uint8_t>(miss->differs)}];
+      if (statics.count(site.static_slot) != 0) continue;  // a static the shape's own sites load too
+      StaticFound& one = extra[site.static_slot];
+      one.rva = site.static_slot;
+      if (one.sites == 0) one.class_object = site.class_object;
+      ++one.sites;
+      if (one.witnesses.size() < kMaxSiteWitnesses) one.witnesses.push_back(site.hit);
+    }
+    a.pattern_statics = pattern_statics.size();
+    for (const auto& [key, count] : why) {
+      a.only_pattern_why.push_back(Why{key.first, static_cast<shape::Differs>(key.second), count});
+    }
+    for (auto& [rva, one] : extra) {
+      if (a.only_pattern_statics.size() >= kMaxListed) break;
+      a.only_pattern_statics.push_back(std::move(one));
+    }
   }
   return out;
 }
@@ -153,6 +180,7 @@ constexpr std::array<std::string_view, 7> kStatus = {"derived",    "ambiguous", 
                                                      "not_unique", "needs_slot", "depends"};
 constexpr std::array<std::string_view, 4> kGate = {"known", "no_version", "unknown_build", "fingerprint_differs"};
 constexpr std::array<std::string_view, 3> kExpect = {"within", "below", "above"};
+constexpr std::array<std::string_view, 4> kDiffers = {"narrow", "other_register", "other", "undecodable"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -177,7 +205,8 @@ constexpr auto kKeys = std::to_array<Key>({
     W("expect", kExpect), U("statics_found"), U("class_objects"), AO("statics"), U("rva"), U("class_object"),
     AU("witnesses"), AU("getters"),
     // the comparison with the withdrawn pattern: counts only
-    O("pattern"), B("cut"), U("both"), U("only_shape"), U("only_pattern"),
+    O("pattern"), B("cut"), U("both"), U("only_shape"), U("only_pattern"), AO("why"), U("step"),
+    W("differs", kDiffers), AO("only_pattern_statics"),
     // classes and the groups' table
     AO("classes"), Key{"label", Type::Label}, W("status", kStatus), U("type_descriptor"), U("classes_derived"),
     AU("vtables"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
@@ -263,6 +292,27 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
   w.number("both", a.both);
   w.number("only_shape", a.only_shape);
   w.number("only_pattern", a.only_pattern);
+  w.number("statics_found", a.pattern_statics);
+  w.begin_array("why");
+  for (const Why& y : a.only_pattern_why) {
+    w.begin_object();
+    w.number("step", y.step);
+    const auto kind = static_cast<std::size_t>(y.differs);
+    w.word("differs", kDiffers[kind < kDiffers.size() ? kind : 2]);
+    w.number("count", y.count);
+    w.end_object();
+  }
+  w.end_array();
+  w.begin_array("only_pattern_statics");
+  for (const StaticFound& s : a.only_pattern_statics) {
+    w.begin_object();
+    w.number("rva", s.rva);
+    w.number("class_object", s.class_object);
+    w.number("sites", s.sites);
+    numbers(w, "witnesses", s.witnesses);
+    w.end_object();
+  }
+  w.end_array();
   w.end_object();
   w.end_object();
 

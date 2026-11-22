@@ -53,6 +53,13 @@ struct StaticFound {
 
 enum class Expect : std::uint8_t { Within, Below, Above };
 
+// Why the shape does not stand at sites the pattern accepts: which step differs, how, and at how many sites.
+struct Why {
+  std::uint8_t step = 0;
+  shape::Differs differs = shape::Differs::Other;
+  std::uint64_t count = 0;
+};
+
 struct AccessorFound {
   bool recipe = false;  // recipes.toml holds an accessor
   std::uint64_t hits = 0;
@@ -71,6 +78,9 @@ struct AccessorFound {
   std::uint64_t both = 0;          // accepted sites the two share
   std::uint64_t only_shape = 0;    // accepted by the shape alone
   std::uint64_t only_pattern = 0;  // accepted by the pattern alone
+  std::uint64_t pattern_statics = 0;              // distinct statics of the pattern's accepted sites
+  std::vector<Why> only_pattern_why;              // for the sites the pattern alone accepts, by step and kind
+  std::vector<StaticFound> only_pattern_statics;  // the statics only those sites load, each with those sites
 };
 
 struct ClassFound {

@@ -226,8 +226,10 @@ of any game is in it, and every name it looks for comes from a leads file.
   load, each with its class object, its count of sites and up to 8 witnesses, the loads themselves, which the resolver
   re-finds); the classes the leads name with their tables of methods; and the task groups' table (through the
   derivation, as R0 ran it). While the shape is new it also cuts the withdrawn pattern again in memory, as the
-  derivation does, and counts the accepted sites the two share and those only one accepts; the pattern is never
-  written. `complete` says the accessor has a recipe, its count within range, an accepted site, and no site that only
+  derivation does, and counts the accepted sites the two share and those only one accepts; for the sites the pattern
+  alone accepts it says why the shape does not stand there (`shape::mismatch_at`: the first step that differs, and
+  whether it is the form in all but its width, a test of another register, or something else) and which statics only
+  those sites load; the pattern is never written. `complete` says the accessor has a recipe, its count within range, an accepted site, and no site that only
   one of the two accepts. `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.

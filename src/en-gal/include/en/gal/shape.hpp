@@ -66,6 +66,26 @@ struct Matches {
 [[nodiscard]] std::optional<Hit> match_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape,
                                           std::uint32_t rva);
 
+// Why a shape does not stand at a place: the first step whose instruction is not its form, and how it differs. The
+// finder uses it to say, in counts, why a site another method accepts is none of the shape's.
+enum class Differs : std::uint8_t {
+  Narrow,         // the form in all but its width: a load or a test that is not 64-bit
+  OtherRegister,  // a 64-bit test, but not of the register just loaded
+  Other,          // another instruction altogether
+  Undecodable,    // nothing decodes there, or the section ends
+};
+[[nodiscard]] const char* to_string(Differs differs) noexcept;  // "narrow", "other_register", "other", "undecodable"
+
+struct Mismatch {
+  std::uint8_t step = 0;
+  Differs differs = Differs::Other;
+  friend constexpr bool operator==(const Mismatch&, const Mismatch&) = default;
+};
+
+// The first mismatch of the shape at `rva`; nothing when the shape stands there, or is not valid.
+[[nodiscard]] std::optional<Mismatch> mismatch_at(const ImageBytes& img, const SectionCopy& text, const Shape& shape,
+                                                  std::uint32_t rva);
+
 // Every place of the section where the shape stands.
 [[nodiscard]] Matches find(const ImageBytes& img, const SectionCopy& text, const Shape& shape, std::size_t max);
 

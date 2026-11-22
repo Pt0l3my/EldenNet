@@ -273,7 +273,8 @@ def check_lodestar(a, exe, leads):
     need(acc["recipe"] and acc["hits"] == 8 and acc["accepted"] == 6 and acc["expect"] == "within",
          "the accessor's counts: %s" % {k: acc[k] for k in ("hits", "accepted", "expect")})
     need(acc["pattern"] == {"cut": True, "hits": acc["pattern"]["hits"], "accepted": 6, "both": 6, "only_shape": 0,
-                            "only_pattern": 0}, "the comparison with the pattern: %s" % acc["pattern"])
+                            "only_pattern": 0, "statics_found": acc["statics_found"], "why": [],
+                            "only_pattern_statics": []}, "the comparison with the pattern: %s" % acc["pattern"])
     need(len(acc["statics"]) == acc["statics_found"] and sum(s["sites"] for s in acc["statics"]) == 6 and
          all(1 <= len(s["witnesses"]) <= 8 for s in acc["statics"]), "the statics and their witnesses")
     # The invented builds.toml holds this version with another fingerprint: the gate's own word for it.
