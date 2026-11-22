@@ -2,6 +2,7 @@
 #include "en/gal/lodestar.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 #include <set>
 #include <string_view>
@@ -30,8 +31,13 @@ std::set<std::uint32_t> accepted_hits(const fd4::Result& result) {
 }  // namespace
 
 Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_size, const derive::Leads& leads,
-           const RecipeSet& recipes, const Builds* builds) {
+           const RecipeSet& recipes, const Builds* builds, const Catalogue* ids) {
   Found out;
+  // ---- What the image holds under each lead's name: counts only ----
+  {
+    const Catalogue none;
+    out.lead_classes = Namer(image, source, leads, ids != nullptr ? *ids : none).lead_classes();
+  }
   // ---- The image ----
   out.image.has_version = image.version.has_value();
   if (image.version) out.image.file_version = image.version->file_version;
@@ -170,70 +176,168 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
   return out;
 }
 
-InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
-                              const derive::Leads& leads, const Catalogue& ids, const ReadWord& read_word) {
-  InstancesFound out;
-  const ImageBytes img(image, live);
+// ---- The namer ----
+
+struct Namer::State {
+  struct Lead {
+    std::uint32_t id = 0;
+    std::string label;
+    bool listed = false;  // the catalogue holds it as an active static
+  };
+  enum Match : std::uint8_t { kExact, kImp, kBase };
+  struct Accepts {
+    std::size_t lead = 0;
+    Match match = kExact;
+  };
+  std::uint64_t base = 0;
+  std::uint64_t size = 0;
+  std::vector<Lead> leads;
+  std::map<std::uint32_t, bool> vtables;                   // every table of methods of the walk: is it a class's primary one?
+  std::multimap<std::uint32_t, Accepts> accepts;           // by table of methods: the leads its class answers
+  std::vector<LeadClasses> classes;
+};
+
+namespace {
+
+std::uint32_t count_text(const ImageBytes& img, const std::string& needle) {
+  std::uint32_t n = 0;
+  for (const SectionCopy& c : img.sections()) {
+    const auto* begin = reinterpret_cast<const char*>(c.bytes.data());
+    const std::string_view hay(begin, c.bytes.size());
+    for (std::size_t at = hay.find(needle); at != std::string_view::npos; at = hay.find(needle, at + 1)) ++n;
+  }
+  return n;
+}
+
+}  // namespace
+
+Namer::Namer(const ImageInfo& image, const ByteSource& source, const derive::Leads& leads, const Catalogue& ids)
+    : state_(std::make_unique<State>()) {
+  State& st = *state_;
+  st.base = image.image_base;
+  st.size = image.size_of_image;
+  const ImageBytes img(image, source);
   const rtti::Walk walk = rtti::walk(img);
-  std::map<std::uint32_t, std::size_t> vtables;  // by offset: its place in the walk's
-  for (std::size_t i = 0; i < walk.vtables.size(); ++i) vtables.emplace(walk.vtables[i].rva, i);
-  // By static: its instance's class and table of methods. The names stay here: nothing below writes one.
-  struct Classed {
-    std::string cls;
+  // Each class of the walk by its innermost name, compared here and kept nowhere.
+  std::map<std::uint32_t, std::string> name_of;  // by type descriptor
+  const auto name = [&](std::uint32_t td) -> const std::string& {
+    auto it = name_of.find(td);
+    if (it == name_of.end()) it = name_of.emplace(td, derive::innermost_class(img, td).value_or(std::string())).first;
+    return it->second;
+  };
+  for (const rtti::Vtable& v : walk.vtables) {
+    const rtti::Locator& loc = walk.locators[v.locator];
+    st.vtables[v.rva] = loc.offset == 0 && !name(loc.type_descriptor).empty();
+  }
+  for (const derive::NamedLead& lead : leads.singletons) {
+    const IdEntry* id = ids.find(lead.label, true);
+    State::Lead l;
+    l.listed = id != nullptr && id->kind == IdKind::Static && id->status == IdStatus::Active;
+    l.id = l.listed ? id->number : 0;
+    l.label = l.listed ? id->label : lead.label;
+    const std::size_t index = st.leads.size();
+    st.leads.push_back(l);
+    LeadClasses c;
+    c.label = l.label;
+    c.id = l.id;
+    const std::string imp = lead.name + "Imp";
+    std::set<std::uint32_t> exact_tds, imp_tds;
+    for (const rtti::Locator& loc : walk.locators) {
+      const std::string& n = name(loc.type_descriptor);
+      if (n == lead.name) exact_tds.insert(loc.type_descriptor);
+      if (n == imp) imp_tds.insert(loc.type_descriptor);
+    }
+    c.named = static_cast<std::uint32_t>(exact_tds.size());
+    c.named_imp = static_cast<std::uint32_t>(imp_tds.size());
+    std::set<std::uint32_t> counted;
+    for (const rtti::Vtable& v : walk.vtables) {
+      const rtti::Locator& loc = walk.locators[v.locator];
+      if (loc.offset != 0) continue;
+      std::optional<State::Match> match;
+      if (exact_tds.count(loc.type_descriptor) != 0) {
+        match = State::kExact;
+      } else if (imp_tds.count(loc.type_descriptor) != 0) {
+        match = State::kImp;
+      } else {
+        for (const std::uint32_t b : loc.bases) {
+          if (exact_tds.count(b) != 0 || imp_tds.count(b) != 0) match = State::kBase;
+        }
+      }
+      if (!match) continue;
+      if (counted.insert(v.rva).second) ++c.vtables;
+      st.accepts.emplace(v.rva, State::Accepts{index, *match});
+    }
+    for (const char* form : {".?AV", ".?AU"}) {
+      c.texts += count_text(img, std::string(form) + lead.name + "@");
+      c.texts += count_text(img, std::string(form) + imp + "@");
+    }
+    st.classes.push_back(std::move(c));
+  }
+}
+
+Namer::~Namer() = default;
+
+const std::vector<LeadClasses>& Namer::lead_classes() const noexcept { return state_->classes; }
+
+InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor, const ReadWord& read_word) const {
+  const State& st = *state_;
+  InstancesFound out;
+  const auto in_image = [&](std::uint64_t va) { return va >= st.base && va - st.base < st.size; };
+  struct Hit {
+    std::uint32_t slot = 0;
     std::uint32_t vtable = 0;
   };
-  std::map<std::uint32_t, Classed> classes;
+  std::vector<std::array<std::vector<Hit>, 3>> hits(st.leads.size());  // by lead, by how it matched
   for (const StaticFound& s : accessor.statics) {
     ++out.tried;
-    const std::optional<std::uint64_t> instance = img.u64(s.rva);
-    if (!instance || *instance == 0) {
+    std::array<std::byte, 8> raw{};
+    std::uint64_t instance = 0;
+    if (live.read(s.rva, raw)) std::memcpy(&instance, raw.data(), 8);
+    if (instance == 0) {
       ++out.null;
       continue;
     }
     // An instance is a heap object: one that lies in the image is no instance, and is not read as one.
-    const std::optional<std::uint64_t> word =
-        img.rva_of(*instance) || !read_word ? std::nullopt : read_word(*instance);
+    const std::optional<std::uint64_t> word = in_image(instance) || !read_word ? std::nullopt : read_word(instance);
     if (!word) {
       ++out.unread;
       continue;
     }
-    const std::optional<std::uint32_t> rva = img.rva_of(*word);
-    const auto it = rva ? vtables.find(*rva) : vtables.end();
-    if (it == vtables.end()) {
-      ++out.unclassed;
-      continue;
-    }
-    const rtti::Locator& locator = walk.locators[walk.vtables[it->second].locator];
-    const std::optional<std::string> cls =
-        locator.offset == 0 ? derive::innermost_class(img, locator.type_descriptor) : std::nullopt;
-    if (!cls) {
+    const std::uint32_t rva = in_image(*word) ? static_cast<std::uint32_t>(*word - st.base) : 0;
+    const auto known = rva != 0 ? st.vtables.find(rva) : st.vtables.end();
+    if (known == st.vtables.end() || !known->second) {
       ++out.unclassed;
       continue;
     }
     ++out.classed;
-    classes.emplace(s.rva, Classed{*cls, *rva});
+    const auto range = st.accepts.equal_range(rva);
+    for (auto it = range.first; it != range.second; ++it) {
+      hits[it->second.lead][it->second.match].push_back(Hit{s.rva, rva});
+    }
   }
-  for (const derive::NamedLead& lead : leads.singletons) {
+  for (std::size_t i = 0; i < st.leads.size(); ++i) {
     ++out.leads;
-    const IdEntry* id = ids.find(lead.label, true);
-    if (id == nullptr || id->kind != IdKind::Static || id->status != IdStatus::Active) {
+    const State::Lead& lead = st.leads[i];
+    if (!lead.listed) {
       ++out.unlisted;
       continue;
     }
     ManagerFound m;
-    m.label = id->label;
-    m.id = id->number;
-    std::uint32_t matches = 0;
-    for (const auto& [slot, c] : classes) {
-      const bool plain = c.cls == lead.name;
-      if (!plain && c.cls != lead.name + "Imp") continue;
-      if (matches++ != 0) continue;  // the first stands for an ambiguous one, as the derivation reports it
-      m.rva = slot;
-      m.vtable = c.vtable;
-      m.imp = !plain;
-    }
-    if (matches != 0) {
-      m.status = matches == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
+    m.label = lead.label;
+    m.id = lead.id;
+    // The class itself (by its name, or its name with Imp) before a class that only derives from it.
+    std::vector<Hit> own = hits[i][State::kExact];
+    own.insert(own.end(), hits[i][State::kImp].begin(), hits[i][State::kImp].end());
+    const bool by_base = own.empty();
+    const std::vector<Hit>& chosen = by_base ? hits[i][State::kBase] : own;
+    if (!chosen.empty()) {
+      const Hit first = *std::min_element(chosen.begin(), chosen.end(),
+                                          [](const Hit& a, const Hit& b) { return a.slot < b.slot; });
+      m.status = chosen.size() == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
+      m.rva = first.slot;
+      m.vtable = first.vtable;
+      m.by_base = by_base;
+      m.imp = !by_base && hits[i][State::kExact].empty();
       for (const StaticFound& s : accessor.statics) {
         if (s.rva != m.rva) continue;
         m.sites = s.sites;
@@ -247,6 +351,11 @@ InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, co
   std::sort(out.managers.begin(), out.managers.end(),
             [](const ManagerFound& a, const ManagerFound& b) { return a.id < b.id; });
   return out;
+}
+
+InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
+                              const derive::Leads& leads, const Catalogue& ids, const ReadWord& read_word) {
+  return Namer(image, live, leads, ids).pass(live, accessor, read_word);
 }
 
 void merge(InstancesFound& held, const InstancesFound& later) {
@@ -447,10 +556,12 @@ constexpr auto kKeys = std::to_array<Key>({
     AO("classes"), Key{"label", Type::Label}, W("status", kStatus), U("type_descriptor"), U("classes_derived"),
     AU("vtables"), O("instances"), U("tried"), U("null"), U("unread"), U("unclassed"), U("classed"), U("leads"),
     U("unlisted"), U("named"), U("ambiguous"), U("passes"), AO("managers"), U("id"), U("vtable"), B("imp"), U("pass"),
+    B("by_base"), AO("lead_classes"), U("named_imp"), U("vtable_count"), U("texts"),
     // The reader's trial (in game)
     O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
     U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
-    U("fault_thread"), U("fault_injected"), U("same"), U("other"), U("fault"), U("torn"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
+    U("fault_thread"), U("fault_injected"), U("same"), U("other"), U("fault"), U("torn"), U("world_readings"),
+    U("stage_changes"), U("null_runs"), U("null_longest"), U("null_world"), O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
 constexpr report::Vocabulary kVocabulary{"lodestar", 2, kKeys};
@@ -571,6 +682,19 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
   }
   w.end_array();
 
+  w.begin_array("lead_classes");
+  for (const LeadClasses& c : found.lead_classes) {
+    w.begin_object();
+    w.number("id", c.id);
+    w.label("label", c.label);
+    w.number("named", c.named);
+    w.number("named_imp", c.named_imp);
+    w.number("vtable_count", c.vtables);
+    w.number("texts", c.texts);
+    w.end_object();
+  }
+  w.end_array();
+
   if (found.instances) {
     const InstancesFound& n = *found.instances;
     w.begin_object("instances");
@@ -594,6 +718,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("vtable", m.vtable);
       w.number("sites", m.sites);
       w.boolean("imp", m.imp);
+      w.boolean("by_base", m.by_base);
       w.number("pass", m.pass);
       numbers(w, "witnesses", m.witnesses);
       w.end_object();
@@ -609,6 +734,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.begin_object("trial");
     w.number("steps", t.steps);
     w.number("readings", t.readings);
+    w.number("world_readings", t.world_readings);
+    w.number("stage_changes", t.stage_changes);
     w.number("elapsed_ms", t.elapsed_ms);
     w.number("reading_p50_us", t.reading_p50_us);
     w.number("reading_p99_us", t.reading_p99_us);
@@ -621,6 +748,9 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("id", m.id);
       w.label("label", m.label);
       w.number("null", m.null);
+      w.number("null_runs", m.null_runs);
+      w.number("null_longest", m.null_longest);
+      w.number("null_world", m.null_world);
       w.number("same", m.same);
       w.number("other", m.other);
       w.number("fault", m.fault);

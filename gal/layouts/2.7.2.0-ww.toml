@@ -1,18 +1,130 @@
-# The layout of 2.7.2.0 WW (ARCH §6.3), a lead file. It holds only what the derivation's offline round has given: the
-# task group's index. Everything else the layout will hold (the registration's argument registers, the task object's
-# shape, the classes, fields, enums, params and self-test ids) is the in-game round's to find (R1, O89), and is left
-# out rather than guessed. A release build refuses this file (every entry a lead), and discovery never registers with
-# a [task] that holds only its group, so only R1, in a probe build, reads it: its index is one of the checks before its
-# one call into the game.
-schema = 1
+# The layout of 2.7.2.0 WW (ARCH §6.3), a lead file. It holds what our own rounds have given so far, and nothing guessed:
+# - the task group's index, from the offline round R0c (2026-11-16);
+# - the build's table (Lodestar; proposal 0005 §5), from the read-only round in game (L5, 2026-11-22;
+#   docs/ops/probes/2026-11-22-l5.md): eight of the eleven managers' slots, each named by its instance's class and found
+#   by the accessor's shape, with the places in the code that load it; the two character classes' tables of methods;
+#   and the task groups' table. Each entry was checked against the image as loaded before the round wrote it, and the
+#   reader then read the eight slots some 11,500 times with no fault. Every entry is still a lead: nothing is confirmed
+#   before S0-A and the self-tests. event_flags, world_clock and messages are not here: the round could not name them.
+# The classes, fields, enums, params and self-test ids are later rounds' to find (L6), and are left out. A release build
+# refuses this file (every entry a lead).
+schema = 2
 build = "2.7.2.0-ww"
 derived_from = "probe"
-probe_record = "docs/ops/probes/2026-11-16-r0c.md"
+probe_record = "docs/ops/probes/2026-11-22-l5.md"
 
-# R0c (2026-11-16): the group's name is found once in the image, as UTF-16, and one pointer to it, which lies in a table
-# of 168 entries of 32 bytes in .rdata, each with a pointer to a UTF-16 name 16 bytes from the entry's start; the
-# group's entry is the 111th (index 110 from 0). No entry holds a field with its own index. R1 reads the table again as
-# loaded and must find the same index before it calls; the first tick then checks the name (ARCH §6.3).
+# R0c (2026-11-16; docs/ops/probes/2026-11-16-r0c.md): the group's name is found once in the image, as UTF-16, and one
+# pointer to it, which lies in a table of 168 entries of 32 bytes in .rdata, each with a pointer to a UTF-16 name 16
+# bytes from the entry's start; the group's entry is the 111th (index 110 from 0). No entry holds a field with its own
+# index. It serves the game's task, which is no part of a v1 start (O101): the later task service's (proposal 0005 §9.6).
 [task]
 group = { name = "ChrIns_PostPhysics", index = 110 }
+status = "lead"
+
+# The build's table, as the read-only round wrote it (package 0.1.0-lodestar.3). tool_sha256 is the package's own
+# SHA-256 of its eldennet.dll, set at the review: the round itself writes zeros there.
+[provenance]
+method = "own-derivation"
+tool = "0.1.0-lodestar.3"
+tool_sha256 = "9f531978fa7e9f1b5f7fd13d3c1cb3ddf53cba25bb9080b175e2893068cb2686"
+round = "l5"
+date = "2026-11-22"
+leads = ["gal/leads.toml", "gal/recipes.toml"]
+
+[item.task_hub]
+id = 1005
+kind = "static"
+rva = 0x4592EA8
+found_by = ["accessor", "instance_class"]
+witnesses = [0x28CE29, 0x2AB758, 0xB15929, 0xB15970, 0xB159B7, 0xB159FE, 0xB15A45, 0xB15AA9]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.characters]
+id = 1006
+kind = "static"
+rva = 0x3D6D018
+found_by = ["accessor", "instance_class"]
+witnesses = [0x1BAC59, 0x1BB0E0, 0x1BB565, 0x1D50AD, 0x24A207, 0x2C17A1, 0x2C1CF8, 0x2C2670]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.session]
+id = 1007
+kind = "static"
+rva = 0x3D81560
+found_by = ["accessor", "instance_class"]
+witnesses = [0x1CC6F5, 0x1CC786, 0x1CF397, 0x1CF4B4, 0x1D6CBE, 0x1D6ED6, 0x1D843B, 0x255AC4]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.hud]
+id = 1009
+kind = "static"
+rva = 0x3D72910
+found_by = ["accessor", "instance_class"]
+witnesses = [0x3DB033, 0x3DB3F4, 0x44410E, 0x4441BA, 0x449941, 0x449991, 0x449D8B, 0x5ED578]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.menus]
+id = 1010
+kind = "static"
+rva = 0x3D72840
+found_by = ["accessor", "instance_class"]
+witnesses = [0x1BAC00, 0x1BB50C, 0x1CCE90, 0x3DAB6D, 0x3DAEA1, 0x3DB2BF, 0x3DB44C, 0x3DDA3C]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.loading]
+id = 1011
+kind = "static"
+rva = 0x3D67F48
+found_by = ["accessor", "instance_class"]
+witnesses = [0x7674F6, 0x90B7EB, 0x90B8D9, 0x90B997, 0xAF983D, 0xC348E4, 0xD71943]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.camera]
+id = 1013
+kind = "static"
+rva = 0x3D699E8
+found_by = ["accessor", "instance_class"]
+witnesses = [0x289876, 0x28D727, 0x299617, 0x29BCBB, 0x2AB9AC, 0x3BC649, 0x3EB24D, 0x3EC0B4]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.param_store]
+id = 1014
+kind = "static"
+rva = 0x3D88F78
+found_by = ["accessor", "instance_class"]
+witnesses = [0x243863, 0x64A1FC, 0x64A966, 0x6603D5, 0x6D7B01, 0x77D46C, 0x8148C5, 0xB98595]
+checks = ["placement", "agree", "witness", "class"]
+status = "lead"
+
+[item.character]
+id = 3001
+kind = "class"
+vtables = [0x2A330D8, 0x2A49090, 0x2A4DD48, 0x2A4E558, 0x2A81CB0, 0x2BF8B90]
+found_by = ["class"]
+checks = ["placement"]
+status = "lead"
+
+[item.player_character]
+id = 3002
+kind = "class"
+vtables = [0x2A4E558, 0x2A81CB0]
+found_by = ["class"]
+checks = ["placement"]
+status = "lead"
+
+[item.task_groups]
+id = 4001
+kind = "table"
+rva = 0x2C06FE8
+stride = 32
+count = 168
+found_by = ["table"]
+checks = ["placement"]
 status = "lead"

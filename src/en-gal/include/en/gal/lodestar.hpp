@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -132,8 +133,21 @@ struct ManagerFound {
   std::uint32_t vtable = 0;  // its instance's table of methods
   std::uint32_t sites = 0;   // the accessor's sites that load the static
   bool imp = false;          // named by the lead's name with Imp
+  bool by_base = false;      // named by a class that derives from the lead's class, not by the class itself
   std::uint32_t pass = 0;    // the round's pass that named it (1 the first); 0 while unnamed
   std::vector<std::uint32_t> witnesses;  // the first of those sites, each the load itself
+};
+
+// What the image holds under one lead's name: counts, so that a reviewer can tell a manager that is not there from
+// one that is there under another name, or with no type information at all. The name itself is never written.
+struct LeadClasses {
+  std::string label;            // the catalogue's label where it holds the lead, else the lead's own
+  std::uint32_t id = 0;         // the catalogue's number; 0 where it does not hold the lead
+  std::uint32_t named = 0;      // classes with tables of methods whose innermost name is the lead's
+  std::uint32_t named_imp = 0;  // and those whose innermost name is the lead's with Imp
+  std::uint32_t vtables = 0;    // primary tables of methods of those classes and of every class deriving from them
+  std::uint32_t texts = 0;      // places in the image where a type's name of either form stands, in any namespace,
+                                // with or without tables of methods
 };
 
 // The in-game round's naming (O92), per distinct static of the accessor's accepted sites.
@@ -158,6 +172,9 @@ struct TrialManager {
   std::uint32_t id = 0;
   std::string label;
   std::uint64_t null = 0;   // the slot held no instance
+  std::uint64_t null_runs = 0;     // separate stretches of readings that found it empty
+  std::uint64_t null_longest = 0;  // the longest of them, in readings
+  std::uint64_t null_world = 0;    // of `null`, the readings made while the stage's manager had an instance
   std::uint64_t same = 0;   // the instance's first word was the table of methods it was named by
   std::uint64_t other = 0;  // another word there: an object of another class, or none
   std::uint64_t fault = 0;  // a read was refused or faulted (caught)
@@ -167,6 +184,8 @@ struct TrialManager {
 struct TrialFound {
   std::uint64_t steps = 0;       // times the reader's thread ran the trial
   std::uint64_t readings = 0;    // of those, the ones that read (one each period)
+  std::uint64_t world_readings = 0;  // of those, the ones made while the stage's manager had an instance (the world)
+  std::uint64_t stage_changes = 0;   // times the stage's manager came or went between two readings
   std::uint64_t elapsed_ms = 0;  // from the first reading to the last
   std::uint64_t reading_p50_us = 0;
   std::uint64_t reading_p99_us = 0;
@@ -181,13 +200,17 @@ struct Found {
   AccessorFound accessor;
   std::vector<ClassFound> classes;
   TableFound table;
+  std::vector<LeadClasses> lead_classes;    // for each manager the leads ask for, offline and in game
   std::optional<InstancesFound> instances;  // the in-game round's; nothing offline
   std::optional<TrialFound> trial;          // the in-game round's
 };
 
-// Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown).
+// Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With
+// `ids`, the catalogue, what the image holds under each lead's name is counted under the catalogue's labels
+// (`lead_classes`); without it, under the leads' own.
 [[nodiscard]] Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_size,
-                         const derive::Leads& leads, const RecipeSet& recipes, const Builds* builds);
+                         const derive::Leads& leads, const RecipeSet& recipes, const Builds* builds,
+                         const Catalogue* ids = nullptr);
 
 // Whether the run found what the next step needs: the accessor's recipe, with hits within its range and at least one
 // accepted site; one class object for each static and one static for each class object; and, where the withdrawn
@@ -198,8 +221,31 @@ struct Found {
 // One guarded 8-byte read at an address outside the image; nothing when the read is refused or faults.
 using ReadWord = std::function<std::optional<std::uint64_t>(std::uint64_t address)>;
 
-// Names the managers by their instances (O92), over the image as the game runs it. A lead's label is the catalogue's
-// label for the same thing, or the label it had before (`was`). Reads the image and one word at each instance.
+// Names the managers by their instances (O92). Made once over the image (its type information does not change while
+// the game runs), then asked as often as the round likes: a pass reads each static's slot, 8 bytes through `live`,
+// and one word at each instance through `read_word`, and nothing else.
+// A lead names the one static whose instance's class has its name or its name with Imp; where no static does, the
+// one whose instance's class derives from such a class (`by_base`). Two statics that match the same way leave the lead
+// ambiguous. A lead's label is the catalogue's label for the same thing, or the label it had before (`was`).
+class Namer {
+ public:
+  Namer(const ImageInfo& image, const ByteSource& source, const derive::Leads& leads, const Catalogue& ids);
+  ~Namer();
+  Namer(const Namer&) = delete;
+  Namer& operator=(const Namer&) = delete;
+
+  // What the image holds under each lead's name. Offline too: it reads the image only.
+  [[nodiscard]] const std::vector<LeadClasses>& lead_classes() const noexcept;
+  [[nodiscard]] InstancesFound pass(const ByteSource& live, const AccessorFound& accessor,
+                                    const ReadWord& read_word) const;
+
+ private:
+  struct State;
+  std::unique_ptr<State> state_;
+};
+
+// One pass of a Namer made for the call: the image is read whole each time. A round that names more than once keeps
+// a Namer instead.
 [[nodiscard]] InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
                                             const derive::Leads& leads, const Catalogue& ids, const ReadWord& read_word);
 

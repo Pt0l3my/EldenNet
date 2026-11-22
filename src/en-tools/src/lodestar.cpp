@@ -149,7 +149,7 @@ int run_find(int argc, char** argv) {
       gal_file(dir, "recipes.toml", true, &refused, [](std::string_view t) { return g::parse_recipes(t, {}); });
   const auto builds =
       gal_file(dir, "builds.toml", false, &refused, [](std::string_view t) { return g::parse_builds(t); });
-  (void)gal_file(dir, "ids.toml", false, &refused, [](std::string_view t) { return g::parse_ids(t); });
+  const auto ids = gal_file(dir, "ids.toml", false, &refused, [](std::string_view t) { return g::parse_ids(t); });
   if (refused || !leads || !recipes) return 4;
 
   // The executable: its bytes, read once, as a file.
@@ -167,7 +167,7 @@ int run_find(int argc, char** argv) {
   }
 
   const g::lodestar::Found found =
-      g::lodestar::find(*image, source, exe->size(), *leads, *recipes, builds ? &*builds : nullptr);
+      g::lodestar::find(*image, source, exe->size(), *leads, *recipes, builds ? &*builds : nullptr, ids ? &*ids : nullptr);
   const auto text = g::lodestar::write_report(found);
   if (!text) {
     std::fprintf(stderr, "lodestar: the report was refused by its writer: %s\n",
@@ -188,13 +188,16 @@ int run_find(int argc, char** argv) {
 
   const bool complete = g::lodestar::complete(found);
   const g::lodestar::AccessorFound& a = found.accessor;
+  std::size_t leads_with_class = 0;
+  for (const g::lodestar::LeadClasses& c : found.lead_classes) leads_with_class += c.named + c.named_imp != 0 ? 1 : 0;
   std::printf("lodestar: report written (%s): build %s; accessor %llu places, %llu accepted, %llu statics; "
-              "the withdrawn pattern %s, %llu sites only one of the two accepts; classes %zu; groups' table %s\n",
+              "the withdrawn pattern %s, %llu sites only one of the two accepts; classes %zu; groups' table %s; "
+              "%zu of %zu leads have a class of their name\n",
               complete ? "complete" : "to read first", found.image.known_build ? "known" : "not known",
               static_cast<unsigned long long>(a.hits), static_cast<unsigned long long>(a.accepted),
               static_cast<unsigned long long>(a.statics_found), a.pattern ? "cut" : "not cut",
               static_cast<unsigned long long>(a.only_shape + a.only_pattern), found.classes.size(),
-              g::derive::to_string(found.table.status));
+              g::derive::to_string(found.table.status), leads_with_class, found.lead_classes.size());
   return complete ? 0 : 1;
 }
 

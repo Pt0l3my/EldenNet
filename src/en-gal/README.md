@@ -237,11 +237,17 @@ of any game is in it, and every name it looks for comes from a leads file.
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
-  `name_instances(image, live, accessor, leads, ids, read_word)`, which names the managers: for each static the
-  accessor's sites load, the instance it holds as the game runs, that instance's first word through the caller's
-  guarded read (one word, never at an address inside the image), and the word's class by the type information of
-  the image as loaded; a lead names the one static whose class has its name, or its name with Imp, and two leave it
-  ambiguous. A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
+  `Namer(image, source, leads, ids)`, which names the managers. It reads the image's type information once; then
+  `pass(live, accessor, read_word)`, as often as the round likes, reads for each static the accessor's sites load
+  the instance it holds as the game runs (8 bytes through `live`) and that instance's first word through the
+  caller's guarded read (one word, never at an address inside the image), and takes the word's class from what it
+  read at the start. A lead names the one static whose class has its name, or its name with Imp; where no static
+  does, the one whose class derives from such a class (`by_base`); two that match the same way leave it ambiguous.
+  `name_instances(...)` is one pass of a namer made for the call. `lead_classes()`, offline too and in every
+  report, counts what the image holds under each lead's name: classes of that name and of that name with Imp, the
+  tables of methods of those and of every class deriving from them, and the places where a type's name of either
+  form stands at all. So a reviewer can tell a manager that is not there from one under another name, or one with
+  no type information; the round of 2026-11-22 could not (`docs/ops/probes/2026-11-22-l5.md`). A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
   the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
   a save is loaded is null at the title; what was named stays named, with the pass that named it. The report's
   `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
@@ -254,7 +260,9 @@ of any game is in it, and every name it looks for comes from a leads file.
   second it reads each named manager's slot, its instance's first word, and the slot again, and counts what was
   null, what still had the class it was named by, what had another, what faulted (caught) and what changed between
   the two reads (`torn`, which judges nothing). Managers are added by the naming thread at any time; nothing is
-  removed. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
+  removed. With `set_stage(id)` a reading made while that manager has an instance counts as one in the world
+  (`world_readings`, `stage_changes`), and each manager's empty readings are counted in stretches (`null_runs`,
+  `null_longest`) and by stage (`null_world`), so a report says when a manager was away, not only how often. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
   `trial` object.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:

@@ -38,6 +38,9 @@ void Trial::run(const proto::GameThread& gt, const FrameCtx& frame) {
   reader_.begin_tick();
   const std::uint64_t t0 = sys_.now_us();
   const std::size_t n = count_.load(std::memory_order_acquire);
+  const std::uint32_t stage_id = stage_id_.load(std::memory_order_relaxed);
+  std::array<bool, kMaxManagers> empty{};
+  int stage = -1;  // unknown until the stage's manager is read
   for (std::size_t i = 0; i < n; ++i) {
     Slot& s = slots_[i];
     const auto bump = [](std::atomic<std::uint64_t>& counter) { counter.fetch_add(1, std::memory_order_relaxed); };
@@ -47,10 +50,15 @@ void Trial::run(const proto::GameThread& gt, const FrameCtx& frame) {
       bump(s.fault);
       continue;
     }
+    if (s.id == stage_id) stage = *first != 0 ? 1 : 0;
     if (*first == 0) {
       bump(s.null);
+      empty[i] = true;
+      if (s.run++ == 0) bump(s.null_runs);
+      if (s.run > s.null_longest.load(std::memory_order_relaxed)) s.null_longest.store(s.run, std::memory_order_relaxed);
       continue;
     }
+    s.run = 0;
     const auto word = reader_.copy<std::uint64_t>(gt, proto::Group::Session, *first);
     const auto again = reader_.copy<std::uint64_t>(gt, proto::Group::Session, s.slot);
     if (!again) {
@@ -63,6 +71,16 @@ void Trial::run(const proto::GameThread& gt, const FrameCtx& frame) {
       bump(*word == s.vtable ? s.same : s.other);
     }
   }
+  if (stage == 1) {
+    world_readings_.fetch_add(1, std::memory_order_relaxed);
+    for (std::size_t i = 0; i < n; ++i) {
+      if (empty[i]) slots_[i].null_world.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+  if (stage != -1) {
+    if (last_stage_ != -1 && stage != last_stage_) stage_changes_.fetch_add(1, std::memory_order_relaxed);
+    last_stage_ = stage;
+  }
   const std::uint64_t done = sys_.now_us();
   reading_us_.record(done - t0);
   if (readings_.fetch_add(1, std::memory_order_relaxed) == 0) first_us_.store(t0, std::memory_order_relaxed);
@@ -73,6 +91,8 @@ TrialFound Trial::found() const {
   TrialFound out;
   out.steps = steps_.load(std::memory_order_relaxed);
   out.readings = readings_.load(std::memory_order_relaxed);
+  out.world_readings = world_readings_.load(std::memory_order_relaxed);
+  out.stage_changes = stage_changes_.load(std::memory_order_relaxed);
   const std::uint64_t first = first_us_.load(std::memory_order_relaxed);
   const std::uint64_t last = last_us_.load(std::memory_order_relaxed);
   out.elapsed_ms = last > first ? (last - first) / 1000 : 0;
@@ -88,6 +108,9 @@ TrialFound Trial::found() const {
     m.id = s.id;
     m.label = s.label;
     m.null = s.null.load(std::memory_order_relaxed);
+    m.null_runs = s.null_runs.load(std::memory_order_relaxed);
+    m.null_longest = s.null_longest.load(std::memory_order_relaxed);
+    m.null_world = s.null_world.load(std::memory_order_relaxed);
     m.same = s.same.load(std::memory_order_relaxed);
     m.other = s.other.load(std::memory_order_relaxed);
     m.fault = s.fault.load(std::memory_order_relaxed);
