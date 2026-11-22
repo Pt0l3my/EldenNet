@@ -48,7 +48,7 @@ a dynamic initialiser or an exit-time destructor (ARCH §3.1, §1.7).
   assigned or made but by `GameThread::issue()`, and only moves; a CI grep keeps `issue` to the task's trampoline and
   the replay harness (and the tests of the token and of backends). `GameBackend` takes a `const GameThread&` for every
   call: `probe`, `snapshot`, `render_feed` and `apply`, which answer `Expected<void, ReadError>` (`Inert`, `Loading`,
-  `BudgetSpent`, `Faulted`, `Ended`) and `Expected<void, ApplyError>` (`Inert`, `Invalid`, `Unsupported`).
+  `BudgetSpent`, `Faulted`, `Ended`, `Unsteady`) and `Expected<void, ApplyError>` (`Inert`, `Invalid`, `Unsupported`).
 - **The model client's messages** (`llm.hpp`): what the core asks of en-llm and what comes back. The slots' names,
   roles, message parts and messages (with `system`, `user`, `assistant`, `joined`, `has_cache_break` and
   `normalise`), purposes, `ChatRequest`, the error classes, usage, token logprobs, attempts, `ChatResult`, decision

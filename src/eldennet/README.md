@@ -48,30 +48,45 @@ T1 then runs, each state logged and written to the watch block for the launcher'
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
    §10.3), and the start goes on. `overlay.connect = false` skips it (`connect skipped=1 why=off`).
-9. **Discover**: patterns.toml and the layout (en-gal's `discover_with_retries`: at once, then +5, +15, +30 s).
-10. **WaitEngine**: the task hub's instance non-null, at most 120 s from T1's start. Then the **crash filter** is
-    installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
-11. **Register**: the stack table made again without T1's own stack (WHY§190), then the one call into the game. In a
-    run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, S0-E's present-hook half and S4, read from the
-    watch block; en-proto's `observer_run`), T1 stops at the start of Register instead, before the task is made or
-    anything called: `register skipped=1 why=spike spike=<word>`, then the `spike_run` banner ("Spike run: EldenNet
-    makes no call into the game", GraceUI's notice when connected) and L1. What a stopped start keeps runs on: T6
-    (the core, the status block, the status lines), T10, T11, the connect and F11's view (`debug.panel`), the recorder
-    (its header carries the word). Nothing waits for the task, which T6 and the view read only once it is set, and the
+9. **Discover**: the layout, `recipes.toml`, `ids.toml` and `patterns.toml` where the folder holds them (en-gal's
+   `discover_with_retries`: at once, then +5, +15, +30 s), for a reader on a thread of our own
+   (`FrameProvider::OwnThread`; proposal 0005 §9.4, O101). What the build's table holds (the layout's `[item.*]`
+   entries, Lodestar) is taken from it and checked, and nothing looks for it; what it does not hold yet is found as
+   before. No registration function, task hub or `[task]` is asked for, and the game's getter is never called: the
+   line `discovery … table=… table_refused=… getter_calls=0 …`.
+10. **WaitEngine**: a static the game sets as it starts is non-null (the task hub's instance where discovery has it,
+    else the module handle's; `engine ready=1 by=<label>`), at most 120 s from T1's start. Then the **crash filter**
+    is installed: after the game's C runtime has installed its own, which replaced an earlier one (WHY§172).
+11. **Reader**: T2, a thread of EldenNet's own, is made suspended; the stack table is made again with T2's stack in it
+    and without T1's (WHY§190); then T2 is let go: `reader started=1 stacks=… period_ms=100`. Nothing of the game is
+    called and nothing is registered with it (O101 (b)). In a run of GraceUI's observer (the launcher's `--spike s0e`
+    or `s4`, S0-E's present-hook half and S4, read from the watch block; en-proto's `observer_run`), T1 stops at the
+    start of Reader instead, before the reader is made: `reader skipped=1 why=spike spike=<word>`, then the
+    `spike_run` banner (GraceUI's notice when connected) and L1. What a stopped start keeps runs on: T6 (the core,
+    the status block, the status lines), T10, T11, the connect and F11's view (`debug.panel`), the recorder (its
+    header carries the word). Nothing waits for the task, which T6 and the view read only once it is set, and the
     crash filter stays in. (`s0e_alone` loads no eldennet.dll at all.)
-12. **FirstTick**: at most 30 s for the task to pass the group check and phase A; else Inert and its banner.
+12. **FirstReading**: at most 30 s for the reader to pass phase A and build its first snapshot
+    (`first_reading state=running ms=…`); else Inert and its banner (`no_reading`, or the task's own reason).
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
 
+The watch block's states for this start, `reader` and `first_reading`, were appended to en-proto's list; `register`
+and `first_tick` remain for the game's task, which only the probe's R1 round still uses (below) until Lodestar's
+step L5 replaces that round.
+
 A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
 (below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
-(`probe round=r1 skipped=1 why=spike`) and the start stops at Register, and the launcher refuses `--probe` with those
+(`probe round=r1 skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--probe` with those
 spikes.
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
-- **T2, the game thread**, runs the task (en-gal's `GalTask` behind a body that names the thread for the crash
-  filter, and in a probe build arms the allocation watch and S0-D's fault injection) through `Io`, the task's TaskIo:
+- **T2, the reader**, a thread of EldenNet's own (O101; never the game's thread), steps en-gal's `ReaderLoop` about
+  thirty times a second for as long as the game runs: each step runs the task (en-gal's `GalTask` with
+  `own_thread_options()` and steady reading, behind a body that names the thread for the crash filter, whose record
+  says `reader` for it and `game` for the thread of the game's window, and in a probe build arms the allocation watch
+  and S0-D's fault injection) through `Io`, the task's TaskIo:
   C1 is a `SnapSlot` (two preallocated snapshots; the newest wins and an overwrite marks the next `gap`), C2, C4 and C5
   are SPSC rings of 64. Nothing on it waits or allocates (R6); the probe build counts any allocation there.
 - **T6, the core**, waits on one wake signal (or 100 ms), then drains T1's banners, C2's lifecycle messages and C1's

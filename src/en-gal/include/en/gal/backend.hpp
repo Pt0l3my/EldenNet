@@ -43,6 +43,21 @@ struct BackendOptions {
   float throttled_within_m = 25.0f;
   std::uint32_t text_per_tick = 16;   // new look-ups per snapshot (ARCH §7.2)
   std::uint32_t params_per_tick = 32;
+  // Steady reading, for a reader that is not in step with the game's frame (the frame service's own thread; proposal
+  // 0005 §10, O101 (b)). The game may change what is being read, so a snapshot is published only when:
+  // - its structure was the same after the reading as during it: every static's instance, every object's table of
+  //   methods and the near list's ends are read again when the snapshot is built, and must be what they were;
+  // - a change of the lifecycle (the main player there or not, the screen) has been seen in two readings running;
+  // and a group's hard fault counts toward its breaker only when the group faulted in the reading before as well.
+  // A reading that fails the first two is dropped (ReadError::Unsteady), counted, and counts against no group.
+  bool steady = false;
+};
+
+// What steady reading dropped or held back, since the start.
+struct SteadyCounts {
+  std::uint64_t torn = 0;         // readings whose structure changed while they were read
+  std::uint64_t held = 0;         // readings dropped while a change of the lifecycle waited for its second sighting
+  std::uint64_t unconfirmed = 0;  // group faults seen in one reading and not in the next: not counted
 };
 
 // How much a snapshot reads (ARCH §6.8, §7.2).
@@ -78,9 +93,11 @@ class ErBackend final : public proto::GameBackend {
   proto::Expected<void, proto::ApplyError> apply(const proto::GameThread& gt, const proto::GameCommand& cmd) override;
 
   // ---- The task's controls ----
-  // The first tick: the game thread's stack joins the stack table, reads are bound to this thread, and the group at the
-  // layout's index must carry the layout's name.
-  GroupCheck first_tick(const proto::GameThread& gt);
+  // The first tick: the reading thread's stack joins the stack table, reads are bound to this thread, and, for the
+  // game's own task (`check_group`), the group at the layout's index must carry the layout's name. A reader on a
+  // thread of our own is in no group: its first tick checks none and answers ok.
+  GroupCheck first_tick(const proto::GameThread& gt, bool check_group = true);
+  [[nodiscard]] const SteadyCounts& steady() const noexcept { return steady_; }
   // One tick of phase A (at most kPhaseATicks): each untested group's test. Failed means a structural group failed.
   PhaseA phase_a(const proto::GameThread& gt);
   // Whether a structural group tripped: the task goes inert and reads nothing more (L1).
@@ -146,6 +163,10 @@ class ErBackend final : public proto::GameBackend {
   bool text_phase_b(const proto::GameThread& gt);
   void push_lifecycle(const proto::Lifecycle& l) noexcept;
   void trip(proto::Group g, GroupWhy why) noexcept;
+  // Steady reading: a word of the structure this snapshot rests on, and the check that each is still what it was.
+  void remember(std::uint64_t address, std::uint64_t value) noexcept;
+  [[nodiscard]] bool structure_held(const proto::GameThread& gt);
+  void count_fault(proto::Group g) noexcept;
 
   SysLayer& sys_;
   const Discovery& d_;
@@ -158,6 +179,25 @@ class ErBackend final : public proto::GameBackend {
   std::array<std::uint8_t, roles::kItemCount> tick_{};     // this tick: unread, static read, object read, failed, null
   std::array<std::uint8_t, roles::kItemCount> vt_miss_{};  // consecutive vtable mismatches
   std::array<std::uint64_t, proto::kGroupCount> soft_{};
+  // Steady reading's state: the structure words of the snapshot being built, the groups that faulted in it and in the
+  // one before, and the lifecycle last published and the change waiting for its second sighting.
+  struct Word {
+    std::uint64_t address = 0;
+    std::uint64_t value = 0;
+  };
+  std::array<Word, 192> words_{};
+  std::size_t word_count_ = 0;
+  bool building_ = false;
+  std::uint16_t faulted_now_ = 0;
+  std::uint16_t faulted_before_ = 0;
+  struct LifeSeen {
+    bool known = false;
+    bool main_player = false;
+    proto::Screen screen = proto::Screen::Unknown;
+  };
+  LifeSeen life_published_;
+  LifeSeen life_waiting_;
+  SteadyCounts steady_;
   std::uint64_t vtable_skips_ = 0;
   bool inert_ = false;
   std::array<float, 16> cam_{};  // the last snapshot's view, for the bearings and the render feed

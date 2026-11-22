@@ -53,6 +53,7 @@ void FakeMemory::put_utf16(std::uint64_t at, std::u16string_view text) {
 
 CopyOutcome FakeCopier::copy(std::uint64_t address, std::span<std::byte> dst) noexcept {
   ++copies;
+  if (before_copy) before_copy(address);
   if (mem_.read(address, dst)) return {true, 0};
   std::fill(dst.begin(), dst.end(), std::byte{0});
   return {false, 0xC0000005u};

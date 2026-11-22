@@ -97,6 +97,13 @@ TEST_CASE("watch block: mono milliseconds from a counter, exact and without over
 TEST_CASE("watch block: names") {
   CHECK(std::string(to_string(InitState::Ready)) == "ready");
   CHECK(std::string(to_string(InitState::WaitEngine)) == "wait_engine");
+  // The states of a start that reads on our own thread were appended: the earlier numbers stand.
+  CHECK(static_cast<std::uint32_t>(InitState::Exit) == 15);
+  CHECK(static_cast<std::uint32_t>(InitState::Reader) == 16);
+  CHECK(static_cast<std::uint32_t>(InitState::FirstReading) + 1 == kInitStateCount);
+  CHECK(std::string(to_string(InitState::Reader)) == "reader");
+  CHECK(std::string(to_string(InitState::FirstReading)) == "first_reading");
+  CHECK_FALSE(terminal(InitState::FirstReading));
   CHECK(terminal(InitState::Banner));
   CHECK_FALSE(terminal(InitState::Discover));
   CHECK(std::string(to_string(Spike::S0dCrash)) == "s0d-crash");
@@ -114,4 +121,6 @@ TEST_CASE("watch block: names") {
     CHECK(observer_run(s) == (s == Spike::S0e || s == Spike::S0eAlone || s == Spike::S4));
   }
   CHECK(std::string(to_string(ThreadKind::Game)) == "game");
+  CHECK(static_cast<std::uint32_t>(ThreadKind::Reader) == 4);  // appended
+  CHECK(std::string(to_string(ThreadKind::Reader)) == "reader");
 }

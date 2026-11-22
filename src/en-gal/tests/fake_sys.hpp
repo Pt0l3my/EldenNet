@@ -64,6 +64,9 @@ class FakeCopier final : public Copier {
   explicit FakeCopier(const FakeMemory& mem) : mem_(mem) {}
   [[nodiscard]] CopyOutcome copy(std::uint64_t address, std::span<std::byte> dst) noexcept override;
   std::uint64_t copies = 0;
+  // Called before each copy with its address: a test's way to have "the game" change something in the middle of a
+  // reading, as it may under a reader that is not in step with the frame.
+  std::function<void(std::uint64_t address)> before_copy;
 
  private:
   const FakeMemory& mem_;
@@ -102,6 +105,7 @@ class FakeSys final : public SysLayer {
                                                                        const TaskShape& shape,
                                                                        TaskBody& body) noexcept override;
   [[nodiscard]] Copier& copier() noexcept override { return copier_; }
+  [[nodiscard]] FakeCopier& fake_copier() noexcept { return copier_; }
   [[nodiscard]] StackRanges& stacks() noexcept override { return stacks_; }
   void note_own_stack() noexcept override { stacks_.add(own_stack); }
   // Every reading advances the clock by clock_step_us (a build that takes time, for the throttle's tests).

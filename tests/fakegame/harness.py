@@ -374,6 +374,40 @@ case("gal-rpm", GAL + ["--frames", "900", "--load", "ready:{galtest}"],
      env=dict(GAL_ENV, EN_GALTEST_COPY="rpm", EN_GALTEST_FAULT="camera:1"), needs=GAL_NEEDS, toolchains=("clang-cl",),
      timeout=120, check=lambda r: check_gal(r, "rpm"),
      what="the ReadProcessMemory copy as the setting (S0-D): the same reads, and injected faults trip the camera")
+# The same DLL with the frame service's own-thread provider (EN_GALTEST_FRAME=own; proposal 0005 §9.4, §10; O101), as
+# EldenNet v1 starts: a reader thread of its own steps the task ten times a second, registers nothing with the game and
+# calls nothing of it. The same truth is read, and the fake hub never sees a task of ours.
+GAL_OWN = dict(GAL_ENV, EN_GALTEST_FRAME="own")
+case("gal-own-world", GAL + ["--frames", "900", "--load", "ready:{galtest}"], env=GAL_OWN, needs=GAL_NEEDS,
+     toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "world", own=True),
+     what="the reader on a thread of our own: no registration and no call into the game, every group read at 10 Hz, "
+          "the stores, no allocation on the reader")
+case("gal-own-window", GAL + ["--frames", "900", "--statics-delay-ms", "1500", "--load", "window:{galtest}"],
+     env=GAL_OWN, needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "world", own=True),
+     what="our own thread, loaded at the window before the statics: the reader starts once the game has")
+case("gal-own-moves-free", GAL + ["--frames", "900", "--move-every", "90", "--move-mode", "free", "--load",
+                                  "ready:{galtest}"], env=GAL_OWN, needs=GAL_NEEDS, toolchains=("clang-cl",),
+     timeout=120, check=lambda r: check_gal(r, "moves", own=True),
+     what="our own thread while every singleton and the main player move and the old places are released: a reading "
+          "out of step with the frame is dropped or its fault left unconfirmed, and nothing stale is published")
+case("gal-own-reload", GAL + ["--frames", "900", "--load-frames", "40", "--reload-every", "240", "--stall-at", "1",
+                              "--stall-ms", "1500", "--load", "ready:{galtest}"],
+     env=GAL_OWN, needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "reload", own=True),
+     what="our own thread across loading screens: each change of lifecycle published at its second sighting")
+case("gal-own-online", GAL + ["--frames", "720", "--online-at", "420", "--load", "ready:{galtest}"], env=GAL_OWN,
+     needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "online", own=True),
+     what="our own thread when the session turns online: Dormant")
+case("gal-own-fault-camera", GAL + ["--frames", "720", "--load", "ready:{galtest}"],
+     env=dict(GAL_OWN, EN_GALTEST_FAULT="camera:1"), needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "fault-camera", own=True),
+     what="our own thread with real faults in an optional group: counted once they come twice running, its breaker "
+          "trips, the rest reads on")
+case("gal-own-fault-world", GAL + ["--frames", "720", "--load", "ready:{galtest}"],
+     env=dict(GAL_OWN, EN_GALTEST_FAULT="world:1"), needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120,
+     check=lambda r: check_gal(r, "fault-world", own=True),
+     what="our own thread with real faults in a structural group: it trips and the reader goes inert")
 case("gal-group-shift", GAL + ["--frames", "300", "--shift-groups", "1", "--load", "ready:{galtest}"], env=GAL_ENV,
      needs=GAL_NEEDS, toolchains=("clang-cl",), timeout=120, check=lambda r: check_gal(r, "group-shift"),
      what="the group table shifted since the derivation: the first tick finds another name there and goes inert")
@@ -916,6 +950,22 @@ def check_recordings(min_snaps):
     return check
 
 
+def ready_no_call(r):
+    """A start that reads on EldenNet's own thread: the reader's states and none of the game task's, and the fake
+    game's registration never reached from outside (the hub's live tasks are the program's own four)."""
+    states = [e.get("state") for e in r.events("ELDENNET", "init")]
+    failures = []
+    need("reader" in states and "first_reading" in states and "register" not in states and "first_tick" not in states,
+         "T1's states: %s" % states, failures)
+    need(not r.events("ELDENNET", "register") and not r.events("ELDENNET", "first_tick"),
+         "the DLL registered a task with the game", failures)
+    if r.events("FAKEGAME", "end"):
+        failures += want(r, "FAKEGAME", "end", foreign_tasks=0, live=4, rejected=0, ignored=0)
+    if r.events("FAKEGAME", "register"):
+        failures.append("the fake game's registration was called")
+    return failures
+
+
 def check_en_ready(where):
     def check(result):
         failures = check_lines(("LAUNCHER", "inject", {"dll": "eldennet.dll", "ok": 1}),
@@ -923,13 +973,17 @@ def check_en_ready(where):
                                ("LAUNCHER", "end", {"kind": "clean", "crash_filter": 0}),
                                ("ELDENNET", "safety", {"first_copy": 1, "anticheat": 0, "watched": 1, "logging": 1}),
                                ("ELDENNET", "gate", {"result": "passed"}),
-                               ("ELDENNET", "discovery", {"ready": 1}),
-                               ("ELDENNET", "register", {"ok": 1}),
-                               ("ELDENNET", "first_tick", {"state": "running"}),
+                               ("ELDENNET", "discovery", {"ready": 1, "getter_calls": 0}),
+                               ("ELDENNET", "reader", {"started": 1}),
+                               ("ELDENNET", "first_reading", {"state": "running"}),
                                ("ELDENNET", "init", {"state": "ready"}),
                                ("ELDENNET", "connect", {"ok": 0, "outcome": "absent", "installed": 0, "looks": 1}))(
                                    result)
         failures += want(result, "LAUNCHER", "status", init="ready", snapshots=(8, 1e9), tripped="0x0")
+        # The reading runs on a thread of EldenNet's own (O101): nothing was registered with the game and nothing of it
+        # was called (the hub's live tasks are the program's own; ready_no_call below), and T1 never took the game
+        # task's states.
+        failures += ready_no_call(result)
         phases = [e.get("to") for e in result.events("ELDENNET", "change") if e.get("what") == "phase"]
         if where == "world":
             need("in_world" in phases, "the core's phases: %s" % phases, failures)
@@ -975,7 +1029,8 @@ case("launcher-eldennet-gate", LGAME + ["--dll", "{eldennetdll}", "--console"] +
                                   ("LAUNCHER", "end", {"kind": "clean"}))(r) +
                       any_line(r, "ELDENNET", "change", what="banner", to="unknown_build") +
                       any_line(r, "ELDENNET", "change", what="level", to="L1") +
-                      (["the DLL registered on an unknown build"] if r.events("ELDENNET", "register") else []) +
+                      (["the DLL started its reader on an unknown build"]
+                       if r.events("ELDENNET", "reader") or r.events("ELDENNET", "register") else []) +
                       en_log_is_clean(r)),
      what="a build the DLL's gal/ does not know: its own gate refuses it, L1's banner, no task, the game unharmed")
 case("launcher-eldennet-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "--dll", "{eldennetdll}", "--console"] +
@@ -988,7 +1043,8 @@ case("launcher-eldennet-anticheat", LGAME + ["--also", "{easyanticheat_eos}", "-
                                   ("LAUNCHER", "end", {"kind": "clean"}))(r) +
                       any_line(r, "LAUNCHER", "inject", dll="EasyAntiCheat_EOS.dll", ok=1) +
                       any_line(r, "ELDENNET", "change", what="banner", to="anticheat") +
-                      (["the DLL registered beside anti-cheat"] if r.events("ELDENNET", "register") else [])),
+                      (["the DLL started its reader beside anti-cheat"]
+                       if r.events("ELDENNET", "reader") or r.events("ELDENNET", "register") else [])),
      what="a simulated anti-cheat hit (a module named EasyAntiCheat_EOS.dll): the Safety state's check, L1's banner, "
           "no task")
 case("launcher-eldennet-twice", LGAME + ["--dll", "{eldennetdll}"] +
@@ -1041,7 +1097,7 @@ case("launcher-eldennet-watch", GAL[1:] + ["--frames", "720", "--load", "ready:{
 # --- The runs of GraceUI's observer (S0-E's present-hook half, S4): EldenNet's side ---------------------------------------
 # `--spike s0e|s4`: the launcher makes the run's folder (spikes\<word>-<n>) before the game starts and names it in the
 # game's ELDENNET_SPIKE_DIR (the fake game says only whether it is set and whether the folder exists); eldennet.dll
-# stops at the start of Register with the spike_run banner and calls nothing (the fake hub's live tasks stay the
+# stops at the start of Reader with the spike_run banner, before its reader is made, and calls nothing (the fake hub's live tasks stay the
 # program's own four, and no registration from outside reaches it), and runs on as a stopped start does. `--spike s0e_alone` loads the --also DLLs alone.
 def spike_folders(result):
     folder = os.path.join(result.paths["appdata"], "EldenNet", "spikes")
@@ -1078,18 +1134,20 @@ def check_en_spike(word, grace=False):
             ("ELDENNET", "safety", {"spike": word, "watched": 1}),
             ("ELDENNET", "gate", {"result": "passed"}),
             ("ELDENNET", "discovery", {"ready": 1}),
-            ("ELDENNET", "register", {"skipped": 1, "why": "spike", "spike": word}),
+            ("ELDENNET", "reader", {"skipped": 1, "why": "spike", "spike": word}),
             ("ELDENNET", "banner", {"reason": "spike_run", "detail": word}),
             ("ELDENNET", "init", {"state": "banner"}),
             ("LAUNCHER", "status", {"init": "banner"}),
             ("LAUNCHER", "run", {"outcome": "banner"}),
             ("LAUNCHER", "end", {"kind": "clean", "crash_filter": 0, "init": "banner"}))(r)
-        failures += any_line(r, "ELDENNET", "init", state="register")
+        failures += any_line(r, "ELDENNET", "init", state="reader")
         failures += any_line(r, "ELDENNET", "change", what="banner", to="spike_run")
         failures += any_line(r, "ELDENNET", "change", what="level", to="L1")
         failures += any_line(r, "ELDENNET", "status", level="L1", phase="banner")  # T6 runs on after T1 stopped
-        need(not any("ok" in e for e in r.events("ELDENNET", "register")), "the DLL registered its task", failures)
-        need(not r.events("ELDENNET", "first_tick"), "the DLL waited for a first tick", failures)
+        need(not any("started" in e for e in r.events("ELDENNET", "reader")) and not r.events("ELDENNET", "register"),
+             "the DLL started its reader", failures)
+        need(not r.events("ELDENNET", "first_reading") and not r.events("ELDENNET", "first_tick"),
+             "the DLL waited for a first reading", failures)
         failures += no_call(r)
         if grace:
             failures += want(r, "ELDENNET", "connect", ok=1, outcome="connected", path="main", installed=1)
@@ -1136,7 +1194,7 @@ case("launcher-eldennet-spike-s0e", LGAME + ["--dll", "{eldennetdll}", "--consol
      env=dict(EN_ENV, **LEFTOVER_SPIKE_DIR), timeout=180, prepare=install_eldennet(EN_RECORD),
      check=lambda r: check_en_spike("s0e")(r) + check_spike_recording("s0e")(r),
      what="S0-E with the release DLL: the run's folder made and named in the game's environment (the launcher's own "
-          "variable replaced), the DLL stopped at Register with the spike_run banner and no call into the game, "
+          "variable replaced), the DLL stopped at Reader with the spike_run banner and no call into the game, "
           "T6 and the recorder running on, a clean end")
 case("launcher-eldennet-spike-s4", LGAME + ["--dll", "{eldennetdll}", "--console", "--spike", "s4"] + game(frames=900),
      program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=180,
@@ -1276,7 +1334,8 @@ def check_graceui_before(r):
             want_grace(r, 460, shown=1, refused=0, panel_frames=(1, 1e9), probe=(VIEW_AREA // 2, VIEW_AREA),
                        banner="EldenNet_inactive:_game_build_3.14.15.0_not_supported_yet") +
             any_line(r, "ELDENNET", "view", presses=1, open=1) +
-            (["the DLL registered on an unknown build"] if r.events("ELDENNET", "register") else []) +
+            (["the DLL started its reader on an unknown build"]
+                       if r.events("ELDENNET", "reader") or r.events("ELDENNET", "register") else []) +
             en_log_is_clean(r))
 
 
@@ -1313,7 +1372,8 @@ def check_graceui_anticheat(r):
             # GraceUI's own check found the same module before it hooked: notices only, and EldenNet's banner among
             # them; no panel, no hotkey, no provider.
             want_grace(r, 300, found=1, eldennet=1, notice_only=1, banner=text, panels=0, shown=0, providers=0) +
-            (["the DLL registered beside anti-cheat"] if r.events("ELDENNET", "register") else []) +
+            (["the DLL started its reader beside anti-cheat"]
+                       if r.events("ELDENNET", "reader") or r.events("ELDENNET", "register") else []) +
             en_log_is_clean(r))
 
 
@@ -4399,8 +4459,9 @@ SCREEN = {"InGame": 1, "Loading": 2, "Title": 3}
 LOBBY = {"None": 1, "Hosting": 2, "Joined": 3}
 
 
-def check_gal(r, kind):
-    """The GALTEST lines of one run against --describe's truth (r.truth)."""
+def check_gal(r, kind, own=False):
+    """The GALTEST lines of one run against --describe's truth (r.truth). `own`: the run reads on a thread of the
+    DLL's own (EN_GALTEST_FRAME=own), so nothing is registered with the fake game and its hub runs no task of ours."""
     failures = []
     truth = r.truth
     disc = r.last("GALTEST", "discovery")
@@ -4428,11 +4489,25 @@ def check_gal(r, kind):
         need(rva.get(item) == aob[role]["target_rva"], "item %s" % item, failures)
     need(rva.get("register_task") == aob["register_task"]["fn_rva"], "item register_task", failures)
     reg = r.last("GALTEST", "registered")
-    need(reg is not None and reg.get("ok") == "1", "registered %s" % reg, failures)
-    need(len(r.events("FAKEGAME", "register", "group")) == 1, "registered other than once", failures)
     end = end_of(r)
-    need(end is not None and end.get("foreign_tasks") == "1", "foreign tasks %s" % (end or {}).get("foreign_tasks"),
+    frame = r.last("GALTEST", "frame")
+    need(frame is not None and frame.get("provider") == ("own_thread" if own else "game_task"), "frame %s" % frame,
          failures)
+    if own:
+        # No call into the game: nothing registered, the hub's tasks the program's own, none of its slots ever called.
+        started = r.last("GALTEST", "reader")
+        need(started is not None and started.get("started") == "1" and reg is None, "reader %s, registered %s" %
+             (started, reg), failures)
+        need(not r.events("FAKEGAME", "register") and not r.events("FAKEGAME", "task-active", "foreign"),
+             "the fake game's registration was called", failures)
+        need(end is not None and end.get("foreign_tasks") == "0" and end.get("foreign_runs") == "0",
+             "foreign tasks %s" % (end or {}), failures)
+        need(status["slot_calls"] == "0,0,0", "the game called our slots %s" % status["slot_calls"], failures)
+    else:
+        need(reg is not None and reg.get("ok") == "1", "registered %s" % reg, failures)
+        need(len(r.events("FAKEGAME", "register", "group")) == 1, "registered other than once", failures)
+        need(end is not None and end.get("foreign_tasks") == "1", "foreign tasks %s" % (end or {}).get("foreign_tasks"),
+             failures)
     groups = dict(g.lower().split(":") for g in status["groups"].split(","))
     inv = int(status["invocations"])
     snaps = int(status["snapshots"])
@@ -4440,7 +4515,9 @@ def check_gal(r, kind):
     # The hub runs our task once a frame, from the frame it activated it to the last: counted in frames, so that a slow
     # machine or a slow first frame changes nothing; and registration came in the run's first half.
     active = r.last("FAKEGAME", "task-active", "frame")
-    if end is not None and active is not None:
+    if own:
+        pass
+    elif end is not None and active is not None:
         frames, first = int(end["frames"]), int(active["frame"])
         need(first <= frames // 2 and int(end["foreign_runs"]) == frames - first + 1,
              "our task ran %s times from frame %d to %d" % (end["foreign_runs"], first, frames), failures)
@@ -4458,17 +4535,23 @@ def check_gal(r, kind):
         need(groups["world"] == "tripped" and int(status["fault_copy"]) >= 3, "world's breaker %s" % status, failures)
         need(int(stores["trip_groups"], 16) & (1 << 1), "a GroupTripped for world", failures)
         return failures
-    need(status["state"] == "running" and status["group_ok"] == "1", "task %s" % status, failures)
+    need(status["state"] == "running" and (own or status["group_ok"] == "1"), "task %s" % status, failures)
     # 4 Hz by the clock since the first tick (R10), never more, whatever the frame rate a loaded machine gives. Under
     # Wine each ReadProcessMemory goes through the server: the builds pass 0.5 ms and the task throttles to 2 Hz, which
     # the rpm case allows (WHY§161).
     elapsed = int(status["elapsed_ms"]) / 1000.0
     built = snaps + int(status["abandoned"])
-    floor = 0.85 * (2 if kind == "rpm" else 4) * elapsed - 3
-    need(elapsed >= 4 and floor <= built <= 4 * elapsed + 2, "%d snapshots in %.1f s" % (built, elapsed), failures)
+    # On a thread of our own: 10 Hz, and a reading out of step with the frame (torn, or a change of lifecycle held
+    # for its second sighting) is dropped and counted, not published.
+    rate = 10 if own else 4
+    dropped = int(status["torn"]) + int(status["held"])
+    need(own or dropped == 0, "readings dropped on the game's thread: %s" % dropped, failures)
+    floor = 0.85 * (2 if kind == "rpm" else rate / 2 if own else rate) * elapsed - 3
+    need(elapsed >= 4 and floor <= built + dropped and built <= rate * elapsed + 2,
+         "%d snapshots (and %d dropped) in %.1f s" % (built, dropped, elapsed), failures)
     # The run slot every frame since registration; the hub's attach once; its query every 64th frame.
     # (The status line reads its counters one by one while the game runs: they may differ by a frame or two.)
-    need(abs(slots[1] - inv) <= 2 and slots[0] == 1 and inv // 64 - 1 <= slots[2] <= inv // 64 + 2,
+    need(own or (abs(slots[1] - inv) <= 2 and slots[0] == 1 and inv // 64 - 1 <= slots[2] <= inv // 64 + 2),
          "slot calls %s for %d invocations" % (slots, inv), failures)
     need(status["allocs"] == "0" and status["frees"] == "0", "allocations on the game thread %s/%s" %
          (status["allocs"], status["frees"]), failures)

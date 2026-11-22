@@ -183,6 +183,9 @@ cmake --build build-cl
   The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
+  `EN_GALTEST_FRAME=own` (the `gal-own-*` cases) makes it read as EldenNet v1 does (O101): a reader thread of its own,
+  ten snapshots a second, nothing registered with the fake game and nothing of it called; the checks then include that
+  the fake hub's tasks stay the program's own and that none of our slots was ever called.
 - `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
   Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
   its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
