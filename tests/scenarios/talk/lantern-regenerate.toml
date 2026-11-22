@@ -1,0 +1,65 @@
+# The lint regenerating once (NPC §8.3, §8.4): a reply whose first sentence breaks the world's frame is cancelled and
+# sent again with block 11's reminder, and the clean regeneration shows; a second line whose regeneration breaks it too
+# gets the persona's deflection, the least recently used. Our own scenario, with invented data: the persona is bound to
+# the fake game's invented row 81100 by the overrides folder, in the eval's realm only (NPC §2.1).
+schema = 1
+name = "lantern-regenerate"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "lantern-regenerate.mock.toml"
+recorded = "lantern-regenerate.llm.jsonl"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 0.0
+clock = [21, 30]
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "say"
+text = "What is this place?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+regenerations = 1
+cancels = 1
+deflections = 0
+failures = 0
+last_npc = "A crossroads, and a lamp to see it by."
+
+[[step]]
+do = "say"
+text = "And where do the roads go?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 2
+npc_lines = 2
+regenerations = 2
+cancels = 3          # the second line's first try, and its regeneration, cut off by the deflection
+deflections = 1
+failures = 0
+last_npc = "The lamp shows the road, not the whole of it."
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"

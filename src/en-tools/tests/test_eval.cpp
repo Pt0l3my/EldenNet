@@ -2,8 +2,10 @@
 // errors, the recorded model, and `eval --llm mock` running a scripted conversation to a report. All data is invented.
 #include <doctest.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "eval_run.hpp"
 #include "golden_run.hpp"
@@ -115,29 +117,68 @@ TEST_CASE("the recorded model replays a recording's events with the live ids") {
   CHECK_FALSE(parse_recorded("{\"request\": 0, \"after_ms\": 1, \"event\": {}}\n").has_value());
 }
 
-TEST_CASE("eval --llm mock runs a scripted conversation to a report, every expectation holding") {
-  for (const char* name : {"lantern-first-words", "lantern-no-answer"}) {
+TEST_CASE("eval --llm mock and recorded run every scripted conversation to a report, every expectation holding") {
+  std::vector<std::filesystem::path> scenarios;
+  for (const auto& e : std::filesystem::directory_iterator(kTalk)) {
+    const std::string f = e.path().filename().string();
+    if (e.path().extension() == ".toml" && f.find(".mock.") == std::string::npos) scenarios.push_back(e.path());
+  }
+  std::sort(scenarios.begin(), scenarios.end());
+  REQUIRE(scenarios.size() >= 4);
+  for (const auto& path : scenarios) {
+    const std::string name = path.stem().string();
     CAPTURE(name);
-    const auto path = kTalk / (std::string(name) + ".toml");
     const auto text = read_file(path.string(), 256 * 1024);
     REQUIRE(text.has_value());
     auto scenario = parse_eval_scenario(*text, path.parent_path());
     REQUIRE_MESSAGE(scenario.has_value(), (scenario.has_value() ? std::string() : scenario.error()));
-    auto run = run_eval(*scenario, EvalLlm::Mock);
-    REQUIRE_MESSAGE(run.has_value(), (run.has_value() ? std::string() : run.error()));
-    for (const std::string& f : run->failed) FAIL_CHECK(f);
-    const nlohmann::json report = eval_report(*run);
-    CHECK(report["kind"] == "eval-local");
-    CHECK(report["persona"] == "lantern_keeper");
-    CHECK(report["metrics"]["requests"].get<std::size_t>() >= 3);
-    CHECK(report["turns"].size() == 3);
-    // The summary is numbers only: no line of the conversation in it.
-    const std::string summary = eval_summary(*run);
-    for (const auto& t : report["turns"]) {
-      CHECK(summary.find(t["player"].get<std::string>()) == std::string::npos);
-      if (!t["reply"].get<std::string>().empty()) CHECK(summary.find(t["reply"].get<std::string>()) == std::string::npos);
+    for (const EvalLlm llm : {EvalLlm::Mock, EvalLlm::Recorded}) {
+      if (llm == EvalLlm::Recorded && !scenario->recorded) continue;
+      auto run = run_eval(*scenario, llm);
+      REQUIRE_MESSAGE(run.has_value(), (run.has_value() ? std::string() : run.error()));
+      for (const std::string& f : run->failed) FAIL_CHECK(f);
+      const nlohmann::json report = eval_report(*run);
+      CHECK(report["kind"] == "eval-local");
+      CHECK(report["persona"] == "lantern_keeper");
+      CHECK(report["metrics"]["requests"].get<std::size_t>() >= report["turns"].size());
+      // The summary is numbers only: no line of the conversation in it.
+      const std::string summary = eval_summary(*run);
+      for (const auto& t : report["turns"]) {
+        CHECK(summary.find(t["player"].get<std::string>()) == std::string::npos);
+        if (!t["reply"].get<std::string>().empty()) CHECK(summary.find(t["reply"].get<std::string>()) == std::string::npos);
+      }
     }
   }
+}
+
+TEST_CASE("eval: the lint regenerating once, then deflecting; the pager's cap cancelling the stream") {
+  const auto run_of = [](const char* name) {
+    const auto path = kTalk / (std::string(name) + ".toml");
+    auto scenario = parse_eval_scenario(*read_file(path.string(), 256 * 1024), path.parent_path());
+    REQUIRE(scenario.has_value());
+    auto run = run_eval(*scenario, EvalLlm::Mock);
+    REQUIRE(run.has_value());
+    return std::move(*run);
+  };
+  const EvalRun regen = run_of("lantern-regenerate");
+  REQUIRE(regen.turns.size() == 2);
+  CHECK(regen.turns[0].requests == 2);
+  CHECK_FALSE(regen.turns[0].deflection);
+  CHECK(regen.turns[0].reply.find("video") == std::string::npos);  // the first try never showed
+  CHECK(regen.turns[1].requests == 2);
+  CHECK(regen.turns[1].deflection);
+  CHECK(regen.requests == 4);
+  const nlohmann::json r = eval_report(regen);
+  CHECK(r["metrics"]["regenerations"] == 2);
+  CHECK(r["metrics"]["deflections"] == 1);
+
+  const EvalRun longer = run_of("lantern-long-reply");
+  REQUIRE(longer.turns.size() == 1);
+  CHECK(longer.cancels == 1);
+  CHECK(longer.turns[0].pages == 2);
+  CHECK(longer.turns[0].words == 32);  // past the persona's 30, within the cap and 10 (NPC §8.5)
+  CHECK(longer.turns[0].reply.find("travellers") == std::string::npos);  // cut from the stream, never shown
+  CHECK_FALSE(longer.turns[0].cut_off);  // the cap fills a reply; it does not cut it off
 }
 
 TEST_CASE("eval: the first conversation's turns, as the report holds them") {

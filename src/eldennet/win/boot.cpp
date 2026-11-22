@@ -273,6 +273,8 @@ void run(HMODULE module) {
 
   // The AI pages' files (ai.cpp), on the main path alone: at L1 EldenNet calls no model.
   read_ai_files(s, text);
+  // The conversation's content: the overrides folder and the realm (conversation.cpp), on the main path alone.
+  read_content(s);
 
   // ---- WaitWindow, Connect ----
   enter(w::InitState::WaitWindow);

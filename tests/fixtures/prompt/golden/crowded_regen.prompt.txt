@@ -1,6 +1,6 @@
 # prompt golden: crowded_regen (format 1)
-# tokens 1541 (target 2800, hard cap 3500); 6 messages, 3 cache breakpoints
-# blocks (tokens/cap): 1=402/450 2=102/120 3=198/350 4=215/230 5=73/110 5b=106/200 6=77/900 7=64/280 8=0/450 9=182/210 10=28/120 11=95/40!
+# tokens 1513 (target 2800, hard cap 3500); 6 messages, 3 cache breakpoints
+# blocks (tokens/cap): 1=402/450 2=102/120 3=198/350 4=215/230 5=73/110 5b=106/200 6=77/900 7=64/280 8=0/450 9=182/210 10=28/120 11=67/70
 # trimmed: earlier lines 0, exchanges 0, nearby others 1
 [ system ]
 You are a person of an old and broken land, and you speak as someone who lives in it, from the inside.
@@ -69,4 +69,4 @@ The Tarnished: "Are you hurt?"
 The Tarnished: "Let me see that arm."
 
 Your turn:
-Answer as Ysolde of the Weir, in her own voice, in at most 35 words. "by the reeds" has had its turn in this talk; say the rest in other words. "tide waits for no one" has had its turn in this talk; say the rest in other words. Your part is talk alone; speak of what you think and feel.
+Answer as Ysolde of the Weir, in her own voice, in at most 35 words. "tide waits for no one" has had its turn; say the rest in other words. Your part is talk alone; speak of what you think and feel.

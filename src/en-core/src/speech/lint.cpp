@@ -92,7 +92,8 @@ class Reply final : public ReplyLint {
         archaic_(c.archaic),
         last_opener_(c.tally.opener),
         tics_used_(c.tally.tics),
-        name_uses_(c.tally.name_uses) {
+        name_uses_(c.tally.name_uses),
+        spent_(c.tally.spent) {
     for (const std::string& o : c.openers) openers_.push_back(lowered(o));
     for (std::size_t i = 0; i < c.tics.size() && i < tics_used_.size(); ++i) {
       tics_.push_back(entry_of(c.tics[i]));
@@ -144,6 +145,7 @@ class Reply final : public ReplyLint {
     t.opener = opener_used_;
     t.tics = tics_used_;
     t.name_uses = name_uses_;
+    t.spent = spent_;
     return t;
   }
 
@@ -215,7 +217,9 @@ class Reply final : public ReplyLint {
     for (std::size_t i = 0; i < tics_.size(); ++i) {
       const std::size_t n = occurrences(words, tics_[i]);
       if (n == 0) continue;
+      const bool was_spent = tics_used_[i] >= tic_max_[i];
       tics_used_[i] = static_cast<std::uint8_t>(std::min<std::size_t>(255, tics_used_[i] + n));
+      if (!was_spent && tics_used_[i] >= tic_max_[i]) spent_ = static_cast<std::uint8_t>(i);  // the newest spent
       if (tics_used_[i] > tic_max_[i]) v.soft.push_back(SoftHit::TicOverCap);
     }
     if (!told_.words.empty()) {
@@ -277,6 +281,7 @@ class Reply final : public ReplyLint {
   std::optional<std::uint8_t> last_opener_;
   std::array<std::uint8_t, 3> tics_used_;
   std::uint8_t name_uses_;
+  std::optional<std::uint8_t> spent_;
   std::vector<std::string> openers_;
   std::vector<LexiconEntry> tics_;
   std::vector<std::uint8_t> tic_max_;

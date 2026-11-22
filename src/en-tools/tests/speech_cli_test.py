@@ -96,6 +96,18 @@ def golden(engine, pack, fixtures, work):
     # Without --content, the nearest content/eldenring above the fixture: the repository's, for its own fixtures.
     code, _, _ = run(engine, "golden", "check", os.path.join(fixtures, "first_meeting.prompt.json"))
     need(code == 0, "golden check without --content in the repository: exit %d" % code)
+    # A fixture whose block 2 passes its 120 tokens fails, and update writes nothing (WHY§388); invented words.
+    with open(fixture, encoding="utf-8") as f:
+        data = json.load(f)
+    data["record"]["public"]["summary"] = " ".join(["The reeds bend low by the weir, and the water runs grey."] * 6)
+    wordy = os.path.join(dst, "wordy.prompt.json")
+    with open(wordy, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    for verb in ("check", "update"):
+        code, _, err = run(engine, "golden", verb, wordy, "--content", pack)
+        need(code == 1 and "block 2 comes to about" in err and "past its cap of 120" in err,
+             "golden %s on block 2 past its cap: exit %d (%s)" % (verb, code, err.strip()))
+    need(not os.path.exists(os.path.join(dst, "golden", "wordy.prompt.txt")), "golden update wrote a golden past block 2")
 
 
 def lexicon(engine, pack, work):

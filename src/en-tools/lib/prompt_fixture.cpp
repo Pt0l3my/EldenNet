@@ -252,7 +252,16 @@ proto::Expected<PromptFixture, std::string> parse_prompt_fixture(const std::stri
   if (const auto t = j.find("tally"); t != j.end() && !t->is_null()) {
     const auto tics = t->is_object() ? t->find("tics") : t->end();
     if (!t->is_object() || (tics != t->end() && (!tics->is_array() || tics->size() > 3))) {
-      return proto::Unexpected{std::string("\"tally\" is not {\"tics\": [at most three counts]}")};
+      return proto::Unexpected{std::string("\"tally\" is not {\"tics\": [at most three counts], \"spent\": n}")};
+    }
+    for (const auto& [k, v] : t->items()) {
+      if (k != "tics" && k != "spent") return proto::Unexpected{"\"tally\" has an unknown key \"" + k + "\""};
+    }
+    if (const auto spent = t->find("spent"); spent != t->end() && !spent->is_null()) {
+      if (!spent->is_number_unsigned() || spent->get<unsigned>() > 2) {
+        return proto::Unexpected{std::string("\"tally\"'s \"spent\" is not a tic's index, 0 to 2")};
+      }
+      f.tally.spent = static_cast<std::uint8_t>(spent->get<unsigned>());
     }
     if (tics != t->end()) {
       for (std::size_t i = 0; i < tics->size(); ++i) {

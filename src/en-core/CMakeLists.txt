@@ -16,9 +16,11 @@ list(SORT EN_AUGUR_RULE_FILES)
 set(_en_builtin ${CMAKE_CURRENT_BINARY_DIR}/builtin_rules.cpp)
 en_embed_files(${_en_builtin} INCLUDE en/core/core.hpp NAMESPACE en::core TYPE BuiltinFile FUNCTION builtin_rule_files
   FILES ${EN_AUGUR_RULE_FILES})
-# The shipped persona index and records (part B), built in as the rule files are: the shell adds the overrides folder's.
+# The shipped persona index and records (part B), the dialogue prompt's templates and the lint's lexicon (part A),
+# built in as the rule files are: the shell adds the overrides folder's.
 file(GLOB EN_CONTENT_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/content/eldenring/identity/*.toml
-  ${PROJECT_SOURCE_DIR}/content/eldenring/personas/*.toml)
+  ${PROJECT_SOURCE_DIR}/content/eldenring/personas/*.toml ${PROJECT_SOURCE_DIR}/content/eldenring/lexicon/*.toml
+  ${PROJECT_SOURCE_DIR}/content/eldenring/prompts/*/*.md ${PROJECT_SOURCE_DIR}/content/eldenring/prompts/*/*.j2)
 list(SORT EN_CONTENT_FILES)
 set(_en_content ${CMAKE_CURRENT_BINARY_DIR}/builtin_content.cpp)
 en_embed_files(${_en_content} INCLUDE en/core/core.hpp NAMESPACE en::core TYPE BuiltinFile FUNCTION builtin_content_files

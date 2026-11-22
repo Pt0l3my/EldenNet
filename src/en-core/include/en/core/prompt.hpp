@@ -62,6 +62,17 @@ struct Standing {
   friend bool operator==(const Standing&, const Standing&) = default;
 };
 
+// The record's fields the dialogue prompt reads, as dotted paths (src/en-core/src/prompt/README.md's table): what
+// Persona::resolved() gives (content.hpp), and nothing else. The stage's fields are the active stage's, inheritance
+// applied. A field joins the list when a block renders it (block 7's `stage.hears` and `stage.knows` with S11.3.c).
+inline constexpr std::array<std::string_view, 24> kRecordFields = {
+    "register",          "pronouns",          "reply_words_max",     "instructions",   "address_forms",
+    "public.role",       "public.summary",    "public.appearance",   "private.personality",
+    "private.honesty",   "private.claims",    "private.seeks",       "private.ties",   "voice.cadence",
+    "voice.diction",     "voice.deflection",  "voice.openers",       "voice.tics",     "stage.identity",
+    "stage.unlock.text", "stage.road",        "stage.where",         "stage.mood",     "stage.gist",
+};
+
 // What one exchange's prompt is rendered from. The pointers and spans are the caller's, read during render() only.
 struct DialogueContext {
   std::string_view persona;                // the profile's id, for errors and the cache key: never its name

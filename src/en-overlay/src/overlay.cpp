@@ -67,15 +67,13 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
   if (!api) return nullptr;
   report.graceui_version = api.version();
   // The caps EldenNet uses (D138): notices for the banner and the badge, world-state as a provider, hotkeys for F11 and
-  // the Mark, for the view panels and textures (its atlas), and pages for its space (D169).
-  std::string_view caps = "notices world-state hotkeys";
-  if (options.view && options.space_views != 0) {
-    caps = "notices world-state hotkeys panels textures pages";
-  } else if (options.view) {
-    caps = "notices world-state hotkeys panels textures";
-  } else if (options.space_views != 0) {
-    caps = "notices world-state hotkeys pages";
-  }
+  // the Mark, for the view panels and textures (its atlas), pages for its space (D169), and for the conversation's
+  // surfaces their faces, the input with its holder's events, the display, the pad chord, the hotkeys' bindings and the
+  // wait handle (D176, D180, D204, D210, D212).
+  std::string caps = "notices world-state hotkeys";
+  if (options.view || options.surfaces) caps += " panels textures";
+  if (options.space_views != 0) caps += " pages";
+  if (options.surfaces) caps += " faces input holder-events display pad-chords hotkey-bindings wake";
   graceui::Mod mod;
   mod.id = kId;
   mod.name = kName;
@@ -113,6 +111,7 @@ Overlay* Overlay::connect(const graceui::Api& api, const Options& options, Repor
     (void)o->make_view(why);
     report.view = why;
   }
+  if (options.surfaces) o->surfaces_ = Surfaces::make(api, o->me_, options.fonts, answer, report.surfaces);
   if (options.mark) {
     const GraceUiStatus mark = o->register_mark();  // GRACEUI_UNBOUND: registered, Pause taken first (D164)
     report.mark = o->mark_registered();
@@ -213,6 +212,14 @@ GraceUiStatus Overlay::badge(std::string_view text) noexcept {
   return notice(kBadgeKey, text, GRACEUI_TONE_NORMAL, badge_, badge_length_);
 }
 
+GraceUiStatus Overlay::note(std::uint32_t key, std::string_view text, std::uint32_t duration_ms) noexcept {
+  if (lost_) return GRACEUI_NOT_CONNECTED;
+  const std::size_t n = std::min<std::size_t>(text.size(), GRACEUI_NOTICE_TEXT_MAX);
+  const GraceUiStatus status = api_.notice(me_, text.substr(0, n), GRACEUI_TONE_WARNING, key, duration_ms);
+  if (status == GRACEUI_NOT_CONNECTED) lost_ = true;
+  return status;
+}
+
 GraceUiStatus Overlay::world(std::uint32_t flags) noexcept {
   if (lost_ || notices_only_ || !caps_world_) return GRACEUI_NOT_YET;
   if (world_sent_ && flags == world_) return GRACEUI_OK;
@@ -284,6 +291,8 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
   // With a buffer for a space's event's frame (§23 item 2): GRACEUI_FRAME_FROM_PAGE_MAX bytes always suffice.
   while ((polled = api_.poll(me_, event, frame_.data(), frame_.size())) == GRACEUI_OK &&
          event.kind != GRACEUI_EVENT_NONE) {
+    // The surfaces' first: their hotkeys (talk, skip), the box's holder events, the display, a hotkey changed.
+    if (surfaces_ && surfaces_->take(event, now_ms, out.ui)) continue;
     const std::string_view frame(frame_.data(), event.frame_length <= frame_.size() ? event.frame_length : 0);
     if (event.kind == GRACEUI_EVENT_WATCHED || event.kind == GRACEUI_EVENT_UNWATCHED) {
       if (!serving) continue;
@@ -360,6 +369,15 @@ Overlay::Step Overlay::step(const ViewStatus& status, Space* space, const SpaceF
     if (s != GRACEUI_OK) out.refused = s;
   }
   return out;
+}
+
+std::vector<proto::UiEvent> Overlay::show(const proto::UiModel& model, std::uint64_t now_ms) {
+  if (lost_ || notices_only_ || !surfaces_) return {};
+  return surfaces_->show(model, now_ms);
+}
+
+void Overlay::fault() noexcept {
+  if (surfaces_) surfaces_->fault();
 }
 
 }  // namespace en::overlay

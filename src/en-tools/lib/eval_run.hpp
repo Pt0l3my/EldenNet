@@ -60,6 +60,7 @@ struct EvalStep {
   // Expect: each set field is checked.
   std::optional<std::string> state, box, ended, last_npc, toast;
   std::optional<std::size_t> npc_lines, player_lines, failures, deflections;
+  std::optional<std::size_t> regenerations, cancels;  // the run's so far: lines sent twice, requests cancelled
 };
 
 struct EvalScenario {
@@ -79,7 +80,8 @@ struct EvalScenario {
 [[nodiscard]] proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view text,
                                                                              const std::filesystem::path& folder);
 
-// A folder read as content files: every .toml below it, by its path from the folder ('/'-separated), as `origin`.
+// A folder read as content files: every .toml, .md and .j2 below it (records, lexicons and the prompts' templates), by
+// its path from the folder ('/'-separated), as `origin`.
 // Files past 64 KB and paths that leave the folder are refused.
 [[nodiscard]] proto::Expected<std::vector<core::ContentFile>, std::string> read_content_folder(
     const std::filesystem::path& root, core::ContentOrigin origin);

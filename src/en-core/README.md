@@ -164,11 +164,11 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   entity id bound to one persona, the record's id its row's. An error names the file, the line and the key in fixed
   words and never quotes a value; at most 64, then a count. The record is kept as JSON (`Persona::record`) beside the
   fields the conversation and the lint act on; `Persona::resolved(stage)` is what part A's renderer takes
-  (`DialogueContext::record`): the record with `stages` replaced by the active `stage`, its `road`, `at`, `hears` and
-  `knows` inherited, and without what is never rendered (the stages' `forbid`, `when`, `chat`, `state`, `approach*`,
-  `talked`, `awaits`, `beckon*`; the `seed` and `deflections`; awareness's `sleep_leads`, `skip`, `news`). Files
-  outside `identity/` and `personas/` are kept as they are, the overrides applied (`ContentPack::others`), for part A's
-  prompts and lexicons. The shipped index and records are built in (`builtin_content()`, as the rule files are); v0.2
+  (`DialogueContext::record`): exactly the fields it reads (prompt.hpp's `kRecordFields`), as the file holds them,
+  with `stage` the active stage, its `road`, `at`, `hears` and `knows` inherited; nothing else is kept, so what is
+  never rendered (the stages' `forbid`, `when`, gate fields and `beckon*`, the id, `seed` and `deflections`, knowledge
+  and awareness) never reaches it. Files outside `identity/` and `personas/` are kept as they are, the overrides
+  applied (`ContentPack::others`), for part A's prompts and lexicons (`speech_content.hpp`, below). The shipped index and records are built in (`builtin_content()`, as the rule files are); v0.2
   ships the test persona `lantern_keeper` (NPC §3.5, `test_only`) alone. Not yet: `overrides/disable.toml` (P3 §8.4),
   the seed's combat keys (NPC §9.11) and the alias table's use (§2.4).
 - **Identity** (`identity.hpp`, `src/identity/`; O45, NPC §2.3). A character binds by its NpcParam row, else a non-zero
@@ -211,10 +211,54 @@ Content, identity, the conversation and the core's wiring; the eval is en-tools'
   answer: the conversation's prompt could not be made", "No answer: no model is ready", "Chat cannot take the keyboard
   just now.", "Conversation paused: part of the game EldenNet reads stopped working.", "Conversation closed after a
   fault in EldenNet."
-- **The core** (`core.hpp`). `Core()` uses the built-in speech parts (`BuiltinSpeech`: part 0's stubs until part A's
-  parts land), `Core(SpeechParts)` the caller's; `load_content(files, realm)` loads content (on any error the old
+- **The core** (`core.hpp`). `Core()` uses the built-in speech parts (`BuiltinSpeech`: part A's, below),
+  `Core(SpeechParts)` the caller's (the tests' stubs); `load_content(files, realm)` loads content (on any error the old
   stays); before any load no persona exists and no conversation opens. `directory()`, `log()` and `conversation()`
   are for the debug view and the tests.
+
+## The first conversation at run time: parts A and B together (WHY§364, WHY§388)
+
+How the pieces fit once joined. Speech and the prompt are part A's (`src/speech/README.md`, `src/prompt/README.md`),
+the conversation part B's (above); the core holds both.
+
+- **Loading.** The shell hands `Core::load_content` the shipped files and then the overrides folder's. The shipped
+  pack is built in at configure time (`builtin_content()`: `identity/`, `personas/`, `lexicon/*.toml` and
+  `prompts/*/*.md|j2`), so the DLL and the Windows tests read no path for it. `load_content` (content.hpp) checks the
+  index and the records and keeps every other file as `others`, the overrides applied; `load_speech`
+  (`speech_content.hpp`) then loads `prompts/` into a `DialoguePrompt` (every block's part, the five registers, a clean
+  lint) and `lexicon/banned.toml` and `safety.toml` into a `SpeechLint`, and runs block 2's content lint: each enabled
+  persona's block 2, rendered alone at each of its stages, past its 120 tokens is an error for shipped content and a
+  `test_only` persona, and a warning for the player's own record (`content_warnings()`), which still renders. Any error
+  refuses the whole pack and the old content stays, whichever speech parts the core was given. On success the
+  built-in lint and prompt forward to the new pair; a reply already open keeps the lexicon it opened with.
+- **A line.** Submit commits PlayerSaid and opens the reply's three objects: the `SentenceStream` (the persona's own
+  names, for step 5's "Name:"), the `ReplyLint` (its openers, its tics with their `max_per_conversation`, its names and
+  forms of address as the turn's proper nouns, its own names for third-person self-reference, and the tally carried
+  from the last reply) and the `ReplyPager` (its `reply_words_max`). The prompt is rendered from
+  `Persona::resolved(stage)`, which is exactly the fields the renderer reads (`kRecordFields`), with this
+  conversation's committed history, the previous one's last lines, the recap, the scene (block 9's time of day), the
+  regeneration's reminder and the tally; block 5b's `tied` and `land` stay empty until S11.3.c. `dialogue_request()`
+  makes the request (the dialogue slot, the two stop sequences), and `Outputs::requests` carries it. A render that
+  fails sends nothing: the "…" page and its toast.
+- **The stream.** Each Delta goes to `feed()`, which gives a sentence out one delta after its boundary; Ended's
+  `finish()` gives the last. Each sentence goes through the lint, in order: `Pass` into the pager; `Drop` (a
+  duplicate, or one the opener rule emptied) left out; `Regenerate` (a hard hit in the first sentence of a first try)
+  cancels the stream and sends the line again once, with block 11's reminder for the list that hit and a fresh stream,
+  lint and pager, within the same 20 s; `Deflect` (the regeneration's first sentence hits too) cancels it and pages the
+  persona's least recently used deflection (`DeflectionRing`, one per persona for the session; the store keeps its
+  order from v0.3); `Stop` (a hit later) cancels it, and the reply ends at the sentence before. The sanitizer's
+  `Flow::Stop` (a run-on, the 4 KB cap) cancels too; `IntentOnly` (a trailer) ends the sentences and reads on for the
+  intent. The pager's `Take::Full` or `Take::Over`, whichever comes first, fills the reply and cancels the stream.
+- **Pages.** Each step pumps the reply: page 1 is asked for once a sentence is in (the pager may wait 250 ms for a
+  second that fits), and the next when a page's hold ends (`clamp(1200 + 55 × chars, 2000, 6500)`, 400 ms more after
+  "..."; Tab's Skip no sooner than 300 ms after its first frame). `Page::last` is set only on a page sealed after the
+  reply ended or filled; a page sealed while it still streamed is followed by `Done`, which ends the reply after its
+  hold, and a queued line goes then. A page's first `PageShown` commits it (commit on display).
+- **The tally.** Whenever a reply ends (its last page, a cut-off, a failure, a hold dropped), the conversation keeps
+  its lint's tally (the opener used, each tic's count, the tic spent most recently, the told name's uses) and hands it
+  to the next reply's lint and prompt: block 11 notes that one tic, the newest, beside the reminder (70 tokens at most).
+- **The stubs** (`stubs.hpp`) stay for the tests that want a reply's path without the real rules: the conversation's
+  rig and `test_core_wiring.cpp` build a `Conversation` or `Core(SpeechParts)` on `StubSpeech`.
 
 ## Tests
 
@@ -233,10 +277,16 @@ The first conversation's part 0: with no content loaded, every new input kind bu
 a tick leaves a whole session as it was, with a closed box and no request, and the health moves the ladder to L3 and L4
 and back (`test_inputs.cpp`); and each stub does what `stubs.hpp` says, the dialogue request carries the two stop
 sequences and a conversation with no world never opens (`test_interfaces.cpp`). Part B: the content's loading, the
-overrides and the resolved record, and its errors (`tests/content/`); the fixture flag states and the truth tables'
+overrides and the resolved record (exactly `kRecordFields`, the stage's inheritance applied), and its errors
+(`tests/content/`); the pack's speech: the shipped prompts and lexicon loading with it, a pack whose prompts or lexicon
+fail refused with the old content kept, and block 2's content lint, an error for shipped and test content and a
+warning for the player's own (`tests/content/test_speech_content.cpp`); the fixture flag states and the truth tables'
 shape, their comparison with known(P) skipped until S11.3.c (`tests/content/test_fixtures.cpp`); identity, the game's
 realm refusing the test persona, and the active stage (`tests/identity/`); and the conversation on a simulated clock
 (`tests/conversation/`, over `rig.hpp`): every §6.1 transition and timer, queue-don't-cancel, the cut-off, the endings,
 danger and the draft, commit on display with its grace and a late skip, each clause of the gates alone, the target
 order, the observer, the refusals, no request while gated (C4) and the cancels, the toasts' policy, and a whole
-session through the core into its log.
+session through the core into its log. Parts A and B joined (`tests/conversation/test_core_speech.cpp`), on the core's
+own speech: reasoning, a stage direction and the speaker's name taken out before a reply shows; a banned word
+regenerating once with block 11's reminder, then deflecting; the pager's cap filling a reply and cancelling the
+stream; a tic spent in one reply noted in the next prompt.

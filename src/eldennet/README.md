@@ -44,8 +44,9 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.12) and the caps it uses, and, connected, the F11 view and the
-   Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.17) and the caps it uses, and, connected, the F11 view, the
+   Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
+   (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
    §10.3), and the start goes on. `overlay.connect = false` skips it (`connect skipped=1 why=off`).
@@ -90,8 +91,10 @@ spikes.
   and S0-D's fault injection) through `Io`, the task's TaskIo:
   C1 is a `SnapSlot` (two preallocated snapshots; the newest wins and an overwrite marks the next `gap`), C2, C4 and C5
   are SPSC rings of 64. Nothing on it waits or allocates (R6); the probe build counts any allocation there.
-- **T6, the core**, waits on one wake signal (or 100 ms), then drains T1's banners, C2's lifecycle messages and C1's
-  newest snapshot, in that order, and steps en-core's slice on each and on a 100 ms tick. Once T1 has connected to
+- **T6, the core**, waits on one wake signal and, once connected, GraceUI's wait handle (ABI 1.5; or 100 ms), then
+  loads the conversation's content once T1 has read it, drains T1's banners, C2's lifecycle messages and C1's newest
+  snapshot, in that order, tells the core the model client's health when it changes and hands it the client's events,
+  and steps en-core's slice on each and on a 100 ms tick. Once T1 has connected to
   GraceUI, T6 alone calls it, after each wake (`overlay_tick`, below). C14's atomics (anti-cheat,
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
@@ -166,6 +169,21 @@ After each wake, once T1 has published the connection:
   needs it (`ai_service ok=1 workers=…`) and tells the core's gate at each wake; its notify sets T6's wake. Each run's
   end is one line of words and numbers (`selftest result=passed verdict=quick … first_token_ms=… tps=…`,
   `models_list providers=… passed=…`). en-llm's own log lines are not taken (a server's message could reach them).
+- **The first conversation** (`conversation.cpp`, `ai.cpp`, `overlay.cpp`; WHY§364, part C): T1, on the main path,
+  reads the overrides folder (`%APPDATA%\EldenNet\overrides\`, DESIGN §11.4: every `.toml`, `.md` and `.j2`, each
+  within its cap) and
+  the realm, the game's; `ELDENNET_TEST_REALM=eval` in the environment is the tests' switch, which a probe build alone
+  takes and the release DLL refuses (`realm asked=eval accepted=0`), so a test persona never resolves in a player's
+  game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=… bound=…
+  warnings=…`); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
+  line in fixed words, never the text (NPC §4.7). Each step's
+  requests go to en-llm's handle (made at the first that needs one), its cancels cancel them, and the handle's events
+  for the conversation's ids go back to the core; its health (the dialogue slot usable) is the core's NetHealth. After
+  the step, `poll`'s events of the surfaces (the talk key, Tab, the box's typing) go to the core in the same wake and
+  the newest UiModel is drawn (en-overlay's chat.hpp); what that raises (PageShown, Close) goes to the core at once.
+  The log holds the conversation by kinds and numbers alone: `chat what=open_key|opened|submit|page_shown|close|skip`
+  (`opened`: the talk key's poll and the box's first submit, `ms` between), `commit kind=… conv=… reply=… page=…
+  chars=…`, `llm what=submit|cancel … id=…`; never the chat's or the model's text.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
