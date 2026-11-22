@@ -989,6 +989,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     package (0.1.0-lodestar.3); the owner's run (about 15 minutes) is next. After its review: the first table for
     2.7.2.0 enters `gal/` as leads, R1's package and `probe_r1.cpp` retire with the owner's word, and S10.1's items that
     waited on R1's call only for the managers' places are superseded by this round.
+    L5 done on 2026-11-22 (engine d8b3777; the owner's run; docs/ops/probes/2026-11-22-l5.md; WHY§326 to §330): eight of
+    the eleven managers placed, the reader read-only on the real game for 19 minutes with no fault, and the first table
+    for 2.7.2.0 in `gal/` as leads. Open: event_flags, world_clock and messages. Next: a count per lead of the classes the
+    image holds under its name (one offline run, game closed), the naming cap lifted, the trial counted by stage; then L6
+    (the fields by invariants), which also takes the three if they have no type information. R1's package and
+    `probe_r1.cpp` can retire when the owner agrees.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
