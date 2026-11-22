@@ -344,6 +344,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 319 | 2026-11-22 | Steady reading out of step with the frame: torn, held and unconfirmed, each counted | METHOD | #gal #lodestar |
 | 320 | 2026-11-22 | On the fake game the own-thread reader reads the same truth as the registered task, the hub untouched | FACT | #gal #lodestar #fakegame |
 | 321 | 2026-11-22 | With no getter and a dead name layout, the real game's managers can be named only by the table | FACT | #gal #lodestar |
+| 322 | 2026-11-22 | The in-game round names a manager by its instance's class and writes only the catalogue's number and label | METHOD | #gal #lodestar |
+| 323 | 2026-11-22 | The draft table is checked before it is written, by the same checks a start makes | METHOD | #gal #lodestar |
+| 324 | 2026-11-22 | A class that holds a GuardedReader must be built where en-gal is built with and without the probe option | FACT | #build #gal |
+| 325 | 2026-11-22 | On the fake game the read-only round names all eleven managers and reads them with no fault | FACT | #fakegame #lodestar |
 
 ## Entries
 
@@ -5442,3 +5446,39 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - With no getter (O101) and the name layout dead for this game (WHY§314), the real game's managers can be named only by
   the build's table. Until L5 writes it, a v1 start on the real build ends at the discovery banner, as it must.
+
+### 322. The in-game round names a manager by its instance's class and writes only the catalogue's number and label
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: O92, proposal 0005 §6.1, S10.1.k
+
+- For each static the accessor's sites load, the round reads the instance it holds as the game runs, that instance's
+  first word through one guarded read, and the word's class by the image's own type information; a lead names the one
+  static whose class has its name (or its name with Imp). The class's name is compared in memory and never written, so
+  the report and the draft table hold nothing of the game; a lead's label is the catalogue's label or its `was`. Later
+  passes fold in managers made only in the world. Engine feat/engine 7995413.
+
+### 323. The draft table is checked before it is written, by the same checks a start makes
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: proposal 0005 §7.1, WHY§318, S10.1.k
+
+- An entry whose placement fails is left out, a witness that refers elsewhere is dropped, and `checks` lists only what
+  passed. Every entry is a lead; `tool_sha256` is zeros in game and is set at review from the package's own digest of the
+  DLL.
+
+### 324. A class that holds a GuardedReader must be built where en-gal is built with and without the probe option
+
+`2026-11-22` · FACT · `#build` `#gal` · refs: S10.1.k
+
+- The reader has more members with the probe option on, and the tests are built with it on: a trial defined in the
+  offline part of en-gal read its own fields at the wrong places (its period as a slot's address). Caught by its first
+  test; the trial now lives in the part built both ways.
+
+### 325. On the fake game the read-only round names all eleven managers and reads them with no fault
+
+`2026-11-22` · FACT · `#fakegame` `#lodestar` · refs: S10.1.k
+
+- Under Wine the round names none of the eleven managers at a pass made before the game has them and all eleven ten
+  seconds later, reads them about 340 times in 34 s with no fault (a reading's p99 under 0.05 ms), and the hub sees no
+  task of ours. The launcher's `--read` (ProbeRequest `Read`, appended), the read package (0.1.0-lodestar.3) and three
+  harness cases (by settings, by the owner's flag, and refused by a release build) pass; the fake game's harness 115 of
+  115.

@@ -984,6 +984,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (torn readings dropped, lifecycle changes held for a second sighting, faults confirmed twice); no registration and
     no getter in a v1 start; ARCH §1.2, §3.2, §6.2 to §6.4, §6.10 and DESIGN §2.1, §4.2, §16.1 updated. On the real build
     a start ends at the discovery banner until L5 writes the first table. Next: L5, the read-only in-game package.
+    L5 built the same day (engine 7995413; WHY§322 to §325): the read-only round (managers named by their instances'
+    classes, the draft table checked as a start checks it, the reader's trial), the launcher's `--read` and the read
+    package (0.1.0-lodestar.3); the owner's run (about 15 minutes) is next. After its review: the first table for
+    2.7.2.0 enters `gal/` as leads, R1's package and `probe_r1.cpp` retire with the owner's word, and S10.1's items that
+    waited on R1's call only for the managers' places are superseded by this round.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
