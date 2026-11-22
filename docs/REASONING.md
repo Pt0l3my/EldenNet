@@ -395,6 +395,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 370 | 2026-11-22 | An ask-first read costs about half a millisecond on the owner's PC, a hundred times a plain guarded copy | FACT | #lodestar #probe |
 | 371 | 2026-11-22 | A long round's report can pass the writer's 256 KiB and is then refused whole, so a round bounds what it writes | METHOD | #lodestar |
 | 372 | 2026-11-22 | R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use | DECIDED | #engine #lodestar #probe |
+| 373 | 2026-11-22 | A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll | FACT | #graceui #abi |
+| 374 | 2026-11-22 | A static with no class to name it by is found by what its object holds: save_data by the play time | METHOD | #lodestar #l6 |
+| 375 | 2026-11-22 | What the profile editor needs that GraceUI lacked: a text field in game, master-detail, a topic per row, a longer deadline | FACT | #graceui #pages |
+| 376 | 2026-11-22 | The profile editor is the one content editor in v1, by O43; its rules are EldenNet's since G20 | DECIDED | #graceui #editor |
+| 377 | 2026-11-22 | EldenNet's answers to GraceUI's proposal 0010: the eight kinds suffice, with keyed and locked list items, unset fields and file-level messages | DECIDED | #engine #editor #pages |
+| 378 | 2026-11-22 | GraceUI's own text field in game: one field model for every kind, every character handed over in order, a secret never laid out | DECIDED | #graceui #input |
+| 379 | 2026-11-22 | Posted key messages do not order as a keyboard's: the character comes after the key-up, so the harness types through SendInput | FACT | #graceui #harness |
+| 380 | 2026-11-22 | A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure | FACT | #graceui #pages |
 
 ## Entries
 
@@ -6059,3 +6067,118 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
     through.
   - (7) The harness's fd4_idiom pattern in the fake game's patterns.toml: remove it, since patterns.toml is withdrawn
     (O102).
+- *Later, 2026-11-22:* done in engine 532e751 (merged as the commit after it). Item 2 kept, by Lodestar's call (L6's fields
+  are found that way); of item 3, task_from_base kept, since the offline derivation uses it for the leads' task base.
+
+### 373. A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll
+
+`2026-11-22` · FACT · `#graceui` `#abi` · refs: GraceUI's D212, GraceUI's D71, S11.2.ad, NPC§5.1, WHY§364
+
+- GraceUI 0.2.17, ABI 1.5, at the owner's word. The event is made at the first ask and never closed while GraceUI runs,
+  so a thread that read it can always set it; the mod gets a SYNCHRONIZE handle of its own (wake_event,
+  has_cap("wake")). It is also set once at the ask, so the first wait polls what may already be there.
+- It is set from whichever thread keeps something for the mod's poll: the window procedure, XInput's reads, the server's
+  I/O thread, GraceUI's thread, and the present thread for a resize. The holder mail's and the registry's hooks are plain
+  function pointers taking no lock, so the I/O thread's wake cannot meet the registry's lock.
+- Under Wine: 1 to 5 ms from a hotkey's key to the wake, about 1 ms after a holder's key, 2.5 to 7 ms after a resize;
+  with nothing to poll it stayed unset. T6 waits on it, with its 100 ms as the fallback.
+
+### 374. A static with no class to name it by is found by what its object holds: save_data by the play time
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: proposal 0005 §6.1, gal/leads.toml, WHY§369
+
+- The slot behind which one field rises by the clock in nearly every pass is the save data's (1002 `save_data`, found_by
+  invariant). It must lead in at least ten passes, by three times the next best, and no lead's manager may sit at it. The
+  code's references to the slot are its sites and witnesses. This is proposal 0005 §6.1's invariant recipe, which the
+  lead in `gal/leads.toml` has asked for since R0c. Four sessions gave the same slot and offset before the round was let
+  write it (the sixth round, engine 48e5003, package 0.1.0-lodestar.9).
+
+### 375. What the profile editor needs that GraceUI lacked: a text field in game, master-detail, a topic per row, a longer deadline
+
+`2026-11-22` · FACT · `#graceui` `#pages` · refs: GraceUI's proposal 0010 §1, GraceUI's D57, GraceUI's D169, GraceUI's D195, S7.2.a
+
+- GraceUI had no text field in game (D57 is designed, not built), and neither view drew master-detail. There was no
+  topic per row, so the old §6.5's `named/<id>`, `journal/<id>` and `conversation/<id>` could not be declared. Answers
+  had a 10 s deadline, against the draft helper's 60 s.
+- A command's answer body (`result.body`) already goes only to the view that asked, and is never kept. So check
+  messages and drafts need no new route.
+
+### 376. The profile editor is the one content editor in v1, by O43; its rules are EldenNet's since G20
+
+`2026-11-22` · DECIDED · `#graceui` `#editor` · refs: GraceUI's D213, G38, O43, O46, O86, S7.2.a
+
+- GraceUI's D2 gets one exception, D213: the profile editor. Content packs stay read-only. The editor's pages, fields,
+  checks, commands and draft helper are EldenNet's (S7.2.b, NPC §4.7), and so are the rules the needs list asked
+  GraceUI to change: SP1's subjects and the player's own text, SP4's people met, and PV4's draft text (PAGES §4.8,
+  §4.9).
+- The needs list was brought to O46 and O86 in proposal 0010 §2. What GraceUI owes was put to the owner as G38:
+  topic families, master-detail in both views, the editor block, slow commands, and the text field in game (protocol
+  1.5).
+
+### 377. EldenNet's answers to GraceUI's proposal 0010: the eight kinds suffice, with keyed and locked list items, unset fields and file-level messages
+
+`2026-11-22` · DECIDED · `#engine` `#editor` `#pages` · refs: GraceUI's proposal 0010 §6, NPC§4.5, NPC§4.7, ARCH§1.3, O46, S7.2.b
+
+- (1) **The eight kinds cover NPC §4.5 and O46**, mapped as follows:
+  - `line`: `brief`, `display_name_fallback`.
+  - `prose`: `identity`, `public.*`, `private.*`, `voice.*`, `allegiance`, `home`, `instructions`, and the Tarnished's
+    two fields.
+  - `choice`: `register`, `speech`, `pronouns`.
+  - `pick`: `base`.
+  - `number`: `words_max` and `reply_words_max`.
+  - `switch`: `replies`, `ambient`.
+  - `list`: `knows`, `lexicon`, `subjects` (with the shipped list as reference), and one per seed key, at most 3.
+  - `shown`: `[[seen]]`'s "Met".
+  - A `knows_when` entry is a list item with a world stage and its text.
+
+  Two additions:
+  - A list item may carry an opaque `key` of EldenNet's, echoed back. This keeps an entry's per-item fields (a
+    `knows_when`'s `spoiler` and `lexicon`) across reorders.
+  - A list item may carry `locked`, shown and movable but not editable, for a hand-written `when` the picker does not
+    offer. It is sent back unchanged.
+- (2) **`doc` as {field id: value} suits C17.** Field ids may be dotted (`public.summary`, `seed.greet_player`).
+  EldenNet's handler merges the doc with what the editor never shows (`schema`, `base_hash`, `[[seen]]`, hand-only keys
+  and locked items) and writes the TOML into `ProfileWrite`'s text. One addition: `null` means "not set here", distinct
+  from empty, so a layer can leave a field to the shipped profile.
+- (3) **Messages as {field, item, level, words} and `conflict` for a stale rev suit `profile.check` and `profile.save`.**
+  - A message with no `field` is about the whole file (a newer schema, the 8 KB cap) and shows at the top.
+  - The save is answered when T10's ProfileResult comes back on C11, well within 10 s. A full C17 answers busy.
+  - The member's body is then republished with the new rev.
+- (4) **{draft, notice?} as a slow command suits the helper** (20 s to the first token, 60 s in all, within 90 s). If the
+  view unwatches the member while a draft runs, EldenNet cancels its call, using the UNWATCHED event it already polls,
+  so GraceUI needs no cancel.
+- EldenNet agrees with GraceUI's recommendations to the owner on G38: (1) (a) all of it now; (2) (a) unsaved edits kept
+  in the menu's memory, never on disk; (3) (a) prose as one paragraph, since every player field is one paragraph of at
+  most 60 words.
+- *Later, 2026-11-22:* the owner decided G38 in Grace's chat the same day, all three as recommended. GraceUI builds
+  proposal 0010 now, the editor block last.
+
+### 378. GraceUI's own text field in game: one field model for every kind, every character handed over in order, a secret never laid out
+
+`2026-11-22` · DECIDED · `#graceui` `#input` · refs: GraceUI's D214, GraceUI's D57, G38, GraceUI's proposal 0010 §3.5, S7.2.c
+
+- GraceUI 0.2.18, G38 (1) (a)'s first part; protocol 1.4 and ABI 1.5 unchanged. One pure field model serves every
+  kind: text, a secret masked as discs, a form's fields, a row secret and search. It holds one paragraph, edited by code
+  point.
+- While a field edits, every key is the field's. The host hands GraceUI's thread every character in order with the
+  keys, so none is lost to an edit not yet begun, and drops there the ones no field wants, with no new layout.
+- A secret is never laid out as glyphs, copied or kept: the view holds only whether it is set. In game, EldenNet's text
+  settings, secret settings, forms and row secrets are typed from 0.2.18, with the clipboard and the IME. Search opens
+  with / or Ctrl+F.
+
+### 379. Posted key messages do not order as a keyboard's: the character comes after the key-up, so the harness types through SendInput
+
+`2026-11-22` · FACT · `#graceui` `#harness` · refs: GraceUI's D214, WHY§378
+
+- With WM_KEYDOWN and WM_KEYUP both posted, TranslateMessage's WM_CHAR is queued after the key-up. So the character
+  comes for a key already released, and the message rules rightly give it to no holder. A real keyboard's key-up waits
+  in the input queue behind the posted character.
+- The typing scenario therefore injects a key it types through SendInput, and posts directly the characters it needs
+  typed.
+
+### 380. A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure
+
+`2026-11-22` · FACT · `#graceui` `#pages` · refs: GraceUI's D214, GraceUI's D189, GraceUI:DESIGN§4.3
+
+- Until 0.2.18 both opened the page's first tab, with the row unfocused. They now open the row's own tab, its section
+  and its Advanced disclosure.

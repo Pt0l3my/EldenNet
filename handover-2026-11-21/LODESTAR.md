@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (five read-only rounds run; ten of eleven managers placed)
+# Lodestar's status, 22 November 2026 (six read-only rounds run; 14 leads in the build's table)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -45,21 +45,20 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The next round of step L6** (not built). The fifth round (the record's "The fifth round in game") named
-   `event_flags` (10 of 11 managers; 13 leads in the table), found the play time's field (160 bytes into the object
-   behind one slot of the data, four sessions running) and showed that the object of the class under the clock's
-   longer name does not hold the time. Before another run, mend what that round showed:
-   - the report must stay under the writer's 256 KiB (it was refused for the last 100 s of a 32-minute session):
-     the watch should write only the words that changed or that a review needs, or the limit should rise;
-   - an ask-first read costs about half a millisecond on the owner's PC: the searches' share of a step must be
-     checked after every read (the reader fell to 8.7 readings a second);
-   - a pass that names a manager the search named first should take the entry over (the HUD's).
-   Then look for the time of day more widely: runs of bits and rising fractions in every static's object, and
-   further into the clock's manager's object and the object it points at (16 KiB each). And start on the flags:
-   read along our notes' lead from the store (the word 40 bytes in is an address of live memory) to a flag, and
-   check it against something the owner does in the game. The world's clock stays without a slot of its own (1012
-   unplaced, WHY§359).
-2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238), a commit of its own (the DLL's R1 mode, the
+1. **The next round of step L6** (not built). The sixth round (the record's "The sixth round in game") put
+   `save_data` into the table by the invariant recipe (14 leads), brought the reader back to 9.6 readings a second,
+   and found no clock in any static's object. Its report lost every watched word when two 16 KiB ways joined: the
+   fallback for an over-large report dropped all words at once. Before another run:
+   - a way writes only the words that changed (or that a review needs: the first 64 for a plain way), and a report
+     that is still too large loses the largest object's words first;
+   - a rising fraction's rate is written finely enough (millionths a second);
+   - the clock by a jump: the owner lets time pass at a grace, twice, and the round looks for a field that rises
+     steadily and jumps then (a count of jumps beside the steady rises), in every static's object and deeper in the
+     few candidates (the slowly rising fraction of the sixth round among them);
+   - the flags: the words of the four objects one step on from the store, reported this time, and a bit-level look
+     at what changes there while the owner does something that sets a flag (resting at a grace, by our notes' lead).
+   Decide the owner's part with the owner first: it asks more of them than walking about.
+2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
    with the commit.
@@ -73,9 +72,8 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against (after R1's removal, engine 3e11238): `en_gal_tests` 219 cases on GCC, Clang and MinGW,
-  234 on clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts (R1's eight cases went, and
-  `launcher-eldennet-read-console` came).
+- Counts to compare against (engine 532e751, after R1's leftovers went): `en_gal_tests` 220 cases on GCC, Clang
+  and MinGW, 235 on clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts.
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
 - A class that holds a `GuardedReader` belongs to the part of en-gal that is built both with and without the probe

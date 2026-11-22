@@ -419,14 +419,24 @@ Work beside the engine and the increments, and the owner's housekeeping.
 ### S7.2 The profile editor pass [next]
 
 - refs: GraceUI:docs/profile-editor-needs.md, O43
-- S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [next]
-  - refs: O43, O46, O86
+- S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [done]
+  - refs: O43, O46, O86, GraceUI:D213, WHY§375, WHY§376
   - gives: the needs date from 2026-11-07, before O46 settled the bio the player's own profiles follow (the Tarnished's
     own included) and O86 retired the lints against fixture states (PL7) they assume; SP1's `subjects` came with
-    GraceUI's O46 fold on 2026-11-16.
+    GraceUI's O46 fold on 2026-11-16. Done on 2026-11-22 as a design pass (GraceUI feat/foundations f9c4d17): D2's
+    exception recorded (D213); the needs brought to G20, O46 and O86 (GraceUI's proposal 0010 §2); the components
+    GraceUI owes put to the owner as G38. EldenNet's answers to proposal 0010 §6 are WHY§377.
 - b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
-  - needs: a
-  - refs: PAGES§4.6
+  - needs: a, c
+  - refs: PAGES§4.6, WHY§377
+- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [next]
+  - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
+  - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
+    (Recommended)", "Keep in memory (Recommended)", "One paragraph (Recommended)"; GraceUI feat/foundations f747f46):
+    built now, in the order text field in game, topic families with master-detail, slow commands, the editor, each
+    tried on the demo space. Being built. Part a done on 2026-11-22: GraceUI's own text field in game, GraceUI 0.2.18
+    (GraceUI's D214, WHY§378; protocol 1.4 and ABI 1.5 unchanged). Next: topic families and master-detail (part b),
+    slow commands (c), and the editor block with EldenNet's five additions (d; GraceUI's proposal 0010 §7).
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1039,6 +1049,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     leads), the play time's field found in four sessions, the clock not where its class is. R1 removed (O106; WHY§363,
     §372). Next: mend the report's size and the ask-first share, then look for the clock more widely and read along the
     way to a flag.
+    L6's second round built the same day (engine eff28bf, Lodestar's 48e5003; WHY§374): the clock looked for in every
+    static's object, the flags one step on, save_data by invariant; the report bounded and the ask-first share checked
+    after every read. Package 0.1.0-lodestar.9, for the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1346,11 +1359,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and built now, in 0.2.x. EldenNet's side is S11.4.c. Built the same day as GraceUI 0.2.16 (protocol 1.4, ABI 1.4;
     feat/foundations bc211cc): Change key, Change pad chord, Reset, a taken key confirmed then moved, hotkeys.menu live,
     describe_hotkey and a changed event; the bindings in game only (O77's note; GraceUI's docs/eldennet-changes.md §49).
-- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [next]
-  - refs: NPC§5.1, WHY§364
+- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [done]
+  - refs: NPC§5.1, WHY§364, GraceUI:D212, GraceUI:D71, WHY§373
   - gives: asked by EldenNet's first conversation on 2026-11-22, for T6's opening within 50 ms: a mod gives GraceUI a
     Win32 event, set whenever something is queued for it (a hotkey's press or change, a holder's event, a protocol
-    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback.
+    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback. Built the same day as
+    GraceUI 0.2.17 (feat/foundations 77ffd2e; GraceUI's docs/eldennet-changes.md §50).
+- ae Text and secret settings, forms, row secrets and search typed in game (GraceUI 0.2.18) [done]
+  - refs: G38, GraceUI:D214, GraceUI:D57, WHY§378, WHY§380
+  - gives: built on 2026-11-22 (GraceUI feat/foundations a170951) as S7.2.c's part a. EldenNet's fields that read "set
+    in the browser view" in game can be typed in game too from 0.2.18 (PAGES §4.6.2's note; GraceUI's
+    docs/eldennet-changes.md §52).
 
 ### S11.3 EldenNet v0.2
 
@@ -1445,7 +1464,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     EldenNet's three key settings become the defaults it registers, its Settings › Hotkeys a read-only list with a link
     to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4). From GraceUI 0.2.16 the talk
     key and chord are rebound on GraceUI › Hotkeys, and describe_hotkey's floor is 0.2.16. The chat box's text uses
-    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364).
+    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364). T6 waits on GraceUI's wait handle (ABI 1.5, floor
+    0.2.17) for the chat box's opening within 50 ms (NPC §5.1): 1 to 5 ms from a hotkey's key to the wake in GraceUI's
+    harness (WHY§373).
 
 ### S11.5 v0.2's exit checks
 
