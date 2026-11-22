@@ -89,6 +89,7 @@ struct WorldState {
   Decoy::Actor* decoy = nullptr;
   float player_angle = 0.0f;
   float clock_s = 0.0f;
+  float world_s = 0.0f;  // seconds in the world
   bool online = false;
   WorldStats stats;
   FG::ClockTask clock_task;
@@ -196,6 +197,10 @@ void set_flag(std::uint32_t id, bool on) {
     byte = on ? static_cast<std::uint8_t>(byte | bit) : static_cast<std::uint8_t>(byte & ~bit);
   }
 }
+
+// --flag-set's flag: of the second group, in the holder's second block (byte 15 of it, bit 4).
+constexpr std::uint32_t kFlagLate = 7123;
+void set_late_flag() { set_flag(kFlagLate, true); }
 
 FG::MarkLedgerImp* make_flag_store() {
   WorldState& w = state();
@@ -635,10 +640,19 @@ void FG::ClockTask::run(const FrameInfo* frame) {
       ledger->f.play_time_ms += static_cast<std::uint32_t>(frame->dt * 1000.0f + 0.5f);
     }
     w.clock_s += frame->dt * 60.0f;  // a game minute for each second
+    const float before = w.world_s;
+    w.world_s += frame->dt;
+    // --pass-time: time is let pass twice, five hours and then three. --flag-set: one flag is set, once.
+    if (fakegame::options().pass_time) {
+      if (before < 14.0f && w.world_s >= 14.0f) w.clock_s += 5.0f * 3600.0f;
+      if (before < 26.0f && w.world_s >= 26.0f) w.clock_s += 3.0f * 3600.0f;
+    }
+    if (fakegame::options().flag_set && before < 30.0f && w.world_s >= 30.0f) fakegame::set_late_flag();
   }
   if (auto* sky = static_cast<SkyClockImp*>(fg_get_sky())) {
     const auto total = static_cast<std::uint64_t>(w.clock_s) + 9 * 3600;
     sky->clock = ((total / 3600) % 24) << 32 | ((total / 60) % 60) << 16 | (total % 60);
+    sky->hours = static_cast<float>(total % 86400) / 3600.0f;
   }
 }
 

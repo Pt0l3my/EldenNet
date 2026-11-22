@@ -400,11 +400,35 @@ struct BitHit {
   std::uint32_t hour_steps = 0;
 };
 
-// A 32-bit field of a watched object that, read as a fraction, kept rising: a clock kept as seconds or hours.
-struct FloatHit {
+// A 32-bit field of a watched object that kept rising at a steady pace, read as a fraction or as a whole number: a
+// clock kept as seconds, hours or a part of the day. A jump is a rise far above its pace, or a fall: what a clock
+// does when the player lets time pass.
+struct RiseHit {
   std::uint32_t offset = 0;
-  std::uint32_t rises = 0;       // readings at which it was greater than at the reading before
-  std::uint32_t rate_milli = 0;  // how much it rose a second of real time, times 1,000
+  bool whole = false;            // read as a whole number; else as a fraction
+  std::uint32_t rises = 0;       // readings at which it had risen at about its pace
+  std::uint32_t jumps = 0;       // readings at which it had risen far above its pace, or fallen
+  std::uint64_t rate_micro = 0;  // how much it rose a second of real time, times 1,000,000
+};
+
+// A run of 5 bits of a watched object that behaved as a clock's hours do, whatever lies beside it: never 24 or
+// more, stepping by one (round 24), and seldom otherwise.
+struct HourHit {
+  std::uint32_t offset = 0;  // the 8-byte word, from the object's start
+  std::uint32_t bit = 0;     // the run's lowest bit in that word
+  std::uint32_t steps = 0;
+  std::uint32_t jumps = 0;   // readings at which it changed otherwise
+};
+
+// One jump of a field listed as a rise or as hours: when, and from what to what.
+enum class JumpAs : std::uint8_t { Fraction = 0, Whole = 1, Hour = 2 };
+struct JumpEvent {
+  std::uint32_t offset = 0;
+  std::uint32_t bit = 0;     // an hour's run; else 0
+  JumpAs as = JumpAs::Fraction;
+  std::uint32_t second = 0;  // since the watch's first reading
+  std::uint64_t from = 0;    // a fraction times 1,000; a whole number or an hour as it is
+  std::uint64_t to = 0;
 };
 
 // One watched object: the way to it, how often it was there, and how its first bytes behaved.
@@ -414,8 +438,11 @@ struct WatchObject {
   std::uint32_t rva = 0;     // the static the way starts at
   std::uint32_t offset = 0;  // added to the address the static holds
   bool deref = false;        // the object is the one whose address is kept there; else it lies there itself
+  bool deeper = false;       // one step more: the object whose address is kept `via` bytes into that one
+  std::uint32_t via = 0;
   bool clock = false;        // its bits and fractions were watched for a clock
   bool wide = false;         // one of the many watched only for a clock: its words are not written
+  bool words_left_out = false;  // its words were dropped to keep the report within the writer's limit
   std::uint64_t readings = 0;
   std::uint64_t empty = 0;        // the static, or the address on the way, held nothing
   std::uint64_t unreadable = 0;
@@ -426,13 +453,53 @@ struct WatchObject {
   std::uint32_t vtable = 0;       // its class at the last reading, where the image knows it
   std::vector<WatchWord> words;
   std::vector<BitHit> bits;       // the best first, at most 16
-  std::vector<FloatHit> floats;   // at most 8
+  std::vector<RiseHit> rises;     // those that jumped a few times first, then fractions, then the most rises; at most 8
+  std::vector<HourHit> hours;     // the most steps first, at most 6
+  std::vector<JumpEvent> jumps;   // of the rises and hours listed, at most 4 each, in the order they happened
 };
 
 struct WatchFound {
   std::uint64_t passes = 0;
   std::uint64_t wide_ways = 0;        // objects watched only for a clock (every static's)
   std::vector<WatchObject> objects;   // the others, and of the wide ones those with something found, at most 40
+};
+
+// The sweep: longer stretches of memory, from the address a way leads to, copied piece by piece and compared with
+// the copy before, for bits that flip once: a flag set by something the player does. Only a single bit's flip is
+// kept as an event (where, which bit, which way, when); nothing of what the memory holds is written.
+struct SweepFlip {
+  std::uint32_t offset = 0;  // the byte, from the target's start
+  std::uint32_t bit = 0;     // 0 to 7, the lowest first
+  bool set = false;          // it went from 0 to 1
+  std::uint32_t second = 0;  // since the sweep's first reading
+};
+
+struct SweepTarget {
+  std::string label;
+  std::uint32_t id = 0;
+  std::uint32_t rva = 0;      // the static the way starts at
+  std::uint32_t offset = 0;   // the target is the memory whose address is kept there, from the static's object
+  bool deeper = false;        // one step more: whose address is kept `via` bytes into that
+  std::uint32_t via = 0;
+  std::uint64_t bytes = 0;         // how far it could be read, at most
+  std::uint64_t readings = 0;      // sweeps of it that read something
+  std::uint64_t empty = 0;         // sweeps at which the way led nowhere
+  std::uint64_t unreadable = 0;    // pieces that could not be read
+  std::uint64_t moved = 0;         // sweeps at which it was at another address than before
+  std::uint64_t changed_words = 0; // 8-byte words that ever differed from the copy before
+  std::uint64_t busy_words = 0;    // of those, the ones that did so four times or more
+  std::uint64_t changed_pages = 0; // pages of 4 KiB with a changed word
+  std::uint64_t quiet_pages = 0;   // of those, the ones with eight changed words at most
+  std::uint64_t single_flips = 0;  // bytes that differed by one bit
+  std::uint64_t other_changes = 0; // bytes that differed by more
+  // Single flips in words that are not busy, of quiet pages (each page's first four), the quietest pages' first; in
+  // the order seen, at most 24.
+  std::vector<SweepFlip> flips;
+};
+
+struct SweepFound {
+  std::uint64_t passes = 0;
+  std::vector<SweepTarget> targets;
 };
 
 // A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
@@ -463,6 +530,7 @@ struct Found {
   std::optional<MembersFound> members;
   std::optional<ScanFound> scan;
   std::optional<WatchFound> watch;
+  std::optional<SweepFound> sweep;
   std::vector<InvariantFound> invariants;
 };
 

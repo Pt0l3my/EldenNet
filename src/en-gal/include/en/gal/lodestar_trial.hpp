@@ -230,11 +230,17 @@ class Watch {
   static constexpr std::uint32_t kSpan = 0x200;       // a way's span unless it asks for another
   static constexpr std::uint32_t kMaxSpan = 0x4000;   // the guarded reader's longest copy
   static constexpr std::uint64_t kEveryUs = 1'000'000;
-  static constexpr std::size_t kMaxWideListed = 40;
+  static constexpr std::size_t kMaxWideListed = 24;
   static constexpr std::uint64_t kKindEveryUs = 20'000'000;
-  static constexpr std::size_t kMaxBitHits = 16;
-  static constexpr std::size_t kMaxFloatHits = 8;
+  static constexpr std::size_t kMaxBitHits = 8;
+  static constexpr std::size_t kMaxRiseHits = 8;
+  static constexpr std::size_t kMaxHourHits = 6;
+  static constexpr std::size_t kJumpsKept = 3;         // a field's or a run's first jumps, kept with their times
   static constexpr std::uint32_t kMinTicks = 5;
+  static constexpr std::uint32_t kMinSteady = 4;       // rises at a pace before a rise far above it is a jump
+  static constexpr double kPaceFactor = 4.0;           // "far above": so many times the pace
+  static constexpr std::uint32_t kQuietAfter = 4;      // comparisons with no change before a wide way is slowed
+  static constexpr std::uint64_t kQuietSlower = 8;     // and by how much
 
   struct Way {
     std::string label;
@@ -247,6 +253,8 @@ class Watch {
     std::uint32_t span = kSpan;            // bytes watched: 16 to kMaxSpan, a multiple of 8
     std::uint64_t every_us = kEveryUs;     // how often it is followed
     bool wide = false;                     // one of many watched only for a clock: found() lists it only with a find
+    bool deeper = false;                   // one step more: the object whose address is kept `via` bytes into the
+    std::uint32_t via = 0;                 // object the way led to (which must then be a `deref` way)
   };
   // Whether memory that may be read stands at an address, asked without reading it (VirtualQuery in the round).
   using Live = std::function<bool(std::uint64_t address)>;
@@ -281,6 +289,70 @@ class Watch {
   std::size_t next_ = 0;       // the plain ways' turn
   std::size_t next_wide_ = 0;  // the wide ways' turn
   bool read_in_sweep_ = false;
+  std::uint64_t start_us_ = 0;  // the first step's time: a jump's second counts from it
+  std::atomic<std::uint64_t> passes_{0};
+};
+
+// The sweep (lodestar.hpp's SweepFound): each target's memory copied piece by piece, a piece a call, and compared
+// with the copy before. A pass goes through every target once; then the sweep rests until kEveryUs after the pass
+// began. Memory in use all the time (a neighbour of what a way leads to) changes everywhere; flags change a bit here
+// and there. So each page of a stretch keeps its own first flips, and only the quiet pages' flips are listed. A piece
+// that cannot be read ends the target's stretch for that pass: what stands before the end of the memory there is
+// read in smaller pieces, to the page.
+class Sweep {
+ public:
+  static constexpr std::uint32_t kPiece = 0x4000;  // the guarded reader's longest copy
+  static constexpr std::uint32_t kPage = 0x1000;
+  static constexpr std::size_t kMaxTargets = 40;
+  static constexpr std::uint32_t kMaxPieces = 128;  // 2 MiB a target
+  static constexpr std::size_t kPageEvents = 4;     // flips kept a page of a target's stretch
+  static constexpr std::uint16_t kQuietPage = 8;    // changed words to which a page is quiet: flags lie in quiet ones
+  static constexpr std::size_t kMaxListed = 24;
+  static constexpr std::uint8_t kBusy = 4;          // changes of a word from which it is busy: no flag
+  static constexpr std::uint64_t kEveryUs = 30'000'000;
+
+  struct Target {
+    std::string label;
+    std::uint32_t id = 0;
+    std::uint32_t static_rva = 0;
+    std::uint32_t offset = 0;
+    bool deeper = false;
+    std::uint32_t via = 0;
+    std::uint32_t pieces = 16;  // of kPiece bytes: 1 to kMaxPieces
+  };
+
+  explicit Sweep(std::uint64_t base);
+  ~Sweep();
+  Sweep(const Sweep&) = delete;
+  Sweep& operator=(const Sweep&) = delete;
+
+  // Adds a target; false when the sweep is full or holds the same way already. From one thread at a time.
+  bool add(const Target& target);
+  [[nodiscard]] std::size_t targets() const noexcept { return count_.load(std::memory_order_acquire); }
+
+  // Follows one target's way, or reads one piece of it; answers whether a pass ended on this call. A call while the
+  // sweep rests reads nothing.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);
+  // Whether a call at `now_us` would read: it has a target and is not resting. For the stepping thread only.
+  [[nodiscard]] bool due(std::uint64_t now_us) const noexcept {
+    return count_.load(std::memory_order_acquire) != 0 && !(resting_ && now_us < pass_us_ + kEveryUs);
+  }
+
+  [[nodiscard]] SweepFound found() const;
+
+ private:
+  struct State;
+  void compare(State& t, std::uint64_t at, std::span<const std::byte> now, std::uint64_t now_us) noexcept;
+  void finish(State& t, std::size_t n, bool& ended);
+
+  std::uint64_t base_;
+  std::array<std::unique_ptr<State>, kMaxTargets> targets_;
+  std::atomic<std::size_t> count_{0};
+  std::size_t at_ = 0;            // the target whose turn it is
+  std::uint64_t start_us_ = 0;    // the first step's time
+  std::uint64_t pass_us_ = 0;     // when the pass under way began
+  bool resting_ = false;
+  std::vector<std::byte> piece_;  // one piece, as just read
   std::atomic<std::uint64_t> passes_{0};
 };
 
