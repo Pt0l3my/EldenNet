@@ -186,6 +186,28 @@ TEST_CASE("block_tokens: one block's estimate, rendered alone; the cap table's s
   CHECK(kBlockCapsSum == 3490);
 }
 
+TEST_CASE("the renderer reads every field of kRecordFields: each of the wrong type refuses, naming it") {
+  for (const std::string_view path : kRecordFields) {
+    CAPTURE(path);
+    json rec = json::object();
+    json* at = &rec;
+    std::size_t start = 0;
+    for (std::size_t dot = path.find('.'); dot != std::string_view::npos; dot = path.find('.', start)) {
+      at = &(*at)[std::string(path.substr(start, dot - start))];
+      start = dot + 1;
+    }
+    // A whole number where text or a list is read, and text where the word cap's whole number is.
+    (*at)[std::string(path.substr(start))] = path == "reply_words_max" ? json("many") : json(7);
+    DialogueContext c;
+    c.persona = "ci_reedcutter";
+    c.record = &rec;
+    const auto d = dialogue_data(c);
+    REQUIRE_FALSE(d.has_value());
+    CHECK(d.error().why == PromptRefusal::Template);
+    CHECK(d.error().detail.find("the record's " + std::string(path) + " ") != std::string::npos);
+  }
+}
+
 TEST_CASE("the data: every name present, the record's types checked, defaults, nothing of a value in an error") {
   json rec = record();
   DialogueContext c;
