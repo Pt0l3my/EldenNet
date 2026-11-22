@@ -429,7 +429,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
   - needs: a, c
   - refs: PAGES§4.6, WHY§377
-- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [next]
+- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
     (Recommended)", "Keep in memory (Recommended)", "One paragraph (Recommended)"; GraceUI feat/foundations f747f46):
@@ -440,7 +440,9 @@ Work beside the engine and the increments, and the owner's housekeeping.
     the same day: topic families and master-detail, GraceUI 0.2.19, protocol 1.5 (GraceUI's D215, WHY§383). Next: slow
     commands (c), then the editor block with EldenNet's five additions (d). Part c done the same day: slow commands,
     answered within 90 s, GraceUI 0.2.20, protocol 1.6 (GraceUI's D216, WHY§386). Next: the editor block with
-    EldenNet's five additions (d), a profile's member keyed as its row (WHY§387).
+    EldenNet's five additions (d), a profile's member keyed as its row (WHY§387). Part d done the same day: the editor
+    block in both views with EldenNet's five additions, GraceUI 0.2.21, protocol 1.7 (GraceUI's D217, WHY§391). All four
+    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them.
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1391,6 +1393,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G38, GraceUI:D216, GraceUI:D169, WHY§386
   - gives: built on 2026-11-22 (GraceUI feat/foundations 4749729) as S7.2.c's part c; for `profile.draft` (GraceUI's
     docs/eldennet-changes.md §54).
+- ah The editor block in both views (GraceUI 0.2.21, protocol 1.7) [done]
+  - refs: G38, GraceUI:D217, WHY§391, WHY§392, WHY§377
+  - gives: built on 2026-11-22 (GraceUI feat/foundations f35f495) as S7.2.c's part d; for the profile editor's Profile
+    tab (S7.2.b; GraceUI's docs/eldennet-changes.md §55).
 
 ### S11.3 EldenNet v0.2
 

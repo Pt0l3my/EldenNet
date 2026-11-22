@@ -413,6 +413,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 388 | 2026-11-22 | The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note | DECIDED | #engine #conversation |
 | 389 | 2026-11-22 | A flag is told by a single bit that flips once in memory that otherwise keeps still | METHOD | #lodestar #l6 |
 | 390 | 2026-11-22 | A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held | DECIDED | #lodestar #probe |
+| 391 | 2026-11-22 | An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing | DECIDED | #graceui #pages |
+| 392 | 2026-11-22 | Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout | METHOD | #graceui #view |
 
 ## Entries
 
@@ -6316,3 +6318,24 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   own reading if the number is the clock: a state of the owner's own session, not the game's content.
 - Every other value stays out: the report holds offsets, sizes, counts and our labels as before. The README says so in
   plain words. Engine agrees, on that bound.
+
+### 391. An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D217, G38, GraceUI's proposal 0010 §3.3, S7.2.c, WHY§377
+
+- GraceUI 0.2.21, protocol 1.7, no ABI change: the editor block in both views, with EldenNet's five additions (an
+  item's key, locked items, dotted ids, null as "not set here", file-level messages).
+- Both views hold a map from the document's topic (a family's member) to the player's edits for the session. So neither
+  leaving a page nor closing the menu loses anything, and neither view asks then; the browser asks only before its tab
+  closes. A draft still goes when its page is left, as proposal 0010 §3.3 has it. This changes §3.3's "leaving the page
+  asks first" (D217).
+- The commands are check and save {target, rev, doc}, reset {target, all, confirm}, restore {target} and draft {target,
+  notes}. A stale save answers `conflict`, shown with Reload. With this, all four parts of G38 are built on GraceUI's
+  side.
+
+### 392. Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout
+
+`2026-11-22` · METHOD · `#graceui` `#view` · refs: GraceUI's D217, GraceUI's D214, WHY§378
+
+- grace-view's layout keeps each boundary's offset, x and line top for the prose field being edited. Up, down and the
+  pointer take the nearest boundary on the line above, below or under it.
