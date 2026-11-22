@@ -97,6 +97,35 @@ TEST_CASE("service over a real transport: a reply streams from submit to its one
   }
 }
 
+TEST_CASE("service over a real transport: a dialogue request's stop sequences reach the server as it sent them") {
+  for (const RealTransport& transport : real_transports()) {
+    INFO("transport: " << transport.name);
+    LocalServer server([](Connection& c, const SeenRequest&) {
+      c.send("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
+      c.send(sse_data(delta_chunk("Down, mostly.")));
+      const json stop = {{"index", 0}, {"delta", json::object()}, {"finish_reason", "stop"}};
+      c.send(sse_data(json{{"choices", json::array({stop})}}) + "data: [DONE]\n\n");
+      return false;
+    });
+    Service service(make_config(ollama_providers(server.port())), transport.make());
+    ChatRequest request;
+    request.messages = {Message::system("An invented frame.", true), Message::user("Where does the road go?")};
+    request.stop = {"\nThe Wanderer:", "\nWanderer:"};
+    REQUIRE(service.submit(LlmRequest::chat(8, request)) == SubmitResult::Accepted);
+    const std::vector<LlmEvent> events = events_until_end(service, 8);
+    REQUIRE_FALSE(events.empty());
+    CHECK(events.back().kind == EventKind::Ended);
+
+    // The server's own view: the body as it arrived, read as JSON.
+    const std::vector<SeenRequest> seen = server.seen();
+    REQUIRE(seen.size() == 1);
+    CHECK(seen[0].target == "/v1/chat/completions");
+    const json body = json::parse(seen[0].body);
+    CHECK(body["stop"] == json({"\nThe Wanderer:", "\nWanderer:"}));
+    CHECK(body["model"] == "local-talker");
+  }
+}
+
 TEST_CASE("service over a real transport: Ollama's warm-up reaches its native endpoint, with no prompt") {
   for (const RealTransport& transport : real_transports()) {
     INFO("transport: " << transport.name);

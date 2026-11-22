@@ -1,6 +1,7 @@
 #include "en/llm/request.hpp"
 
 #include <array>
+#include <utility>
 
 namespace en::llm {
 
@@ -130,6 +131,13 @@ json build_chat_body(const BodyInputs& in) {
     if (in.top_logprobs > 0) {
       body["logprobs"] = true;
       body["top_logprobs"] = in.top_logprobs;
+    }
+    if (in.stop != nullptr) {
+      json stop = json::array();
+      for (const std::string& sequence : *in.stop) {
+        if (!sequence.empty() && stop.size() < kMaxStops) stop.push_back(sequence);
+      }
+      if (!stop.empty()) body["stop"] = std::move(stop);
     }
   }
   return body;
