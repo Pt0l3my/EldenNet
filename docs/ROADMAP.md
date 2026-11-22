@@ -973,6 +973,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The owner's run on 2026-11-22 (docs/ops/probes/2026-11-22-l3.md): R0c reproduced; the shape at 7,077 places, all also
     the pattern's, the pattern 4 more; the class objects no objects with methods, so O92's way is the only one (WHY§314,
     WHY§315). A second package (0.1.0-lodestar.2) asks why those 4 differ; then the recipe's expected count, then L4.
+    The second run the same day: the 4 sites test another register than the one loaded, so they are no manager's slot;
+    the shape is right, its expected count is 7,077 on 2.7.2.0, and one class object goes with each static (engine
+    4624553; WHY§316). L3 done. Next: L4 (discovery through the table, the reader thread), then L5, the read-only package.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

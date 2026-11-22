@@ -338,6 +338,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 313 | 2026-11-21 | A package's licence notices and the sweep: toml++'s address, kept as its licence asks, allowed in those files only | FACT | #process #privacy #spike |
 | 314 | 2026-11-22 | The accessors' class objects are no objects with a table of methods; O92's way is the only one | FACT | #gal #lodestar #derive |
 | 315 | 2026-11-22 | On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more | FACT | #gal #lodestar |
+| 316 | 2026-11-22 | One class object for each static, and the reverse, is an invariant of the accessors worth checking by itself | METHOD | #gal #lodestar |
 
 ## Entries
 
@@ -5367,3 +5368,22 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - **Built for it** (FACT): the finder now says, for each site the pattern alone accepts, the first step of the shape that
   differs and how, and the statics only those sites load (engine feat/engine ddd7e63). A second package, 0.1.0-lodestar.2,
   went to the owner for the same five-minute run.
+- **Later (2026-11-22), the second run:** the likely mechanism above was wrong. The 4 sites are not narrower loads: at
+  each, the test is a 64-bit test of another register than the one loaded, so the pattern took another load for the
+  manager's slot, and it gave two managers two statics each (219 to 217). The shape's same-register rule tells them
+  apart and is kept; the recipe's expected count is 7,077 for this build (WHY§316).
+
+### 316. One class object for each static, and the reverse, is an invariant of the accessors worth checking by itself
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: WHY§315, proposal 0005 §7.1, docs/ops/probes/2026-11-22-l3.md, S10.1.k
+
+- **The check** (METHOD): the finder counts the class objects that go with more than one static, and the statics that go
+  with more than one class object (`shared_class_objects`, `shared_statics`); a run with either above 0 is to read
+  first. It would have shown the pattern's two false statics without any comparison, and it is what a later build's run
+  is judged by once the pattern's comparison is retired with the derivation's cutting.
+- **The verdict** (METHOD): a run is complete when the shape's count is within the recipe's range (7,077 on 2.7.2.0),
+  nothing is accepted by the shape alone, and both counts are 0; the sites the pattern alone accepts are reported with
+  their reason and no longer count against it. Not chosen: keeping "no site that only one of the two accepts" as the
+  verdict, which on 2.7.2.0 would call every run incomplete for a difference now understood.
+- **Built** (FACT): `gal/recipes.toml`'s accessor has `expect_matches = [7077, 7077]` with its note (engine feat/engine
+  4624553). L3 is done: the tool, both of the owner's runs and their record.
