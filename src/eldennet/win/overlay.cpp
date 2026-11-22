@@ -15,7 +15,9 @@
 //   quiet (D14). The space holds the log's lines from T1's first, through T11's tail, whether GraceUI answered or not.
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
+#include <vector>
 
 #include "dll.hpp"
 #include "en/augur/words.hpp"
@@ -350,6 +352,52 @@ void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
   }
 }
 
+// GraceUI's own font files, from the folder its graceui.dll was loaded from (Game\GraceUI\fonts\): the surfaces'
+// faces are GraceUI's (WHY§364 (2)), registered by EldenNet as its scaled faces. Empty where GraceUI ships none.
+struct GraceFonts {
+  std::string serif;
+  std::string sans;
+};
+GraceFonts grace_fonts() {
+  GraceFonts f;
+  HMODULE grace = GetModuleHandleW(L"graceui.dll");
+  if (grace == nullptr) return f;
+  wchar_t path[MAX_PATH];
+  const DWORD n = GetModuleFileNameW(grace, path, MAX_PATH);
+  if (n == 0 || n >= MAX_PATH) return f;
+  std::wstring folder(path, n);
+  const std::size_t at = folder.find_last_of(L"\\/");
+  if (at == std::wstring::npos) return f;
+  folder.resize(at);
+  f.serif = read_text(folder + L"\\fonts\\EBGaramond-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
+  f.sans = read_text(folder + L"\\fonts\\NotoSans-Regular.ttf", GRACEUI_FACE_BYTES_MAX).value_or(std::string());
+  return f;
+}
+
+std::span<const unsigned char> bytes_of(const std::string& s) noexcept {
+  return std::span<const unsigned char>(static_cast<const unsigned char*>(static_cast<const void*>(s.data())), s.size());
+}
+
+const char* close_word(en::proto::CloseReason r) noexcept { return en::proto::to_string(r); }
+
+// What the player did on the surfaces and what they raised, in the log: words and numbers, never the text.
+void log_ui(const en::proto::UiEvent& e) {
+  namespace p = en::proto;
+  if (const auto* o = std::get_if<p::UiEvent::OpenChat>(&e.event)) {
+    log(Line("chat").word("what", "open_key").word("via", p::to_string(o->via)));
+  } else if (const auto* m = std::get_if<p::UiEvent::Submit>(&e.event)) {
+    log(Line("chat").word("what", "submit").num("chars", m->text.size()));
+  } else if (const auto* sh = std::get_if<p::UiEvent::PageShown>(&e.event)) {
+    log(Line("chat").word("what", "page_shown").num("conv", sh->page.conv).num("reply", sh->page.reply)
+            .num("index", sh->page.index).num("t_ms", sh->t_ms));
+  } else if (const auto* c = std::get_if<p::UiEvent::Close>(&e.event)) {
+    log(Line("chat").word("what", "close").word("reason", close_word(c->reason)).num("draft", c->draft.size())
+            .word("detail", c->detail.empty() ? std::string("none") : c->detail));
+  } else if (const auto* k = std::get_if<p::UiEvent::Skip>(&e.event)) {
+    log(Line("chat").word("what", "skip").num("index", k->page.index));
+  }
+}
+
 }  // namespace
 
 void connect_overlay(Shell& s, bool banner_path) noexcept {
@@ -368,6 +416,13 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     // EldenNet's space for both views; on the banner path (ConnectB, a refused gate or anti-cheat) for the game's view
     // alone, so that the browser never gets it there (PAGES §4.4, GraceUI §7.2 item 1).
     options.space_views = banner_path ? GRACEUI_VIEW_GAME : GRACEUI_VIEW_GAME | GRACEUI_VIEW_BROWSER;
+    // The conversation's surfaces (WHY§364, part C), on the main path alone: at L1 nothing speaks.
+    GraceFonts fonts;
+    if (!banner_path && found.api) {
+      options.surfaces = true;
+      fonts = grace_fonts();
+      options.fonts = en::overlay::Surfaces::Fonts{bytes_of(fonts.serif), bytes_of(fonts.sans)};
+    }
     en::overlay::Report r;
     en::overlay::Overlay* o = en::overlay::Overlay::connect(found.api, options, r);
     Line l("connect");
@@ -378,6 +433,12 @@ void connect_overlay(Shell& s, bool banner_path) noexcept {
     l.flag("mark_bound", r.mark_bound).flag("world", r.world).num("pages", r.pages);
     log(l, o != nullptr ? LogLevel::Info : LogLevel::Warn);
     if (o == nullptr) return;  // headless: nothing can be drawn this session (ARCH §10.3)
+    if (options.surfaces) {
+      const en::overlay::SurfacesReport& sr = r.surfaces;
+      log(Line("surfaces").word("state", sr.state).num("faces", sr.faces).num("face_status", sr.face_status)
+              .flag("fonts", !fonts.serif.empty()).word("talk", sr.talk).word("chord", sr.chord).flag("wake", sr.wake),
+          std::string_view(sr.state) == "ready" ? LogLevel::Info : LogLevel::Warn);
+    }
     // F11 taken first (D164): the view is made, but nothing opens it until the player binds its hotkey in GraceUI.
     if (o->view_ready() && !o->view_bound()) log(Line("view").word("hotkey", "unbound"), LogLevel::Warn);
     auto* link = new OverlayLink();  // lives for the process (R14)
@@ -396,7 +457,7 @@ void overlay_event(const en::augur::Event& ev) noexcept { g_events.push(view_eve
 std::uint64_t overlay_events_seen() noexcept { return g_events.seen(); }
 
 void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest, std::uint64_t tripped,
-                  std::uint64_t now) noexcept {
+                  std::uint64_t now, std::vector<en::proto::UiEvent>& ui) noexcept {
   // The space's logs stream takes every line T11 wrote, from T1's first, whether GraceUI is there or not.
   SpaceState* space = nullptr;
   en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
@@ -406,7 +467,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
   });
   OverlayLink* link = s.overlay.load(std::memory_order_acquire);
   if (link == nullptr || link->lost) return;
-  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+  const bool done = en::proto::ffi_guard(en::proto::Component::Overlay, false, [&] {
     en::overlay::Overlay& o = *link->overlay;
     const en::core::State& cs = core.state();
 
@@ -428,7 +489,7 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       log(Line("notice").word("what", "badge").flag("up", cs.badge).num("status", st));
       link->badge = cs.badge;
     }
-    if (o.notices_only()) return;  // the anti-cheat's notice-only mode: nothing else works (D88)
+    if (o.notices_only()) return true;  // the anti-cheat's notice-only mode: nothing else works (D88)
 
     // EldenNet's claims as a world-state provider.
     en::overlay::WorldInputs in;
@@ -475,8 +536,12 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       fill_space(s, core, latest, tripped, o.graceui_version(), banner_words, facts);
       facts.ai = ai_tick(s, cs.gate_open, space->space);
     }
-    const en::overlay::Overlay::Step step =
-        pages ? o.step(view, &space->space, &facts, now) : o.step(view);
+    en::overlay::Overlay::Step step =
+        pages ? o.step(view, &space->space, &facts, now) : o.step(view, nullptr, nullptr, now);
+    for (en::proto::UiEvent& e : step.ui) {
+      log_ui(e);
+      ui.push_back(std::move(e));
+    }
     if (pages) {
       for (const en::overlay::SpaceNote& n : space->space.take_notes()) {
         Line l("page");
@@ -507,7 +572,42 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       link->lost = true;
       log(Line("overlay").flag("lost", true), LogLevel::Warn);
     }
+    return true;
   });
+  if (!done) {
+    // A fault in the overlay's code: the box's input given back first (NPC §5.5), then the log says so.
+    link->overlay->fault();
+    log(Line("overlay").word("fault", "tick"), LogLevel::Error);
+  }
+}
+
+std::vector<en::proto::UiEvent> overlay_show(Shell& s, const en::proto::UiModel& model, std::uint64_t now) noexcept {
+  std::vector<en::proto::UiEvent> out;
+  OverlayLink* link = s.overlay.load(std::memory_order_acquire);
+  if (link == nullptr || link->lost) return out;
+  const bool done = en::proto::ffi_guard(en::proto::Component::Overlay, false, [&] {
+    en::overlay::Overlay& o = *link->overlay;
+    out = o.show(model, now);
+    for (const en::proto::UiEvent& e : out) log_ui(e);
+    if (en::overlay::Surfaces* sf = o.surfaces()) {
+      // The talk key to the box's first submitted frame (NPC §5.1's 50 ms): T6's part, from the hotkey's poll.
+      if (const auto opened = sf->take_opened()) {
+        log(Line("chat").word("what", "opened").num("pressed_ms", opened->pressed).num("submitted_ms", opened->submitted)
+                .num("ms", opened->submitted - opened->pressed));
+      }
+    }
+    return true;
+  });
+  if (!done) {
+    link->overlay->fault();
+    log(Line("overlay").word("fault", "show"), LogLevel::Error);
+  }
+  return out;
+}
+
+HANDLE overlay_wake(Shell& s) noexcept {
+  OverlayLink* link = s.overlay.load(std::memory_order_acquire);
+  return link != nullptr && !link->lost ? static_cast<HANDLE>(link->overlay->wake()) : nullptr;
 }
 
 }  // namespace eldennet

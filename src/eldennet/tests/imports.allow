@@ -21,6 +21,8 @@
 # loaded by its full path, never imported) and DeleteFileW (secrets.toml's part file, made anew). And advapi32.dll, for
 # secrets.toml's access list (ARCH §11.5: this user alone): the process token's user and an ACL of one entry in a
 # security descriptor, nothing else of it.
+# The first conversation (S11.3, part C): WaitForMultipleObjects, T6's wait on its own wake signal and GraceUI's wait
+# handle (ABI 1.5, D212) together.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -188,6 +190,7 @@ UnhandledExceptionFilter
 VirtualAlloc
 VirtualProtect
 VirtualQuery
+WaitForMultipleObjects
 WaitForSingleObject
 WaitForSingleObjectEx
 WaitForThreadpoolTimerCallbacks
