@@ -3218,6 +3218,8 @@ def check_read(result, by_flag=False):
     # The searches' faults are caught ones, by design: a candidate whose object is shorter than the copy, or gone.
     failures += want(result, "ELDENNET", "read", stage="held", clock_passes=(3, 1e6), rising_passes=(1, 1e6),
                      search_faults=(0, 1e9), asked=(1, 1e9), search_steps=(1, 1e9), member_passes=(1, 1e6))
+    failures += want(result, "ELDENNET", "read", stage="scan", state="done", sweeps=(1, 4), mib=(1, 1e6))
+    failures += want(result, "ELDENNET", "read", stage="search", found=2, objects=1, most_refs=(1, 1e6))
     failures += ready_no_call(result)
     need(not result.events("ELDENNET", "r1"), "the read-only round ran R1", failures)
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
@@ -3231,7 +3233,7 @@ def check_read(result, by_flag=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 3, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 4, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["FG::", "Imp", "task_loom", "Fg_"]:
@@ -3250,11 +3252,16 @@ def check_read(result, by_flag=False):
             # No accessor's static: found by the search behind two slots that hold one object (the static and its
             # mirror), named by the first, with no site and no witness, and so in the table by its instance's class
             # alone. The search's own numbers are in the report, kept through the passes that followed.
+            # Of the two slots, the one the code refers to most is the manager's (the static, not its mirror), and
+            # those references are its sites and witnesses.
+            refs = m["search_refs"]
             need(m["status"] == "derived" and m["by_search"] and not m["variant"] and m["search_found"] == 2 and
-                 m["search_objects"] == 1 and len(m["search_slots"]) == 2 and m["search_slots"][0] == m["rva"] and
-                 m["rva"] == searched[m["label"]] and m["sites"] == 0 and not m["witnesses"] and m["vtable"] != 0 and
+                 m["search_objects"] == 1 and len(m["search_slots"]) == 2 and m["rva"] in m["search_slots"] and
+                 m["rva"] == searched[m["label"]] and m["vtable"] != 0 and
                  m["search_runs"] >= 1 and m["search_candidates"] >= 2 and
-                 m["search_checked"] == m["search_candidates"] and m["in_data"] == 0,
+                 m["search_checked"] == m["search_candidates"] and m["in_data"] == 0 and len(refs) == 2 and
+                 refs[m["search_slots"].index(m["rva"])] == max(refs) and min(refs) >= 1 and m["sites"] == max(refs) and
+                 1 <= len(m["witnesses"]) <= 8 and not m["by_related"],
                  "manager %s, by the search: %s" % (m["label"], m), failures)
         elif m["label"] in by_variant:
             # A static only another shape of the accessor reaches: named by a pass like any other, with that shape's
@@ -3280,6 +3287,25 @@ def check_read(result, by_flag=False):
              "variant %s: %s" % (label, v), failures)
     need(inst["tried"] == d["accessor"]["statics_found"] + 2, "the statics the naming looked at: %s of %s" %
          (inst["tried"], d["accessor"]["statics_found"]), failures)
+    # What the two new statics held at the last pass: each an object of a class a lead asks for.
+    fresh = {x["rva"]: x for x in inst["new_statics"]}
+    need(set(fresh) == set(by_variant.values()) and
+         all(x["holds"] == "classed" and x["lead"] and x["vtable"] != 0 for x in fresh.values()),
+         "the new statics: %s" % inst["new_statics"], failures)
+    # The object scan: the field plot's class looked for in the game's private memory (the one lead no pass had
+    # named when the searches began). Its object is found; the image's data holds its address twice (the static and
+    # its mirror), which is where the chain ends.
+    scan = d.get("scan")
+    if not scan:
+        failures.append("the report has no scan")
+    else:
+        plots = [n for n in scan["nodes"] if n["level"] == 0 and n["label"] == "field_area"]
+        need(scan["done"] and scan["own_known"] and scan["sweeps"] >= 1 and scan["regions"] >= 1 and
+             scan["mib"] >= 1 and len(scan["nodes"]) <= 64 and
+             any(n["slots"] == 2 and n["slot"] == searched["field_area"] and not n["is_static"] and n["vtable"] != 0
+                 for n in plots),
+             "the object scan: %s" % {k: v for k, v in scan.items() if k != "nodes"} + " %s" % scan["nodes"][:6],
+             failures)
     # What the searches had to go on, and what became of their reads: counted, with the reasons.
     search, members = d.get("search"), d.get("members")
     need(search is not None and search["pointer_like"] >= search["live"] >= 2 and
