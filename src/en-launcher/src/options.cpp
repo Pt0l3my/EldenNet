@@ -112,6 +112,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = flag())) o.console = true;
     } else if (arg == "--probe") {
       if ((ok = flag())) o.probe = true;
+    } else if (arg == "--read") {
+      if ((ok = flag())) o.read = true;
     } else if (arg == "--no-dialogs") {
       if ((ok = flag())) o.no_dialogs = true;
     } else if (arg == "--yes") {
@@ -213,6 +215,15 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
     }
     o.console = true;  // its Mark (Pause) and its plain lines
   }
+  if (o.read) {
+    // The read-only round (Lodestar's L5): nothing is called, but it is a development run all the same: a save
+    // backup made first, EldenNet's own DLL, one plain start, and never beside R1.
+    if (o.action != Action::Start || o.no_backup || o.vanilla || o.spike != Spike::None || o.probe) {
+      return proto::Unexpected{
+          std::string("--read goes with a start, and not with --no-backup, --vanilla-offline, --spike or --probe")};
+    }
+    o.console = true;  // its plain lines
+  }
   return o;
 }
 
@@ -235,6 +246,8 @@ std::string usage_text() {
          "  --console            the development console: status lines, and the Mark on the Pause key\n"
          "  --probe              the derivation's in-game round R1, with the probe build of eldennet.dll: the console,\n"
          "                       one call into the game at the Mark (Pause, at the title, with no save loaded)\n"
+         "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"
+         "                       names the managers it reads and tries its reader, and calls nothing in the game\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"
          "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
          "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"

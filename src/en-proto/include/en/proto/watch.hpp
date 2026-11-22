@@ -48,14 +48,17 @@ enum class InitState : std::uint32_t {
   ReadyScan,
   WaitEngine,
   Discover,
-  Register,
-  FirstTick,
-  Ready,   // DataReady sent: the task ticks and phase A passed
-  Inert,   // the first tick's checks failed, or no tick in 30 s
+  Register,   // the game's task: the call that registers it (the probe's R1 round; not a v1 start, O101)
+  FirstTick,  // the game's task: its first call from the game
+  Ready,   // DataReady sent: the reading runs and phase A passed
+  Inert,   // the first reading's checks failed, or none came in 30 s
   Banner,  // stopped at a banner (the status's `banner` says which)
   Exit,    // a second copy, or Off
+  // Appended (the numbers above never change): a start that reads on a thread of EldenNet's own (O101).
+  Reader,        // the reader thread is being started; nothing of the game is called
+  FirstReading,  // waiting for its first reading
 };
-inline constexpr std::uint32_t kInitStateCount = 16;
+inline constexpr std::uint32_t kInitStateCount = 18;
 [[nodiscard]] const char* to_string(InitState s) noexcept;  // "none", "pin", ..., "ready", "inert", "banner", "exit"
 // Where T1 stops: a spike's run ends there.
 [[nodiscard]] constexpr bool terminal(InitState s) noexcept {
@@ -80,9 +83,11 @@ inline constexpr std::uint32_t kSpikeCount = 9;
 // EldenNet at Settings. Only a probe build of eldennet.dll accepts it; a release build, or EldenNet turned off in
 // settings.toml, refuses it and calls nothing. Since R1 spike.12 (WHY§296), `Absent`: accepted, and after the call the
 // probe's 2 s search found no copy of its task in the game's memory (the console then has the owner load the save).
+// `Read` (appended): the launcher's --read, Lodestar's read-only round (step L5), asked and answered the same way: a
+// probe build accepts it and calls nothing of the game at all.
 // Append only.
-enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent };
-[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent"
+enum class ProbeRequest : std::uint32_t { None, R1, Accepted, Refused, Absent, Read };
+[[nodiscard]] const char* to_string(ProbeRequest p) noexcept;  // "none", "r1", "accepted", "refused", "absent", "read"
 
 enum class CrashState : std::uint32_t { None, Writing, Written, Taken };
 
@@ -99,9 +104,11 @@ enum class MarkSource : std::uint32_t {
 inline constexpr std::uint32_t kMarkSourceCount = 4;
 [[nodiscard]] const char* to_string(MarkSource s) noexcept;  // "none", "launcher", "asked", "eldennet"
 
-// The thread that crashed, as EldenNet knows its threads.
-enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other };
-[[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other"
+// The thread that crashed, as EldenNet knows its threads. Game is the game's own thread as far as EldenNet knows it:
+// the one a registered task ran on (the probe's R1 round), else the thread of the game's window. Reader (appended) is
+// EldenNet's own reading thread (O101).
+enum class ThreadKind : std::uint32_t { Unknown, Game, Init, Other, Reader };
+[[nodiscard]] const char* to_string(ThreadKind t) noexcept;  // "unknown", "game", "init", "other", "reader"
 
 // Status flags (Status::flags).
 inline constexpr std::uint32_t kFlagGateOpen = 1u << 0;

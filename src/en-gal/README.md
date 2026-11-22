@@ -236,6 +236,26 @@ of any game is in it, and every name it looks for comes from a leads file.
   manager's slot there). `write_report` writes kind `lodestar`, schema 2, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
+  **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
+  `name_instances(image, live, accessor, leads, ids, read_word)`, which names the managers: for each static the
+  accessor's sites load, the instance it holds as the game runs, that instance's first word through the caller's
+  guarded read (one word, never at an address inside the image), and the word's class by the type information of
+  the image as loaded; a lead names the one static whose class has its name, or its name with Imp, and two leave it
+  ambiguous. A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
+  the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
+  a save is loaded is null at the title; what was named stays named, with the pass that named it. The report's
+  `instances` object carries counts, numbers and the catalogue's labels: the classes' names never leave memory.
+  `draft_table(found, ids, provenance, image, source)` writes the findings as `[provenance]` and `[item.*]` entries
+  (managers, the leads' two classes, the groups' table), each checked first as a start will check it: an entry whose
+  placement fails is left out, a witness that refers elsewhere is dropped, `checks` lists what passed, and every
+  entry is a lead until its review.
+- **`lodestar_trial.hpp`: the reader's trial** (in the part that runs in the game: it holds a `GuardedReader`, whose
+  shape depends on the probe option). `Trial` is a task body for the frame service's own thread: about ten times a
+  second it reads each named manager's slot, its instance's first word, and the slot again, and counts what was
+  null, what still had the class it was named by, what had another, what faulted (caught) and what changed between
+  the two reads (`torn`, which judges nothing). Managers are added by the naming thread at any time; nothing is
+  removed. `found()` gives the counts from any thread, with the readings' p50, p99 and longest, for the report's
+  `trial` object.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -390,6 +410,37 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   2 Hz and 16 characters within 25 m, and 60 s of fast builds end it. `TaskStatus` holds C13's histograms (each
   invocation and each build) and the counters, as atomics. `install_task` reads the hub's instance from its static
   through the image and makes the one registration.
+- **The frame service: a reader on a thread of our own** (proposal 0005 §9.4, §10; O101 (b); `task.hpp`,
+  `backend.hpp`, `sys.hpp`'s `FrameProvider`). v1 reads the game from a thread of EldenNet's own, with no call into
+  the game and nothing written to it; the game's own task stays a later service. `ReaderLoop(sys, body, tick_us)` is
+  that provider's loop: each `step()` runs the body once through `run_task` (the one place that issues the reading
+  thread's token), with the clock's time and the time since the last step, and answers how long to wait before the
+  next (the tick less what the step took, 1 ms at least). The DLL owns the thread; the tests step it on FakeSys.
+  `own_thread_options()` gives the task's settings for it (a snapshot about ten times a second, five while
+  throttled, and no group check at the first tick: such a reader is in no group of the game's), and
+  `own_thread_backend()` turns on **steady reading** (`BackendOptions::steady`), for a reader that is not in step
+  with the frame: (1) every static's instance, every object's table of methods and the near list's two ends are
+  remembered as the snapshot is read and read again when it is built, and one that changed drops the reading
+  (`ReadError::Unsteady`, counted as `torn`); (2) a change of the lifecycle (the main player there or not, the
+  screen) is published at its second sighting running, the first reading that shows it dropped (`held`), so a blip
+  of one reading is never published; (3) a group's hard fault counts toward its breaker only when the group faulted
+  in the reading before too (`unconfirmed` otherwise). A dropped reading counts against no group, and the next
+  snapshot carries `gap`. Phase B and a playthrough's start are concluded only from a reading whose structure held.
+  `DiscoveryOptions::frame = FrameProvider::OwnThread` makes discovery ask for no registration function, no task hub
+  and no `[task]` in the layout, and ready then means ready to read. `TaskStatus` carries `torn`, `held` and
+  `unconfirmed_faults`. With it the FD4 getter is never called either: a site without a name stays unnamed, so names
+  come from the name layout or from the build's table. eldennet.dll starts this way (`boot.cpp`: T2, the reader);
+  `install_task`, the game's task, is no part of a v1 start, and stays for the probe's R1 round and the later task
+  service (proposal 0005 §9.6).
+- **Discovery through the build's table** (proposal 0005 §7.1, §9.1; `discovery.hpp`, `resolve.hpp`). A layout of
+  schema 2 that holds `[item.*]` entries is loaded against the catalogue (`DiscoveryOptions::ids`, gal/ids.toml's
+  text; refused without it), and `Library` checks each entry against the image as loaded (placement, witnesses).
+  Each role whose id the table holds takes its place from there, `ItemResult::from_table`, and no pattern, recipe,
+  slot or walk looks for it; an entry whose check fails is refused alone (`why` is the check's word, such as
+  `witness_elsewhere`), its place handed out to no one, and a required one stops the start. A class the table holds
+  gives its vtable set, to the entry. What the table does not hold yet is found as before, so the table can grow id
+  by id; with every static in it, a start scans for nothing. `DiscoveryReport::table_items` and `table_refused`
+  count them.
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
   instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
   game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any

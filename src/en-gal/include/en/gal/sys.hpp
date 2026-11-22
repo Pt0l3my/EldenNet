@@ -22,6 +22,11 @@
 namespace en::gal {
 
 // The time a task invocation runs at (ARCH §6.4): a monotonic clock in microseconds, and the time since the last one.
+// The frame service (proposal 0005 §9.4; O101): where the reading runs. The game's own task calls the body every frame
+// (a later service: the call that adds it is not confirmed); a thread of EldenNet's own runs it at a fixed rate, with
+// no call into the game and nothing written to it, which is what v1 uses (O101 (b)).
+enum class FrameProvider : std::uint8_t { GameTask, OwnThread };
+
 struct FrameCtx {
   std::uint64_t qpc_now_us = 0;
   std::uint32_t dt_us = 0;

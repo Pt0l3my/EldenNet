@@ -56,6 +56,7 @@ set(EN_GAL_GAME_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/backend.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/readers.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/task.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/lodestar_trial.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_callee.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/probe_memory.cpp
@@ -110,8 +111,11 @@ if(EN_BUILD_TESTS)
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_world.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_guarded.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_discovery_table.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lodestar_game.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_task.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_probe_map.cpp)

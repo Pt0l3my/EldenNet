@@ -183,6 +183,9 @@ cmake --build build-cl
   The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
+  `EN_GALTEST_FRAME=own` (the `gal-own-*` cases) makes it read as EldenNet v1 does (O101): a reader thread of its own,
+  ten snapshots a second, nothing registered with the fake game and nothing of it called; the checks then include that
+  the fake hub's tasks stay the program's own and that none of our slots was ever called.
 - `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
   Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
   its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
@@ -369,6 +372,24 @@ which runs `lodestar find` on it with the package's gal/, lints the report and p
 written beside it. Before it leaves: unzip it, `sha256sum -c SHA256SUMS`, `eldennet-engine.exe version` under Wine,
 `find.cmd` under Wine on the clang-cl `fakegame.exe` (a report written and linted clean), and the privacy sweep on
 the zip.
+
+Lodestar's read-only round in game (step L5) has the `read` kind: the launcher, the probe build of the DLL and the
+engine, from a Release tree with `EN_PROBE=ON` and a `0.1.0-lodestar.N` label:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-lodestar.3 \
+  -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel --target eldennet-launcher eldennet_probe eldennet-engine
+python3 -I tools/spikepkg/build.py read --build build-cl-rel --out EldenNet-Read.zip \
+  --engine build/src/en-tools/eldennet-engine
+```
+
+The zip's one folder, `EldenNet-Read`, holds `eldennet-launcher.exe`, `eldennet.dll` (the probe build),
+`eldennet-engine.exe`, gal/ (with `recipes.toml`, `ids.toml` and `leads.toml`, and no `patterns.toml`), `read.cmd`
+(the launcher with `--read`, then a pause) and `README-READ.txt`. The fake game's cases `launcher-eldennet-read`,
+`launcher-eldennet-read-owner` and `launcher-eldennet-read-release` run the round as the package does. Before it
+leaves: unzip it, `sha256sum -c SHA256SUMS`, and the privacy sweep on the zip.
 
 GraceUI's in-game spikes S0-E and S4 (GraceUI D175, its `tools/grace-spike/README.md`) have a package of their own,
 `s0e-s4`, with the release DLL and GraceUI's test build:

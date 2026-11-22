@@ -47,7 +47,8 @@ void close_output();
 void say(const char* fmt, ...);
 // A plain sentence for the owner, on the console only (R1's steps, --probe): never in the log, which keeps to say()'s
 // numbers and words.
-void console_line(std::string_view text);
+// A plain line for the owner on the console alone, after who says it ("EldenNet R1: ", "EldenNet read: ").
+void console_line(std::string_view text, std::string_view who = "EldenNet R1: ");
 
 // ---- The context of one launcher run (main.cpp) ----
 
@@ -129,6 +130,7 @@ class WatchBlock {
 struct WatchPlan {
   bool console = false;  // status lines and the Mark
   bool probe = false;    // --probe: R1's steps in plain words (the block's probe request was written before loading)
+  bool read = false;     // --read: the read-only round's steps in plain words (the same request field)
   proto::watch::Spike spike = proto::watch::Spike::None;
   std::uint32_t run_timeout_s = 0;          // > 0: end the run once T1 stops, or at this limit
   bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 is Ready

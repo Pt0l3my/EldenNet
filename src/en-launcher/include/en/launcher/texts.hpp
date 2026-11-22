@@ -58,6 +58,29 @@ enum class R1Step : std::uint8_t {
 [[nodiscard]] std::optional<R1Step> r1_step(proto::watch::ProbeRequest answer, proto::watch::InitState init,
                                             bool pressed, std::uint64_t in_first_tick_ms) noexcept;
 
+// The read-only round (--read; Lodestar's step L5), told the same way: one line per step as it changes, beside the
+// log's `read step=<word>`. There is no key to press and nothing is called.
+enum class ReadStep : std::uint8_t {
+  Asked,           // the launcher asked EldenNet for the round before it loaded it
+  Refused,         // the DLL is no probe build (or does not know --read), or EldenNet is off
+  Reading,         // EldenNet reads the game's image as loaded, and names what it can at the title
+  LoadSave,        // a first naming pass is done and some manager is still unnamed: load the save
+  Done,            // every manager asked for is named
+  Stopped,         // the round stopped early (a banner, or no first reading)
+  ReportsClean,    // after the game: both files passed their check
+  ReportsRefused,  // after the game: a file was refused by its check (a defect of ours)
+  ReportsMissing,  // after the game: a file is missing
+};
+[[nodiscard]] const char* read_word(ReadStep s) noexcept;  // "asked", "refused", ..., "reports_missing"
+// `named` of `of`: the managers named so far (LoadSave and Done).
+[[nodiscard]] std::string read_text(ReadStep s, std::uint32_t named = 0, std::uint32_t of = 0);
+// The step the console shows for EldenNet's answer, T1's state and the status's items (named, asked, passes).
+[[nodiscard]] std::optional<ReadStep> read_step(proto::watch::ProbeRequest answer, proto::watch::InitState init,
+                                                std::uint32_t named, std::uint32_t of, std::uint32_t passes) noexcept;
+// Whether the round's draft table (lodestar-table.toml) holds only what such a table may: `[provenance]`,
+// `[item.<label>]` and `key = value` lines of numbers, our own labels and fixed words. No path, no text, no byte run.
+[[nodiscard]] bool table_text_clean(std::string_view text) noexcept;
+
 // The step names E10 reports (ARCH §4.6).
 inline constexpr std::string_view kStepAlloc = "VirtualAllocEx";
 inline constexpr std::string_view kStepWrite = "WriteProcessMemory";

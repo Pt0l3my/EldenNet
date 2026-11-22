@@ -160,6 +160,22 @@ stays two minutes in the world, so that R1 reads the manager's map there too). W
 both reports in `%APPDATA%\EldenNet\probe\` with the vocabularies `eldennet-engine lint --report` uses
 (`r1 report=<name> lint=clean|refused|missing`) and says `reports_clean`, `reports_refused` or `reports_missing`.
 
+### `--read`: the read-only round (Lodestar's step L5)
+
+`--read` asks a probe build of eldennet.dll for the read-only round (`control.probe` = `read`, answered the same way),
+in which EldenNet names the managers it reads and tries its reader, and calls nothing in the game. It keeps `--probe`'s
+company (a start, the backup made first, EldenNet's own DLL, no `--spike`, the console), never goes with `--probe`,
+and has no key to press. The console tells each step once (`EldenNet read: …`), beside the log's
+`read step=<word> named=<n> of=<m>` (`texts.hpp`'s `ReadStep`, from EldenNet's answer, T1's state and the status's
+items, which in this round are the managers named, asked for and the naming passes): `asked`, `reading` (the game's
+image, at the title), `load_save` (a first pass is done and a manager is still unnamed: "Now load your save."),
+`done` (every manager named: load the save if it is not loaded yet, and stay about five minutes in the world), or
+`refused` and `stopped`. When the game ends, the launcher checks the two files in
+`%APPDATA%\EldenNet\probe\`: `lodestar-found.json` by the lint and the `lodestar` vocabulary, and
+`lodestar-table.toml` by `table_text_clean` (only `[provenance]`, `[item.<label>]` and known keys with numbers, our
+labels and fixed words: no path, no text), each as `read report=<name> lint=clean|refused|missing`, and says
+`reports_clean`, `reports_refused` or `reports_missing`.
+
 ## The S0 spikes (DESIGN §16.1, the plan's §1.2)
 
 `--spike` tells EldenNet the spike (in the block) and keeps a numbers-only log in `%APPDATA%\EldenNet\spikes\`: a JSON

@@ -6,6 +6,7 @@ licences and SHA256SUMS. Run it with `python3 -I`, from anywhere:
     build.py r1 --build build-cl-rel --out EldenNet-R1.zip [--engine build/src/en-tools/eldennet-engine]
     build.py s0e-s4 --build build-cl-rel --graceui <graceui>/build-cl-test --out EldenNet-Spikes.zip
     build.py find --build build-cl-rel --out EldenNet-Find.zip [--engine build/src/en-tools/eldennet-engine]
+    build.py read --build build-cl-rel --out EldenNet-Read.zip [--engine build/src/en-tools/eldennet-engine]
 
 `r1` is the derivation's in-game round (O89): the clang-cl Release tree's eldennet-launcher.exe, the probe build of
 eldennet.dll (EN_PROBE) and eldennet-engine.exe, the repository's gal/ and README-R1.txt, in one folder, EldenNet-R1/.
@@ -23,6 +24,11 @@ one .cmd file for each run (RUNS) and README-SPIKES.txt, in one folder, EldenNet
 eldennet-engine.exe (a 0.1.0-lodestar.N label; EN_PROBE either way), gal/ (with recipes.toml and no patterns.toml),
 find.cmd, onto which the owner drops the game's executable file, and README-FIND.txt, in one folder, EldenNet-Find/.
 It holds no launcher and no DLL: nothing in it starts or enters the game.
+
+`read` is Lodestar's read-only round in game (proposal 0005, step L5): the clang-cl Release tree's
+eldennet-launcher.exe, the probe build of eldennet.dll (EN_PROBE on, a 0.1.0-lodestar.N label) and
+eldennet-engine.exe, gal/ (with recipes.toml and ids.toml and no patterns.toml), read.cmd, which starts the launcher
+with --read, and README-READ.txt, in one folder, EldenNet-Read/. The round calls nothing in the game.
 
 Nothing is read from outside the repository and the build trees (GraceUI's commit from its own source tree), and the
 package holds nothing personal: no path of this PC (each text file is checked), no key. The privacy sweep still runs
@@ -387,9 +393,80 @@ def find(a):
     return pack(files, "EldenNet-Find", a.out, label)
 
 
+def read_cmd(label):
+    """read.cmd: from the package's own folder, the launcher with --read, then a pause so that its console stays
+    readable. It names nothing outside the package's folder."""
+    return crlf("\n".join([
+        "@echo off",
+        "rem EldenNet's package %s: the read-only round. README-READ.txt has the steps." % label,
+        "rem It starts the game offline with EldenNet loaded. EldenNet only reads: it calls nothing in the game.",
+        "setlocal",
+        "cd /d \"%~dp0\"",
+        "eldennet-launcher.exe --read",
+        "echo.",
+        "echo The round has ended (the launcher's exit code: %ERRORLEVEL%). README-READ.txt says what to send back.",
+        "pause", ""]))
+
+
+def read(a):
+    """The package for Lodestar's read-only round in game (proposal 0005, step L5): the launcher, the probe build of
+    the DLL, the engine, gal/, read.cmd and its README."""
+    c = cache(a.build)
+    label = c.get("EN_VERSION_LABEL", "")
+    if c.get("CMAKE_BUILD_TYPE") != "Release" or c.get("EN_PROBE") != "ON" or not FIND_LABEL.fullmatch(label):
+        fail("the build tree must be Release, with EN_PROBE=ON and EN_VERSION_LABEL=0.1.0-lodestar.N")
+    if "clang-cl" not in c.get("CMAKE_TOOLCHAIN_FILE", ""):
+        fail("the build tree must be the clang-cl one")
+    gal = os.path.join(REPO, "gal")
+    if a.engine:
+        r = subprocess.run([a.engine, "lint", "--gal", gal], capture_output=True, text=True)
+        if r.returncode != 0:
+            fail("lint --gal refused gal/:\n" + r.stdout)
+        print(r.stdout.strip())
+    for need in ("recipes.toml", "ids.toml", "leads.toml", "builds.toml"):
+        if not os.path.isfile(os.path.join(gal, need)):
+            fail("gal/ must hold %s" % need)
+    if os.path.exists(os.path.join(gal, "patterns.toml")):
+        fail("gal/ must hold no patterns.toml (O102)")
+    binaries = [("eldennet-launcher.exe", os.path.join(a.build, "src", "en-launcher", "eldennet-launcher.exe")),
+                ("eldennet.dll", os.path.join(a.build, "src", "eldennet", "probe", "eldennet.dll")),
+                ("eldennet-engine.exe", os.path.join(a.build, "src", "en-tools", "eldennet-engine.exe"))]
+    files = []
+    for name, path in binaries:
+        with open(path, "rb") as f:
+            data = f.read()
+        if name == "eldennet.dll" and b"S\x00p\x00e\x00c\x00i\x00a\x00l\x00B\x00u\x00i\x00l\x00d" not in data:
+            fail("eldennet.dll is not the probe build (no SpecialBuild in its version resource)")
+        if name == "eldennet.dll" and b"lodestar-found.json" not in data and \
+                "lodestar-found.json".encode("utf-16-le") not in data:
+            fail("eldennet.dll has no read-only round")
+        if name == "eldennet-launcher.exe" and b"--read" not in data:
+            fail("eldennet-launcher.exe has no --read")
+        launcher_checks(name, data, label)
+        files.append((name, data))
+    files.append(("read.cmd", read_cmd(label)))
+    files += gal_files()
+    with open(os.path.join(HERE, "README-READ.txt.in"), encoding="utf-8") as f:
+        title = "EldenNet, the read-only round (package %s)" % label
+        readme = (f.read().replace("@LABEL@", label).replace("@UNDERLINE@", "=" * len(title))
+                  .replace("@COMMIT@", git_commit()).replace("@DISCLOSURE@", disclosure()))
+    if re.search(r"@[A-Z]+@", readme):
+        fail("README-READ.txt has a placeholder left")
+    files.append(("README-READ.txt", crlf(readme)))
+    with open(os.path.join(REPO, "LICENSE"), encoding="utf-8") as f:
+        files.append(("LICENSE.txt", crlf(f.read())))
+    with open(os.path.join(REPO, "THIRD_PARTY.md"), encoding="utf-8") as f:
+        files.append(("THIRD_PARTY.md", crlf(f.read())))
+    files.append(("THIRD-PARTY-NOTICES.txt", crlf(notices(a.build))))
+    for name, data in files:
+        if not name.endswith((".exe", ".dll")) and PERSONAL.search(data.decode("utf-8")):
+            fail("%s holds a path of this PC" % name)
+    return pack(files, "EldenNet-Read", a.out, label)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("kind", choices=["r1", "s0e-s4", "find"])
+    p.add_argument("kind", choices=["r1", "s0e-s4", "find", "read"])
     p.add_argument("--build", required=True, help="the clang-cl Release tree, with EN_PROBE and a spike label (r1), or "
                    "with EN_PROBE off and a 0.1.0-spikes.N label (s0e-s4)")
     p.add_argument("--graceui", help="s0e-s4: GraceUI's clang-cl Release tree with GRACEUI_TEST_EXPORTS")
@@ -400,6 +477,8 @@ def main():
         return spikes(a)
     if a.kind == "find":
         return find(a)
+    if a.kind == "read":
+        return read(a)
     c = cache(a.build)
     label = c.get("EN_VERSION_LABEL", "")
     if c.get("CMAKE_BUILD_TYPE") != "Release" or c.get("EN_PROBE") != "ON" or not LABEL.fullmatch(label):
