@@ -13,20 +13,39 @@
 // 4. Every 2 s, probe\lodestar-found.json (report kind `lodestar`, schema 2: numbers, fixed words and the catalogue's
 //    labels) and, when the names change, probe\lodestar-table.toml: the round's findings as a build's table, each
 //    entry checked against the image and a lead until its review.
+// 5. Once a save is loaded (the characters' manager has an instance), or three minutes after the trial began, the
+//    searches by what an object holds (step L6's first), each read-only, on T2 within its own budget:
+//    - for a lead that has a class of its name and still no static, the search of the data's slots for an object of
+//      that class (en-gal's probe::SlotSearch), again every minute while it finds none;
+//    - the clock search (lodestar_trial.hpp) over the accessor's statics that no lead has named: a manager with no type
+//      information, such as the world's clock, is known by how its fields behave;
+//    - the rising-counter search (probe::RisingSearch) over the data's slots that point at the heap: the play time.
+//    What they find is in the report as counts; only a manager a slot search names enters the draft table.
+//    A search follows pointers that may be stale, so its reads, and T1's one read at each instance, ask first
+//    (AskFirstCopier): the pages must be committed and readable, with no guard page among them, as VirtualQuery says;
+//    only then are they copied, by ReadProcessMemory on our own process. So a search raises no exception in the game
+//    and lifts no guard page (WHY§111, §160), whatever a pointer holds. What it will not read is counted.
+//    The trial reads as v1 will, through the settings' copy primitive.
 // T1 stays as the round's reporter for the session. No file carries a name, a byte or a text of the game (O75).
 #include "dll.hpp"
 
 #if EN_PROBE
 
+#include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
+#include <map>
 
 #include "en/gal/builds.hpp"
 #include "en/gal/derive.hpp"
+#include "en/gal/discovery.hpp"
 #include "en/gal/ids.hpp"
 #include "en/gal/lodestar.hpp"
 #include "en/gal/lodestar_trial.hpp"
+#include "en/gal/native_sys.hpp"
+#include "en/gal/probe.hpp"
 #include "en/gal/recipes.hpp"
 #include "en/gal/task.hpp"
 #include "en/proto/ffi_guard.hpp"
@@ -44,6 +63,9 @@ namespace {
 constexpr std::uint64_t kNameEveryMs = 10'000;  // between naming passes, for as long as a lead is unnamed
 constexpr std::uint64_t kReportEveryMs = 2'000;
 constexpr std::uint64_t kFirstReadingMs = 30'000;
+constexpr std::uint64_t kSearchAfterMs = 180'000;  // the searches start then, if no save was loaded sooner
+constexpr std::uint64_t kSearchAgainMs = 60'000;   // a slot search that found nothing is made again
+constexpr std::size_t kMaxSlotCandidates = std::size_t{1} << 20;
 
 void state(w::InitState s) {
   block::state(s);
@@ -67,20 +89,109 @@ DWORD WINAPI trial_reader_main(void* arg) noexcept {
   });
 }
 
-// The trial's body on T2: the thread named for the crash filter, then the trial.
+// A copy that asks first. Every page of the range must be committed and readable, and none a guard page or a page
+// with no access: VirtualQuery says so, and reads nothing. Only then is the range copied, by ReadProcessMemory on our
+// own process, which fails quietly if the pages have changed in between. A range it will not read is counted.
+class AskFirstCopier final : public en::gal::Copier {
+ public:
+  explicit AskFirstCopier(en::gal::NativeSys& sys) : sys_(sys) {}
+  [[nodiscard]] en::gal::CopyOutcome copy(std::uint64_t address, std::span<std::byte> dst) noexcept override {
+    namespace probe = en::gal::probe;
+    const std::uint64_t end = address + dst.size();
+    std::uint64_t at = address;
+    for (int regions = 0; at < end; ++regions) {
+      const std::optional<probe::MemoryRegion> r = regions < 4 ? sys_.region_at(at) : std::nullopt;
+      const std::uint32_t kind = r ? (r->protect & 0xFFu) : 0;
+      const bool readable =
+          r && r->committed && r->size != 0 && (r->protect & (probe::kPageGuard | probe::kPageNoAccess)) == 0 &&
+          (kind == probe::kPageReadOnly || kind == probe::kPageReadWrite || kind == probe::kPageWriteCopy ||
+           kind == probe::kPageExecuteRead || kind == probe::kPageExecuteReadWrite ||
+           kind == probe::kPageExecuteWriteCopy);
+      if (!readable) {
+        refused_.fetch_add(1, std::memory_order_relaxed);
+        std::fill(dst.begin(), dst.end(), std::byte{0});
+        return {false, 0xC0000005u};
+      }
+      at = r->base + r->size;
+    }
+    return sys_.copier_of(en::gal::CopyKind::Rpm).copy(address, dst);
+  }
+  [[nodiscard]] std::uint64_t refused() const noexcept { return refused_.load(std::memory_order_relaxed); }
+
+ private:
+  en::gal::NativeSys& sys_;
+  std::atomic<std::uint64_t> refused_{0};
+};
+
+// The system layer as the searches see it: the game's own, with the copy that asks first. It is never asked to call
+// anything.
+class QuietSys final : public en::gal::SysLayer {
+ public:
+  explicit QuietSys(en::gal::NativeSys& sys) : sys_(sys), copier_(sys) {}
+  [[nodiscard]] std::uint64_t refused() const noexcept { return copier_.refused(); }
+  [[nodiscard]] std::uint64_t module_base() const noexcept override { return sys_.module_base(); }
+  [[nodiscard]] const en::gal::ByteSource& image() const noexcept override { return sys_.image(); }
+  [[nodiscard]] en::proto::Expected<std::uint64_t, en::gal::SysError> call_getter(std::uint64_t,
+                                                                                 std::uint64_t) noexcept override {
+    return en::proto::Unexpected{en::gal::SysError::Unsupported};
+  }
+  [[nodiscard]] en::proto::Expected<std::uint64_t, en::gal::SysError> register_task(
+      std::uint64_t, std::uint64_t, const en::gal::TaskShape&, en::gal::TaskBody&) noexcept override {
+    return en::proto::Unexpected{en::gal::SysError::Unsupported};
+  }
+  [[nodiscard]] en::gal::Copier& copier() noexcept override { return copier_; }
+  [[nodiscard]] en::gal::StackRanges& stacks() noexcept override { return sys_.stacks(); }
+  void note_own_stack() noexcept override { sys_.note_own_stack(); }
+  [[nodiscard]] std::uint64_t now_us() const noexcept override { return sys_.now_us(); }
+  [[nodiscard]] std::uint32_t thread_id() const noexcept override { return sys_.thread_id(); }
+  [[nodiscard]] std::uint64_t slot_calls(std::uint32_t) const noexcept override { return 0; }
+  [[nodiscard]] std::uint64_t task_object() const noexcept override { return 0; }
+  bool forget_stale_stacks(std::uint64_t address, std::uint64_t len) noexcept override {
+    return sys_.forget_stale_stacks(address, len);
+  }
+
+ private:
+  en::gal::NativeSys& sys_;
+  AskFirstCopier copier_;
+};
+
+// The trial's body on T2: the thread named for the crash filter, then the trial, then the searches T1 has handed
+// over, each a step within a budget of its own. T1 makes a search and publishes it here; T2 only steps it.
 class Body final : public en::gal::TaskBody {
  public:
-  explicit Body(lodestar::Trial& trial) : trial_(trial) {}
+  Body(en::gal::NativeSys& sys, lodestar::Trial& trial)
+      : trial_(trial), quiet_(sys), reader_(quiet_, en::gal::ReadBudget{2048, 1u << 20}) {}
   void run(const en::proto::GameThread& gt, const en::gal::FrameCtx& frame) override {
     if (!named_) {
       named_ = true;
       block::reader_thread(GetCurrentThreadId());
+      reader_.bind_thread();
     }
     trial_.run(gt, frame);
+    reader_.begin_tick();
+    if (auto* slots = slots_.load(std::memory_order_acquire)) (void)slots->step(gt, reader_, 1024);
+    if (auto* clock = clock_.load(std::memory_order_acquire)) (void)clock->step(gt, reader_, 32, frame.qpc_now_us);
+    if (auto* rising = rising_.load(std::memory_order_acquire)) (void)rising->step(gt, reader_, 48, frame.qpc_now_us);
+    steps_.fetch_add(1, std::memory_order_release);
   }
+
+  // Steps T2 has finished: a search T1 took back two steps ago is no longer in T2's hands.
+  [[nodiscard]] std::uint64_t steps() const noexcept { return steps_.load(std::memory_order_acquire); }
+
+  void set_slots(en::gal::probe::SlotSearch* search) noexcept { slots_.store(search, std::memory_order_release); }
+  void set_clock(lodestar::ClockSearch* search) noexcept { clock_.store(search, std::memory_order_release); }
+  void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
+  [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
+  [[nodiscard]] std::uint64_t refused() const noexcept { return quiet_.refused(); }
 
  private:
   lodestar::Trial& trial_;
+  QuietSys quiet_;
+  en::gal::GuardedReader reader_;  // the searches', over QuietSys; the trial has its own, over the game's
+  std::atomic<en::gal::probe::SlotSearch*> slots_{nullptr};
+  std::atomic<lodestar::ClockSearch*> clock_{nullptr};
+  std::atomic<en::gal::probe::RisingSearch*> rising_{nullptr};
+  std::atomic<std::uint64_t> steps_{0};
   bool named_ = false;
 };
 
@@ -95,7 +206,7 @@ std::string today() {
 
 class Round {
  public:
-  explicit Round(Shell& s) : s_(s), folder_(s.paths.data + L"\\probe") {}
+  explicit Round(Shell& s) : s_(s), folder_(s.paths.data + L"\\probe"), ask_first_(*s.sys) {}
 
   void run(const en::gal::Gated& gated) {
     (void)make_dirs(folder_);
@@ -144,7 +255,8 @@ class Round {
     // The characters' manager exists only with a save loaded: its instance tells the trial's readings' stage.
     trial_->set_stage(en::gal::roles::info(en::gal::roles::Item::Characters).id);
     add_named();
-    auto* body = new Body(*trial_);
+    body_ = new Body(*s_.sys, *trial_);
+    auto* body = body_;
     auto* start = new ReaderStart{s_.sys, body};
     // Made suspended, so that the stack table is made again with its stack in it and without T1's (boot.cpp; WHY§190).
     const HANDLE reader = CreateThread(nullptr, 0, &trial_reader_main, start, CREATE_SUSPENDED, nullptr);
@@ -167,6 +279,7 @@ class Round {
       Sleep(50);
     }
     log(Line("first_reading").word("state", "running").num("ms", since_ms() - asked));
+    trial_at_ms_ = since_ms();
     block::ready_ms(static_cast<std::uint32_t>(since_ms()));
     state(w::InitState::Ready);
     report_loop();
@@ -184,22 +297,16 @@ class Round {
   // 8 bytes, through the crash-guarded copy, under the reader's plausibility rules (never a thread's stack).
   void name_pass() {
     const std::uint64_t t = since_ms();
-    const lodestar::ReadWord read_word = [this](std::uint64_t address) -> std::optional<std::uint64_t> {
-      if (en::gal::implausible(address, 8, 8, s_.sys->stacks())) return std::nullopt;
-      std::array<std::byte, 8> v{};
-      if (!s_.sys->copier().copy(address, v).copied) return std::nullopt;
-      std::uint64_t out = 0;
-      std::memcpy(&out, v.data(), 8);
-      return out;
-    };
-    const lodestar::InstancesFound pass = namer_->pass(s_.sys->image(), found_.accessor, read_word);
+    const lodestar::ReadWord word = [this](std::uint64_t address) { return read_word(address); };
+    const lodestar::InstancesFound pass = namer_->pass(s_.sys->image(), found_.accessor, word);
     lodestar::merge(held_, pass);
     last_pass_ms_ = since_ms();
     // For the launcher's console: how many of the managers asked for are named, and in how many passes.
     block::items(static_cast<std::uint32_t>(held_.named), static_cast<std::uint32_t>(held_.managers.size()),
                  held_.passes);
     log(Line("read").word("stage", "named").num("pass", held_.passes).num("tried", pass.tried).num("null", pass.null)
-            .num("unread", pass.unread).num("unclassed", pass.unclassed).num("classed", pass.classed)
+            .num("unread", pass.unread).num("in_image", pass.in_image).num("unclassed", pass.unclassed)
+            .num("classed", pass.classed)
             .num("named", held_.named).num("ambiguous", held_.ambiguous).num("of", held_.managers.size())
             .num("unlisted", held_.unlisted).num("ms", last_pass_ms_ - t));
   }
@@ -209,10 +316,111 @@ class Round {
     for (const lodestar::ManagerFound& m : held_.managers) (void)trial_->add(m);
   }
 
+  // One 8-byte read on T1, under the reader's plausibility rules and by the copy that asks first; nothing when it
+  // is refused or the memory cannot be read.
+  std::optional<std::uint64_t> read_word(std::uint64_t address) {
+    if (en::gal::implausible(address, 8, 8, s_.sys->stacks())) return std::nullopt;
+    std::array<std::byte, 8> v{};
+    if (!ask_first_.copy(address, v).copied) return std::nullopt;
+    std::uint64_t out = 0;
+    std::memcpy(&out, v.data(), 8);
+    return out;
+  }
+
+  // The searches by what an object holds: started once, when a save is loaded or kSearchAfterMs after the trial began.
+  void start_searches() {
+    searching_ = true;
+    const std::uint64_t base = s_.sys->module_base();
+    // The clock: every static of the accessor's that no lead has named.
+    std::vector<std::uint32_t> unnamed;
+    for (const lodestar::StaticFound& st : found_.accessor.statics) {
+      const bool named = std::any_of(held_.managers.begin(), held_.managers.end(), [&](const lodestar::ManagerFound& m) {
+        return m.status == en::gal::derive::Status::Derived && m.rva == st.rva;
+      });
+      if (!named) unnamed.push_back(st.rva);
+    }
+    clock_ = new lodestar::ClockSearch(std::move(unnamed), base, image_->size_of_image);  // lives for the process
+    body_->set_clock(clock_);
+    // The play time: every slot of the data that points at the heap.
+    rising_ = new en::gal::probe::RisingSearch(en::gal::probe::heap_slots(*s_.sys, *image_, 1u << 16), 0x100, 1u << 14);
+    body_->set_rising(rising_);
+    log(Line("read").word("stage", "searches").num("clock_candidates", clock_->found().candidates)
+            .num("rising_candidates", rising_->candidates()).num("ms", since_ms()));
+  }
+
+  // The slot search for one lead that has a class of its name and no static yet: made here, stepped on T2, read back
+  // here when it has checked every candidate. One at a time; a lead whose search found nothing is tried again later.
+  void slot_searches() {
+    // A search taken back from T2 is freed once T2 has finished two more steps: it cannot be inside it any more.
+    if (retired_ != nullptr) {
+      if (body_->steps() < retired_step_ + 2) return;
+      delete retired_;
+      delete retired_set_;
+      retired_ = nullptr;
+      retired_set_ = nullptr;
+    }
+    if (slot_search_ != nullptr) {
+      if (slot_search_->checked() < slot_search_->candidates()) return;  // T2 is still at it
+      body_->set_slots(nullptr);
+      const auto found = slot_search_->found();
+      std::uint32_t vtable = 0;
+      if (!found.empty()) {
+        // The object behind the first slot found: its table of methods, read once here.
+        std::array<std::byte, 8> raw{};
+        std::uint64_t instance = 0;
+        if (s_.sys->image().read(found[0], raw)) std::memcpy(&instance, raw.data(), 8);
+        const std::optional<std::uint64_t> word = instance != 0 ? read_word(instance) : std::nullopt;
+        const std::uint64_t base = s_.sys->module_base();
+        if (word && *word >= base && *word - base < image_->size_of_image) vtable = static_cast<std::uint32_t>(*word - base);
+      }
+      lodestar::set_by_search(held_, slot_id_, found.empty() ? 0 : found[0], vtable,
+                              static_cast<std::uint32_t>(found.size()));
+      log(Line("read").word("stage", "search").num("id", slot_id_).num("candidates", slot_search_->candidates())
+              .num("found", found.size()).num("unreadable", slot_search_->unreadable()).num("named", held_.named));
+      block::items(static_cast<std::uint32_t>(held_.named), static_cast<std::uint32_t>(held_.managers.size()),
+                   held_.passes);
+      add_named();
+      // T2 may be inside its last step of it: it is freed two of T2's steps from now (above).
+      retired_ = slot_search_;
+      retired_set_ = slot_set_;
+      retired_step_ = body_->steps();
+      slot_search_ = nullptr;
+      slot_set_ = nullptr;
+      searched_at_[slot_id_] = since_ms();
+      return;
+    }
+    for (const lodestar::ManagerFound& m : held_.managers) {
+      if (m.status == en::gal::derive::Status::Derived || m.search_found > 1) continue;
+      const auto last = searched_at_.find(m.id);
+      if (last != searched_at_.end() && since_ms() - last->second < kSearchAgainMs) continue;
+      const std::vector<std::uint32_t> tables = namer_->vtables(m.id);
+      if (tables.empty()) continue;  // no class of its name: nothing to look for
+      slot_set_ = new en::gal::VtableSet();  // the search keeps a reference to it: freed with it
+      std::vector<std::uint64_t> absolute;
+      for (const std::uint32_t t : tables) absolute.push_back(s_.sys->module_base() + t);
+      slot_set_->assign(std::move(absolute));
+      slot_id_ = m.id;
+      slot_search_ = new en::gal::probe::SlotSearch(*s_.sys, *image_, *slot_set_, kMaxSlotCandidates);
+      body_->set_slots(slot_search_);
+      return;
+    }
+  }
+
   // The report, and the table when the names changed (or `table` asks).
   void write(bool table) {
     found_.instances = held_;
     if (trial_ != nullptr) found_.trial = trial_->found();
+    if (clock_ != nullptr) found_.clock = clock_->found();
+    if (rising_ != nullptr) {
+      lodestar::RisingFound r;
+      r.candidates = rising_->candidates();
+      r.passes = rising_->passes();
+      r.unreadable = rising_->unreadable();
+      for (const en::gal::probe::RisingSearch::Hit& h : rising_->hits()) {
+        r.hits.push_back(lodestar::RisingHit{h.slot, h.offset, h.rose, h.still, h.other});
+      }
+      found_.rising = std::move(r);
+    }
     const auto text = lodestar::write_report(found_);
     if (!text) {
       log(Line("read").word("report", "refused"), LogLevel::Error);
@@ -231,8 +439,18 @@ class Round {
   // line of the trial's counts every 10 s.
   [[noreturn]] void report_loop() {
     std::uint64_t said = 0;
+    std::uint64_t wrote = since_ms();
     for (;;) {
-      Sleep(static_cast<DWORD>(kReportEveryMs));
+      Sleep(500);
+      // The searches' hand-overs twice a second; the naming, the files and the lines at their own paces.
+      if (trial_ != nullptr && body_ != nullptr) {
+        if (!searching_ && (trial_->found().world_readings != 0 || since_ms() - trial_at_ms_ >= kSearchAfterMs)) {
+          start_searches();
+        }
+        if (searching_) slot_searches();
+      }
+      if (since_ms() - wrote < kReportEveryMs) continue;
+      wrote = since_ms();
       const bool unnamed = held_.named < held_.managers.size();
       if (unnamed && since_ms() - last_pass_ms_ >= kNameEveryMs) {
         name_pass();
@@ -256,12 +474,22 @@ class Round {
                 .num("same", same).num("null", null).num("other", other).num("fault", fault).num("torn", torn)
                 .num("faults", faults).num("world", t.world_readings).num("stage_changes", t.stage_changes)
                 .num("p99_us", t.reading_p99_us).num("max_us", t.reading_max_us));
+        if (clock_ != nullptr && rising_ != nullptr) {
+          const lodestar::ClockFound c = clock_->found();
+          log(Line("read").word("stage", "held").num("clock_passes", c.passes).num("clock_hits", c.hits.size())
+                  .num("clocks", static_cast<std::uint64_t>(
+                                     std::count_if(c.hits.begin(), c.hits.end(), [](const auto& h) { return h.has_hour; })))
+                  .num("rising_passes", rising_->passes()).num("rising_hits", rising_->hits().size())
+                  .num("search_faults", body_->reader().faults(en::gal::FaultKind::Copy))
+                  .num("search_refused", body_->refused()));
+        }
       }
     }
   }
 
   Shell& s_;
   std::wstring folder_;
+  AskFirstCopier ask_first_;  // T1's own, for its one read at each instance
   const en::gal::ImageInfo* image_ = nullptr;  // the gate's, which lives for the process
   en::gal::derive::Leads leads_;
   en::gal::Catalogue ids_;
@@ -270,6 +498,18 @@ class Round {
   en::gal::TableProvenance provenance_;
   lodestar::Namer* namer_ = nullptr;
   lodestar::Trial* trial_ = nullptr;
+  Body* body_ = nullptr;
+  lodestar::ClockSearch* clock_ = nullptr;
+  en::gal::probe::RisingSearch* rising_ = nullptr;
+  en::gal::probe::SlotSearch* slot_search_ = nullptr;  // the one T2 is stepping, if any
+  en::gal::VtableSet* slot_set_ = nullptr;
+  en::gal::probe::SlotSearch* retired_ = nullptr;      // the one taken back from T2, to be freed
+  en::gal::VtableSet* retired_set_ = nullptr;
+  std::uint64_t retired_step_ = 0;
+  std::uint32_t slot_id_ = 0;
+  std::map<std::uint32_t, std::uint64_t> searched_at_;  // by id: when its last slot search ended
+  bool searching_ = false;
+  std::uint64_t trial_at_ms_ = 0;
   std::uint64_t last_pass_ms_ = 0;
   std::uint64_t tabled_ = ~std::uint64_t{0};
 };
