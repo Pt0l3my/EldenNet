@@ -23,6 +23,8 @@
 # security descriptor, nothing else of it.
 # The first conversation (S11.3) links en-prompt: its template library's file code, which en-prompt never calls (the DLL
 # renders templates from the content pack in memory), brings SetEndOfFile.
+# The first conversation (S11.3, part C): WaitForMultipleObjects, T6's wait on its own wake signal and GraceUI's wait
+# handle (ABI 1.5, D212) together.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -191,6 +193,7 @@ UnhandledExceptionFilter
 VirtualAlloc
 VirtualProtect
 VirtualQuery
+WaitForMultipleObjects
 WaitForSingleObject
 WaitForSingleObjectEx
 WaitForThreadpoolTimerCallbacks

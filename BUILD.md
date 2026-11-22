@@ -58,7 +58,7 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-a9aac78 (GraceUI 0.2.12, protocol 1.3, ABI 1.2), all five from that one commit, each checked against its SHA-256 when the build is
+798934f (GraceUI 0.2.20, protocol 1.6, ABI 1.5), all five from that one commit, each checked against its SHA-256 when the build is
 configured. `en_overlay_tests.exe` runs the connection's
 tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines (Augur's
 events and en-core's changes among them), its rings and the world-state claims.
@@ -140,7 +140,8 @@ cmake --build build-cl
   holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (a9aac78, GraceUI 0.2.12), so the space meets the checks it will meet.
+  third_party/graceui-sys comes from (798934f, GraceUI 0.2.20), so the space and the surfaces meet the checks they will
+  meet. (The page lint and the preview keep their own pin, a9aac78, `tests/pages/lint.py`: the page data is protocol 1.3's.)
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI: F5's menu and, from Linux, a browser
   of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names; it uses
   that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
@@ -165,6 +166,16 @@ cmake --build build-cl
   frame, log line, recording and file of the run, and for a fragment both hold in what the menu draws (GraceUI 0.2.6's
   `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`, at most four texts), which also checks that
   the menu draws a row's key as Not needed, a card's chip and a card's live status.
+  `launcher-eldennet-graceui-talk` is the first conversation end to end (S11.3, part C): the probe DLL in the tests'
+  realm (`ELDENNET_TEST_REALM=eval`, which the release DLL refuses: `launcher-eldennet-realm-release`), the test persona
+  bound to the fake game's invented row 81100 through `tests/scenarios/talk/overrides` copied into the case's overrides
+  folder, a calm world (the fake game's `--calm`: no boss bar, no strike, no native talk's pop-up), and a local model
+  server of `fake_models.py`'s on its keyless path with a scripted reply, named in providers.toml for the dialogue
+  slot. T (`--press-keys`, its SendInput's time on QPC's clock in `key_down … qpc_ms=`), a line typed
+  (`--type-at`, Unicode key presses), Enter and Esc; the case checks the box's input held (the fake game's report:
+  `holder=2`, EldenNet's), the line sent without the T's own character, the box's first submitted frame within NPC
+  §5.1's 50 ms of the key, the request's stop sequences, the reply's first page on the frame in the lower third
+  (`--grace-probe` on its ink) with its PageShown and its commit, the close's reason, and no chat text in the log.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
@@ -175,9 +186,9 @@ cmake --build build-cl
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- The clang-cl build's harness has 122 tests with every optional part given (the prefix and 121 cases, 52 of them the
-  launcher's, 24 of those eldennet.dll's and eight of these with GraceUI, above, and six the spikes' package's; counted
-  on 2026-11-22, after R1's eight cases went and the read round's console case came). Without GraceUI's parts 109
+- The clang-cl build's harness has 125 tests with every optional part given (the prefix and 124 cases, 55 of them the
+  launcher's, 27 of those eldennet.dll's and ten of these with GraceUI, above, and six the spikes' package's; counted
+  on 2026-11-22, after the first conversation's three cases came). Without GraceUI's parts 110
   tests run, in about 18 minutes (2026-11-22): 52 of about 2 to 8 s each, and the `gal-*` cases of part 4, 12 to 25 s each, which first write
   gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as an in-game round finds them) and
   `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the fake game with

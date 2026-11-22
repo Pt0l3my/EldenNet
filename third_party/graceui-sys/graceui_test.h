@@ -214,6 +214,9 @@ GRACEUI_API void GraceUI_Test_SetCaret(int32_t x, int32_t y, int32_t height);
 GRACEUI_API void GraceUI_Test_SetCodePage(uint32_t code_page);
 /* Pad `user`'s buttons (XINPUT_GAMEPAD_*) as an XInput read gives them, through the detour's own filter (D176). */
 GRACEUI_API void GraceUI_Test_Pad(uint32_t user, uint32_t buttons);
+/* The same with the read's packet number in *packet: answers the buttons the game then sees, and leaves in *packet the
+ * packet number it reads (the pad chords' steps, D204). */
+GRACEUI_API uint32_t GraceUI_Test_PadRead(uint32_t user, uint32_t buttons, uint32_t* packet);
 /* Fills *out (out->size set by the caller); answers 1, or 0 if the size is too small. */
 GRACEUI_API uint32_t GraceUI_Test_GetInput(GraceUiTestInput* out);
 /* Copies up to `capacity` of the code points Dear ImGui received since the last reset, oldest first; answers how many. */

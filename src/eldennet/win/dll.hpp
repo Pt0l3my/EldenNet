@@ -32,6 +32,8 @@
 #include "en/gal/task.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
+#include "en/proto/llm.hpp"
+#include "en/proto/ui.hpp"
 #include "en/proto/watch.hpp"
 #include "en/shell/logline.hpp"
 #include "en/shell/rings.hpp"
@@ -155,6 +157,7 @@ struct Items {
 class Io;
 struct OverlayLink;  // overlay.cpp: en-overlay's connection and what T6 last showed through it
 struct AiFilesRead;  // ai.cpp: providers.toml, models.toml and secrets.toml as T1 read them, and the transport
+struct ContentRead;  // conversation.cpp: the overrides folder and the realm, as T1 read them
 struct Shell {
   en::shell::Settings settings;
   Paths paths;
@@ -178,6 +181,8 @@ struct Shell {
   std::atomic<std::uint64_t> recorded{0};      // its lines
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
+  std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
+  std::string content_notice;                    // T6's: the content's first problem in words, for one notice
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -195,9 +200,15 @@ void push_banner(Shell& s, en::core::BannerReason reason, std::string_view detai
 // failed connect leaves EldenNet headless (ARCH §10.3). `banner_path`: ConnectB, after a refused gate or anti-cheat.
 void connect_overlay(Shell& s, bool banner_path) noexcept;
 // T6, after each step: the banner and the badge as notices, the world-state claims, the Mark's hotkey and its
-// presses, and the F11 view. `latest` is the newest snapshot the core judged, or null before the first.
+// presses, the F11 view, and what the player did on the conversation's surfaces (the talk key, Tab, the box's input),
+// appended to `ui` for the core. `latest` is the newest snapshot the core judged, or null before the first.
 void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest, std::uint64_t tripped,
-                  std::uint64_t now) noexcept;
+                  std::uint64_t now, std::vector<en::proto::UiEvent>& ui) noexcept;
+// T6, after the core took those events: the newest model drawn by the conversation's surfaces, and the events that
+// raised (PageShown, Close) for the core; nothing without GraceUI.
+std::vector<en::proto::UiEvent> overlay_show(Shell& s, const en::proto::UiModel& model, std::uint64_t now) noexcept;
+// T6: GraceUI's wait handle for EldenNet's events (ABI 1.5), or null before the connect or without it.
+[[nodiscard]] HANDLE overlay_wake(Shell& s) noexcept;
 // T6: one of the core's changes, by its words (static ones: an enum's name), for the view's list.
 void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept;
 // T6: one of Augur's events of the step, for the view's list, as Augur's words write it (no name, no handle).
@@ -212,11 +223,30 @@ void read_ai_files(Shell& s, const std::optional<std::string>& settings_text) no
 // T6, each wake before the space's step: the handle's events taken, the runs advanced, the AI pages' facts (null
 // until T1 has read the files, and on the banner path).
 const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space& space) noexcept;
+// T6, each wake: the handle's gate (C15), its events taken, the self-test's and the model list's runs advanced, and
+// the conversation's events (its ids from en-core's kConversationRequests) appended to `conversation` for the core.
+void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversation) noexcept;
+// T6: a request of the core's to the handle (made at the first that needs it); false if it was not accepted (the
+// core's own timers then end the reply). Logged by its id and the answer alone.
+bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept;
+void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
+// T6: the model client's health as the core's ladder reads it (L3 and L4 need the dialogue slot usable).
+[[nodiscard]] en::proto::NetHealth ai_health(Shell& s) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
 // T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
 // value is taken out of the request and the request's copy overwritten.
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
+
+// ---- The conversation (conversation.cpp; WHY§364, part C) ----
+// T1, on the main path: the overrides folder (%APPDATA%\EldenNet\overrides\) and the realm (the game's, or the
+// tests' Eval in a probe build alone), handed to T6.
+void read_content(Shell& s) noexcept;
+// T6, each wake: the content loaded into the core once T1 has read it; true on the wake that did.
+bool content_tick(Shell& s, en::core::Core& core) noexcept;
+// T6, after each step of the core: its requests submitted, its cancels made, its commits and its ending logged as
+// words and numbers.
+void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
 
 // ---- T1 (boot.cpp) and the read-only round (probe_read.cpp) ----
 unsigned long init_main(void* module) noexcept;

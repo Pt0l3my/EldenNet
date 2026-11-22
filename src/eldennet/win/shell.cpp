@@ -153,6 +153,13 @@ DWORD WINAPI core_main(void* param) noexcept {
     bool stalled = false;
     bool crashed = false;
     std::uint64_t tripped = 0;  // the groups whose breaker tripped (GroupTripped on C2), bit per group
+    // The first conversation (WHY§364, part C): the newest model for the surfaces (C6), the model client's health as
+    // last told to the core, and the events of the surfaces (C7) and of the model client (C10) waiting for the core.
+    en::proto::UiModel ui_model;
+    en::proto::NetHealth net{};
+    bool net_told = false;
+    std::vector<en::proto::UiEvent> ui_in;
+    std::vector<en::proto::LlmEvent> llm_in;
     const auto step = [&](en::core::CoreInput in, std::uint64_t now) {
       en::core::Outputs out = core->step(std::move(in), now);
       for (auto& c : out.game) {
@@ -165,10 +172,20 @@ DWORD WINAPI core_main(void* param) noexcept {
         overlay_change(en::core::to_string(c.what), change_word(c), c.at);  // the F11 view's list
       }
       for (const en::augur::Event& e : out.events) overlay_event(e);  // Augur's events, for the F11 view's list
+      conversation_out(s, out);  // its requests to the model client, its cancels, its commits logged as numbers
+      ui_model = std::move(out.ui);
     };
     for (;;) {
-      WaitForSingleObject(s.wake, 100);
+      // One wake signal, and GraceUI's wait handle once connected (ABI 1.5, D212): its events (the talk key, the box's
+      // typing) wake T6 at once, so the box opens within NPC §5.1's 50 ms; 100 ms is the fallback either way.
+      if (HANDLE grace = overlay_wake(s); grace != nullptr) {
+        const HANDLE both[2] = {s.wake, grace};
+        WaitForMultipleObjects(2, both, FALSE, 100);
+      } else {
+        WaitForSingleObject(s.wake, 100);
+      }
       const std::uint64_t now = mono_ms();
+      (void)content_tick(s, *core);  // the conversation's content, once T1 has read it
       en::core::BootBanner banner;
       while (s.banners.try_pop(banner)) {
         if (rec.on()) rec.put(en::shell::banner_line(banner.reason, now));
@@ -190,6 +207,16 @@ DWORD WINAPI core_main(void* param) noexcept {
         if (rec.on()) rec.put(en::shell::snapshot_line(*latest, latest->mono_ms));
         step(en::core::CoreInput{std::make_unique<en::proto::WorldSnapshot>(*latest)}, now);
       }
+      // The model client: its health when it changes (L3 and L4, ARCH §6.8), then its events (C10).
+      if (const en::proto::NetHealth h = ai_health(s); !net_told || h != net) {
+        net = h;
+        net_told = true;
+        log(Line("net").flag("dialogue", h.dialogue));
+        step(en::core::CoreInput{h}, now);
+      }
+      llm_in.clear();
+      ai_pump(s, core->state().gate_open, llm_in);
+      for (en::proto::LlmEvent& e : llm_in) step(en::core::CoreInput{std::move(e)}, now);
       if (now - last_tick >= 100) {
         last_tick = now;
         step(en::core::CoreInput{en::core::CoreInput::Tick{}}, now);
@@ -240,7 +267,15 @@ DWORD WINAPI core_main(void* param) noexcept {
       // EldenNet's space (its pages), which reads the recorder's state too.
       s.recording.store(rec.on(), std::memory_order_relaxed);
       s.recorded.store(rec.lines(), std::memory_order_relaxed);
-      overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now);
+      ui_in.clear();
+      overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now, ui_in);
+      // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
+      // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).
+      for (int round = 0; round < 4; ++round) {
+        for (en::proto::UiEvent& e : ui_in) step(en::core::CoreInput{std::move(e)}, now);
+        ui_in = overlay_show(s, ui_model, now);
+        if (ui_in.empty()) break;
+      }
       if (now - last_status >= 10'000) {
         last_status = now;
         Line l("status");

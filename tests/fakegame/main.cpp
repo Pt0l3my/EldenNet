@@ -2,6 +2,7 @@
 // shows them to EldenNet: a window, then global_hinstance, then the statics), and the frame loop, which runs every
 // registered task at a set rate, with hitches, stalls, moves, loading screens, faults and DLL loads on request.
 #include <algorithm>
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -70,7 +71,14 @@ void load_dlls(LoadMoment moment) {
   }
 }
 
+// The keys and characters that reach the game's own window procedure, past GraceUI's filter (its holder's, its
+// hotkeys' and its menu's never do): the conversation's cases count them for input leaks (GraceUI invariants 7, 8).
+std::atomic<std::uint32_t> g_game_keys{0};
+std::atomic<std::uint32_t> g_game_chars{0};
+
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+  if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN) g_game_keys.fetch_add(1, std::memory_order_relaxed);
+  if (message == WM_CHAR) g_game_chars.fetch_add(1, std::memory_order_relaxed);
   if (message == WM_CLOSE) {
     g_quit = true;
     DestroyWindow(window);
@@ -136,7 +144,8 @@ bool parse_keys(const std::wstring& list, std::vector<Options::KeyPress>& out) {
   static constexpr Named kKeys[] = {{L"f5", VK_F5, 0x3F},      {L"next", VK_NEXT, 0x51}, {L"prior", VK_PRIOR, 0x49},
                                     {L"up", VK_UP, 0x48},      {L"down", VK_DOWN, 0x50}, {L"left", VK_LEFT, 0x4B},
                                     {L"right", VK_RIGHT, 0x4D}, {L"return", VK_RETURN, 0x1C},
-                                    {L"escape", VK_ESCAPE, 0x01}};
+                                    {L"escape", VK_ESCAPE, 0x01}, {L"t", 0x54, 0x14},
+                                    {L"tab", VK_TAB, 0x0F},        {L"f11", VK_F11, 0x57}};
   std::size_t at = 0;
   while (at < list.size()) {
     const std::size_t end = std::min(list.find(L',', at), list.size());
@@ -234,6 +243,9 @@ struct Parser {
 };
 
 }  // namespace
+
+std::uint32_t game_keys() noexcept { return g_game_keys.load(std::memory_order_relaxed); }
+std::uint32_t game_chars() noexcept { return g_game_chars.load(std::memory_order_relaxed); }
 
 bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
   Parser p{argc, argv, 1, {}, {}, false, error};
@@ -334,12 +346,37 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
       std::wstring list;
       ok = p.value(list) && parse_keys(list, o.press_keys);
     }
+    else if (n == L"--calm") o.calm = true;
+    else if (n == L"--type-at") {
+      // F:TEXT,F:TEXT: invented words of the tests' own, of letters, digits, spaces and . ? ! ' only.
+      std::wstring list;
+      ok = p.value(list);
+      std::size_t at = 0;
+      while (ok && at < list.size()) {
+        const std::size_t end = std::min(list.find(L',', at), list.size());
+        const std::wstring item = list.substr(at, end - at);
+        const std::size_t colon = item.find(L':');
+        ok = colon != std::wstring::npos && colon != 0 && colon + 1 < item.size();
+        Options::Typed t;
+        for (std::size_t i = 0; ok && i < colon; ++i) {
+          ok = item[i] >= L'0' && item[i] <= L'9';
+          t.frame = t.frame * 10 + static_cast<std::uint64_t>(item[i] - L'0');
+        }
+        t.text = ok ? item.substr(colon + 1) : std::wstring();
+        for (const wchar_t c : t.text) {
+          ok = ok && ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9') || c == L' ' ||
+                      c == L'.' || c == L'?' || c == L'!' || c == L'\'');
+        }
+        if (ok) o.type_at.push_back(std::move(t));
+        at = end + 1;
+      }
+    }
     else if (n == L"--grace-report") ok = p.numbers(o.grace_report_at);
     else if (n == L"--grace-probe") {
       std::vector<std::uint32_t> v;
       ok = p.numbers(v);
-      if (ok && v.size() != 7) {
-        error = "--grace-probe is x0,y0,x1,y1,r,g,b";
+      if (ok && v.size() != 7 && v.size() != 8) {
+        error = "--grace-probe is x0,y0,x1,y1,r,g,b or x0,y0,x1,y1,r,g,b,tolerance";
         ok = false;
       }
       if (ok && o.grace_probes.size() == Options::kProbes) {
@@ -350,6 +387,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
         Options::Probe probe;
         for (int k = 0; k < 4; ++k) probe.rect[k] = v[static_cast<std::size_t>(k)];
         for (int k = 0; k < 3; ++k) probe.colour[k] = v[static_cast<std::size_t>(4 + k)];
+        if (v.size() == 8) probe.tolerance = v[7];
         o.grace_probes.push_back(probe);
       }
     }
@@ -439,8 +477,9 @@ void print_usage() {
       "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
       "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
-      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b (up to 3 times)",
-      "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",
+      "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b[,tol] (up to 3 times)",
+      "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape|t|tab|f11,...",
+      "  --calm  --type-at F:TEXT,...",
       "  --describe  --verbose"};
   for (const char* line : kUsage) status("usage %s", line);
 }
@@ -528,6 +567,9 @@ int run(HINSTANCE instance) {
     }
     for (const Options::KeyPress& k : o.press_keys) {
       if (k.frame == frame && window != nullptr) press_key_into(window, k.vk, k.scan);
+    }
+    for (const Options::Typed& t : o.type_at) {
+      if (t.frame == frame && window != nullptr) type_into(window, t.text);
     }
     if (o.crash != Crash::None && frame == o.crash_at) {
       if (o.crash_on_worker) {

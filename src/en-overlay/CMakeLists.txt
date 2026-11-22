@@ -1,14 +1,16 @@
 # en-overlay: EldenNet's display layer through GraceUI (part 12; ARCH §2.2, §2.3; GraceUI G15, D131 to D156). Two parts:
 # - portable, in every build (tested on Linux too): the F11 view's lines (view.hpp), the world-state claims
-#   (world.hpp) and EldenNet's space (space.hpp: its pages, generated from pages/space.toml into src/space_data.cpp by
-#   tools/pages/build.py, its topics and its one command path), on en-proto, nlohmann/json and graceui.h, plain C;
+#   (world.hpp), the conversation's surfaces laid out as draw lists (surfaces.hpp) and EldenNet's space (space.hpp:
+#   its pages, generated from pages/space.toml into src/space_data.cpp by tools/pages/build.py, its topics and its one
+#   command path), on en-proto, nlohmann/json and graceui.h, plain C;
 # - in the Windows builds: the connection (overlay.hpp), through graceui-sys alone, and the view drawn on Dear ImGui
 #   1.93.0's core with no backend, as GraceUI's gu_imgui_core compiles it. No hook library, no renderer backend, no
 #   hook (R12, GraceUI invariant 16), and never en-core or en-gal (ARCH §2.3: it can never reach game memory).
 set(EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/view.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/world.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/space.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/space_data.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/space.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/space_data.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/surfaces.cpp)
 if(WIN32)
-  list(APPEND EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/overlay.cpp)
+  list(APPEND EN_OVERLAY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/overlay.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/chat.cpp)
   # Dear ImGui's core, with GraceUI's gu_imgui_core's definitions (they change the library's structures, so they are
   # PUBLIC), compiled as published: third-party code, with its warnings off but for en_dll_module's two rules, which
   # Clang keeps as errors (no dynamic initialiser, no exit-time destructor: the DLL links it).
@@ -53,10 +55,11 @@ en_link_rule(en_overlay ALLOW en_proto en_graceui_sys en_imgui_core en_third_par
 
 if(EN_BUILD_TESTS)
   set(EN_OVERLAY_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_view.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_world.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_space.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_world.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_space.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_surfaces.cpp)
   if(WIN32)
     list(APPEND EN_OVERLAY_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_grace.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_overlay.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_overlay.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_chat.cpp)
   endif()
   add_executable(en_overlay_tests ${EN_OVERLAY_TESTS})
   target_link_libraries(en_overlay_tests PRIVATE en_overlay en_doctest)

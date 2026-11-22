@@ -47,6 +47,7 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/alloc_count.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/shell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/overlay.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/win/conversation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/ai.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_read.cpp)
 # One DLL per flavour: `release` links en_gal_game, `probe` en_gal_game_probe and brings EN_PROBE (ARCH §2.5).
