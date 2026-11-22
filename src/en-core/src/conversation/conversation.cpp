@@ -562,8 +562,10 @@ struct Conversation::Impl {
     const Persona& p = cast()->persona(conv->persona);
     // The persona's own names: as the game shows it, and its record's fallback. Step 5 strips them as a leading
     // "Name:", and the lint reads them for third-person self-reference.
-    std::vector<std::string> self = {conv->name};
-    if (p.display_name_fallback != conv->name) self.push_back(p.display_name_fallback);
+    std::vector<std::string> self;
+    for (const std::string& n : {conv->name, p.display_name_fallback}) {
+      if (!n.empty() && std::find(self.begin(), self.end(), n) == self.end()) self.push_back(n);
+    }
     r.stream = parts.sanitizer.open(SanitizeContext{self});
     std::vector<std::string> tics;
     std::vector<std::uint8_t> tic_max;
