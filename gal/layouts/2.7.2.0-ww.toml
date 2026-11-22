@@ -2,13 +2,14 @@
 # - the task group's index, from the offline round R0c (2026-11-16);
 # - the build's table (Lodestar; proposal 0005 §5), from the read-only rounds in game (L5, 2026-11-22;
 #   docs/ops/probes/2026-11-22-l5.md): eight of the eleven managers' slots, each named by its instance's class and found
-#   by the accessor's shape, with the places in the code that load it, the same in three sessions of the game; the
-#   messages manager's slot, which no accessor's site loads, found in the third round as the first of two slots of the
-#   data that hold one object of its class (so by its instance's class alone, with no witness yet); the two character
-#   classes' tables of methods; and the task groups' table. Each entry was checked against the image as loaded before
-#   the round wrote it, and the reader read the slots some 20,000 times over the three rounds with no fault. Every entry
-#   is still a lead: nothing is confirmed before S0-A and the self-tests. event_flags and world_clock are not here: no
-#   round could name them.
+#   by the accessor's shape, with the places in the code that load it, the same in four sessions of the game; the
+#   messages manager's slot, which no accessor's site loads, found as one of two slots of the data that hold one object
+#   of its class: the one the code refers to (238 instructions; the other 3), by its instance's class, with eight of
+#   those instructions as its witnesses; the two character classes' tables of methods; and the task groups' table.
+#   Each entry was checked against the image as loaded before the round wrote it, and the reader read the slots some
+#   26,000 times over the four rounds with no fault. Every entry is still a lead: nothing is confirmed before S0-A and
+#   the self-tests. event_flags and world_clock are not here: the fourth round found the flags' store behind one of the
+#   accessor's statics and the clock inside another manager's object, and neither is in a round's draft yet.
 # The classes, fields, enums, params and self-test ids are later rounds' to find (L6), and are left out. A release build
 # refuses this file (every entry a lead).
 schema = 2
@@ -24,13 +25,13 @@ probe_record = "docs/ops/probes/2026-11-22-l5.md"
 group = { name = "ChrIns_PostPhysics", index = 110 }
 status = "lead"
 
-# The build's table, as the third read-only round wrote it (package 0.1.0-lodestar.6): its eleven older entries are
+# The build's table, as the fourth read-only round wrote it (package 0.1.0-lodestar.7): its eleven other entries are
 # the first round's, value for value. tool_sha256 is the package's own SHA-256 of its eldennet.dll, set at the review:
 # the round itself writes zeros there.
 [provenance]
 method = "own-derivation"
-tool = "0.1.0-lodestar.6"
-tool_sha256 = "7d043cc91a495f9c2731b6ea9737331619dbd411cfbae35761d07902b443c25c"
+tool = "0.1.0-lodestar.7"
+tool_sha256 = "867b82a78bb4cdf59a0ccb1f594a6a580e453b681f5ab609063405c1880f5c6f"
 round = "l5"
 date = "2026-11-22"
 leads = ["gal/leads.toml", "gal/recipes.toml"]
@@ -112,7 +113,8 @@ id = 1015
 kind = "static"
 rva = 0x3D84588
 found_by = ["instance_class"]
-checks = ["placement", "class"]
+witnesses = [0x21BFFD, 0x21C029, 0x21C3B2, 0x21C3DD, 0x6272E5, 0x627310, 0x761010, 0x76103B]
+checks = ["placement", "witness", "class"]
 status = "lead"
 
 [item.character]
