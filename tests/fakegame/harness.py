@@ -1568,8 +1568,11 @@ case("launcher-eldennet-graceui-pages", LGAME + ["--dll", "{eldennetdll}", "--co
 # rows changed, resets each job (one by its model row, one by its provider row), sees no row changed, removes the server
 # of its own, chooses the NanoGPT preset, whose provider joins, and removes the unused one with its key, confirmed. Both
 # keys' values must then be nowhere: no topic, log line, recording, report or file.
+# On Providers, Down six times from Add to the server of its own's Remove: since GraceUI 0.2.18 (D214) the form's
+# field is typed in game, one stop more than at 0.2.12.
 # On Models, Down 17 times from the preset to Memory's provider: each card's head and its four rows (GraceUI D202).
-AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3600:return,3660:return,3780:next,"
+AI_KEYS = ("3120:f5,3240:next,3360:down,3390:down,3420:down,3450:down,3480:down,3510:down,3600:return,3660:return,"
+           "3780:next,"
            + ",".join("%d:down" % (3900 + 30 * i) for i in range(17)) + ",4500:right,4620:down,4680:left,4800:next,"
            "4920:return,5400:f5")
 # The early reports name GraceUI's server to the browser (grace_port), so that its first part ends long before the menu's
@@ -2232,7 +2235,7 @@ case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--conso
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),
      env=dict(EN_ENV, FAKEGAME_SHOWS="{text_ai_shows}"), timeout=300,
      prepare=install_eldennet(AI_SETTINGS, then=install_ai), during=browse_ai, check=check_graceui_ai,
-     what="EldenNet's AI pages through GraceUI 0.2.12 against a fake model server on loopback: AI › Models as one "
+     what="EldenNet's AI pages through GraceUI 0.2.20 against a fake model server on loopback: AI › Models as one "
           "card per job with its chip and live status, a provider added from its preset (No key yet), a wrong key on "
           "its row refused (Refused; the cards Failing) and the right one set (Ready), a server of the case's own "
           "on this PC from the form (Not needed, no key), the self-test and the model lists, a job given that server "
