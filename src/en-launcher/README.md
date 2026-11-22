@@ -154,7 +154,7 @@ keep their numbers, unused.) The console tells each step once (`EldenNet read: â
 named=<n> of=<m>` (`texts.hpp`'s `ReadStep`, from EldenNet's answer, T1's state and the status's items, which in this
 round are the managers named, asked for and the naming passes): `asked`, `reading` (the game's image, at the title),
 `load_save` (a first pass is done and a manager is still unnamed: "Now load your save."), `done` (every manager named:
-load the save if it is not loaded yet, and stay about five minutes in the world), or `refused` and `stopped`. When the
+load the save if it is not loaded yet, and stay about ten minutes in the world), or `refused` and `stopped`. When the
 game ends, the launcher checks the two files in `%APPDATA%\EldenNet\probe\`: `lodestar-found.json` by the lint and the
 `lodestar` vocabulary, and `lodestar-table.toml` by `table_text_clean` (only `[provenance]`, `[item.<label>]` and known
 keys with numbers, our labels and fixed words: no path, no text), each as `read report=<name>
