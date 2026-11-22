@@ -1134,3 +1134,218 @@ TEST_CASE("in game: the code's references to a slot, and a manager the search na
   lodestar::set_search_refs(held, e.id, {1}, {{}});
   CHECK(of().search_refs.size() == 2);
 }
+
+TEST_CASE("in game: the watch follows a way to an object and counts how its words behave") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  std::uint64_t asked = 0;
+  lodestar::Watch watch(w.base, r.gated.image.size_of_image, namer.primary_tables(), [&](std::uint64_t at) {
+    ++asked;
+    std::array<std::byte, 8> b{};
+    return w.mem.read(at, b);
+  });
+  // The session's object (0x20 bytes): a counter that rises at 0x08, one that falls at 0x0C, a small number at 0x10,
+  // and at 0x18 the address of the messages' object. Two ways to the messages' object: its own static, and the
+  // pointer in the session's object.
+  const std::uint64_t session = w.instance("session"), words = w.instance("messages");
+  w.mem.put<std::uint32_t>(session + 0x08, 100);
+  w.mem.put<std::uint32_t>(session + 0x0C, 5000);
+  w.mem.put<std::uint64_t>(session + 0x10, 7);
+  w.mem.put<std::uint64_t>(session + 0x18, words);
+  using Way = lodestar::Watch::Way;
+  REQUIRE(watch.add(Way{"session", 1007, rva(w.at("st_session")), 0, false, rva(w.vtable("lobby")), false}));
+  REQUIRE(watch.add(Way{"messages", 1015, rva(w.at("st_messages")), 0, false, rva(w.vtable("words")), false}));
+  REQUIRE(watch.add(Way{"messages", 1015, rva(w.at("st_session")), 0x18, true, rva(w.vtable("words")), false}));
+  CHECK_FALSE(watch.add(Way{"again", 0, rva(w.at("st_session")), 0x18, true, 0, false}));  // the same way
+  CHECK(watch.ways() == 3);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 1'000'000;
+  const auto second = [&] {
+    now += 1'000'000;
+    bool ended = false;
+    for (int k = 0; k < 100 && !ended; ++k) {
+      reader.begin_tick();
+      ended = watch.step(gt, reader, 2, now);  // two ways a step: a pass takes two
+    }
+    REQUIRE(ended);
+  };
+  second();
+  for (int i = 0; i < 20; ++i) {
+    w.mem.put<std::uint32_t>(session + 0x08, 100 + 3 * (i + 1));
+    w.mem.put<std::uint32_t>(session + 0x0C, 5000 - (i + 1));
+    second();
+  }
+  // Nothing is read twice within a second.
+  reader.begin_tick();
+  CHECK_FALSE(watch.step(gt, reader, 8, now + 1000));
+  lodestar::WatchFound found = watch.found();
+  CHECK(found.passes == 21);
+  REQUIRE(found.objects.size() == 3);
+  const lodestar::WatchObject& s = found.objects[0];
+  CHECK(s.label == "session");
+  CHECK(s.id == 1007);
+  CHECK(s.readings == 21);
+  CHECK(s.empty == 0);
+  CHECK(s.unreadable == 0);
+  CHECK(s.moved == 0);
+  CHECK(s.vtable_same == 21);
+  CHECK(s.span == 0x20);  // the object's memory ends there
+  CHECK(s.vtable == rva(w.vtable("lobby")));
+  CHECK(s.bits.empty());
+  const auto word = [](const lodestar::WatchObject& o, std::uint32_t offset) {
+    const auto it = std::find_if(o.words.begin(), o.words.end(), [&](const auto& x) { return x.offset == offset; });
+    REQUIRE(it != o.words.end());
+    return *it;
+  };
+  CHECK(word(s, 0).kind == lodestar::WordKind::Vtable);
+  CHECK(word(s, 0).changes_low == 0);
+  CHECK(word(s, 8).changes_low == 20);
+  CHECK(word(s, 8).rises_low == 20);
+  CHECK(word(s, 8).changes_high == 20);  // the falling counter is the word's high half
+  CHECK(word(s, 8).rises_high == 0);
+  CHECK(word(s, 0x10).kind == lodestar::WordKind::Small);
+  CHECK(word(s, 0x18).kind == lodestar::WordKind::Heap);
+  CHECK(word(s, 0x18).flips == 0);
+  CHECK(asked > 0);
+  // Both ways to the messages' object arrive at the one object, every time.
+  const lodestar::WatchObject& direct = found.objects[1];
+  const lodestar::WatchObject& through = found.objects[2];
+  CHECK(direct.same_address == 0);  // the first way of its label has none before it
+  CHECK(through.deref);
+  CHECK(through.offset == 0x18);
+  CHECK(through.readings == 21);
+  CHECK(through.same_address == 21);
+  CHECK(through.vtable_same == 21);
+
+  // The session's static emptied: nothing there. A new object behind it: moved, and compared with nothing.
+  w.mem.put<std::uint64_t>(w.at("st_session"), 0);
+  second();
+  const std::uint64_t other = w.mem.alloc(0x20);
+  w.set_vtable(other, "lobby");
+  w.mem.put<std::uint32_t>(other + 0x08, 1);
+  w.mem.put<std::uint64_t>(w.at("st_session"), other);
+  second();
+  second();
+  found = watch.found();
+  CHECK(found.objects[0].readings == 23);
+  CHECK(found.objects[0].empty == 1);
+  CHECK(found.objects[0].moved == 0);  // after an empty reading a new object is simply the first again
+  CHECK(word(found.objects[0], 8).changes_low == 20);  // the other object's counter was not compared with the old one's
+  CHECK(found.objects[2].empty == 3);  // the way through the session's object: no object, then one that keeps no
+  CHECK(found.objects[2].unreadable == 0);  // address at 0x18
+  // One object swapped for another between two readings: moved.
+  w.mem.put<std::uint64_t>(w.at("st_messages"), w.instance("hud"));
+  second();
+  CHECK(watch.found().objects[1].moved == 1);
+  // The report carries a watch as counts and fixed words, and lints clean.
+  lodestar::Found f = r.found;
+  f.watch = watch.found();
+  const auto text = lodestar::write_report(f);
+  if (!text) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"kind\": \"heap\"") != std::string::npos);
+  CHECK(text->find("\"same_address\": 21") != std::string::npos);
+}
+
+TEST_CASE("in game: the watch knows a clock packed into bits, and one kept as a fraction") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  lodestar::Watch watch(w.base, r.gated.image.size_of_image, namer.primary_tables(), nullptr);
+  // The clock's object (0x20 bytes). At 0x10 one word packs the time: seconds in bits 0 to 5, minutes in 6 to 11,
+  // hours in 12 to 16, the day above. At 0x18 the hour of the day as a fraction. A game minute a second; two and a
+  // half hours go by.
+  const std::uint64_t clock = w.instance("world_clock");
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  REQUIRE(watch.add(lodestar::Watch::Way{"world_clock", 1012, rva(w.at("st_world_clock")), 0, false, 0, true}));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint32_t hour = 9, minute = 30;
+  std::uint64_t now = 5'000'000;
+  for (int second = 0; second < 150; ++second) {
+    const std::uint64_t packed = std::uint64_t{17} | (std::uint64_t{minute} << 6) | (std::uint64_t{hour} << 12) |
+                                 (std::uint64_t{3} << 17);
+    w.mem.put<std::uint64_t>(clock + 0x10, packed);
+    w.mem.put<float>(clock + 0x18, static_cast<float>(hour) + static_cast<float>(minute) / 60.0f);
+    now += 1'000'000;
+    reader.begin_tick();
+    (void)watch.step(gt, reader, 4, now);
+    minute = (minute + 1) % 60;
+    if (minute == 0) hour = (hour + 1) % 24;
+  }
+  const lodestar::WatchFound found = watch.found();
+  REQUIRE(found.objects.size() == 1);
+  const lodestar::WatchObject& c = found.objects[0];
+  CHECK(c.clock);
+  CHECK(c.readings == 150);
+  REQUIRE_FALSE(c.bits.empty());
+  const lodestar::BitHit& best = c.bits[0];
+  CHECK(best.offset == 0x10);
+  CHECK(best.bit == 6);
+  CHECK(best.ticks == 149);
+  CHECK(best.wraps == 2);
+  CHECK(best.jumps == 0);
+  CHECK(best.has_hour);
+  CHECK(best.hour_offset == 0x10);
+  CHECK(best.hour_bit == 12);
+  CHECK(best.hour_steps == 2);
+  // Other runs of bits step and go round too (parts of the fraction beside it, which a review tells apart by where
+  // they lie); in the packed word itself none has hours beside it and as many steps.
+  for (std::size_t i = 1; i < c.bits.size(); ++i) {
+    CHECK((c.bits[i].offset != 0x10 || !c.bits[i].has_hour || c.bits[i].ticks < best.ticks));
+  }
+  // The fraction: it rose at all but the two readings where the hour's digits carried... and never fell far: a
+  // steady rise of a sixtieth of an hour a second, about 16 thousandths.
+  REQUIRE(c.floats.size() == 1);
+  CHECK(c.floats[0].offset == 0x18);
+  CHECK(c.floats[0].rises == 149);
+  CHECK(c.floats[0].rate_milli >= 15);
+  CHECK(c.floats[0].rate_milli <= 18);
+}
+
+TEST_CASE("in game: the counts and what each static held are the fullest pass's, not the last one's") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  lodestar::InstancesFound held;
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(held.null == 0);
+  CHECK(held.classed == 11);
+  // What every static held: one entry a static, each classed, each a class a lead asks for.
+  REQUIRE(held.held.size() == 11);
+  CHECK(std::all_of(held.held.begin(), held.held.end(),
+                    [](const auto& x) { return x.holds == lodestar::Holds::Classed && x.lead && x.vtable != 0; }));
+  // The game closes: every static empty at the last pass. The round keeps what it saw in play.
+  std::vector<std::pair<std::uint64_t, std::uint64_t>> kept;
+  for (const lodestar::StaticFound& st : r.found.accessor.statics) {
+    kept.emplace_back(w.base + st.rva, w.mem.get<std::uint64_t>(w.base + st.rva));
+    w.mem.put<std::uint64_t>(w.base + st.rva, 0);
+  }
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(held.passes == 2);
+  CHECK(held.null == 0);
+  CHECK(held.classed == 11);
+  CHECK(held.named == 11);
+  CHECK(held.held.size() == 11);
+  CHECK(held.held[0].holds == lodestar::Holds::Classed);
+  // A pass as full as the fullest replaces it: the latest of equals.
+  for (const auto& [at, value] : kept) w.mem.put<std::uint64_t>(at, value);
+  w.mem.put<std::uint64_t>(w.instance("hud"), 0x1234);  // one object's first word is no table of methods now
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(held.null == 0);
+  CHECK(held.classed == 10);
+  CHECK(held.unclassed == 1);
+  CHECK(std::count_if(held.held.begin(), held.held.end(),
+                      [](const auto& x) { return x.holds == lodestar::Holds::Unclassed; }) == 1);
+  CHECK(held.named == 11);  // what was named stays named
+  lodestar::Found f = r.found;
+  f.instances = held;
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"held_statics\": [") != std::string::npos);
+}

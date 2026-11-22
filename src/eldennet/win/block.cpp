@@ -197,10 +197,8 @@ w::Spike spike() noexcept {
 w::ProbeRequest probe_request() noexcept {
   const w::Block* b = opened();
   const std::uint32_t p = b == nullptr ? 0 : b->control.probe.load(std::memory_order_acquire);
-  // What the launcher may ask: R1, or the read-only round. Anything else there is no request.
-  return p == static_cast<std::uint32_t>(w::ProbeRequest::R1) || p == static_cast<std::uint32_t>(w::ProbeRequest::Read)
-             ? static_cast<w::ProbeRequest>(p)
-             : w::ProbeRequest::None;
+  // What the launcher may ask: the read-only round. Anything else there is no request.
+  return p == static_cast<std::uint32_t>(w::ProbeRequest::Read) ? w::ProbeRequest::Read : w::ProbeRequest::None;
 }
 
 void probe_answer(w::ProbeRequest answer) noexcept {

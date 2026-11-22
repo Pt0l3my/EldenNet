@@ -22,9 +22,9 @@ patterns is in it.
   task group's name, the task base class, the classes of the vtable sets, and the AOB statics (each a class, or the
   module's base). Labels are its author's own, `[a-z][a-z0-9_]*`; only they reach the report. At most 64 KiB.
 - `--out FILE` is replaced if it exists (written beside it as `FILE.part`, then renamed).
-- `--static LABEL=RVA` (repeatable; hexadecimal `0x…` or decimal) gives a static's slot that the in-game round R1 found,
+- `--static LABEL=RVA` (repeatable; hexadecimal `0x…` or decimal) gives a static's slot that an in-game round found,
   so that a pattern is cut at a reference to it. Without it the static is reported as `needs_slot`, with its class's
-  vtable for R1's search.
+  vtable for the in-game search.
 - `--help` prints the options, the exit codes and the devkit's disclosure of safe use and of what we condemn (proposal
   0002 §2.4, a draft for the owner to amend).
 - `--sections`, alone, is the diagnostic for an executable that is refused: it prints the section table's numbers as
@@ -42,7 +42,7 @@ patterns is in it.
 
 **The game's leads** are `gal/leads.toml`: only what the design names, each with its section (ARCH §6.1 to §6.3).
 The design names no task base class, so its `[task] base` holds a marker of ours that matches nothing, and R0 reports
-the task `missing` for R1 to find; GameMan and FieldArea are left out until a design document gives their classes.
+the task `missing`; GameMan and FieldArea are left out until a design document gives their classes.
 **The R0 package** for the owner, `EldenNet-devkit-R0.zip`, holds `eldennet-engine.exe` from the clang-cl Release
 build, `gal/leads.toml`, `README-R0.txt` (what the tool reads, writes and never does, and the disclosure above),
 `LICENSE.txt`, `THIRD_PARTY.md`, `THIRD-PARTY-NOTICES.txt` (the three libraries' licences) and `SHA256SUMS`, which
@@ -87,10 +87,10 @@ name layout, the hits accepted and refused by reason, and each singleton by labe
 and sites); `rtti` (the locators and vtables found, each vtable set's primary and subobject vtables, the task classes'
 vtables, slots and run slot); `register` (the candidates, best first, each with its callee, call sites, argument
 registers and whether they agree, and the first one's pattern); `group` (the index candidates and where they came from);
-`statics` (each static's class vtable, slot, references and pattern); `confirm` (what R1 must confirm, as fixed items
-with a label or a number); `stats` (instructions decoded, bytes that did not decode, base relocations). Every pattern
-carries its length, fixed bytes, where it hit, its function's entry and length, its anchor (at least 5), its matches in
-`.text` (1) and whether part 2's scan resolved it.
+`statics` (each static's class vtable, slot, references and pattern); `confirm` (what an in-game round must confirm,
+as fixed items with a label or a number); `stats` (instructions decoded, bytes that did not decode, base relocations).
+Every pattern carries its length, fixed bytes, where it hit, its function's entry and length, its anchor (at least 5),
+its matches in `.text` (1) and whether part 2's scan resolved it.
 
 **What R0c changed in derive.json, within schema 1.** DataPiler 0.2.41's guard checks a report against its own copy of
 schema 1's vocabulary, every key and every word: a new key, or a new word such as `matches_without_symbols`, would make
@@ -151,8 +151,8 @@ eldennet-engine lint --gal <folder>
 
 The check every numbers-only report passes before it leaves the PC or is committed (plan §1.2; DataPiler's guard checks
 the same, DP36). `--report` reads the file's `report` key and checks the file against that kind's vocabulary
-(`derive`, which R1's `r1-derive.json` is too, `probe`, R1's `r1-probe.json`, or `lodestar`, the finder's, schema 2;
-all three vocabularies are en-gal's):
+(`derive`, or `lodestar`, the finder's and the read-only round's; both vocabularies are en-gal's; or the spikes' own,
+below):
 every key known and given once, every value of its key's type, strings only as the key's fixed words, labels or
 canonical patterns of at most 64 bytes, no float, no null, at most 64 patterns, nested at most 16 deep, at most 256 KiB.
 So a path, a free string, a name and a byte run longer than a pattern are refused. Exit codes: 0 clean (`lint: the
@@ -275,16 +275,16 @@ as `[a,b]`, a number within 1e-6. The player plays the lifecycle messages a sess
 playthrough's), and a snapshot every step: a solo world of one's own, every group Ok, the Tarnished at the given
 place, its play time rising.
 
-## gal/ for the owner's 2.7.2.0 WW (R0c into R1)
+## gal/ for the owner's 2.7.2.0 WW (R0c's leads)
 
 The repository's `gal/` holds what R0c, the second offline run (2026-11-16), gave (its idiom until 2026-11-21 only,
-as the next paragraph says), each value a lead until R1 and
+as the next paragraph says), each value a lead until an in-game round and
 S0-A confirm it (ARCH §6.3): `builds.toml`'s fingerprint for 2.7.2.0 WW (App 1.17.2); `patterns.toml`'s FD4 idiom
 (`fd4_idiom`, 24 bytes, 7 fixed, R0c's 7,151 hits, confirmed in no build) with its note
 `derivations/fd4_idiom.md`; and the draft layout `layouts/2.7.2.0-ww.toml`, a `[task]` holding only the group's name
-and index (110: R0c's table of 168 entries of 32 bytes, UTF-16 names at +16), which only R1 reads. The registration,
-the task's shape, the statics, the classes and fields are R1's to find; `leads.toml` is R0's, unchanged but for its
-comments. CTest's `en_tools_cli` runs `lint --gal` on it in the Linux builds.
+and index (110: R0c's table of 168 entries of 32 bytes, UTF-16 names at +16), which nothing reads in game now (R1,
+retired 2026-11-22, O106, did). The statics, the classes and fields are the read-only round's to find; `leads.toml` is
+R0's, unchanged but for its comments. CTest's `en_tools_cli` runs `lint --gal` on it in the Linux builds.
 
 Since 2026-11-21 the FD4 idiom is withdrawn (O102: no bytes from the game in `gal/`): `patterns.toml` and
 `derivations/fd4_idiom.md` are gone, and `recipes.toml` holds the same accessor as a shape in our own grammar

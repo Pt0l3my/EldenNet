@@ -4,7 +4,7 @@ The part of EldenNet's engine that reads the game (ARCH §6), C++20, MIT. Three 
 may link (`en_dll_module`):
 
 - `en_gal`, the offline part, which builds with every compiler: the PE reader, the patterns, `gal/`'s schemas, the
-  derivation kit that `eldennet-engine probe-exe` runs (part 3), R1's probe report, and, with clang-cl,
+  derivation kit that `eldennet-engine probe-exe` runs (part 3), and, with clang-cl,
   `GuardedReader`'s guarded copy. en-launcher and en-tools use it off game (ARCH §2.3).
 - `en_gal_game`, the part that runs in the game process (part 4): `GuardedReader`, the read groups and their breakers,
   discovery over the live image, `ErBackend`'s reads, the task; portable C++ over `SysLayer`, the platform seam, tested
@@ -225,8 +225,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   and its count on 2.7.2.0; a fifth stood nowhere there and was withdrawn): discovery reads `accessor` alone, and Lodestar's finder counts the others beside it.
   The repository's `gal/` holds the accessor recipe with its note, and no `patterns.toml` any more;
   the pattern reader stays for the fake game's generated folder, and for the statics' and the function's patterns,
-  until discovery goes through the table (the proposal's L3 and L4). R1's check of the idiom byte for byte now finds
-  no idiom in the repository's `gal/` and refuses its call, which is what O101 asks: no call into the game.
+  until discovery goes through the table (the proposal's L3 and L4).
 - **`lodestar.hpp`: Lodestar's finder and its report** (proposal 0005 §6.2, §11; step L3). `lodestar::find(image,
   source, file_size, leads, recipes, builds)` runs, on an executable read from its file, the recipes that need no
   running game: the image's fingerprint and the gate's verdict against `builds.toml`; the accessor's shape (its hits
@@ -246,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 4, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 5, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -265,7 +264,9 @@ of any game is in it, and every name it looks for comes from a leads file.
   a longer name). So a reviewer can tell a manager that is not there from one under another name, or one with
   no type information; the round of 2026-11-22 could not (`docs/ops/probes/2026-11-22-l5.md`). A lead's label is the catalogue's, or the one it had before (`was`, which `gal/ids.toml` records for
   the managers and the two classes). `merge(held, later)` folds a later pass in: a manager the game makes only once
-  a save is loaded is null at the title; what was named stays named, with the pass that named it, and what the
+  a save is loaded is null at the title; the counts and what each static held (`held`, every static's object by
+  its class, a number; `new_statics`; `others`) are the fullest pass's, since the last pass of a session is made as
+  the game closes; what was named stays named, with the pass that named it, and what the
   searches found for a manager stays with it through every later pass (the second round of 2026-11-22 lost it
   there). A pass goes through `all_statics`, marks a manager behind a variant's static (`variant`), and counts for
   each lead the catalogue does not hold how many statics hold an object of its class (`others`: a lead on trial).
@@ -300,7 +301,16 @@ of any game is in it, and every name it looks for comes from a leads file.
   8-byte read; a hit is a static and an offset into its object, for the review and never a name. (It copied 0x800
   bytes until the third round found nothing that near; now the reader's longest copy, 0x4000.) A pass goes
   through every static once and the next starts 30 s later. Both read through the guarded reader and allocate
-  nothing on the reader's thread.
+  nothing on the reader's thread. `Watch` is step L6's first tool: a way leads to an object (a static's slot, an
+  offset added to the address it holds, and for a pointer kept there one more read); once a second each way is
+  followed and the object's first 0x200 bytes copied, and from one copy to the next every 8-byte word's halves are
+  counted for changes and rises, and now and then the word is looked at (nothing, a small number, a table of
+  methods, an address in the image, an address of live memory, something else). A way marked for a clock also has
+  every run of 6 bits watched for minutes and of 5 bits for hours (a clock packed into one word), and every 32-bit
+  field read as a fraction for a steady rise. Two ways of one label say how often they arrived at one object
+  (`same_address`). It keeps counts and offsets, never what a word held. The round watches each named manager, each
+  place the member search found an unnamed lead's object at with the object it was found in, and the object whose
+  field rose by the clock.
 - **`derive.hpp`: the derivation.** `parse_leads(text)` reads the leads file (what to look for: names and shapes, never
   bytes, under labels of its author's own); `derive(image, source, leads, options)` finds, from the file:
   - the fingerprint (the version resource, the region from FileVersion's fourth field, the product name compared with
@@ -311,20 +321,20 @@ of any game is in it, and every name it looks for comes from a leads file.
     the same place); the name layout (the offset in the class objects that points at an identifier in `.rdata` for
     the most of them); the singletons by the leads' names, the rest only counted. The idiom is `derived` when its
     sites all match, part 2's scan resolves it and a hit is accepted; without a name layout the singletons are
-    `depends` (R1 names them through the getter, ARCH §6.2 step 3);
+    `depends` (the in-game round names them, by their instances: O92);
   - the vtable sets and the task classes (their slots, how many functions each slot holds across them, and the one slot
     every class fills with its own: the run slot's candidate; `task_from_base` does the same for a base given by its
-    type descriptor, which R1's census finds in game);
+    type descriptor);
   - `register_task`: the direct calls after a load of the registration's instance, whose arguments a small register
     model follows back to the start of the block (the instance, a 64-bit argument, a 32-bit one), grouped by callee;
   - the task group's index: its name, as ASCII or UTF-16, in a table of entries holding pointers to names at a stride
     of 8 to 64 bytes (the stride with the longest run), cut where the code addresses an entry's start, with the name
     pointer's offset in the entry and an index field the entries may hold; or beside a small constant where the code
     loads it. A lone pointer (a table of one) is listed last and gives no index;
-  - each AOB static's class vtable, for R1's search, and how many type descriptors carry the class's own name in any
-    namespace; given R1's slot (`Options::static_slots`), a pattern at a reference to it. A static whose class has no
-    RTTI cannot be found offline: its slot is zeros in the file and nothing names it, so R1 finds it by what its
-    instance holds;
+  - each AOB static's class vtable, for the in-game search, and how many type descriptors carry the class's own name
+    in any namespace; given the slot found in game (`Options::static_slots`), a pattern at a reference to it. A static
+    whose class has no RTTI cannot be found offline: its slot is zeros in the file and nothing names it, so the in-game
+    round finds it by what its instance holds;
   - every pattern cut by `cut.hpp`'s rules: whole instructions, at entry + 5 or later inside a function of the exception
     directory that is no fragment, at most 64 bytes, the RIP-relative and other 32-bit displacements, the branches whose
     targets lie outside the pattern, the relocated bytes and the immediates that do not fit in a signed byte
@@ -334,7 +344,8 @@ of any game is in it, and every name it looks for comes from a leads file.
     each site's and each accepted hit's path load sits; R0's rule over the same hits; what the class objects hold in
     the file; and every executable section decoded through (instructions, bytes that do not decode, their runs and
     where they start, references to the paths);
-  - and the list of what R1 must confirm. `complete(result)` says whether everything R0 can derive was derived.
+  - and the list of what the in-game round must confirm. `complete(result)` says whether everything R0 can derive was
+    derived.
 - **`report.hpp`: the numbers-only writer and its lint.** A report is one JSON object whose keys all come from its
   kind's closed vocabulary, each with one type of value: whole numbers, booleans, fixed words, labels (`[a-z][a-z0-9_]*`),
   patterns of at most 64 bytes in canonical form, objects and arrays, and, for a key typed so, finite numbers that need
@@ -344,12 +355,6 @@ of any game is in it, and every name it looks for comes from a leads file.
   where, never what; `lint_lines` checks a JSON Lines file whose every line is one report of the first line's kind
   (eldennet.dll's recordings), each problem with its line. `derive::write_report` writes derive.json through it, under
   `derive::vocabulary()`; eldennet's en_shell holds the `recording` vocabulary.
-- **`probe_report.hpp`: R1's report** (kind `probe`, schema 1; O89). What the probe build of eldennet.dll finds in
-  game, beside the derivation it runs over the live image: the checks before its one call, the call, the slot counts,
-  the hub's census, the rising fields and the statics' slots. The DLL fills `probe::Findings`, and
-  `probe::write_report` writes it under `probe::vocabulary()`. It is here rather than in eldennet's en_shell, which
-  links en-core, so that the launcher lints R1's two reports after an R1 session (`--probe`) with en-gal's offline
-  part alone (ARCH §2.3).
 
 ```cpp
 #include "en/gal/derive.hpp"
@@ -475,8 +480,8 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   and no `[task]` in the layout, and ready then means ready to read. `TaskStatus` carries `torn`, `held` and
   `unconfirmed_faults`. With it the FD4 getter is never called either: a site without a name stays unnamed, so names
   come from the name layout or from the build's table. eldennet.dll starts this way (`boot.cpp`: T2, the reader);
-  `install_task`, the game's task, is no part of a v1 start, and stays for the probe's R1 round and the later task
-  service (proposal 0005 §9.6).
+  `install_task`, the game's task, is no part of a v1 start, and stays for the later task service (proposal 0005
+  §9.6); nothing of EldenNet's calls it now, only the tests and galtest.dll (R1, retired 2026-11-22, O106).
 - **Discovery through the build's table** (proposal 0005 §7.1, §9.1; `discovery.hpp`, `resolve.hpp`). A layout of
   schema 2 that holds `[item.*]` entries is loaded against the catalogue (`DiscoveryOptions::ids`, gal/ids.toml's
   text; refused without it), and `Library` checks each entry against the image as loaded (placement, witnesses).
@@ -488,14 +493,14 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   count them.
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
   instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
-  game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any
+  game thread within the tick's budget), for a layout class or for a vtable set of the caller's (before any
   discovery), or over candidates the caller collected; it keeps the slots found with the object each held
   (`found_objects`: two slots with one object are copies of one address) and how many there were in all.
   `heap_slots` takes an optional question of what is live at a value (`LiveFn`: memory that may be read, none, or
   memory that may not be read; on Windows the caller answers it with VirtualQuery, which reads nothing): only live
   values are kept, and the rest are counted by the answer. Most 8-aligned values of a game's data that could be a
   heap address are not one (in the second round of 2026-11-22 about 97 in 100 were refused when asked). `slots_holding` finds the data slots
-  holding a value (R1's `global_hinstance`: the module's base);
+  holding a value (`global_hinstance`: the module's base);
   `RisingSearch` copies each candidate's instance again a second or more after its last copy and counts, for every
   32-bit field, the passes it rose in by the elapsed milliseconds (within a fifth), and from its first rise those it
   stood still in or changed otherwise (a play time stands still at the title and while loading; a candidate that
@@ -508,77 +513,20 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   is taken to start at the nearest word before it that is some class's primary table of methods (within 16 KiB, in
   the same region), and a level-0 node that nothing holds is looked at the same way (`embedded`). It asks for each
   region first and again after every mebibyte of it (`RegionQuery`; VirtualQuery in the round), so its reader need
-  not ask before each piece. A node is a class, an offset and an address that is never reported; the caller
+  not ask before each piece. (The fourth round of 2026-11-22 ran it: it found what it was for, read 19.75 GiB in 13
+  minutes without finishing, slowed the reader and made the game stutter; the round no longer starts it. Before it
+  is used again it must read only pages already in use, check its time after every piece and stop after one sweep.)
+  A node is a class, an offset and an address that is never reported; the caller
   compares each node's address with the image's data, where a chain ends. Every node is a lead for a review: a
-  found object may be stale, and an owner a neighbour; `Census` copies the task hub's instance and what it points at to a depth of three
-  (heap objects and the image's writable data; a copy that faults is made again at half its length, down to 16 bytes),
-  and counts the objects whose first 8 bytes are one of the image's vtables (the hub's own tasks, whose shared class is
-  the task's base); `vtable_offsets`, `meter_offsets`, `utf16_offsets` and `u32_offsets` search one copied object's
-  bytes by invariant and answer offsets only; `GuardedReader::inject` makes every n-th read of a group a real fault;
-  `SysLayer::slot_calls` counts the game's calls of each slot, and `TaskShape::every_slot` (R1, the run slot not yet
-  known) makes every slot count its calls and run the body for our own object; `SysLayer::task_object` gives our
-  object's address, so that R1 can see how much of it the hub wrote. Everything they need on the game thread is
-  allocated on T1. Spike.6 (WHY§227) adds two of T1's: `summarise_callee`, the registration's callee as its code reads
-  (decoded from its RVA within its function or up to its first return, at most 4 KiB, no call followed: its calls and
-  their forms, its branches before the first call, whether a path returns through no call, and each argument
-  register's stores, moves to callee-saved registers, compares and tests before the first call, followed through moves
-  between registers until an instruction it does not model), and `search_memory`, every committed and searchable
-  region (`searchable`: readable, not a guard page, no-access, uncached or write-combined) read through the copy
-  primitive in chunks of `kMaxCopyBytes`, page by page where one faults or a stack or a kept-out range overlaps it,
-  within a cap of bytes and of time, for the words equal to an address or pointing into the object there, the regions
-  whose allocation base the caller names as its own counted apart, and an image hit's section read from its headers by
-  its characteristics (`section_kind`). Both fill `probe_report.hpp`'s structures. NativeSys's `region_at` (probe
-  builds) is the VirtualQuery behind the search. Spike.7 (WHY§235) follows the task past the wrapper run 6 found:
-  `summarise_callee` knows what each register holds along the flow (where paths meet a register keeps only what both
-  agree on, and code no known path reaches holds nothing), maps the arguments into every call and tail jump (`pass`),
-  reads each branch's flag test before the first call (`guards`: the compare or test, past moves that set no flag, with
-  its operands' kinds: a register and the argument it holds, a memory operand's base and displacement, a RIP-relative
-  slot, an immediate), and takes an entry state, so that each callee of the wrapper is summarised with the wrapper's
-  arguments followed into it (`entry_at`); `search_memory` also counts the words equal to our fake vtable's address and
-  to its slots', reads up to 64 GiB (the time cap the bound) and walks past a cap for the committed total; and
-  `walk_hub`, `search_walk` and `diff_hub` (`probe_hub.cpp`) keep spike.5's walk of the hub's reachable memory, search
-  it, and compare two walks block by block by path, each changed word's old and new value by kind (zero, a small
-  integer, the group's index, our task, our vtable, our module, the game's image with its section and RVA, the heap,
-  other), a new pointer's block fresh or not, and, against an earlier diff, steady or not. Spike.8 (WHY§240) reads the
-  tail function run 7 found: `summarise_callee` also follows values loaded from memory (a RIP-relative slot, or
-  [base + index*scale + disp] with what base and index hold, at most 3 loads deep; a call's result stored to a
-  RIP-relative slot holds that slot's value, and an inner summary's rcx to r9 that hold no argument their entry
-  values), gives each guard operand's source, models a jump through memory or a register as a tail call site, ends a
-  function with no extent at its first jump out that no branch goes past, and gives each summary's first 64
-  instructions as forms (class and operand kinds, no bytes; `mark_sections` fills a RIP-relative slot's section);
-  `match_table` checks a wrapper and its tail function against run 7's shapes (the wrapper's rcx at its tail jump, or
-  past its null test where its paths disagree, `via_guard`) and `read_table` reads the singleton and
-  its entries through a caller's guarded reader, kinds and indices only (`classify_value`, the diff's own); and
-  `diff_hub` marks each changed word against a control diff's (`in_control`). `SysLayer::register_task` answers rax as
-  the call left it. Spike.9 (WHY§248) reads the group's own function run 8 found: with no extent a direct jump past the
-  decoded code is a tail jump, and `match_table` takes the tail function's direct jump with the entry in rcx
-  (`target`); given our task's argument, `summarise_callee` reports every load from the task or from the group's entry
-  (`EntryArg::entry`, set by `group_entry_at` and carried into callees by `entry_at(call, parent)`), or from a value
-  loaded from either, with what that value is then used for along the flow, and every store of the task or of a value
-  read from it, a followed value changed by add, or, xor, and, sub, a shift, a bit op or a lea staying followed
-  (Source's `modified`); `search_memory` counts words whose low 48 bits are our object's or vtable's address under a
-  non-zero tag, and `classify_value` names such a word `task_tagged` with its high bits; `read_table` can answer the
-  addresses it read for T1 (the walk's roots, the classes), never reported; `match_lead` names a class against the
-  leads' names as O92 does (derive's `innermost_class` gives the name). Spike.10 (WHY§289) reads the second
-  singleton's method run 9 found: `method_site` finds the group function's site that passes our task with rcx loaded
-  from a slot (a tail jump first), `method_entry_at` gives G's method its entry (`EntryArg::g`, `word`), `stub_jump`
-  knows a stub and `through_stub` carries the state through it (`zero` where it zeroes a register), and
-  `entry_at(call, parent)` carries G, the word and a zero into callees; `summarise_callee` lists the loads based on G
-  (`g_reads`) and the uses of the entry's word (`word_uses`), a use as an index is `index`, and with `starts` (the
-  exception directory's) a direct jump to a function's start goes past nothing; `task_argument` reads what a call site
-  passes as the task (the function decoded from its start onto the call, read back to the register's last write);
-  `diff_view` compares one of the array's views across the call; `read_table` answers every entry's address. Spike.11
-(WHY§293) reads the request run 10 found G's method building: with `SummaryOptions` (the exception directory's entries
-and, from `chained_entries`, the ones chained to a primary by UNW_FLAG_CHAININFO or by an entry pointing at another)
-`summarise_callee` decodes a function with an extent in parts where its code goes past it (`parts`: its chained
-entries, then the code its conditional branches reach past the extent in no entry, decoded linearly up to 4 KiB to a
-return, a trap, a jump out of the parts, another entry's start or a part), a jump into a part being no tail jump, and
-gives up to 128 forms then; a lea of rip or rsp makes an address (Source's `Address`, `Stack`), passed at calls, and the
-stores to the stack frame are kept for `request_shape`, which finds the request (its rdata vtable at [rsp + d], the task
-at +8, G's field as its manager, the entry's word, the zeroed register) and the function called with its address;
-`request_entry_at` carries the request, its task, manager and word into a callee, whose loads from the request and the
-manager are `request_reads` and `manager_reads`, a load of its task field the task; and `search_memory` counts the words
-equal to the request's vtable (`request_vtable`), the game's with their addresses for T1.
+  found object may be stale, and an owner a neighbour; `vtable_offsets`, `meter_offsets`, `utf16_offsets` and
+  `u32_offsets` search one copied object's bytes by invariant and answer offsets only; `searchable` says which regions
+  a search reads (readable, not a guard page, no-access, uncached or write-combined), and NativeSys's `region_at`
+  (probe builds) is the VirtualQuery behind a caller's question; `GuardedReader::inject` makes every n-th read of a
+  group a real fault; `SysLayer::slot_calls` counts the game's calls of each slot, `TaskShape::every_slot` makes every
+  slot count its calls and run the body for our own object, and `SysLayer::task_object` gives our object's address.
+  Everything they need on the game thread is allocated on T1. What R1 added on T1 around its one call into the game
+  (the hub census, the callee's summaries, the whole-memory search, the hub's walks and diffs, the table, the request
+  and the map, with `probe_report.hpp`'s report of them) went with it: R1, retired 2026-11-22, O106.
 
 ```cpp
 #include "en/gal/discovery.hpp"
@@ -626,8 +574,7 @@ group entries holding their index, statics without RTTI, and a trademark sign in
 the walk, the finder, the cutter's wildcards, the leads and their refusals, every derived fact against the program's own
 labels, the decoys refused, the statics' patterns from both layouts, and the report holding none of the program's names;
 the writer refusing what is outside its vocabulary and the lint refusing a path, a free string and a byte run longer
-than a pattern. `test_probe_report.cpp` writes every part of R1's report, which lints clean, and refuses a label that
-is not one, leaving no text. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
+than a pattern. `tests/fakegame/` runs the Windows `eldennet-engine.exe` on `fakegame.exe` under Wine against what
 `fakegame --describe` says.
 
 The in-game part's tests (part 4) run in every build over `FakeSys` (`tests/fake_sys.hpp`: a process of byte regions,
@@ -645,60 +592,14 @@ layout's registers, 4 Hz at 30, 60 and 144 FPS and with 1 s hitches and 3 s stal
 most), the throttle in and out, the command cap, R3, and no allocation or free on the game thread after warm-up, with
 this test program's own counting operator new (`test_task.cpp`, `alloc_count.cpp`); and the probe's searches
 (`test_probe.cpp`: the slot searches, the heap slots and the module base's slot, the rising-counter search telling a
-play time from a still field, the hub census to a depth of three past a released object; the callee's summary on code
-of our own, hand-assembled: an argument kept in a callee-saved register and stored into another, a compare with a
-bound, a virtual call on an argument's object, a refusal path that returns through no call, a RIP-relative store, an
-immediate past the bound, an instruction it does not model, the 4 KiB bound and bytes that do not decode; and the
-whole-memory search over regions of the test's own: the game's copies in its image, heap and a mapped view, ours in our
-module, heap and task block, a guard page, an execute-only page and a stack never read, a page that faults, a range
-kept out, both caps, and its copies counted as the game's when our heap's regions are not known; spike.7's on code of
-our own: a wrapper's arguments mapped into two calls and a tail jump through the registers that keep them, a flag of
-the instance tested before a branch past both calls, an inner callee summarised with the wrapper's arguments (the task
-and its vtable kept in the hub, the group compared with a bound), two paths that disagree, a call reached only through
-a jump the summary cannot follow, a compare found past a move and a byte register's high half; the hub walked, searched
-and diffed over memory of the test's own (each kind of value, a fresh block, a block found again by another path, a
-path re-pointed, a block gone, the caps, and a later diff's steady words first); and the search for our vtable's and
-slots' copies, ours apart, with the committed total past a cap; spike.8's on code of our own: a wrapper of run 7's
-shape whose singleton, loaded from a global on one path and made and stored there on the other, reaches its tail jump
-on both, its guard's source and its forms; a tail function whose null test reads [entry rcx + group*8] and whose jump
-through the entry's vtable is a tail call through memory, the padding after it unreached, and the table's shapes
-matched (one level deeper too) or the first that failed named; a jump through a register loaded from a global, one
-through a RIP-relative slot, loads not followed (16-bit, a segment's, a fourth level) and a function with no extent
-ending at its jump out; the table's reads over memory of the test's own (the entries to the bound, the group's entry,
-its vtable and slot, no entry, no singleton yet, a hop and an array, the instance); and the control diff's words
-marked and ordered; spike.9's on code of our own: a tail function of run 8's shape whose direct jump past its decoded
-code is a tail call to the group's function, matched as the table's `target`; that function with the entry and the
-task followed in: its two task reads (one stored on the entry, one compared with a small immediate), its read of the
-entry's count, the task's store in the entry's list as a tagged pointer (an or by a register) and the entry carried
-into its call; a function reading the task's vtable and calling through its slot, a pointer read from the task and
-read from in turn, fields compared and tested in place, a lea into the task stored to a global and a bit set in the
-task stored through it; a diff word and the whole-memory search's words holding our address under a tag (ours apart,
-our vtable's too, none for a tagged pointer inside our object); spike.10's on code of our own: a group function of run
-9's shape (its site the tail jump, not the report's call), its stub (r9 zeroed, G and the word carried; one whose
-target follows it ends at its jump only with the starts) and a method of G's with its task reads, three reads of G,
-four uses of the word and its call carrying both; a call site's task as a load, a member, a result, a static and a
-stack slot with a branch landing on the call; a view's changed words with the threads' ids; a class's innermost name
-against the leads' names; the
-table's addresses for T1; and the report of all of it, lint-clean; spike.11's (`test_probe_request.cpp`) on code of our
-own: a method of G's of run 10's shape building its request on the stack (its five fields and roles, the function it
-calls with its address, no request where the vtable is not in rdata or the task not at +8), that function in two parts
-(an unlisted second part past its extent with branches back into the primary, a chained one instead, an entry chained to
-no one, and a jump out of the parts as a tail jump) with the request's task, word and manager followed and carried one
-level further; the chained entries of an image of our own; the search for the request's vtable; and the report of all
-of it, lint-clean; spike.12's (`test_probe_map.cpp`) on code and trees of our own: a now path's function of run 11's
-shape (its list walked with a word of 0, its map with any other) and the map's layout derived from its summary (the
-head, the root, the nil byte, the key from the word's compares, the match's call and the other branch's, the list's
-begin and end; the value 8 past the key where the summary knows nothing in rcx, else its load's), nothing derived
-without the request's manager field, the word's compares or the call; the match's call entered with the map's value,
-its load a value read; MSVC-shaped trees walked in order with the word present or its nearest keys, an empty map, and
-the walk's refusals (a cycle, a nil head, a node off the heap, a node's nil byte set, a head off the heap, no manager,
-4,097 nodes against 4,095 walked, a list out of order and none); and the map in the report, pretty and on one line,
-lint-clean). The vocabulary's check that every key is given once compares the names by a hash first (spike.12), so
+play time from a still field and keeping the fields that rose most, the object scan level by level, and which regions a
+search reads). The vocabulary's check that every key is given once compares the names by a hash first (spike.12), so
 that it stays within a compiler's constant-evaluation steps. The clang-cl build adds
 NativeSys's (`test_native_sys.cpp`): the module's image, both copy primitives, the stack table and a guard page left
 untouched, the rescan without the calling thread's stack and a range forgotten once its guard page is gone, the calls
-under SEH with the registration's answer kept, and the task object driven as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases check what
-it finds against `fakegame --describe` (`tests/fakegame/README.md`).
+under SEH with the registration's answer kept, the regions as VirtualQuery describes them, and the task object driven
+as a hub would drive it. In game, `tests/galtest/` is a DLL that the fake game loads, and the harness's `gal-*` cases
+check what it finds against `fakegame --describe` (`tests/fakegame/README.md`).
 
 The fuzz targets `en_fuzz_pe` (the reader and the scan over arbitrary images, in both layouts, with an unreadable page
 and small chunks), `en_fuzz_pattern` (the grammar, and the matcher against a plain search), `en_fuzz_galtoml` (the

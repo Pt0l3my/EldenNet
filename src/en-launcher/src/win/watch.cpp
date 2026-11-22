@@ -109,26 +109,6 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   bool closing = false;
   DllStatus printed;
   w::InitState seen = w::InitState::None;
-  // R1's steps (--probe), each told once as it changes.
-  std::optional<R1Step> r1_said;
-  bool r1_pressed = false;
-  bool r1_absent_said = false;
-  std::uint64_t first_tick_at = 0;
-  // WHY§296: NoConfirmation says whether the probe found no copy of our task (EldenNet's answer Absent), told again
-  // where that answer comes after the step.
-  const auto r1_tell = [&](R1Step step, bool absent) {
-    r1_said = step;
-    r1_pressed = r1_pressed || step == R1Step::PressMark;
-    absent = absent && step == R1Step::NoConfirmation;
-    r1_absent_said = absent;
-    if (absent) {
-      say("r1 step=%s absent=1", r1_word(step));
-    } else {
-      say("r1 step=%s", r1_word(step));
-    }
-    console_line(r1_text(step, absent));
-  };
-  if (plan.probe) r1_tell(R1Step::Asked, false);
   // The read-only round's steps (--read), each told once as it changes.
   std::optional<ReadStep> read_said;
   const auto read_tell = [&](ReadStep step, std::uint32_t named, std::uint32_t of) {
@@ -210,19 +190,6 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     if (st.init != seen) {
       seen = st.init;
       say("init state=%s after_ms=%llu", w::to_string(st.init), static_cast<unsigned long long>(now - t0));
-    }
-    if (plan.probe) {
-      if (st.init != w::InitState::FirstTick) {
-        first_tick_at = 0;
-      } else if (first_tick_at == 0) {
-        first_tick_at = now;
-      }
-      const auto answer = static_cast<w::ProbeRequest>(b.control.probe.load(std::memory_order_acquire));
-      const auto step = r1_step(answer, st.init, r1_pressed, first_tick_at == 0 ? 0 : now - first_tick_at);
-      const bool absent = answer == w::ProbeRequest::Absent;
-      if (step && (step != r1_said || (*step == R1Step::NoConfirmation && absent && !r1_absent_said))) {
-        r1_tell(*step, absent);
-      }
     }
     if (plan.read) {
       const auto answer = static_cast<w::ProbeRequest>(b.control.probe.load(std::memory_order_acquire));

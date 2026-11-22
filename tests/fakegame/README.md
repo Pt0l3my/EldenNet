@@ -16,9 +16,9 @@ offset, enum value and number is invented here, shaped only by what the design d
 | Two accessors of other shapes, never called: the save ledger's with an instruction between the load of its static and the test, the run warden's comparing its static with zero where it lies; and, with `--field-mirror`, a second word of the data that holds the field plot's address | The accessor as the compiler writes it otherwise (Lodestar's variants, `gal/recipes.toml`), and a manager's address kept twice: two slots, one object |
 | The frame loop on the main thread: ten groups (`Fg_FrameOpen` … `Fg_FrameClose`) run in order every frame at `--fps`, with `--hitch-every`/`--hitch-ms` and `--stall-at`/`--stall-ms` | The game thread and its task groups; `Fg_ActorSettle` (index 5) stands for the group where positions are final (`ChrIns_PostPhysics`) |
 | The group names in a static table of 16-byte entries `{ index, flags, name }` | A table of groups wider than a pointer (R0's review), found at its stride |
-| The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which R1's census follows to the tasks' classes and their base (part 6) |
+| The hub's live tasks in a table its instance points at (`TaskLoomFields.live`, +0x28) | A game's hub holding its task lists, which lead to the tasks' classes and their base (part 6) |
 | `fg_register_task`, found by an interior pattern at entry + 7 inside a `.pdata` function, with our own ABI: **rcx the task, rdx the hub instance, r8d the group**; the program's four own call sites load the hub from its static into rdx. Since spike.8 a wrapper of the shape R1 run 7 found (WHY§240), answering 1 when the task was kept and 0 when not: it keeps its arguments in callee-saved registers, loads its own singleton (the rack, `FG::TaskRack`) from `fg_static_rack` and tests it, and while it is null makes it with two calls (`fg_rack_alloc`, `fg_rack_build`: a shelf for each of the hub's groups) and stores it there; then, where both ways meet, it tail-jumps to `fg_register_rack` with the rack in rcx, the group in edx, the task in r8 and the hub it was given in r9. That tail function, a leaf with no unwind data, answers 0 past `FG_RACK_BOUND` or where the rack's shelf for the group (at `FG_RACK_SHELVES_OFF` + group*8) is null, and else (since spike.9, the shape R1 run 8 found, WHY§248) moves the task into rdx and jumps directly to the group's own function, `fg_shelf_take`, with the shelf (an `FG::Rack::TaskLoomImp`, whose class's innermost name is the hub's) in rcx and the hub still in r9. Since spike.10 (the shape R1 run 9 found, WHY§289) that function reads nothing of the task but its null test: it loads the ledger, a second singleton (`FG::TaskLedgerImp`, G, from `fg_static_ledger`; while that is null `fg_ledger_missing` makes it), puts the shelf's word (`FG_SHELF_WORD_OFF`, its group's own index) in r8 and tail-jumps through an 8-byte stub that zeroes r9 (`fg_ledger_stub`) to G's method, `fg_ledger_admit`, with G in rcx and the task in rdx. Since spike.11 that method has run 10's shape (below): it builds a request on its stack and calls `fg_request_now` with it (or queues a copy), whose entry calls `fg_ledger_note` (an `FG::TaskNote` in the next of the hub's rows) and `fg_ledger_keep`, which calls `fg_register_keep` with the hub in rcx, the group in edx and **the task in r8**; it answers 1. The program's four call sites pass their tasks in four ways a game's might: loaded from the rows it is given, the bench's member (`FG_BENCH_TASK_OFF`), an allocator's result (`fg_task_make`), loaded; and `fg_unregister_task`, the registration's sibling of the same shape, has two call sites that never run. `fg_register_keep` compares the group with a fixed bound (an immediate, `FG_GROUP_BOUND`) and the hub's count, tests the task for null, keeps it and its vtable in the hub's `last_task` and `last_vtable` fields, and queues it | `register_task` and its `register_abi` (ARCH §6.2, §6.4), and what R1's callee summary must read from its code (spike.6), from its callees with the arguments followed in (spike.7), and from its tail function's table (spike.8). Bad arguments fault in the caller's thread; `--register fault` faults on request, `--register ignore` never runs the task; `--table-gap` leaves the stand-in group without a shelf, so the registration answers 0 and the task never runs |
-| The hub's table of each active task's run slot (`TaskLoomFields.run_fns`, +0x40) | A hub caching the function it calls every frame: R1's whole-memory search finds our run slot there, and its diff the new entry (spike.7) |
+| The hub's table of each active task's run slot (`TaskLoomFields.run_fns`, +0x40) | A hub caching the function it calls every frame: a registered task's run slot is there (spike.7) |
 | A task object: a vtable pointer, then 0x20 bytes the hub owns (the group, state, hub and run count it writes, and since spike.9 a kind the game's own tasks hold from when they are made), so `object_size` is 0x20; three slots: 0 attach (once, on the game thread), **1 run (`self`, `FrameInfo*`) every frame**, 2 query (every 64th frame) | The task object's shape the derivation must find (`vtable_slots`, `run_slot`, `object_size`) |
 | Seventeen accessors with the FD4 shape (`mov rbx,[rip+static]; test; jnz; lea rcx,[rip+class]; call getter; mov rdx,rax; mov r8d,site; lea rcx,[rip+path]; call log`), the path ending in `FD4Singleton.h`, the class object's name at +0x18 | The FD4 singleton idiom (ARCH §6.2): eleven names (`TaskLoom` for CSTask's role, `ActorRoster` for WorldChrMan's, and so on; `--describe` maps each), two of them with a second site, and three decoys: `Duplicata` (two statics: ambiguous), `Strayling` (path ends in `.hpp`), `Rockbound` (its static is in `.rdata`) |
 | R0c's variants: five more sites of five of those names, with the same head but the static in rdi, r12, rsi or rbx, and the path loaded after a format string, into rdx right after the getter's call, through a pointer to it, by its absolute address, or into rsi before the head; and `Mimicry`, a decoy whose "static" is read through rsi, which only the idiom's wildcards match | The ways a game's compiler may load the path (R0's review), so that the idiom cut from them has the registers' bytes wildcarded (as the game's was) and no path capture, and the finder must find each path by its text; `--describe` gives each site's path load |
@@ -123,72 +123,20 @@ session gate closing with the badge when the game goes online; a build the DLL's
 no task); a simulated anti-cheat module (a copy of vehprobe.dll named `EasyAntiCheat_EOS.dll`, loaded with `--also`);
 a second copy loaded by the game's own loader, idle behind R16's mutex and named by the first at Ready; a crash and a
 stack overflow on the game thread recorded through the DLL's own filter; the watcher started by the DLL beside it under another loader; and
-R1 in the probe build (`probe/eldennet.dll`, the leads' task base replaced by a marker as the real game's is): its two
-reports lint clean, every check confirmed, one call at the Mark with the registers and group `--describe` gives, the
-slot counts (attach once, run every frame, query every 64th), the bytes of our object the hub wrote, the census's base
-class with the run slot, the hinstance's and the statics' slots, the rising play time (with loading screens for it to
-stand still in), no allocation on the game thread, the live derivation's singletons and statics, the callee's summary
-(spike.8: the wrapper's two direct calls and its one branch past them, its guard a 64-bit test of rcx loaded from the
-rack's static, the tail jump with the rack in rcx, loaded on one way and stored there on the other, the group, the task
-and the hub in rdx, r8 and r9, its forms with both of the static's moves; one level deeper the tail function's bound,
-its null test of the shelf loaded from [entry rcx + group*8 + the shelves' offset] and, since spike.9, its direct
-jump to the group's function with the task in rdx, the two traps after it unreached; one more level, from the code,
-the group's function with the shelf and the task followed in: its two task reads (the hub field, stored on the shelf;
-the kind, compared with `FG_TASK_KIND`), its read of the shelf's count, the task's store in the shelf's list under its
-tag and its call to `fg_shelf_offer`, summarised one level further with the shelf still the entry), the table read
-before the call and 2 s after it (the rack on the heap, a shelf for each group up to the bound, the group's shelf with
-its vtable in .rdata; the rack's class classed and no lead's, the shelf's the hub's lead's name with Imp), the call's
-answer (1), two whole-memory searches after the call, each complete within its caps, finding our task's address in the
-fake game's private memory, under the shelf's tag once, our vtable's in the hub and our run slot's in the hub's table
-and, counted apart, ours in our module's data, the probe's own heap and our vtable, with the committed total; and the
-hub's memory kept before the call and compared 2 and 20 s after it (the last task now our task's address, fresh; the
-last vtable ours; our run slot, in our module, in the hub's table; at 20 s those steady and the hub's frame not),
-against a control diff over the 2 s before the call that changed the frame alone, marked `in_control` in both and
-listed last; since spike.9 the same from the rack and from the group's shelf, and since spike.10 from G, whose diffs
-show our task under its tag in G's list (`task_tagged`), every control changing nothing. Since spike.10 also: the
-group's function of run 9's shape (its one read, the shelf's word, passed on in r8; its jump to the stub with G loaded
-from its slot), the stub (r9 zeroed, G and the word carried) and G's method at the same depth (its two task reads, its
-three reads of G, the word's four uses, the task's two stores) with its two callees one level further; G and the
-entries' words before and after the call (G on the heap, classed, no lead's, not the hub's +8, the shelf's +0x58 only
-with the gate; every shelf's word its own index); the four views read again about 50 and 250 ms and 2 s after the call
-(the note's vtable classed, its fresh record, the game thread's stamp seen once made); what the four call sites pass
-as the task; and the sibling with its tail jump. Since spike.11 (WHY§293) the checks follow run 10's shape instead: G's
-method never reads the task, stores it into the request, reads four fields of G (its open word and deferred byte
-compared, its manager stored, its queue passed to the push) and calls the now path's function, the allocator and the
-push; the request (its vtable classed, no lead's, its five fields and roles, its three slots); the now path's function
-in two parts (its entry, and its check past the extent, unlisted), the request's task, word and manager followed, the
-task's kind and state read in the second part, the jumps back into the entry no tail calls; each slot at depth 4 with
-the request in rcx, and one level further the note and the work with the task and the word carried; G's fields at the
-four times (with the path now, or queued with `--task-queue`); G's queue at the same times (the game's two requests,
-and with `--task-queue` ours at 50 and 250 ms, drained by 2 s); the game's requests in each search with their tasks'
-two classes; the classes met with their bases (one shared, by the two task classes); the views at 2 s only; no tagged
-copy of our address. Since spike.12 (WHY§296) the now path's function has run 11's shape (its task reads the kind and
-state in the second part and the first word on the other branch; its manager reads the strict flag, the list's end and
-begin and the map's head, root and nil byte; its calls the note, the hand-over twice, the other branch's call and one
-through the task's first word); one level further the note, the hand-over entered with the map's value (`holds_value`;
-the bin's group and count read, `value_reads`), the task, the word and the manager, and the other branch's call with
-the task, the work past the hand-over (6), the now path's function's and the hand-over's forms kept; and the map
-(`check_r1_map`): its layout as --describe gives it, the word looked for (none with --table-gap), at least five
-readings, the first at the title with the title's words and their bins, every reading's keys in order, the word
-present throughout (with `--map-late` absent at the title, with its nearest words, and present once the world loaded),
-the last with the world's bins of their own class, and a reading in the world. Then R1 as the
-owner runs it (`launcher-eldennet-probe`: `--probe` with no settings.toml, invented saves backed up first, the default
-settle of 10 s, Pause pressed every second from the title until it is taken; the console's six steps in order, the
-reviewed idiom and the layout's group confirmed, the launcher's lint of both reports), the same on a fake game with
-`--table-gap` (`launcher-eldennet-probe-gap`, R1 run 7's end: the call answers 0, the group's entry null before and
-after it and the others set, the task never run, nothing of ours in the game's memory but our own, the reports linted
-clean), the same on a fake game with `--task-gate` (`launcher-eldennet-probe-gate`, since spike.10 R1 run 9's end: the
-call answers 1, G's method keeps nothing of our task, the task never runs, the searches find no copy of its address,
-plain or tagged, and G, held by the shelf, is not walked), the same with `--task-queue` (`launcher-eldennet-probe-queue`,
-since spike.11 run 10's other path: the request queued, found in G's queue at 50 and 250 ms, drained and run a second
-later, the task confirmed), the same with `--map-late` (`launcher-eldennet-probe-map`, since spike.12 R1 run 11's end:
-the call at the title drops our task, no copy is found, the console's no-confirmation line has the owner load the save
-and stay two minutes in the world, as README-R1.txt's steps 4 and 5 say, and the map's readings show the word absent at
-the title and present in the world; the gap and gate cases now end with that line too), the same with the launcher's
-console writer blocked after
-three lines (`launcher-eldennet-probe-console`, WHY§290: launcher.log carries the status lines, the 30 s
-no-confirmation step, the lint and the end, and counts the console's dropped lines), and `--probe` with the release
-DLL (`launcher-eldennet-probe-release`: refused at Settings, nothing more, no report); `launcher-crash-console` crashes
+the read-only round in the probe build (`probe/eldennet.dll`; Lodestar's step L5), with gal/'s leads relabelled to the
+catalogue's and the repository's `ids.toml` beside them: from settings.toml (`launcher-eldennet-read`: a first pass
+before the fake game has made its managers, a later one that names all eleven by their instances' classes, the
+reader's trial on them from a thread of our own, a lint-clean report of numbers and a draft table, and no call into
+the game: the fake hub sees no task of ours), as the owner runs it (`launcher-eldennet-read-owner`: `--read` with no
+settings.toml, invented saves backed up first, the console's steps in plain words with no key to press, both files
+checked clean by the launcher when the game ends), and `--read` with the release DLL
+(`launcher-eldennet-read-release`: refused at Settings, nothing read and nothing called), and with the launcher's
+console blocked after three lines (`launcher-eldennet-read-console`: the watch loop, the round's steps, the lint and
+the end go on in launcher.log). R1's cases, the round with
+one call into the game, went with it (retired 2026-11-22, O106); the parts of the fake game shaped after its runs (the
+rack and its shelves, G's ledger, queue and map, the desk's views, and `--table-gap`, `--task-gate`, `--task-queue`
+and `--map-late`) stay in the program, where the `register*` and `gal-*` cases still register through them, with no
+case of their own. `launcher-crash-console` crashes
 the game while the console is blocked, and the crash watcher still keeps its record. The part 9 tools run on what
 these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (the counts as written, and en-core
 stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
@@ -237,5 +185,5 @@ Windows `eldennet-engine.exe` under Wine on `fakegame.exe` with `derive-leads.to
 labels) and check derive.json against `--describe`: the fingerprint (the product name matching without its sign), the
 FD4 idiom (byte for byte), the singletons and the decoys' verdicts, where each site's path was found and what R0's rule
 made of the same hits, the group table's stride, entries and index field, the registration with its argument registers and call sites, the group's index, the RTTI sets and
-task classes (clang-cl), and, given the AOB statics' slots as R1 would find them, a pattern at each; then the lint's
-refusals of a path, a free string and a long byte run.
+task classes (clang-cl), and, given the AOB statics' slots as an in-game round finds them, a pattern at each; then the
+lint's refusals of a path, a free string and a long byte run.

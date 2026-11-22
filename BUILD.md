@@ -175,43 +175,28 @@ cmake --build build-cl
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
-- About 23 minutes for the clang-cl build's 113 tests of the harness (the prefix and 112 cases, 50 of them the
-  launcher's, 28 of those eldennet.dll's and eight of these with GraceUI, above; counted on 2026-11-21, spike.12): 52 of
-  about 2 to 8 s each, and the ten `gal-*` cases of part 4, 12 to 25 s each, which first write gal/ from `probe-exe --derive`
-  on `fakegame.exe` (with the AOB statics' slots, as R1 would find them) and `tests/fakegame/gal-layout.toml.in` (its
-  offsets checked against `--describe`), then run the fake game with `galtest.dll` loaded and check its `GALTEST` lines.
-  The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test DLL).
+- The clang-cl build's harness has 122 tests with every optional part given (the prefix and 121 cases, 52 of them the
+  launcher's, 24 of those eldennet.dll's and eight of these with GraceUI, above, and six the spikes' package's; counted
+  on 2026-11-22, after R1's eight cases went and the read round's console case came). Without GraceUI's parts 109
+  tests run, in about 18 minutes (2026-11-22): 52 of about 2 to 8 s each, and the `gal-*` cases of part 4, 12 to 25 s each, which first write
+  gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as an in-game round finds them) and
+  `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the fake game with
+  `galtest.dll` loaded and check its `GALTEST` lines. The MinGW build runs 60 (no `__try`, GCC's own RTTI, and no test
+  DLL).
 - A `gal-*` case's environment is the DLL's settings: `EN_GALTEST_DIR` (gal/), `EN_GALTEST_COPY=rpm`,
   `EN_GALTEST_FAULT=<group>:<every>` and `EN_GALTEST_FAULT_AFTER=<s>`, and `EN_GALTEST_STATUS` for a run on Windows.
   `EN_GALTEST_FRAME=own` (the `gal-own-*` cases) makes it read as EldenNet v1 does (O101): a reader thread of its own,
   ten snapshots a second, nothing registered with the fake game and nothing of it called; the checks then include that
   the fake hub's tasks stay the program's own and that none of our slots was ever called.
-- `launcher-eldennet-probe` runs R1 as the owner runs it (`--probe`, no settings.toml, invented saves backed up first,
-  Pause pressed every second from the title until taken), about 65 s; its checks include the callee's summary with
-  its inner callees, the two whole-memory searches and the hub's two diffs (spike.6, spike.7), and since spike.8 the
-  forms, the sources, the tail function's table read before and after the call, the call's answer and the control
-  diff, and since spike.9 the group's function with the task's and the entry's reads and the task's tagged store, the
-  rack's and the shelf's classes, the tagged search and the diffs from the rack and the shelf, and since spike.10
-  (run 9's shape) the group's function's jump through the stub to G's method with its task reads, G's reads and the
-  word's uses, its callees, G and the entries' words before and after the call, G's diffs, the array's views at 50 and
-  250 ms and 2 s, the call sites' tasks and the sibling, and since spike.11 (run 10's shape) the request G's method
-  builds, its slots and the now path's function in two parts with the request's fields followed, G's fields and its
-  queue at four times, the game's requests in the searches and the classes' bases (the views at 2 s only), and since
-  spike.12 (run 11's shape) the now path's function's map walk and list, the hand-over a match calls and the other
-  branch's call one level further, and the manager's map: its layout and its readings;
-  `launcher-eldennet-probe-gap` runs the same steps on a fake game whose table holds no entry for the group
-  (`--table-gap`: the call answers 0 and the task never runs, as in R1 run 7); `launcher-eldennet-probe-gate` on one
-  whose ledger keeps only tasks of the game's kind (`--task-gate`: the call answers 1, G's method keeps nothing of our
-  task and it never runs, as in R1 runs 9 and 10); `launcher-eldennet-probe-queue` on one whose ledger queues the
-  request (`--task-queue`: found in G's queue at 50 and 250 ms, drained and run a second later, run 10's other path);
-  `launcher-eldennet-probe-map` on one whose manager's map holds the group's word only in the world (`--map-late`:
-  the call at the title drops our task, as in R1 run 11; the console's line has the owner load the save, as
-  README-R1.txt's steps say, and the map's readings show the word absent at the title and present in the world);
-  `launcher-eldennet-probe-console` the gate's run with the launcher's console
-  writer blocked after three lines (`ELDENNET_TEST_CONSOLE`, WHY§290: launcher.log keeps every line, the dropped ones
-  counted), and `launcher-crash-console` a crash with the console blocked; `launcher-eldennet-probe-release` gives
-  `--probe` to the release DLL, which refuses it and stops. The `launcher-eldennet` case also runs `rec-stats` and
-  `replay` on its recording, and `launcher-spike-s0a` runs `spike-report s0a` on its log.
+- `launcher-eldennet-read` runs the read-only round from settings.toml, `launcher-eldennet-read-owner` as the owner runs
+  it (`--read`, no settings.toml, invented saves backed up first, no key to press: the console's steps, the managers
+  named once the fake game has made them, the reader's trial, no call into the game, and both files checked clean by the
+  launcher), and `launcher-eldennet-read-release` gives `--read` to the release DLL, which refuses it and stops;
+  `launcher-crash-console` is a crash with the launcher's console writer blocked after two lines
+  (`ELDENNET_TEST_CONSOLE`, WHY§290: launcher.log keeps every line, the dropped ones counted). R1's cases (the
+  `launcher-eldennet-r1` and `launcher-eldennet-probe*` runs) went with it: retired 2026-11-22, O106. The
+  `launcher-eldennet` case also runs `rec-stats` and `replay` on its recording, and `launcher-spike-s0a` runs
+  `spike-report s0a` on its log.
 - The runs of GraceUI's observer (S0-E's present-hook half and S4, roadmap S10.1.g and S11.1.a; EldenNet's side):
   `launcher-eldennet-spike-s0e` gives `--spike s0e` to the release DLL and checks the run's folder
   (`spikes\s0e-1`, made before the game starts), `ELDENNET_SPIKE_DIR` as the fake game sees it (set, and its folder
@@ -276,84 +261,39 @@ build/src/en-tools/eldennet-engine replay <recording> --events events.jsonl     
 ## eldennet.dll
 
 `src/eldennet/` (part 6) builds `en_shell` everywhere (settings.toml as v0.1 reads it, the scrubbed log's lines, the
-channels, the recorder's numbers-only lines; `en_shell_tests`; R1's probe report is en-gal's) and, in the clang-cl
+channels, the recorder's numbers-only lines; `en_shell_tests`) and, in the clang-cl
 build alone, `eldennet.dll` and, with the tests or `EN_PROBE` on, `probe/eldennet.dll`, the same DLL with the probe
-option (R1).
-Its README has the start as built, the threads, the settings, the recorder and R1.
+option (the read-only round).
+Its README has the start as built, the threads, the settings, the recorder and the read-only round.
 
 - `ctest -R eldennet_dll_checks` (clang-cl) runs ARCH §12.1's greps on `src/eldennet` and reads both DLLs with
   `llvm-objdump`: `eldennet_instance_marker` their only export, their imports within `src/eldennet/tests/imports.allow`
   (kernel32 and user32 only). A function a new build imports must be reviewed into that list.
 - The DLL connects to GraceUI on T1 (part 12; `overlay.connect`, on by default) and, with `debug.panel = true`, shows its
   F11 debug view; src/eldennet/README.md and src/en-overlay/README.md have what each does.
-- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 20 cases,
-  about 8 minutes, and with `EN_GRACEUI_DIR` seven more with GraceUI (`launcher-eldennet-probe`,
-  `launcher-eldennet-probe-gap`, `-gate`, `-queue` and `-map` are the longest, about 65 s each). Each installs
-  the DLL in its own folder with gal/ beside it and gives it an %APPDATA% of its own through `ELDENNET_APPDATA`, which
-  the DLL takes in `%APPDATA%`'s place (development and tests).
+- `ctest -R fakegame.launcher-eldennet` runs the DLL under Wine with the real launcher and the fake game: 15 cases, and
+  with `EN_GRACEUI_DIR` eight more with GraceUI (counted on 2026-11-22; not timed since R1's eight cases, which were the
+  longest, went). Each installs the DLL in its own folder with gal/ beside it and gives it an %APPDATA% of its own
+  through `ELDENNET_APPDATA`, which the DLL takes in `%APPDATA%`'s place (development and tests).
 - `eldennet-engine lint --recording <file>` checks a recording (`*.ensnap.jsonl`), line by line.
 - Each DLL's version resource is configured from `src/eldennet/win/eldennet.rc.in`: ProductVersion is the build's
   label (`EN_VERSION_LABEL`, by default the project's version), and the probe build's carries SpecialBuild "probe"
-  (VS_FF_SPECIALBUILD). The label is in the log's boot line too. `eldennet-launcher --probe` asks the probe build for
-  R1 through the watch block (src/en-launcher/README.md).
+  (VS_FF_SPECIALBUILD). The label is in the log's boot line too. `eldennet-launcher --read` asks the probe build for
+  the read-only round through the watch block (src/en-launcher/README.md).
 
 ## The spike package (part 10)
 
-A spike package is a development build for the owner's PC, labelled `0.1.0-spike.N` and never shipped
-(docs/design/spikes/README.md has its files and the S0 runs). R1's is the first:
+A spike package is a development build for the owner's PC, labelled `0.1.0-spikes.N` or `0.1.0-lodestar.N` and
+never shipped (docs/design/spikes/README.md has its files and the S0 runs). `tools/spikepkg/build.py` makes three
+kinds, below: `find`, `read` and `s0e-s4`. (R1's, the first, labelled `0.1.0-spike.N`, went with R1: retired
+2026-11-22, O106.)
 
-```sh
-cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
-  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-spike.12 -DPython3_EXECUTABLE=/usr/local/bin/python3
-cmake --build build-cl-rel
-python3 -I tools/spikepkg/build.py r1 --build build-cl-rel --out EldenNet-R1.zip \
-  --engine build/src/en-tools/eldennet-engine     # a Linux engine of the same commit: lint --gal first
-```
+`EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-lodestar.N` labels the launcher's log
+line, `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
 
-Since spike.6 the probe DLL's operator new allocates from a heap of its own (`win/alloc_count.cpp`), so that R1's
-whole-memory search tells the probe's own copies of our task's address apart from the game's; the release DLL is
-unchanged. Since spike.7 each search reads every readable committed region within 64 GiB and 30 s (on the fake game
-under Wine, about 300 regions and 90 MB in tens of milliseconds), for our task's, our vtable's and its slots'
-addresses, and the hub's reachable memory is kept from just before the call (at most the walk's 6 MiB) for the diffs.
-Since spike.8 the hub is walked at the Mark too, 2 s before that walk, for a control diff (three walks' blocks kept at
-most), the call's answer is kept, and the tail function's table is read just before the call and 2 s after it, through
-the same crash-guarded copy; every summary's instructions are given as forms (no bytes). Since spike.9 the group's own
-function (the tail function's direct jump) and its callees are summarised with the entry and our task followed in (16
-summaries at most), the walk and its diffs start from the table's singleton and the group's entry too (three walks'
-blocks at most per root, the fake game's report about 113 KB), the searches count our object's and vtable's addresses
-under a high-bit tag, and the singleton's and the entry's RTTI classes are matched to the leads' names. Since spike.10
-(WHY§289) the second singleton G's method is summarised through its stub, with its callees one level further, G's loads
-and the entry's word's uses; G, its class and the entries' words are read before and 2 s after the call, and G is the
-walk's fourth root unless a root holds it; the array behind CSTask's +0x3B0 and +0x3D0 is read again 50 and 250 ms
-after the call; the game's own call sites are read for what they pass as the task; and the registration's sibling is
-summarised the same way (the fake game's report about 210 KB, within 256 KiB with every form). The launcher writes its
-log first and its console through a queue of its own (WHY§290). Since spike.11 (WHY§293) every summary with an extent
-is decoded in parts where its code goes past it (its chained entries and the unlisted code its branches reach), the
-request G's method builds is read (its fields, class and slots), its slots and the function the method calls with it
-are summarised with the request in rcx and one level further (24 summaries at most), G's fields and G's queue (a fifth
-root) are read just before the call and 50, 250 and 2,000 ms after it (the array's views at 2 s only), each search
-counts the request's vtable (its hits read as requests, their tasks' classes), and the classes met are given with their
-bases; past 256 KiB G's method's, the slots' and the now path's function's forms are the last to go (the fake game's
-report about 200 KB, the minor summaries' forms left out). Since spike.12 (WHY§296) the manager's map's layout is
-derived from the now path's function's summary, the function a match calls (with the map's value in rcx) and the one
-called before the task's slot on the other branch are summarised with their callees one level further, and the map and
-the manager's list are read just before the call, at about 50 and 250 ms and 2 s after it and then every 10 s while the
-game runs (the first reading, each change of the node count, the word's presence or the stage, and the last, the stage
-from the singletons' instances holding a character of the leads' sets); after the 2 s search, when no copy of our task
-was found, R1 answers the launcher `absent` and the console has the owner load the save and stay two minutes in the
-world (README-R1.txt's steps 4 and 5). Past 256 KiB pretty-printed the report is written on one line first, and the
-now path's function's and the match's call's forms go last of all.
-
-`EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-spike.N` labels the launcher's log line,
-`eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
-
-`build.py` refuses a tree that is not clang-cl, Release, with `EN_PROBE` and a spike label, a DLL that is not the probe
-build, and a text file holding a path of this PC; the zip is the same for the same inputs. Before it leaves: unzip it,
-`sha256sum -c SHA256SUMS`, run `eldennet-launcher.exe --help --no-dialogs` and `eldennet-engine.exe version` under
-Wine, run the harness's `launcher-eldennet-probe` case with `--set launcher=`, `--set eldennet_probe=` and
-`--set engine=` pointing at the unzipped files (the owner's steps on the fake game; since spike.12 also
-`launcher-eldennet-probe-map`, the steps with the world's two minutes), and sweep it
-(`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
+`build.py` refuses a tree that is not clang-cl and Release with its kind's label and `EN_PROBE` setting, a DLL of the
+wrong build, and a text file holding a path of this PC; the zip is the same for the same inputs. Before a package
+leaves, sweep it (`python3 -I ~/.config/privsweep/privsweep.py files <zip>`).
 
 Lodestar's offline finding run (proposal 0005, step L3) has a package of its own, `find`, with no launcher and no
 DLL, since nothing in it starts or enters the game:

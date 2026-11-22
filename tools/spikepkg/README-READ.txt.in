@@ -8,11 +8,15 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the fourth such round. The first three (22 November) named nine of the eleven between them, at the same places
-each time, and read them for 19, 9 and 7 minutes without a fault. Two are still missing: the one that keeps the game's
-event flags, which was in none of the places the third round looked, and the world's clock, which goes by a longer
-name than expected. This round looks for both more widely: once your save is loaded, it goes through all of the game's
-own working memory once for an object of the missing kinds, and then for what points at it.
+This is the fifth such round. The first four (22 November) named nine of the eleven between them, at the same places
+each time, and read them without a fault. The fourth also found the last two: what the game's event flags are read
+through sits behind one of the known places, and the world's clock lies inside another manager's object. This round
+writes the first of those into its table, and starts on the next step: what the managers hold. Once a second it looks
+at the first 512 bytes of each manager it has named and counts how they behave; in the world's clock it also looks for
+minutes and hours.
+
+It has no wide search. The fourth round's went through all of the game's working memory and made the game stutter
+for a few seconds; it has done its job and is switched off.
 
 It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. There is no key to press.
 Nothing in this package is for playing with yet.
@@ -25,7 +29,7 @@ How long it takes
 -----------------
 
 About 20 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 10 in the world with your save loaded, and a
-few to send the files. The ten minutes matter this time: the wide search needs them.
+few to send the files. The ten minutes matter: a clock's hours are only seen to step if enough of them go by.
 
 
 What is in it
@@ -76,8 +80,9 @@ The steps
 3. The console then says "Now load your save." with how many of the eleven managers it has named so far (some exist
    only once a save is loaded), or, if all eleven are there already, "All 11 managers are named. If you have not
    loaded your save yet, load it now." Either way, load your save. Walk about for about ten minutes: go near an NPC
-   or an enemy, open the map, rest at a grace, and fast travel once. Every ten seconds the round looks again for the
-   managers it has not named yet, and all the while it reads the ones it has.
+   or an enemy, open the map, rest at a grace, and fast travel once. Please do not use "Pass time" at the grace in
+   this round: a clock that jumps by hours would confuse the test for its minutes and hours. Every ten seconds the
+   round looks again for the managers it has not named yet, and all the while it reads the ones it has.
 
 4. After about ten minutes in the world, quit the game as you usually do, whatever the console has said. The console
    then says whether the two files passed their check, and the launcher ends.
@@ -123,36 +128,35 @@ What it does
     of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
     how often a read was refused, and how long a reading took. This is the way EldenNet v1 will read the game, tried
     here on sixteen bytes a manager.
-  - Once your save is loaded, from the same thread, five searches, each of which only reads:
+  - From the same thread, once a second, the watch: it follows the way to each named manager's object and copies
+    its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every eight
+    bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
+    number, a kind of object, an address in the game's code or data, an address of memory in use, or something
+    else. In the world's clock it also counts, for every run of six bits, whether it behaves as minutes do (never 60
+    or more, stepping forward and going round), for every run of five whether it behaves as hours, and for every
+    four bytes whether, read as a fraction, they keep rising. It writes counts and offsets: never a time, a value
+    or anything else the memory held.
+  - Once your save is loaded, from the same thread, four searches, each of which only reads:
       - For a manager whose kind of object the game has but which none of those places holds: it goes through the
         game's own data for another place that points at an object of that kind, reading the first eight bytes of
         each object it finds a pointer to. Where several places point at one and the same object, the manager is
-        named by the first of them.
+        named by the one the game's code refers to most.
       - For the same managers: it copies the first 16,384 bytes of the object behind each of the places, and looks
         there for an object of the missing kind, or for a pointer to one (eight bytes read behind each pointer).
-      - For the same managers, the wide search: it goes once through all of the game's own working memory (the
-        memory the game has set aside for itself and may write to; not its files, not its code, no thread's stack,
-        and not EldenNet's own), 16,384 bytes at a time, looking for the one number that marks an object of a missing
-        kind. Where it finds one, it goes through that memory again, up to three times, for what holds that object's
-        address, and notes the kind of object each holder lies in. That is some gigabytes read, over a few minutes,
-        at the same gentle pace as the rest. Nothing of what it reads is kept or written: only how much was read,
-        and for each find a kind (a number of the game's code), an offset, and a count.
+        This is how the fourth round found the world's clock; what it finds, the watch then follows.
       - For the world's clock, in case the kind with the longer name is not it: about once a second it copies the
         first 256 bytes of the objects behind the places still unnamed, and looks for a number that stays between 0
         and 59 and steps forward as minutes do, with one beside it that behaves as hours do.
       - For the play time: the same way, over the objects the game's data points at, it looks for a number that
-        rises by the clock while you play.
-    These searches follow pointers that may no longer be good. So the round first asks Windows, for every number in
-    the game's data that could be an address, whether there is memory there that may be read (VirtualQuery, which
-    reads nothing), and keeps only those; in the third round 96 in 100 of them were no address at all. Before each
-    read it asks again, and leaves the memory alone if the answer has changed (the wide search asks for each stretch
-    of memory it is about to go through, about a million bytes at a time); then it copies with Windows' own function
-    for reading a program's memory (ReadProcessMemory, on the game itself), which answers "cannot be read" without
-    disturbing the game. The searches together take at most 4 thousandths of a second of each step of EldenNet's own
-    thread, and the wide search 6 more while it runs: at most 10 thousandths of a second of each step in all, on
-    EldenNet's own thread; the game's own threads are never used. If the game stutters while the wide search runs
-    (the first minutes after your save loads), say so when you send the files. What they find is written as counts
-    and places, never as what the memory held.
+        rises by the clock while you play. The object it finds, the watch then follows.
+    The searches and the watch follow pointers that may no longer be good. So the round first asks Windows, for
+    every number in the game's data that could be an address, whether there is memory there that may be read
+    (VirtualQuery, which reads nothing), and keeps only those; 96 in 100 of them are no address at all. Before each
+    read it asks again, and leaves the memory alone if the answer has changed; then it copies with Windows' own
+    function for reading a program's memory (ReadProcessMemory, on the game itself), which answers "cannot be read"
+    without disturbing the game. Together they take at most 4 thousandths of a second of each step of EldenNet's
+    own thread; the game's own threads are never used. What they find is written as counts and places, never as
+    what the memory held.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. They hold only numbers (offsets, sizes, counts) and EldenNet's own labels: no names of
     the game's, no text, no paths, nothing of your character or your PC.

@@ -11,10 +11,11 @@ It is built in two parts:
 - `en_shell`, portable and tested in every build (`en_shell_tests`): `settings.hpp` (settings.toml as v0.1 reads it),
   `logline.hpp` (the scrubbed log's lines), `rings.hpp` (the channels C1 to C5 and the log's ring), `record.hpp` (the
   recorder's numbers-only lines) and `names.hpp` (the safety checks' file names). en-tools links it for `lint`'s
-  recording vocabulary. R1's report, which the probe build fills, is en-gal's (`en/gal/probe_report.hpp`), so that
-  the launcher lints it without en-core (ARCH §2.3).
+  recording vocabulary. The read-only round's report, which the probe build fills, is en-gal's
+  (`en/gal/lodestar.hpp`), so that the launcher lints it without en-core (ARCH §2.3).
 - `eldennet.dll` (`win/`), the clang-cl build's alone (NativeSys needs structured exception handling), and, with the
-  tests or the CMake option `EN_PROBE` on, the same DLL with the probe option, `probe/eldennet.dll`, which runs R1.
+  tests or the CMake option `EN_PROBE` on, the same DLL with the probe option, `probe/eldennet.dll`, which runs the
+  read-only round.
   A release build is `eldennet.dll` alone, and CI's `options` stage refuses `EN_PROBE` there (ARCH §12.1).
 
 ## The start (ARCH §1.4, §3.2), as built
@@ -72,13 +73,13 @@ T1 then runs, each state logged and written to the watch block for the launcher'
     second copy that idles (the toast comes with GraceUI, ARCH §1.6). T1 ends.
 
 The watch block's states for this start, `reader` and `first_reading`, were appended to en-proto's list; `register`
-and `first_tick` remain for the game's task, which only the probe's R1 round still uses (below) until Lodestar's
-step L5 replaces that round.
+and `first_tick` keep their numbers there for the game's task, which nothing enters now (R1, retired 2026-11-22,
+O106).
 
-A probe build with `probe = { round = "r1" }`, or asked by the launcher's `--probe`, runs R1 after Connect instead
-(below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
-(`probe round=r1 skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--probe` with those
-spikes. With `probe = { round = "read" }` a probe build runs the read-only round instead (below).
+A probe build with `probe = { round = "read" }`, or asked by the launcher's `--read`, runs the read-only round after
+Connect instead (below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
+(`probe round=read skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--read` with those
+spikes.
 
 ## The threads and channels (ARCH §1.2, §1.3)
 
@@ -122,7 +123,7 @@ After each wake, once T1 has published the connection:
   `source=eldennet` once the launcher has let its key go and handed it over; with no console, at once). Each press is
   then a Mark of EldenNet's own, stamped when T6 takes it (at most 100 ms after it), numbered on in the same ring and
   recorded like the launcher's. Without a block, EldenNet keeps a ring of its own. Until the hand-over, a press is
-  logged as not taken; the launcher's Pause stays the Mark whenever GraceUI is absent, so R1's flow is unchanged. When
+  logged as not taken; the launcher's Pause stays the Mark whenever GraceUI is absent. When
   another mod's hotkey took Pause first, GraceUI registers EldenNet's unbound (`GRACEUI_UNBOUND`, D164): the ring is
   never asked for, and the launcher's Pause stays the Mark (`marks source=launcher bound=0`; registered on T6,
   `mark_hotkey status=11 bound=0`).
@@ -187,7 +188,7 @@ enabled = true                                  # false: Off, T1 ends at once
 debug = { panel = false, record_sessions = false, log_level = "info" }  # panel: F11's view; log_level: error .. debug
 overlay = { connect = true }                    # GraceUI's connect (part 12); false: headless, Connect skipped
 gal = { copy = "seh" }                          # or "rpm": ReadProcessMemory on our own process (S0-D)
-probe = { round = "r1", register = "mark", object_size = 0x800, settle_s = 10,
+probe = { round = "read", settle_s = 10,
           fault_group = "camera", fault_every = 0, fault_after_s = 2 }   # a probe build's only (EN_PROBE)
                                                 # round = "read": the read-only round (no call; below)
 ```
@@ -212,211 +213,19 @@ SteamID, path, game text or param value can be written. A text look-up's answer 
 found; a param row its param, id and field count; PlaythroughReady its slot, class, keepsake, play time and the name's
 length. Keyed hashes and redacted text wait for S10.2.d.
 
-## R1, the probe round (O89; a probe build with `probe = { round = "r1" }`, or the launcher's `--probe`)
-
-**How the owner starts it.** `eldennet-launcher --probe` writes R1 into the watch block's `control.probe` before it
-loads anything, and EldenNet answers there at Settings: a probe build accepts (`probe.round` becomes `r1`, with the
-file's other probe settings, and `register = "auto"` becomes `"mark"`, so the call waits for the owner's Pause); a
-release build, or EldenNet turned off, refuses and stops at once (T1 ends in Exit: no other start, nothing called).
-The log's `probe asked=r1 accepted=…` line says which. settings.toml's `probe` table still works alone (the tests).
-
-What the owner's offline round R0c left for the game (its report: the FD4 classes unnamed, `register_task` and its ABI,
-the task's base class, run slot and object size, `GameDataMan`'s and `global_hinstance`'s slots, the group index, the
-layout fields). On T1, after the window and `settle_s` seconds:
-
-1. The **derivation over the live image** (en-gal's `derive`, `ImageLayout::Memory`, with `gal\leads.toml`): the FD4
-   singletons named through their class objects as the game has filled them (`dlrf_name_layout`), `register_task` and
-   its ABI from the hub's static and the game's own call sites, the group table as loaded, the RTTI sets. At once, then
-   +15, +30 and +60 s while the registration's instance is unnamed. Written as `probe\r1-derive.json`, derive.json's
-   schema 1, which DataPiler 0.2.41's guard already reads. `global_hinstance`: the data slots holding the module's
-   base.
-2. **The checks** before the one call: the gate passed; the FD4 idiom the live image gives the one R0 cut from the
-   file, byte for byte and capture for capture (`gal\patterns.toml`'s `fd4_idiom`, reviewed: check `fd4_idiom`, its
-   value the live hits and its expected R0's count, which does not decide); the name layout read by at least half the
-   class objects; the registration's callee a function with three distinct agreeing argument registers; the group's
-   index found in the loaded table and equal to the gated build's layout's (`[task] group`'s index, read as a dev
-   build reads the file: a lead `[task]` may hold only its group); the hub's instance non-null. Any check that fails,
-   a missing patterns.toml idiom or an unreadable layout included: no call, `stage = "refused"`. Nothing is guessed,
-   and nothing rests on a derivation that was not reviewed (O89 (a)). Then the **callee's summary** (spike.6,
-   WHY§227), from the live image, the code the call runs: decoded with en-gal's decoder from its RVA within its
-   function of the exception directory (or up to its first return), at most 4 KiB, following no call; its instructions
-   and bytes, every call with its target RVA or its form (through a register, through memory with its base, or through
-   a RIP-relative slot, and whether the base holds an argument's object's first word: a virtual call on it), the
-   conditional branches before the first call, whether some path returns through no call, and for rcx, rdx, r8 and r9
-   (followed through moves between registers, 64- and 32-bit) their stores to memory before the first call (base
-   register, which argument the base holds, displacement, width), the callee-saved registers they were moved to, and
-   their compares with an immediate (the value kept from 0 to 65,536), with memory or another register, and tests.
-   An instruction whose effect on the registers it does not model ends the tracking, and the report says where
-   (`modelled_to`). `r1-probe.json`'s `callee_code` holds it (`register.callee` already holds the RVA). Since spike.7
-   (WHY§235: run 6's callee was a 93-byte wrapper of one branch and two calls) the summary knows what each register
-   holds along the flow (where two paths meet a register keeps only what both agree on), and gives at every call and
-   tail jump which of the callee's arguments rcx, rdx, r8 and r9 hold (`pass`), and for each branch before the first
-   call the compare or test that set its flags, with its operands' kinds and its condition (`guard`); then each callee
-   it calls directly or tail-jumps to (up to eight) is summarised the same way with those arguments followed in
-   (`callee_code.inner`: their `args` are the wrapper's). Since spike.8 (WHY§240: run 7's wrapper tail-jumps to a
-   function that bounds the group by 168, tests a register loaded from none of its arguments and leaves through a jump
-   through memory) a register also holds a value loaded from memory (a RIP-relative slot, or [base + index*scale +
-   disp] with what base and index hold, at most 3 loads deep), a call's result stored to a RIP-relative slot holds that
-   slot's value, an inner summary's rcx to r9 that hold no argument hold their entry values, and each guard operand that
-   holds no argument gives its `source`; a jump through memory or a register is a tail call site (`tail_memory`,
-   `tail_register`, with the base's source and `vtable_src`); every call site gives the known values in rcx to r9 that
-   are no argument (`pass_src`); with no extent a function ends at a jump out that no branch goes past; and the first 64
-   instructions of each summary are given as `forms` (offset, length, class and each operand's kind: a register with
-   its width and the argument it holds, memory, a RIP-relative slot with its section, an immediate up to 65,536 or
-   `large`; those no known path reaches `unreached`), no bytes. The tail function's **table** is matched against run
-   7's reading (`table`: the wrapper's rcx loaded from a slot S, directly or through one load, or, where the paths into
-   its tail jump disagree on rcx, so loaded and null-tested on the path past the test, `via_guard`; and the tail
-   function's null-tested value loaded from [entry rcx + group*8 + disp], or one level deeper; else `matched: false`
-   and the first shape that failed). At the Mark T1 walks the hub's reachable memory as the hub search does (the control walk), waits
-   2 s and walks it again, keeping the blocks' bytes on our heap (within the walk's 6 MiB) for the diffs below, reads
-   the table (`table.before`: the singleton's kind and whether it is CSTask's instance or a named singleton's, the
-   entries from 0 to the bound that are set, the group's entry, its first word and the word its final jump reads, a
-   game function there summarised one level deeper, `depth` 2), and makes the call at once; then it compares the two
-   walks (`hub_diff_control`) and lets the first go. Since spike.9 (WHY§248: run 8's tail function moves the task into
-   rdx and jumps directly to a function of the group's own, with the entry in rcx) a direct jump past a function's
-   decoded code is a tail jump, the table's `target` is that jump's, and **the group's function** is summarised from
-   the image at once (`depth` 2, `parent` the tail function, `entry_src` the jump's known values, rcx `holds_entry`),
-   with its own direct callees and tail jumps one level further (`depth` 3), 16 summaries at most; in every summary each
-   load from our task (the registers' first) or from the group's entry, or from a value loaded from either, is listed
-   (`task_reads`, `entry_reads`: offset, field offset, width, the base's source, and what the value is then used for:
-   compared with an immediate or otherwise, tested, stored with its base and displacement, passed to a call, called
-   through, used as a base, changed), and each store of the task, of a value read from it, or of either changed (a
-   tagged pointer: Source's `modified`) is listed with its base's source and displacement (`task_stores`). The walk
-   and its diffs start from two more roots, read from the table at the Mark: the singleton and the group's entry (each
-   diff's `root`: task_hub, singleton, group_entry; their controls in `hub_diff_controls`), each root within the same
-   bound of three walks; and just before the call the singleton's and the entry's **classes** are read through their
-   first words by the RTTI walk and matched to the leads' names as O92 does (`singleton_class`, `entry_class`: the
-   lead's index where the innermost name is the lead's or it with Imp; numbers only). Since spike.10 (WHY§289: run 9's
-   group function tail-jumps through an 8-byte stub that zeroes r9 to **a method of a second singleton G**, with G,
-   loaded from a data slot, in rcx, our task in rdx and a 32-bit word of the entry in r8) the site in the group's
-   function that reaches G's method gives its entry state (`holds_g`, `holds_word` in `entry_src`); a stub (16 bytes
-   or fewer ending in a direct tail jump) is followed without spending a depth level, so G's method is `depth` 3
-   (`stub`, `zeroed`), and its direct callees and tail jumps `depth` 4, within the 16 summaries; each summary lists the
-   loads based on G (`g_reads`) and the uses of the entry's word (`word_uses`: compared with an immediate or otherwise,
-   an index, passed, stored). With no extent, a direct jump to a function's start of the exception directory ends the
-   decoding (a stub's forward tail jump). Statically, before the call, the game's own call sites of the registration
-   (derive's) are read for what they pass as the task (`game_sites`: a member with its base and displacement, a static,
-   a load, an allocator's result with its callee, the function's own argument, a stack slot, or other), and the
-   registration's sibling of the same shape (derive's next such candidate) is summarised with its callees breadth first
-   to depth 4 (`sibling`, 12 summaries at most). At the Mark G is read through its slot (`method`: null or heap, its
-   class against the leads, whether CSTask's instance holds it at +8 and the group's entry at +0x58, where run 9's
-   walks met one object, and every table entry's word at the site's offset: group 110's, how many hold their own index,
-   how many distinct values), again just before the call and 2 s after it; and G is the walk's fourth root
-   (`g_singleton`, with its control) unless it is a root's object or held there (`g_walk`). Since spike.11 (WHY§293:
-   run 10's G method builds a 32-byte **request** on its stack and either calls a function with it at once or copies
-   it to the heap for G's queue) every summary with an extent is decoded **in parts** where its code goes past it
-   (`parts`: the primary entry, the exception directory's entries chained to it, and the code a conditional branch
-   past the extent reaches in no entry, `unlisted`); the request is read from G's method (`request`: its vtable in
-   rdata, its stack displacement, each field's offset, width, source and role: vtable, task, manager (G's field),
-   word, zero; the function called with its address, `now`; its class by RTTI and its slots, the vtable's words into
-   the game's code); its slots' functions (the first six) are summarised at depth 4 with the request in rcx
-   (`request_slot`, `holds_request`), the request's fields followed (`request_reads`; a load of its task field is the
-   task, of its manager field G's manager, `manager_reads`; of its word the entry's word), the function G's method
-   calls with it too, each with its direct callees and tail jumps one level further (depth 5), 24 summaries at most.
-   The fields of G that G's method reads (by offset and width from its summary) are read just before the call and
-   about 50, 250 and 2,000 ms after it (`method.g_fields`: a narrow field's value, an 8-byte one's kind and a
-   pointer's class), the byte the method compares first deciding the path (`defer_disp`, `path_taken`: now or
-   queued); and G's queue (the G field the method passes in rcx to the queued path's call, `queue.g_disp`) is the
-   walk's fifth root (`g_queue`, with its control) and is walked at the same four times (`queue.reads`: the blocks
-   whose first word is the request's vtable, each read as a request: its task ours or its kind and class, its manager
-   field G's or not, its word, its zeroed byte). Every entry's word is also read for its own index in its low 16 bits
-   (`own_low`) and its high 16 bits' values (`highs`). Since spike.12 (WHY§296: run 11's now path's function looks the
-   word up in a tree from the manager's +0x18, or with a word of 0 walks a list at its +0x30 and +0x38) the **manager's
-   map**'s layout is derived from that function's summary (`map`: the head's displacement in the manager, the root's in
-   the head, the byte compared with 0 at each node, the key compared with the word and its width, the value passed on a
-   match, from the call's rcx where the summary knows it, `value_known`, else 8 past the key; the children at +0 and
-   +16, MSVC's node; the list's begin and end; the function a match calls, `map_call`, and the one called before the task's
-   slot on the other branch, `other_call`; or the first part not found, `shape_failed`), and the two functions are
-   summarised at depth 5 (the match's call with the map's value in rcx, `holds_value`, its loads `value_reads`, the
-   task, the word and the manager) with their callees one level further (6), before the slots' level, within the 24.
-   A compare's memory operand is kept where a followed value is compared with it (the key, `compared_other` with its
-   displacement and width).
-3. **The call**, at the first Mark (the launcher's Pause, pressed at the title with no save loaded: O89, O90;
-   `register = "auto"` calls at once, `"never"` not at all): our task object of `object_size` zeroed bytes and a fake
-   vtable of 64 guarded slots (or the task classes' count, where the leads name a base), each counting its calls and
-   running the probe's body for our object (TaskShape's `every_slot`), in the derived registers and group. The status
-   block's `ready` is "task confirmed" once the game has called a slot. Since spike.8 rax as the call left it is kept,
-   as a kind (`register.returned`: zero, small with its value, ours, the game's, heap, our task's block, other) with its
-   low byte (`returned_low`).
-4. **On the game thread**, within the reader's budget: the slot counts (the run slot is the one called every frame);
-   how much of our object the hub wrote (one past its last non-zero byte); the **hub census** (the vtables of the objects
-   the hub's instance points at, to a depth of three, the image's writable data included); the **rising-counter search**
-   over the heap statics (a field rising by the clock and standing still at times: the play time's static, which has
-   no RTTI); and each RTTI-classed static's slot.
-   On T1, 2 and 20 s after the call: the **hub search** (spike.5, WHY§209: the hub's reachable memory, three pointers
-   deep, `hub_search`), the **hub diff** (spike.7, WHY§235, `hub_diff`: that walk compared with the one kept from before
-   the call, block by block by path: the blocks compared, re-pointed, gone and new, the 8-byte words that changed, and
-   for the first 32 of them their path and the old and new value's kind: zero, a small integer up to 65,536 with its
-   value, the group's index, our task object, our vtable, our module, the game's image with its section's kind and RVA,
-   the heap, or other; a new pointer's block fresh when the walk before the call never reached it, a word whose 32-bit
-   half is the group's index marked; at 20 s each word steady when it held the same new value at 2 s, the steady ones
-   listed first; since spike.8 each word `in_control` when its path's word changed in the control diff too, those not
-   in the control listed before those in it; since spike.9 a word whose low 48 bits are our object's address, or point
-   inside it, under a non-zero tag is `task_tagged` with its high 16 bits), at 2 s the table read again
-   (`table.after`), and since spike.10 G and the entries' words (`method.after`) and the array's views (below), since
-   spike.11 G's fields and its queue, and the **whole-memory
-   search** (spike.6, WHY§227, `memory_search`): every region VirtualQuery calls
-   committed and readable (not no-access, a guard page, uncached or write-combined), never a known thread stack nor
-   T1's own, read through the crash-guarded copy in chunks of 16 KiB (page by page where one faults or a stack overlaps
-   it), within 64 GiB and 30 s since spike.7 (run 6's 8 GiB cap left 2 of 10.6 GiB unread; `stopped` says which cap, if
-   any, ended it, and `committed_bytes` the process's committed total, past a cap too), for the 8-aligned words equal to
-   our task object's address and those pointing inside it, and since spike.7 those equal to our fake vtable's address
-   (our object's first word, read back after the call) and to one of its slots' (our module's thunks), each counted
-   apart, with how many different slots the game's words name, and since spike.9 the words whose low 48 bits equal our
-   object's or our vtable's address while their high 16 bits are not zero (`tagged_found`, `vtable_tagged_found`,
-   ours apart; `tagged_hits`, each with its `tag`), and since spike.11 the words equal to the request's vtable
-   (`request_found`, ours apart: the game's requests; `request_hits`, 32 at most, each read by T1 as a request, and
-   `request_tasks`: for each distinct class of their tasks, 8 at most, its vtable's slots and the first 16 words of one
-   such task as kinds, a pointer's with its class). After each search the classes met are given with their RTTI bases
-   (`classes`: G's manager, the request, CSTask's instance, the group's entry, G, the game's tasks; each base count
-   and its bases' type descriptors; `shared_bases`, those met in two or more). Each side keeps up to eight hits of each kind, each
-   giving what it points at, its region's kind (private, mapped, image) and protection, an image's module (ours, the
-   game's or another, by kind, never by name), its section (by its characteristics) and RVA, and the 32-bit words equal
-   to the group's index within 64 bytes. **Our own copies are counted apart** (`own_found`, `own_inside`, hits with
-   `own`): a region is ours when its allocation base is our module's, our task's block's or our vtable's
-   (VirtualAlloc's), or one of the DLL's own heap's. The probe DLL's operator new allocates from a heap of its own
-   (`HeapCreate`, `alloc_count.cpp`), so everything the probe keeps (its census, its copies, its state) lies there,
-   and the search walks that heap (`HeapWalk`) for its regions' and large blocks' allocation bases; `own_known` is
-   false when the heap could not be made or walked, and then the heap's copies count as the game's. While the task
-   has not run, T1 also reads how much of our object the hub wrote (`object_written`). Since spike.10 (WHY§289) the
-   four views of the array behind CSTask's +0x3B0 and +0x3D0 (run 9's paths, four sibling pointers 32 bytes apart at
-   depth 3 of the walk kept before the call) are read again at 2 s (since spike.11 only then; spike.10 read them at
-   about 50 and 250 ms too) (`array_views`: each read's changed words, the first eight with their kinds, a new value in the
-   game's rdata classed by the RTTI walk, `new_class`, and whether a changed word's 32-bit half is the main window's
-   thread id, `main_thread`, or T1's, `caller_thread`).
-   Since spike.12 (WHY§296) the manager's map and list are read just before the call, at about 50 and 250 ms and 2 s
-   after it, and then every 10 s for as long as the game runs (`map.readings`: the first, each reading whose node
-   count, the presence of the group's word or the stage changes, 24 at most, each noted in eldennet.log as
-   `stage=map_change`, and the newest; `readings_made`, `changes`). Each reading walks the tree as the manager holds
-   it then, checking before it reads on: the head on the heap with its nil byte not zero, each node on the heap with
-   its nil byte zero, none met twice, at most 4,096 (else `map_failed`: manager, head, head_nil, pointer, unread,
-   node_nil, cycle, too_many, and nothing more of it is read); it gives the manager's word beside the head as a kind
-   (`count_word`), the nodes, whether their keys rose in order and the root's parent and the head's children are
-   MSVC's, the keys' low 16 bits in order (256 at most) and their high halves counted, whether the group's word is
-   among them (`word_present`) or else the nearest keys below and above it, the values' kinds and classes counted;
-   and the list's count and its entries' kinds and classes (`list_failed` where it cannot be read). The **stage** of
-   each reading (`world_stage`) comes from no world snapshot, which R1's task never builds: world while a singleton's
-   instance holds, in its first 128 KiB, a pointer to an object of the leads' vtable sets (the characters' classes),
-   title when none does (loading screens too), unknown when nothing could be read. After the 2 s search, while our
-   task has not run and the search, complete, found no copy of it (plain or tagged, its vtable's or a slot's), R1
-   answers the launcher `absent` (`stage=task_search found=0`), and the console's no-confirmation line then has the
-   owner load the save and stay two minutes in the world. Past 256 KiB pretty-printed the report is written on one
-   line before anything is cut, and the now path's function's forms and the match's call's go last of all.
-5. Every 2 s, `probe\r1-probe.json` (kind `probe`, schema 1; `lint --report` checks it): the checks, the call, the
-   counts, the census's vtables and, once it is done, the base classes the hub's objects share, each with its derived
-   classes' slot counts and run slot (derive's `task_from_base`), the rising hits and the statics' slots. Once statics'
-   slots are known (one rising static that also stood still; one RTTI slot each), the derivation runs again with them,
-   so that r1-derive.json carries a pattern at each.
-
-Both files are numbers and the leads' labels only (O75). T1 stays the probe's reporter for the session. The layout's
-fields (ARCH §6.10's invariants over objects) wait for the reviewer's next round: the probe's object searches
-(`vtable_offsets`, `meter_offsets`, `utf16_offsets`, `u32_offsets`) need the classes' instances that r1-derive.json
-gives.
-
 ## The read-only round (Lodestar's step L5; a probe build with `probe = { round = "read" }`)
 
-`probe_read.cpp`. It calls nothing of the game, registers nothing and writes nothing to it; it replaces R1's package
-for the address library's needs. On T1, after Connect and `settle_s` seconds:
+`probe_read.cpp`. It calls nothing of the game, registers nothing and writes nothing to it; it is the one round a
+probe build runs (R1, the round with one call into the game, was retired 2026-11-22, O106).
+
+**How the owner starts it.** `eldennet-launcher --read` writes its request into the watch block's `control.probe`
+before it loads anything, and EldenNet answers there at Settings: a probe build accepts (`probe.round` becomes `read`,
+with the file's other probe settings); a release build, or EldenNet turned off, refuses and stops at once (T1 ends in
+Exit: no other start). The log's `probe asked=read accepted=…` line says which. settings.toml's `probe` table still
+works alone (the tests). `round = "r1"` and R1's own keys (`register`, `object_size`) are refused like any unknown
+word or key.
+
+On T1, after Connect and `settle_s` seconds:
 
 1. **The finder over the live image** (en-gal's `lodestar::find`, with gal/'s `leads.toml`, `recipes.toml`,
    `ids.toml` and `builds.toml`): the accessor's shape and the statics its sites load, the leads' classes, the
@@ -459,7 +268,7 @@ no task of ours.
 v0.1 reads, the later tables, each refusal without its value, the size cap, the probe table only in a probe build), the
 log lines (scrubbing a path and a name, a cut line), the rings (order and capacity, C1's newest and gap, C1 under two
 threads, the log's ring from four threads), the safety checks' names, and every kind of recording line linting clean
-alone and as a file with no name, text or param value in it. R1's report is tested in `en_gal_tests`.
+alone and as a file with no name, text or param value in it.
 
 In the clang-cl build, `eldennet_dll_checks` (`tests/dll_checks.py`) runs ARCH §12.1's greps on `src/eldennet`
 (DllMain's body is the load contract's and calls nothing else; no detach branch; every `WINAPI`, `CALLBACK` and
@@ -468,17 +277,17 @@ library's or renderer backend's name; no `IsEnableOnlineMode`; `en_dll_module` o
 greps but DllMain's on `src/en-overlay`, which the DLL links, and reads both DLLs with llvm-objdump:
 `eldennet_instance_marker` their only export, and their imports within `tests/imports.allow` (kernel32 and user32: no
 network, no hook API, nothing that reaches into another process; part 12 added graceui-sys's `GetTickCount64` and the
-C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap and its
-walk, `HeapCreate`, `HeapLock`, `HeapWalk` and `HeapUnlock`; the AI pages en-llm's threads, the C runtime's thread
-support with them, `GetSystemDirectoryW` for WinHTTP's full path, and advapi32's token and access-list functions for
-secrets.toml).
+C runtime's `ReadConsoleW`, which Dear ImGui's number parsing brings, and spike.6 the probe build's own heap,
+`HeapCreate`, with the walk R1 made of it, `HeapLock`, `HeapWalk` and `HeapUnlock`, still on the list; the AI pages
+en-llm's threads, the C runtime's thread support with them, `GetSystemDirectoryW` for WinHTTP's full path, and
+advapi32's token and access-list functions for secrets.toml).
 
 End to end, the fake game's harness runs the DLL under Wine with the real launcher (`ctest -R
 fakegame.launcher-eldennet`; `tests/fakegame/README.md`): injected suspended and at the title, a numbers-only recording
 that lints clean, the session gate, a build the DLL's own gal/ does not know, a simulated anti-cheat module, a second
-copy, a crash and a stack overflow recorded through the DLL's filter, the watcher started under another loader, R1
-from settings.toml, R1 as the owner runs it (`--probe`, no settings.toml: the console's steps, Pause pressed until
-taken, both reports linted by the launcher), and `--probe` refused by the release DLL. Without GraceUI, each logs
+copy, a crash and a stack overflow recorded through the DLL's filter, the watcher started under another loader, the
+read-only round from settings.toml, the same as the owner runs it (`--read`, no settings.toml: the console's steps,
+both files checked by the launcher), and `--read` refused by the release DLL. Without GraceUI, each logs
 `connect ok=0 outcome=absent installed=0 looks=1`: the look ends at once. With a test build of GraceUI (CMake's
 `EN_GRACEUI_DIR`, the GraceUI folder GraceUI's build lays out), seven cases more (`fakegame.launcher-eldennet-graceui*`;
 the spike run's and EldenNet's pages' beside these):

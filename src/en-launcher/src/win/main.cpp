@@ -15,9 +15,7 @@
 #include "en/launcher/graceui.hpp"
 #include "en/launcher/spikes.hpp"
 #include "en/launcher/steam.hpp"
-#include "en/gal/derive.hpp"
 #include "en/gal/lodestar.hpp"
-#include "en/gal/probe_report.hpp"
 #include "en/gal/report.hpp"
 #include "en/proto/ffi_guard.hpp"
 
@@ -213,31 +211,7 @@ Gate gate(const Ctx& c, const fs::path& exe) {
   return g;
 }
 
-// ---- R1's reports (--probe) ----
-
-// After an R1 session: the two reports EldenNet wrote, checked by the lint they must pass before they leave the PC
-// (`eldennet-engine lint --report`, the same vocabularies), each told as a line, and the result to the owner.
-void check_r1_reports(const Paths& p) {
-  const fs::path folder = p.en / L"probe";
-  const gal::report::Vocabulary* kinds[] = {&gal::derive::vocabulary(), &gal::probe::vocabulary()};
-  bool missing = false;
-  bool refused = false;
-  for (const char* name : {"r1-derive.json", "r1-probe.json"}) {
-    const auto text = read_text(folder / name, gal::report::kMaxReportBytes);
-    if (!text) {
-      missing = true;
-      say("r1 report=%s lint=missing", name);
-      continue;
-    }
-    const auto result = gal::report::lint(*text, kinds);
-    refused = refused || !result;
-    say("r1 report=%s lint=%s problems=%zu bytes=%zu", name, result ? "clean" : "refused",
-        result ? std::size_t{0} : result.error().size(), text->size());
-  }
-  const R1Step step = missing ? R1Step::ReportsMissing : refused ? R1Step::ReportsRefused : R1Step::ReportsClean;
-  say("r1 step=%s", r1_word(step));
-  console_line(r1_text(step));
-}
+// ---- The read-only round's files (--read) ----
 
 // After a read-only round (--read): the report by the lint it must pass before it leaves the PC, and the draft table
 // by what such a table may hold, each told as a line, and the result to the owner.
@@ -360,11 +334,9 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   auto wb = WatchBlock::open(pid);
   if (!wb) say("watch_block ok=0 error=%lu", GetLastError());
   if (wb && inject_dll) {
-    // What EldenNet reads at its start, before anything is loaded: the spike, and R1 (--probe), which it answers.
+    // What EldenNet reads at its start, before anything is loaded: the spike, and the read-only round (--read), which
+    // it answers.
     wb->block().control.spike.store(static_cast<std::uint32_t>(c.o.spike), std::memory_order_release);
-    if (c.o.probe) {
-      wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::R1), std::memory_order_release);
-    }
     if (c.o.read) {
       wb->block().control.probe.store(static_cast<std::uint32_t>(w::ProbeRequest::Read), std::memory_order_release);
     }
@@ -432,7 +404,6 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
 
   WatchPlan plan;
   plan.console = c.o.console;
-  plan.probe = c.o.probe && inject_dll;
   plan.read = c.o.read && inject_dll;
   plan.spike = c.o.spike;
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
@@ -443,7 +414,6 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   plan.appid_value = c.game.appid;
   WatchResult res = watch_game(s.pi.hProcess, pid, *wb, plan);
   if (created && remove_after != RemoveAfter::Never) save_state(c.p, std::nullopt);
-  if (plan.probe) check_r1_reports(c.p);
   if (plan.read) check_read_reports(c.p);
 
   SessionRecord& rec = res.record;
@@ -528,13 +498,13 @@ int do_start(Ctx& c) {
   if (!proxies.empty()) tell("Other mods detected", "Other mods detected: " + proxy_list + ".");
   // GraceUI (ARCH §4.3; GraceUI D83, D88): Game\GraceUI\graceui.toml readable, every listed file matching its size and
   // SHA-256, the ABI major EldenNet speaks and a version at least its floor. What fails is told in E12, and the game
-  // starts all the same: EldenNet runs headless until GraceUI is installed again. A development run (R1's --probe, a
+  // starts all the same: EldenNet runs headless until GraceUI is installed again. A development run (--read, a
   // spike) is headless by design (O90), so it only logs the check.
   if (inject_dll) {
     const GraceReport gr = check_graceui(exe->parent_path() / L"GraceUI");
     say("preflight graceui=%s version=%u.%u.%u abi=%u.%u files=%zu checked=%zu", to_string(gr.result), gr.version[0],
         gr.version[1], gr.version[2], gr.abi_major, gr.abi_minor, gr.files, gr.checked);
-    if (gr.result != GraceCheck::Ok && !c.o.probe && !c.o.read && c.o.spike == proto::watch::Spike::None) {
+    if (gr.result != GraceCheck::Ok && !c.o.read && c.o.spike == proto::watch::Spike::None) {
       tell_error(ErrorCode::E12, error_text(ErrorCode::E12, graceui_problem(gr)));
     }
   }
@@ -554,11 +524,11 @@ int do_start(Ctx& c) {
         back_up_saves(BackupSpec{c.p.saves, c.p.backups, elden_ring_save_files(), 10, local_stamp()});
     say("backup folders=%zu made=%zu unchanged=%zu empty=%zu removed=%zu problems=%zu", b.folders, b.made, b.unchanged,
         b.empty, b.removed, b.problems.size());
-    // R1 (--probe) never goes on without a backup: its one call into the game rests on one (O89). The read-only round
-    // (--read) calls nothing, and keeps the same rule: a development build in the game goes with a backup.
-    const bool development = c.o.probe || c.o.read;
+    // The read-only round (--read) never goes on without a backup: it calls nothing, but a development build in the
+    // game goes with a backup.
+    const bool development = c.o.read;
     if (!b.ok() && (development || !ask(ErrorCode::E07, error_text(ErrorCode::E07, b.problems.front())))) {
-      if (development) say("%s backup=failed", c.o.probe ? "r1" : "read");
+      if (development) say("read backup=failed");
       return development ? fail(ErrorCode::E07, b.problems.front()) : exit_code(ErrorCode::E07);
     }
   }
