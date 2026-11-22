@@ -397,8 +397,14 @@ struct Watch::Object {
   struct Half {
     std::uint16_t changes = 0;
     std::uint16_t rises = 0;
-    std::uint16_t float_rises = 0;
-    float rose_by = 0.0f;  // the sum of its rises, read as a fraction
+    // As a field that keeps rising (a clock's way only): how it is read, its rises at a pace, its pace, its jumps.
+    std::uint8_t judged = 0;   // 0: not yet; 1: a fraction; 2: a whole number
+    std::uint16_t steady = 0;
+    std::uint16_t jumps = 0;
+    float pace = 0.0f;         // a second, the running mean of its steady rises
+    std::array<std::uint32_t, kJumpsKept> jump_s{};
+    std::array<float, kJumpsKept> jump_from{};
+    std::array<float, kJumpsKept> jump_to{};
   };
   struct Run {
     std::uint8_t minute_dead = 0;
@@ -408,6 +414,10 @@ struct Watch::Object {
     std::uint16_t jumps = 0;
     std::uint16_t hour_steps = 0;
     std::uint16_t hour_jumps = 0;
+    std::uint32_t hour_seen = 0;                     // the hours it has held, a bit each
+    std::array<std::uint16_t, kJumpsKept> jump_s{};  // an hour's first jumps: when, from what, to what
+    std::array<std::uint8_t, kJumpsKept> jump_from{};
+    std::array<std::uint8_t, kJumpsKept> jump_to{};
   };
   Way way;
   std::uint32_t span = kSpan;  // what is copied: the way's, shortened where the object's memory ends sooner
@@ -416,6 +426,9 @@ struct Watch::Object {
   std::uint64_t kind_us = 0;
   bool seen = false;           // `last` holds a copy of the same object
   bool kinds_seen = false;
+  bool changed = false;        // a word once differed from the reading before
+  std::uint32_t compared = 0;  // readings compared with the one before
+  std::uint64_t far_kind_us = 0;  // when the words past the first kSpan bytes were last looked at
   std::vector<std::byte> last;    // the way's span
   std::vector<std::byte> now;
   std::vector<Half> halves;       // two a word
@@ -446,7 +459,8 @@ bool Watch::add(const Way& way) {
   if (n >= kMaxObjects) return false;
   for (std::size_t i = 0; i < n; ++i) {
     const Way& w = objects_[i]->way;
-    if (w.static_rva == way.static_rva && w.offset == way.offset && w.deref == way.deref && w.wide == way.wide) {
+    if (w.static_rva == way.static_rva && w.offset == way.offset && w.deref == way.deref && w.wide == way.wide &&
+        w.deeper == way.deeper && (!w.deeper || w.via == way.via)) {
       return false;  // the same way; a wide way and a plain one to the same object may stand side by side
     }
   }
@@ -486,12 +500,16 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
   };
   if (o.seen) {
     o.elapsed_us += now_us - o.last_us;
+    if (o.compared < 0xFFFFFFFFu) ++o.compared;
+    const double dt = static_cast<double>(now_us - o.last_us) / 1e6;
+    const auto second = static_cast<std::uint32_t>((now_us - start_us_) / 1'000'000);
     for (std::size_t w = 0; w < words; ++w) {
       std::uint64_t a = 0, b = 0;
       std::memcpy(&a, o.last.data() + w * 8, 8);
       std::memcpy(&b, now.data() + w * 8, 8);
       if (b != 0) o.lived[w] = 1;
       if (a == b) continue;  // nothing to count: what the word holds was judged when it last changed
+      o.changed = true;
       for (std::size_t h = 0; h < 2; ++h) {
         const auto x = static_cast<std::uint32_t>(a >> (h * 32));
         const auto y = static_cast<std::uint32_t>(b >> (h * 32));
@@ -500,14 +518,44 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
         o.lived[w] = 1;
         count(half.changes);
         if (y > x) count(half.rises);
-        if (!o.runs.empty()) {
-          // Read as a fraction: a rise between two plain, positive numbers of an ordinary size.
+        if (!o.runs.empty() && dt > 0.0) {
+          // As a field that keeps rising: read as a fraction where both readings are plain, positive numbers of an
+          // ordinary size, as a whole number where both are below every such fraction's bits. A rise at about the
+          // pace of the rises before is steady; one far above it, or a fall, is a jump once the field has risen
+          // steadily a few times. Before that a fall starts the count again.
           float f = 0.0f, g = 0.0f;
           std::memcpy(&f, &x, 4);
           std::memcpy(&g, &y, 4);
-          if (f >= 1e-3f && g > f && g <= 1e7f) {
-            count(half.float_rises);
-            half.rose_by += g - f;
+          const bool plain_f = f >= 1e-3f && f <= 1e7f, plain_g = g >= 1e-3f && g <= 1e7f;
+          const bool low_x = x < 0x3A000000u, low_y = y < 0x3A000000u;
+          const std::uint8_t as = plain_f && plain_g ? 1 : low_x && low_y ? 2 : 0;
+          if (half.steady == 0) half.judged = as;
+          if (half.judged != 0) {
+            // Once judged a fraction, any reading from nothing up to that size is one (a clock passes midnight);
+            // anything else there reads as nothing.
+            const bool fraction = half.judged == 1;
+            const auto part = [](float v) { return v >= 0.0f && v <= 1e7f ? static_cast<double>(v) : 0.0; };
+            const double from = fraction ? part(f) : static_cast<double>(x);
+            const double to = fraction ? part(g) : static_cast<double>(y);
+            const double rate = (to - from) / dt;
+            const bool established = half.steady >= kMinSteady;
+            if (to > from && !(established && rate > kPaceFactor * static_cast<double>(half.pace))) {
+              count(half.steady);
+              const double n = half.steady < 16 ? half.steady : 16;
+              half.pace = static_cast<float>(static_cast<double>(half.pace) +
+                                             (rate - static_cast<double>(half.pace)) / n);
+            } else if (established) {
+              if (half.jumps < kJumpsKept) {
+                half.jump_s[half.jumps] = second;
+                half.jump_from[half.jumps] = static_cast<float>(from);
+                half.jump_to[half.jumps] = static_cast<float>(to);
+              }
+              count(half.jumps);
+            } else {
+              half.steady = 0;
+              half.pace = 0.0f;
+              half.judged = 0;
+            }
           }
         }
       }
@@ -529,10 +577,16 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
         }
         const std::uint32_t hour_was = was & 31, hour_is = is & 31;
         if (hour_is >= 24) run.hour_dead = 1;
+        run.hour_seen |= (1u << hour_was) | (1u << hour_is);
         if (run.hour_dead == 0 && hour_was < 24 && hour_is != hour_was) {
           if ((hour_is + 24 - hour_was) % 24 == 1) {
             count(run.hour_steps);
           } else {
+            if (run.hour_jumps < kJumpsKept) {
+              run.jump_s[run.hour_jumps] = static_cast<std::uint16_t>(second < 0xFFFFu ? second : 0xFFFFu);
+              run.jump_from[run.hour_jumps] = static_cast<std::uint8_t>(hour_was);
+              run.jump_to[run.hour_jumps] = static_cast<std::uint8_t>(hour_is);
+            }
             count(run.hour_jumps);
           }
         }
@@ -552,8 +606,13 @@ void Watch::compare(Object& o, std::span<const std::byte> now, std::uint64_t now
     }
   }
   // What each word looks like, now and then: a look asks about the memory behind an address, and reads nothing.
-  if (!o.kinds_seen || now_us - o.kind_us >= kKindEveryUs) {
-    for (std::size_t w = 0; w < words; ++w) {
+  // A wide way's words are never written, so they are not looked at; a long way's words past the first kSpan bytes
+  // are looked at seldom (a look asks Windows once for every word that may be an address).
+  if (!o.way.wide && (!o.kinds_seen || now_us - o.kind_us >= kKindEveryUs)) {
+    const bool far = !o.kinds_seen || now_us - o.far_kind_us >= 30 * kKindEveryUs;
+    if (far) o.far_kind_us = now_us;
+    const std::size_t looked = far ? words : std::min<std::size_t>(words, kSpan / 8);
+    for (std::size_t w = 0; w < looked; ++w) {
       std::uint64_t b = 0;
       std::memcpy(&b, now.data() + w * 8, 8);
       const auto kind = static_cast<std::uint8_t>(kind_of(b));
@@ -569,7 +628,13 @@ bool Watch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32
   const std::size_t n = count_.load(std::memory_order_acquire);
   if (n == 0) return false;
   bool ended = false;
-  const auto due = [&](const Object& o) { return o.last_us == 0 || now_us >= o.last_us + o.way.every_us; };
+  if (start_us_ == 0) start_us_ = now_us;
+  // A wide way whose object has not changed in its first comparisons is followed more seldom: most statics' objects
+  // never change, and the others want the reads.
+  const auto due = [&](const Object& o) {
+    const bool quiet = o.way.wide && !o.changed && o.compared >= kQuietAfter;
+    return o.last_us == 0 || now_us >= o.last_us + o.way.every_us * (quiet ? kQuietSlower : 1);
+  };
   for (std::uint32_t done = 0; done < objects; ++done) {
     // The next way that is due: the plain ones first, each in its turn; a wide one only when no plain one is due.
     std::size_t index = n;
@@ -606,6 +671,12 @@ bool Watch::step(const proto::GameThread& gt, GuardedReader& reader, std::uint32
         if (!kept && reader.spent()) return false;
         broken = !kept;
         at = kept ? *kept : 0;
+        if (at != 0 && o.way.deeper) {
+          const auto next = reader.copy<std::uint64_t>(gt, proto::Group::Session, at + o.way.via);
+          if (!next && reader.spent()) return false;
+          broken = !next;
+          at = next ? *next : 0;
+        }
       }
       std::vector<std::byte>& now = o.now;
       bool copied = false;
@@ -659,7 +730,7 @@ WatchFound Watch::found() const {
   WatchFound out;
   out.passes = passes_.load(std::memory_order_acquire);
   const std::size_t n = count_.load(std::memory_order_acquire);
-  std::size_t wide_listed = 0;
+  std::vector<WatchObject> wide_found;
   for (std::size_t i = 0; i < n; ++i) {
     const Object& o = *objects_[i];
     WatchObject x;
@@ -668,6 +739,8 @@ WatchFound Watch::found() const {
     x.rva = o.way.static_rva;
     x.offset = o.way.offset;
     x.deref = o.way.deref;
+    x.deeper = o.way.deeper;
+    x.via = o.way.deeper ? o.way.via : 0;
     x.clock = o.way.clock;
     x.wide = o.way.wide;
     x.readings = o.readings.load(std::memory_order_relaxed);
@@ -681,6 +754,11 @@ WatchFound Watch::found() const {
     const std::size_t words = x.span / 8;
     for (std::size_t w = 0; w < words && w < o.lived.size() && !o.way.wide; ++w) {
       if (o.lived[w] == 0) continue;  // never anything but zero, and never changed
+      // Past the first kSpan bytes only a word that changed, or looked like another kind of thing at another look,
+      // is written: a long way's report must stay small.
+      if (w >= kSpan / 8 && o.halves[w * 2].changes == 0 && o.halves[w * 2 + 1].changes == 0 && o.flips[w] == 0) {
+        continue;
+      }
       WatchWord word;
       word.offset = static_cast<std::uint32_t>(w * 8);
       word.kind = static_cast<WordKind>(o.kinds[w] <= 5 ? o.kinds[w] : 5);
@@ -732,36 +810,350 @@ WatchFound Watch::found() const {
       });
       if (hits.size() > kMaxBitHits) hits.resize(kMaxBitHits);
       x.bits = std::move(hits);
-      // The fields that kept rising as fractions: in four readings of five at least.
+      // The fields that kept rising at a pace, in two readings of three at least (a clock stands still in a menu and
+      // at the title): those that jumped a few times
+      // first (what a clock does when time is let pass), then fractions before whole numbers, then the most rises.
       const std::uint64_t compared = x.readings > x.moved + 1 ? x.readings - x.moved - 1 : 0;
-      std::vector<FloatHit> floats;
+      const auto few = [](std::uint32_t jumps) { return jumps >= 1 && jumps <= 8; };
+      std::vector<RiseHit> rises;
       for (std::size_t f = 0; f < words * 2 && f < o.halves.size(); ++f) {
         const Object::Half& half = o.halves[f];
-        if (half.float_rises < 10 || std::uint64_t{half.float_rises} * 5 < compared * 4 || o.elapsed_us == 0) continue;
-        FloatHit h;
+        if (half.judged == 0 || half.steady < 10 || std::uint64_t{half.steady} * 3 < compared * 2) continue;
+        RiseHit h;
         h.offset = static_cast<std::uint32_t>(f * 4);
-        h.rises = half.float_rises;
-        const double rate = static_cast<double>(half.rose_by) * 1e6 / static_cast<double>(o.elapsed_us) * 1000.0;
-        h.rate_milli = rate >= 4.0e9 ? 0xFFFFFFFFu : static_cast<std::uint32_t>(rate);
-        floats.push_back(h);
+        h.whole = half.judged == 2;
+        h.rises = half.steady;
+        h.jumps = half.jumps;
+        const double rate = static_cast<double>(half.pace) * 1e6;
+        h.rate_micro = rate >= 1.8e19 ? ~std::uint64_t{0} : rate <= 0.0 ? 0 : static_cast<std::uint64_t>(rate);
+        rises.push_back(h);
       }
-      std::stable_sort(floats.begin(), floats.end(), [](const FloatHit& a, const FloatHit& b) { return a.rises > b.rises; });
-      if (floats.size() > kMaxFloatHits) floats.resize(kMaxFloatHits);
-      x.floats = std::move(floats);
+      std::stable_sort(rises.begin(), rises.end(), [&](const RiseHit& a, const RiseHit& b) {
+        if (few(a.jumps) != few(b.jumps)) return few(a.jumps);
+        if (a.whole != b.whole) return !a.whole;
+        return a.rises > b.rises;
+      });
+      if (rises.size() > kMaxRiseHits) rises.resize(kMaxRiseHits);
+      x.rises = std::move(rises);
+      // The runs of 5 bits that behaved as hours, whatever lies beside them: never 24 or more, four different hours
+      // held at least (a bit that goes to and fro holds two), two steps by one at least, no more other changes than
+      // steps, and four of those at most (a small counter that goes round gathers more).
+      std::vector<HourHit> hours;
+      for (std::size_t w = 0; w < words && w < o.lived.size(); ++w) {
+        for (std::size_t bit = 0; bit < Object::kBits; ++bit) {
+          const Object::Run& run = o.runs[w * Object::kBits + bit];
+          if (run.hour_dead != 0 || run.hour_steps < 2 || run.hour_jumps > 4) continue;
+          if (run.hour_steps < run.hour_jumps) continue;
+          std::uint32_t held = 0;
+          for (std::uint32_t seen = run.hour_seen; seen != 0; seen &= seen - 1) ++held;
+          if (held < 4) continue;
+          hours.push_back(HourHit{static_cast<std::uint32_t>(w * 8), static_cast<std::uint32_t>(bit), run.hour_steps,
+                                  run.hour_jumps});
+        }
+      }
+      std::stable_sort(hours.begin(), hours.end(), [](const HourHit& a, const HourHit& b) {
+        if ((a.jumps != 0) != (b.jumps != 0)) return a.jumps != 0;
+        return a.steps > b.steps;
+      });
+      if (hours.size() > kMaxHourHits) hours.resize(kMaxHourHits);
+      x.hours = std::move(hours);
+      // The jumps of what is listed, each field's or run's first kJumpsKept, in the order they happened.
+      const auto milli = [](float v) {
+        const double m = static_cast<double>(v) * 1000.0 + 0.5;
+        return m <= 0.0 ? std::uint64_t{0} : m >= 1.8e19 ? ~std::uint64_t{0} : static_cast<std::uint64_t>(m);
+      };
+      for (const RiseHit& h : x.rises) {
+        if (!few(h.jumps)) continue;  // a field that jumps all the time is no clock: its jumps are not written
+        const Object::Half& half = o.halves[h.offset / 4];
+        for (std::size_t j = 0; j < kJumpsKept && j < half.jumps; ++j) {
+          JumpEvent e;
+          e.offset = h.offset;
+          e.as = h.whole ? JumpAs::Whole : JumpAs::Fraction;
+          e.second = half.jump_s[j];
+          e.from = h.whole ? static_cast<std::uint64_t>(half.jump_from[j]) : milli(half.jump_from[j]);
+          e.to = h.whole ? static_cast<std::uint64_t>(half.jump_to[j]) : milli(half.jump_to[j]);
+          x.jumps.push_back(e);
+        }
+      }
+      for (const HourHit& h : x.hours) {
+        const Object::Run& run = o.runs[h.offset / 8 * Object::kBits + h.bit];
+        for (std::size_t j = 0; j < kJumpsKept && j < run.hour_jumps; ++j) {
+          x.jumps.push_back(JumpEvent{h.offset, h.bit, JumpAs::Hour, run.jump_s[j], run.jump_from[j], run.jump_to[j]});
+        }
+      }
+      std::stable_sort(x.jumps.begin(), x.jumps.end(),
+                       [](const JumpEvent& a, const JumpEvent& b) { return a.second < b.second; });
     }
     if (o.way.wide) {
-      // One of the many: listed only where a run of bits went round as minutes do with hours beside it, or a
-      // fraction kept rising; and no more than kMaxWideListed of them.
+      // One of the many: listed only where a run of bits went round as minutes do with hours beside it, a field
+      // that kept rising jumped a few times, a run behaved as hours and jumped, or a fraction kept rising.
       ++out.wide_ways;
       const bool clock_like = std::any_of(x.bits.begin(), x.bits.end(),
                                           [](const BitHit& h) { return h.wraps != 0 && h.has_hour; });
-      if (!clock_like && x.floats.empty()) continue;
-      if (wide_listed >= kMaxWideListed) continue;
-      ++wide_listed;
-      if (x.bits.size() > 4) x.bits.resize(4);
-      if (x.floats.size() > 4) x.floats.resize(4);
+      const bool jumped = std::any_of(x.rises.begin(), x.rises.end(),
+                                      [](const RiseHit& h) { return h.jumps >= 1 && h.jumps <= 8; });
+      const bool hours = std::any_of(x.hours.begin(), x.hours.end(), [](const HourHit& h) { return h.jumps != 0; });
+      const bool fraction = std::any_of(x.rises.begin(), x.rises.end(), [](const RiseHit& h) { return !h.whole; });
+      if (!clock_like && !jumped && !hours && !fraction) continue;
+      // What is listed of it: the jumped and the fractions among its rises, the jumped among its hours.
+      std::erase_if(x.rises, [](const RiseHit& h) { return h.whole && !(h.jumps >= 1 && h.jumps <= 8); });
+      std::erase_if(x.hours, [](const HourHit& h) { return h.jumps == 0; });
+      std::erase_if(x.jumps, [&](const JumpEvent& e) {
+        if (e.as == JumpAs::Hour) {
+          return std::none_of(x.hours.begin(), x.hours.end(),
+                              [&](const HourHit& h) { return h.offset == e.offset && h.bit == e.bit; });
+        }
+        return std::none_of(x.rises.begin(), x.rises.end(), [&](const RiseHit& h) { return h.offset == e.offset; });
+      });
+      if (x.bits.size() > 2) x.bits.resize(2);
+      if (x.rises.size() > 3) x.rises.resize(3);
+      if (x.hours.size() > 2) x.hours.resize(2);
+      std::erase_if(x.jumps, [&](const JumpEvent& e) {
+        if (e.as == JumpAs::Hour) {
+          return std::none_of(x.hours.begin(), x.hours.end(),
+                              [&](const HourHit& h) { return h.offset == e.offset && h.bit == e.bit; });
+        }
+        return std::none_of(x.rises.begin(), x.rises.end(), [&](const RiseHit& h) { return h.offset == e.offset; });
+      });
+      wide_found.push_back(std::move(x));
+      continue;
     }
     out.objects.push_back(std::move(x));
+  }
+  // Of the wide ones at most kMaxWideListed: those with a steady rise that jumped first, then those whose hours
+  // jumped, then the rest, each in the order they were added.
+  const auto rank = [](const WatchObject& x) {
+    if (std::any_of(x.jumps.begin(), x.jumps.end(), [](const JumpEvent& e) { return e.as != JumpAs::Hour; })) return 0;
+    return x.jumps.empty() ? 2 : 1;
+  };
+  std::stable_sort(wide_found.begin(), wide_found.end(),
+                   [&](const WatchObject& a, const WatchObject& b) { return rank(a) < rank(b); });
+  if (wide_found.size() > kMaxWideListed) wide_found.resize(kMaxWideListed);
+  for (WatchObject& x : wide_found) out.objects.push_back(std::move(x));
+  return out;
+}
+
+// ---- The sweep ----
+
+struct Sweep::State {
+  Target target;
+  std::uint64_t address = 0;   // where the target stood at the last pass; 0: nowhere yet
+  bool followed = false;       // the way has been followed in the pass under way
+  bool read_any = false;       // a piece of it was read in the pass under way
+  bool tail = false;           // the piece under way could not be read whole: read to the page instead
+  std::uint64_t cursor = 0;    // bytes from the target's start to the next piece
+  std::vector<std::byte> copy;      // the target's stretch, as last read
+  std::vector<std::uint8_t> held;   // by word: the copy holds it
+  std::vector<std::uint8_t> busy;   // by word: how often it differed, to 255
+  struct Page {
+    std::uint16_t words = 0;  // words of it that ever differed
+    std::uint8_t kept = 0;
+    std::array<SweepFlip, kPageEvents> flips{};  // its first flips in words not busy
+  };
+  std::vector<Page> pages;          // by page of the stretch
+  std::atomic<std::uint64_t> bytes{0};
+  std::atomic<std::uint64_t> readings{0};
+  std::atomic<std::uint64_t> empty{0};
+  std::atomic<std::uint64_t> unreadable{0};
+  std::atomic<std::uint64_t> moved{0};
+  std::atomic<std::uint64_t> changed_words{0};
+  std::atomic<std::uint64_t> busy_words{0};
+  std::atomic<std::uint64_t> single_flips{0};
+  std::atomic<std::uint64_t> other_changes{0};
+};
+
+Sweep::Sweep(std::uint64_t base) : base_(base), piece_(kPiece) {}
+
+Sweep::~Sweep() = default;
+
+bool Sweep::add(const Target& target) {
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  if (n >= kMaxTargets) return false;
+  for (std::size_t i = 0; i < n; ++i) {
+    const Target& t = targets_[i]->target;
+    if (t.static_rva == target.static_rva && t.offset == target.offset && t.deeper == target.deeper &&
+        (!t.deeper || t.via == target.via)) {
+      return false;
+    }
+  }
+  auto t = std::make_unique<State>();
+  t->target = target;
+  t->target.pieces = std::clamp<std::uint32_t>(target.pieces, 1, kMaxPieces);
+  const std::size_t size = std::size_t{t->target.pieces} * kPiece;
+  t->copy.assign(size, std::byte{0});
+  t->held.assign(size / 8, 0);
+  t->busy.assign(size / 8, 0);
+  t->pages.assign(size / kPage, State::Page{});
+  targets_[n] = std::move(t);  // not yet the reader's: it sees a target only once the count says so
+  count_.store(n + 1, std::memory_order_release);
+  return true;
+}
+
+void Sweep::compare(State& t, std::uint64_t at, std::span<const std::byte> now, std::uint64_t now_us) noexcept {
+  // `at` and the length are multiples of 8. A word is compared only where the copy holds it already.
+  const auto second = static_cast<std::uint32_t>((now_us - start_us_) / 1'000'000);
+  for (std::size_t i = 0; i + 8 <= now.size(); i += 8) {
+    const std::uint64_t where = at + i;
+    const bool held = t.held[where / 8] != 0;
+    t.held[where / 8] = 1;
+    std::uint64_t a = 0, b = 0;
+    std::memcpy(&a, t.copy.data() + where, 8);
+    std::memcpy(&b, now.data() + i, 8);
+    if (a == b) continue;
+    std::memcpy(t.copy.data() + where, &b, 8);
+    if (!held) continue;
+    std::uint8_t& busy = t.busy[where / 8];
+    State::Page& page = t.pages[where / kPage];
+    if (busy == 0) {
+      t.changed_words.fetch_add(1, std::memory_order_relaxed);
+      if (page.words < 0xFFFF) ++page.words;
+    }
+    if (busy < 255) ++busy;
+    if (busy == kBusy) t.busy_words.fetch_add(1, std::memory_order_relaxed);
+    const std::uint64_t x = a ^ b;
+    for (std::uint32_t k = 0; k < 8; ++k) {
+      const auto bits = static_cast<std::uint8_t>(x >> (k * 8));
+      if (bits == 0) continue;
+      if ((bits & (bits - 1)) != 0) {
+        t.other_changes.fetch_add(1, std::memory_order_relaxed);
+        continue;
+      }
+      t.single_flips.fetch_add(1, std::memory_order_relaxed);
+      if (busy >= kBusy || page.kept >= kPageEvents) continue;
+      std::uint32_t bit = 0;
+      while ((bits >> bit) != 1) ++bit;
+      page.flips[page.kept] = SweepFlip{static_cast<std::uint32_t>(where + k), bit, ((b >> (k * 8)) & bits) != 0,
+                                        second};
+      ++page.kept;  // after the flip is whole: found() may be reading
+    }
+  }
+}
+
+void Sweep::finish(State& t, std::size_t n, bool& ended) {
+  if (t.read_any) t.readings.fetch_add(1, std::memory_order_relaxed);
+  t.followed = false;
+  t.read_any = false;
+  t.tail = false;
+  t.cursor = 0;
+  at_ = (at_ + 1) % n;
+  if (at_ == 0) {
+    passes_.fetch_add(1, std::memory_order_release);
+    resting_ = true;
+    ended = true;
+  }
+}
+
+bool Sweep::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us) {
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  if (n == 0) return false;
+  if (start_us_ == 0) start_us_ = now_us;
+  if (resting_) {
+    if (now_us < pass_us_ + kEveryUs) return false;
+    resting_ = false;
+  }
+  if (at_ >= n) at_ = 0;
+  State& t = *targets_[at_];
+  bool ended = false;
+  if (!t.followed) {
+    if (at_ == 0) pass_us_ = now_us;
+    // The way: the static's slot, the offset, the address kept there; and for a deeper target one step more.
+    const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + t.target.static_rva);
+    if (!slot && reader.spent()) return false;
+    std::uint64_t at = 0;
+    if (slot && *slot != 0) {
+      const auto kept = reader.copy<std::uint64_t>(gt, proto::Group::Session, *slot + t.target.offset);
+      if (!kept && reader.spent()) return false;
+      at = kept ? *kept : 0;
+      if (at != 0 && t.target.deeper) {
+        const auto next = reader.copy<std::uint64_t>(gt, proto::Group::Session, at + t.target.via);
+        if (!next && reader.spent()) return false;
+        at = next ? *next : 0;
+      }
+    }
+    if (at == 0 || at % 8 != 0 || at < kLowestAddress || at > kAddressEnd) {
+      t.empty.fetch_add(1, std::memory_order_relaxed);
+      finish(t, n, ended);
+      return ended;
+    }
+    if (at != t.address) {
+      if (t.address != 0) t.moved.fetch_add(1, std::memory_order_relaxed);
+      std::fill(t.held.begin(), t.held.end(), std::uint8_t{0});  // another stretch: compared with nothing at first
+      t.address = at;
+    }
+    t.followed = true;
+    return false;
+  }
+  // One piece: kPiece bytes, or in the tail what stands before the next page's start, then a page at a time.
+  const std::uint64_t size = std::uint64_t{t.target.pieces} * kPiece;
+  const std::uint64_t from = t.address + t.cursor;
+  std::uint64_t length = std::min<std::uint64_t>(kPiece, size - t.cursor);
+  if (t.tail) {
+    const std::uint64_t to_page = kPage - (from % kPage);
+    length = std::min<std::uint64_t>(length, to_page);
+  }
+  const std::span<std::byte> into = std::span<std::byte>(piece_).first(static_cast<std::size_t>(length));
+  if (!reader.copy_into(gt, proto::Group::Session, from, into, 8).has_value()) {
+    if (reader.spent()) return false;  // the same piece again at the next step
+    if (!t.tail && length > kPage - (from % kPage)) {
+      t.tail = true;  // the memory may end inside the piece: what stands before its end is read to the page
+      return false;
+    }
+    t.unreadable.fetch_add(1, std::memory_order_relaxed);
+    finish(t, n, ended);
+    return ended;
+  }
+  compare(t, t.cursor, into, now_us);
+  t.read_any = true;
+  t.cursor += length;
+  if (t.cursor > t.bytes.load(std::memory_order_relaxed)) t.bytes.store(t.cursor, std::memory_order_relaxed);
+  if (t.cursor >= size) finish(t, n, ended);
+  return ended;
+}
+
+SweepFound Sweep::found() const {
+  SweepFound out;
+  out.passes = passes_.load(std::memory_order_acquire);
+  const std::size_t n = count_.load(std::memory_order_acquire);
+  for (std::size_t i = 0; i < n; ++i) {
+    const State& t = *targets_[i];
+    SweepTarget x;
+    x.label = t.target.label;
+    x.id = t.target.id;
+    x.rva = t.target.static_rva;
+    x.offset = t.target.offset;
+    x.deeper = t.target.deeper;
+    x.via = t.target.deeper ? t.target.via : 0;
+    x.bytes = t.bytes.load(std::memory_order_relaxed);
+    x.readings = t.readings.load(std::memory_order_relaxed);
+    x.empty = t.empty.load(std::memory_order_relaxed);
+    x.unreadable = t.unreadable.load(std::memory_order_relaxed);
+    x.moved = t.moved.load(std::memory_order_relaxed);
+    x.changed_words = t.changed_words.load(std::memory_order_relaxed);
+    x.busy_words = t.busy_words.load(std::memory_order_relaxed);
+    x.single_flips = t.single_flips.load(std::memory_order_relaxed);
+    x.other_changes = t.other_changes.load(std::memory_order_relaxed);
+    // The flips in words that stayed quiet, of pages that stayed quiet: a flag flips once or twice in memory that
+    // otherwise keeps still; a counter's bit flips all the time, and memory in use changes everywhere. The quietest
+    // pages' flips first, then in the order they were seen.
+    std::vector<std::pair<std::uint16_t, SweepFlip>> flips;
+    for (const State::Page& page : t.pages) {
+      if (page.words == 0) continue;
+      ++x.changed_pages;
+      if (page.words > kQuietPage) continue;
+      ++x.quiet_pages;
+      for (std::size_t e = 0; e < page.kept && e < kPageEvents; ++e) {
+        const SweepFlip& f = page.flips[e];
+        if (f.offset / 8 < t.busy.size() && t.busy[f.offset / 8] < kBusy) flips.emplace_back(page.words, f);
+      }
+    }
+    std::stable_sort(flips.begin(), flips.end(), [](const auto& a, const auto& b) {
+      return a.first != b.first ? a.first < b.first : a.second.second < b.second.second;
+    });
+    if (flips.size() > kMaxListed) flips.resize(kMaxListed);
+    std::stable_sort(flips.begin(), flips.end(),
+                     [](const auto& a, const auto& b) { return a.second.second < b.second.second; });
+    for (const auto& f : flips) x.flips.push_back(f.second);
+    out.targets.push_back(std::move(x));
   }
   return out;
 }

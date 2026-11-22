@@ -697,6 +697,8 @@ class SkyClockImp {  // WorldAreaTime's role
   virtual std::uint32_t sky_kind() const;
   std::uint64_t spare = 0;  // 0x08
   std::uint64_t clock = 0;  // 0x10: hours << 32 | minutes << 16 | seconds
+  float hours = 0.0f;       // 0x18: the hour of the day, as a fraction
+  float spare1 = 0.0f;
 };
 
 struct ViewData {

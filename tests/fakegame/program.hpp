@@ -33,6 +33,8 @@ struct Options {
   std::uint32_t boot_delay_ms = 0;     // before the window
   std::uint32_t statics_delay_ms = 0;  // between the window and the statics
   bool field_mirror = false;           // a second word of the data holds the FieldPlot's address (a copy of one address)
+  bool pass_time = false;              // the clock jumps twice in the world: five hours 14 s in, three hours 26 s in
+  bool flag_set = false;               // a flag of the store's second block is set 30 s into the world
   std::uint64_t title_frames = 30;
   std::uint64_t load_frames = 10;
   bool stay_title = false;
