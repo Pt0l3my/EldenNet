@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (four read-only rounds run; step L6 is next)
+# Lodestar's status, 22 November 2026 (four read-only rounds run; L6's first round is built)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -45,17 +45,25 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **Settle what the fourth round found, then step L6.** Open with Engine (message 29): which id the event flags'
-   store takes (Lodestar's proposal: the catalogue's `event_flags`, 1008, comes to mean the object the flags are read
-   through, and its lead becomes the store's class), and that `world_clock` is a field of another manager, not a
-   static (its id's kind is to change, or it moves to the fields). Then the next round, which is L6's first proper
-   one and needs no scan: it names the store under its id and writes it to the draft table; reads along the clock's
-   way (the manager's static, the pointer 192 bytes in, the object 1,024 bytes in) and watches that object's fields
-   for the time of day; watches the play time's field; says what each of the accessor's statics holds by class (a
-   number), so that the clock's manager can be told; and keeps, for `others` and `new_statics`, what was seen in the
-   world and not the closing game's state.
-   The object scan stays in the code, off: if it is ever wanted again it must read only pages already in use, check
-   its time after every piece, and stop after one sweep (the record's "What it cost").
+1. **The owner's fifth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.8, from engine 24e2918;
+   ten minutes in the world; no scan). It is step L6's first round. Review its two files and its logs as the others'.
+   What to look for, in this order:
+   - `instances.managers`: `event_flags` named (its lead is the store's class now), with the accessor's sites as
+     witnesses, and in the draft table: 13 entries.
+   - `watch.watched`, the three ways labelled `world_clock` (through the pointer 192 bytes into its manager's
+     object; the object 1,024 bytes in; and the third hit): `same_address` against `readings` says whether they are
+     one object; `vtable_same` whether it is of the class; then `bit_hits` (a run of 6 bits that steps and goes
+     round, with hours beside it) and `float_hits`, and failing both the `words` that changed. The `holder` way is
+     the clock's manager from its start; `instances.held_statics` gives its class.
+   - The `play_time` way: the word whose half rises at every reading (the field found three sessions running).
+   - The `event_flags` way: what the store's first 512 bytes look like (which words are addresses of live memory),
+     to plan the read of the flags themselves.
+   - `trial`, `search`: the reader's rate without the scan (10 a second is the aim).
+   Open with Engine (message 29): whether the store takes the event flags' id, as built, or one of its own; and
+   that `world_clock` is a field of another manager, not a static. If Engine wants an id of its own for the store,
+   only `gal/leads.toml` and `gal/ids.toml` change.
+   Nothing from the watch enters the table: its findings are fields, which need a place in the build's layout
+   (L6's design) and a second look in a later round.
 2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
    owner's and Engine's word; `lodestar check` and `diff` against a table.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
@@ -68,7 +76,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against: `en_gal_tests` 247 cases on GCC, Clang and MinGW, 262 on clang-cl; ctest 29 of 29 on
+- Counts to compare against: `en_gal_tests` 250 cases on GCC, Clang and MinGW, 265 on clang-cl; ctest 29 of 29 on
   GCC; the harness 115 of 115 (seven `gal-own-*` cases and three `launcher-eldennet-read*` cases joined it).
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
