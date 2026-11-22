@@ -76,6 +76,8 @@ TEST_CASE("the finder counts the accessor's shape, and the withdrawn pattern acc
   CHECK(a.only_shape == 0);
   CHECK(a.only_pattern == 0);
   CHECK(a.pattern_statics == a.statics_found);
+  CHECK(a.shared_class_objects == 0);
+  CHECK(a.shared_statics == 0);
   CHECK(a.only_pattern_why.empty());
   CHECK(a.only_pattern_statics.empty());
   CHECK(lodestar::complete(r.found));
@@ -149,7 +151,10 @@ TEST_CASE("a site the pattern alone accepts is counted with why the shape leaves
   CHECK(a.both == 3);
   CHECK(a.only_shape == 0);
   CHECK(a.only_pattern == 1);
-  CHECK_FALSE(lodestar::complete(r.found));
+  CHECK(a.shared_class_objects == 0);
+  CHECK(a.shared_statics == 0);
+  // A site the pattern alone accepts is reported with its reason, and does not count against the run.
+  CHECK(lodestar::complete(r.found));
   REQUIRE(a.only_pattern_why.size() == 1);
   CHECK(a.only_pattern_why[0].step == 0);
   CHECK(a.only_pattern_why[0].differs == shape::Differs::Narrow);
@@ -166,6 +171,60 @@ TEST_CASE("a site the pattern alone accepts is counted with why the shape leaves
   CHECK(report::lint(*text, known).has_value());
   CHECK(text->find("\"differs\": \"narrow\"") != std::string::npos);
   CHECK(text->find("\"only_pattern_statics\"") != std::string::npos);
+}
+
+TEST_CASE("one class object for each static: a class object that goes with two statics is counted, and the run is to read") {
+  // Two accessors pass the same class object with different statics: one of them took something else for the slot.
+  using P = FakeProgram;
+  Sample sample;
+  P& p = sample.program;
+  p.label("path", P::Rdata);
+  p.ascii(P::Rdata, "invented\\core\\Lone.h");
+  for (const char* n : {"a", "b"}) {
+    p.align(P::Data, 8);
+    p.label(std::string("st_") + n, P::Data);
+    p.u64(P::Data, 0);
+  }
+  p.label("cls", P::Data);
+  p.zeros(P::Data, 8);
+  const auto fn = [&](const std::string& name, std::initializer_list<std::uint8_t> body) {
+    p.align(P::Text, 16, 0xCC);
+    p.label(name, P::Text);
+    p.bytes(P::Text, body);
+    p.label(name + "_end", P::Text);
+    p.function(name, name + "_end");
+  };
+  fn("getter", {0x48, 0x89, 0xC8, 0xC3});
+  fn("log", {0xC3});
+  for (const char* n : {"a", "b"}) {
+    p.align(P::Text, 16, 0xCC);
+    p.label(std::string("get_") + n, P::Text);
+    p.bytes(P::Text, {0x48, 0x83, 0xEC, 0x28, 0x90, 0x48, 0x8B, 0x05});
+    p.rel32(P::Text, std::string("st_") + n);
+    p.bytes(P::Text, {0x48, 0x85, 0xC0, 0x75, 0x18, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "cls");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "getter");
+    p.bytes(P::Text, {0x48, 0x8D, 0x15});
+    p.rel32(P::Text, "path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "log");
+    p.bytes(P::Text, {0x48, 0x83, 0xC4, 0x28, 0xC3});
+    p.label(std::string("get_") + n + "_end", P::Text);
+    p.function(std::string("get_") + n, std::string("get_") + n + "_end");
+  }
+  sample.built = p.build();
+  const Run r = run(sample, kSampleLeadsClean);
+  const lodestar::AccessorFound& a = r.found.accessor;
+  CHECK(a.accepted == 2);
+  CHECK(a.statics_found == 2);
+  CHECK(a.class_objects == 1);
+  CHECK(a.shared_class_objects == 1);
+  CHECK(a.shared_statics == 0);
+  CHECK_FALSE(lodestar::complete(r.found));
+  const auto text = lodestar::write_report(r.found);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"shared_class_objects\": 1") != std::string::npos);
 }
 
 TEST_CASE("every static the finder gives is one the resolver re-finds from its witnesses") {

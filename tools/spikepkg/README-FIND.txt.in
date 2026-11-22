@@ -67,9 +67,9 @@ The steps
   5. Send back, in Lodestar's chat: the file lodestar-found.json from this folder, and the line that starts
      "lodestar: report written".
 
-The line ends with "(complete)" or "(to read first)". Both are results worth sending: "to read first" means the shape
-and the old pattern did not accept exactly the same places, or the count was outside what the recipe expects, and
-that is what we need to see.
+The line ends with "(complete)" or "(to read first)". Both are results worth sending: "to read first" means the
+count was outside what the recipe expects, the shape accepted a place the old pattern did not, or one class object
+went with two slots, and that is what we need to see.
 
 
 What comes back, and what does not

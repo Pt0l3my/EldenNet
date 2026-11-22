@@ -69,6 +69,12 @@ struct AccessorFound {
   Expect expect = Expect::Within;          // the hits against the recipe's expect_matches
   std::uint64_t statics_found = 0;         // distinct statics of the accepted sites
   std::uint64_t class_objects = 0;
+  // Each manager has one slot and one class object of its own. A class object that goes with two statics, or a
+  // static with two class objects, means a site took something else for the slot: on 2.7.2.0 the withdrawn pattern
+  // did so at 4 sites, where the test is of another register than the one just loaded
+  // (docs/ops/probes/2026-11-22-l3.md).
+  std::uint64_t shared_class_objects = 0;  // class objects the accepted sites pass with more than one static
+  std::uint64_t shared_statics = 0;        // statics the accepted sites load with more than one class object
   std::vector<StaticFound> statics;        // by offset, the first kMaxStaticsReported
   std::vector<std::uint32_t> getters;      // distinct, by offset, the first 64
   // The withdrawn pattern, cut again in memory for the comparison and never written.
@@ -113,7 +119,9 @@ struct Found {
                          const derive::Leads& leads, const RecipeSet& recipes, const Builds* builds);
 
 // Whether the run found what the next step needs: the accessor's recipe, with hits within its range and at least one
-// accepted site, and, where the pattern could be cut, no accepted site that only one of the two has.
+// accepted site; one class object for each static and one static for each class object; and, where the withdrawn
+// pattern could be cut, no site the shape alone accepts. Sites the pattern alone accepts do not count against it:
+// they are reported with why the shape leaves them out (on 2.7.2.0, rightly: docs/ops/probes/2026-11-22-l3.md).
 [[nodiscard]] bool complete(const Found& found);
 
 [[nodiscard]] const report::Vocabulary& vocabulary() noexcept;  // kind `lodestar`, schema 2
