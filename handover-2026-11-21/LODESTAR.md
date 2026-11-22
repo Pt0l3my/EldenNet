@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (four read-only rounds run; L6's first round is built)
+# Lodestar's status, 22 November 2026 (five read-only rounds run; ten of eleven managers placed)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -45,27 +45,24 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fifth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.8, from engine 8e09907;
-   ten minutes in the world; no scan). It is step L6's first round. Review its two files and its logs as the others'.
-   What to look for, in this order:
-   - `instances.managers`: `event_flags` named (its lead is the store's class now), with the accessor's sites as
-     witnesses, and in the draft table: 13 entries.
-   - `watch.watched`, the three ways labelled `world_clock` (through the pointer 192 bytes into its manager's
-     object; the object 1,024 bytes in; and the third hit): `same_address` against `readings` says whether they are
-     one object; `vtable_same` whether it is of the class; then `bit_hits` (a run of 6 bits that steps and goes
-     round, with hours beside it) and `float_hits`, and failing both the `words` that changed. The `holder` way is
-     the clock's manager from its start; `instances.held_statics` gives its class.
-   - The `play_time` way: the word whose half rises at every reading (the field found three sessions running).
-   - The `event_flags` way: what the store's first 512 bytes look like (which words are addresses of live memory),
-     to plan the read of the flags themselves.
-   - `trial`, `search`: the reader's rate without the scan (10 a second is the aim).
-   Open with Engine (message 29): whether the store takes the event flags' id, as built, or one of its own; and
-   that `world_clock` is a field of another manager, not a static. If Engine wants an id of its own for the store,
-   only `gal/leads.toml` and `gal/ids.toml` change.
-   Nothing from the watch enters the table: its findings are fields, which need a place in the build's layout
-   (L6's design) and a second look in a later round.
-2. Retire R1's package and `probe_r1.cpp` (the last use of `install_task` and the getter), with the
-   owner's and Engine's word; `lodestar check` and `diff` against a table.
+1. **The next round of step L6** (not built). The fifth round (the record's "The fifth round in game") named
+   `event_flags` (10 of 11 managers; 13 leads in the table), found the play time's field (160 bytes into the object
+   behind one slot of the data, four sessions running) and showed that the object of the class under the clock's
+   longer name does not hold the time. Before another run, mend what that round showed:
+   - the report must stay under the writer's 256 KiB (it was refused for the last 100 s of a 32-minute session):
+     the watch should write only the words that changed or that a review needs, or the limit should rise;
+   - an ask-first read costs about half a millisecond on the owner's PC: the searches' share of a step must be
+     checked after every read (the reader fell to 8.7 readings a second);
+   - a pass that names a manager the search named first should take the entry over (the HUD's).
+   Then look for the time of day more widely: runs of bits and rising fractions in every static's object, and
+   further into the clock's manager's object and the object it points at (16 KiB each). And start on the flags:
+   read along our notes' lead from the store (the word 40 bytes in is an address of live memory) to a flag, and
+   check it against something the owner does in the game. The world's clock stays without a slot of its own (1012
+   unplaced, WHY§359).
+2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238), a commit of its own (the DLL's R1 mode, the
+   launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
+   and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
+   with the commit.
 3. The design document. Grace's answer on the render feed stands (WHY§309): labels step at the reader's rate, and
    smoothing every frame would need GraceUI's `on_present` callback, by a GraceUI proposal.
 
@@ -76,8 +73,9 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against: `en_gal_tests` 250 cases on GCC, Clang and MinGW, 265 on clang-cl; ctest 29 of 29 on
-  GCC; the harness 115 of 115 (seven `gal-own-*` cases and three `launcher-eldennet-read*` cases joined it).
+- Counts to compare against (after R1's removal, engine 3e11238): `en_gal_tests` 219 cases on GCC, Clang and MinGW,
+  234 on clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts (R1's eight cases went, and
+  `launcher-eldennet-read-console` came).
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
 - A class that holds a `GuardedReader` belongs to the part of en-gal that is built both with and without the probe

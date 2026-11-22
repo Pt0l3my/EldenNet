@@ -2186,6 +2186,11 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 | X3 Latency in situ | TTFT and first page in game | C5 met, or the defaults change | v0.2; again at v0.6 on the matrix |
 | Later | S5 freeze, S9 native talk, S10 native line ids (read-only), H1–H3 hook sources, save redirect | — | v1.x |
 
+*Since 2026-11-22 (O106): R1 is retired, with its one call at the Mark. The in-game round is read-only now
+(`eldennet-launcher --read`; proposal 0005, L5 and L6): four such rounds have named nine of the eleven managers'
+places and call nothing in the game (`docs/ops/probes/2026-11-22-l5.md`). The paragraph below is history where it
+speaks of R1.*
+
 **Before S0: the derivation round** (O89). S0-A's patterns and layout come from two reviewed rounds on the owner's PC:
 R0 offline, a DataPiler job through the devkit's `probe-exe`, then R1 in game, one probe session from the launcher's
 `--probe` with one call at the owner's Mark (ARCH §6.2, §6.10). Nothing they give is `confirmed` until S0-A and the
