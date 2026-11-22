@@ -1,6 +1,7 @@
-// The core's widened inputs and outputs (part 0 of the first conversation, WHY§364): the surfaces' events, the model
-// client's events and its health are accepted, and until the conversation is wired in each is a tick, so v0.1's
-// behaviour is unchanged; the outputs' UI model is a closed box and no request goes out. All data is invented.
+// The core's widened inputs and outputs (the first conversation, WHY§364): the surfaces' events and the model client's
+// events are accepted, and with no content loaded (no persona) each is a tick, so v0.1's behaviour is unchanged and the
+// outputs' UI model is a closed box with no request; the model client's health moves the ladder to L3 and L4 (ARCH
+// §6.8; part B), and nothing else. All data is invented.
 #include <doctest.h>
 
 #include <cstddef>
@@ -40,8 +41,7 @@ std::vector<CoreInput> new_inputs() {
   ended.id = 9;
   ended.chat = proto::ChatResult{};
   list.push_back(CoreInput{ended});
-  list.push_back(CoreInput{proto::NetHealth{true}});
-  list.push_back(CoreInput{proto::NetHealth{false}});
+  list.push_back(CoreInput{proto::NetHealth{false}});  // an unhealthy model leaves the ladder at L2
   return list;
 }
 
@@ -102,4 +102,38 @@ TEST_CASE("before the first snapshot and after the last, a new input changes not
     CHECK_FALSE(o.ai_allowed);
     check_quiet(o);
   }
+}
+
+TEST_CASE("the model client's health takes the ladder from L2 to L4 and back, to L3 with an optional group tripped") {
+  Core core;
+  Mono t = 0;
+  (void)core.step(in(data_ready()), t);
+  CHECK(core.state().level == Level::L2);
+  Outputs o = core.step(CoreInput{proto::NetHealth{true}}, t += 100);
+  CHECK(core.state().level == Level::L4);
+  REQUIRE(o.changes.size() == 1);
+  CHECK(o.changes[0].what == Change::What::Level);
+  CHECK(o.changes[0].from == static_cast<std::uint8_t>(Level::L2));
+  CHECK(o.changes[0].to == static_cast<std::uint8_t>(Level::L4));
+  CHECK(std::string(to_string(Level::L4)) == "L4");
+  (void)core.step(CoreInput{proto::NetHealth{false}}, t += 100);
+  CHECK(core.state().level == Level::L2);
+  (void)core.step(in(tripped(proto::Group::Camera)), t += 100);  // optional: L3 at most from now on
+  CHECK(core.state().level == Level::L2);
+  (void)core.step(CoreInput{proto::NetHealth{true}}, t += 100);
+  CHECK(core.state().level == Level::L3);
+  CHECK(std::string(to_string(Level::L3)) == "L3");
+  // A structural trip is L1 for the session, whatever the model's health.
+  (void)core.step(in(tripped(proto::Group::World)), t += 100);
+  CHECK(core.state().level == Level::L1);
+  (void)core.step(CoreInput{proto::NetHealth{true}}, t += 100);
+  CHECK(core.state().level == Level::L1);
+}
+
+TEST_CASE("before T1 is ready the model client's health changes nothing") {
+  Core core;
+  const Outputs o = core.step(CoreInput{proto::NetHealth{true}}, 100);
+  CHECK(core.state().level == Level::Starting);
+  CHECK(o.changes.empty());
+  CHECK_FALSE(o.ai_allowed);
 }

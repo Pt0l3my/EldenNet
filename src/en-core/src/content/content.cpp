@@ -1,0 +1,780 @@
+// The content pack: the persona index and the persona records, read and checked (content.hpp; NPC §2.1, §3.1, §3.2;
+// DESIGN §11.4). Each file is checked as en-proto's unsafe_for_toml has it before toml++ reads it, then held to a
+// schema of our own, written from NPC §3.1's table: types, the closed values, counts and caps in words and characters.
+#include "en/core/content.hpp"
+
+#include <algorithm>
+#include <array>
+#include <map>
+#include <set>
+
+#include <toml.hpp>
+
+#include "en/proto/toml_check.hpp"
+
+namespace en::core {
+
+namespace {
+
+constexpr std::size_t kMaxErrors = 64;
+
+class Errors {
+ public:
+  explicit Errors(std::vector<ContentError>& out) : out_(out) {}
+  void add(const std::string& file, std::size_t line, std::string problem) {
+    if (out_.size() >= kMaxErrors) {
+      ++dropped_;
+      return;
+    }
+    out_.push_back(ContentError{file, line, std::move(problem)});
+  }
+  void finish() {
+    if (dropped_ > 0) out_.push_back(ContentError{"", 0, "and " + std::to_string(dropped_) + " more problems"});
+  }
+  [[nodiscard]] std::size_t count() const { return out_.size() + dropped_; }
+
+ private:
+  std::vector<ContentError>& out_;
+  std::size_t dropped_ = 0;
+};
+
+std::size_t line_of(const toml::node& n) { return static_cast<std::size_t>(n.source().begin.line); }
+
+// UTF-8 code points, and words as runs of characters between spaces.
+std::size_t chars_of(std::string_view s) {
+  std::size_t n = 0;
+  for (const char c : s) {
+    if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) ++n;
+  }
+  return n;
+}
+
+std::size_t words_of(std::string_view s) {
+  std::size_t n = 0;
+  bool in_word = false;
+  for (const char c : s) {
+    const bool space = c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    if (!space && !in_word) ++n;
+    in_word = !space;
+  }
+  return n;
+}
+
+bool is_slug(std::string_view s, std::size_t max) {
+  if (s.empty() || s.size() > max || !(s[0] >= 'a' && s[0] <= 'z')) return false;
+  return std::all_of(s.begin(), s.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; });
+}
+
+// A word of the file that may be quoted back: short, printable ASCII. Anything else is named by kind only.
+std::string shown(std::string_view s) {
+  const bool plain = !s.empty() && s.size() <= 40 && std::all_of(s.begin(), s.end(), [](char c) {
+    return c > 0x20 && c < 0x7F && c != '"' && c != '\\';
+  });
+  return plain ? "\"" + std::string(s) + "\"" : std::string("(a long or unprintable key)");
+}
+
+// ---- The schema ----
+
+enum class Kind : std::uint8_t { Str, StrList, Int, Bool, Num, Table, TableList, Region, RegionList };
+
+struct Spec;
+
+struct Field {
+  std::string_view key;
+  Kind kind = Kind::Str;
+  std::uint16_t max_words = 0;  // 0: no cap (per item for a list)
+  std::uint16_t max_chars = 0;
+  std::uint8_t min_count = 0;   // a list's, or a table list's
+  std::uint8_t max_count = 0;   // 0: no cap
+  std::int64_t lo = 0, hi = 0;  // an integer's bounds
+  std::span<const std::string_view> one_of{};  // a string's (or each item's) closed values
+  const Spec* sub = nullptr;    // a table's, or a table list's
+  bool required = false;
+  bool one_word = false;        // each item is one word
+};
+
+struct Spec {
+  std::span<const Field> fields;
+};
+
+// Builders, so that every field states what it sets and nothing is left to aggregate order.
+constexpr Field text(std::string_view key, std::uint16_t words = 0, std::uint16_t chars = 0) {
+  Field f;
+  f.key = key;
+  f.kind = Kind::Str;
+  f.max_words = words;
+  f.max_chars = chars;
+  return f;
+}
+constexpr Field choice(std::string_view key, std::span<const std::string_view> values) {
+  Field f = text(key);
+  f.one_of = values;
+  return f;
+}
+constexpr Field list(std::string_view key, std::uint8_t min, std::uint8_t max, std::uint16_t words = 0,
+                     std::uint16_t chars = 0) {
+  Field f = text(key, words, chars);
+  f.kind = Kind::StrList;
+  f.min_count = min;
+  f.max_count = max;
+  return f;
+}
+constexpr Field words1(Field f) {
+  f.one_word = true;
+  return f;
+}
+constexpr Field integer(std::string_view key, std::int64_t lo, std::int64_t hi) {
+  Field f = text(key);
+  f.kind = Kind::Int;
+  f.lo = lo;
+  f.hi = hi;
+  return f;
+}
+constexpr Field boolean(std::string_view key) {
+  Field f = text(key);
+  f.kind = Kind::Bool;
+  return f;
+}
+constexpr Field number(std::string_view key) {
+  Field f = text(key);
+  f.kind = Kind::Num;
+  return f;
+}
+constexpr Field region(std::string_view key) {
+  Field f = text(key);
+  f.kind = Kind::Region;
+  return f;
+}
+constexpr Field regions(std::string_view key, std::uint8_t max) {
+  Field f = list(key, 0, max);
+  f.kind = Kind::RegionList;
+  return f;
+}
+constexpr Field table(std::string_view key, const Spec* sub) {
+  Field f = text(key);
+  f.kind = Kind::Table;
+  f.sub = sub;
+  return f;
+}
+constexpr Field tables(std::string_view key, std::uint8_t min, std::uint8_t max, const Spec* sub) {
+  Field f = table(key, sub);
+  f.kind = Kind::TableList;
+  f.min_count = min;
+  f.max_count = max;
+  return f;
+}
+constexpr Field required(Field f) {
+  f.required = true;
+  return f;
+}
+
+constexpr std::array<std::string_view, 5> kRegisters = {"archaic-regal", "formal", "colloquial", "broken", "chant"};
+constexpr std::array<std::string_view, 4> kPronouns = {"he", "she", "they", "it"};
+constexpr std::array<std::string_view, 3> kHears = {"all", "sky", "none"};
+constexpr std::array<std::string_view, 3> kChat = {"allowed", "refuse", "mute"};
+constexpr std::array<std::string_view, 4> kState = {"awake", "asleep", "senseless", "unknown"};
+constexpr std::array<std::string_view, 3> kApproach = {"none", "native", "unknown"};
+constexpr std::array<std::string_view, 3> kNews = {"close", "plain", "eager"};
+constexpr std::array<std::string_view, 3> kCertainty = {"fact", "rumour", "belief"};
+
+// NPC §3.1's table, field by field.
+constexpr std::array<Field, 3> kPublic = {text("summary", 60), text("appearance", 40), text("role", 20)};
+constexpr std::array<Field, 5> kPrivate = {
+    text("personality", 80),
+    text("honesty", 26),  // truthful | guarded | liar, then at most 25 words (checked below)
+    text("claims", 80),
+    list("seeks", 0, 3, 15),
+    list("ties", 0, 4, 20),
+};
+constexpr std::array<Field, 2> kTic = {required(text("text", 12)), integer("max_per_conversation", 1, 2)};
+constexpr Spec kTicSpec{kTic};
+constexpr std::array<Field, 5> kVoice = {
+    text("cadence", 60),
+    text("diction", 40),
+    text("deflection", 30),
+    words1(list("openers", 0, 4)),
+    tables("tics", 0, 3, &kTicSpec),
+};
+constexpr std::array<Field, 2> kKnowledge = {list("always", 0, 8, 0, 64), list("topics", 0, 16, 0, 64)};
+constexpr std::array<Field, 9> kTie = {
+    required(text("item", 0, 64)),
+    choice("certainty", kCertainty),
+    text("when", 0, 400),
+    text("from", 0, 64),
+    text("line", 25, 160),
+    integer("spoiler", 0, 3),
+    list("lexicon", 0, 0, 0, 64),
+    text("basis", 0, 32),
+    list("evidence", 0, 0, 0, 64),
+};
+constexpr Spec kTieSpec{kTie};
+constexpr std::array<Field, 5> kAwareness = {
+    regions("home", 3),
+    tables("tie", 0, 6, &kTieSpec),
+    list("skip", 0, 12, 0, 120),
+    list("sleep_leads", 0, 20, 0, 8),
+    choice("news", kNews),
+};
+constexpr std::array<Field, 2> kCompanion = {text("skills", 60), text("beside", 40)};
+constexpr std::array<Field, 2> kSeed = {list("greet", 3, 3, 20), list("beckon", 3, 3, 20)};
+constexpr std::array<Field, 2> kUnlock = {text("text", 80), list("kb", 0, 6, 0, 64)};
+constexpr Spec kUnlockSpec{kUnlock};
+constexpr std::array<Field, 23> kStage = {
+    required(text("id", 0, 32)),
+    required(text("when", 0, 200)),
+    text("identity", 40),
+    text("where", 20),
+    text("mood", 8),
+    text("gist", 60),
+    text("road", 30),
+    region("at"),
+    choice("hears", kHears),
+    list("knows", 0, 4, 0, 64),
+    text("awaits", 0, 64),
+    text("heard", 25),
+    text("short", 8),
+    table("unlock", &kUnlockSpec),
+    list("forbid", 0, 6, 12),
+    choice("chat", kChat),
+    text("beckon", 20),
+    text("beckon_src", 0, 64),
+    text("talked", 0, 200),
+    choice("state", kState),
+    choice("approach", kApproach),
+    number("approach_m"),
+    text("approach_played", 0, 64),
+};
+constexpr Spec kStageSpec{kStage};
+constexpr Spec kPublicSpec{kPublic}, kPrivateSpec{kPrivate}, kVoiceSpec{kVoice}, kKnowledgeSpec{kKnowledge},
+    kAwarenessSpec{kAwareness}, kCompanionSpec{kCompanion}, kSeedSpec{kSeed};
+constexpr std::array<Field, 19> kPersona = {
+    required(text("id", 0, 32)),
+    required(integer("schema", 1, 1)),
+    required(text("display_name_fallback", 0, 32)),
+    required(choice("register", kRegisters)),
+    integer("reply_words_max", 10, 60),
+    list("address_forms", 0, 3, 3),
+    required(choice("pronouns", kPronouns)),
+    required(list("deflections", 3, 5, 20)),
+    list("subjects", 0, 8, 10, 50),
+    list("stirs", 0, 6, 12),
+    text("instructions", 35, 210),
+    table("public", &kPublicSpec),
+    table("private", &kPrivateSpec),
+    table("voice", &kVoiceSpec),
+    table("knowledge", &kKnowledgeSpec),
+    table("awareness", &kAwarenessSpec),
+    table("companion", &kCompanionSpec),
+    table("seed", &kSeedSpec),
+    required(tables("stages", 1, 12, &kStageSpec)),
+};
+constexpr Spec kPersonaSpec{kPersona};
+
+bool is_region(std::string_view s) { return is_slug(s, 32); }
+
+class Checker {
+ public:
+  Checker(std::string file, Errors& errors) : file_(std::move(file)), errors_(errors) {}
+
+  void error(const toml::node& at, const std::string& path, const std::string& problem) {
+    errors_.add(file_, line_of(at), path + ": " + problem);
+  }
+
+  void string_caps(const toml::node& at, const std::string& path, const Field& f, std::string_view s) {
+    if (f.max_words != 0 && words_of(s) > f.max_words) {
+      error(at, path, "is longer than " + std::to_string(f.max_words) + (f.max_words == 1 ? " word" : " words"));
+    }
+    if (f.max_chars != 0 && chars_of(s) > f.max_chars) {
+      error(at, path, "is longer than " + std::to_string(f.max_chars) + " characters");
+    }
+    if (f.one_word && words_of(s) != 1) error(at, path, "must be one word");
+    if (!f.one_of.empty() && std::find(f.one_of.begin(), f.one_of.end(), s) == f.one_of.end()) {
+      std::string names;
+      for (const std::string_view v : f.one_of) names += (names.empty() ? "" : ", ") + std::string(v);
+      error(at, path, "must be one of " + names);
+    }
+    if (s.empty()) error(at, path, "is empty");
+  }
+
+  void check(const toml::table& t, const Spec& spec, const std::string& where) {
+    for (auto&& [k, v] : t) {
+      const auto f = std::find_if(spec.fields.begin(), spec.fields.end(), [&](const Field& x) { return x.key == k.str(); });
+      if (f == spec.fields.end()) error(v, where.empty() ? std::string("(top)") : where, "has an unknown key " + shown(k.str()));
+    }
+    for (const Field& f : spec.fields) {
+      const std::string path = where.empty() ? std::string(f.key) : where + "." + std::string(f.key);
+      const toml::node* n = t.get(f.key);
+      if (n == nullptr) {
+        if (f.required) errors_.add(file_, line_of(t), path + ": is missing");
+        continue;
+      }
+      check_value(*n, f, path);
+    }
+  }
+
+  void check_value(const toml::node& n, const Field& f, const std::string& path) {
+    switch (f.kind) {
+      case Kind::Str:
+        if (const auto* s = n.as_string()) {
+          string_caps(n, path, f, s->get());
+        } else {
+          error(n, path, "must be a string");
+        }
+        return;
+      case Kind::Region:
+        if (const auto* s = n.as_string(); s == nullptr || !is_region(s->get())) error(n, path, "must be a region key");
+        return;
+      case Kind::Int: {
+        const auto* i = n.as_integer();
+        if (i == nullptr || i->get() < f.lo || i->get() > f.hi) {
+          error(n, path, "must be a whole number from " + std::to_string(f.lo) + " to " + std::to_string(f.hi));
+        }
+        return;
+      }
+      case Kind::Bool:
+        if (!n.is_boolean()) error(n, path, "must be true or false");
+        return;
+      case Kind::Num:
+        if (!n.is_number()) error(n, path, "must be a number");
+        return;
+      case Kind::Table:
+        if (const auto* t = n.as_table()) {
+          check(*t, *f.sub, path);
+        } else {
+          error(n, path, "must be a table");
+        }
+        return;
+      case Kind::StrList:
+      case Kind::RegionList:
+      case Kind::TableList: {
+        const auto* a = n.as_array();
+        if (a == nullptr) {
+          error(n, path, f.kind == Kind::TableList ? "must be an array of tables" : "must be an array of strings");
+          return;
+        }
+        if (a->size() < f.min_count || (f.max_count != 0 && a->size() > f.max_count)) {
+          error(n, path,
+                "must hold " + (f.min_count == f.max_count
+                                    ? std::to_string(f.min_count)
+                                    : (f.max_count == 0 ? "at least " + std::to_string(f.min_count)
+                                                        : std::to_string(f.min_count) + " to " + std::to_string(f.max_count))) +
+                    " entries");
+        }
+        for (std::size_t i = 0; i < a->size(); ++i) {
+          const toml::node& item = *a->get(i);
+          const std::string at = path + "[" + std::to_string(i) + "]";
+          if (f.kind == Kind::TableList) {
+            if (const auto* t = item.as_table()) {
+              check(*t, *f.sub, at);
+            } else {
+              error(item, at, "must be a table");
+            }
+          } else if (f.kind == Kind::RegionList) {
+            if (const auto* s = item.as_string(); s == nullptr || !is_region(s->get())) error(item, at, "must be a region key");
+          } else if (const auto* s = item.as_string()) {
+            string_caps(item, at, f, s->get());
+          } else {
+            error(item, at, "must be a string");
+          }
+        }
+        return;
+      }
+    }
+  }
+
+ private:
+  std::string file_;
+  Errors& errors_;
+};
+
+// ---- TOML to JSON ----
+
+nlohmann::json to_json_value(const toml::node& n) {
+  if (const auto* t = n.as_table()) {
+    nlohmann::json j = nlohmann::json::object();
+    for (auto&& [k, v] : *t) j[std::string(k.str())] = to_json_value(v);
+    return j;
+  }
+  if (const auto* a = n.as_array()) {
+    nlohmann::json j = nlohmann::json::array();
+    for (const toml::node& v : *a) j.push_back(to_json_value(v));
+    return j;
+  }
+  if (const auto* s = n.as_string()) return s->get();
+  if (const auto* i = n.as_integer()) return i->get();
+  if (const auto* f = n.as_floating_point()) return f->get();
+  if (const auto* b = n.as_boolean()) return b->get();
+  return nullptr;  // dates and times: refused before they get here (unsafe_for_toml)
+}
+
+std::optional<toml::table> parse(const ContentFile& file, std::size_t cap, Errors& errors) {
+  if (file.text.size() > cap) {
+    errors.add(file.path, 0, "is larger than " + std::to_string(cap >> 10) + " KB");
+    return std::nullopt;
+  }
+  if (const auto unsafe = proto::unsafe_for_toml(file.text, proto::TomlText::Player)) {
+    errors.add(file.path, unsafe->line, std::string("is refused before it is parsed: ") + unsafe->problem);
+    return std::nullopt;
+  }
+  toml::parse_result parsed = toml::parse(file.text);
+  if (!parsed) {
+    errors.add(file.path, static_cast<std::size_t>(parsed.error().source().begin.line),
+               "is not valid TOML: " + std::string(parsed.error().description()));
+    return std::nullopt;
+  }
+  return std::move(parsed).table();
+}
+
+template <class E>
+E enum_of(std::string_view s, std::span<const std::string_view> names, E fallback) {
+  for (std::size_t i = 0; i < names.size(); ++i) {
+    if (names[i] == s) return static_cast<E>(i);
+  }
+  return fallback;
+}
+
+std::vector<std::string> strings_at(const toml::table& t, std::string_view key) {
+  std::vector<std::string> out;
+  if (const auto* a = t[key].as_array()) {
+    for (const toml::node& v : *a) {
+      if (const auto* s = v.as_string()) out.push_back(s->get());
+    }
+  }
+  return out;
+}
+
+// ---- identity/personas.toml ----
+
+constexpr std::array<Field, 5> kNpcParam = {
+    required(integer("param", 1, 0xFFFFFFFF)),
+    required(text("form", 0, 32)),
+    integer("expect_name_id", 0, 0xFFFFFFFF),
+    boolean("verified"),
+    text("reveal_stage", 0, 32),
+};
+constexpr Spec kNpcParamSpec{kNpcParam};
+constexpr std::array<Field, 3> kEntity = {required(integer("id", 1, 0xFFFFFFFF)), boolean("verified"), text("note", 0, 200)};
+constexpr Spec kEntitySpec{kEntity};
+constexpr std::array<Field, 3> kFlagBlock = {required(text("alias", 0, 32)), required(integer("base", 0, 0xFFFFFFFF)),
+                                             boolean("verified")};
+constexpr Spec kFlagBlockSpec{kFlagBlock};
+constexpr std::array<Field, 8> kRow = {
+    required(text("id", 0, 32)),
+    required(text("file", 0, 96)),
+    integer("talk_code", 0, 0xFFFF),
+    table("flag_block", &kFlagBlockSpec),
+    tables("npc_params", 0, 16, &kNpcParamSpec),
+    tables("entity_ids", 0, 16, &kEntitySpec),
+    boolean("enabled"),
+    boolean("test_only"),
+};
+constexpr Spec kRowSpec{kRow};
+constexpr std::array<Field, 3> kAlias = {required(text("old", 0, 32)), required(text("new", 0, 32)),
+                                         required(text("since", 0, 16))};
+constexpr Spec kAliasSpec{kAlias};
+constexpr std::array<Field, 3> kIndex = {required(integer("schema", 1, 1)), tables("persona", 0, 0, &kRowSpec),
+                                         tables("alias", 0, 0, &kAliasSpec)};
+constexpr Spec kIndexSpec{kIndex};
+
+bool is_persona_path(std::string_view p) {
+  constexpr std::string_view prefix = "personas/";
+  constexpr std::string_view suffix = ".toml";
+  if (p.size() <= prefix.size() + suffix.size() || p.substr(0, prefix.size()) != prefix ||
+      p.substr(p.size() - suffix.size()) != suffix) {
+    return false;
+  }
+  return is_slug(p.substr(prefix.size(), p.size() - prefix.size() - suffix.size()), 32);
+}
+
+std::vector<PersonaRow> read_index(const ContentFile& file, Errors& errors) {
+  std::vector<PersonaRow> rows;
+  const std::size_t before = errors.count();
+  auto table = parse(file, kContentFileMaxBytes, errors);
+  if (!table) return rows;
+  Checker(file.path, errors).check(*table, kIndexSpec, "");
+  if (errors.count() != before) return rows;
+  std::set<std::string> ids;
+  std::map<std::uint32_t, std::string> params;
+  std::map<std::uint32_t, std::string> entities;
+  if (const auto* list = (*table)["persona"].as_array()) {
+    for (const toml::node& n : *list) {
+      const toml::table& t = *n.as_table();
+      PersonaRow r;
+      r.id = t["id"].value_or(std::string());
+      r.file = t["file"].value_or(std::string());
+      r.line = line_of(n);
+      if (const auto tc = t["talk_code"].value<std::int64_t>()) r.talk_code = static_cast<std::uint16_t>(*tc);
+      r.enabled = t["enabled"].value_or(true);
+      r.test_only = t["test_only"].value_or(false);
+      if (!is_slug(r.id, 32)) errors.add(file.path, r.line, "persona.id: must be a slug of at most 32 characters");
+      if (!ids.insert(r.id).second) errors.add(file.path, r.line, "persona.id: " + shown(r.id) + " is not unique");
+      if (!is_persona_path(r.file)) errors.add(file.path, r.line, "persona.file: must be personas/<slug>.toml");
+      if (const auto* a = t["npc_params"].as_array()) {
+        for (const toml::node& p : *a) {
+          const toml::table& pt = *p.as_table();
+          NpcParamRow row;
+          row.param = static_cast<std::uint32_t>(pt["param"].value_or(std::int64_t{0}));
+          row.form = pt["form"].value_or(std::string());
+          row.expect_name_id = static_cast<std::uint32_t>(pt["expect_name_id"].value_or(std::int64_t{0}));
+          row.verified = pt["verified"].value_or(false);
+          row.reveal_stage = pt["reveal_stage"].value_or(std::string());
+          const auto [it, fresh] = params.emplace(row.param, r.id);
+          if (!fresh && it->second != r.id) {
+            errors.add(file.path, line_of(p), "persona.npc_params: a param row is bound to two personas");
+          }
+          r.npc_params.push_back(std::move(row));
+        }
+      }
+      if (const auto* a = t["entity_ids"].as_array()) {
+        for (const toml::node& e : *a) {
+          const toml::table& et = *e.as_table();
+          EntityRow row;
+          row.id = static_cast<std::uint32_t>(et["id"].value_or(std::int64_t{0}));
+          row.verified = et["verified"].value_or(false);
+          const auto [it, fresh] = entities.emplace(row.id, r.id);
+          if (!fresh && it->second != r.id) {
+            errors.add(file.path, line_of(e), "persona.entity_ids: an entity id is bound to two personas");
+          }
+          r.entity_ids.push_back(row);
+        }
+      }
+      rows.push_back(std::move(r));
+    }
+  }
+  return rows;
+}
+
+// ---- personas/<id>.toml ----
+
+std::optional<Persona> read_persona(const ContentFile& file, const PersonaRow& row, Errors& errors) {
+  const std::size_t before = errors.count();
+  auto table = parse(file, kPersonaFileMaxBytes, errors);
+  if (!table) return std::nullopt;
+  Checker checker(file.path, errors);
+  checker.check(*table, kPersonaSpec, "");
+  if (errors.count() != before) return std::nullopt;
+  const toml::table& t = *table;
+  Persona p;
+  p.id = t["id"].value_or(std::string());
+  p.file = file.path;
+  if (p.id != row.id) errors.add(file.path, line_of(*t.get("id")), "id: must be the id its row in identity/personas.toml gives");
+  if (const auto honesty = t["private"]["honesty"].value<std::string>()) {
+    const std::string_view h = *honesty;
+    const bool known = h.rfind("truthful", 0) == 0 || h.rfind("guarded", 0) == 0 || h.rfind("liar", 0) == 0;
+    if (!known) errors.add(file.path, line_of(*t["private"]["honesty"].node()), "private.honesty: must start with truthful, guarded or liar");
+  }
+  p.display_name_fallback = t["display_name_fallback"].value_or(std::string());
+  p.reg = enum_of<Register>(t["register"].value_or(std::string()), kRegisters, Register::Formal);
+  p.reply_words_max = static_cast<std::uint8_t>(t["reply_words_max"].value_or(std::int64_t{40}));
+  p.address_forms = strings_at(t, "address_forms");
+  p.deflections = strings_at(t, "deflections");
+  if (const auto* voice = t["voice"].as_table()) {
+    p.openers = strings_at(*voice, "openers");
+    if (const auto* tics = (*voice)["tics"].as_array()) {
+      for (const toml::node& n : *tics) {
+        const toml::table& tt = *n.as_table();
+        p.tics.push_back(Tic{tt["text"].value_or(std::string()),
+                             static_cast<std::uint8_t>(tt["max_per_conversation"].value_or(std::int64_t{1}))});
+      }
+    }
+  }
+  std::set<std::string> stage_ids;
+  const toml::array& stages = *t["stages"].as_array();
+  for (std::size_t i = 0; i < stages.size(); ++i) {
+    const toml::table& st = *stages.get(i)->as_table();
+    PersonaStage s;
+    s.id = st["id"].value_or(std::string());
+    s.when = st["when"].value_or(std::string());
+    s.line = line_of(*stages.get(i));
+    const std::string at = "stages[" + std::to_string(i) + "]";
+    if (!is_slug(s.id, 32)) errors.add(file.path, s.line, at + ".id: must be a slug of at most 32 characters");
+    if (!stage_ids.insert(s.id).second) errors.add(file.path, s.line, at + ".id: " + shown(s.id) + " is not unique");
+    if (const auto v = st["state"].value<std::string>()) s.state = enum_of<Conscious>(*v, kState, Conscious::Unknown);
+    if (const auto v = st["approach"].value<std::string>()) s.approach = enum_of<Approach>(*v, kApproach, Approach::Unknown);
+    if (const auto v = st["chat"].value<std::string>()) {
+      s.chat = enum_of<ChatMode>(*v, kChat, ChatMode::Mute);
+      s.own_chat = true;
+    }
+    constexpr std::array<std::string_view, 12> kShows = {"unlock", "identity", "beckon", "gist", "where", "mood",
+                                                         "road",   "at",       "hears",  "knows", "heard", "short"};
+    s.shows = std::any_of(kShows.begin(), kShows.end(), [&](std::string_view k) { return st.contains(k); }) ||
+              (s.own_chat && s.chat == ChatMode::Allowed);
+    if (i == 0) {
+      if (s.when != "true") errors.add(file.path, s.line, at + ".when: the base stage's must be \"true\"");
+      for (const std::string_view k : {std::string_view("road"), std::string_view("at"), std::string_view("state")}) {
+        if (!st.contains(k)) errors.add(file.path, s.line, at + "." + std::string(k) + ": the base stage must set it");
+      }
+    }
+    if (i == 0 && st.contains("unlock")) errors.add(file.path, s.line, at + ".unlock: never on the base stage");
+    if (st.contains("beckon") != st.contains("beckon_src")) {
+      errors.add(file.path, s.line, at + ".beckon: needs beckon_src, and beckon_src needs beckon");
+    }
+    if (const auto src = st["beckon_src"].value<std::string>(); src && src->rfind("ci:", 0) == 0 && !row.test_only) {
+      errors.add(file.path, s.line, at + ".beckon_src: a ci: record only on a test_only persona");
+    }
+    p.stages.push_back(std::move(s));
+  }
+  if (errors.count() != before) return std::nullopt;
+  p.record = to_json_value(t);
+  return p;
+}
+
+std::uint64_t fnv1a(std::string_view bytes, std::uint64_t h) {
+  for (const char c : bytes) {
+    h ^= static_cast<unsigned char>(c);
+    h *= 0x100000001b3ull;
+  }
+  return h;
+}
+
+}  // namespace
+
+std::string describe(const ContentError& e) {
+  if (e.file.empty()) return e.problem;
+  return e.file + ":" + std::to_string(e.line) + ": " + e.problem;
+}
+
+const char* to_string(Register v) noexcept {
+  const auto i = static_cast<std::size_t>(v);
+  return i < kRegisters.size() ? kRegisters[i].data() : "formal";
+}
+const char* to_string(ChatMode v) noexcept {
+  const auto i = static_cast<std::size_t>(v);
+  return i < kChat.size() ? kChat[i].data() : "mute";
+}
+const char* to_string(Conscious v) noexcept {
+  const auto i = static_cast<std::size_t>(v);
+  return i < kState.size() ? kState[i].data() : "unknown";
+}
+
+nlohmann::json Persona::resolved(std::size_t active) const {
+  nlohmann::json out = record;
+  out.erase("stages");
+  out.erase("seed");
+  out.erase("deflections");
+  if (auto it = out.find("awareness"); it != out.end() && it->is_object()) {
+    it->erase("sleep_leads");
+    it->erase("skip");
+    it->erase("news");
+  }
+  const auto rs = record.find("stages");
+  if (rs == record.end() || !rs->is_array() || rs->empty()) return out;
+  const std::size_t last = std::min(active, rs->size() - 1);
+  nlohmann::json stage = (*rs)[last];
+  for (const char* k : {"road", "at", "hears", "knows"}) {
+    if (stage.contains(k)) continue;
+    for (std::size_t i = last; i-- > 0;) {
+      if ((*rs)[i].contains(k)) {
+        stage[k] = (*rs)[i][k];
+        break;
+      }
+    }
+  }
+  for (const char* k : {"forbid", "when", "chat", "state", "approach", "approach_m", "approach_played", "talked",
+                        "awaits", "beckon", "beckon_src"}) {
+    stage.erase(k);
+  }
+  out["stage"] = std::move(stage);
+  return out;
+}
+
+Conscious Persona::state_at(std::size_t active) const noexcept {
+  if (stages.empty()) return Conscious::Unknown;
+  for (std::size_t i = std::min(active, stages.size() - 1) + 1; i-- > 0;) {
+    if (stages[i].state) return *stages[i].state;
+  }
+  return Conscious::Unknown;
+}
+
+Approach Persona::approach_at(std::size_t active) const noexcept {
+  if (stages.empty()) return Approach::Unknown;
+  for (std::size_t i = std::min(active, stages.size() - 1) + 1; i-- > 0;) {
+    if (stages[i].approach) return *stages[i].approach;
+  }
+  return Approach::Unknown;  // unset reads unknown (§3.1)
+}
+
+ChatMode Persona::chat_at(std::size_t active) const noexcept {
+  if (stages.empty()) return ChatMode::Mute;
+  return stages[std::min(active, stages.size() - 1)].chat;
+}
+
+std::vector<std::string> Persona::forbid_at(std::size_t active) const {
+  std::vector<std::string> out;
+  const auto rs = record.find("stages");
+  if (rs == record.end() || !rs->is_array() || rs->empty()) return out;
+  const nlohmann::json& stage = (*rs)[std::min(active, rs->size() - 1)];
+  if (const auto f = stage.find("forbid"); f != stage.end() && f->is_array()) {
+    for (const auto& v : *f) {
+      if (v.is_string()) out.push_back(v.get<std::string>());
+    }
+  }
+  return out;
+}
+
+const Persona* ContentPack::persona(std::string_view id) const noexcept {
+  for (const Persona& p : personas) {
+    if (p.id == id) return &p;
+  }
+  return nullptr;
+}
+
+const PersonaRow* ContentPack::row(std::string_view id) const noexcept {
+  for (const PersonaRow& r : rows) {
+    if (r.id == id) return &r;
+  }
+  return nullptr;
+}
+
+proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<const ContentFile> files) {
+  std::vector<ContentError> problems;
+  Errors errors(problems);
+  // The overrides replace the shipped files of the same path whole (DESIGN §11.4).
+  std::map<std::string, const ContentFile*> by_path;
+  for (const ContentFile& f : files) {
+    const auto it = by_path.find(f.path);
+    if (it == by_path.end()) {
+      by_path.emplace(f.path, &f);
+    } else if (f.origin == ContentOrigin::Override || it->second->origin == f.origin) {
+      if (it->second->origin == f.origin) errors.add(f.path, 0, "is given twice");
+      it->second = &f;
+    }
+  }
+  ContentPack pack;
+  std::uint64_t h = 0xcbf29ce484222325ull;
+  const auto hash_file = [&](const ContentFile& f) {
+    h = fnv1a(f.path, h);
+    h = fnv1a(std::string_view("\0", 1), h);
+    h = fnv1a(f.text, h);
+    h = fnv1a(std::string_view("\0", 1), h);
+  };
+  const auto index = by_path.find(std::string(kPersonaIndexPath));
+  if (index == by_path.end()) {
+    errors.add(std::string(kPersonaIndexPath), 0, "is missing");
+    errors.finish();
+    return proto::Unexpected{std::move(problems)};
+  }
+  hash_file(*index->second);
+  pack.rows = read_index(*index->second, errors);
+  for (const PersonaRow& row : pack.rows) {
+    if (!row.enabled) continue;
+    const auto f = by_path.find(row.file);
+    if (f == by_path.end()) {
+      errors.add(index->second->path, row.line, "persona.file: " + shown(row.file) + " is missing");
+      continue;
+    }
+    hash_file(*f->second);
+    if (auto p = read_persona(*f->second, row, errors)) pack.personas.push_back(std::move(*p));
+  }
+  for (const auto& [path, f] : by_path) {
+    if (path.rfind("identity/", 0) != 0 && path.rfind("personas/", 0) != 0) {
+      pack.others.push_back(ContentFile{path, f->text, f->origin});
+    }
+  }
+  errors.finish();
+  if (!problems.empty()) return proto::Unexpected{std::move(problems)};
+  pack.hash = h;
+  return pack;
+}
+
+}  // namespace en::core

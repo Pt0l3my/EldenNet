@@ -1,0 +1,10 @@
+# The persona index (NPC §2.1): each persona's id, its record, and the NpcParam rows and entity ids it binds by
+# (O45: the speaker is matched by id, never by name). Our own file. v0.2 ships the test persona alone; the pilot,
+# Kalé, joins with his S1 and S6 records (NPC §3.4).
+schema = 1
+
+[[persona]]
+id = "lantern_keeper"
+file = "personas/lantern_keeper.toml"
+npc_params = []
+test_only = true                          # never resolved in game; the self-test, the eval and tests only
