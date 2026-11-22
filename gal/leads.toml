@@ -25,6 +25,11 @@ world_area_time = "WorldAreaTime"              # ARCH §6.1 WorldAreaTime; ER01 
 cs_camera = "CSCamera"                         # ARCH §6.1 CSCamera, "confirm in S0-A"
 solo_param_repository = "SoloParamRepository"  # ARCH §6.1 SoloParamRepository; ER01 §4, §8.1
 msg_repository = "MsgRepository"               # ARCH §6.1 MsgRepository; ER01 §4, §8.3
+# A lead on trial (2026-11-22): the event flags' store, which ER01 §9 and ER07 name as the object the flags are read
+# through. The catalogue holds no id for it: the rounds only count what the image holds under the name and which
+# static, if any, holds an object of its class (docs/ops/probes/2026-11-22-l5.md: three rounds found no object of
+# CSEventFlagMan's class anywhere near what is known). It gets an id only if a round finds it.
+flag_store = "CSFD4VirtualMemoryFlag"          # ER01 §9; ER07 (a lead and no more)
 
 [register]
 instance = "cs_task"                # ARCH §6.1: CSTask's instance pointer is passed to register_task (ER01 §3.2)

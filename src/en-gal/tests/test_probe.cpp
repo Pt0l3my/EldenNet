@@ -222,6 +222,135 @@ TEST_CASE("probe: the rising-counter search keeps the fields that rose most, not
   CHECK(std::is_sorted(hits.begin(), hits.end(), [](const auto& a, const auto& b) { return a.rose > b.rose; }));
 }
 
+TEST_CASE("probe: the object scan finds an object nothing known points at, and what holds it, level by level") {
+  FakeWorld w;
+  const Discovery d = discovered(w);
+  // The game state's object, which no slot of the data holds any more. A prop holds its address at 0x28; the field
+  // area's object (which a static holds) holds the prop's address at 0x18. Elsewhere, an object of the save's class
+  // lies inside a larger object, at its 0x40, and nothing points at it.
+  const std::uint64_t game = w.instance("game_state");
+  w.mem.put<std::uint64_t>(w.at("st_game_state"), 0);
+  const std::uint64_t prop = w.mem.alloc(0x60);
+  w.set_vtable(prop, "prop");
+  w.mem.put<std::uint64_t>(prop + 0x28, game);
+  const std::uint64_t field = w.instance("field_area");
+  w.mem.put<std::uint64_t>(field + 0x18, prop);
+  const std::uint64_t big = w.mem.alloc(0x80);
+  w.set_vtable(big, "tomb");
+  w.mem.put<std::uint64_t>(big + 0x40, w.vtable("save"));
+  const std::uint64_t save = w.instance("save_data");
+  w.mem.put<std::uint64_t>(w.at("st_save_data"), 0);
+  w.mem.put<std::uint64_t>(save, 0);  // the old save object is gone: only the one inside `big` is of its class
+  // The memory as the scan is told of it: each object a private, writable region of its own; one region that is the
+  // caller's (never read, though it holds the game state's table of methods); one that may not be read.
+  const std::uint64_t own = w.mem.alloc(0x40);
+  w.mem.put<std::uint64_t>(own + 0x10, w.vtable("game"));
+  const std::uint64_t guarded = w.mem.alloc(0x40);
+  w.mem.put<std::uint64_t>(guarded, w.vtable("game"));
+  struct Piece {
+    std::uint64_t at;
+    std::uint64_t size;
+    std::uint32_t protect;
+  };
+  std::vector<Piece> pieces = {{game, 0x20, probe::kPageReadWrite},    {prop, 0x60, probe::kPageReadWrite},
+                               {field, 0x20, probe::kPageReadWrite},   {big, 0x80, probe::kPageReadWrite},
+                               {own, 0x40, probe::kPageReadWrite},
+                               {guarded, 0x40, probe::kPageReadWrite | probe::kPageGuard}};
+  std::sort(pieces.begin(), pieces.end(), [](const Piece& a, const Piece& b) { return a.at < b.at; });
+  std::uint64_t asked = 0;
+  const probe::RegionQuery regions = [&](std::uint64_t at) -> std::optional<probe::MemoryRegion> {
+    ++asked;
+    for (const Piece& p : pieces) {
+      if (at < p.at + p.size) {
+        probe::MemoryRegion r;
+        r.base = p.at;
+        r.size = p.size;
+        r.allocation_base = p.at;
+        r.protect = p.protect;
+        r.committed = true;
+        r.kind = probe::RegionKind::Private;
+        return r;
+      }
+    }
+    return std::nullopt;
+  };
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  std::vector<std::uint32_t> primary;
+  for (const char* cls : {"game", "prop", "field", "tomb", "save", "hud", "lobby"}) primary.push_back(rva(w.vtable(cls)));
+  probe::ObjectScan scan(regions, {{rva(w.vtable("game")), 7}, {rva(w.vtable("save")), 9}}, primary, w.base,
+                         d.image().size_of_image, {own});
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  int steps = 0;
+  for (; steps < 1000 && !scan.done(); ++steps) {
+    reader.begin_tick();
+    (void)scan.step(gt, reader, 2);  // two pieces a step: a sweep takes several
+  }
+  REQUIRE(scan.done());
+  CHECK(steps > 4);
+  CHECK(scan.sweeps() == 4);  // the objects, then three levels of holders
+  CHECK(scan.unreadable() == 0);
+  CHECK(scan.bytes() == 4 * (0x20 + 0x60 + 0x20 + 0x80));
+  CHECK(scan.regions() == 4 * 4);
+  const auto nodes = scan.nodes();
+  const auto node = [&](std::uint8_t level, std::uint64_t address) -> const probe::ObjectScan::Node* {
+    const auto it = std::find_if(nodes.begin(), nodes.end(),
+                                 [&](const auto& n) { return n.level == level && n.address == address; });
+    return it != nodes.end() ? &*it : nullptr;
+  };
+  REQUIRE(nodes.size() == 5);
+  // Level 0: the game state's object, and the save's that lies inside the big one. Neither the caller's own copy nor
+  // the guarded one is found.
+  const auto* found_game = node(0, game);
+  const auto* found_save = node(0, big + 0x40);
+  REQUIRE(found_game != nullptr);
+  REQUIRE(found_save != nullptr);
+  CHECK(found_game->lead == 7);
+  CHECK(found_game->vtable == rva(w.vtable("game")));
+  CHECK(found_game->holders == 1);
+  CHECK(found_save->lead == 9);
+  CHECK(found_save->holders == 0);
+  // Level 1: the prop holds the game state's address at 0x28; the big object encloses the save's at 0x40.
+  const auto* at_prop = node(1, prop);
+  REQUIRE(at_prop != nullptr);
+  CHECK(at_prop->vtable == rva(w.vtable("prop")));
+  CHECK(at_prop->offset == 0x28);
+  CHECK_FALSE(at_prop->embedded);
+  CHECK(nodes[at_prop->parent].address == game);
+  CHECK(at_prop->lead == 7);
+  CHECK(at_prop->holders == 1);
+  const auto* at_big = node(1, big);
+  REQUIRE(at_big != nullptr);
+  CHECK(at_big->embedded);
+  CHECK(at_big->offset == 0x40);
+  CHECK(at_big->vtable == rva(w.vtable("tomb")));
+  CHECK(nodes[at_big->parent].address == big + 0x40);
+  // Level 2: the field area's object holds the prop's address at 0x18. Its own address is in the image's data, where
+  // the caller ends the chain: the scan itself finds no holder of it.
+  const auto* at_field = node(2, field);
+  REQUIRE(at_field != nullptr);
+  CHECK(at_field->offset == 0x18);
+  CHECK(nodes[at_field->parent].address == prop);
+  CHECK(at_field->holders == 0);
+  const probe::Holding held = probe::slots_holding(*w.sys, d.image(), at_field->address);
+  REQUIRE(held.count == 1);
+  CHECK(held.slots[0] == w.at("st_field_area") - w.base);
+  CHECK(asked > 0);
+
+  // Nothing of the class anywhere: one sweep, and it is over. Nothing to look for: over at once.
+  probe::ObjectScan none(regions, {{rva(w.vtable("hud")), 1}}, primary, w.base, d.image().size_of_image, {own});
+  for (int k = 0; k < 1000 && !none.done(); ++k) {
+    reader.begin_tick();
+    (void)none.step(gt, reader, 8);
+  }
+  CHECK(none.done());
+  CHECK(none.sweeps() == 1);
+  CHECK(none.nodes().empty());
+  probe::ObjectScan idle(regions, {}, primary, w.base, d.image().size_of_image, {});
+  CHECK(idle.done());
+  CHECK(idle.step(gt, reader, 8));
+}
+
 TEST_CASE("probe: the hub census finds the objects the hub points at by their vtables, to a depth of three") {
   FakeWorld w;
   const Discovery d = discovered(w);

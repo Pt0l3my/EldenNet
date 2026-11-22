@@ -401,6 +401,106 @@ inline constexpr std::uint32_t kPageNoAccess = 0x01, kPageReadOnly = 0x02, kPage
 // The region at `at` or the first after it; nothing past the last.
 using RegionQuery = std::function<std::optional<MemoryRegion>(std::uint64_t at)>;
 
+// The object scan (Lodestar's read-only round): where is an object of a class that nothing known points at? The
+// process's private, writable memory is gone through once, 8-aligned word by word, for a word that is one of the
+// targets' tables of methods: an object of that class starts there (level 0). Then, up to kLevels times, it is gone
+// through again for words that hold the address of a node of the level before; for each such holder the nearest word
+// before it that is some class's primary table of methods is taken for the start of the object it lies in (within
+// kBack bytes, in the same region), and that object is a node of the next level. A level-0 node that nothing holds is
+// looked at the same way: the object it lies inside, if any (`embedded`). The caller then compares each node's
+// address with the image's own data, where a chain ends.
+// It reads only: regions are asked for first (`regions`), and again after every kAskEvery bytes of one, so that the
+// reader it is given need not ask before each piece; only committed, private, plainly writable ones outside the
+// image and outside the caller's own memory are read, each piece through the guarded reader (never a thread's stack),
+// and what it keeps of the memory is the nodes: a class (an offset in the image), an offset into an object, and an
+// address it never reports. A found "object" may be a stale one, and an "owner" may be a neighbour: every node is a
+// lead for a review. Everything is allocated when it is made; the reader's thread allocates nothing.
+class ObjectScan {
+ public:
+  static constexpr std::size_t kMaxNodes = 64;
+  static constexpr std::size_t kMaxObjects = 12;    // level-0 nodes kept
+  static constexpr std::size_t kMaxPerParent = 4;   // holders kept for one node; all are counted
+  static constexpr std::uint32_t kLevels = 3;
+  static constexpr std::uint32_t kChunk = kMaxCopyBytes;
+  static constexpr std::uint32_t kBack = kMaxCopyBytes;
+  static constexpr std::uint64_t kAskEvery = 1u << 20;  // a region is asked for again after this much of it
+  struct Target {
+    std::uint32_t vtable = 0;  // a table of methods, as an offset in the image
+    std::uint32_t lead = 0;    // the caller's number for what it belongs to
+  };
+  struct Node {
+    std::uint8_t level = 0;
+    bool embedded = false;      // level 1: the parent lies inside this object, and nothing was found pointing at it
+    std::uint16_t parent = 0;   // level 1 and up: the node whose address it holds
+    std::uint32_t lead = 0;
+    std::uint32_t vtable = 0;   // the node's own class; 0: the holder lies in no object that could be told
+    std::uint32_t offset = 0;   // level 1 and up: where in the node the address (or the enclosed object) lies
+    std::uint32_t holders = 0;  // words found that hold this node's address (counted in the sweep after its own)
+    std::uint64_t address = 0;
+  };
+
+  // `targets`: what to look for; `primary`: every class's primary table of methods, as offsets, ascending;
+  // `base`, `size`: the image as loaded; `own`: the allocation bases of the caller's own memory, never read.
+  ObjectScan(RegionQuery regions, std::vector<Target> targets, std::vector<std::uint32_t> primary, std::uint64_t base,
+             std::uint64_t size, std::vector<std::uint64_t> own);
+
+  // Reads up to `chunks` pieces; answers whether the scan is over.
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t chunks);
+
+  [[nodiscard]] bool done() const noexcept { return done_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::uint64_t regions() const noexcept { return regions_read_.load(std::memory_order_relaxed); }
+  [[nodiscard]] std::uint64_t bytes() const noexcept { return bytes_.load(std::memory_order_relaxed); }
+  [[nodiscard]] std::uint64_t unreadable() const noexcept { return unreadable_.load(std::memory_order_relaxed); }
+  [[nodiscard]] std::uint32_t sweeps() const noexcept { return sweeps_.load(std::memory_order_acquire); }
+  // The nodes so far, in the order found (a node's parent comes before it); read from any thread.
+  [[nodiscard]] std::span<const Node> nodes() const noexcept {
+    return std::span<const Node>(nodes_.data(), node_count_.load(std::memory_order_acquire));
+  }
+
+ private:
+  void look(std::span<const std::byte> chunk, std::uint64_t at, const proto::GameThread& gt, GuardedReader& reader);
+  // The object a place lies in: the nearest word before `at` that is a primary table of methods, no further back
+  // than kBack and never before `floor`. Nothing when there is none, or the memory cannot be read.
+  struct Owner {
+    std::uint64_t address = 0;
+    std::uint32_t vtable = 0;
+  };
+  [[nodiscard]] std::optional<Owner> owner_of(std::uint64_t at, std::uint64_t floor, const proto::GameThread& gt,
+                                              GuardedReader& reader);
+  bool add(const Node& node) noexcept;
+  void end_sweep(const proto::GameThread& gt, GuardedReader& reader);
+  [[nodiscard]] bool ours(std::uint64_t allocation_base) const noexcept;
+
+  RegionQuery regions_;
+  std::vector<Target> targets_;         // by table
+  std::vector<std::uint32_t> primary_;  // ascending
+  std::uint64_t base_;
+  std::uint64_t size_;
+  std::vector<std::uint64_t> own_;
+  std::vector<std::byte> chunk_;
+  std::vector<std::byte> back_;
+  std::uint32_t sweep_ = 0;
+  std::uint64_t cursor_ = kLowestAddress;
+  std::uint64_t region_base_ = 0;
+  std::uint64_t region_end_ = 0;        // 0: the next region is yet to be asked for
+  bool in_region_ = false;              // the last region asked for was one the scan reads
+  struct Want {
+    std::uint64_t address = 0;
+    std::uint16_t node = 0;
+    std::uint16_t kept = 0;
+  };
+  std::array<Want, kMaxNodes> want_{};  // the nodes this sweep looks for the holders of
+  std::size_t want_count_ = 0;
+  std::uint64_t want_lo_ = 0, want_hi_ = 0;
+  std::array<Node, kMaxNodes> nodes_{};
+  std::atomic<std::size_t> node_count_{0};
+  std::atomic<bool> done_{false};
+  std::atomic<std::uint64_t> regions_read_{0};
+  std::atomic<std::uint64_t> bytes_{0};
+  std::atomic<std::uint64_t> unreadable_{0};
+  std::atomic<std::uint32_t> sweeps_{0};
+};
+
 // The kind of the section holding `rva` in an image whose first page (its headers, as a copy holds them) is `headers`:
 // read by its characteristics alone, never by its name.
 [[nodiscard]] SectionKind section_kind(std::span<const std::byte> headers, std::uint64_t rva) noexcept;
