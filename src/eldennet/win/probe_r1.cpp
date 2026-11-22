@@ -69,6 +69,7 @@
 #include "en/gal/derive.hpp"
 #include "en/gal/fd4.hpp"
 #include "en/gal/guarded.hpp"
+#include "en/gal/ids.hpp"
 #include "en/gal/image_bytes.hpp"
 #include "en/gal/layout.hpp"
 #include "en/gal/patterns.hpp"
@@ -407,6 +408,12 @@ class Round {
     if (!text) return std::nullopt;
     en::gal::LayoutNeeds needs;
     needs.task = true;
+    // A layout that holds the build's table (schema 2, Lodestar) is checked against the catalogue, where gal/ has one.
+    std::optional<en::gal::Catalogue> ids;
+    if (const std::optional<std::string> ids_text = read_text(s_.paths.gal + L"\\ids.toml", 256u << 10)) {
+      if (auto parsed = en::gal::parse_ids(*ids_text)) ids = std::move(*parsed);
+    }
+    if (ids) needs.ids = &*ids;
     const auto layout = en::gal::load_layout((*gated)->profile, *text, needs, en::gal::LayoutMode::Dev, "layout");
     if (!layout || !layout->task()) {
       log(Line("r1").word("draft_layout", "refused").num("problems", layout ? 0 : layout.error().size()),
