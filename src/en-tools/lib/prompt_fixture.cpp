@@ -133,19 +133,28 @@ const char* refusal_name(core::PromptRefusal r) {
 
 }  // namespace
 
-proto::Expected<std::map<std::string, std::string>, std::string> read_pack_prompts(const fs::path& pack) {
-  std::map<std::string, std::string> out;
+bool read_pack_prompts(const fs::path& pack, std::map<std::string, std::string>& out, std::string& problem) {
+  out.clear();
   const fs::path root = pack / "prompts";
   std::error_code ec;
-  if (!fs::is_directory(root, ec)) return proto::Unexpected{std::string("the pack has no prompts folder")};
+  if (!fs::is_directory(root, ec)) {
+    problem = "the pack has no prompts folder";
+    return false;
+  }
   for (fs::recursive_directory_iterator it(root, ec), end; it != end && !ec; it.increment(ec)) {
     if (!it->is_regular_file(ec) || !template_file(it->path())) continue;
     const auto text = slurp(it->path());
-    if (!text) return proto::Unexpected{std::string("a template of the pack cannot be read")};
+    if (!text) {
+      problem = "a template of the pack cannot be read";
+      return false;
+    }
     out.emplace(it->path().lexically_relative(pack).generic_string(), *text);
   }
-  if (ec) return proto::Unexpected{std::string("the pack's prompts folder cannot be read")};
-  return out;
+  if (ec) {
+    problem = "the pack's prompts folder cannot be read";
+    return false;
+  }
+  return true;
 }
 
 proto::Expected<core::Lexicon, std::string> read_pack_lexicon(const fs::path& pack) {

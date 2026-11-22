@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -33,9 +34,10 @@ std::string slurp(const fs::path& p) {
 }
 
 std::unique_ptr<DialoguePrompt> shipped() {
-  auto templates = tools::read_pack_prompts(kPack);
-  REQUIRE(templates);
-  auto p = DialoguePrompt::load(*templates);
+  std::map<std::string, std::string> templates;
+  std::string problem;
+  REQUIRE(tools::read_pack_prompts(kPack, templates, problem));
+  auto p = DialoguePrompt::load(templates);
   if (!p) FAIL(p.error().detail);
   return std::move(*p);
 }
@@ -62,10 +64,11 @@ TEST_CASE("the shipped pack loads, and its frame and registers keep their caps")
   REQUIRE(r);
   CHECK(r->blocks[0].tokens <= 450);
   CHECK(!r->blocks[0].over_cap);
-  auto templates = tools::read_pack_prompts(kPack);
-  REQUIRE(templates);
+  std::map<std::string, std::string> templates;
+  std::string problem;
+  REQUIRE(tools::read_pack_prompts(kPack, templates, problem));
   for (const std::string_view reg : kRegisters) {
-    const std::string text = templates->at("prompts/registers/" + std::string(reg) + ".md");
+    const std::string text = templates.at("prompts/registers/" + std::string(reg) + ".md");
     std::string body = text.substr(text.find("#}") + 2);
     while (!body.empty() && (body.front() == '\n' || body.front() == ' ')) body.erase(body.begin());
     while (!body.empty() && (body.back() == '\n' || body.back() == ' ')) body.pop_back();

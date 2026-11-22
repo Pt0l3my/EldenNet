@@ -23,9 +23,11 @@
 
 namespace en::tools {
 
-// Every file under <pack>/prompts/ with a template's extension, by name from the pack's root ("prompts/dialogue/…").
-[[nodiscard]] proto::Expected<std::map<std::string, std::string>, std::string> read_pack_prompts(
-    const std::filesystem::path& pack);
+// Every file under <pack>/prompts/ with a template's extension, by name from the pack's root ("prompts/dialogue/…"),
+// into `out`; false, with `problem` set, when the pack cannot be read. (Not an Expected: Microsoft's std::map may
+// throw when it moves, which Expected refuses.)
+[[nodiscard]] bool read_pack_prompts(const std::filesystem::path& pack, std::map<std::string, std::string>& out,
+                                     std::string& problem);
 // <pack>/lexicon/banned.toml and safety.toml, read by en-core's parse_lexicon.
 [[nodiscard]] proto::Expected<core::Lexicon, std::string> read_pack_lexicon(const std::filesystem::path& pack);
 

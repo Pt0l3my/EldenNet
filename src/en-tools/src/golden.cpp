@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -154,12 +155,13 @@ int golden_prompt(const fs::path& in, bool update, const std::optional<std::stri
   // Twice, each from templates loaded afresh: the same input renders byte for byte the same (T5).
   std::string rendered[2];
   for (std::string& out : rendered) {
-    auto templates = en::tools::read_pack_prompts(*pack);
-    if (!templates) {
-      std::fprintf(stderr, "golden: %s\n", templates.error().c_str());
+    std::map<std::string, std::string> templates;
+    std::string problem;
+    if (!en::tools::read_pack_prompts(*pack, templates, problem)) {
+      std::fprintf(stderr, "golden: %s\n", problem.c_str());
       return 2;
     }
-    auto renderer = en::core::DialoguePrompt::load(*templates);
+    auto renderer = en::core::DialoguePrompt::load(templates);
     if (!renderer) {
       std::fprintf(stderr, "golden: the pack's prompts: %s\n", renderer.error().detail.c_str());
       return 2;

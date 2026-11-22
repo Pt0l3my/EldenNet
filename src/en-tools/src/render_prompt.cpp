@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -189,9 +190,10 @@ int render_fixture(const Options& options) {
   auto fixture = en::tools::parse_prompt_fixture(text);
   if (!fixture) return failure("the fixture: " + fixture.error());
   const fs::path pack = options.content.empty() ? fs::path("content") / "eldenring" : fs::path(options.content);
-  auto templates = en::tools::read_pack_prompts(pack);
-  if (!templates) return failure(templates.error());
-  auto renderer = en::core::DialoguePrompt::load(*templates);
+  std::map<std::string, std::string> templates;
+  std::string problem;
+  if (!en::tools::read_pack_prompts(pack, templates, problem)) return failure(problem);
+  auto renderer = en::core::DialoguePrompt::load(templates);
   if (!renderer) return failure("the pack's prompts: " + renderer.error().detail);
   const auto report = (*renderer)->report(fixture->context());
   std::string name = fs::path(options.fixture).filename().string();
