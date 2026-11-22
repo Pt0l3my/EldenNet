@@ -666,7 +666,7 @@ void FG::SettleTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   auto* gauges = static_cast<GaugeBoardImp*>(fg_get_gauges());
   if (gauges == nullptr) return;
-  if (w.phase == Phase::World && !w.npcs.empty()) {
+  if (w.phase == Phase::World && !w.npcs.empty() && !fakegame::options().calm) {
     gauges->bars[0] = GaugeBar{w.npcs.back()->a.handle, 9100, static_cast<std::int32_t>(frame->frame % 500)};
     if (frame->frame % 120 == 0) w.npcs.front()->a.last_hit_by = w.player != nullptr ? w.player->a.handle : 0;
   } else {
@@ -678,7 +678,7 @@ void FG::MenuTask::run(const FrameInfo* frame) {
   auto& w = fakegame::state();
   if (auto* gauges = static_cast<GaugeBoardImp*>(fg_get_gauges())) gauges->hud_state = w.phase == Phase::World ? 3 : 0;
   if (auto* menu = static_cast<MenuDeskImp*>(fg_get_menu_popup_site()); menu != nullptr && menu->popup != nullptr) {
-    menu->popup->talk_id = w.phase == Phase::World && frame->frame % 600 < 60 ? 7100 : -1;
+    menu->popup->talk_id = w.phase == Phase::World && !fakegame::options().calm && frame->frame % 600 < 60 ? 7100 : -1;
   }
   (void)fg_run_warden_slot();
   (void)fg_field_plot_place();

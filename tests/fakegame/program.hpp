@@ -81,10 +81,21 @@ struct Options {
     unsigned scan = 0;
   };
   std::vector<KeyPress> press_keys;
+  // The first conversation (S11.3, part C): --calm makes the world one a conversation may start in (no boss bar, no
+  // strike on the first character, no native talk's pop-up); --type-at F:TEXT,F:TEXT types each text at its frame
+  // into the window, a character at a time as Unicode key presses (an IME's or Steam's text arrives so), the window in
+  // front and holding the focus.
+  bool calm = false;
+  struct Typed {
+    std::uint64_t frame = 0;
+    std::wstring text;
+  };
+  std::vector<Typed> type_at;
   std::vector<std::uint64_t> grace_report_at;
   struct Probe {
     std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
     std::uint32_t colour[3] = {0, 0, 0};
+    std::uint32_t tolerance = 3;  // each channel within this of the colour (an eighth value: text's ink, say)
   };
   static constexpr std::size_t kProbes = 3;
   std::vector<Probe> grace_probes;
@@ -102,6 +113,8 @@ bool present_start(HWND window);
 void present_frame();
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
+// --type-at: each character of `text` as a Unicode key press (KEYEVENTF_UNICODE), as press_key_into presses a key.
+void type_into(HWND window, const std::wstring& text);
 // What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.
 void grace_report(std::uint64_t frame);
 // --grace-take-pause: another mod's connection to GraceUI and its hotkey on Pause, with one status line.

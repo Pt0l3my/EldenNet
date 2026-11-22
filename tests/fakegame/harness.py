@@ -1289,7 +1289,8 @@ def check_graceui_main(r):
                         ("LAUNCHER", "end", {"kind": "clean"}))(r) +
             # Connected, at the title or in the world: the panel made and hidden, the atlas registered, EldenNet a
             # world-state provider, no banner (the main path has none).
-            want_grace(r, 360, found=1, eldennet=1, notice_only=0, panels=1, shown=0, textures=(1, 8), providers=1,
+            # The view's panel and, on the main path, the conversation's three (S11.3, part C), all hidden.
+            want_grace(r, 360, found=1, eldennet=1, notice_only=0, panels=4, shown=0, textures=(2, 8), providers=1,
                        banner="none", window_filter=1, presents=(100, 1e9),
                        caps=lambda c: all(w in c.split("_") for w in ("notices", "world-state", "hotkeys", "panels",
                                                                        "textures")),
@@ -1347,7 +1348,7 @@ def check_graceui_unbound(r):
                         ("LAUNCHER", "end", {"kind": "clean"}))(r) +
             # Another mod (the fake game) holds Pause in GraceUI, so EldenNet's Mark registered unbound (D164): EldenNet
             # never asks for the ring, the launcher keeps its key, and the Pause pressed is the launcher's own Mark.
-            want_grace(r, 360, found=1, eldennet=1, consumers=2, panels=1, shown=0) +
+            want_grace(r, 360, found=1, eldennet=1, consumers=2, panels=4, shown=0) +
             (["the launcher let Pause go"] if any("released" in e for e in r.events("LAUNCHER", "mark")) else []) +
             (["the Marks' ring was asked for"] if any(e.get("source") in ("asked", "eldennet")
                                                        for e in r.events("ELDENNET", "marks")) else []) +
@@ -2056,6 +2057,125 @@ def check_graceui_ai(r):
     return failures + en_log_is_clean(r)
 
 
+# The first conversation (S11.3, part C; WHY§364) on the fake game, end to end: the test persona bound to the fake
+# game's invented row 81100 through the tests' overrides folder (tests/scenarios/talk/overrides), in the tests' realm
+# (ELDENNET_TEST_REALM, which only the probe build takes); a calm world (--calm); a local model server of the tests' own
+# (tests/pages/fake_models.py, on its keyless path) with a scripted reply; T pressed, a line typed and sent, the reply
+# shown in the lower third and committed, Esc. Invented words throughout.
+TALK_REPLY = ["Evening, traveller. ", "The lamp burns low tonight, ", "but it still burns."]
+TALK_TYPED = "Good evening"
+TALK_KEYS = "1500:t,1700:return,2400:escape"
+TALK_REPORTS = "1440,1530,1680,1760,1800,1840,1880,1920,2460"
+# The lower third's text on the frame (960 by 540, a content scale of 0.5): the page panel, bottom centre, its block's
+# bottom at 0.80 H; the text's ink, #E8E2D0.
+# The glyphs are anti-aliased (GraceUI's EB Garamond at 15 px): the probes take a pixel within 72 of the ink in each
+# channel, which the fake game's ground (16, 40, 32) and the box's are far from.
+TALK_PAGE_PROBE = "144,362,816,432,232,226,208,72"
+TALK_BOX_PROBE = "288,443,672,524,232,226,208,72"
+TALK_SETTINGS = 'schema = 2\ndebug = { panel = false, record_sessions = false, log_level = "debug" }\n'
+TALK_RUNS = {}
+
+
+def install_talk(paths):
+    """GraceUI's folder; the fake model server with its scripted reply; providers.toml naming its keyless path as a
+    provider on this PC for the dialogue slot; the tests' overrides folder."""
+    install_graceui(paths)
+    server = fake_models.FakeModels("fk-invented-" + os.urandom(12).hex(), [], open_prefix="/own/",
+                                    open_models=["invented-lantern-a"], scripted=[TALK_REPLY])
+    TALK_RUNS[paths["case"]] = server
+    cfg = os.path.join(paths["appdata"], "EldenNet", "config")
+    with open(os.path.join(cfg, "providers.toml"), "w") as f:
+        f.write('schema = 1\npreset = "custom"\n\n[[provider]]\nid = "lantern-box"\nflavor = "openai"\n'
+                'kind = "local"\nbase_url = "http://127.0.0.1:%d/own/v1"\n\n'
+                '[slots.dialogue]\nprovider = "lantern-box"\nmodel = "invented-lantern-a"\n' % server.port)
+    here = os.path.dirname(os.path.abspath(__file__))
+    shutil.copytree(os.path.join(here, "..", "scenarios", "talk", "overrides"),
+                    os.path.join(paths["appdata"], "EldenNet", "overrides"))
+
+
+def install_overrides(paths):
+    here = os.path.dirname(os.path.abspath(__file__))
+    shutil.copytree(os.path.join(here, "..", "scenarios", "talk", "overrides"),
+                    os.path.join(paths["appdata"], "EldenNet", "overrides"))
+
+
+def check_talk(r):
+    server = TALK_RUNS.pop(r.paths["case"], None)
+    counts = server.snapshot() if server is not None else {}
+    if server is not None:
+        server.close()
+    failures = []
+    version, _ = graceui_version(r)
+    failures += check_lines(("ELDENNET", "connect", {"ok": 1, "outcome": "connected", "path": "main", "graceui": version}),
+                            ("ELDENNET", "surfaces", {"state": "ready", "talk": "bound", "chord": "asked", "wake": 1}),
+                            ("ELDENNET", "realm", {"asked": "eval", "accepted": 1}),
+                            ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "eval"}),
+                            ("ELDENNET", "content_load", {"ok": 1, "personas": 1, "bound": 1}),
+                            ("LAUNCHER", "end", {"kind": "clean"}))(r)
+    failures += any_line(r, "ELDENNET", "net", dialogue=1)
+    # T: GraceUI's hotkey, the box opened by the core, its first frame submitted, input held with the holder's events.
+    failures += any_line(r, "ELDENNET", "chat", what="open_key", via="talk_key")
+    opened = [e for e in r.events("ELDENNET", "chat") if e.get("what") == "opened"]
+    keys = [e for e in r.events("FAKEGAME", "key_down") if e.get("key") == "0x54"]
+    need(opened and keys, "no box opened (%d) or no T pressed (%d)" % (len(opened), len(keys)), failures)
+    if opened and keys:
+        latency = int(opened[0]["submitted_ms"]) - int(keys[0]["qpc_ms"])
+        print("talk key to the box's first submitted frame: %d ms (T6's part %s ms)" % (latency, opened[0].get("ms")))
+        need(0 <= latency <= 50, "the box's first frame %d ms after the talk key (NPC 5.1: 50 ms)" % latency, failures)
+    failures += want_grace(r, 1440, holder=0)
+    failures += want_grace(r, 1530, holder=2, refused=0)
+    # The line typed and sent, the talk key's own character never in it; the request to the model and its reply.
+    failures += want(r, "ELDENNET", "chat", which="first", what="submit", chars=str(len(TALK_TYPED)))
+    failures += want_grace(r, 1680, holder=2, probe=0)
+    # The typed line's ink in the box: more than the caret's alone (at 1530 the line is empty).
+    before = next((e for e in r.events("FAKEGAME", "grace") if e.get("frame") == "1530"), {})
+    failures += want_grace(r, 1680, probe2=lambda v: int(v) > int(before.get("probe2", "0") or 0))
+    failures += any_line(r, "ELDENNET", "commit", kind="player_said", chars=len(TALK_TYPED))
+    need(counts.get("open_chats", 0) >= 1 and counts.get("scripted", 0) == 1,
+         "the model server answered %s" % counts, failures)
+    need(counts.get("stops", 0) >= 1, "the dialogue's request carried no stop sequences: %s" % counts, failures)
+    # The reply's first page on the frame, in the lower third, acknowledged on its first frame and committed on display.
+    failures += any_line(r, "ELDENNET", "chat", what="page_shown", index=0)
+    failures += any_line(r, "ELDENNET", "commit", kind="npc_said", page=0)
+    page_frames = [e for e in r.events("FAKEGAME", "grace") if e.get("probe") not in (None, "0")
+                   and 1760 <= int(e.get("frame", "0")) <= 1920]
+    need(page_frames, "the lower third's text on no frame from 1760 to 1920: %s" %
+         [(e.get("frame"), e.get("panels"), e.get("shown"), e.get("submitted"), e.get("refused"), e.get("probe"),
+           e.get("probe2")) for e in r.events("FAKEGAME", "grace")], failures)
+    # Esc: the box closed with its reason, input given back.
+    failures += any_line(r, "ELDENNET", "chat", what="close", reason="escape")
+    failures += want_grace(r, 2460, holder=0)
+    failures += en_log_is_clean(r)
+    # No chat text in the log: neither the typed line nor the reply's words.
+    text = "\n".join(l for l in r.lines if l.startswith("ELDENNET "))
+    for words in [TALK_TYPED] + [p.strip() for p in TALK_REPLY]:
+        need(words.split()[0] not in text.split(), "the log holds chat text: %s" % words.split()[0], failures)
+    return failures
+
+
+def check_realm_release(r):
+    return (check_lines(("ELDENNET", "realm", {"asked": "eval", "accepted": 0, "probe_build": 0}),
+                        ("ELDENNET", "content", {"overrides": 1, "files": 1, "realm": "game"}),
+                        ("ELDENNET", "content_load", {"ok": 1, "bound": 0}))(r) + en_log_is_clean(r))
+
+
+case("launcher-eldennet-graceui-talk", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--d3d12", "--calm", "--press-keys", TALK_KEYS, "--type-at", "1560:" + TALK_TYPED,
+          "--grace-report", TALK_REPORTS, "--grace-probe", TALK_PAGE_PROBE, "--grace-probe", TALK_BOX_PROBE,
+          frames=2700),
+     program="{launcher}", needs=GRACE_NEEDS + ("eldennet_probe",), toolchains=("clang-cl",),
+     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=240,
+     prepare=install_eldennet(TALK_SETTINGS, probe=True, then=install_talk), check=check_talk,
+     what="The first conversation on the fake game: the test persona bound through the overrides folder in the tests' "
+          "realm, the talk key opening the chat box within 50 ms, a line typed and sent with the key's own character "
+          "swallowed, a scripted reply from a local model server shown in the lower third, acknowledged on its first "
+          "frame and committed on display, and Esc closing the box; no chat text in the log")
+case("launcher-eldennet-realm-release", LGAME + ["--dll", "{eldennetdll}", "--console"] + game(frames=600),
+     program="{launcher}", needs=EN_NEEDS, toolchains=("clang-cl",),
+     env=dict(EN_ENV, ELDENNET_TEST_REALM="eval"), timeout=120,
+     prepare=install_eldennet(TALK_SETTINGS, then=install_overrides), check=check_realm_release,
+     what="The release DLL refuses the tests' realm: asked for it, it logs the refusal and keeps the game's, and the "
+          "test persona of the overrides folder stays out (NPC 2.1)")
 case("launcher-eldennet-graceui-ai", LGAME + ["--dll", "{eldennetdll}", "--console"] +
      game("--d3d12", "--stay-title", "--press-keys", AI_KEYS, "--grace-report", AI_REPORTS, frames=5520),
      program="{launcher}", needs=GRACE_NEEDS, toolchains=("clang-cl",),

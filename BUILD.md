@@ -166,6 +166,16 @@ cmake --build build-cl
   frame, log line, recording and file of the run, and for a fragment both hold in what the menu draws (GraceUI 0.2.6's
   `GraceUI_Test_MenuShows`, the fake game's `shows=` from `FAKEGAME_SHOWS`, at most four texts), which also checks that
   the menu draws a row's key as Not needed, a card's chip and a card's live status.
+  `launcher-eldennet-graceui-talk` is the first conversation end to end (S11.3, part C): the probe DLL in the tests'
+  realm (`ELDENNET_TEST_REALM=eval`, which the release DLL refuses: `launcher-eldennet-realm-release`), the test persona
+  bound to the fake game's invented row 81100 through `tests/scenarios/talk/overrides` copied into the case's overrides
+  folder, a calm world (the fake game's `--calm`: no boss bar, no strike, no native talk's pop-up), and a local model
+  server of `fake_models.py`'s on its keyless path with a scripted reply, named in providers.toml for the dialogue
+  slot. T (`--press-keys`, its SendInput's time on QPC's clock in `key_down … qpc_ms=`), a line typed
+  (`--type-at`, Unicode key presses), Enter and Esc; the case checks the box's input held (the fake game's report:
+  `holder=2`, EldenNet's), the line sent without the T's own character, the box's first submitted frame within NPC
+  §5.1's 50 ms of the key, the request's stop sequences, the reply's first page on the frame in the lower third
+  (`--grace-probe` on its ink) with its PageShown and its commit, the close's reason, and no chat text in the log.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
