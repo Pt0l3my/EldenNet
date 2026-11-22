@@ -45,7 +45,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fifth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.8, from engine 24e2918;
+1. **The owner's fifth read-only run** (package `EldenNet-Read`, label 0.1.0-lodestar.8, from engine 8e09907;
    ten minutes in the world; no scan). It is step L6's first round. Review its two files and its logs as the others'.
    What to look for, in this order:
    - `instances.managers`: `event_flags` named (its lead is the store's class now), with the accessor's sites as
