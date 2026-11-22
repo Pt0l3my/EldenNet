@@ -21,8 +21,10 @@
 //      information, such as the world's clock, is known by how its fields behave;
 //    - the rising-counter search (probe::RisingSearch) over the data's slots that point at the heap: the play time.
 //    What they find is in the report as counts; only a manager a slot search names enters the draft table.
-//    A search follows pointers that may be stale, so its reads, and T1's one read at each instance, go through
-//    ReadProcessMemory on our own process (QuietSys), which raises no exception in the game whatever the address.
+//    A search follows pointers that may be stale, so its reads, and T1's one read at each instance, ask first
+//    (AskFirstCopier): the pages must be committed and readable, with no guard page among them, as VirtualQuery says;
+//    only then are they copied, by ReadProcessMemory on our own process. So a search raises no exception in the game
+//    and lifts no guard page (WHY§111, §160), whatever a pointer holds. What it will not read is counted.
 //    The trial reads as v1 will, through the settings' copy primitive.
 // T1 stays as the round's reporter for the session. No file carries a name, a byte or a text of the game (O75).
 #include "dll.hpp"
@@ -87,11 +89,46 @@ DWORD WINAPI trial_reader_main(void* arg) noexcept {
   });
 }
 
-// The system layer as the searches see it: the game's own, with the copy primitive that raises no exception. It is
-// never asked to call anything.
+// A copy that asks first. Every page of the range must be committed and readable, and none a guard page or a page
+// with no access: VirtualQuery says so, and reads nothing. Only then is the range copied, by ReadProcessMemory on our
+// own process, which fails quietly if the pages have changed in between. A range it will not read is counted.
+class AskFirstCopier final : public en::gal::Copier {
+ public:
+  explicit AskFirstCopier(en::gal::NativeSys& sys) : sys_(sys) {}
+  [[nodiscard]] en::gal::CopyOutcome copy(std::uint64_t address, std::span<std::byte> dst) noexcept override {
+    namespace probe = en::gal::probe;
+    const std::uint64_t end = address + dst.size();
+    std::uint64_t at = address;
+    for (int regions = 0; at < end; ++regions) {
+      const std::optional<probe::MemoryRegion> r = regions < 4 ? sys_.region_at(at) : std::nullopt;
+      const std::uint32_t kind = r ? (r->protect & 0xFFu) : 0;
+      const bool readable =
+          r && r->committed && r->size != 0 && (r->protect & (probe::kPageGuard | probe::kPageNoAccess)) == 0 &&
+          (kind == probe::kPageReadOnly || kind == probe::kPageReadWrite || kind == probe::kPageWriteCopy ||
+           kind == probe::kPageExecuteRead || kind == probe::kPageExecuteReadWrite ||
+           kind == probe::kPageExecuteWriteCopy);
+      if (!readable) {
+        refused_.fetch_add(1, std::memory_order_relaxed);
+        std::fill(dst.begin(), dst.end(), std::byte{0});
+        return {false, 0xC0000005u};
+      }
+      at = r->base + r->size;
+    }
+    return sys_.copier_of(en::gal::CopyKind::Rpm).copy(address, dst);
+  }
+  [[nodiscard]] std::uint64_t refused() const noexcept { return refused_.load(std::memory_order_relaxed); }
+
+ private:
+  en::gal::NativeSys& sys_;
+  std::atomic<std::uint64_t> refused_{0};
+};
+
+// The system layer as the searches see it: the game's own, with the copy that asks first. It is never asked to call
+// anything.
 class QuietSys final : public en::gal::SysLayer {
  public:
-  explicit QuietSys(en::gal::NativeSys& sys) : sys_(sys) {}
+  explicit QuietSys(en::gal::NativeSys& sys) : sys_(sys), copier_(sys) {}
+  [[nodiscard]] std::uint64_t refused() const noexcept { return copier_.refused(); }
   [[nodiscard]] std::uint64_t module_base() const noexcept override { return sys_.module_base(); }
   [[nodiscard]] const en::gal::ByteSource& image() const noexcept override { return sys_.image(); }
   [[nodiscard]] en::proto::Expected<std::uint64_t, en::gal::SysError> call_getter(std::uint64_t,
@@ -102,7 +139,7 @@ class QuietSys final : public en::gal::SysLayer {
       std::uint64_t, std::uint64_t, const en::gal::TaskShape&, en::gal::TaskBody&) noexcept override {
     return en::proto::Unexpected{en::gal::SysError::Unsupported};
   }
-  [[nodiscard]] en::gal::Copier& copier() noexcept override { return sys_.copier_of(en::gal::CopyKind::Rpm); }
+  [[nodiscard]] en::gal::Copier& copier() noexcept override { return copier_; }
   [[nodiscard]] en::gal::StackRanges& stacks() noexcept override { return sys_.stacks(); }
   void note_own_stack() noexcept override { sys_.note_own_stack(); }
   [[nodiscard]] std::uint64_t now_us() const noexcept override { return sys_.now_us(); }
@@ -115,6 +152,7 @@ class QuietSys final : public en::gal::SysLayer {
 
  private:
   en::gal::NativeSys& sys_;
+  AskFirstCopier copier_;
 };
 
 // The trial's body on T2: the thread named for the crash filter, then the trial, then the searches T1 has handed
@@ -144,6 +182,7 @@ class Body final : public en::gal::TaskBody {
   void set_clock(lodestar::ClockSearch* search) noexcept { clock_.store(search, std::memory_order_release); }
   void set_rising(en::gal::probe::RisingSearch* search) noexcept { rising_.store(search, std::memory_order_release); }
   [[nodiscard]] const en::gal::GuardedReader& reader() const noexcept { return reader_; }
+  [[nodiscard]] std::uint64_t refused() const noexcept { return quiet_.refused(); }
 
  private:
   lodestar::Trial& trial_;
@@ -167,7 +206,7 @@ std::string today() {
 
 class Round {
  public:
-  explicit Round(Shell& s) : s_(s), folder_(s.paths.data + L"\\probe") {}
+  explicit Round(Shell& s) : s_(s), folder_(s.paths.data + L"\\probe"), ask_first_(*s.sys) {}
 
   void run(const en::gal::Gated& gated) {
     (void)make_dirs(folder_);
@@ -277,12 +316,12 @@ class Round {
     for (const lodestar::ManagerFound& m : held_.managers) (void)trial_->add(m);
   }
 
-  // One 8-byte read on T1, under the reader's plausibility rules and by the copy that raises no exception; nothing
-  // when it is refused or the memory cannot be read.
-  std::optional<std::uint64_t> read_word(std::uint64_t address) const {
+  // One 8-byte read on T1, under the reader's plausibility rules and by the copy that asks first; nothing when it
+  // is refused or the memory cannot be read.
+  std::optional<std::uint64_t> read_word(std::uint64_t address) {
     if (en::gal::implausible(address, 8, 8, s_.sys->stacks())) return std::nullopt;
     std::array<std::byte, 8> v{};
-    if (!s_.sys->copier_of(en::gal::CopyKind::Rpm).copy(address, v).copied) return std::nullopt;
+    if (!ask_first_.copy(address, v).copied) return std::nullopt;
     std::uint64_t out = 0;
     std::memcpy(&out, v.data(), 8);
     return out;
@@ -441,7 +480,8 @@ class Round {
                   .num("clocks", static_cast<std::uint64_t>(
                                      std::count_if(c.hits.begin(), c.hits.end(), [](const auto& h) { return h.has_hour; })))
                   .num("rising_passes", rising_->passes()).num("rising_hits", rising_->hits().size())
-                  .num("search_faults", body_->reader().faults(en::gal::FaultKind::Copy)));
+                  .num("search_faults", body_->reader().faults(en::gal::FaultKind::Copy))
+                  .num("search_refused", body_->refused()));
         }
       }
     }
@@ -449,6 +489,7 @@ class Round {
 
   Shell& s_;
   std::wstring folder_;
+  AskFirstCopier ask_first_;  // T1's own, for its one read at each instance
   const en::gal::ImageInfo* image_ = nullptr;  // the gate's, which lives for the process
   en::gal::derive::Leads leads_;
   en::gal::Catalogue ids_;

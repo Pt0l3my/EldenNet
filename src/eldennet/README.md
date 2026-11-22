@@ -438,9 +438,11 @@ for the address library's needs. On T1, after Connect and `settle_s` seconds:
    over the accessor's statics no lead has named; and `probe::RisingSearch` over the data's slots that point at the
    heap (`read stage=searches …`, then `read stage=held clock_passes=… clock_hits=… clocks=… rising_passes=…
    rising_hits=… search_faults=…` every 10 s). T1 makes each search and T2 steps it; a slot search T1 takes back is
-   freed two of T2's steps later. The searches, and T1's one read at each instance, read through `QuietSys`
-   (ReadProcessMemory on our own process: no exception is raised in the game whatever the address); the trial reads
-   as v1 will.
+   freed two of T2's steps later. The searches, and T1's one read at each instance, read through `QuietSys`, whose
+   copy asks first (`AskFirstCopier`): every page of the range must be committed and readable, with no guard page,
+   by VirtualQuery; only then is it copied, by ReadProcessMemory on our own process. So a search raises no exception
+   in the game and lifts no guard page, whatever a pointer holds (`search_refused` counts what it left alone); the
+   trial reads as v1 will.
 4. **Two files in `%APPDATA%\EldenNet\probe`**, every 2 s: `lodestar-found.json` (kind `lodestar`, schema 2: the
    finder's numbers, `instances` and `trial`), and, when the names change, `lodestar-table.toml` (`draft_table`: the
    build's table as leads, each entry checked against the image; its `tool_sha256` is zeros, which the review

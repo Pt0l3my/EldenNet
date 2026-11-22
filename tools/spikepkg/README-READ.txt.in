@@ -126,9 +126,11 @@ What it does
         and 59 and steps forward as minutes do, with one beside it that behaves as hours do.
       - For the play time: the same way, over the objects the game's data points at, it looks for a number that
         rises by the clock while you play.
-    These searches follow pointers that may no longer be good, so they read through Windows' own copy function for a
-    program's memory (ReadProcessMemory, on the game itself), which answers "cannot be read" without disturbing the
-    game. What they find is written as counts and places, never as what the memory held.
+    These searches follow pointers that may no longer be good. So before each read they ask Windows whether the
+    memory is there and may be read (VirtualQuery, which reads nothing), and leave it alone if not; then they copy
+    it with Windows' own function for reading a program's memory (ReadProcessMemory, on the game itself), which
+    answers "cannot be read" without disturbing the game. What they find is written as counts and places, never as
+    what the memory held.
   - Every two seconds it writes lodestar-found.json into %APPDATA%\EldenNet\probe, and lodestar-table.toml when
     another manager is named. They hold only numbers (offsets, sizes, counts) and EldenNet's own labels: no names of
     the game's, no text, no paths, nothing of your character or your PC.
