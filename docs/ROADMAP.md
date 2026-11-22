@@ -1069,6 +1069,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     time is let pass, the flags two steps on with a bounded sweep for bits that flip once (about 24 MiB, put to the
     owner first by O105's note), and the report's fallback graded. The owner said yes to the sweep (O105's note), and
     package 0.1.0-lodestar.10 went to them the same day (engine b0a2fa7).
+    L6's third round reviewed the same day (WHY§394 to §397): the time of day found (hour and minute in one word behind
+    an accessor's static, told by the owner's two passings of time), candidates for the flags' blocks and tree, the
+    reader at 9.97 a second. 1012 `world_clock` is that object (WHY§359's Later line). Next: the clock into the table by
+    what its object holds; a flag the owner sets checked against the blocks, with the tester's marks (S10.1.l).
+- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [next]
+  - needs: k
+  - refs: WHY§398, WHY§396
+  - gives: asked by the owner on 2026-11-22, after the seventh read-only round. By Lodestar: in game through GraceUI if
+    its overlay can show it there today, else a window of the launcher's own. The tester's marks also tell the round
+    when to look.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
