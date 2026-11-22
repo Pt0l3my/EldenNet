@@ -60,7 +60,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    - `instances.managers`: the HUD by a pass again (not `by_search`).
    Nothing from the watch enters the table by itself: a field needs a place in the build's layout (L6's design) and
    a second look in a later round.
-2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238), a commit of its own (the DLL's R1 mode, the
+2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
    with the commit.
@@ -74,8 +74,8 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against (engine 48e5003): `en_gal_tests` 221 cases on GCC, Clang and MinGW, 236 on
-  clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts.
+- Counts to compare against (engine 532e751, after R1's leftovers went): `en_gal_tests` 220 cases on GCC, Clang
+  and MinGW, 235 on clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts.
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
 - A class that holds a `GuardedReader` belongs to the part of en-gal that is built both with and without the probe
