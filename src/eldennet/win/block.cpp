@@ -25,6 +25,7 @@ constinit HANDLE g_crash_event = nullptr;
 constinit HANDLE g_ack_event = nullptr;
 constinit std::atomic<DWORD> g_init{0};
 constinit std::atomic<DWORD> g_game{0};
+constinit std::atomic<DWORD> g_reader{0};
 constinit std::atomic<bool> g_in_filter{false};
 constinit std::atomic<bool> g_installed{false};
 constinit LPTOP_LEVEL_EXCEPTION_FILTER g_previous = nullptr;
@@ -54,7 +55,8 @@ LONG WINAPI crash_filter(EXCEPTION_POINTERS* ep) noexcept {
         const DWORD code = ep->ExceptionRecord->ExceptionCode;
         c.code = code;
         const DWORD tid = GetCurrentThreadId();
-        c.thread = static_cast<std::uint32_t>(tid == g_game.load() ? w::ThreadKind::Game
+        c.thread = static_cast<std::uint32_t>(tid == g_reader.load() ? w::ThreadKind::Reader
+                                              : tid == g_game.load() ? w::ThreadKind::Game
                                               : tid == g_init.load() ? w::ThreadKind::Init
                                                                      : w::ThreadKind::Other);
         c.chained = g_previous != nullptr ? 1u : 0u;
@@ -183,6 +185,7 @@ void core(std::uint32_t phase, std::uint32_t level, std::uint32_t banner, std::u
 }
 
 void game_thread(std::uint32_t tid) noexcept { g_game.store(tid, std::memory_order_relaxed); }
+void reader_thread(std::uint32_t tid) noexcept { g_reader.store(tid, std::memory_order_relaxed); }
 void init_thread(std::uint32_t tid) noexcept { g_init.store(tid, std::memory_order_relaxed); }
 
 w::Spike spike() noexcept {

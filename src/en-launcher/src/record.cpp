@@ -70,7 +70,7 @@ std::optional<CrashInfo> copy_crash(const w::Block& b) {
   if (state != w::CrashState::Written && state != w::CrashState::Taken) return std::nullopt;
   CrashInfo c;
   c.code = b.crash.code;
-  c.thread = b.crash.thread <= static_cast<std::uint32_t>(w::ThreadKind::Other)
+  c.thread = b.crash.thread <= static_cast<std::uint32_t>(w::ThreadKind::Reader)
                  ? static_cast<w::ThreadKind>(b.crash.thread)
                  : w::ThreadKind::Unknown;
   c.chained = b.crash.chained != 0;

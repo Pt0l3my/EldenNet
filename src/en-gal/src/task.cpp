@@ -21,6 +21,30 @@ void run_task(TaskBody& body, const FrameCtx& frame) noexcept {
   });
 }
 
+TaskOptions own_thread_options() noexcept {
+  TaskOptions o;
+  o.provider = FrameProvider::OwnThread;
+  o.period_us = 100'000;            // about ten snapshots a second
+  o.throttled_period_us = 200'000;  // five while throttled
+  return o;
+}
+
+BackendOptions own_thread_backend(const BackendOptions& base) noexcept {
+  BackendOptions o = base;
+  o.steady = true;
+  return o;
+}
+
+std::uint64_t ReaderLoop::step() noexcept {
+  const std::uint64_t now = sys_.now_us();
+  const std::uint64_t dt = last_us_ == 0 || now < last_us_ ? 0 : now - last_us_;
+  last_us_ = now;
+  ++steps_;
+  run_task(body_, FrameCtx{now, static_cast<std::uint32_t>(dt > 0xFFFF'FFFFu ? 0xFFFF'FFFFu : dt)});
+  const std::uint64_t took = sys_.now_us() - now;
+  return took + 1'000 >= tick_us_ ? 1'000 : tick_us_ - took;
+}
+
 const char* to_string(TaskState s) noexcept {
   switch (s) {
     case TaskState::Registered: return "registered";
@@ -61,7 +85,7 @@ void GalTask::run(const GameThread& gt, const FrameCtx& frame) {
     case TaskState::Registered: {
       // The first tick: the group at the layout's index must carry the layout's name (ARCH §3.2's FirstTick).
       status_.first_tick_us.store(frame.qpc_now_us, std::memory_order_relaxed);
-      const GroupCheck check = backend_.first_tick(gt);
+      const GroupCheck check = backend_.first_tick(gt, opts_.provider == FrameProvider::GameTask);
       status_.group_ok.store(check.ok, std::memory_order_relaxed);
       if (check.found_at) status_.group_found_at.store(static_cast<std::int32_t>(*check.found_at), std::memory_order_relaxed);
       last_us_ = frame.qpc_now_us;
@@ -164,6 +188,9 @@ void GalTask::build(const GameThread& gt, const FrameCtx& frame) {
   status_.throttled.store(throttled_, std::memory_order_relaxed);
   status_.mode.store(backend_.last_mode(), std::memory_order_relaxed);
   status_.vtable_skips.store(backend_.vtable_skips(), std::memory_order_relaxed);
+  status_.torn.store(backend_.steady().torn, std::memory_order_relaxed);
+  status_.held.store(backend_.steady().held, std::memory_order_relaxed);
+  status_.unconfirmed_faults.store(backend_.steady().unconfirmed, std::memory_order_relaxed);
   snap->seq = seq_;
   snap->mono_ms = frame.qpc_now_us / 1000;
   snap->build = d_.profile().key();

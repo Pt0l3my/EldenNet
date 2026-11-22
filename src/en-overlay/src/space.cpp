@@ -39,7 +39,9 @@ const char* start_words(pw::InitState s) noexcept {
     case pw::InitState::WaitEngine: return "Waiting for the game to finish starting";
     case pw::InitState::Discover: return "Finding what it reads in the game";
     case pw::InitState::Register: return "Joining the game's frame";
-    case pw::InitState::FirstTick: return "Checking its first reading";
+    case pw::InitState::Reader: return "Starting its reader";
+    case pw::InitState::FirstTick:
+    case pw::InitState::FirstReading: return "Checking its first reading";
     case pw::InitState::Ready: return "Started";
     case pw::InitState::Inert: return "Stopped: its first reading failed its checks";
     case pw::InitState::Banner: return "Stopped (Home's Problems say why)";

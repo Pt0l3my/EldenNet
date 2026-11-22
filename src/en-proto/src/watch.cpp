@@ -37,6 +37,10 @@ const char* to_string(InitState s) noexcept {
       return "banner";
     case InitState::Exit:
       return "exit";
+    case InitState::Reader:
+      return "reader";
+    case InitState::FirstReading:
+      return "first_reading";
   }
   return "unknown";
 }
@@ -105,6 +109,8 @@ const char* to_string(ThreadKind t) noexcept {
       return "init";
     case ThreadKind::Other:
       return "other";
+    case ThreadKind::Reader:
+      return "reader";
   }
   return "unknown";
 }

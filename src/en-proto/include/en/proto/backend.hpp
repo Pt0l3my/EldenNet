@@ -21,6 +21,8 @@ enum class ReadError : std::uint8_t {
   BudgetSpent,  // the tick's copies or bytes ran out: this snapshot is abandoned, and the next carries gap (ARCH §6.5)
   Faulted,      // a structural read faulted: this snapshot is abandoned, and the fault counted (ARCH §6.5, §6.7)
   Ended,        // the source has no more: a recording's end
+  Unsteady,     // read from a thread of our own (O101): the structure changed while it was read, or a change of the
+                // lifecycle is not yet seen twice; this snapshot is dropped, nothing is counted, the next carries gap
 };
 
 // Why a command was not applied.

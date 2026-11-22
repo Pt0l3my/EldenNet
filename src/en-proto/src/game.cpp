@@ -112,6 +112,7 @@ const char* to_string(ReadError v) noexcept {
     case ReadError::BudgetSpent: return "BudgetSpent";
     case ReadError::Faulted: return "Faulted";
     case ReadError::Ended: return "Ended";
+    case ReadError::Unsteady: return "Unsteady";
   }
   return "Inert";
 }

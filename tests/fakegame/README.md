@@ -81,7 +81,10 @@ same table when those parts land.
 The game-access layer in game (part 4) joined it with `tests/galtest/galtest.dll`, our own test DLL, which the fake
 game loads (`--load ready:` or `window:`) and which does what EldenNet's T1 and task will do: the gate, discovery with
 its retries, the one registration, the task's reads at 4 Hz, the probe's slot searches and, on request, fault injection
-(`EN_GALTEST_FAULT`) and the ReadProcessMemory copy (`EN_GALTEST_COPY=rpm`). Each `gal-*` case first makes gal/ as the
+(`EN_GALTEST_FAULT`) and the ReadProcessMemory copy (`EN_GALTEST_COPY=rpm`). With `EN_GALTEST_FRAME=own` (the
+`gal-own-*` cases) it does instead what EldenNet v1's start does since O101: a reader thread of its own steps the task,
+ten snapshots a second with steady reading, and nothing is registered with the fake game or called in it; those cases
+check the same truth, and that the hub ran no task of ours and none of our slots was called. Each `gal-*` case first makes gal/ as the
 derivation round would (`make_gal`): `probe-exe --derive` on `fakegame.exe` with the leads and the AOB statics' slots,
 then builds.toml, patterns.toml and the layout from derive.json and `gal-layout.toml.in`, whose offsets it checks
 against `--describe`; then it runs the fake game with the DLL and checks the `GALTEST` lines: every item where

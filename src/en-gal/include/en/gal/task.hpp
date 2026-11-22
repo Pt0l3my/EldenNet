@@ -41,6 +41,9 @@ class TaskIo {
 };
 
 struct TaskOptions {
+  // Who runs the body (sys.hpp): the game's own task, whose first tick checks its group, or a thread of our own,
+  // which is in no group. own_thread_options() gives the latter's settings.
+  FrameProvider provider = FrameProvider::GameTask;
   std::uint64_t period_us = 250'000;            // 4 Hz
   std::uint64_t throttled_period_us = 500'000;  // 2 Hz
   std::uint64_t max_dt_us = 1'000'000;          // a hitch never counts for more than 1 s
@@ -50,6 +53,11 @@ struct TaskOptions {
   std::uint32_t max_commands = 16;              // per invocation (ARCH §7.2, impl)
   std::uint32_t flag_frame_every = 4;           // snapshots
 };
+
+// The task's and the backend's options for a reader on a thread of our own (proposal 0005 §10; O101 (b)): a snapshot
+// about ten times a second (five while throttled), no group to check, and steady reading (backend.hpp).
+[[nodiscard]] TaskOptions own_thread_options() noexcept;
+[[nodiscard]] BackendOptions own_thread_backend(const BackendOptions& base = {}) noexcept;
 
 enum class TaskState : std::uint8_t {
   Registered,  // waiting for the first tick
@@ -83,6 +91,11 @@ struct TaskStatus {
   std::array<std::atomic<proto::GroupState>, proto::kGroupCount> groups{};  // each group's state, after every tick
   std::atomic<ReadMode> mode{ReadMode::Dormant};  // the last snapshot's
   std::atomic<std::uint64_t> vtable_skips{0};
+  // Steady reading (a reader on a thread of our own): readings dropped because the structure changed while they were
+  // read, or while a change of the lifecycle waited for its second sighting; and group faults not seen twice running.
+  std::atomic<std::uint64_t> torn{0};
+  std::atomic<std::uint64_t> held{0};
+  std::atomic<std::uint64_t> unconfirmed_faults{0};
   Histogram task_us;   // every invocation, µs
   Histogram build_us;  // every snapshot build, µs
 };
@@ -122,6 +135,30 @@ class GalTask final : public TaskBody {
   std::array<std::shared_ptr<const std::vector<std::uint32_t>>, 4> holdback_{};  // C5's holdback
   proto::GameCommand cmd_;  // the drain's one slot, kept so that taking a command allocates nothing
   proto::RenderFeed feed_;
+};
+
+// The frame service's own-thread provider (proposal 0005 §9.4, §10; O101 (b)): the loop a thread of EldenNet's own
+// runs. Each step runs the body once, as the game's task would be run once a frame, through the same guarded entry
+// (run_task, which alone issues the reading thread's token), with the clock's time and the time since the last step.
+// It calls nothing of the game and writes nothing to it. Portable: the DLL owns the thread, the tests step it.
+class ReaderLoop {
+ public:
+  ReaderLoop(SysLayer& sys, TaskBody& body, std::uint64_t tick_us = 33'333) noexcept
+      : sys_(sys), body_(body), tick_us_(tick_us < 1'000 ? 1'000 : tick_us) {}
+  ReaderLoop(const ReaderLoop&) = delete;
+  ReaderLoop& operator=(const ReaderLoop&) = delete;
+
+  // One step. Answers how long to wait before the next, in µs: the tick less what the step took, 1 ms at least, so a
+  // slow step never starts a burst.
+  [[nodiscard]] std::uint64_t step() noexcept;
+  [[nodiscard]] std::uint64_t steps() const noexcept { return steps_; }
+
+ private:
+  SysLayer& sys_;
+  TaskBody& body_;
+  std::uint64_t tick_us_;
+  std::uint64_t last_us_ = 0;
+  std::uint64_t steps_ = 0;
 };
 
 // Registers the task (ARCH §3.2's Register): the task hub's instance read from its static through the image, then the

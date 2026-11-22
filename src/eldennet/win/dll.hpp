@@ -3,7 +3,8 @@
 // (R14: the DLL holds no object with a destructor that runs at detach, and no static with a dynamic initialiser), the
 // log, the paths, and the threads' entries. Windows and clang-cl only.
 //
-// Threads (ARCH §1.2): T1 init (boot.cpp), T2 the game thread (the task, through en-gal's trampoline), T6 the core
+// Threads (ARCH §1.2): T1 init (boot.cpp), T2 the reader (boot.cpp: a thread of our own that steps the task; the game's
+// own thread never runs our code in v1, O101), T6 the core
 // (shell.cpp), T10 the watcher (watcher.cpp: the anti-cheat and ersc.dll checks every 60 s) and T11 the log writer
 // (logger.cpp). No other thread is made. T1 connects to GraceUI (overlay.cpp, en-overlay) and T6 alone calls it after.
 #ifndef NOMINMAX
@@ -122,7 +123,8 @@ void ready_ms(std::uint32_t ms) noexcept;
 void items(std::uint32_t resolved, std::uint32_t total, std::uint32_t passes) noexcept;
 void counts(std::uint64_t snapshots, std::uint64_t faults, std::uint64_t tripped, std::uint32_t p99) noexcept;
 void core(std::uint32_t phase, std::uint32_t level, std::uint32_t banner, std::uint32_t flags) noexcept;
-void game_thread(std::uint32_t tid) noexcept;
+void game_thread(std::uint32_t tid) noexcept;    // the game's own: a registered task's (R1), else its window's
+void reader_thread(std::uint32_t tid) noexcept;  // T2, EldenNet's reader
 void init_thread(std::uint32_t tid) noexcept;
 [[nodiscard]] en::proto::watch::Spike spike() noexcept;
 [[nodiscard]] bool crash_requested() noexcept;

@@ -390,6 +390,37 @@ pointer, a bit, ...), so a layout says what the game holds and the reader widens
   2 Hz and 16 characters within 25 m, and 60 s of fast builds end it. `TaskStatus` holds C13's histograms (each
   invocation and each build) and the counters, as atomics. `install_task` reads the hub's instance from its static
   through the image and makes the one registration.
+- **The frame service: a reader on a thread of our own** (proposal 0005 §9.4, §10; O101 (b); `task.hpp`,
+  `backend.hpp`, `sys.hpp`'s `FrameProvider`). v1 reads the game from a thread of EldenNet's own, with no call into
+  the game and nothing written to it; the game's own task stays a later service. `ReaderLoop(sys, body, tick_us)` is
+  that provider's loop: each `step()` runs the body once through `run_task` (the one place that issues the reading
+  thread's token), with the clock's time and the time since the last step, and answers how long to wait before the
+  next (the tick less what the step took, 1 ms at least). The DLL owns the thread; the tests step it on FakeSys.
+  `own_thread_options()` gives the task's settings for it (a snapshot about ten times a second, five while
+  throttled, and no group check at the first tick: such a reader is in no group of the game's), and
+  `own_thread_backend()` turns on **steady reading** (`BackendOptions::steady`), for a reader that is not in step
+  with the frame: (1) every static's instance, every object's table of methods and the near list's two ends are
+  remembered as the snapshot is read and read again when it is built, and one that changed drops the reading
+  (`ReadError::Unsteady`, counted as `torn`); (2) a change of the lifecycle (the main player there or not, the
+  screen) is published at its second sighting running, the first reading that shows it dropped (`held`), so a blip
+  of one reading is never published; (3) a group's hard fault counts toward its breaker only when the group faulted
+  in the reading before too (`unconfirmed` otherwise). A dropped reading counts against no group, and the next
+  snapshot carries `gap`. Phase B and a playthrough's start are concluded only from a reading whose structure held.
+  `DiscoveryOptions::frame = FrameProvider::OwnThread` makes discovery ask for no registration function, no task hub
+  and no `[task]` in the layout, and ready then means ready to read. `TaskStatus` carries `torn`, `held` and
+  `unconfirmed_faults`. With it the FD4 getter is never called either: a site without a name stays unnamed, so names
+  come from the name layout or from the build's table. eldennet.dll starts this way (`boot.cpp`: T2, the reader);
+  `install_task`, the game's task, is no part of a v1 start, and stays for the probe's R1 round and the later task
+  service (proposal 0005 §9.6).
+- **Discovery through the build's table** (proposal 0005 §7.1, §9.1; `discovery.hpp`, `resolve.hpp`). A layout of
+  schema 2 that holds `[item.*]` entries is loaded against the catalogue (`DiscoveryOptions::ids`, gal/ids.toml's
+  text; refused without it), and `Library` checks each entry against the image as loaded (placement, witnesses).
+  Each role whose id the table holds takes its place from there, `ItemResult::from_table`, and no pattern, recipe,
+  slot or walk looks for it; an entry whose check fails is refused alone (`why` is the check's word, such as
+  `witness_elsewhere`), its place handed out to no one, and a required one stops the start. A class the table holds
+  gives its vtable set, to the entry. What the table does not hold yet is found as before, so the table can grow id
+  by id; with every static in it, a start scans for nothing. `DiscoveryReport::table_items` and `table_refused`
+  count them.
 - **`probe.hpp`: the probe option** (`EN_PROBE` only). `SlotSearch` finds a static's slot as the data slot whose
   instance has its class's vtable (candidates read on T1 from the image's writable data, `heap_slots`, checked on the
   game thread within the tick's budget), for a layout class or for a vtable set of the caller's (R1, before any

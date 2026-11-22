@@ -1,8 +1,13 @@
 // galtest.dll (CMakeLists.txt): EldenNet's T1 and task in miniature, for the game-access layer's tests in the fake
 // game. DllMain only starts a thread (ARCH §3.1); that thread gates the image, runs discovery with its retries,
-// registers the task once and then reports, every 500 ms, numbers only: what was found, what the snapshots hold, the
-// groups' states, the task's cost. Its settings come from the environment, which the harness sets:
-//   EN_GALTEST_DIR      the gal/ folder (builds.toml, patterns.toml, layouts/; recipes.toml if there) (required)
+// registers the task once (or, with EN_GALTEST_FRAME=own, starts a reader thread of its own and registers nothing)
+// and then reports, every 500 ms, numbers only: what was found, what the snapshots hold, the groups' states, the
+// task's cost. Its settings come from the environment, which the harness sets:
+//   EN_GALTEST_DIR      the gal/ folder (builds.toml, patterns.toml, layouts/; recipes.toml and ids.toml if there)
+//                       (required)
+//   EN_GALTEST_FRAME    game (default): the game's task, registered once, as the probe's R1 round does; own: the frame
+//                       service's own-thread provider, as EldenNet v1 starts (proposal 0005 §9.4; O101): a reader
+//                       thread, no registration, no call into the game
 //   EN_GALTEST_STATUS   a file the lines are appended to as well (a run with no console, on Windows)
 //   EN_GALTEST_COPY     seh (default) or rpm: the copy primitive (ARCH §6.5, S0-D)
 //   EN_GALTEST_FAULT    <group>:<every>: the probe's fault injection, from EN_GALTEST_FAULT_AFTER s in the world
@@ -404,6 +409,23 @@ std::optional<Group> group_named(const std::string& name) {
   return std::nullopt;
 }
 
+// The reader thread of EN_GALTEST_FRAME=own: en-gal's ReaderLoop, stepped for the life of the process.
+struct ReaderStart {
+  SysLayer* sys = nullptr;
+  TaskBody* body = nullptr;
+};
+
+DWORD WINAPI reader_main(void* arg) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::Task, DWORD{1}, [&]() -> DWORD {
+    const ReaderStart start = *static_cast<const ReaderStart*>(arg);
+    ReaderLoop loop(*start.sys, *start.body);
+    for (;;) {
+      const std::uint64_t wait_us = loop.step();
+      Sleep(static_cast<DWORD>((wait_us + 999) / 1000));
+    }
+  });
+}
+
 DWORD WINAPI t1(void*) noexcept {
   return en::proto::ffi_guard(en::proto::Component::DllMain, DWORD{1}, [] {
     const std::string status_file = env("EN_GALTEST_STATUS");
@@ -449,6 +471,10 @@ DWORD WINAPI t1(void*) noexcept {
     DiscoveryOptions options;
     options.mode = LayoutMode::Release;
     if (const auto recipes = read_file(dir + "\\recipes.toml")) options.recipes = *recipes;  // the accessor's shape
+    if (const auto ids = read_file(dir + "\\ids.toml")) options.ids = *ids;  // the catalogue, for a layout's table
+    const bool own = env("EN_GALTEST_FRAME") == "own";
+    if (own) options.frame = FrameProvider::OwnThread;
+    line("frame provider=%s", own ? "own_thread" : "game_task");
     Retried found = discover_with_retries(*sys, *gated, *patterns, *layout, options, [&](std::uint64_t at_ms) {
       while (sys->now_us() - t0 < at_ms * 1000) Sleep(100);
     });
@@ -481,8 +507,8 @@ DWORD WINAPI t1(void*) noexcept {
     }
     galtest::watch::state(IS::WaitEngine);
     // Readiness: the task hub's instance non-null (polled every 100 ms for at most 30 s).
-    const std::uint64_t hub_rva = *d->address(roles::Item::TaskHub) - d->module_base();
-    for (int i = 0; i < 300; ++i) {
+    const std::uint64_t hub_rva = d->address(roles::Item::TaskHub).value_or(d->module_base()) - d->module_base();
+    for (int i = 0; i < 300 && hub_rva != 0; ++i) {
       std::array<std::byte, 8> v{};
       std::uint64_t inst = 0;
       if (sys->image().read(hub_rva, v)) std::memcpy(&inst, v.data(), 8);
@@ -491,7 +517,8 @@ DWORD WINAPI t1(void*) noexcept {
     }
     static Summary summary;  // constant-initialised atomics; lives for the process
     auto* io = new Io(summary);
-    auto* task = new GalTask(*sys, *d, *io);
+    auto* task = own ? new GalTask(*sys, *d, *io, own_thread_options(), own_thread_backend({}))
+                     : new GalTask(*sys, *d, *io);
     auto* body = new Probe(*task, *sys, *d);
     const std::string fault = env("EN_GALTEST_FAULT");
     if (const std::size_t colon = fault.find(':'); colon != std::string::npos) {
@@ -501,14 +528,31 @@ DWORD WINAPI t1(void*) noexcept {
       }
     }
     galtest::watch::install_filter();
-    galtest::watch::state(IS::Register);
-    const auto registered = install_task(*sys, *d, *body);
-    line("registered ok=%d error=%s", registered ? 1 : 0, registered ? "none" : to_string(registered.error()));
-    if (!registered) {
-      stop(IS::Banner);
-      return DWORD{6};
+    if (own) {
+      // As EldenNet's T1 does: the reader made suspended, the stack table made again with its stack in it and without
+      // this thread's, then let go. Nothing is registered with the game and nothing of it is called.
+      galtest::watch::state(IS::Reader);
+      auto* start = new ReaderStart{sys, body};
+      const HANDLE reader = CreateThread(nullptr, 0, &reader_main, start, CREATE_SUSPENDED, nullptr);
+      const std::size_t stacks = reader != nullptr ? sys->rescan_stacks() : 0;
+      const bool started = reader != nullptr && ResumeThread(reader) != static_cast<DWORD>(-1);
+      if (reader != nullptr) CloseHandle(reader);
+      line("reader started=%d stacks=%zu", started ? 1 : 0, stacks);
+      if (!started) {
+        stop(IS::Banner);
+        return DWORD{6};
+      }
+      galtest::watch::state(IS::FirstReading);
+    } else {
+      galtest::watch::state(IS::Register);
+      const auto registered = install_task(*sys, *d, *body);
+      line("registered ok=%d error=%s", registered ? 1 : 0, registered ? "none" : to_string(registered.error()));
+      if (!registered) {
+        stop(IS::Banner);
+        return DWORD{6};
+      }
+      galtest::watch::state(IS::FirstTick);
     }
-    galtest::watch::state(IS::FirstTick);
     // The core's first commands: a watch list, look-ups of text and rows.
     io->push_command(GameCommand{GameCommand::SetWatchFlags{
         9, std::make_shared<const std::vector<std::uint32_t>>(std::vector<std::uint32_t>{100, 7005, 4321010, 999000})}});
@@ -615,7 +659,7 @@ DWORD WINAPI t1(void*) noexcept {
            "flag_frames=%llu loading_only=%llu dormant=%llu commands=%llu renders=%llu render_present=%llu "
            "throttled=%d task_p50=%llu task_p99=%llu task_max=%llu build_p99=%llu build_max=%llu copies=%llu "
            "fault_copy=%llu fault_injected=%llu fault_stack=%llu fault_budget=%llu vtable_skips=%llu "
-           "slot_calls=%llu,%llu,%llu allocs=%llu frees=%llu groups=%s mode=%s",
+           "slot_calls=%llu,%llu,%llu allocs=%llu frees=%llu groups=%s mode=%s torn=%llu held=%llu unconfirmed=%llu",
            to_string(st.state.load()), to_string(st.inert_why.load()), st.group_ok.load() ? 1 : 0,
            st.group_found_at.load(), static_cast<unsigned long long>(elapsed_ms),
            static_cast<unsigned long long>(st.invocations.load()),
@@ -638,7 +682,9 @@ DWORD WINAPI t1(void*) noexcept {
            static_cast<unsigned long long>(sys->slot_calls(0)), static_cast<unsigned long long>(sys->slot_calls(1)),
            static_cast<unsigned long long>(sys->slot_calls(2)), static_cast<unsigned long long>(g_news.load()),
            static_cast<unsigned long long>(g_deletes.load()), groups_text(st).c_str(),
-           to_string(st.mode.load()));
+           to_string(st.mode.load()), static_cast<unsigned long long>(st.torn.load()),
+           static_cast<unsigned long long>(st.held.load()),
+           static_cast<unsigned long long>(st.unconfirmed_faults.load()));
       line("world screen=%lld lobby=%lld role=%lld player_set=%lld chars=%lld dead=%lld near_param=%lld level=%lld "
            "runes=%lld hp=%lld/%lld slot=%lld play_ms=%lld place=%lld hour=%lld minute=%lld hud=%lld subtitles=%lld "
            "boss_bars=%lld gaps=%lld published=%llu dropped=%llu full=%llu",
