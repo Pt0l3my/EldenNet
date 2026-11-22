@@ -397,6 +397,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 372 | 2026-11-22 | R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use | DECIDED | #engine #lodestar #probe |
 | 373 | 2026-11-22 | A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll | FACT | #graceui #abi |
 | 374 | 2026-11-22 | A static with no class to name it by is found by what its object holds: save_data by the play time | METHOD | #lodestar #l6 |
+| 375 | 2026-11-22 | What the profile editor needs that GraceUI lacked: a text field in game, master-detail, a topic per row, a longer deadline | FACT | #graceui #pages |
+| 376 | 2026-11-22 | The profile editor is the one content editor in v1, by O43; its rules are EldenNet's since G20 | DECIDED | #graceui #editor |
+| 377 | 2026-11-22 | EldenNet's answers to GraceUI's proposal 0010: the eight kinds suffice, with keyed and locked list items, unset fields and file-level messages | DECIDED | #engine #editor #pages |
 
 ## Entries
 
@@ -6084,3 +6087,61 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   code's references to the slot are its sites and witnesses. This is proposal 0005 §6.1's invariant recipe, which the
   lead in `gal/leads.toml` has asked for since R0c. Four sessions gave the same slot and offset before the round was let
   write it (the sixth round, engine 48e5003, package 0.1.0-lodestar.9).
+
+### 375. What the profile editor needs that GraceUI lacked: a text field in game, master-detail, a topic per row, a longer deadline
+
+`2026-11-22` · FACT · `#graceui` `#pages` · refs: GraceUI's proposal 0010 §1, GraceUI's D57, GraceUI's D169, GraceUI's D195, S7.2.a
+
+- GraceUI had no text field in game (D57 is designed, not built), and neither view drew master-detail. There was no
+  topic per row, so the old §6.5's `named/<id>`, `journal/<id>` and `conversation/<id>` could not be declared. Answers
+  had a 10 s deadline, against the draft helper's 60 s.
+- A command's answer body (`result.body`) already goes only to the view that asked, and is never kept. So check
+  messages and drafts need no new route.
+
+### 376. The profile editor is the one content editor in v1, by O43; its rules are EldenNet's since G20
+
+`2026-11-22` · DECIDED · `#graceui` `#editor` · refs: GraceUI's D213, G38, O43, O46, O86, S7.2.a
+
+- GraceUI's D2 gets one exception, D213: the profile editor. Content packs stay read-only. The editor's pages, fields,
+  checks, commands and draft helper are EldenNet's (S7.2.b, NPC §4.7), and so are the rules the needs list asked
+  GraceUI to change: SP1's subjects and the player's own text, SP4's people met, and PV4's draft text (PAGES §4.8,
+  §4.9).
+- The needs list was brought to O46 and O86 in proposal 0010 §2. What GraceUI owes was put to the owner as G38:
+  topic families, master-detail in both views, the editor block, slow commands, and the text field in game (protocol
+  1.5).
+
+### 377. EldenNet's answers to GraceUI's proposal 0010: the eight kinds suffice, with keyed and locked list items, unset fields and file-level messages
+
+`2026-11-22` · DECIDED · `#engine` `#editor` `#pages` · refs: GraceUI's proposal 0010 §6, NPC§4.5, NPC§4.7, ARCH§1.3, O46, S7.2.b
+
+- (1) **The eight kinds cover NPC §4.5 and O46**, mapped as follows:
+  - `line`: `brief`, `display_name_fallback`.
+  - `prose`: `identity`, `public.*`, `private.*`, `voice.*`, `allegiance`, `home`, `instructions`, and the Tarnished's
+    two fields.
+  - `choice`: `register`, `speech`, `pronouns`.
+  - `pick`: `base`.
+  - `number`: `words_max` and `reply_words_max`.
+  - `switch`: `replies`, `ambient`.
+  - `list`: `knows`, `lexicon`, `subjects` (with the shipped list as reference), and one per seed key, at most 3.
+  - `shown`: `[[seen]]`'s "Met".
+  - A `knows_when` entry is a list item with a world stage and its text.
+
+  Two additions:
+  - A list item may carry an opaque `key` of EldenNet's, echoed back. This keeps an entry's per-item fields (a
+    `knows_when`'s `spoiler` and `lexicon`) across reorders.
+  - A list item may carry `locked`, shown and movable but not editable, for a hand-written `when` the picker does not
+    offer. It is sent back unchanged.
+- (2) **`doc` as {field id: value} suits C17.** Field ids may be dotted (`public.summary`, `seed.greet_player`).
+  EldenNet's handler merges the doc with what the editor never shows (`schema`, `base_hash`, `[[seen]]`, hand-only keys
+  and locked items) and writes the TOML into `ProfileWrite`'s text. One addition: `null` means "not set here", distinct
+  from empty, so a layer can leave a field to the shipped profile.
+- (3) **Messages as {field, item, level, words} and `conflict` for a stale rev suit `profile.check` and `profile.save`.**
+  - A message with no `field` is about the whole file (a newer schema, the 8 KB cap) and shows at the top.
+  - The save is answered when T10's ProfileResult comes back on C11, well within 10 s. A full C17 answers busy.
+  - The member's body is then republished with the new rev.
+- (4) **{draft, notice?} as a slow command suits the helper** (20 s to the first token, 60 s in all, within 90 s). If the
+  view unwatches the member while a draft runs, EldenNet cancels its call, using the UNWATCHED event it already polls,
+  so GraceUI needs no cancel.
+- EldenNet agrees with GraceUI's recommendations to the owner on G38: (1) (a) all of it now; (2) (a) unsaved edits kept
+  in the menu's memory, never on disk; (3) (a) prose as one paragraph, since every player field is one paragraph of at
+  most 60 words.

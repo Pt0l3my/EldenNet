@@ -419,14 +419,19 @@ Work beside the engine and the increments, and the owner's housekeeping.
 ### S7.2 The profile editor pass [next]
 
 - refs: GraceUI:docs/profile-editor-needs.md, O43
-- S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [next]
-  - refs: O43, O46, O86
+- S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [done]
+  - refs: O43, O46, O86, GraceUI:D213, WHY§375, WHY§376
   - gives: the needs date from 2026-11-07, before O46 settled the bio the player's own profiles follow (the Tarnished's
     own included) and O86 retired the lints against fixture states (PL7) they assume; SP1's `subjects` came with
-    GraceUI's O46 fold on 2026-11-16.
+    GraceUI's O46 fold on 2026-11-16. Done on 2026-11-22 as a design pass (GraceUI feat/foundations f9c4d17): D2's
+    exception recorded (D213); the needs brought to G20, O46 and O86 (GraceUI's proposal 0010 §2); the components
+    GraceUI owes put to the owner as G38. EldenNet's answers to proposal 0010 §6 are WHY§377.
 - b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
-  - needs: a
-  - refs: PAGES§4.6
+  - needs: a, c
+  - refs: PAGES§4.6, WHY§377
+- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [next]
+  - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
+  - gives: put to the owner on 2026-11-22; waits for G38.
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
