@@ -212,6 +212,14 @@ GraceUiStatus Overlay::badge(std::string_view text) noexcept {
   return notice(kBadgeKey, text, GRACEUI_TONE_NORMAL, badge_, badge_length_);
 }
 
+GraceUiStatus Overlay::note(std::uint32_t key, std::string_view text, std::uint32_t duration_ms) noexcept {
+  if (lost_) return GRACEUI_NOT_CONNECTED;
+  const std::size_t n = std::min<std::size_t>(text.size(), GRACEUI_NOTICE_TEXT_MAX);
+  const GraceUiStatus status = api_.notice(me_, text.substr(0, n), GRACEUI_TONE_WARNING, key, duration_ms);
+  if (status == GRACEUI_NOT_CONNECTED) lost_ = true;
+  return status;
+}
+
 GraceUiStatus Overlay::world(std::uint32_t flags) noexcept {
   if (lost_ || notices_only_ || !caps_world_) return GRACEUI_NOT_YET;
   if (world_sent_ && flags == world_) return GRACEUI_OK;

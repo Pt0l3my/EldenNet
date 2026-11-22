@@ -490,6 +490,14 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
       log(Line("notice").word("what", "badge").flag("up", cs.badge).num("status", st));
       link->badge = cs.badge;
     }
+    // The content's first problem, once, for 15 s (NPC §4.7: the file, the key and the line, never the text).
+    if (!s.content_notice.empty()) {
+      const GraceUiStatus st = o.note(en::overlay::kContentKey, s.content_notice, 15000);
+      if (st != GRACEUI_FULL) {
+        log(Line("notice").word("what", "content").num("status", st));
+        s.content_notice.clear();
+      }
+    }
     if (o.notices_only()) return true;  // the anti-cheat's notice-only mode: nothing else works (D88)
 
     // EldenNet's claims as a world-state provider.

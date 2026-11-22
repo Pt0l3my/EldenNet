@@ -182,6 +182,7 @@ struct Shell {
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
   std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
+  std::string content_notice;                    // T6's: the content's first problem in words, for one notice
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;

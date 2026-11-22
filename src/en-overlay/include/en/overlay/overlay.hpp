@@ -34,6 +34,7 @@ inline constexpr std::string_view kId = "eldennet";  // EldenNet's id with Grace
 inline constexpr std::string_view kName = "EldenNet";
 inline constexpr std::uint32_t kBannerKey = 1;    // the banner's notice (D134)
 inline constexpr std::uint32_t kBadgeKey = 2;     // the pause badge's
+inline constexpr std::uint32_t kContentKey = 5;   // the content's problems (3 and 4 are the toasts', surfaces.hpp)
 inline constexpr std::uint32_t kKeyF11 = 0x7A;    // VK_F11: the debug view's default (D155)
 inline constexpr std::uint32_t kKeyPause = 0x13;  // VK_PAUSE: the Mark's, the launcher's own key (O90)
 inline constexpr std::string_view kActionView = "debug-view";
@@ -139,6 +140,9 @@ class Overlay {
   GraceUiStatus badge(std::string_view text) noexcept;
   // EldenNet's claims as a world-state provider (world.hpp), sent when they change.
   GraceUiStatus world(std::uint32_t flags) noexcept;
+  // A notice of its own under `key` (not the banner's, the badge's or the toasts'), shown for `duration_ms`: the
+  // content's problems (NPC §4.7). Works in the notice-only mode too.
+  GraceUiStatus note(std::uint32_t key, std::string_view text, std::uint32_t duration_ms) noexcept;
   // The Mark's hotkey, Pause, registered now (connected, with the hotkeys cap): GRACEUI_OK once registered and bound;
   // GRACEUI_UNBOUND once registered but unbound (D164: another mod's hotkey took Pause first), a success that carries
   // its id: the launcher's Pause then stays the Mark, and only a bound Mark asks for it. Asked again, it answers the

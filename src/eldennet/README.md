@@ -170,10 +170,13 @@ After each wake, once T1 has published the connection:
   end is one line of words and numbers (`selftest result=passed verdict=quick … first_token_ms=… tps=…`,
   `models_list providers=… passed=…`). en-llm's own log lines are not taken (a server's message could reach them).
 - **The first conversation** (`conversation.cpp`, `ai.cpp`, `overlay.cpp`; WHY§364, part C): T1, on the main path,
-  reads the overrides folder (`%APPDATA%\EldenNet\overrides\`, DESIGN §11.4: every `.toml`, each within its cap) and
+  reads the overrides folder (`%APPDATA%\EldenNet\overrides\`, DESIGN §11.4: every `.toml`, `.md` and `.j2`, each
+  within its cap) and
   the realm, the game's; `ELDENNET_TEST_REALM=eval` in the environment is the tests' switch, which a probe build alone
   takes and the release DLL refuses (`realm asked=eval accepted=0`), so a test persona never resolves in a player's
-  game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=…`). Each step's
+  game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=… bound=…
+  warnings=…`); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
+  line in fixed words, never the text (NPC §4.7). Each step's
   requests go to en-llm's handle (made at the first that needs one), its cancels cancel them, and the handle's events
   for the conversation's ids go back to the core; its health (the dialogue slot usable) is the core's NetHealth. After
   the step, `poll`'s events of the surfaces (the talk key, Tab, the box's typing) go to the core in the same wake and

@@ -4,7 +4,10 @@
 //
 // - The content: the shipped index and records are built into en-core (builtin_content), and the player's overrides
 //   folder, %APPDATA%\EldenNet\overrides\ (DESIGN §11.4: the same paths, each file there replacing the shipped one
-//   whole), is read by T1 on the main path, every .toml in it, each within its cap. T6 loads them at its next wake.
+//   whole), is read by T1 on the main path, every .toml, .md and .j2 in it (records, indexes, prompts), each within
+//   its cap. T6 loads them at its next wake. The content's warnings (en-core's, once it keeps them: a player's file past
+//   a cap, and others) are logged by count and shown once as a notice that names the file, the key and the line, never
+//   the text (NPC §4.7).
 // - The realm (part B, identity.hpp): the game's. The tests' own switch, ELDENNET_TEST_REALM=eval in the environment,
 //   is taken by a probe build alone (the tests' DLL; CI refuses EN_PROBE in a release build) and refused by the
 //   release DLL, which logs that it was asked: a test persona never resolves in a player's game, whatever their
@@ -66,6 +69,25 @@ const char* kind_word(en::core::Commit::Kind k) noexcept {
   return "none";
 }
 
+// The pack's kinds of file: records and indexes (.toml), prompts and their parts (.md, .j2).
+bool content_file(const std::wstring& name) {
+  for (const std::wstring_view ext : {std::wstring_view(L".toml"), std::wstring_view(L".md"), std::wstring_view(L".j2")}) {
+    if (name.size() > ext.size() && std::wstring_view(name).substr(name.size() - ext.size()) == ext) return true;
+  }
+  return false;
+}
+
+// The core's content warnings, where its version keeps them (en-core's content_warnings(), from the first
+// conversation's joining of parts A and B); none where it does not.
+template <class C>
+std::vector<en::core::ContentError> warnings_of(const C& core) {
+  if constexpr (requires { core.content_warnings(); }) {
+    return std::vector<en::core::ContentError>(core.content_warnings().begin(), core.content_warnings().end());
+  } else {
+    return {};
+  }
+}
+
 void read_folder(const std::wstring& root, const std::wstring& rel, int depth, ContentRead& out) {
   WIN32_FIND_DATAW f{};
   const std::wstring pattern = root + (rel.empty() ? L"" : L"\\" + rel) + L"\\*";
@@ -83,7 +105,7 @@ void read_folder(const std::wstring& root, const std::wstring& rel, int depth, C
       } else {
         ++out.refused;
       }
-    } else if (name.size() > 5 && name.compare(name.size() - 5, 5, L".toml") == 0) {
+    } else if (content_file(name)) {
       if (out.overrides.size() >= kMaxOverrideFiles) {
         ++out.refused;
         continue;
@@ -133,10 +155,22 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept {
     std::vector<en::core::ContentFile> files = en::core::builtin_content();
     for (const en::core::ContentFile& f : c->overrides) files.push_back(f);
     const std::vector<en::core::ContentError> errors = core.load_content(files, c->realm);
+    const std::vector<en::core::ContentError> warnings = warnings_of(core);
     // The errors by count alone: their words name the file's keys, and the log takes words of its own shape only.
     log(Line("content_load").flag("ok", errors.empty()).num("files", files.size()).num("errors", errors.size())
-            .num("personas", core.directory().size()).num("bound", core.directory().index().rows()),
-        errors.empty() ? LogLevel::Info : LogLevel::Warn);
+            .num("personas", core.directory().size()).num("bound", core.directory().index().rows())
+            .num("warnings", warnings.size()),
+        errors.empty() && warnings.empty() ? LogLevel::Info : LogLevel::Warn);
+    // Shown to the player once (NPC §4.7): the first warning's file, key and line in fixed words, and how many more.
+    // Draft words, for review.
+    const std::vector<en::core::ContentError>& shown = !errors.empty() ? errors : warnings;
+    if (!shown.empty()) {
+      std::string text = std::string(!errors.empty() ? "EldenNet could not load a content file: "
+                                                     : "EldenNet content warning: ") +
+                         en::core::describe(shown.front());
+      if (shown.size() > 1) text += " (and " + std::to_string(shown.size() - 1) + " more)";
+      s.content_notice = std::move(text);
+    }
     c->overrides.clear();
     return true;
   });
