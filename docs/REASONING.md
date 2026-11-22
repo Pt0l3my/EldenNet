@@ -410,6 +410,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 385 | 2026-11-22 | A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump | METHOD | #lodestar #l6 |
 | 386 | 2026-11-22 | A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent | DECIDED | #graceui #protocol |
 | 387 | 2026-11-22 | EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon | DECIDED | #engine #editor #pages |
+| 388 | 2026-11-22 | The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note | DECIDED | #engine #conversation |
 
 ## Entries
 
@@ -6276,3 +6277,18 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   key, so GraceUI needs no field naming a second key's column.
 - When the player writes a profile for a `named.<param>` row, the row becomes `mine.<id>`, as NPC §4.7 has it, and the
   page chooses the new row. If S7.2.b finds a case this does not cover, EldenNet asks for the column field then.
+
+### 388. The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§7.3, NPC§3.1, NPC§4.5, WHY§364
+
+- Part A found two caps smaller than their fields allow. Block 2's cap is 120 tokens, but its fields at their schema
+  caps come to about 300 (identity 40 words, role 20, summary 60, appearance 40), and the test fixture's ordinary fields
+  reached 129. Block 11's cap is 40, but its ask alone is about 26 tokens, a tic note about 20 and a reminder about 12.
+- Raising both to fit would bring the caps' sum (3,460, NPC §4.5) past the 3,500 hard cap. So Engine rules:
+  - **Block 2** stays at 120 and is never trimmed. The content lint checks it as a whole: rendered past its cap it is an
+    error for shipped and test content, and a warning for the player's own files, which still render under the hard cap.
+    The field caps stay as maxima; a writer keeps the whole within the block.
+  - **Block 11** rises to 70 and carries at most one tic note, the newest, beside the reminder. The caps' sum becomes
+    3,490.
+- Built by the joining of parts A and B (S11.3). NPC §7.3 gets a dated note when that lands.
