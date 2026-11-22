@@ -1,0 +1,9 @@
+# The scripted model for lantern-long-reply.toml (mockllm): an invented reply in our own words, longer than the test
+# persona's 30 words, streamed slowly enough that the pager's cap is reached while it streams.
+schema = 1
+
+[[reply]]
+text = "The lamp burns all night, and the oil runs low by dawn most days. I trim the wick at dusk and again near midnight, when the wind turns cold off the hills. Then I wait for the light. And I count the travellers who pass."
+first_token_ms = 600
+chunk_ms = 60
+chunk_chars = 10

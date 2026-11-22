@@ -96,9 +96,10 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
   if (s.param == 0) return proto::Unexpected{std::string("world.param, the persona's invented row, is needed")};
   const toml::array* steps = root["step"].as_array();
   if (steps == nullptr || !steps->is_array_of_tables()) return proto::Unexpected{std::string("the scenario needs [[step]]s")};
-  constexpr std::array<std::string_view, 15> kStep = {"do",         "text",         "ms",       "distance_m", "state",
-                                                      "box",        "ended",        "last_npc", "toast",      "npc_lines",
-                                                      "player_lines", "failures",   "deflections", "note",    "at"};
+  constexpr std::array<std::string_view, 17> kStep = {"do",           "text",     "ms",          "distance_m",
+                                                      "state",        "box",      "ended",       "last_npc",
+                                                      "toast",        "npc_lines", "player_lines", "failures",
+                                                      "deflections",  "regenerations", "cancels", "note", "at"};
   for (std::size_t i = 0; i < steps->size(); ++i) {
     const toml::table& t = *steps->get(i)->as_table();
     const std::string where = "step[" + std::to_string(i) + "]";
@@ -120,11 +121,15 @@ proto::Expected<EvalScenario, std::string> parse_eval_scenario(std::string_view 
         (kk == "state" ? st.state : kk == "box" ? st.box : kk == "ended" ? st.ended : kk == "last_npc" ? st.last_npc : st.toast) = *v;
       }
     }
-    for (const char* key : {"npc_lines", "player_lines", "failures", "deflections"}) {
+    for (const char* key : {"npc_lines", "player_lines", "failures", "deflections", "regenerations", "cancels"}) {
       if (const auto v = t[key].value<std::int64_t>()) {
         const std::string_view kk = key;
-        (kk == "npc_lines" ? st.npc_lines : kk == "player_lines" ? st.player_lines : kk == "failures" ? st.failures : st.deflections) =
-            static_cast<std::size_t>(std::max<std::int64_t>(0, *v));
+        (kk == "npc_lines"       ? st.npc_lines
+         : kk == "player_lines"  ? st.player_lines
+         : kk == "failures"      ? st.failures
+         : kk == "deflections"   ? st.deflections
+         : kk == "regenerations" ? st.regenerations
+                                 : st.cancels) = static_cast<std::size_t>(std::max<std::int64_t>(0, *v));
       }
     }
     if (st.kind == EvalStep::Kind::Say && st.text.empty()) return proto::Unexpected{at(t, where + ": say needs a text")};
@@ -140,7 +145,8 @@ proto::Expected<std::vector<core::ContentFile>, std::string> read_content_folder
   if (!fs::is_directory(root, ec)) return proto::Unexpected{std::string("the content folder cannot be read")};
   std::vector<fs::path> files;
   for (fs::recursive_directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec)) {
-    if (it->is_regular_file(ec) && it->path().extension() == ".toml") files.push_back(it->path());
+    const fs::path ext = it->path().extension();  // records and lexicons, and the prompts' templates
+    if (it->is_regular_file(ec) && (ext == ".toml" || ext == ".md" || ext == ".j2")) files.push_back(it->path());
   }
   if (ec) return proto::Unexpected{std::string("the content folder cannot be listed")};
   std::sort(files.begin(), files.end());
@@ -426,6 +432,12 @@ class Runner {
     if (st.player_lines) check(st, "player_lines", std::to_string(run_.turns.size()), std::to_string(*st.player_lines));
     if (st.failures) check(st, "failures", count([](const EvalTurn& t) { return t.failure; }), std::to_string(*st.failures));
     if (st.deflections) check(st, "deflections", count([](const EvalTurn& t) { return t.deflection; }), std::to_string(*st.deflections));
+    if (st.regenerations) {
+      std::size_t n = 0;
+      for (const EvalTurn& t : run_.turns) n += t.requests > 1 ? t.requests - 1 : 0;
+      check(st, "regenerations", std::to_string(n), std::to_string(*st.regenerations));
+    }
+    if (st.cancels) check(st, "cancels", std::to_string(run_.cancels), std::to_string(*st.cancels));
   }
 
   void settle() {
