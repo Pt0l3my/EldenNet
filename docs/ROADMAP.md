@@ -947,7 +947,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O101, O102, O103, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
+  - refs: O100, O101, O102, O103, O105, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
@@ -1017,6 +1017,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The third round reviewed the same day (engine f95f3cb; WHY§344 to §348): nine of the eleven managers named (messages
     by the slot search), twelve leads in the build's table; event_flags and world_clock still open; the variants counted,
     gap_near withdrawn; the play time's candidate the same across two sessions. Next: a fourth round for the last two.
+    The fourth round built the same day (engine 0d79ece, Lodestar's 606167d; WHY§351 to §353): the object scan, a wide
+    read-only search of the game's private memory that the owner agreed to (O105), naming by a longer name (by_related),
+    the flags' store as a lead on trial, the member search over 0x4000 bytes, and the code's references as witnesses;
+    report schema 4; package 0.1.0-lodestar.7, awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1101,6 +1105,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
     measures it once the task runs. The talk key is one key, T by default (O94, 2026-11-21; no published default
     layout binds it, WHY§277), so S4 also presses T in game in the default layout and checks the game does nothing.
+    Its second round's pad checks (the chord's 150 ms, 0.4 s and tap, that D-pad Up then View is free in the game, the
+    late View opening the map, the Steam Deck) run on testers' machines: the owner tests with keyboard and mouse only
+    (2026-11-22; GraceUI's D205, WHY§350).
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
 - c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
   - refs: NPC§12.2, ARCH§12.3
@@ -1301,6 +1308,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     now sends subscriptions, unsubscriptions and commands through one queue, in order, at 16 a second, and an
     unsubscription of a subscription still waiting takes it back. Done on 2026-11-21 (GraceUI feat/foundations
     162148f), web only; nothing for EldenNet to change (GraceUI's docs/eldennet-changes.md §46).
+- aa Pad chords for mods' hotkeys (GraceUI's proposal 0005; GraceUI 0.2.14, ABI 1.3) [done]
+  - refs: G35, O95, O11, NPC§5.6, GraceUI:D204, GraceUI:D205, WHY§349, WHY§350
+  - gives: decided by the owner on 2026-11-21 (O95; GraceUI's G35) and built on 2026-11-22 (GraceUI feat/foundations
+    a1b09a9), ahead of S4's second round. Every pad behaviour is checked without a pad, by unit timelines and the
+    harness under Wine (GraceUI's D205); what only a real pad shows waits for testers (S11.1.a). EldenNet's side is the
+    opt-in only (S11.4.c; GraceUI's docs/eldennet-changes.md §47).
 
 ### S11.3 EldenNet v0.2
 
@@ -1387,7 +1400,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     event and scaled faces (S11.2.n), and drop their constant (GraceUI's docs/eldennet-changes.md §33). The pad chord that opens the box (NPC §5.6) waits
     for a D-entry of GraceUI's, for S4's second round after R1: GraceUI's proposal 0005, pad chords for hotkeys, put to
     the owner and EldenNet on 2026-11-20, approved by the owner on 2026-11-21 (O95; GraceUI's G35); not built. Built the same day in GraceUI 0.2.1 (feat/foundations
-    2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246).
+    2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246). The pad chord built on 2026-11-22 in
+    GraceUI 0.2.14 (GraceUI's D204, ABI 1.3, has_cap("pad-chords"); S11.2.aa): GRACEUI_PAD_CHORD(XINPUT_GAMEPAD_DPAD_UP,
+    XINPUT_GAMEPAD_BACK) on the talk hotkey, one GRACEUI_EVENT_HOTKEY on completion; EldenNet's floor for the chord is
+    0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet.
 
 ### S11.5 v0.2's exit checks
 
@@ -1547,6 +1563,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - b GraceUI in game: the close matrix, the Steam Deck and HDR, the ABI and handshake tests, pairing
   - needs: S15.2
   - refs: GraceUI:DESIGN§10
+  - gives: the pad and Steam Deck rows run on testers' machines; the owner tests with keyboard and mouse only
+    (2026-11-22, WHY§350).
 
 ## S16 v1.0 [planned]
 
@@ -1566,6 +1584,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - S16.2.a The accessibility pass, a pad-only walkthrough, the Steam Deck's scale and the full matrix; Named NPCs with the whole roster
   - refs: G6
+  - gives: the pad-only walkthrough and the Steam Deck's scale run on testers' machines; the owner tests with keyboard
+    and mouse only (2026-11-22, WHY§350).
 
 ### S16.3 The release
 
