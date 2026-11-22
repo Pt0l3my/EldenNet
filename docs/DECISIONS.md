@@ -1268,6 +1268,9 @@ applied when EldenNet next loads; secrets stay write-only.
 
 **Owner's words.** "All but a short list (Recommended)".
 
+*Note, 2026-11-22 (GraceUI's D211; WHY§362, §366).* Hotkey bindings are on the short list: they are changed on GraceUI ›
+Hotkeys in game only, since a hotkey exists only as a mod's registration there.
+
 ## O78
 
 **What do the devkit's browser tools show?** · *2026-11-15 · Decided by the owner; the recommendation was (a)*

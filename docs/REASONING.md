@@ -388,6 +388,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 363 | 2026-11-22 | R1 is retired: what goes, what stays, and who removes it | DECIDED | #engine #lodestar #probe |
 | 364 | 2026-11-22 | The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points | DECIDED | #engine #conversation |
 | 365 | 2026-11-22 | L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves | METHOD | #lodestar #l6 |
+| 366 | 2026-11-22 | Rebinding is built: one home for every binding, kept by mod and action ids, applied at each registration | DECIDED | #graceui #hotkeys |
+| 367 | 2026-11-22 | A mod may register before GraceUI reads its settings file, so kept bindings also go over registered hotkeys; that path is reviewed, not yet seen run | FACT | #graceui #hotkeys |
 
 ## Entries
 
@@ -5897,6 +5899,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   rebound on GraceUI's page. The call-out names the key from describe_hotkey.
 - Off game (O76, O77): the bindings follow where GraceUI's Hotkeys page is served. If the launcher's host does not
   serve it, they are on O77's short list of settings that need the live game. Asked of Grace.
+- *Later, 2026-11-22:* Grace answered (GraceUI's D211): not for now. A hotkey exists only as a mod's registration in
+  game, and the launcher's host holds neither GraceUI's own space nor its hotkey table, so the bindings are on O77's
+  short list, in game only (O77's note). Built as GraceUI 0.2.16 the same day (WHY§366).
 
 ### 363. R1 is retired: what goes, what stays, and who removes it
 
@@ -5940,6 +5945,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   - (12) The since-line waits for v0.3.
 - Asked elsewhere: the slurs' list (13) became O107, decided as hashed. The chat box's faces (2) and the 50 ms open
   against T6's wait (4) are asked of Grace, and part C waits for the answer.
+- *Later, 2026-11-22:* Grace answered. (2) Faces as (a): the chat box's text is built from GraceUI's glyph_table
+  (advances, quads, UVs into the shared atlas, the face's metrics, the atlas's texture id and generation; no kerning).
+  If Dear ImGui 1.93 will not take glyphs baked elsewhere, EldenNet emits each glyph's quad itself. A scale change waits
+  for the next load until GraceUI rebuilds its atlas; then the box re-reads the table when the generation changes.
+  `on_present` is not planned soon, so ten submits a second stand. (4) A wait handle per mod (GraceUI's D71) comes as
+  ABI 1.5: GraceUI sets a mod's Win32 event whenever something is queued for it, never a callback. T6 then waits on it,
+  with its 100 ms as the fallback (S11.2.ad).
 
 ### 365. L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves
 
@@ -5956,3 +5968,22 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   rise steadily read as a fraction. Counts and offsets only, never what a word held.
 - The same round names 1008 `event_flags` through the store's class (WHY§359), and its counts are the fullest pass's,
   not the closing game's (WHY§358). No scan.
+
+### 366. Rebinding is built: one home for every binding, kept by mod and action ids, applied at each registration
+
+`2026-11-22` · DECIDED · `#graceui` `#hotkeys` · refs: G37, GraceUI's proposal 0009, GraceUI's D208 to D211, GraceUI's D115, S11.2.ac, WHY§362
+
+- GraceUI 0.2.16 (protocol 1.4, ABI 1.4). Every binding lives on GraceUI › Hotkeys, kept by mod and action ids and
+  applied at each registration. A hotkey that lost its key to a move is kept with none, so the next session's order of
+  registration cannot undo the move. The menu's key is never moved from it. Off game, bindings are in game only for now
+  (D211; O77's note).
+- describe_hotkey (has_cap("hotkey-bindings")) and GRACEUI_EVENT_HOTKEY_CHANGED reach only a mod connected with minor 4
+  or more. EldenNet keeps its hotkeys' action ids stable across releases, since the bindings are kept by them.
+
+### 367. A mod may register before GraceUI reads its settings file, so kept bindings also go over registered hotkeys; that path is reviewed, not yet seen run
+
+`2026-11-22` · FACT · `#graceui` `#hotkeys` · refs: GraceUI's D208, WHY§366
+
+- A mod's hotkeys then register with their defaults, so when the file is read the kept bindings go over them, each kept
+  one freed first so that a key one gives up is free for another. In the harness's runs the file was read before the mods
+  registered, so the at-registration path ran and the late one did not: the late path is reviewed, not yet seen run.

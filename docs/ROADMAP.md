@@ -1334,12 +1334,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     menu's key, then each mod's hotkeys with their names, keys, pad chords and states. The menu's key is shown locked,
     "Later version", until rebinding (S11.2.ac). EldenNet gives each hotkey a player's name (GraceUI's
     docs/eldennet-changes.md §48).
-- ac Rebinding hotkeys on GraceUI's Hotkeys page, for every mod (GraceUI's proposal 0009) [next]
+- ac Rebinding hotkeys on GraceUI's Hotkeys page, for every mod (GraceUI's proposal 0009) [done]
   - needs: ab
-  - refs: G37, O94, O77, GraceUI:D115, GraceUI:D205, WHY§362
+  - refs: G37, O94, O77, GraceUI:D115, GraceUI:D205, GraceUI:D208, GraceUI:D209, GraceUI:D210, GraceUI:D211, WHY§362, WHY§366
   - gives: put to the owner on 2026-11-22 and decided the same day, as Grace and Engine recommended: every binding on
     GraceUI › Hotkeys, a taken key asked about and then moved, pad chords by two pickers, ABI 1.4's describe_hotkey,
-    and built now, in 0.2.x. EldenNet's side is S11.4.c.
+    and built now, in 0.2.x. EldenNet's side is S11.4.c. Built the same day as GraceUI 0.2.16 (protocol 1.4, ABI 1.4;
+    feat/foundations bc211cc): Change key, Change pad chord, Reset, a taken key confirmed then moved, hotkeys.menu live,
+    describe_hotkey and a changed event; the bindings in game only (O77's note; GraceUI's docs/eldennet-changes.md §49).
+- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [next]
+  - refs: NPC§5.1, WHY§364
+  - gives: asked by EldenNet's first conversation on 2026-11-22, for T6's opening within 50 ms: a mod gives GraceUI a
+    Win32 event, set whenever something is queued for it (a hotkey's press or change, a holder's event, a protocol
+    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback.
 
 ### S11.3 EldenNet v0.2
 
@@ -1432,7 +1439,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet. GraceUI 0.2.15 fixes a rare lost end of a
     holder (GraceUI's D207, WHY§360): the chat box hears every end from 0.2.15. By G37 (2026-11-22, WHY§362, S11.2.ac)
     EldenNet's three key settings become the defaults it registers, its Settings › Hotkeys a read-only list with a link
-    to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4).
+    to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4). From GraceUI 0.2.16 the talk
+    key and chord are rebound on GraceUI › Hotkeys, and describe_hotkey's floor is 0.2.16. The chat box's text uses
+    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364).
 
 ### S11.5 v0.2's exit checks
 
