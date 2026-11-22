@@ -400,6 +400,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 375 | 2026-11-22 | What the profile editor needs that GraceUI lacked: a text field in game, master-detail, a topic per row, a longer deadline | FACT | #graceui #pages |
 | 376 | 2026-11-22 | The profile editor is the one content editor in v1, by O43; its rules are EldenNet's since G20 | DECIDED | #graceui #editor |
 | 377 | 2026-11-22 | EldenNet's answers to GraceUI's proposal 0010: the eight kinds suffice, with keyed and locked list items, unset fields and file-level messages | DECIDED | #engine #editor #pages |
+| 378 | 2026-11-22 | GraceUI's own text field in game: one field model for every kind, every character handed over in order, a secret never laid out | DECIDED | #graceui #input |
+| 379 | 2026-11-22 | Posted key messages do not order as a keyboard's: the character comes after the key-up, so the harness types through SendInput | FACT | #graceui #harness |
+| 380 | 2026-11-22 | A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure | FACT | #graceui #pages |
 
 ## Entries
 
@@ -6147,3 +6150,33 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   most 60 words.
 - *Later, 2026-11-22:* the owner decided G38 in Grace's chat the same day, all three as recommended. GraceUI builds
   proposal 0010 now, the editor block last.
+
+### 378. GraceUI's own text field in game: one field model for every kind, every character handed over in order, a secret never laid out
+
+`2026-11-22` · DECIDED · `#graceui` `#input` · refs: GraceUI's D214, GraceUI's D57, G38, GraceUI's proposal 0010 §3.5, S7.2.c
+
+- GraceUI 0.2.18, G38 (1) (a)'s first part; protocol 1.4 and ABI 1.5 unchanged. One pure field model serves every
+  kind: text, a secret masked as discs, a form's fields, a row secret and search. It holds one paragraph, edited by code
+  point.
+- While a field edits, every key is the field's. The host hands GraceUI's thread every character in order with the
+  keys, so none is lost to an edit not yet begun, and drops there the ones no field wants, with no new layout.
+- A secret is never laid out as glyphs, copied or kept: the view holds only whether it is set. In game, EldenNet's text
+  settings, secret settings, forms and row secrets are typed from 0.2.18, with the clipboard and the IME. Search opens
+  with / or Ctrl+F.
+
+### 379. Posted key messages do not order as a keyboard's: the character comes after the key-up, so the harness types through SendInput
+
+`2026-11-22` · FACT · `#graceui` `#harness` · refs: GraceUI's D214, WHY§378
+
+- With WM_KEYDOWN and WM_KEYUP both posted, TranslateMessage's WM_CHAR is queued after the key-up. So the character
+  comes for a key already released, and the message rules rightly give it to no holder. A real keyboard's key-up waits
+  in the input queue behind the posted character.
+- The typing scenario therefore injects a key it types through SendInput, and posts directly the characters it needs
+  typed.
+
+### 380. A search hit or a shortcut row on a page with tabs now opens the row's own tab, section and disclosure
+
+`2026-11-22` · FACT · `#graceui` `#pages` · refs: GraceUI's D214, GraceUI's D189, GraceUI:DESIGN§4.3
+
+- Until 0.2.18 both opened the page's first tab, with the row unfocused. They now open the row's own tab, its section
+  and its Advanced disclosure.
