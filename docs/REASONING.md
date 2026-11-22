@@ -395,6 +395,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 370 | 2026-11-22 | An ask-first read costs about half a millisecond on the owner's PC, a hundred times a plain guarded copy | FACT | #lodestar #probe |
 | 371 | 2026-11-22 | A long round's report can pass the writer's 256 KiB and is then refused whole, so a round bounds what it writes | METHOD | #lodestar |
 | 372 | 2026-11-22 | R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use | DECIDED | #engine #lodestar #probe |
+| 373 | 2026-11-22 | A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll | FACT | #graceui #abi |
 
 ## Entries
 
@@ -6059,3 +6060,16 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
     through.
   - (7) The harness's fd4_idiom pattern in the fake game's patterns.toml: remove it, since patterns.toml is withdrawn
     (O102).
+
+### 373. A wait handle for each mod's events: one auto-reset event per mod, set whenever something is kept for its poll
+
+`2026-11-22` · FACT · `#graceui` `#abi` · refs: GraceUI's D212, GraceUI's D71, S11.2.ad, NPC§5.1, WHY§364
+
+- GraceUI 0.2.17, ABI 1.5, at the owner's word. The event is made at the first ask and never closed while GraceUI runs,
+  so a thread that read it can always set it; the mod gets a SYNCHRONIZE handle of its own (wake_event,
+  has_cap("wake")). It is also set once at the ask, so the first wait polls what may already be there.
+- It is set from whichever thread keeps something for the mod's poll: the window procedure, XInput's reads, the server's
+  I/O thread, GraceUI's thread, and the present thread for a resize. The holder mail's and the registry's hooks are plain
+  function pointers taking no lock, so the I/O thread's wake cannot meet the registry's lock.
+- Under Wine: 1 to 5 ms from a hotkey's key to the wake, about 1 ms after a holder's key, 2.5 to 7 ms after a resize;
+  with nothing to poll it stayed unset. T6 waits on it, with its 100 ms as the fallback.

@@ -1346,11 +1346,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and built now, in 0.2.x. EldenNet's side is S11.4.c. Built the same day as GraceUI 0.2.16 (protocol 1.4, ABI 1.4;
     feat/foundations bc211cc): Change key, Change pad chord, Reset, a taken key confirmed then moved, hotkeys.menu live,
     describe_hotkey and a changed event; the bindings in game only (O77's note; GraceUI's docs/eldennet-changes.md §49).
-- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [next]
-  - refs: NPC§5.1, WHY§364
+- ad A wait handle for each mod's events (GraceUI's D71, ABI 1.5) [done]
+  - refs: NPC§5.1, WHY§364, GraceUI:D212, GraceUI:D71, WHY§373
   - gives: asked by EldenNet's first conversation on 2026-11-22, for T6's opening within 50 ms: a mod gives GraceUI a
     Win32 event, set whenever something is queued for it (a hotkey's press or change, a holder's event, a protocol
-    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback.
+    event, the display event), never a callback. T6 waits on it, with its 100 ms as the fallback. Built the same day as
+    GraceUI 0.2.17 (feat/foundations 77ffd2e; GraceUI's docs/eldennet-changes.md §50).
 
 ### S11.3 EldenNet v0.2
 
@@ -1445,7 +1446,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     EldenNet's three key settings become the defaults it registers, its Settings › Hotkeys a read-only list with a link
     to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4). From GraceUI 0.2.16 the talk
     key and chord are rebound on GraceUI › Hotkeys, and describe_hotkey's floor is 0.2.16. The chat box's text uses
-    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364).
+    GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364). T6 waits on GraceUI's wait handle (ABI 1.5, floor
+    0.2.17) for the chat box's opening within 50 ms (NPC §5.1): 1 to 5 ms from a hotkey's key to the wake in GraceUI's
+    harness (WHY§373).
 
 ### S11.5 v0.2's exit checks
 
