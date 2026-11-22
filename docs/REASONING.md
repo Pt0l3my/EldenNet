@@ -348,6 +348,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 323 | 2026-11-22 | The draft table is checked before it is written, by the same checks a start makes | METHOD | #gal #lodestar |
 | 324 | 2026-11-22 | A class that holds a GuardedReader must be built where en-gal is built with and without the probe option | FACT | #build #gal |
 | 325 | 2026-11-22 | On the fake game the read-only round names all eleven managers and reads them with no fault | FACT | #fakegame #lodestar |
+| 326 | 2026-11-22 | On 2.7.2.0 in game, eight of the eleven managers are named by their instances' classes | FACT | #gal #lodestar #owner-run |
+| 327 | 2026-11-22 | The reader on EldenNet's own thread read the real game for 19 minutes with no fault: the first evidence for O101 (b) | FACT | #gal #lodestar #owner-run |
+| 328 | 2026-11-22 | The image as loaded gives the finder the same statics, class objects, sites and witnesses as the file | FACT | #gal #lodestar |
+| 329 | 2026-11-22 | A third of the game's managers hold objects with no type information the walk reads | LIKELY | #gal #lodestar |
+| 330 | 2026-11-22 | A round's report must tell "not there" from "there under another name" | METHOD | #gal #lodestar |
 
 ## Entries
 
@@ -5482,3 +5487,50 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   task of ours. The launcher's `--read` (ProbeRequest `Read`, appended), the read package (0.1.0-lodestar.3) and three
   harness cases (by settings, by the owner's flag, and refused by a release build) pass; the fake game's harness 115 of
   115.
+
+### 326. On 2.7.2.0 in game, eight of the eleven managers are named by their instances' classes
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: O92, proposal 0005 §6.1, docs/ops/probes/2026-11-22-l5.md, S10.1.k
+
+- The owner's read-only round (package 0.1.0-lodestar.3, about 19 minutes, no call into the game) named eight of the
+  eleven managers by their instances' classes, none twice, each by the lead's name with Imp: task_hub, session, menus,
+  loading, camera and param_store at the first pass, at the title; characters and hud at pass 56, likely the first pass
+  after the save loaded. Their statics are among the accessor's 217. event_flags, world_clock and messages were not
+  named. The first table for 2.7.2.0 (`gal/layouts/2.7.2.0-ww.toml`, schema 2) holds the round's 11 entries (the eight
+  managers, the two character classes, the groups' table) as leads, with the package's digest of its DLL; engine
+  feat/engine d8b3777.
+
+### 327. The reader on EldenNet's own thread read the real game for 19 minutes with no fault: the first evidence for O101 (b)
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: O101, proposal 0005 §10, docs/ops/probes/2026-11-22-l5.md
+
+- 11,552 readings in 1,155 s (10.0 a second), 242,244 guarded copies, no fault of any kind, no slot seen to change
+  between its two reads, no object of another class behind a named slot. A reading of eight managers took 3
+  microseconds at the median, 6 at the 99th percentile and 319 at the longest. Every manager but task_hub was empty for
+  some seconds in all (11 to 17 s), counted but not timed.
+
+### 328. The image as loaded gives the finder the same statics, class objects, sites and witnesses as the file
+
+`2026-11-22` · FACT · `#gal` `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, docs/ops/probes/2026-11-22-l3.md
+
+- In game the finder found what it found in the file, value for value: 7,077 places, all accepted, 217 statics, 217
+  class objects, one getter; the classes' sets and the groups' table the same. Witnesses found offline can be relied on
+  in game.
+
+### 329. A third of the game's managers hold objects with no type information the walk reads
+
+`2026-11-22` · LIKELY · `#gal` `#lodestar` · refs: O92, docs/ops/probes/2026-11-22-l5.md
+
+- At the round's last pass, of the 217 statics, 139 held an instance of a class the image's type information gives, 71
+  an object with no such class, 6 were empty and 1 could not be read. O92's way cannot name a manager among the 71; one
+  that EldenNet needs among them needs the invariant recipe (L6). Whether the three unnamed managers are among them, go
+  by other names than our leads, or were not yet made, is not known yet.
+
+### 330. A round's report must tell "not there" from "there under another name"
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§329
+
+- For each lead, the report should count what the image holds under that name (the classes of its name and of its name
+  with Imp). This round did not, and so left its one open question open. Two shortcomings for the next round: naming
+  stopped after 60 passes (ten minutes), so the world had only about five; and the trial did not count its readings by
+  stage.
