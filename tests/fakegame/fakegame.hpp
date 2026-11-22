@@ -27,22 +27,20 @@
 // A shelf (the group's entry; since spike.10 R1 run 9's shape, WHY§289): its word, and the object it holds where run 9's
 // entries held one.
 #define FG_SHELF_WORD_OFF 0x54        // FG::Rack::TaskLoomImp: its word, the group's own index, passed on in r8
-#define FG_SHELF_SHARED_OFF 0x58      // the rack (with --task-gate the ledger)
+#define FG_SHELF_SHARED_OFF 0x58      // the rack
 // The ledger (the second singleton G; since spike.11 R1 run 10's shape, WHY§293): its fields, at offsets of our own.
 #define FG_LEDGER_GROUPS_OFF 0x08     // FG::TaskLedgerImp: the hub's groups
-#define FG_LEDGER_QUEUE_OFF 0x10      // its queue (FG::TaskQueueImp), where requests wait for a later frame
-#define FG_LEDGER_DEFER_OFF 0x28      // a byte: non-zero (--task-queue), its method queues the request; else runs it now
+#define FG_LEDGER_QUEUE_OFF 0x10      // its queue (FG::TaskQueueImp), where the game's own requests wait
 #define FG_LEDGER_OPEN_OFF 0x30       // non-zero once it takes requests: zero, its method answers 0
 #define FG_LEDGER_MANAGER_OFF 0x38    // the manager (FG::TaskManagerImp) of the game's own tasks
 // The request its method builds (FG::TaskRequest, R1 run 10's shape): 32 bytes at [rsp + FG_REQUEST_DISP] of the
-// method's frame, or a copy on the heap when queued.
+// method's frame.
 #define FG_REQUEST_DISP 0x20
 #define FG_REQUEST_TASK_OFF 0x08      // the task
 #define FG_REQUEST_MANAGER_OFF 0x10   // the ledger's manager
 #define FG_REQUEST_WORD_OFF 0x18      // the shelf's word
 #define FG_REQUEST_FLAG_OFF 0x1C      // r9's low byte (zero); the game's own requests that wait for ever hold 1
 #define FG_REQUEST_BYTES 0x20
-#define FG_MANAGER_FLAGS_OFF 0x08     // FG::TaskManagerImp: bit 0, strict (--task-gate): only tasks of the game's kind
 // Since spike.12 (R1 run 11's shape, WHY§296) the manager's map, keyed by the shelves' words, at offsets of our own:
 // its head (an MSVC-shaped tree's: the node's left at +0, parent +8, right +16, its nil byte at +25, a 4-byte key at
 // +32, the value at +40), its count beside it; and its list (begin, end, capacity), the bins a word of 0 goes to.
@@ -53,11 +51,10 @@
 #define FG_NODE_VALUE_OFF 40
 #define FG_BIN_GROUP_OFF 0x08         // FG::TaskBin: its group, which a match hands the task to
 #define FG_BIN_KEPT_OFF 0x0C          // and the tasks handed to it
-#define FG_QUEUE_DRAIN_MS 1000        // a queued request is run once it has waited this long
 #define FG_TASK_HUB_OFF 0x10          // a task's hub field (FG::TaskFields::hub, at +0x08 + 0x08)
 #define FG_TASK_STATE_OFF 0x0C        // a task's state (FG::TaskFields::state): 0 before the hub takes it
 #define FG_TASK_KIND_OFF 0x20         // a task's kind (FG::TaskFields::kind): the game's own tasks hold FG_TASK_KIND
-#define FG_TASK_KIND 0x51             // the kind the request's check compares; with --task-gate the only one kept
+#define FG_TASK_KIND 0x51             // the kind of the game's own tasks
 // The hub's desk (spike.10, R1 run 9's walks): at +0x3B0 of the hub, at +0x3D0 of the desk its index, whose four
 // pointers 32 bytes apart from +200 lead to rows of the ledger's notes 240 bytes apart (four views of one array).
 #define FG_LOOM_DESK_OFF 0x3B0
@@ -155,21 +152,13 @@ extern void* fg_ledger_given;                 // the hub the last registration w
 std::uint64_t fg_ledger_stub(void* ledger, FG::TaskUnit* task, std::uint32_t word, std::uint64_t zero);
 // The ledger's method (G's; since spike.11 R1 run 10's shape, WHY§293): a null task, or a ledger not open, answers 0.
 // Else it builds a request on its stack (FG::TaskRequest: its vtable, the task, the ledger's manager, the word, r9's
-// low byte) and, where the ledger's byte at FG_LEDGER_DEFER_OFF is zero, calls fg_request_now with the request's
-// address and answers what it answers; else it copies the request to 32 bytes from fg_request_alloc and hands the copy
-// to the ledger's queue (fg_queue_push), which a later frame drains. It never reads the task.
+// low byte), calls fg_request_now with the request's address and answers what it answers. It never reads the task.
 std::uint64_t fg_ledger_admit(void* ledger, FG::TaskUnit* task, std::uint32_t word, std::uint64_t zero);
-// The request's work, now (the request's run slot too), in two parts: its entry notes the task in the hub's rows
-// (fg_ledger_note) and, where the manager is not strict, hands the task to the work (fg_ledger_keep) and answers 1;
-// where it is strict (--task-gate) it branches past its extent to its second part, fg_request_check, which has no entry
-// of its own: a task of the game's kind and state 0 branches back to the hand-over; any other is dropped (its word kept
-// in fg_gated_word, for the log) and the part jumps back to the entry's end, answering 1 (R1 run 10's end).
+// The request's work, now (the request's run slot too): it notes the task in the hub's rows (fg_ledger_note), hands
+// the task to the work (fg_ledger_keep) and answers 1.
 std::uint64_t fg_request_now(FG::TaskRequest* request);
-void fg_request_check();                          // the second part's first instruction (a label, never called)
 std::uint32_t fg_request_cancel(FG::TaskRequest* request);  // the request's other slots: its task's state reset,
 std::uint32_t fg_request_word(FG::TaskRequest* request);    // and its word
-extern std::uint8_t fg_gated;                     // set where the check dropped a request, its word in fg_gated_word
-extern std::uint32_t fg_gated_word;
 // Since spike.12 (R1 run 11's shape, WHY§296) the hand-over is the manager's: with a word of 0 the now path's function
 // calls fg_map_take for each bin of the manager's list; with any other it walks the manager's map for the word and, on
 // a match, calls fg_map_take with the node's bin, the task, the word and the manager, which hands the task to the work
@@ -179,8 +168,6 @@ std::uint64_t fg_map_take(FG::TaskBin* bin, FG::TaskUnit* task, std::uint32_t wo
 std::uint32_t fg_task_other(FG::TaskUnit* task);
 extern std::uint8_t fg_missed;
 extern std::uint32_t fg_missed_word;
-void* fg_request_alloc(std::uint32_t bytes);      // a queued request's memory (C++)
-std::uint64_t fg_queue_push(FG::TaskQueueImp* queue, FG::TaskRequest* request);  // under the queue's lock (C++)
 // The work: it checks its arguments, keeps the task and its vtable in the hub, and queues the task.
 void fg_register_keep(FG::TaskLoomImp* hub, std::uint32_t group, FG::TaskUnit* task);
 // The program's own call sites into it: four tasks, each {task, group}, registered in order, each passed as a call
@@ -283,12 +270,11 @@ struct TaskLoomFields {       // from +0x08
 };
 inline constexpr std::uint32_t kMaxLiveTasks = 256;
 
-// The registration's own singleton (spike.8's shape, WHY§240): a shelf per group. Made by the registration's first call;
-// with --table-gap the stand-in group has no shelf. Since spike.9 (WHY§248) each shelf is an object of a class of the
-// rack's own; its class's innermost name is the hub's (FG::Rack::TaskLoomImp), so R1, naming classes as O92 does, matches
-// it to the hub's lead; the rack's matches none. Since spike.10 (WHY§289, R1 run 9's shape) a shelf holds a word, its
-// group's own index, which the group's function passes to the ledger's method, and the rack where run 9's entries held
-// one object (the ledger with --task-gate).
+// The registration's own singleton (spike.8's shape, WHY§240): a shelf per group. Made by the registration's first
+// call. Since spike.9 (WHY§248) each shelf is an object of a class of the rack's own; its class's innermost name is the
+// hub's (FG::Rack::TaskLoomImp), so R1, naming classes as O92 does, matches it to the hub's lead; the rack's matches
+// none. Since spike.10 (WHY§289, R1 run 9's shape) a shelf holds a word, its group's own index, which the group's
+// function passes to the ledger's method, and the rack where run 9's entries held one object.
 inline constexpr std::uint32_t kRackGroups = FG_RACK_BOUND + 1;
 struct ShelfFields {                      // from +0x08
   std::uint32_t group;                    // 0x08
@@ -377,7 +363,7 @@ struct MapNode {
   TaskBin* value;                         // 0x28 (FG_NODE_VALUE_OFF)
 };
 struct ManagerFields {                    // from +0x08
-  std::uint32_t flags;                    // 0x08 (FG_MANAGER_FLAGS_OFF): bit 0 strict (--task-gate)
+  std::uint32_t spare0;                   // 0x08
   std::uint32_t count;                    // 0x0C
   Chore* chores[4];                       // 0x10
   MapNode* map_head;                      // 0x30 (FG_MANAGER_MAP_OFF)
@@ -413,10 +399,9 @@ class TaskRequest final : public WorkOrder {
   virtual std::uint32_t word_of();  // a jump to fg_request_word
   RequestFields r{};
 };
-// The ledger's queue: a lock, and its list of requests waiting, each with when it was queued.
+// The ledger's queue: a lock, and its list of requests waiting.
 struct RequestList {
   TaskRequest** items;
-  std::uint64_t* queued_us;
   std::uint32_t count;
   std::uint32_t cap;
 };
@@ -433,9 +418,7 @@ struct LedgerFields {                     // from +0x08
   std::uint32_t groups;                   // 0x08 (FG_LEDGER_GROUPS_OFF)
   std::uint32_t spare0;                   // 0x0C
   TaskQueueImp* queue;                    // 0x10 (FG_LEDGER_QUEUE_OFF)
-  std::uint64_t spare1[2];                // 0x18
-  std::uint8_t deferred;                  // 0x28 (FG_LEDGER_DEFER_OFF)
-  std::uint8_t spare2[7];                 // 0x29
+  std::uint64_t spare1[3];                // 0x18
   std::uint64_t open;                     // 0x30 (FG_LEDGER_OPEN_OFF)
   TaskManagerImp* manager;                // 0x38 (FG_LEDGER_MANAGER_OFF)
 };

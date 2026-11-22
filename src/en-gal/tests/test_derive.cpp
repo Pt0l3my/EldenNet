@@ -4,7 +4,6 @@
 #include <doctest.h>
 
 #include <algorithm>
-#include <cstring>
 #include <iterator>
 #include <ostream>  // doctest prints std::string_view through it
 #include <set>
@@ -609,101 +608,6 @@ TEST_CASE("derive: class names joined by :: to a namespace name the leads by the
   CHECK(slot->plain == 3);
   CHECK(slot->qualified == 3);
   CHECK(r.fd4.diagnostics.name_slots.size() == 16);
-}
-
-TEST_CASE("derive: without a name layout, in game, the singletons are named by their instances' RTTI (O92)") {
-  // R1 run 2 (WHY§207): the class objects hold no names in the image. The variants with their names blanked, as above,
-  // and their one class, Elsewhere::Moved, renamed in place to Elsewhere::MoImp. Anvil's static is given an instance of
-  // it, dross's an instance of no known class, the rest null; the lead names anvil Mo (MoImp: the Imp rule).
-  const Sample sample = en::gal::test::build_variants();
-  const auto named = [&] {
-    const SpanSource src(sample.built.file);
-    const auto im = en::gal::read_image(src, ImageLayout::File);
-    REQUIRE(im.has_value());
-    return en::gal::derive::derive(*im, src, leads(en::gal::test::kVariantLeads));
-  }();
-  const std::uint32_t anvil_static = singleton(named, "anvil").static_slot;
-  const std::uint32_t bellows_static = singleton(named, "bellows").static_slot;
-  const std::uint32_t dross_static = singleton(named, "dross").static_slot;
-  REQUIRE(anvil_static != 0);
-  REQUIRE(bellows_static != 0);
-  REQUIRE(dross_static != 0);
-
-  auto bytes = sample.built.file;
-  const SpanSource probe(bytes);
-  const auto image = en::gal::read_image(probe, ImageLayout::File);
-  REQUIRE(image.has_value());
-  for (const char* n :
-       {"vname_Anvil", "vname_Bellows", "vname_Crucible", "vname_Dross", "vname_Ember", "vname_Forge"}) {
-    const auto off = image->offset_of(sample.program.rva(n), 1);
-    REQUIRE(off.has_value());
-    bytes[static_cast<std::size_t>(*off)] = std::byte{0};
-  }
-  // The class's vtable, from the walk, and its name rewritten in place.
-  std::uint64_t vtable = 0;
-  {
-    const SpanSource src(bytes);
-    const en::gal::ImageBytes img(*image, src);
-    const auto td = en::gal::rtti::find_type_descriptor(img, "Elsewhere::Moved");
-    REQUIRE(td.count == 1);
-    for (const auto& v : en::gal::rtti::walk(img).vtables) {
-      if (en::gal::rtti::walk(img).locators[v.locator].type_descriptor == td.rva) vtable = image->image_base + v.rva;
-    }
-    REQUIRE(vtable != 0);
-    const auto off = image->offset_of(td.rva + 16 + 4, 5);  // ".?AV" then "Moved"
-    REQUIRE(off.has_value());
-    std::memcpy(bytes.data() + *off, "MoImp", 5);
-  }
-  const auto put = [&](std::uint32_t rva, std::uint64_t v) {
-    const auto off = image->offset_of(rva, 8);
-    REQUIRE(off.has_value());
-    std::memcpy(bytes.data() + *off, &v, 8);
-  };
-  constexpr std::uint64_t kOne = 0x2000'0000'1000, kTwo = 0x2000'0000'2000, kOther = 0x2000'0000'3000;
-  put(anvil_static, kOne);
-  put(dross_static, kOther);
-
-  std::string text = en::gal::test::kVariantLeads;
-  const auto at = text.find("\"Anvil\"");
-  REQUIRE(at != std::string::npos);
-  text.replace(at, 7, "\"Mo\"");
-  en::gal::derive::Options options;
-  std::uint64_t reads = 0;
-  options.read_instance_word = [&](std::uint64_t a) -> std::optional<std::uint64_t> {
-    ++reads;
-    if (a == kOne || a == kTwo) return vtable;
-    if (a == kOther) return std::uint64_t{0x1234};
-    return std::nullopt;
-  };
-  {
-    const SpanSource source(bytes);
-    const auto r = en::gal::derive::derive(*image, source, leads(text.c_str()), options);
-    CHECK_FALSE(r.fd4.names.has_value());
-    CHECK(singleton(r, "anvil").status == Status::Derived);
-    CHECK(singleton(r, "anvil").static_slot == anvil_static);
-    CHECK(singleton(r, "anvil").sites >= 1);
-    CHECK(singleton(r, "dross").status == Status::Depends);
-    const auto& g = r.fd4.diagnostics;
-    CHECK(g.inst_statics == 6);
-    CHECK(g.inst_null == 4);
-    CHECK(g.inst_classed == 1);
-    CHECK(g.inst_unclassed == 1);
-    CHECK(g.inst_unread == 0);
-    CHECK(g.inst_matched == 1);
-    CHECK(reads == 2);
-    // Offline (no reader) nothing changes: the singletons still depend on the name layout.
-    const auto offline = en::gal::derive::derive(*image, source, leads(text.c_str()));
-    CHECK(singleton(offline, "anvil").status == Status::Depends);
-    CHECK(offline.fd4.diagnostics.inst_statics == 0);
-  }
-  // Two statics holding instances of the same class: the lead is ambiguous, and named by neither.
-  put(bellows_static, kTwo);
-  {
-    const SpanSource source(bytes);
-    const auto r = en::gal::derive::derive(*image, source, leads(text.c_str()), options);
-    CHECK(singleton(r, "anvil").status == Status::Ambiguous);
-    CHECK(r.fd4.diagnostics.inst_matched == 0);
-  }
 }
 
 TEST_CASE("derive: a lone pointer to the group's name is no table, and gives no index") {

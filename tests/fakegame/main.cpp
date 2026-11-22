@@ -99,7 +99,7 @@ HWND make_window(HINSTANCE instance) {
 }
 
 // --press-pause-at: the player presses and releases Pause, as a key press reaches the system (the launcher's Mark is a
-// system hotkey, O90); with --press-pause-every, again every N frames after (a player pressing until it is taken).
+// system hotkey, O90).
 void press_pause() {
   INPUT in[2] = {};
   in[0].type = INPUT_KEYBOARD;
@@ -323,12 +323,7 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
       ok = p.choice(o.selftest_swapped, names, values);
     } else if (n == L"--selftest-object-size") ok = p.number(o.selftest_object_size);
     else if (n == L"--selftest-group") ok = p.number(o.selftest_group);
-    else if (n == L"--table-gap") o.table_gap = true;
-    else if (n == L"--task-gate") o.task_gate = true;
-    else if (n == L"--task-queue") o.task_queue = true;
-    else if (n == L"--map-late") o.map_late = true;
     else if (n == L"--press-pause-at") ok = p.number(o.press_pause_at);
-    else if (n == L"--press-pause-every") ok = p.number(o.press_pause_every);
     else if (n == L"--status-file") ok = p.value(o.status_file);
     else if (n == L"--d3d12") o.d3d12 = true;
     else if (n == L"--grace-take-pause") o.grace_take_pause = true;
@@ -441,8 +436,7 @@ void print_usage() {
       "  --crash-at F  --crash-thread game|worker  --handled-every N  --handled-kind seh|cxx",
       "  --game-filter  --game-filter-at F  --game-filter-result execute|continue",
       "  --load [boot|window|ready|title|world:]PATH  --selftest-task  --selftest-abi published|swapped",
-      "  --selftest-object-size N  --selftest-group N  --table-gap  --task-gate  --task-queue  --map-late",
-      "  --press-pause-at F  --press-pause-every N  --status-file PATH  --exit-code N",
+      "  --selftest-object-size N  --selftest-group N  --press-pause-at F  --status-file PATH  --exit-code N",
       "  --d3d12  --press-f11-at F,F...  --grace-report F,F...  --grace-probe x0,y0,x1,y1,r,g,b (up to 3 times)",
       "  --grace-take-pause  --press-keys F:f5|next|prior|up|down|left|right|return|escape,...",
       "  --describe  --verbose"};
@@ -520,9 +514,7 @@ int run(HINSTANCE instance) {
       ++hitches;
     }
     if (o.game_filter_at == frame) install_game_filter();
-    if (o.press_pause_at != 0 && frame >= o.press_pause_at &&
-        (frame == o.press_pause_at ||
-         (o.press_pause_every != 0 && (frame - o.press_pause_at) % o.press_pause_every == 0))) {
+    if (o.press_pause_at != 0 && frame == o.press_pause_at) {
       if (o.d3d12 && window != nullptr) {
         press_key_into(window, VK_PAUSE, 0x45);  // into the window GraceUI filters (EldenNet's Mark on its hotkey)
       } else {
