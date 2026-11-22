@@ -407,6 +407,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 382 | 2026-11-22 | No clock packed into bits in any static's object, nor in 16 KiB of the clock class's object; one slowly rising fraction is the only candidate | FACT | #lodestar #l6 |
 | 383 | 2026-11-22 | Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail | DECIDED | #graceui #pages |
 | 384 | 2026-11-22 | A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation | METHOD | #graceui #serve |
+| 385 | 2026-11-22 | A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump | METHOD | #lodestar #l6 |
 
 ## Entries
 
@@ -6214,6 +6215,11 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   thousandths a second is too coarse for so slow a rise.
 - The flags' next step, the objects behind the store's addresses 40, 56, 80 and 136 bytes in, was read about 978 times
   each; its words were lost to the report's fallback (WHY§371's Later line).
+- *Later, 2026-11-22 (Lodestar's correction):* the first bullet says more than the round showed. The minutes test takes a
+  run of six bits only if it steps by 1 to 5 between readings, and the statics' objects were read about every 15 s. So
+  what holds is this: no slow clock in the first 512 bytes of any static's object, and no clock of any pace in the 16
+  KiB of the clock class's object or its manager, which were read every second or two. A clock whose minutes pass faster
+  than one in three seconds of real time is not ruled out in a static's object (WHY§385).
 
 ### 383. Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail
 
@@ -6237,3 +6243,11 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   own id.
 - A slot's generation is set when it is taken and carried by each published state. It keeps a state published for one
   member from reaching the next member in the slot.
+
+### 385. A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§382
+
+- Test the hours alone: five bits, never 24 or more, stepping by one. And look for a steady rise with a jump when the
+  player lets time pass. The seventh round, being built, tells the clock by such a jump: steady rises and jumps of
+  fractions and whole numbers, the hours standing alone, and each jump's second with its number before and after.
