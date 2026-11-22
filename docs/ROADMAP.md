@@ -1021,6 +1021,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     read-only search of the game's private memory that the owner agreed to (O105), naming by a longer name (by_related),
     the flags' store as a lead on trial, the member search over 0x4000 bytes, and the code's references as witnesses;
     report schema 4; package 0.1.0-lodestar.7, its README corrected (engine 539d341), sent to the owner the same day.
+    The fourth round reviewed the same day (engine 2522e1f; WHY§354 to §359): the flags' store found behind one of the
+    accessor's statics, the world's clock a field of another manager, messages with eight witnesses; 12 leads in the
+    table. The scan did not finish and slowed the reader, and stays off (WHY§357). 1008 `event_flags` is the object the
+    flags are read through, and 1012 `world_clock` waits for L6 (WHY§359). Next: a round that names the store by O92's
+    rule, then L6's first round (the clock's and the play time's fields), no scan.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

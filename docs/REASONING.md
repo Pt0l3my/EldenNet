@@ -376,6 +376,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 351 | 2026-11-22 | The read-only round may search all of the game's readable private memory once for a missing manager's object, counts and places only | DECIDED | #lodestar #probe |
 | 352 | 2026-11-22 | Where the image has no class of a lead's name, a class whose name holds the lead's may name the manager, marked by_related | METHOD | #lodestar |
 | 353 | 2026-11-22 | A manager no accessor loads takes its witnesses from the code's references to its slot, and of several slots the one referred to most | METHOD | #lodestar #gal |
+| 354 | 2026-11-22 | The event flags' store is behind one of the accessor's statics from the title on; no object of the flags' manager's class in 7.7 GiB | FACT | #lodestar #probe |
+| 355 | 2026-11-22 | The world's clock is one object inside the object behind one of the accessor's statics: a field of that manager, no static of its own | FACT | #lodestar #l6 |
+| 356 | 2026-11-22 | messages' slot is the one of its two that the code refers to 238 times; the build's table has it with eight witnesses | FACT | #lodestar #gal |
+| 357 | 2026-11-22 | The object scan read 19,750 MiB in 781 s without finishing and slowed the reader's thread; it stays off | FACT | #lodestar #probe |
+| 358 | 2026-11-22 | A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes | METHOD | #lodestar |
+| 359 | 2026-11-22 | event_flags (1008) is the object the event flags are read through, the store's class its lead; world_clock (1012) waits for L6 | DECIDED | #lodestar #gal |
 
 ## Entries
 
@@ -5787,3 +5793,63 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   the resolver reads any witness. Where several slots hold one object, the manager's is the slot the code refers to
   most, with those places as its sites (`lodestar::references`). `messages`, named by the slot search, should get its
   witnesses this way.
+
+### 354. The event flags' store is behind one of the accessor's statics from the title on; no object of the flags' manager's class in 7.7 GiB
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, O105, WHY§347
+
+- The fourth read-only round (package 0.1.0-lodestar.7, the owner's run). The scan found one object of the store's class
+  (the lead on trial, `flag_store`), and the image's data holds its address in one slot, one of the accessor's 217
+  statics (183 sites). One static held an object of that class at each of 67 passes, from the title on.
+- No object of the flags' manager's class (`event_flags`, 1008) in what the scan read: its first sweep went through
+  7,698 MiB of private writable memory and found no word that is that class's table of methods; ten slot searches found
+  none.
+
+### 355. The world's clock is one object inside the object behind one of the accessor's statics: a field of that manager, no static of its own
+
+`2026-11-22` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§347, WHY§352
+
+- One object of the class under the longer name, 1,024 bytes into the object behind one of the accessor's statics (139
+  sites), with a pointer to it 192 bytes in. The scan found the same object, held by one word 256 bytes after the start
+  of an object of another class, so the static points 64 bytes into a larger object. No slot of the data points at it.
+
+### 356. messages' slot is the one of its two that the code refers to 238 times; the build's table has it with eight witnesses
+
+`2026-11-22` · FACT · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§353, gal/layouts/2.7.2.0-ww.toml
+
+- Of the two slots, 238 instructions refer to one and 3 to the other; named by the first, with eight witnesses the round
+  checked. The scan found the same object and slots. The table's other eleven entries are unchanged, value for value
+  (engine 2522e1f).
+- The eight others as before, a fourth session; 6,059 readings with no fault. The play time's candidate rose in 32 of
+  35 passes, same slot and offset, a third session (WHY§348).
+
+### 357. The object scan read 19,750 MiB in 781 s without finishing and slowed the reader's thread; it stays off
+
+`2026-11-22` · FACT, with a LIKELY cause · `#lodestar` `#probe` · refs: O105, docs/ops/probes/2026-11-22-l5.md, WHY§351
+
+- First sweep 192 s, second 431 s, the third unfinished (7.7 GiB a sweep; 40, then 18 MiB a second). The reader's thread
+  fell to 7.5 readings a second (2.3 at worst) and 9.3 steps a second. No call, nothing written, the game's own threads
+  unused, no fault. Lodestar's estimate was far too low.
+- LIKELY cause: Windows had to bring much of that memory in before it could be read, so the game's memory in use grew
+  while the scan ran. Whether the game stuttered is asked of the owner.
+- The scan stays off from here. Were one ever wanted again: only pages already in use, the time checked after every
+  piece, one sweep, and the owner asked again (O105's note).
+
+### 358. A round's report keeps what was seen in the world, not the last pass's state, which is made as the game closes
+
+`2026-11-22` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md
+
+- The fourth round's report kept the last pass's counts, so `others` and `new_statics` show the closing game; the log
+  has the store's count for every pass. Mended in the next build.
+
+### 359. event_flags (1008) is the object the event flags are read through, the store's class its lead; world_clock (1012) waits for L6
+
+`2026-11-22` · DECIDED · `#lodestar` `#gal` · refs: WHY§354, WHY§355, proposal 0005 §4.1, ARCH§6.1
+
+- Engine's ruling on Lodestar's two points, as Lodestar proposed. An id is ours and says what a thing is for EldenNet,
+  never the game's name for it (proposal 0005 §4.1): 1008 `event_flags` was never placed, and what EldenNet needs is the
+  object the flags are read through. So 1008 keeps its number and label, its lead in `gal/leads.toml` becomes the store's
+  class, and `flag_store` as a separate trial lead goes; the next round names it by O92's own rule, with the
+  accessor's sites as witnesses. A new id with 1008 retired was the alternative: rejected, since nothing used 1008.
+- 1012 `world_clock` stays reserved and unplaced until L6 gives the clock's manager an id and the clock a field under it.
+  Nothing in v1's start needs the clock as a static. ARCH §6.1 carries a dated note.
