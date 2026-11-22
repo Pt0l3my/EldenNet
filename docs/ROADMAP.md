@@ -995,6 +995,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     image holds under its name (one offline run, game closed), the naming cap lifted, the trial counted by stage; then L6
     (the fields by invariants), which also takes the three if they have no type information. R1's package and
     `probe_r1.cpp` can retire when the owner agrees.
+    The count per lead built the same day (engine merge of 9e17bab): in every lodestar report, the classes the image holds
+    under each lead's name and its name with Imp, and those deriving from them; a lead with no class of its own named by
+    the one deriving from it; naming with no cap; the trial by stage. Its offline run (package 0.1.0-lodestar.4, game
+    closed, about 5 minutes) is with the owner; its answer decides how event_flags, world_clock and messages are found.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
