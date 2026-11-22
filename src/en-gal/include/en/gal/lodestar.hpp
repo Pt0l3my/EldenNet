@@ -451,6 +451,7 @@ struct WatchObject {
   std::uint64_t same_address = 0; // readings at which it was the very object the first way of its label led to
   std::uint32_t span = 0;         // bytes watched
   std::uint32_t vtable = 0;       // its class at the last reading, where the image knows it
+  std::uint64_t address = 0;      // where it stood at the last reading: for the round's own use, never written
   std::vector<WatchWord> words;
   std::vector<BitHit> bits;       // the best first, at most 16
   std::vector<RiseHit> rises;     // those that jumped a few times first, then fractions, then the most rises; at most 8
@@ -474,6 +475,12 @@ struct SweepFlip {
   std::uint32_t second = 0;  // since the sweep's first reading
 };
 
+// A flip seen around one of the tester's marks (a task confirmed as done): from 15 s before the mark to 60 s after.
+struct MarkFlip {
+  std::uint32_t mark = 0;  // which mark, from 1
+  SweepFlip flip;
+};
+
 struct SweepTarget {
   std::string label;
   std::uint32_t id = 0;
@@ -493,12 +500,16 @@ struct SweepTarget {
   std::uint64_t single_flips = 0;  // bytes that differed by one bit
   std::uint64_t other_changes = 0; // bytes that differed by more
   // Single flips in words that are not busy, of quiet pages (each page's first four), the quietest pages' first; in
-  // the order seen, at most 24.
+  // the order seen, at most 8.
   std::vector<SweepFlip> flips;
+  // The flips around the tester's marks, in words that are not busy: at most 16 a mark, in the order seen.
+  std::vector<MarkFlip> mark_flips;
+  bool retired = false;  // too much of it changed all the time: it was read no more
 };
 
 struct SweepFound {
   std::uint64_t passes = 0;
+  std::vector<std::uint32_t> mark_seconds;  // when each mark was taken, since the sweep's first reading
   std::vector<SweepTarget> targets;
 };
 

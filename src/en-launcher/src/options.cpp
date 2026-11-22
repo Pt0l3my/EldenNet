@@ -112,6 +112,13 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
       if ((ok = flag())) o.console = true;
     } else if (arg == "--read") {
       if ((ok = flag())) o.read = true;
+    } else if (arg == "--read-pace-s") {
+      if ((ok = need())) {
+        if (const auto n = number(v, 1, 600))
+          o.read_pace_s = *n;
+        else
+          ok = proto::Unexpected{std::string("--read-pace-s is 1 to 600 seconds")};
+      }
     } else if (arg == "--no-dialogs") {
       if ((ok = flag())) o.no_dialogs = true;
     } else if (arg == "--yes") {
@@ -213,6 +220,8 @@ proto::Expected<Options, std::string> parse_options(const std::vector<std::strin
           std::string("--read goes with a start, and not with --no-backup, --vanilla-offline or --spike")};
     }
     o.console = true;  // its plain lines
+  } else if (o.read_pace_s != 0) {
+    return proto::Unexpected{std::string("--read-pace-s goes with --read")};
   }
   return o;
 }
@@ -235,7 +244,9 @@ std::string usage_text() {
          "  --appid-method file|env   --remove-after window|exit|never   (else launcher.toml's)\n"
          "  --console            the development console: status lines, and the Mark on the Pause key\n"
          "  --read               the read-only round, with the probe build of eldennet.dll: the console; EldenNet\n"
-         "                       names the managers it reads and tries its reader, and calls nothing in the game\n"
+         "                       names the managers it reads and tries its reader, and calls nothing in the game;\n"
+         "                       a panel beside the game lists the tester's tasks, each with its timer, and the\n"
+         "                       Pause key confirms the task under way (--read-pace-s S: the tests' pace)\n"
          "  --spike s0a|s0b|s0c|s0d|s0d-crash  [--runs N] [--run-timeout S]   the S0 spikes\n"
          "  --spike s0e|s0e_alone|s4   GraceUI's observer's runs (S0-E, S4): EldenNet calls nothing into the game,\n"
          "                       and s0e_alone loads only the --also DLLs; its report goes to spikes\\<word>-<n>\n"

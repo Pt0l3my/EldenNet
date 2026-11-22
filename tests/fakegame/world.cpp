@@ -451,7 +451,8 @@ void world_create_singletons() {
   fg_static_tables = make_table_vault();
   fg_static_phrases = make_phrase_book();
   // The decoys' statics hold objects of their own, so that each would resolve if its site were believed.
-  fg_static_duplicata_a = make<FG::Prop>();
+  // --day-book: a plain block in the first decoy's place, which the clock's task keeps the time in.
+  fg_static_duplicata_a = options().day_book ? alloc_block(0x40) : static_cast<void*>(make<FG::Prop>());
   fg_static_duplicata_b = make<FG::Prop>();
   fg_static_strayling = make<FG::Prop>();
 
@@ -639,7 +640,7 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     if (auto* ledger = static_cast<SaveLedgerImp*>(fg_static_save_ledger)) {
       ledger->f.play_time_ms += static_cast<std::uint32_t>(frame->dt * 1000.0f + 0.5f);
     }
-    w.clock_s += frame->dt * 60.0f;  // a game minute for each second
+    w.clock_s += frame->dt * static_cast<float>(fakegame::options().clock_rate);  // a game minute a second, unless asked
     const float before = w.world_s;
     w.world_s += frame->dt;
     // --pass-time: time is let pass twice, five hours and then three. --flag-set: one flag is set, once.
@@ -653,6 +654,11 @@ void FG::ClockTask::run(const FrameInfo* frame) {
     const auto total = static_cast<std::uint64_t>(w.clock_s) + 9 * 3600;
     sky->clock = ((total / 3600) % 24) << 32 | ((total / 60) % 60) << 16 | (total % 60);
     sky->hours = static_cast<float>(total % 86400) / 3600.0f;
+    if (fakegame::options().day_book && fg_static_duplicata_a != nullptr) {
+      auto* book = static_cast<std::uint64_t*>(fg_static_duplicata_a);
+      book[2] = sky->clock;
+      book[3] = sky->clock;
+    }
   }
 }
 

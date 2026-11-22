@@ -1458,9 +1458,14 @@ TEST_CASE("in game: the watch tells a clock by its jumps when time is let pass, 
   // Time is let pass twice: five hours at the 40th second, three at the 80th; midnight comes ten seconds later.
   const std::uint64_t obj = w.mem.alloc(0x40);
   w.mem.put<std::uint64_t>(w.at("st_hud"), obj);
-  lodestar::Watch::Way way{"static", 0, rva(w.at("st_hud")), 0, false, 0, true};
-  way.wide = true;
+  lodestar::Watch::Way way{"holder", 0, rva(w.at("st_hud")), 0, false, 0, true};
   REQUIRE(watch.add(way));
+  // The same object as a wide way: a wide way is listed only for minutes that go round with hours beside them, and
+  // these minutes go too fast for that.
+  lodestar::Watch::Way wide = way;
+  wide.label = "static";
+  wide.wide = true;
+  REQUIRE(watch.add(wide));
   GuardedReader reader(*w.sys);
   const auto gt = en::proto::GameThread::issue();
   std::uint64_t day_s = 3600;  // one o'clock
@@ -1476,20 +1481,24 @@ TEST_CASE("in game: the watch tells a clock by its jumps when time is let pass, 
     w.mem.put<std::uint32_t>(obj + 0x28, static_cast<std::uint32_t>(second * 7));
     now += 1'000'000;
     reader.begin_tick();
-    (void)watch.step(gt, reader, 1, now);
+    (void)watch.step(gt, reader, 2, now);
     day_s += 600;
   }
   const lodestar::WatchFound found = watch.found();
-  REQUIRE(found.objects.size() == 1);  // a wide way, listed for what jumped
+  CHECK(found.wide_ways == 1);
+  REQUIRE(found.objects.size() == 1);  // the plain way; the wide one found no clock by its minutes
   const lodestar::WatchObject& c = found.objects[0];
-  CHECK(c.wide);
+  CHECK_FALSE(c.wide);
+  CHECK(c.address == obj);
   CHECK(c.readings == 120);
   // No run of bits passed as minutes with hours beside it.
   CHECK(std::none_of(c.bits.begin(), c.bits.end(), [](const auto& h) { return h.wraps != 0 && h.has_hour; }));
   // The fraction and the whole number: both rose at their pace and jumped three times (twice when time was let
-  // pass, once at midnight, a fall); so did the packed word, read as a whole number. The counter never jumped: a
-  // wide way does not list it. The fraction comes first.
-  REQUIRE(c.rises.size() == 3);
+  // pass, once at midnight, a fall); so did the packed word, read as a whole number. The counter never jumped: it
+  // comes last. The fraction comes first.
+  REQUIRE(c.rises.size() == 4);
+  CHECK(c.rises[3].offset == 0x28);
+  CHECK(c.rises[3].jumps == 0);
   CHECK(c.rises[0].offset == 0x18);
   CHECK_FALSE(c.rises[0].whole);
   CHECK(c.rises[0].jumps == 3);
@@ -1583,6 +1592,9 @@ TEST_CASE("in game: a way may go one step deeper, and the sweep finds the bits t
     w.mem.put<std::uint32_t>(blocks + 0x400, ++counter);
     w.mem.put<std::uint32_t>(small + 0x40, counter * 3);
     now += 1'000'000;
+    // The tester marks a task done two seconds after the first flag was set, and one second before the first flag
+    // is cleared.
+    if (second == 72 || second == 149) sweep.mark(now);
     reader.begin_tick();
     (void)watch.step(gt, reader, 1, now);
     for (int k = 0; k < 6; ++k) passes += sweep.step(gt, reader, now) ? 1 : 0;
@@ -1600,8 +1612,11 @@ TEST_CASE("in game: a way may go one step deeper, and the sweep finds the bits t
 
   const lodestar::SweepFound found = sweep.found();
   CHECK(found.passes == passes);
-  CHECK(found.passes >= 6);  // a pass every thirty seconds
-  CHECK(found.passes <= 8);
+  CHECK(found.passes >= 6);  // a pass every thirty seconds, and one at once after each mark
+  CHECK(found.passes <= 11);
+  REQUIRE(found.mark_seconds.size() == 2);
+  CHECK(found.mark_seconds[0] == 72);
+  CHECK(found.mark_seconds[1] == 149);
   REQUIRE(found.targets.size() == 2);
   const lodestar::SweepTarget& t = found.targets[0];
   CHECK(t.rva == rva(w.at("st_hud")));
@@ -1631,6 +1646,21 @@ TEST_CASE("in game: a way may go one step deeper, and the sweep finds the bits t
   CHECK(t.flips[2].offset == 30'001);
   CHECK_FALSE(t.flips[2].set);
   CHECK(t.flips[2].second >= 150);
+  // The flips around the marks: the first flag's setting was seen in the pass the first mark started (and the
+  // second flag's, 38 s after the mark, within its minute); the first flag's clearing under the second mark.
+  CHECK_FALSE(t.retired);
+  REQUIRE(t.mark_flips.size() == 3);
+  CHECK(t.mark_flips[0].mark == 1);
+  CHECK(t.mark_flips[0].flip.offset == 30'001);
+  CHECK(t.mark_flips[0].flip.bit == 5);
+  CHECK(t.mark_flips[0].flip.set);
+  CHECK(t.mark_flips[0].flip.second >= 72);
+  CHECK(t.mark_flips[0].flip.second <= 76);  // the pass began at the mark, not at its usual time
+  CHECK(t.mark_flips[1].mark == 1);
+  CHECK(t.mark_flips[1].flip.offset == 133);
+  CHECK(t.mark_flips[2].mark == 2);
+  CHECK(t.mark_flips[2].flip.offset == 30'001);
+  CHECK_FALSE(t.mark_flips[2].flip.set);
   // The deeper target: the small object, read to its end; its counter is busy, and no flip of it is listed.
   const lodestar::SweepTarget& d = found.targets[1];
   CHECK(d.deeper);
@@ -1658,7 +1688,57 @@ TEST_CASE("in game: a way may go one step deeper, and the sweep finds the bits t
   CHECK(report::lint(*text, known).has_value());
   CHECK(text->find("\"sweep\": {") != std::string::npos);
   CHECK(text->find("\"flip_events\": [") != std::string::npos);
+  CHECK(text->find("\"mark_seconds\": [72, 149]") != std::string::npos);
+  CHECK(text->find("\"mark_flips\": [") != std::string::npos);
+  CHECK(text->find("\"mark\": 2") != std::string::npos);
   CHECK(text->find("\"deeper\": true") != std::string::npos);
+}
+
+TEST_CASE("in game: the sweep reads no more of a target of which too much changes all the time") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  // Two stretches behind the HUD's static's object: one in which 2,000 words change at every look, one that keeps
+  // still but for a flag.
+  const std::uint64_t store = w.mem.alloc(0x40);
+  const std::uint64_t busy = w.mem.alloc(0x8000);
+  const std::uint64_t quiet = w.mem.alloc(0x8000);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), store);
+  w.mem.put<std::uint64_t>(store + 0x10, busy);
+  w.mem.put<std::uint64_t>(store + 0x18, quiet);
+  lodestar::Sweep sweep(w.base);
+  REQUIRE(sweep.add(lodestar::Sweep::Target{"event_flags", 1008, rva(w.at("st_hud")), 0x10, false, 0, 2}));
+  REQUIRE(sweep.add(lodestar::Sweep::Target{"event_flags", 1008, rva(w.at("st_hud")), 0x18, false, 0, 2}));
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 1'000'000;
+  for (int second = 0; second < 400; ++second) {
+    for (std::uint32_t i = 0; i < 2000; ++i) w.mem.put<std::uint32_t>(busy + i * 8, static_cast<std::uint32_t>(second * 7 + i));
+    if (second == 300) w.mem.put<std::uint8_t>(quiet + 0x1234, 0x04);
+    now += 1'000'000;
+    reader.begin_tick();
+    for (int k = 0; k < 6; ++k) (void)sweep.step(gt, reader, now);
+  }
+  const lodestar::SweepFound found = sweep.found();
+  REQUIRE(found.targets.size() == 2);
+  CHECK(found.passes >= 12);
+  // The busy one: read until its busy words showed (four changes a word take five readings), then no more.
+  CHECK(found.targets[0].retired);
+  CHECK(found.targets[0].busy_words == 2000);
+  CHECK(found.targets[0].readings >= 5);
+  CHECK(found.targets[0].readings <= 6);
+  CHECK(found.targets[0].flips.empty());
+  // The quiet one: read at every pass, its flag seen.
+  CHECK_FALSE(found.targets[1].retired);
+  CHECK(found.targets[1].readings == found.passes);
+  REQUIRE(found.targets[1].flips.size() == 1);
+  CHECK(found.targets[1].flips[0].offset == 0x1234);
+  CHECK(found.targets[1].flips[0].bit == 2);
+  lodestar::Found f = r.found;
+  f.sweep = found;
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"retired\": true") != std::string::npos);
 }
 
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {

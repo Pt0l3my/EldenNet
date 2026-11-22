@@ -95,8 +95,8 @@ std::string read_text(ReadStep s, std::uint32_t named, std::uint32_t of) {
   const std::string count = std::to_string(named) + " of " + std::to_string(of);
   switch (s) {
     case ReadStep::Asked:
-      return "The read-only round is on. The game starts now. Wait at the title screen: there is no key to press, and "
-             "EldenNet calls nothing in the game.";
+      return "The read-only round is on. The game starts now. Wait at the title screen: a panel beside the game "
+             "lists what to do, and EldenNet calls nothing in the game.";
     case ReadStep::Refused:
       return "This eldennet.dll cannot run the read-only round (it is not the probe build, or EldenNet is turned off "
              "in settings.toml), so nothing will be read. Quit the game.";
@@ -104,14 +104,12 @@ std::string read_text(ReadStep s, std::uint32_t named, std::uint32_t of) {
       return "EldenNet is reading the game as it is loaded. This takes about a minute. Stay at the title screen.";
     case ReadStep::LoadSave:
       return "Now load your save. " + count + " managers are named so far; the rest exist only in the world. Then "
-             "follow step 3 of README-READ.txt, about fifteen minutes in all: walk about for five minutes, let time "
-             "pass at a grace twice, three minutes apart, then do one or two things the game remembers for good. "
-             "Then quit the game as usual.";
+             "follow the panel beside the game: it lists the tasks in order, each with its timer. Confirm a task "
+             "of yours with the Pause key, or by a click on the panel's button.";
     case ReadStep::Done:
       // Every manager may exist at the title already: the reader is to be tried in the world all the same.
-      return "All " + std::to_string(of) + " managers are named. If you have not loaded your save yet, load it now. "
-             "Follow step 3 of README-READ.txt to its end (about fifteen minutes in the world: five of walking, time "
-             "let pass at a grace twice, one or two things the game remembers), then quit the game as usual.";
+      return "All " + std::to_string(of) + " managers are named. If you have not loaded your save yet, load it now, "
+             "and follow the panel beside the game to its last task.";
     case ReadStep::Stopped:
       return "The round stopped early. Quit the game, and send the two logs.";
     case ReadStep::ReportsClean:

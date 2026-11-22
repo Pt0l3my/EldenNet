@@ -812,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 7, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 8, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -885,11 +885,12 @@ constexpr auto kKeys = std::to_array<Key>({
     // The sweep (in game)
     O("sweep"), AO("targets"), U("bytes"), U("changed_words"), U("busy_words"), U("changed_pages"),
     U("quiet_pages"), U("single_flips"),
-    U("other_changes"), AO("flip_events"), B("set"),
+    U("other_changes"), AO("flip_events"), B("set"), AU("mark_seconds"), AO("mark_flips"), U("mark"),
+    B("retired"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 7, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 8, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1355,6 +1356,9 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     const SweepFound& f = *found.sweep;
     w.begin_object("sweep");
     w.number("passes", f.passes);
+    w.begin_array("mark_seconds");
+    for (const std::uint32_t s : f.mark_seconds) w.number(s);
+    w.end_array();
     w.begin_array("targets");
     for (const SweepTarget& t : f.targets) {
       w.begin_object();
@@ -1375,6 +1379,18 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("quiet_pages", t.quiet_pages);
       w.number("single_flips", t.single_flips);
       w.number("other_changes", t.other_changes);
+      w.boolean("retired", t.retired);
+      w.begin_array("mark_flips");
+      for (const MarkFlip& e : t.mark_flips) {
+        w.begin_object();
+        w.number("mark", e.mark);
+        w.number("offset", e.flip.offset);
+        w.number("bit", e.flip.bit);
+        w.boolean("set", e.flip.set);
+        w.number("second", e.flip.second);
+        w.end_object();
+      }
+      w.end_array();
       w.begin_array("flip_events");
       for (const SweepFlip& e : t.flips) {
         w.begin_object();

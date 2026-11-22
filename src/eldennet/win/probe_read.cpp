@@ -468,7 +468,7 @@ class Round {
       every.push_back(st.rva);
       lodestar::Watch::Way way{"static", 0, st.rva, 0, false, 0, true};
       way.wide = true;
-      way.every_us = 6'000'000;
+      way.every_us = 3'000'000;  // a game minute is about three seconds (the seventh round): a step a reading
       wide += watch_ != nullptr && watch_->add(way) ? 1 : 0;
     }
     // The play time: every slot of the data that points at memory that may be read.
@@ -679,8 +679,14 @@ class Round {
     }
     if (rising_ != nullptr && !play_time_way_) {
       const auto hits = rising_->hits();
-      // One field far ahead of the rest: ten passes risen at least, and three times the next.
-      if (!hits.empty() && hits[0].rose >= 10 && (hits.size() < 2 || hits[0].rose >= 3 * hits[1].rose)) {
+      // The play time's field does what a play time does: it rose in ten passes at least and did anything else in
+      // no more than a tenth as many; and it is the only field that did. (The rule used to ask for three times the
+      // next field's rises: in the seventh session another field rose nearly as often, and the right one was
+      // refused.)
+      const auto steady = [](const en::gal::probe::RisingSearch::Hit& h) {
+        return h.rose >= 10 && std::uint64_t{h.other} * 10 <= h.rose;
+      };
+      if (!hits.empty() && steady(hits[0]) && (hits.size() < 2 || !steady(hits[1]))) {
         // Where that object is a named manager's it is watched already, under the manager's label.
         play_time_way_ = true;
         said_ways_ = false;
@@ -689,27 +695,59 @@ class Round {
         // lead's manager sits there already. The code's references to it are its sites and witnesses.
         const en::gal::roles::ItemInfo save = en::gal::roles::info(en::gal::roles::Item::SaveData);
         if (!named_at(hits[0].slot)) {
-          const std::vector<std::uint32_t> slot = {hits[0].slot};
-          const std::vector<lodestar::References> refs =
-              lodestar::references(*image_, s_.sys->image(), ".text", slot, lodestar::kMaxSiteWitnesses);
-          lodestar::InvariantFound v;
-          v.label = std::string(save.label);
-          v.id = save.id;
-          v.rva = hits[0].slot;
-          v.offset = hits[0].offset;
-          v.sites = static_cast<std::uint32_t>(std::min<std::uint64_t>(refs[0].count, 0xFFFFFFFFu));
-          v.witnesses = refs[0].places;
-          found_.invariants.assign(1, std::move(v));
-          log(Line("read").word("stage", "invariant").num("id", save.id).num("sites", found_.invariants[0].sites));
+          lodestar::InvariantFound& v = invariant(save.id, save.label, hits[0].slot, hits[0].offset);
+          log(Line("read").word("stage", "invariant").num("id", save.id).num("sites", v.sites));
         }
       }
     }
     // The invariant's counts follow the rising search for as long as its field stays the first.
-    if (!found_.invariants.empty() && rising_ != nullptr) {
+    const std::uint32_t save_id = en::gal::roles::info(en::gal::roles::Item::SaveData).id;
+    for (lodestar::InvariantFound& v : found_.invariants) {
+      if (v.id != save_id || rising_ == nullptr) continue;
       const auto hits = rising_->hits();
-      if (!hits.empty() && hits[0].slot == found_.invariants[0].rva && hits[0].offset == found_.invariants[0].offset) {
-        found_.invariants[0].rose = hits[0].rose;
-        found_.invariants[0].passes = hits[0].rose + hits[0].still + hits[0].other;  // the times it was compared
+      if (!hits.empty() && hits[0].slot == v.rva && hits[0].offset == v.offset) {
+        v.rose = hits[0].rose;
+        v.passes = hits[0].rose + hits[0].still + hits[0].other;  // the times it was compared
+      }
+    }
+    // The world's clock, by what its object holds: of the statics' objects (the watch's wide ways), one in which a
+    // run of six bits went round as minutes do, twice at least, with hours beside it that stepped as often (the
+    // seventh round found it so, and by the hours the owner let pass). Where two statics' objects show the same
+    // word, the one that shows it nearest its start is the clock's; whether they are one piece of memory is said.
+    {
+      const lodestar::WatchObject* best = nullptr;
+      const lodestar::WatchObject* other = nullptr;
+      const lodestar::WatchFound seen = watch_->found();
+      for (const lodestar::WatchObject& o : seen.objects) {
+        if (!o.wide || o.bits.empty() || o.bits[0].wraps < 2 || !o.bits[0].has_hour || o.bits[0].ticks < 30) continue;
+        if (best == nullptr || o.bits[0].offset < best->bits[0].offset) {
+          other = best;
+          best = &o;
+        } else if (other == nullptr) {
+          other = &o;
+        }
+      }
+      const std::uint32_t clock = en::gal::roles::info(en::gal::roles::Item::WorldClock).id;
+      // Not where a lead's class has named the clock's manager already, nor at a static another manager holds.
+      const bool named =
+          std::any_of(held_.managers.begin(), held_.managers.end(), [&](const lodestar::ManagerFound& m) {
+            return m.id == clock && m.status == en::gal::derive::Status::Derived;
+          });
+      if (best != nullptr && !named && !named_at(best->rva)) {
+        const bool fresh = std::none_of(found_.invariants.begin(), found_.invariants.end(),
+                                        [&](const lodestar::InvariantFound& v) { return v.id == clock; });
+        lodestar::InvariantFound& v =
+            invariant(clock, en::gal::roles::info(en::gal::roles::Item::WorldClock).label, best->rva,
+                      best->bits[0].offset);
+        v.rose = best->bits[0].ticks;
+        v.passes = best->bits[0].ticks + best->bits[0].jumps;
+        if (fresh) {
+          const bool same = other != nullptr && best->address != 0 &&
+                            best->address + best->bits[0].offset == other->address + other->bits[0].offset;
+          log(Line("read").word("stage", "invariant").num("id", clock).num("sites", v.sites)
+                  .num("offset", v.offset).num("bit", best->bits[0].bit).num("hour_bit", best->bits[0].hour_bit)
+                  .flag("second_static", other != nullptr).flag("same_memory", same));
+        }
       }
     }
     // The rising search has done its work once its first field has risen in a dozen passes: the watch follows that
@@ -728,6 +766,37 @@ class Round {
               .flag("flag_hops", flag_hops_).flag("flag_hops_deeper", flag_hops2_)
               .num("sweep_targets", sweep_ != nullptr ? sweep_->targets() : 0));
     }
+  }
+
+  // The static found by what its object holds, under a catalogue id: made with the code's references to it as its
+  // sites and witnesses, or the one already there (its static and offset brought up to date).
+  lodestar::InvariantFound& invariant(std::uint32_t id, std::string_view label, std::uint32_t rva,
+                                      std::uint32_t offset) {
+    for (lodestar::InvariantFound& v : found_.invariants) {
+      if (v.id != id) continue;
+      if (v.rva == rva) {
+        v.offset = offset;
+        return v;
+      }
+      v = lodestar::InvariantFound{};  // another static now: its references are found afresh
+      v.id = id;
+      return fill_invariant(v, label, rva, offset);
+    }
+    found_.invariants.emplace_back();
+    found_.invariants.back().id = id;
+    return fill_invariant(found_.invariants.back(), label, rva, offset);
+  }
+  lodestar::InvariantFound& fill_invariant(lodestar::InvariantFound& v, std::string_view label, std::uint32_t rva,
+                                           std::uint32_t offset) {
+    const std::vector<std::uint32_t> slot = {rva};
+    const std::vector<lodestar::References> refs =
+        lodestar::references(*image_, s_.sys->image(), ".text", slot, lodestar::kMaxSiteWitnesses);
+    v.label = std::string(label);
+    v.rva = rva;
+    v.offset = offset;
+    v.sites = static_cast<std::uint32_t>(std::min<std::uint64_t>(refs[0].count, 0xFFFFFFFFu));
+    v.witnesses = refs[0].places;
+    return v;
   }
 
   // What tells one watched object from another: its way.
@@ -854,6 +923,18 @@ class Round {
         }
         if (searching_) slot_searches();
       }
+      // The tester's marks (the launcher's panel: a task confirmed as done): the sweep keeps what flipped around
+      // each, and starts its next pass at once.
+      // A mark that comes before the sweep has a target is kept and handed on when it has, so that the marks keep
+      // their numbers.
+      for (const std::uint32_t n = block::marks(); marks_seen_ < n;) {
+        ++marks_seen_;
+        marks_kept_.push_back(s_.sys->now_us());
+        log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
+      }
+      for (; sweep_ != nullptr && marks_given_ < marks_kept_.size(); ++marks_given_) {
+        sweep_->mark(marks_kept_[marks_given_]);
+      }
       if (since_ms() - wrote < kReportEveryMs) continue;
       wrote = since_ms();
       const bool unnamed = held_.named < held_.managers.size();
@@ -925,6 +1006,9 @@ class Round {
   lodestar::Watch* watch_ = nullptr;
   bool play_time_way_ = false;
   lodestar::Sweep* sweep_ = nullptr;
+  std::uint32_t marks_seen_ = 0;
+  std::vector<std::uint64_t> marks_kept_;  // each mark's time, on this process's clock
+  std::size_t marks_given_ = 0;            // of those, the ones the sweep has
   bool flag_hops_ = false;
   bool flag_hops2_ = false;
   bool rising_stopped_ = false;

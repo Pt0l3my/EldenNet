@@ -751,6 +751,7 @@ WatchFound Watch::found() const {
     x.same_address = o.same_address.load(std::memory_order_relaxed);
     x.span = o.watched.load(std::memory_order_relaxed);
     x.vtable = o.vtable.load(std::memory_order_relaxed);
+    x.address = o.address;
     const std::size_t words = x.span / 8;
     for (std::size_t w = 0; w < words && w < o.lived.size() && !o.way.wide; ++w) {
       if (o.lived[w] == 0) continue;  // never anything but zero, and never changed
@@ -785,15 +786,24 @@ WatchFound Watch::found() const {
           h.jumps = run.jumps;
           // Its hours: a run of 5 bits in the same word or the one beside it that stepped by one, about as often
           // as the minutes went round, and never otherwise.
+          // (Two other changes are let be: the player may have let time pass. A run that held fewer hours than the
+          // minutes' rounds call for is no hour: the minutes' own top bit goes up and down once a round.)
           std::uint32_t best_gap = ~0u;
+          std::uint32_t best_jumps = ~0u;
           for (std::size_t v = (w == 0 ? 0 : w - 1); v <= w + 1 && v < words && v < o.lived.size(); ++v) {
             for (std::size_t b = 0; b < Object::kBits; ++b) {
               const Object::Run& hour = o.runs[v * Object::kBits + b];
-              if (hour.hour_dead != 0 || hour.hour_steps == 0 || hour.hour_jumps != 0) continue;
+              if (hour.hour_dead != 0 || hour.hour_steps == 0 || hour.hour_jumps > 2) continue;
+              std::uint32_t held = 0;
+              for (std::uint32_t seen = hour.hour_seen; seen != 0; seen &= seen - 1) ++held;
+              if (held < std::min<std::uint32_t>(run.wraps + 1u, 3u)) continue;
               const std::uint32_t gap = hour.hour_steps > run.wraps ? hour.hour_steps - run.wraps
                                                                     : run.wraps - hour.hour_steps;
-              if (gap > 1 || gap >= best_gap) continue;
+              if (gap > 1) continue;
+              // The one that never changed otherwise first, then the nearest count.
+              if (hour.hour_jumps > best_jumps || (hour.hour_jumps == best_jumps && gap >= best_gap)) continue;
               best_gap = gap;
+              best_jumps = hour.hour_jumps;
               h.has_hour = true;
               h.hour_offset = static_cast<std::uint32_t>(v * 8);
               h.hour_bit = static_cast<std::uint32_t>(b);
@@ -885,49 +895,22 @@ WatchFound Watch::found() const {
                        [](const JumpEvent& a, const JumpEvent& b) { return a.second < b.second; });
     }
     if (o.way.wide) {
-      // One of the many: listed only where a run of bits went round as minutes do with hours beside it, a field
-      // that kept rising jumped a few times, a run behaved as hours and jumped, or a fraction kept rising.
+      // One of the many: listed only where a run of bits went round as minutes do, twice at least, with hours
+      // beside it: a clock. (The seventh round also listed rises that jumped and hours that stood alone; they found
+      // the clock once and are noise beside it now.)
       ++out.wide_ways;
-      const bool clock_like = std::any_of(x.bits.begin(), x.bits.end(),
-                                          [](const BitHit& h) { return h.wraps != 0 && h.has_hour; });
-      const bool jumped = std::any_of(x.rises.begin(), x.rises.end(),
-                                      [](const RiseHit& h) { return h.jumps >= 1 && h.jumps <= 8; });
-      const bool hours = std::any_of(x.hours.begin(), x.hours.end(), [](const HourHit& h) { return h.jumps != 0; });
-      const bool fraction = std::any_of(x.rises.begin(), x.rises.end(), [](const RiseHit& h) { return !h.whole; });
-      if (!clock_like && !jumped && !hours && !fraction) continue;
-      // What is listed of it: the jumped and the fractions among its rises, the jumped among its hours.
-      std::erase_if(x.rises, [](const RiseHit& h) { return h.whole && !(h.jumps >= 1 && h.jumps <= 8); });
-      std::erase_if(x.hours, [](const HourHit& h) { return h.jumps == 0; });
-      std::erase_if(x.jumps, [&](const JumpEvent& e) {
-        if (e.as == JumpAs::Hour) {
-          return std::none_of(x.hours.begin(), x.hours.end(),
-                              [&](const HourHit& h) { return h.offset == e.offset && h.bit == e.bit; });
-        }
-        return std::none_of(x.rises.begin(), x.rises.end(), [&](const RiseHit& h) { return h.offset == e.offset; });
-      });
-      if (x.bits.size() > 2) x.bits.resize(2);
-      if (x.rises.size() > 3) x.rises.resize(3);
-      if (x.hours.size() > 2) x.hours.resize(2);
-      std::erase_if(x.jumps, [&](const JumpEvent& e) {
-        if (e.as == JumpAs::Hour) {
-          return std::none_of(x.hours.begin(), x.hours.end(),
-                              [&](const HourHit& h) { return h.offset == e.offset && h.bit == e.bit; });
-        }
-        return std::none_of(x.rises.begin(), x.rises.end(), [&](const RiseHit& h) { return h.offset == e.offset; });
-      });
+      std::erase_if(x.bits, [](const BitHit& h) { return h.wraps < 2 || !h.has_hour; });
+      if (x.bits.empty()) continue;
+      if (x.bits.size() > 4) x.bits.resize(4);
+      x.rises.clear();
+      x.hours.clear();
+      x.jumps.clear();
       wide_found.push_back(std::move(x));
       continue;
     }
     out.objects.push_back(std::move(x));
   }
-  // Of the wide ones at most kMaxWideListed: those with a steady rise that jumped first, then those whose hours
-  // jumped, then the rest, each in the order they were added.
-  const auto rank = [](const WatchObject& x) {
-    if (std::any_of(x.jumps.begin(), x.jumps.end(), [](const JumpEvent& e) { return e.as != JumpAs::Hour; })) return 0;
-    return x.jumps.empty() ? 2 : 1;
-  };
-  std::stable_sort(wide_found.begin(), wide_found.end(),
-                   [&](const WatchObject& a, const WatchObject& b) { return rank(a) < rank(b); });
+  // Of the wide ones at most kMaxWideListed, in the order they were added.
   if (wide_found.size() > kMaxWideListed) wide_found.resize(kMaxWideListed);
   for (WatchObject& x : wide_found) out.objects.push_back(std::move(x));
   return out;
@@ -951,6 +934,17 @@ struct Sweep::State {
     std::array<SweepFlip, kPageEvents> flips{};  // its first flips in words not busy
   };
   std::vector<Page> pages;          // by page of the stretch
+  // The latest flips in words not busy, with when they were seen: a mark that comes after them takes them.
+  struct Seen {
+    SweepFlip flip;
+    std::uint64_t at_us = 0;
+  };
+  std::array<Seen, kRecent> recent{};
+  std::size_t recent_count = 0;     // ever put; the ring's place is this modulo kRecent
+  // By mark: the flips seen around it, and how many (written after the flip is whole).
+  std::array<std::array<SweepFlip, kMarkEvents>, kMaxMarks> marked{};
+  std::array<std::atomic<std::uint32_t>, kMaxMarks> marked_count{};
+  std::atomic<bool> retired{false};
   std::atomic<std::uint64_t> bytes{0};
   std::atomic<std::uint64_t> readings{0};
   std::atomic<std::uint64_t> empty{0};
@@ -1019,11 +1013,27 @@ void Sweep::compare(State& t, std::uint64_t at, std::span<const std::byte> now, 
         continue;
       }
       t.single_flips.fetch_add(1, std::memory_order_relaxed);
-      if (busy >= kBusy || page.kept >= kPageEvents) continue;
+      if (busy >= kBusy) continue;
       std::uint32_t bit = 0;
       while ((bits >> bit) != 1) ++bit;
-      page.flips[page.kept] = SweepFlip{static_cast<std::uint32_t>(where + k), bit, ((b >> (k * 8)) & bits) != 0,
-                                        second};
+      const SweepFlip flip{static_cast<std::uint32_t>(where + k), bit, ((b >> (k * 8)) & bits) != 0, second};
+      // Kept for a mark that comes after it, and under the latest mark it was seen around.
+      t.recent[t.recent_count % kRecent] = State::Seen{flip, now_us};
+      ++t.recent_count;
+      for (std::size_t m = marks_taken_; m-- > 0;) {
+        const std::uint64_t at = mark_us_[m].load(std::memory_order_relaxed);
+        if (at > now_us + kMarkBeforeUs) continue;  // a later mark: not around this flip
+        if (now_us <= at + kMarkAfterUs) {
+          const std::uint32_t n = t.marked_count[m].load(std::memory_order_relaxed);
+          if (n < kMarkEvents) {
+            t.marked[m][n] = flip;
+            t.marked_count[m].store(n + 1, std::memory_order_release);
+          }
+        }
+        break;
+      }
+      if (page.kept >= kPageEvents) continue;
+      page.flips[page.kept] = flip;
       ++page.kept;  // after the flip is whole: found() may be reading
     }
   }
@@ -1043,10 +1053,36 @@ void Sweep::finish(State& t, std::size_t n, bool& ended) {
   }
 }
 
+void Sweep::mark(std::uint64_t now_us) noexcept {
+  const std::size_t n = mark_count_.load(std::memory_order_relaxed);
+  if (n >= kMaxMarks) return;
+  mark_us_[n].store(now_us, std::memory_order_relaxed);
+  mark_count_.store(n + 1, std::memory_order_release);
+}
+
 bool Sweep::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us) {
   const std::size_t n = count_.load(std::memory_order_acquire);
   if (n == 0) return false;
   if (start_us_ == 0) start_us_ = now_us;
+  // A new mark: each target's latest flips seen shortly before it go under it, and the rest ends, so that the next
+  // pass starts now.
+  for (const std::size_t marks = mark_count_.load(std::memory_order_acquire); marks_taken_ < marks; ++marks_taken_) {
+    const std::size_t m = marks_taken_;
+    const std::uint64_t at = mark_us_[m].load(std::memory_order_relaxed);
+    for (std::size_t i = 0; i < n; ++i) {
+      State& t = *targets_[i];
+      const std::size_t kept = std::min<std::size_t>(t.recent_count, kRecent);
+      for (std::size_t k = 0; k < kept; ++k) {
+        const State::Seen& s = t.recent[(t.recent_count - kept + k) % kRecent];
+        if (s.at_us + kMarkBeforeUs < at) continue;
+        const std::uint32_t have = t.marked_count[m].load(std::memory_order_relaxed);
+        if (have >= kMarkEvents) break;
+        t.marked[m][have] = s.flip;
+        t.marked_count[m].store(have + 1, std::memory_order_release);
+      }
+    }
+    resting_ = false;
+  }
   if (resting_) {
     if (now_us < pass_us_ + kEveryUs) return false;
     resting_ = false;
@@ -1055,6 +1091,17 @@ bool Sweep::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64
   State& t = *targets_[at_];
   bool ended = false;
   if (!t.followed) {
+    // A target of which too much changes all the time holds no flags: it is read no more.
+    if (!t.retired.load(std::memory_order_relaxed) &&
+        t.readings.load(std::memory_order_relaxed) >= kRetireAfter &&
+        t.busy_words.load(std::memory_order_relaxed) > kRetireBusy) {
+      t.retired.store(true, std::memory_order_relaxed);
+    }
+    if (t.retired.load(std::memory_order_relaxed)) {
+      if (at_ == 0) pass_us_ = now_us;
+      finish(t, n, ended);
+      return ended;
+    }
     if (at_ == 0) pass_us_ = now_us;
     // The way: the static's slot, the offset, the address kept there; and for a deeper target one step more.
     const auto slot = reader.copy<std::uint64_t>(gt, proto::Group::Session, base_ + t.target.static_rva);
@@ -1113,6 +1160,11 @@ bool Sweep::step(const proto::GameThread& gt, GuardedReader& reader, std::uint64
 SweepFound Sweep::found() const {
   SweepFound out;
   out.passes = passes_.load(std::memory_order_acquire);
+  for (std::size_t m = 0; m < std::min<std::size_t>(mark_count_.load(std::memory_order_acquire), kMaxMarks); ++m) {
+    const std::uint64_t at = mark_us_[m].load(std::memory_order_relaxed);
+    const bool after = start_us_ != 0 && at > start_us_;
+    out.mark_seconds.push_back(after ? static_cast<std::uint32_t>((at - start_us_) / 1'000'000) : 0);
+  }
   const std::size_t n = count_.load(std::memory_order_acquire);
   for (std::size_t i = 0; i < n; ++i) {
     const State& t = *targets_[i];
@@ -1153,6 +1205,20 @@ SweepFound Sweep::found() const {
     std::stable_sort(flips.begin(), flips.end(),
                      [](const auto& a, const auto& b) { return a.second.second < b.second.second; });
     for (const auto& f : flips) x.flips.push_back(f.second);
+    // The flips around each mark, in words that stayed quiet.
+    const std::size_t marks = std::min<std::size_t>(mark_count_.load(std::memory_order_acquire), kMaxMarks);
+    for (std::size_t m = 0; m < marks; ++m) {
+      const std::uint32_t kept = std::min<std::uint32_t>(t.marked_count[m].load(std::memory_order_acquire),
+                                                         static_cast<std::uint32_t>(kMarkEvents));
+      std::size_t listed = 0;
+      for (std::uint32_t e = 0; e < kept && listed < kMarkListed; ++e) {
+        const SweepFlip& f = t.marked[m][e];
+        if (f.offset / 8 >= t.busy.size() || t.busy[f.offset / 8] >= kBusy) continue;
+        x.mark_flips.push_back(MarkFlip{static_cast<std::uint32_t>(m + 1), f});
+        ++listed;
+      }
+    }
+    x.retired = t.retired.load(std::memory_order_relaxed);
     out.targets.push_back(std::move(x));
   }
   return out;
