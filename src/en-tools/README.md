@@ -121,7 +121,8 @@ eldennet-engine lodestar find <exe> --gal <folder> --out <report.json>
 
 The first of Lodestar's devkit commands (proposal 0005 §9.7; `check` and `diff` are still to come). It reads a game's
 executable file, never a running game (O73, O75), with what gal/ says to look for (`leads.toml` and `recipes.toml`,
-both required; `builds.toml` for the gate's verdict; `ids.toml` is read to check it), and writes a report of kind
+both required; `builds.toml` for the gate's verdict; `ids.toml` for the labels of `lead_classes`), and writes a
+report of kind
 `lodestar`, schema 2, which passes the lint before it is written. The report's places:
 
 | Key | Holds |
@@ -131,6 +132,7 @@ both required; `builds.toml` for the gate's verdict; `ids.toml` is read to check
 | `accessor` | `recipe` (recipes.toml holds one); `hits` (places the shape stands at), `sites` (kept), `accepted`, `refused` (by `reason`, with its `count`), `expect` (`within`, `below`, `above`); `statics_found`, `class_objects`; `shared_class_objects` and `shared_statics` (class objects that go with more than one static, and the reverse: 0 when each manager has one slot and one class object of its own); `statics`, each a manager's slot not yet named: its `rva`, its `class_object`, its `sites` and up to 8 `witnesses` (the loads themselves); `getters` |
 | `accessor.pattern` | The comparison with the withdrawn pattern, cut again in memory and never written: `cut`, its `hits` and `accepted`, the accepted sites in `both`, `only_shape` and `only_pattern`, and the distinct statics its accepted sites load (`statics_found`). For the sites the pattern alone accepts: `why`, by the shape's `step` that differs (0 is the first) and how (`differs`: `narrow`, the form in all but its width, a load or a test that is not 64-bit; `other_register`, a 64-bit test of another register than the one loaded; `other`; `undecodable`), each with its `count`; and `only_pattern_statics`, the statics that only those sites load, each with its `rva`, `class_object`, `sites` and those sites as `witnesses` |
 | `classes` | For each class the leads name: its `label`, `status`, `type_descriptor`, `classes_derived`, and its `vtables` (primary, ascending, at most 64) |
+| `lead_classes` | For each manager the leads ask for, under the catalogue's label (`id` 0 and the lead's own label where the catalogue does not hold it), what the image holds under the lead's name, in counts: `named` (classes with tables of methods whose innermost name is the lead's), `named_imp` (the lead's with Imp), `vtable_count` (the primary tables of methods of those classes and of every class deriving from them) and `texts` (the places where a type's name of either form stands at all, in any namespace). No name is written. A lead with zeros everywhere has no class to be named by |
 | `table` | The task groups' table: `status`, `rva`, `entries`, `stride`, `has_name_offset` and `name_offset`, `wide`, and the lead's group's `index` |
 
 Every value is a whole number, a boolean, a fixed word or one of the leads' labels. The vocabulary has no key that can

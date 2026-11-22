@@ -33,6 +33,9 @@ class Trial final : public TaskBody {
 
   // Adds a manager the round named (status derived); false when it is there already, or the trial is full.
   bool add(const ManagerFound& manager);
+  // The manager whose instance tells the stage: a reading made while it has one is a reading in the world (the
+  // characters' manager exists only with a save loaded). 0, the default: no stage is told.
+  void set_stage(std::uint32_t id) noexcept { stage_id_.store(id, std::memory_order_relaxed); }
 
   void run(const proto::GameThread& gt, const FrameCtx& frame) override;
 
@@ -47,6 +50,10 @@ class Trial final : public TaskBody {
     std::uint64_t slot = 0;    // absolute
     std::uint64_t vtable = 0;  // absolute
     std::atomic<std::uint64_t> null{0};
+    std::atomic<std::uint64_t> null_runs{0};
+    std::atomic<std::uint64_t> null_longest{0};
+    std::atomic<std::uint64_t> null_world{0};
+    std::uint64_t run = 0;  // the reader's thread only: the stretch of empty readings it is in
     std::atomic<std::uint64_t> same{0};
     std::atomic<std::uint64_t> other{0};
     std::atomic<std::uint64_t> fault{0};
@@ -61,6 +68,10 @@ class Trial final : public TaskBody {
   std::atomic<std::size_t> count_{0};  // slots published to the reader's thread
   std::atomic<std::uint64_t> steps_{0};
   std::atomic<std::uint64_t> readings_{0};
+  std::atomic<std::uint64_t> world_readings_{0};
+  std::atomic<std::uint64_t> stage_changes_{0};
+  std::atomic<std::uint32_t> stage_id_{0};
+  int last_stage_ = -1;  // the reader's thread only: 0 title, 1 world, -1 not yet read
   std::atomic<std::uint64_t> first_us_{0};
   std::atomic<std::uint64_t> last_us_{0};
   Histogram reading_us_;

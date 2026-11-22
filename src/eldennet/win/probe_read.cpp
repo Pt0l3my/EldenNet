@@ -5,8 +5,9 @@
 //    builds.toml): the accessor's shape and every static its sites load, the leads' classes, the groups' table.
 // 2. The managers named by their instances (O92): for each of those statics, the instance it holds and that
 //    instance's first word, read once through the guarded copy under the reader's plausibility rules, and the word's
-//    class by the image's own type information. Again every 10 s while a lead is unnamed, for at most ten minutes: a
-//    manager the game makes only once a save is loaded is null at the title. What is named once stays named.
+//    class by the image's own type information. Again every 10 s for as long as a lead is unnamed: a manager the
+//    game makes only once a save is loaded is null at the title. What is named once stays named. The image's type
+//    information is read once (lodestar::Namer); a later pass reads the 217 slots and one word at each instance.
 // 3. The reader's trial (lodestar_trial.hpp): T2, a thread of our own as in a v1 start (boot.cpp), reads each named
 //    manager's slot and its instance's first word about ten times a second, and counts what it saw.
 // 4. Every 2 s, probe\lodestar-found.json (report kind `lodestar`, schema 2: numbers, fixed words and the catalogue's
@@ -40,8 +41,7 @@ using en::shell::LogLevel;
 
 namespace {
 
-constexpr std::uint64_t kNameEveryMs = 10'000;  // between naming passes, while a lead is unnamed
-constexpr std::uint32_t kMaxPasses = 60;        // ten minutes of them
+constexpr std::uint64_t kNameEveryMs = 10'000;  // between naming passes, for as long as a lead is unnamed
 constexpr std::uint64_t kReportEveryMs = 2'000;
 constexpr std::uint64_t kFirstReadingMs = 30'000;
 
@@ -124,13 +124,14 @@ class Round {
 
     // ---- 1. The finder, over the image as the game runs it ----
     const std::uint64_t t0 = since_ms();
-    found_ = lodestar::find(*image_, s_.sys->image(), 0, leads_, *recipes, &*builds);
+    found_ = lodestar::find(*image_, s_.sys->image(), 0, leads_, *recipes, &*builds, &ids_);
     const lodestar::AccessorFound& a = found_.accessor;
     log(Line("read").word("stage", "found").flag("known_build", found_.image.known_build).flag("recipe", a.recipe)
             .num("hits", a.hits).num("accepted", a.accepted).num("statics", a.statics_found)
             .num("class_objects", a.class_objects).num("classes", found_.classes.size()).num("ms", since_ms() - t0));
 
     // ---- 2. The managers, by their instances: the first pass ----
+    namer_ = new lodestar::Namer(*image_, s_.sys->image(), leads_, ids_);  // lives for the process
     name_pass();
     provenance_ = en::gal::TableProvenance{std::string(kVersionLabel), std::string(64, '0'), "l5", today(),
                                            {"gal/leads.toml", "gal/recipes.toml"}};
@@ -140,6 +141,8 @@ class Round {
     // ---- 3. The reader's trial, on T2 ----
     state(w::InitState::Reader);
     trial_ = new lodestar::Trial(*s_.sys, s_.sys->module_base());  // lives for the process
+    // The characters' manager exists only with a save loaded: its instance tells the trial's readings' stage.
+    trial_->set_stage(en::gal::roles::info(en::gal::roles::Item::Characters).id);
     add_named();
     auto* body = new Body(*trial_);
     auto* start = new ReaderStart{s_.sys, body};
@@ -189,8 +192,7 @@ class Round {
       std::memcpy(&out, v.data(), 8);
       return out;
     };
-    const lodestar::InstancesFound pass =
-        lodestar::name_instances(*image_, s_.sys->image(), found_.accessor, leads_, ids_, read_word);
+    const lodestar::InstancesFound pass = namer_->pass(s_.sys->image(), found_.accessor, read_word);
     lodestar::merge(held_, pass);
     last_pass_ms_ = since_ms();
     // For the launcher's console: how many of the managers asked for are named, and in how many passes.
@@ -232,7 +234,7 @@ class Round {
     for (;;) {
       Sleep(static_cast<DWORD>(kReportEveryMs));
       const bool unnamed = held_.named < held_.managers.size();
-      if (unnamed && held_.passes < kMaxPasses && since_ms() - last_pass_ms_ >= kNameEveryMs) {
+      if (unnamed && since_ms() - last_pass_ms_ >= kNameEveryMs) {
         name_pass();
         add_named();
       }
@@ -252,7 +254,8 @@ class Round {
         log(Line("read").word("stage", "trial").num("passes", held_.passes).num("named", held_.named)
                 .num("of", held_.managers.size()).num("managers", t.managers.size()).num("readings", t.readings)
                 .num("same", same).num("null", null).num("other", other).num("fault", fault).num("torn", torn)
-                .num("faults", faults).num("p99_us", t.reading_p99_us).num("max_us", t.reading_max_us));
+                .num("faults", faults).num("world", t.world_readings).num("stage_changes", t.stage_changes)
+                .num("p99_us", t.reading_p99_us).num("max_us", t.reading_max_us));
       }
     }
   }
@@ -265,6 +268,7 @@ class Round {
   lodestar::Found found_;
   lodestar::InstancesFound held_;
   en::gal::TableProvenance provenance_;
+  lodestar::Namer* namer_ = nullptr;
   lodestar::Trial* trial_ = nullptr;
   std::uint64_t last_pass_ms_ = 0;
   std::uint64_t tabled_ = ~std::uint64_t{0};
