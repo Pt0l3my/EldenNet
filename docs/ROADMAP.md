@@ -431,7 +431,10 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - refs: PAGES§4.6, WHY§377
 - c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [next]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
-  - gives: put to the owner on 2026-11-22; waits for G38.
+  - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
+    (Recommended)", "Keep in memory (Recommended)", "One paragraph (Recommended)"; GraceUI feat/foundations f747f46):
+    built now, in the order text field in game, topic families with master-detail, slow commands, the editor, each
+    tried on the demo space. Being built.
 
 ### S7.3 Follow-ups from the character-profile design [next]
 

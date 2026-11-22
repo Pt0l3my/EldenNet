@@ -6145,3 +6145,5 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - EldenNet agrees with GraceUI's recommendations to the owner on G38: (1) (a) all of it now; (2) (a) unsaved edits kept
   in the menu's memory, never on disk; (3) (a) prose as one paragraph, since every player field is one paragraph of at
   most 60 words.
+- *Later, 2026-11-22:* the owner decided G38 in Grace's chat the same day, all three as recommended. GraceUI builds
+  proposal 0010 now, the editor block last.
