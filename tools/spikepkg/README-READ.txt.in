@@ -3,7 +3,8 @@ EldenNet, the read-only round (package @LABEL@)
 
 This package runs a read-only round of EldenNet's address library (Lodestar; EldenNet's decisions O100 to O102) on
 your own PC. The two offline runs you made read the game's executable file and found the 217 places where the game
-keeps its managers, without knowing which is which. This round starts the game with EldenNet loaded and reads, from
+keeps its main objects (EldenNet calls them managers: one keeps the world's characters, another the time of day, and
+so on), without knowing which is which. This round starts the game with EldenNet loaded and reads, from
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
