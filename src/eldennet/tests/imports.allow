@@ -21,6 +21,8 @@
 # loaded by its full path, never imported) and DeleteFileW (secrets.toml's part file, made anew). And advapi32.dll, for
 # secrets.toml's access list (ARCH §11.5: this user alone): the process token's user and an ACL of one entry in a
 # security descriptor, nothing else of it.
+# The first conversation (S11.3) links en-prompt: its template library's file code, which en-prompt never calls (the DLL
+# renders templates from the content pack in memory), brings SetEndOfFile.
 [advapi32.dll]
 AddAccessAllowedAce
 GetLengthSid
@@ -164,6 +166,7 @@ RtlUnwind
 RtlUnwindEx
 RtlVirtualUnwind
 SetConsoleCtrlHandler
+SetEndOfFile
 SetEnvironmentVariableA
 SetEnvironmentVariableW
 SetEvent
