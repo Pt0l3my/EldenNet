@@ -190,6 +190,7 @@ struct Conversation::Impl {
 
   std::optional<Active> conv;
   std::vector<Grace> grace;
+  std::optional<std::uint64_t> cast_hash;  // the content the candidates and the conversation were read from
 
   // The step's.
   const ConversationInput* in = nullptr;
@@ -1239,6 +1240,21 @@ struct Conversation::Impl {
     in = &input;
     out = &o;
     now = input.now;
+    // Content loaded anew: what was read from the old content goes (v0.2 loads content once; impl).
+    const std::optional<std::uint64_t> hash =
+        input.world.cast != nullptr ? std::optional<std::uint64_t>(input.world.cast->pack().hash) : std::nullopt;
+    if (hash != cast_hash) {
+      cast_hash = hash;
+      candidates.clear();
+      best.reset();
+      stable.reset();
+      approached_at.clear();
+      if (conv) {
+        conv->tail.reset();  // what is up was read from the old content: dropped, never committed
+        conv->retarget.reset();
+        finish(EndReason::Fault);  // cancels the live request
+      }
+    }
     if (input.world.snapshot != nullptr && input.world.fresh) observe(*input.world.snapshot);
     refresh_flags();
     if (input.ui != nullptr) {

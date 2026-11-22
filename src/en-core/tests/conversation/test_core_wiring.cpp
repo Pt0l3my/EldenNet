@@ -152,3 +152,27 @@ TEST_CASE("the built-in content loads in the game's realm with no persona to bin
   CHECK_FALSE(core.load_content(broken, Realm::Game).empty());
   CHECK(core.directory().size() == 1);  // the old content stays
 }
+
+TEST_CASE("content loaded anew while a conversation is open ends it, its request cancelled") {
+  Session s;
+  CHECK(s.core.load_content(content_with_overrides(), Realm::Eval).empty());
+  (void)s.feed(in(data_ready()));
+  (void)s.feed(CoreInput{proto::NetHealth{true}});
+  (void)s.feed(in(playthrough_ready()));
+  s.world(30);
+  (void)s.feed(CoreInput{proto::UiEvent{proto::UiEvent::OpenChat{proto::OpenVia::TalkKey}}});
+  const Outputs said = s.feed(CoreInput{proto::UiEvent{proto::UiEvent::Submit{"Still there?"}}});
+  REQUIRE(said.requests.size() == 1);
+  std::vector<ContentFile> files = content_with_overrides();
+  files.push_back(ContentFile{"prompts/invented.md", "changed", ContentOrigin::Override});  // not in the hash
+  for (ContentFile& f : files) {
+    if (f.path == "identity/personas.toml" && f.origin == ContentOrigin::Override) f.text += "\n# the hash changes\n";
+  }
+  CHECK(s.core.load_content(files, Realm::Eval).empty());
+  const Outputs o = s.feed(CoreInput{CoreInput::Tick{}});
+  CHECK(o.ended == EndReason::Fault);
+  REQUIRE(o.cancels.size() == 1);
+  CHECK(o.cancels[0] == said.requests[0].id);
+  s.world(20);  // the targets come back from the new content
+  CHECK(s.last.ui.hint.has_value());
+}
