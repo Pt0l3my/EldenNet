@@ -373,6 +373,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 348 | 2026-11-22 | The play time: one field behind one slot rose by the clock in two sessions, a lead for L6 | LIKELY | #lodestar #l6 |
 | 349 | 2026-11-22 | Pad chords for mods' hotkeys are built: an anchor, a key held 0.4 s, one hotkey event, or a tap replayed | FACT | #graceui #input |
 | 350 | 2026-11-22 | Pad behaviour is tested with no pad; what only a real pad shows waits for testers, since the owner has keyboard and mouse only | METHOD | #graceui #testing |
+| 351 | 2026-11-22 | The read-only round may search all of the game's readable private memory once for a missing manager's object, counts and places only | DECIDED | #lodestar #probe |
+| 352 | 2026-11-22 | Where the image has no class of a lead's name, a class whose name holds the lead's may name the manager, marked by_related | METHOD | #lodestar |
+| 353 | 2026-11-22 | A manager no accessor loads takes its witnesses from the code's references to its slot, and of several slots the one referred to most | METHOD | #lodestar #gal |
 
 ## Entries
 
@@ -5757,3 +5760,30 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   under Wine on both toolchains, through a test export, GraceUI_Test_PadRead (the game's view of one read, its packet
   number included). The real-pad facts (the chord's three timings, that the chord is free in the game, the Steam Deck)
   wait for testers' machines, never for the owner; the owner's own runs are keyboard and mouse.
+
+### 351. The read-only round may search all of the game's readable private memory once for a missing manager's object, counts and places only
+
+`2026-11-22` · DECIDED · `#lodestar` `#probe` · refs: O105, S10.1.k, WHY§347, docs/ops/probes/2026-11-22-l5.md
+
+- The owner's answer to Lodestar, 2026-11-22: "Yes, scan it (Recommended)". Built as ObjectScan (engine 606167d), on the
+  reader's thread once a save is loaded: private, writable, committed memory outside the game's image, EldenNet's own
+  heap and every thread's stack, 16 KiB at a time, Windows asked for each region and again after every mebibyte, in a
+  6 ms share of each step of its own; then up to three sweeps for the holders of what it found. Nothing read is kept:
+  counts, classes as offsets in the image, offsets into objects, and whether the image's data holds a node's address.
+  Package 0.1.0-lodestar.7.
+
+### 352. Where the image has no class of a lead's name, a class whose name holds the lead's may name the manager, marked by_related
+
+`2026-11-22` · METHOD · `#lodestar` · refs: O92, WHY§347, docs/ops/probes/2026-11-22-l5.md
+
+- Only where the image has no class of the lead's own name, with or without Imp. Weaker than O92's rule, so such a
+  manager stays a lead until confirmed (the world's clock first, `related` 1 in the third round).
+
+### 353. A manager no accessor loads takes its witnesses from the code's references to its slot, and of several slots the one referred to most
+
+`2026-11-22` · METHOD · `#lodestar` `#gal` · refs: resolve.hpp, WHY§340, WHY§344
+
+- The witnesses are instructions with a RIP-relative operand that is the slot, each read from its function's start, as
+  the resolver reads any witness. Where several slots hold one object, the manager's is the slot the code refers to
+  most, with those places as its sites (`lodestar::references`). `messages`, named by the slot search, should get its
+  witnesses this way.

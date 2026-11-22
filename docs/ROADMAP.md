@@ -947,7 +947,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - k Lodestar: EldenNet's own address library for Elden Ring, as SKSE's Address Library is for Skyrim, and the services
     built on it, by the Lodestar session (proposal 0005) [active]
   - needs: f
-  - refs: O100, O101, O102, O103, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
+  - refs: O100, O101, O102, O103, O105, O47, O48, O49, O89, WHY§302, WHY§303, WHY§304, WHY§305
   - gives: started on 2026-11-21 by the owner's decision O100, as a part of EldenNet, in a session of its own on a
     larger model (handover-2026-11-21). Stable ids of our own for the game's functions and data, per game build, found
     and checked from the player's own executable with nothing of the game kept but numbers; then what EldenNet builds
@@ -1017,6 +1017,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The third round reviewed the same day (engine f95f3cb; WHY§344 to §348): nine of the eleven managers named (messages
     by the slot search), twelve leads in the build's table; event_flags and world_clock still open; the variants counted,
     gap_near withdrawn; the play time's candidate the same across two sessions. Next: a fourth round for the last two.
+    The fourth round built the same day (engine 0d79ece, Lodestar's 606167d; WHY§351 to §353): the object scan, a wide
+    read-only search of the game's private memory that the owner agreed to (O105), naming by a longer name (by_related),
+    the flags' store as a lead on trial, the member search over 0x4000 bytes, and the code's references as witnesses;
+    report schema 4; package 0.1.0-lodestar.7, awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

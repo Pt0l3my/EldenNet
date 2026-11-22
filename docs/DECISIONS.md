@@ -68,6 +68,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   option of the owner's own: EldenNet's own address library, built by the Lodestar session; O101 to O103 (Lodestar's
   proposal 0005) put to the owner and decided the same day, as recommended; O104 (the fourth pages slice's
   readings) the same day, as built.
+- **2026-11-22.** O105 (the fourth read-only round's wide search of the game's memory) put to the owner by Lodestar and
+  decided the same day, as recommended.
 - **Open.** None.
 
 ## O1
@@ -1989,3 +1991,27 @@ the old model, or refuse the choice; (3) allow it anyway; (4) Missing with a fie
 
 **Follows from.** PAGES §4.6.2, §4.5; ARCH §11.1, §11.4; O98, O99; S11.4.a; WHY§297.
 
+
+## O105
+
+**The fourth read-only round: one wide search of the game's memory** · *2026-11-22 · Decided by the owner, as recommended*
+
+**Question.** Lodestar's third read-only round (S10.1.k; WHY§344 to §348) left two managers unnamed: the event flags'
+store, in none of the places looked, and the world's clock, with a class only under a longer name. The owner was asked,
+by Lodestar in its chat: "may the next read-only round also scan all of the game's readable private memory once for that
+one kind of object (asking Windows before each read, 64 KiB at a time, within the same 4 ms share; counts and places
+only)?" **Options:** scan it once, read-only, counts and places only; or not, and look only where the third round looked
+(the statics, the data's slots and the objects behind them).
+
+**Recommendation.** Scan it.
+
+**Decision.** Scan it, once a save is loaded: the process's private, writable, committed memory outside the game's image,
+EldenNet's own heap and every thread's stack, for an object of a missing lead's class, then up to three sweeps for what
+holds its address; nothing read is kept, only counts, classes as offsets in the image, offsets and counts. Built as
+ObjectScan (engine feat/lodestar 606167d). Two details differ from the question, and the package's README says so: the
+pieces are 16 KiB (the guarded reader's longest copy), and Windows is asked for each stretch of a mebibyte rather than
+before each piece, in a share of 6 ms a step of its own while the scan runs.
+
+**Owner's words.** "Yes, scan it (Recommended)" (the owner's choice in Lodestar's question dialog, 2026-11-22).
+
+**Follows from.** O48, O100, O101, O102; proposal 0005; S10.1.k; WHY§343, WHY§347, WHY§351.
