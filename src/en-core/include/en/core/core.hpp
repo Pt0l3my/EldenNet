@@ -11,6 +11,12 @@
 // What waits for later parts: the store (Playthrough → InWorld waits for `DbResult::Opened` once it exists; here it
 // follows at once), conversations, barks and the net (L3 and L4, the provider's health), content.
 //
+// The first conversation's inputs and outputs are here already (part 0 of the first conversation, WHY§364): the
+// surfaces' events (proto::UiEvent, C7), the model client's events (proto::LlmEvent, C10) and its health
+// (proto::NetHealth) go in; what the surfaces show (proto::UiModel, C6) and the requests to send and cancel (C9) come
+// out. Until the conversation (conversation.hpp) is wired in, a step on one of the new inputs is a tick: nothing of
+// the slice changes, and the outputs hold a closed box and no request.
+//
 // Augur (en-augur, ARCH §8; part 11) runs in every step, before anything that consumes the step's events: the slice
 // judges the input first (the gate, the phases, the ladder), because Augur's Lifecycle source reads what it changed on
 // the same step, and then Augur takes the same input and answers the step's events, which the bus dispatches (none of
@@ -30,7 +36,9 @@
 #include "en/core/predicates.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
+#include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/proto/ui.hpp"
 
 namespace en::core {
 
@@ -96,7 +104,11 @@ struct PlaythroughId {
 
 struct CoreInput {
   struct Tick {};  // C16: the 100 ms tick, for time that passes with no snapshot
-  std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick> payload;
+  // C1's snapshot, C2's lifecycle message, T1's banner, the tick; then the surfaces' event (C7), the model client's
+  // event (C10) and the model client's health, which the shell passes when it changes.
+  std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
+               proto::LlmEvent, proto::NetHealth>
+      payload;
 };
 
 // Where the slice stands after a step: what the status block and the debug view show.
@@ -134,6 +146,9 @@ struct Outputs {
   State state;
   std::vector<Change> changes;
   std::vector<augur::Event> events;  // Augur's events of the step, in dispatch order (ARCH §8.9)
+  proto::UiModel ui;                 // C6: what the surfaces show after this step, whole (the newest wins)
+  std::vector<proto::LlmRequest> requests;  // C9: to submit, in order (Service::submit)
+  std::vector<proto::RequestId> cancels;    // C9: live requests to cancel (Service::cancel)
 };
 
 // What en-core supplies Augur (ARCH §8.1), for what v0.1 knows. There are no personas and no cards until content
