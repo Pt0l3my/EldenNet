@@ -386,6 +386,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 361 | 2026-11-22 | GraceUI's key names follow the browser's KeyboardEvent.code, and pad buttons the Xbox pad's own names | DECIDED | #graceui #hotkeys |
 | 362 | 2026-11-22 | Every mod's hotkeys are rebound on GraceUI's Hotkeys page; EldenNet's three key settings become registered defaults | DECIDED | #graceui #hotkeys #pages |
 | 363 | 2026-11-22 | R1 is retired: what goes, what stays, and who removes it | DECIDED | #engine #lodestar #probe |
+| 364 | 2026-11-22 | The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points | DECIDED | #engine #conversation |
 
 ## Entries
 
@@ -5905,3 +5906,33 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   §6.2, §6.10; DESIGN §16.1).
 - What stays: R0, as Lodestar's `lodestar find`; the read-only probe build (`--read`); the findings, in WHY§206 to §303
   and `docs/ops/probes/`; and the code in git history. O92's naming rule stays too, since Lodestar names managers by it.
+
+### 364. The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: S11.3.a, S11.3.b, S11.3.e, S11.4.c, O107, DESIGN§8, DESIGN§14, NPC§5, NPC§7, NPC§8
+
+- The owner chose it on 2026-11-22, while Lodestar removes R1: v0.2's talk with one NPC, built and tested with no game,
+  on the fake game and a fake model server. A read-only survey mapped the design against the engine. Four parts follow.
+  Part 0 is the shared types: en-proto's UI model and events, the chat request's stop sequences, and the core's wider
+  input and output. Then two parts in parallel: A, speech and the prompt (the prompt's blocks, the sanitizer, the
+  lint, pages, `render-prompt --fixture`); and B, the conversation and the eval (content and identity, the states and
+  timers, gating, commit on display, `eval --llm mock`, `mockllm`). Last, C, the surfaces in the DLL (the chat box,
+  subtitles and hint as GraceUI panels, holder input, the pad chord), under Wine.
+- Engine's rulings on the open points, from the design:
+  - (1) The end-to-end test uses an invented test persona, bound to an invented fake-game character through the
+    overrides folder (DESIGN §11.4), in tests only.
+  - (3) With no `on_present` in GraceUI's ABI yet, T6 submits at most 10 times a second: fades step, and `PageShown`
+    means the first submitted frame.
+  - (5) The call-out box waits for v0.6, as DESIGN §16.2 has it.
+  - (6) The pad chord's order is GraceUI's, D-pad Up then View (its D204), and the Steam floating keyboard stays
+    unbuilt in v0.2.
+  - (7) v0.2 keeps the event log in memory behind the store's interface; the log written per page waits for the store
+    (v0.3).
+  - (8) Since G15 T6 alone calls GraceUI, so ARCH §1.3's present-thread channels get a dated note.
+  - (9) Prompts use en-prompt's syntax (`[ system ]`, `[ cache ]`, `join()`) in place of NPC §7.3's sketch.
+  - (10) CI's eval runs mock and recorded models only; live and judged sets wait for a key. A report holding model text
+    is a local-only kind, never committed or uploaded.
+  - (11) The truth tables are written now and gated until S11.3.c's `known(P)` lands.
+  - (12) The since-line waits for v0.3.
+- Asked elsewhere: the slurs' list (13) became O107, decided as hashed. The chat box's faces (2) and the 50 ms open
+  against T6's wait (4) are asked of Grace, and part C waits for the answer.

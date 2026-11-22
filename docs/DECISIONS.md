@@ -69,7 +69,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   proposal 0005) put to the owner and decided the same day, as recommended; O104 (the fourth pages slice's
   readings) the same day, as built.
 - **2026-11-22.** O105 (the fourth read-only round's wide search of the game's memory) put to the owner by Lodestar and
-  decided the same day, as recommended; O106 (retire R1) the same day, as recommended.
+  decided the same day, as recommended; O106 (retire R1) the same day, as recommended; O107 (the lint's list of slurs
+  kept hashed) the same day, as recommended.
 - **Open.** None.
 
 ## O1
@@ -2051,3 +2052,24 @@ stay: WHY§206 to §303, `docs/ops/probes/` and the design's dated notes.
 R1?").
 
 **Follows from.** O89, O92, O100, O101, O102; S10.1.f, S10.1.k; WHY§302, WHY§303, WHY§363.
+
+## O107
+
+**How the lint's list of slurs is kept in a public repository** · *2026-11-22 · Decided by the owner, as recommended*
+
+**Question.** The reply lint (NPC §8.3, `lexicon/safety.toml`) must catch slurs and words like them in what an NPC
+says, and its list would sit in EldenNet's public repository (the survey for S11.3, WHY§364). **Options:** (a) kept
+hashed: the repository holds only fingerprints of the words, never the words; a reply is normalised first (case,
+accents, look-alike letters), then its words are fingerprinted and compared, a little narrower in what it catches; (b)
+a plain list in the repository, widest matching, with the slurs themselves in a public repository; (c) none in the
+repository: the launcher fetches a pinned list at install, a network step and a third-party source to vet.
+
+**Recommendation.** (a).
+
+**Decision.** (a). `lexicon/safety.toml` holds fingerprints only, of normalised words (and short phrases), with the
+normalisation and the hash fixed in the lint and tested on invented words; no slur is written in the repository, its
+tests or its reports.
+
+**Owner's words.** "Kept hashed (Recommended)" (the question dialog, 2026-11-22).
+
+**Follows from.** NPC §8.3, §8.4; S11.3.b; WHY§364.
