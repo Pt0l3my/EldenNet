@@ -421,6 +421,51 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 396 | 2026-11-22 | A list of what changed must be told when to look: the tester marks a task done | METHOD | #lodestar |
 | 397 | 2026-11-22 | An invariant asks for what the thing does, not for a margin over the next candidate | METHOD | #lodestar |
 | 398 | 2026-11-22 | The owner asks for a tester's panel: each task of a round in order, with a timer and a mark when done | FACT | #lodestar #owner |
+| 399 | 2026-11-22 | The UI model is state published whole; the UI events are five, versioned at the top only | DECIDED | #engine #conversation |
+| 400 | 2026-11-22 | The draft is the core's, and every Close hands it back | DECIDED | #engine #conversation |
+| 401 | 2026-11-22 | Toasts are a list with ids; their policy stays in the core | DECIDED | #engine #conversation #graceui |
+| 402 | 2026-11-22 | Speech is three factories of per-reply objects; only the lint's tally passes between replies | DECIDED | #engine #conversation |
+| 403 | 2026-11-22 | The prompt takes the persona's record as JSON, not a struct both parts would edit | DECIDED | #engine #conversation |
+| 404 | 2026-11-22 | Stop sequences go to every flavour; a model that refuses them gets the stripped retry | DECIDED | #engine #conversation #llm |
+| 405 | 2026-11-22 | The core's new inputs were ticks until the conversation was wired, proved by twin cores | METHOD | #engine #conversation |
+| 406 | 2026-11-22 | en-core's build takes folders and links en-prompt, so the parallel parts never edit it | DECIDED | #engine #conversation #build |
+| 407 | 2026-11-22 | A nested variant's alternative may not have a default member initializer | FACT | #engine #conversation #build |
+| 408 | 2026-11-22 | en-proto's integer reader is shared, never copied | METHOD | #engine #conversation #build |
+| 409 | 2026-11-22 | The sanitizer gives a sentence out once it is final, reading the stream again from its start | DECIDED | #engine #conversation |
+| 410 | 2026-11-22 | The sanitizer's general "Name:" pattern also strips real openings | FACT | #engine #conversation |
+| 411 | 2026-11-22 | The sanitizer's spans, NFC within the whitelist's letters, and apostrophes | DECIDED | #engine #conversation |
+| 412 | 2026-11-22 | The safety list's fingerprint and normalisation (O107) | DECIDED | #engine #conversation #safety |
+| 413 | 2026-11-22 | banned.toml leaves out words with a sense of their own in the land | DECIDED | #engine #conversation |
+| 414 | 2026-11-22 | The renderer builds its template data from the record, every name always present | DECIDED | #engine #conversation |
+| 415 | 2026-11-22 | The pager: Over fills the reply too, and a short sentence waits for its partner | DECIDED | #engine #conversation |
+| 416 | 2026-11-22 | Part A's additions to the shared interfaces, each with a default that changes nothing | DECIDED | #engine #conversation |
+| 417 | 2026-11-22 | MSVC's std::map may throw on a move, so it is no Expected's value | FACT | #engine #conversation #build |
+| 418 | 2026-11-22 | A test persona stays test_only; only the tests' realm, which a release DLL refuses, lets it resolve | DECIDED | #engine #conversation |
+| 419 | 2026-11-22 | Only a threat ends a conversation after 10 s of danger; a menu or a hidden overlay holds the pages | DECIDED | #engine #conversation |
+| 420 | 2026-11-22 | The conversation's targets, the observer and the talk key, where the design is silent | DECIDED | #engine #conversation |
+| 421 | 2026-11-22 | The conversation's failures, holds and closes, where the design is silent | DECIDED | #engine #conversation |
+| 422 | 2026-11-22 | The conversation's request ids, and the ladder's L3 and L4 | DECIDED | #engine #conversation |
+| 423 | 2026-11-22 | The record part A renders, the pack's other files, and a load during a conversation | DECIDED | #engine #conversation |
+| 424 | 2026-11-22 | The fixture flag states, written cumulatively, and the truth tables | DECIDED | #engine #conversation #knowledge |
+| 425 | 2026-11-22 | mockllm is a scripted model on the caller's clock; its SSE server is not built | DECIDED | #engine #conversation #eval |
+| 426 | 2026-11-22 | CTest's CONFIGURATIONS keeps a test out of the default run | FACT | #engine #conversation #build #eval |
+| 427 | 2026-11-22 | The core's lint and prompt stand for whichever content is loaded | DECIDED | #engine #conversation |
+| 428 | 2026-11-22 | Block 2's content lint: who is held to the cap | DECIDED | #engine #conversation |
+| 429 | 2026-11-22 | Block 11's one tic note is the newest by the tally, and its worst case passes 70 | DECIDED | #engine #conversation |
+| 430 | 2026-11-22 | The resolved record is a whitelist of the fields the renderer reads | DECIDED | #engine #conversation #spoilers |
+| 431 | 2026-11-22 | The real speech changed nothing in part B's scenarios | FACT | #engine #conversation #eval |
+| 432 | 2026-11-22 | A one-page reply sealed while it streams is never last, so a queued line waits for its hold | LIKELY | #engine #conversation |
+| 433 | 2026-11-22 | The DLL links en-prompt for real: the folder code split off, one runtime import reviewed | FACT | #engine #conversation #build #dll |
+| 434 | 2026-11-22 | The surfaces draw GraceUI's glyphs as quads of their own; Dear ImGui keeps only the box's line | DECIDED | #engine #conversation #graceui |
+| 435 | 2026-11-22 | EldenNet's faces are GraceUI's own font files, registered as two scaled faces | DECIDED | #engine #conversation #graceui #fonts |
+| 436 | 2026-11-22 | Panels are made for the display, lazily, and each is submitted at most every 100 ms | DECIDED | #engine #conversation #graceui |
+| 437 | 2026-11-22 | The box's closes, as the surfaces answer GraceUI's holder ends | DECIDED | #engine #conversation #input |
+| 438 | 2026-11-22 | Tab is masked from the game whenever it is bound | LIKELY | #engine #conversation #hotkeys |
+| 439 | 2026-11-22 | T6 waits on GraceUI's handle, and the talk key's latency is measured from its SendInput | METHOD | #engine #conversation #graceui |
+| 440 | 2026-11-22 | No chat text in the DLL's log | METHOD | #engine #conversation #privacy |
+| 441 | 2026-11-22 | From the talk key to the box's first frame: 1 ms on the fake game | FACT | #engine #conversation #fakegame |
+| 442 | 2026-11-22 | What part C left to the core: the refusal's toast and the pages' speaking level | LIKELY | #engine #conversation |
+| 443 | 2026-11-22 | The content's problems reach the player as one notice, never a value | DECIDED | #engine #conversation #notices |
 
 ## Entries
 
@@ -6306,6 +6351,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   - **Block 11** rises to 70 and carries at most one tic note, the newest, beside the reminder. The caps' sum becomes
     3,490.
 - Built by the joining of parts A and B (S11.3). NPC §7.3 gets a dated note when that lands.
+- *Later, 2026-11-22:* built so (WHY§428, §429), but block 11 does not always fit its 70: the worst case (a long name,
+  a long tic, the reminder) comes to about 85 tokens, and is reported past its cap, never refused or trimmed.
 
 ### 389. A flag is told by a single bit that flips once in memory that otherwise keeps still
 
@@ -6415,3 +6462,534 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   hooks in game wait for S0-E's spike), Lodestar builds a window of the launcher's own, outside the game, which needs no
   hook. The tester's marks are also what the sweep needs to know when to look (WHY§396). A new field in the launcher's
   watch block (en-proto) would be agreed with Engine first.
+
+### 399. The UI model is state published whole; the UI events are five, versioned at the top only
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§5.1, NPC§6.1, NPC§8.6, NPC§8.7, NPC§10.1, ARCH§1.3, WHY§364
+
+- The first conversation's part 0 (engine b045026). `UiModel` is state, published whole after every step, the newest
+  winning: an optional page, the chat box, an optional hint and the toasts up now. `UiEvent` is one of OpenChat,
+  Submit, PageShown, Close and Skip. Their JSON forms carry `"version": 1` at the top alone, the one field never left
+  to its default. `ConvState`, NPC §6.1's seven states, lives in en-proto, since the box shows it.
+- A page carries its kind: Speech (acknowledged and committed), Card or Failure (the "…" page; neither acknowledged).
+  Its `last` is set only once the reply has ended with nothing left, so the surface knows when to fade out.
+- `PageShown.t_ms` is on T6's clock, which since G15 is the overlay's too. `Skip` names the page shown when Tab went
+  down, so a late skip never ends the next page. The hint's verbs are Speak, Answer and Next; no CallOut before v0.6.
+
+### 400. The draft is the core's, and every Close hands it back
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§5.4, NPC§5.5, NPC§6.1
+
+- NPC §6.1's `Conversation` holds the draft and §5.4 keeps it 60 s per target, so the core keeps it. The box takes the
+  model's `draft` each time it opens, and every `Close` carries what the input held. When the core closes the box
+  (danger, an ending) the overlay answers `Close{Shut, draft}`, so the draft comes back whichever side closed.
+- The other reasons: Escape, FocusLost, InputLost (GraceUI's watchdog, the player's exit), Refused and NotNow
+  (request_input's answers, `detail` naming the holder or the reason, for the toast), and Fault.
+
+### 401. Toasts are a list with ids; their policy stays in the core
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#graceui` · refs: NPC§10.5
+
+- The model lists the toasts up now, each with an id unique in the session. The core keeps NPC §10.5's policy (two
+  visible, 6 s, a queue of 8, the rate limit, held in boss fights): one policy, pure, tested on a simulated clock. The
+  surface posts each id once as a GraceUI notice and lets go of any the model no longer lists, as part C built it.
+
+### 402. Speech is three factories of per-reply objects; only the lint's tally passes between replies
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§8.2, NPC§8.3, NPC§8.4, NPC§8.5, NPC§8.6
+
+- `Sanitizer`, `Lint` and `Pager` are const factories held by reference; each opens one object per reply that holds
+  that reply's state, and a cut-off or a regeneration opens new ones. Only `LintTally` (the opener used, the tics'
+  counts, the told name's uses) goes from one reply's lint to the next one's context.
+- The lint decides §8.4's action itself: Pass, Drop (a duplicate), Regenerate, Deflect or Stop. The pager owns the word
+  caps (§8.5): `push()` answers Kept, Full (cancel the stream) or Over. Sealing is lazy: `next(now)` answers a page, a
+  wait (page 1's 250 ms) or done.
+- The sanitizer reports a removal by its reason and bytes, never the text removed (PV rules); the trailer's intent is
+  the one text it keeps, for the speaker-only log.
+- A context struct may gain a field whose default changes nothing; any other change to an interface was agreed between
+  parts A and B.
+
+### 403. The prompt takes the persona's record as JSON, not a struct both parts would edit
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§3.1, NPC§7.1, NPC§7.3, ARCH§2.3
+
+- `DialogueContext.record` is the persona's record as the content pack holds it, JSON with its stage resolved, which
+  en-prompt renders as template data. So parts A and B share NPC §3.1's file format, not a C++ struct both would edit.
+  Block 9 is a typed `Scene`; history and recap are turns and strings; blocks 7 and 8's other sources join with the
+  store (v0.3).
+- `dialogue_request()` sets the slot, the purpose and the stop sequences. max_tokens and the temperature stay en-llm's
+  slot budget (140, 0.8), so they are not set twice.
+
+### 404. Stop sequences go to every flavour; a model that refuses them gets the stripped retry
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#llm` · refs: NPC§7.3, ARCH§11.2
+
+- `ChatRequest.stop` goes out as `stop`, the first four that are not empty (OpenAI's limit), in a full body only. Every
+  flavour en-llm knows takes the field on its chat completions (OpenAI's and OpenRouter's APIs, and the
+  OpenAI-compatible endpoints of Ollama, llama.cpp, LM Studio and KoboldCpp), so none is left out.
+- A model that refuses it (OpenAI documents its reasoning models so) answers 400 and gets the existing stripped retry,
+  with no `stop`, and starts stripped for the rest of the session; the sanitizer's step 3 cuts the same run-on either
+  way. `stop` is one of the client's own fields, so a provider's `extra_body` may not set it, as for `max_tokens`.
+
+### 405. The core's new inputs were ticks until the conversation was wired, proved by twin cores
+
+`2026-11-22` · METHOD · `#engine` `#conversation` · refs: ARCH§1.3
+
+- `CoreInput` took `UiEvent`, `LlmEvent` and `NetHealth`, each handled at first as a tick, so v0.1 was unchanged. Twin
+  cores stepped on the same session, one with ticks and one with each new kind in their place, gave the same state,
+  changes, commands and events at every step.
+- `Outputs` gained `ui`, `requests` and `cancels`; cancels came at once, since a cut-off, a regeneration and an ending
+  cancel (NPC §6.3, §8.4) and part C's glue reads them. `NetHealth` is en-proto's, so recordings and scenarios can
+  script it; its one flag is `dialogue`, and the slots of barks and memory join as their users do.
+
+### 406. en-core's build takes folders and links en-prompt, so the parallel parts never edit it
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#build` · refs: ARCH§2.3
+
+- en-core's sources and tests are globbed by folder, and en_core links en_prompt (ARCH §2.3 allows it) before the
+  renderer needed it, so parts A and B added files without touching the build: speech and the prompt in `src/speech/`
+  and `src/prompt/`, content, identity and the conversation in folders of their own, the tests in matching folders.
+
+### 407. A nested variant's alternative may not have a default member initializer
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#build` · refs: en-proto's ui.hpp and lifecycle.hpp
+
+- A `std::variant` of structs declared inside `UiEvent` is not default-constructible when its first alternative,
+  OpenChat, has a default member initializer: GCC 13 deletes the variant's default constructor while the enclosing
+  class is incomplete, as Lifecycle's DataReady showed before. OpenChat has none; value-initialised, its `via` is
+  TalkKey (0).
+
+### 408. en-proto's integer reader is shared, never copied
+
+`2026-11-22` · METHOD · `#engine` `#conversation` `#build` · refs: en-proto's json_read.hpp
+
+- The JSON reader for integer types other than int and uint64 moved from game_json.cpp into json_read.hpp, so
+  ui_json.cpp uses the same template; a second copy in another file would have been an ODR clash.
+
+### 409. The sanitizer gives a sentence out once it is final, reading the stream again from its start
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§8.2, NPC§8.6
+
+- Part A (engine d179850). A sentence is given out once nothing later can change it: once the next has begun, or the
+  stream ended or was cut. So a sentence mid-reply comes one delta after its boundary, the last at `finish()` or the
+  cut. What lies between two sentences counts with the earlier, and what follows the last with the last, so a
+  trailing stage direction ("Farewell. *waves*") is counted.
+- Each feed analyses the raw text again from its start, in passes that each stop where more text could still change
+  their answer. A reply is at most 4 KB, so a delta costs at most 4 KB of work; in exchange a stream split anywhere,
+  even inside a character, gives what the whole stream gives, byte for byte, removals included (seeded property tests,
+  `fuzz/sanitize`).
+- A cut's removals count deterministically: nothing found after a cut counts, and only OverLimit depends on the delta
+  that crossed 4 KB.
+
+### 410. The sanitizer's general "Name:" pattern also strips real openings
+
+`2026-11-22` · FACT · `#engine` `#conversation` · refs: NPC§8.2
+
+- Step 5's pattern on a reply's first sentence, as NPC §8.2 writes it, also takes "But know this:" or "I know the
+  Tarnished:" off its start. Built as the design says; the eval is to count NamePrefix removals, so that a narrower rule
+  (the persona's own names, or two words at most) can be judged on data.
+
+### 411. The sanitizer's spans, NFC within the whitelist's letters, and apostrophes
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§8.2
+
+- Step 4: a single `*…*` or `_…_` on one line goes with what it holds (a stage direction); a run of two or more is a
+  bold marker and goes alone, the words kept; a lone `*` goes, a lone `_` is left to the whitelist, and `_` opens or
+  closes a span only at a word's edge (`snake_case` stays one word). `<tag>` and `<?…?>` close on their line within 200
+  characters, `[…]` on its line, a link keeps its text, `(…)` holds at most 60. A span not yet closed holds back the
+  text after it until its line ends.
+- NFC composes only within Latin-1 and Latin Extended-A, the only letters the whitelist keeps; its tables are generated
+  from the Unicode Character Database's decompositions and checked by the tests. The emoji ranges approximate
+  Extended_Pictographic's blocks; a character outside them still goes by the whitelist.
+- Typographic apostrophes become `'` before the whitelist, so "don’t" keeps its apostrophe. A single quote opening a
+  sentence is a quotation mark unless it begins 'tis, 'twas, 'twere, 'twill, 'em or 'ere.
+
+### 412. The safety list's fingerprint and normalisation (O107)
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#safety` · refs: O107, NPC§8.3
+
+- A fingerprint is SHA-256 (en-core's own, from FIPS 180-4, checked on NIST's examples), in lower-case hex, of
+  `eldennet.safety.v1:` and the normalised word or phrase of at most three words.
+- The text is cut into chunks at white space and at anything but letters, digits, look-alikes (`@ $ ! |`) and
+  separators; a chunk's edge separators and `!` go; letters lose accents and case; in a chunk with a letter, inner
+  separators go and look-alikes become letters; three or more one-letter words in a row are one word; a repeated letter
+  becomes one. A reply's words, and their runs of two and three, are looked up.
+- The lint reads the sanitized sentence, what the player would read: a look-alike outside the whitelist (a Cyrillic
+  letter) is already gone.
+- `lexicon fingerprint` prints the fingerprints sorted and without repeats, so the order of the owner's list leaks
+  nothing, and names a refused line by its number alone. `safety.toml` ships with no entries: filling it is the
+  owner's step (S11.3.h).
+
+### 413. banned.toml leaves out words with a sense of their own in the land
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§3.3, NPC§8.3
+
+- NPC §3.3's table gives game, player, loot and cool as examples, and also says that common words with in-world senses
+  (save, load, button) are deliberately absent. A hard hit costs a regeneration and then a deflection, so the list
+  follows the second rule: game, player, loot, cool, console, mob, lag, screen, coop, password, battery and online are
+  left out, and the game senses come in forms that mean nothing else (video game, game over, player character, gamer).
+  quest, boss and buff stay, as the design keeps them. Assistant-speak is a hard category of its own (as an ai,
+  language model, roleplay, feel free to).
+
+### 414. The renderer builds its template data from the record, every name always present
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§3.1, NPC§7.1, NPC§7.3, WHY§403
+
+- The record is NPC §3.1's fields as JSON, the active stage resolved with its inherited fields filled in, under
+  `stage`; absent fields are unset. The renderer builds the template data itself, every name always present (null, ""
+  or []), so the templates' names are fixed and linted when the pack loads, and a field of the wrong type refuses the
+  render naming the field, never its value. Phrases (role, honesty, where, mood) lose a final full stop.
+- Each block is rendered alone, to be measured against its cap and trimmed; a block that renders nothing is told from a
+  failure by en-prompt's own message for an empty prompt. The breakpoints are NPC §7.1's three: cache A after block 1,
+  one after block 5, cache B after 5b (left out with 5b when it is empty).
+- The contract leaves out NPC §8.1's "one reserved trailer channel": the model would be told of a channel without its
+  form, and `actions_block`, which will give the form, is empty in v1 (DESIGN §13). No input of the renderer carries
+  the player's name; block 8's told-name line waits for memory (v0.3).
+
+### 415. The pager: Over fills the reply too, and a short sentence waits for its partner
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§8.5, NPC§8.6
+
+- A sentence that would cross the cap and 10 words, or 600 bytes, is left out and fills the reply: `Take::Over`, with
+  no `Full` before it. The conversation cancels on `Full` or `Over`, whichever comes first.
+- A sentence under 12 characters joins the next on its page: it waits for it, with no deadline, while the reply goes
+  on; leaves a page's end for the next page when the next does not fit beside it; and is sealed alone once the reply
+  has ended. Once the reply is full or has ended nothing waits, so page 1 waits its 250 ms only while more may come.
+- The over-long split takes a mark only when a space follows it, so it never splits inside a token. `PageContext{0}`
+  takes the schema's default of 40 words.
+
+### 416. Part A's additions to the shared interfaces, each with a default that changes nothing
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: WHY§402, WHY§364
+
+- `LintContext` gained `self_names` (for third-person self-reference; none: unchecked) and `tic_max` (each tic's
+  `max_per_conversation`; missing: 1); `DialogueContext` gained `tally` (block 11's tic note) and `tied` and `land`
+  (block 5b's lines, empty until the known set, S11.3.c). The real parts have headers of their own; nothing else of
+  part 0's changed, and the stubs stayed.
+- The prompt goldens live beside their fixtures (`tests/fixtures/prompt/golden/`, with a CHANGES.md of their own), so
+  the route goldens' log in `tests/golden/` is left alone.
+
+### 417. MSVC's std::map may throw on a move, so it is no Expected's value
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#build` · refs: en-proto's expected.hpp
+
+- clang-cl refused `proto::Expected<std::map<std::string, std::string>, std::string>`: en-proto's Expected asserts that
+  its value moves without throwing, and the MSVC standard library's `std::map` move constructor is not noexcept (it
+  allocates a sentinel node). The GCC and Clang builds, on libstdc++, took it. A reader that hands back a map fills an
+  out-parameter instead (en-tools' `read_pack_prompts`).
+
+### 418. A test persona stays test_only; only the tests' realm, which a release DLL refuses, lets it resolve
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§2.1, DESIGN§11.4, WHY§364
+
+- Part B (engine f6207dd). en-core's identity builds its index for a realm: `Game` (the DLL's) leaves out every
+  `test_only` row, an override's included; `Eval` (the self-test, the eval, the tests) keeps them. The tests' overrides
+  bind the test persona `lantern_keeper` to the fake game's invented row 81100 and keep `test_only`, since its stage's
+  `beckon_src = "ci:speak_up"` is allowed only on a test persona (W13).
+- Rejected: an override that clears `test_only`. It would bind in the game's realm, but it breaks W13 and makes "never
+  resolves in game" rest on the files.
+- Part C built the tests' switch: `ELDENNET_TEST_REALM=eval`, taken by a probe build alone (CI refuses EN_PROBE in a
+  release build). The release DLL logs `realm asked=eval accepted=0` and keeps the game's realm, whatever a player's
+  overrides hold. T1 reads the overrides folder (DESIGN §11.4) and T6 loads it.
+
+### 419. Only a threat ends a conversation after 10 s of danger; a menu or a hidden overlay holds the pages
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§5.4, NPC§5.8, NPC§6.2
+
+- Any failing clause of `safe_context` closes the box at once ("The moment has passed.", the draft kept), but only a
+  threat counts towards the 10 s that end the conversation with `danger`: the Tarnished down or riding, a boss, combat,
+  hostiles near, or a drop in HP. `Menu` (the HUD not at Default, a banner) and `NotActive` (the ladder below L3) do
+  not: a menu or a hidden overlay holds the pages (§5.8's 30 s), and a model that is not ready leaves the conversation
+  to its idle timer.
+- Why: with the HUD hidden, `Menu` fails too, so counting it would end every hidden hold at 10 s and §6.2's 30 s could
+  never be reached. `HudState::Unknown` reads as hidden (fail closed).
+
+### 420. The conversation's targets, the observer and the talk key, where the design is silent
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§5.1, NPC§5.2, NPC§5.3, NPC§5.8
+
+- Targets by NPC §5.2's rules 3 to 5 only (lock-on, cone, nearest): rule 0 needs own-initiative lines, 1 and 2 S3's
+  observer of the game's own talk, and 6 the call-out (v0.6). From no target the hint shows at once; from one target
+  to another it waits for the 500 ms lead; to none it goes at once.
+- The observer's "3 s since PersonaApproached" is 3 s since the persona last came within 8 m: no rule of Augur's emits
+  PersonaApproached yet.
+- `Muted` never fires in v0.2, which reads no `speech.toml`, `types.toml` or name ids. A stage's `mute` toasts "They
+  have nothing to say to you." (2 s), as an allowance turned off does; dead, hostile, struck, busy, native talk and
+  unavailable are silent.
+- The talk key with the box hidden reopens it on the partner with the draft, once safe; on another conversable persona
+  it retargets (ending after the current page, then opening on that one). With the box open the key types.
+
+### 421. The conversation's failures, holds and closes, where the design is silent
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§5.7, NPC§6.1, NPC§6.3, NPC§8.7, DESIGN§2.7
+
+- A failed request or render shows the "…" page (kind Failure, its own id for each failure) for 2.4 s, never
+  acknowledged, with the toast of its class: DESIGN §2.7's words for Auth and RateLimited, "No answer: provider timed
+  out" for the timeouts, and "No answer: the provider failed" (ours) for the rest. A queued line goes at once after a
+  failure; the new reply's first page waits for the "…" page to go.
+- When a page's hold ends and the next is not sealed yet, the page stays up until it is. A page up but not yet
+  acknowledged when a line cuts its reply off waits 500 ms for its ack (then stays 2 s from it, or goes); one up but
+  unacknowledged at an end goes at once to the 500 ms grace.
+- `Close{Refused}` or `{NotNow}` before any line ends the conversation quietly (`closed`); `FocusLost` and `InputLost`
+  close the box and leave the conversation pacing, to its idle timer; `Fault` ends it with a toast. The timers paused
+  while Held move on by the time held, the 20 s total too.
+- Block 9 has only the time of day for now, in our own words from the snapshot's clock ("at dawn" 5–8, "by day" 8–17,
+  "at dusk" 17–20, "at night"), its bands unchecked against the game (where the game keeps its clock: WHY§394).
+
+### 422. The conversation's request ids, and the ladder's L3 and L4
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: ARCH§6.8
+
+- The conversation's request ids start at `1 << 48` (`kConversationRequests`); barks and memory take the next ranges.
+- `core::Level` gains L3 and L4 after L2 (the values only grow; Augur's ladder had them already). `ai_allowed` is the
+  gate open at L2 or above; speech needs L3. clang-cl's warnings as errors then refused the DLL's switch from the
+  core's level to the pages', so L3 and L4 show there as `Observing` for now (WHY§442).
+
+### 423. The record part A renders, the pack's other files, and a load during a conversation
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§3.1, NPC§3.2, DESIGN§11.4
+
+- `Persona::resolved(stage)` is `DialogueContext::record`: the file as JSON with `stages` replaced by `stage`, the
+  active one, its `road`, `at`, `hears` and `knows` inherited, and nothing that is never rendered (a whitelist since the
+  joining, WHY§430). `ContentPack::others` carries the pack's files outside `identity/` and `personas/`, overrides
+  applied, for the templates and lexicons. The shipped index and records are built into en-core (`builtin_content()`),
+  as Augur's rule files are, so the DLL's core reads no file for them.
+- A `when` that v0.1's predicates refuse is Unknown, a syntax error included: the content lint is to tell the two
+  apart.
+- v0.2 loads content once. A new load that changes the index or the records while a conversation is open ends it
+  (`fault`, no toast), its request cancelled and what was up dropped, and the targets are worked out again: nothing
+  read from the old content outlives it (WHY§427). Hot reload (DESIGN §11.4) is to keep the conversation.
+
+### 424. The fixture flag states, written cumulatively, and the truth tables
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#knowledge` · refs: MEM§7.8, MEM§12.4, MEM§12.5, MEM§12.11, WHY§364
+
+- The design names the eight states and gives the contents of two of them (`after_radahn`, `after_rykard`) and of
+  `ashen`. The other five are written cumulatively in story order from their names, `fresh` holding none and each
+  later one adding its bosses, the star and, last, the burned tree; the great runes (`runes.geN`) follow the bosses.
+- A file holds catalogue aliases only (`[flags]`, each true and verified, an absent alias false), persona blocks as
+  offsets set and cleared (`[blocks]`, the design's +N) and track steps (`[tracks]`): no flag id, no text.
+- The truth tables cover v0.2's personas, Kalé (the pilot) and the test persona, at the eight states (`ashen` is block
+  5b's alone), and are gated until `known(P)` lands (S11.3.c). Tanith's track steps read "none" until S6.
+
+### 425. mockllm is a scripted model on the caller's clock; its SSE server is not built
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#eval` · refs: ARCH§12.3, DESIGN§14, WHY§364
+
+- `lib/mockllm` answers the core's requests as en-llm's events would come, on the caller's clock: chunks, delays, a
+  think leak and its Reset, a trailer, en-llm's error classes once its retries and fallback are spent, cancels.
+  `eldennet-engine mockllm --script` prints a script's events in the recorded form that `--llm recorded` replays.
+- ARCH §12.3's local SSE server, for en-llm's live path, is left: the eval and the tests need the scripted model alone.
+- The eval's local-only report (WHY§364 (10)) is `kind = "eval-local"`, with no default path; `eval-reports/` is
+  ignored by git, and what `eval` prints is numbers only (a failed `last_npc` names its line, never the text).
+
+### 426. CTest's CONFIGURATIONS keeps a test out of the default run
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#build` `#eval` · refs: ARCH§12.1
+
+- A test added with `CONFIGURATIONS eval` is left out of a plain `ctest` (and of `ctest -N`) with Ninja's single
+  configuration, and runs with `ctest -C eval -L eval`, as checked on a project of its own. The eval's tests use it,
+  labelled `eval`.
+
+### 427. The core's lint and prompt stand for whichever content is loaded
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: ARCH§2.3, DESIGN§11.4, WHY§364, WHY§388
+
+- Parts A and B joined (engine c29ea5d). The conversation holds its speech parts by reference for the core's life, but
+  the lint and the prompt depend on the pack's lexicon and templates. So `BuiltinSpeech` holds two forwarders, swapped
+  at each successful load: a reply already open keeps the lexicon it opened with, and a render reads the newest
+  templates. Before any load no persona exists; were either reached then, it fails closed (every render refused, every
+  sentence stopped).
+- The pack is checked whole (prompts, lexicon, block 2) whatever speech parts the core was given, so a test on the
+  stubs still refuses a broken pack. The shipped prompts and lexicon are built in at configure time with the persona
+  files, so the DLL and the Windows tests read no path for them.
+- The pack's hash still covers the index and the records alone: a change to the prompts or the lexicon does not end a
+  conversation, which takes the new templates at its next render (hot reload's behaviour, DESIGN §11.4).
+
+### 428. Block 2's content lint: who is held to the cap
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: WHY§388, NPC§7.3
+
+- WHY§388's "shipped and test content" is read as a record from the shipped pack or any `test_only` persona, wherever
+  its file came from; "the player's own files" as a record from the overrides folder whose row is not `test_only`. Each
+  enabled persona's block 2 is rendered alone at each of its stages, under its fallback name. Past 120 tokens it is an
+  error naming the file, the stage's line and the estimate, never a value, or a warning kept in
+  `Core::content_warnings()`.
+- The prompt goldens' fixtures are test content: `golden check` and `update` refuse a fixture whose block 2 passes its
+  cap, and write nothing. All four fixtures and the test persona come to 102 tokens or less.
+
+### 429. Block 11's one tic note is the newest by the tally, and its worst case passes 70
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: WHY§388, NPC§3.3, NPC§7.3
+
+- "The newest" needs an order the counts alone do not give, so `LintTally` gained `spent`: the tic whose count reached
+  its `max_per_conversation` most recently (a tic already past its cap does not take it again), carried between
+  replies like the counts. A tally without one (a fixture's) notes the last at its cap in the file's order.
+- With "in this talk" dropped from the note, the ask, one note and the promise reminder come to 67 of 70 tokens for
+  the fixture's 18-byte name. The worst case (a 32-byte name, a 12-word tic, the reminder) is about 85: block 11 is
+  then reported past its cap, never refused or trimmed, as the design has it for every block but 6 and 9.
+
+### 430. The resolved record is a whitelist of the fields the renderer reads
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#spoilers` · refs: NPC§3.1, NPC§3.2, O36, O86, WHY§423
+
+- `Persona::resolved()` copies only the 24 fields the renderer reads (`kRecordFields`, prompt.hpp), so nothing that is
+  never rendered (`forbid`, the gate fields, the seed, the deflections, the id, knowledge, awareness) can reach the
+  renderer through a field added later. The stage's `at`, `hears` and `knows` are still inherited, but left out until
+  block 7 reads them (S11.3.c), when they join the list.
+- A test proves that the renderer reads every listed field (a wrong type in each refuses the render) and that the
+  record holds nothing else.
+
+### 431. The real speech changed nothing in part B's scenarios
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#eval` · refs: NPC§8.2, NPC§8.6
+
+- Part B's scenarios and their `last_npc` expectations held unchanged with part A's sanitizer, lint, pager and prompt,
+  mock and recorded: the openers are the persona's own, the tic's first use is within its cap, and a short "Hm." joins
+  the next sentence on its page, which the commit joins back as before. No speech piece needed a fix. Two scenarios
+  joined them: a regeneration, then a deflection; and the word cap cutting a stream.
+- A deflection cancels the regeneration's stream as well, so a line that regenerates and then deflects costs two
+  cancels. The conversation cancels on `Take::Over` as on `Full`, and deflects through `DeflectionRing`, one per persona
+  for the session (the store keeps its order per journey from v0.3), rebuilt if a reload changes the persona's count of
+  deflections.
+
+### 432. A one-page reply sealed while it streams is never last, so a queued line waits for its hold
+
+`2026-11-22` · LIKELY · `#engine` `#conversation` · refs: NPC§6.3, NPC§8.6
+
+- NPC §6.3 sends a queued line when the reply's last page starts showing, so that generation overlaps reading. With
+  lazy sealing, `Page::last` is set only on a page sealed after the reply ended or filled. A one-page reply whose page
+  was sealed while it still streamed is followed by `Done`, so its queued line goes when that page's hold ends, up to
+  6.5 s later than §6.3 intends.
+- Replies usually end long before page 1's hold does, so later pages are mostly sealed after the end. A fix would let
+  the conversation send the queued line when the stream ends with the last page up (S11.3.b).
+
+### 433. The DLL links en-prompt for real: the folder code split off, one runtime import reviewed
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#build` `#dll` · refs: ARCH§2.3, ARCH§12.1, src/eldennet/tests/imports.allow
+
+- Until the core rendered the dialogue prompt, eldennet.dll linked nothing of en-prompt. Then it linked en-prompt's
+  environment and MemorySource and, in the same objects, FolderSource and the Environment over a folder: MSVC's
+  std::filesystem, sixteen kernel32 imports that imports.allow does not list (clang-cl's `eldennet_dll_checks`). Those
+  two moved unchanged to en-prompt's own `folder.cpp`, which only the tools and the tests reach, and fifteen imports
+  went.
+- One stays, `SetEndOfFile`: inja's parser holds an `std::ifstream` for its file includes (which en-prompt turns off,
+  but the code is compiled), whose `std::_Fiopen` brings the UCRT's `open.obj` and, through `_chsize_nolock`,
+  `chsize.obj`. No code of ours opens a file through it. It was reviewed into the DLL's imports.allow (engine
+  22f3f9c), as the runtime's other unused imports were.
+
+### 434. The surfaces draw GraceUI's glyphs as quads of their own; Dear ImGui keeps only the box's line
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#graceui` · refs: NPC§10.1, GraceUI:docs/eldennet-changes.md §31 and §33, WHY§364
+
+- Part C (engine b4451c8). Grace offered an ImFont over glyph_table, or quads emitted by hand (WHY§364's Later line).
+  Dear ImGui 1.93 bakes through an ImFontLoader into its own atlas, so a font whose glyphs live in GraceUI's atlas
+  would need a loader that bakes nothing and a texture it does not own. So en-overlay emits each glyph's quad itself
+  (surfaces.hpp's Painter, pure, in GraceUI's draw-list form) on the shared atlas's id, scaled from the size GraceUI
+  baked to the surface's size.
+- The box's own headless Dear ImGui context keeps the input line alone (its text, caret and selection, with NPC §8.5's
+  limits through a CallbackEdit), fed one holder event at a time with a frame after each, so a fast typist's keys are
+  taken in order at T6's pace. It is never drawn and its atlas never registered: the line is drawn from GraceUI's
+  glyphs at the editor's caret, scrolled so the caret shows.
+- The pointer is not fed in v0.2: a click would take the field's focus in the editor's coordinates, which are not the
+  box's. Activated by focus, Dear ImGui selects the whole line, so the editor moves the caret to the end: a kept draft
+  is typed on, never replaced by the first key.
+
+### 435. EldenNet's faces are GraceUI's own font files, registered as two scaled faces
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#graceui` `#fonts` · refs: NPC§10.1, GraceUI:docs/eldennet-changes.md §33, GraceUI:D139
+
+- "GraceUI's faces only" and NPC §10.1's EB Garamond and Noto Sans meet in GraceUI 0.2.20's folder, which ships both.
+  T1 reads `EBGaramond-Regular.ttf` and `NotoSans-Regular.ttf` from the folder graceui.dll was loaded from, and at
+  connect registers them as EldenNet's two GRACEUI_FACE_SCALED faces (the serif at 30 px, the sans at 18; smaller sizes
+  are drawn scaled down from them). No font file of ours. After GraceUI's warm-up they answer too_late, and the
+  surfaces draw GraceUI's notices' face at their sizes.
+- GraceUI allows a mod two faces for now (an estimate; D139 gives EldenNet eight), so the page's name line, the history
+  and the input are drawn from the 30 px bake scaled down until GraceUI raises it. No italic face exists, so the
+  Tarnished's lines in the history are coloured only.
+
+### 436. Panels are made for the display, lazily, and each is submitted at most every 100 ms
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#graceui` · refs: NPC§10.1, NPC§10.2, WHY§364
+
+- GraceUI's panels cannot move or grow, and the display is usually unknown at connect. The three panels (the lower
+  third, the box, the hint) are made at the first display event, and a new set for a new display while the mod's
+  sixteen last, never while the box holds input.
+- Each panel's list is submitted at most every 100 ms; the box's first frame on opening goes at once. A page's first
+  submitted frame is never transparent (its alpha is the fade's first step), and its time is PageShown's (WHY§364 (3)).
+- The card's "…" pulses by stepped alpha. Rounded corners (NPC §10.1's 4 px) are not drawn: the boxes are plain
+  rectangles.
+
+### 437. The box's closes, as the surfaces answer GraceUI's holder ends
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#input` · refs: NPC§5.1, NPC§5.5, NPC§5.7, GraceUI:D176, WHY§400
+
+- GraceUI's holder ends map to Close: focus lost to FocusLost; a fault to Fault; the menu key, danger, loading, no
+  render and the player's exit to InputLost; `released` (the box's own release, or its panel hidden) to nothing. Esc
+  and the pad's B are Escape; the model closing the box while it holds input is Shut; each carries the draft.
+- request_input refused is Close{Refused}, its `detail` the holder's mod id; not now is Close{NotNow} with not_ready,
+  danger, loading or game_menu; a box the model opens before warm-up or before a display is NotNow, not_ready. Input is
+  asked for once each time the model opens the box.
+- A second Esc while the reply paces (NPC §5.7) cannot reach EldenNet: with the box closed nothing holds input, and
+  GraceUI takes no hotkey on Escape. The core's rule waits for a way in (S11.4.d).
+- The talk hotkey cannot say whether its key or its chord fired it: OpenChat says TalkKey either way, and the swallow
+  is armed with the bound key's character (describe_hotkey), harmless after a chord.
+
+### 438. Tab is masked from the game whenever it is bound
+
+`2026-11-22` · LIKELY · `#engine` `#conversation` `#hotkeys` · refs: NPC§5.1, NPC§8.6, S11.1.a
+
+- NPC §5.1 masks "Tab while a page shows", but GraceUI's hotkeys have no unregister or pause: registered, Tab is never
+  the game's while it is bound. S4 is to check that the game does not need Tab; if it does, the skip hotkey takes
+  another default.
+
+### 439. T6 waits on GraceUI's handle, and the talk key's latency is measured from its SendInput
+
+`2026-11-22` · METHOD · `#engine` `#conversation` `#graceui` · refs: NPC§5.1, GraceUI:D212, WHY§373
+
+- T6 waits on its own wake signal and GraceUI's wait handle together (WaitForMultipleObjects, reviewed into the DLL's
+  imports), with 100 ms the fallback. Within one wake: poll, the player's events to the core, the model drawn, what that
+  raised (PageShown, Close) to the core, and drawn again, a few rounds at most.
+- The harness's fake game logs the QPC time of the talk key's SendInput, and the DLL the box's first submit on the same
+  clock. The fake game now pumps its messages while a key is held, as a game's loop does, instead of sleeping 60 ms
+  first.
+
+### 440. No chat text in the DLL's log
+
+`2026-11-22` · METHOD · `#engine` `#conversation` `#privacy` · refs: PAGES§4.9
+
+- The DLL logs the conversation by kinds and numbers alone: `chat what=open_key|opened|submit|page_shown|close|skip`
+  (with `chars=` and `reason=`), `commit kind= conv= reply= page= chars=`, `llm what=submit result= id=`. The harness
+  checks that neither the typed line nor the reply's words reach the log.
+
+### 441. From the talk key to the box's first frame: 1 ms on the fake game
+
+`2026-11-22` · FACT · `#engine` `#conversation` `#fakegame` · refs: NPC§5.1, GraceUI:D212, WHY§373
+
+- In `launcher-eldennet-graceui-talk` (clang-cl, Wine 9.0, GraceUI 0.2.20's test build), the box's first list was
+  submitted 1 ms after the talk key's SendInput, and T6's own part (the hotkey's poll to the submit) took under 1 ms:
+  GraceUI's handle wakes T6 at once, and the core's step and the box's first frame are cheap. NPC §5.1's 50 ms holds
+  with room; in the game the present thread's next frame adds up to one frame before the box is seen.
+- Anti-aliased text never matches its ink exactly: EB Garamond at 15 px (the content scale 0.5 of a 960 by 540 frame)
+  has no pixel within 3 of its colour, so the fake game's probe takes an optional tolerance (72 here) for text.
+
+### 442. What part C left to the core: the refusal's toast and the pages' speaking level
+
+`2026-11-22` · LIKELY · `#engine` `#conversation` · refs: NPC§5.1, NPC§5.5
+
+- The core toasts a refused or not-now box in fixed words ("Chat cannot take the keyboard just now."). The Close's
+  `detail`, the holder's mod id or the reason, is passed but not named in the toast, as part C's brief asked
+  (S11.3.a).
+- The pages still show L3 and L4 as Observing, since en-overlay's Level has no speaking level: words players read, left
+  for review (S11.4.a).
+- Part C's third point, that the prompts and lexicons must reach the DLL's core, the joining had already met: they are
+  built in with the persona files (WHY§427).
+
+### 443. The content's problems reach the player as one notice, never a value
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` `#notices` · refs: NPC§4.7, DESIGN§11.4
+
+- The DLL reads the overrides folder for `.toml`, `.md` and `.j2`, since prompts joined the pack at the joining. A
+  content load's first error, else its first warning (`content_warnings()`), is shown once for 15 s as a GraceUI notice
+  under EldenNet's key 5, in en-core's fixed words (`file:line: key: problem`) and "(and N more)", never a value of the
+  file. The log holds the counts alone. The words are drafts.
