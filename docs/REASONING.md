@@ -411,6 +411,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 386 | 2026-11-22 | A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent | DECIDED | #graceui #protocol |
 | 387 | 2026-11-22 | EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon | DECIDED | #engine #editor #pages |
 | 388 | 2026-11-22 | The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note | DECIDED | #engine #conversation |
+| 389 | 2026-11-22 | A flag is told by a single bit that flips once in memory that otherwise keeps still | METHOD | #lodestar #l6 |
+| 390 | 2026-11-22 | A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held | DECIDED | #lodestar #probe |
 
 ## Entries
 
@@ -6292,3 +6294,25 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   - **Block 11** rises to 70 and carries at most one tic note, the newest, beside the reminder. The caps' sum becomes
     3,490.
 - Built by the joining of parts A and B (S11.3). NPC §7.3 gets a dated note when that lands.
+
+### 389. A flag is told by a single bit that flips once in memory that otherwise keeps still
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§368, O105
+
+- Sweep the stretch, keep each page's own first flips, and list only quiet words of quiet pages. Memory in use changes
+  everywhere and would crowd a shared list.
+- The seventh round (engine 9f451ec, package 0.1.0-lodestar.10) sweeps up to 2 MiB from each of at most eight
+  addresses the flags' store keeps, and up to 256 KiB from each of at most 32 one step further: about 24 MiB in all.
+  It reads a piece of 16 KiB at a time, within the searches' 4 ms share of a step, with a pass every thirty seconds at
+  most. It keeps the place, bit, direction and second of a flip, never what the memory holds. This is not O105's wide
+  scan, which stays off; by O105's note it is put to the owner before the run.
+
+### 390. A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held
+
+`2026-11-22` · DECIDED · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§385
+
+- Without it, a jump cannot be matched to the time of day the owner chose at the grace. So for a number that jumped, the
+  report keeps the number before and after each of its first three jumps, and the second each came. That is the clock's
+  own reading if the number is the clock: a state of the owner's own session, not the game's content.
+- Every other value stays out: the report holds offsets, sizes, counts and our labels as before. The README says so in
+  plain words. Engine agrees, on that bound.
