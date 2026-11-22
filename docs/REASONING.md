@@ -390,6 +390,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 365 | 2026-11-22 | L6's first tool, the watch: a way to an object, its first 512 bytes once a second, and counts of how each word behaves | METHOD | #lodestar #l6 |
 | 366 | 2026-11-22 | Rebinding is built: one home for every binding, kept by mod and action ids, applied at each registration | DECIDED | #graceui #hotkeys |
 | 367 | 2026-11-22 | A mod may register before GraceUI reads its settings file, so kept bindings also go over registered hotkeys; that path is reviewed, not yet seen run | FACT | #graceui #hotkeys |
+| 368 | 2026-11-22 | The fifth read-only round: event_flags named through the store, ten of eleven managers placed, 30 minutes with no fault | FACT | #lodestar #probe |
+| 369 | 2026-11-22 | The play time is the low half of the word 160 bytes into the object behind one slot of the data, in four sessions | FACT | #lodestar #l6 |
+| 370 | 2026-11-22 | An ask-first read costs about half a millisecond on the owner's PC, a hundred times a plain guarded copy | FACT | #lodestar #probe |
+| 371 | 2026-11-22 | A long round's report can pass the writer's 256 KiB and is then refused whole, so a round bounds what it writes | METHOD | #lodestar |
+| 372 | 2026-11-22 | R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use | DECIDED | #engine #lodestar #probe |
 
 ## Entries
 
@@ -5750,6 +5755,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - One 32-bit field behind one slot of the data rose by the clock in 107 of 119 passes in the second round and in 85 of
   90 a session later, same slot and offset; the next best rose in 14. A lead for L6.
+- *Later, 2026-11-22:* found, in four sessions (WHY§369).
 
 ### 349. Pad chords for mods' hotkeys are built: an anchor, a key held 0.4 s, one hotkey event, or a tap replayed
 
@@ -5820,6 +5826,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - One object of the class under the longer name, 1,024 bytes into the object behind one of the accessor's statics (139
   sites), with a pointer to it 192 bytes in. The scan found the same object, held by one word 256 bytes after the start
   of an object of another class, so the static points 64 bytes into a larger object. No slot of the data points at it.
+- *Later, 2026-11-22 (the fifth round, WHY§368):* that object does not hold the time. Through the pointer 192 bytes into
+  its manager's object it was of the right class at 1,597 of 1,597 readings, but nothing in its first 512 bytes changed
+  in play: no run of bits behaved as minutes, and no fraction rose. The "1,024 bytes in" was a neighbour in memory.
+  Where the time is kept is still open.
 
 ### 356. messages' slot is the one of its two that the code refers to 238 times; the build's table has it with eight witnesses
 
@@ -5915,6 +5925,12 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   §6.2, §6.10; DESIGN §16.1).
 - What stays: R0, as Lodestar's `lodestar find`; the read-only probe build (`--read`); the findings, in WHY§206 to §303
   and `docs/ops/probes/`; and the code in git history. O92's naming rule stays too, since Lodestar names managers by it.
+- *Later, 2026-11-22:* done by Lodestar (engine 3e11238, merged as 9050db4): 51 files and about 14,800 lines out. Gone:
+  the DLL's R1 mode, `--probe`, R1's package, eight fake-game cases, en-gal's hub, callee, site and map probes, and the
+  report's R1 vocabulary. The watch block's two R1 numbers are kept as retired words. Kept, since other parts use them:
+  the read round and `--read`, the searches, and the task and registration code that en-gal's tests and the fake game's
+  register cases use. One case was added: the read round with a blocked console. Engine's rulings on the seven doubtful
+  items are in WHY§372.
 
 ### 364. The first conversation, offline: its plan in four parts, and Engine's rulings on the survey's open points
 
@@ -5987,3 +6003,59 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - A mod's hotkeys then register with their defaults, so when the file is read the kept bindings go over them, each kept
   one freed first so that a key one gives up is free for another. In the harness's runs the file was read before the mods
   registered, so the at-registration path ran and the late one did not: the late path is reviewed, not yet seen run.
+
+### 368. The fifth read-only round: event_flags named through the store, ten of eleven managers placed, 30 minutes with no fault
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§359, WHY§365
+
+- Package 0.1.0-lodestar.8, the owner's run, 32 minutes, no scan. event_flags was named at the first pass, at the
+  title: one of the accessor's statics (183 sites), read 15,878 times, always there, always of its class. Ten of the
+  eleven managers are placed. The build's table has 13 entries, every one a lead (engine d613651).
+- The reader: 15,878 readings of ten managers, 472,090 guarded copies, no fault of any kind; p50 4 µs, p99 9 µs, the
+  longest 284 µs.
+- The flags' store's first 512 bytes never changed but for one counter. The word 40 bytes in is an address of live
+  memory, the notes' lead for the way to the flags. Of 219 statics in play, 140 hold an object with a class, 72 one
+  without and 7 nothing.
+
+### 369. The play time is the low half of the word 160 bytes into the object behind one slot of the data, in four sessions
+
+`2026-11-22` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§348
+
+- It rose at each of 1,556 compared readings of the watch, a second apart. The rising search saw it in 296 of 307
+  passes. Four sessions, the same slot and offset.
+
+### 370. An ask-first read costs about half a millisecond on the owner's PC, a hundred times a plain guarded copy
+
+`2026-11-22` · FACT · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§343
+
+- VirtualQuery, then ReadProcessMemory on our own process: about 0.5 ms, against 4 µs for a plain guarded copy. The 4 ms
+  share was checked only after 4 to 16 such reads, so the reader fell to 8.7 readings a second. A share of time for such
+  reads must be checked after every one.
+
+### 371. A long round's report can pass the writer's 256 KiB and is then refused whole, so a round bounds what it writes
+
+`2026-11-22` · METHOD · `#lodestar` · refs: report.hpp, docs/ops/probes/2026-11-22-l5.md
+
+- The fifth round's report passed the numbers-only writer's 256 KiB after 30.5 minutes and was refused 49 times, the last
+  100 s, so what was sent is the round as it stood then. A round must bound what it writes (the watch's words), or stop
+  adding to it. Also to mend before another run: the search named the HUD before a pass did, and the round kept the
+  search's weaker entry.
+
+### 372. R1's leftovers: remove what nothing uses, keep retired words in append-only vocabularies, keep what L6 and the task path use
+
+`2026-11-22` · DECIDED · `#engine` `#lodestar` `#probe` · refs: O106, WHY§363
+
+- Engine's rulings on the seven items Lodestar left in place after O106's clean-up:
+  - (1) TaskShape::every_slot, which only R1 set: remove it, if the register and gal cases still pass without it.
+  - (2) probe.hpp's vtable, meter, UTF-16 and u32 offsets, which R1 never used: Lodestar's call, keep them if L6 will use
+    them.
+  - (3) derive's read_instance_word and task_from_base, used outside derive only by R1: remove them, unless R0's
+    offline derivation needs them.
+  - (4) BannerReason::RegisterFaulted: keep it as a retired word of the recording vocabulary, which is append-only. Nothing
+    pushes it.
+  - (5) The DLL's imports allowlist: drop HeapLock, HeapWalk and HeapUnlock, since nothing imports them.
+  - (6) The fake game's options that no case passes (--table-gap, --task-gate, --task-queue, --map-late,
+    --press-pause-every): remove them and the code only they reach. Keep the parts the register and gal cases go
+    through.
+  - (7) The harness's fd4_idiom pattern in the fake game's patterns.toml: remove it, since patterns.toml is withdrawn
+    (O102).
