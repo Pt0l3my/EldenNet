@@ -1,0 +1,216 @@
+# The who-knows-what truth tables (MEM §12.11 T2): known(P) per persona and fixture state, written from MEM §12.5's
+# rules apart from the code they test, with world_seen empty. Each item is a world stage (w:) or a track step some
+# persona ties (q:), and its value "certainty:path" or "none". Invented test data, our own; the gated test in
+# en-core's tests reads them, and compares them with known(P) once S11.3.c builds it (WHY§364 (11)).
+#
+# v0.2's personas: Kalé (the pilot, NPC §3.4: at and home limgrave, hears all, no tie with a certainty) and the
+# Lantern-Keeper (NPC §3.5: at limgrave, no home, no ties); limgrave has a sky. The other five join at v0.5.
+schema = 1
+
+[fresh.kale]                      # stage at_the_church
+"w:castle_fallen"           = "none"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[fresh.lantern_keeper]            # stage default
+"w:castle_fallen"           = "none"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_godrick.kale]              # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_godrick.lantern_keeper]    # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[two_runes.kale]                  # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[two_runes.lantern_keeper]        # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_radahn.kale]               # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_radahn.lantern_keeper]     # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "none"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_rykard.kale]               # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_rykard.lantern_keeper]     # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "none"
+"w:star_fallen"             = "none"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_morgott.kale]              # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_morgott.lantern_keeper]    # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_mohg.kale]                 # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[after_mohg.lantern_keeper]       # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "none"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[erdtree_burned.kale]             # stage at_the_church
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "fact:sky"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+
+[erdtree_burned.lantern_keeper]   # stage default
+"w:castle_fallen"           = "rumour:near"
+"w:queen_fallen"            = "rumour:word"
+"w:general_fallen"          = "rumour:word"
+"w:star_fallen"             = "fact:sky"
+"w:manor_lord_fallen"       = "none"
+"w:capital_king_fallen"     = "none"
+"w:blood_lord_fallen"       = "none"
+"w:erdtree_burned"          = "fact:sky"
+"w:capital_ashen"           = "none"
+"q:tanith.hosting"          = "none"     # Tanith's track: silent until S6 (MEM §12.4)
+"q:tanith.vigil"            = "none"     # Tanith's track: silent until S6 (MEM §12.4)

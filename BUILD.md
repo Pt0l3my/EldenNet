@@ -249,6 +249,13 @@ the v0.1 catalogue, the rule files' schema, what ARCH §8 left open and how this
   loss against the dense run.
 - `ctest -R en_golden` runs `eldennet-engine golden check` on each route of `tests/scenarios/`; a golden file that
   changes needs its line in `tests/golden/CHANGES.md` (the hash `golden update` prints).
+- `ctest -C eval -L eval` runs the eval (src/en-tools/README.md, "eval and mockllm"; DESIGN §14, ARCH §12.1): each
+  conversation scenario of `tests/scenarios/talk/` through `eldennet-engine eval --llm mock`, and `--llm recorded`
+  where it has a recording, in the Linux builds. It runs on demand only, never in the default run: each of its tests is
+  restricted to the configuration `eval`, which a plain `ctest` leaves out. There is no CI service yet, so it is run by
+  hand when content, prompts or speech change (ARCH §12.1's eval stage). Its reports hold model text, a local-only
+  kind, and stay in the build tree's `src/en-tools/eval-reports/` (ignored by git); live models and the judged sets wait
+  for a key (WHY§364 (10)).
 
 The three shipped routes are synthetic, written by us. DESIGN's C12 (S10.3.a) asks for golden events over three
 *recorded* routes of the owner's game; each becomes a route the same way, with `golden update <recording>`.

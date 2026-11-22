@@ -1,0 +1,74 @@
+# The first conversation, offline (WHY§364): the test persona's first words, a line that cuts a reply off, and Esc.
+# Our own scenario, with invented data: the persona is bound to the fake game's invented row 81100 by this folder's
+# overrides, in the eval's realm only (NPC §2.1). Run: eldennet-engine eval <this file> --llm mock|recorded.
+schema = 1
+name = "lantern-first-words"
+persona = "lantern_keeper"
+overrides = "overrides"
+mock = "lantern-first-words.mock.toml"
+recorded = "lantern-first-words.llm.jsonl"
+
+[world]
+param = 81100
+distance_m = 2.5
+bearing_deg = 5.0
+clock = [19, 10]
+subtitles = true
+
+[[step]]
+do = "open"
+
+[[step]]
+do = "expect"
+state = "open"
+box = "open"
+
+[[step]]
+do = "say"
+text = "Good evening. Where does this road go?"
+
+[[step]]
+do = "wait"
+ms = 7000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 1
+npc_lines = 1
+failures = 0
+last_npc = "Hm. The road runs on past the lamp, further than most walk it."
+
+[[step]]
+do = "say"
+text = "Tell me about the lamp."
+
+[[step]]
+do = "wait"
+ms = 1500
+
+[[step]]
+do = "expect"
+state = "streaming"
+
+[[step]]
+do = "say"
+text = "Never mind. Rest well."
+
+[[step]]
+do = "wait"
+ms = 6000
+
+[[step]]
+do = "expect"
+state = "open"
+player_lines = 3
+npc_lines = 3
+
+[[step]]
+do = "esc"
+
+[[step]]
+do = "expect"
+state = "closed"
+ended = "closed"

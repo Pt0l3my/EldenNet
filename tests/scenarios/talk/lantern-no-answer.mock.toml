@@ -1,0 +1,15 @@
+# The scripted model for lantern-no-answer.toml (mockllm): a silence past 20 s, a 429 as en-llm ends it, a reply.
+schema = 1
+repeat_last = true
+
+[[reply]]
+error = "TotalTimeout"
+first_token_ms = 25000
+
+[[reply]]
+error = "RateLimited"
+first_token_ms = 300
+
+[[reply]]
+text = "Hm. Third time is enough."
+first_token_ms = 400

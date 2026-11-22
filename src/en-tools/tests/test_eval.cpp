@@ -1,0 +1,167 @@
+// mockllm and the eval (DESIGN §14, ARCH §12.3; WHY§364 (10)): the scripted model's events and timing, its script's
+// errors, the recorded model, and `eval --llm mock` running a scripted conversation to a report. All data is invented.
+#include <doctest.h>
+
+#include <filesystem>
+#include <string>
+
+#include "eval_run.hpp"
+#include "golden_run.hpp"
+#include "mockllm.hpp"
+
+using namespace en;
+using namespace en::tools;
+
+namespace {
+
+MockScript script_of(const char* text) {
+  auto s = parse_mock_script(text);
+  REQUIRE_MESSAGE(s.has_value(), (s.has_value() ? std::string() : s.error()));
+  return std::move(*s);
+}
+
+std::string all_text(const std::vector<proto::LlmEvent>& events) {
+  std::string t;
+  for (const proto::LlmEvent& e : events) {
+    if (e.kind == proto::EventKind::Delta) t += e.text;
+  }
+  return t;
+}
+
+const std::filesystem::path kTalk = std::filesystem::path(EN_TOOLS_SCENARIOS) / "talk";
+
+}  // namespace
+
+TEST_CASE("mockllm: a reply streams in chunks on the caller's clock, then ends") {
+  MockModel m(script_of("schema = 1\n[[reply]]\ntext = \"Hm. The lamp is lit.\"\nfirst_token_ms = 400\nchunk_ms = 50\nchunk_chars = 8\n"));
+  m.submit(proto::LlmRequest::chat(7, proto::ChatRequest{}), 1000);
+  auto now = m.due(1000);
+  REQUIRE(now.size() == 1);
+  CHECK(now[0].kind == proto::EventKind::Started);
+  CHECK(m.due(1399).empty());
+  const auto first = m.due(1400);
+  REQUIRE(first.size() == 1);
+  CHECK(first[0].text == "Hm. The ");
+  CHECK(first[0].id == 7);
+  auto rest = m.due(2000);
+  REQUIRE_FALSE(rest.empty());
+  CHECK(rest.back().kind == proto::EventKind::Ended);
+  REQUIRE(rest.back().chat.has_value());
+  CHECK(rest.back().chat->ok());
+  CHECK("Hm. The " + all_text(rest) == "Hm. The lamp is lit.");
+  CHECK(m.served() == 1);
+  CHECK_FALSE(m.next_at().has_value());
+}
+
+TEST_CASE("mockllm: errors, a think leak with its reset, a trailer, a cancel, and the last reply repeating") {
+  MockModel m(script_of(R"toml(schema = 1
+[[reply]]
+error = "RateLimited"
+first_token_ms = 300
+[[reply]]
+text = "Yes."
+think = "plan"
+reset = true
+trailer = "ACT: nods"
+first_token_ms = 10
+chunk_ms = 1
+chunk_chars = 64
+)toml"));
+  m.submit(proto::LlmRequest::chat(1, proto::ChatRequest{}), 0);
+  auto a = m.due(1000);
+  REQUIRE(a.back().kind == proto::EventKind::Ended);
+  CHECK(a.back().chat->error == proto::ErrorClass::RateLimited);
+  m.submit(proto::LlmRequest::chat(2, proto::ChatRequest{}), 0);
+  auto b = m.due(1000);
+  CHECK(all_text(b) == "<think>plan</think>Yes.\nACT: nods");
+  CHECK(std::any_of(b.begin(), b.end(), [](const proto::LlmEvent& e) { return e.kind == proto::EventKind::Reset; }));
+  m.submit(proto::LlmRequest::chat(3, proto::ChatRequest{}), 0);  // the last repeats
+  m.cancel(3, 5);
+  auto c = m.due(1000);
+  REQUIRE(c.size() == 2);  // Started, then the cancel's Ended
+  CHECK(c[1].chat->error == proto::ErrorClass::Cancelled);
+  CHECK(m.cancelled() == 1);
+}
+
+TEST_CASE("mockllm: a script's errors are named by line and key, never quoting a value") {
+  CHECK_FALSE(parse_mock_script("schema = 2\n[[reply]]\ntext = \"x\"\n").has_value());
+  const auto bad = parse_mock_script("schema = 1\n[[reply]]\ntext = \"x\"\nerror = \"Gremlins\"\n");
+  REQUIRE_FALSE(bad.has_value());
+  CHECK(bad.error() == "line 4: reply[0].error: must be one of en-llm's error classes");
+  const auto unknown = parse_mock_script("schema = 1\n[[reply]]\ntext = \"x\"\nsecret = \"abc\"\n");
+  REQUIRE_FALSE(unknown.has_value());
+  CHECK(unknown.error() == "line 4: reply[0]: an unknown key");
+  CHECK_FALSE(parse_mock_script("schema = 1\n[[reply]]\nfirst_token_ms = 4\n").has_value());  // neither text nor error
+}
+
+TEST_CASE("the recorded model replays a recording's events with the live ids") {
+  const MockScript s = script_of("schema = 1\n[[reply]]\ntext = \"Hm. Yes.\"\nfirst_token_ms = 100\n");
+  std::string recording;
+  for (const std::string& line : mock_lines(s, 2)) recording += line + "\n";
+  auto events = parse_recorded(recording);
+  REQUIRE(events.has_value());
+  RecordedModel r(std::move(*events));
+  r.submit(proto::LlmRequest::chat(42, proto::ChatRequest{}), 1000);
+  const auto out = r.due(5000);
+  REQUIRE_FALSE(out.empty());
+  for (const proto::LlmEvent& e : out) CHECK(e.id == 42);
+  CHECK(all_text(out) == "Hm. Yes.");
+  r.submit(proto::LlmRequest::chat(43, proto::ChatRequest{}), 6000);
+  r.submit(proto::LlmRequest::chat(44, proto::ChatRequest{}), 6000);  // the recording holds two
+  const auto third = r.due(9000);
+  const auto none = std::find_if(third.begin(), third.end(), [](const proto::LlmEvent& e) { return e.id == 44; });
+  REQUIRE(none != third.end());
+  CHECK(none->chat->error == proto::ErrorClass::NoHealthyProvider);
+  CHECK_FALSE(parse_recorded("{\"request\": 0, \"after_ms\": 1, \"event\": {}}\n").has_value());
+}
+
+TEST_CASE("eval --llm mock runs a scripted conversation to a report, every expectation holding") {
+  for (const char* name : {"lantern-first-words", "lantern-no-answer"}) {
+    CAPTURE(name);
+    const auto path = kTalk / (std::string(name) + ".toml");
+    const auto text = read_file(path.string(), 256 * 1024);
+    REQUIRE(text.has_value());
+    auto scenario = parse_eval_scenario(*text, path.parent_path());
+    REQUIRE_MESSAGE(scenario.has_value(), (scenario.has_value() ? std::string() : scenario.error()));
+    auto run = run_eval(*scenario, EvalLlm::Mock);
+    REQUIRE_MESSAGE(run.has_value(), (run.has_value() ? std::string() : run.error()));
+    for (const std::string& f : run->failed) FAIL_CHECK(f);
+    const nlohmann::json report = eval_report(*run);
+    CHECK(report["kind"] == "eval-local");
+    CHECK(report["persona"] == "lantern_keeper");
+    CHECK(report["metrics"]["requests"].get<std::size_t>() >= 3);
+    CHECK(report["turns"].size() == 3);
+    // The summary is numbers only: no line of the conversation in it.
+    const std::string summary = eval_summary(*run);
+    for (const auto& t : report["turns"]) {
+      CHECK(summary.find(t["player"].get<std::string>()) == std::string::npos);
+      if (!t["reply"].get<std::string>().empty()) CHECK(summary.find(t["reply"].get<std::string>()) == std::string::npos);
+    }
+  }
+}
+
+TEST_CASE("eval: the first conversation's turns, as the report holds them") {
+  const auto path = kTalk / "lantern-first-words.toml";
+  auto scenario = parse_eval_scenario(*read_file(path.string(), 256 * 1024), path.parent_path());
+  REQUIRE(scenario.has_value());
+  auto run = run_eval(*scenario, EvalLlm::Mock);
+  REQUIRE(run.has_value());
+  REQUIRE(run->turns.size() == 3);
+  CHECK(run->turns[0].player == "Good evening. Where does this road go?");
+  CHECK_FALSE(run->turns[0].failure);
+  REQUIRE(run->turns[0].first_page_ms.has_value());
+  CHECK(*run->turns[0].first_page_ms >= 700);  // the script's first token
+  CHECK(run->turns[1].cut_off);
+  CHECK(run->turns[1].reply.find("asks for nothing") == std::string::npos);  // never shown, so never in the report
+  CHECK(run->endings == std::vector<std::string>{"closed"});
+  CHECK(run->cancels >= 1);
+}
+
+TEST_CASE("eval: a scenario's errors") {
+  CHECK_FALSE(parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n", ".").has_value());  // no steps
+  const auto bad = parse_eval_scenario(
+      "schema = 1\nname = \"x\"\npersona = \"p\"\n[world]\nparam = 5\n[[step]]\ndo = \"dance\"\n", ".");
+  REQUIRE_FALSE(bad.has_value());
+  CHECK(bad.error() == "line 6: step[0].do: must be one of open, say, wait, esc, skip, move, expect");
+  CHECK_FALSE(parse_eval_scenario("schema = 1\nname = \"x\"\npersona = \"p\"\noverrides = \"../up\"\n", ".").has_value());
+}

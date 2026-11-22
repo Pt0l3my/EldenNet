@@ -1,9 +1,13 @@
-// en-core's v0.1 slice: the lifecycle, the gate's effects and the ladder's first levels (core.hpp; ARCH §5, §6.8, §9).
+// en-core: the lifecycle, the gate's effects, the ladder (core.hpp; ARCH §5, §6.8, §9), Augur on every step, and the
+// first conversation wired in after it (WHY§364).
 #include "en/core/core.hpp"
 
+#include <algorithm>
 #include <array>
 #include <type_traits>
 #include <utility>
+
+#include "en/core/stubs.hpp"
 
 namespace en::core {
 
@@ -71,6 +75,10 @@ const char* to_string(Level l) noexcept {
       return "L1";
     case Level::L2:
       return "L2";
+    case Level::L3:
+      return "L3";
+    case Level::L4:
+      return "L4";
   }
   return "unknown";
 }
@@ -182,10 +190,40 @@ augur::WorldFacts world_facts() {
   return f;
 }
 
-Core::Core() : augur_(world_facts()) {
+// The built-in speech parts: the stubs until part A's sanitizer, lint, pager and prompt land (WHY§364).
+struct BuiltinSpeech {
+  stubs::StubSpeech parts;
+};
+
+Core::Core() : augur_(world_facts()), builtin_(std::make_unique<BuiltinSpeech>()), conversation_(builtin_->parts.parts()) {
+  init();
+}
+
+Core::Core(SpeechParts speech) : augur_(world_facts()), conversation_(speech) { init(); }
+
+void Core::init() {
   std::vector<augur::RuleFile> files;
   for (const BuiltinFile& f : builtin_rule_files()) files.push_back(augur::RuleFile{std::string(f.name), std::string(f.text)});
   rule_errors_ = load_rules(files);
+  hostile_teams_ = world_facts().hostile_teams;
+}
+
+Core::~Core() = default;
+
+std::vector<ContentFile> builtin_content() {
+  std::vector<ContentFile> files;
+  for (const BuiltinFile& f : builtin_content_files()) {
+    files.push_back(ContentFile{std::string(f.name), std::string(f.text), ContentOrigin::Shipped});
+  }
+  return files;
+}
+
+std::vector<ContentError> Core::load_content(std::span<const ContentFile> files, Realm realm) {
+  auto pack = core::load_content(files);
+  if (!pack) return pack.error();  // the old content stays
+  directory_ = Directory::build(std::move(*pack), realm, predicates_);
+  content_loaded_ = true;
+  return {};
 }
 
 std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
@@ -264,6 +302,8 @@ Outputs Core::step(CoreInput input, Mono now) {
   Mono at = now;
   const proto::WorldSnapshot* snapshot = nullptr;
   const proto::Lifecycle* lifecycle = nullptr;
+  const proto::UiEvent* ui = nullptr;
+  const proto::LlmEvent* llm = nullptr;
   std::visit(Overloaded{
                  [&](std::unique_ptr<proto::WorldSnapshot>& s) {
                    if (s) {
@@ -278,17 +318,78 @@ Outputs Core::step(CoreInput input, Mono now) {
                  },
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
-                 // Accepted, and a tick for now: the conversation that takes them comes with part B (WHY§364).
-                 [&](proto::UiEvent&) {},
-                 [&](proto::LlmEvent&) {},
-                 [&](proto::NetHealth&) {},
+                 [&](proto::UiEvent& e) { ui = &e; },
+                 [&](proto::LlmEvent& e) { llm = &e; },
+                 [&](proto::NetHealth& h) { net_ = h; },
              },
              input.payload);
   settle(at, out);
-  out.ai_allowed = state_.gate_open && state_.level == Level::L2;
+  climb(at, out);
+  out.ai_allowed = state_.gate_open && state_.level >= Level::L2;
   out.state = state_;
   run_augur(snapshot, lifecycle, now, out);
+  if (snapshot != nullptr) {
+    auto& held = std::get<std::unique_ptr<proto::WorldSnapshot>>(input.payload);
+    last_ = std::move(held);  // the newest, which the conversation reads until the next one
+  }
+  run_conversation(at, snapshot != nullptr, ui, llm, out);
   return out;
+}
+
+// ARCH §6.8: L2, then L4 with a healthy dialogue model and every group up, L3 with one optional group tripped, and
+// back to L2 when the model is not healthy. L1 stays for the session (set_level).
+void Core::climb(Mono at, Outputs& out) {
+  if (state_.level < Level::L2) return;
+  const Level to = !net_.dialogue ? Level::L2 : (optional_tripped_ ? Level::L3 : Level::L4);
+  set_level(to, at, out);
+}
+
+void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out) {
+  // The Tarnished's engagements and death, from Augur's events of this step.
+  bool died = false;
+  for (const augur::Event& e : out.events) {
+    if (std::holds_alternative<augur::PlayerDied>(e.kind)) died = true;
+    const auto other = [](const augur::ActorRef& a, const augur::ActorRef& b) -> std::optional<std::uint64_t> {
+      if (a.kind == augur::ActorRef::Kind::Player) return b.handle.raw;
+      if (b.kind == augur::ActorRef::Kind::Player) return a.handle.raw;
+      return std::nullopt;
+    };
+    if (const auto* en = std::get_if<augur::Engaged>(&e.kind)) {
+      if (const auto h = other(en->subject, en->opponent);
+          h && std::find(engaged_.begin(), engaged_.end(), *h) == engaged_.end()) {
+        engaged_.push_back(*h);
+      }
+    } else if (const auto* dis = std::get_if<augur::Disengaged>(&e.kind)) {
+      if (const auto h = other(dis->subject, dis->opponent)) std::erase(engaged_, *h);
+    }
+  }
+  if (state_.phase != Phase::InWorld) engaged_.clear();
+  ConversationInput in;
+  in.now = at;
+  in.ui = ui;
+  in.llm = llm;
+  ConversationWorld& w = in.world;
+  w.snapshot = last_.get();
+  w.fresh = fresh;
+  w.in_world = state_.phase == Phase::InWorld;
+  w.loading = state_.phase == Phase::Loading;
+  w.dormant = state_.dormant;
+  w.speech = state_.level >= Level::L3 && out.ai_allowed;
+  w.combat = !engaged_.empty();
+  w.player_died = died;
+  w.cast = content_loaded_ ? &directory_ : nullptr;
+  w.predicates = &predicates_;
+  w.facts = view_.facts;
+  w.hostile_teams = hostile_teams_;
+  w.log = &log_;
+  ConversationOutput co = conversation_.step(in);
+  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
+  out.ui = std::move(co.ui);
+  out.requests = std::move(co.requests);
+  out.cancels = std::move(co.cancels);
+  out.commits = std::move(co.commits);
+  out.ended = co.ended;
+  if (!out.ai_allowed) out.requests.clear();  // C4: nothing goes out while gated (the conversation sends none then)
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {
@@ -330,7 +431,10 @@ void Core::on_lifecycle(const proto::Lifecycle& l, Mono now, Outputs& out) {
   } else if (const auto* p = std::get_if<proto::Lifecycle::PlaythroughReady>(&l.payload)) {
     pending_ = PlaythroughId{p->slot, p->name, p->archetype, p->keepsake};
   } else if (const auto* t = std::get_if<proto::Lifecycle::GroupTripped>(&l.payload)) {
-    if (!proto::structural(t->group)) return;  // an optional group: L3, with the net
+    if (!proto::structural(t->group)) {
+      optional_tripped_ = true;  // an optional group: L3 at most
+      return;
+    }
     if (t->group == proto::Group::Session) {
       if (gate_.session_failed_now()) {
         out.changes.push_back(
@@ -390,6 +494,11 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
     raise_banner(BannerReason::TaskTripped, at, out);
   }
   if (s.session.anticheat) raise_banner(BannerReason::AntiCheat, at, out);
+  for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+    if (!proto::structural(static_cast<proto::Group>(g)) && s.health.groups[g].state == proto::GroupState::Tripped) {
+      optional_tripped_ = true;
+    }
+  }
 
   // The playthrough's own clocks: play time rising over two snapshots, and the load counter held over two.
   if (s.player) {

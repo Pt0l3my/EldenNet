@@ -1,0 +1,23 @@
+# A fixture flag state (MEM §7.8, §12.11): all nine world stages hold: for the block-5b goldens only.
+# Invented test data, our own: catalogue aliases (MEM §6.1) and their values, every one verified; an alias not
+# listed reads false (verified). No flag id and no text of the game: the catalogue maps the aliases (S6).
+schema = 1
+state = "ashen"
+journey = 1
+
+[flags]
+"boss.godrick" = true
+"boss.rennala" = true
+"boss.radahn" = true
+"boss.rykard" = true
+"boss.morgott" = true
+"boss.mohg_lord" = true
+"boss.maliketh" = true
+"story.star_fell" = true
+"story.erdtree_burned" = true
+"runes.ge1" = true
+"runes.ge2" = true
+"runes.ge3" = true
+"runes.ge4" = true
+"runes.ge5" = true
+"runes.ge6" = true
