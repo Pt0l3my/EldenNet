@@ -1880,6 +1880,8 @@ sequenceDiagram
 
 Input target ≤ 2,800 tokens and hard cap 3,500 (the caps above sum to 3,460; a typical mid-game prompt is about 2,525). The cached prefix (blocks 1–5b) is ≤ 1,460 tokens. `max_tokens` is 140, temperature 0.8, and the stop sequences are `"\nThe Tarnished:"` and `"\nTarnished:"`. Reasoning is off per provider. The player's newest lines appear only in the recap until the NPC answers; then they move into history as bare dialogue, which keeps history byte-stable.
 
+*Since 2026-11-22 (WHY§388; built with the first conversation, S11.3):* block 2 keeps its 120 tokens and is never trimmed, and the content lint checks it whole: past its cap it is an error for shipped and test content and a warning for the player's own files. Block 11 rises to 70 tokens and carries at most one tic note, the newest, beside the reminder; the caps above now sum to 3,490. The skeleton below is written in en-prompt's own syntax as built (`[ system ]`, `[ cache ]`, `join()`; WHY§364 (9)).
+
 **Skeleton** (section labels are ours and end in a colon; `[…]` lines are message markers; `{{ }}` marks fields):
 
 ```text

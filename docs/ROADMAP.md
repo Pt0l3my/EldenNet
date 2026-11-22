@@ -442,7 +442,9 @@ Work beside the engine and the increments, and the owner's housekeeping.
     answered within 90 s, GraceUI 0.2.20, protocol 1.6 (GraceUI's D216, WHY§386). Next: the editor block with
     EldenNet's five additions (d), a profile's member keyed as its row (WHY§387). Part d done the same day: the editor
     block in both views with EldenNet's five additions, GraceUI 0.2.21, protocol 1.7 (GraceUI's D217, WHY§391). All four
-    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them.
+    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them. A save's answer may name the
+    master list's next row, chosen: "<key>" (GraceUI 0.2.22, GraceUI's D218, WHY§393), for a named.<param> row that
+    becomes mine.<id> (WHY§387).
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1067,6 +1069,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     time is let pass, the flags two steps on with a bounded sweep for bits that flip once (about 24 MiB, put to the
     owner first by O105's note), and the report's fallback graded. The owner said yes to the sweep (O105's note), and
     package 0.1.0-lodestar.10 went to them the same day (engine b0a2fa7).
+    L6's third round reviewed the same day (WHY§394 to §397): the time of day found (hour and minute in one word behind
+    an accessor's static, told by the owner's two passings of time), candidates for the flags' blocks and tree, the
+    reader at 9.97 a second. 1012 `world_clock` is that object (WHY§359's Later line). Next: the clock into the table by
+    what its object holds; a flag the owner sets checked against the blocks, with the tester's marks (S10.1.l).
+- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [next]
+  - needs: k
+  - refs: WHY§398, WHY§396
+  - gives: asked by the owner on 2026-11-22, after the seventh read-only round. By Lodestar: in game through GraceUI if
+    its overlay can show it there today, else a window of the launcher's own. The tester's marks also tell the round
+    when to look.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1397,6 +1409,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G38, GraceUI:D217, WHY§391, WHY§392, WHY§377
   - gives: built on 2026-11-22 (GraceUI feat/foundations f35f495) as S7.2.c's part d; for the profile editor's Profile
     tab (S7.2.b; GraceUI's docs/eldennet-changes.md §55).
+- ai A save's chosen row in both views (GraceUI 0.2.22) [done]
+  - refs: GraceUI:D218, GraceUI:D215, WHY§393, WHY§387
+  - gives: built on 2026-11-22 (GraceUI feat/foundations 62f492e) at EldenNet's request; for the profile editor
+    (S7.2.b; GraceUI's docs/eldennet-changes.md §56).
 
 ### S11.3 EldenNet v0.2
 

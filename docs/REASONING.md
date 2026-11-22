@@ -415,6 +415,12 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 390 | 2026-11-22 | A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held | DECIDED | #lodestar #probe |
 | 391 | 2026-11-22 | An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing | DECIDED | #graceui #pages |
 | 392 | 2026-11-22 | Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout | METHOD | #graceui #view |
+| 393 | 2026-11-22 | A save names the row the list chooses next, since a list alone cannot tell a renamed row from a removed one | DECIDED | #graceui #pages |
+| 394 | 2026-11-22 | The time of day: the hour and minute packed in one word behind an accessor's static, told by the owner's two passings of time | FACT | #lodestar #l6 |
+| 395 | 2026-11-22 | The flags' blocks are likely the plain data behind the store's address 40 bytes in, and their tree behind 56 | LIKELY | #lodestar #l6 |
+| 396 | 2026-11-22 | A list of what changed must be told when to look: the tester marks a task done | METHOD | #lodestar |
+| 397 | 2026-11-22 | An invariant asks for what the thing does, not for a margin over the next candidate | METHOD | #lodestar |
+| 398 | 2026-11-22 | The owner asks for a tester's panel: each task of a round in order, with a timer and a mark when done | FACT | #lodestar #owner |
 
 ## Entries
 
@@ -5850,6 +5856,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   its manager's object it was of the right class at 1,597 of 1,597 readings, but nothing in its first 512 bytes changed
   in play: no run of bits behaved as minutes, and no fraction rose. The "1,024 bytes in" was a neighbour in memory.
   Where the time is kept is still open.
+- *Later, 2026-11-22:* found, elsewhere (WHY§394). The class under the clock's longer name does not hold the time.
 
 ### 356. messages' slot is the one of its two that the code refers to 238 times; the build's table has it with eight witnesses
 
@@ -5894,6 +5901,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   accessor's sites as witnesses. A new id with 1008 retired was the alternative: rejected, since nothing used 1008.
 - 1012 `world_clock` stays reserved and unplaced until L6 gives the clock's manager an id and the clock a field under it.
   Nothing in v1's start needs the clock as a static. ARCH §6.1 carries a dated note.
+- *Later, 2026-11-22 (WHY§394):* 1012 `world_clock` is the object that holds the time of day, entered by the invariant
+  recipe when a round names it so. The lead under the clock's longer name stays a lead for its own class and is no
+  longer the clock's. Lodestar's intent; Engine agrees.
 
 ### 360. A holder's end could be lost when its box was full; since GraceUI 0.2.15 it always comes
 
@@ -6339,3 +6349,69 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - grace-view's layout keeps each boundary's offset, x and line top for the prose field being edited. Up, down and the
   pointer take the nearest boundary on the line above, below or under it.
+
+### 393. A save names the row the list chooses next, since a list alone cannot tell a renamed row from a removed one
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D218, GraceUI's D215, WHY§387, S7.2.c
+
+- GraceUI 0.2.22, protocol 1.7 and the ABI unchanged. A save's answer body may carry `chosen: "<key>"`, a member's key of
+  the page's master family. The view that saved takes it as the chosen row once its list has that row, whichever of the
+  answer and the list's new state comes first, unless the player chooses a row by hand in between. Focus stays on Save
+  once the new row's member draws. A key that is no member's, or one on any answer but an ok save, is ignored.
+- EldenNet sends it when a `named.<param>` row becomes `mine.<id>` (WHY§387). Also fixed: for one render after a block's
+  topic changed, the browser could still draw the last topic's body.
+
+### 394. The time of day: the hour and minute packed in one word behind an accessor's static, told by the owner's two passings of time
+
+`2026-11-22` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§385, WHY§390, WHY§355, WHY§382
+
+- The seventh read-only round (package 0.1.0-lodestar.10, the owner's run, 16.7 minutes). The object is behind the
+  accessor's static 64422792 (29 sites; an object without a class). The 8-byte word 8 bytes in holds the hour in the
+  five bits from bit 34, and the minute in the six bits from bit 39. The word 24 bytes in holds the same. The same two
+  words stand 216 and 232 bytes into the object behind static 64422928 (18 sites); the first object may lie inside the
+  second, to be checked.
+- Over 146 readings, the hours stepped by one five times, and the minutes stepped forward 142 times and went round five
+  times. At the two moments the owner let time pass (525 s and 727 s into the watch), the hour went from 17 to 12 and
+  from 13 to 20, as the README asked, at the same second in all four words. A game hour took about 190 s, a game minute
+  about 3 s. The sixth round missed it because its readings were about five game minutes apart.
+- The reader: 9,834 readings in 986 s, 9.97 a second; 4 µs at the median, 7 at the 99th percentile, 89 the longest; no
+  fault. Ten managers where they were, a seventh session. The graded fallback worked: 13 objects lost their words one at
+  a time and said so, and the report was written to the end.
+
+### 395. The flags' blocks are likely the plain data behind the store's address 40 bytes in, and their tree behind 56
+
+`2026-11-22` · LIKELY · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§389
+
+- Behind the address 40 bytes in: plain data, 2 MiB readable at every pass, of which only 585 of 262,144 words ever
+  changed in 16 minutes, by single bits here and there. Behind the address 56 bytes in: records of 64 bytes, each three
+  addresses and a small number, the shape of a tree's nodes.
+- Not yet checked against a flag the owner sets: the sweep's list (24 flips a target, the quietest pages first) was
+  filled by the first comparison, half a minute in, so what the owner did later is among the 852 flips counted but not
+  listed.
+
+### 396. A list of what changed must be told when to look: the tester marks a task done
+
+`2026-11-22` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§395, WHY§398
+
+- The tester marks a task done, and the round keeps what flipped after each mark. A list filled in the order seen is
+  used up by the first comparison.
+
+### 397. An invariant asks for what the thing does, not for a margin over the next candidate
+
+`2026-11-22` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§374
+
+- The play time rises at every comparison and never falls. In the seventh session its field rose in 41 of 43 passes at
+  the same slot and offset as ever, but another field rose in 35. The rule asked for three times the next best, and so
+  refused the right one: that round's draft table has no save_data, and the build's table keeps the sixth round's.
+- Likewise 24 statics' objects held runs of bits that passed as hours; the clock stood out only by its jumps and the
+  hours they landed on.
+
+### 398. The owner asks for a tester's panel: each task of a round in order, with a timer and a mark when done
+
+`2026-11-22` · FACT · `#lodestar` `#owner` · refs: S10.1.l, WHY§396
+
+- The owner, after the seventh round (2026-11-22): "these time windows will be hard to follow, even if the terminal states them. For the next scanner/tester, can you add a timer that shows each phase and description? Basically a UI frame that shows all the tasks in order to be done, with a timer for each task (and a confirm method that the task was done and seen by the tester, such as grey out those tasks that have been done). You could ask grace agent if that's already feasible."
+- Lodestar asked Grace whether GraceUI's overlay can show such a panel in the real game today. If it cannot yet (its
+  hooks in game wait for S0-E's spike), Lodestar builds a window of the launcher's own, outside the game, which needs no
+  hook. The tester's marks are also what the sweep needs to know when to look (WHY§396). A new field in the launcher's
+  watch block (en-proto) would be agreed with Engine first.
