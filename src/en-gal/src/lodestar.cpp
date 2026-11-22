@@ -297,8 +297,20 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
       ++out.null;
       continue;
     }
-    // An instance is a heap object: one that lies in the image is no instance, and is not read as one.
-    const std::optional<std::uint64_t> word = in_image(instance) || !read_word ? std::nullopt : read_word(instance);
+    // An object the game keeps inside its own image is read through the image's view, as the slot was; one on the
+    // heap through the caller's guarded read.
+    std::optional<std::uint64_t> word;
+    if (in_image(instance)) {
+      ++out.in_image;
+      std::array<std::byte, 8> first{};
+      if (live.read(instance - st.base, first)) {
+        std::uint64_t v = 0;
+        std::memcpy(&v, first.data(), 8);
+        word = v;
+      }
+    } else if (read_word) {
+      word = read_word(instance);
+    }
     if (!word) {
       ++out.unread;
       continue;
@@ -351,6 +363,40 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
   std::sort(out.managers.begin(), out.managers.end(),
             [](const ManagerFound& a, const ManagerFound& b) { return a.id < b.id; });
   return out;
+}
+
+std::vector<std::uint32_t> Namer::vtables(std::uint32_t id) const {
+  std::vector<std::uint32_t> out;
+  for (const auto& [rva, accepts] : state_->accepts) {
+    if (state_->leads[accepts.lead].listed && state_->leads[accepts.lead].id == id) out.push_back(rva);
+  }
+  std::sort(out.begin(), out.end());
+  out.erase(std::unique(out.begin(), out.end()), out.end());
+  return out;
+}
+
+void set_by_search(InstancesFound& held, std::uint32_t id, std::uint32_t slot, std::uint32_t vtable,
+                   std::uint32_t found) {
+  for (ManagerFound& m : held.managers) {
+    if (m.id != id || m.status == derive::Status::Derived) continue;
+    m.search_found = found;
+    if (found == 0) continue;
+    m.status = found == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
+    m.rva = slot;
+    m.vtable = vtable;
+    m.by_search = true;
+    m.by_base = false;
+    m.imp = false;
+    m.sites = 0;
+    m.witnesses.clear();
+    m.pass = held.passes;
+  }
+  held.named = 0;
+  held.ambiguous = 0;
+  for (const ManagerFound& m : held.managers) {
+    held.named += m.status == derive::Status::Derived ? 1 : 0;
+    held.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
+  }
 }
 
 InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, const AccessorFound& accessor,
@@ -424,10 +470,13 @@ DraftTable draft_table(const Found& found, const Catalogue& ids, const TableProv
       e.id = m.id;
       e.kind = IdKind::Static;
       e.rva = m.rva;
-      e.found_by = {Recipe::Accessor, Recipe::InstanceClass};
+      // A static of the accessor's is given by two recipes that agree; one the search found, by its instance alone.
+      e.found_by = m.by_search ? std::vector<Recipe>{Recipe::InstanceClass}
+                               : std::vector<Recipe>{Recipe::Accessor, Recipe::InstanceClass};
       e.witnesses = m.witnesses;
       if (e.witnesses.size() > kMaxWitnesses) e.witnesses.resize(kMaxWitnesses);
-      e.checks = {ItemCheck::Agree, ItemCheck::Class};  // two recipes give the slot; its instance has the class
+      e.checks = m.by_search ? std::vector<ItemCheck>{ItemCheck::Class}
+                             : std::vector<ItemCheck>{ItemCheck::Agree, ItemCheck::Class};
       entries.push_back(std::move(e));
     }
   }
@@ -556,7 +605,8 @@ constexpr auto kKeys = std::to_array<Key>({
     AO("classes"), Key{"label", Type::Label}, W("status", kStatus), U("type_descriptor"), U("classes_derived"),
     AU("vtables"), O("instances"), U("tried"), U("null"), U("unread"), U("unclassed"), U("classed"), U("leads"),
     U("unlisted"), U("named"), U("ambiguous"), U("passes"), AO("managers"), U("id"), U("vtable"), B("imp"), U("pass"),
-    B("by_base"), AO("lead_classes"), U("named_imp"), U("vtable_count"), U("texts"),
+    B("by_base"), AO("lead_classes"), U("named_imp"), U("vtable_count"), U("texts"), U("in_image"), B("by_search"),
+    U("search_found"),
     // The reader's trial (in game)
     O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
     U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
@@ -701,6 +751,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("tried", n.tried);
     w.number("null", n.null);
     w.number("unread", n.unread);
+    w.number("in_image", n.in_image);
     w.number("unclassed", n.unclassed);
     w.number("classed", n.classed);
     w.number("leads", n.leads);
@@ -719,6 +770,8 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("sites", m.sites);
       w.boolean("imp", m.imp);
       w.boolean("by_base", m.by_base);
+      w.boolean("by_search", m.by_search);
+      w.number("search_found", m.search_found);
       w.number("pass", m.pass);
       numbers(w, "witnesses", m.witnesses);
       w.end_object();

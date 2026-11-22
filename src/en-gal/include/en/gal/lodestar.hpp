@@ -134,6 +134,8 @@ struct ManagerFound {
   std::uint32_t sites = 0;   // the accessor's sites that load the static
   bool imp = false;          // named by the lead's name with Imp
   bool by_base = false;      // named by a class that derives from the lead's class, not by the class itself
+  bool by_search = false;    // its static is none of the accessor's: found by the search of the data's slots
+  std::uint32_t search_found = 0;  // slots that search found holding an object of its class (1 names it)
   std::uint32_t pass = 0;    // the round's pass that named it (1 the first); 0 while unnamed
   std::vector<std::uint32_t> witnesses;  // the first of those sites, each the load itself
 };
@@ -154,7 +156,9 @@ struct LeadClasses {
 struct InstancesFound {
   std::uint64_t tried = 0;      // statics looked at
   std::uint64_t null = 0;       // the static holds no instance yet
-  std::uint64_t unread = 0;     // the instance's first word could not be read, or the instance lies in the image
+  std::uint64_t unread = 0;     // the instance's first word could not be read
+  std::uint64_t in_image = 0;   // the instance lies inside the image (an object the game keeps in its own data): its
+                                // first word is read through the image's view, and it is classed like any other
   std::uint64_t unclassed = 0;  // read, but no table of methods the image's type information knows
   std::uint64_t classed = 0;    // an instance whose class the image gives
   std::uint64_t leads = 0;      // managers the leads ask for
@@ -238,6 +242,10 @@ class Namer {
   [[nodiscard]] const std::vector<LeadClasses>& lead_classes() const noexcept;
   [[nodiscard]] InstancesFound pass(const ByteSource& live, const AccessorFound& accessor,
                                     const ReadWord& read_word) const;
+  // The tables of methods an instance of a lead's manager may carry (its class's and those of classes deriving from
+  // it), as offsets, ascending: what a search for its instance looks for. Nothing for an id no lead asks for, or for a
+  // lead with no class of its name.
+  [[nodiscard]] std::vector<std::uint32_t> vtables(std::uint32_t id) const;
 
  private:
   struct State;
@@ -253,6 +261,12 @@ class Namer {
 // title): the counts become the later pass's, a manager once named stays as it was named, and one still unnamed takes
 // the later pass's finding, with the pass that named it. `named` and `ambiguous` are counted again over the whole.
 void merge(InstancesFound& held, const InstancesFound& later);
+
+// A manager that no accessor's static holds, found by the search of the data's slots for an object of its class
+// (probe.hpp's SlotSearch, read-only): `found` slots held one, `slot` the first, `vtable` its object's table of
+// methods. One slot names the manager; more leave it ambiguous; none changes nothing. A manager already named stays.
+void set_by_search(InstancesFound& held, std::uint32_t id, std::uint32_t slot, std::uint32_t vtable,
+                   std::uint32_t found);
 
 // The round's findings as a build's table: `[provenance]` and one `[item.<label>]` for each manager named, each class
 // the leads' sets gave and the groups' table, in the catalogue's order. Each entry is checked against the image first

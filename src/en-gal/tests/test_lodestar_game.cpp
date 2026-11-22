@@ -206,12 +206,15 @@ TEST_CASE("in game: a static with no instance yet names no one; two statics of o
                                                   [](std::uint64_t) { return std::optional<std::uint64_t>{}; });
     CHECK(refused.unread == 11);
     CHECK(refused.named == 0);
-    // A static that points into the image holds no instance: it is not read at all.
+    // A static that points into the image: the object there is read through the image's view, not as a heap object.
+    // Here it is another static's slot, whose first word is a heap address and no table of methods.
     w.mem.put<std::uint64_t>(w.at("st_camera"), w.at("st_hud"));
     std::uint64_t reads = 0;
     const auto inside = lodestar::name_instances(r.gated.image, w.sys->image(), r.found.accessor, r.leads, r.ids,
                                                  reader_of(w, &reads));
-    CHECK(inside.unread == 1);
+    CHECK(inside.in_image == 1);
+    CHECK(inside.unread == 0);
+    CHECK(inside.unclassed == 1);  // a heap address is no table of methods
     CHECK(reads == 10);
   }
 }
@@ -542,4 +545,81 @@ TEST_CASE("in game: the trial counts its readings by stage, and each manager's e
   const lodestar::TrialFound back = read(5);
   CHECK(back.stage_changes == 2);
   CHECK(back.world_readings == world.world_readings);
+}
+
+TEST_CASE("in game: a manager whose object lies inside the image is named through the image's own view") {
+  FakeWorld w;
+  // The messages' manager kept in the image's own data: its static points at a place in the image whose first word
+  // is the class's table of methods (here the menus' static's slot, lent for the test).
+  const std::uint64_t words = w.instance("messages");
+  const std::uint64_t vtable = w.mem.get<std::uint64_t>(words);
+  const std::uint64_t menus = w.instance("menus");
+  const std::uint64_t place = w.at("st_menus");
+  w.mem.put<std::uint64_t>(place, vtable);
+  w.mem.put<std::uint64_t>(w.at("st_messages"), place);
+  std::uint64_t reads = 0;
+  const Round r = round_of(w, &reads);
+  // Two statics now point into the image: the messages' (at the lent place) and the menus' own, which holds a table
+  // of methods' address. Neither cost a guarded read outside the image.
+  CHECK(r.found.instances->in_image == 2);
+  CHECK(reads == 9);
+  CHECK(manager(r, "menus").status == Status::Missing);  // a table of methods is no object of the menus' class
+  CHECK(manager(r, "messages").status == Status::Derived);
+  CHECK(manager(r, "messages").rva == w.at("st_messages") - w.base);
+  CHECK(manager(r, "messages").vtable == vtable - w.base);
+  (void)menus;
+}
+
+TEST_CASE("in game: a lead's tables of methods, and a manager set by the search of the data's slots") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  const std::uint32_t hud = roles::info(Item::Hud).id;
+  const std::vector<std::uint32_t> tables = namer.vtables(hud);
+  REQUIRE(tables.size() == 1);
+  CHECK(tables[0] == w.vtable("hud") - w.base);
+  CHECK(namer.vtables(1999).empty());
+  // The HUD and the camera not named by a pass (their statics empty); the search then finds the HUD's object behind
+  // one slot, and the camera's behind two.
+  lodestar::InstancesFound held;
+  w.mem.put<std::uint64_t>(w.at("st_hud"), 0);
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(held.named == 9);
+  const auto of = [&](std::string_view label) {
+    const auto it = std::find_if(held.managers.begin(), held.managers.end(), [&](const auto& m) { return m.label == label; });
+    REQUIRE(it != held.managers.end());
+    return *it;
+  };
+  lodestar::set_by_search(held, hud, 0x1238, tables[0], 1);
+  CHECK(held.named == 10);
+  CHECK(of("hud").status == Status::Derived);
+  CHECK(of("hud").by_search);
+  CHECK(of("hud").rva == 0x1238);
+  CHECK(of("hud").sites == 0);
+  CHECK(of("hud").witnesses.empty());
+  CHECK(of("hud").pass == 1);
+  lodestar::set_by_search(held, roles::info(Item::Camera).id, 0x2000, 0x3000, 2);
+  CHECK(of("camera").status == Status::Ambiguous);
+  CHECK(of("camera").search_found == 2);
+  CHECK(held.ambiguous == 1);
+  // What the search named stays named through a later pass, and a manager a pass named is not touched by a search.
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(of("hud").by_search);
+  CHECK(of("hud").rva == 0x1238);
+  lodestar::set_by_search(held, roles::info(Item::Session).id, 0x4000, 0x5000, 1);
+  CHECK_FALSE(of("session").by_search);
+  // The draft table: a static the search found is given by its instance's class alone, with no agreement claimed.
+  r.found.instances = held;
+  for (lodestar::ManagerFound& m : r.found.instances->managers) {
+    if (m.label == "hud") m.rva = static_cast<std::uint32_t>(w.at("st_hud") - w.base);  // a place a static may lie
+  }
+  const TableProvenance provenance{"0.1.0-test.1", std::string(64, 'a'), "l5", "2026-01-02", {}};
+  const lodestar::DraftTable draft = lodestar::draft_table(r.found, r.ids, provenance, r.gated.image, w.sys->image());
+  const std::size_t at = draft.text.find("[item.hud]");
+  REQUIRE(at != std::string::npos);
+  const std::string entry = draft.text.substr(at, draft.text.find("[item.", at + 5) - at);
+  CHECK(entry.find("found_by = [\"instance_class\"]") != std::string::npos);
+  CHECK(entry.find("agree") == std::string::npos);
+  CHECK(entry.find("witnesses") == std::string::npos);
 }
