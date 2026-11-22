@@ -268,7 +268,7 @@ def check_lodestar(a, exe, leads):
     with open(out) as f:
         text = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 5 and d["complete"] is True, "the lodestar report's head")
+    need(d["report"] == "lodestar" and d["schema"] == 6 and d["complete"] is True, "the lodestar report's head")
     acc = d["accessor"]
     need(acc["recipe"] and acc["hits"] == 8 and acc["accepted"] == 6 and acc["expect"] == "within",
          "the accessor's counts: %s" % {k: acc[k] for k in ("hits", "accepted", "expect")})

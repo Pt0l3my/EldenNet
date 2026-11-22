@@ -2307,7 +2307,8 @@ READ_SINGLETONS = {"TaskLoom": "task_hub", "ActorRoster": "characters", "LobbyWa
                    "SkyClock": "world_clock", "EyeRig": "camera", "TableVault": "param_store", "PhraseBook": "messages"}
 
 
-READ_SEARCHED = {"save_data": "SaveLedger", "game_state": "RunWarden", "field_area": "FieldPlot"}
+# The save ledger is no lead: the round finds its static by what its object holds (the play time), as an invariant.
+READ_SEARCHED = {"game_state": "RunWarden", "field_area": "FieldPlot"}
 
 
 def read_round_gal(gal):
@@ -2356,18 +2357,18 @@ def check_read(result, by_flag=False):
     # Thirteen managers by the passes: eleven behind the accessor's own statics and two behind statics only its
     # other shapes reach. The last by the search of the data's slots: two slots, one object.
     failures += want(result, "ELDENNET", "read", stage="variant", accepted=1, statics=1, known=0, new=1, shared=0)
-    failures += want(result, "ELDENNET", "read", stage="named", named=(13, 14), of=14, ambiguous=0, unlisted=0)
+    failures += want(result, "ELDENNET", "read", stage="named", named=(12, 13), of=13, ambiguous=0, unlisted=0)
     failures += want(result, "ELDENNET", "read", stage="in_data", tables=(1, 16), found=0)
-    failures += want(result, "ELDENNET", "read", stage="search", found=2, objects=1, named=14)
-    failures += want(result, "ELDENNET", "read", stage="trial", named=14, managers=14, readings=(20, 1e6),
+    failures += want(result, "ELDENNET", "read", stage="search", found=2, objects=1, named=13)
+    failures += want(result, "ELDENNET", "read", stage="trial", named=13, managers=13, readings=(20, 1e6),
                      same=(11 * 20, 1e9), other=0, fault=0, torn=0, faults=0)
     failures += want(result, "ELDENNET", "read", stage="table", entries=(16, 17), left_out=0, witnesses_dropped=0)
-    failures += want(result, "ELDENNET", "read", stage="searches", clock_candidates=(1, 64), rising_candidates=(1, 1e6),
+    failures += want(result, "ELDENNET", "read", stage="searches", wide_ways=(13, 64), rising_candidates=(1, 1e6),
                      pointer_like=(1, 1e9), live=(1, 1e9), member_tables=(1, 16))
     # The searches' faults are caught ones, by design: a candidate whose object is shorter than the copy, or gone.
-    failures += want(result, "ELDENNET", "read", stage="held", clock_passes=(3, 1e6), rising_passes=(1, 1e6),
+    failures += want(result, "ELDENNET", "read", stage="held", watch_passes=(3, 1e6), wide_ways=(13, 64), rising_passes=(1, 1e6),
                      search_faults=(0, 1e9), asked=(1, 1e9), search_steps=(1, 1e9), member_passes=(1, 1e6))
-    failures += want(result, "ELDENNET", "read", stage="watch", ways=(14, 24), play_time=1)
+    failures += want(result, "ELDENNET", "read", stage="watch", ways=(27, 320), play_time=1)
     failures += want(result, "ELDENNET", "read", stage="search", found=2, objects=1, most_refs=(1, 1e6))
     failures += ready_no_call(result)
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
@@ -2381,20 +2382,21 @@ def check_read(result, by_flag=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 5, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 6, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
-    for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["FG::", "Imp", "task_loom", "Fg_"]:
+    for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
         need(name not in text and name not in draft, "a name of the game's in the round's files: %s" % name, failures)
     inst, trial = d.get("instances"), d.get("trial")
     if not inst or not trial:
         return failures + ["the report has no instances or no trial"]
-    need(inst["named"] == 14 and inst["ambiguous"] == 0 and inst["passes"] >= 2 and inst["leads"] == 14,
+    need(inst["named"] == 13 and inst["ambiguous"] == 0 and inst["passes"] >= 2 and inst["leads"] == 13,
          "instances: %s" % {k: inst[k] for k in ("named", "ambiguous", "passes", "leads", "unlisted")}, failures)
     truth = {READ_SINGLETONS[s["name"]]: s["static_rva"] for s in result.truth["fd4"]["singletons"]}
     aob = {a["role"]: a["target_rva"] for a in result.truth["aob"] if a["kind"] == "static"}
     searched = {"field_area": aob["FieldArea"]}
-    by_variant = {"save_data": aob["GameDataMan"], "game_state": aob["GameMan"]}
+    by_variant = {"game_state": aob["GameMan"]}
+    save_slot = aob["GameDataMan"]
     for m in inst["managers"]:
         if m["label"] in searched:
             # No accessor's static: found by the search behind two slots that hold one object (the static and its
@@ -2427,7 +2429,7 @@ def check_read(result, by_flag=False):
     # object; the accessor's own counts are untouched by them.
     variants = {v["label"]: v for v in d["accessor"].get("variants", [])}
     need(set(variants) == {"accessor_gap", "accessor_compare"}, "the variants: %s" % sorted(variants), failures)
-    for label, rva in (("accessor_gap", by_variant["save_data"]), ("accessor_compare", by_variant["game_state"])):
+    for label, rva in (("accessor_gap", save_slot), ("accessor_compare", by_variant["game_state"])):
         v = variants.get(label) or {}
         need(v.get("hits") == 1 and v.get("accepted") == 1 and v.get("statics_found") == 1 and v.get("known") == 0 and
              v.get("shared_class_objects") == 0 and [s["rva"] for s in v.get("statics", [])] == [rva] and
@@ -2435,14 +2437,26 @@ def check_read(result, by_flag=False):
              "variant %s: %s" % (label, v), failures)
     need(inst["tried"] == d["accessor"]["statics_found"] + 2, "the statics the naming looked at: %s of %s" %
          (inst["tried"], d["accessor"]["statics_found"]), failures)
-    # What the two new statics held at the last pass: each an object of a class a lead asks for.
+    # What the two new statics held at the fullest pass: each an object with a class; the run warden's a lead's, the
+    # save ledger's no lead's.
     fresh = {x["rva"]: x for x in inst["new_statics"]}
-    need(set(fresh) == set(by_variant.values()) and
-         all(x["holds"] == "classed" and x["lead"] and x["vtable"] != 0 for x in fresh.values()),
+    need(set(fresh) == {save_slot, by_variant["game_state"]} and
+         all(x["holds"] == "classed" and x["vtable"] != 0 for x in fresh.values()) and
+         fresh[by_variant["game_state"]]["lead"] and not fresh[save_slot]["lead"],
          "the new statics: %s" % inst["new_statics"], failures)
+    # The save ledger's static, found by what its object holds: the slot behind which one field rose by the clock in
+    # nearly every pass, with the code's references to it as its sites and witnesses; in the draft table by that
+    # recipe alone.
+    inv = d.get("invariants") or []
+    need(len(inv) == 1 and inv[0]["label"] == "save_data" and inv[0]["rva"] == save_slot and inv[0]["rose"] >= 10 and
+         inv[0]["passes"] >= inv[0]["rose"] and inv[0]["sites"] >= 1 and 1 <= len(inv[0]["witnesses"]) <= 8,
+         "the invariant: %s" % inv, failures)
+    at = draft.find("[item.save_data]")
+    need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
+         "the draft table's save_data: %s" % draft[at:at + 300], failures)
     # What every static held at the fullest pass: one entry a static, the managers' classed.
     need(len(inst["held_statics"]) == inst["tried"] and
-         sum(1 for x in inst["held_statics"] if x["holds"] == "classed" and x["lead"]) >= 13,
+         sum(1 for x in inst["held_statics"] if x["holds"] == "classed" and x["lead"]) >= 12,
          "what the statics held: %s" % [x for x in inst["held_statics"] if x["holds"] != "classed"][:4], failures)
     need("scan" not in d, "the round ran the object scan", failures)
     # The watch: each named manager's object followed once a second, its first word the class it was named by; and
@@ -2452,24 +2466,33 @@ def check_read(result, by_flag=False):
         failures.append("the report has no watch")
     else:
         ways = {(o["label"], o["rva"], o["offset"], o["deref"]): o for o in watch["watched"]}
-        managers = [o for o in watch["watched"] if o["id"] != 0]
-        need(watch["passes"] >= 5 and len(managers) == 14 and len(ways) == len(watch["watched"]) and
+        managers = [o for o in watch["watched"] if o["id"] != 0 and o["offset"] == 0 and not o["deref"]]
+        # One step on from the flags' store: the objects its first words point at, watched under its label.
+        hops = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deref"]]
+        need(1 <= len(hops) <= 4 and all(o["readings"] >= 3 and o["offset"] % 8 == 0 and o["offset"] > 0 for o in hops),
+             "the flags' next step: %s" % [{k: o[k] for k in ("offset", "readings", "empty", "unreadable")}
+                                           for o in hops], failures)
+        need(watch["passes"] >= 5 and watch["wide_ways"] >= 13 and len(managers) == 13 and
+             len(ways) == len(watch["watched"]) and all(o["for_clock"] for o in managers) and
              all(o["readings"] >= 5 and o["vtable_same"] >= o["readings"] - 1 and o["unreadable"] == 0 and
                  o["span"] >= 16 and o["words"] and o["words"][0]["offset"] == 0 and o["words"][0]["kind"] == "vtable"
                  for o in managers),
              "the watch's managers: %s" % [{k: o[k] for k in ("label", "readings", "vtable_same", "unreadable", "span")}
                                            for o in managers][:6], failures)
-        # The fake game keeps its play time in its save ledger, a named manager: the watch has that object already,
-        # under the manager's label, and adds no second way to it.
+        # The play time's object: the one behind the slot the rising search singled out, watched under a label of
+        # its own, where one half of a word keeps rising.
         best = (d.get("rising") or {}).get("rising_hits") or [{}]
-        play = [o for o in watch["watched"] if o["rva"] == best[0].get("rva") and o["offset"] == 0]
-        need(len(play) == 1 and play[0]["label"] == "save_data" and play[0]["readings"] >= 5 and
-             not any(o["label"] == "play_time" for o in watch["watched"]) and
+        play = [o for o in watch["watched"] if o["label"] == "play_time"]
+        need(len(play) == 1 and play[0]["rva"] == best[0].get("rva") == save_slot and play[0]["readings"] >= 5 and
              any(x["offset"] == best[0].get("offset") // 8 * 8 and
-                 (x["rises_low"] >= 5 and x["rises_low"] == x["changes_low"] or
-                  x["rises_high"] >= 5 and x["rises_high"] == x["changes_high"]) for x in play[0]["words"]),
-             "the watch's play time: %s" % [{k: o[k] for k in ("label", "readings", "span", "words")} for o in play],
-             failures)
+                 (x.get("rises_low", 0) >= 5 and x.get("rises_low") == x.get("changes_low") or
+                  x.get("rises_high", 0) >= 5 and x.get("rises_high") == x.get("changes_high"))
+                 for x in play[0]["words"]),
+             "the watch's play time: %s" % [{k: o[k] for k in ("label", "rva", "readings", "span", "words")}
+                                            for o in play], failures)
+        # A word's count of nothing is not written.
+        need(not any(v == 0 for o in watch["watched"] for x in o["words"] for k, v in x.items() if k != "offset"),
+             "a word of the watch carries a count of nothing", failures)
     # What the searches had to go on, and what became of their reads: counted, with the reasons.
     search, members = d.get("search"), d.get("members")
     need(search is not None and search["pointer_like"] >= search["live"] >= 2 and
@@ -2482,21 +2505,20 @@ def check_read(result, by_flag=False):
     # Each lead has a class of its name; the hub's name is shared by a second class of the fake game's (its rack's),
     # and one static still names it.
     need(all(c["named"] + c["named_imp"] >= 1 and c["vtable_count"] >= 1 for c in d["lead_classes"]) and
-         len(d["lead_classes"]) == 14, "the leads' classes: %s" %
+         len(d["lead_classes"]) == 13, "the leads' classes: %s" %
          [c for c in d["lead_classes"] if c["named"] + c["named_imp"] < 1 or c["vtable_count"] < 1], failures)
     need(any(h["rose"] >= 5 and h["other"] == 0 for h in (d.get("rising") or {}).get("rising_hits", [])),
          "the rising search did not find the play time: %s" % (d.get("rising") or {}).get("rising_hits"), failures)
-    # The searches by what an object holds ran, read-only: the clock search over the statics no lead named, and the
-    # rising-counter search, which finds the fake game's play time.
-    clock, rising = d.get("clock"), d.get("rising")
-    need(clock is not None and clock["candidates"] >= 1 and clock["passes"] >= 3 and clock["unreadable"] == 0,
-         "the clock search: %s" % ({k: v for k, v in clock.items() if k != "clock_hits"} if clock else None), failures)
+    # The rising-counter search ran, read-only, and finds the fake game's play time; the old clock search is gone
+    # (the watch's wide ways took its place).
+    rising = d.get("rising")
+    need("clock" not in d, "the round ran the old clock search", failures)
     need(rising is not None and rising["candidates"] >= 1 and rising["passes"] >= 1 and rising["risen"] >= 1 and
          rising["candidates"] == min(search["live"] if search else 0, 1 << 14),
          "the rising search: %s" % ({k: v for k, v in rising.items() if k != "rising_hits"} if rising else None),
          failures)
     need(trial["world_readings"] >= 20, "the trial's world readings: %s" % trial["world_readings"], failures)
-    need(len(trial["managers"]) == 14 and trial["readings"] >= 20 and trial["fault_copy"] == 0 and
+    need(len(trial["managers"]) == 13 and trial["readings"] >= 20 and trial["fault_copy"] == 0 and
          trial["fault_stack"] == 0 and trial["fault_thread"] == 0,
          "the trial: %s" % {k: trial[k] for k in trial if k != "managers"}, failures)
     for m in trial["managers"]:
@@ -2519,7 +2541,7 @@ case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
 
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
 # save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
-# its managers ("Now load your save."), a later one that names them all ("All 14 managers are named."); the game ends
+# its managers ("Now load your save."), a later one that names them all ("All 13 managers are named."); the game ends
 # and the launcher
 # checks both files.
 def read_steps(result):
@@ -2535,8 +2557,8 @@ def check_read_owner(result):
          steps == [x for x in ("asked", "reading", "load_save", "done", "reports_clean") if x in steps],
          "the console's steps: %s" % steps, failures)
     plain = [l for l in result.lines if l.startswith("EldenNet read: ")]
-    need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 14") for l in plain) and
-         any(l.startswith("EldenNet read: All 14 managers are named.") for l in plain) and
+    need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 13") for l in plain) and
+         any(l.startswith("EldenNet read: All 13 managers are named.") for l in plain) and
          not any("Pause" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
     for name in ("lodestar-found.json", "lodestar-table.toml"):
         failures += any_line(result, "LAUNCHER", "read", report=name, lint="clean")

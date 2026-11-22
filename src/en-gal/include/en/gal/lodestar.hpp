@@ -415,6 +415,7 @@ struct WatchObject {
   std::uint32_t offset = 0;  // added to the address the static holds
   bool deref = false;        // the object is the one whose address is kept there; else it lies there itself
   bool clock = false;        // its bits and fractions were watched for a clock
+  bool wide = false;         // one of the many watched only for a clock: its words are not written
   std::uint64_t readings = 0;
   std::uint64_t empty = 0;        // the static, or the address on the way, held nothing
   std::uint64_t unreadable = 0;
@@ -430,7 +431,22 @@ struct WatchObject {
 
 struct WatchFound {
   std::uint64_t passes = 0;
-  std::vector<WatchObject> objects;
+  std::uint64_t wide_ways = 0;        // objects watched only for a clock (every static's)
+  std::vector<WatchObject> objects;   // the others, and of the wide ones those with something found, at most 40
+};
+
+// A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
+// field rose by the clock in nearly every pass of the rising search, far ahead of every other. The code's references
+// to the slot are its sites and witnesses.
+struct InvariantFound {
+  std::string label;       // the catalogue's
+  std::uint32_t id = 0;
+  std::uint32_t rva = 0;     // the slot
+  std::uint32_t offset = 0;  // the field, from the object's start
+  std::uint32_t rose = 0;    // passes it rose in
+  std::uint32_t passes = 0;  // of so many comparisons of the field from its first rise
+  std::uint32_t sites = 0;   // instructions of the code that refer to the slot
+  std::vector<std::uint32_t> witnesses;
 };
 
 struct Found {
@@ -447,6 +463,7 @@ struct Found {
   std::optional<MembersFound> members;
   std::optional<ScanFound> scan;
   std::optional<WatchFound> watch;
+  std::vector<InvariantFound> invariants;
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With

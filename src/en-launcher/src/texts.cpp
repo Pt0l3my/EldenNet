@@ -104,12 +104,12 @@ std::string read_text(ReadStep s, std::uint32_t named, std::uint32_t of) {
       return "EldenNet is reading the game as it is loaded. This takes about a minute. Stay at the title screen.";
     case ReadStep::LoadSave:
       return "Now load your save. " + count + " managers are named so far; the rest exist only in the world. Walk "
-             "about for about five minutes: go near an NPC or an enemy, open the map, rest at a grace, and fast "
+             "about for about ten minutes: go near an NPC or an enemy, open the map, rest at a grace, and fast "
              "travel once. Then quit the game as usual.";
     case ReadStep::Done:
       // Every manager may exist at the title already: the reader is to be tried in the world all the same.
       return "All " + std::to_string(of) + " managers are named. If you have not loaded your save yet, load it now. "
-             "Stay in the world until you have been there about five minutes (near an NPC or an enemy, the map, a "
+             "Stay in the world until you have been there about ten minutes (near an NPC or an enemy, the map, a "
              "grace, one fast travel), then quit the game as usual.";
     case ReadStep::Stopped:
       return "The round stopped early. Quit the game, and send the two logs.";

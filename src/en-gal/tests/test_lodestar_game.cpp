@@ -1349,3 +1349,162 @@ TEST_CASE("in game: the counts and what each static held are the fullest pass's,
   REQUIRE(text.has_value());
   CHECK(text->find("\"held_statics\": [") != std::string::npos);
 }
+
+TEST_CASE("in game: a way may ask for a longer span and a slower pace, and wide ways are listed only with a find") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  lodestar::Watch watch(w.base, r.gated.image.size_of_image, namer.primary_tables(), nullptr);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  using Way = lodestar::Watch::Way;
+  // A large object behind the HUD's static, with a packed clock 0x1000 bytes in; watched over its first 0x2000 bytes.
+  const std::uint64_t big = w.mem.alloc(0x2000);
+  w.set_vtable(big, "hud");
+  w.mem.put<std::uint64_t>(w.at("st_hud"), big);
+  Way deep{"hud", 1009, rva(w.at("st_hud")), 0, false, 0, true};
+  deep.span = 0x2000;
+  REQUIRE(watch.add(deep));
+  // Every static's object as a wide way, followed every three seconds: the world clock's holds a clock, the
+  // rest nothing that behaves as one.
+  std::size_t wide = 0;
+  for (const lodestar::StaticFound& st : r.found.accessor.statics) {
+    Way way{"static", 0, st.rva, 0, false, 0, true};
+    way.wide = true;
+    way.every_us = 3'000'000;
+    wide += watch.add(way) ? 1 : 0;
+  }
+  CHECK(wide == 11);  // the HUD's static too: a wide way and a plain one to the same object stand side by side
+  const std::uint64_t clock = w.instance("world_clock");
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint32_t hour = 9, minute = 30;
+  std::uint64_t now = 5'000'000;
+  for (int second = 0; second < 450; ++second) {
+    const std::uint64_t packed = (std::uint64_t{minute} << 6) | (std::uint64_t{hour} << 12);
+    w.mem.put<std::uint64_t>(big + 0x1000, packed);
+    w.mem.put<std::uint64_t>(clock + 0x10, packed);
+    now += 1'000'000;
+    for (int k = 0; k < 8; ++k) {  // one way a call, as the round drives it; eight calls a second
+      reader.begin_tick();
+      (void)watch.step(gt, reader, 1, now);
+    }
+    if (second % 3 == 2) {  // a game minute every three seconds
+      minute = (minute + 1) % 60;
+      if (minute == 0) hour = (hour + 1) % 24;
+    }
+  }
+  const lodestar::WatchFound found = watch.found();
+  CHECK(found.wide_ways == 11);
+  // Listed: the deep way, and of the eleven wide ones only the world clock's (the HUD's wide way sees 512 bytes, and
+  // its clock lies further in).
+  REQUIRE(found.objects.size() == 2);
+  const lodestar::WatchObject& d = found.objects[0];
+  CHECK(d.label == "hud");
+  CHECK(d.span == 0x2000);
+  CHECK(d.readings == 450);
+  CHECK_FALSE(d.wide);
+  REQUIRE_FALSE(d.bits.empty());
+  CHECK(d.bits[0].offset == 0x1000);
+  CHECK(d.bits[0].bit == 6);
+  CHECK(d.bits[0].wraps == 2);
+  CHECK(d.bits[0].has_hour);
+  CHECK(d.bits[0].hour_bit == 12);
+  CHECK_FALSE(d.words.empty());
+  const lodestar::WatchObject& c = found.objects[1];
+  CHECK(c.wide);
+  CHECK(c.rva == rva(w.at("st_world_clock")));
+  CHECK(c.readings == 150);  // every three seconds
+  CHECK(c.words.empty());    // a wide way's words are not written
+  REQUIRE_FALSE(c.bits.empty());
+  CHECK(c.bits[0].offset == 0x10);
+  CHECK(c.bits[0].bit == 6);
+  CHECK(c.bits[0].wraps == 2);
+  CHECK(c.bits.size() <= 4);
+  // The report: a word's counts of nothing are left out, and it lints clean.
+  lodestar::Found f = r.found;
+  f.watch = found;
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"wide_ways\": 11") != std::string::npos);
+  CHECK(text->find("\"flips\": 0") == std::string::npos);
+  CHECK(text->find("\"changes_low\": 0") == std::string::npos);
+}
+
+TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const lodestar::Namer namer(r.gated.image, w.sys->image(), r.leads, r.ids);
+  const std::uint32_t camera = roles::info(Item::Camera).id;
+  const std::uint64_t eye = w.instance("camera");
+  const std::uint32_t slot = static_cast<std::uint32_t>(w.at("st_camera") - w.base);
+  // The camera's static is empty at the first pass; the search then names it by that very slot; the next pass finds
+  // the object there: the pass's finding (the accessor's static, its sites and witnesses) takes the entry over.
+  lodestar::InstancesFound held;
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  lodestar::SlotSearchResult result;
+  result.slots = {slot};
+  result.objects = 1;
+  result.vtable = static_cast<std::uint32_t>(w.vtable("eye") - w.base);
+  result.candidates = 50;
+  result.checked = 50;
+  lodestar::set_by_search(held, camera, result);
+  const auto of = [&] {
+    return *std::find_if(held.managers.begin(), held.managers.end(), [&](const auto& m) { return m.id == camera; });
+  };
+  CHECK(of().by_search);
+  CHECK(of().witnesses.empty());
+  w.mem.put<std::uint64_t>(w.at("st_camera"), eye);
+  lodestar::merge(held, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  CHECK(of().status == Status::Derived);
+  CHECK_FALSE(of().by_search);
+  CHECK(of().rva == slot);
+  CHECK_FALSE(of().witnesses.empty());
+  CHECK(of().pass == 2);
+  CHECK(of().search_found == 1);  // the search's numbers stay
+  CHECK(held.named == 11);
+  // Where a later pass does not find it (the game closing), what the search named stays.
+  w.mem.put<std::uint64_t>(w.at("st_camera"), 0);
+  lodestar::InstancesFound other;
+  lodestar::merge(other, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  lodestar::set_by_search(other, camera, result);
+  lodestar::merge(other, namer.pass(w.sys->image(), r.found.accessor, reader_of(w)));
+  const auto kept = std::find_if(other.managers.begin(), other.managers.end(), [&](const auto& m) { return m.id == camera; });
+  CHECK(kept->by_search);
+  CHECK(kept->status == Status::Derived);
+
+  // An invariant's static: the save's slot, by the field that rose by the clock, with the code's references to it.
+  const std::uint32_t save = static_cast<std::uint32_t>(w.at("st_save_data") - w.base);
+  const std::vector<std::uint32_t> slots = {save};
+  const std::vector<lodestar::References> refs = lodestar::references(r.gated.image, w.sys->image(), ".text", slots, 8);
+  REQUIRE(refs[0].count >= 1);
+  lodestar::InvariantFound v;
+  v.label = "save_data";
+  v.id = roles::info(Item::SaveData).id;
+  v.rva = save;
+  v.offset = 0x10;
+  v.rose = 30;
+  v.passes = 32;
+  v.sites = static_cast<std::uint32_t>(refs[0].count);
+  v.witnesses = refs[0].places;
+  r.found.instances = held;
+  r.found.invariants.push_back(v);
+  const TableProvenance provenance{"0.1.0-test.1", std::string(64, 'a'), "l5", "2026-01-02", {}};
+  const lodestar::DraftTable draft = lodestar::draft_table(r.found, r.ids, provenance, r.gated.image, w.sys->image());
+  const std::size_t at = draft.text.find("[item.save_data]");
+  REQUIRE(at != std::string::npos);
+  const std::string entry = draft.text.substr(at, draft.text.find("[item.", at + 5) - at);
+  CHECK(entry.find("found_by = [\"invariant\"]") != std::string::npos);
+  CHECK(entry.find("witnesses = [") != std::string::npos);
+  CHECK(entry.find("status = \"lead\"") != std::string::npos);
+  CHECK(draft.left_out == 0);
+  const auto text = lodestar::write_report(r.found);
+  REQUIRE(text.has_value());
+  CHECK(text->find("\"invariants\": [") != std::string::npos);
+  // One the catalogue does not hold under that number is left out of the table.
+  r.found.invariants[0].id = 4242;
+  CHECK(lodestar::draft_table(r.found, r.ids, provenance, r.gated.image, w.sys->image()).text.find("[item.save_data]") ==
+        std::string::npos);
+}

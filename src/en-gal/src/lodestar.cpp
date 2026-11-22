@@ -643,7 +643,12 @@ void merge(InstancesFound& held, const InstancesFound& later) {
       if (m.status == derive::Status::Derived) m.pass = pass;
       continue;
     }
-    if (it->status == derive::Status::Derived) {
+    if (it->status == derive::Status::Derived && it->by_search && m.status == derive::Status::Derived) {
+      // A pass names what the search named first: the accessor's static with its sites is the stronger finding
+      // (the search can run in the moment between a save loading and the next pass).
+      m.pass = pass;
+      keep_searches(m, *it);
+    } else if (it->status == derive::Status::Derived) {
       m = *it;  // named once, named for the round
     } else if (m.status == derive::Status::Derived) {
       m.pass = pass;
@@ -711,6 +716,19 @@ DraftTable draft_table(const Found& found, const Catalogue& ids, const TableProv
                              : std::vector<ItemCheck>{ItemCheck::Agree, ItemCheck::Class};
       entries.push_back(std::move(e));
     }
+  }
+  for (const InvariantFound& v : found.invariants) {
+    const IdEntry* id = ids.find(v.label, true);
+    if (id == nullptr || id->kind != IdKind::Static || id->status != IdStatus::Active || id->number != v.id) continue;
+    ItemEntry e;
+    e.label = id->label;
+    e.id = id->number;
+    e.kind = IdKind::Static;
+    e.rva = v.rva;
+    e.found_by = {Recipe::Invariant};
+    e.witnesses = v.witnesses;
+    if (e.witnesses.size() > kMaxWitnesses) e.witnesses.resize(kMaxWitnesses);
+    entries.push_back(std::move(e));
   }
   for (const ClassFound& c : found.classes) {
     const IdEntry* id = ids.find(c.label, true);
@@ -794,7 +812,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 5, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 6, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -861,11 +879,11 @@ constexpr auto kKeys = std::to_array<Key>({
     O("watch"), AO("watched"), B("deref"), B("for_clock"), U("empty"), U("moved"), U("vtable_same"), U("same_address"),
     U("span"), AO("words"), W("kind", kWordKinds), U("flips"), U("changes_low"), U("rises_low"), U("changes_high"),
     U("rises_high"), AO("bit_hits"), U("bit"), U("jumps"), U("hour_bit"), AO("float_hits"), U("rises"),
-    U("rate_milli"),
+    U("rate_milli"), U("wide_ways"), B("wide"), AO("invariants"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 5, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 6, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1235,6 +1253,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     const WatchFound& f = *found.watch;
     w.begin_object("watch");
     w.number("passes", f.passes);
+    w.number("wide_ways", f.wide_ways);
     w.begin_array("watched");
     for (const WatchObject& o : f.objects) {
       w.begin_object();
@@ -1244,6 +1263,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("offset", o.offset);
       w.boolean("deref", o.deref);
       w.boolean("for_clock", o.clock);
+      w.boolean("wide", o.wide);
       w.number("readings", o.readings);
       w.number("empty", o.empty);
       w.number("unreadable", o.unreadable);
@@ -1258,11 +1278,12 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
         w.number("offset", x.offset);
         const auto kind = static_cast<std::size_t>(x.kind);
         w.word("kind", kWordKinds[kind < kWordKinds.size() ? kind : 5]);
-        w.number("flips", x.flips);
-        w.number("changes_low", x.changes_low);
-        w.number("rises_low", x.rises_low);
-        w.number("changes_high", x.changes_high);
-        w.number("rises_high", x.rises_high);
+        // A count of nothing is left out: most words never change, and a long round's report must stay small.
+        if (x.flips != 0) w.number("flips", x.flips);
+        if (x.changes_low != 0) w.number("changes_low", x.changes_low);
+        if (x.rises_low != 0) w.number("rises_low", x.rises_low);
+        if (x.changes_high != 0) w.number("changes_high", x.changes_high);
+        if (x.rises_high != 0) w.number("rises_high", x.rises_high);
         w.end_object();
       }
       w.end_array();
@@ -1295,6 +1316,21 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.end_array();
     w.end_object();
   }
+
+  w.begin_array("invariants");
+  for (const InvariantFound& v : found.invariants) {
+    w.begin_object();
+    w.number("id", v.id);
+    w.label("label", v.label);
+    w.number("rva", v.rva);
+    w.number("offset", v.offset);
+    w.number("rose", v.rose);
+    w.number("passes", v.passes);
+    w.number("sites", v.sites);
+    numbers(w, "witnesses", v.witnesses);
+    w.end_object();
+  }
+  w.end_array();
 
   w.begin_object("table");
   w.word("status", status_word(found.table.status));
