@@ -1006,6 +1006,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The second read-only round built the same day (engine merge of 2ebeb19; WHY§333 to §335), with the owner (package
     0.1.0-lodestar.5): it looks again for event_flags and messages, and starts L6 with the clock and the play time by what
     their objects hold; its searches ask Windows before they read.
+    Its run the same day (WHY§336 to §339): the eight managers and the table the same as in the first session; the reader
+    again without fault; no clock in whole minutes and hours; one candidate for the play time; event_flags and messages
+    still unnamed. Next: an offline run counting a second accessor shape and alternative names for the three leads, then
+    an in-game round with the searches budgeted by time and their hits ranked.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

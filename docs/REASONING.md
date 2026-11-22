@@ -358,6 +358,10 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 333 | 2026-11-22 | A search that follows pointers it has not validated asks before it reads | DECIDED | #gal #lodestar #safety |
 | 334 | 2026-11-22 | The first invariant recipe of our own, the clock: minutes and hours by how they step | METHOD | #gal #lodestar |
 | 335 | 2026-11-22 | A manager no accessor's static holds is looked for among all the data's slots, and stays a lead | METHOD | #gal #lodestar |
+| 336 | 2026-11-22 | Two sessions of the game give the eight named managers the same statics, tables and witnesses | FACT | #gal #lodestar #owner-run |
+| 337 | 2026-11-22 | A manager's slot is empty for seconds in the ordinary course of the game; v1 must treat it so | FACT | #gal #lodestar #owner-run |
+| 338 | 2026-11-22 | No clock in whole minutes and hours among the unnamed managers' objects; one candidate for the play time | FACT | #gal #lodestar #owner-run |
+| 339 | 2026-11-22 | Searches on the reader's thread must be budgeted by time, not by count | METHOD | #gal #lodestar |
 
 ## Entries
 
@@ -5588,3 +5592,46 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   (the slot search, en-gal's own). One slot names it; the table then gives it by its instance's class alone, with no
   agreement claimed and no witness, so it stays a lead until a second recipe agrees. An instance inside the image is now
   read through the image's view, which the first round refused.
+
+### 336. Two sessions of the game give the eight named managers the same statics, tables and witnesses
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§326, S10.1.k
+
+- The owner's second read-only round (package 0.1.0-lodestar.5) gave the same eight managers at the same statics, with
+  the same tables of methods and witnesses as the first session, value for value, and the same draft table entry for
+  entry: the build's table is the same from one session to the next. The static the first round would not read holds an
+  object inside the image whose class is none of the leads'. event_flags and messages are still not named, by the passes
+  or by the slot search.
+
+### 337. A manager's slot is empty for seconds in the ordinary course of the game; v1 must treat it so
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: O101, WHY§327, docs/ops/probes/2026-11-22-l5.md
+
+- The reader again met no fault: 4,402 readings in 8.9 minutes (6.6 in the world), 102,864 guarded copies, none refused
+  or faulted, no torn slot, no change of class, 3 microseconds at the median. Six of the eight managers were empty in one
+  stretch only, 0.1 to 3.2 s, never in the world; the HUD's in five stretches, 2.7 s of them in the world; task_hub
+  never. A slot going empty for seconds while the game starts or a save loads, and the HUD's in the world, is the game's
+  ordinary course: v1 treats an empty slot as such, not as a fault.
+
+### 338. No clock in whole minutes and hours among the unnamed managers' objects; one candidate for the play time
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#owner-run` · refs: proposal 0005 §6.1, WHY§334, docs/ops/probes/2026-11-22-l5.md
+
+- The clock search found no clock among the 209 unnamed statics' objects (one slow counter, no hours beside it): the time
+  of day is not kept as whole minutes and hours in the first 256 bytes of such an object. The play time has one strong
+  candidate: a 32-bit field that rose by the clock's milliseconds in 107 of 119 passes, behind a slot that is none of the
+  accessor's statics; every other hit rose in 1 to 3 passes.
+- **Leads next** (LIKELY, to be counted offline before anything rests on them): our research notes on how another tool
+  finds the messages' global say its accessors put an instruction between the load and the test, which our shape refuses,
+  so its static would be none of the 217; the same notes name a second manager behind the event flags. The next offline
+  run counts a second accessor shape (one instruction allowed between the load and the test) and alternative names for
+  the three leads.
+
+### 339. Searches on the reader's thread must be budgeted by time, not by count
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: WHY§333, docs/ops/probes/2026-11-22-l5.md
+
+- Asking first makes a search's read cost two system calls, and a thousand a step took the reader's thread from 29 steps
+  a second to 14, so this run's trial rate (8.2 readings a second) is the searches' doing; the game's own threads are not
+  touched. Searches get a time budget per step, and a trial that measures the reader does not share its thread's step
+  with a search, or says when it did. The rising search is to rank its hits, not keep the first 32.
