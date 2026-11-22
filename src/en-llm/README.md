@@ -27,8 +27,11 @@ names.
   (`LlmTransport`). A worker's request whose client throws ends as `BadRequest`, and the caller's log and notify
   functions may throw without losing more than that call. Every cast of a C API's pointer carries a `// SAFETY:` note.
 - **Requests** (`request.hpp`): messages with en-prompt's cache marks, `max_tokens` and temperature from the slot,
-  streaming with usage, `response_format` with a JSON schema where the provider takes one, `logprobs`, the reasoning
-  switch from `extra_body`, and the quantisation floor in OpenRouter's `provider.quantizations`.
+  streaming with usage, `response_format` with a JSON schema where the provider takes one, `logprobs`, the request's
+  stop sequences as `stop` (the first four that are not empty, to every flavour: OpenAI's and OpenRouter's API and the
+  OpenAI-compatible endpoints of Ollama, llama.cpp, LM Studio and KoboldCpp all take it; none in a stripped retry, so a
+  model that refuses the field still answers, and `extra_body` may not set it), the reasoning switch from `extra_body`,
+  and the quantisation floor in OpenRouter's `provider.quantizations`.
 - **Transport** (`transport.hpp`): an interface the client drives (start, wait, cancel), with two implementations that
   pass one conformance suite: libcurl behind `EN_WITH_CURL`, and the system's WinHTTP on Windows, which
   `make_default_transport_factory()` returns there. Both keep HTTP/1.1 connections alive across a factory's
@@ -386,6 +389,10 @@ libcurl where `EN_WITH_CURL` is set, WinHTTP on Windows. WinHTTP's words for a f
 (`test_winhttp_failure.cpp`), with the codes that Windows itself may give, in each phase of an exchange.
 The handle's tests run on the fake transport and the manual clock too, and none sleeps for a set time: each waits
 for what must happen.
+
+The stop sequences are checked in every flavour's full body and in none of the stripped ones (`test_request.cpp`),
+through the client on the fake transport, a 400 retried without them (`test_client.cpp`), and as the server on
+127.0.0.1 received them, over the real transports (`test_service_transport.cpp`).
 
 `test_presets.cpp` takes both forms of a preset's providers, each refusal at its file and line, the reserved slots,
 and each slot's requests reaching its own provider, with its own key, on the fake transport.

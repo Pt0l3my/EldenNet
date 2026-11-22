@@ -278,6 +278,10 @@ Outputs Core::step(CoreInput input, Mono now) {
                  },
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
+                 // Accepted, and a tick for now: the conversation that takes them comes with part B (WHY§364).
+                 [&](proto::UiEvent&) {},
+                 [&](proto::LlmEvent&) {},
+                 [&](proto::NetHealth&) {},
              },
              input.payload);
   settle(at, out);

@@ -135,6 +135,7 @@ void read(const json& j, const At& at, LlmRequest& out);
 void read(const json& j, const At& at, WarmUpOutcome& out);
 void read(const json& j, const At& at, ModelsOutcome& out);
 void read(const json& j, const At& at, LlmEvent& out);
+void read(const json& j, const At& at, NetHealth& out);
 
 void read(const json& j, const At& at, bool& out) {
   if (!j.is_boolean()) fail(at, "must be true or false");
@@ -231,7 +232,8 @@ void read(const json& j, const At& at, Message& out) {
 void read(const json& j, const At& at, ChatRequest& out) {
   out = ChatRequest{};
   Fields(j, at)("slot", out.slot)("purpose", out.purpose)("messages", out.messages)("max_tokens", out.max_tokens)(
-      "temperature", out.temperature)("json_schema", out.json_schema)("top_logprobs", out.top_logprobs)
+      "temperature", out.temperature)("json_schema", out.json_schema)("top_logprobs", out.top_logprobs)(
+      "stop", out.stop)
       .done();
 }
 
@@ -333,6 +335,11 @@ void read(const json& j, const At& at, LlmEvent& out) {
       .done();
 }
 
+void read(const json& j, const At& at, NetHealth& out) {
+  out = NetHealth{};
+  Fields(j, at)("dialogue", out.dialogue).done();
+}
+
 }  // namespace detail
 
 namespace {
@@ -355,6 +362,7 @@ json write(const LlmRequest& v);
 json write(const WarmUpOutcome& v);
 json write(const ModelsOutcome& v);
 json write(const LlmEvent& v);
+json write(const NetHealth& v);
 
 template <class T>
 json list(const std::vector<T>& items) {
@@ -379,7 +387,8 @@ json write(const ChatRequest& v) {
           {"max_tokens", or_null(v.max_tokens)},
           {"temperature", or_null(v.temperature)},
           {"json_schema", v.json_schema ? *v.json_schema : json(nullptr)},
-          {"top_logprobs", v.top_logprobs}};
+          {"top_logprobs", v.top_logprobs},
+          {"stop", v.stop}};
 }
 
 json write(const Usage& v) {
@@ -495,6 +504,8 @@ json write(const LlmEvent& v) {
           {"models", write(v.models)}};
 }
 
+json write(const NetHealth& v) { return {{"dialogue", v.dialogue}}; }
+
 }  // namespace
 
 void to_json(json& j, Role v) { j = to_string(v); }
@@ -548,5 +559,7 @@ void to_json(json& j, const ModelsOutcome& v) { j = write(v); }
 void from_json(const json& j, ModelsOutcome& v) { detail::read_root(j, "ModelsOutcome", v); }
 void to_json(json& j, const LlmEvent& v) { j = write(v); }
 void from_json(const json& j, LlmEvent& v) { detail::read_root(j, "LlmEvent", v); }
+void to_json(json& j, const NetHealth& v) { j = write(v); }
+void from_json(const json& j, NetHealth& v) { detail::read_root(j, "NetHealth", v); }
 
 }  // namespace en::proto
