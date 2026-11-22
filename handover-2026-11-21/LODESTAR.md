@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (six read-only rounds run; 14 leads in the build's table)
+# Lodestar's status, 22 November 2026 (six read-only rounds run, the seventh built; 14 leads in the build's table)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -20,6 +20,10 @@ first; this file adds only where Lodestar's own work stands.
 | The third read-only run (2026-11-22; the same record, "The third round in game") | package 0.1.0-lodestar.6; engine 546b085 | **Done, reviewed.** `messages` named (two slots of the data, one object); 12 leads in the build's table; the eight others unchanged a third time; the refused values were no addresses; the reader kept 9.8 readings a second; the variants counted (1,279 places, the same managers again, 2 new statics; `accessor_gap_near` withdrawn). `event_flags` in none of the places looked; `world_clock` has only a class under a longer name |
 | The fourth round's build | engine 606167d | **Built, not yet run by the owner** (the owner agreed to the wide scan on 2026-11-22: "Yes, scan it"). Naming by a class under a longer name (`by_related`); the flags' store as a lead on trial (`flag_store`, no id); the member search over 0x4000 bytes; what the two new statics hold; the code's references to a slot as a search-named manager's witnesses; and the object scan (`probe.hpp`'s `ObjectScan`): the game's private, writable memory gone through once for an unnamed lead's table of methods, then up to three times for what holds what was found. Report schema 4 |
 | The fourth read-only run (2026-11-22; the same record, "The fourth round in game") | package 0.1.0-lodestar.7; engine f857bfb | **Done, reviewed.** The event flags' store is behind one of the accessor's 217 statics (held from the title on), and no object of the flags' manager's class exists in the 7.7 GiB the scan read; the world's clock is a part of another manager's object (1,024 bytes in, a pointer to it 192 bytes in), with no static of its own; `messages` has its witnesses (the slot 238 instructions refer to). The scan was far slower than estimated (19.75 GiB in 13 minutes, unfinished) and slowed the reader to 7.5 readings a second |
+| The fifth read-only run (2026-11-22; the same record, "The fifth round in game") | package 0.1.0-lodestar.8; engine d613651 | **Done, reviewed.** `event_flags` named (the store; 183 sites): ten of eleven managers, 13 leads. 15,878 readings with no fault. The play time's field found. The object of the clock's class does not hold the time. The report passed its size limit after half an hour; the careful reads proved slow (half a millisecond each) |
+| R1's clean-up (O106) | engine 3e11238 | **Done, merged.** The first in-game round's code, launcher step, package and cases removed |
+| The sixth read-only run (2026-11-22; the same record, "The sixth round in game") | package 0.1.0-lodestar.9; engine 8e7295d | **Done, reviewed.** `save_data` in the table by the invariant recipe: 14 leads. The reader at 9.6 readings a second. No slow clock in any static's object; a fast one not ruled out there. The report lost every watched word (the fallback was too blunt) |
+| The seventh round's build | package 0.1.0-lodestar.10; engine 9f451ec | **Built, not yet run by the owner.** The clock by a jump when time is let pass; the flags two steps on, with a sweep for bits that flip once; the report mended and its fallback graded |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -45,19 +49,22 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The next round of step L6** (not built). The sixth round (the record's "The sixth round in game") put
-   `save_data` into the table by the invariant recipe (14 leads), brought the reader back to 9.6 readings a second,
-   and found no clock in any static's object. Its report lost every watched word when two 16 KiB ways joined: the
-   fallback for an over-large report dropped all words at once. Before another run:
-   - a way writes only the words that changed (or that a review needs: the first 64 for a plain way), and a report
-     that is still too large loses the largest object's words first;
-   - a rising fraction's rate is written finely enough (millionths a second);
-   - the clock by a jump: the owner lets time pass at a grace, twice, and the round looks for a field that rises
-     steadily and jumps then (a count of jumps beside the steady rises), in every static's object and deeper in the
-     few candidates (the slowly rising fraction of the sixth round among them);
-   - the flags: the words of the four objects one step on from the store, reported this time, and a bit-level look
-     at what changes there while the owner does something that sets a flag (resting at a grace, by our notes' lead).
-   Decide the owner's part with the owner first: it asks more of them than walking about.
+1. **The owner's seventh read-only run** (package 0.1.0-lodestar.10, engine 9f451ec; built, not yet run). The
+   sixth round (the record's "The sixth round in game") put `save_data` into the table by the invariant recipe (14
+   leads), brought the reader back to 9.6 readings a second, and found no slow clock in any static's object (a fast
+   one would have passed unseen there: the record says why). Its report lost every watched word when two 16 KiB ways
+   joined. The seventh round (the record's "What was changed for the seventh round"):
+   - the report: a long way writes only changed words; an over-large report loses one object's words at a time, the
+     flags' last; rates in millionths a second;
+   - the clock by a jump: steady rises and jumps of fractions and whole numbers, hours standing alone, each jump's
+     second and its number before and after. The owner lets time pass at a grace twice (README step 3);
+   - the flags two steps on from the store, their words written, and a sweep of the stretches they start (about
+     24 MiB, paced) for single bits that flip once. The owner does one or two things the game remembers, and says
+     when.
+   When the files come back: read the jumps first (two fields or runs that jumped at the same two seconds, the owner's
+   b and c, are the clock; the numbers before and after say how it is kept), then the sweep's flips against the
+   owner's d and e (which target, which offset; a flag's block is 125 bytes by our notes' lead, to be checked), then
+   the hop objects' words (which are addresses, which change). If the game stuttered, the sweep goes first.
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
