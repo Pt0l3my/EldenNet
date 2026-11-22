@@ -33,7 +33,8 @@ struct Notice {
 [[nodiscard]] std::vector<Notice> notices();
 
 // The read-only round (--read; Lodestar's step L5), told to the owner on the dev console in plain words, one line per
-// step as it changes, beside the log's `read step=<word>`. There is no key to press and nothing is called.
+// step as it changes, beside the log's `read step=<word>`. Nothing is called. What the tester is to do, and the key
+// that confirms it, is the task list's (tasks.hpp).
 enum class ReadStep : std::uint8_t {
   Asked,           // the launcher asked EldenNet for the round before it loaded it
   Refused,         // the DLL is no probe build (or does not know --read), or EldenNet is off

@@ -148,7 +148,14 @@ the managers it reads and tries its reader, and calls nothing in the game. It br
 only, never with `--no-backup`, `--vanilla-offline` or `--spike`. The save backup is made first, and with `--read` a
 failed one ends the launcher (E07, with no "continue without a backup"). Before it loads anything the launcher writes
 the request into the watch block's `control.probe` (`read`), and EldenNet answers there: accepted, or refused (not a
-probe build, or turned off), when it stops. There is no key to press. (`--probe`, which asked for R1, the round with one
+probe build, or turned off), when it stops. With `--read` the launcher also shows the tester's panel (the owner's
+request, 2026-11-22; `tasks.hpp`, `win/panel.cpp`): a window of its own at the top right of the game's screen,
+always on top and never taking the keyboard, that lists the round's tasks in order, each with its timer, the done
+ones greyed. A waiting task ends when its time is up; a task of the tester's ends at the Pause key (the launcher's
+system hotkey) or a click on the panel's button; the round's own first task ends when EldenNet says to load the
+save. The confirmation of a marked task stamps a Mark into the watch block, which the round reads
+(`--read-pace-s S`, for the tests: every wait lasts S seconds and the tester's tasks confirm themselves). Each task
+is also told on the console and logged (`task n=… of=… by=key|click|time|round mark=…`). (`--probe`, which asked for R1, the round with one
 call into the game, went with it: retired 2026-11-22, O106; it is an unknown option now, and its two words in the block
 keep their numbers, unused.) The console tells each step once (`EldenNet read: …`), beside the log's `read step=<word>
 named=<n> of=<m>` (`texts.hpp`'s `ReadStep`, from EldenNet's answer, T1's state and the status's items, which in this

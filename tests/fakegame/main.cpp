@@ -269,6 +269,8 @@ bool parse_options(int argc, wchar_t** argv, Options& o, std::string& error) {
     else if (n == L"--statics-delay-ms") ok = p.number(o.statics_delay_ms);
     else if (n == L"--field-mirror") o.field_mirror = true;
     else if (n == L"--pass-time") o.pass_time = true;
+    else if (n == L"--clock-rate") ok = p.number(o.clock_rate);
+    else if (n == L"--day-book") o.day_book = true;
     else if (n == L"--flag-set") o.flag_set = true;
     else if (n == L"--title-frames") ok = p.number(o.title_frames);
     else if (n == L"--load-frames") ok = p.number(o.load_frames);
@@ -468,7 +470,7 @@ namespace {
 void print_usage() {
   static const char* const kUsage[] = {
       "usage: fakegame [options]   (README.md describes each)",
-      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set",
+      "  --frames N  --forever  --fps N  --no-window  --boot-delay-ms N  --statics-delay-ms N  --field-mirror  --pass-time  --flag-set  --clock-rate N  --day-book",
       "  --title-frames N  --load-frames N  --stay-title  --reload-every N  --actors N  --online  --online-at F",
       "  --hitch-every N  --hitch-ms M  --stall-at F  --stall-ms M  --move-every N  --move-mode poison|free|keep",
       "  --shift-groups N  --register normal|fault|ignore",

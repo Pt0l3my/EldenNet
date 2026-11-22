@@ -2516,10 +2516,12 @@ def read_round_gal(gal):
                 % (suffix, GAL_PROVENANCE, suffix, GAL_PROVENANCE))
 
 
-def check_read(result, by_flag=False, events=False):
+def check_read(result, by_flag=False, events=False, marks=False):
     """The read-only round's two files against --describe's truth, and that nothing was called. `by_flag`: the round
     was asked for by the launcher's --read, not by settings.toml. `events`: the fake game let time pass twice and set
-    a flag (--pass-time, --flag-set), and the round is to have seen both."""
+    a flag (--pass-time, --flag-set), and the round is to have seen both. `marks`: the launcher's task list ran at
+    the tests' pace (--read-pace-s) and the fake game set its flag: the round is to have kept the flip under a
+    mark."""
     failures = [] if by_flag else want(result, "ELDENNET", "settings", probe="read")
     failures += check_lines(("ELDENNET", "reader", {"started": 1, "round": "read"}),
                            ("ELDENNET", "first_reading", {"state": "running"}),
@@ -2557,7 +2559,7 @@ def check_read(result, by_flag=False, events=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 7, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 8, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2623,9 +2625,10 @@ def check_read(result, by_flag=False, events=False):
     # nearly every pass, with the code's references to it as its sites and witnesses; in the draft table by that
     # recipe alone.
     inv = d.get("invariants") or []
-    need(len(inv) == 1 and inv[0]["label"] == "save_data" and inv[0]["rva"] == save_slot and inv[0]["rose"] >= 10 and
-         inv[0]["passes"] >= inv[0]["rose"] and inv[0]["sites"] >= 1 and 1 <= len(inv[0]["witnesses"]) <= 8,
-         "the invariant: %s" % inv, failures)
+    saves = [v for v in inv if v["label"] == "save_data"]
+    need(len(saves) == 1 and len(inv) == 1 and saves[0]["rva"] == save_slot and
+         saves[0]["rose"] >= 10 and saves[0]["passes"] >= saves[0]["rose"] and saves[0]["sites"] >= 1 and
+         1 <= len(saves[0]["witnesses"]) <= 8, "the invariant: %s" % inv, failures)
     at = draft.find("[item.save_data]")
     need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
          "the draft table's save_data: %s" % draft[at:at + 300], failures)
@@ -2655,6 +2658,22 @@ def check_read(result, by_flag=False, events=False):
              all(t["id"] == 1008 and t["label"] == "event_flags" and t["offset"] % 8 == 0 for t in sweep["targets"]),
              "the sweep's targets: %s" % [{k: t[k] for k in ("offset", "deeper", "via", "bytes", "readings")}
                                           for t in sweep["targets"]], failures)
+        if marks:
+            # The tester's tasks, at the tests' pace: the two marked tasks confirmed themselves, the launcher
+            # stamped a Mark for each, the round took both, and the flag's flip (flag 7123: the bit of value 16 in
+            # byte 15 of the holder's second block) is kept under the mark it was seen around (the first or the
+            # second, as the timing falls).
+            holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
+            marked = [e for e in holder[0]["mark_flips"] if e["offset"] == 125 + 15] if holder else []
+            need(len(sweep["mark_seconds"]) == 2 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
+                 len(marked) == 1 and marked[0]["mark"] in (1, 2) and marked[0]["bit"] == 4 and marked[0]["set"] is True,
+                 "the sweep's marks: %s %s" % (sweep["mark_seconds"], holder[0]["mark_flips"] if holder else None),
+                 failures)
+            failures += want(result, "LAUNCHER", "tasks", which="first", count=8, panel=(0, 1), pace_s=5)
+            failures += any_line(result, "LAUNCHER", "task", n=1, of=8, by="round", mark=0)
+            failures += any_line(result, "LAUNCHER", "task", n=4, of=8, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=6, of=8, by="time", mark=1)
+            failures += any_line(result, "ELDENNET", "read", stage="mark", n=2)
         if events:
             # One step more: what the first step's objects point at, watched and swept too.
             deeper = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deeper"]]
@@ -2677,7 +2696,8 @@ def check_read(result, by_flag=False, events=False):
             holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
             flips = [e for e in holder[0]["flip_events"] if e["offset"] == 125 + 15] if holder else []
             need(sweep["passes"] >= 2 and len(holder) == 1 and holder[0]["readings"] >= 2 and
-                 holder[0]["bytes"] >= 250 and len(flips) == 1 and flips[0]["bit"] == 4 and flips[0]["set"] is True,
+                 holder[0]["bytes"] >= 250 and len(flips) == 1 and flips[0]["bit"] == 4 and flips[0]["set"] is True and
+                 not holder[0]["retired"],
                  "the sweep's flag: passes %s, %s" % (sweep["passes"], [
                      {k: t[k] for k in ("offset", "bytes", "readings", "unreadable", "changed_words", "flip_events")}
                      for t in holder]), failures)
@@ -2748,6 +2768,66 @@ case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
           "lint-clean report of numbers and a draft table, and no call into the game")
 
 
+def read_clock_gal(gal):
+    """The read round's gal/ with the world's clock asked for under a class the fake game does not have: as in the
+    game, no static's object is of the clock's lead's class, and the round must find the clock by what an object
+    holds."""
+    read_round_gal(gal)
+    path = os.path.join(gal, "leads.toml")
+    with open(path) as f:
+        text = f.read()
+    changed = text.replace('world_clock = "SkyClock"', 'world_clock = "SkyClockOfNoStatic"')
+    assert changed != text, "the leads' world_clock line was not found"
+    with open(path, "w") as f:
+        f.write(changed)
+
+
+def check_read_clock(result):
+    """The clock behind statics no lead names (--day-book; the sky clock's own lead taken away): a wide way saw its
+    minutes go round twice with hours beside them, and the round named it the world's clock by what its object holds,
+    in the report's invariants and in the draft table, with the code's references as witnesses."""
+    failures = want(result, "ELDENNET", "read", stage="named", named=(11, 12), of=13, ambiguous=0, unlisted=0)
+    failures += want(result, "ELDENNET", "read", stage="invariant", id=1012, offset=16, bit=16, hour_bit=32,
+                     second_static=1, same_memory=0)
+    folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
+    report, table = os.path.join(folder, "lodestar-found.json"), os.path.join(folder, "lodestar-table.toml")
+    if not (os.path.exists(report) and os.path.exists(table)):
+        return failures + ["no lodestar-found.json or lodestar-table.toml in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
+    with open(report) as f:
+        d = json.load(f)
+    with open(table) as f:
+        draft = f.read()
+    clocks = [v for v in d.get("invariants") or [] if v["label"] == "world_clock"]
+    statics = {s["rva"] for s in d["accessor"]["statics"]}
+    need(len(clocks) == 1 and clocks[0]["id"] == 1012 and clocks[0]["offset"] == 0x10 and clocks[0]["rose"] >= 30 and
+         clocks[0]["rva"] in statics and clocks[0]["sites"] >= 1 and 1 <= len(clocks[0]["witnesses"]) <= 8,
+         "the clock's invariant: %s" % clocks, failures)
+    # The wide ways that are listed: the two statics whose objects hold the clock, and no other.
+    wide = [o for o in d["watch"]["watched"] if o["wide"]]
+    need(len(wide) == 2 and all(o["bit_hits"] and o["bit_hits"][0]["offset"] == 0x10 and o["bit_hits"][0]["bit"] == 16 and
+                                o["bit_hits"][0]["wraps"] >= 2 and o["bit_hits"][0]["has_hour"] and
+                                o["bit_hits"][0]["hour_bit"] == 32 for o in wide) and
+         clocks and clocks[0]["rva"] in {o["rva"] for o in wide},
+         "the wide ways listed: %s" % [{k: o[k] for k in ("rva", "readings", "bit_hits")} for o in wide], failures)
+    at = draft.find("[item.world_clock]")
+    need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
+         "the draft table's world_clock: %s" % draft[at:at + 300], failures)
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-clock", LGAME + ["--dll", "{eldennetdll}", "--console"] +
+     game("--statics-delay-ms", "6000", "--field-mirror", "--clock-rate", "80", "--day-book", frames=7200),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
+     prepare=install_eldennet('probe = { round = "read", settle_s = 1 }\n', probe=True, gal_change=read_clock_gal),
+     check=check_read_clock,
+     what="the read-only round where no static's object is of the clock's lead's class (as in the game): the round "
+          "finds the clock by what an object holds (minutes that go round twice with hours beside them), names its "
+          "static the world's clock by the invariant recipe, and writes it into the draft table")
+
+
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
 # save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
 # its managers ("Now load your save."), a later one that names them all ("All 13 managers are named."); the game ends
@@ -2758,17 +2838,25 @@ def read_steps(result):
 
 
 def check_read_owner(result):
-    failures = check_read(result, by_flag=True)
+    failures = check_read(result, by_flag=True, marks=True)
     steps = read_steps(result)
     # The console polls the block every 200 ms, so "reading" may pass unseen; the others are always told, in order.
     essential = [x for x in steps if x != "reading"]
     need(essential == ["asked", "load_save", "done", "reports_clean"] and
          steps == [x for x in ("asked", "reading", "load_save", "done", "reports_clean") if x in steps],
          "the console's steps: %s" % steps, failures)
-    plain = [l for l in result.lines if l.startswith("EldenNet read: ")]
+    said = [l for l in result.lines if l.startswith("EldenNet read: ")]
+    plain = [l for l in said if not l.startswith("EldenNet read: Task ")]
     need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 13") for l in plain) and
-         any(l.startswith("EldenNet read: All 13 managers are named.") for l in plain) and
-         not any("Pause" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
+         any(l.startswith("EldenNet read: All 13 managers are named.") for l in plain),
+         "the console's plain lines: %s" % plain[:8], failures)
+    # The tester's tasks, told on the console too as each begins: the second when the round says to load the save,
+    # the last when the list is through.
+    tasks = [l for l in said if l.startswith("EldenNet read: Task ")]
+    need(len(tasks) == 7 and tasks[0].startswith("EldenNet read: Task 2 of 8: Load your save.") and
+         tasks[-1].startswith("EldenNet read: Task 8 of 8: Quit the game."), "the console's tasks: %s" % tasks,
+         failures)
+    failures += want(result, "LAUNCHER", "tasks", done=8, of=8, finished=1)
     for name in ("lodestar-found.json", "lodestar-table.toml"):
         failures += any_line(result, "LAUNCHER", "read", report=name, lint="clean")
     failures += want(result, "ELDENNET", "probe", asked="read", accepted=1, probe_build=1)
@@ -2778,7 +2866,8 @@ def check_read_owner(result):
 
 
 case("launcher-eldennet-read-owner", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
-                                              "--read"] + game("--statics-delay-ms", "20000", "--field-mirror", frames=3900),
+                                              "--read", "--read-pace-s", "5"] +
+     game("--statics-delay-ms", "20000", "--field-mirror", "--flag-set", frames=5400),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(None, probe=True, gal_change=read_round_gal, then=with_saves),
      check=check_read_owner,

@@ -8,30 +8,31 @@ so on), without knowing which is which. This round starts the game with EldenNet
 the game as it runs, which of those places holds which of the eleven managers EldenNet needs. Then it tries, for a few
 minutes, the way EldenNet v1 will read the game: from a thread of its own, about ten times a second.
 
-This is the seventh such round. The first six (22 November) named ten of the eleven, at the same places each time,
-and read them without a fault; they found where the play time is kept, and the sixth wrote that place into its table.
-Still missing is the time of day. The sixth round looked for it in the object behind every one of the known places and
-found nothing that behaves as minutes and hours do; but that test could not have seen a clock whose minutes go by
-faster than one in three seconds. So this round uses a surer sign, and needs your help for it: when you let time pass
-at a grace, the clock jumps. The round looks for a number that rises steadily while you play and jumps exactly then.
+This is the eighth such round. The seventh (22 November) found the time of day: the hour and the minute are kept in
+one number of the object behind one of the known places, and the two times you let time pass showed as the hour going
+to 12 and to 20. It also found where the game's event flags most likely lie. What it could not say is which flag
+belongs to what you did: its list of changed bits was full after half a minute.
 
-It also follows the game's event flags two steps from where they start, and goes through the memory there for single
-bits that change once: a flag set by something you do. For that it asks you to do one or two things the game remembers
-for good (step 3 says which).
+So this round has what you asked for: a panel beside the game that lists the tasks in order, each with its timer, the
+done ones greyed. You confirm a task of yours with the Pause key, or with a click on the panel's button. Each such
+confirmation also tells the round when to look: it keeps the bits that changed around that moment.
 
-Two faults of the sixth round are mended. Its report grew past its size limit after seven minutes, and the round then
-left out every detail of what it watched, the event flags' among them; now it writes less to begin with, and when the
-report is still too large it leaves out one object's detail at a time, the largest first, and says which. And a slow
-rise was written too coarsely to judge; it is written a thousand times finer now.
+The round also writes the clock's place into its table, by what the object holds (minutes that go round with hours
+beside them); you do not need to let time pass this time.
 
-It has no wide search of the game's memory: that one made the game stutter in the fourth round and stays off. What is
-new is much smaller and aimed: up to 2 MiB of memory from each of at most eight addresses the event flags' own object
-keeps, and up to 256 KiB from each of at most 32 addresses one step further (about 24 MiB in all), read a piece at a
-time at the same careful pace as the sixth round's reads, a pass every thirty seconds at most. If the game stutters
-all the same, quit it and tell us.
+Three faults of the seventh round are mended: the list of changed bits is now kept by your confirmations; the play
+time's place, which the round left out because another number rose nearly as often, is judged by what a play time
+does; and the many false "hours" it listed are gone.
 
-It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. There is no key to press.
-Nothing in this package is for playing with yet.
+It has no wide search of the game's memory. As in the seventh round, and within what you agreed to then, it reads
+memory near the event flags' own object: up to 2 MiB from each of at most eight addresses that object keeps and up
+to 256 KiB from each of at most 32 one step further (about 24 MiB in all at most), a piece at a time at the same
+careful pace, a pass every thirty seconds at most and one more after each confirmation. A stretch in which too much
+changes all the time is given up after a few passes (four of the eight were such in the seventh round). If the game
+stutters, quit it and tell us.
+
+It only reads. It calls nothing in the game, adds nothing to it and changes nothing in it. The panel is a window of
+the launcher's own, outside the game. Nothing in this package is for playing with yet.
 
 Built from EldenNet's engine branch at commit @COMMIT@ with clang-cl (Release). Never shared: a test build for you
 alone, labelled @LABEL@.
@@ -40,8 +41,8 @@ alone, labelled @LABEL@.
 How long it takes
 -----------------
 
-About 25 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 15 in the world with your save loaded, and a
-few to send the files. The order and the pauses of step 3 matter more than the exact minutes. Longer does no harm.
+About 20 minutes: 5 to unzip and start, 1 to 2 at the title screen, about 8 in the world with your save loaded, and a
+few to send the files. The panel keeps the time for you.
 
 
 What is in it
@@ -73,8 +74,10 @@ Before you start
     somewhere first.
   - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
     played with mods into online play.
-  - The launcher's messages appear in a console window behind the game. Setting the game to windowed mode first makes
-    them easy to read; otherwise press Alt+Tab to look, and Alt+Tab back.
+  - Set the game to windowed or borderless windowed mode first (in its graphics settings): the panel is a window of
+    its own and a full-screen game covers it. It sits at the top right of the screen the game is on; drag it by its
+    top line if it is in the way.
+  - The launcher's messages also appear in a console window behind the game, as before.
   - Windows or your security software may warn about an unsigned program. Allow it only if the SHA-256 values match
     (below); otherwise stop and tell us.
 
@@ -89,30 +92,30 @@ The steps
 2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
    reading the game. This takes about a minute. Do not load a save until it tells you to.
 
-3. The console then says "Now load your save." with how many of the eleven managers it has named so far (some exist
-   only once a save is loaded), or, if all eleven are there already, "All 11 managers are named. If you have not
-   loaded your save yet, load it now." Either way, load your save. Then, in the world, in this order (a watch or a
-   phone's clock beside you helps; a minute more or less does not matter):
+3. When the round is ready, the panel's first task turns grey and the console says "Now load your save." Load your
+   save, and from then on follow the panel. Its tasks, in order:
 
-     a. For the first five minutes, walk about: go near an NPC or an enemy, and open the map once. Do not rest at a
-        grace yet. The round needs this time to learn how fast each number rises.
-     b. After about five minutes, rest at a grace and let time pass until the middle of the day. Get up.
-     c. Walk about for three minutes. Then rest at a grace again (the same one will do) and let time pass until
-        night. Get up.
-     d. Walk about for two minutes. Then do one thing the game remembers for good, for example: pick up an item
-        from a body or a chest that you have not taken yet, open a door or a chest that stays open, discover a
-        grace, or defeat an enemy that does not come back. If nothing of the kind is at hand, buy one thing from a
-        merchant who has only a few of it.
-     e. Two minutes later, do a second such thing if one is at hand. If not, never mind.
-     f. Walk about for two more minutes.
+     1. Wait at the title screen             (the round does this one itself)
+     2. Load your save                       press Pause when you stand in the world
+     3. Walk about, 3 minutes                near an NPC or an enemy, open the map once; leave items, doors and
+                                             graces alone for now
+     4. Do one thing the game remembers      take an item from a body or a chest, open a door or a chest, discover a
+                                             grace, or buy something a merchant has only a few of; then press Pause
+                                             at once
+     5. Walk about, 1 minute 30              leave items, doors and graces alone
+     6. Do a second such thing               then press Pause at once; if nothing is at hand, just press Pause
+     7. Walk about, 1 minute 30
+     8. Quit the game
 
-   If your grace does not offer to let time pass, skip b and c, do the rest, and tell us.
+   A waiting task counts down and ends by itself. A task of yours waits until you press Pause (anywhere, while the
+   game has the keyboard) or click the panel's button. The task under way is highlighted; done tasks are grey, with
+   the time they took. If you press Pause too early, nothing is lost: the task simply counts as done at that moment.
 
-   Please note roughly when you did b, c, d and e (minutes after loading the save) and what d and e were, and tell
-   us with the files: "b at 5, c at 8, d at 10: opened a chest" is all we need.
+   Please tell us with the files what tasks 4 and 6 were ("4: opened a chest; 6: bought an arrow" is all we need).
+   You do not need to note any times.
 
-4. Then quit the game as you usually do, whatever the console has said. The console then says whether the two files
-   passed their check, and the launcher ends.
+4. Quit the game as you usually do. The console then says whether the two files passed their check, and the launcher
+   ends.
 
 5. Send these files back to us:
 
@@ -155,6 +158,11 @@ What it does
     of its object again, and counts: how often the place was empty, how often the object was still of the same kind,
     how often a read was refused, and how long a reading took. This is the way EldenNet v1 will read the game, tried
     here on sixteen bytes a manager.
+  - The panel: a small window of the launcher's own (not of the game), always on top, that never takes the keyboard.
+    The launcher asks Windows for the Pause key while the round runs (a system hotkey, as in the earlier rounds:
+    Pause goes to the launcher and not to the game meanwhile) and gives it back at the end. When you confirm one of
+    the two marked tasks, the launcher writes the moment into the small block of memory it shares with EldenNet,
+    and the round reads it there.
   - From the same thread, every two seconds, the watch: it follows the way to each named manager's object and
     copies its first 512 bytes (fewer where the object is smaller). From one copy to the next it counts, for every
     eight bytes, whether they changed and whether they rose, and now and then what they look like: nothing, a small
@@ -166,16 +174,19 @@ What it does
     keeps the first three jumps: after how many seconds, and the number before and after. Beside the managers it
     watches: the objects the event flags' first addresses lead to (eight at most) and the objects those lead to
     (four each at most); the object where the play time is kept; 16,384 bytes of the object of the clock's kind and
-    of the manager that points at it; and, once your save is loaded and every six seconds (less often where
-    nothing ever changes), the object behind each of the other known places, for a clock only. It writes counts
+    of the manager that points at it; and, once your save is loaded and every three seconds (less often where
+    nothing ever changes), the object behind each of the other known places, for a clock only: where minutes go
+    round twice with hours beside them, the place is written into the table as the world's clock. It writes counts
     and offsets, and for a number that jumped the number before and after each of its first three jumps (the
     clock's own reading, if it is the clock): nothing else the memory held.
   - From the same thread, the sweep: from each address the event flags' own object keeps (eight at most) it copies
     up to 2 MiB of memory, and from each address one step further (32 at most) up to 256 KiB, a piece of 16,384
     bytes at a time, and compares each piece with the copy before. Where one single bit of a byte has changed, in
     eight bytes that otherwise keep still, it writes where (the offset from the address), which bit, whether it
-    went up or down, and after how many seconds: never what the memory holds. A pass through all of it is followed
-    by a rest, so that a pass starts every thirty seconds at most.
+    went up or down, and after how many seconds: never what the memory holds. The bits that changed from 15 seconds
+    before one of your confirmations to a minute after it are kept under that confirmation. A pass through all of
+    it is followed by a rest, so that a pass starts every thirty seconds at most, and one starts at once when you
+    confirm. A stretch of which more than a thousand places change again and again is read no more.
   - Once your save is loaded, from the same thread, three searches, each of which only reads:
       - For a manager whose kind of object the game has but which none of those places holds: it goes through the
         game's own data for another place that points at an object of that kind, reading the first eight bytes of

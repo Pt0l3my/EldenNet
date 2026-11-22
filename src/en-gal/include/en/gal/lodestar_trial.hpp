@@ -304,10 +304,18 @@ class Sweep {
   static constexpr std::uint32_t kPiece = 0x4000;  // the guarded reader's longest copy
   static constexpr std::uint32_t kPage = 0x1000;
   static constexpr std::size_t kMaxTargets = 40;
-  static constexpr std::uint32_t kMaxPieces = 128;  // 2 MiB a target
+  static constexpr std::uint32_t kMaxPieces = 128;  // 2 MiB a target (what the owner agreed to, 2026-11-22)
   static constexpr std::size_t kPageEvents = 4;     // flips kept a page of a target's stretch
   static constexpr std::uint16_t kQuietPage = 8;    // changed words to which a page is quiet: flags lie in quiet ones
-  static constexpr std::size_t kMaxListed = 24;
+  static constexpr std::size_t kMaxListed = 8;
+  static constexpr std::size_t kMaxMarks = 16;      // the tester's marks it takes
+  static constexpr std::size_t kMarkEvents = 32;    // flips kept a mark and target
+  static constexpr std::size_t kMarkListed = 16;
+  static constexpr std::size_t kRecent = 64;        // a target's latest flips, kept for a mark that comes after them
+  static constexpr std::uint64_t kMarkBeforeUs = 15'000'000;  // a mark's flips: seen from so long before it
+  static constexpr std::uint64_t kMarkAfterUs = 60'000'000;   // to so long after it
+  static constexpr std::uint64_t kRetireBusy = 1024;  // busy words from which a target is read no more
+  static constexpr std::uint64_t kRetireAfter = 3;    // and after so many readings
   static constexpr std::uint8_t kBusy = 4;          // changes of a word from which it is busy: no flag
   static constexpr std::uint64_t kEveryUs = 30'000'000;
 
@@ -333,9 +341,15 @@ class Sweep {
   // Follows one target's way, or reads one piece of it; answers whether a pass ended on this call. A call while the
   // sweep rests reads nothing.
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);
+  // The tester marked a task as done at `now_us`: flips seen around that moment are kept under the mark, and the
+  // next pass starts at once. From any one thread; the stepping thread takes it up at its next step.
+  void mark(std::uint64_t now_us) noexcept;
+  [[nodiscard]] std::size_t marks() const noexcept { return mark_count_.load(std::memory_order_acquire); }
+
   // Whether a call at `now_us` would read: it has a target and is not resting. For the stepping thread only.
   [[nodiscard]] bool due(std::uint64_t now_us) const noexcept {
-    return count_.load(std::memory_order_acquire) != 0 && !(resting_ && now_us < pass_us_ + kEveryUs);
+    return count_.load(std::memory_order_acquire) != 0 &&
+           (!(resting_ && now_us < pass_us_ + kEveryUs) || marks_taken_ < mark_count_.load(std::memory_order_acquire));
   }
 
   [[nodiscard]] SweepFound found() const;
@@ -352,6 +366,9 @@ class Sweep {
   std::uint64_t start_us_ = 0;    // the first step's time
   std::uint64_t pass_us_ = 0;     // when the pass under way began
   bool resting_ = false;
+  std::array<std::atomic<std::uint64_t>, kMaxMarks> mark_us_{};
+  std::atomic<std::size_t> mark_count_{0};
+  std::size_t marks_taken_ = 0;   // the marks the stepping thread has taken up
   std::vector<std::byte> piece_;  // one piece, as just read
   std::atomic<std::uint64_t> passes_{0};
 };
