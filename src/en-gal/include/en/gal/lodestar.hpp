@@ -231,6 +231,8 @@ struct InstancesFound {
   std::vector<ManagerFound> managers;  // by number: every lead the catalogue holds, found or not
   std::vector<OtherLead> others;       // the leads the catalogue does not hold, in the leads' order
   std::vector<NewStatic> new_statics;  // what the statics only a variant reaches held at this pass
+  std::vector<NewStatic> held;         // what every static held at this pass, in all_statics' order: a map from the
+                                       // statics to the classes of their objects, as numbers
 };
 
 inline constexpr std::size_t kTrialFaultKinds = 6;  // guarded.hpp's kFaultKinds (checked where the trial is built)
@@ -367,6 +369,70 @@ struct ScanFound {
   std::vector<ScanNode> nodes;   // at most 64
 };
 
+// What an 8-byte word of a watched object looked like (the watch, lodestar_trial.hpp): nothing, a small number, a
+// table of methods the image knows, another address in the image, an address of live memory outside it, or
+// something else.
+enum class WordKind : std::uint8_t { Zero, Small, Vtable, Image, Heap, Other };
+
+// One word of a watched object that was ever anything but zero, or ever changed: what it looked like, and how its
+// two halves behaved from one reading to the next. Counts only; never what it held.
+struct WatchWord {
+  std::uint32_t offset = 0;
+  WordKind kind = WordKind::Zero;  // at the last look
+  std::uint32_t flips = 0;         // looks at which its kind was another than at the look before
+  std::uint32_t changes_low = 0;   // readings at which its low half differed from the reading before
+  std::uint32_t rises_low = 0;     // of those, the ones at which it was greater
+  std::uint32_t changes_high = 0;
+  std::uint32_t rises_high = 0;
+};
+
+// A run of bits of a watched object that behaved as a clock's minutes do: 6 bits that never held 60 or more and
+// stepped forward by 1 to 5, round 60; with, where there is one, a run of 5 bits near it that behaved as hours.
+struct BitHit {
+  std::uint32_t offset = 0;  // the 8-byte word, from the object's start
+  std::uint32_t bit = 0;     // the run's lowest bit in that word
+  std::uint32_t ticks = 0;   // readings at which it had stepped forward
+  std::uint32_t wraps = 0;   // of those, the ones at which it went round
+  std::uint32_t jumps = 0;   // readings at which it changed otherwise
+  bool has_hour = false;
+  std::uint32_t hour_offset = 0;
+  std::uint32_t hour_bit = 0;
+  std::uint32_t hour_steps = 0;
+};
+
+// A 32-bit field of a watched object that, read as a fraction, kept rising: a clock kept as seconds or hours.
+struct FloatHit {
+  std::uint32_t offset = 0;
+  std::uint32_t rises = 0;       // readings at which it was greater than at the reading before
+  std::uint32_t rate_milli = 0;  // how much it rose a second of real time, times 1,000
+};
+
+// One watched object: the way to it, how often it was there, and how its first bytes behaved.
+struct WatchObject {
+  std::string label;       // ours: a manager's, a lead's, or `play_time`
+  std::uint32_t id = 0;    // the catalogue's number, where it has one
+  std::uint32_t rva = 0;     // the static the way starts at
+  std::uint32_t offset = 0;  // added to the address the static holds
+  bool deref = false;        // the object is the one whose address is kept there; else it lies there itself
+  bool clock = false;        // its bits and fractions were watched for a clock
+  std::uint64_t readings = 0;
+  std::uint64_t empty = 0;        // the static, or the address on the way, held nothing
+  std::uint64_t unreadable = 0;
+  std::uint64_t moved = 0;        // readings at which it was another object than at the reading before
+  std::uint64_t vtable_same = 0;  // readings at which its first word was the table of methods expected
+  std::uint64_t same_address = 0; // readings at which it was the very object the first way of its label led to
+  std::uint32_t span = 0;         // bytes watched
+  std::uint32_t vtable = 0;       // its class at the last reading, where the image knows it
+  std::vector<WatchWord> words;
+  std::vector<BitHit> bits;       // the best first, at most 16
+  std::vector<FloatHit> floats;   // at most 8
+};
+
+struct WatchFound {
+  std::uint64_t passes = 0;
+  std::vector<WatchObject> objects;
+};
+
 struct Found {
   ImageFound image;
   AccessorFound accessor;
@@ -380,6 +446,7 @@ struct Found {
   std::optional<SearchFound> search;
   std::optional<MembersFound> members;
   std::optional<ScanFound> scan;
+  std::optional<WatchFound> watch;
 };
 
 // Runs the offline recipes on an image read from its file. `builds` may be null (the build is then unknown). With
@@ -446,6 +513,9 @@ class Namer {
 // title): the counts become the later pass's, a manager once named stays as it was named, and one still unnamed takes
 // the later pass's finding, with the pass that named it; what the searches found for a manager (set_by_search,
 // set_in_data) is kept through every later pass. `named` and `ambiguous` are counted again over the whole.
+// The counts, and what each static held (`held`, `new_statics`, `others`), are those of the fullest pass: the one
+// that found the fewest statics empty, the latest of equals. The last pass of a session is made as the game closes,
+// and says little of the game in play (the fourth round of 2026-11-22 reported it).
 void merge(InstancesFound& held, const InstancesFound& later);
 
 // A manager that no accessor's static holds, looked for by the search of the data's slots for an object of its class

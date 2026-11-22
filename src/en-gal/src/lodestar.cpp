@@ -361,11 +361,8 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
   for (std::size_t n = 0; n < statics.size(); ++n) {
     const StaticFound& s = statics[n];
     // A static only a variant reaches: what it holds is said for itself, whatever it is.
-    NewStatic* fresh = nullptr;
-    if (n >= accessor.statics.size()) {
-      out.new_statics.push_back(NewStatic{s.rva, Holds::Nothing, 0, false});
-      fresh = &out.new_statics.back();
-    }
+    out.held.push_back(NewStatic{s.rva, Holds::Nothing, 0, false});
+    NewStatic* fresh = &out.held.back();
     ++out.tried;
     std::array<std::byte, 8> raw{};
     std::uint64_t instance = 0;
@@ -390,27 +387,27 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
     }
     if (!word) {
       ++out.unread;
-      if (fresh != nullptr) fresh->holds = Holds::Unread;
+      fresh->holds = Holds::Unread;
       continue;
     }
     const std::uint32_t rva = in_image(*word) ? static_cast<std::uint32_t>(*word - st.base) : 0;
     const auto known = rva != 0 ? st.vtables.find(rva) : st.vtables.end();
     if (known == st.vtables.end() || !known->second) {
       ++out.unclassed;
-      if (fresh != nullptr) fresh->holds = Holds::Unclassed;
+      fresh->holds = Holds::Unclassed;
       continue;
     }
     ++out.classed;
     const auto range = st.accepts.equal_range(rva);
-    if (fresh != nullptr) {
-      fresh->holds = Holds::Classed;
-      fresh->vtable = rva;
-      fresh->lead = range.first != range.second;
-    }
+    fresh->holds = Holds::Classed;
+    fresh->vtable = rva;
+    fresh->lead = range.first != range.second;
     for (auto it = range.first; it != range.second; ++it) {
       hits[it->second.lead][it->second.match].push_back(Hit{s.rva, rva});
     }
   }
+  // The statics only a variant reaches, apart: the same findings, where a reviewer looks for them first.
+  for (std::size_t n = accessor.statics.size(); n < out.held.size(); ++n) out.new_statics.push_back(out.held[n]);
   for (std::size_t i = 0; i < st.leads.size(); ++i) {
     ++out.leads;
     const State::Lead& lead = st.leads[i];
@@ -622,7 +619,23 @@ InstancesFound name_instances(const ImageInfo& image, const ByteSource& live, co
 void merge(InstancesFound& held, const InstancesFound& later) {
   const std::uint32_t pass = held.passes + 1;
   std::vector<ManagerFound> managers = std::move(held.managers);
+  // The counts and what each static held are the fullest pass's: a pass made as the game closes finds most statics
+  // empty and is not what the round found.
+  const bool fuller = held.passes == 0 || later.null <= held.null;
+  InstancesFound before;
+  if (!fuller) before = std::move(held);
   held = later;
+  if (!fuller) {
+    held.tried = before.tried;
+    held.null = before.null;
+    held.unread = before.unread;
+    held.in_image = before.in_image;
+    held.unclassed = before.unclassed;
+    held.classed = before.classed;
+    held.others = std::move(before.others);
+    held.new_statics = std::move(before.new_statics);
+    held.held = std::move(before.held);
+  }
   held.passes = pass;
   for (ManagerFound& m : held.managers) {
     const auto it = std::find_if(managers.begin(), managers.end(), [&](const ManagerFound& o) { return o.id == m.id; });
@@ -781,7 +794,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 4, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 5, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -795,6 +808,7 @@ constexpr std::array<std::string_view, 4> kGate = {"known", "no_version", "unkno
 constexpr std::array<std::string_view, 3> kExpect = {"within", "below", "above"};
 constexpr std::array<std::string_view, 4> kDiffers = {"narrow", "other_register", "other", "undecodable"};
 constexpr std::array<std::string_view, 4> kHolds = {"nothing", "unread", "unclassed", "classed"};
+constexpr std::array<std::string_view, 6> kWordKinds = {"zero", "small", "vtable", "image", "heap", "other"};
 constexpr std::array<std::string_view, 9> kRefusal = {"unreadable",    "static_section", "static_alignment",
                                                       "class_section", "getter_section", "getter_not_function",
                                                       "no_path",       "path_section",   "path_text"};
@@ -842,11 +856,16 @@ constexpr auto kKeys = std::to_array<Key>({
     U("pointers"), AO("member_hits"), B("embedded"),
     // The object scan (in game)
     O("scan"), U("regions"), U("mib"), U("sweeps"), B("done"), B("own_known"), AO("nodes"), U("level"), U("parent"),
-    U("holders"), U("slots"), U("slot"), B("is_static"),
+    U("holders"), U("slots"), U("slot"), B("is_static"), AO("held_statics"),
+    // The watch (in game)
+    O("watch"), AO("watched"), B("deref"), B("for_clock"), U("empty"), U("moved"), U("vtable_same"), U("same_address"),
+    U("span"), AO("words"), W("kind", kWordKinds), U("flips"), U("changes_low"), U("rises_low"), U("changes_high"),
+    U("rises_high"), AO("bit_hits"), U("bit"), U("jumps"), U("hour_bit"), AO("float_hits"), U("rises"),
+    U("rate_milli"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 4, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 5, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -1051,17 +1070,20 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.end_object();
     }
     w.end_array();
-    w.begin_array("new_statics");
-    for (const NewStatic& x : n.new_statics) {
-      w.begin_object();
-      w.number("rva", x.rva);
-      const auto holds = static_cast<std::size_t>(x.holds);
-      w.word("holds", kHolds[holds < kHolds.size() ? holds : 0]);
-      w.number("vtable", x.vtable);
-      w.boolean("lead", x.lead);
-      w.end_object();
+    for (const auto& [key, list] : {std::pair<std::string_view, const std::vector<NewStatic>*>{"new_statics", &n.new_statics},
+                                    std::pair<std::string_view, const std::vector<NewStatic>*>{"held_statics", &n.held}}) {
+      w.begin_array(key);
+      for (const NewStatic& x : *list) {
+        w.begin_object();
+        w.number("rva", x.rva);
+        const auto holds = static_cast<std::size_t>(x.holds);
+        w.word("holds", kHolds[holds < kHolds.size() ? holds : 0]);
+        w.number("vtable", x.vtable);
+        w.boolean("lead", x.lead);
+        w.end_object();
+      }
+      w.end_array();
     }
-    w.end_array();
     w.end_object();
   }
 
@@ -1203,6 +1225,71 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("slots", x.slots);
       w.number("slot", x.slot);
       w.boolean("is_static", x.is_static);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.watch) {
+    const WatchFound& f = *found.watch;
+    w.begin_object("watch");
+    w.number("passes", f.passes);
+    w.begin_array("watched");
+    for (const WatchObject& o : f.objects) {
+      w.begin_object();
+      w.label("label", o.label);
+      w.number("id", o.id);
+      w.number("rva", o.rva);
+      w.number("offset", o.offset);
+      w.boolean("deref", o.deref);
+      w.boolean("for_clock", o.clock);
+      w.number("readings", o.readings);
+      w.number("empty", o.empty);
+      w.number("unreadable", o.unreadable);
+      w.number("moved", o.moved);
+      w.number("vtable_same", o.vtable_same);
+      w.number("same_address", o.same_address);
+      w.number("span", o.span);
+      w.number("vtable", o.vtable);
+      w.begin_array("words");
+      for (const WatchWord& x : o.words) {
+        w.begin_object();
+        w.number("offset", x.offset);
+        const auto kind = static_cast<std::size_t>(x.kind);
+        w.word("kind", kWordKinds[kind < kWordKinds.size() ? kind : 5]);
+        w.number("flips", x.flips);
+        w.number("changes_low", x.changes_low);
+        w.number("rises_low", x.rises_low);
+        w.number("changes_high", x.changes_high);
+        w.number("rises_high", x.rises_high);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("bit_hits");
+      for (const BitHit& h : o.bits) {
+        w.begin_object();
+        w.number("offset", h.offset);
+        w.number("bit", h.bit);
+        w.number("ticks", h.ticks);
+        w.number("wraps", h.wraps);
+        w.number("jumps", h.jumps);
+        w.boolean("has_hour", h.has_hour);
+        w.number("hour_offset", h.hour_offset);
+        w.number("hour_bit", h.hour_bit);
+        w.number("hour_steps", h.hour_steps);
+        w.end_object();
+      }
+      w.end_array();
+      w.begin_array("float_hits");
+      for (const FloatHit& h : o.floats) {
+        w.begin_object();
+        w.number("offset", h.offset);
+        w.number("rises", h.rises);
+        w.number("rate_milli", h.rate_milli);
+        w.end_object();
+      }
+      w.end_array();
       w.end_object();
     }
     w.end_array();
