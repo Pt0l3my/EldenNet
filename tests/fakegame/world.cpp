@@ -473,6 +473,7 @@ void world_create_singletons() {
   auto* plot = make<FG::FieldPlotImp>();
   plot->f.place_id = 6100100;
   fg_static_field_plot = plot;
+  if (options().field_mirror) fg_field_plot_mirror = plot;
 
   WorldState& w = state();
   w.online = options().online;
@@ -536,6 +537,7 @@ void world_move_all() {
   move_static<FG::PhraseBookImp>(fg_static_phrases);
   move_static<FG::RunWardenImp>(fg_static_run_warden);
   move_static<FG::FieldPlotImp>(fg_static_field_plot);
+  if (options().field_mirror) fg_field_plot_mirror = fg_static_field_plot;
   if (auto* old = static_cast<FG::SaveLedgerImp*>(fg_static_save_ledger)) {
     auto* moved = make<FG::SaveLedgerImp>(*old);
     if (moved->f.hero != nullptr) moved->f.hero = relocate(moved->f.hero);

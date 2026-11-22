@@ -326,13 +326,13 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   }
   CHECK(linted.has_value());
   CHECK(text->find("\"report\": \"lodestar\"") != std::string::npos);
-  CHECK(text->find("\"schema\": 2") != std::string::npos);
+  CHECK(text->find("\"schema\": 3") != std::string::npos);
   CHECK(text->size() < report::kMaxReportBytes);
   // Schema 2's promise: no key can carry a pattern (bytes) or a fraction; what is left is whole numbers, booleans,
   // fixed words, labels, and objects and arrays of those.
   const report::Vocabulary& v = lodestar::vocabulary();
   CHECK(v.kind == "lodestar");
-  CHECK(v.schema == 2);
+  CHECK(v.schema == 3);
   for (const report::Key& k : v.keys) {
     CAPTURE(k.name);
     CHECK(k.type != report::Type::Pattern);
@@ -348,4 +348,137 @@ TEST_CASE("the report is numbers, words and labels: it lints clean, and its voca
   REQUIRE(at != std::string::npos);
   tampered.insert(at, "\"bytes\": \"48 8B ?? ??\", ");
   CHECK_FALSE(report::lint(tampered, known).has_value());
+}
+
+TEST_CASE("the accessor's other shapes are counted beside it: what each reaches that the accessor's own sites do not") {
+  // Two plain accessors (a, b); one with an instruction between its load and its test (g); one that compares the
+  // slot where it lies (c); a second use of a's manager through the gap's shape; and a gap accessor whose class
+  // object is b's (it took something else for the slot).
+  using P = FakeProgram;
+  Sample sample;
+  P& p = sample.program;
+  p.label("path", P::Rdata);
+  p.ascii(P::Rdata, "invented\\core\\Lone.h");
+  for (const char* n : {"a", "b", "g", "c", "x"}) {
+    p.align(P::Data, 8);
+    p.label(std::string("st_") + n, P::Data);
+    p.u64(P::Data, 0);
+    p.label(std::string("cls_") + n, P::Data);
+    p.zeros(P::Data, 8);
+  }
+  const auto fn = [&](const std::string& name, std::initializer_list<std::uint8_t> body) {
+    p.align(P::Text, 16, 0xCC);
+    p.label(name, P::Text);
+    p.bytes(P::Text, body);
+    p.label(name + "_end", P::Text);
+    p.function(name, name + "_end");
+  };
+  fn("getter", {0x48, 0x89, 0xC8, 0xC3});
+  fn("log", {0xC3});
+  // `head`: the bytes up to the slot's reference; `after`: what follows it up to the branch; `tail`: how many of
+  // those bytes belong to the instruction that refers to the slot (an immediate).
+  const auto accessor = [&](const std::string& name, const std::string& slot, const std::string& cls,
+                            std::vector<std::uint8_t> head, std::vector<std::uint8_t> after, std::uint32_t tail = 0) {
+    p.align(P::Text, 16, 0xCC);
+    p.label("get_" + name, P::Text);
+    p.bytes(P::Text, {0x48, 0x83, 0xEC, 0x28, 0x90});
+    p.bytes(P::Text, head);
+    p.rel32(P::Text, "st_" + slot, tail);
+    p.bytes(P::Text, after);
+    p.bytes(P::Text, {0x75, 0x18, 0x48, 0x8D, 0x0D});
+    p.rel32(P::Text, "cls_" + cls);
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "getter");
+    p.bytes(P::Text, {0x48, 0x8D, 0x15});
+    p.rel32(P::Text, "path");
+    p.bytes(P::Text, {0xE8});
+    p.rel32(P::Text, "log");
+    p.bytes(P::Text, {0x48, 0x83, 0xC4, 0x28, 0xC3});
+    p.label("get_" + name + "_end", P::Text);
+    p.function("get_" + name, "get_" + name + "_end");
+  };
+  accessor("a", "a", "a", {0x48, 0x8B, 0x05}, {0x48, 0x85, 0xC0});
+  accessor("b", "b", "b", {0x48, 0x8B, 0x3D}, {0x48, 0x85, 0xFF});
+  accessor("g", "g", "g", {0x48, 0x8B, 0x05}, {0x48, 0x89, 0xD1, 0x48, 0x85, 0xC0});   // a move between
+  accessor("g2", "g", "g", {0x48, 0x8B, 0x05}, {0x90, 0x48, 0x85, 0xC0});              // the same manager again
+  accessor("a2", "a", "a", {0x48, 0x8B, 0x05}, {0x90, 0x48, 0x85, 0xC0});              // a's, through the gap
+  accessor("x", "x", "b", {0x48, 0x8B, 0x05}, {0x90, 0x48, 0x85, 0xC0});               // b's class object
+  accessor("c", "c", "c", {0x48, 0x83, 0x3D}, {0x00}, 1);                              // compared where it lies
+  sample.built = p.build();
+
+  const std::string recipes = std::string(kRecipes) + R"(
+[[recipe]]
+id = "accessor_gap"
+kind = "accessor"
+steps = ["load_slot", "skip_one", "test_loaded", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 4, getter = 5 }
+path_suffix = "Lone.h"
+provenance = { method = "own-derivation", evidence = "docs/ops/probes/invented.md", date = "2026-01-02" }
+
+[[recipe]]
+id = "accessor_compare"
+kind = "accessor"
+steps = ["compare_slot", "branch_set_short", "address_arg1", "call_relative"]
+gives = { static = 0, class = 2, getter = 3 }
+path_suffix = "Lone.h"
+expect_matches = [2, 9]
+provenance = { method = "own-derivation", evidence = "docs/ops/probes/invented.md", date = "2026-01-02" }
+)";
+  const Run r = run(sample, kSampleLeadsClean, recipes);
+  const lodestar::AccessorFound& a = r.found.accessor;
+  // The accessor's own numbers are what they were without the variants.
+  CHECK(a.hits == 2);
+  CHECK(a.accepted == 2);
+  CHECK(a.statics_found == 2);
+  CHECK(lodestar::complete(r.found));
+  REQUIRE(a.variants.size() == 2);
+  const lodestar::VariantFound& gap = a.variants[0];
+  CHECK(gap.label == "accessor_gap");
+  CHECK(gap.hits == 4);
+  CHECK(gap.accepted == 4);
+  CHECK(gap.expect == lodestar::Expect::Within);
+  CHECK(gap.statics_found == 3);  // g's, a's and x's
+  CHECK(gap.known == 1);          // a's, which the accessor's own site loads too
+  CHECK(gap.agreeing == 1);       // with the same class object
+  CHECK(gap.shared_class_objects == 1);  // x's class object is b's
+  REQUIRE(gap.statics.size() == 2);
+  CHECK(gap.statics[0].rva == p.rva("st_g"));
+  CHECK(gap.statics[0].class_object == p.rva("cls_g"));
+  CHECK(gap.statics[0].sites == 2);
+  CHECK(gap.statics[0].witnesses == std::vector<std::uint32_t>{p.rva("get_g") + 5, p.rva("get_g2") + 5});
+  CHECK(gap.statics[1].rva == p.rva("st_x"));
+  const lodestar::VariantFound& compare = a.variants[1];
+  CHECK(compare.label == "accessor_compare");
+  CHECK(compare.hits == 1);
+  CHECK(compare.expect == lodestar::Expect::Below);  // fewer places than its recipe says
+  CHECK(compare.known == 0);
+  REQUIRE(compare.statics.size() == 1);
+  CHECK(compare.statics[0].rva == p.rva("st_c"));
+  CHECK(compare.statics[0].class_object == p.rva("cls_c"));
+  CHECK(compare.statics[0].witnesses == std::vector<std::uint32_t>{p.rva("get_c") + 5});
+  // Every static the naming looks at: the accessor's own, then the variants' new ones.
+  const std::vector<lodestar::StaticFound> all = lodestar::all_statics(a);
+  REQUIRE(all.size() == 5);
+  CHECK(all[0].rva == p.rva("st_a"));
+  CHECK(all[2].rva == p.rva("st_g"));
+  CHECK(all[4].rva == p.rva("st_c"));
+  // Each new static's witness refers to it: the resolver's own check passes on a load and on a compare alike.
+  const SpanSource source(sample.built.file);
+  for (const lodestar::StaticFound& st : {gap.statics[0], compare.statics[0]}) {
+    ItemEntry e;
+    e.label = "characters";
+    e.id = 1002;
+    e.kind = IdKind::Static;
+    e.rva = st.rva;
+    e.found_by = {Recipe::Accessor};
+    e.witnesses = st.witnesses;
+    CHECK(check_item(r.image, source, e).ok());
+  }
+  // The report carries the variants as counts and places, and lints clean.
+  const auto text = lodestar::write_report(r.found);
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"label\": \"accessor_gap\"") != std::string::npos);
+  CHECK(text->find("\"agreeing\": 1") != std::string::npos);
 }

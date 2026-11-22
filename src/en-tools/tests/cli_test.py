@@ -268,7 +268,7 @@ def check_lodestar(a, exe, leads):
     with open(out) as f:
         text = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 2 and d["complete"] is True, "the lodestar report's head")
+    need(d["report"] == "lodestar" and d["schema"] == 3 and d["complete"] is True, "the lodestar report's head")
     acc = d["accessor"]
     need(acc["recipe"] and acc["hits"] == 8 and acc["accepted"] == 6 and acc["expect"] == "within",
          "the accessor's counts: %s" % {k: acc[k] for k in ("hits", "accepted", "expect")})
@@ -283,10 +283,12 @@ def check_lodestar(a, exe, leads):
     # What the image holds under each lead's name, in counts: one entry a lead (the sample's seven), under the lead's
     # own label where the invented catalogue does not hold it, each count a whole number, and never a name.
     lc = d["lead_classes"]
-    need(len(lc) == 7 and all(set(c) == {"id", "label", "named", "named_imp", "vtable_count", "texts"} and
+    need(len(lc) == 7 and all(set(c) == {"id", "label", "named", "named_imp", "vtable_count", "texts", "related"} and
                               all(isinstance(c[k], int) for k in c if k != "label") for c in lc),
          "the leads' classes: %s" % lc[:2])
     need("leads have a class of their name" in so, "the console's line names the leads' classes: %r" % so)
+    # The invented folder holds the accessor's recipe alone: no variant is counted, and no second line is printed.
+    need(acc["variants"] == [] and "other shapes" not in so, "no variants without their recipes: %r" % so)
     # Nothing but numbers, booleans, fixed words and labels: no string longer than a word, none with a byte's look.
     strings = re.findall(r'"([^"]*)"\s*[,\]}\n]', text)
     need(all(re.fullmatch(r"[a-z][a-z0-9_]{0,47}", v) for v in strings), "a string that is no word or label: %s" %

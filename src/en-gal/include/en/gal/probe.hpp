@@ -46,8 +46,19 @@ struct HeapSlots {
   std::vector<std::uint32_t> slots;
   std::vector<std::uint64_t> values;  // what each slot held when it was read
   std::uint64_t unreadable = 0;       // bytes of those sections that could not be read
+  // With a `live` question (below): every slot whose value could be a heap address, and what the answer was.
+  std::uint64_t pointer_like = 0;
+  std::uint64_t not_committed = 0;
+  std::uint64_t no_access = 0;
 };
-[[nodiscard]] HeapSlots heap_slots(const SysLayer& sys, const ImageInfo& image, std::size_t max = 1u << 16);
+// What stands at an address a slot holds, as the caller's system says without reading it (on Windows, VirtualQuery):
+// memory that may be read, no memory, or memory that may not be read.
+enum class Liveness : std::uint8_t { Live, NotCommitted, NoAccess };
+using LiveFn = std::function<Liveness(std::uint64_t address)>;
+// With `live`, only the slots whose value it answers Live for are kept (and counted against `max`); most 8-aligned
+// values of a game's data that could be a heap address are not one (two small numbers side by side read as one).
+[[nodiscard]] HeapSlots heap_slots(const SysLayer& sys, const ImageInfo& image, std::size_t max = 1u << 16,
+                                   const LiveFn* live = nullptr);
 
 // The 8-aligned slots of the writable data sections that hold `value` (R1: global_hinstance, the module's base), by
 // RVA, at most `max`; `count` is how many there were.
@@ -66,6 +77,8 @@ class SlotSearch {
   SlotSearch(const SysLayer& sys, const Discovery& discovery, roles::Cls cls, std::size_t max_candidates = 1u << 16);
   // The same for a vtable set of the caller's (R1, before any discovery: a class's vtables from the live derivation).
   SlotSearch(const SysLayer& sys, const ImageInfo& image, const VtableSet& set, std::size_t max_candidates = 1u << 16);
+  // The same over candidates the caller collected (heap_slots, with its own question of what is live).
+  SlotSearch(HeapSlots candidates, const VtableSet& set);
   // On the game thread: checks up to `copies` candidates (a guarded copy of each one's first 8 bytes, compared with the
   // class's vtables). Answers whether every candidate has been checked.
   // Nothing it does on the game thread allocates (R6). Its progress and finds may be read from any thread.
@@ -78,12 +91,21 @@ class SlotSearch {
   [[nodiscard]] std::span<const std::uint32_t> found() const noexcept {
     return std::span<const std::uint32_t>(found_.data(), found_count_.load(std::memory_order_acquire));
   }
+  // The object each of those slots held (its address when the candidates were collected), in the same order: two
+  // slots with one object are copies of one address.
+  [[nodiscard]] std::span<const std::uint64_t> found_objects() const noexcept {
+    return std::span<const std::uint64_t>(found_object_.data(), found_count_.load(std::memory_order_acquire));
+  }
+  // How many slots held one in all (found() keeps the first kMaxFound).
+  [[nodiscard]] std::uint64_t found_total() const noexcept { return found_total_.load(std::memory_order_relaxed); }
 
  private:
   const VtableSet& set_;
   std::vector<std::uint32_t> slots_;
   std::vector<std::uint64_t> values_;
   std::array<std::uint32_t, kMaxFound> found_{};
+  std::array<std::uint64_t, kMaxFound> found_object_{};
+  std::atomic<std::uint64_t> found_total_{0};
   std::atomic<std::size_t> found_count_{0};
   std::atomic<std::size_t> next_{0};
   std::atomic<std::uint64_t> unreadable_{0};
@@ -92,9 +114,10 @@ class SlotSearch {
 // The rising-counter search (R1: a static whose class has no RTTI, such as the one that holds the play time): each
 // candidate's instance's first `span` bytes, copied pass after pass on the game thread (each at least a second after
 // its last copy); a 4-aligned 32-bit field that rose between two copies by the time between them in milliseconds,
-// within a fifth, is a hit. Each hit keeps
-// how many passes it rose in and how many it stood still in (a play time stands still at the title and in menus, a
-// clock of the process never does). Everything is allocated on T1; the game thread allocates nothing (R6).
+// within a fifth, has risen. Every field keeps how many passes it rose in, and from its first rise how many it stood
+// still in and how many it changed otherwise (a play time stands still at the title and in menus, a clock of the
+// process never does). The hits are the fields that rose in the most passes, chosen again as each pass ends: the best,
+// not the first met. Everything is allocated on T1; the game thread allocates nothing (R6).
 class RisingSearch {
  public:
   struct Hit {
@@ -108,18 +131,24 @@ class RisingSearch {
   static constexpr std::uint64_t kMinIntervalUs = 1'000'000;  // a candidate is copied again a second later at least
 
   RisingSearch(HeapSlots candidates, std::uint32_t span = 0x100, std::size_t max_candidates = 1u << 14);
-  // Copies up to `copies` candidates at `now_us` (the tick's clock); answers whether a pass ended on this call.
+  // Copies up to `copies` candidates at `now_us` (the tick's clock); answers whether a pass ended on this call. A
+  // pass is a sweep over the candidates in which at least one was copied.
   bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint32_t copies, std::uint64_t now_us);
   [[nodiscard]] std::size_t candidates() const noexcept { return slots_.size(); }
   [[nodiscard]] std::uint32_t passes() const noexcept { return passes_.load(std::memory_order_acquire); }
   [[nodiscard]] std::uint64_t unreadable() const noexcept { return unreadable_.load(std::memory_order_relaxed); }
-  // The hits so far, at most kMaxHits; read from any thread once a pass has ended (they change only as one ends).
+  // Fields that rose in at least one pass, as the last pass left them.
+  [[nodiscard]] std::uint64_t risen() const noexcept { return risen_.load(std::memory_order_relaxed); }
+  // The hits as the last pass left them, the most passes risen first, at most kMaxHits; read from any thread. They
+  // are written anew as a pass ends, into the table the readers are not looking at, and a pass takes a second at least.
   [[nodiscard]] std::span<const Hit> hits() const noexcept {
-    return std::span<const Hit>(hits_.data(), hit_count_.load(std::memory_order_acquire));
+    const std::size_t which = shown_.load(std::memory_order_acquire);
+    return std::span<const Hit>(hits_[which].data(), hit_count_[which].load(std::memory_order_acquire));
   }
 
  private:
   void compare(std::size_t i, std::span<const std::byte> now, std::uint64_t now_us) noexcept;
+  void publish() noexcept;
 
   std::uint32_t span_;
   std::vector<std::uint32_t> slots_;
@@ -128,11 +157,17 @@ class RisingSearch {
   std::vector<std::uint8_t> dead_;        // a candidate whose copy faulted is not copied again
   std::vector<std::uint64_t> last_us_;    // and when it was made; 0 before the first
   std::vector<std::byte> scratch_;
+  std::vector<std::uint16_t> rose_;       // by candidate and field: passes it rose in, and from then on the others
+  std::vector<std::uint16_t> still_;
+  std::vector<std::uint16_t> other_;
   std::size_t next_ = 0;
-  std::array<Hit, kMaxHits> hits_{};
-  std::atomic<std::size_t> hit_count_{0};
+  bool read_in_sweep_ = false;  // a sweep that copied no candidate is no pass
+  std::array<std::array<Hit, kMaxHits>, 2> hits_{};
+  std::array<std::atomic<std::size_t>, 2> hit_count_{};
+  std::atomic<std::size_t> shown_{0};
   std::atomic<std::uint32_t> passes_{0};
   std::atomic<std::uint64_t> unreadable_{0};
+  std::atomic<std::uint64_t> risen_{0};
 };
 
 // The hub census (R1: the task's base class): the objects the task hub's instance points at, to a depth of three, whose

@@ -128,6 +128,49 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
     a.getters.push_back(g);
   }
 
+  // ---- The accessor's other shapes: what each reaches that the accessor's own sites do not ----
+  for (const RecipeSpec& other : recipes.recipes) {
+    if (other.kind != RecipeKind::Accessor || other.id == roles::kAccessorRecipeId) continue;
+    VariantFound v;
+    v.label = other.id;
+    fd4::Config c;
+    c.code = other.section;
+    c.path_suffix = other.path_suffix;
+    const fd4::Result r = fd4::find(img, other.accessor(), c);
+    v.hits = r.hits;
+    v.expect = v.hits < other.expect_min ? Expect::Below : v.hits > other.expect_max ? Expect::Above : Expect::Within;
+    std::map<std::uint32_t, StaticFound> reached;
+    for (const fd4::Site& site : r.sites) {
+      if (site.refused) {
+        const auto reason = static_cast<std::size_t>(*site.refused);
+        if (reason < v.refused.size()) ++v.refused[reason];
+        continue;
+      }
+      ++v.accepted;
+      StaticFound& one = reached[site.static_slot];
+      one.rva = site.static_slot;
+      if (one.sites == 0) one.class_object = site.class_object;
+      ++one.sites;
+      if (one.witnesses.size() < kMaxSiteWitnesses) one.witnesses.push_back(site.hit);
+    }
+    v.statics_found = reached.size();
+    for (auto& [rva, one] : reached) {
+      const auto known = statics.find(rva);
+      if (known != statics.end()) {
+        ++v.known;
+        v.agreeing += known->second.class_object == one.class_object ? 1 : 0;
+        continue;
+      }
+      // A new static's class object must be its own: one that another static has, of any shape, is counted.
+      const auto shared = statics_of_class.find(one.class_object);
+      const bool taken = shared != statics_of_class.end() && (shared->second.size() > 1 || *shared->second.begin() != rva);
+      v.shared_class_objects += taken ? 1 : 0;
+      statics_of_class[one.class_object].insert(rva);
+      if (v.statics.size() < kMaxListed) v.statics.push_back(std::move(one));
+    }
+    a.variants.push_back(std::move(v));
+  }
+
   // ---- The withdrawn pattern, in memory only: do the two accept the same sites? ----
   if (derived.fd4.idiom) {
     a.pattern = true;
@@ -171,6 +214,18 @@ Found find(const ImageInfo& image, const ByteSource& source, std::uint64_t file_
     for (auto& [rva, one] : extra) {
       if (a.only_pattern_statics.size() >= kMaxListed) break;
       a.only_pattern_statics.push_back(std::move(one));
+    }
+  }
+  return out;
+}
+
+std::vector<StaticFound> all_statics(const AccessorFound& accessor) {
+  std::vector<StaticFound> out = accessor.statics;
+  std::set<std::uint32_t> seen;
+  for (const StaticFound& s : out) seen.insert(s.rva);
+  for (const VariantFound& v : accessor.variants) {
+    for (const StaticFound& s : v.statics) {
+      if (seen.insert(s.rva).second) out.push_back(s);
     }
   }
   return out;
@@ -241,12 +296,18 @@ Namer::Namer(const ImageInfo& image, const ByteSource& source, const derive::Lea
     c.label = l.label;
     c.id = l.id;
     const std::string imp = lead.name + "Imp";
-    std::set<std::uint32_t> exact_tds, imp_tds;
+    std::set<std::uint32_t> exact_tds, imp_tds, related_tds;
     for (const rtti::Locator& loc : walk.locators) {
       const std::string& n = name(loc.type_descriptor);
-      if (n == lead.name) exact_tds.insert(loc.type_descriptor);
-      if (n == imp) imp_tds.insert(loc.type_descriptor);
+      if (n == lead.name) {
+        exact_tds.insert(loc.type_descriptor);
+      } else if (n == imp) {
+        imp_tds.insert(loc.type_descriptor);
+      } else if (n.find(lead.name) != std::string::npos) {
+        related_tds.insert(loc.type_descriptor);
+      }
     }
+    c.related = static_cast<std::uint32_t>(related_tds.size());
     c.named = static_cast<std::uint32_t>(exact_tds.size());
     c.named_imp = static_cast<std::uint32_t>(imp_tds.size());
     std::set<std::uint32_t> counted;
@@ -288,7 +349,8 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
     std::uint32_t vtable = 0;
   };
   std::vector<std::array<std::vector<Hit>, 3>> hits(st.leads.size());  // by lead, by how it matched
-  for (const StaticFound& s : accessor.statics) {
+  const std::vector<StaticFound> statics = all_statics(accessor);
+  for (const StaticFound& s : statics) {
     ++out.tried;
     std::array<std::byte, 8> raw{};
     std::uint64_t instance = 0;
@@ -330,30 +392,33 @@ InstancesFound Namer::pass(const ByteSource& live, const AccessorFound& accessor
   for (std::size_t i = 0; i < st.leads.size(); ++i) {
     ++out.leads;
     const State::Lead& lead = st.leads[i];
-    if (!lead.listed) {
-      ++out.unlisted;
-      continue;
-    }
-    ManagerFound m;
-    m.label = lead.label;
-    m.id = lead.id;
     // The class itself (by its name, or its name with Imp) before a class that only derives from it.
     std::vector<Hit> own = hits[i][State::kExact];
     own.insert(own.end(), hits[i][State::kImp].begin(), hits[i][State::kImp].end());
     const bool by_base = own.empty();
     const std::vector<Hit>& chosen = by_base ? hits[i][State::kBase] : own;
+    const Hit first = chosen.empty() ? Hit{}
+                                     : *std::min_element(chosen.begin(), chosen.end(),
+                                                         [](const Hit& a, const Hit& b) { return a.slot < b.slot; });
+    if (!lead.listed) {
+      ++out.unlisted;
+      out.others.push_back(OtherLead{lead.label, static_cast<std::uint32_t>(chosen.size()), first.slot, first.vtable});
+      continue;
+    }
+    ManagerFound m;
+    m.label = lead.label;
+    m.id = lead.id;
     if (!chosen.empty()) {
-      const Hit first = *std::min_element(chosen.begin(), chosen.end(),
-                                          [](const Hit& a, const Hit& b) { return a.slot < b.slot; });
       m.status = chosen.size() == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
       m.rva = first.slot;
       m.vtable = first.vtable;
       m.by_base = by_base;
       m.imp = !by_base && hits[i][State::kExact].empty();
-      for (const StaticFound& s : accessor.statics) {
-        if (s.rva != m.rva) continue;
-        m.sites = s.sites;
-        m.witnesses = s.witnesses;
+      for (std::size_t k = 0; k < statics.size(); ++k) {
+        if (statics[k].rva != m.rva) continue;
+        m.sites = statics[k].sites;
+        m.witnesses = statics[k].witnesses;
+        m.variant = k >= accessor.statics.size();
       }
     }
     out.named += m.status == derive::Status::Derived ? 1 : 0;
@@ -375,27 +440,76 @@ std::vector<std::uint32_t> Namer::vtables(std::uint32_t id) const {
   return out;
 }
 
-void set_by_search(InstancesFound& held, std::uint32_t id, std::uint32_t slot, std::uint32_t vtable,
-                   std::uint32_t found) {
+std::vector<Namer::LeadTable> Namer::lead_tables() const {
+  std::vector<LeadTable> out;
+  for (const auto& [rva, accepts] : state_->accepts) {
+    const State::Lead& lead = state_->leads[accepts.lead];
+    out.push_back(LeadTable{rva, lead.listed ? lead.id : 0, lead.label});
+  }
+  return out;
+}
+
+namespace {
+
+void recount(InstancesFound& held) {
+  held.named = 0;
+  held.ambiguous = 0;
+  for (const ManagerFound& m : held.managers) {
+    held.named += m.status == derive::Status::Derived ? 1 : 0;
+    held.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
+  }
+}
+
+// What the searches found for a manager goes with it from pass to pass.
+void keep_searches(ManagerFound& m, const ManagerFound& before) {
+  m.search_found = before.search_found;
+  m.search_runs = before.search_runs;
+  m.search_candidates = before.search_candidates;
+  m.search_checked = before.search_checked;
+  m.search_unreadable = before.search_unreadable;
+  m.search_objects = before.search_objects;
+  m.search_slots = before.search_slots;
+  m.in_data = before.in_data;
+  m.in_data_rva = before.in_data_rva;
+}
+
+}  // namespace
+
+void set_by_search(InstancesFound& held, std::uint32_t id, const SlotSearchResult& result) {
   for (ManagerFound& m : held.managers) {
-    if (m.id != id || m.status == derive::Status::Derived) continue;
-    m.search_found = found;
-    if (found == 0) continue;
-    m.status = found == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
-    m.rva = slot;
-    m.vtable = vtable;
+    if (m.id != id) continue;
+    ++m.search_runs;
+    m.search_candidates = result.candidates;
+    m.search_checked = result.checked;
+    m.search_unreadable = result.unreadable;
+    // A run that finds nothing after one that found something does not undo it: the earlier slots stay reported.
+    if (result.slots.empty() && m.search_found != 0) continue;
+    m.search_found = static_cast<std::uint32_t>(result.slots.size());
+    m.search_objects = result.objects;
+    m.search_slots = result.slots;
+    std::sort(m.search_slots.begin(), m.search_slots.end());
+    if (m.search_slots.size() > 16) m.search_slots.resize(16);
+    if (result.slots.empty()) continue;
+    if (m.status == derive::Status::Derived && !m.by_search) continue;  // a static of the accessor's holds it
+    m.status = result.objects == 1 ? derive::Status::Derived : derive::Status::Ambiguous;
+    m.rva = m.search_slots.front();
+    m.vtable = result.vtable;
     m.by_search = true;
+    m.variant = false;
     m.by_base = false;
     m.imp = false;
     m.sites = 0;
     m.witnesses.clear();
     m.pass = held.passes;
   }
-  held.named = 0;
-  held.ambiguous = 0;
-  for (const ManagerFound& m : held.managers) {
-    held.named += m.status == derive::Status::Derived ? 1 : 0;
-    held.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
+  recount(held);
+}
+
+void set_in_data(InstancesFound& held, std::uint32_t id, std::uint32_t count, std::uint32_t first) {
+  for (ManagerFound& m : held.managers) {
+    if (m.id != id) continue;
+    m.in_data = count;
+    m.in_data_rva = count != 0 ? first : 0;
   }
 }
 
@@ -411,18 +525,22 @@ void merge(InstancesFound& held, const InstancesFound& later) {
   held.passes = pass;
   for (ManagerFound& m : held.managers) {
     const auto it = std::find_if(managers.begin(), managers.end(), [&](const ManagerFound& o) { return o.id == m.id; });
-    if (it != managers.end() && it->status == derive::Status::Derived) {
+    if (it == managers.end()) {
+      if (m.status == derive::Status::Derived) m.pass = pass;
+      continue;
+    }
+    if (it->status == derive::Status::Derived) {
       m = *it;  // named once, named for the round
     } else if (m.status == derive::Status::Derived) {
       m.pass = pass;
+      keep_searches(m, *it);
+    } else if (it->by_search) {
+      m = *it;  // the search found two objects of its class: that stands until a pass names it
+    } else {
+      keep_searches(m, *it);
     }
   }
-  held.named = 0;
-  held.ambiguous = 0;
-  for (const ManagerFound& m : held.managers) {
-    held.named += m.status == derive::Status::Derived ? 1 : 0;
-    held.ambiguous += m.status == derive::Status::Ambiguous ? 1 : 0;
-  }
+  recount(held);
 }
 
 namespace {
@@ -562,7 +680,7 @@ bool complete(const Found& found) {
   return !a.pattern || a.only_shape == 0;
 }
 
-// ---- The report: schema 2, kind `lodestar`. No key takes a pattern, and there is no free string. ----
+// ---- The report: schema 3, kind `lodestar`. No key takes a pattern, and there is no free string. ----
 
 namespace {
 
@@ -597,7 +715,7 @@ constexpr auto kKeys = std::to_array<Key>({
     // accessor
     O("accessor"), B("recipe"), U("hits"), U("sites"), U("accepted"), AO("refused"), W("reason", kRefusal), U("count"),
     W("expect", kExpect), U("statics_found"), U("class_objects"), U("shared_class_objects"), U("shared_statics"), AO("statics"), U("rva"), U("class_object"),
-    AU("witnesses"), AU("getters"),
+    AU("witnesses"), AU("getters"), AO("variants"), U("known"), U("agreeing"),
     // the comparison with the withdrawn pattern: counts only
     O("pattern"), B("cut"), U("both"), U("only_shape"), U("only_pattern"), AO("why"), U("step"),
     W("differs", kDiffers), AO("only_pattern_statics"),
@@ -606,7 +724,9 @@ constexpr auto kKeys = std::to_array<Key>({
     AU("vtables"), O("instances"), U("tried"), U("null"), U("unread"), U("unclassed"), U("classed"), U("leads"),
     U("unlisted"), U("named"), U("ambiguous"), U("passes"), AO("managers"), U("id"), U("vtable"), B("imp"), U("pass"),
     B("by_base"), AO("lead_classes"), U("named_imp"), U("vtable_count"), U("texts"), U("in_image"), B("by_search"),
-    U("search_found"),
+    U("search_found"), B("variant"), U("search_runs"), U("search_candidates"), U("search_checked"),
+    U("search_unreadable"), U("search_objects"), AU("search_slots"), U("in_data"), U("in_data_rva"), U("related"),
+    AO("others"), U("held"),
     // The reader's trial (in game)
     O("trial"), U("steps"), U("readings"), U("elapsed_ms"), U("reading_p50_us"), U("reading_p99_us"),
     U("reading_max_us"), U("copies"), U("fault_implausible"), U("fault_stack"), U("fault_copy"), U("fault_budget"),
@@ -615,10 +735,13 @@ constexpr auto kKeys = std::to_array<Key>({
     // The searches by what an object holds (in game)
     O("clock"), U("candidates"), U("unreadable"), AO("clock_hits"), U("offset"), U("width"), U("ticks"), U("wraps"),
     B("has_hour"), U("hour_offset"), U("hour_steps"), O("rising"), AO("rising_hits"), U("rose"), U("still"),
+    U("risen"), O("search"), U("pointer_like"), U("live"), U("not_committed"), U("no_access"), U("asked"),
+    U("refused_gone"), U("refused_access"), U("copy_failed"), U("steps_cut"), O("members"), U("objects"),
+    U("pointers"), AO("member_hits"), B("embedded"),
     O("table"), U("entries"), U("stride"), B("has_name_offset"), U("name_offset"), B("wide"), U("index"),
 });
 
-constexpr report::Vocabulary kVocabulary{"lodestar", 2, kKeys};
+constexpr report::Vocabulary kVocabulary{"lodestar", 3, kKeys};
 
 std::string_view status_word(derive::Status s) {
   const auto i = static_cast<std::size_t>(s);
@@ -639,6 +762,36 @@ void numbers(Writer& w, std::string_view key, const std::vector<std::uint32_t>& 
   w.begin_array(key);
   for (const std::uint32_t v : values) w.number(v);
   w.end_array();
+}
+
+void statics(Writer& w, std::string_view key, const std::vector<StaticFound>& list) {
+  w.begin_array(key);
+  for (const StaticFound& s : list) {
+    w.begin_object();
+    w.number("rva", s.rva);
+    w.number("class_object", s.class_object);
+    w.number("sites", s.sites);
+    numbers(w, "witnesses", s.witnesses);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+void refusals(Writer& w, const std::array<std::uint64_t, 9>& refused) {
+  w.begin_array("refused");
+  for (std::size_t i = 0; i < refused.size() && i < kRefusal.size(); ++i) {
+    if (refused[i] == 0) continue;
+    w.begin_object();
+    w.word("reason", kRefusal[i]);
+    w.number("count", refused[i]);
+    w.end_object();
+  }
+  w.end_array();
+}
+
+std::string_view expect_word(Expect e) {
+  const auto i = static_cast<std::size_t>(e);
+  return kExpect[i < kExpect.size() ? i : 0];
 }
 
 }  // namespace
@@ -668,31 +821,30 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
   w.number("hits", a.hits);
   w.number("sites", a.sites);
   w.number("accepted", a.accepted);
-  w.begin_array("refused");
-  for (std::size_t i = 0; i < a.refused.size() && i < kRefusal.size(); ++i) {
-    if (a.refused[i] == 0) continue;
-    w.begin_object();
-    w.word("reason", kRefusal[i]);
-    w.number("count", a.refused[i]);
-    w.end_object();
-  }
-  w.end_array();
-  w.word("expect", kExpect[static_cast<std::size_t>(a.expect) < kExpect.size() ? static_cast<std::size_t>(a.expect) : 0]);
+  refusals(w, a.refused);
+  w.word("expect", expect_word(a.expect));
   w.number("statics_found", a.statics_found);
   w.number("class_objects", a.class_objects);
   w.number("shared_class_objects", a.shared_class_objects);
   w.number("shared_statics", a.shared_statics);
-  w.begin_array("statics");
-  for (const StaticFound& s : a.statics) {
+  statics(w, "statics", a.statics);
+  numbers(w, "getters", a.getters);
+  w.begin_array("variants");
+  for (const VariantFound& v : a.variants) {
     w.begin_object();
-    w.number("rva", s.rva);
-    w.number("class_object", s.class_object);
-    w.number("sites", s.sites);
-    numbers(w, "witnesses", s.witnesses);
+    w.label("label", v.label);
+    w.number("hits", v.hits);
+    w.number("accepted", v.accepted);
+    refusals(w, v.refused);
+    w.word("expect", expect_word(v.expect));
+    w.number("statics_found", v.statics_found);
+    w.number("known", v.known);
+    w.number("agreeing", v.agreeing);
+    w.number("shared_class_objects", v.shared_class_objects);
+    statics(w, "statics", v.statics);
     w.end_object();
   }
   w.end_array();
-  numbers(w, "getters", a.getters);
   w.begin_object("pattern");
   w.boolean("cut", a.pattern);
   w.number("hits", a.pattern_hits);
@@ -711,16 +863,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.end_object();
   }
   w.end_array();
-  w.begin_array("only_pattern_statics");
-  for (const StaticFound& s : a.only_pattern_statics) {
-    w.begin_object();
-    w.number("rva", s.rva);
-    w.number("class_object", s.class_object);
-    w.number("sites", s.sites);
-    numbers(w, "witnesses", s.witnesses);
-    w.end_object();
-  }
-  w.end_array();
+  statics(w, "only_pattern_statics", a.only_pattern_statics);
   w.end_object();
   w.end_object();
 
@@ -745,6 +888,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("named_imp", c.named_imp);
     w.number("vtable_count", c.vtables);
     w.number("texts", c.texts);
+    w.number("related", c.related);
     w.end_object();
   }
   w.end_array();
@@ -774,10 +918,29 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("sites", m.sites);
       w.boolean("imp", m.imp);
       w.boolean("by_base", m.by_base);
+      w.boolean("variant", m.variant);
       w.boolean("by_search", m.by_search);
       w.number("search_found", m.search_found);
+      w.number("search_runs", m.search_runs);
+      w.number("search_candidates", m.search_candidates);
+      w.number("search_checked", m.search_checked);
+      w.number("search_unreadable", m.search_unreadable);
+      w.number("search_objects", m.search_objects);
+      numbers(w, "search_slots", m.search_slots);
+      w.number("in_data", m.in_data);
+      w.number("in_data_rva", m.in_data_rva);
       w.number("pass", m.pass);
       numbers(w, "witnesses", m.witnesses);
+      w.end_object();
+    }
+    w.end_array();
+    w.begin_array("others");
+    for (const OtherLead& o : n.others) {
+      w.begin_object();
+      w.label("label", o.label);
+      w.number("held", o.held);
+      w.number("rva", o.rva);
+      w.number("vtable", o.vtable);
       w.end_object();
     }
     w.end_array();
@@ -846,6 +1009,7 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
     w.number("candidates", r.candidates);
     w.number("passes", r.passes);
     w.number("unreadable", r.unreadable);
+    w.number("risen", r.risen);
     w.begin_array("rising_hits");
     for (const RisingHit& h : r.hits) {
       w.begin_object();
@@ -854,6 +1018,43 @@ proto::Expected<std::string, report::Problem> write_report(const Found& found) {
       w.number("rose", h.rose);
       w.number("still", h.still);
       w.number("other", h.other);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+
+  if (found.search) {
+    const SearchFound& f = *found.search;
+    w.begin_object("search");
+    w.number("pointer_like", f.pointer_like);
+    w.number("live", f.live);
+    w.number("not_committed", f.not_committed);
+    w.number("no_access", f.no_access);
+    w.number("asked", f.asked);
+    w.number("refused_gone", f.refused_gone);
+    w.number("refused_access", f.refused_access);
+    w.number("copy_failed", f.copy_failed);
+    w.number("steps", f.steps);
+    w.number("steps_cut", f.steps_cut);
+    w.end_object();
+  }
+  if (found.members) {
+    const MembersFound& f = *found.members;
+    w.begin_object("members");
+    w.number("objects", f.objects);
+    w.number("unreadable", f.unreadable);
+    w.number("pointers", f.pointers);
+    w.number("passes", f.passes);
+    w.begin_array("member_hits");
+    for (const MemberHit& h : f.hits) {
+      w.begin_object();
+      w.number("id", h.id);
+      w.label("label", h.label);
+      w.number("rva", h.rva);
+      w.number("offset", h.offset);
+      w.boolean("embedded", h.embedded);
+      w.number("vtable", h.vtable);
       w.end_object();
     }
     w.end_array();
