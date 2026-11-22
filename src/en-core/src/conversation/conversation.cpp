@@ -1002,17 +1002,25 @@ struct Conversation::Impl {
         conv->far_since.reset();
       }
     }
-    // Danger (§5.4): the box closes at once, input released, the draft kept; 10 s of it ends the conversation.
-    const bool unsafe = safe_context(around).has_value() || hp_dropped || w.player_died;
-    if (unsafe) {
-      if (conv->box_open) {
-        conv->box_open = false;  // the overlay answers Close{Shut} with the draft
-        toast(ToastClass::Danger, proto::ToastLevel::Info, kMomentPassed);
-      }
+    // Danger (§5.4): the box closes at once, input released, the draft kept; pages shown pace on. Any failing clause of
+    // safe_context closes the box; only a threat (the Tarnished down or riding, a boss, combat, hostiles near) counts
+    // towards the 10 s that end the conversation: a menu or a hidden overlay holds the pages instead (§5.8, 30 s),
+    // and a model that is not ready leaves the conversation open, to its idle timer (impl).
+    const std::optional<Unsafe> unsafe = safe_context(around);
+    const bool threat = hp_dropped || w.player_died ||
+                        (unsafe && *unsafe != Unsafe::Menu && *unsafe != Unsafe::NotActive);
+    if ((unsafe || threat) && conv->box_open) {
+      conv->box_open = false;  // the overlay answers Close{Shut} with the draft
+      toast(ToastClass::Danger, proto::ToastLevel::Info, kMomentPassed);
+    }
+    const bool threat_lasts = unsafe && *unsafe != Unsafe::Menu && *unsafe != Unsafe::NotActive;
+    if (threat) {
       if (!conv->danger_since) conv->danger_since = now;
-      if (safe_context(around) && now - *conv->danger_since >= T::kDangerMs) return end(EndReason::Danger, true);
-    } else {
+    } else if (!threat_lasts) {
       conv->danger_since.reset();
+    }
+    if (conv->danger_since && threat_lasts && now - *conv->danger_since >= T::kDangerMs) {
+      return end(EndReason::Danger, true);
     }
     hold();
     if (!conv) return;
