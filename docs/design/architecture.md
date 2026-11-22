@@ -53,8 +53,8 @@ itself, `eldennet-launcher --watch <pid>` beside the DLL (O71; §4.14). The out-
 
 | # | Thread | Created by | Owner | Runs | Game memory | May block | Allocation | On an exception |
 |---|---|---|---|---|---|---|---|---|
-| T1 | **Init** (transient) | `DllMain` → `CreateThread` | `eldennet`'s `boot`, `en-gal`'s `sys` | Gate, safety, settings, connect to GraceUI, readiness, discovery, `register_task`, worker spawn (§3) | Image only (PE headers, `.text`/`.rdata`/`.data` scans, static slots). The name getter fallback is the only call into game code | Yes (polls with `Sleep(100)`) | Free | `ffi_guard` → L1 banner through GraceUI's `notice` if connected, otherwise a silent exit |
-| T2 | **Game thread** | The game | `en-gal`'s `task` | The one task closure: command drain, render feed, snapshot, flag frame, text and params (§7.3) | **Yes, only here** (R1) | Never | None after warm-up (the first 3 snapshot ticks); retired buffers go back to the core (C5) | `ffi_guard` → task component tripped → the closure returns at once → L1 |
+| T1 | **Init** (transient) | `DllMain` → `CreateThread` | `eldennet`'s `boot`, `en-gal`'s `sys` | Gate, safety, settings, connect to GraceUI, readiness, discovery, the reader's start, worker spawn (§3) | Image only (PE headers, `.text`/`.rdata`/`.data` scans, static slots). No call into game code (O101, since 2026-11-22: the getter fallback and `register_task` are no part of a v1 start; only the probe's R1 round makes them) | Yes (polls with `Sleep(100)`) | Free | `ffi_guard` → L1 banner through GraceUI's `notice` if connected, otherwise a silent exit |
+| T2 | **Reader** (since 2026-11-22; O101 (b), proposal 0005 §9.4 and §10: a thread of EldenNet's own, never the game's) | T1, at Reader (§3.2), suspended until the stack table is made again | `en-gal`'s `task` (`ReaderLoop`, stepped about 30 times a second) | The one task closure: command drain, render feed, snapshot (about 10 a second, 5 while throttled), flag frame, text and params (§7.3), with steady reading (§6.6) | **Yes, only here** (R1), by guarded copies; it calls nothing of the game and writes nothing to it | Sleeps between steps; never on a lock | None after warm-up (the first 3 snapshot ticks); retired buffers go back to the core (C5) | `ffi_guard` → task component tripped → the closure returns at once → L1 |
 | T3 | **Present** | The game (D3D12 present path) | GraceUI's render callback on its Present hook, drawn with Dear ImGui's DX12 backend (GraceUI G15, O25); EldenNet's part is `en-overlay`'s `on_present` callback | EldenNet's callback draws `UiModel` and the render feed as panels within GraceUI's budget (0.5 ms p99, GraceUI D71); GraceUI stamps the last render | No | Never | EldenNet's code: none after warm-up | GraceUI suspends a callback over budget for 120 frames; EldenNet's own trip → its panels draw nothing |
 | T4 | **Window procedure** | The game's window thread | GraceUI (its window-procedure filter) | GraceUI pairs characters, places the IME, releases capture on focus loss and hands characters to the holder, EldenNet's chat box among them | No | Never | None | GraceUI's rules |
 | T5 | **Game input** (one or more) | Whichever game thread calls `GetDeviceState` / `XInputGetState` | GraceUI (its DInput and XInput detours) | Zero the keyboard and mouse buffers and neutralise pads while a holder has input; the held-key mask (DESIGN §8.1, applied by GraceUI to every holder) | No | Never | None | GraceUI's rules |
@@ -482,13 +482,13 @@ stateDiagram-v2
   Discover --> Discover: retry at +5, +15, +30 s
   Discover --> WaitEngine: required items resolved
   Discover --> Banner: required item missing after +30 s
-  WaitEngine --> Register: the task hub's instance non-null; crash filter installed
+  WaitEngine --> Reader: a static of the game's start non-null; crash filter installed
   WaitEngine --> Banner: 120 s since T1 start
-  Register --> FirstTick
-  Register --> Banner: register call faulted
-  Register --> Banner: a run of GraceUI's observer (S0-E, S4): no call
-  FirstTick --> Ready: group check and phase-A tests pass
-  FirstTick --> Inert: tests fail, or no tick in 30 s
+  Reader --> FirstReading: the reader thread started
+  Reader --> Banner: the thread could not be started
+  Reader --> Banner: a run of GraceUI's observer (S0-E, S4): no reader
+  FirstReading --> Ready: phase-A tests pass and a first snapshot is built
+  FirstReading --> Inert: tests fail, or no reading in 30 s
   Inert --> Banner
   Ready --> Exit
   Banner --> Exit
@@ -504,10 +504,10 @@ stateDiagram-v2
 | Connect | `Overlay::connect` (GraceUI G15; §1.4): find `graceui.dll`, `GraceUI_RequestApi(1)`, `connect`; then register EldenNet's faces, panels, hotkeys and its world-state provider. EldenNet installs no hook (R12): GraceUI's init thread hooks DXGI and D3D12 (its Present hook, which draws with Dear ImGui's DX12 backend), the window procedure, and DInput and XInput, all through its one MinHook, finding `GetDeviceState` through a throwaway `IDirectInputDevice8W`'s vtable and `XInputGetState` in every XInput DLL already loaded, by module name (GraceUI D69). *As built (part 12, 2026-11-20):* graceui-sys's look with its stop-if-absent rule, then `connect`, the F11 view with `debug.panel` and the Mark's hotkey when asked for; no face and no surface's panel yet, and the world-state claims are T6's to send (§1.2, §1.4; WHY§216, §218, §230) | 30 s (the helper's bound); at once when no GraceUI is installed or loaded (GraceUI D164) | A failed connect (`too_old`, `duplicate_id`, `inactive`, `refused`, `not_yet`, no GraceUI) → no banner can show. Log it, continue headless at L2 at most, and leave the launcher its hint (§10.3, GraceUI D88) |
 | ConnectB | The banner path's connect: with anti-cheat present GraceUI is notice-only and `connect` answers `inactive (anti-cheat)`, so the banner goes through `notice`, which stays callable; an unknown build connects as usual and shows its banner the same way (GraceUI D88). *As built:* after the crash filter, as Connect does it; the banner is one notice in the warning tone, under EldenNet's key 1, sent by T6 (WHY§221) | 30 s; at once when absent | No GraceUI → no banner can show; logged, with the launcher's hint |
 | Discover | Resolve the full inventory (§6.1): 5 AOB items, 11 singletons, RTTI vtable sets, and image checks (§6.2), the readiness items among them: there is no separate readiness scan (WHY§191). Unresolved items are retried at +5, +15 and +30 s (DESIGN §3.5); since the game writes the FD4 class objects' names at run time, the retries are also the wait for the names | ≤ 31 s plus scan time (budget 500 ms per pass, impl) | A required item is missing → banner. An optional item is missing → its group is disabled |
-| WaitEngine | Poll every 100 ms until the task hub's instance (`CSTask`) is non-null. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
-| Register | Make the stack table again without T1's own stack (§6.5), build our task object and call `register_task` once from T1 (§6.4). *As built (2026-11-20; WHY§249):* in a run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, read from the watch block), T1 stops at the start of Register, before the task is made or anything called (`register skipped=1 why=spike`), raises the `spike_run` banner ("Spike run: EldenNet makes no call into the game") and ends at L1; T6, T10, T11, the connect, F11's view and the recorder run on, and nothing waits for the task. Discovery's and WaitEngine's guarded reads have run before the stop. A probe build sets R1 aside in such a run | — | Fault caught by SEH → banner. Nothing else is retried |
+| WaitEngine | Poll every 100 ms until a static the game sets as it starts is non-null: the task hub's instance (`CSTask`) where discovery has it, else the module handle's static; with neither, nothing is waited on. Then install the crash filter (below) | 120 s from T1 start | Banner "EldenNet inactive: the game did not finish starting" |
+| Reader | *Since 2026-11-22 (O101 (b); proposal 0005 §9.4, §10).* Build the task object, make T2 (the reader, §1.2) suspended, make the stack table again with T2's stack in it and without T1's (§6.5), then let T2 go (`reader started=1`). Nothing of the game is called and nothing is registered with it: `register_task` is no part of a v1 start. In a run of GraceUI's observer (the launcher's `--spike s0e` or `s4`, read from the watch block), T1 stops at the start of Reader, before the reader is made (`reader skipped=1 why=spike`), raises the `spike_run` banner and ends at L1; T6, T10, T11, the connect, F11's view and the recorder run on, and nothing waits for the task. Discovery's and WaitEngine's guarded reads have run before the stop. A probe build sets R1 aside in such a run. *Before:* Register, the one call of `register_task` from T1 (§6.4), which only the probe's R1 round still makes; the watch block keeps its states `register` and `first_tick` for that round, and `reader` and `first_reading` were appended | — | The thread cannot be made → banner. Nothing else is retried |
 | R1 | A probe build asked for R1 (by `settings.toml`'s `probe` table or the launcher's `--probe`): the derivation over the live image, its checks, the one call at the owner's Mark, then the game thread's searches; T1 stays as the probe's reporter for the session (§6.2, §6.10; WHY§193) | 30 s after the call for the game to call a slot | A failed check → no call (`refused`); no slot called → `no_confirmation` |
-| FirstTick | Wait for the first tick. On the game thread, the task checks that the group at the layout's index is named `ChrIns_PostPhysics` (§6.3), then runs the phase-A self-tests over ≤ 8 ticks (§6.7) | 30 s for the first tick (impl) | No tick or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
+| FirstReading | Wait for the reader's first snapshot. On T2, the task runs the phase-A self-tests over ≤ 8 steps (§6.7), then builds a snapshot; there is no group check, since the reader is in no group of the game's (the check that the group at the layout's index is named `ChrIns_PostPhysics`, §6.3, belongs to the game's task) | 30 s for the first reading (impl) | No reading or a failed structural test → task **inert** (the closure returns after one atomic load; zero reads) → banner |
 | Ready | Send `Lifecycle::DataReady{build, caps}`; spawn store and net; another module exporting `eldennet_instance_marker` is noted as an idle second copy (§1.6); T1 exits | — | — |
 
 On the banner path (an unknown build or anti-cheat) T1 waits for the window, installs the crash filter, connects
@@ -532,7 +532,7 @@ watcher record a crash with its place (§4.14).
   before ours.
 
 **Required vs optional items.**
-- **Required:** `register_task`, `CSTask`, `WorldChrMan`, `GameDataMan`, `GameMan` and `CSSessionManager`. They back `boot`, `world`, `player` and `session`.
+- **Required:** (`register_task` and `CSTask` only for the game's task, so not in a v1 start, O101) `WorldChrMan`, `GameDataMan`, `GameMan` and `CSSessionManager`. They back `boot`, `world`, `player` and `session`.
 - **Optional:** everything else. A missing optional item disables only its read group (DESIGN §3.5).
 
 `CSNowLoadingHelper` is optional too. Without it, loading is detected from `main_player` and the screen state alone (§9).
@@ -949,6 +949,29 @@ values to filter by.
 
 ### 6.2 Discovery
 
+*Since 2026-11-22 (Lodestar: proposal 0005, O100 to O103; WHY§310 to §316).* Discovery at start is becoming "load the
+build's table and check each id", and what follows in this section is how an id is found when the table does not hold
+it yet, and how the table is made:
+- **The table first.** A layout of schema 2 holds the build's table (`[item.<label>]`, §6.3) under the ids of
+  `gal/ids.toml`. At start each entry is checked against the image as loaded and never searched for: placement (the
+  value lies where its kind must) and witnesses (each recorded place in the code still refers to it, decoded with our
+  own decoder). An id whose check fails is refused alone: nothing looks for it nearby, its place is handed out to no
+  one, and a required one stops the start. With every static in the table a start scans for nothing (built and tested
+  on the fake game and in `test_discovery_table.cpp`; the real build's table comes with step L5).
+- **No call.** A v1 start reads on a thread of its own (O101 (b)), so it never calls the getter and never registers:
+  step 3's fallback below and `register_task` are the probe's R1 round's alone. A singleton is named by the name
+  layout where a build has one, else by the table (O92: by its instance's class, written into the table at L5).
+- **No bytes in `gal/`** (O102 (a)). The accessor is found by its shape (`gal/recipes.toml`, five instruction forms
+  decoded by our own decoder, with no byte of the game), which replaced the `fd4_idiom` pattern; `patterns.toml` is
+  withdrawn. On 2.7.2.0 the shape gives 7,077 places, each accepted, and 217 statics (the owner's two offline runs,
+  `docs/ops/probes/2026-11-22-l3.md`); the withdrawn pattern accepted four places more, each a test of another
+  register than the one loaded, which gave two statics that are none.
+- **R0 is now `lodestar find`** (`eldennet-engine lodestar find <exe> --gal <folder> --out <file>`): offline, on the
+  executable file, numbers and our own labels only (report kind `lodestar`, schema 2). R1's one call leaves the
+  round; its successor is a read-only in-game round (L5).
+- **The name layout is dead for this game**: its class objects are things of one byte (110 of the 217 lie at odd
+  offsets), so nothing can be read from them (WHY§314). `[dlrf]` and `dlrf_name_layout` stay for the fake game.
+
 All discovery runs on T1 over the executable image as the loader mapped it, read through the `SysLayer`'s guarded
 image view (§6.4): only ranges that `VirtualQuery` reports committed, readable and without a guard page, so discovery
 never lifts a guard in the game's image (WHY§160). Sections are copied in 1 MiB chunks (with an overlap of the longest
@@ -1044,6 +1067,22 @@ Budget: about 10–15 ms of matching is expected (ER01 §4). A whole discovery p
 - Every other layout class with an `rtti` value gets its own vtable and those of the classes deriving from it.
 
 ### 6.3 File schemas (`gal/`, read at boot only)
+
+*Since 2026-11-22 (Lodestar, proposal 0005 §4 to §6).* `gal/` gains two files and the layout a second schema; the
+schemas below stand for what they still describe:
+- **`ids.toml`**, the catalogue: every place EldenNet needs, under a number and a label of our own (`[[id]]`: `n`,
+  `label`, `kind` of static, function, class or table, `means`, `needs`, `required`, and `was` for an older label).
+  Numbers are permanent: statics from 1000, functions from 2000, classes from 3000, tables from 4000; a retired id is
+  never reused.
+- **`recipes.toml`**: how an id is found, as shapes and relations with no byte of the game (`[[recipe]]`: `id`, `kind`,
+  `steps` of instruction forms, `gives`, `path_suffix`, `expect_matches`, provenance). It replaces `patterns.toml`
+  (O102 (a)); each recipe has its derivation note in `gal/derivations/`.
+- **The layout, schema 2**: schema 1's classes and fields, plus the build's table, `[item.<label>]` (`id`, `kind`,
+  `rva`, and by kind `length`, `stride` and `count`, or `vtables`; `found_by`, the recipes that gave the value
+  independently; `witnesses`; `digest` and `verdict` for a function; `checks`; `status`), and `[provenance]` (the
+  tool's label and digest, the round, the date, the leads; never a path or a name of anyone's). A layout with a table
+  is refused without the catalogue, an entry must agree with it in label, number and kind, and a `confirmed` static
+  needs a witness.
 
 ```toml
 # gal/builds.toml
@@ -1212,6 +1251,16 @@ npc_param_ids  = []
   with its group; the fake game's layout shows every class and field the groups read (WHY§166, §197).
 
 ### 6.4 `SysLayer`, `GameBackend` and `GameThread`
+
+*Since 2026-11-22 (O101 (b); proposal 0005 §9.4, §10).* The token below is the reading thread's: in v1 that is T2, the
+reader, a thread of EldenNet's own, and `run_task` (the one place that issues it) is called by `ReaderLoop::step`, not
+by the game. `SysLayer::register_task` and `call_getter` are no part of a v1 start: they remain for the probe's R1
+round and for the later task service (proposal 0005 §9.6, step L7), which the owner decides on again when it is
+confirmed. Who runs the reading is `FrameProvider` (`GameTask` or `OwnThread`); the rest of EldenNet does not know
+which. For a reader that is not in step with the frame the backend reads steadily (`BackendOptions::steady`):
+structure words are read again before a snapshot is published and one that changed drops the reading
+(`ReadError::Unsteady`), a change of the lifecycle is published at its second sighting, and a group's fault counts
+toward its breaker only when it comes twice running.
 
 ```cpp
 // en-proto
@@ -1489,6 +1538,13 @@ stateDiagram-v2
 The cost is one descent and one 125-byte copy per group, not per flag.
 
 ### 6.10 Patch-absorption runbook (budget 1–7 days; DESIGN §4.6)
+
+*Since 2026-11-22 (Lodestar, proposal 0005 §8, §13).* The runbook is changing with the address library, step by step:
+R0 (step 2) is `eldennet-engine lodestar find` on the new executable, whose report (kind `lodestar`, numbers and our
+own labels) is reviewed into a draft table; R1's call (step 3) leaves the round, replaced at L5 by a read-only round
+in game that names the statics by their instances' classes and adds the witnesses; and the release of `gal/` carries
+the new build's table, `ids.toml` and `recipes.toml`, with no pattern cut from the game. The steps below describe the
+rounds as they ran on 2.7.2.0 and stay until L5 lands.
 
 ```mermaid
 flowchart LR

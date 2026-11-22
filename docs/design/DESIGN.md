@@ -161,10 +161,10 @@ rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
 
 | Thread | Runs | Game memory? |
 |---|---|---|
-| Game thread | The single GAL task closure | **Yes, only here.** It never blocks, locks or allocates after warm-up |
+| Reader (EldenNet's own; O101 (b), since 2026-11-22) | The single GAL task closure, stepped about 30 times a second; a snapshot about 10 times a second | **Yes, only here**, by guarded copies. It calls nothing of the game, writes nothing to it, and never locks or allocates after warm-up. The game's own thread runs none of EldenNet's code in v1 |
 | Present thread | GraceUI's Present hook, which draws its frame with Dear ImGui's DX12 backend (GraceUI G15, O25); EldenNet's work there is its `on_present` callback, which draws `UiModel` and the render feed as panels within GraceUI's budget (GraceUI D71) | No |
 | Game input thread(s) | GraceUI's DirectInput and XInput detours, which mask input for whichever holder has it; EldenNet installs none | No |
-| Init (transient) | Gate, readiness wait, discovery, task registration | Image scans only, before the task exists |
+| Init (transient) | Gate, readiness wait, discovery (the build's table checked, ARCH §6.2), the reader's start | Image reads only, before the reader exists |
 | Core | `Core::step`, woken by one signal that every producer raises, then each input queue drained in a fixed order | No |
 | Net (en-llm's own threads, built: a fixed pool of one more worker than the providers' total concurrency, 2 to 8, and one dispatcher), store (SQLite's C API), watcher (`ReadDirectoryChangesW`) | Effects | No |
 
@@ -178,7 +178,7 @@ rejected as the v1 default (J1 #11, J2 §4.2) and kept as a seam (§13).
   thread.
 - Core ↔ store: 1,024 each way. Core ↔ net: 64 requests and 1,024 stream events.
 
-The game and render threads use only non-blocking `try_push` and `try_pop` on lock-free queues, atomics and
+The reader and render threads use only non-blocking `try_push` and `try_pop` on lock-free queues, atomics and
 preallocated buffers (P1 R5, P2 §2.3).
 
 ### 2.2 Modules
@@ -459,6 +459,13 @@ That is 5 AOB items, 11 singletons and about 65 fields (P1 §2.5, J1 §7.1 #3). 
 **Required items** are `register_task`, `CSTask`, `WorldChrMan`, `GameDataMan`, `GameMan` and `CSSessionManager`. Everything else is optional: if it is missing, only its group is off.
 
 ### 4.2 Discovery
+
+*Since 2026-11-22 (Lodestar: proposal 0005, O100 to O103).* A start loads the build's table and checks each id in it
+(placement and witnesses), searching for nothing the table holds; the finders below make the table, offline
+(`lodestar find`), and serve at start only for what a table does not hold yet. `gal/` holds no byte of the game: the
+accessor is a shape in `recipes.toml`, and `patterns.toml` is withdrawn (O102). A v1 start makes no call into the game:
+the getter fallback and the registration are the probe's R1 round's alone (O101), and R0 is now `lodestar find`
+(ARCH §6.2).
 
 - **FD4 singleton finder:** our own code, written from the documented idiom (ER01 §4). It matches the `.text` shape `mov reg,[static]; test; jnz; lea rcx,[class]; call get_name; …`, with the static and class in `.data` and a path string in `.rdata` ending in `FD4Singleton.h`. Class names are read from the DLRF runtime class directly, where R1 and S0-A confirm its layout; the game writes those names at run time, so they are read in game only (R0c; ARCH §6.2). Calling the game's getter is a fallback, used once per candidate at init only, under the SEH guard. Expect 10–15 ms.
 - **AOB patterns** live in `gal/patterns.toml` with provenance notes. They are anchored inside function bodies (entry+5 or later), because other mods hook prologues (ER01 §4). Every hit is validated by prologue, length, section and RTTI.
@@ -2162,8 +2169,8 @@ No FromSoftware material lives anywhere in the repo. Output built from a player'
 
 | Spike | Question | Pass | Blocks |
 |---|---|---|---|
-| **S0-A Untouched image** | Do our finder and the 5 AOB items resolve without dearxan, under early and late load, alone and beside me3 (with `disable_arxan`), ERSC and Reforged? | 20/20 launches per mode, else L1 with no crash | v0.1 (the third-party rows as the owner can; a row not run blocks v0.1 among the compatibility rows, O91) |
-| **S0-B Task without dearxan** | Does the task tick for 2 h with no code-restoration trouble? | 0 faults; p99 ≤ 0.5 ms | v0.1 |
+| **S0-A Untouched image** (since 2026-11-22: the ids of the build's table, each passing its checks, in place of the finder's hits and five patterns; proposal 0005 §15) | Do our finder and the 5 AOB items resolve without dearxan, under early and late load, alone and beside me3 (with `disable_arxan`), ERSC and Reforged? | 20/20 launches per mode, else L1 with no crash | v0.1 (the third-party rows as the owner can; a row not run blocks v0.1 among the compatibility rows, O91) |
+| **S0-B Reader without dearxan** (since 2026-11-22, O101: the reader on EldenNet's own thread, not a task of the game's) | Does the reader read for 2 h with no trouble? | 0 faults confirmed (a fault counts when it comes twice running); p99 ≤ 0.5 ms a step | v0.1 |
 | **S0-C Launcher and offline** | No-EAC start on Windows and Proton; the `SteamAppId` variant; the session gate solo and in ERSC (via the player's me3); is a FromSoftware connection impossible? | Gate false in every session; no online menu | v0.1 (the ERSC and Proton rows as the owner can, O91) |
 | **S0-D Guarded reads** | Forced faults beside ERSC, the Steam overlay and a VEH-installing crash reporter; the crash watcher's record beside the game's own handler and other mods' (O71) | 20/20 caught; breakers trip; every forced crash recorded by the watcher | v0.1 (first beside our own stand-in DLL with a vectored handler; the third-party rows as the owner can, O91) |
 | **S0-E Hook coexistence** | GraceUI's hooks installed once, in both load orders, beside another DInput overlay; EldenNet connecting to them (GraceUI G15) | Both mods work; no leak | v0.1 (the present hook, on GraceUI's 0.1 Host, in both load orders, beside another overlay); v0.2 (the input hooks) |

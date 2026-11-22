@@ -855,8 +855,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     from recordings; the property and backpressure tests; about 26 µs a busy step (WHY§222 to §226). Part 12 moved to
     GraceUI 3f1352b the same day: an unbound hotkey answered as such, the helper's stop-if-absent, GraceUI's own
     folder and graceui.toml (WHY§230 to §233).
-- b Spikes S0-A to S0-D: the untouched image, the task without dearxan, the launcher and offline play, guarded reads [waiting]
+- b Spikes S0-A to S0-D: the untouched image, the reader without dearxan (the task before O101), the launcher and offline play, guarded reads [waiting]
   - needs: a, f
+  - gives: since 2026-11-22 (O101, Lodestar's L4) S0-A checks the ids of the build's table in place of the finder's hits
+    and five patterns, and S0-B the reader on EldenNet's own thread for 2 h in place of the game's task (DESIGN §16.1);
+    both wait on L5's first table (S10.1.k).
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
   - needs: b
   - refs: O90
@@ -976,17 +979,29 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The second run the same day: the 4 sites test another register than the one loaded, so they are no manager's slot;
     the shape is right, its expected count is 7,077 on 2.7.2.0, and one class object goes with each static (engine
     4624553; WHY§316). L3 done. Next: L4 (discovery through the table, the reader thread), then L5, the read-only package.
+    L4 done on 2026-11-22 (engine 3f65014; WHY§317 to §321): a start takes each id the build's table holds from the table
+    and checks it, searching for nothing the table holds; the reader on EldenNet's own thread (T2) with steady reading
+    (torn readings dropped, lifecycle changes held for a second sighting, faults confirmed twice); no registration and
+    no getter in a v1 start; ARCH §1.2, §3.2, §6.2 to §6.4, §6.10 and DESIGN §2.1, §4.2, §16.1 updated. On the real build
+    a start ends at the discovery banner until L5 writes the first table. Next: L5, the read-only in-game package.
+    L5 built the same day (engine 7995413; WHY§322 to §325): the read-only round (managers named by their instances'
+    classes, the draft table checked as a start checks it, the reader's trial), the launcher's `--read` and the read
+    package (0.1.0-lodestar.3); the owner's run (about 15 minutes) is next. After its review: the first table for
+    2.7.2.0 enters `gal/` as leads, R1's package and `probe_r1.cpp` retire with the owner's word, and S10.1's items that
+    waited on R1's call only for the managers' places are superseded by this round.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
   - refs: DESIGN§3, ARCH§4, ARCH§5, O5
 - b The game-access layer: discovery, layouts, guarded reads, the eleven read groups, the degradation ladder
   - refs: DESIGN§4, ARCH§6, O3, O27
-- c The game-thread task, the world snapshot, and Augur, the event engine, with golden files
-  - refs: DESIGN§5, DESIGN§6, ARCH§8
+- c The reader (EldenNet's own thread since O101; the game-thread task before), the world snapshot, and Augur, the event engine, with golden files
+  - refs: DESIGN§5, DESIGN§6, ARCH§8, O101
   - gives: Augur v0.1 built on 2026-11-20 (S10.1.a's part 11, WHY§222 to §226), with three synthetic routes' goldens;
     the task and snapshot in parts 4 and 6. What C12 (S10.3.a) still needs: three recorded routes of the owner's game,
     redacted so they may be committed, each made a route with `golden update <recording>`.
+    Since 2026-11-22 (O101; Lodestar's L4, engine 3f65014) the task closure is stepped on EldenNet's own reader thread
+    (T2), about 30 times a second with a snapshot about 10 times a second, and a v1 start registers nothing in the game.
 - d The banner, the debug view, recording and replay
   - refs: DESIGN§14
   - gives: the banner as a GraceUI notice and the F11 debug view built on 2026-11-20 (S10.1.a's part 12); recording and
