@@ -339,6 +339,11 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 314 | 2026-11-22 | The accessors' class objects are no objects with a table of methods; O92's way is the only one | FACT | #gal #lodestar #derive |
 | 315 | 2026-11-22 | On 2.7.2.0 the accessor's shape stands at 7,077 places, all also the pattern's; the pattern accepts 4 more | FACT | #gal #lodestar |
 | 316 | 2026-11-22 | One class object for each static, and the reverse, is an invariant of the accessors worth checking by itself | METHOD | #gal #lodestar |
+| 317 | 2026-11-22 | v1's start makes no call into the game; the reader is a thread of EldenNet's own | DECIDED | #gal #lodestar #boot |
+| 318 | 2026-11-22 | The table takes over id by id: an id it holds is never searched for | METHOD | #gal #lodestar |
+| 319 | 2026-11-22 | Steady reading out of step with the frame: torn, held and unconfirmed, each counted | METHOD | #gal #lodestar |
+| 320 | 2026-11-22 | On the fake game the own-thread reader reads the same truth as the registered task, the hub untouched | FACT | #gal #lodestar #fakegame |
+| 321 | 2026-11-22 | With no getter and a dead name layout, the real game's managers can be named only by the table | FACT | #gal #lodestar |
 
 ## Entries
 
@@ -5387,3 +5392,53 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   verdict, which on 2.7.2.0 would call every run incomplete for a difference now understood.
 - **Built** (FACT): `gal/recipes.toml`'s accessor has `expect_matches = [7077, 7077]` with its note (engine feat/engine
   4624553). L3 is done: the tool, both of the owner's runs and their record.
+
+### 317. v1's start makes no call into the game; the reader is a thread of EldenNet's own
+
+`2026-11-22` · DECIDED · `#gal` `#lodestar` `#boot` · refs: O101, proposal 0005 §9.4, §10, S10.1.k
+
+- **The start** (DECIDED): T1 goes Discover, WaitEngine, Reader, FirstReading, Ready, with no `install_task` and no getter;
+  only the probe's R1 round still makes those calls, until L5 replaces it. The reader (T2) is a thread of EldenNet's own,
+  made suspended so that the stack table can be made again with its stack in it and without T1's, then let go; it steps
+  the task closure about 30 times a second and builds a snapshot about 10 times a second.
+- **The watch block** (DECIDED): its states `reader` and `first_reading`, and the thread kind `reader`, were appended,
+  never renumbered; `register` and `first_tick` stay for the game's task, which only the R1 round uses. In a crash
+  record "game" now means the thread of the game's window. en-proto's ReadError gained `Unsteady`. Engine feat/engine
+  3f65014.
+
+### 318. The table takes over id by id: an id it holds is never searched for
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: proposal 0005 §7.1, §9.1, S10.1.k
+
+- Discovery asks the build's table first; an id the table holds is never searched for, even when its check fails, and
+  an id it does not hold is found the old way. So a wrong entry cannot be rescued by a search that happens to agree with
+  it, and a partial table is still usable. Tested with a table that puts one static on another's slot while the pattern
+  for the true slot sits in the folder: refused as `witness_elsewhere`, the pattern not asked. An id whose check fails is
+  refused alone; a required one stops the start.
+
+### 319. Steady reading out of step with the frame: torn, held and unconfirmed, each counted
+
+`2026-11-22` · METHOD · `#gal` `#lodestar` · refs: proposal 0005 §10, O101, WHY§309, S10.1.k
+
+- Three rules, each counted: **torn** (a structure word changed between the reading and its re-reading: the reading is
+  dropped), **held** (a change of lifecycle waits for a second sighting, so a one-reading blip is never published),
+  **unconfirmed** (a group's fault that did not come twice running does not count toward its breaker). A dropped reading
+  counts against no group, and the next snapshot carries `gap`.
+
+### 320. On the fake game the own-thread reader reads the same truth as the registered task, the hub untouched
+
+`2026-11-22` · FACT · `#gal` `#lodestar` `#fakegame` · refs: S10.1.k
+
+- Under Wine, in every case tried (the world, late statics, moves with the old places released, loading screens, online,
+  faults in an optional and in a structural group), the reader on EldenNet's own thread read what the registered task
+  read, with no registration, no task of ours live and none of our slots called. About 142 snapshots in 14.5 s (the
+  game's task gave 58), no allocation on the reader, a step's p99 under 0.2 ms; lifecycle changes held for a second
+  sighting 2 in a plain run and 7 across loading screens; no torn reading. The fake game's harness 112 of 112, seven
+  cases new, and the launcher cases check that the DLL never took `register` or `first_tick`.
+
+### 321. With no getter and a dead name layout, the real game's managers can be named only by the table
+
+`2026-11-22` · FACT · `#gal` `#lodestar` · refs: WHY§314, O101, S10.1.k
+
+- With no getter (O101) and the name layout dead for this game (WHY§314), the real game's managers can be named only by
+  the build's table. Until L5 writes it, a v1 start on the real build ends at the discovery banner, as it must.
