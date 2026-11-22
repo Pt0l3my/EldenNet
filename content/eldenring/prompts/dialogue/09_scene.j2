@@ -1,0 +1,12 @@
+{# Block 9, here and now (NPC §7.3): the place, the time and verified weather, at most four nearby others, the
+   Tarnished as seen, the "you, now" line when the persona is hurt, fighting or afflicted, and at most three things
+   just seen or heard. At most 210 tokens; its nearby others are trimmed last. #}
+[ user ]
+{% if not (empty(scene.place) and empty(scene.nearby) and empty(scene.tarnished) and empty(scene.you_now) and empty(scene.just_now)) %}
+Here and now:
+{% if not empty(scene.place) %}{{ scene.place }}{% if not empty(scene.time_word) %}, {{ scene.time_word }}{% endif %}{% if not empty(scene.weather_word) %}, {{ scene.weather_word }}{% endif %}.{% endif %}
+{% if not empty(scene.nearby) %}Nearby: {{ join(scene.nearby, "; ") }}.{% endif %}
+{% if not empty(scene.tarnished) %}The Tarnished: {{ scene.tarnished }}.{% endif %}
+{% if not empty(scene.you_now) %}You, now: {{ scene.you_now }}.{% endif %}
+{% if not empty(scene.just_now) %}Just now: {{ join(scene.just_now, "; ") }}.{% endif %}
+{% endif %}

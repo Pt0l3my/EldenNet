@@ -151,6 +151,9 @@ struct LintContext {
   std::span<const std::string> names;     // proper nouns this turn shows: lexicons, runtime names, places, the KB
   std::string_view told_name;             // the Tarnished's name, once told (MEM §2.2); empty until then
   LintTally tally;                        // the last reply's (LintTally{} for a conversation's first)
+  // Part A's additions, each defaulting to what changes nothing:
+  std::span<const std::string> self_names;  // the persona's own names, for third-person self-reference (none: unchecked)
+  std::span<const std::uint8_t> tic_max;    // each tic's max_per_conversation, in `tics`' order (missing: 1)
 };
 
 // One reply's lint: its sentences in order, each checked once.

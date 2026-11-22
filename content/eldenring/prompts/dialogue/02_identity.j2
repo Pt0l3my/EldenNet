@@ -1,0 +1,4 @@
+{# Block 2, identity (NPC §7.3): who the persona is, as a stranger would see it; part of cache B. At most 120 tokens. #}
+[ system ]
+Who you are:
+{% if empty(persona.identity) %}You are {{ name }}.{% else %}{{ persona.identity }}{% endif %}{% if not empty(persona.role) %} Others see you as {{ persona.role }}.{% endif %}{% if not empty(persona.summary) %} {{ persona.summary }}{% endif %}{% if not empty(persona.appearance) %} {{ persona.appearance }}{% endif %}

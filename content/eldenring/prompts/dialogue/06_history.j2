@@ -1,0 +1,19 @@
+{# Block 6, earlier and now (NPC §7.3): the previous conversation's last shown lines under a fixed header, then this
+   conversation's completed exchanges, the Tarnished's words quoted as user, the persona's shown words as assistant.
+   At most 900 tokens; trimmed first, oldest first, keeping the last two exchanges. #}
+{% if not empty(earlier) %}
+[ user ]
+Earlier, when you last spoke with the Tarnished:
+{% for line in earlier %}
+{% if line.tarnished %}The Tarnished: {{ quote(line.text) }}{% else %}You: {{ quote(line.text) }}{% endif %}
+{% endfor %}
+{% endif %}
+{% for turn in history %}
+{% if turn.tarnished %}
+[ user ]
+The Tarnished: {{ quote(turn.text) }}
+{% else %}
+[ assistant ]
+{{ turn.text }}
+{% endif %}
+{% endfor %}
