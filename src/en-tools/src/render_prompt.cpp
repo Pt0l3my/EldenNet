@@ -1,10 +1,12 @@
 // eldennet-engine render-prompt: renders a template folder or file with a JSON context into chat messages, lints
-// templates, and prints the function reference generated from en-prompt's registry.
+// templates, prints the function reference generated from en-prompt's registry, and renders the dialogue prompt a
+// fixture gives (--fixture: en-core's renderer over the content pack's templates, as the engine renders it).
 #include <cstdio>
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -12,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include "en/prompt/prompt.hpp"
+#include "prompt_fixture.hpp"
 
 namespace {
 
@@ -23,6 +26,7 @@ constexpr const char* usage_text =
     "                                     [--json] [--no-merge]\n"
     "       eldennet-engine render-prompt <template folder or file> --lint [--context <file.json>] [--root <dir>]\n"
     "       eldennet-engine render-prompt --list-functions [--json]\n"
+    "       eldennet-engine render-prompt --fixture <file.json> [--content <pack>] [--json]\n"
     "\n"
     "  Renders the template, or the numbered parts of a folder, with the context into chat messages. Template\n"
     "  names in render_template() resolve from --root, the current folder by default; the template must lie\n"
@@ -31,7 +35,10 @@ constexpr const char* usage_text =
     "  --no-merge        keep consecutive messages with the same role apart\n"
     "  --lint            check the template and the templates it names, every branch, without rendering;\n"
     "                    with --context, also find variable names the context lacks\n"
-    "  --list-functions  print the function reference (Markdown), or with --json the lint's allowlist\n";
+    "  --list-functions  print the function reference (Markdown), or with --json the lint's allowlist\n"
+    "  --fixture         render the dialogue prompt a fixture gives (tests/fixtures/prompt/), with en-core's\n"
+    "                    renderer over the pack's prompts/ (--content, content/eldenring by default): its blocks,\n"
+    "                    caps, trim and cache marks, in the prompt goldens' form, or with --json as JSON\n";
 
 struct Options {
   std::string target;
@@ -41,6 +48,8 @@ struct Options {
   bool merge = true;
   bool lint = false;
   bool list_functions = false;
+  std::string fixture;
+  std::string content;
 };
 
 int usage_error(const std::string& message) {
@@ -72,6 +81,10 @@ std::string parse_arguments(int argc, char** argv, Options& options) {
       options.merge = false;
     } else if (argument == "--lint") {
       options.lint = true;
+    } else if (argument == "--fixture") {
+      if (!value(options.fixture)) return "--fixture needs a file";
+    } else if (argument == "--content") {
+      if (!value(options.content)) return "--content needs a folder";
     } else if (argument == "--list-functions") {
       options.list_functions = true;
     } else if (argument == "--help" || argument == "-h") {
@@ -85,6 +98,13 @@ std::string parse_arguments(int argc, char** argv, Options& options) {
     }
   }
   if (options.list_functions) return {};
+  if (!options.fixture.empty()) {
+    if (!options.target.empty() || options.lint || !options.context_file.empty() || !options.root.empty()) {
+      return "--fixture takes no template, --context, --root or --lint";
+    }
+    return {};
+  }
+  if (!options.content.empty()) return "--content goes with --fixture";
   if (options.target.empty()) return "name a template folder or file";
   if (!options.lint && options.context_file.empty()) return "--context is needed to render";
   return {};
@@ -162,6 +182,63 @@ int render(const prompt::Environment& environment, const std::string& name, cons
   return 0;
 }
 
+// The dialogue prompt a fixture gives, through en-core's renderer: the prompt goldens' form, or JSON.
+int render_fixture(const Options& options) {
+  std::ifstream in(fs::path(options.fixture), std::ios::binary);
+  if (!in) return failure("cannot read the fixture");
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  auto fixture = en::tools::parse_prompt_fixture(text);
+  if (!fixture) return failure("the fixture: " + fixture.error());
+  const fs::path pack = options.content.empty() ? fs::path("content") / "eldenring" : fs::path(options.content);
+  std::map<std::string, std::string> templates;
+  std::string problem;
+  if (!en::tools::read_pack_prompts(pack, templates, problem)) return failure(problem);
+  auto renderer = en::core::DialoguePrompt::load(templates);
+  if (!renderer) return failure("the pack's prompts: " + renderer.error().detail);
+  const auto report = (*renderer)->report(fixture->context());
+  std::string name = fs::path(options.fixture).filename().string();
+  if (name.size() > 12 && name.compare(name.size() - 12, 12, ".prompt.json") == 0) name.resize(name.size() - 12);
+  if (options.json) {
+    nlohmann::json out = {{"fixture", name}};
+    if (report) {
+      nlohmann::json messages = nlohmann::json::array();
+      for (const en::proto::Message& m : report->prompt.messages) {
+        nlohmann::json parts = nlohmann::json::array();
+        for (const en::proto::Part& p : m.parts) parts.push_back({{"text", p.text}, {"cache", p.cache_break}});
+        messages.push_back({{"role", m.role == en::proto::Role::System ? "system"
+                                     : m.role == en::proto::Role::User ? "user"
+                                                                       : "assistant"},
+                            {"content", m.joined()},
+                            {"parts", parts}});
+      }
+      nlohmann::json blocks = nlohmann::json::array();
+      for (std::size_t i = 0; i < en::core::kBlockCount; ++i) {
+        blocks.push_back({{"block", en::core::kBlocks[i].number},
+                          {"tokens", report->blocks[i].tokens},
+                          {"cap", en::core::kBlocks[i].cap},
+                          {"over_cap", report->blocks[i].over_cap}});
+      }
+      out["messages"] = messages;
+      out["token_estimate"] = report->prompt.tokens;
+      out["blocks"] = blocks;
+      out["trimmed"] = {{"earlier", report->earlier_trimmed},
+                        {"exchanges", report->exchanges_trimmed},
+                        {"nearby", report->nearby_trimmed}};
+    } else {
+      out["refused"] = {{"detail", report.error().detail}};
+    }
+    std::printf("%s\n", out.dump(2).c_str());
+  } else {
+    std::fputs(en::tools::prompt_golden_text(name, report).c_str(), stdout);
+  }
+  if (!report) {
+    std::fprintf(stderr, "render-prompt: the render was refused, so nothing would be sent: %s\n",
+                 report.error().detail.c_str());
+    return 1;
+  }
+  return 0;
+}
+
 }  // namespace
 
 int run_render_prompt(int argc, char** argv) {
@@ -174,6 +251,7 @@ int run_render_prompt(int argc, char** argv) {
     return usage_error(problem);
   }
   if (options.list_functions) return list_functions(options);
+  if (!options.fixture.empty()) return render_fixture(options);
 
   try {
     std::error_code error;

@@ -1,0 +1,8 @@
+{# Block 7, what you know now (NPC §7.3): the stage's where, mood and gist. The since-line, the reaction cue and the KB
+   lines come with the store and memory (v0.3). At most 280 tokens. #}
+[ user ]
+{% if not (empty(stage.where) and empty(stage.mood) and empty(stage.gist)) %}
+What you know now:
+{% if not empty(stage.where) %}You are {{ stage.where }}.{% endif %}{% if not empty(stage.mood) %} You feel {{ stage.mood }}.{% endif %}
+{% if not empty(stage.gist) %}{{ stage.gist }}{% endif %}
+{% endif %}

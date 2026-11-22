@@ -1,8 +1,8 @@
 // eldennet-engine: runs EldenNet's engine outside the game (roadmap S8.1.a, S8.1.g).
 // Each subcommand lives in its own file: render_prompt.cpp, chat.cpp, decide.cpp, probe.cpp (probe and models),
 // probe_exe.cpp (the derivation's offline round), lint.cpp (lint), spike.cpp (rec-stats, replay, spike-report) and
-// golden.cpp (golden, over lib/: the scenario DSL and the golden runner) and eval.cpp (eval and mockllm, over lib/'s
-// eval runner and scripted model).
+// golden.cpp (golden, over lib/: the scenario DSL and the golden runner, and the prompt goldens), lexicon.cpp
+// (lexicon: the lint's lexicon) and eval.cpp (eval and mockllm, over lib/'s eval runner and scripted model).
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -23,6 +23,7 @@ int run_rec_stats(int argc, char** argv);
 int run_replay(int argc, char** argv);
 int run_spike_report(int argc, char** argv);
 int run_golden(int argc, char** argv);
+int run_lexicon(int argc, char** argv);
 int run_eval(int argc, char** argv);
 int run_mockllm(int argc, char** argv);
 
@@ -40,7 +41,9 @@ void usage() {
       "  lint           check a numbers-only report (--report), a recording (--recording) or gal/ (--gal)\n"
       "  rec-stats      what a recording holds, as a numbers-only report\n"
       "  replay         step a recording's inputs through the core (and Augur) again, and compare its changes\n"
-      "  golden         run a scenario or a recording through Augur and compare with its golden file\n"
+      "  golden         run a scenario or a recording through Augur, or render a prompt fixture, and compare with\n"
+      "                 its golden file\n"
+      "  lexicon        the lint's lexicon: fingerprints for the safety list, and a check of the pack's lists\n"
       "  spike-report   DESIGN 16.1's pass rules for S0-A to S0-D over spike logs and recordings\n"
       "  eval           run a scripted conversation against a scripted or recorded model, and report\n"
       "  mockllm        check a scripted model's script and print the events it gives\n"
@@ -67,6 +70,7 @@ int main(int argc, char** argv) {
   if (cmd == "replay") return run_replay(argc - 1, argv + 1);
   if (cmd == "spike-report") return run_spike_report(argc - 1, argv + 1);
   if (cmd == "golden") return run_golden(argc - 1, argv + 1);
+  if (cmd == "lexicon") return run_lexicon(argc - 1, argv + 1);
   if (cmd == "eval") return run_eval(argc - 1, argv + 1);
   if (cmd == "mockllm") return run_mockllm(argc - 1, argv + 1);
   if (cmd == "version") {

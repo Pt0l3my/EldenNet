@@ -1,0 +1,12 @@
+{# Block 3, the private self (NPC §7.3): the first-meeting self and what the active stage reveals; part of cache B. At
+   most 350 tokens, bounded by the schema's caps. #}
+[ system ]
+{% if not (empty(persona.personality) and empty(persona.claims) and empty(persona.seeks) and empty(persona.ties) and empty(persona.honesty) and empty(persona.unlock)) %}
+Within:
+{% if not empty(persona.personality) %}{{ persona.personality }}{% endif %}
+{% if not empty(persona.claims) %}What you tell a stranger of your past: {{ persona.claims }}{% endif %}
+{% if not empty(persona.seeks) %}What you want: {{ join(persona.seeks, "; ") }}.{% endif %}
+{% if not empty(persona.ties) %}Others in your life: {{ join(persona.ties, "; ") }}.{% endif %}
+{% if not empty(persona.honesty) %}How you hold to your account: {{ persona.honesty }}.{% endif %}
+{% if not empty(persona.unlock) %}{{ persona.unlock }}{% endif %}
+{% endif %}

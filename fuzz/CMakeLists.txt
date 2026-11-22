@@ -25,6 +25,8 @@ en_fuzz_target(x86 en_gal)         # en-gal's x86-64 length decoder (the derivat
 en_fuzz_target(report en_gal)      # en-gal's numbers-only writer and its lint
 en_fuzz_target(derive en_gal)      # en-gal's derivation over arbitrary executables, as probe-exe runs it
 en_fuzz_target(config en_llm)      # en-llm's readers of the player's TOML files, checked before toml++ reads them
+en_fuzz_target(sanitize en_core)   # en-core's sanitizer on a reply streamed in pieces (NPC 8.2, the first conversation)
+en_fuzz_target(pager en_core)      # en-core's pager: the caps, the page splitter and lazy sealing (NPC 8.5, 8.6)
 # The layout's build is gated on an invented image, made by the tests' own FakeImage.
 target_sources(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests/fake_image.cpp)
 target_include_directories(en_fuzz_galtoml PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests)

@@ -52,6 +52,16 @@ struct Scene {
   friend bool operator==(const Scene&, const Scene&) = default;
 };
 
+// Block 5b's lines in one part (the affairs tied to the persona's own road, or the land's), each grouped by certainty
+// (MEM §12.6): at most four lines in the two parts together. Empty until the known set lands (S11.3.c).
+struct Standing {
+  std::vector<std::string> known;
+  std::vector<std::string> heard;
+  std::vector<std::string> believed;
+
+  friend bool operator==(const Standing&, const Standing&) = default;
+};
+
 // What one exchange's prompt is rendered from. The pointers and spans are the caller's, read during render() only.
 struct DialogueContext {
   std::string_view persona;                // the profile's id, for errors and the cache key: never its name
@@ -65,6 +75,10 @@ struct DialogueContext {
   std::span<const std::string> recap;      // block 10: the newest three player lines at most since the persona last
                                            // spoke, oldest first; the last is the line just sent
   std::optional<HardList> reminder;        // block 11's note after a hard lint hit (§8.4), never the word that hit
+  // Part A's additions, each defaulting to what changes nothing:
+  LintTally tally;  // the last reply's: block 11's note for each tic at its max_per_conversation (§3.3)
+  Standing tied;    // block 5b: tied to the persona's own road
+  Standing land;    // block 5b: the land's
   // Blocks 7 and 8's other sources (the KB, the journal, keepsakes, facts and disposition, the told name, the
   // since-line, the lived layer) come with the store and memory (v0.3) and join this context then.
 };

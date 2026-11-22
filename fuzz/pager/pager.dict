@@ -1,0 +1,13 @@
+# libFuzzer's dictionary for en_fuzz_pager: pieces a sentence is made of (our own list).
+"\x0A"
+" "
+"."
+"..."
+","
+";"
+":"
+"\xE2\x80\x94"
+"\xC3\xA9"
+"reeds"
+"xxxxxxxxxxxxxxxxxxxxxxxx"
+"Hm."

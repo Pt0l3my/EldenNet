@@ -1,0 +1,68 @@
+# The lint's own lists (NPC §3.3, §8.3): EldenNet's, in our own words. Each entry is a word or a phrase, matched whole
+# word by whole word, any case, accents ignored; a last word ending in '*' matches any word it begins ("respawn*" holds
+# respawned and respawning). The lists are read by en-core's parse_lexicon (src/en-core/include/en/core/speech_lint.hpp)
+# and the profile lints. The safety list is not here: it is kept as fingerprints, in safety.toml (O107).
+format = 1
+
+# Hard: a hit blocks the sentence, and NPC §8.4 decides what follows (a regeneration with banned's reminder, the
+# deflection, or the reply ending at the sentence before).
+[hard]
+# Game mechanics: words of a game, not of a land.
+mechanics = [
+  "level up", "levelled up", "leveled up", "levelling up", "leveling up", "level-up", "stats", "hp", "fp", "xp",
+  "quest", "quests", "questline", "side quest", "boss", "bosses", "boss fight", "respawn*",
+  "checkpoint", "checkpoints", "buff", "buffs", "debuff*", "nerf*", "dps", "aggro", "cooldown", "cooldowns",
+  "hitbox", "hitboxes", "i-frames", "iframes", "speedrun*", "playthrough", "new game plus", "ng+", "npc", "npcs",
+  "respec", "min-max*", "grinding for", "farm runes", "farming runes",
+]
+# Meta and the interface. Words with a sense of their own in the land are left out, as the design leaves out save, load
+# and button: game (what is hunted, a game of dice), player (of a lute), loot (a raider's), console (the grieving), mob
+# (a crowd), lag, screen, coop and online; their game senses come in unambiguous forms here instead.
+meta = [
+  "video game", "video games", "game over", "player character", "other players", "gaming", "gamer", "gamers",
+  "menu", "menus", "controller", "savegame", "save file", "save point", "multiplayer", "co-op", "online play",
+  "offline", "dlc", "cutscene", "tutorial", "achievement", "achievements", "hud", "framerate", "fps", "glitch",
+  "glitches", "bug report", "patch notes", "developer", "developers", "mod", "mods", "modding", "keyboard",
+  "mouse button",
+]
+# Modern idiom. "cool" is left out (the cool of an evening).
+modern = [
+  "ok", "okay", "okey", "awesome", "guys", "dude", "dudes", "bro", "lol", "lmao", "omg", "btw", "wtf", "fyi",
+  "gonna", "wanna", "gotta", "kinda", "sorta", "yeah right", "no worries", "my bad", "vibe", "vibes", "legit",
+  "selfie", "emoji", "hashtag", "weekend", "teenager", "teenagers",
+]
+# Modern objects and the real world: machines, media, places, feasts and brands.
+real_world = [
+  "phone", "phones", "telephone", "smartphone", "computer", "computers", "internet", "website", "email", "e-mail",
+  "car", "cars", "truck", "trucks", "gun", "guns", "rifle", "pistol", "bullet", "bullets", "robot", "robots", "ai",
+  "television", "tv", "radio", "electricity", "plastic", "airplane", "aeroplane", "helicopter", "motorcycle",
+  "bicycle", "camera", "laptop", "video", "videos", "movie", "movies", "cinema", "app", "apps", "wifi",
+  "microwave", "refrigerator", "america", "american", "england", "english", "france",
+  "germany", "china", "japan", "russia", "europe", "africa", "australia", "london", "paris", "new york", "jesus",
+  "bible", "christmas", "google", "facebook", "twitter", "youtube", "netflix", "microsoft", "iphone",
+]
+# Assistant-speak: a model speaking as itself, out of the persona.
+assistant = [
+  "as an ai", "language model", "chatbot", "roleplay", "role-play", "role play",
+  "out of character", "feel free to", "let me know if", "happy to help",
+  "i hope this helps", "great question", "i can't assist", "i cannot assist", "i can't help with that",
+  "i cannot help with that", "as a character",
+]
+
+[promise]
+# Hard: the high-confidence promise patterns (NPC §8.3): the persona's part is talk alone.
+hard = [
+  "take this", "here, have", "here, take", "follow me", "come with me", "i will meet you", "i'll meet you",
+  "i'll give you", "i will give you", "i'll show you the way", "let me lead you", "i'll wait for you at",
+]
+# Soft: the wider promise and claim list, logged and counted by the eval (at most 1% of replies).
+wider = [
+  "i will", "i'll be waiting", "meet me", "i'll find you", "i'll send word", "i have given", "i've marked",
+  "i have something for you", "i've something for you",
+]
+
+[soft]
+# The global set of interjections (NPC §3.3's opener rule): one of these that the persona's openers lack is stripped.
+interjections = ["oh", "ah", "ahh", "hm", "hmm", "well", "heh"]
+# Archaic forms, logged in a register that has none (the C10 metric).
+archaic = ["thee", "thou", "thy", "thine", "ye", "hath", "doth", "dost", "didst", "shalt", "wouldst", "'tis", "'twas"]
