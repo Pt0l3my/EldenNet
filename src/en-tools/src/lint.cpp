@@ -8,8 +8,8 @@
 //   eldennet-engine lint --gal <folder>
 //
 // --report reads the file's "report" key and checks the file against that kind's closed vocabulary (en-gal's
-// report.hpp): `derive` (derive.json and R1's r1-derive.json), `probe` (R1's r1-probe.json), or spike.cpp's
-// `rec_stats`, `replay` and `spike`: every key known, every
+// report.hpp): `derive` (derive.json), `lodestar` (lodestar-found.json), or spike.cpp's `rec_stats`, `replay` and
+// `spike`: every key known, every
 // value of its key's type, strings only as fixed words, labels or patterns of at most 64 bytes in canonical form; no
 // path, no free string, no byte run longer than a pattern, no float or null, no key given twice. --recording checks a
 // JSON Lines file whose every line is a report of the kind `recording` (en_shell's record.hpp), where a key may hold a
@@ -38,7 +38,6 @@
 #include "en/gal/layout.hpp"
 #include "en/gal/lodestar.hpp"
 #include "en/gal/patterns.hpp"
-#include "en/gal/probe_report.hpp"
 #include "en/gal/recipes.hpp"
 #include "en/gal/report.hpp"
 #include "en/shell/record.hpp"
@@ -223,8 +222,7 @@ int run_lint(int argc, char** argv) {
     std::fputs("lint: the report cannot be read\n", stderr);
     return 2;
   }
-  const en::gal::report::Vocabulary* reports[] = {&en::gal::derive::vocabulary(), &en::gal::probe::vocabulary(),
-                                                   &en::gal::lodestar::vocabulary(),
+  const en::gal::report::Vocabulary* reports[] = {&en::gal::derive::vocabulary(), &en::gal::lodestar::vocabulary(),
                                                    &rec_stats_vocabulary(), &replay_vocabulary(), &spike_vocabulary()};
   const en::gal::report::Vocabulary* recordings[] = {&en::shell::recording_vocabulary()};
   const auto result = recording ? en::gal::report::lint_lines(text, recordings) : en::gal::report::lint(text, reports);

@@ -139,11 +139,11 @@ TEST_CASE("options: GraceUI's observer's runs (S0-E, S4): their words, and what 
         "--spike s0e_alone loads no eldennet.dll: not with --dll");
   CHECK(parse_error({"--dll", "C:\\dev\\eldennet.dll", "--spike", "s0e_alone"}) ==
         "--spike s0e_alone loads no eldennet.dll: not with --dll");
-  // R1's Mark never joins these runs, and each is one run.
+  // The read-only round never joins these runs, and each is one run.
   for (const char* word : {"s0e", "s0e_alone", "s4"}) {
     CAPTURE(word);
-    CHECK(parse_error({"--probe", "--spike", word}) ==
-          "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike");
+    CHECK(parse_error({"--read", "--spike", word}) ==
+          "--read goes with a start, and not with --no-backup, --vanilla-offline or --spike");
     CHECK(parse_error({"--spike", word, "--runs", "2"}) == "--runs goes with --spike s0a or s0d-crash");
     CHECK(parse_error({"--spike", word, "--vanilla-offline"}).find("injects nothing") != std::string::npos);
     CHECK(parse_error({"--spike", word, "--cleanup"}) == "--spike and game arguments go with a start");
@@ -165,73 +165,24 @@ TEST_CASE("the spikes' rule: an observer's run passes when it did not crash") {
   }
 }
 
-TEST_CASE("options: --probe (R1) brings the console, and keeps the backup, EldenNet's DLL and one plain start") {
-  const Options o = parse_ok({"--probe"});
-  CHECK(o.probe);
-  CHECK(o.console);
-  CHECK(o.action == Action::Start);
-  CHECK(parse_ok({"--probe", "--inject-at", "title", "--game", "C:\\G\\fake_game.exe"}).inject_at == InjectAt::Title);
-  const std::string refused = "--probe goes with a start, and not with --no-backup, --vanilla-offline or --spike";
-  CHECK(parse_error({"--probe", "--no-backup"}) == refused);
-  CHECK(parse_error({"--probe", "--vanilla-offline"}) == refused);
-  CHECK(parse_error({"--probe", "--spike", "s0b"}) == refused);
-  CHECK(parse_error({"--probe=1"}) == "--probe takes no value");
-  CHECK(parse_error({"--probe", "--backup-only"}) == refused);
-  CHECK_FALSE(parse_ok({}).probe);
-  CHECK(usage_text().find("--probe") != std::string::npos);
-  // --read, the read-only round: the same company, and never beside --probe.
+TEST_CASE("options: --read brings the console, and keeps the backup, EldenNet's DLL and one plain start") {
   const Options rd = parse_ok({"--read"});
   CHECK(rd.read);
   CHECK(rd.console);
-  CHECK_FALSE(rd.probe);
-  const std::string read_refused =
-      "--read goes with a start, and not with --no-backup, --vanilla-offline, --spike or --probe";
+  CHECK(rd.action == Action::Start);
+  CHECK(parse_ok({"--read", "--inject-at", "title", "--game", "C:\\G\\fake_game.exe"}).inject_at == InjectAt::Title);
+  const std::string read_refused = "--read goes with a start, and not with --no-backup, --vanilla-offline or --spike";
   CHECK(parse_error({"--read", "--no-backup"}) == read_refused);
   CHECK(parse_error({"--read", "--vanilla-offline"}) == read_refused);
   CHECK(parse_error({"--read", "--spike", "s0b"}) == read_refused);
-  CHECK(parse_error({"--read", "--probe"}) == read_refused);
   CHECK(parse_error({"--read", "--backup-only"}) == read_refused);
   CHECK(parse_error({"--read=1"}) == "--read takes no value");
   CHECK_FALSE(parse_ok({}).read);
   CHECK(usage_text().find("--read") != std::string::npos);
-}
-
-TEST_CASE("texts: R1's steps on the console follow EldenNet's answer and T1's state") {
-  using w::InitState;
-  using w::ProbeRequest;
-  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::None, false, 0).has_value());
-  CHECK_FALSE(r1_step(ProbeRequest::R1, InitState::Settings, false, 0).has_value());
-  CHECK(r1_step(ProbeRequest::R1, InitState::WaitWindow, false, 0) == R1Step::Refused);  // a DLL without --probe
-  CHECK(r1_step(ProbeRequest::Refused, InitState::Settings, false, 0) == R1Step::Refused);
-  CHECK_FALSE(r1_step(ProbeRequest::Accepted, InitState::WaitWindow, false, 0).has_value());
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Discover, false, 0) == R1Step::Reading);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Register, false, 0) == R1Step::PressMark);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 29999) == R1Step::Called);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Ready, true, 0) == R1Step::Confirmed);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, false, 0) == R1Step::NotCalled);
-  CHECK(r1_step(ProbeRequest::Accepted, InitState::Banner, true, 0) == R1Step::CallFailed);
-  for (auto st = static_cast<int>(R1Step::Asked); st <= static_cast<int>(R1Step::ReportsMissing); ++st) {
-    const std::string t = r1_text(static_cast<R1Step>(st));
-    CHECK_FALSE(t.empty());
-    CHECK(std::string(r1_word(static_cast<R1Step>(st))).find(' ') == std::string::npos);
-    CHECK(t.find(":\\") == std::string::npos);  // no drive's path; %APPDATA% names the folder
-  }
-  CHECK(r1_text(R1Step::PressMark).find("press Pause") != std::string::npos);
-  CHECK(std::string(r1_word(R1Step::Confirmed)) == "task_confirmed");
-  // R1 spike.12 (WHY§296): EldenNet's answer Absent is an accepted R1 whose probe found no copy of our task: the same
-  // steps, and no confirmation then tells the owner to load the save, in place of "do not load a save".
-  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 29999) == R1Step::Called);
-  CHECK(r1_step(ProbeRequest::Absent, InitState::FirstTick, true, 30000) == R1Step::NoConfirmation);
-  CHECK(r1_step(ProbeRequest::Absent, InitState::Ready, true, 0) == R1Step::Confirmed);
-  CHECK(std::string(w::to_string(ProbeRequest::Absent)) == "absent");
-  const std::string kept = r1_text(R1Step::NoConfirmation);
-  const std::string absent = r1_text(R1Step::NoConfirmation, true);
-  CHECK(kept.find("Do not load a save") != std::string::npos);
-  CHECK(absent.find("Do not load a save") == std::string::npos);
-  CHECK(absent.find("Our task is not in the game. Load your save now, stay in the world for two minutes, then quit "
-                    "the game as usual.") != std::string::npos);
-  CHECK(r1_text(R1Step::Confirmed, true) == r1_text(R1Step::Confirmed));  // only no confirmation has the variant
+  // --probe went with R1 (retired 2026-11-22, O106): an unknown option now, alone or beside --read.
+  CHECK(parse_error({"--probe"}) == "unknown option: --probe");
+  CHECK(parse_error({"--read", "--probe"}) == "unknown option: --probe");
+  CHECK(usage_text().find("--probe") == std::string::npos);
 }
 
 TEST_CASE("texts: the read-only round's steps follow EldenNet's answer, T1's state and the managers named") {

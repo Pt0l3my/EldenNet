@@ -124,5 +124,12 @@ TEST_CASE("watch block: names") {
   CHECK(static_cast<std::uint32_t>(ThreadKind::Reader) == 4);  // appended
   CHECK(static_cast<std::uint32_t>(ProbeRequest::Read) == 5);  // appended
   CHECK(std::string(to_string(ProbeRequest::Read)) == "read");
+  // R1's words are retired (O106): their numbers stay reserved, and the others keep theirs.
+  CHECK(static_cast<std::uint32_t>(ProbeRequest::RetiredR1) == 1);
+  CHECK(static_cast<std::uint32_t>(ProbeRequest::Accepted) == 2);
+  CHECK(static_cast<std::uint32_t>(ProbeRequest::Refused) == 3);
+  CHECK(static_cast<std::uint32_t>(ProbeRequest::RetiredAbsent) == 4);
+  CHECK(std::string(to_string(ProbeRequest::RetiredR1)) == "retired");
+  CHECK(std::string(to_string(ProbeRequest::RetiredAbsent)) == "retired");
   CHECK(std::string(to_string(ThreadKind::Reader)) == "reader");
 }

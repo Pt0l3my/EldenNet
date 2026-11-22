@@ -1,13 +1,14 @@
 # eldennet: the DLL the launcher loads into the game (part 6 of the first in-game build; ARCH §2.2, §3): DllMain and the
 # instance marker, T1's init machine, the threads v0.1 needs (T6 the core, T10 the watcher, T11 the log writer), the
-# scrubbed logger, the numbers-only recorder, the watch block's status and the crash filter, and, in a probe build, R1.
+# scrubbed logger, the numbers-only recorder, the watch block's status and the crash filter, and, in a probe build, the
+# read-only round.
 # Two parts:
 # - en_shell, portable and tested on Linux and under Wine in every build: settings.toml, the log lines, the channels,
-#   the recorder's lines and the safety checks' file names. en-tools links it for the lint's recording vocabulary; R1's
-#   probe report is en-gal's offline part's (probe_report.hpp), so that the launcher lints it without en-core.
+#   the recorder's lines and the safety checks' file names. en-tools links it for the lint's recording vocabulary; the
+#   read-only round's report is en-gal's offline part's (lodestar.hpp), so that the launcher lints it without en-core.
 # - eldennet.dll (win/), the clang-cl build's alone (NativeSys needs structured exception handling): the Win32 shell
 #   around en-core and en-gal. With the tests or EN_PROBE on, the same DLL is also built with the probe option
-#   (probe/eldennet.dll), which runs R1.
+#   (probe/eldennet.dll), which runs the read-only round.
 add_library(en_shell STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/settings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/logline.cpp
@@ -47,7 +48,6 @@ set(EN_DLL_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/win/shell.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/overlay.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/ai.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_r1.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/win/probe_read.cpp)
 # One DLL per flavour: `release` links en_gal_game, `probe` en_gal_game_probe and brings EN_PROBE (ARCH §2.5).
 # Each has its own version resource, configured from win/eldennet.rc.in with the build's label (and, for the probe
