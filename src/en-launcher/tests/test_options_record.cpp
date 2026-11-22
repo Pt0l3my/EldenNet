@@ -267,7 +267,7 @@ TEST_CASE("texts: the read-only round's steps follow EldenNet's answer, T1's sta
   std::sort(words.begin(), words.end());
   CHECK(std::adjacent_find(words.begin(), words.end()) == words.end());
   CHECK(read_text(ReadStep::LoadSave, 7, 11).rfind("Now load your save. 7 of 11 managers", 0) == 0);
-  CHECK(read_text(ReadStep::Done, 11, 11).rfind("Done. All 11 managers", 0) == 0);
+  CHECK(read_text(ReadStep::Done, 11, 11).rfind("All 11 managers are named. If you have not loaded your save yet", 0) == 0);
   CHECK(read_text(ReadStep::ReportsClean).find("lodestar-table.toml") != std::string::npos);
 }
 

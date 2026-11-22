@@ -3238,7 +3238,8 @@ case("launcher-eldennet-read", LGAME + ["--dll", "{eldennetdll}", "--console"] +
 
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
 # save backup made first; the console's steps in plain words and no key to press; a first pass before the game has made
-# its managers ("Now load your save."), a later one that names them all ("Done."); the game ends and the launcher
+# its managers ("Now load your save."), a later one that names them all ("All 11 managers are named."); the game ends
+# and the launcher
 # checks both files.
 def read_steps(result):
     return [e.get("step") for e in result.events("LAUNCHER", "read") if "step" in e]
@@ -3254,7 +3255,7 @@ def check_read_owner(result):
          "the console's steps: %s" % steps, failures)
     plain = [l for l in result.lines if l.startswith("EldenNet read: ")]
     need(len(plain) == len(steps) and any(l.startswith("EldenNet read: Now load your save. 0 of 11") for l in plain) and
-         any(l.startswith("EldenNet read: Done. All 11 managers") for l in plain) and
+         any(l.startswith("EldenNet read: All 11 managers are named.") for l in plain) and
          not any("Pause" in l for l in plain), "the console's plain lines: %s" % plain[:8], failures)
     need(not any(l.startswith("EldenNet R1: ") for l in result.lines) and not result.events("LAUNCHER", "r1"),
          "the read-only round spoke as R1", failures)

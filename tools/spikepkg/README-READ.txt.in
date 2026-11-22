@@ -64,15 +64,16 @@ The steps
    The first time, the launcher asks where eldenring.exe is if it cannot find it through Steam, and shows its notices.
 
 2. The game starts. At the title screen, wait. The console says, in lines starting with "EldenNet read:", that it is
-   reading the game, and then how many of the eleven managers it has named so far. Some exist only once a save is
-   loaded, so it will not reach eleven here. This takes about a minute.
+   reading the game. This takes about a minute. Do not load a save until it tells you to.
 
-3. When the console says "Now load your save.", load your save. Walk about for about five minutes: go near an NPC or
-   an enemy, open the map, rest at a grace, and fast travel once. Every ten seconds the round looks again for the
+3. The console then says "Now load your save." with how many of the eleven managers it has named so far (some exist
+   only once a save is loaded), or, if all eleven are there already, "All 11 managers are named. If you have not
+   loaded your save yet, load it now." Either way, load your save. Walk about for about five minutes: go near an NPC
+   or an enemy, open the map, rest at a grace, and fast travel once. Every ten seconds the round looks again for the
    managers it has not named yet, and all the while it reads the ones it has.
 
-4. When the console says "Done.", or after five minutes in the world whatever it says, quit the game as you usually
-   do. The console then says whether the two files passed their check, and the launcher ends.
+4. After about five minutes in the world, quit the game as you usually do, whatever the console has said. The console
+   then says whether the two files passed their check, and the launcher ends.
 
 5. Send these files back to us:
 
