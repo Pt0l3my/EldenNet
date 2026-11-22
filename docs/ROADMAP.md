@@ -1020,7 +1020,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The fourth round built the same day (engine 0d79ece, Lodestar's 606167d; WHY§351 to §353): the object scan, a wide
     read-only search of the game's private memory that the owner agreed to (O105), naming by a longer name (by_related),
     the flags' store as a lead on trial, the member search over 0x4000 bytes, and the code's references as witnesses;
-    report schema 4; package 0.1.0-lodestar.7, awaiting the owner's run.
+    report schema 4; package 0.1.0-lodestar.7, its README corrected (engine 539d341), sent to the owner the same day.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
