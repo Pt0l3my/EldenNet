@@ -59,7 +59,7 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    read along our notes' lead from the store (the word 40 bytes in is an address of live memory) to a flag, and
    check it against something the owner does in the game. The world's clock stays without a slot of its own (1012
    unplaced, WHY§359).
-2. **R1's clean-up (O106)**: the removal is made on `feat/lodestar` as a commit of its own (the DLL's R1 mode, the
+2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238), a commit of its own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
    with the commit.
@@ -73,8 +73,9 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 - One build tree beside `build` (GCC, Release) at a time; a second tree building only `en_gal_tests` takes a few
   minutes (Clang, clang-cl, MinGW), then it is removed. The full clang-cl build with the fake game's harness
   (`ctest -R fakegame`) takes about 40 minutes and is worth it whenever `boot.cpp`, the test DLL or the harness change.
-- Counts to compare against: `en_gal_tests` 250 cases on GCC, Clang and MinGW, 265 on clang-cl; ctest 29 of 29 on
-  GCC; the harness 115 of 115 (seven `gal-own-*` cases and three `launcher-eldennet-read*` cases joined it).
+- Counts to compare against (after R1's removal, engine 3e11238): `en_gal_tests` 219 cases on GCC, Clang and MinGW,
+  234 on clang-cl; ctest 29 of 29 on GCC; the harness 109 of 109 without GraceUI's parts (R1's eight cases went, and
+  `launcher-eldennet-read-console` came).
 - The fake game has two accessors of other shapes (never called) and, with `--field-mirror`, a second word that
   holds one manager's address: the read cases name two managers through variants and one behind two slots.
 - A class that holds a `GuardedReader` belongs to the part of en-gal that is built both with and without the probe
