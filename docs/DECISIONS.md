@@ -70,7 +70,8 @@ change EldenNet are listed in GraceUI's `docs/eldennet-changes.md` and are recor
   readings) the same day, as built.
 - **2026-11-22.** O105 (the fourth read-only round's wide search of the game's memory) put to the owner by Lodestar and
   decided the same day, as recommended; O106 (retire R1) the same day, as recommended; O107 (the lint's list of slurs
-  kept hashed) the same day, as recommended.
+  kept hashed) the same day, as recommended; O108 (a game banner while the chat box is open) the same day, as
+  recommended.
 - **Open.** None.
 
 ## O1
@@ -2082,3 +2083,22 @@ tests or its reports.
 **Owner's words.** "Kept hashed (Recommended)" (the question dialog, 2026-11-22).
 
 **Follows from.** NPC §8.3, §8.4; S11.3.b; WHY§364.
+
+## O108
+
+**A game banner while the chat box is open** · *2026-11-22 · Decided by the owner, as recommended*
+
+**Question.** The design disagreed with itself. DESIGN §12 and NPC §10.2 keep the chat box open while the game shows a
+banner, but NPC §5.4's `safe_context` fails its Menu clause on a banner, and the first conversation was built that way,
+closing the box (WHY§419, §436). **Options:** the box stays open over a banner, the pages held; or it closes, the draft
+kept for 60 s. Either way a banner stops the box from opening, and danger still closes it at once.
+
+**Recommendation.** The box stays open. Two of the three passages already say so, and a banner is most often an area's
+name: losing a line to one would feel arbitrary.
+
+**Decision.** The box stays open. A banner fails `safe_context` for opening the box, not for an open one, which holds
+its pages as NPC §10.2's banner row says.
+
+**Owner's words.** "Box stays open (Recommended)" (the question dialog, 2026-11-22).
+
+**Follows from.** DESIGN §12; NPC §5.4, §10.2; S11.3.a; WHY§419, WHY§436.

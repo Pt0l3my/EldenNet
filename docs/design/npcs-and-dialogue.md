@@ -1629,6 +1629,9 @@ once, but only a threat (`Player`, `Boss`, `Combat`, `Hostiles`, or HP dropping)
 the pages instead (§5.8's 30 s), and `NotActive` leaves the conversation to its idle timer; an unknown HUD state reads
 as hidden. The overlay answers the core's close with the draft, so it is kept whichever side closed.
 
+*Since 2026-11-22 (O108):* a banner fails the Menu clause for opening the box only. An open box stays open over a
+banner, its pages held, as §10.2's banner row says; danger still closes it at once.
+
 ### 5.5 Input capture and release
 
 - **On open** (same step): ask GraceUI for input with `request_input`, which answers at once: `granted`, `refused` naming the holder (the box stays shut, with a status toast), or `not_now` with the reason (GraceUI D77). GraceUI applies the rules below to every holder.

@@ -1433,7 +1433,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the HUD, the pop-up, the talk camera, teams and distances, then S4 and S3 in game (S11.1.a, b). Left: a refused or
     not-now toast that names the holder (WHY§442); target rules 1 and 2 (f), 0 with the own-initiative lines (S12.1.c)
     and 6 with the call-out (S15.1.a); the mute state's sources (`speech.toml`, `types.toml`); a second Escape
-    (S11.4.d).
+    (S11.4.d). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
+    holds its pages: the core's gate changes to match.
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
   - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
