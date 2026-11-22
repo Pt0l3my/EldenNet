@@ -21,15 +21,28 @@ if(EN_BUILD_TESTS AND NOT WIN32)
   add_executable(en_tools_write_recording ${CMAKE_CURRENT_SOURCE_DIR}/tests/write_recording.cpp)
   target_link_libraries(en_tools_write_recording PRIVATE en_shell en_core)
   # The scenario DSL and the golden runner (part 11), and each route's golden check as CI runs it.
-  add_executable(en_tools_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scn.cpp)
+  # And the dialogue prompt on the shipped templates and the lexicon on the shipped lists (the first conversation's part
+  # A: test_dialogue_prompt.cpp), which en-core's own tests leave to invented ones.
+  add_executable(en_tools_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dialogue_prompt.cpp)
   target_link_libraries(en_tools_tests PRIVATE en_tools_scn en_doctest)
   target_compile_definitions(en_tools_tests PRIVATE EN_TOOLS_SCENARIOS="${PROJECT_SOURCE_DIR}/tests/scenarios"
-    EN_TOOLS_GOLDEN="${PROJECT_SOURCE_DIR}/tests/golden" EN_TOOLS_WORK="${CMAKE_CURRENT_BINARY_DIR}/scn")
+    EN_TOOLS_GOLDEN="${PROJECT_SOURCE_DIR}/tests/golden" EN_TOOLS_WORK="${CMAKE_CURRENT_BINARY_DIR}/scn"
+    EN_TOOLS_CONTENT="${PROJECT_SOURCE_DIR}/content/eldenring"
+    EN_TOOLS_PROMPT_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/prompt")
   add_test(NAME en_tools_tests COMMAND en_tools_tests)
   file(GLOB _en_routes CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/scenarios/*.scn)
   foreach(_en_route IN LISTS _en_routes)
     get_filename_component(_en_name ${_en_route} NAME_WE)
     add_test(NAME en_golden.${_en_name} COMMAND eldennet-engine golden check ${_en_route})
+  endforeach()
+  # The prompt goldens (tests/fixtures/prompt/*.prompt.json): each fixture rendered twice (T5) and compared.
+  file(GLOB _en_prompt_fixtures CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/fixtures/prompt/*.prompt.json)
+  foreach(_en_fixture IN LISTS _en_prompt_fixtures)
+    get_filename_component(_en_name ${_en_fixture} NAME)
+    string(REGEX REPLACE "\\.prompt\\.json$" "" _en_name "${_en_name}")
+    add_test(NAME en_golden_prompt.${_en_name}
+      COMMAND eldennet-engine golden check ${_en_fixture} --content ${PROJECT_SOURCE_DIR}/content/eldenring)
   endforeach()
   find_package(Python3 COMPONENTS Interpreter)
   if(Python3_Interpreter_FOUND)
@@ -37,5 +50,10 @@ if(EN_BUILD_TESTS AND NOT WIN32)
       COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_test.py --engine $<TARGET_FILE:eldennet-engine>
         --writer $<TARGET_FILE:en_tools_write_sample> --work ${CMAKE_CURRENT_BINARY_DIR}/cli
         --gal ${PROJECT_SOURCE_DIR}/gal --recordings $<TARGET_FILE:en_tools_write_recording>)
+    # render-prompt --fixture, golden's prompt kind and lexicon, end to end (part A of the first conversation).
+    add_test(NAME en_tools_speech_cli
+      COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/speech_cli_test.py
+        --engine $<TARGET_FILE:eldennet-engine> --content ${PROJECT_SOURCE_DIR}/content/eldenring
+        --fixtures ${PROJECT_SOURCE_DIR}/tests/fixtures/prompt --work ${CMAKE_CURRENT_BINARY_DIR}/speech_cli)
   endif()
 endif()

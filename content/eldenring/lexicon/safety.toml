@@ -1,0 +1,13 @@
+# The safety list (NPC §8.3; O107): slurs and explicit sexual terms, refused at both safety levels, and graphic gore,
+# refused at `gentle` only. EldenNet's repository holds fingerprints only, never the words: each is SHA-256, in
+# lower-case hex, of the domain "eldennet.safety.v1:" followed by the normalised word or short phrase (at most three
+# words). The normalisation and the hash are fixed in en-core's lint (src/en-core/include/en/core/speech_lint.hpp), and
+# `eldennet-engine lexicon fingerprint` prints a fingerprint for each word on its standard input, writing the words
+# nowhere. This file ships with no entries: filling it is a separate step for the owner (README.md).
+format = 1
+
+# Refused at both levels: slurs and explicit sexual terms.
+always = []
+
+# Refused at `gentle` only: graphic gore.
+gentle = []

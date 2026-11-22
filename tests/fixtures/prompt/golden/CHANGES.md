@@ -1,0 +1,11 @@
+# Prompt goldens: changes
+
+Every prompt golden (`<name>.prompt.txt`, the dialogue prompt a fixture of `tests/fixtures/prompt/` gives, with its
+budget, each block against its cap and the trim) changes only with an entry here naming the fixture and the file's new
+hash, which `eldennet-engine golden update <fixture>.prompt.json` prints; `golden check` fails without it, as a route's
+golden does (ARCH §8.12). Newest first. The fixtures' persona, names and lines are invented.
+
+- 2026-11-22 `first_meeting` fnv1a64:58ce3b5f3d01b03d: first golden (the first conversation's part A).
+- 2026-11-22 `long_talk` fnv1a64:a5bb610a80f26900: first golden (the first conversation's part A).
+- 2026-11-22 `crowded_regen` fnv1a64:f3a2c0c4f2f64ee5: first golden (the first conversation's part A).
+- 2026-11-22 `over_cap` fnv1a64:b4c49dc0da0b9ed3: first golden (the first conversation's part A).
