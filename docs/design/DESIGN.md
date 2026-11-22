@@ -1301,6 +1301,9 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
 ### 8.1 Starting
 
 - **Hotkey:** rebindable, always masked from the game. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). *2026-11-21, O94:* the owner decided one key on the keyboard, `T` by default, which no published default layout binds (WHY§277); S4 checks it in game, and the pad's gesture never replaces it. On a pad, hold View + D-pad Up to open the Steam floating keyboard, if S4 passes (O11). In the default layout View opens the map and D-pad Up switches spells, so View is masked while D-pad Up is held and replayed as a tap if the chord is abandoned; S4 confirms the chord or picks another (NPC §5.6). The keyboard is opened through Steam's own `ISteamUtils::ShowFloatingGamepadTextInput` in the already-loaded `steam_api64.dll`, never through game code (R2). *2026-11-21:* the owner approved GraceUI's proposal 0005 for the pad gesture (D-pad Up held first, then View; O95).
+  *Since 2026-11-22 (WHY§364 (6), WHY§437; built with the first conversation, S11.4.c):* the chord is GraceUI's D204,
+  D-pad Up then View, registered on the talk hotkey behind `has_cap("pad-chords")`; the Steam floating keyboard stays
+  unbuilt in v0.2. Where this bullet and NPC §5.6 write "View + D-pad Up", the order is GraceUI's.
 - **Talk hint and header:** "[T] Speak — Kalé" plus a target marker whenever chat is possible. The box header reads "Speak to Kalé — heard by: Kalé" (P2 §5.1, P3 §5.1).
   *2026-11-21, O97:* the header names the conversation's partner, the target the order below chose, and that target is
   the rules' pick for each line the player sends. When a sent line is heard by two or more profiled NPCs that may answer
@@ -1414,6 +1417,9 @@ On a hard-lint hit in sentence 1, regenerate once with a one-line reminder, then
 - The whole page appears with a 120 ms fade, never typewritten. It holds for `clamp(1.2 s + 0.055 s × chars, 2.0 s, 6.5 s)`, plus 0.4 s after a "…". Tab skips (P3 §5.6).
 - It follows the game's subtitle option; with subtitles off, text goes to the chat history strip.
 - **Commit on display:** `NpcSaid` is created when its first page shows and grows page by page. Unshown text is never committed (#548). Each page's commit is sent to the store in the same step and is its own WAL transaction (R14), so a shown line survives a hard kill except in the few milliseconds before that transaction commits (C11).
+  *Since 2026-11-22 (WHY§364 (7); built with the first conversation, S11.3):* v0.2 has no store, so each page's commit
+  goes in the same step to the event log kept in memory behind the store's interface (the newest 4,096 events), and
+  nothing outlives the session. The WAL transaction per page comes with the store in v0.3.
 
 ### 8.6 Ending
 
