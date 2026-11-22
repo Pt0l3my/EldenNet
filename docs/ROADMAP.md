@@ -429,7 +429,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
 - b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
   - needs: a, c
   - refs: PAGES§4.6, WHY§377
-- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [next]
+- c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
     (Recommended)", "Keep in memory (Recommended)", "One paragraph (Recommended)"; GraceUI feat/foundations f747f46):
@@ -438,7 +438,11 @@ Work beside the engine and the increments, and the owner's housekeeping.
     (GraceUI's D214, WHY§378; protocol 1.4 and ABI 1.5 unchanged). Next: topic families and master-detail (part b),
     slow commands (c), and the editor block with EldenNet's five additions (d; GraceUI's proposal 0010 §7). Part b done
     the same day: topic families and master-detail, GraceUI 0.2.19, protocol 1.5 (GraceUI's D215, WHY§383). Next: slow
-    commands (c), then the editor block with EldenNet's five additions (d).
+    commands (c), then the editor block with EldenNet's five additions (d). Part c done the same day: slow commands,
+    answered within 90 s, GraceUI 0.2.20, protocol 1.6 (GraceUI's D216, WHY§386). Next: the editor block with
+    EldenNet's five additions (d), a profile's member keyed as its row (WHY§387). Part d done the same day: the editor
+    block in both views with EldenNet's five additions, GraceUI 0.2.21, protocol 1.7 (GraceUI's D217, WHY§391). All four
+    parts of G38 are built on GraceUI's side; S7.2.b's Profile tab can be built on them.
 
 ### S7.3 Follow-ups from the character-profile design [next]
 
@@ -1055,9 +1059,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     static's object, the flags one step on, save_data by invariant; the report bounded and the ask-first share checked
     after every read. Package 0.1.0-lodestar.9, for the owner's run.
     L6's second round reviewed the same day (engine 0b958f2; WHY§381, §382): save_data placed by invariant (14 leads),
-    the reader at 9.6 a second, no clock in any static's object. Next: the clock by a jump (the owner lets time pass at a
+    the reader at 9.6 a second, no slow clock in any static's object (WHY§382's Later line, §385). Next: the clock by a
+    jump (the owner lets time pass at a
     grace), the flags' next step reported and watched bit by bit, and the report's fallback graded. Lodestar puts that
     round's plan to the owner first, since it asks more of them than walking about.
+    L6's third round built the same day (engine a484129, Lodestar's 9f451ec; WHY§389, §390): the clock by a jump when
+    time is let pass, the flags two steps on with a bounded sweep for bits that flip once (about 24 MiB, put to the
+    owner first by O105's note), and the report's fallback graded. The owner said yes to the sweep (O105's note), and
+    package 0.1.0-lodestar.10 went to them the same day (engine b0a2fa7).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1380,6 +1389,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: G38, GraceUI:D215, GraceUI:D36, WHY§383, WHY§384
   - gives: built on 2026-11-22 (GraceUI feat/foundations fbd4ec3) as S7.2.c's part b; for Named NPCs, NPC types,
     Playthrough, History and the editor's lists (GraceUI's docs/eldennet-changes.md §53).
+- ag Slow commands, answered within 90 s (GraceUI 0.2.20, protocol 1.6) [done]
+  - refs: G38, GraceUI:D216, GraceUI:D169, WHY§386
+  - gives: built on 2026-11-22 (GraceUI feat/foundations 4749729) as S7.2.c's part c; for `profile.draft` (GraceUI's
+    docs/eldennet-changes.md §54).
+- ah The editor block in both views (GraceUI 0.2.21, protocol 1.7) [done]
+  - refs: G38, GraceUI:D217, WHY§391, WHY§392, WHY§377
+  - gives: built on 2026-11-22 (GraceUI feat/foundations f35f495) as S7.2.c's part d; for the profile editor's Profile
+    tab (S7.2.b; GraceUI's docs/eldennet-changes.md §55).
 
 ### S11.3 EldenNet v0.2
 

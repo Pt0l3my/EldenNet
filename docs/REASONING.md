@@ -407,6 +407,14 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 382 | 2026-11-22 | No clock packed into bits in any static's object, nor in 16 KiB of the clock class's object; one slowly rising fraction is the only candidate | FACT | #lodestar #l6 |
 | 383 | 2026-11-22 | Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail | DECIDED | #graceui #pages |
 | 384 | 2026-11-22 | A family's members in the server: 64 slots a space, taken at the first watch, each state carrying its slot's generation | METHOD | #graceui #serve |
+| 385 | 2026-11-22 | A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump | METHOD | #lodestar #l6 |
+| 386 | 2026-11-22 | A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent | DECIDED | #graceui #protocol |
+| 387 | 2026-11-22 | EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon | DECIDED | #engine #editor #pages |
+| 388 | 2026-11-22 | The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note | DECIDED | #engine #conversation |
+| 389 | 2026-11-22 | A flag is told by a single bit that flips once in memory that otherwise keeps still | METHOD | #lodestar #l6 |
+| 390 | 2026-11-22 | A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held | DECIDED | #lodestar #probe |
+| 391 | 2026-11-22 | An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing | DECIDED | #graceui #pages |
+| 392 | 2026-11-22 | Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout | METHOD | #graceui #view |
 
 ## Entries
 
@@ -6214,6 +6222,11 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   thousandths a second is too coarse for so slow a rise.
 - The flags' next step, the objects behind the store's addresses 40, 56, 80 and 136 bytes in, was read about 978 times
   each; its words were lost to the report's fallback (WHY§371's Later line).
+- *Later, 2026-11-22 (Lodestar's correction):* the first bullet says more than the round showed. The minutes test takes a
+  run of six bits only if it steps by 1 to 5 between readings, and the statics' objects were read about every 15 s. So
+  what holds is this: no slow clock in the first 512 bytes of any static's object, and no clock of any pace in the 16
+  KiB of the clock class's object or its manager, which were read every second or two. A clock whose minutes pass faster
+  than one in three seconds of real time is not ruled out in a static's object (WHY§385).
 
 ### 383. Master-detail is a page's, not a block: the page's own tabs and sections are the chosen row's detail
 
@@ -6237,3 +6250,92 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   own id.
 - A slot's generation is set when it is taken and carried by each published state. It keeps a state published for one
   member from reaching the next member in the slot.
+
+### 385. A test for a clock must not depend on its pace against the reading's: hours alone, and a steady rise with a jump
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§382
+
+- Test the hours alone: five bits, never 24 or more, stepping by one. And look for a steady rise with a jump when the
+  player lets time pass. The seventh round, being built, tells the clock by such a jump: steady rises and jumps of
+  fractions and whole numbers, the hours standing alone, and each jump's second with its number before and after.
+
+### 386. A slow command is named in the space's page data, not in its answer, so both views know its deadline before it is sent
+
+`2026-11-22` · DECIDED · `#graceui` `#protocol` · refs: GraceUI's D216, GraceUI's D169, GraceUI's proposal 0010 §3.4, S7.2.c
+
+- GraceUI 0.2.20, protocol 1.6; the ABI unchanged but for a constant. A space names at most 8 of its own commands in
+  `slow_commands`, never `settings.set` or `settings.reset`. GraceUI waits up to 90 s for such an answer from either
+  view, instead of 10 s, and answers internal past that.
+- In game the control reads "Working…" and takes no press until the answer comes. The browser waits 95 s. A slow command
+  still counts in a view's 20 a second and in the space's queue of 32. EldenNet names `profile.draft`.
+
+### 387. EldenNet keys a profile's family member by the same slot as its list row, with a dot for the colon
+
+`2026-11-22` · DECIDED · `#engine` `#editor` `#pages` · refs: GraceUI's D215, NPC§4.7, WHY§383, S7.2.b
+
+- Grace widens D215 for part d: on a page with a master list, a block bound to any family the space declares draws
+  `<that family>/<the chosen row's key>`. Named NPCs can then carry a "Your notes" tab whose editor is bound to
+  `profiles`.
+- A family key takes only a-z, 0-9, '.', '_' and '-', so a slot's colon becomes a dot: `persona.<id>`,
+  `character.<id>`, `mine.<id>`, `named.<param>`, `card.<id>` (NPC §4.7). A list row and its profile member share that
+  key, so GraceUI needs no field naming a second key's column.
+- When the player writes a profile for a `named.<param>` row, the row becomes `mine.<id>`, as NPC §4.7 has it, and the
+  page chooses the new row. If S7.2.b finds a case this does not cover, EldenNet asks for the column field then.
+
+### 388. The prompt's blocks 2 and 11: block 2 stays at 120 tokens, checked whole by the lint; block 11 rises to 70 with one tic note
+
+`2026-11-22` · DECIDED · `#engine` `#conversation` · refs: NPC§7.3, NPC§3.1, NPC§4.5, WHY§364
+
+- Part A found two caps smaller than their fields allow. Block 2's cap is 120 tokens, but its fields at their schema
+  caps come to about 300 (identity 40 words, role 20, summary 60, appearance 40), and the test fixture's ordinary fields
+  reached 129. Block 11's cap is 40, but its ask alone is about 26 tokens, a tic note about 20 and a reminder about 12.
+- Raising both to fit would bring the caps' sum (3,460, NPC §4.5) past the 3,500 hard cap. So Engine rules:
+  - **Block 2** stays at 120 and is never trimmed. The content lint checks it as a whole: rendered past its cap it is an
+    error for shipped and test content, and a warning for the player's own files, which still render under the hard cap.
+    The field caps stay as maxima; a writer keeps the whole within the block.
+  - **Block 11** rises to 70 and carries at most one tic note, the newest, beside the reminder. The caps' sum becomes
+    3,490.
+- Built by the joining of parts A and B (S11.3). NPC §7.3 gets a dated note when that lands.
+
+### 389. A flag is told by a single bit that flips once in memory that otherwise keeps still
+
+`2026-11-22` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§368, O105
+
+- Sweep the stretch, keep each page's own first flips, and list only quiet words of quiet pages. Memory in use changes
+  everywhere and would crowd a shared list.
+- The seventh round (engine 9f451ec, package 0.1.0-lodestar.10) sweeps up to 2 MiB from each of at most eight
+  addresses the flags' store keeps, and up to 256 KiB from each of at most 32 one step further: about 24 MiB in all.
+  It reads a piece of 16 KiB at a time, within the searches' 4 ms share of a step, with a pass every thirty seconds at
+  most. It keeps the place, bit, direction and second of a flip, never what the memory holds. This is not O105's wide
+  scan, which stays off; by O105's note it is put to the owner before the run.
+
+### 390. A round's report may carry a clock candidate's reading before and after a jump, and nothing else the memory held
+
+`2026-11-22` · DECIDED · `#lodestar` `#probe` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§385
+
+- Without it, a jump cannot be matched to the time of day the owner chose at the grace. So for a number that jumped, the
+  report keeps the number before and after each of its first three jumps, and the second each came. That is the clock's
+  own reading if the number is the clock: a state of the owner's own session, not the game's content.
+- Every other value stays out: the report holds offsets, sizes, counts and our labels as before. The README says so in
+  plain words. Engine agrees, on that bound.
+
+### 391. An editor's unsaved edits are kept by the document's topic, not by the page, so leaving a page loses nothing
+
+`2026-11-22` · DECIDED · `#graceui` `#pages` · refs: GraceUI's D217, G38, GraceUI's proposal 0010 §3.3, S7.2.c, WHY§377
+
+- GraceUI 0.2.21, protocol 1.7, no ABI change: the editor block in both views, with EldenNet's five additions (an
+  item's key, locked items, dotted ids, null as "not set here", file-level messages).
+- Both views hold a map from the document's topic (a family's member) to the player's edits for the session. So neither
+  leaving a page nor closing the menu loses anything, and neither view asks then; the browser asks only before its tab
+  closes. A draft still goes when its page is left, as proposal 0010 §3.3 has it. This changes §3.3's "leaving the page
+  asks first" (D217).
+- The commands are check and save {target, rev, doc}, reset {target, all, confirm}, restore {target} and draft {target,
+  notes}. A stale save answers `conflict`, shown with Reload. With this, all four parts of G38 are built on GraceUI's
+  side.
+
+### 392. Prose in game moves by line from the last layout's boundaries, so the view needs no font outside the layout
+
+`2026-11-22` · METHOD · `#graceui` `#view` · refs: GraceUI's D217, GraceUI's D214, WHY§378
+
+- grace-view's layout keeps each boundary's offset, x and line top for the prose field being edited. Up, down and the
+  pointer take the nearest boundary on the line above, below or under it.

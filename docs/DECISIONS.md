@@ -2032,6 +2032,12 @@ read 19,750 MiB in 781 s without finishing its third sweep and slowed EldenNet's
 call, nothing written, no fault. It stays off in later rounds. Any later scan comes back to the owner first, with the
 changes WHY§357 lists.
 
+*Note, 2026-11-22 (the seventh round; WHY§389).* Put to the owner by Lodestar before the run, as this note asks: "The
+seventh round is built and tested. To find where the game keeps its event flags, it also reads about 24 MiB of the
+game's memory near the flags' own object (up to 2 MiB from each of at most 8 addresses, 256 KiB from each of at most 32
+more), slowly, one pass every 30 seconds at most. It only reads. ... May the round include it?" The owner's answer:
+"Yes, include it (Recommended)". The bounded sweep runs; the whole-memory scan stays off.
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
