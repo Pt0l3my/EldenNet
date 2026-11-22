@@ -1063,7 +1063,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     round's plan to the owner first, since it asks more of them than walking about.
     L6's third round built the same day (engine a484129, Lodestar's 9f451ec; WHY§389, §390): the clock by a jump when
     time is let pass, the flags two steps on with a bounded sweep for bits that flip once (about 24 MiB, put to the
-    owner first by O105's note), and the report's fallback graded. Package 0.1.0-lodestar.10, for the owner's run.
+    owner first by O105's note), and the report's fallback graded. The owner said yes to the sweep (O105's note), and
+    package 0.1.0-lodestar.10 went to them the same day (engine b0a2fa7).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
