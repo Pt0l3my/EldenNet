@@ -706,6 +706,7 @@ class Round {
     o.character_vtables = tables("character");
     o.player_vtables = tables("player_character");
     o.main_player_word = main_player_word_;
+    o.list_word = list_word_;
     o.image = &s_.sys->image();
     if (o.character_vtables.empty() || o.player_vtables.empty()) return;
     const std::size_t classes = o.character_vtables.size(), players = o.player_vtables.size();
@@ -834,6 +835,11 @@ class Round {
     if (const en::gal::FieldLayout* main = discovery_->bound().field(en::gal::roles::Fld::MainPlayer)) {
       main_player_word_ = main->off;
       if (chars_ != nullptr) chars_->set_main_player_word(main->off);
+    }
+    // And a list's place there (`characters.by_distance`): the character search judges the run at it first.
+    if (const en::gal::FieldLayout* list = discovery_->bound().field(en::gal::roles::Fld::ByDistance)) {
+      list_word_ = list->off;
+      if (chars_ != nullptr) chars_->set_list_word(list->off);
     }
     if (const en::gal::FieldLayout* holder = discovery_->bound().field(en::gal::roles::Fld::HolderBase)) {
       holder_offset_ = holder->off;
@@ -1418,21 +1424,44 @@ class Round {
           }
         }
         const en::gal::roles::ItemInfo game = en::gal::roles::info(en::gal::roles::Item::GameState);
-        const bool names = f.word_hits == 1 && !f.overrun && !f.hits.empty() && f.hits[0].width == 4 &&
-                           !named_at(f.hits[0].rva);
+        // Which of the hits' objects is of the class the game state's lead names (the leads' [statics]): each
+        // object's first word, one guarded read, against the image's own type information. The fifteenth round
+        // had 17 such fields behind 13 slots; the class tells the game's state among them.
+        pair_leads_ = namer_ != nullptr ? namer_->static_lead_tables(game.label) : 0;
+        std::size_t lead_hits = 0, lead_at = 0;
+        for (std::size_t i = 0; i < f.hits.size() && pair_leads_ != 0; ++i) {
+          const lodestar::PairHit& h = f.hits[i];
+          if (h.width != 4) continue;
+          std::array<std::byte, 8> slot{};
+          std::uint64_t object = 0;
+          if (s_.sys->image().read(h.rva, slot)) std::memcpy(&object, slot.data(), 8);
+          const std::optional<std::uint64_t> first = object != 0 ? read_word(object) : std::nullopt;
+          const std::uint64_t base = s_.sys->module_base();
+          if (!first || *first < base || *first - base > 0xFFFFFFFFull) continue;
+          if (namer_->static_lead_class(game.label, static_cast<std::uint32_t>(*first - base)) == 0) continue;
+          pair_lead_.insert({h.rva, h.offset});
+          if (lead_hits++ == 0) lead_at = i;
+        }
+        // One 32-bit field alone names the slot; so does the one field in an object of the lead's class.
+        const std::size_t pick = lead_hits == 1 ? lead_at : 0;
+        const bool names = (f.word_hits == 1 || lead_hits == 1) && !f.overrun && !f.hits.empty() &&
+                           f.hits[pick].width == 4 && !named_at(f.hits[pick].rva);
         if (names) {
-          lodestar::InvariantFound& v = invariant(game.id, game.label, f.hits[0].rva, f.hits[0].offset);
+          lodestar::InvariantFound& v = invariant(game.id, game.label, f.hits[pick].rva, f.hits[pick].offset);
           v.rose = 2;  // the two worlds, each read as its character's slot
           v.passes = 2;
         }
         log(Line("read").word("stage", "pair_done").num("word_hits", f.word_hits).num("byte_hits", f.byte_hits)
-                .flag("overrun", f.overrun).flag("names", names)
-                .num("offset", f.hits.empty() ? 0 : f.hits[0].offset)
-                .num("sites", f.hits.empty() ? 0 : pair_sites_[f.hits[0].rva]));
+                .flag("overrun", f.overrun).flag("names", names).num("leads", pair_leads_)
+                .num("lead_hits", lead_hits)
+                .num("offset", f.hits.empty() ? 0 : f.hits[pick].offset)
+                .num("sites", f.hits.empty() ? 0 : pair_sites_[f.hits[pick].rva]));
       }
+      f.leads = pair_leads_;
       for (lodestar::PairHit& h : f.hits) {
         const auto sites = pair_sites_.find(h.rva);
         if (sites != pair_sites_.end()) h.sites = sites->second;
+        h.lead = pair_lead_.count({h.rva, h.offset}) != 0;
       }
       found_.pair = std::move(f);
     }
@@ -1632,9 +1661,12 @@ class Round {
   lodestar::CharSearch* chars_ = nullptr;
   std::uint32_t chars_manager_ = 0;                 // the characters manager's static
   std::uint32_t main_player_word_ = 0;              // in the manager's object, by the build's layout; 0: not there
+  std::uint32_t list_word_ = 0;                     // a list's bounds there, by the build's layout; 0: not there
   lodestar::PairSearch* pair_ = nullptr;
   bool pair_said_ = false;
   std::map<std::uint32_t, std::uint32_t> pair_sites_;  // by slot: the code's references to it
+  std::set<std::pair<std::uint32_t, std::uint32_t>> pair_lead_;  // slot and field: its object is of the lead's class
+  std::uint32_t pair_leads_ = 0;                    // tables of methods under the game state's lead's name
   lodestar::PartsWatch* parts_ = nullptr;
   bool parts_tried_ = false;
   std::uint32_t parts_phase_said_ = 0;
