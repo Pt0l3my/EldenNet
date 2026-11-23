@@ -468,6 +468,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 443 | 2026-11-22 | The content's problems reach the player as one notice, never a value | DECIDED | #engine #conversation #notices |
 | 444 | 2026-11-22 | The tester's panel is a window of the launcher's own, not GraceUI's overlay, since a read-only round hooks nothing | DECIDED | #lodestar #launcher |
 | 445 | 2026-11-22 | The tester's confirmations are Marks in the watch block's ring, with no new field | METHOD | #lodestar |
+| 446 | 2026-11-23 | The first conversation verified whole on four toolchains, the talk case with the real speech under Wine | FACT | #engine #conversation |
 
 ## Entries
 
@@ -7018,3 +7019,21 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   most), within the owner's yes (O105's note).
 - The same round writes the clock's static into the draft table as `world_clock`, by what its object holds (minutes
   going round twice with hours beside them). The play time's invariant now asks what a play time does (WHY§397).
+
+### 446. The first conversation verified whole on four toolchains, the talk case with the real speech under Wine
+
+`2026-11-23` · FACT · `#engine` `#conversation` · refs: WHY§364, S11.3, S11.4.c
+
+- The whole first conversation (engine b4451c8: parts 0, A and B joined, and C) builds with 0 warnings on GCC
+  (Release), Clang, MinGW-w64 and clang-cl. The merging broke nothing.
+  - GCC and Clang: ctest 34/34, the eval label 7/7.
+  - MinGW: the 9 unit programs pass under Wine, harness 60/60.
+  - clang-cl: the 9 unit programs pass, `eldennet_dll_checks` passes (177 imports, SetEndOfFile and
+    WaitForMultipleObjects as reviewed), harness 119/119 with GraceUI's 0.2.20 test build.
+- The talk case on clang-cl with the real speech:
+  - The test persona was bound through the overrides folder in the Eval realm, and a 12-character line was sent.
+  - The scripted reply passed the sanitizer and the lint with no regeneration. It was shown as one page of 67
+    characters in the lower third and committed on display. Its first frame came about 226 ms after Enter.
+  - The talk key reached the box's first submitted frame in 1 ms, against NPC §5.1's 50 ms.
+  - The input-leak case passed. The release DLL refused the Eval realm (`accepted=0`), and the log held no chat text.
+- O108's change (engine a7f8509, after this check) passed GCC's 34/34 and 7/7.
