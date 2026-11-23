@@ -1121,7 +1121,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     failing closed. A start runs with the optional groups off; v0.2's conversation needs its groups too. By Lodestar.
     Begun on 2026-11-23: the twelfth round built (engine 4625fc3, package 0.1.0-lodestar.15; WHY§463): `game_state`
     by a state search over four looks (title, world, title, world), with the owner's agreement to its reading (O105's
-    third note). Awaiting the owner's run.
+    third note). After Engine's read the same day (engine 297f95f; WHY§466): the bits field type, and
+    `world_clock.hour`, `world_clock.minute` and `save_data.play_time` in the layout as leads; the round tells each
+    look's time and whether the tester overran it (then it names no slot by itself), its waits a minute each.
+    Package 0.1.0-lodestar.16, for the owner's run (15 never went out).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

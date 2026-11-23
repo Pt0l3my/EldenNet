@@ -488,6 +488,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 463 | 2026-11-23 | game_state is sought by what it holds at the title and in the world, over four looks | METHOD | #lodestar #l6 #gal |
 | 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
 | 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
+| 466 | 2026-11-23 | The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads | DECIDED | #lodestar #gal |
 
 ## Entries
 
@@ -7326,3 +7327,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   0.2.23's alike, by turns, run alone and back to back; on the earlier, larger machine it passed whole.
 - So on a four-core container a full run counts that check as the machine's, not a regression, when the medians hold
   (Grace's full run of 0.2.23: 232 checks, all but that one on both builds).
+
+### 466. The layout has a field type for a run of bits in a word; the clock's two fields and the play time enter it as leads
+
+`2026-11-23` · DECIDED · `#lodestar` `#gal` · refs: ARCH§6.3, WHY§459, WHY§460, S10.1.m
+
+- 2.7.2.0 keeps the hour and the minute as two runs of one 64-bit word, so en-gal's layout gains the field type `bits`
+  { word, shift, width }: a run in a little-endian word of 1, 2, 4 or 8 bytes, width 1 to 32, read as a whole number;
+  a range lies within what the run holds; refused in a param row. A group takes it wherever it takes a whole number.
+- `world_clock` (hour and minute, the word at 0x8, shifts 34 and 39, widths 5 and 6) and `save_data` (the play time, a
+  u32 at 0xA0) enter the build's layout as leads (engine a5efb98, by Lodestar; ARCH §6.3's dated note).
