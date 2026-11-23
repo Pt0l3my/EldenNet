@@ -416,7 +416,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - gives: the roster's first-meeting field came with O46's fold on 2026-11-16 (S6.2.b: `public.summary`, `public.role`
     and `subjects`), and its names at the title screen with DATA §3.1's gap 1; eldennet-changes §9 items 3 and 4 remain.
 
-### S7.2 The profile editor pass [next]
+### S7.2 The profile editor pass [done]
 
 - refs: GraceUI:docs/profile-editor-needs.md, O43
 - S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [done]
@@ -426,9 +426,16 @@ Work beside the engine and the increments, and the owner's housekeeping.
     GraceUI's O46 fold on 2026-11-16. Done on 2026-11-22 as a design pass (GraceUI feat/foundations f9c4d17): D2's
     exception recorded (D213); the needs brought to G20, O46 and O86 (GraceUI's proposal 0010 §2); the components
     GraceUI owes put to the owner as G38. EldenNet's answers to proposal 0010 §6 are WHY§377.
-- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
+- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [done]
   - needs: a, c
-  - refs: PAGES§4.6, WHY§377
+  - refs: PAGES§4.6, WHY§377, WHY§520, WHY§521, WHY§522, WHY§524, WHY§525
+  - gives: built on 2026-11-23 (engine wip/s12-editor, merged at c223b6e), on GraceUI 0.2.25's components (floor
+    0.2.22): Characters › Named NPCs as a master list, a Profile tab with the general profile (first-meeting fields
+    only) and Your notes over the four fields a layer may set; Check runs the content load's own checks, Save checks the
+    revision and writes the player's own layer in the overrides folder (the previous one kept), and the content loads
+    again once no conversation is open; Draft with AI sends only the player's notes and current text to the draft slot
+    and returns proposals, a saved draft marking the layer assisted. A layer keeps its persona's key until the player's
+    own characters come (WHY§521). Ships in v0.2, ahead of PAGES' v0.3. The words players read went to the owner.
 - c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
@@ -1735,12 +1742,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
     finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
 
-- e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8)
+- e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8) [done]
   - needs: S11.2.al
-  - refs: G9, GraceUI:D224, WHY§490
+  - refs: G9, GraceUI:D224, WHY§490, WHY§523
   - gives: EldenNet's space marks `sensitive_commands = ["secrets.set", "secrets.clear", "providers.update"]` and
     `sensitive = true` on any setting a paired device must never change, so GraceUI refuses them from a device before
-    any confirmation (GraceUI's docs/eldennet-changes.md §60). With the pages' work.
+    any confirmation (GraceUI's docs/eldennet-changes.md §60). With the pages' work. Done on 2026-11-23 with the profile
+    editor (merged at c223b6e) under EldenNet's own names, since §60's example names no command of EldenNet's space
+    and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
+    settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
+    case pairs a device on 127.0.0.2 and checks it refused (WHY§525).
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
@@ -1884,7 +1895,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: ARCH§12.4, O5
 - c The profile editor, the sightings list and the draft helper
   - needs: S7.2.b
-  - refs: DESIGN§7.7
+  - refs: DESIGN§7.7, WHY§521
+  - gives: narrowed on 2026-11-23: the profile editor and the draft helper came early, in v0.2, over the shipped
+    personas (S7.2.b). Left for here: the sightings list and the player's own characters it makes (`mine.<id>` rows,
+    WHY§521).
 - d The rest of the base game's roster bios
   - needs: S9.2.c, S14.2.a
 
