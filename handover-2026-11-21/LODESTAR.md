@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (seven read-only rounds run, the eighth built; 14 leads in the build's table; the time of day found)
+# Lodestar's status, 22 November 2026 (eight read-only rounds run, the ninth built; 15 leads in the build's table, the clock among them)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -24,7 +24,8 @@ first; this file adds only where Lodestar's own work stands.
 | R1's clean-up (O106) | engine 3e11238 | **Done, merged.** The first in-game round's code, launcher step, package and cases removed |
 | The sixth read-only run (2026-11-22; the same record, "The sixth round in game") | package 0.1.0-lodestar.9; engine 8e7295d | **Done, reviewed.** `save_data` in the table by the invariant recipe: 14 leads. The reader at 9.6 readings a second. No slow clock in any static's object; a fast one not ruled out there. The report lost every watched word (the fallback was too blunt) |
 | The seventh read-only run (2026-11-22; the same record, "The seventh round in game") | package 0.1.0-lodestar.10; engine b0a2fa7 | **Done, reviewed.** The time of day found (hour and minute packed into one word behind static 64422792; told by the owner's two passings of time). The flags' blocks and tree have candidates. The reader at 9.97 readings a second. The sweep's list missed what the owner did; the play time's invariant was refused by its margin rule |
-| The eighth round's build, with the tester's panel (roadmap S10.1.l) | package 0.1.0-lodestar.11; engine 3030114 | **Built, not yet run by the owner.** The launcher's task panel (the owner's request); its confirmations as marks for the sweep; the clock by what its object holds; the play time's invariant mended |
+| The eighth read-only run, with the tester's panel (2026-11-22/23; the same record, "The eighth round in game"; roadmap S10.1.l) | package 0.1.0-lodestar.11; engine 3030114, the table at a6cdf26 | **Done, reviewed.** The panel worked on the owner's PC. `world_clock` in the table by the invariant recipe: 15 leads. Bits set in the flags' stretch around both confirmations. The reader at 9.98 readings a second |
+| The ninth round's build | package 0.1.0-lodestar.12; engine 99b3de1 | **Built, not yet run by the owner.** The tree beside the flags read and joined to the marked flips; the panel's button knows its task (the owner's request) |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -50,20 +51,19 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's eighth read-only run** (package 0.1.0-lodestar.11, engine 3030114; built, not yet run). It has the
-   tester's panel the owner asked for (a window of the launcher's own: the tasks in order, timers, done ones greyed,
-   Pause or a click to confirm), whose confirmations are marks for the sweep; the clock named by what its object
-   holds; the play time's invariant by what a play time does (the record's "What was changed for the eighth round").
-   When the files come back:
-   - the sweep's `mark_flips`: the bits that flipped around the owner's two confirmations, by target and offset
-     (the first candidate for the blocks is the target 40 bytes into the store). With our notes' lead (a block of 125
-     bytes for 1,000 flags) an offset gives a block and a flag within it; which group a block is, the tree's records
-     must say (56 bytes into the store, records of 64 bytes): the next round reads them;
-   - `invariants`: `world_clock` at static 64422792, offset 8 expected, and `save_data` again; then the draft table
-     goes into `gal/layouts/`;
-   - whether a second static shows the clock as the same memory (the log's `same_memory`).
-   GraceUI's overlay could show the list in the game only after its own spikes on the owner's PC (roadmap S10.1.g,
-   S11.1.a) and the owner's approval; Grace advises keeping read-only rounds on the launcher's window even then.
+1. **The owner's ninth read-only run** (package 0.1.0-lodestar.12, engine 99b3de1; built, not yet run). The eighth
+   round (the record's "The eighth round in game") proved the panel on the owner's PC, put `world_clock` into the
+   table (15 leads, engine a6cdf26), and saw bits set in the flags' stretch around both of the owner's
+   confirmations (bytes 3,288 and 1,453,189; then 2,928, 1,453,199 and 1,453,751). The ninth reads the tree beside
+   the flags and joins those flips to its records (the record's "What was changed for the ninth round"). When the
+   files come back:
+   - `tree.fields`: which field is ordered (the key: the group) and which holds multiples of 125 (the block's
+     start), or addresses; `tree.joins`: for each flip around a mark, the record that names its block, as sixteen
+     numbers. A flag's number is then the group times 1,000 plus the bit's place in the block (by our notes' lead,
+     the first flag of a byte in its top bit: to be checked against the two bits ten bytes apart);
+   - with a key and a block field known, the flags' layout goes into the design as leads (store: blocks 40 bytes in,
+     tree 56 bytes in; the record's fields), and v1's flag reads can be written against it;
+   - ask the owner what the two things were (asked with the eighth round's review).
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
