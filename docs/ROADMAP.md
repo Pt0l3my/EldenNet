@@ -1522,7 +1522,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (S11.4.d, dropped on 2026-11-23, WHY§461). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
     holds its pages: the core's gate changed to match on 2026-11-23 (engine a7f8509).
     The polish on 2026-11-23 (engine merge 5ec1555; WHY§493 to §495, §497): the second Esc's rule removed (G39 (c));
-    the refusal's toast names the holder by GraceUI's id, and not-now by its reason (words for the owner's review);
+    the refusal's toast names the holder by GraceUI's id, and not-now by its reason (its words approved, O110);
     `features` and `range` reach the core from settings.toml and the pages.
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
@@ -1645,7 +1645,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Since the first conversation (2026-11-22, WHY§422, §442): the core's ladder has L3 and L4, which the pages still
     show as Observing, since en-overlay's pages have no speaking level yet. Words players read, left for the owner's
     review with the level the pages give them.
-    L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words for the owner's review. Left:
+    L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words approved (O110). Left:
     L2's words still say NPCs speak from a later version, which a v0.2 build makes untrue (fixtures and goldens).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i

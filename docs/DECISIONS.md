@@ -2156,3 +2156,25 @@ rumour: it shows only after that talk in the player's own game, and the design r
 (Recommended)" (the question dialog, 2026-11-23).
 
 **Follows from.** O43, O45, O46, O86; NPC §3.4, §7.3, §4.8 (PL9); S11.3.c; WHY§471, WHY§472, WHY§475.
+
+## O110
+
+**The chat box's refusal toast and the pages' speaking levels: the words players read** · *2026-11-23 · Decided by the owner, as recommended*
+
+**Question.** The first conversation's polish (WHY§495, §496) wrote words players read, left for the owner's review:
+(a) the toast when the chat box cannot take the keyboard: "Chat cannot take the keyboard: GraceUI's menu has the
+controls.", "...: another mod (‹id›) has the controls.", "...: another mod has the controls.", "...: danger is near.",
+"Chat cannot take the keyboard while the game loads." and "...while a game menu is open."; (b) the pages' new levels:
+L4 "Speaking" ("EldenNet reads the game, and NPCs speak."), L3 "Speaking, in part" ("NPCs speak, but part of the game
+EldenNet reads has stopped: System › Status says which."), and the AI pages' lead at either, "Conversation is ready:
+NPCs answer when you speak to them." **Options:** approve as written, or other words (for the toast, a shorter, softer
+set such as "Chat is busy: ...").
+
+**Recommendation.** Approve both as written: each says who or what has the controls, or which part has stopped, and
+where to look.
+
+**Decision.** Both as written.
+
+**Owner's words.** "Approve as written (Recommended)", twice (the question dialog, 2026-11-23).
+
+**Follows from.** NPC §5.1, §5.5; PAGES §4.5; S11.3.a; S11.4.a; WHY§442, WHY§495, WHY§496.
