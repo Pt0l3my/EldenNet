@@ -1094,6 +1094,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The eleventh round built the same day (engine 998d078; WHY§458): EldenNet's own reader on the flags, alone, through
     the build's layout, compared with the round's tree reader and the known flag (package 0.1.0-lodestar.14, for the
     owner's run). A ready start still needs one static (`game_state`) and 36 fields (WHY§459): S10.1.m.
+    The eleventh round reviewed the same day (WHY§462): discovery through the layout and the backend's flags group work
+    on the game (flag 100 read as set, 44 frames, no fault); the marked flags' comparison moves to the twelfth round
+    (WHY§464).
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445
@@ -1104,13 +1107,16 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
     Proved on the owner's PC in the eighth round (WHY§450); the owner's one change, a button that speaks for its task and
     none for the last, is in the ninth.
-- m The layout for a ready start: `game_state`, then the session's, world's and player's fields and the snapshot's mode, by L6's ways [next]
+- m The layout for a ready start: `game_state`, then the session's, world's and player's fields and the snapshot's mode, by L6's ways [active]
   - needs: k
   - refs: WHY§459, WHY§460, ARCH§6.7, ARCH§6.8
   - gives: counted by Lodestar on 2026-11-23: one static and 36 fields. The order and the rule for leads are Engine's
     ruling (WHY§460): `game_state` first; then pointers and lists by search; then moving numbers by invariant with panel
     tasks (any task with a cost optional); then constants as leads checked by their properties, the session gate's
     failing closed. A start runs with the optional groups off; v0.2's conversation needs its groups too. By Lodestar.
+    Begun on 2026-11-23: the twelfth round built (engine 4625fc3, package 0.1.0-lodestar.15; WHY§463): `game_state`
+    by a state search over four looks (title, world, title, world), with the owner's agreement to its reading (O105's
+    third note). Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

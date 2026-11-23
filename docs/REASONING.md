@@ -484,6 +484,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 459 | 2026-11-23 | What a ready start still needs from the layout: one static and 36 fields, by L6's ways | FACT | #lodestar #gal |
 | 460 | 2026-11-23 | The order of the start's layout, and how far a start may rest on the notes' leads for constants | DECIDED | #engine #lodestar #gal |
 | 461 | 2026-11-23 | No second Esc after the chat box closes: Esc and the pad act on the box only while it is open | DECIDED | #engine #conversation #graceui #input |
+| 462 | 2026-11-23 | EldenNet's own discovery and flags reader work on the game, through the build's layout | FACT | #lodestar #gal #flags |
+| 463 | 2026-11-23 | game_state is sought by what it holds at the title and in the world, over four looks | METHOD | #lodestar #l6 #gal |
+| 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
 
 ## Entries
 
@@ -7189,6 +7192,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   owner's panel and the self-test flag. It touches nothing of boot.cpp.
 - So the real reader's first run stays inside a read-only round. The start's use of the layout (discovery through the
   table, the reader at start: spikes S0-A and S0-B, S10.1.b) follows once that round agrees.
+- *Later (2026-11-23, WHY§462):* the round ran. EldenNet's own reader read the flags through the build's layout
+  on the game, 44 frames with no fault, and the flag set in every playthrough as set; the marked flags' comparison
+  moves to the twelfth round.
 
 ### 458. One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group
 
@@ -7271,3 +7277,39 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   still pacing after its box has closed finishes; no press stops it.
 - This answers WHY§437's third point. The core's second-Esc rule, which nothing can reach, is removed with the
   conversation's polish (S11.4.d).
+
+### 462. EldenNet's own discovery and flags reader work on the game, through the build's layout
+
+`2026-11-23` · FACT · `#lodestar` `#gal` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§457, WHY§458, S10.1.k
+
+- The eleventh read-only round (package 0.1.0-lodestar.14; 7.8 minutes) ran discover through the build's layout as a
+  partial pass on a thread of our own: 19 ms, 12 items resolved, all 12 from the table, none refused by its checks
+  (placement and witness, on the game's own image for the first time through discover). Not ready, as expected.
+- `ErBackend::flags_alone` gave a frame 44 times in 45 (the 45th after the game let its store go at the quit), with no
+  reader fault and no breaker trip, and read the flag set in every playthrough (100) as set.
+- The flags the owner's marks changed were not compared with the backend: the tree's walk was 47 records short of
+  11,930 when the owner quit (WHY§464). The clock and the play time held by their invariants; the round's reader ran at
+  9.92 readings a second, 4,490 readings, no fault.
+
+### 463. game_state is sought by what it holds at the title and in the world, over four looks
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§460, O105, S10.1.m
+
+- The first piece of S10.1.m, in WHY§460's order. Over the data's slots that point at live memory, the first 8 KiB of
+  each object is read in four looks, told by the tester's marks: the title, the world, the title again, the world
+  again. A 32-bit field that reads -1, then a number from 0 to 15, then -1, then the same number is a hit (at most 32
+  listed). Each slot's value is taken from the image as loaded.
+- One slot hit, with the title clean and the slot not already named, enters the round's draft table as `game_state` by
+  the invariant recipe, with the code's references to the slot as witnesses. Nothing enters `gal/` before Lodestar's
+  review of the files.
+- About 5,000 objects, some 40 MiB a look: more than the owner's yes for the flags (24 MiB), so Lodestar asked again
+  first, and the owner agreed (O105's third note).
+
+### 464. A search that must end inside a session gets the searches' whole share until it is through
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§462
+
+- The tree's walk ran on part of the searches' share in the eleventh round and ended 47 records short of 11,930 in a
+  session of 7.8 minutes, so the marked flags could not be compared.
+- The twelfth round gives the walk the searches' whole share until it is through, about a minute; a look of the state
+  search likewise holds the whole share while it runs, the other searches waiting.
