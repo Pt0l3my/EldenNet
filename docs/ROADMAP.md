@@ -986,6 +986,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the game's folder), A1 fell twice at GraceUI's first Present with EldenNet connected and no stand-in, so its cause
     is open with Grace (WHY§518's Later line). Every run of the next package checks the game's GraceUI against its own
     first (E13, WHY§528), and its chat box takes no mouse (O113).
+    Packed and sent the same day as 0.1.0-spikes.5 (engine a64486f, GraceUI 0.2.30 at a04a234: D232's pointer, G40,
+    G41 and the observer's fault recorder, 0xC0000374 included): the sums, help and version under Wine, 18 GraceUI and
+    spike cases, the six run cases and the other-GraceUI case, and the sweep passed. A1 is kept as it was, so that the
+    recorder names the caller if it falls again.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
