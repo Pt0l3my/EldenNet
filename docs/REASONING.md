@@ -8437,6 +8437,12 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   GraceUI is needed for it. What changed on the PC or around the game that day is the owner's to look at if they wish;
   EldenNet and GraceUI stop chasing it. The launcher's start-up notice of the last session's error shows it each time.
 
+- Later (2026-11-23, Lodestar's reading of the owner's later runs): after the vanilla runs, package lodestar.17 in full
+  (EldenNet and GraceUI 0.2.30 connected, two saves loaded, 435 s) ended clean, and lodestar.19 quit at the title
+  ended clean. So not every session with a save loaded ends with the code: the clean full sessions are the two that
+  loaded the first character of the list before the usual one. Thin, and possibly chance; a normal launch from Steam
+  with nothing of ours is the next control (asked of the owner).
+
 ### 557. Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game
 
 `2026-11-23` · FACT · `#crash` `#engine` · refs: WHY§556, WHY§550, WHY§209, O115
