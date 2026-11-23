@@ -1193,6 +1193,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the owner's Pause presses, and the game ended with a crash code at the quit. To be run again once the read round no
     longer connects to GraceUI (WHY§537) and the parts watch takes the main player from characters.main_player
     (WHY§538).
+    The fourteenth round's rerun built the same day (engine 57f7136, merged at 46f13b9; package 0.1.0-lodestar.19): a
+    read round never connects to GraceUI, and the main player by the layout's word. Awaiting the owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
