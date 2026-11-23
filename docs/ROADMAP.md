@@ -1083,6 +1083,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     L6's fifth round reviewed the same day (WHY§451 to §453): the flags' tree read whole; key, mode and block index
     placed; the flags decode to numbers. Next: the reader's change (a value is an index, WHY§452), a round that reads
     flags by number as the reader will, then the flags' fields into the layout.
+    The reader's change made the same day (engine 6d56207; WHY§454): a value is an index. L6's sixth round built
+    (package 0.1.0-lodestar.13): the reader's way down the tree tried against the bits the sweep sees, and the divisor
+    looked for.
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445

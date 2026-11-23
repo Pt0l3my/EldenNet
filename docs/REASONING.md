@@ -476,6 +476,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 451 | 2026-11-23 | The flags' layout: the store's holder and tree, a record's key, mode and block index, a flag as group times 1,000 plus its place | FACT | #lodestar #l6 #flags |
 | 452 | 2026-11-23 | Our reader's lead was wrong in one thing: a record's value is a block's index, not a byte offset | FACT | #lodestar #flags |
 | 453 | 2026-11-23 | A join must follow the layout the counts show: the index, not the start | METHOD | #lodestar |
+| 454 | 2026-11-23 | en-gal's flag reader takes a mode-1 record's value as the block's index | DECIDED | #lodestar #flags |
 
 ## Entries
 
@@ -7133,3 +7134,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   joined to other blocks' records, and their groups are not in the report. A start met in the index's field belongs to
   another block's record.
 - Also mended: one key in seven, with its padding, looked like an address, so the order's check passed it over.
+
+### 454. en-gal's flag reader takes a mode-1 record's value as the block's index
+
+`2026-11-23` · DECIDED · `#lodestar` `#flags` · refs: readers.cpp, WHY§452, ARCH§6.9
+
+- `ErBackend::flag_block` returns the holder plus value × 125 for mode 1, bounded (engine 6d56207, with Engine's word).
+  The fake game and en-gal's fake world keep indices too. This rests on one session's finding.
+- The tenth round (package 0.1.0-lodestar.13) tries the reader's way in the game: it joins each flip by the block's index
+  first, takes the key by the tree's order, goes down from the head's middle link by the key to each joined record, and
+  writes whether that way arrives at the same record. It also reads the store's first 256 bytes once and writes only
+  where 1,000 and 125 stand. Its other reading is the ninth round's.
