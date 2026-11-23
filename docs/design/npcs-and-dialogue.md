@@ -1682,6 +1682,11 @@ the press cannot reach EldenNet yet: with the box closed nothing holds input, an
 (roadmap S11.4.d). A content load that changes the index or the records ends an open conversation with `fault` and no
 toast (WHY§423, §427).
 
+*Since 2026-11-23 (WHY§461; the owner, GraceUI's G39 (c)):* there is no second Esc. The table's row "Esc while a reply
+is pending" keeps its first half only: Esc closes the box and the reply finishes pacing, then the conversation ends.
+Esc and the pad act on the box only while it is open (Enter sends the line, Esc cancels and closes); once the box has
+closed or the reply is out, both are the game's again, and no press stops a reply that is pacing.
+
 ### 5.8 Native-talk coexistence (DESIGN §8.7)
 
 **Native talk always wins.** Chat cannot open with native talk active within 8 m. Own-initiative lines follow the rules below and DESIGN §8.9.

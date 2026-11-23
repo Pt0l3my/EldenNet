@@ -483,6 +483,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 458 | 2026-11-23 | One group of the reader can be read alone before the others' fields are placed: a partial discovery and a tick for that group | METHOD | #lodestar #flags |
 | 459 | 2026-11-23 | What a ready start still needs from the layout: one static and 36 fields, by L6's ways | FACT | #lodestar #gal |
 | 460 | 2026-11-23 | The order of the start's layout, and how far a start may rest on the notes' leads for constants | DECIDED | #engine #lodestar #gal |
+| 461 | 2026-11-23 | No second Esc after the chat box closes: Esc and the pad act on the box only while it is open | DECIDED | #engine #conversation #graceui #input |
 
 ## Entries
 
@@ -7254,3 +7255,19 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   conversation's groups too (session, world, player, flags, ui, place and params), so those follow before it.
 - The clock's runs of bits: a field type of a word with a shift and a width, in en-gal's layout, by Lodestar. The play
   time's place becomes a field of `save_data` by Lodestar.
+
+### 461. No second Esc after the chat box closes: Esc and the pad act on the box only while it is open
+
+`2026-11-23` · DECIDED · `#engine` `#conversation` `#graceui` `#input` · refs: GraceUI:G39, NPC§5.7, NPC§5.6, S11.4.d, WHY§437
+
+- The owner declined GraceUI's G39, answer (c), so proposal 0011's armed Escape (one Esc for a mod after its box has
+  closed) is not built. In the owner's words: "esc should only work whilst the chatbox is open, press Enter to enter
+  the written text. Press Esc to cancel and close down the chatbox. Once the reply is out or chatbox is closed, Esc
+  function is immediately back to normal (game's function)"; and on the pad: "no need to stop reply, user either
+  closes chatbox with Esc or enter reply with Enter. You can implement gamepad buttons to work as such too, but we
+  only care about while the chatbox is open, if the chatbox is not open those keys are back to normal function."
+- So while the box is open, Enter (and the pad's confirm, if one is mapped) sends the line, and Esc (and the pad's B,
+  NPC §5.6) cancels and closes it. Once the box has closed or the reply is out, both are the game's at once. A reply
+  still pacing after its box has closed finishes; no press stops it.
+- This answers WHY§437's third point. The core's second-Esc rule, which nothing can reach, is removed with the
+  conversation's polish (S11.4.d).

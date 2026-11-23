@@ -1460,8 +1460,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the HUD, the pop-up, the talk camera, teams and distances, then S4 and S3 in game (S11.1.a, b). Left: a refused or
     not-now toast that names the holder (WHY§442); target rules 1 and 2 (f), 0 with the own-initiative lines (S12.1.c)
     and 6 with the call-out (S15.1.a); the mute state's sources (`speech.toml`, `types.toml`); a second Escape
-    (S11.4.d). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
-    holds its pages: the core's gate changes to match.
+    (S11.4.d, dropped on 2026-11-23, WHY§461). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
+    holds its pages: the core's gate changed to match on 2026-11-23 (engine a7f8509).
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
   - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
@@ -1602,13 +1602,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     typed line answered in the lower third and committed, end to end on the fake game. Waits for the game: S4 and
     S0-E's input half (S11.1.a). Left: the chord and danger tested against GraceUI's real test build, as they are so
     far against the stand-in only; rounded corners, and the Tarnished's lines in italic, which wait for more faces per
-    mod in GraceUI (D139 gives EldenNet eight) and an italic face; a second Escape (d); the pointer in the box. The
+    mod in GraceUI (D139 gives EldenNet eight) and an italic face; the pointer in the box (a second Escape,
+    d, dropped on 2026-11-23). The
     call-out box waits for v0.6 (WHY§364 (5); S15.1.a).
-- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI
+- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
-  - refs: NPC§5.7, WHY§437
+  - refs: NPC§5.7, WHY§437, WHY§461, G39
   - gives: the core's rule is built, but with the box closed nothing holds input and GraceUI takes no hotkey on Escape,
-    so the second press never reaches EldenNet (2026-11-22).
+    so the second press never reaches EldenNet (2026-11-22). Dropped on 2026-11-23 by the owner (GraceUI's G39 (c),
+    proposal 0011): Esc and the pad act on the box only while it is open, Enter sending and Esc cancelling and
+    closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
+    finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
 
 ### S11.5 v0.2's exit checks
 
