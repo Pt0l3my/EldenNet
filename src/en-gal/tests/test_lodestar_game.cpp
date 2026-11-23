@@ -1713,7 +1713,9 @@ TEST_CASE("in game: the sweep reads no more of a target of which too much change
   const auto gt = en::proto::GameThread::issue();
   std::uint64_t now = 1'000'000;
   for (int second = 0; second < 400; ++second) {
-    for (std::uint32_t i = 0; i < 2000; ++i) w.mem.put<std::uint32_t>(busy + i * 8, static_cast<std::uint32_t>(second * 7 + i));
+    for (std::uint32_t i = 0; i < 2000; ++i) {
+      w.mem.put<std::uint32_t>(busy + i * 8, static_cast<std::uint32_t>(second * 7) + i);
+    }
     if (second == 300) w.mem.put<std::uint8_t>(quiet + 0x1234, 0x04);
     now += 1'000'000;
     reader.begin_tick();
@@ -1728,6 +1730,7 @@ TEST_CASE("in game: the sweep reads no more of a target of which too much change
   CHECK(found.targets[0].readings >= 5);
   CHECK(found.targets[0].readings <= 6);
   CHECK(found.targets[0].flips.empty());
+  CHECK(found.targets[0].mark_flips.empty());  // a target given up lists nothing
   // The quiet one: read at every pass, its flag seen.
   CHECK_FALSE(found.targets[1].retired);
   CHECK(found.targets[1].readings == found.passes);
@@ -1739,6 +1742,133 @@ TEST_CASE("in game: the sweep reads no more of a target of which too much change
   const auto text = lodestar::write_report(f);
   REQUIRE(text.has_value());
   CHECK(text->find("\"retired\": true") != std::string::npos);
+}
+
+TEST_CASE("in game: the tree beside the flags is walked once, its key told by its order, and a flip joined to its record") {
+  FakeWorld w;
+  Round r = round_of(w);
+  const auto rva = [&](std::uint64_t va) { return static_cast<std::uint32_t>(va - w.base); };
+  // The store behind the HUD's static keeps, 0x38 bytes in, the address of the tree's head. A record is 64 bytes:
+  // left, parent, right, two small bytes, then the key (the group) and a mode in one word, then the block: its start
+  // in the stretch (mode 1) or its address (mode 2). Fifteen groups, a balanced tree; the head's links are the
+  // leftmost record, the root and the rightmost, and the leaves point back at the head.
+  const std::uint64_t store = w.mem.alloc(0x80);
+  const std::uint64_t blocks = w.mem.alloc(125 * 16);
+  const std::uint64_t own = w.mem.alloc(125);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), store);
+  const std::uint64_t head = w.mem.alloc(64);
+  w.mem.put<std::uint64_t>(store + 0x38, head);
+  const std::uint32_t groups[15] = {3, 7, 10, 11, 60, 61, 62, 1040, 1041, 1042, 1043, 3000, 3001, 9000, 9100};
+  std::uint64_t nodes[15];
+  for (std::uint64_t& n : nodes) n = w.mem.alloc(64);
+  const auto build = [&](auto&& self, int lo, int hi, std::uint64_t parent) -> std::uint64_t {
+    if (lo > hi) return head;
+    const int mid = (lo + hi) / 2;
+    const std::uint64_t at = nodes[mid];
+    w.mem.put<std::uint64_t>(at + 0, self(self, lo, mid - 1, at));
+    w.mem.put<std::uint64_t>(at + 8, parent);
+    w.mem.put<std::uint64_t>(at + 16, self(self, mid + 1, hi, at));
+    w.mem.put<std::uint16_t>(at + 24, static_cast<std::uint16_t>(mid % 2));
+    w.mem.put<std::uint32_t>(at + 32, groups[mid]);
+    const bool by_address = mid == 13;  // one group's block lies by itself
+    w.mem.put<std::uint32_t>(at + 36, by_address ? 2u : 1u);
+    w.mem.put<std::uint64_t>(at + 40, by_address ? own : std::uint64_t{125} * static_cast<std::uint32_t>(mid));
+    return at;
+  };
+  const std::uint64_t root = build(build, 0, 14, head);
+  w.mem.put<std::uint64_t>(head + 0, nodes[0]);
+  w.mem.put<std::uint64_t>(head + 8, root);
+  w.mem.put<std::uint64_t>(head + 16, nodes[14]);
+  w.mem.put<std::uint16_t>(head + 24, 0x0101);
+
+  lodestar::TreeRead tree(w.base, r.gated.image.size_of_image, rva(w.at("st_hud")), 0x38);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  CHECK_FALSE(tree.done());
+  CHECK_FALSE(tree.found({}).done);
+  int steps = 0;
+  for (; steps < 100 && !tree.done(); ++steps) {
+    reader.begin_tick();
+    (void)tree.step(gt, reader);
+  }
+  REQUIRE(tree.done());
+  CHECK(steps <= 20);  // the way, sixteen records, and the step that finds nothing left
+  // Before it is settled nothing is counted. Settling asks what stands behind a word that looks like an address:
+  // here, whether the fake memory holds something there.
+  CHECK(tree.found({}).fields.empty());
+  tree.settle([&](std::uint64_t at) {
+    std::array<std::byte, 8> b{};
+    return w.mem.read(at, b);
+  });
+  CHECK(tree.settled());
+  // Two flips to join: one 3 bytes into the sixth block of the stretch (a record's start, 625), one in the block that
+  // lies by itself (a record's address); and one in a block no record names.
+  const lodestar::TreeRead::Flip flips[3] = {{1, 0x28, 125 * 5 + 3, 4, blocks},
+                                             {2, 0x30, 17, 0, own},
+                                             {2, 0x28, 125 * 15 + 1, 2, blocks}};
+  const lodestar::TreeFound found = tree.found(flips);
+  CHECK(found.done);
+  CHECK_FALSE(found.capped);
+  CHECK(found.rva == rva(w.at("st_hud")));
+  CHECK(found.offset == 0x38);
+  CHECK(found.records == 16);  // the head and the fifteen
+  CHECK(found.off_shape == 0);
+  CHECK(found.unreadable == 0);
+  REQUIRE(found.fields.size() == 16);
+  // The key: 32 bytes in, fifteen different numbers, and the one field the tree is ordered by, the first word left.
+  CHECK(found.order == 1);
+  CHECK(found.fields[8].offset == 32);
+  CHECK(found.fields[8].nonzero == 15);
+  CHECK(found.fields[8].distinct == 15);
+  CHECK(found.fields[8].lowest == 3);
+  CHECK(found.fields[8].highest == 9100);
+  CHECK(found.fields[8].rising);
+  CHECK(std::count_if(found.fields.begin(), found.fields.end(), [](const auto& f) { return f.rising; }) == 1);
+  // The mode: two numbers. The block: starts that are multiples of 125 in thirteen records (the first record's is
+  // nothing), and one address.
+  CHECK(found.fields[9].distinct == 2);
+  CHECK(found.fields[10].nonzero == 13);
+  CHECK(found.fields[10].multiples == 13);
+  CHECK(found.fields[10].addresses == 1);
+  CHECK(found.fields[0].addresses == 16);
+  // The joins: the first flip's block by its start, the second's by its address, the third's by nothing.
+  REQUIRE(found.joins.size() == 2);
+  CHECK(found.joins[0].mark == 1);
+  CHECK(found.joins[0].target == 0x28);
+  CHECK(found.joins[0].flip == 125 * 5 + 3);
+  CHECK(found.joins[0].bit == 4);
+  CHECK(found.joins[0].match == lodestar::TreeMatch::Start);
+  CHECK(found.joins[0].field == 40);
+  REQUIRE(found.joins[0].values.size() == 16);
+  CHECK(found.joins[0].values[8] == 61);   // the group
+  CHECK(found.joins[0].values[9] == 1);    // its mode
+  CHECK(found.joins[0].values[10] == 625);
+  CHECK(found.joins[0].values[0] == 0);    // an address is never written
+  CHECK(found.joins[0].values[2] == 0);
+  CHECK(found.joins[1].mark == 2);
+  CHECK(found.joins[1].match == lodestar::TreeMatch::Address);
+  CHECK(found.joins[1].field == 40);
+  CHECK(found.joins[1].values[8] == 9000);
+  CHECK(found.joins[1].values[9] == 2);
+  CHECK(found.joins[1].values[10] == 0);   // the block's address is not written either
+  // The report carries the tree as numbers, and lints clean.
+  lodestar::Found f = r.found;
+  f.tree = found;
+  const auto text = lodestar::write_report(f);
+  if (!text.has_value()) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"tree\": {") != std::string::npos);
+  CHECK(text->find("\"match\": \"address\"") != std::string::npos);
+  CHECK(text->find("\"ordered\": true") != std::string::npos);
+  // A way that leads nowhere ends at once, with nothing read.
+  lodestar::TreeRead none(w.base, r.gated.image.size_of_image, rva(w.at("st_hud")), 0x60);
+  reader.begin_tick();
+  CHECK(none.step(gt, reader));
+  none.settle(nullptr);
+  CHECK(none.found({}).records == 0);
+  CHECK(none.found({}).done);
 }
 
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {

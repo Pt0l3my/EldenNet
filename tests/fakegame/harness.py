@@ -2385,7 +2385,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 8, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 9, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -2500,6 +2500,18 @@ def check_read(result, by_flag=False, events=False, marks=False):
             failures += any_line(result, "LAUNCHER", "task", n=4, of=8, by="time", mark=1)
             failures += any_line(result, "LAUNCHER", "task", n=6, of=8, by="time", mark=1)
             failures += any_line(result, "ELDENNET", "read", stage="mark", n=2)
+            # The tree beside the flags: its head is the object the store's map points at (0x10 bytes in); the walk
+            # read the head and the three groups' records; and the flag's flip is joined to the record that names
+            # its block by the block's start in the holder (125): group 7, mode 1 (the fake game's record keeps the
+            # group 0x18 bytes in, the mode 0x1C and the block 0x20).
+            tree = d.get("tree") or {"joins": [], "records": 0, "done": False}
+            joined = [j for j in tree["joins"] if j["flip"] == 125 + 15 and j["match"] == "start"]
+            need(tree["done"] and tree.get("offset") == 0x10 and tree["records"] == 4 and tree["unreadable"] == 0 and
+                 len(tree["fields"]) == 16 and len(joined) == 1 and joined[0]["field"] == 0x20 and
+                 joined[0]["target"] == 0x20 and joined[0]["bit"] == 4 and joined[0]["values"][6] == 7 and
+                 joined[0]["values"][7] == 1 and joined[0]["values"][8] == 125 and joined[0]["values"][0] == 0,
+                 "the tree: %s" % {k: v for k, v in tree.items() if k != "fields"}, failures)
+            failures += want(result, "ELDENNET", "read", stage="tree_done", records=4, unreadable=0, capped=0)
         if events:
             # One step more: what the first step's objects point at, watched and swept too.
             deeper = [o for o in watch["watched"] if o["label"] == "event_flags" and o["deeper"]]

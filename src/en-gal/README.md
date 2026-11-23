@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 8, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 9, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -323,7 +323,12 @@ of any game is in it, and every name it looks for comes from a leads file.
   `Sweep::mark` takes the moment the tester confirmed a task: the flips seen from 15 s before it to 60 s after are
   kept under that mark (`MarkFlip`), and a pass starts at once; a target of which more than 1,024 words change again
   and again is read no more (`retired`). A wide way is listed only where minutes went round twice with hours beside
-  them, and the round names that static the world's clock by the invariant recipe.
+  them, and the round names that static the world's clock by the invariant recipe. `TreeRead` walks the tree beside
+  the flags once (records of 64 bytes reached by their first three words, 32,768 at most, nothing allocated while
+  stepping), counts each of a record's sixteen 32-bit fields over all records, finds the key by the tree's own order
+  (a left child's is smaller, a right child's greater), and joins a marked flip to the record that names its block
+  by the block's start, index or address (`TreeFound`, `TreeJoin`); `settle` tells addresses from numbers that look
+  like them before anything is counted, and an address is never written.
   The round watches each named manager, the objects the event flags' store's first addresses lead to and the
   objects those lead to (and sweeps the stretches all of them start), each place the member search found a
   pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's

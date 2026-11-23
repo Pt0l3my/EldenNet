@@ -294,7 +294,10 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   r.ms = end - t0;
   if (hotkey) UnregisterHotKey(nullptr, kMarkHotkey);
   panel.close();
-  if (tasks) say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
+  if (tasks) {
+    task_done(tasks->end(end), "end", end);  // the last task is the game's end itself
+    say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
+  }
   b.control.watcher_pid.store(0, std::memory_order_release);
   r.last_init = copy_status(b).init;
   if (!r.crash_signalled && copy_crash(b)) r.crash_signalled = true;  // written, but the event came too late
