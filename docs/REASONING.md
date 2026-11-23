@@ -529,6 +529,32 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 504 | 2026-11-23 | game_state's candidate is a number of the character: 4 for the list's first, 2 for the third | FACT | #lodestar #l6 |
 | 505 | 2026-11-23 | A search of a manager's object is asked for only once the game is in the state it is to see | METHOD | #lodestar |
 | 506 | 2026-11-23 | Fields past a class's 0x4000 copy are far fields, each read by its own small copy | DECIDED | #engine #gal #lodestar |
+| 507 | 2026-11-23 | game_state's candidate is not the save's slot: the owner's save file gives the slots | FACT | #lodestar #l6 |
+| 508 | 2026-11-23 | Ground truth first, then the search | METHOD | #lodestar |
+| 509 | 2026-11-23 | S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn | FACT | #spike #graceui #engine |
+| 510 | 2026-11-23 | A start that stops at a banner once the window has shown installs the crash filter | DECIDED | #engine #boot |
+| 511 | 2026-11-23 | S0-E's next package: A5 with GraceUI and its observer alone, state lines every 200 ms, other overlays closed | DECIDED | #spike #graceui #engine |
+| 512 | 2026-11-23 | G28's upload route: the ticket in a header, spent on its first match; the size before a byte, the hash on a worker | FACT | #graceui #security |
+| 513 | 2026-11-23 | A browser hashes only in a secure context, so uploads stay on this PC | FACT | #graceui |
+| 514 | 2026-11-23 | A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule | METHOD | #graceui #security |
+| 515 | 2026-11-23 | A spike run's own record lists the game's modules by name | DECIDED | #launcher #spike |
+| 516 | 2026-11-23 | A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger | METHOD | #graceui #spike |
+| 517 | 2026-11-23 | Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices | FACT | #spike #graceui #launcher |
+| 518 | 2026-11-23 | The stand-in for another overlay caused the owner's crashes; no run loads it any more | DECIDED | #spike #graceui |
+| 519 | 2026-11-23 | A game that turns its camera by the mouse keeps the cursor at its centre; an overlay's pointer follows the mouse's own motion | FACT | #graceui #input |
+| 520 | 2026-11-23 | The profile editor's commands are answered later, through GraceUI's reply handle | FACT | #engine #editor #pages |
+| 521 | 2026-11-23 | A layer over a shipped persona keeps its persona's key; `mine.<id>` waits for the player's own characters | DECIDED | #engine #editor |
+| 522 | 2026-11-23 | Block 4 passes its cap with any note over the pilot: a warning on every save | FACT | #engine #content |
+| 523 | 2026-11-23 | Sensitive marks: EldenNet's own command names, not the brief's | FACT | #engine #graceui #security |
+| 524 | 2026-11-23 | grace-dev's dump draws a master page's detail empty | FACT | #graceui #pages |
+| 525 | 2026-11-23 | A paired device in the fake game: the listener at home on 127.0.0.2 | METHOD | #engine #tests #graceui |
+| 526 | 2026-11-23 | The browser view's port, a case's own: another run of GraceUI's cases holds 8642 | FACT | #engine #tests |
+| 527 | 2026-11-23 | Lodestar's read-state case is timing-tight; read-chars fails on the base too | FACT | #tests #lodestar |
+| 528 | 2026-11-23 | A test package's runs check the game's GraceUI against the package's own before the start | DECIDED | #engine #spike #launcher |
+| 529 | 2026-11-23 | spikes.4: A5 and B ran to their end; A1 still falls at GraceUI's first Present with EldenNet connected and no stand-in | FACT | #spike #graceui #engine |
+| 530 | 2026-11-23 | A start stopped by its reader's files says "not supported yet" of a build Home calls supported | FACT | #engine #pages #words |
+| 531 | 2026-11-23 | The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing | METHOD | #lodestar #gal |
+| 532 | 2026-11-23 | A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one | METHOD | #lodestar #launcher |
 
 ## Entries
 
@@ -7424,6 +7450,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   character, then the usual one.
 - *Later (2026-11-23, WHY§504):* the candidate read 4 and 2 for two characters: a number of the character, which
   fits the slot if the list runs last slot first; a third load is to settle it.
+- *Later (2026-11-23, WHY§507):* the candidate is ruled out by the owner's save file: it is not the slot.
 
 ### 470. A search by what an object holds in each state takes its candidates in each state and lists its near misses
 
@@ -7584,6 +7611,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   banner, as on the real game today, never installs it, so S0-D's crashes on request there are recorded by the watcher
   from the exit code and the module list, with no crash record of EldenNet's (filter_records 0). S0-D's rule asks for
   the watcher's record only, so it passes; whether a stopped start should install the filter is left to the design.
+- *Later (2026-11-23, WHY§510):* decided: a start stopped at a banner after the window installs the filter.
 
 ### 485. The panel's confirmations go on after the Mark's hand-over
 
@@ -7626,6 +7654,7 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   review of the files.
 - *Later (2026-11-23, WHY§504):* with two characters seven fields in 25 slots read two numbers, so that rule alone
   names nothing; a field that changed for the same character between sessions is ruled out.
+- *Later (2026-11-23, WHY§507):* the candidate it found is not the slot; the next search seeks the slot's known numbers.
 
 ### 489. The pointers and lists are sought by class from the characters manager's own object
 
@@ -7809,6 +7838,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - Seven fields in 25 slots read two numbers, so "one field in one slot that reads two numbers" names nothing by itself;
   a field that changed for the same character between sessions is ruled out by that (one read 1 twice before and 4
   now).
+- *Later (2026-11-23, WHY§507):* corrected by the owner's save file: the list runs in slot order, so the candidate is
+  not the slot, and the guess that the list runs last slot first is rejected.
 
 ### 505. A search of a manager's object is asked for only once the game is in the state it is to see
 
@@ -7831,3 +7862,295 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   fields are all far may have `copy_size = 0`. Each far read counts against the tick's reads as any other copy.
 - Lodestar makes both sides, the layout's schema and lint (en-gal's layout.cpp) and ErBackend's groups reading far
   fields, with tests on the fake world; Engine reviews, merges and adds ARCH §6.3's dated note.
+
+### 507. game_state's candidate is not the save's slot: the owner's save file gives the slots
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, WHY§488, WHY§504, S10.1.m
+
+- The owner sent the save file, unasked, and said the usual character is the newest of the five. Lodestar read one fact
+  from it offline, in a folder of its own with a script kept elsewhere, and kept nothing (its copy deleted; no name
+  recorded): the characters stand in slots 0, 1, 2, 5 and 6, and the game's list runs in slot order.
+- So the candidate (static 64543992, 0x470), which read 4 for slot 0's character and 2 for slot 2's, is some number of
+  the character, not the slot. No hit of the state search read 0 and then 2: as a 32-bit number that reads -1 at the
+  title, the slot is in none of the 1,399 objects the search could follow.
+- Rejected with it: that the game lists its slots last first (WHY§504).
+
+### 508. Ground truth first, then the search
+
+`2026-11-23` · METHOD · `#lodestar` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§507
+
+- With the characters' slots known from the owner's own save file (one fact read offline, nothing kept), the slot's
+  field is sought by the numbers it must read in two worlds (6 for the last of the list, 2 for the usual one), over the
+  data's slots in use in the world, not by a lead about what it reads at the title.
+
+### 509. S0-E's run A1 crashed on the owner's PC at GraceUI's first Present, before a frame was drawn
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: S10.1.g, GraceUI:D175, GraceUI:D220, WHY§255
+
+- Package 0.1.0-spikes.3 (engine 31a98e4, GraceUI 0.2.24), run A1, twice: 0xC0000005 about 10 s and 24 s after the
+  start, before the title screen's first task. Both times the observer's last state line read host=hooked,
+  install_runs=1, init_step=7, hooks=9, presents=1, frames_drawn=0, standin=patched, standin_presents=1 and
+  prologue=jump: the game's Present was already patched when GraceUI hooked it.
+- Three other overlays were loaded in the game: a third-party frame-time overlay's hooks, Steam's overlay (later) and
+  the graphics driver's capture overlay. Earlier read-only rounds ran for minutes beside them, but hooked nothing.
+- EldenNet connected to GraceUI, posted its banner (the release DLL refuses the package's leads, as expected) and did
+  nothing more. The watcher's record names no module (crash: null), and EldenNet's own filter was not in (WHY§484,
+  §510). With Grace: a run with the frame-time overlay closed, and A0 (no EldenNet), are asked of the owner.
+- *Later (2026-11-23, WHY§511):* A1 again and A0 (no eldennet.dll) crashed the same way, 5.8 to 6.0 s in, one
+  Present passed, no queue found, nothing drawn; so EldenNet is out of it. The frame-time overlay's hooks were still
+  loaded in both, so its part is not yet tested.
+- *Later (2026-11-23):* Windows' Application Error events for all four crashes name no module (unknown, 0.0.0.0) and a
+  fault offset of 0: the faulting address was 0, a call or jump through a null pointer on the first Present's path,
+  not a bad read inside a DLL. Told to Grace; package 0.1.0-spikes.4 (A5 without the stand-in, frame_step) is to place it.
+
+### 510. A start that stops at a banner once the window has shown installs the crash filter
+
+`2026-11-23` · DECIDED · `#engine` `#boot` · refs: ARCH§3.2, WHY§484, WHY§509, WHY§172
+
+- Answers WHY§484's open point. The filter went in after WaitEngine, so a start stopped at the discovery banner (the
+  real game's case today) had none, and a crash after it was recorded by the watcher alone, with no faulting module
+  (WHY§509). Now every banner after the window installs it, as the banner path already did; it only records, then
+  passes the crash on (engine 2933494). S0-D's crash case expects the filter's record at the discovery banner too.
+
+### 511. S0-E's next package: A5 with GraceUI and its observer alone, state lines every 200 ms, other overlays closed
+
+`2026-11-23` · DECIDED · `#spike` `#graceui` `#engine` · refs: WHY§509, S10.1.g, GraceUI:D175, GraceUI:D220
+
+- After four crashes (A1 three times, A0 once), all within seconds of GraceUI's install, with or without EldenNet, the
+  s0e-s4 package gains run A5, first in the order: GraceUI and its observer alone, injected early, with no stand-in and
+  no EldenNet. It tells GraceUI's own hook from the chain the stand-in and other programs' overlays make with it.
+- Every run file sets `GRACE_SPIKE_STATE_MS=200` (Grace's request), so the observer's last state line lies within a
+  frame or two of a fault; the launcher hands its environment to the game.
+- The README asks for every other overlay to be closed, its background process too, since a closed window left one
+  loaded in the owner's second runs. The next package also carries Grace's test build that records how far GraceUI's
+  first frames got, when it is ready (engine 4f9e9d2).
+
+### 512. G28's upload route: the ticket in a header, spent on its first match; the size before a byte, the hash on a worker
+
+`2026-11-23` · FACT · `#graceui` `#security` · refs: GraceUI:D226, G28, S11.2.am
+
+- The ticket travels in Grace-Upload-Ticket, never the URL, since a URL reaches logs and history; it is spent as soon as
+  it matches, so a wrong size, a dropped connection or a changed file each end it.
+- The size is checked before a byte is read, the hash after, on GraceUI's worker thread: 32 MiB hashed on the loop
+  would stall every other page. GraceUI keeps nothing afterwards (its buffer zeroes itself).
+
+### 513. A browser hashes only in a secure context, so uploads stay on this PC
+
+`2026-11-23` · FACT · `#graceui` · refs: GraceUI:D226, GraceUI:D227, GraceUI:D114
+
+- A browser computes SHA-256 only in a secure context: 127.0.0.1 is one, a private address over plain HTTP is not. So
+  G9's rule (no secure-context features, D114) and G28's (this PC alone) meet: a paired phone could not hash a file even
+  if the route took it, and the page names the view so it says so rather than offering a button that cannot work.
+
+### 514. A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule
+
+`2026-11-23` · METHOD · `#graceui` `#security` · refs: GraceUI:D229, GraceUI:D225, WHY§264, WHY§491
+
+- A third review of the joins, given the code and not our conclusions, found the door sound (no bytes to a space without
+  a live, matching ticket; a race of two POSTs on one ticket gave 202 and 403) and the gaps behind it: a queue capped by
+  count, which is no cap once each item may be 32 MiB; a read buffer that kept the tail of each file; the menu, a second
+  path to a command the first guarded; an event held past the answer its view already had. All fixed before release.
+- Accepted and recorded in D229, not built: the upload ticket is a bearer token on loopback, so a local program holding
+  both the session's cookie and the ticket could use it; it travels only on that session's WebSocket and dies with it.
+
+### 515. A spike run's own record lists the game's modules by name
+
+`2026-11-23` · DECIDED · `#launcher` `#spike` · refs: WHY§509, WHY§511, S10.1.g
+
+- Grace asked, after A1's crashes, to know whether the frame-time overlay's hooks were in the chain in a run that does
+  not crash too. So launcher-run.json, in each spike run's folder, now lists the game's modules as last listed, by name
+  alone and with no path, as a crash record keeps them (engine 7b8c987). The panel cases check the list.
+
+### 516. A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger
+
+`2026-11-23` · METHOD · `#graceui` `#spike` · refs: GraceUI:D230, GraceUI:D220, WHY§509
+
+- A1 fell four times between two state lines five seconds apart, with nothing to place it: the watcher's record had no
+  faulting address. A step the code sets as it passes (D220 for the init, D230 for the first frames), read by an
+  observer that writes at each change, places a fall within 50 ms; and Windows' own Application Error events (event
+  1000), already on the player's PC, name the faulting module and offset for runs already done (asked of the owner).
+
+### 517. Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#launcher` · refs: WHY§509, WHY§511, S10.1.g
+
+- Package 0.1.0-spikes.4, run A5 (GraceUI and its observer alone, no stand-in, no EldenNet): the game reached the title
+  screen and stayed up, with GraceUI's notice drawn at the top right: the first run on the owner's PC past GraceUI's
+  first frames. Every earlier run there had the stand-in loaded and fell within seconds at address 0 (WHY§509), so the
+  stand-in's part in the chain is now the first suspect. The rest of the run and A1 are to confirm it.
+- The owner saw the launcher's task panel cover GraceUI's notice at the game's top right. The panel now opens 72 px
+  (at 96 dpi) below the work area's top, under two of GraceUI's one-line notices (engine b1f7900; Lodestar told).
+
+### 518. The stand-in for another overlay caused the owner's crashes; no run loads it any more
+
+`2026-11-23` · DECIDED · `#spike` `#graceui` · refs: WHY§509, WHY§517, GraceUI:D231, S10.1.g
+
+- (LIKELY, Grace's reading) The stand-in finds Present's vtable slot through a short-lived swap chain of its own and
+  writes its function there. Under Wine that slot is DXGI's shared table; on a real PC an overlay that hooks by vtable
+  (the graphics driver's capture overlay was loaded in every run) can give a swap chain its own copy, freed with it, so
+  the write lands in freed memory and a later call goes through what is left: address 0. A fault of our test tool, not
+  of a shipped part; GraceUI 0.2.28's fault recorder (D231) could confirm it, but it is off GraceUI's path now.
+- (DECIDED) The owner's PC has real overlays, which is what S0-E asks about, and A5 has shown GraceUI living beside
+  them. So the s0e-s4 package's runs (A5, A1 to A4, B) load no stand-in and the package no longer ships it; A0 (GraceUI,
+  the observer and the stand-in) goes (engine 5dd8ce1). The harness keeps the stand-in for its own cases.
+
+- Later (2026-11-23, WHY§529): A1 still fell, the same way, with no stand-in loaded, so the stand-in cannot explain
+  A1's falls; A0's alone remain on it. A1's cause is open, with Grace.
+
+### 519. A game that turns its camera by the mouse keeps the cursor at its centre; an overlay's pointer follows the mouse's own motion
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D232, GraceUI:D130, WHY§517, S11.2.ap
+
+- In A5 on the owner's PC GraceUI's pointer was pulled back to the centre each frame ("a rubberband"): the game keeps
+  the system cursor at its centre whatever holds input, and the pointer followed the cursor's position.
+- The mouse's relative motion, which the game itself reads (raw input or DirectInput) and GraceUI already sees, is the
+  pointer's true source while GraceUI holds the mouse (GraceUI 0.2.29, D232; no new hook target). The harness's fake
+  game never recentred, which is why the menu-mouse scenario passed; a fake game that does is now a scenario.
+
+### 520. The profile editor's commands are answered later, through GraceUI's reply handle
+
+`2026-11-23` · FACT · `#engine` `#editor` `#pages` · refs: GraceUI's D216, D217, D218, WHY§377 (3), S7.2.b, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- A check runs en-core's own load, and a save is answered once T11 has written the file, so the space cannot answer
+  them in the poll that brought them. `Space::command` takes GraceUI's reply handle; the profile editor's commands are
+  checked at the entry point (invariant 3) and handed to the DLL as `ProfileRequest`s; the DLL answers through
+  `Space::answer_profile`, and the Overlay hands each answer to GraceUI once (`answer_later`, and at every step before it
+  publishes, so a save's answer comes before its document's next revision). Every other command is answered at once,
+  as before.
+
+### 521. A layer over a shipped persona keeps its persona's key; `mine.<id>` waits for the player's own characters
+
+`2026-11-23` · DECIDED · `#engine` `#editor` · refs: NPC§4.5, NPC§4.7, WHY§387, WHY§393, S7.2.b, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- NPC §4.7's slots: a layer over `persona:<id>` stays on that slot; `mine:<id>` is a character profile of the player's
+  own, made for a `named:<param>` NPC from a sighting. v0.2's engine has no character profiles (NPC §4.5's index and
+  files), no sightings store (MEM §8.7) and so no `named.<param>` rows: the roster is the shipped personas.
+- So a save writes the player's layer and its answer names the same row (`chosen: "persona.kale"`, harmless, D218);
+  the row that changes its key comes with the player's own characters. The build's brief, "`mine.<id>` as WHY§387 says", was read
+  as that case; the layer's file is NPC §4.7's name, in the overrides folder the load reads (the brief), not
+  `%APPDATA%\EldenNet\profiles\` (NPC §4.7): one folder fewer for the shell to read, as the brief asked.
+
+### 522. Block 4 passes its cap with any note over the pilot: a warning on every save
+
+`2026-11-23` · FACT · `#engine` `#content` · refs: WHY§472, O109, NPC§4.8 (PL9), S7.2.b, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- Kalé's voice comes to 224 of block 4's 230 tokens; a note of a few words ("Also: …") passes the cap. As built
+  (WHY§472) it is a warning for the player's own, so the editor saves it with "Saved, with warnings" and Check names it.
+  PL9 would refuse the file; the owner kept the voice and looks at the rule again at v0.3, when the player's note gets
+  room of its own (O109 (b)).
+
+### 523. Sensitive marks: EldenNet's own command names, not the brief's
+
+`2026-11-23` · FACT · `#engine` `#graceui` `#security` · refs: GraceUI's D221, eldennet-changes §60, S11.4.e, WHY§490, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- §60's example list (`secrets.set`, `secrets.clear`, `providers.update`) names no command of EldenNet's space, and
+  GraceUI's lint refuses a sensitive command the space does not declare. EldenNet's are `providers.add` (a provider of
+  one's own, with its address), `providers.remove` and `providers.key` (a row secret, sensitive already; marked for the
+  record). Settings marked: `debug.panel` (SP8's developer view) and `debug.record_sessions` (what is written to the
+  PC's disk, PV8). Left unmarked: `debug.log_level` (the log holds no text and is scrubbed), the preset and each job's
+  provider, model and fallback (choices among the player's own providers, the AI pages' everyday use).
+- The editor's save is not marked (recommendation, not built): the player's own notes, the same from a phone as from
+  the PC's browser, and the phone's keyboard is the editor's easiest; a draft sends the player's notes to the provider
+  the player chose, as the PC would. A mark later is one line of space.toml.
+
+### 524. grace-dev's dump draws a master page's detail empty
+
+`2026-11-23` · FACT · `#graceui` `#pages` · refs: GraceUI's D215, tests/pages/preview.py, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- `grace-dev --dump` gathers the components' topics once, before the list's first row is chosen, so a block bound to a
+  family draws "Nothing to show yet." in the goldens of Named NPCs. The menu itself draws the chosen row's member (the
+  fake game's case checks the editor's label drawn). For GraceUI: a second pass in the dump once the master's list is set.
+
+### 525. A paired device in the fake game: the listener at home on 127.0.0.2
+
+`2026-11-23` · METHOD · `#engine` `#tests` `#graceui` · refs: GraceUI's D221 to D225, G9, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- The fake game's `--grace-lan`, with GraceUI loaded first (the launcher's `--also`), calls the test build's
+  `GraceUI_Test_SetNetworkAddresses` at boot, before EldenNet registers its pages and GraceUI's server starts; Other
+  devices is on in GraceUI's own `user\settings.json`, written by the case; the reports name the pairing sheet's code
+  (`GraceUI_Test_GetPairingCode`). The tests' browser pairs on 127.0.0.2 with it (`/api/pair`), then joins with the
+  device cookie.
+
+### 526. The browser view's port, a case's own: another run of GraceUI's cases holds 8642
+
+`2026-11-23` · FACT · `#engine` `#tests` · refs: BUILD.md (GraceUI's cases), GraceUI's dashboard.port, engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- With another agent's harness running GraceUI's cases at the same time, the editor's case found GraceUI's server not
+  running (port 8642 held). The case writes its own free port into GraceUI's `user\settings.json`; the older GraceUI
+  cases still take 8642 and can meet the same collision when two trees run them at once.
+
+### 527. Lodestar's read-state case is timing-tight; read-chars fails on the base too
+
+`2026-11-23` · FACT · `#tests` `#lodestar` · refs: tests/fakegame/harness.py (check_read_state, check_read_chars), engine wip/s12-editor 47a63ba to c568fdf, merged at c223b6e
+
+- Base (4a0e8a5, a clang-cl build of its own, alone): read-state passes, read-chars fails. This branch: read-state fails
+  four times (alone, and once with the base's fake game), read-chars fails.
+- read-state's second look must read the fake game's first world; its mark comes about 16.2 s after the round is ready,
+  the fake game's retitle at frame 1630 (27.25 s). The base's run had 351 ms between the mark and the retitle; this
+  branch's 134 ms, and its look read after the retitle (characters=0, fields_after_world=0). Every stage of the round
+  runs about 50 ms later here (its first, `found`, took 489 to 571 ms against 436), and the launcher's poll of the block
+  adds the rest (its first task 197 ms after `ready` against 64). For Lodestar: a later retitle (or a mark tied to the
+  phase, not the clock) would give the case room; nothing of this job's touches the round, the launcher or en-gal.
+
+### 528. A test package's runs check the game's GraceUI against the package's own before the start
+
+`2026-11-23` · DECIDED · `#engine` `#spike` `#launcher` · refs: O113, WHY§529, S10.1.g, engine 8424f15
+
+- The owner's spikes.4 run B loaded an older GraceUI (0.2.24) from the game's folder than the package carried
+  (0.2.27): the package's folder had not been copied in. The owner asked that test packages warn of it.
+- The launcher's `--expect-graceui` names the package's own `GraceUI\graceui.toml`; before anything starts it is
+  compared with the game's (version, ABI, every listed file's size and SHA-256), and E13 names what differs and asks
+  whether to start anyway; closing it stops with exit code 23. Every run of the s0e-s4 package passes it; the S0 and
+  Lodestar packages carry no GraceUI and do not. The harness checks the match in each package case and E13 in
+  `launcher-package-spikes-other-graceui`.
+
+### 529. spikes.4: A5 and B ran to their end; A1 still falls at GraceUI's first Present with EldenNet connected and no stand-in
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#engine` · refs: WHY§509, WHY§511, WHY§517, WHY§518, S10.1.g
+
+- The owner's runs on 2026-11-23, another overlay loaded in each and Steam's off: A5 (GraceUI 0.2.27 alone, early)
+  drew 44,867 frames and every task was done; B (0.2.24 loaded by EldenNet from the game's folder, after the window)
+  ran all six tasks, and the walk into the menu behaved as it should (the character stopped when F5 opened it). Both
+  ended at quit with 0xC0000374 (heap corruption), with Grace.
+- A1 twice (0.2.27 loaded by the launcher before EldenNet, early): 0xC0000005 on a game thread, module unknown, offset
+  0, 6 and 9 s in. The observer's lines: EldenNet connected and registered its space 280 ms after GraceUI started, the
+  swap chain bound, then one Present, no frame, frame_step 2 (bound, no queue) until the fall. EldenNet itself stopped
+  at its banner at 243 ms (discovery refused: the package's gal/ is not the owner's game's reader data), having
+  connected. A5 differs only by EldenNet's absence; B by GraceUI's version and load point. With Grace.
+- In B the pages' Home row read "2.7.2.0, supported" beside the banner "not supported yet (reason: gal_files)"
+  (WHY§530). The typing test's pointer still rubber-banded (0.2.24 and 0.2.27 are older than D232), so the menu's size
+  went untried; the owner has no pad.
+
+- Later (2026-11-23, Grace's reading of the code): GraceUI calls no code of a mod's (the ABI has no callbacks), and
+  between its steps 2 and 3 it does only its own atomics, log and events; A5 found the queue on its second Present, and
+  in A1 no second Present came, so the first original Present below GraceUI never returned or the render thread stopped
+  elsewhere. The 2.5 s gap is likely a crash handler's dump. 0.2.30's observer carries D231's fault recorder (with
+  0xC0000374 added), so spikes.5 keeps A1 to name the caller. GraceUI does nothing at process exit (an empty DllMain,
+  no exit-time destructors). The chat box's keyboard-only request leaves the mouse wholly to the game (O113).
+
+### 530. A start stopped by its reader's files says "not supported yet" of a build Home calls supported
+
+`2026-11-23` · FACT · `#engine` `#pages` `#words` · refs: WHY§529, PAGES§4.5, S11.4.a
+
+- `banner_text` gives every stop at discovery the unknown build's words, "game build X not supported yet (reason:
+  gal_files)", while Home's Game build row reads the build table alone ("X, supported"). On the owner's PC both showed
+  at once: the build is in the table, and the package's gal/ held no reader data for it.
+- To fix in words the owner approves: a stop at discovery names what failed (EldenNet's files for this build, or its
+  reading of it, not complete yet) without "not supported", and the build row says supported only once the start has
+  read the game.
+
+### 531. The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("What was changed for the fourteenth round"), WHY§460, WHY§503, engine 6d10b11
+
+- Every 32-bit field of the objects the player's parts holder points at is compared a second apart, and its changes
+  are counted by the tester's phase: a position changes in the walk alone; health falls at a hit and rises at a heal,
+  with a steady number at least as large beside it. Only places and behaviour are reported, never values. The owner
+  agreed to the reading and to the hit and the heal (Lodestar's fourteenth round, package 0.1.0-lodestar.18).
+
+### 532. A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one
+
+`2026-11-23` · METHOD · `#lodestar` `#launcher` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§444, engine 6d10b11
+
+- So a round's phases that need no key (standing, walking) are bounded without the tester pressing anything. A list
+  with no marked wait behaves as before; none of the S0, spike or observer lists marks one.

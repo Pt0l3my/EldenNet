@@ -2070,6 +2070,15 @@ about me, no privacy issue, no safety issue is being added/uploaded. game time, 
 keeps to the stricter rule all the same: its report and logs hold offsets, sizes, counts and the places of type
 tables, no name and no value of any object.
 
+*Note, 2026-11-23 (the fourteenth round; WHY§507, §508).* Put to the owner by Lodestar, three answers: the parts'
+reading ("the parts of your own character (about 30 small objects the game keeps for it: health, movement and so on),
+the first 4 KiB of each, about 130 KiB in all, read once a second while you are in the world. It writes only where a
+number lies and how it behaved (stood still, moved, fell, rose), never the numbers themselves. May the round do it?"):
+"Yes, read it (Recommended)"; one hit and one heal in the world: "Yes, one hit and one heal"; loading the last character
+of the list once: "Yes, I will load the last one". The state search reads within what the owner agreed to for the
+twelfth round (the first 8 KiB of the objects behind the data's slots, now those in use in the world). The owner also
+sent Lodestar the save file, unasked; one fact was read from it offline and nothing of it kept (WHY§507).
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*
@@ -2178,3 +2187,76 @@ where to look.
 **Owner's words.** "Approve as written (Recommended)", twice (the question dialog, 2026-11-23).
 
 **Follows from.** NPC §5.1, §5.5; PAGES §4.5; S11.3.a; S11.4.a; WHY§442, WHY§495, WHY§496.
+
+## O111
+
+**The owner's own game files as research inputs: the limits are what ships and what is uploaded** · *2026-11-23 · Decided by the owner*
+
+**Question.** After sending a save file to Lodestar's session, the owner asked whether other game files would help, and
+Lodestar answered that nothing of the game should be sent: the handover's rule was "nothing of the game in any file,
+report, message or chat". The owner answered, in Lodestar's chat, that the rule reads the limits too widely.
+
+**Decision.** The owner's limits are two: what ships with the mod publicly, and what is uploaded to a repository. A file
+of the owner's own game (the game's executable, for one) given by the owner to a session for research is not limited
+by them. What a session keeps to, whatever is sent (Engine's conditions, with Lodestar's):
+- each upload in its own folder outside every checkout, read with `python3 -I` from scripts kept elsewhere, never run
+  and never built, and deleted when the work with it is done;
+- nothing of it (no bytes, text, code listings, names or values) in a repository, a package, a published page, a report
+  or a message between sessions: numbers and our own labels only, as for the read-only rounds;
+- every fact taken from it is a lead until the game confirms it (O48), and nothing from other projects changes (O47,
+  O48); game files come from the owner alone, never fetched from elsewhere;
+- anything personal in it (a save's character names, for one) is never written down anywhere, whatever the owner allows
+  in a chat.
+O74 and O75 stand as they are: they limit what the devkit ships and carries, which this does not change. The
+handover's §3 reads with this decision: "nothing of the game" in files, reports and messages, not in what the owner
+may give a session to study.
+
+**Owner's words.** "nothing is off limit for our research, the only limit is what we ship with the mod publicly, and
+what we upload to repo." (Lodestar's chat, 2026-11-23, after "it's not about what the project keeps, its about solutions
+and research that helps with the project, what I was asking if any game files you could think of that could help with
+your work.")
+
+**Follows from.** DP21 (DataPiler's "using game data for research and development is fine, we are just careful what we
+ship online"); O47, O48, O74, O75; WHY§507.
+
+## O112
+
+**The profile editor: the words players read, its save from a paired device, and its release** · *2026-11-23 · Open*
+
+**Question.** The profile editor (S7.2.b, WHY§520 to §523) is built in EldenNet's pages, with its draft helper. Three
+points the design leaves to the owner: (a) the words players read on Characters › Named NPCs, the editor's fields and
+states, its checks' messages and the draft's answers (the list sent with this question: for example "Your notes",
+"Saved, with warnings", "Updated since you wrote this", "Draft with AI", "Too long: at most {n} words."); (b) whether a
+device paired at home may save the player's notes, as it may today, or only the PC the game runs on, like the provider
+commands (WHY§523); (c) the page ships in v0.2, ahead of PAGES' v0.3. **Options:** (a) approve as written, or other
+words; (b) leave the save open to a paired device, or mark it sensitive; (c) ship in v0.2, or hold it to v0.3.
+
+**Recommendation.** (a) Approve as written: each says what happened and where to look, in the player's words. (b) Leave
+the save open: the notes are the player's own text, a phone's keyboard is the easiest to type them on, and a draft
+sends them only to the provider the player chose; a mark later is one line. (c) Ship in v0.2: it is built and tested,
+and the pilot is the first character to try it on.
+
+**Follows from.** O43, O45, O46, G9; PAGES §4.6; NPC §4.7, §4.8; S7.2.b; S11.4.e; WHY§377, WHY§520 to WHY§523.
+
+## O113
+
+**The chat box takes the keyboard, never the mouse** · *2026-11-23 · Decided by the owner (their direction, from spikes.4's run B)*
+
+**Question.** In run B the owner tried grace-spike's typing test, a plain test window that stands in for the chat box
+(NPC §5.1): the window took the keyboard and the mouse, showed GraceUI's pointer in the centre, and held the camera
+still. EldenNet's chat box asked GraceUI for the keyboard, the mouse and the pad alike (D176's request). Should the
+chat box take the mouse?
+
+**Decision.** No. The chat box asks for the keyboard and the pad only: no pointer shows, and the mouse stays the
+game's, so the camera still turns while the player types; the keys stay held from the game as before. The box sits at
+the bottom centre, in the lower third, as NPC §5 has it (the test window's place and look are the observer's, not the
+box's). Built the same day (engine 8424f15).
+
+**Owner's words.** "The typing window currently looks nothing like the rest of the UI, rather ugly, also it inherits
+the same rubberband issue with mouse cursor, also the mouse cursor spawn in centre along with the Chat box, the chat box
+should spawn at the bottom centre, and mouse coursor is not needed at all for this, no need to spawn mouse cursor for
+chat box. The controls were disabled whilst I was typing from both the keyboard and mouse, so when for eaxmple I typed
+with W A S D, the character wasn't moving at all. Though I think the camera movement should be allowed via the mouse
+during chat box open." (2026-11-23)
+
+**Follows from.** NPC §5.1, §5.6; GraceUI's D176, D178; S11.4.c; WHY§529.

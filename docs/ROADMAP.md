@@ -416,7 +416,7 @@ Work beside the engine and the increments, and the owner's housekeeping.
   - gives: the roster's first-meeting field came with O46's fold on 2026-11-16 (S6.2.b: `public.summary`, `public.role`
     and `subjects`), and its names at the title screen with DATA §3.1's gap 1; eldennet-changes §9 items 3 and 4 remain.
 
-### S7.2 The profile editor pass [next]
+### S7.2 The profile editor pass [done]
 
 - refs: GraceUI:docs/profile-editor-needs.md, O43
 - S7.2.a GraceUI revisits the decisions the editor's needs name (O43), with the needs brought to O46 and O86 [done]
@@ -426,9 +426,16 @@ Work beside the engine and the increments, and the owner's housekeeping.
     GraceUI's O46 fold on 2026-11-16. Done on 2026-11-22 as a design pass (GraceUI feat/foundations f9c4d17): D2's
     exception recorded (D213); the needs brought to G20, O46 and O86 (GraceUI's proposal 0010 §2); the components
     GraceUI owes put to the owner as G38. EldenNet's answers to proposal 0010 §6 are WHY§377.
-- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [next]
+- b The editor's pages, fields, validation, commands and its "draft with AI" flow, in EldenNet's pages (PAGES; GraceUI's design held them until G20) [done]
   - needs: a, c
-  - refs: PAGES§4.6, WHY§377
+  - refs: PAGES§4.6, WHY§377, WHY§520, WHY§521, WHY§522, WHY§524, WHY§525
+  - gives: built on 2026-11-23 (engine wip/s12-editor, merged at c223b6e), on GraceUI 0.2.25's components (floor
+    0.2.22): Characters › Named NPCs as a master list, a Profile tab with the general profile (first-meeting fields
+    only) and Your notes over the four fields a layer may set; Check runs the content load's own checks, Save checks the
+    revision and writes the player's own layer in the overrides folder (the previous one kept), and the content loads
+    again once no conversation is open; Draft with AI sends only the player's notes and current text to the draft slot
+    and returns proposals, a saved draft marking the layer assisted. A layer keeps its persona's key until the player's
+    own characters come (WHY§521). Ships in v0.2, ahead of PAGES' v0.3. The words players read went to the owner.
 - c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
@@ -640,7 +647,8 @@ EldenNet may hook as well as GraceUI.
   - needs: c
   - refs: G28, O67, GraceUI:DESIGN§7.2
   - gives: G28 decided 2026-11-15, as recommended: one narrow route on the loopback listener for a space's sensitive file
-    commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18).
+    commands, with a one-use ticket, refused from paired devices, nothing kept (GraceUI §7.2 item 18). Built on
+    2026-11-23 (the route: GraceUI 0.2.26, S11.2.am).
 - e Validators and safeguards by kind, and where code plugins run: proposal 0001 §13, with O70 decided as the owner designed it [done]
   - needs: c
   - refs: O70, O71, O72, docs/proposals/0001-plugins.md, WHY§88
@@ -886,7 +894,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     play; S0-D 40 forced faults caught and crashes on request recorded. Each run's facts in its own folder; spike-report
     reads the folder whole; the tester's panel lists each run's steps. Checked on the fake game whole and lacking
     `game_state`, as the real game is today. Open: whether a start stopped at the banner installs the crash filter
-    (WHY§484). Package 0.1.0-s0.1, not yet sent: S0-A, S0-C and S0-D can run on the real game now, S0-B after S10.1.m.
+    (WHY§484; decided 2026-11-23, WHY§510: it does). Package 0.1.0-s0.1, not yet sent: S0-A, S0-C and S0-D can run on the real game now, S0-B after S10.1.m.
     Package 0.1.0-s0.1 rebuilt from engine 31a98e4 and sent to the owner the same day: the sums, help and version under
     Wine, its nine package cases on the fake game (whole, and lacking `game_state` as today) and the sweep passed.
 - c Spikes S1 perception and S2 text without GraceUI, and S6's core flags and S7 combat with the launcher's development Mark [waiting]
@@ -965,6 +973,19 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     sent to the owner the same day, in place of spikes.2: the sums, help and version under Wine, 14 GraceUI and spike
     cases, the six package cases (the panel ticking through each run's steps), GraceUI's spike and spike-after
     scenarios, its report tool on each run (no row failed) and the sweep passed.
+    The owner's run A1 crashed twice the same day, at GraceUI's first Present, before a frame was drawn, beside other
+    overlays (WHY§509); with Grace. A start stopped at a banner now installs EldenNet's crash filter (WHY§510).
+    A0 (no EldenNet) crashed the same way. The next package adds run A5 (GraceUI and its observer alone) and 200 ms
+    state lines, with Grace's test build of the first frames (WHY§511).
+    Packed and sent the same day as 0.1.0-spikes.4 (engine 7b8c987, GraceUI 0.2.27 at 2286f20): 15 GraceUI and spike
+    cases, the seven package cases, GraceUI's two spike scenarios, its report tool on each run and the sweep passed.
+    A5 reached the title and opened GraceUI's menu (WHY§517); the stand-in was the cause of the crashes, so no run loads
+    it any more (WHY§518). Open with Grace: the menu's pointer pulled back by the game's cursor (0.2.29), and the
+    owner's two decisions on Alt+Tab and Tab. The next package follows them.
+    The owner's spikes.4 runs the same day (WHY§529): A5 and B ran to their end (B on the older GraceUI 0.2.24 left in
+    the game's folder), A1 fell twice at GraceUI's first Present with EldenNet connected and no stand-in, so its cause
+    is open with Grace (WHY§518's Later line). Every run of the next package checks the game's GraceUI against its own
+    first (E13, WHY§528), and its chat box takes no mouse (O113).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1153,8 +1174,13 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The thirteenth round reviewed the same day (WHY§502 to §505): the characters manager's main_player, near list and
     player set, the player's parts holder and the sheet found as leads (LIKELY; not in gal/). The manager's places lie
     past the layout's 0x4000: they are far fields, each read by its own small copy (Engine's ruling, WHY§506), the
-    layout's and the backend's sides by Lodestar. game_state: the candidate reads 4 and 2 for two characters; a third
-    load is to settle it. Next: the fourteenth round (the parts and the moving numbers by invariant).
+    layout's and the backend's sides by Lodestar. game_state: the twelfth round's candidate is ruled out (the owner's
+    save file gives the slots; it read 4 for slot 0's character; WHY§507). Next: the fourteenth round looks for the
+    field that reads the loaded character's slot in two worlds, then the parts and the moving numbers by invariant.
+    The fourteenth round built the same day (engine 6d10b11, merged at 9c33d80; package 0.1.0-lodestar.18): the save's
+    slot by the two numbers it must read (the pair search), the character search's look in the world, and the parts
+    watch (position by walking, health by a hit and a heal), with the owner's agreement (WHY§531, §532). Awaiting the
+    owner's run, after three README changes of Engine's. Next for Lodestar: the far fields (WHY§506), both sides.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1511,6 +1537,33 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     independent review found no way past the pairing page and five gaps, fixed before release (D225). The command's
     view (§7.3, D224) closes S11.2.q's open item. EldenNet marks its sensitive commands (S11.4.e; GraceUI's
     docs/eldennet-changes.md §60).
+- am Uploads: a space's file commands, the drop zone, POST /upload with a one-use ticket, a mod's file through ABI 1.6 (GraceUI 0.2.26, protocol 1.9, ABI 1.6) [done]
+  - refs: G28, GraceUI:D226, GraceUI:D227, GraceUI:D228, GraceUI:D229, GraceUI:D114, GraceUI:D103, WHY§512, WHY§513, WHY§514
+  - gives: built on 2026-11-23 (GraceUI feat/foundations b1f98bd to 2754912) at the owner's go-ahead. A server suite of
+    five upload cases (the ticket, its size and hash, one at a time, one file queued a space at a time, this PC alone)
+    on Linux and under Wine; a browser test through the page's own drop zone; the pages harness scenario's upload
+    through the real ABI under Wine (246 checks in the full harness, each build whole); an independent review found no
+    way past the ticket and five gaps, fixed before release (D229). EldenNet declares plugins.install as a file command
+    and reads its file through ABI 1.6 (S17.1.e; GraceUI's docs/eldennet-changes.md §61).
+- an The first frames' step and GraceUI's log beside the spike report, for A1's crashes (GraceUI 0.2.27, test build) [done]
+  - refs: GraceUI:D230, GraceUI:D220, GraceUI:D175, WHY§509, WHY§516
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 7022e43). Each state line carries frame_step (1 to 11, GraceUI's
+    first frames from a Present through its detour to the game's Present returning after its first frame), with a line
+    at each change; report.py names the step when nothing was drawn; graceui-log.txt beside the report holds GraceUI's
+    own log, never in the report. Both spike scenarios check it (248 checks in the full harness). The next package's
+    runs place A1's fall within GraceUI's first frames (GraceUI's docs/eldennet-changes.md §62).
+- ao The spike observer's fault recorder (GraceUI 0.2.28, test-only) [done]
+  - refs: GraceUI:D231, GraceUI:D230, WHY§518
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6edaca4, run dffd92b). A vectored handler records, never handles,
+    each fault's code, access, null target, frame step and the faulting thread's frames (the return address first where
+    the pointer is 0), as fixed words in the report and module names in graceui-faults.txt; 250 checks in the full
+    harness.
+- ap The menu's pointer by the mouse's own motion (GraceUI 0.2.29), for the owner's rubber-band mouse in A5 [done]
+  - refs: GraceUI:D232, GraceUI:D130, GraceUI:D176, WHY§519
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6a25179). Raw input's or DirectInput's deltas move GraceUI's
+    pointer while a holder has the mouse; a harness game that recentres its cursor checks it. Its full harness run
+    passed the same day on both builds, 252 checks (GraceUI 142eb49). Next: 0.2.30 with the owner's G40 (Alt+Tab: the
+    menu stays open) and G41 (Tab no longer moves between elements in game), which spikes.5 waits for.
 
 ### S11.3 EldenNet v0.2
 
@@ -1688,7 +1741,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     far against the stand-in only; rounded corners, and the Tarnished's lines in italic, which wait for more faces per
     mod in GraceUI (D139 gives EldenNet eight) and an italic face; the pointer in the box (a second Escape,
     d, dropped on 2026-11-23). The
-    call-out box waits for v0.6 (WHY§364 (5); S15.1.a).
+    call-out box waits for v0.6 (WHY§364 (5); S15.1.a). Since O113 (2026-11-23, the owner's direction) the box asks
+    for the keyboard and the pad, never the mouse: no pointer, and the camera still turns while the player types
+    (engine 8424f15).
 - d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI [done]
   - needs: c
   - refs: NPC§5.7, WHY§437, WHY§461, G39
@@ -1698,12 +1753,20 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
     finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
 
-- e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8)
+- e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8) [done]
   - needs: S11.2.al
-  - refs: G9, GraceUI:D224, WHY§490
+  - refs: G9, GraceUI:D224, WHY§490, WHY§523
   - gives: EldenNet's space marks `sensitive_commands = ["secrets.set", "secrets.clear", "providers.update"]` and
     `sensitive = true` on any setting a paired device must never change, so GraceUI refuses them from a device before
-    any confirmation (GraceUI's docs/eldennet-changes.md §60). With the pages' work.
+    any confirmation (GraceUI's docs/eldennet-changes.md §60). With the pages' work. Done on 2026-11-23 with the profile
+    editor (merged at c223b6e) under EldenNet's own names, since §60's example names no command of EldenNet's space
+    and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
+    settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
+    case pairs a device on 127.0.0.2 and checks it refused (WHY§525).
+- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [next]
+  - refs: WHY§530, WHY§529, PAGES§4.5
+  - gives: on the owner's PC the banner said "game build 2.7.2.0 not supported yet (reason: gal_files)" while Home
+    said "2.7.2.0, supported" (2026-11-23). New words for the owner's approval with the fix.
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
@@ -1847,7 +1910,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: ARCH§12.4, O5
 - c The profile editor, the sightings list and the draft helper
   - needs: S7.2.b
-  - refs: DESIGN§7.7
+  - refs: DESIGN§7.7, WHY§521
+  - gives: narrowed on 2026-11-23: the profile editor and the draft helper came early, in v0.2, over the shipped
+    personas (S7.2.b). Left for here: the sightings list and the player's own characters it makes (`mine.<id>` rows,
+    WHY§521).
 - d The rest of the base game's roster bios
   - needs: S9.2.c, S14.2.a
 
@@ -1919,6 +1985,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - e Content plugins: the plugins layer and its checks, the launcher's install step, and the Content packs page's plugin list, with the dashboard's drop zone through GraceUI's upload route (G28)
   - needs: S7.10.c
   - refs: O66, O67, G28, docs/proposals/0001-plugins.md
+  - gives: GraceUI's route is built (0.2.26, S11.2.am, 2026-11-23): EldenNet declares `file_commands = ["plugins.install"]`,
+    lists it in `sensitive_commands`, puts an upload block on the Plugins page and reads the file through ABI 1.6 (a
+    buffer of GRACEUI_UPLOAD_MAX, 32 MiB, or one grown on GRACEUI_FULL), its validator first (GraceUI's
+    docs/eldennet-changes.md §61).
 - f GraceUI 1.1 opens the framework to other modders: the modders' guide, the three example mods, the harness, the C mock, its own release page and a frozen ABI 1
   - refs: G18, GraceUI:DESIGN§10
   - gives: G18 (a), decided 2026-11-16: after EldenNet v1.0; ABI 1 is a preview until then.
