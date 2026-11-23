@@ -3221,7 +3221,7 @@ def check_read(result, by_flag=False, events=False, marks=False):
     with open(table) as f:
         draft = f.read()
     d = json.loads(text)
-    need(d["report"] == "lodestar" and d["schema"] == 14, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
+    need(d["report"] == "lodestar" and d["schema"] == 15, "the report's kind: %s %s" % (d.get("report"), d.get("schema")),
          failures)
     # Numbers and the catalogue's labels: no name of the fake game's, in either file.
     for name in list(READ_SINGLETONS) + list(READ_SEARCHED.values()) + ["SaveLedger", "FG::", "Imp", "task_loom", "Fg_"]:
@@ -3327,16 +3327,19 @@ def check_read(result, by_flag=False, events=False, marks=False):
             # second, as the timing falls).
             holder = [t for t in sweep["targets"] if not t["deeper"] and t["offset"] == 0x20]
             marked = [e for e in holder[0]["mark_flips"] if e["offset"] == 375 + 15] if holder else []
-            need(len(sweep["mark_seconds"]) == 3 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
-                 len(marked) == 1 and marked[0]["mark"] in (1, 2, 3) and marked[0]["bit"] == 4 and
-                 marked[0]["set"] is True,
+            # (The marks come five seconds apart at the tests' pace, so the one flip lies around several of them and
+            # is kept under each.)
+            need(len(sweep["mark_seconds"]) >= 3 and sweep["mark_seconds"][0] <= sweep["mark_seconds"][1] and
+                 1 <= len(marked) <= 8 and all(1 <= e["mark"] <= 8 and e["bit"] == 4 and e["set"] is True
+                                               for e in marked) and len({e["mark"] for e in marked}) == len(marked),
                  "the sweep's marks: %s %s" % (sweep["mark_seconds"], holder[0]["mark_flips"] if holder else None),
                  failures)
-            failures += want(result, "LAUNCHER", "tasks", which="first", count=9, panel=(0, 1), pace_s=5)
-            failures += any_line(result, "LAUNCHER", "task", n=1, of=9, by="round", mark=0)
-            failures += any_line(result, "LAUNCHER", "task", n=3, of=9, by="time", mark=1)
-            failures += any_line(result, "LAUNCHER", "task", n=5, of=9, by="time", mark=1)
-            failures += any_line(result, "LAUNCHER", "task", n=7, of=9, by="time", mark=1)
+            failures += want(result, "LAUNCHER", "tasks", which="first", count=14, panel=(0, 1), pace_s=5)
+            failures += any_line(result, "LAUNCHER", "task", n=1, of=14, by="round", mark=0)
+            failures += any_line(result, "LAUNCHER", "task", n=3, of=14, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=5, of=14, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=7, of=14, by="time", mark=1)
+            failures += any_line(result, "LAUNCHER", "task", n=8, of=14, by="time", mark=1)  # a marked wait
             failures += any_line(result, "ELDENNET", "read", stage="mark", n=3)
             # The tree beside the flags: its head is the object the store's map points at (0x10 bytes in); the walk
             # read the head and the three groups' records; the key is the field the tree is ordered by (0x18 bytes
@@ -3347,10 +3350,10 @@ def check_read(result, by_flag=False, events=False, marks=False):
             joined = [j for j in tree["joins"] if j["flip"] == 375 + 15]
             need(tree["done"] and tree.get("offset") == 0x10 and tree["records"] == 4 and tree["unreadable"] == 0 and
                  len(tree["fields"]) == 16 and tree["order"] == 1 and tree["key_field"] == 0x18 and
-                 tree["divisor_at"] == [8] and len(joined) == 1 and joined[0]["match"] == "index" and
-                 joined[0]["field"] == 0x20 and joined[0]["target"] == 0x20 and joined[0]["bit"] == 4 and
-                 joined[0]["values"][6] == 7 and joined[0]["values"][7] == 1 and joined[0]["values"][8] == 3 and
-                 joined[0]["values"][0] == 0 and joined[0]["reached"] is True and 1 <= joined[0]["depth"] <= 3,
+                 tree["divisor_at"] == [8] and 1 <= len(joined) <= 8 and
+                 all(j["match"] == "index" and j["field"] == 0x20 and j["target"] == 0x20 and j["bit"] == 4 and
+                     j["values"][6] == 7 and j["values"][7] == 1 and j["values"][8] == 3 and j["values"][0] == 0 and
+                     j["reached"] is True and 1 <= j["depth"] <= 3 for j in joined),
                  "the tree: %s" % {k: v for k, v in tree.items() if k != "fields"}, failures)
             failures += want(result, "ELDENNET", "read", stage="tree_done", records=4, unreadable=0, capped=0)
             # EldenNet's own reader on the flags: discovery through the build's layout (a partial pass), the backend
@@ -3563,18 +3566,19 @@ def read_state_gal(gal):
         f.write(changed)
 
 
-def check_read_state(result, first=2):
-    """The state search: the fake game keeps its save slot as the game does by our notes (-1 outside the world, the
-    slot's number in it: --slot-by-state) and goes back to its title once (--retitle-at-s); the launcher's tasks, at
-    the tests' pace, mark each change. The round finds the one slot of the data behind which a field reads -1, the
-    slot, -1 and the slot again, names it the game's state by the invariant recipe, and writes it into the table."""
-    failures = any_line(result, "LAUNCHER", "task", n=3, of=9, by="time", mark=1)
-    failures += any_line(result, "LAUNCHER", "task", n=5, of=9, by="time", mark=1)
-    failures += any_line(result, "LAUNCHER", "task", n=7, of=9, by="time", mark=1)
-    # `first`: the slot the fake game reads in its first world (--first-slot): where it is another than the second
-    # world's (2), the field read two numbers, and that alone names the slot.
-    failures += want(result, "ELDENNET", "read", stage="state_done", slots=1, differ=1 if first != 2 else 0,
-                     title_clean=1, named=0, names=1, offset=0x14, value=first, again=2, sites=(1, 1e6))
+def check_read_state(result, first=6):
+    """The save's slot by the two numbers it must read: the fake game keeps its save slot as the game might (-1
+    outside the world, the slot's number in it: --slot-by-state), reads `first` in its first world and 2 in its second
+    (--first-slot), and goes back to its title once (--retitle-at-s); the launcher's tasks, at the tests' pace, mark
+    each change. The pair search, which is told the two numbers (6 and 2), finds the one 32-bit field that read
+    them, names its slot the game's state by the invariant recipe, and the round writes it into the table. The state
+    search lists the same field with both numbers and names nothing."""
+    failures = any_line(result, "LAUNCHER", "task", n=3, of=14, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=5, of=14, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=7, of=14, by="time", mark=1)
+    failures += want(result, "ELDENNET", "read", stage="state_done", slots=1, differ=1, title_clean=1, named=0, names=0)
+    failures += want(result, "ELDENNET", "read", stage="pair_done", word_hits=1, overrun=0, names=1, offset=0x14,
+                     sites=(1, 1e6))
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
     report, table = os.path.join(folder, "lodestar-found.json"), os.path.join(folder, "lodestar-table.toml")
     if not (os.path.exists(report) and os.path.exists(table)):
@@ -3587,20 +3591,25 @@ def check_read_state(result, first=2):
         draft = f.read()
     state = d.get("state") or {"state_hits": [], "alive": []}
     need(state.get("passes") == 4 and state.get("asked") == 4 and state.get("title_clean") is True and
-         state.get("candidates", 0) >= 4 and len(state["alive"]) == 4 and state["alive"][0] >= state["alive"][3] >= 1 and
          state.get("slots_hit") == 1 and len(state["state_hits"]) == 1 and state["state_hits"][0]["offset"] == 0x14 and
          state["state_hits"][0]["value"] == first and state["state_hits"][0]["again"] == 2 and
-         state["state_hits"][0]["same_as"] == 0 and state["state_hits"][0]["sites"] >= 1 and
-         state.get("slots_differ") == (1 if first != 2 else 0) and
-         state.get("fields_differ") == (1 if first != 2 else 0),
+         state.get("slots_differ") == 1 and state.get("fields_differ") == 1,
          "the state search: %s" % state, failures)
     looks = state.get("looks") or []
     need(state.get("overrun") is False and len(looks) == 4 and
          all(l["through"] is True and l["overrun"] is False and l["took_ms"] < 8000 for l in looks),
          "the state search's looks, each through before the next confirmation: %s" % looks, failures)
+    pair = d.get("pair") or {"pair_hits": []}
+    words = [x for x in pair["pair_hits"] if x["width"] == 4]
+    need(pair.get("first") == first and pair.get("second") == 2 and pair.get("asked") == 2 and
+         pair.get("passes") == 2 and pair.get("overrun") is False and pair.get("candidates", 0) >= 4 and
+         pair.get("objects_first", 0) >= 4 and pair.get("word_hits") == 1 and len(words) == 1 and
+         words[0]["offset"] == 0x14 and words[0]["sites"] >= 1 and
+         state["state_hits"] and words[0]["rva"] == state["state_hits"][0]["rva"],
+         "the pair search: %s" % {k: v for k, v in pair.items() if k != "pair_hits"} + " %s" % words, failures)
     games = [v for v in d.get("invariants") or [] if v["label"] == "game_state"]
     need(len(games) == 1 and games[0]["id"] == 1003 and games[0]["offset"] == 0x14 and
-         state["state_hits"] and games[0]["rva"] == state["state_hits"][0]["rva"] and games[0]["sites"] >= 1 and
+         words and games[0]["rva"] == words[0]["rva"] and games[0]["sites"] >= 1 and
          1 <= len(games[0]["witnesses"]) <= 8, "the game state's invariant: %s" % games, failures)
     at = draft.find("[item.game_state]")
     need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
@@ -3610,68 +3619,92 @@ def check_read_state(result, first=2):
 
 
 def check_read_chars(result):
-    """The character search, and the save's slot by two saves: the fake game reads slot 0 in its first world and 2 in
-    its second (--first-slot 0), so the state search names the slot by the field that read two numbers; and in each
-    of the four looks the character search reads the roster: in the world it finds the word that holds the player's
-    address, the near list (a run of 16-byte elements, the address first and a distance beside it), the player set,
-    and the parts among what the player's object points at; at the title none of them."""
-    failures = check_read_state(result, first=0)
+    """The character search and the parts watch, in the second world. The search's one look (asked for when the
+    tester says the game is in the second world, never at the title) finds in the roster the word that holds the
+    player's address, the near list (16-byte elements, the address first and a fraction beside it), the player set,
+    and the holder of parts among what the player's object points at. The parts watch, made from that, reads the
+    parts once a second through the tester's phases: the fake player stands, walks (--walk-from-s to --walk-to-s),
+    stands, loses health (--hit-at-s) and has it back (--heal-at-s); the watch tells the position's fields by their
+    moving only in the walk, and the health by its falling at the hit, with its maximum beside it."""
+    failures = any_line(result, "LAUNCHER", "task", n=8, of=14, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=12, of=14, by="time", mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="chars_look", n=1, mark=3, overrun=0, cut=0)
+    failures += any_line(result, "ELDENNET", "read", stage="parts", made=1, player_word=0x40, holder_at=0x30)
     folder = os.path.join(result.paths["appdata"], "EldenNet", "probe")
     report = os.path.join(folder, "lodestar-found.json")
     if not os.path.exists(report):
-        return failures
+        return failures + ["no lodestar-found.json in the probe folder"]
+    code, out, _ = run_engine(result.args, result.env, ["lint", "--report", result.as_win(report)])
+    need(code == 0, "lint --report lodestar-found.json: exit %s %s" % (code, out[-400:]), failures)
     with open(report) as f:
         d = json.load(f)
     chars = d.get("chars") or {"looks": []}
     looks = chars["looks"]
-    need(chars.get("asked") == 4 and chars.get("passes") == 4 and chars.get("overrun") is False and len(looks) == 4 and
-         [l["mark"] for l in looks] == [0, 1, 2, 3] and
-         all(l["through"] and not l["overrun"] and not l["cut"] and l["manager_bytes"] >= 0x48 for l in looks),
-         "the character search's looks: %s" % [{k: v for k, v in l.items() if not isinstance(v, list)} for l in looks],
+    need(chars.get("asked") == 1 and chars.get("passes") == 1 and chars.get("overrun") is False and len(looks) == 1 and
+         looks[0]["mark"] == 3 and looks[0]["through"] and not looks[0]["cut"] and looks[0]["manager_bytes"] >= 0x48,
+         "the character search's look: %s" % [{k: v for k, v in l.items() if not isinstance(v, list)} for l in looks],
          failures)
-    if len(looks) == 4:
-        for i in (0, 2):  # at the title
-            need(looks[i]["players"] == 0 and not [p for p in looks[i]["char_pointers"] if p["player"]] and
-                 looks[i]["player_bytes"] == 0, "look %d, at the title: %s" % (i + 1, looks[i]["char_pointers"]),
-                 failures)
-        for i in (1, 3):  # in the world
-            l = looks[i]
-            near = [x for x in l["lists"] if x["offset"] == 0x10]
-            need(l["players"] == 1 and {"offset": 0x40, "player": True} in l["char_pointers"] and
-                 len(near) == 1 and near[0]["stride"] == 0x10 and near[0]["chr_at"] == 0 and
-                 near[0]["characters"] >= 1 and near[0]["characters"] == near[0]["elements"] and
-                 not near[0]["has_player"] and
-                 [s for s in l["sets"] if s["offset"] == 0x30 and s["chr_at"] == 0] and
-                 l["player_bytes"] >= 0x70 and [m for m in l["player_members"] if m["offset"] == 0x30],
-                 "look %d, in the world: pointers %s lists %s sets %s members %s" %
-                 (i + 1, l["char_pointers"][:6], l["lists"], l["sets"], l["player_members"][:8]), failures)
-    failures += any_line(result, "ELDENNET", "read", stage="chars_look", n=4, overrun=0, cut=0)
-    return failures
+    if len(looks) == 1:
+        l = looks[0]
+        near = [x for x in l["lists"] if x["offset"] == 0x10]
+        holder = [m for m in l["player_members"] if m["offset"] == 0x30]
+        need(l["players"] == 1 and {"offset": 0x40, "player": True} in l["char_pointers"] and
+             len(near) == 1 and near[0]["stride"] == 0x10 and near[0]["chr_at"] == 0 and
+             near[0]["characters"] >= 1 and near[0]["characters"] == near[0]["elements"] and
+             not near[0]["has_player"] and near[0]["has_fraction"] and near[0]["fraction_at"] == 8 and
+             [s for s in l["sets"] if s["offset"] == 0x30 and s["chr_at"] == 0] and
+             l["player_bytes"] >= 0x70 and len(holder) == 1 and holder[0]["classed"] == 11,
+             "the look in the world: pointers %s lists %s sets %s members %s" %
+             (l["char_pointers"][:6], l["lists"], l["sets"], l["player_members"][:8]), failures)
+    parts = d.get("parts") or {"part_list": [], "moves": [], "falls": [], "phase_passes": []}
+    listed = {p["index"]: p for p in parts["part_list"]}
+    need(parts.get("player_word") == 0x40 and parts.get("holder_at") == 0x30 and parts.get("passes", 0) >= 20 and
+         parts.get("restarts") == 0 and 0 in listed and 2 in listed and listed[0]["vtable"] == 0 and
+         all(listed[i]["vtable"] != 0 for i in range(5, 16) if i in listed) and len(listed) >= 14,
+         "the parts: %s %s" % ({k: v for k, v in parts.items() if not isinstance(v, list)}, parts["part_list"]),
+         failures)
+    passes = parts["phase_passes"]
+    need(len(passes) == 6 and passes[0] >= 2 and passes[1] >= 4 and passes[2] >= 4 and passes[3] >= 4 and
+         passes[4] >= 4, "the parts watch's phases: %s" % passes, failures)
+    moves = {(m["part"], m["offset"]): m for m in parts["moves"]}
+    need((2, 0x20) in moves and (2, 0x28) in moves and (2, 0x24) not in moves and moves[(2, 0x20)]["fraction"] and
+         moves[(2, 0x20)]["changed"][0] == 0 and moves[(2, 0x20)]["changed"][2] == 0 and
+         moves[(2, 0x20)]["changed"][1] >= 3,
+         "the position by its moving in the walk alone: %s" % parts["moves"][:8], failures)
+    falls = [x for x in parts["falls"] if x["part"] == 0 and x["offset"] == 4]
+    need(len(falls) == 1 and falls[0]["fell"] >= 1 and falls[0]["rose"] >= 1 and falls[0]["has_max"] and
+         falls[0]["max_at"] == 0, "the health by the hit and the heal: %s" % parts["falls"][:8], failures)
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
 
 
 case("launcher-eldennet-read-state", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--title-frames", "720", "--retitle-at-s", "15", "--retitle-for-s", "16",
-          frames=3900),
+     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "720", "--retitle-at-s", "15",
+          "--retitle-for-s", "16", frames=3900),
      program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_state,
      what="the read-only round where no class names the game's state (as in the game): the fake game is taken from its "
-          "title to the world, back to the title and to the world again, each change marked by the launcher's tasks; "
-          "the round finds the slot behind which a field reads -1, the save's slot, -1 and the slot again, and writes "
-          "it into the draft table by the invariant recipe")
+          "title to the world (one save's slot), back to the title and to the world again (another's), each change "
+          "marked by the launcher's tasks; the pair search finds the one field that read the two slots' numbers, and "
+          "the round writes its slot into the draft table by the invariant recipe")
 
 
 case("launcher-eldennet-read-chars", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
-                                              "--read", "--read-pace-s", "8"] +
-     game("--field-mirror", "--slot-by-state", "--first-slot", "0", "--title-frames", "720", "--retitle-at-s", "15",
-          "--retitle-for-s", "16", frames=3900),
-     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+                                              "--read", "--read-pace-s", "12"] +
+     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "720", "--retitle-at-s", "30",
+          "--retitle-for-s", "20", "--walk-from-s", "65", "--walk-to-s", "72", "--hit-at-s", "90", "--heal-at-s", "103",
+          frames=10200),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=360,
+     # The fake game's seconds of the world against the launcher's tasks at twelve seconds each (the round says to
+     # load some 10 s in; the second world begins at 30 of the world's seconds, some 64 s in): the walk's task runs
+     # from about 61 to 74, the hit's from 86 to 98, the heal's from 98 to 110. Each window leaves three seconds.
      prepare=install_eldennet(None, probe=True, gal_change=read_state_gal, then=with_saves),
      check=check_read_chars,
-     what="the thirteenth round's two additions: the save's slot named by the field that read two numbers when two "
-          "saves were loaded, and the character search's four looks at the roster (the player's word, the near list, "
-          "the player set and the parts in the world; none of them at the title)")
+     what="the fourteenth round's second world: the character search's one look at the roster (the player's word, the "
+          "near list, the player set, the holder of parts), and the parts watch through the tester's phases (the "
+          "position told by its moving in the walk alone, the health by a hit and a heal)")
 
 
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the
@@ -3699,10 +3732,10 @@ def check_read_owner(result):
     # The tester's tasks, told on the console too as each begins: the second when the round says to load the save,
     # the last when the list is through.
     tasks = [l for l in said if l.startswith("EldenNet read: Task ")]
-    need(len(tasks) == 8 and tasks[0].startswith("EldenNet read: Task 2 of 9: Stay at the title screen.") and
-         tasks[-1].startswith("EldenNet read: Task 9 of 9: Quit the game."), "the console's tasks: %s" % tasks,
+    need(len(tasks) == 13 and tasks[0].startswith("EldenNet read: Task 2 of 14: Stay at the title screen.") and
+         tasks[-1].startswith("EldenNet read: Task 14 of 14: Quit the game."), "the console's tasks: %s" % tasks,
          failures)
-    failures += want(result, "LAUNCHER", "tasks", done=9, of=9, finished=1)
+    failures += want(result, "LAUNCHER", "tasks", done=14, of=14, finished=1)
     for name in ("lodestar-found.json", "lodestar-table.toml"):
         failures += any_line(result, "LAUNCHER", "read", report=name, lint="clean")
     failures += want(result, "ELDENNET", "probe", asked="read", accepted=1, probe_build=1)
@@ -3713,8 +3746,8 @@ def check_read_owner(result):
 
 case("launcher-eldennet-read-owner", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
                                               "--read", "--read-pace-s", "5"] +
-     game("--statics-delay-ms", "20000", "--field-mirror", "--flag-set", frames=5400),
-     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     game("--statics-delay-ms", "20000", "--field-mirror", "--flag-set", frames=7200),
+     program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
      prepare=install_eldennet(None, probe=True, gal_change=read_round_gal, then=with_saves),
      check=check_read_owner,
      what="the read-only round as the owner runs it: --read (no settings.toml), the backup first, the console's steps "

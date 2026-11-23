@@ -517,7 +517,7 @@ class CharSearch {
   static constexpr std::size_t kMaxHolders = 24;
   static constexpr std::uint32_t kMaxReads = 12'000;
   static constexpr std::uint32_t kPasses = 4;
-  static constexpr std::size_t kListedPointers = 48, kListedLists = 16, kListedSets = 16, kListedMembers = 160,
+  static constexpr std::size_t kListedPointers = 48, kListedLists = 16, kListedSets = 16, kListedMembers = 96,
                                kListedSaveMembers = 48;
 
   struct Options {
@@ -556,6 +556,89 @@ class CharSearch {
   std::array<std::atomic<bool>, kPasses> overrun_{};
   std::array<std::atomic<std::uint32_t>, kPasses> mark_{};
   std::atomic<std::uint32_t> save_slot_{0};
+};
+
+// The pair search (lodestar.hpp's PairFound): two looks, asked for when the tester says the game is in the first
+// world and in the second. At the first, for every candidate slot, the first kSpan bytes of the object behind it:
+// which 32-bit fields and which bytes read `first`. At the second, the object behind the slot then (another object
+// counts as well): which of those read `second`. One careful read a call; nothing allocated on the stepping thread.
+class PairSearch {
+ public:
+  static constexpr std::uint32_t kSpan = 0x2000;
+  static constexpr std::size_t kMaxCandidates = 8192;
+  static constexpr std::size_t kMaxHits = 64;
+  static constexpr std::uint32_t kPasses = 2;
+
+  // `image`: the image as loaded, from which each slot's value is read.
+  PairSearch(std::vector<std::uint32_t> slots, std::uint32_t first, std::uint32_t second, const ByteSource* image);
+  ~PairSearch();
+  PairSearch(const PairSearch&) = delete;
+  PairSearch& operator=(const PairSearch&) = delete;
+
+  void ask() noexcept;
+  [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
+  [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
+  [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us = 0);
+  // The hits' `sites` are left 0: the caller counts the code's references. Hits only after the second look.
+  [[nodiscard]] PairFound found() const;
+
+ private:
+  struct Candidate;
+  const ByteSource* image_;
+  std::uint32_t first_, second_;
+  std::vector<Candidate> candidates_;
+  std::vector<std::uint64_t> words_;  // by candidate: kSpan / 4 bits
+  std::vector<std::uint64_t> bytes_;  // by candidate: kSpan bits
+  std::vector<std::byte> buffer_;
+  std::size_t cursor_ = 0;
+  std::atomic<std::uint32_t> asked_{0};
+  std::atomic<std::uint32_t> done_{0};
+  std::array<std::atomic<std::uint32_t>, kPasses> took_ms_{};
+  std::array<std::atomic<bool>, kPasses> overrun_{};
+  std::array<std::atomic<std::uint32_t>, kPasses> objects_{};
+  std::atomic<std::uint64_t> words_first_{0}, bytes_first_{0};
+  std::uint64_t pass_start_us_ = 0;
+  bool pass_started_ = false;
+};
+
+// The parts watch (lodestar.hpp's PartsFound). A pass, once a second: the main player's address from the manager,
+// the holder's from the player's object, the holder's first kHolderWords words, and kPartSpan bytes of each object
+// they point at (less where memory ends sooner); each 32-bit field is compared with the pass before and counted by
+// the phase under way. The caller says when a phase ends (the tester's marks); the first kGraceUs of a phase are
+// read and not counted. One careful read a call; nothing allocated on the stepping thread. `found()` gives what
+// the last finished pass left.
+class PartsWatch {
+ public:
+  static constexpr std::size_t kHolderWords = 32;
+  static constexpr std::uint32_t kPartSpan = 0x1000;
+  static constexpr std::uint32_t kPhases = 6;
+  static constexpr std::uint64_t kEveryUs = 1'000'000;
+  static constexpr std::uint64_t kGraceUs = 4'000'000;
+  static constexpr std::size_t kMaxMoves = 64, kMaxFalls = 32;
+
+  struct Options {
+    std::uint64_t base = 0;
+    std::uint64_t image_size = 0;
+    std::uint32_t manager_slot = 0;
+    std::uint32_t player_word = 0;  // in the manager's object
+    std::uint32_t holder_at = 0;    // in the player's object
+    const ByteSource* image = nullptr;
+    std::uint32_t still_a = 0, walk = 1, still_b = 2, hit = 3, heal = 4;  // which phase is which
+  };
+  explicit PartsWatch(Options options);
+  ~PartsWatch();
+  PartsWatch(const PartsWatch&) = delete;
+  PartsWatch& operator=(const PartsWatch&) = delete;
+
+  void mark(std::uint64_t now_us) noexcept;  // the next phase begins; from one thread
+  [[nodiscard]] bool due(std::uint64_t now_us) const noexcept;  // the stepping thread's
+  bool step(const proto::GameThread& gt, GuardedReader& reader, std::uint64_t now_us);  // whether a pass ended
+  [[nodiscard]] PartsFound found() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace en::gal::lodestar

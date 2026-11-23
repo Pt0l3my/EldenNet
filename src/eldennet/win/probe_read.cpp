@@ -82,6 +82,13 @@ constexpr std::uint64_t kFirstReadingMs = 30'000;
 constexpr std::uint64_t kSearchAfterMs = 180'000;  // the searches start then, if no save was loaded sooner
 constexpr std::uint64_t kSearchAgainMs = 60'000;   // a slot search that found nothing is made again
 constexpr std::size_t kMaxSlotCandidates = std::size_t{1} << 20;
+// The fourteenth round's two loads (the record's note on the owner's save file): the last character of the list is in
+// the save's slot 6, the usual one in slot 2. The pair search looks for the field that reads the one and then the
+// other. The marks at which the game is in the first world, and in the second (the usual character's).
+constexpr std::uint32_t kPairFirst = 6;
+constexpr std::uint32_t kPairSecond = 2;
+constexpr std::uint32_t kFirstWorldMark = 1;
+constexpr std::uint32_t kSecondWorldMark = 3;
 constexpr std::size_t kMaxRisingCandidates = std::size_t{1} << 14;
 constexpr std::size_t kFlagHops = 8;            // objects one step on from the flags' store
 constexpr std::size_t kFlagHopsDeeper = 4;      // objects one step more, from each of those
@@ -239,11 +246,38 @@ class Body final : public en::gal::TaskBody {
       watch = nullptr;
       sweep = nullptr;
       tree = nullptr;
+    } else if (auto* pair = pair_.load(std::memory_order_acquire); pair != nullptr && pair->due()) {
+      // The pair search's look, likewise: the first and the second world.
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const bool ended = pair->step(gt, reader_, quiet_.now_us());
+        if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
     } else if (auto* chars = chars_.load(std::memory_order_acquire); chars != nullptr && chars->due()) {
       // The character search's look, next: it too reads the game in the state the tester put it in.
       const std::uint64_t start = quiet_.now_us();
       for (;;) {
         const bool ended = chars->step(gt, reader_, quiet_.now_us());
+        if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
+      }
+      slots = nullptr;
+      members = nullptr;
+      rising = nullptr;
+      watch = nullptr;
+      sweep = nullptr;
+      tree = nullptr;
+    } else if (auto* parts = parts_.load(std::memory_order_acquire);
+               parts != nullptr && parts->due(quiet_.now_us())) {
+      // The parts watch's pass, once a second: some forty reads, and the tester's phases are short.
+      const std::uint64_t start = quiet_.now_us();
+      for (;;) {
+        const bool ended = parts->step(gt, reader_, quiet_.now_us());
         if (ended || reader_.spent() || quiet_.now_us() - start >= kSearchShareUs) break;
       }
       slots = nullptr;
@@ -349,6 +383,8 @@ class Body final : public en::gal::TaskBody {
   void set_tree(lodestar::TreeRead* tree) noexcept { tree_.store(tree, std::memory_order_release); }
   void set_state(lodestar::StateSearch* state) noexcept { state_.store(state, std::memory_order_release); }
   void set_chars(lodestar::CharSearch* chars) noexcept { chars_.store(chars, std::memory_order_release); }
+  void set_pair(lodestar::PairSearch* pair) noexcept { pair_.store(pair, std::memory_order_release); }
+  void set_parts(lodestar::PartsWatch* parts) noexcept { parts_.store(parts, std::memory_order_release); }
   // EldenNet's own reader: built by T1 over this thread's careful reads, stepped here. A list of flags is handed
   // over by its address; T1 keeps every list it ever handed over.
   struct FlagList {
@@ -389,6 +425,8 @@ class Body final : public en::gal::TaskBody {
   std::atomic<lodestar::TreeRead*> tree_{nullptr};
   std::atomic<lodestar::StateSearch*> state_{nullptr};
   std::atomic<lodestar::CharSearch*> chars_{nullptr};
+  std::atomic<lodestar::PairSearch*> pair_{nullptr};
+  std::atomic<lodestar::PartsWatch*> parts_{nullptr};
   std::atomic<en::gal::ErBackend*> backend_{nullptr};
   std::atomic<const FlagList*> flag_list_{nullptr};
   en::proto::WorldSnapshot snapshot_;  // the backend's, of which only the flags are filled
@@ -671,10 +709,67 @@ class Round {
     if (o.character_vtables.empty() || o.player_vtables.empty()) return;
     const std::size_t classes = o.character_vtables.size(), players = o.player_vtables.size();
     chars_ = new lodestar::CharSearch(std::move(o));  // lives for the process
-    chars_->ask(marks_seen_);
+    // No look yet: the thirteenth round's first look, asked for as the manager was first named, ran through the
+    // loading and saw the manager being filled. A look is asked for when the tester says the game is in the world.
+    chars_manager_ = held->rva;
     body_->set_chars(chars_);
     log(Line("read").word("stage", "chars").num("classes", classes).num("player_classes", players)
             .num("mark", marks_seen_));
+  }
+
+  // The pair search: over the data's slots in use now, in the first world.
+  void make_pair() {
+    if (pair_ != nullptr || body_ == nullptr) return;
+    en::gal::probe::HeapSlots slots = live_slots(kMaxSlotCandidates);
+    pair_ = new lodestar::PairSearch(std::move(slots.slots), kPairFirst, kPairSecond,
+                                     &s_.sys->image());  // lives for the process
+    pair_->ask();
+    body_->set_pair(pair_);
+    log(Line("read").word("stage", "pair").num("candidates", pair_->found().candidates).num("first", kPairFirst)
+            .num("second", kPairSecond));
+  }
+
+  // The parts watch, once the character search's look in the second world is through: it gives where in the manager
+  // the main player's address stands, and which of the player's addresses is the holder of its parts (the one whose
+  // target begins with the most addresses of classed objects).
+  void make_parts(const lodestar::CharFound& chars) {
+    if (parts_ != nullptr || parts_tried_ || body_ == nullptr) return;
+    const lodestar::CharLook* look = nullptr;
+    for (const lodestar::CharLook& l : chars.looks) {
+      if (l.mark == kSecondWorldMark && l.through) look = &l;
+    }
+    if (look == nullptr) return;
+    parts_tried_ = true;
+    lodestar::PartsWatch::Options o;
+    bool player = false;
+    for (const lodestar::CharPointer& c : look->pointers) {
+      if (c.player && !player) {
+        o.player_word = c.offset;
+        player = true;
+      }
+    }
+    std::uint32_t most = 0;
+    for (const lodestar::CharMember& m : look->members) {
+      if (m.classed > most) {
+        most = m.classed;
+        o.holder_at = m.offset;
+      }
+    }
+    if (!player || look->players != 1 || most < 6) {
+      log(Line("read").word("stage", "parts").flag("made", false).num("players", look->players).num("classed", most),
+          LogLevel::Warn);
+      return;
+    }
+    o.base = s_.sys->module_base();
+    o.image_size = s_.sys->image().size();
+    o.manager_slot = chars_manager_;
+    o.image = &s_.sys->image();
+    parts_ = new lodestar::PartsWatch(o);  // lives for the process
+    // Marks that came while the look ran are phases gone by.
+    for (std::uint32_t m = kSecondWorldMark; m < marks_seen_; ++m) parts_->mark(s_.sys->now_us());
+    body_->set_parts(parts_);
+    log(Line("read").word("stage", "parts").flag("made", true).num("player_word", o.player_word)
+            .num("holder_at", o.holder_at).num("classed", most).num("mark", marks_seen_));
   }
 
   void prepare_backend() {
@@ -1258,12 +1353,10 @@ class Round {
         } else if (f.slots_differ == 0 && f.slots_hit == 1 && !f.hits.empty()) {
           pick = &f.hits[0];
         }
-        const bool names = pick != nullptr && f.title_clean && !f.overrun && !named && !named_at(pick->rva);
-        if (names) {
-          lodestar::InvariantFound& v = invariant(game.id, game.label, pick->rva, pick->offset);
-          v.rose = 2;    // the two passes in the world that read a small number
-          v.passes = 4;
-        }
+        // The state search names nothing any more: its one candidate, with two characters loaded, read numbers
+        // that are not their slots (the owner's save file). The pair search, which knows the slots, names the slot.
+        const bool names = false;
+        (void)game;
         log(Line("read").word("stage", "state_done").num("slots", f.slots_hit).num("differ", f.slots_differ)
                 .num("fields_differ", f.fields_differ).num("hits", f.hits.size())
                 .flag("title_clean", f.title_clean).flag("overrun", f.overrun).flag("named", named)
@@ -1287,7 +1380,55 @@ class Round {
                 .num("manager_bytes", l.manager_bytes).num("characters", l.characters).num("players", l.players)
                 .num("lists", l.lists.size()).num("sets", l.sets.size()).num("members", l.members_total));
       }
+      make_parts(f);
       found_.chars = std::move(f);
+    }
+    if (pair_ != nullptr) {
+      lodestar::PairFound f = pair_->found();
+      if (f.passes >= lodestar::PairSearch::kPasses && !pair_said_) {
+        // The hits' slots, with the code's references to each. One 32-bit field alone that read the first
+        // character's slot and then the second's is the save's slot, and its slot the game's state's static, by
+        // what its object holds (the invariant recipe), unless something is named there already.
+        pair_said_ = true;
+        std::vector<std::uint32_t> slots;
+        for (const lodestar::PairHit& h : f.hits) {
+          if (std::find(slots.begin(), slots.end(), h.rva) == slots.end()) slots.push_back(h.rva);
+        }
+        if (!slots.empty()) {
+          const std::vector<lodestar::References> refs =
+              lodestar::references(*image_, s_.sys->image(), ".text", slots, lodestar::kMaxSiteWitnesses);
+          for (std::size_t i = 0; i < slots.size() && i < refs.size(); ++i) {
+            pair_sites_[slots[i]] = static_cast<std::uint32_t>(std::min<std::uint64_t>(refs[i].count, 0xFFFFFFFFu));
+          }
+        }
+        const en::gal::roles::ItemInfo game = en::gal::roles::info(en::gal::roles::Item::GameState);
+        const bool names = f.word_hits == 1 && !f.overrun && !f.hits.empty() && f.hits[0].width == 4 &&
+                           !named_at(f.hits[0].rva);
+        if (names) {
+          lodestar::InvariantFound& v = invariant(game.id, game.label, f.hits[0].rva, f.hits[0].offset);
+          v.rose = 2;  // the two worlds, each read as its character's slot
+          v.passes = 2;
+        }
+        log(Line("read").word("stage", "pair_done").num("word_hits", f.word_hits).num("byte_hits", f.byte_hits)
+                .flag("overrun", f.overrun).flag("names", names)
+                .num("offset", f.hits.empty() ? 0 : f.hits[0].offset)
+                .num("sites", f.hits.empty() ? 0 : pair_sites_[f.hits[0].rva]));
+      }
+      for (lodestar::PairHit& h : f.hits) {
+        const auto sites = pair_sites_.find(h.rva);
+        if (sites != pair_sites_.end()) h.sites = sites->second;
+      }
+      found_.pair = std::move(f);
+    }
+    if (parts_ != nullptr) {
+      lodestar::PartsFound f = parts_->found();
+      if (f.phase != parts_phase_said_) {
+        parts_phase_said_ = f.phase;
+        log(Line("read").word("stage", "parts_phase").num("phase", f.phase).num("passes", f.passes)
+                .num("absent", f.absent).num("parts", f.parts.size()).num("moves", f.moves_total)
+                .num("falls", f.falls_total));
+      }
+      found_.parts = std::move(f);
     }
     // A report the writer refuses (too large, most likely: a long round's watch) is written again smaller, a step
     // at a time: the watched object with the most words loses them (and says so), then the next, the flags' objects
@@ -1385,7 +1526,13 @@ class Round {
         ++marks_seen_;
         marks_kept_.push_back(s_.sys->now_us());
         if (state_ != nullptr) state_->ask();  // the tester says the game is in the next state
-        if (chars_ != nullptr) chars_->ask(marks_seen_);
+        if (marks_seen_ == kFirstWorldMark) make_pair();
+        if (marks_seen_ == kSecondWorldMark) {
+          if (pair_ != nullptr) pair_->ask();
+          if (chars_ == nullptr) make_chars();
+          if (chars_ != nullptr) chars_->ask(marks_seen_);
+        }
+        if (parts_ != nullptr) parts_->mark(marks_kept_.back());  // the tester's next phase
         log(Line("read").word("stage", "mark").num("n", marks_seen_).flag("sweep", sweep_ != nullptr));
       }
       for (; sweep_ != nullptr && marks_given_ < marks_kept_.size(); ++marks_given_) {
@@ -1467,6 +1614,13 @@ class Round {
   bool state_dirty_ = false;                        // a save was loaded before the first pass was through
   bool state_said_ = false;
   lodestar::CharSearch* chars_ = nullptr;
+  std::uint32_t chars_manager_ = 0;                 // the characters manager's static
+  lodestar::PairSearch* pair_ = nullptr;
+  bool pair_said_ = false;
+  std::map<std::uint32_t, std::uint32_t> pair_sites_;  // by slot: the code's references to it
+  lodestar::PartsWatch* parts_ = nullptr;
+  bool parts_tried_ = false;
+  std::uint32_t parts_phase_said_ = 0;
   std::size_t chars_looks_said_ = 0;                // looks whose end the log has told
   std::size_t state_looks_said_ = 0;                // looks whose end the log has told
   std::map<std::uint32_t, std::uint32_t> state_sites_;  // by slot: the code's references to it

@@ -160,12 +160,12 @@ TEST_CASE("tasks: with a pace every wait is that long and the tester's tasks con
   CHECK(list.finished());
 }
 
-TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks each change of the game's state") {
+TEST_CASE("tasks: the read-only round's list starts with the round's own task and marks each change it asks for") {
   const std::vector<Task> tasks = read_tasks();
-  REQUIRE(tasks.size() == 9);
+  REQUIRE(tasks.size() == 14);
   CHECK(tasks[0].kind == TaskKind::Round);
-  CHECK(tasks[1].kind == TaskKind::Wait);  // the first look at the title, before the save is loaded
-  std::size_t marks = 0, waits = 0, seconds = 0;
+  CHECK(tasks[1].kind == TaskKind::Wait);  // the first look at the title, before a save is loaded
+  std::size_t marks = 0, waits = 0, seconds = 0, marked_waits = 0;
   for (const Task& t : tasks) {
     CHECK_FALSE(t.title.empty());
     CHECK_FALSE(t.detail.empty());
@@ -173,33 +173,51 @@ TEST_CASE("tasks: the read-only round's list starts with the round's own task an
     CHECK(t.detail.size() <= 180);
     if (t.mark) {
       ++marks;
-      CHECK(t.kind == TaskKind::Do);
+      CHECK((t.kind == TaskKind::Do || t.kind == TaskKind::Wait));
+      marked_waits += t.kind == TaskKind::Wait ? 1 : 0;
     }
     if (t.kind == TaskKind::Wait) {
       ++waits;
       seconds += t.seconds;
-      CHECK(t.seconds >= 60);  // a look of the state search must be through before the game moves on
+      CHECK(t.seconds >= 10);
     } else {
       CHECK(t.seconds == 0);
     }
   }
-  // Three marks: in the world, at the title again, in the world again. Each is followed by a wait, in which the
-  // round reads the game in that state; the waits in the world are the longer ones.
-  CHECK(marks == 3);
-  CHECK(waits == 4);
-  CHECK(seconds == 300);
-  CHECK(tasks[3].seconds == 90);
-  CHECK(tasks[7].seconds == 90);
-  // The two loads are two characters: the first of the list, then the usual one, so that Continue is the usual one's.
-  CHECK(tasks[2].title.find("first character") != std::string::npos);
+  // Eight marks. Three for the game's states (the first world, the title again, the second world); then the parts
+  // watch's phases: the ends of standing, walking and standing again (marked waits), the hit and the heal.
+  CHECK(marks == 8);
+  CHECK(marked_waits == 3);
+  CHECK(waits == 7);
+  CHECK(seconds == 245);
+  // The two loads are two characters: the last of the list, then the usual one, so that Continue is the usual one's.
+  CHECK(tasks[2].title.find("last character") != std::string::npos);
   CHECK(tasks[6].title.find("usual character") != std::string::npos);
-  for (std::size_t i = 0; i + 1 < tasks.size(); ++i) {
-    if (tasks[i].mark) CHECK(tasks[i + 1].kind == TaskKind::Wait);
-  }
+  // The second world's phases, in the order the parts watch counts them.
+  CHECK(tasks[7].title == "Stand still");
+  CHECK(tasks[7].mark);
+  CHECK(tasks[7].seconds == 90);  // the character search's look comes first and may take 40 s
+  CHECK(tasks[8].title == "Walk about");
+  CHECK(tasks[9].title == "Stand still again");
+  CHECK(tasks[10].title == "Take one hit");
+  CHECK(tasks[11].title == "Heal");
   // The last task is to quit the game: it has no button and nothing confirms it.
   CHECK(tasks.back().kind == TaskKind::End);
   CHECK_FALSE(tasks.back().mark);
   CHECK(tasks.back().detail.find("nothing more to press") != std::string::npos);
   // Each task of the tester's has its own word for the button; no other kind has one.
   for (const Task& t : tasks) CHECK((t.kind == TaskKind::Do) == !t.button.empty());
+}
+
+TEST_CASE("tasks: a marked wait stamps its mark when its time is up") {
+  TaskList list({{TaskKind::Wait, "stand", "d", 5, true, ""}, {TaskKind::Wait, "rest", "d", 5, false, ""},
+                 {TaskKind::End, "quit", "d", 0, false, ""}});
+  list.start(0);
+  CHECK_FALSE(list.tick(4'000).changed);
+  TaskList::Change c = list.tick(5'000);
+  CHECK(c.changed);
+  CHECK(c.mark);
+  c = list.tick(10'000);
+  CHECK(c.changed);
+  CHECK_FALSE(c.mark);
 }

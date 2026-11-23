@@ -39,6 +39,10 @@ struct Options {
                                        // title (another save was loaded first); after that it reads 2
   std::uint32_t retitle_at_s = 0;      // seconds into the world at which the game goes back to its title, once; 0 never
   std::uint32_t retitle_for_s = 10;    // and how long it stays there before it loads the world again
+  // The parts watch's phases, in seconds of the world (they run on through a return to the title): the player moves
+  // only from walk_from_s to walk_to_s (always, where both are 0), loses health at hit_at_s and has it back at
+  // heal_at_s (never, where 0).
+  std::uint32_t walk_from_s = 0, walk_to_s = 0, hit_at_s = 0, heal_at_s = 0;
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names

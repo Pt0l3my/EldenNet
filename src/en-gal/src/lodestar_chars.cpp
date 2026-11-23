@@ -364,6 +364,24 @@ struct CharSearch::Impl {
         out.distance_at = j;
       }
     }
+    // The same without the order: a fraction beside the address in every element, not the same in all. (The
+    // thirteenth round's near list was in order in one world and not in the other.)
+    for (std::uint32_t j = 0; j + 4 <= best_stride && !out.has_fraction && best_elements >= 2; j += 4) {
+      if (j >= best_at && j < best_at + 8) continue;
+      float low = 0.0f, high = 0.0f;
+      bool holds = true;
+      for (std::uint32_t i = 0; i < best_elements && holds; ++i) {
+        float f = 0.0f;
+        std::memcpy(&f, bytes.data() + i * best_stride + j, 4);
+        holds = std::isfinite(f) && f >= 0.0f && f <= 1.0e6f && (f == 0.0f || f > 1.0e-3f);
+        low = i == 0 ? f : std::min(low, f);
+        high = i == 0 ? f : std::max(high, f);
+      }
+      if (holds && high > low) {
+        out.has_fraction = true;
+        out.fraction_at = j;
+      }
+    }
     look.lists.push_back(out);
   }
 

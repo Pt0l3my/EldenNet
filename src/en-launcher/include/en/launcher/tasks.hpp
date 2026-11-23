@@ -23,7 +23,7 @@ struct Task {
   std::string title;
   std::string detail;
   std::uint32_t seconds = 0;  // Wait: how long. Round and Do: 0
-  bool mark = false;          // Do: its confirmation is a Mark for the round
+  bool mark = false;          // Do: its confirmation is a Mark for the round. Wait: the end of its time is one
   // Do: what the panel's button says for this task before ": press Pause, or click here" (the owner, 2026-11-22: the
   // button is to know the task). "Done" where none is given.
   std::string button;

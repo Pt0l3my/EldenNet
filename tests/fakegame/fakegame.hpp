@@ -470,6 +470,8 @@ struct ActorParts {           // the modules block
   MotionPart* motion;         // 0x10
   ReactPart* react;           // 0x18
   GripPart* grip;             // 0x20
+  void* more[11];             // 0x28: further parts, objects with a class (the game's holder of parts keeps some
+                              // thirty; the read-only round tells the holder by them)
 };
 inline constexpr std::uint8_t kActorOnScreenBit = 2;  // ActorFields::flags
 inline constexpr std::uint8_t kActorDeadBit = 6;
