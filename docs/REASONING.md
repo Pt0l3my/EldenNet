@@ -487,6 +487,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 462 | 2026-11-23 | EldenNet's own discovery and flags reader work on the game, through the build's layout | FACT | #lodestar #gal #flags |
 | 463 | 2026-11-23 | game_state is sought by what it holds at the title and in the world, over four looks | METHOD | #lodestar #l6 #gal |
 | 464 | 2026-11-23 | A search that must end inside a session gets the searches' whole share until it is through | METHOD | #lodestar |
+| 465 | 2026-11-23 | The menu's frame-cost check in GraceUI's harness is noisy on a four-core container | FACT | #graceui #harness |
 
 ## Entries
 
@@ -7313,3 +7314,12 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   session of 7.8 minutes, so the marked flags could not be compared.
 - The twelfth round gives the walk the searches' whole share until it is through, about a minute; a look of the state
   search likewise holds the whole share while it runs, the other searches waiting.
+
+### 465. The menu's frame-cost check in GraceUI's harness is noisy on a four-core container
+
+`2026-11-23` · FACT · `#graceui` `#harness` · refs: GraceUI:BUILD.md, GraceUI:D219, S11.2.aj
+
+- With its medians unchanged (about 175 to 190 µs), the menu's p99 at 640 by 360 went over 1,000 µs on 0.2.22's build and
+  0.2.23's alike, by turns, run alone and back to back; on the earlier, larger machine it passed whole.
+- So on a four-core container a full run counts that check as the machine's, not a regression, when the medians hold
+  (Grace's full run of 0.2.23: 232 checks, all but that one on both builds).

@@ -1453,6 +1453,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: GraceUI:D218, GraceUI:D215, WHY§393, WHY§387
   - gives: built on 2026-11-22 (GraceUI feat/foundations 62f492e) at EldenNet's request; for the profile editor
     (S7.2.b; GraceUI's docs/eldennet-changes.md §56).
+- aj Search across spaces in game (GraceUI 0.2.23) [done]
+  - refs: GraceUI:D219, GraceUI:D166, GraceUI:D214, WHY§465
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 8776e80 and b52cd7d), brought forward from GraceUI 0.4 at the
+    owner's go-ahead: the menu's search in game finds every space's settings, each named by its space and opened on
+    its home page with its row revealed, as the browser view's already did. No change of ABI or protocol, and nothing
+    for EldenNet to change (GraceUI's docs/eldennet-changes.md §58).
 
 ### S11.3 EldenNet v0.2
 
