@@ -555,6 +555,16 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 530 | 2026-11-23 | A start stopped by its reader's files says "not supported yet" of a build Home calls supported | FACT | #engine #pages #words |
 | 531 | 2026-11-23 | The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing | METHOD | #lodestar #gal |
 | 532 | 2026-11-23 | A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one | METHOD | #lodestar #launcher |
+| 533 | 2026-11-23 | A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again | FACT | #graceui #input |
+| 534 | 2026-11-23 | Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy | METHOD | #lodestar #gal |
+| 535 | 2026-11-23 | A test's port belongs in the test's environment, never the player's settings | METHOD | #graceui #tests |
+| 536 | 2026-11-23 | A read round ran with GraceUI loaded: EldenNet took the Marks, and the owner's Pause presses became the round's marks | FACT | #lodestar #graceui |
+| 537 | 2026-11-23 | A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key | METHOD | #lodestar #engine |
+| 538 | 2026-11-23 | Objects of the player's class are several in a world: the main player is the object at characters.main_player | FACT | #lodestar #gal |
+| 539 | 2026-11-23 | The quit's crash codes look like a damaged heap found at the quit, not damage done there | LIKELY | #graceui #crash |
+| 540 | 2026-11-23 | ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes | FACT | #engine #graceui |
+| 541 | 2026-11-23 | A free port for every GraceUI case, from one environment of its own | METHOD | #engine #tests #graceui |
+| 542 | 2026-11-23 | grace-dev 0.2.31's dump: only the two Named NPCs goldens change | FACT | #engine #pages #graceui |
 
 ## Entries
 
@@ -7817,6 +7827,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The manager is not there at the title (its static empty until a save is loaded, and again after a quit), and its
   object is over 127 KiB: every one of these lies past the layout's 0x4000 (WHY§506).
 
+- Later (2026-11-23, WHY§538): the player's class is not the main player's alone: eight objects of it stood in the
+  manager's words in one look; the main player is the object at characters.main_player.
+
 ### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
 
 `2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
@@ -8092,6 +8105,10 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   adds the rest (its first task 197 ms after `ready` against 64). For Lodestar: a later retitle (or a mark tied to the
   phase, not the clock) would give the case room; nothing of this job's touches the round, the launcher or en-gal.
 
+- Later (2026-11-23): on the merged engine (8424f15, and Lodestar's fourteenth round at 0e94488) both read-state and
+  read-chars passed in the full clang-cl suite under Wine: 148 cases of 148, the editor's and the GraceUI cases among
+  them; the nine unit programs, which this tree's ctest cannot start without Wine, passed run by hand (WHY§210).
+
 ### 528. A test package's runs check the game's GraceUI against the package's own before the start
 
 `2026-11-23` · DECIDED · `#engine` `#spike` `#launcher` · refs: O113, WHY§529, S10.1.g, engine 8424f15
@@ -8154,3 +8171,102 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - So a round's phases that need no key (standing, walking) are bounded without the tester pressing anything. A list
   with no marked wait behaves as before; none of the S0, spike or observer lists marks one.
+
+### 533. A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D233, G40, S11.2.aq
+
+- GraceUI grants input only once it has drawn within 2 s, and a game, or the harness under Wine, may not present
+  while in the background, so a request at WM_SETFOCUS is refused. The menu's return (G40) waits for the next frames,
+  at most 5 s, and asks then; refused, late or a game menu open, it closes; danger or loading while away closes it at
+  once. A mod's own holder still ends at the loss of focus (GraceUI 0.2.30).
+
+### 534. Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: WHY§506, ARCH§6.3, en-gal's README, engine 5024ee9
+
+- The layout marks a field far; the reader fetches it by a guarded copy of its own into the object's buffer, past
+  the class's copy at a multiple of eight; the object view finds it there, so the groups read a far field as any
+  other. The characters manager's main player, near list and player set are in the build's layout as far leads
+  (copy_size 0, no rtti). dlmap stays near (the flags' store keeps its map 0x38 in), and the 32-byte cap stands.
+
+### 535. A test's port belongs in the test's environment, never the player's settings
+
+`2026-11-23` · METHOD · `#graceui` `#tests` · refs: GraceUI:D234, WHY§526, S11.2.ar
+
+- Writing a port into GraceUI's settings.json made two trees collide and could leave a test's port in a real file.
+  Port 0 handed to the server was rejected too, since it would change the players' port rules for tests alone. The
+  test build reads GRACEUI_TEST_PORT (free, or a port from 1024 to 65535), asks the system for a free port and binds
+  it, asking again up to five times if another program wins the gap; a release build reads nothing of it (GraceUI
+  0.2.31). EldenNet's cases are to set it and read the port from GraceUI_Test_GetServer, and the editor's case to stop
+  writing one (GraceUI's docs/eldennet-changes.md §64).
+
+### 536. A read round ran with GraceUI loaded: EldenNet took the Marks, and the owner's Pause presses became the round's marks
+
+`2026-11-23` · FACT · `#lodestar` `#graceui` · refs: docs/ops/probes/2026-11-22-l5.md ("The fourteenth round in game: spoilt by GraceUI's presence"), WHY§444, S10.1.m
+
+- Since the spike runs a GraceUI folder lay in the game's folder, so the fourteenth round's EldenNet connected to it
+  (0.2.24), took the ring of Marks, and the launcher released its Pause key: the owner's 18 presses were stamped as
+  Marks by EldenNet and the round took the first three as its moments, all inside the first world. Its searches looked
+  at the wrong moments; the panel's own confirmations stamped nothing. The game ended with 0xC0000005 in ntdll at the
+  quit, 590 s in; the seven read rounds without GraceUI before it ended clean (WHY§529, with Grace).
+
+### 537. A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key
+
+`2026-11-23` · METHOD · `#lodestar` `#engine` · refs: WHY§536, WHY§444
+
+- Not by a folder happening to be absent: a read round's start skips the connection to GraceUI (boot.cpp, where the
+  probe's round is the read round and the run is not an observer's), so EldenNet never asks for the ring and GraceUI
+  is never loaded; the launcher's --read says so on the console when a GraceUI folder lies in the game's folder (by
+  Lodestar, Engine's agreement of 2026-11-23).
+
+### 538. Objects of the player's class are several in a world: the main player is the object at characters.main_player
+
+`2026-11-23` · FACT · `#lodestar` `#gal` · refs: WHY§536, WHY§502
+
+- In one look in the first world eight different objects of the player's class stood in the manager's words (17
+  words), most in a run of 16-byte elements 69,824 bytes in that held 538 characters' addresses. So "the object of the
+  player's class" names no one object; the parts watch is to take the main player from the layout's
+  characters.main_player. 0x1E508 held a player-class object with a third character too.
+
+### 539. The quit's crash codes look like a damaged heap found at the quit, not damage done there
+
+`2026-11-23` · LIKELY · `#graceui` `#crash` · refs: WHY§536, WHY§529, GraceUI:D231, GraceUI:D118
+
+- graceui.dll runs nothing at process exit (DllMain empty; no static or thread-local destructor, checked on its
+  compiled objects; its state never freed; its three threads hold only its own locks), and EldenNet's destructors free
+  nothing of GraceUI's. An access violation inside ntdll and 0xC0000374 are the heap manager meeting damage done
+  earlier, at the first moment many blocks are freed at once. If GraceUI is the cause, the write happened during the
+  run, perhaps with a third program's hook beside it. What would place it: spikes.5's recorder at 0xC0000374, the
+  faulting frames by module and offset, a page-heap run, and a heap guard on GraceUI's own allocations in its test
+  build (asked of Grace for spikes.6 the same day).
+
+### 540. ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes
+
+`2026-11-23` · FACT · `#engine` `#graceui` · refs: GraceUI's D226, de8b596 (graceui.h), graceui.h's rules (D73), src/en-overlay/tests/fake_grace.cpp (poll), engine wip/s12-pin, merged at 4bfccf9
+
+- graceui.h at 386d1ba appends `file`, `file_capacity` and `file_length` to GraceUiEvent (ABI 1.6), so
+  `sizeof(GraceUiEvent)`, which graceui-sys's poll sets as the event's size, grows with the re-vendor. GraceUI reads
+  and writes the smaller of the two sizes (D73), so the floor (0.2.22, ABI 1.5) still answers; the space names no file
+  command, so GraceUI never writes a file into EldenNet's event (its `file` stays null). The table itself has no new
+  slot. The fake GraceUI compares against the header's size and so needs no change while EldenNet polls only at 16
+  bytes or the header's size; one test comment ("ABI 1.2's size") was corrected to ABI 1.6's.
+
+### 541. A free port for every GraceUI case, from one environment of its own
+
+`2026-11-23` · METHOD · `#engine` `#tests` `#graceui` · refs: GraceUI's D234, WHY§526, WHY§535, tests/fakegame/harness.py (GRACE_ENV, install_editor), engine wip/s12-pin, merged at 4bfccf9
+
+- `GRACE_ENV = dict(EN_ENV, GRACEUI_TEST_PORT="free")`, used by the eleven cases that need GraceUI's test build and by
+  the spikes package's six runs, which carry one; EN_ENV itself is left alone, since most of its cases load no GraceUI.
+  The editor's case no longer writes `dashboard.port` (only `dashboard.lan`). Every case already read the port from the
+  fake game's report, so nothing else assumed 8642. A GraceUI older than 0.2.31 ignores the variable.
+
+### 542. grace-dev 0.2.31's dump: only the two Named NPCs goldens change
+
+`2026-11-23` · FACT · `#engine` `#pages` `#graceui` · refs: WHY§524, GraceUI's 6a50f1d (D234), tests/pages/golden, engine wip/s12-pin, merged at 4bfccf9
+
+- Regenerated with grace-dev at 386d1ba: `characters.named` and `characters.named.world` now draw the chosen row's
+  general profile (five rows) and the editor block in place of the two "Nothing to show yet." lines (62 to 124 items);
+  the world state's Draft is greyed with "Drafts wait until EldenNet may use the network.", as its fixture says.
+  `characters.named.starting` and the other twelve goldens are byte for byte the same, and the fixtures needed no
+  rewrite.

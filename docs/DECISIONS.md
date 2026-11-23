@@ -2221,7 +2221,7 @@ ship online"); O47, O48, O74, O75; WHY§507.
 
 ## O112
 
-**The profile editor: the words players read, its save from a paired device, and its release** · *2026-11-23 · Open*
+**The profile editor: the words players read, its save from a paired device, and its release** · *2026-11-23 · Decided by the owner: (a) and (c) as recommended, (b) PC only*
 
 **Question.** The profile editor (S7.2.b, WHY§520 to §523) is built in EldenNet's pages, with its draft helper. Three
 points the design leaves to the owner: (a) the words players read on Characters › Named NPCs, the editor's fields and
@@ -2235,6 +2235,13 @@ words; (b) leave the save open to a paired device, or mark it sensitive; (c) shi
 the save open: the notes are the player's own text, a phone's keyboard is the easiest to type them on, and a draft
 sends them only to the provider the player chose; a mark later is one line. (c) Ship in v0.2: it is built and tested,
 and the pilot is the first character to try it on.
+
+**Decision.** (a) The words as written. (b) Not as recommended: a device paired at home may not save, reset or restore
+the player's notes; only the PC the game runs on may (the editor's writing commands join EldenNet's sensitive
+commands). (c) The page ships in v0.2.
+
+**Owner's words.** "Approve as written (Recommended)", "PC only" and "Ship in v0.2 (Recommended)" (the question
+dialog, 2026-11-23).
 
 **Follows from.** O43, O45, O46, G9; PAGES §4.6; NPC §4.7, §4.8; S7.2.b; S11.4.e; WHY§377, WHY§520 to WHY§523.
 
@@ -2260,3 +2267,27 @@ with W A S D, the character wasn't moving at all. Though I think the camera move
 during chat box open." (2026-11-23)
 
 **Follows from.** NPC §5.1, §5.6; GraceUI's D176, D178; S11.4.c; WHY§529.
+
+## O114
+
+**What EldenNet says when it knows the game build but cannot read it** · *2026-11-23 · Decided by the owner, as recommended*
+
+**Question.** In spikes.4's run B the banner read "EldenNet inactive: game build 2.7.2.0 not supported yet (reason:
+gal_files)" while Home's Game build row read "2.7.2.0, supported" (WHY§530): the build is in EldenNet's table, but the
+start stopped before reading the game, for want of the reader's files. Which words should the player see? **Options:**
+(a) the banner names what failed, in plain words: "EldenNet inactive: its files for game build 2.7.2.0 are incomplete.
+Reinstall EldenNet, or look for an update." when its files are missing or damaged, and "EldenNet inactive: it cannot
+read game build 2.7.2.0 yet. Look for an update of EldenNet." when it does not know how to read that build fully; and
+Home's row and System › Status say "2.7.2.0, supported" only once EldenNet reads the game, otherwise "2.7.2.0,
+recognised, not readable yet"; (b) keep "not supported yet" for every stop, with the reason code, and change Home's row
+alone to match; (c) other words.
+
+**Recommendation.** (a): the words say what happened and what to do, with no code a player cannot read, and the two
+pages never disagree.
+
+**Decision.** (a): plain words that name what failed, and Home's row and System › Status say supported only once
+EldenNet reads the game.
+
+**Owner's words.** "Plain words (Recommended)" (the question dialog, 2026-11-23).
+
+**Follows from.** PAGES §4.5; ARCH §3.2; S11.4.f; WHY§529, WHY§530.

@@ -1219,6 +1219,14 @@ stride = 0x0
 status = "lead"
 fields = { chr = { off = 0x0, ty = "ptr", group = "world" }, distance = { off = 0x0, ty = "f32", group = "world" } }
 
+# Since 2026-11-23 (WHY§506, §534; Lodestar, engine 5024ee9): a field may say far = true. Its off may then lie
+# anywhere below 0x100000, off + size included; it is a whole number, f32, bool8, bit, bits, ptr, handle, vec3f or
+# dlvector, of at most 32 bytes (never utf16[n], mat4f, dlmap or an array). The reader fetches it by a guarded copy
+# of its own at the object's address plus off, into the object's buffer past the class's copy, each at a multiple of
+# eight; the object view reads it there like any field, and each copy counts against the tick's reads and bytes. A
+# class with far fields needs a copy_size, which may be 0 only where every field is far and there is no rtti. The
+# characters manager's main_player, by_distance and player_set are such fields, as leads; a param row takes no far.
+
 [enum.hud]                                   # raw value → snapshot enum; a field names it (enum = "hud")
 values = { 0 = "HideAll", 1 = "ShowAll", 2 = "PopupMenu", 3 = "Default" }
 

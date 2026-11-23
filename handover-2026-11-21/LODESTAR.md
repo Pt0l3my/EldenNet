@@ -1,4 +1,4 @@
-# Lodestar's status, 23 November 2026 (thirteen read-only rounds run, the fourteenth built; the characters manager's pointers and lists found as leads; the save's slots known from the owner's save file, its field not yet found)
+# Lodestar's status, 23 November 2026 (fourteen read-only rounds run, the fourteenth spoilt by GraceUI's presence and to be run again; the far fields built; the characters manager's places in the layout as leads; the save's slot not yet found)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -57,21 +57,20 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fourteenth read-only run** (package 0.1.0-lodestar.18, engine 6d10b11; built, not yet run; the
-   record's "What was changed for the fourteenth round"). The owner agreed to the last character's load, the hit
-   and the heal, and the parts' reading. When the files come back:
-   - `pair`: `word_hits` 1 names `game_state` (the round writes it into its draft table); then `[class.game_state]`
-     with `save_slot` goes into the layout. No 32-bit hit and some byte hits: the slot is kept as a byte, and a
-     third number (another character) is needed to choose among them. No hit at all: the slot is not behind any
-     slot of the data in its first 8 KiB, and the offline way is next (below).
-   - `chars`: one look, mark 3, the same places as in the thirteenth round (main player's word 0x1E508, the near
-     list 0x1F1E8 with `has_fraction`, the player set 0x10EF8, the holder 0x190).
-   - `parts`: the parts' tables of methods; `moves` (the position: fractions in one part, at neighbouring offsets,
-     changed in the walk alone); `falls` with `has_max` (hp and max_hp), `rose` at least 1 if the owner healed.
-     `phase_passes` says how many seconds each phase gave.
-   - then the fields enter the layout as leads, by hand, once Engine has ruled how the layout says a place past
-     0x4000 (asked in the message on the thirteenth round), and the next round reads them through EldenNet's own
-     reader.
+1. **The fourteenth round must be run again** (the record's "The fourteenth round in game: spoilt by GraceUI's
+   presence"). The owner ran package 0.1.0-lodestar.18; GraceUI (0.2.24, beside the launcher since the spike runs)
+   was loaded, EldenNet took the Marks over, the panel lost the Pause key and the round its marks, and the game
+   ended with a crash code at the quit. Before the rerun:
+   - a read round does not connect to GraceUI (boot.cpp is Engine's: asked), and the launcher's `--read` says so
+     when it finds a GraceUI folder;
+   - the parts watch and the character search take the main player from the layout's `characters.main_player`
+     (0x1E508), not from "the one object of the player's class" (eight such objects stood in the manager's words
+     in the last character's world);
+   - a list's start must be plain memory (the run of 16-byte elements 69,824 bytes into the manager used up the
+     list candidates).
+   Then, when the files come back: `pair` (`word_hits` 1 names `game_state`; byte hits want a third number; none:
+   the offline way), `chars` (one look, the thirteenth round's places), `parts` (`moves`: the position; `falls`
+   with `has_max`: hp and its maximum).
    **Research inputs (O111, 2026-11-23)**: the owner's words, "nothing is off limit for our research, the only
    limit is what we ship with the mod publicly, and what we upload to repo." HANDOVER §3 now reads with O111: nothing
    of the game in files, reports or messages, but a file of the owner's own game given to a session to study is

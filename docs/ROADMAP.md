@@ -436,6 +436,8 @@ Work beside the engine and the increments, and the owner's housekeeping.
     again once no conversation is open; Draft with AI sends only the player's notes and current text to the draft slot
     and returns proposals, a saved draft marking the layer assisted. A layer keeps its persona's key until the player's
     own characters come (WHY§521). Ships in v0.2, ahead of PAGES' v0.3. The words players read went to the owner.
+    The owner's O112 the same day: the words as written, the page in v0.2, and the notes saved on the PC alone (the
+    editor's writing commands to be marked sensitive, S11.4.e).
 - c GraceUI's components for the editor and the Characters pages: topic families, master-detail in both views, the editor block, slow commands, the text field in game (GraceUI's G38, proposal 0010; protocol 1.5) [done]
   - refs: G38, GraceUI:D57, GraceUI:D169, WHY§375, WHY§377
   - gives: put to the owner on 2026-11-22 and decided the same day, all three as recommended ("All now, in 0.2.x
@@ -986,6 +988,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     the game's folder), A1 fell twice at GraceUI's first Present with EldenNet connected and no stand-in, so its cause
     is open with Grace (WHY§518's Later line). Every run of the next package checks the game's GraceUI against its own
     first (E13, WHY§528), and its chat box takes no mouse (O113).
+    Packed and sent the same day as 0.1.0-spikes.5 (engine a64486f, GraceUI 0.2.30 at a04a234: D232's pointer, G40,
+    G41 and the observer's fault recorder, 0xC0000374 included): the sums, help and version under Wine, 18 GraceUI and
+    spike cases, the six run cases and the other-GraceUI case, and the sweep passed. A1 is kept as it was, so that the
+    recorder names the caller if it falls again.
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH
@@ -1181,6 +1187,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     slot by the two numbers it must read (the pair search), the character search's look in the world, and the parts
     watch (position by walking, health by a hit and a heal), with the owner's agreement (WHY§531, §532). Awaiting the
     owner's run, after three README changes of Engine's. Next for Lodestar: the far fields (WHY§506), both sides.
+    The far fields built the same day (engine 5024ee9, merged at a64486f; WHY§534): the characters manager's places
+    are in the layout as leads. The fourteenth round is with the owner (package 0.1.0-lodestar.18).
+    The fourteenth round's run was spoilt the same day (WHY§536): GraceUI was loaded in a read round, so the marks were
+    the owner's Pause presses, and the game ended with a crash code at the quit. To be run again once the read round no
+    longer connects to GraceUI (WHY§537) and the parts watch takes the main player from characters.main_player
+    (WHY§538).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1564,6 +1576,27 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     pointer while a holder has the mouse; a harness game that recentres its cursor checks it. Its full harness run
     passed the same day on both builds, 252 checks (GraceUI 142eb49). Next: 0.2.30 with the owner's G40 (Alt+Tab: the
     menu stays open) and G41 (Tab no longer moves between elements in game), which spikes.5 waits for.
+- aq The menu across an Alt+Tab, and no Tab between elements in game (GraceUI 0.2.30) [done]
+  - refs: G40, G41, GraceUI:D233, WHY§533
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 45998e9, run a04a234), with the observer's fault recorder
+    taking 0xC0000374 too (d2f352d). The harness's menu-away scenario: Tab moves no focus; away and back through the
+    real menu on the same page and row; danger while away closes it. 256 checks, both builds.
+- ar A test build's free port and grace-dev's master detail (GraceUI 0.2.31) [done]
+  - refs: GraceUI:D234, WHY§524, WHY§526, WHY§535
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6a50f1d, 0d034ea and 386d1ba) at the owner's go-ahead:
+    GRACEUI_TEST_PORT (free or a port) serves a test build's browser view off 8642 with the settings unchanged, and
+    `--dump` gives a page's topics until none is new. 258 checks in GraceUI's full harness. EldenNet's side is
+    S11.2.as.
+- as EldenNet's GraceUI cases on a free port, and Named NPCs' goldens with a master's detail (GraceUI's docs/eldennet-changes.md §64) [done]
+  - needs: ar
+  - refs: GraceUI:D234, WHY§535, WHY§524, WHY§540, WHY§541, WHY§542
+  - gives: the cases set GRACEUI_TEST_PORT=free and read the port from GraceUI_Test_GetServer; the editor's case stops
+    writing a port into GraceUI's settings.json; the goldens regenerated with 0.2.31's grace-dev; graceui-sys's pin
+    moved when the vendored files change. Done on 2026-11-23 (engine wip/s12-pin bad88ac and 0f537ed, merged at
+    4bfccf9): graceui-sys at GraceUI 386d1ba (0.2.31, ABI 1.6, protocol 1.9; EldenNet uses neither's uploads; floor
+    0.2.22), GRACE_ENV for the GraceUI cases, the editor's settings with no port, and only the two Named NPCs goldens
+    changed, to the chosen row's detail. GCC 39 of 39 with the pages' lint and preview, eval 8 of 8; clang-cl's nine
+    unit programs and 18 GraceUI and spike cases under Wine, every server on a free port.
 
 ### S11.3 EldenNet v0.2
 
@@ -1762,11 +1795,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     editor (merged at c223b6e) under EldenNet's own names, since §60's example names no command of EldenNet's space
     and GraceUI's lint refuses an undeclared one: `providers.add`, `providers.remove` and `providers.key`, and the
     settings `debug.panel` and `debug.record_sessions`; the editor's save is left unmarked (WHY§523). The fake game's
-    case pairs a device on 127.0.0.2 and checks it refused (WHY§525).
-- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [next]
-  - refs: WHY§530, WHY§529, PAGES§4.5
+    case pairs a device on 127.0.0.2 and checks it refused (WHY§525). By the owner's O112 (b) the editor's save, reset
+    and restore join them: notes are saved on the PC alone. Built the same day (engine d37d35a); the editor's case
+    checks a save and a reset from the paired device refused.
+- f A start stopped at discovery names what failed, and Home's build row says supported only once the game is read [done]
+  - refs: WHY§530, WHY§529, PAGES§4.5, O114
   - gives: on the owner's PC the banner said "game build 2.7.2.0 not supported yet (reason: gal_files)" while Home
-    said "2.7.2.0, supported" (2026-11-23). New words for the owner's approval with the fix.
+    said "2.7.2.0, supported" (2026-11-23). The words decided by the owner the same day (O114 (a)): "EldenNet inactive:
+    its files for game build X are incomplete. Reinstall EldenNet, or look for an update." or "...it cannot read game
+    build X yet. Look for an update of EldenNet."; the row "X, recognised, not readable yet" until the game is read.
+    Built the same day (engine d37d35a): the banner by the stop's detail, the Home and System › Status rows by whether
+    the reader runs (the Status check waiting while the start is under way, failing once it stopped).
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
