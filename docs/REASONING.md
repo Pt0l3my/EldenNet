@@ -555,6 +555,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 530 | 2026-11-23 | A start stopped by its reader's files says "not supported yet" of a build Home calls supported | FACT | #engine #pages #words |
 | 531 | 2026-11-23 | The moving numbers are sought by invariant on the player's parts, counted by what the tester is doing | METHOD | #lodestar #gal |
 | 532 | 2026-11-23 | A waiting task of the tester's panel may carry a mark: the end of its time is stamped as one | METHOD | #lodestar #launcher |
+| 533 | 2026-11-23 | A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again | FACT | #graceui #input |
+| 534 | 2026-11-23 | Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy | METHOD | #lodestar #gal |
 
 ## Entries
 
@@ -8158,3 +8160,21 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - So a round's phases that need no key (standing, walking) are bounded without the tester pressing anything. A list
   with no marked wait behaves as before; none of the S0, spike or observer lists marks one.
+
+### 533. A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D233, G40, S11.2.aq
+
+- GraceUI grants input only once it has drawn within 2 s, and a game, or the harness under Wine, may not present
+  while in the background, so a request at WM_SETFOCUS is refused. The menu's return (G40) waits for the next frames,
+  at most 5 s, and asks then; refused, late or a game menu open, it closes; danger or loading while away closes it at
+  once. A mod's own holder still ends at the loss of focus (GraceUI 0.2.30).
+
+### 534. Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: WHY§506, ARCH§6.3, en-gal's README, engine 5024ee9
+
+- The layout marks a field far; the reader fetches it by a guarded copy of its own into the object's buffer, past
+  the class's copy at a multiple of eight; the object view finds it there, so the groups read a far field as any
+  other. The characters manager's main player, near list and player set are in the build's layout as far leads
+  (copy_size 0, no rtti). dlmap stays near (the flags' store keeps its map 0x38 in), and the 32-byte cap stands.

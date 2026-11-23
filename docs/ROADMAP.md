@@ -1181,6 +1181,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     slot by the two numbers it must read (the pair search), the character search's look in the world, and the parts
     watch (position by walking, health by a hit and a heal), with the owner's agreement (WHY§531, §532). Awaiting the
     owner's run, after three README changes of Engine's. Next for Lodestar: the far fields (WHY§506), both sides.
+    The far fields built the same day (engine 5024ee9, merged at a64486f; WHY§534): the characters manager's places
+    are in the layout as leads. The fourteenth round is with the owner (package 0.1.0-lodestar.18).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1564,6 +1566,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     pointer while a holder has the mouse; a harness game that recentres its cursor checks it. Its full harness run
     passed the same day on both builds, 252 checks (GraceUI 142eb49). Next: 0.2.30 with the owner's G40 (Alt+Tab: the
     menu stays open) and G41 (Tab no longer moves between elements in game), which spikes.5 waits for.
+- aq The menu across an Alt+Tab, and no Tab between elements in game (GraceUI 0.2.30) [done]
+  - refs: G40, G41, GraceUI:D233, WHY§533
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 45998e9, run a04a234), with the observer's fault recorder
+    taking 0xC0000374 too (d2f352d). The harness's menu-away scenario: Tab moves no focus; away and back through the
+    real menu on the same page and row; danger while away closes it. 256 checks, both builds.
 
 ### S11.3 EldenNet v0.2
 
