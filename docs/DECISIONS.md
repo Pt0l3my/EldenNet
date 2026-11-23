@@ -2291,3 +2291,21 @@ EldenNet reads the game.
 **Owner's words.** "Plain words (Recommended)" (the question dialog, 2026-11-23).
 
 **Follows from.** PAGES §4.5; ARCH §3.2; S11.4.f; WHY§529, WHY§530.
+
+## O115
+
+**Errors after the game's window has closed: recorded quietly** · *2026-11-23 · Decided by the owner, as recommended*
+
+**Question.** The owner's game ends with 0xC0000374 as it closes, after the player quits and the window is gone, even
+with nothing of EldenNet's or GraceUI's loaded (WHY§556). The launcher keeps a record of every session that ends with
+an error and explains it at the next start with a pop-up (O71), so the pop-up shows on nearly every start. **Options:**
+(a) errors that come after the game's window has closed are kept in the crashes folder and the log, with no pop-up;
+errors while the game still shows keep it; (b) keep the pop-up for every one; (c) keep it with gentler words.
+
+**Recommendation.** (a): nothing the player saw went wrong, and the record is still there to send.
+
+**Decision.** (a).
+
+**Owner's words.** "Record quietly (Recommended)" (the question dialog, 2026-11-23).
+
+**Follows from.** O71; ARCH §4.8; WHY§556.
