@@ -300,7 +300,8 @@ TEST_CASE("overlay: poll passes over the display's event and any kind it does no
   CHECK(s.view_presses == 1);
   CHECK(o->view_open());
   CHECK(g.events.empty());  // everything waiting was taken
-  CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);  // asked at ABI 1.2's size
+  // Asked at the vendored header's size, ABI 1.6's.
+  CHECK(g.poll_sizes.count(static_cast<std::uint32_t>(sizeof(GraceUiEvent))) == 1);
 
   // A GraceUI without the holder's events is asked at 0.1's size, and never gives the display's.
   fake::Grace h;

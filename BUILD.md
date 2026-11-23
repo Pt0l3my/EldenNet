@@ -58,8 +58,8 @@ the group table, so the harness checks each of them end to end.
 Both Windows builds build en-overlay's connection to GraceUI (part 12) and Dear ImGui 1.93.0's core for its F11 view,
 which the top-level `CMakeLists.txt` downloads at configure time at GraceUI's own pin (tag v1.93.0's commit, each file by
 its SHA-256; THIRD_PARTY.md). GraceUI's `graceui-sys` headers are vendored in `third_party/graceui-sys` from GraceUI at
-92fc19c (GraceUI 0.2.25, protocol 1.8, ABI 1.5), all five from that one commit, each checked against its SHA-256 when the build is
-configured. `en_overlay_tests.exe` runs the connection's
+386d1ba (GraceUI 0.2.31, protocol 1.9, ABI 1.6; EldenNet uses neither's uploads), all five from that one commit, each
+checked against its SHA-256 when the build is configured. `en_overlay_tests.exe` runs the connection's
 tests against a fake GraceUI table of our own under Wine; on Linux, `en_overlay_tests` runs the view's lines (Augur's
 events and en-core's changes among them), its rings and the world-state claims.
 
@@ -140,12 +140,14 @@ cmake --build build-cl
   holds no fonts yet, so GraceUI's notices use Dear ImGui's own font. Without `EN_GRACEUI_DIR` (or with a folder that
   holds no `graceui.dll` and `graceui.toml`) they are left out, with a line saying so. They need Mesa's lavapipe
   (`mesa-vulkan-drivers`) for Wine's Direct3D 12, as GraceUI's harness does. Build GraceUI at the commit
-  third_party/graceui-sys comes from (92fc19c, GraceUI 0.2.25), so the space and the surfaces meet the checks they will
+  third_party/graceui-sys comes from (386d1ba, GraceUI 0.2.31), so the space and the surfaces meet the checks they will
   meet. The page lint and the preview are pinned to the same commit (`tests/pages/lint.py`): the page data is protocol
   1.8's since the profile editor (S7.2.b).
   `launcher-eldennet-graceui-pages` drives EldenNet's pages through that GraceUI: F5's menu and, from Linux, a browser
-  of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names; it uses
-  that port, `dashboard.port`'s default (8642), so nothing else on the machine may hold it while the case runs.
+  of the tests' own (`tests/pages/browser.py`) on GraceUI's server at the port the fake game's report names. Every
+  GraceUI case sets `GRACEUI_TEST_PORT=free` (GraceUI 0.2.31's D234) in the game's environment, so the test build serves
+  the browser view on a loopback port the system has free, never `dashboard.port`'s default (8642), and two trees can
+  run these cases at once; GraceUI's settings file is left as it is.
   `launcher-eldennet-graceui-events` opens F11's view on Augur's events from the fake game's world and the lifecycle,
   and counts each list line's square on the frame by its source's colour (`--grace-probe` given three times).
   `launcher-eldennet-graceui-ai` drives the AI pages against a fake model server of the tests' own
@@ -178,19 +180,21 @@ cmake --build build-cl
   §5.1's 50 ms of the key, the request's stop sequences, the reply's first page on the frame in the lower third
   (`--grace-probe` on its ink) with its PageShown and its commit, the close's reason, and no chat text in the log.
   `launcher-eldennet-graceui-editor` is the profile editor (S7.2.b) and the sensitive marks (S11.4.e): GraceUI loaded
-  first (`--also`) with Other devices on in its own `user\settings.json`, and the fake game's `--grace-lan` putting its
-  test build's home listener on 127.0.0.2 alone before EldenNet registers its pages. A browser of the tests' own reads
-  Characters › Named NPCs, checks and saves the pilot's notes (a layer of the player's own in the overrides folder), is
-  refused a stale save and a length out of range, and asks for a draft, which `fake_models.py` answers with a scripted
-  JSON draft on the dialogue slot the draft slot borrows; in game F5's menu types and saves notes in the editor, then
-  pairs a device from GraceUI's Browser view page, whose code the fake game's report names (`pairing=`); the tests'
-  browser pairs as that device on 127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings.
+  first (`--also`) with Other devices on in its own `user\settings.json` (and no port there: the browser view's is the
+  system's free one, as in every GraceUI case), and the fake game's `--grace-lan` putting its test build's home listener
+  on 127.0.0.2 alone before EldenNet registers its pages. A browser of the tests' own reads Characters › Named NPCs,
+  checks and saves the pilot's notes (a layer of the player's own in the overrides folder), is refused a stale save and
+  a length out of range, and asks for a draft, which `fake_models.py` answers with a scripted JSON draft on the dialogue
+  slot the draft slot borrows; in game F5's menu types and saves notes in the editor, then pairs a device from GraceUI's
+  Browser view page, whose code the fake game's report names (`pairing=`); the tests' browser pairs as that device on
+  127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings, the editor's save and reset
+  among them (the owner's O112 (b): the player's notes are written on the PC alone).
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
-  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 92fc19c>` (`tests/pages/lint.py` checks the lint's files against their
+  `-DEN_GRACEUI_SOURCE=<a GraceUI checkout at 386d1ba>` (`tests/pages/lint.py` checks the lint's files against their
   SHA-256 first); and, in a Linux build, `en_pages_preview` with `-DEN_GRACE_DEV=<grace-dev of a Linux build of GraceUI
-  at 92fc19c>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
+  at 386d1ba>`: grace-dev serves each fixture state of `tests/pages/` and the browser reads every topic back and sends
   commands, and each page's in-game structure (`grace-dev --dump`) matches `tests/pages/golden/`. The fixture states'
   `topics.json` are what en_overlay_tests builds (`EN_UPDATE_FIXTURES=1` writes them anew; `EN_UPDATE_GOLDENS=1` the
   dumps). Without the variables the last two are left out, with a line saying so.

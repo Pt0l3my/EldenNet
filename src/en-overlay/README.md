@@ -9,9 +9,10 @@ moved it to GraceUI 0.2.5's ABI 1.2 (§19, §23, §24, §26 to §29, §33, §34 
 C; WHY§364) adds EldenNet's own surfaces on GraceUI 0.2.20's ABI 1.5 (§31, §33, §47 to §50): the lower third, the chat
 box, the hint and the toasts. Later increments add the call-out box (v0.6) and the rest of its pages.
 
-It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 92fc19c, GraceUI
-0.2.25, ABI 1.5, protocol 1.8; its floor, 0.2.22, for the profile editor's families, slow commands, editor block and
-chosen row, on 0.2.17's wait handle): its look for GraceUI and `GraceUI_RequestApi(1)` (`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
+It reaches GraceUI through `graceui-sys` alone (`third_party/graceui-sys`, vendored from GraceUI at 386d1ba, GraceUI
+0.2.31, ABI 1.6, protocol 1.9, whose uploads it does not use; its floor, 0.2.22, for the profile editor's families, slow
+commands, editor block and chosen row, on 0.2.17's wait handle): its look for GraceUI and `GraceUI_RequestApi(1)`
+(`graceui_sys.h`), ABI 1's calls, each behind `has_cap` and the table's size
 (`graceui_sys.hpp`), and the headless Dear ImGui helper (`graceui_imgui.hpp`). It links no hook library and no Dear
 ImGui backend and hooks nothing (R12, GraceUI's invariant 16); it never links en-core or en-gal, so it can never reach
 the game's memory (ARCH §2.3, checked by `en_link_rule`); and nothing in it waits but the look, on T1 (R6).
@@ -277,7 +278,7 @@ or note), what is published and when, the logs stream's batches and ring, the wo
 (no lamp while starting, the banner's own, absence silent, nothing personal), and in the Linux builds the five fixture
 states' `tests/pages/<state>/topics.json` (EN_UPDATE_FIXTURES=1 writes them anew). In the
 Windows builds, under Wine, the connection against a fake GraceUI of our own (`tests/fake_grace.hpp`; graceui-sys has no
-C mock): ABI 1.5's table, answering as GraceUI 0.2.25 answers and checking as it checks (connect's answers, notices
+C mock): ABI 1.6's table, answering as GraceUI 0.2.31 answers and checking as it checks (connect's answers, notices
 under keys, the registration window, hidden panels, hotkeys, poll's events by the event's size, the space's slots, and
 submit's draw-list checks: counts, bounds, ranges, indices, clip rectangles inside the panel, known textures, the
 stride). The cases: the space registered once for its views, or not without the cap or beside anti-cheat; watched

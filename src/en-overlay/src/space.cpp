@@ -141,6 +141,13 @@ std::string packed_version(std::uint32_t v) {
          std::to_string(GRACEUI_VERSION_PATCH(v));
 }
 
+// The build's words beside its number (O114): supported only once EldenNet reads the game; a build in its table that
+// it has not read (yet, or at all) is recognised, not readable yet.
+std::string build_words(const SpaceFacts& f) {
+  if (!f.build_supported) return ", not supported yet";
+  return f.reading != Reading::None ? ", supported" : ", recognised, not readable yet";
+}
+
 std::string build_of(const std::array<std::uint16_t, 4>& b) {
   return std::to_string(b[0]) + "." + std::to_string(b[1]) + "." + std::to_string(b[2]) + "." + std::to_string(b[3]);
 }
@@ -204,7 +211,7 @@ json status_body(const SpaceFacts& f) {
   items.push_back(item("EldenNet", version_of(f.version)));
   if (f.graceui != 0) items.push_back(item("GraceUI", packed_version(f.graceui)));
   if (f.build_known) {
-    items.push_back(item("Game build", build_of(f.build) + (f.build_supported ? ", supported" : ", not supported yet")));
+    items.push_back(item("Game build", build_of(f.build) + build_words(f)));
   }
   items.push_back(item("This session", duration_of(f.session_ms)));
   b["items"] = std::move(items);
@@ -243,7 +250,7 @@ json system_status_body(const SpaceFacts& f) {
   if (!reason.empty()) items.push_back(item("Why", reason));
   items.push_back(item("Start", start_words(f.init)));
   if (f.build_known) {
-    items.push_back(item("Game build", build_of(f.build) + (f.build_supported ? ", supported" : ", not supported yet")));
+    items.push_back(item("Game build", build_of(f.build) + build_words(f)));
   }
   if (f.level >= Level::Observing) {
     items.push_back(item("Offline and solo", f.gate_open ? "Confirmed" : dormant_words(f)));
@@ -311,8 +318,13 @@ json system_status_body(const SpaceFacts& f) {
 json compatibility_body(const SpaceFacts& f) {
   json checks = json::array();
   if (f.build_known) {
-    checks.push_back(check("Game build " + build_of(f.build), f.build_supported ? "pass" : "fail",
-                           f.build_supported ? "Supported" : "Not supported yet"));
+    // Supported once the game is read (O114); until then a start under way waits, and a stopped one fails.
+    const bool read = f.build_supported && f.reading != Reading::None;
+    const char* state = read ? "pass" : f.build_supported && f.stop_text.empty() ? "wait" : "fail";
+    checks.push_back(check("Game build " + build_of(f.build), state,
+                           read                ? "Supported"
+                           : f.build_supported ? "Recognised, not readable yet"
+                                               : "Not supported yet"));
   }
   checks.push_back(check("EldenNet " + version_of(f.version), "pass",
                          f.launcher ? "Started by the EldenNet launcher"

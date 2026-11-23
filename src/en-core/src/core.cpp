@@ -137,14 +137,21 @@ std::string banner_text(BannerReason r, std::string_view build, std::string_view
       out += build;
       out += " not supported yet";
       return out;
+    // A build in EldenNet's table that it cannot read: what failed, in plain words (O114). Its own files for the build
+    // missing or damaged, or its reading of the build not complete yet.
     case BannerReason::DiscoveryFailed:
+      if (reason == "gal_files" || reason == "files") {
+        out = "EldenNet inactive: its files for game build ";
+        out += build;
+        out += " are incomplete. Reinstall EldenNet, or look for an update.";
+        return out;
+      }
+      [[fallthrough]];
     case BannerReason::RegisterFaulted:
     case BannerReason::Inert:
-      out = "EldenNet inactive: game build ";
+      out = "EldenNet inactive: it cannot read game build ";
       out += build;
-      out += " not supported yet (reason: ";
-      out += reason;
-      out += ")";
+      out += " yet. Look for an update of EldenNet.";
       return out;
     case BannerReason::NotStarted:
       return "EldenNet inactive: the game did not finish starting";

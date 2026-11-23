@@ -1,15 +1,16 @@
 #pragma once
-// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.5's table, as graceui.h declares it at
-// GraceUI 92fc19c, with the calls en-overlay makes answered as GraceUI 0.2.25 answers them (eldennet-changes §14 to §50)
-// and checked as GraceUI checks them: connect's answers, notices under keys (replaced in place, withdrawn by an empty
-// text, at most four), textures in the registration window, faces before warm-up and the glyph tables after it,
-// panels hidden until shown, hotkeys (a default another mod took registers unbound, GRACEUI_UNBOUND with its id, D164;
-// a pad chord, D204; describe_hotkey and a change, D210), input with a holder's events (one holder, its panel the mod's
-// own, shown and taking input; its events only while it holds; its end once, last; hotkeys silent while it holds; the
-// caret only while it holds; D77, D176), the wait handle (D212), poll's events by the event's size (the display's only
-// to ABI 1.2's, D180) and submit's draw-list checks (counts, the bounds, every command's ranges and indices, clip
-// rectangles inside the panel, known texture ids, the atlas's generation, the command stride). graceui-sys has no C
-// mock; this is what stands in for one. One fake at a time (the table's functions are plain C pointers).
+// A fake GraceUI of our own for en-overlay's tests (the Windows builds): ABI 1.6's table, as graceui.h declares it at
+// GraceUI 386d1ba, with the calls en-overlay makes answered as GraceUI 0.2.31 answers them (eldennet-changes §14 to
+// §50; not 1.6's uploaded files, D226, since EldenNet's space has no file command) and checked as GraceUI checks them:
+// connect's answers, notices under keys (replaced in place, withdrawn by an empty text, at most four), textures in the
+// registration window, faces before warm-up and the glyph tables after it, panels hidden until shown, hotkeys (a
+// default another mod took registers unbound, GRACEUI_UNBOUND with its id, D164; a pad chord, D204; describe_hotkey and
+// a change, D210), input with a holder's events (one holder, its panel the mod's own, shown and taking input; its
+// events only while it holds; its end once, last; hotkeys silent while it holds; the caret only while it holds; D77,
+// D176), the wait handle (D212), poll's events by the event's size (the display's only to ABI 1.2's, D180) and submit's
+// draw-list checks (counts, the bounds, every command's ranges and indices, clip rectangles inside the panel, known
+// texture ids, the atlas's generation, the command stride). graceui-sys has no C mock; this is what stands in for one.
+// One fake at a time (the table's functions are plain C pointers).
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -46,7 +47,7 @@ struct Grace {
   // How it answers.
   GraceUiStatus connect_status = GRACEUI_OK;
   std::uint32_t connect_reason = 0;
-  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 25);
+  std::uint32_t version = GRACEUI_VERSION_PACK(0, 2, 31);
   std::vector<std::string> caps = {"notices", "panels",        "textures", "faces",      "input",           "world-state",
                                    "hotkeys", "pages",         "holder-events", "display", "pad-chords",
                                    "hotkey-bindings", "wake"};
