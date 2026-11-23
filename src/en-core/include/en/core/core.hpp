@@ -9,7 +9,14 @@
 // derives from snapshots can be rebuilt from the next ones, so a lost lifecycle message costs nothing (C2).
 //
 // What waits for later parts: the store (Playthrough → InWorld waits for `DbResult::Opened` once it exists; here it
-// follows at once), conversations, barks and the net (L3 and L4, the provider's health), content.
+// follows at once), barks, memory and the rest of the content.
+//
+// The first conversation (WHY§364; part B): the surfaces' events (proto::UiEvent, C7), the model client's events
+// (proto::LlmEvent, C10) and its health (proto::NetHealth) go in; what the surfaces show (proto::UiModel, C6), the
+// requests to send and cancel (C9) and the step's commits come out. The conversation (conversation.hpp) runs on every
+// step after Augur, with the personas of the content the shell loaded (load_content); its commits go to the core's
+// event log in memory in the same step (event_log.hpp; the store, v0.3, takes its place). The model client's health
+// takes the ladder to L3 or L4 (ARCH §6.8), and a conversation needs L3 or above.
 //
 // Augur (en-augur, ARCH §8; part 11) runs in every step, before anything that consumes the step's events: the slice
 // judges the input first (the gate, the phases, the ladder), because Augur's Lifecycle source reads what it changed on
@@ -26,11 +33,19 @@
 
 #include "en/augur/augur.hpp"
 #include "en/augur/bus.hpp"
+#include "en/core/behaviour.hpp"
+#include "en/core/content.hpp"
+#include "en/core/conversation.hpp"
+#include "en/core/event_log.hpp"
 #include "en/core/gate.hpp"
+#include "en/core/identity.hpp"
+#include "en/core/knowledge.hpp"
 #include "en/core/predicates.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
+#include "en/proto/llm.hpp"
 #include "en/proto/snapshot.hpp"
+#include "en/proto/ui.hpp"
 
 namespace en::core {
 
@@ -45,12 +60,14 @@ enum class Phase : std::uint8_t {
   Loading,      // between worlds
 };
 
-// The ladder (ARCH §6.8) as far as this slice goes. L3 and L4 need the provider's health and join with the net; Off
-// never reaches the core (T1 exits).
+// The ladder (ARCH §6.8). Off never reaches the core (T1 exits). The values only grow: a level at or above L2 allows
+// the model client's calls (C15), and one at or above L3 allows speech.
 enum class Level : std::uint8_t {
   Starting,  // neither yet: T1 has neither reached Ready nor stopped
   L1,        // AI off: a banner says why
   L2,        // observing: the task ticks and the structural groups passed phase A
+  L3,        // L2, a healthy dialogue model (NetHealth), and an optional group tripped
+  L4,        // L2, a healthy dialogue model, and every group up
 };
 
 // Why EldenNet stopped at L1 (ARCH §3.2, §5.4, §10.3).
@@ -67,7 +84,7 @@ enum class BannerReason : std::uint8_t {
 };
 
 [[nodiscard]] const char* to_string(Phase p) noexcept;         // "gate", "banner", "ready", "title", ...
-[[nodiscard]] const char* to_string(Level l) noexcept;         // "starting", "L1", "L2"
+[[nodiscard]] const char* to_string(Level l) noexcept;         // "starting", "L1", "L2", "L3", "L4"
 [[nodiscard]] const char* to_string(BannerReason r) noexcept;  // "unknown_build", "anticheat", ...
 
 // What the player reads (ARCH §5.4, §10.3). `build` is the game build as players know it ("2.x.y.z"); `reason` the
@@ -96,7 +113,11 @@ struct PlaythroughId {
 
 struct CoreInput {
   struct Tick {};  // C16: the 100 ms tick, for time that passes with no snapshot
-  std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick> payload;
+  // C1's snapshot, C2's lifecycle message, T1's banner, the tick; then the surfaces' event (C7), the model client's
+  // event (C10) and the model client's health, which the shell passes when it changes.
+  std::variant<std::unique_ptr<proto::WorldSnapshot>, proto::Lifecycle, BootBanner, Tick, proto::UiEvent,
+               proto::LlmEvent, proto::NetHealth>
+      payload;
 };
 
 // Where the slice stands after a step: what the status block and the debug view show.
@@ -134,6 +155,13 @@ struct Outputs {
   State state;
   std::vector<Change> changes;
   std::vector<augur::Event> events;  // Augur's events of the step, in dispatch order (ARCH §8.9)
+  proto::UiModel ui;                 // C6: what the surfaces show after this step, whole (the newest wins)
+  std::vector<proto::LlmRequest> requests;  // C9: to submit, in order (Service::submit); none while !ai_allowed (C4)
+  std::vector<proto::RequestId> cancels;    // C9: live requests to cancel (Service::cancel)
+  // The step's commits, already applied to the core's event log (log()): chat text, so never for a log file, a
+  // recording or a numbers-only report (PV rules).
+  std::vector<Commit> commits;
+  std::optional<EndReason> ended;  // a conversation ended on this step
 };
 
 // What en-core supplies Augur (ARCH §8.1), for what v0.1 knows. There are no personas and no cards until content
@@ -164,15 +192,28 @@ struct BuiltinFile {
   std::string_view text;
 };
 [[nodiscard]] std::span<const BuiltinFile> builtin_rule_files() noexcept;
+// The shipped persona index and records (content/eldenring/identity/ and personas/), by their paths in the pack: the
+// shell gives them to load_content as the shipped files, with the overrides folder's after them.
+[[nodiscard]] std::span<const BuiltinFile> builtin_content_files() noexcept;
+[[nodiscard]] std::vector<ContentFile> builtin_content();
 // What the game's values mean, as Augur reads them (teams.toml's hostile set, DESIGN §5.3; the victory banners, §6.5;
 // the throw states of a critical hit, §6.5; the open world's areas, ARCH §8.8). teams.toml joins with content.
 [[nodiscard]] augur::WorldFacts world_facts();
 
+// The speech parts the core uses when it is given none: part A's sanitizer, lint, pager and prompt, the lint and the
+// prompt over the loaded content's lexicon and templates (speech_content.hpp). Defined in core.cpp.
+struct BuiltinSpeech;
+
 class Core {
  public:
   // Loads the built-in rule set; a set that fails to load (a defect: en_core_tests loads it) leaves Augur with none,
-  // and rule_errors() says why.
+  // and rule_errors() says why. Speech is the built-in parts.
   Core();
+  // The same, with the caller's speech parts, which outlive the core (the tests and the eval).
+  explicit Core(SpeechParts speech);
+  ~Core();
+  Core(const Core&) = delete;
+  Core& operator=(const Core&) = delete;
 
   // One input. `now` is the core's mono time; a snapshot is judged by its own mono_ms.
   [[nodiscard]] Outputs step(CoreInput input, Mono now);
@@ -188,8 +229,41 @@ class Core {
   [[nodiscard]] const std::vector<augur::RuleError>& rule_errors() const noexcept { return rule_errors_; }
   // Replaces the rule set (tests and tools); on any error the old set is kept and the errors are answered.
   std::vector<augur::RuleError> load_rules(std::span<const augur::RuleFile> files);
+  // Loads the content the shell read (content.hpp), for the realm (identity.hpp: the DLL's is Game), and answers its
+  // errors; on any error the old content is kept. The pack's prompts and lexicon load with it (speech_content.hpp), and
+  // a pack whose prompts or lexicon fail is refused; the built-in speech's lint and prompt then read the new ones.
+  // Before any load the core knows no persona, so no conversation opens.
+  std::vector<ContentError> load_content(std::span<const ContentFile> files, Realm realm);
+  // The last load's warnings: disable.toml's ids that name nothing (S11.3.g), then the player's own records whose block 2
+  // passes its cap (WHY§388), which still render.
+  [[nodiscard]] const std::vector<ContentError>& content_warnings() const noexcept { return content_warnings_; }
+
+  [[nodiscard]] const Directory& directory() const noexcept { return directory_; }
+  // The last load's findings about the player's layers (profile.hpp): each layer's, a refused one's errors among them,
+  // for the profile editor's states (S7.2.b).
+  [[nodiscard]] const std::vector<LayerFinding>& layer_findings() const noexcept { return layer_findings_; }
+  [[nodiscard]] const MemoryLog& log() const noexcept { return log_; }
+  [[nodiscard]] const Conversation& conversation() const noexcept { return conversation_; }
+  [[nodiscard]] proto::NetHealth net() const noexcept { return net_; }
+
+  // Quest and world awareness (knowledge.hpp; S11.3.c). A load builds the knowledge with the content (its errors refuse
+  // the pack) and a watch list of the catalogue's verified, resolved aliases for the load's realm; the next step sends
+  // it as SetWatchFlags when it is not empty (in game none is verified before S6, so nothing is sent). A snapshot's
+  // FlagFrame of that list's version gives the flag state, and a change of it the view: each persona's active stage and
+  // block 5b's lines, which the conversation reads. Until a playthrough's first frame every alias is Unknown, so
+  // nothing holds and block 5b has the road alone; a new playthrough or the title forgets the frame.
+  [[nodiscard]] const Knowledge& knowledge() const noexcept { return knowledge_; }
+  [[nodiscard]] const WatchList& watch_list() const noexcept { return watch_; }
+  [[nodiscard]] const FlagState& flags() const noexcept { return flags_; }
+  [[nodiscard]] const KnowledgeView& known_view() const noexcept { return known_; }
+  // The player's behaviour settings (behaviour.hpp): from the next step; one out of bounds is refused (the old stays),
+  // and its key answered.
+  std::optional<std::string> set_behaviour(const Behaviour& b);
+  [[nodiscard]] const Behaviour& behaviour() const noexcept { return behaviour_; }
 
  private:
+  void on_flags(const proto::WorldSnapshot& s);
+  void forget_flags();
   void on_snapshot(const proto::WorldSnapshot& s, Outputs& out);
   void on_lifecycle(const proto::Lifecycle& l, Mono now, Outputs& out);
   void on_banner(const BootBanner& b, Mono now, Outputs& out);
@@ -201,6 +275,9 @@ class Core {
   void start_playthrough(const proto::WorldSnapshot& s, Outputs& out);
   void settle(Mono at, Outputs& out);
   void run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, Mono now, Outputs& out);
+  void climb(Mono at, Outputs& out);
+  void run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out);
+  void init();
 
   State state_;
   Gate gate_;
@@ -222,6 +299,30 @@ class Core {
   augur::Augur augur_;
   augur::Bus bus_;
   std::vector<augur::RuleError> rule_errors_;
+
+  // The first conversation.
+  std::unique_ptr<BuiltinSpeech> builtin_;  // when the core was given no speech parts
+  Conversation conversation_;
+  Directory directory_;
+  bool content_loaded_ = false;
+  std::vector<LayerFinding> layer_findings_;
+  std::vector<ContentError> content_warnings_;
+  MemoryLog log_;
+  proto::NetHealth net_;
+  bool optional_tripped_ = false;   // an optional group tripped: L3 at most (ARCH §6.8)
+  std::unique_ptr<proto::WorldSnapshot> last_;  // the newest snapshot, for the conversation
+  std::vector<std::uint64_t> engaged_;          // the opponents the Tarnished is engaged with (Augur's events)
+  std::vector<std::uint8_t> hostile_teams_;
+
+  // Quest and world awareness, and the behaviour settings.
+  Knowledge knowledge_;
+  Realm realm_ = Realm::Game;
+  WatchList watch_;
+  std::uint32_t watch_version_ = 0;
+  bool watch_pending_ = false;  // the list is to go out with the next step
+  FlagState flags_;
+  KnowledgeView known_;
+  Behaviour behaviour_;
 };
 
 }  // namespace en::core

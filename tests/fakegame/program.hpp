@@ -89,8 +89,12 @@ struct Options {
   // EldenNet's Mark, asked for later, registers unbound (GraceUI D164).
   // --press-keys F:KEY,F:KEY... presses one of GraceUI's menu keys at each frame listed, as --press-f11-at does F11
   // (f5, next, prior, up, down, left, right, return, escape): the player in GraceUI's menu (D167, D171).
+  // --grace-lan, with GraceUI loaded first (the launcher's --also): at boot, before any mod asks for GraceUI's server,
+  // the test build's network listener is put on 127.0.0.2 alone (GraceUI_Test_SetNetworkAddresses, G9), never a real
+  // address of the machine; each --grace-report then names the pairing sheet's code while one shows (`pairing=`).
   bool d3d12 = false;
   bool grace_take_pause = false;
+  bool grace_lan = false;
   std::vector<std::uint64_t> press_f11_at;
   struct KeyPress {
     std::uint64_t frame = 0;
@@ -98,10 +102,21 @@ struct Options {
     unsigned scan = 0;
   };
   std::vector<KeyPress> press_keys;
+  // The first conversation (S11.3, part C): --calm makes the world one a conversation may start in (no boss bar, no
+  // strike on the first character, no native talk's pop-up); --type-at F:TEXT,F:TEXT types each text at its frame
+  // into the window, a character at a time as Unicode key presses (an IME's or Steam's text arrives so), the window in
+  // front and holding the focus.
+  bool calm = false;
+  struct Typed {
+    std::uint64_t frame = 0;
+    std::wstring text;
+  };
+  std::vector<Typed> type_at;
   std::vector<std::uint64_t> grace_report_at;
   struct Probe {
     std::uint32_t rect[4] = {0, 0, 0, 0};  // x0, y0, x1, y1 in the back buffer's pixels
     std::uint32_t colour[3] = {0, 0, 0};
+    std::uint32_t tolerance = 3;  // each channel within this of the colour (an eighth value: text's ink, say)
   };
   static constexpr std::size_t kProbes = 3;
   std::vector<Probe> grace_probes;
@@ -119,10 +134,17 @@ bool present_start(HWND window);
 void present_frame();
 // F11 pressed and released into the window (SendInput, the virtual key and its scan code), the window in front.
 void press_key_into(HWND window, unsigned vk, unsigned scan);
+// The keys (WM_KEYDOWN, WM_SYSKEYDOWN) and characters (WM_CHAR) that reached the game's own window procedure.
+std::uint32_t game_keys() noexcept;
+std::uint32_t game_chars() noexcept;
+// --type-at: each character of `text` as a Unicode key press (KEYEVENTF_UNICODE), as press_key_into presses a key.
+void type_into(HWND window, const std::wstring& text);
 // What graceui.dll's test exports say (a test build of GraceUI's, GRACEUI_TEST_EXPORTS), as one status line.
 void grace_report(std::uint64_t frame);
 // --grace-take-pause: another mod's connection to GraceUI and its hotkey on Pause, with one status line.
 void grace_take_pause();
+// --grace-lan: GraceUI's network listener on 127.0.0.2 alone, with one status line.
+void grace_lan();
 
 // Parses the command line. On an error, writes the reason to `error` and answers false.
 bool parse_options(int argc, wchar_t** argv, Options& out, std::string& error);

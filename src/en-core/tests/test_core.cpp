@@ -281,8 +281,15 @@ TEST_CASE("T1's banners: L1, the banner kept, the gate's effects off; the texts"
 
   CHECK(banner_text(BannerReason::UnknownBuild, "2.0.0.1", "") ==
         "EldenNet inactive: game build 2.0.0.1 not supported yet");
+  // A build in the table that EldenNet cannot read: what failed, in plain words, no code (O114).
+  CHECK(banner_text(BannerReason::DiscoveryFailed, "2.0.0.1", "gal_files") ==
+        "EldenNet inactive: its files for game build 2.0.0.1 are incomplete. Reinstall EldenNet, or look for an update.");
+  CHECK(banner_text(BannerReason::DiscoveryFailed, "2.0.0.1", "layout") ==
+        "EldenNet inactive: it cannot read game build 2.0.0.1 yet. Look for an update of EldenNet.");
   CHECK(banner_text(BannerReason::DiscoveryFailed, "2.0.0.1", "a required item was not found") ==
-        "EldenNet inactive: game build 2.0.0.1 not supported yet (reason: a required item was not found)");
+        "EldenNet inactive: it cannot read game build 2.0.0.1 yet. Look for an update of EldenNet.");
+  CHECK(banner_text(BannerReason::RegisterFaulted, "2.0.0.1", "") ==
+        "EldenNet inactive: it cannot read game build 2.0.0.1 yet. Look for an update of EldenNet.");
   CHECK(banner_text(BannerReason::SessionFailed, "2.0.0.1", "") ==
         "EldenNet inactive: it could not confirm this is an offline solo session (game build 2.0.0.1).");
   CHECK(banner_text(BannerReason::AntiCheat, "", "").rfind("EldenNet inactive: Easy Anti-Cheat is running.", 0) == 0);

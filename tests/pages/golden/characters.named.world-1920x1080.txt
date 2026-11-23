@@ -1,0 +1,126 @@
+# eldennet characters.named: 1920x1080, ui.scale 1.25, scale 1.250, theme grace, the fake face, settings at their defaults
+fill    scrim           0,   0 1920x1080
+fill    ground.1        0,   0 1920x1080
+fill    ground.0        0,   0  300x1080
+text    gold           30,  30  114x35   glyphs 8 "EldenNet"
+text    ink.mute       30,  95   42x30   glyphs 4 "Home"
+line    rule           30, 135  240x1   
+text    ink.mute       30, 145   21x30   glyphs 2 "AI"
+line    rule           30, 185  240x1   
+text    ink.hi         30, 195  106x30   glyphs 10 "Characters"
+fill    tint.select     0, 235  300x40  
+fill    gold            0, 235    3x40  
+text    gold.hi        50, 243   84x25   glyphs 9 "Named NPCs"
+line    rule           30, 275  240x1   
+text    ink.mute       30, 285   64x30   glyphs 6 "System"
+line    rule           30, 325  240x1   
+text    ink.mute       30, 335   85x30   glyphs 8 "Settings"
+fill    ground.well   340,  10  350x35   r3
+text    ink.faint     353,  15   51x25   glyphs 6 "Search"
+text    ink.faint    1804,  15   76x25   glyphs 7 "F5  Close"
+line    rule          300,  55 1620x1   
+text    ink.hi        340,  86  199x45   clip1 glyphs 9 "Named NPCs"
+text    ink.mute      340, 136  751x25   clip1 glyphs 74 "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+line    rule.strong   340, 176 1540x1    clip1
+diamond gold.deep     340, 171   11x11   w1 clip1
+fill    ground.2      340, 201  524x205  r5 clip1
+stroke  rule          340, 201  524x205  r5 w1 clip1
+text    gold          365, 221   96x20   clip1 glyphs 9 "Named NPCs"
+fill    tint.select   350, 251  504x70   clip1
+fill    gold          350, 251    3x70   clip1
+text    gold.hi       365, 260   75x28   clip1 glyphs 7 "Old Bram"
+text    ink.mute      365, 288  236x25   clip1 glyphs 23 "a ferryman on the grey river"
+text    ink.hi        365, 330   56x28   clip1 glyphs 6 "Ysolde"
+text    ink.mute      365, 358  202x25   clip1 glyphs 20 "a weaver of fishing nets"
+text    gold.hi       894, 201   68x22   clip1 glyphs 7 "Profile"
+fill    gold          894, 232   67x3    clip1
+line    rule          894, 235  986x1    clip1
+fill    ground.2      894, 260  986x395  r5 clip1
+stroke  rule          894, 260  986x395  r5 w1 clip1
+text    gold          919, 280  144x20   clip1 glyphs 14 "General profile"
+text    ink.faint    1842, 280    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 305  532x25   clip1 glyphs 53 "What anyone would see on meeting them, in EldenNet's own words."
+line    rule          919, 340  936x1    clip1
+text    ink.hi        919, 356  197x28   clip1 glyphs 17 "Who they appear to be"
+text    ink.body     1231, 358  616x25   clip1 glyphs 58 "A stooped man in an oilskin coat who poles a flat boat across the river for a coin."
+line    rule          919, 400  936x1    clip1
+text    ink.hi        919, 416  112x28   clip1 glyphs 10 "What they do"
+text    ink.body     1231, 418  236x25   clip1 glyphs 23 "a ferryman on the grey river"
+line    rule          919, 460  936x1    clip1
+text    ink.hi        919, 476  262x28   clip1 glyphs 23 "What they like to talk about"
+text    ink.body     1231, 478  591x25   clip1 glyphs 58 "the river's moods; coins and what they buy; the weather over the water"
+line    rule          919, 520  936x1    clip1
+text    ink.hi        919, 536  131x28   clip1 glyphs 12 "How they speak"
+text    ink.body     1231, 538  202x25   clip1 glyphs 21 "Everyday, with old idiom"
+line    rule          919, 580  936x1    clip1
+text    ink.hi        919, 596   38x28   clip1 glyphs 4 "News"
+text    ink.body     1231, 598  329x25   clip1 glyphs 32 "Speaks of news that touches them or you"
+fill    ground.2      894, 675  986x1046 r5 clip1
+stroke  rule          894, 675  986x1046 r5 w1 clip1
+text    gold          919, 695   96x20   clip1 glyphs 9 "Your notes"
+text    ink.faint    1842, 695    8x25   clip1 glyphs 1 "-"
+text    ink.mute      919, 720  886x25   clip1 glyphs 87 "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's."
+circle  glint         919, 763   10x10   clip1
+text    ink.body      939, 755  127x25   clip1 glyphs 13 "Not written yet"
+text    ink.mute     1081, 755  650x25   clip1 glyphs 63 "Your notes go in a file of your own; EldenNet's own profile is never changed."
+fill    gold          919, 793   64x38   r3 clip1
+text    on.gold       934, 800   34x25   clip1 glyphs 4 "Save"
+stroke  edge          996, 793   72x38   r3 w1 clip1
+text    ink.hi       1011, 800   42x25   clip1 glyphs 5 "Check"
+stroke  edge         1081, 793  266x38   r3 w1 clip1
+text    ink.hi       1096, 800  236x25   clip1 glyphs 25 "Restore the previous version"
+fill    rot.fill     1360, 793  106x38   r3 clip1
+text    ink.hi       1375, 800   76x25   clip1 glyphs 8 "Reset all"
+line    rule          919, 849  936x1    clip1
+text    ink.hi        919, 862  262x28   clip1 glyphs 23 "Your rough notes for a draft"
+text    ink.faint    1796, 862   59x25   clip1 glyphs 5 "0 / 400"
+fill    ground.well   919, 898  936x81   r3 clip1
+stroke  edge          919, 898  936x81   r3 w1 clip1
+stroke  edge          919, 992   72x38   r3 w1 a128 clip1
+text    ink.hi        934, 998   42x25   a128 clip1 glyphs 5 "Draft"
+text    ink.body     1004, 998  397x25   clip1 glyphs 40 "Drafts wait until EldenNet may use the network."
+line    rule          919,1048  936x1    clip1
+text    ink.hi        919,1060  262x28   clip1 glyphs 23 "Your notes on how they speak"
+text    ink.faint    1754,1062  101x25   clip1 glyphs 9 "0 / 35 words"
+text    ink.mute      919,1093  937x25   clip1 glyphs 90 "One paragraph in your own words: how they speak and carry themselves. It joins the end of their voice in every "
+text    ink.mute      919,1118  110x25   clip1 glyphs 13 "conversation."
+fill    ground.well   919,1148  936x81   r3 clip1
+stroke  edge          919,1148  936x81   r3 w1 clip1
+text    ink.faint     932,1161  112x28   clip1 glyphs 10 "Not set here"
+line    rule          919,1242  936x1    clip1
+text    ink.hi        919,1255  262x28   clip1 glyphs 23 "What they like to talk about"
+text    ink.faint    1813,1256   42x25   clip1 glyphs 3 "0 / 8"
+text    ink.mute      919,1288  709x25   clip1 glyphs 71 "Short phrases, not sentences or questions. Yours take the place of the shipped list."
+text    gold          919,1324   42x25   clip1 glyphs 4 "+ Add"
+text    ink.mute      919,1364  692x25   clip1 glyphs 68 "As shipped: the river's moods; coins and what they buy; the weather over the water"
+line    rule          919,1394  936x1    clip1
+text    ink.hi        919,1406  131x28   clip1 glyphs 12 "How they speak"
+text    ink.mute      919,1439  506x25   clip1 glyphs 50 "The manner of their speech. Left unset, they keep their own."
+fill    ground.well   919,1469  450x40   r3 clip1
+stroke  edge          919,1469  450x40   r3 w1 clip1
+text    ink.faint     932,1477  101x25   clip1 glyphs 10 "Not set here"
+text    ink.faint    1331,1477   25x25   clip1 glyphs 2 "‹ ›"
+text    ink.mute      919,1517  304x25   clip1 glyphs 31 "As shipped: Everyday, with old idiom"
+line    rule          919,1547  936x1    clip1
+text    ink.hi        919,1560  216x28   clip1 glyphs 20 "Longest reply, in words"
+text    ink.mute      919,1592  354x25   clip1 glyphs 34 "The most words a reply of theirs may have."
+fill    ground.well   919,1622  450x40   r3 clip1
+stroke  edge          919,1622  450x40   r3 w1 clip1
+text    ink.faint     932,1630  101x25   clip1 glyphs 10 "Not set here"
+text    ink.faint    1331,1630   25x25   clip1 glyphs 2 "‹ ›"
+text    ink.mute      919,1670  118x25   clip1 glyphs 12 "As shipped: 30"
+fill    ground.2      894,1740  986x175  r5 clip1
+stroke  rule          894,1740  986x175  r5 w1 clip1
+text    gold          919,1760   67x20   clip1 glyphs 7 "Related"
+line    rule          919,1790  936x1    clip1
+text    ink.hi        919,1796   56x28   clip1 glyphs 6 "Models"
+text    ink.mute     1231,1798  515x25   clip1 glyphs 50 "Which model does each job, and the preset that sets them all."
+text    gold         1835,1796    9x28   clip1 glyphs 1 "→"
+line    rule          919,1846  936x1    clip1
+text    ink.hi        919,1850   38x28   clip1 glyphs 4 "Home"
+text    ink.mute     1231,1854  582x25   clip1 glyphs 55 "Whether EldenNet is working on this game, and what to do if it is not."
+text    gold         1835,1850    9x28   clip1 glyphs 1 "→"
+line    rule          300,1035 1620x1   
+text    ink.faint     340,1045  295x25   glyphs 20 "↑ ↓  Choose    →  Open    Esc  Back"
+stroke  gold.hi       347, 248  510x76   r5 w3 clip1
+# 124 items, 6984 vertices, 13380 indices, 4 commands; check_draw_list: passes

@@ -1,9 +1,17 @@
-// en-core's v0.1 slice: the lifecycle, the gate's effects and the ladder's first levels (core.hpp; ARCH §5, §6.8, §9).
+// en-core: the lifecycle, the gate's effects, the ladder (core.hpp; ARCH §5, §6.8, §9), Augur on every step, and the
+// first conversation wired in after it (WHY§364).
 #include "en/core/core.hpp"
 
+#include <algorithm>
 #include <array>
 #include <type_traits>
 #include <utility>
+
+#include "en/core/profile.hpp"
+#include "en/core/speech_content.hpp"
+#include "en/core/speech_lint.hpp"
+#include "en/core/speech_pager.hpp"
+#include "en/core/speech_sanitizer.hpp"
 
 namespace en::core {
 
@@ -71,6 +79,10 @@ const char* to_string(Level l) noexcept {
       return "L1";
     case Level::L2:
       return "L2";
+    case Level::L3:
+      return "L3";
+    case Level::L4:
+      return "L4";
   }
   return "unknown";
 }
@@ -125,14 +137,21 @@ std::string banner_text(BannerReason r, std::string_view build, std::string_view
       out += build;
       out += " not supported yet";
       return out;
+    // A build in EldenNet's table that it cannot read: what failed, in plain words (O114). Its own files for the build
+    // missing or damaged, or its reading of the build not complete yet.
     case BannerReason::DiscoveryFailed:
+      if (reason == "gal_files" || reason == "files") {
+        out = "EldenNet inactive: its files for game build ";
+        out += build;
+        out += " are incomplete. Reinstall EldenNet, or look for an update.";
+        return out;
+      }
+      [[fallthrough]];
     case BannerReason::RegisterFaulted:
     case BannerReason::Inert:
-      out = "EldenNet inactive: game build ";
+      out = "EldenNet inactive: it cannot read game build ";
       out += build;
-      out += " not supported yet (reason: ";
-      out += reason;
-      out += ")";
+      out += " yet. Look for an update of EldenNet.";
       return out;
     case BannerReason::NotStarted:
       return "EldenNet inactive: the game did not finish starting";
@@ -182,10 +201,118 @@ augur::WorldFacts world_facts() {
   return f;
 }
 
-Core::Core() : augur_(world_facts()) {
+// The built-in speech parts (WHY§364): part A's sanitizer and pager, and its lint and prompt over the loaded content's
+// lexicon and templates (speech_content.hpp). The conversation holds the parts by reference for the core's life, so the
+// lint and the prompt stand for whichever content is loaded now: a load swaps what they forward to (a reply's lint
+// keeps the lexicon it opened with). Before any load no persona exists, so neither is reached; if one were, it fails
+// closed: every render refuses and every sentence stops.
+struct BuiltinSpeech {
+  class LoadedLint final : public Lint {
+   public:
+    [[nodiscard]] std::unique_ptr<ReplyLint> open(const LintContext& context) const override {
+      if (current) return current->open(context);
+      return std::make_unique<Closed>();
+    }
+    std::shared_ptr<const SpeechLint> current;
+
+   private:
+    class Closed final : public ReplyLint {
+     public:
+      LintVerdict check(Sentence&) override { return LintVerdict{LintAction::Stop, HardList::Banned, {}}; }
+      [[nodiscard]] LintTally tally() const override { return {}; }
+    };
+  };
+  class LoadedPrompt final : public PromptRenderer {
+   public:
+    [[nodiscard]] proto::Expected<RenderedPrompt, PromptError> render(const DialogueContext& context) const override {
+      if (current) return current->render(context);
+      return proto::Unexpected{PromptError{PromptRefusal::Template, "no content is loaded"}};
+    }
+    std::shared_ptr<const DialoguePrompt> current;
+  };
+
+  SpeechSanitizer sanitizer;
+  LoadedLint lint;
+  SpeechPager pager;
+  LoadedPrompt prompt;
+
+  [[nodiscard]] SpeechParts parts() const { return SpeechParts{sanitizer, lint, pager, prompt}; }
+};
+
+Core::Core() : augur_(world_facts()), builtin_(std::make_unique<BuiltinSpeech>()), conversation_(builtin_->parts()) {
+  init();
+}
+
+Core::Core(SpeechParts speech) : augur_(world_facts()), conversation_(speech) { init(); }
+
+void Core::init() {
   std::vector<augur::RuleFile> files;
   for (const BuiltinFile& f : builtin_rule_files()) files.push_back(augur::RuleFile{std::string(f.name), std::string(f.text)});
   rule_errors_ = load_rules(files);
+  hostile_teams_ = world_facts().hostile_teams;
+}
+
+Core::~Core() = default;
+
+std::vector<ContentFile> builtin_content() {
+  std::vector<ContentFile> files;
+  for (const BuiltinFile& f : builtin_content_files()) {
+    files.push_back(ContentFile{std::string(f.name), std::string(f.text), ContentOrigin::Shipped});
+  }
+  return files;
+}
+
+std::vector<ContentError> Core::load_content(std::span<const ContentFile> files, Realm realm) {
+  auto pack = core::load_content(files);
+  if (!pack) return pack.error();  // the old content stays
+  // The pack's prompts and lexicon, and block 2's content lint: any error refuses the pack (WHY§388). The pack is
+  // checked whole whichever speech parts the core was given.
+  auto speech = load_speech(*pack);
+  if (!speech) return speech.error();
+  // The player's layers (profile.hpp): their wording and block 4 checked with the pack's speech parts, then each that
+  // holds no error merged into its persona. A layer's errors refuse that layer alone.
+  std::vector<LayerFinding> layer_findings = pack->layer_findings;
+  apply_layers(*pack, *speech->prompt, speech->lint->lexicon(), layer_findings);
+  // Quest and world awareness: the world files and every predicate compiled (knowledge.hpp); errors refuse the pack.
+  auto knowledge = Knowledge::build(*pack);
+  if (!knowledge) return knowledge.error();
+  content_warnings_ = pack->warnings;  // disable.toml's, then block 2's, then the player's layers'
+  content_warnings_.insert(content_warnings_.end(), speech->warnings.begin(), speech->warnings.end());
+  for (const LayerFinding& f : layer_findings) content_warnings_.push_back(to_content_error(f));
+  layer_findings_ = std::move(layer_findings);
+  if (builtin_) {
+    builtin_->lint.current = std::move(speech->lint);
+    builtin_->prompt.current = std::move(speech->prompt);
+  }
+  directory_ = Directory::build(std::move(*pack), realm, predicates_);
+  knowledge_ = std::move(*knowledge);
+  realm_ = realm;
+  watch_ = knowledge_.watch(realm, ++watch_version_);
+  watch_pending_ = !watch_.ids.empty();
+  forget_flags();
+  content_loaded_ = true;
+  return {};
+}
+
+std::optional<std::string> Core::set_behaviour(const Behaviour& b) {
+  if (auto bad = check_behaviour(b)) return bad;
+  behaviour_ = b;
+  return std::nullopt;
+}
+
+void Core::forget_flags() {
+  flags_ = knowledge_.unread();
+  known_ = knowledge_.view(flags_);
+}
+
+// MEM §6.6: the flag state from the newest processed frame of the current watch list; the view only when it changes.
+void Core::on_flags(const proto::WorldSnapshot& s) {
+  if (!s.flags || watch_.ids.empty() || s.flags->watch_version != watch_.version) return;
+  const std::uint8_t journey = s.player ? static_cast<std::uint8_t>(s.player->ng_lvl + 1) : flags_.journey;
+  FlagState next = knowledge_.from_frame(watch_, *s.flags, realm_, journey);
+  if (next == flags_) return;
+  flags_ = std::move(next);
+  known_ = knowledge_.view(flags_);
 }
 
 std::vector<augur::RuleError> Core::load_rules(std::span<const augur::RuleFile> files) {
@@ -247,7 +374,7 @@ void Core::run_augur(const proto::WorldSnapshot* s, const proto::Lifecycle* l, M
   if (s != nullptr) {
     if (s->player) {
       view_.player = s->player->handle;
-      view_.facts.runes = s->player->runes_held;
+      view_.facts.runes_held = s->player->runes_held;
       view_.facts.journey = s->player->ng_lvl;
     } else {
       view_.player.reset();
@@ -264,12 +391,15 @@ Outputs Core::step(CoreInput input, Mono now) {
   Mono at = now;
   const proto::WorldSnapshot* snapshot = nullptr;
   const proto::Lifecycle* lifecycle = nullptr;
+  const proto::UiEvent* ui = nullptr;
+  const proto::LlmEvent* llm = nullptr;
   std::visit(Overloaded{
                  [&](std::unique_ptr<proto::WorldSnapshot>& s) {
                    if (s) {
                      at = s->mono_ms;
                      snapshot = s.get();
                      on_snapshot(*s, out);
+                     if (state_.phase == Phase::InWorld || state_.phase == Phase::Loading) on_flags(*s);
                    }
                  },
                  [&](proto::Lifecycle& l) {
@@ -278,13 +408,86 @@ Outputs Core::step(CoreInput input, Mono now) {
                  },
                  [&](BootBanner& b) { on_banner(b, now, out); },
                  [&](CoreInput::Tick&) {},
+                 [&](proto::UiEvent& e) { ui = &e; },
+                 [&](proto::LlmEvent& e) { llm = &e; },
+                 [&](proto::NetHealth& h) { net_ = h; },
              },
              input.payload);
+  if (watch_pending_) {  // the watch list of the last load (MEM §6.2): sent once, shared, never copied
+    out.game.push_back(proto::GameCommand{proto::GameCommand::SetWatchFlags{
+        watch_.version, std::make_shared<const std::vector<std::uint32_t>>(watch_.ids)}});
+    watch_pending_ = false;
+  }
   settle(at, out);
-  out.ai_allowed = state_.gate_open && state_.level == Level::L2;
+  climb(at, out);
+  out.ai_allowed = state_.gate_open && state_.level >= Level::L2;
   out.state = state_;
   run_augur(snapshot, lifecycle, now, out);
+  if (snapshot != nullptr) {
+    auto& held = std::get<std::unique_ptr<proto::WorldSnapshot>>(input.payload);
+    last_ = std::move(held);  // the newest, which the conversation reads until the next one
+  }
+  run_conversation(at, snapshot != nullptr, ui, llm, out);
   return out;
+}
+
+// ARCH §6.8: L2, then L4 with a healthy dialogue model and every group up, L3 with one optional group tripped, and
+// back to L2 when the model is not healthy. L1 stays for the session (set_level).
+void Core::climb(Mono at, Outputs& out) {
+  if (state_.level < Level::L2) return;
+  const Level to = !net_.dialogue ? Level::L2 : (optional_tripped_ ? Level::L3 : Level::L4);
+  set_level(to, at, out);
+}
+
+void Core::run_conversation(Mono at, bool fresh, const proto::UiEvent* ui, const proto::LlmEvent* llm, Outputs& out) {
+  // The Tarnished's engagements and death, from Augur's events of this step.
+  bool died = false;
+  for (const augur::Event& e : out.events) {
+    if (std::holds_alternative<augur::PlayerDied>(e.kind)) died = true;
+    const auto other = [](const augur::ActorRef& a, const augur::ActorRef& b) -> std::optional<std::uint64_t> {
+      if (a.kind == augur::ActorRef::Kind::Player) return b.handle.raw;
+      if (b.kind == augur::ActorRef::Kind::Player) return a.handle.raw;
+      return std::nullopt;
+    };
+    if (const auto* en = std::get_if<augur::Engaged>(&e.kind)) {
+      if (const auto h = other(en->subject, en->opponent);
+          h && std::find(engaged_.begin(), engaged_.end(), *h) == engaged_.end()) {
+        engaged_.push_back(*h);
+      }
+    } else if (const auto* dis = std::get_if<augur::Disengaged>(&e.kind)) {
+      if (const auto h = other(dis->subject, dis->opponent)) std::erase(engaged_, *h);
+    }
+  }
+  if (state_.phase != Phase::InWorld) engaged_.clear();
+  ConversationInput in;
+  in.now = at;
+  in.ui = ui;
+  in.llm = llm;
+  ConversationWorld& w = in.world;
+  w.snapshot = last_.get();
+  w.fresh = fresh;
+  w.in_world = state_.phase == Phase::InWorld;
+  w.loading = state_.phase == Phase::Loading;
+  w.dormant = state_.dormant;
+  w.speech = state_.level >= Level::L3 && out.ai_allowed;
+  w.combat = !engaged_.empty();
+  w.player_died = died;
+  w.cast = content_loaded_ ? &directory_ : nullptr;
+  w.predicates = &predicates_;
+  w.facts = view_.facts;
+  w.hostile_teams = hostile_teams_;
+  w.log = &log_;
+  w.knowledge = content_loaded_ ? &known_ : nullptr;
+  w.chat = behaviour_.features.chat;
+  w.self_awareness = behaviour_.features.self_awareness;
+  ConversationOutput co = conversation_.step(in);
+  for (const Commit& c : co.commits) log_.apply(c);  // in the same step (NPC §8.7 item 5; the store, v0.3)
+  out.ui = std::move(co.ui);
+  out.requests = std::move(co.requests);
+  out.cancels = std::move(co.cancels);
+  out.commits = std::move(co.commits);
+  out.ended = co.ended;
+  if (!out.ai_allowed) out.requests.clear();  // C4: nothing goes out while gated (the conversation sends none then)
 }
 
 void Core::enter(Phase to, Mono at, Outputs& out) {
@@ -295,6 +498,7 @@ void Core::enter(Phase to, Mono at, Outputs& out) {
   state_.phase = to;
   // Leaving a world: nothing stays tracked (§9: InWorld → Loading, → Title).
   if (from == Phase::InWorld) track_none(out);
+  if (to == Phase::Title) forget_flags();  // the playthrough's frame is gone with it
 }
 
 void Core::set_level(Level to, Mono at, Outputs& out) {
@@ -326,7 +530,10 @@ void Core::on_lifecycle(const proto::Lifecycle& l, Mono now, Outputs& out) {
   } else if (const auto* p = std::get_if<proto::Lifecycle::PlaythroughReady>(&l.payload)) {
     pending_ = PlaythroughId{p->slot, p->name, p->archetype, p->keepsake};
   } else if (const auto* t = std::get_if<proto::Lifecycle::GroupTripped>(&l.payload)) {
-    if (!proto::structural(t->group)) return;  // an optional group: L3, with the net
+    if (!proto::structural(t->group)) {
+      optional_tripped_ = true;  // an optional group: L3 at most
+      return;
+    }
     if (t->group == proto::Group::Session) {
       if (gate_.session_failed_now()) {
         out.changes.push_back(
@@ -358,6 +565,7 @@ void Core::start_playthrough(const proto::WorldSnapshot& s, Outputs& out) {
   current_ = pending_;
   pending_.reset();
   ++state_.playthroughs;
+  forget_flags();  // MEM §6.6: every alias Unknown until this playthrough's first frame
   enter(Phase::Playthrough, s.mono_ms, out);
   // Without the store there is no database to open (§9's DbOpened): the world follows at once.
   enter(Phase::InWorld, s.mono_ms, out);
@@ -386,6 +594,11 @@ void Core::on_snapshot(const proto::WorldSnapshot& s, Outputs& out) {
     raise_banner(BannerReason::TaskTripped, at, out);
   }
   if (s.session.anticheat) raise_banner(BannerReason::AntiCheat, at, out);
+  for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
+    if (!proto::structural(static_cast<proto::Group>(g)) && s.health.groups[g].state == proto::GroupState::Tripped) {
+      optional_tripped_ = true;
+    }
+  }
 
   // The playthrough's own clocks: play time rising over two snapshots, and the load counter held over two.
   if (s.player) {

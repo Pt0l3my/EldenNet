@@ -15,6 +15,7 @@
 #include <string>
 
 #include "dll.hpp"
+#include "en/core/conversation.hpp"
 #include "en/llm/edit.hpp"
 #include "en/llm/selftest.hpp"
 #include "en/llm/service.hpp"
@@ -73,6 +74,7 @@ struct AiState {
   std::uint64_t revision = 1;  // the configuration's, each time one is taken (the space's model rows follow it)
   // What each provider listed at its newest answered list (the model list or a self-test): the pickers' choices.
   std::map<std::string, std::vector<std::string>, std::less<>> listed;
+  std::set<llm::RequestId> live;  // the conversation's requests submitted and not yet ended
   // What only the files and the chosen preset decide, worked out again when either changes (toml++ reads the files):
   // not on every wake.
   bool dirty = true;
@@ -591,37 +593,122 @@ const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space
       if (preset != "cloud-budget" && preset != "cloud-nanogpt" && preset != "custom") preset = "custom";
       space.set_value("ai.preset", preset);
     }
-    if (st->service) {
-      if (gate_open != st->gate) {
-        st->gate = gate_open;
-        st->service->set_gate_open(gate_open);
-      }
-      std::vector<llm::LlmEvent> events;
-      st->service->drain(events);
-      for (const llm::LlmEvent& e : events) {
-        if (st->selftest && st->selftest->take(e)) continue;
-        if (st->listing && st->listing->take(e)) continue;
-      }
-      if (st->selftest && !st->selftest->done()) st->selftest->step(*st->service);
-      if (st->listing && !st->listing->done()) st->listing->step(*st->service);
-      if (st->selftest && st->selftest->done() && !st->selftest_logged) {
-        st->selftest_logged = true;
-        log_selftest(st->selftest->report());
-        note_answers(*st, st->selftest->report());
-      }
-      if (st->listing && st->listing->done() && !st->listing_logged) {
-        st->listing_logged = true;
-        const llm::SelfTestReport& r = st->listing->report();
-        int passed = 0;
-        for (const llm::ListCheck& c : r.lists) passed += c.state == llm::CheckState::Passed ? 1 : 0;
-        log(Line("models_list").num("providers", r.lists.size()).num("passed", static_cast<std::uint64_t>(passed)));
-        note_answers(*st, r);
-      }
-    }
+    (void)gate_open;  // the handle's gate and its events are ai_pump's, every wake
     fill_facts(*st, space);
     out = &st->facts;
   });
   return out;
+}
+
+void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversation) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    AiState* st = state(s);
+    if (st == nullptr) return;
+    st->gate_now = allowed;
+    if (!st->service) return;
+    if (allowed != st->gate) {
+      st->gate = allowed;
+      st->service->set_gate_open(allowed);
+    }
+    std::vector<llm::LlmEvent> events;
+    st->service->drain(events);
+    for (llm::LlmEvent& e : events) {
+      if (st->selftest && st->selftest->take(e)) continue;
+      if (st->listing && st->listing->take(e)) continue;
+      // The profile editor's drafts (their ids from kDraftRequests, below the conversation's): to its glue.
+      if (e.id >= kDraftRequests && e.id < en::core::kConversationRequests) {
+        if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
+        profiles_llm_event(s, std::move(e));
+        continue;
+      }
+      // The conversation's (its ids from kConversationRequests): to the core, as they came (C10).
+      if (e.id >= en::core::kConversationRequests) {
+        if (e.kind == en::proto::EventKind::Ended) st->live.erase(e.id);
+        conversation.push_back(std::move(e));
+      }
+    }
+    if (st->selftest && !st->selftest->done()) st->selftest->step(*st->service);
+    if (st->listing && !st->listing->done()) st->listing->step(*st->service);
+    if (st->selftest && st->selftest->done() && !st->selftest_logged) {
+      st->selftest_logged = true;
+      log_selftest(st->selftest->report());
+      note_answers(*st, st->selftest->report());
+    }
+    if (st->listing && st->listing->done() && !st->listing_logged) {
+      st->listing_logged = true;
+      const llm::SelfTestReport& r = st->listing->report();
+      int passed = 0;
+      for (const llm::ListCheck& c : r.lists) passed += c.state == llm::CheckState::Passed ? 1 : 0;
+      log(Line("models_list").num("providers", r.lists.size()).num("passed", static_cast<std::uint64_t>(passed)));
+      note_answers(*st, r);
+    }
+  });
+}
+
+bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, false, [&] {
+    AiState* st = state(s);
+    if (st == nullptr || !st->config || !ensure_service(s, *st)) {
+      log(Line("llm").word("what", "submit").word("result", "no_service").num("id", request.id), LogLevel::Warn);
+      return false;
+    }
+    const llm::RequestId id = request.id;
+    const llm::SubmitResult r = st->service->submit(std::move(request));
+    if (r == llm::SubmitResult::Accepted) st->live.insert(id);
+    // Words and numbers only: never a message of the request (PV rules).
+    log(Line("llm").word("what", "submit").word("result", llm::to_string(r)).num("id", id),
+        r == llm::SubmitResult::Accepted ? LogLevel::Debug : LogLevel::Warn);
+    return r == llm::SubmitResult::Accepted;
+  });
+}
+
+void ai_cancel(Shell& s, en::proto::RequestId id) noexcept {
+  en::proto::ffi_guard(en::proto::Component::DllMain, [&] {
+    AiState* st = state(s);
+    if (st == nullptr || !st->service) return;
+    const bool live = st->service->cancel(id);
+    log(Line("llm").word("what", "cancel").flag("live", live).num("id", id), LogLevel::Debug);
+  });
+}
+
+std::string ai_slot_provider(Shell& s, std::string_view slot) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, std::string(), [&] {
+    AiState* st = state(s);
+    if (st == nullptr || !st->config || !st->files->transport) return std::string();
+    const llm::Config& cfg = *st->config;
+    const llm::SlotConfig* sc = &cfg.slot(slot);
+    if (sc->models.empty()) {
+      const auto lender = cfg.borrowed.find(slot);
+      sc = &cfg.slot(lender != cfg.borrowed.end() ? std::string_view(lender->second) : llm::kDialogue);
+    }
+    return sc->models.empty() ? std::string() : sc->models.front().provider;
+  });
+}
+
+en::proto::NetHealth ai_health(Shell& s) noexcept {
+  return en::proto::ffi_guard(en::proto::Component::DllMain, en::proto::NetHealth{}, [&] {
+    en::proto::NetHealth h;
+    AiState* st = state(s);
+    if (st == nullptr || !st->config || !st->files->transport) return h;
+    const llm::Config& cfg = *st->config;
+    const llm::HealthReport health = st->service ? st->service->client().health() : llm::HealthReport{};
+    // The dialogue slot has a model it can use now (en-proto's NetHealth): a configured provider whose keys resolved,
+    // neither cooling nor disabled, and a pair that is not cooling.
+    const llm::SlotConfig& slot = cfg.slot(llm::kDialogue);
+    h.dialogue = std::any_of(slot.models.begin(), slot.models.end(), [&](const llm::ModelRef& m) {
+      const auto p = std::find_if(cfg.providers.begin(), cfg.providers.end(),
+                                  [&](const llm::ProviderConfig& c) { return c.id == m.provider; });
+      if (p == cfg.providers.end() || !p->keys_resolved()) return false;
+      for (const auto& ph : health.providers) {
+        if (ph.id == m.provider && (ph.disabled || ph.cooling_left.count() > 0)) return false;
+      }
+      for (const auto& pair : health.pairs) {
+        if (pair.provider == m.provider && pair.model == m.model && pair.cooling_left.count() > 0) return false;
+      }
+      return true;
+    });
+    return h;
+  });
 }
 
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& c) noexcept {

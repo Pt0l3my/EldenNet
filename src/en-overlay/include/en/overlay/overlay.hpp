@@ -14,12 +14,15 @@
 // builds a frame on Dear ImGui's core and submits it. The F11 view takes no input (D142): it shows, and F11 hides it.
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "en/overlay/chat.hpp"
 #include "en/overlay/space.hpp"
 #include "en/overlay/view.hpp"
+#include "en/proto/ui.hpp"
 #include "graceui_imgui.hpp"
 #include "graceui_sys.hpp"
 
@@ -31,6 +34,7 @@ inline constexpr std::string_view kId = "eldennet";  // EldenNet's id with Grace
 inline constexpr std::string_view kName = "EldenNet";
 inline constexpr std::uint32_t kBannerKey = 1;    // the banner's notice (D134)
 inline constexpr std::uint32_t kBadgeKey = 2;     // the pause badge's
+inline constexpr std::uint32_t kContentKey = 5;   // the content's problems (3 and 4 are the toasts', surfaces.hpp)
 inline constexpr std::uint32_t kKeyF11 = 0x7A;    // VK_F11: the debug view's default (D155)
 inline constexpr std::uint32_t kKeyPause = 0x13;  // VK_PAUSE: the Mark's, the launcher's own key (O90)
 inline constexpr std::string_view kActionView = "debug-view";
@@ -80,6 +84,11 @@ struct Options {
   // banner path registers it for the game's view alone: the browser never gets it when the gate or the safety step
   // fails (PAGES §4.4, GraceUI §7.2 item 1).
   std::uint32_t space_views = 0;
+  // The conversation's surfaces (chat.hpp; WHY§364, part C): the talk and skip hotkeys, the lower third, the chat box,
+  // the hint and the toasts. `fonts` are GraceUI's own font files, which the DLL reads from GraceUI's folder; empty,
+  // the surfaces draw GraceUI's notices' face.
+  bool surfaces = false;
+  Surfaces::Fonts fonts;
 };
 
 struct Report {
@@ -96,6 +105,7 @@ struct Report {
   bool mark = false;                       // the Mark's hotkey is registered, bound or not
   bool mark_bound = false;                 // and bound: only then does EldenNet ask the launcher for Pause
   GraceUiStatus pages = GRACEUI_NOT_YET;   // register_pages's answer; not_yet when not asked, or without the cap
+  SurfacesReport surfaces;                 // the conversation's surfaces, when asked for
 };
 
 class Overlay {
@@ -118,6 +128,10 @@ class Overlay {
   [[nodiscard]] bool mark_bound() const noexcept { return mark_hotkey_ != 0 && mark_bound_; }
   [[nodiscard]] bool pages() const noexcept { return pages_; }  // EldenNet's space is registered
   [[nodiscard]] std::uint32_t graceui_version() const noexcept { return graceui_version_; }
+  // The conversation's surfaces, or null (not asked for, or a cap missing).
+  [[nodiscard]] Surfaces* surfaces() noexcept { return surfaces_.get(); }
+  // GraceUI's wait handle for EldenNet's events (a Win32 HANDLE, ABI 1.5's wake_event, D212), or null: T6 waits on it.
+  [[nodiscard]] void* wake() const noexcept { return surfaces_ ? surfaces_->wake() : nullptr; }
 
   // The banner: one notice under EldenNet's key, shown until replaced (duration 0); a new text replaces it in place and
   // an empty one withdraws it. The same text again calls nothing. Works in the notice-only mode too.
@@ -126,6 +140,9 @@ class Overlay {
   GraceUiStatus badge(std::string_view text) noexcept;
   // EldenNet's claims as a world-state provider (world.hpp), sent when they change.
   GraceUiStatus world(std::uint32_t flags) noexcept;
+  // A notice of its own under `key` (not the banner's, the badge's or the toasts'), shown for `duration_ms`: the
+  // content's problems (NPC §4.7). Works in the notice-only mode too.
+  GraceUiStatus note(std::uint32_t key, std::string_view text, std::uint32_t duration_ms) noexcept;
   // The Mark's hotkey, Pause, registered now (connected, with the hotkeys cap): GRACEUI_OK once registered and bound;
   // GRACEUI_UNBOUND once registered but unbound (D164: another mod's hotkey took Pause first), a success that carries
   // its id: the launcher's Pause then stays the Mark, and only a bound Mark asks for it. Asked again, it answers the
@@ -138,9 +155,11 @@ class Overlay {
     bool lost = false;                // GraceUI answered not connected or inactive: nothing more is shown
     GraceUiStatus refused = GRACEUI_OK;  // a submit's or a panel call's answer other than ok, if any
     // The space's (D169).
-    std::uint32_t commands = 0;              // answered, each once
+    std::uint32_t commands = 0;              // taken, each answered once: at once, or later (answer_later)
     std::uint32_t published = 0;             // frames GraceUI took
     GraceUiStatus page_refused = GRACEUI_OK;  // a publish's or an answer's answer other than ok, if any
+    // The surfaces': what the player did (the talk key, Tab, the box's events), for the core, in order.
+    std::vector<proto::UiEvent> ui;
   };
   // Polls every event waiting, passing over any kind it does not use: hotkeys (an odd count of F11 presses toggles the
   // view; the Mark's are counted) and, with the space registered, its events, each handed to `space` (a command is
@@ -149,6 +168,15 @@ class Overlay {
   // it. A frame past ABI 1's bounds is not submitted: the view keeps its last list.
   Step step(const ViewStatus& status, Space* space = nullptr, const SpaceFacts* facts = nullptr,
             std::uint64_t now_ms = 0);
+  // After the core took the step's events: the newest model drawn by the surfaces (chat.hpp), and the events that
+  // raised (PageShown, Close). Nothing without the surfaces, or once GraceUI has gone.
+  [[nodiscard]] std::vector<proto::UiEvent> show(const proto::UiModel& model, std::uint64_t now_ms);
+  // The answers the space has for commands it answers later (the profile editor's, characters.hpp), each handed to
+  // GraceUI with its reply handle, once: step does it every wake, and the DLL once it has made a request, so that an
+  // answer is not held until the next wake. Its count; nothing once GraceUI has gone.
+  std::uint32_t answer_later(Space& space);
+  // The overlay's own code faulted (ffi_guard tripped): the box's input given back at once.
+  void fault() noexcept;
 
  private:
   Overlay(const graceui::Api& api, GraceUiConsumer me, bool notices_only, std::uint32_t version);
@@ -185,6 +213,8 @@ class Overlay {
   bool pages_ = false;
   std::array<char, GRACEUI_FRAME_FROM_PAGE_MAX> frame_{};  // poll writes a space's event's frame here
   std::vector<std::string> frames_;                         // what the space has to publish, each step
+  // The conversation's surfaces.
+  std::unique_ptr<Surfaces> surfaces_;
 };
 
 }  // namespace en::overlay

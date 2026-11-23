@@ -13,6 +13,11 @@
 # needed, and the changed mark of a job's rows only where the player's providers file holds a pick for it. The fifth, on
 # GraceUI 0.2.12 (D202, protocol 1.3): AI › Models as one card per job, each a section with the job's slot as its chip,
 # its state as its live status, its provider, model and fallback, and its fixed budgets.
+# The profile editor (S7.2.b), on GraceUI 0.2.22 (D215 to D218, protocol 1.7): Characters › Named NPCs, the roster as the
+# page's master list (`named.list`), each profile's general profile (the family `named`) and the player's own layer in an
+# editor block (the family `profiles`), with its five commands, `profile.draft` a slow one (D216). And, for GraceUI
+# 0.2.25's devices at home (G9, D221; protocol 1.8, which an older GraceUI reads past): the commands and settings a
+# paired device may never send or change, marked sensitive.
 # The rail holds every category of PAGES §4.2.1 in its order; a category with no page yet holds none,
 # and GraceUI shows no category that is empty (D173). Every word a player reads here is a draft for the owner's review
 # (the slice's notes list them). Names of the game's places and characters never appear here (PAGES §4.1 item 6, SP3).
@@ -22,7 +27,14 @@ id = "eldennet"
 name = "EldenNet"
 settings_schema = 2
 commands = ["settings.set", "settings.reset", "selftest.run", "models.list", "providers.add", "providers.remove",
-            "providers.key"]
+            "providers.key", "profile.check", "profile.save", "profile.reset", "profile.restore", "profile.draft"]
+# A model's draft of the player's notes: answered within 90 s (D216; NPC §4.7's 20 s to the first token, 60 s in all).
+slow_commands = ["profile.draft"]
+# From this PC alone, never a paired device (G9, D221; S11.4.e): a provider of one's own with its address, a provider's
+# removal, and a key (a row secret, which GraceUI refuses from a device whether marked or not); and, by the owner's O112
+# (b), the profile editor's writing commands: the player's notes are saved, reset and restored on this PC alone.
+sensitive_commands = ["providers.add", "providers.remove", "providers.key", "profile.save", "profile.reset",
+                      "profile.restore"]
 
 # ---- Topics (GraceUI DESIGN §6.5's names). System › Status's tabs read one topic, `system.status`, each block its own
 # member of the body (GraceUI D185's `props.field`): the Compatibility tab its `compatibility`.
@@ -132,6 +144,23 @@ shape = "state"
 id = "space.state"
 shape = "state"
 
+# Characters › Named NPCs (PAGES §4.6.4; S7.2.b): the master list, and two families keyed as its rows (WHY§387,
+# `persona.<id>`): each profile's general profile and the editor's document over the player's own layer.
+
+[[topic]]
+id = "named.list"
+shape = "state"
+
+[[topic]]
+id = "named"
+shape = "state"
+family = true
+
+[[topic]]
+id = "profiles"
+shape = "state"
+family = true
+
 # ---- The rail (PAGES §4.2.1), in its order.
 
 [[category]]
@@ -152,7 +181,7 @@ pages = []
 [[category]]
 id = "characters"
 name = "Characters"
-pages = []
+pages = ["characters.named"]
 
 [[category]]
 id = "map"
@@ -198,6 +227,7 @@ synonyms = ["debug", "F11", "developer", "view"]
 home = "settings.developer"
 effect = "next_launch"
 availability = "live"
+sensitive = true  # SP8's developer view: switched on at this PC alone (D221)
 
 [[setting]]
 key = "debug.record_sessions"
@@ -209,6 +239,7 @@ synonyms = ["recording", "record", "replay"]
 home = "settings.developer"
 effect = "next_launch"
 availability = "live"
+sensitive = true  # what is written to this PC's disk each session (PV8): at this PC alone (D221)
 
 [[setting]]
 key = "debug.log_level"
@@ -718,3 +749,24 @@ blocks = [{ kind = "component", component = "key_value_list", topic = "selftest"
 id = "earlier"
 title = "Earlier runs this session"
 blocks = [{ kind = "component", component = "table", topic = "selftest", props = { empty = "No earlier run this session." } }]
+
+# ---- Characters › Named NPCs (PAGES §4.6.4; NPC §4.7; S7.2.b): the roster as the master list (D215), the chosen row's
+# general profile and the player's own notes on it in an editor (D217). PAGES ships the page in 0.3 for the pilot; it
+# ships in 0.2 here, with the editor, at the owner's wish to edit profiles now. The Allowances and Reactions tabs wait
+# for the allowances (NPC §1.4), and Met and Nearby for the sightings store (MEM §8.7): absent until then (SP5).
+
+[[page]]
+id = "characters.named"
+category = "characters"
+name = "Named NPCs"
+description = "Every named character EldenNet voices: who they appear to be, and your own notes on them."
+increment = "0.2"
+related = ["ai.models", "home"]
+help.purpose = "See who each character appears to be at a first meeting, and add notes of your own on how they speak."
+help.steps = ["Choose a character in the list.", "Read their general profile: what anyone would see on meeting them.", "Under Your notes, write how they speak, what they like to talk about, their manner and their longest reply. Check shows any problem; Save keeps it in a file of your own.", "Draft with AI turns rough notes into a draft beside your fields: take what you like, then save."]
+master = { topic = "named.list", key = "id", detail = "named", label = "Named NPCs", empty = "No character EldenNet voices is loaded yet.", none = "Choose a character to see their profile." }
+
+[[page.tabs]]
+id = "profile"
+name = "Profile"
+sections = [{ id = "general", title = "General profile", description = "What anyone would see on meeting them, in EldenNet's own words.", blocks = [{ kind = "component", component = "key_value_list", topic = "named" }] }, { id = "yours", title = "Your notes", description = "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's.", blocks = [{ kind = "editor", topic = "profiles", editor = { save = "profile.save", check = "profile.check", reset = "profile.reset", restore = "profile.restore", draft = "profile.draft", notes_label = "Your rough notes for a draft", notes_max = 400 } }] }]

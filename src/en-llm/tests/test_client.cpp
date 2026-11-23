@@ -233,6 +233,36 @@ TEST_CASE("BadRequest: one retry without the optional fields, never without the 
   CHECK(r2.attempts.size() == 2);
 }
 
+TEST_CASE("a reply's stop sequences reach the server; a 400 is retried without them, and they stay off for the pair") {
+  Rig rig;
+  ChatRequest request;
+  request.messages = {Message::system("An invented frame.", true), Message::user("Where does the road go?")};
+  request.stop = {"\nThe Wanderer:", "\nWanderer:"};
+  rig.server->script("model-a", sse_reply({"Down, mostly."}));
+  REQUIRE(rig.client->chat(request, nullptr, {}).ok());
+  CHECK(rig.server->requests()[0].body["stop"] == json({"\nThe Wanderer:", "\nWanderer:"}));
+
+  // A model that refuses the field: the stripped retry sends none, and the pair starts stripped from then on.
+  Rig refuses;
+  refuses.server->script("model-a", http_error(400, R"({"error": {"message": "Unsupported parameter: 'stop'"}})"));
+  refuses.server->script("model-a", sse_reply({"Down, mostly."}));
+  const ChatResult r = refuses.client->chat(request, nullptr, {});
+  REQUIRE(r.ok());
+  REQUIRE(r.attempts.size() == 2);
+  CHECK(r.attempts[1].stripped);
+  auto seen = refuses.server->requests();
+  CHECK(seen[0].body.contains("stop"));
+  CHECK_FALSE(seen[1].body.contains("stop"));
+  refuses.server->script("model-a", sse_reply({"Again."}));
+  CHECK(refuses.client->chat(request, nullptr, {}).ok());
+  CHECK_FALSE(refuses.server->requests()[2].body.contains("stop"));
+
+  // A request without any sends no field.
+  rig.server->script("model-a", sse_reply({"Fine."}));
+  CHECK(rig.chat().ok());
+  CHECK_FALSE(rig.server->requests()[1].body.contains("stop"));
+}
+
 TEST_CASE("a model that refuses reasoning off gets one retry at minimal effort, remembered for the session") {
   Rig rig;
   rig.server->script("model-a", http_error(400, R"({"error": {"message": "Reasoning is mandatory for this model and cannot be disabled"}})"));

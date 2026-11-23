@@ -3,7 +3,8 @@
 # - en_launcher_core, portable and tested on Linux: Steam's KeyValues and the game's discovery, the save backups with
 #   their BLAKE3 manifests, GraceUI's pre-flight (graceui.toml, with our own SHA-256), the appid file and the
 #   launcher's state, launcher.toml, the command line, the texts, the watcher's records, the S0 spikes' tally, and the
-#   observer's runs' folder and the game's environment (S0-E, S4), and the console's bounded queue of lines (WHY§290).
+#   runs' folders and the game's environment (S0-E, S4, and S0-A to S0-D), the S0 kind's tasks, words and the facts of
+#   eldennet.dll's report of an S0 run (s0.hpp), and the console's bounded queue of lines (WHY§290).
 # - eldennet-launcher (Windows builds): processes, injection, the watch block, the dev console and the Mark (src/win/).
 # It depends on en-gal's offline part only (the PE reader, builds.toml's gate and the reports' vocabularies; ARCH §2.3),
 # and through it on en-proto, whose watch block it shares with EldenNet in the game: never on en-core, en_shell or any
@@ -22,6 +23,8 @@ set(EN_LAUNCHER_CORE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/record.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/spikes.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/s0.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/observer_tasks.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/exe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/lines.cpp)
 add_library(en_launcher_core STATIC ${EN_LAUNCHER_CORE_SOURCES})
@@ -66,8 +69,8 @@ if(EN_BUILD_TESTS)
   target_include_directories(en_launcher_tests PRIVATE ${PROJECT_SOURCE_DIR}/src/en-gal/tests)
   target_link_libraries(en_launcher_tests PRIVATE en_launcher_core en_doctest)
   add_test(NAME en_launcher_tests COMMAND en_launcher_tests)
-  # tests/graceui-manifest.toml: the graceui.toml GraceUI's tools/release/manifest.py wrote (GraceUI D165; at a9aac78,
-  # GraceUI 0.2.12) for an invented GraceUI folder of ours, compiled into the tests byte for byte, so that every build
+  # tests/graceui-manifest.toml: the graceui.toml GraceUI's tools/release/manifest.py wrote (GraceUI D165; at 386d1ba,
+  # GraceUI 0.2.31) for an invented GraceUI folder of ours, compiled into the tests byte for byte, so that every build
   # reads the committed file itself, under Wine too, with no path to it.
   set(_en_fixture ${CMAKE_CURRENT_SOURCE_DIR}/tests/graceui-manifest.toml)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_en_fixture})

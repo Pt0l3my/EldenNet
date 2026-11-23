@@ -68,3 +68,6 @@ tools/workplan/data/
 # C++ builds
 build/
 build-*/
+
+# Eval reports: they hold the conversation's text, a local-only kind (src/en-tools/README.md)
+**/eval-reports/

@@ -351,6 +351,15 @@ TEST_CASE("records: the JSON form holds numbers, fixed words and module names; t
   auto shown = j;
   shown["explained"] = true;
   CHECK_FALSE(explanation(shown).has_value());
+  // An error that came after the game's window had closed (the player quit): kept, never shown (O115).
+  CHECK(j["after_window"] == false);
+  SessionRecord quit = r;
+  quit.after_window = true;
+  const auto quiet = to_json(quit);
+  CHECK(quiet["after_window"] == true);
+  CHECK(quiet["explained"] == false);
+  CHECK(worth_keeping(quit));
+  CHECK_FALSE(explanation(quiet).has_value());
 
   SessionRecord clean;
   CHECK_FALSE(worth_keeping(clean));

@@ -1,0 +1,12 @@
+# The scripted model for pilot-two-states.toml (mockllm): invented replies in our own words, one per request.
+schema = 1
+
+[[reply]]
+text = "Ah, quiet, mostly. The road's been kind to my boots, if not my purse."
+first_token_ms = 700
+chunk_ms = 40
+
+[[reply]]
+text = "Well, something came down out of the sky and shook the whole land. And travellers say the castle's lord is dead."
+first_token_ms = 800
+chunk_ms = 40

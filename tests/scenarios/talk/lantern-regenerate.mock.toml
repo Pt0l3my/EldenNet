@@ -1,0 +1,25 @@
+# The scripted model for lantern-regenerate.toml (mockllm): invented replies in our own words, one per request. The
+# first and third break the world's frame in their first sentence; the second is the regeneration's clean reply, and
+# the fourth breaks it again, so the persona's deflection shows in its place.
+schema = 1
+repeat_last = false
+
+[[reply]]
+text = "This crossroads is no video game, traveller. It is older than that."
+first_token_ms = 600
+chunk_ms = 40
+
+[[reply]]
+text = "A crossroads, and a lamp to see it by."
+first_token_ms = 500
+chunk_ms = 40
+
+[[reply]]
+text = "Open the menu and choose another road. Or stay."
+first_token_ms = 500
+chunk_ms = 40
+
+[[reply]]
+text = "You could reload a checkpoint, I suppose. Or not."
+first_token_ms = 500
+chunk_ms = 40

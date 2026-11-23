@@ -47,6 +47,7 @@ offset, enum value and number is invented here, shaped only by what the design d
 | `--grace-report F,F…` with `--grace-probe x0,y0,x1,y1,r,g,b` (given up to three times, reported as `probe`, `probe2` and `probe3`): at each frame listed, one `FAKEGAME grace` line of what a test build of GraceUI says through its test exports (`graceui_test.h`, read through `GetProcAddress`, never linked): the host's state, the mods connected and EldenNet's caps, its notices under keys 1 and 2 (spaces written as `_`), the panels made, shown and drawn, the lists, the textures, the world-state providers and their flags, the window's filter; where the test build has them, the menu (open, the page open, the element focused, its refusals) and the browser view's server (running, its port, the spaces, the commands pending); and, with `--d3d12`, the pixels within 3 of each probe's colour in its rectangle of the frame just presented, read back after GraceUI drew on it | GraceUI's harness reports, from inside the game's process |
 | `--press-keys F:KEY,…`: one of GraceUI's menu keys (`f5`, `next`, `prior`, `up`, `down`, `left`, `right`, `return`, `escape`) pressed and released into the window at each frame listed, as F11 is | The player in GraceUI's menu (F5, D167, D171) |
 | `--grace-take-pause`: at boot, before the window, the GraceUI already loaded (the launcher's `--also`) found by its name through graceui-sys, a connection as `fakegame-other` with the `hotkeys` cap, and Pause registered as its hotkey; one `FAKEGAME grace_other found=… connect=… hotkey=… id=…` line | Another mod that took Pause in GraceUI first, so that EldenNet's Mark registers unbound (GraceUI D164) |
+| `--grace-lan`: at boot, the GraceUI already loaded (the launcher's `--also`) given 127.0.0.2 alone as its home listener's address (its test build's `GraceUI_Test_SetNetworkAddresses`), before any mod registers pages; one `FAKEGAME grace_lan found=… set=…` line; each `--grace-report` then names the pairing sheet's code while one shows (`pairing=`) | A PC on a home network, for a device paired at home (GraceUI's G9), never a real address of the machine |
 | `vehprobe.dll`: `VEHPROBE_MODE=pass\|swallow\|off`, `VEHPROBE_FIRST`, `VEHPROBE_EXIT`, `VEHPROBE_LOG` | A crash reporter's vectored handler that passes faults on, or ends the process at the first (S0-D, ARCH §6.5) |
 
 The version resource is invented too: FileVersion 3.14.15.0 (the fourth field 0: "ww"), ProductName
@@ -142,6 +143,19 @@ the game while the console is blocked, and the crash watcher still keeps its rec
 these cases leave: `rec-stats` and `replay` on `launcher-eldennet`'s recording (the counts as written, and en-core
 stepped again on its inputs answering the DLL's own changes), and `spike-report s0a` on `launcher-spike-s0a`'s log
 (three early runs passing their rules, each with its load mode, the late load not run).
+
+The S0 spikes on the table-based start (2026-11-23; roadmap S10.1.b) have cases of their own with the probe build:
+`launcher-eldennet-s0a`, `-s0b`, `-s0c`, `-s0d` and `-s0d-crash` give the fake game's gal/ a build's table (the
+harness's `s0_table`: schema 2, each of the fifteen statics under the catalogue's label, its place and the places in
+the code that load it, from `--describe`, with the repository's `ids.toml`), so a start takes each id from the table
+and checks it and searches for none. Each checks eldennet.dll's report of each run in the run's folder (linted, no
+path), the table checked at the start and again with none refused or changed, no call into the game, the launcher's
+plain words on the console and its tally, and `spike-report` over the spikes and recordings folders: each spike whole,
+and, in the `-nostatic` five, with `game_state` out of the table and of patterns.toml as the real game's layout is
+today, the start at the discovery banner, S0-B waiting and nothing failed. The S0 package's own cases,
+`launcher-package-s0-*`, run its unzipped files with `--set pkg` (BUILD.md). The observer's runs
+(`launcher-eldennet-spike-*`, and `launcher-package-spikes-*` with their package) check the tester's panel too: the
+run's tasks, their confirmations and Marks, and `launcher-run.json` in the run's folder.
 
 GraceUI joined it with part 12 (`launcher-eldennet-graceui*`, clang-cl, with a test build of GraceUI, GraceUI's own
 `GRACEUI_TEST_EXPORTS` build, whose `GraceUI` folder CMake's `EN_GRACEUI_DIR` names; without it the cases are left out).

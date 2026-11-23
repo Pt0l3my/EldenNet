@@ -44,6 +44,10 @@ std::string error_text(ErrorCode e, std::string_view s, std::uint32_t code) {
       return "GraceUI, which shows EldenNet in the game, is missing or damaged: " + str +
              ". The game starts, and EldenNet runs with nothing shown in the game. Copy the GraceUI folder from "
              "EldenNet's download into the game's folder again (see the install guide).";
+    case ErrorCode::E13:
+      return "The GraceUI in the game's folder is not the one this test package carries: " + str +
+             ". This run would test the wrong GraceUI. Close this, copy the GraceUI folder from this package into the "
+             "game's folder (the folder that holds eldenring.exe), replacing the one there, and start this run again.";
   }
   return {};
 }
@@ -58,6 +62,8 @@ std::string error_action(ErrorCode e) {
       return "Continue without a backup";
     case ErrorCode::E10:
       return "Start without EldenNet";
+    case ErrorCode::E13:
+      return "Start anyway";
     default:
       return {};
   }

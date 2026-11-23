@@ -1,0 +1,19 @@
+# A fixture flag state (MEM §7.8, §12.11): the lord of blood fallen too.
+# Invented test data, our own: catalogue aliases (MEM §6.1) and their values, every one verified; an alias not
+# listed reads false (verified). No flag id and no text of the game: the catalogue maps the aliases (S6).
+schema = 1
+state = "after_mohg"
+journey = 1
+
+[flags]
+"boss.godrick" = true
+"boss.rennala" = true
+"boss.radahn" = true
+"boss.morgott" = true
+"boss.mohg_lord" = true
+"story.star_fell" = true
+"runes.ge1" = true
+"runes.ge2" = true
+"runes.ge3" = true
+"runes.ge4" = true
+"runes.ge5" = true

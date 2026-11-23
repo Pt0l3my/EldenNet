@@ -33,9 +33,12 @@ import browser  # noqa: E402
 # A page dumped over a second state has its golden named for it too (ai.selftest.banner and home.banner: greyed at L1,
 # GraceUI 0.2.7's space.state, D188; ai.providers.world: a key refused, GraceUI 0.2.9's D197; ai.models.world: the
 # cards' status on a provider cooling down, GraceUI 0.2.12's D202).
+# Characters › Named NPCs over the title (the first row chosen: a character with no notes of the player's), over the world
+# (the draft blocked) and over the starting state (no content loaded yet: the list's own words, GraceUI D215).
 PAGES = (("home", "title"), ("system.status", "title"), ("system.logs", "title"), ("settings.developer", "title"),
          ("ai.providers", "title"), ("ai.models", "title"), ("ai.selftest", "title"), ("ai.selftest", "banner"),
-         ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"))
+         ("ai.providers", "starting"), ("home", "banner"), ("ai.providers", "world"), ("ai.models", "world"),
+         ("characters.named", "title"), ("characters.named", "world"), ("characters.named", "starting"))
 SIZE = "1920x1080"
 INCREMENT = "0.2"  # en-overlay's kIncrement: the AI pages'
 

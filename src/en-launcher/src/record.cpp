@@ -126,6 +126,8 @@ nlohmann::json to_json(const SessionRecord& r) {
                    {"modules_age_ms", r.modules_age_ms},
                    {"marks", r.marks},
                    {"connections_max", r.connections_max},
+                   {"panel", r.panel},
+                   {"after_window", r.after_window},
                    {"explained", r.explained}};
   if (r.crash) {
     j["crash"] = nlohmann::json{
@@ -139,6 +141,8 @@ nlohmann::json to_json(const SessionRecord& r) {
 
 std::optional<std::string> explanation(const nlohmann::json& record) {
   if (!record.is_object() || record.value("explained", true)) return std::nullopt;
+  // An error as the game was closing, its window already gone: kept quietly, never shown (O115).
+  if (record.value("after_window", false)) return std::nullopt;
   const std::string kind = record.value("kind", std::string{});
   const auto code = record.value("exit_code", std::uint32_t{0});
   if (kind == "crash") {
@@ -239,6 +243,9 @@ Tally tally(std::span<const RunResult> runs) noexcept {
     if (r.end == EndKind::Crash) ++t.crashes;
     if (r.record_kept) ++t.records;
     if (r.crash_filter) ++t.filter_records;
+    if (r.report) ++t.reports;
+    if (r.waits != "none") ++t.waiting;
+    if (!r.table_ok) ++t.table_failed;
   }
   return t;
 }
@@ -247,7 +254,7 @@ bool passed(w::Spike spike, const Tally& t) noexcept {
   if (t.runs == 0) return false;
   switch (spike) {
     case w::Spike::S0a:
-      return t.ready + t.banner + t.inert == t.runs && t.crashes == 0;
+      return t.ready + t.banner + t.inert == t.runs && t.crashes == 0 && t.table_failed == 0;
     case w::Spike::S0dCrash:
       return t.records == t.runs && t.crashes == t.runs;
     case w::Spike::S0b:
@@ -263,7 +270,7 @@ bool passed(w::Spike spike, const Tally& t) noexcept {
 }
 
 nlohmann::json to_json(const RunResult& r, w::Spike spike) {
-  return nlohmann::json{{"spike", w::to_string(spike)},
+  nlohmann::json j{{"spike", w::to_string(spike)},
                         {"run", r.run},
                         {"mode", r.mode.empty() ? std::string("unknown") : r.mode},
                         {"outcome", to_string(r.outcome)},
@@ -273,7 +280,16 @@ nlohmann::json to_json(const RunResult& r, w::Spike spike) {
                         {"record_kept", r.record_kept},
                         {"crash_filter", r.crash_filter},
                         {"run_ms", r.run_ms},
-                        {"connections_max", r.connections_max}};
+                        {"connections_max", r.connections_max},
+                        {"panel", r.panel}};
+  if (r.folder != 0) {
+    // An S0 run's or an observer's folder, spikes\<word>-<folder>; for an S0 run, what eldennet.dll's report said.
+    j["folder"] = r.folder;
+    j["report"] = r.report;
+    j["waits"] = r.waits;
+    j["table_ok"] = r.table_ok;
+  }
+  return j;
 }
 
 nlohmann::json to_json(const Tally& t, w::Spike spike) {
@@ -292,16 +308,19 @@ nlohmann::json to_json(const Tally& t, w::Spike spike) {
                         {"crashes", t.crashes},
                         {"records", t.records},
                         {"filter_records", t.filter_records},
+                        {"reports", t.reports},
+                        {"waiting", t.waiting},
+                        {"table_failed", t.table_failed},
                         {"passed", passed(spike, t)}};
 }
 
 std::string tally_line(const Tally& t) {
-  char b[320];
+  char b[384];
   std::snprintf(b, sizeof b,
                 "runs=%u ready=%u banner=%u inert=%u exit=%u game_ended=%u timeout=%u no_dll=%u start_failed=%u "
-                "inject_failed=%u crashes=%u records=%u filter_records=%u",
+                "inject_failed=%u crashes=%u records=%u filter_records=%u reports=%u waiting=%u table_failed=%u",
                 t.runs, t.ready, t.banner, t.inert, t.exit, t.game_ended, t.timeout, t.no_dll, t.start_failed,
-                t.inject_failed, t.crashes, t.records, t.filter_records);
+                t.inject_failed, t.crashes, t.records, t.filter_records, t.reports, t.waiting, t.table_failed);
   return b;
 }
 

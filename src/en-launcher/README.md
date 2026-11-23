@@ -34,6 +34,7 @@ development and tests:
   --inject-at suspended|window|title  --title-wait S  --also PATH
   --appid-method file|env  --remove-after window|exit|never
   --console  --read  --spike s0a|s0b|s0c|s0d|s0d-crash|s0e|s0e_alone|s4 [--runs N] [--run-timeout S]
+  [--spike-pace-s S]
   --no-dialogs [--yes]  --no-steam-check  --gal DIR  --steam DIR  --appdata DIR
 ```
 
@@ -173,16 +174,41 @@ lint=clean|refused|missing`, and says `reports_clean`, `reports_refused` or `rep
 `--spike` tells EldenNet the spike (in the block) and keeps a numbers-only log in `%APPDATA%\EldenNet\spikes\`: a JSON
 line per run and the tally.
 
+Since 2026-11-23 (the table-based start, DESIGN §16.1; roadmap S10.1.b; `s0.hpp`) every S0 run has a folder of its own
+too, `spikes\<word>-<n>`, named in the game's environment as below, where eldennet.dll writes its report of the run,
+`eldennet-spike.json` (numbers and fixed words: how T1's start ended and what it waited for, the build's table checked
+at the start and again, S0-D's forced faults, the reader's counts). Once T1 has stopped the launcher reads it
+(`s0 report=read state=… waits=… table=… refused=… changed=…`), tells the owner in plain words what the start did
+(`EldenNet S0-B: …`) and, when it stopped short of its reading for want of something, why ("The start's layout is not
+complete yet: S0-B waits for it."): that is never counted against a spike. The run's line in the spike log keeps its
+folder, whether the report was read, what it waited for and whether its table passed. The tester's panel (above, as
+`--read` has it) lists the S0 kind's own tasks for the run (`s0_tasks`; Lodestar's `read_tasks` stays the read
+round's): S0-B's two hours are a Wait counted down, which the owner may cut short by quitting; when S0-B's start waits,
+its list ends at quitting the game. `--spike-pace-s S` (tests) paces them.
+
 - `s0a --runs N`: each run starts and injects (as `--inject-at` says), waits for T1 to stop (Ready, a banner, inert)
   or `--run-timeout` (180 s), then closes the game (`WM_CLOSE`, then after 10 s `TerminateProcess` with "ENLC").
-  It passes when every run reached Ready or L1 and none crashed.
-- `s0d-crash --runs N`: at Ready it asks EldenNet for a crash (a probe build's) and waits for it; it passes when every
-  run's crash was recorded.
+  It passes when every run reached Ready or L1, none crashed, and every run whose report holds a table had it pass
+  its checks at the start and again.
+- `s0d-crash --runs N`: once T1 has stopped where T6 runs (Ready, or a banner or inert when the start stopped short of
+  its reading) it asks EldenNet for a crash (a probe build's) and waits for it; it passes when every run's crash was
+  recorded.
 - `s0b`, `s0c`, `s0d`: one watched session; `s0c` counts the game's TCP connections to anything but this PC every 2 s
   (the most at once; no address is kept). They pass when the session did not crash.
+- At the end, the tally in plain words (`s0_end_text`); `eldennet-engine spike-report` gives the spike's verdict
+  (src/en-tools/README.md).
 - `s0e`, `s0e_alone`, `s4`: the runs of GraceUI's observer (S0-E's present-hook half and S4, input; roadmap S10.1.g,
   S11.1.a), whose measurements are GraceUI's (grace-spike.dll's report): one watched session each, passing when it
-  did not crash. Before the game starts the launcher makes the run's folder, `spikes\<word>-<n>` (n one more than the
+  did not crash. Since 2026-11-23 (the owner's request) the panel lists each run's steps too (`observer_tasks.hpp`:
+  A1 to A4, A0 with no Round task since it loads no eldennet.dll, and B), every task of the tester's a Mark.
+
+In a spike's run the panel's confirmations go on after the Mark's hand-over: once EldenNet's own Mark (GraceUI's hotkey
+on Pause) holds the ring, the launcher has no key, so each new Mark in the ring confirms the task under way (`task …
+by=mark`) and the launcher stamps none; a press already queued at the hand-over confirms as a press does. (The read
+round keeps its own way.) Whether the panel was shown, a window always on top of the game's that can change how frames
+reach the screen, is in the run's line (`panel`), the session's record and the run's folder, `launcher-run.json`
+(`panel`, the tasks and how many were done, the Marks), so that a spike's frame counts are read knowing it. The panel
+cannot show over a game in exclusive full screen: each README asks for windowed or borderless windowed. Before the game starts the launcher makes the run's folder, `spikes\<word>-<n>` (n one more than the
   word's highest there, from 1; `--appdata` moves it with everything else; the name is the word and the number,
   nothing else), and names it in the game's environment as `ELDENNET_SPIKE_DIR`, where the observer writes its report
   (`spike_dir spike=<word> n=<n> made=1`, never the path). With `s0e` and `s4` eldennet.dll stops at Register and

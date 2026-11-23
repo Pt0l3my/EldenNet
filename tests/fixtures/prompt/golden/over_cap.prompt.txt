@@ -1,0 +1,2 @@
+# prompt golden: over_cap (format 1)
+# refused: OverCap: persona ci_reedcutter: about 5646 tokens after every trim

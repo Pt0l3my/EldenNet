@@ -44,8 +44,9 @@ T1 then runs, each state logged and written to the watch block for the launcher'
 8. **Connect** (`overlay.cpp`, en-overlay): GraceUI found by graceui-sys's look (its module name, an export scan, then
    `GraceUI\graceui.dll` in the game's folder, which it loads), again every 250 ms for at most 30 s, but at once when no
    copy is installed there and none is loaded (graceui-sys's own rule, `GRACEUI_SYS_STOP_IF_ABSENT`, GraceUI D164); then
-   `connect` as `eldennet`, with its floor (GraceUI 0.2.12) and the caps it uses, and, connected, the F11 view and the
-   Mark's hotkey (below). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
+   `connect` as `eldennet`, with its floor (GraceUI 0.2.22) and the caps it uses, and, connected, the F11 view, the
+   Mark's hotkey and, on the main path, the conversation's surfaces with GraceUI's own fonts read from its folder
+   (below; `surfaces state=… faces=… talk=… chord=… wake=…`). One log line, `connect ok=… outcome=… how=… looks=… installed=… graceui=… view=… mark=…
    mark_bound=… world=…` (`view=unbound` when F11 was taken first, with a line `view hotkey=unbound` beside it); a
    failed connect (absent, too old, a duplicate id, inactive, refused) leaves EldenNet headless, nothing drawn (ARCH
    §10.3), and the start goes on. `overlay.connect = false` skips it (`connect skipped=1 why=off`).
@@ -76,6 +77,21 @@ The watch block's states for this start, `reader` and `first_reading`, were appe
 and `first_tick` keep their numbers there for the game's task, which nothing enters now (R1, retired 2026-11-22,
 O106).
 
+**An S0 run** (the launcher's `--spike s0a`, `s0b`, `s0c`, `s0d` or `s0d-crash`; DESIGN §16.1 on the table-based start,
+roadmap S10.1.b; `spike.cpp`, en_shell's `spikerun.hpp`) is this start, run as far as gal/'s layout allows, with a
+report beside it: at Safety the run's folder (`ELDENNET_SPIKE_DIR`, accepted only as the launcher's
+`<data>\spikes\<word>-<n>`), after Discover its counts and the build's table as checked, before Reader (S0-D, a probe
+build) the trial, 20 guarded copies forced to fault by each copy primitive (the SEH copy at a page of our own with no
+access, ReadProcessMemory at the null page), and the group the reader's faults go into (settings.toml's probe table
+where it names one, else the first optional group this start reads, every read of it from 2 s into the world); at the
+terminal state, before T1 says so, the table checked again over the image as it is then (`spike_stopped … rechecked=…
+changed=…`) and `eldennet-spike.json` written, which T6 writes again every 10 s with the reader's counts (snapshots,
+torn, held, unconfirmed, the faults by kind, the groups tripped, the p99). A start that stops short of its reading
+says why (`waits`: layout, files, build, anticheat, not_started). The S0 sessions (`s0b`, `s0c`, `s0d`) record
+whatever settings.toml says. A discovery refused only for a required static that has no place in the table and no way
+to be found, as the real game's `game_state` today (WHY§459), stops at the banner with the detail `layout`, and an S0
+run then checks the table with one pass that refuses nothing for such a static (en-gal's `partial`).
+
 A probe build with `probe = { round = "read" }`, or asked by the launcher's `--read`, runs the read-only round after
 Connect instead (below), but never in a run of GraceUI's observer: there settings.toml's round is set aside
 (`probe round=read skipped=1 why=spike`) and the start stops at Reader, and the launcher refuses `--read` with those
@@ -90,8 +106,10 @@ spikes.
   and S0-D's fault injection) through `Io`, the task's TaskIo:
   C1 is a `SnapSlot` (two preallocated snapshots; the newest wins and an overwrite marks the next `gap`), C2, C4 and C5
   are SPSC rings of 64. Nothing on it waits or allocates (R6); the probe build counts any allocation there.
-- **T6, the core**, waits on one wake signal (or 100 ms), then drains T1's banners, C2's lifecycle messages and C1's
-  newest snapshot, in that order, and steps en-core's slice on each and on a 100 ms tick. Once T1 has connected to
+- **T6, the core**, waits on one wake signal and, once connected, GraceUI's wait handle (ABI 1.5; or 100 ms), then
+  loads the conversation's content once T1 has read it, drains T1's banners, C2's lifecycle messages and C1's newest
+  snapshot, in that order, tells the core the model client's health when it changes and hands it the client's events,
+  and steps en-core's slice on each and on a 100 ms tick. Once T1 has connected to
   GraceUI, T6 alone calls it, after each wake (`overlay_tick`, below). C14's atomics (anti-cheat,
   `ersc.dll`) join each snapshot's session before the core judges it. It sends the core's commands on C4 (an outbox
   past a full ring), frees retired watch lists (C5), keeps the status block (the core's phase, level and gate flags,
@@ -166,6 +184,38 @@ After each wake, once T1 has published the connection:
   needs it (`ai_service ok=1 workers=…`) and tells the core's gate at each wake; its notify sets T6's wake. Each run's
   end is one line of words and numbers (`selftest result=passed verdict=quick … first_token_ms=… tps=…`,
   `models_list providers=… passed=…`). en-llm's own log lines are not taken (a server's message could reach them).
+- **The first conversation** (`conversation.cpp`, `ai.cpp`, `overlay.cpp`; WHY§364, part C): T1, on the main path,
+  reads the overrides folder (`%APPDATA%\EldenNet\overrides\`, DESIGN §11.4: every `.toml`, `.md` and `.j2`, each
+  within its cap) and
+  the realm, the game's; `ELDENNET_TEST_REALM=eval` in the environment is the tests' switch, which a probe build alone
+  takes and the release DLL refuses (`realm asked=eval accepted=0`), so a test persona never resolves in a player's
+  game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=… bound=…
+  warnings=… disabled=…`, the last the personas the overrides' `disable.toml` turned off, ARCH §11.6); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
+  line in fixed words, never the text (NPC §4.7). Each step's
+  requests go to en-llm's handle (made at the first that needs one), its cancels cancel them, and the handle's events
+  for the conversation's ids go back to the core; its health (the dialogue slot usable) is the core's NetHealth. After
+  the step, `poll`'s events of the surfaces (the talk key, Tab, the box's typing) go to the core in the same wake and
+  the newest UiModel is drawn (en-overlay's chat.hpp); what that raises (PageShown, Close) goes to the core at once.
+  The log holds the conversation by kinds and numbers alone: `chat what=open_key|opened|submit|page_shown|close|skip`
+  (`opened`: the talk key's poll and the box's first submit, `ms` between), `commit kind=… conv=… reply=… page=…
+  chars=…`, `llm what=submit|cancel … id=…`; never the chat's or the model's text.
+- **The profile editor** (`profiles.cpp`, `logger.cpp`, `ai.cpp`; S7.2.b, NPC §4.7): once the content loads, T6 keeps
+  the files it was loaded from and the realm, and works out Characters › Named NPCs' rows from the loaded personas (a
+  test persona only in the tests' realm), each with the player's own layer file as it stands (read with en-core's
+  `read_layer` and checked with `check_layer`: saved, with warnings, refused, a newer file, or the shipped profile
+  changed since). The editor's commands, as the space hands them over: a check runs en-core's `check_layer` over the
+  kept files with the doc's layer in place and is answered at once; a save on a revision that is not the file's is a
+  `conflict`; one the check refuses is `invalid_value` with its messages; otherwise T11 writes it (C17's eight at most
+  waiting, else `busy`) beside the file and renames it over it, the previous kept as `<file>.bak`, and the save is
+  answered when it is written, naming the same row (D218). A reset moves the file to the `.bak`; a restore reads the
+  `.bak`, checks it and writes it at the next revision. After a write the content is loaded again once no
+  conversation is open, so the next line takes it. A draft, on the player's click only, one at a time, 20 a session,
+  while the gate allows the network and the draft slot (or the dialogue slot it borrows) has a model, goes to en-llm's
+  handle on the `draft` slot as the player's own request (ids from `kDraftRequests`); its reply is read by en-core's
+  `read_draft` with the pack's lexicon and answered as proposals, and a draft whose page every view has left is
+  cancelled. A save that takes a draft's proposal marks the layer `drafted = "assisted"` (PL12). The log holds
+  `profile what=check|save|reset|restore|draft target=… rev=… result=…`, `profile_file op=… ok=… bytes=…` and
+  `content_load why=profile …`: never the player's text, notes or the draft.
 - GraceUI gone (`poll` answers not connected or inactive): `overlay lost=1`, and nothing more is called.
 
 ## The watch block and the crash filter (O71, O90)
@@ -185,6 +235,8 @@ ours.
 ```toml
 schema = 2
 enabled = true                                  # false: Off, T1 ends at once
+features = { chat = true, self_awareness = true }   # and ARCH §11.5's seven others; v0.2 acts on these two
+range = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }
 debug = { panel = false, record_sessions = false, log_level = "info" }  # panel: F11's view; log_level: error .. debug
 overlay = { connect = true }                    # GraceUI's connect (part 12); false: headless, Connect skipped
 gal = { copy = "seh" }                          # or "rpm": ReadProcessMemory on our own process (S0-D)
@@ -194,9 +246,15 @@ probe = { round = "read", settle_s = 10,
 ```
 
 Strict: a key no schema defines, a value of the wrong type or out of range refuses the whole file, and the defaults
-are used, with each problem's place in the log (never a value). ARCH §11.5's tables for later increments (`features`,
-`autonomy`, `range`, `pacing`, `ui`, `pools`, `budget`, `safety`, `hotkeys`, `augur`, `reactions`, `allow`) are accepted
-as tables and not read yet. `ELDENNET_APPDATA`, in the environment, stands for `%APPDATA%` (development and the tests,
+are used, with each problem's place in the log (never a value). `features` (ARCH §11.5's nine switches) and `range`
+(`talk_m` 3 to 16, `hear_m` 8 to 30, `fight_m` 10 to 40, a whole number or not; en-core's `behaviour.hpp`) are read
+since the first conversation's polish (WHY§476): T6 hands them to `Core::set_behaviour` as it makes the core (`behaviour
+from=settings ok=1`), and a pages' change of one of their keys at the next step, on the behaviour the core holds
+(`setting key=… effect=next_step`, then `behaviour from=pages ok=…`), written to settings.toml with the session's other
+edits; a value the core would refuse is neither applied nor written (`effect=refused`), and one the core refuses keeps
+the old (`ok=0 key=…`): the log names the key, never its value. No page offers these keys yet. ARCH §11.5's tables for
+later increments (`autonomy`, `pacing`, `ui`, `pools`, `budget`, `safety`, `hotkeys`, `augur`, `reactions`, `allow`)
+are accepted as tables and not read yet. `ELDENNET_APPDATA`, in the environment, stands for `%APPDATA%` (development and the tests,
 as the launcher's `--appdata` does).
 
 ## The recorder (ARCH §7.5, numbers only)
@@ -265,10 +323,12 @@ no task of ours.
 ## Tests
 
 `en_shell_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): settings (the defaults, what
-v0.1 reads, the later tables, each refusal without its value, the size cap, the probe table only in a probe build), the
+v0.1 reads, `features` and `range` within the core's bounds, a pages' change of a behaviour key, the later tables, each
+refusal without its value, the size cap, the probe table only in a probe build), the
 log lines (scrubbing a path and a name, a cut line), the rings (order and capacity, C1's newest and gap, C1 under two
-threads, the log's ring from four threads), the safety checks' names, and every kind of recording line linting clean
-alone and as a file with no name, text or param value in it.
+threads, the log's ring from four threads), the safety checks' names, every kind of recording line linting clean
+alone and as a file with no name, text or param value in it, and an S0 run's report, ready or waiting, linting clean
+with its words.
 
 In the clang-cl build, `eldennet_dll_checks` (`tests/dll_checks.py`) runs ARCH §12.1's greps on `src/eldennet`
 (DllMain's body is the load contract's and calls nothing else; no detach branch; every `WINAPI`, `CALLBACK` and

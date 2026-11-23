@@ -86,7 +86,8 @@ Fn export_of(HMODULE m, const char* name) {
 
 // The newest presented frame, read back once the GPU is done with it (GraceUI's drawing included): the pixels within
 // the rectangle that are within 3 of the colour on each channel, and the rectangle's area.
-bool probe(const std::uint32_t rect[4], const std::uint32_t colour[3], std::uint64_t& matching, std::uint64_t& area) {
+bool probe(const std::uint32_t rect[4], const std::uint32_t colour[3], int tolerance, std::uint64_t& matching,
+           std::uint64_t& area) {
   if (!g_p.on) return false;
   wait_idle();
   ID3D12Resource* src = g_p.buffers[g_p.last];
@@ -125,7 +126,7 @@ bool probe(const std::uint32_t rect[4], const std::uint32_t colour[3], std::uint
       bool close = true;
       for (int c = 0; c < 3; ++c) {
         const int d = static_cast<int>(px[c]) - static_cast<int>(colour[c]);
-        close = close && d >= -3 && d <= 3;
+        close = close && d >= -tolerance && d <= tolerance;
       }
       matching += close ? 1 : 0;
     }
@@ -267,13 +268,48 @@ void press_key_into(HWND window, unsigned vk, unsigned scan) {
   in[1] = in[0];
   in[1].ki.dwFlags = KEYEVENTF_KEYUP;
   const UINT down = SendInput(1, &in[0], sizeof(INPUT));
-  Sleep(60);
-  while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
-    TranslateMessage(&msg);
-    DispatchMessageW(&msg);
-  }
+  // When the key went down, on the clock EldenNet's log uses (QPC in milliseconds, en-proto's watch::mono_ms), for
+  // the talk key's latency to the chat box's first frame (NPC §5.1).
+  LARGE_INTEGER f{}, c{};
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&c);
+  const auto counter = static_cast<unsigned long long>(c.QuadPart);
+  const auto frequency = static_cast<unsigned long long>(f.QuadPart);
+  status("key_down key=0x%02X qpc_ms=%llu", vk,
+         frequency == 0 ? 0ull : (counter / frequency) * 1000ull + (counter % frequency) * 1000ull / frequency);
+  // The key is held 60 ms, its messages taken as they come (a game's loop pumps them every frame).
+  const ULONGLONG held = GetTickCount64() + 60;
+  do {
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+      TranslateMessage(&msg);
+      DispatchMessageW(&msg);
+    }
+    Sleep(1);
+  } while (GetTickCount64() < held);
   const UINT up = SendInput(1, &in[1], sizeof(INPUT));
   status("pressed key=0x%02X sent=%u focus=%d", vk, down + up, GetFocus() == window ? 1 : 0);
+}
+
+void type_into(HWND window, const std::wstring& text) {
+  if (GetForegroundWindow() != window) SetForegroundWindow(window);
+  if (GetFocus() != window) SetFocus(window);
+  MSG msg;
+  UINT sent = 0;
+  for (const wchar_t ch : text) {
+    INPUT in[2] = {};
+    in[0].type = INPUT_KEYBOARD;
+    in[0].ki.wScan = static_cast<WORD>(ch);
+    in[0].ki.dwFlags = KEYEVENTF_UNICODE;
+    in[1] = in[0];
+    in[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+    sent += SendInput(2, in, sizeof(INPUT));
+    Sleep(25);
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+      TranslateMessage(&msg);
+      DispatchMessageW(&msg);
+    }
+  }
+  status("typed chars=%u sent=%u focus=%d", static_cast<unsigned>(text.size()), sent, GetFocus() == window ? 1 : 0);
 }
 
 void grace_take_pause() {
@@ -295,6 +331,16 @@ void grace_take_pause() {
                                    ? api.register_hotkey(answer.consumer, "pause", "Pause", VK_PAUSE, 0, id)
                                    : GRACEUI_NOT_CONNECTED;
   status("grace_other found=1 connect=%u hotkey=%u id=%u", connected, hotkey, id);
+}
+
+void grace_lan() {
+  // Only the GraceUI already loaded (the launcher's --also), as grace_take_pause: its server starts once a mod registers
+  // pages, after this, and takes these addresses then.
+  HMODULE grace = GetModuleHandleW(L"graceui.dll");
+  const auto set = export_of<void (*)(const uint8_t*, uint32_t)>(grace, "GraceUI_Test_SetNetworkAddresses");
+  static constexpr uint8_t kHome[4] = {127, 0, 0, 2};
+  if (set != nullptr) set(kHome, 1);
+  status("grace_lan found=%d set=%d", grace != nullptr ? 1 : 0, set != nullptr ? 1 : 0);
 }
 
 void grace_report(std::uint64_t frame) {
@@ -379,13 +425,21 @@ void grace_report(std::uint64_t frame) {
     }
     std::snprintf(shows_part, sizeof shows_part, " shows=%s", bits.c_str());
   }
+  // The pairing sheet's code while one shows (G9; GraceUI 0.2.25's GraceUI_Test_GetPairingCode): six digits.
+  const auto pairing_code = export_of<uint32_t (*)(char*, uint32_t)>(grace, "GraceUI_Test_GetPairingCode");
+  char pairing_part[24] = "";
+  char code[16] = "";
+  if (pairing_code != nullptr && pairing_code(code, sizeof code) == 6) {
+    std::snprintf(pairing_part, sizeof pairing_part, " pairing=%s", code);
+  }
   char tail[240] = "";
   const Options& o = options();
   std::size_t at = 0;
   for (std::size_t i = 0; i < o.grace_probes.size() && at < sizeof tail; ++i) {
     std::uint64_t matching = 0;
     std::uint64_t area = 0;
-    if (!probe(o.grace_probes[i].rect, o.grace_probes[i].colour, matching, area)) continue;
+    const Options::Probe& pr = o.grace_probes[i];
+    if (!probe(pr.rect, pr.colour, static_cast<int>(pr.tolerance), matching, area)) continue;
     const std::string n = i == 0 ? "" : std::to_string(i + 1);  // probe, probe2, probe3
     const int k = std::snprintf(tail + at, sizeof tail - at, " probe%s=%llu probe%s_area=%llu", n.c_str(),
                                 static_cast<unsigned long long>(matching), n.c_str(),
@@ -394,12 +448,15 @@ void grace_report(std::uint64_t frame) {
   }
   status("grace frame=%llu found=1 host=%u notice_only=%u consumers=%u eldennet=%d caps=%s notices=%u banner=%s "
          "banner_tone=%u badge=%s panels=%u shown=%u submitted=%llu refused=%llu panel_frames=%llu textures=%u "
-         "world=0x%X providers=%u window_filter=%u presents=%llu%s%s%s%s",
+         "world=0x%X providers=%u window_filter=%u presents=%llu holder=%u holder_kind=%u closes=%u close_reason=%u"
+         " game_keys=%u game_chars=%u%s%s%s%s%s",
          static_cast<unsigned long long>(frame), st.host, st.notice_only, st.consumers, owner != 0 ? 1 : 0,
          caps.c_str(), st.notices, banner.c_str(), banner_tone, badge.c_str(), st.panels, st.panels_shown,
          static_cast<unsigned long long>(st.lists_submitted), static_cast<unsigned long long>(st.lists_refused),
          static_cast<unsigned long long>(st.panel_frames), st.textures, st.world_flags, st.providers,
-         input.window_filter, static_cast<unsigned long long>(st.presents), menu_part, server_part, shows_part, tail);
+         input.window_filter, static_cast<unsigned long long>(st.presents),
+         input.holder_owner == 0 ? 0u : input.holder_owner == owner ? 2u : 1u, input.holder_kind, input.closes,
+         input.last_close_reason, game_keys(), game_chars(), menu_part, server_part, shows_part, pairing_part, tail);
 }
 
 }  // namespace fakegame

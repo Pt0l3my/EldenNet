@@ -4,7 +4,11 @@
 #include <new>
 #include <string>
 
+#include <fstream>
+
 #include "en/launcher/appid.hpp"
+#include "en/launcher/observer_tasks.hpp"
+#include "en/launcher/s0.hpp"
 #include "win.hpp"
 
 namespace en::launcher::win {
@@ -16,6 +20,16 @@ namespace {
 constexpr int kMarkHotkey = 0x454E;  // the Mark's hotkey id ("EN")
 
 std::wstring object_name(std::wstring_view prefix, DWORD pid) { return std::wstring(prefix) + std::to_wstring(pid); }
+
+// eldennet.dll's report of an S0 run, from the run's folder (s0.hpp), or nothing.
+std::optional<S0Facts> read_report(const fs::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return std::nullopt;
+  std::string text(kMaxSpikeReportBytes + 1, '\0');
+  in.read(text.data(), static_cast<std::streamsize>(text.size()));
+  text.resize(static_cast<std::size_t>(in.gcount()));
+  return read_s0_facts(text);
+}
 
 }  // namespace
 
@@ -106,6 +120,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   std::uint64_t last_print = 0;
   std::uint64_t last_connections = 0;
   bool window_seen = false;
+  std::uint64_t window_last = 0;  // the last poll that found the game's window (O115)
   bool appid_done = !plan.remove_appid || *plan.remove_appid != RemoveAfter::Window || !plan.appid;
   bool crash_requested = false;
   std::uint64_t crash_deadline = 0;
@@ -120,23 +135,32 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     console_line(read_text(step, named, of), "EldenNet read: ");
   };
   if (plan.read) read_tell(ReadStep::Asked, 0, 0);
-  // The tester's tasks (--read): the list, its panel beside the game, and a line for each task as it is done. The
-  // Pause key (or a click on the panel's button) confirms the task under way; a marked task's confirmation stamps a
-  // Mark, which the round reads.
+  // The tester's tasks (--read; an S0 run's, s0.hpp; a run of GraceUI's observer, observer_tasks.hpp): the list, its
+  // panel beside the game, and a line for each task as it is done. The Pause key (or a click on the panel's button)
+  // confirms the task under way; a marked task's confirmation stamps a Mark, which the round reads and a spike's files
+  // keep. Once the ring is EldenNet's (its own Mark on Pause, a GraceUI hotkey), the launcher has no key: in a spike's
+  // run each new Mark in the ring confirms the task under way instead, and the launcher stamps none.
+  const bool s0 = s0_run(plan.spike) && plan.s0_report.has_value();
+  const bool observer = w::observer_run(plan.spike) && plan.run_dir.has_value();
+  const std::string who = plan.read ? std::string("EldenNet read: ")
+                          : s0      ? s0_who(plan.spike)
+                                    : observer_who(plan.spike);
   std::optional<TaskList> tasks;
   TaskPanel panel;
   bool panel_placed = false;
   std::string panel_footer;
+  const auto tell_task = [&](std::uint64_t at) {
+    if (tasks->finished()) return;
+    const TaskRow row = tasks->rows(at)[tasks->current()];
+    console_line("Task " + std::to_string(tasks->current() + 1) + " of " + std::to_string(tasks->size()) + ": " +
+                     row.title + ". " + row.detail,
+                 who);
+  };
   const auto task_done = [&](const TaskList::Change& c, const char* by, std::uint64_t at) {
     if (!c.changed) return;
     say("task n=%zu of=%zu by=%s mark=%d", c.task + 1, tasks->size(), by, c.mark ? 1 : 0);
     if (c.mark && ring) own_mark(at);
-    if (!tasks->finished()) {
-      const TaskRow row = tasks->rows(at)[tasks->current()];
-      console_line("Task " + std::to_string(tasks->current() + 1) + " of " + std::to_string(tasks->size()) + ": " +
-                       row.title + ". " + row.detail,
-                   "EldenNet read: ");
-    }
+    tell_task(at);
   };
   if (plan.read) {
     tasks.emplace(read_tasks());
@@ -144,7 +168,20 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     tasks->start(mono_ms());
     const bool opened = panel.open(nullptr);
     say("tasks count=%zu panel=%d pace_s=%u", tasks->size(), opened ? 1 : 0, plan.read_pace_s);
+  } else if (s0 || observer) {
+    // The S0 kind's own list (s0.hpp), or the observer's runs' (observer_tasks.hpp); Lodestar's read round keeps its
+    // list.
+    if (s0) console_line(s0_begin_text(plan.spike, plan.run, plan.runs), who);
+    tasks.emplace(s0 ? s0_tasks(plan.spike, plan.run, plan.runs) : observer_tasks(plan.spike));
+    tasks->set_pace(plan.spike_pace_s);
+    tasks->start(mono_ms());
+    const bool opened = panel.open(nullptr);
+    say("tasks count=%zu panel=%d pace_s=%u spike=%s run=%u of=%u", tasks->size(), opened ? 1 : 0, plan.spike_pace_s,
+        w::to_string(plan.spike), plan.run, plan.runs);
+    tell_task(mono_ms());
   }
+  r.panel_shown = panel.is_open();
+  bool s0_stopped = false;  // T1's start has stopped, and eldennet.dll's report of it was looked for
   const auto take_modules = [&](bool at_crash) {
     auto list = list_modules(pid);
     if (list.empty()) return;
@@ -199,7 +236,7 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         if (const HWND game = main_window(pid)) {
           panel_placed = true;
           panel.close();
-          (void)panel.open(game);
+          r.panel_shown = panel.open(game) || r.panel_shown;
         }
       }
       panel.show(tasks->rows(now), panel_footer, hotkey);
@@ -212,7 +249,18 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         UnregisterHotKey(nullptr, kMarkHotkey);
         hotkey = false;
         while (PeekMessageW(&msg, nullptr, WM_HOTKEY, WM_HOTKEY, PM_REMOVE)) {
-          if (msg.wParam == kMarkHotkey) own_mark(now);
+          if (msg.wParam != kMarkHotkey) continue;
+          if (tasks && !plan.read) {
+            // A spike's tasks: the press confirms the task under way, as any press of the key does.
+            const TaskList::Change c = tasks->confirm(now);
+            if (c.changed) {
+              task_done(c, "key", now);
+            } else {
+              say("task key=1 confirmed=0 current=%zu", tasks->current() + 1);
+            }
+          } else {
+            own_mark(now);
+          }
         }
       }
       w::launcher_hands_over(b.marks);
@@ -225,12 +273,24 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         const std::uint64_t at = b.marks.mono_ms[(marks_seen - 1) % w::kMarkRing].load(std::memory_order_relaxed);
         r.record.marks.push_back(at);
         say("mark n=%u mono_ms=%llu source=eldennet", marks_seen, static_cast<unsigned long long>(at));
+        if (tasks && !plan.read) {
+          // The owner's Pause, now EldenNet's Mark: it confirms the task under way (the ring already holds the Mark).
+          const TaskList::Change c = tasks->confirm(now);
+          if (c.changed) {
+            task_done(c, "mark", now);
+          } else {
+            say("task mark=%u confirmed=0 current=%zu", marks_seen, tasks->current() + 1);
+          }
+        }
       }
     }
     if (!window_seen && main_window(pid) != nullptr) {
       window_seen = true;
+      window_last = now;
       say("window after_ms=%llu", static_cast<unsigned long long>(now - t0));
       take_modules(false);
+    } else if (window_seen && main_window(pid) != nullptr) {
+      window_last = now;
     }
     if (!appid_done && (window_seen || now - t0 >= 120000)) {
       appid_done = true;
@@ -257,6 +317,36 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
         if (*step == ReadStep::Refused || *step == ReadStep::Stopped) panel_footer = read_text(*step);
       }
     }
+    if (s0 && !s0_stopped && w::terminal(st.init)) {
+      // The start has stopped (Ready, a banner, inert): eldennet.dll wrote its report before it said so. What it did,
+      // in plain words, and what waits when it stopped short of its reading for want of something; S0-B's list then
+      // ends with quitting the game, every other spike's steps stay. The run's own task (the title's wait) is done.
+      s0_stopped = true;
+      r.s0 = read_report(*plan.s0_report);
+      if (!r.s0) {
+        say("s0 report=missing");
+        console_line(s0_missing_text(plan.spike), who);
+      } else {
+        const S0Facts& f = *r.s0;
+        say("s0 report=read state=%s waits=%s table=%u refused=%u rechecked=%d again_refused=%u changed=%u "
+            "getter_calls=%u forced=%u caught=%u inject=%s",
+            f.state.c_str(), f.waits.c_str(), f.table_items, f.table_refused, f.table_rechecked ? 1 : 0,
+            f.table_again_refused, f.table_changed, f.getter_calls, f.forced, f.caught, f.inject_group.c_str());
+        console_line(s0_stopped_text(plan.spike, f), who);
+        if (f.waits != "none") {
+          panel_footer = s0_waits_text(plan.spike, f);
+          console_line(panel_footer, who);
+          if (auto rest = s0_waiting_tasks(plan.spike, f); !rest.empty() && tasks) {
+            tasks.emplace(std::move(rest));
+            tasks->set_pace(plan.spike_pace_s);
+            tasks->start(now);
+            say("tasks count=%zu waits=%s", tasks->size(), f.waits.c_str());
+            tell_task(now);
+          }
+        }
+      }
+      if (tasks) task_done(tasks->round_step(now), "round", now);
+    }
     if (plan.console && now - last_print >= 1000 &&
         (st.snapshots != printed.snapshots || st.init != printed.init || st.flags != printed.flags ||
          st.faults != printed.faults || now - last_print >= 5000)) {
@@ -273,7 +363,9 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
       if (crash_requested) {
         if (now > crash_deadline) close_now("no_crash");
       } else if (w::terminal(st.init)) {
-        if (plan.crash_when_ready && st.init == w::InitState::Ready) {
+        // S0-D's crash once T1 has stopped where T6, which honours it, runs: at Ready, or at a banner or inert when
+        // the start stopped short of its reading (the start's layout not complete yet).
+        if (plan.crash_when_ready && st.init != w::InitState::Exit) {
           b.control.crash_request.store(1, std::memory_order_release);
           crash_requested = true;
           crash_deadline = now + 30000;
@@ -298,6 +390,28 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
     task_done(tasks->end(end), "end", end);  // the last task is the game's end itself
     say("tasks done=%zu of=%zu finished=%d", tasks->current(), tasks->size(), tasks->finished() ? 1 : 0);
   }
+  r.record.panel = r.panel_shown;
+  if (plan.run_dir) {
+    // The run's folder says whether the panel was shown, a window always on top of the game's, so that the spike's
+    // frame counts are read knowing it; how far the tasks went; and the game's modules as last listed (names only, no
+    // path, as a crash record keeps them), so that another program's overlay in the chain is known (WHY§515).
+    const nlohmann::json j{{"launcher_run", 1},
+                           {"spike", w::to_string(plan.spike)},
+                           {"panel", r.panel_shown},
+                           {"tasks", tasks ? tasks->size() : 0},
+                           {"tasks_done", tasks ? tasks->current() : 0},
+                           {"marks", r.record.marks.size()},
+                           {"modules", r.record.modules}};
+    std::ofstream(*plan.run_dir / L"launcher-run.json", std::ios::binary | std::ios::trunc) << j.dump(1) << "\n";
+  }
+  if (s0) {
+    // The report as T6 last wrote it, with the reader's counts (every 10 s), in place of T1's.
+    if (auto f = read_report(*plan.s0_report)) r.s0 = std::move(f);
+    if (r.s0) {
+      say("s0 end state=%s waits=%s reading=%d reading_ms=%llu", r.s0->state.c_str(), r.s0->waits.c_str(),
+          r.s0->reading ? 1 : 0, static_cast<unsigned long long>(r.s0->reading_ms));
+    }
+  }
   b.control.watcher_pid.store(0, std::memory_order_release);
   r.last_init = copy_status(b).init;
   if (!r.crash_signalled && copy_crash(b)) r.crash_signalled = true;  // written, but the event came too late
@@ -308,15 +422,17 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   r.record.kind = classify_end(code, r.crash_signalled);
   r.record.session_ms = r.ms;
   r.record.modules_age_ms = modules_at == 0 ? r.ms : end - modules_at;
+  // The game's window gone for two polls or more before the end: the player had quit and the game was closing (O115).
+  r.record.after_window = window_seen && end > window_last && end - window_last >= 400;
   if (!appid_done) say("appid removal=%s at=end", to_string(remove_if_ours(*plan.appid, plan.appid_value)));
   if (plan.remove_appid && *plan.remove_appid == RemoveAfter::Exit && plan.appid) {
     say("appid removal=%s at=exit", to_string(remove_if_ours(*plan.appid, plan.appid_value)));
   }
   say("end exit_code=0x%08X kind=%s crash_filter=%d closed=%d timed_out=%d init=%s modules=%zu at_crash=%d marks=%zu "
-      "session_ms=%llu connections_max=%u",
+      "session_ms=%llu connections_max=%u after_window=%d",
       code, to_string(r.record.kind), r.record.crash ? 1 : 0, r.closed_by_us ? 1 : 0, r.timed_out ? 1 : 0,
       w::to_string(r.last_init), r.record.modules.size(), r.record.modules_at_crash ? 1 : 0, r.record.marks.size(),
-      static_cast<unsigned long long>(r.ms), r.record.connections_max);
+      static_cast<unsigned long long>(r.ms), r.record.connections_max, r.record.after_window ? 1 : 0);
   return r;
 }
 

@@ -448,9 +448,6 @@ Environment::Environment(std::shared_ptr<const TemplateSource> source, FunctionR
                          EnvironmentOptions options)
     : core_(std::make_unique<detail::EnvironmentCore>(std::move(source), std::move(functions), options)) {}
 
-Environment::Environment(std::filesystem::path root, FunctionRegistry functions, EnvironmentOptions options)
-    : Environment(std::make_shared<const FolderSource>(std::move(root)), std::move(functions), options) {}
-
 Environment::~Environment() = default;
 Environment::Environment(Environment&&) noexcept = default;
 Environment& Environment::operator=(Environment&&) noexcept = default;

@@ -1,0 +1,17 @@
+# An overrides folder for the pilot's tests and eval (DESIGN §11.4; WHY§364 (1)): this index replaces the shipped one
+# whole. It binds the pilot to an invented character of the fake game, NpcParam row 81200, and keeps the test persona at
+# its row 81100, test_only. The pilot's flag block agrees with this folder's test catalogue (flags/catalog.toml). Every
+# number here is invented; the shipped index keeps the pilot's research leads (NPC §2.1).
+schema = 1
+
+[[persona]]
+id = "kale"
+file = "personas/kale.toml"
+flag_block = { alias = "kale", base = 990700, verified = true }
+npc_params = [ { param = 81200, form = "default", expect_name_id = 0, verified = true } ]
+
+[[persona]]
+id = "lantern_keeper"
+file = "personas/lantern_keeper.toml"
+npc_params = [ { param = 81100, form = "default", expect_name_id = 0, verified = true } ]
+test_only = true

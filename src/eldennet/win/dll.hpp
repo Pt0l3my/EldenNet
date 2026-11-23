@@ -32,10 +32,13 @@
 #include "en/gal/task.hpp"
 #include "en/proto/command.hpp"
 #include "en/proto/lifecycle.hpp"
+#include "en/proto/llm.hpp"
+#include "en/proto/ui.hpp"
 #include "en/proto/watch.hpp"
 #include "en/shell/logline.hpp"
 #include "en/shell/rings.hpp"
 #include "en/shell/settings.hpp"
+#include "en/shell/spikerun.hpp"
 
 namespace eldennet {
 
@@ -85,6 +88,26 @@ struct AiWrite {
 void set_ai_folder(const std::wstring& config) noexcept;
 // T6: queued in order; T11 makes them in that order.
 void post_ai_write(AiWrite write) noexcept;
+// One of the profile editor's file changes (profiles.cpp; NPC §4.7's save path, C17): T11 writes a player's layer
+// beside it and renames it over it, the previous version kept as <file>.bak; removes it (the file becomes the .bak); or
+// reads the .bak back. Relative paths under the overrides folder alone, never a link out of it.
+struct ProfileWrite {
+  enum class Op : std::uint8_t { Write, Remove, ReadBak };
+  Op op = Op::Write;
+  std::wstring folder;  // the overrides folder
+  std::string rel;      // "layers/persona-<id>.toml"
+  std::string text;     // Write: the file's new text
+  std::uint64_t token = 0;
+};
+struct ProfileWritten {
+  std::uint64_t token = 0;
+  bool ok = false;
+  std::string text;  // ReadBak: the .bak's text
+};
+// T6: false when eight wait already (C17's capacity: the command is answered busy).
+bool post_profile_write(ProfileWrite& write) noexcept;
+// T6: the next write T11 made; false when none waits.
+bool take_profile_written(ProfileWritten& out) noexcept;
 
 // ---- Paths and the process (platform.cpp) ----
 struct Paths {
@@ -155,6 +178,8 @@ struct Items {
 class Io;
 struct OverlayLink;  // overlay.cpp: en-overlay's connection and what T6 last showed through it
 struct AiFilesRead;  // ai.cpp: providers.toml, models.toml and secrets.toml as T1 read them, and the transport
+struct ContentRead;  // conversation.cpp: the overrides folder and the realm, as T1 read them
+struct SpikeState;   // spike.cpp: an S0 run's report, made by T1 at Safety in such a run
 struct Shell {
   en::shell::Settings settings;
   Paths paths;
@@ -178,6 +203,11 @@ struct Shell {
   std::atomic<std::uint64_t> recorded{0};      // its lines
   std::atomic<OverlayLink*> overlay{nullptr};  // T1 publishes it once connected; T6 alone uses it after
   std::atomic<AiFilesRead*> ai_files{nullptr};  // T1 publishes it on the main path; T6 alone uses it after
+  std::atomic<ContentRead*> content{nullptr};   // T1 publishes it on the main path; T6 takes it once
+  std::string content_notice;                    // T6's: the content's first problem in words, for one notice
+  std::atomic<SpikeState*> spike{nullptr};       // an S0 run's (spike.cpp); null in every other start
+  // T6's: the pages' changes of a behaviour key (features.*, range.*; WHY§476), for the core after overlay_tick.
+  std::vector<en::shell::SettingsEdit> behaviour_edits;
 };
 // The one Shell, made on T1 (never destroyed), or null before.
 [[nodiscard]] Shell* shell() noexcept;
@@ -195,9 +225,15 @@ void push_banner(Shell& s, en::core::BannerReason reason, std::string_view detai
 // failed connect leaves EldenNet headless (ARCH §10.3). `banner_path`: ConnectB, after a refused gate or anti-cheat.
 void connect_overlay(Shell& s, bool banner_path) noexcept;
 // T6, after each step: the banner and the badge as notices, the world-state claims, the Mark's hotkey and its
-// presses, and the F11 view. `latest` is the newest snapshot the core judged, or null before the first.
+// presses, the F11 view, and what the player did on the conversation's surfaces (the talk key, Tab, the box's input),
+// appended to `ui` for the core. `latest` is the newest snapshot the core judged, or null before the first.
 void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSnapshot* latest, std::uint64_t tripped,
-                  std::uint64_t now) noexcept;
+                  std::uint64_t now, std::vector<en::proto::UiEvent>& ui) noexcept;
+// T6, after the core took those events: the newest model drawn by the conversation's surfaces, and the events that
+// raised (PageShown, Close) for the core; nothing without GraceUI.
+std::vector<en::proto::UiEvent> overlay_show(Shell& s, const en::proto::UiModel& model, std::uint64_t now) noexcept;
+// T6: GraceUI's wait handle for EldenNet's events (ABI 1.5), or null before the connect or without it.
+[[nodiscard]] HANDLE overlay_wake(Shell& s) noexcept;
 // T6: one of the core's changes, by its words (static ones: an enum's name), for the view's list.
 void overlay_change(const char* what, const char* to, std::uint64_t at_ms) noexcept;
 // T6: one of Augur's events of the step, for the view's list, as Augur's words write it (no name, no handle).
@@ -212,11 +248,75 @@ void read_ai_files(Shell& s, const std::optional<std::string>& settings_text) no
 // T6, each wake before the space's step: the handle's events taken, the runs advanced, the AI pages' facts (null
 // until T1 has read the files, and on the banner path).
 const en::overlay::AiFacts* ai_tick(Shell& s, bool gate_open, en::overlay::Space& space) noexcept;
+// T6, each wake: the handle's gate (C15), its events taken, the self-test's and the model list's runs advanced, and
+// the conversation's events (its ids from en-core's kConversationRequests) appended to `conversation` for the core.
+void ai_pump(Shell& s, bool allowed, std::vector<en::proto::LlmEvent>& conversation) noexcept;
+// T6: a request of the core's to the handle (made at the first that needs it); false if it was not accepted (the
+// core's own timers then end the reply). Logged by its id and the answer alone.
+bool ai_submit(Shell& s, en::proto::LlmRequest request) noexcept;
+void ai_cancel(Shell& s, en::proto::RequestId id) noexcept;
+// T6: the provider a slot's first model is on (a slot that borrows, its lender's), or empty with none: the draft
+// helper's, which its button names (NPC §4.7).
+[[nodiscard]] std::string ai_slot_provider(Shell& s, std::string_view slot) noexcept;
+// T6: the model client's health as the core's ladder reads it (L3 and L4 need the dialogue slot usable).
+[[nodiscard]] en::proto::NetHealth ai_health(Shell& s) noexcept;
 // T6: a change of the space's `ai.preset` or a job's model (`slots.<slot>.model`), made and written to providers.toml.
 void ai_change(Shell& s, en::overlay::Space& space, en::overlay::Space::Change& change) noexcept;
 // T6: a request the space took (selftest.run, models.list, providers.add, providers.remove, providers.key); a key's
 // value is taken out of the request and the request's copy overwritten.
 void ai_request(Shell& s, en::overlay::Space& space, en::overlay::AiRequest& request) noexcept;
+
+// ---- The conversation (conversation.cpp; WHY§364, part C) ----
+// T1, on the main path: the overrides folder (%APPDATA%\EldenNet\overrides\) and the realm (the game's, or the
+// tests' Eval in a probe build alone), handed to T6.
+void read_content(Shell& s) noexcept;
+// T6, each wake: the content loaded into the core once T1 has read it; true on the wake that did.
+bool content_tick(Shell& s, en::core::Core& core) noexcept;
+// T6, after each step of the core: its requests submitted, its cancels made, its commits and its ending logged as
+// words and numbers.
+void conversation_out(Shell& s, en::core::Outputs& out) noexcept;
+
+// ---- The profile editor (profiles.cpp; S7.2.b, NPC §4.7) ----
+// The draft helper's request ids, below the conversation's (en-core's kConversationRequests): ai_pump hands their
+// events to profiles_llm_event.
+inline constexpr en::proto::RequestId kDraftRequests = en::proto::RequestId{1} << 44;
+// T6, once the content is loaded (content_tick): the files it was loaded from, the shipped pack's then the overrides
+// folder's, and the realm, kept for the editor's checks and the loads after a write.
+void profiles_loaded(Shell& s, const en::core::Core& core, std::vector<en::core::ContentFile> files,
+                     en::core::Realm realm) noexcept;
+// T6, each wake before the space's step: the Characters pages' facts (null before the content is loaded).
+const en::overlay::CharacterFacts* profiles_facts(Shell& s, const en::core::Core& core, bool gate_open) noexcept;
+// T6: a command of the editor's the space took: made (a check answered at once, a write or a draft later).
+void profiles_request(Shell& s, const en::core::Core& core, en::overlay::Space& space,
+                      en::overlay::ProfileRequest request) noexcept;
+// T6 (ai_pump): an event of a draft's request.
+void profiles_llm_event(Shell& s, en::proto::LlmEvent event) noexcept;
+// T6, each wake after the overlay's: T11's writes answered, a draft whose page was left cancelled, and the content
+// loaded again after a write once no conversation is open.
+void profiles_tick(Shell& s, en::core::Core& core) noexcept;
+// T6: EldenNet's space (overlay.cpp's), or null before its first wake.
+[[nodiscard]] en::overlay::Space* overlay_space() noexcept;
+
+// ---- The S0 runs (spike.cpp; DESIGN §16.1's S0-A to S0-D, roadmap S10.1.b) ----
+// The report of an S0 run, eldennet-spike.json in the run's folder (en_shell's spikerun.hpp), and what T1 measures for
+// it. Each does nothing outside an S0 run whose folder the launcher named.
+// T1 at Safety: the run's folder (ELDENNET_SPIKE_DIR, only the launcher's folder for this spike in our spikes folder).
+void spike_begin(Shell& s) noexcept;
+// T1 after Discover: its counts and the build's table as it checked it; `d` null when gal/'s files were refused.
+void spike_discovered(Shell& s, const en::gal::Discovery* d, std::uint32_t passes) noexcept;
+// T1, S0-D in a probe build, before the reader or where the start stops short of it: guarded copies forced to fault,
+// by each copy primitive (the SEH copy at a page of our own with no access, ReadProcessMemory at the null page).
+void spike_trial(Shell& s) noexcept;
+// T1, S0-D in a probe build, before the reader: the group the reader's faults are injected into (settings.toml's,
+// else the first optional group this start reads).
+void spike_inject(Shell& s, const en::gal::Discovery& d) noexcept;
+// T1 at the reader's first reading.
+void spike_reading(Shell& s) noexcept;
+// T1 at its terminal state, before it publishes it: the table checked again, then the report written.
+void spike_stopped(Shell& s, en::proto::watch::InitState state, std::optional<en::core::BannerReason> banner,
+                   en::shell::SpikeWaits waits) noexcept;
+// T6, every 10 s once T1 has stopped: the reader's counts, and the report again.
+void spike_tick(Shell& s, std::uint64_t tripped) noexcept;
 
 // ---- T1 (boot.cpp) and the read-only round (probe_read.cpp) ----
 unsigned long init_main(void* module) noexcept;

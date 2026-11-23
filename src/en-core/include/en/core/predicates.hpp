@@ -3,14 +3,17 @@
 // and aliases row of DESIGN's test table: Augur's `requires` at v0.1, the personas' `when` at v0.2).
 //
 //   expr    := and ("||" and)*          and := unary ("&&" unary)*          unary := "!" unary | primary
-//   primary := "(" expr ")" | "true" | "false" | ("runes" | "journey") op number | name "(" ... ")"
+//   primary := "(" expr ")" | "true" | "false" | ("runes_held" | "journey") op number | name "(" ... ")"
 //   op      := ">=" | ">" | "<=" | "<" | "==" | "!="
 //
-// `runes` is the Tarnished's runes held, `journey` the journey (ng_lvl), both at the last processed snapshot. Every
-// call is refused at v0.1: world() and knows() are never Augur's (MEM §12.10, W1); flag(), boss() and stage() name
-// catalogue aliases, and the catalogue holds none until v0.2 (every alias is unknown); region() names a key of
-// regions.toml, which no v0.1 build loads. An expression is at most 1 KB and nests at most 32 deep (ARCH §10.2). An
-// error is a fixed text with a column, never a quote of the expression.
+// `runes_held` is the Tarnished's runes held, `journey` the journey (ng_lvl), both at the last processed snapshot.
+// `runes >= n` has one meaning everywhere, MEM §6.6's: the great runes, through the catalogue's `runes.ge<n>` aliases
+// (WHY§474); v0.1's predicates read no alias, so it is refused here as flag() is, and a persona's `when` that uses it is
+// Unknown in the directory (identity.hpp) and evaluated by the knowledge (knowledge.hpp). Every call is refused at
+// v0.1: world() and knows() are never Augur's (MEM §12.10, W1); flag(), boss() and stage() name catalogue aliases,
+// which v0.1's predicates do not read (every alias is unknown); region() names a key of regions.toml, which they do not
+// load. An expression is at most 1 KB and nests at most 32 deep (ARCH §10.2). An error is a fixed text with a column,
+// never a quote of the expression.
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -23,7 +26,7 @@ namespace en::core {
 
 // What v0.1's predicates read.
 struct PredicateFacts {
-  std::uint64_t runes = 0;
+  std::uint64_t runes_held = 0;
   std::uint8_t journey = 0;
 };
 
@@ -37,7 +40,7 @@ class Predicates final : public augur::PredicateCompiler {
   struct Op {
     enum class Code : std::uint8_t { True, False, Cmp, Not, And, Or };
     Code code = Code::True;
-    std::uint8_t var = 0;  // 0 runes, 1 journey
+    std::uint8_t var = 0;  // 0 runes_held, 1 journey
     std::uint8_t cmp = 0;  // 0 >=, 1 >, 2 <=, 3 <, 4 ==, 5 !=
     std::uint64_t n = 0;
   };

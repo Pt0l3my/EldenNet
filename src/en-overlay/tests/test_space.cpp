@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "characters_fixture.hpp"
 #include "en/overlay/space.hpp"
 #include "graceui.h"
 
@@ -285,6 +286,7 @@ SpaceFacts facts_of(std::string_view state) {
                  : state == "multiplayer" ? multiplayer()
                                           : banner();
   f.ai = &ai_fixture(state);
+  f.characters = en::overlay::test::characters_fixture(state);  // Characters › Named NPCs (characters_fixture.hpp)
   return f;
 }
 
@@ -355,7 +357,7 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     CHECK(p["increment"].get<std::string>() <= std::string(kIncrement));
   }
   CHECK(ids == std::vector<std::string>{"home", "system.status", "system.logs", "settings.developer", "ai.providers",
-                                        "ai.models", "ai.selftest"});
+                                        "ai.models", "ai.selftest", "characters.named"});
   // The rail holds PAGES §4.2.1's categories in their order, the slice's pages in theirs.
   std::vector<std::string> rail;
   for (const json& c : pages["categories"]) rail.push_back(c["id"].get<std::string>());
@@ -367,14 +369,17 @@ TEST_CASE("space: the page data as generated: EldenNet's id, the slice's increme
     const std::string id = t["id"].get<std::string>();
     if (t["shape"] == "stream") {
       CHECK(id == "logs");
+    } else if (t.value("family", false)) {
+      CHECK(s.body(id, facts_of("title")).empty());  // a family is never published itself, only its members (D215)
     } else {
       CHECK(s.body(id, facts_of("title")).is_object());
       CHECK_FALSE(s.body(id, facts_of("title")).empty());
     }
   }
   CHECK(pages["commands"] == json::array({"settings.set", "settings.reset", "selftest.run", "models.list",
-                                          "providers.add", "providers.remove", "providers.key"}));
-  CHECK(pages["minor"] == 3);  // a section's chip and live status: protocol 1.3's (GraceUI D202)
+                                          "providers.add", "providers.remove", "providers.key", "profile.check",
+                                          "profile.save", "profile.reset", "profile.restore", "profile.draft"}));
+  CHECK(pages["minor"] == 8);  // sensitive marks: protocol 1.8's (GraceUI D221), on 1.7's editor (D217)
   // GraceUI 0.2.5's checks (D183, eldennet-changes §36), met already: no topic is the server's own "pages", the id is
   // not GraceUI's reserved one, and every destructive action, a row's included, has its confirmation's text.
   CHECK(pages["space"] != "graceui");
@@ -665,12 +670,14 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   SpaceFacts bare = starting();
   bare.graceui = 0;
   bare.build_known = false;
-  for (const json& i : s.body("status", bare)["items"]) {
+  const json bare_status = s.body("status", bare);  // held: a range over a temporary's member would dangle
+  for (const json& i : bare_status["items"]) {
     CHECK(i["label"] != "GraceUI");
     CHECK(i["label"] != "Game build");
   }
   CHECK(s.body("system.status", bare)["rows"].empty());
-  for (const json& c : s.body("system.status", title())["checks"]) CHECK(c["label"] != "Recording");
+  const json title_system = s.body("system.status", title());
+  for (const json& c : title_system["checks"]) CHECK(c["label"] != "Recording");
   CHECK(s.body("errors", title())["checks"].empty());
   CHECK(s.body("system.status", world())["rows"].size() == en::proto::kGroupCount);
   // The Compatibility tab reads the same topic's `compatibility` member (GraceUI D185).
@@ -682,6 +689,44 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   for (const char* state : kStates) {
     for (const char* topic : {"status", "errors", "system.status"}) CHECK(clean(s.body(topic, facts_of(state))));
   }
+}
+
+TEST_CASE("space: L3 and L4 show as speaking, in their own words, not as Observing (WHY§422, §442)") {
+  Space s;
+  AiFacts ai = ai_ready();
+  SpaceFacts f = world();
+  f.ai = &ai;
+  f.level = Level::Speaking;
+  json b = s.body("status", f);
+  CHECK(b["word"] == "Speaking");
+  CHECK(b["tone"] == "moss");
+  CHECK(b["reason"] == "EldenNet reads the game, and NPCs speak.");
+  CHECK(b["items"][0]["value"] == "Speaking");
+  CHECK(s.body("ai.status", f)["sentence"] == "Conversation is ready: NPCs answer when you speak to them.");
+  bool solo = false;
+  const json system = s.body("system.status", f);  // held: a range over a temporary's member would dangle
+  for (const json& i : system["items"]) solo = solo || i["label"] == "Offline and solo";
+  CHECK(solo);
+
+  f.level = Level::SpeakingInPart;
+  b = s.body("status", f);
+  CHECK(b["word"] == "Speaking, in part");
+  CHECK(b["tone"] == "ember");
+  CHECK(b["reason"] == "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.");
+  CHECK(s.body("ai.status", f)["sentence"] == "Conversation is ready: NPCs answer when you speak to them.");
+
+  // Dormant over either speaking level, as over L2; the AI pages lead with the gate's cause, not with speech.
+  for (const Level l : {Level::SpeakingInPart, Level::Speaking}) {
+    SpaceFacts m = multiplayer();
+    m.ai = &ai;
+    m.level = l;
+    CHECK(s.body("status", m)["word"] == "Dormant");
+    CHECK(s.body("ai.status", m)["sentence"] == "Model calls wait while you play with others online.");
+  }
+  // L2 keeps its words.
+  f.level = Level::Observing;
+  CHECK(s.body("status", f)["word"] == "Observing");
+  CHECK(clean(s.body("status", f)));
 }
 
 // Every string of a body that holds `needle`, for the checks that a key, an address or a listed id is nowhere.
@@ -1621,6 +1666,7 @@ TEST_CASE("space: the fixture states' topics.json, which grace-dev previews (tes
     json topics = json::object();
     for (const char* topic : {"status", "errors", "system.status"}) topics[topic] = s.body(topic, f);
     for (const char* topic : kAiTopics) topics[topic] = s.body(topic, f);
+    for (const std::string& topic : en::overlay::test::characters_topics(f.characters)) topics[topic] = s.body(topic, f);
     topics["logs"] = s.log_rows();
     const std::string text = topics.dump(2) + "\n";
     const std::string path = std::string(EN_PAGES_FIXTURES) + "/" + state + "/topics.json";
