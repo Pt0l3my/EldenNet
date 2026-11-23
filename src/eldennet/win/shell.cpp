@@ -140,6 +140,16 @@ DWORD WINAPI core_main(void* param) noexcept {
     Shell& s = *static_cast<Shell*>(param);
     Io& io = *s.io;
     auto core = std::make_unique<en::core::Core>();
+    // The behaviour settings (features, range; ARCH §11.5, WHY§476) as settings.toml gave them, the defaults when it
+    // was refused; one the core refuses keeps the old (its defaults), and the log names its key, never its value.
+    const auto behaviour = [&](const en::core::Behaviour& b, std::string_view why) {
+      if (const std::optional<std::string> bad = core->set_behaviour(b)) {
+        log(Line("behaviour").word("from", why).flag("ok", false).word("key", *bad), LogLevel::Warn);
+      } else {
+        log(Line("behaviour").word("from", why).flag("ok", true));
+      }
+    };
+    behaviour(s.settings.behaviour, "settings");
     auto latest = std::make_unique<en::proto::WorldSnapshot>();
     Recorder rec(s);
     // An S0 session (s0b, s0c, s0d) records whatever settings.toml says: its rules read the recording (spike.cpp).
@@ -271,6 +281,12 @@ DWORD WINAPI core_main(void* param) noexcept {
       s.recorded.store(rec.lines(), std::memory_order_relaxed);
       ui_in.clear();
       overlay_tick(s, *core, cs.snapshots > 0 ? latest.get() : nullptr, tripped, now, ui_in);
+      // The pages' behaviour changes, each on the behaviour the core holds now, from the next step (ARCH §11.6).
+      for (const en::shell::SettingsEdit& e : s.behaviour_edits) {
+        en::core::Behaviour b = core->behaviour();
+        if (en::shell::edit_behaviour(b, e)) behaviour(b, "pages");
+      }
+      s.behaviour_edits.clear();
       // What the player did goes to the core in the same wake, and the newest model to the surfaces; what they raise
       // (PageShown, Close) goes to the core at once, and the model is drawn again (a few rounds at most).
       for (int round = 0; round < 4; ++round) {

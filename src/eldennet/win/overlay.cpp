@@ -203,8 +203,8 @@ en::overlay::Level level_of(en::core::Level l) noexcept {
     case en::core::Level::Starting: return en::overlay::Level::Starting;
     case en::core::Level::L1: return en::overlay::Level::Inactive;
     case en::core::Level::L2: return en::overlay::Level::Observing;
-    case en::core::Level::L3: return en::overlay::Level::Observing;  // the pages' levels until part C shows speech
-    case en::core::Level::L4: return en::overlay::Level::Observing;
+    case en::core::Level::L3: return en::overlay::Level::SpeakingInPart;
+    case en::core::Level::L4: return en::overlay::Level::Speaking;
   }
   return en::overlay::Level::Starting;
 }
@@ -330,8 +330,27 @@ void apply_changes(Shell& s, SpaceState& st, std::uint64_t now) {
     } else if (c.value.is_string()) {
       e.is_text = true;
       e.text = c.value.get<std::string>();
+    } else if (c.value.is_number()) {
+      e.is_number = true;
+      e.number = c.value.get<double>();
     } else {
-      continue;  // no setting of this slice holds a number
+      continue;
+    }
+    // A behaviour key (features.*, range.*; ARCH §11.5, WHY§476) goes to the core at the next step (ARCH §11.6); one
+    // the core would refuse (out of its bounds, or of the wrong type) is neither applied nor written, and the log names
+    // its key alone.
+    if (en::shell::is_behaviour_key(c.key)) {
+      en::core::Behaviour b;
+      if (!en::shell::edit_behaviour(b, e) || en::core::check_behaviour(b)) {
+        log(Line("setting").word("key", c.key).word("effect", "refused"), LogLevel::Warn);
+        continue;
+      }
+      s.behaviour_edits.push_back(e);
+      log(Line("setting").word("key", c.key).word("effect", "next_step"));
+      st.edits[c.key] = std::move(e);
+      st.changed_ms = now;
+      st.unwritten = true;
+      continue;
     }
     if (c.key == "debug.log_level") {
       constexpr std::array<std::string_view, 4> kLevels = {"error", "warn", "info", "debug"};

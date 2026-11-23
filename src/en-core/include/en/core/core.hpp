@@ -234,7 +234,8 @@ class Core {
   // a pack whose prompts or lexicon fail is refused; the built-in speech's lint and prompt then read the new ones.
   // Before any load the core knows no persona, so no conversation opens.
   std::vector<ContentError> load_content(std::span<const ContentFile> files, Realm realm);
-  // The last load's warnings: the player's own records whose block 2 passes its cap (WHY§388), which still render.
+  // The last load's warnings: disable.toml's ids that name nothing (S11.3.g), then the player's own records whose block 2
+  // passes its cap (WHY§388), which still render.
   [[nodiscard]] const std::vector<ContentError>& content_warnings() const noexcept { return content_warnings_; }
 
   [[nodiscard]] const Directory& directory() const noexcept { return directory_; }

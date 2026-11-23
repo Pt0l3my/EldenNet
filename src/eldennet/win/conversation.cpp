@@ -159,7 +159,7 @@ bool content_tick(Shell& s, en::core::Core& core) noexcept {
     // The errors by count alone: their words name the file's keys, and the log takes words of its own shape only.
     log(Line("content_load").flag("ok", errors.empty()).num("files", files.size()).num("errors", errors.size())
             .num("personas", core.directory().size()).num("bound", core.directory().index().rows())
-            .num("warnings", warnings.size()),
+            .num("warnings", warnings.size()).num("disabled", core.directory().pack().disabled_personas.size()),
         errors.empty() && warnings.empty() ? LogLevel::Info : LogLevel::Warn);
     // Shown to the player once (NPC §4.7): the first warning's file, key and line in fixed words, and how many more.
     // Draft words, for review.

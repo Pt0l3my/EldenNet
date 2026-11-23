@@ -10,8 +10,13 @@
 // it, for part A's renderer (prompt.hpp's DialogueContext::record), and the few fields the conversation and the lint
 // act on are typed beside it.
 //
-// What v0.2 leaves for later (src/en-core/README.md): `overrides/disable.toml` (P3 §8.4), the seed's combat keys
-// (NPC §9.11), the alias table's use (§2.4) and the lints of NPC §4.8 and MEM §12.10 beyond these schemas.
+// The overrides folder's `disable.toml` (ARCH §11.6, DESIGN §11.4; S11.3.g) turns shipped personas off by id: their rows
+// read as not enabled, so the index, the directory and the knowledge are built without them; an id that names nothing
+// is a warning (`ContentPack::warnings`), never an error.
+//
+// What v0.2 leaves for later (src/en-core/README.md): disable.toml's other lists (characters, kb, triggers, rules; and
+// cards, which v0.2 ships none of), the seed's combat keys (NPC §9.11), the alias table's use (§2.4) and the lints of
+// NPC §4.8 and MEM §12.10 beyond these schemas.
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -48,6 +53,7 @@ struct ContentError {
 inline constexpr std::size_t kContentFileMaxBytes = 64 * 1024;  // DESIGN §11.4
 inline constexpr std::size_t kPersonaFileMaxBytes = 16 * 1024;
 inline constexpr std::string_view kPersonaIndexPath = "identity/personas.toml";
+inline constexpr std::string_view kDisablePath = "disable.toml";  // the overrides folder's (ARCH §11.6)
 
 // ---- identity/personas.toml (NPC §2.1) ----
 
@@ -164,14 +170,20 @@ struct ContentPack {
   // The pack's other files, the overrides applied, by path (prompts/, lexicon/ and the rest: part A's renderer and lint
   // read them), unread here and not in the hash.
   std::vector<ContentFile> others;
+  // disable.toml's personas that named a row of the index, in the file's order, once each: turned off (S11.3.g).
+  std::vector<std::string> disabled_personas;
+  // What the load accepted with a warning (disable.toml's ids that name nothing), at most 64.
+  std::vector<ContentError> warnings;
 
   [[nodiscard]] const Persona* persona(std::string_view id) const noexcept;
   [[nodiscard]] const PersonaRow* row(std::string_view id) const noexcept;
 };
 
 // Reads the pack: the overrides replace the shipped files of the same path whole, and a file only in the overrides is
-// added. The index must be there; each enabled row's file must be there and hold a persona with the row's id. Files
-// outside identity/ and personas/ are kept as they are (`others`); the persona files no row names are left unread. Any error refuses the pack, every error listed (at most 64, then a count).
+// added. The index must be there; disable.toml, if there is one, turns rows off; each enabled row's file must be there
+// and hold a persona with the row's id. Files outside identity/ and personas/ but disable.toml are kept as they are
+// (`others`); the persona files no row names are left unread. Any error refuses the pack, every error listed (at most
+// 64, then a count).
 [[nodiscard]] proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<const ContentFile> files);
 
 }  // namespace en::core

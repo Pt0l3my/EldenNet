@@ -124,9 +124,16 @@ class Parser {
       emit({Predicates::Op::Code::False});
       return true;
     }
-    if (w == "runes" || w == "journey") {
+    if (w == "runes") {  // MEM §6.6's great runes, through the catalogue's aliases (WHY§474)
+      at_ = start;
+      skip();
+      fail("counts the great runes through catalogue aliases, which v0.1's predicates do not read (runes_held is the "
+           "runes held)");
+      return false;
+    }
+    if (w == "runes_held" || w == "journey") {
       Predicates::Op op{Predicates::Op::Code::Cmp};
-      op.var = w == "runes" ? 0 : 1;
+      op.var = w == "runes_held" ? 0 : 1;
       if (eat(">=")) op.cmp = 0;
       else if (eat(">")) op.cmp = 1;
       else if (eat("<=")) op.cmp = 2;
@@ -194,7 +201,7 @@ bool Predicates::eval(augur::PredicateId id, const PredicateFacts& f) const noex
         if (top >= 64) return false;
         bool v = op.code == Op::Code::True;
         if (op.code == Op::Code::Cmp) {
-          const std::uint64_t x = op.var == 0 ? f.runes : f.journey;
+          const std::uint64_t x = op.var == 0 ? f.runes_held : f.journey;
           switch (op.cmp) {
             case 0: v = x >= op.n; break;
             case 1: v = x > op.n; break;

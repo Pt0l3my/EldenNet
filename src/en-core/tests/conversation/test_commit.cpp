@@ -22,8 +22,10 @@ TEST_CASE("a page that is sealed and put up but never acknowledged is never comm
   r.wait(5000);  // no PageShown: the page holds its place, unacknowledged, and nothing is committed
   CHECK(r.of(Commit::Kind::NpcSaid).empty());
   r.say("Never mind.");  // queued: nothing of the reply has shown
-  r.close(proto::CloseReason::Escape);
-  r.close(proto::CloseReason::Escape);  // the second Esc: at once
+  r.close(proto::CloseReason::Escape);  // the box closes; the reply would pace out (there is no second Esc, WHY§461)
+  r.keeper(13.0f);                      // walking away ends it at once, the unshown dropped (NPC §5.7)
+  r.wait(2500);
+  REQUIRE(r.ended == std::vector<EndReason>{EndReason::WalkedAway});
   r.wait(1000);
   CHECK(r.of(Commit::Kind::NpcSaid).empty());
   CHECK(r.of(Commit::Kind::PlayerSaid).size() == 1);  // the queued line was never sent, never committed
