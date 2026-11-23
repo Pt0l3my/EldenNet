@@ -541,6 +541,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 516 | 2026-11-23 | A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger | METHOD | #graceui #spike |
 | 517 | 2026-11-23 | Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices | FACT | #spike #graceui #launcher |
 | 518 | 2026-11-23 | The stand-in for another overlay caused the owner's crashes; no run loads it any more | DECIDED | #spike #graceui |
+| 519 | 2026-11-23 | A game that turns its camera by the mouse keeps the cursor at its centre; an overlay's pointer follows the mouse's own motion | FACT | #graceui #input |
 
 ## Entries
 
@@ -7979,3 +7980,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - (DECIDED) The owner's PC has real overlays, which is what S0-E asks about, and A5 has shown GraceUI living beside
   them. So the s0e-s4 package's runs (A5, A1 to A4, B) load no stand-in and the package no longer ships it; A0 (GraceUI,
   the observer and the stand-in) goes (engine 5dd8ce1). The harness keeps the stand-in for its own cases.
+
+### 519. A game that turns its camera by the mouse keeps the cursor at its centre; an overlay's pointer follows the mouse's own motion
+
+`2026-11-23` · FACT · `#graceui` `#input` · refs: GraceUI:D232, GraceUI:D130, WHY§517, S11.2.ap
+
+- In A5 on the owner's PC GraceUI's pointer was pulled back to the centre each frame ("a rubberband"): the game keeps
+  the system cursor at its centre whatever holds input, and the pointer followed the cursor's position.
+- The mouse's relative motion, which the game itself reads (raw input or DirectInput) and GraceUI already sees, is the
+  pointer's true source while GraceUI holds the mouse (GraceUI 0.2.29, D232; no new hook target). The harness's fake
+  game never recentred, which is why the menu-mouse scenario passed; a fake game that does is now a scenario.

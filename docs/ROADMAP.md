@@ -1537,6 +1537,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     at each change; report.py names the step when nothing was drawn; graceui-log.txt beside the report holds GraceUI's
     own log, never in the report. Both spike scenarios check it (248 checks in the full harness). The next package's
     runs place A1's fall within GraceUI's first frames (GraceUI's docs/eldennet-changes.md §62).
+- ao The spike observer's fault recorder (GraceUI 0.2.28, test-only) [done]
+  - refs: GraceUI:D231, GraceUI:D230, WHY§518
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6edaca4, run dffd92b). A vectored handler records, never handles,
+    each fault's code, access, null target, frame step and the faulting thread's frames (the return address first where
+    the pointer is 0), as fixed words in the report and module names in graceui-faults.txt; 250 checks in the full
+    harness.
+- ap The menu's pointer by the mouse's own motion (GraceUI 0.2.29), for the owner's rubber-band mouse in A5 [active]
+  - refs: GraceUI:D232, GraceUI:D130, GraceUI:D176, WHY§519
+  - gives: built on 2026-11-23 (GraceUI feat/foundations 6a25179). Raw input's or DirectInput's deltas move GraceUI's
+    pointer while a holder has the mouse; a harness game that recentres its cursor checks it. Its full harness run is to
+    confirm it.
 
 ### S11.3 EldenNet v0.2
 
