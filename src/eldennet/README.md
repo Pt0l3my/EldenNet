@@ -190,7 +190,7 @@ After each wake, once T1 has published the connection:
   the realm, the game's; `ELDENNET_TEST_REALM=eval` in the environment is the tests' switch, which a probe build alone
   takes and the release DLL refuses (`realm asked=eval accepted=0`), so a test persona never resolves in a player's
   game (NPC §2.1). T6 loads them into the core after the shipped content (`content_load ok=… personas=… bound=…
-  warnings=…`); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
+  warnings=… disabled=…`, the last the personas the overrides' `disable.toml` turned off, ARCH §11.6); the first error or warning is shown once as a GraceUI notice (key 5, 15 s) naming its file, key and
   line in fixed words, never the text (NPC §4.7). Each step's
   requests go to en-llm's handle (made at the first that needs one), its cancels cancel them, and the handle's events
   for the conversation's ids go back to the core; its health (the dialogue slot usable) is the core's NetHealth. After
@@ -218,6 +218,8 @@ ours.
 ```toml
 schema = 2
 enabled = true                                  # false: Off, T1 ends at once
+features = { chat = true, self_awareness = true }   # and ARCH §11.5's seven others; v0.2 acts on these two
+range = { talk_m = 8.0, hear_m = 20.0, fight_m = 40.0 }
 debug = { panel = false, record_sessions = false, log_level = "info" }  # panel: F11's view; log_level: error .. debug
 overlay = { connect = true }                    # GraceUI's connect (part 12); false: headless, Connect skipped
 gal = { copy = "seh" }                          # or "rpm": ReadProcessMemory on our own process (S0-D)
@@ -227,9 +229,15 @@ probe = { round = "read", settle_s = 10,
 ```
 
 Strict: a key no schema defines, a value of the wrong type or out of range refuses the whole file, and the defaults
-are used, with each problem's place in the log (never a value). ARCH §11.5's tables for later increments (`features`,
-`autonomy`, `range`, `pacing`, `ui`, `pools`, `budget`, `safety`, `hotkeys`, `augur`, `reactions`, `allow`) are accepted
-as tables and not read yet. `ELDENNET_APPDATA`, in the environment, stands for `%APPDATA%` (development and the tests,
+are used, with each problem's place in the log (never a value). `features` (ARCH §11.5's nine switches) and `range`
+(`talk_m` 3 to 16, `hear_m` 8 to 30, `fight_m` 10 to 40, a whole number or not; en-core's `behaviour.hpp`) are read
+since the first conversation's polish (WHY§476): T6 hands them to `Core::set_behaviour` as it makes the core (`behaviour
+from=settings ok=1`), and a pages' change of one of their keys at the next step, on the behaviour the core holds
+(`setting key=… effect=next_step`, then `behaviour from=pages ok=…`), written to settings.toml with the session's other
+edits; a value the core would refuse is neither applied nor written (`effect=refused`), and one the core refuses keeps
+the old (`ok=0 key=…`): the log names the key, never its value. No page offers these keys yet. ARCH §11.5's tables for
+later increments (`autonomy`, `pacing`, `ui`, `pools`, `budget`, `safety`, `hotkeys`, `augur`, `reactions`, `allow`)
+are accepted as tables and not read yet. `ELDENNET_APPDATA`, in the environment, stands for `%APPDATA%` (development and the tests,
 as the launcher's `--appdata` does).
 
 ## The recorder (ARCH §7.5, numbers only)
@@ -298,7 +306,8 @@ no task of ours.
 ## Tests
 
 `en_shell_tests` (doctest; Linux with GCC and Clang, and the Windows builds under Wine): settings (the defaults, what
-v0.1 reads, the later tables, each refusal without its value, the size cap, the probe table only in a probe build), the
+v0.1 reads, `features` and `range` within the core's bounds, a pages' change of a behaviour key, the later tables, each
+refusal without its value, the size cap, the probe table only in a probe build), the
 log lines (scrubbing a path and a name, a cut line), the rings (order and capacity, C1's newest and gap, C1 under two
 threads, the log's ring from four threads), the safety checks' names, every kind of recording line linting clean
 alone and as a file with no name, text or param value in it, and an S0 run's report, ready or waiting, linting clean

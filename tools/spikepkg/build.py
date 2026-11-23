@@ -214,6 +214,11 @@ RUNS = [
       "--also", "grace-spike.dll", "--also", "grace-standin.dll"]),
     ("B", "S4, input: with EldenNet, injected early; EldenNet loads GraceUI",
      ["--console", "--spike", "s4", "--inject-at", "suspended", "--also", "grace-spike.dll"]),
+    # A5 (2026-11-23, WHY§511): GraceUI and its observer alone, with no stand-in and no EldenNet, injected early: it
+    # tells GraceUI's own hook from the chain the stand-in and other programs' overlays make with it (WHY§509).
+    ("A5", "S0-E with GraceUI and its observer alone: no stand-in, no EldenNet, injected early",
+     ["--console", "--spike", "s0e_alone", "--inject-at", "suspended", "--also", "GraceUI\\graceui.dll",
+      "--also", "grace-spike.dll"]),
 ]
 
 
@@ -226,6 +231,9 @@ def run_cmd(run, what, options, label):
         "rem README-SPIKES.txt has the run's steps. This file names nothing outside the package's own folder.",
         "setlocal",
         "cd /d \"%~dp0\"",
+        # The observer writes a state line every 200 ms rather than its default 5 s, so the last line before a fault
+        # lies within a frame or two of it (Grace's request, WHY§511). The launcher hands its environment to the game.
+        "set GRACE_SPIKE_STATE_MS=200",
         "eldennet-launcher.exe " + " ".join(options),
         "echo.",
         "echo Run %s has ended (the launcher's exit code: %%ERRORLEVEL%%). README-SPIKES.txt says what to send back."

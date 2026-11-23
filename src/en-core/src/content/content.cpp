@@ -157,6 +157,56 @@ constexpr std::array<Field, 3> kIndex = {required(integer("schema", 1, 1)), tabl
                                          tables("alias", 0, 0, &kAliasSpec)};
 constexpr Spec kIndexSpec{kIndex};
 
+// ---- overrides/disable.toml (ARCH §11.6; DESIGN §11.4) ----
+
+constexpr std::array<Field, 6> kDisable = {
+    list("personas", 0, 0, 0, 64), list("cards", 0, 0, 0, 64),    list("characters", 0, 0, 0, 64),
+    list("kb", 0, 0, 0, 64),       list("triggers", 0, 0, 0, 64), list("rules", 0, 0, 0, 64),
+};
+constexpr Spec kDisableSpec{kDisable};
+
+// Turns off the personas the file names by id (their rows read as not enabled, so no record is read for them and no
+// index, directory or knowledge holds them) and lists them in `pack.disabled_personas`. An id that names nothing is a
+// warning, never an error (S11.3.g): every card's, since v0.2 ships none; a list v0.2 does not act on yet (characters,
+// kb, triggers, rules) draws one warning. The file's schema is checked as any content's: an unknown key or a wrong
+// type is an error. A warning names the key and the item's place, never the id.
+void read_disable(const ContentFile& file, ContentPack& pack, Errors& errors) {
+  const std::size_t before = errors.count();
+  auto table = parse(file, kContentFileMaxBytes, errors);
+  if (!table) return;
+  Checker(file.path, errors).check(*table, kDisableSpec, "");
+  if (errors.count() != before) return;
+  const auto warn = [&](std::size_t line, std::string problem) {
+    if (pack.warnings.size() < 64) pack.warnings.push_back(ContentError{file.path, line, std::move(problem)});
+  };
+  if (const auto* list = (*table)["personas"].as_array()) {
+    for (std::size_t i = 0; i < list->size(); ++i) {
+      const toml::node& n = *list->get(i);
+      const std::string id = n.value_or(std::string());
+      const std::string at = "personas[" + std::to_string(i) + "]";
+      const auto row = std::find_if(pack.rows.begin(), pack.rows.end(), [&](const PersonaRow& r) { return r.id == id; });
+      if (row == pack.rows.end()) {
+        warn(line_of(n), at + ": names no persona of the index, so nothing is turned off");
+        continue;
+      }
+      row->enabled = false;
+      if (std::find(pack.disabled_personas.begin(), pack.disabled_personas.end(), id) == pack.disabled_personas.end()) {
+        pack.disabled_personas.push_back(id);
+      }
+    }
+  }
+  if (const auto* list = (*table)["cards"].as_array()) {
+    for (std::size_t i = 0; i < list->size(); ++i) {
+      warn(line_of(*list->get(i)), "cards[" + std::to_string(i) + "]: names no shipped card, so nothing is turned off");
+    }
+  }
+  for (const char* key : {"characters", "kb", "triggers", "rules"}) {
+    if (const auto* list = (*table)[key].as_array(); list != nullptr && !list->empty()) {
+      warn(line_of(*list), std::string(key) + ": not read in this version, so nothing is turned off");
+    }
+  }
+}
+
 bool is_persona_path(std::string_view p) {
   constexpr std::string_view prefix = "personas/";
   constexpr std::string_view suffix = ".toml";
@@ -454,6 +504,10 @@ proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<c
   }
   hash_file(*index->second);
   pack.rows = read_index(*index->second, errors);
+  if (const auto disable = by_path.find(std::string(kDisablePath)); disable != by_path.end()) {
+    hash_file(*disable->second);
+    read_disable(*disable->second, pack, errors);
+  }
   for (const PersonaRow& row : pack.rows) {
     if (!row.enabled) continue;
     const auto f = by_path.find(row.file);
@@ -465,7 +519,7 @@ proto::Expected<ContentPack, std::vector<ContentError>> load_content(std::span<c
     if (auto p = read_persona(*f->second, row, errors)) pack.personas.push_back(std::move(*p));
   }
   for (const auto& [path, f] : by_path) {
-    if (path.rfind("identity/", 0) != 0 && path.rfind("personas/", 0) != 0) {
+    if (path.rfind("identity/", 0) != 0 && path.rfind("personas/", 0) != 0 && path != kDisablePath) {
       pack.others.push_back(ContentFile{path, f->text, f->origin});
     }
   }

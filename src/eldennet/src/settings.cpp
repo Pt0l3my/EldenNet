@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <sstream>
 #include <toml.hpp>
@@ -28,8 +29,35 @@ const char* to_string(ProbeRound r) noexcept { return r == ProbeRound::Read ? "r
 namespace {
 
 // ARCH §11.5's top-level tables and keys for later increments: accepted, not read in this build.
-constexpr std::array<std::string_view, 12> kLater = {"features", "autonomy", "range",   "pacing",    "ui",    "pools",
-                                                      "budget",   "safety",   "hotkeys", "augur", "reactions", "allow"};
+constexpr std::array<std::string_view, 10> kLater = {"autonomy", "pacing",  "ui",    "pools",     "budget",
+                                                      "safety",   "hotkeys", "augur", "reactions", "allow"};
+
+// The behaviour's switches and ranges by their keys (ARCH §11.5; en-core's behaviour.hpp).
+bool* feature(core::Features& f, std::string_view key) noexcept {
+  if (key == "chat") return &f.chat;
+  if (key == "barks") return &f.barks;
+  if (key == "speak_up") return &f.speak_up;
+  if (key == "callout") return &f.callout;
+  if (key == "memory") return &f.memory;
+  if (key == "labels") return &f.labels;
+  if (key == "npc_to_npc") return &f.npc_to_npc;
+  if (key == "self_awareness") return &f.self_awareness;
+  if (key == "status_awareness") return &f.status_awareness;
+  return nullptr;
+}
+
+struct RangeKey {
+  float* value;
+  core::Bounds bounds;
+};
+std::optional<RangeKey> range_key(core::Ranges& r, std::string_view key) noexcept {
+  if (key == "talk_m") return RangeKey{&r.talk_m, core::Ranges::kTalk};
+  if (key == "hear_m") return RangeKey{&r.hear_m, core::Ranges::kHear};
+  if (key == "fight_m") return RangeKey{&r.fight_m, core::Ranges::kFight};
+  return std::nullopt;
+}
+
+std::string whole(float v) { return std::to_string(static_cast<long long>(v)); }
 
 class Reader {
  public:
@@ -69,6 +97,16 @@ class Reader {
     return std::nullopt;
   }
 
+  // A number (a TOML integer or float) within `b`, both ends included.
+  std::optional<float> number(const toml::node& n, const std::string& where, core::Bounds b) {
+    std::optional<double> v;
+    if (n.is_floating_point()) v = *n.value<double>();
+    if (n.is_integer()) v = static_cast<double>(*n.value<std::int64_t>());
+    if (v && std::isfinite(*v) && *v >= b.lo && *v <= b.hi) return static_cast<float>(*v);
+    problem(where, "must be a number from " + whole(b.lo) + " to " + whole(b.hi));
+    return std::nullopt;
+  }
+
   const toml::table* table(const toml::node& n, const std::string& where) {
     if (const toml::table* t = n.as_table()) return t;
     problem(where, "must be a table");
@@ -93,6 +131,29 @@ void read_debug(Reader& r, const toml::table& t, Settings& s) {
       if (const auto b = r.boolean(v, where)) s.debug_panel = *b;  // the F11 view (part 12)
     } else if (key == "record_redact_text") {
       (void)r.boolean(v, where);  // the text redaction comes with S10.2.d's keyed hashes
+    } else {
+      r.problem(where, "is not a key of settings.toml");
+    }
+  }
+}
+
+// features (the switches) and range (metres, within the core's bounds): ARCH §11.5.
+void read_features(Reader& r, const toml::table& t, Settings& s) {
+  for (const auto& [k, v] : t) {
+    const std::string where = "features." + std::string(k.str());
+    if (bool* f = feature(s.behaviour.features, k.str())) {
+      if (const auto b = r.boolean(v, where)) *f = *b;
+    } else {
+      r.problem(where, "is not a key of settings.toml");
+    }
+  }
+}
+
+void read_range(Reader& r, const toml::table& t, Settings& s) {
+  for (const auto& [k, v] : t) {
+    const std::string where = "range." + std::string(k.str());
+    if (const std::optional<RangeKey> rk = range_key(s.behaviour.range, k.str())) {
+      if (const auto m = r.number(v, where, rk->bounds)) *rk->value = *m;
     } else {
       r.problem(where, "is not a key of settings.toml");
     }
@@ -170,6 +231,10 @@ LoadedSettings parse_settings(std::string_view text, bool probe_build) {
               }
             }
           }
+        } else if (key == "features") {
+          if (const toml::table* t = r.table(v, key)) read_features(r, *t, s);
+        } else if (key == "range") {
+          if (const toml::table* t = r.table(v, key)) read_range(r, *t, s);
         } else if (key == "probe" && probe_build) {
           if (const toml::table* t = r.table(v, key)) read_probe(r, *t, s);
         } else if (std::find(kLater.begin(), kLater.end(), key) != kLater.end()) {
@@ -186,6 +251,30 @@ LoadedSettings parse_settings(std::string_view text, bool probe_build) {
     out.notes.clear();
   }
   return out;
+}
+
+bool is_behaviour_key(std::string_view key) noexcept {
+  core::Behaviour b;
+  if (key.rfind("features.", 0) == 0) return feature(b.features, key.substr(9)) != nullptr;
+  if (key.rfind("range.", 0) == 0) return range_key(b.range, key.substr(6)).has_value();
+  return false;
+}
+
+bool edit_behaviour(core::Behaviour& b, const SettingsEdit& e) {
+  const std::string_view key = e.key;
+  if (key.rfind("features.", 0) == 0) {
+    bool* f = feature(b.features, key.substr(9));
+    if (f == nullptr || e.is_text || e.is_number) return false;
+    *f = e.flag;
+    return true;
+  }
+  if (key.rfind("range.", 0) == 0) {
+    const std::optional<RangeKey> rk = range_key(b.range, key.substr(6));
+    if (!rk || !e.is_number) return false;
+    *rk->value = static_cast<float>(e.number);
+    return true;
+  }
+  return false;
 }
 
 EditedSettings edit_settings(std::string_view text, const std::vector<SettingsEdit>& edits, bool probe_build) {
@@ -226,6 +315,8 @@ EditedSettings edit_settings(std::string_view text, const std::vector<SettingsEd
     }
     if (e.is_text) {
       sub->insert_or_assign(leaf, e.text);
+    } else if (e.is_number) {
+      sub->insert_or_assign(leaf, e.number);
     } else {
       sub->insert_or_assign(leaf, e.flag);
     }

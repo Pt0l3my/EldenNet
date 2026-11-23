@@ -1217,6 +1217,11 @@ def check_observer_panel(word, launcher_marks=True, by="time"):
             run = json.load(f)
         need(run.get("panel") is True and run.get("spike") == word and run.get("tasks") == count and
              run.get("tasks_done", 0) >= (mine if by == "time" else 1), "launcher-run.json: %s" % run, failures)
+        # The game's modules as last listed, by name alone (WHY§515): the game's own among them, nothing like a path.
+        mods = run.get("modules")
+        need(isinstance(mods, list) and any(m.lower() in ("fakegame.exe", "eldenring.exe") for m in mods) and
+             not any(("\\" in m or "/" in m or ":" in m) for m in mods),
+             "launcher-run.json's modules: %s" % (mods if not isinstance(mods, list) else mods[:6]), failures)
         log = spike_log(r, word)
         need(log and log[0].get("panel") is True, "the run's line says no panel: %s" % (log and log[0]), failures)
         return failures
@@ -1480,10 +1485,9 @@ for _missing in (False, True):
                                                                 "--run-timeout", "90"] + S0_GAME,
          program="{launcher}", needs=EN_PROBE_NEEDS, toolchains=("clang-cl",), env=EN_ENV, timeout=300,
          prepare=install_eldennet(probe=True, then=s0_table(_drop)),
-         # At the discovery banner the start has not reached WaitEngine, where the crash filter goes in: the watcher
-         # records the crash by the game's exit code and module list alone, which is S0-D's rule.
-         check=check_s0("s0d-crash", runs=2, missing=_missing, crashes=2, records=2,
-                        **({} if _missing else {"filter_records": 2})),
+         # A start that stops at a banner once the window has shown installs the crash filter too (WHY§510), so the
+         # crash is recorded by EldenNet's filter as well as by the watcher, at the discovery banner as at Ready.
+         check=check_s0("s0d-crash", runs=2, missing=_missing, crashes=2, records=2, filter_records=2),
          what="S0-D's forced crashes " + _how + "a crash asked for once the start has stopped (" +
               ("at the discovery banner" if _missing else "Ready") + "), each recorded by the watcher")
 
@@ -2596,6 +2600,7 @@ PKG_RUNS = {
     "A4": ("s0e", "window", ["grace-standin.dll", "grace-spike.dll"]),
     "A0": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
     "B": ("s4", "suspended", ["grace-spike.dll"]),
+    "A5": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll"]),
 }
 # README-SPIKES.txt's two PowerShell lines write this (Set-Content: one line each, CRLF): F11's view on.
 OWNER_SETTINGS = "schema = 2\r\ndebug = { panel = true }\r\n"
@@ -2639,6 +2644,7 @@ def check_pkg_cmd(run):
         need(text.endswith("\r\n") and "\n" not in text.replace("\r\n", ""), "run-%s.cmd: not CRLF lines" % run,
              failures)
         need('cd /d "%~dp0"' in lines, "run-%s.cmd: no cd to its own folder" % run, failures)
+        need("set GRACE_SPIKE_STATE_MS=200" in lines, "run-%s.cmd: no 200 ms state lines" % run, failures)
         need("eldennet-launcher.exe " + " ".join(pkg_options(run)) in lines,
              "run-%s.cmd: the launcher's line differs: %s" % (run, [l for l in lines if "launcher.exe" in l]), failures)
         need([l for l in lines if l.strip()][-1] == "pause", "run-%s.cmd: no pause at its end" % run, failures)
@@ -2737,6 +2743,7 @@ PKG_WHAT = {
     "A4": "S0-E, GraceUI loaded by EldenNet from the game's folder, late, the stand-in first",
     "A0": "S0-E's baseline: GraceUI, the observer and the stand-in alone, no eldennet.dll",
     "B": "S4: the observer alone loaded by the launcher, GraceUI by EldenNet",
+    "A5": "S0-E with GraceUI and the observer alone: no stand-in, no eldennet.dll",
 }
 for _run in PKG_RUNS:
     _extra = ["--press-f11-at", "960,1140"] if PKG_RUNS[_run][0] == "s0e" else []

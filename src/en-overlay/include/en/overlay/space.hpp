@@ -36,7 +36,14 @@ inline constexpr std::string_view kSpaceId = "eldennet";
 
 // What EldenNet knows, mirrored in en-overlay's own enums (it links neither en-core nor en-gal, ARCH §2.3): the DLL maps
 // en-core's and en-gal's into these, a switch per enum, on T6.
-enum class Level : std::uint8_t { Starting, Inactive, Observing };  // en-core's Starting, L1 and L2 (ARCH §6.8)
+// en-core's Starting, L1, L2, L3 and L4 (ARCH §6.8); the values only grow, as en-core's do.
+enum class Level : std::uint8_t {
+  Starting,
+  Inactive,        // L1: a banner says why
+  Observing,       // L2: no model is ready for Conversation
+  SpeakingInPart,  // L3: NPCs speak, and an optional read group has stopped
+  Speaking,        // L4: NPCs speak, every read group up
+};
 enum class Stop : std::uint8_t {  // en-core's BannerReason, or none
   None,
   UnknownBuild,

@@ -86,6 +86,8 @@ Lamp lamp_of(const SpaceFacts& f) noexcept {
     case Level::Starting: return {nullptr, "glint"};
     case Level::Inactive: return {"Inactive", "rot"};
     case Level::Observing: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Observing", "ember"};
+    case Level::SpeakingInPart: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Speaking, in part", "ember"};
+    case Level::Speaking: return f.dormant ? Lamp{"Dormant", "glint"} : Lamp{"Speaking", "moss"};
   }
   return {nullptr, "glint"};
 }
@@ -96,6 +98,10 @@ std::string reason_of(const SpaceFacts& f) {
     case Level::Inactive: return std::string(f.stop_text);
     case Level::Observing:
       return f.dormant ? dormant_words(f) : "EldenNet reads the game. NPCs speak from a later version.";
+    case Level::SpeakingInPart:
+      return f.dormant ? dormant_words(f)
+                       : "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.";
+    case Level::Speaking: return f.dormant ? dormant_words(f) : "EldenNet reads the game, and NPCs speak.";
   }
   return {};
 }
@@ -239,7 +245,7 @@ json system_status_body(const SpaceFacts& f) {
   if (f.build_known) {
     items.push_back(item("Game build", build_of(f.build) + (f.build_supported ? ", supported" : ", not supported yet")));
   }
-  if (f.level == Level::Observing) {
+  if (f.level >= Level::Observing) {
     items.push_back(item("Offline and solo", f.gate_open ? "Confirmed" : dormant_words(f)));
   }
   if (f.have_health) {
@@ -582,6 +588,7 @@ std::string ai_cause(const SpaceFacts& f) {
     return "Model calls wait until EldenNet has confirmed that this session is offline and solo.";
   }
   if (f.level == Level::Starting) return "EldenNet is still starting.";
+  if (f.level >= Level::SpeakingInPart) return "Conversation is ready: NPCs answer when you speak to them.";
   return "EldenNet only observes in this version: NPCs speak from a later one. The self-test checks your provider "
          "meanwhile.";
 }

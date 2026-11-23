@@ -169,7 +169,7 @@ enum class OpenVia : std::uint8_t {
 };
 
 enum class CloseReason : std::uint8_t {
-  Escape,     // Esc in the box, or while its reply paces (NPC §5.7: the first closes the box, a second ends at once)
+  Escape,     // Esc or the pad's B in the open box (NPC §5.7; WHY§461: none once the box has closed)
   FocusLost,  // the game's window lost focus (NPC §5.5)
   InputLost,  // GraceUI ended the hold: its watchdog (2 s without a frame), the player's exit, the hold lost (D77)
   Refused,    // request_input answered refused: `detail` names the holder; the box never opened

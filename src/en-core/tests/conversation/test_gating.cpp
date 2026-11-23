@@ -100,7 +100,7 @@ TEST_CASE("conversable: each clause alone, in order") {
 }
 
 TEST_CASE("conversable: the stage's chat and state") {
-  const std::string asleep = std::string(kWrenRecord) + "[[stages]]\nid = \"night\"\nwhen = \"runes >= 1\"\nstate = \"asleep\"\n";
+  const std::string asleep = std::string(kWrenRecord) + "[[stages]]\nid = \"night\"\nwhen = \"runes_held >= 1\"\nstate = \"asleep\"\n";
   auto pack = load_content(rig_content(asleep));
   REQUIRE(pack.has_value());
   const Persona& wren = *pack->persona("wren");
@@ -110,7 +110,7 @@ TEST_CASE("conversable: the stage's chat and state") {
   p.chr = &c;
   p.stage = 1;
   CHECK(conversable(p, safe(), 0) == NotConversable::Asleep);
-  const std::string refusing = std::string(kWrenRecord) + "[[stages]]\nid = \"sulk\"\nwhen = \"runes >= 1\"\nchat = \"refuse\"\n";
+  const std::string refusing = std::string(kWrenRecord) + "[[stages]]\nid = \"sulk\"\nwhen = \"runes_held >= 1\"\nchat = \"refuse\"\n";
   auto pack2 = load_content(rig_content(refusing));
   REQUIRE(pack2.has_value());
   p.persona = pack2->persona("wren");
@@ -119,8 +119,8 @@ TEST_CASE("conversable: the stage's chat and state") {
 
 TEST_CASE("the refusals at the talk key give their toasts, or none") {
   SUBCASE("a refusing stage") {
-    Rig r(std::string(kWrenRecord) + "[[stages]]\nid = \"sulk\"\nwhen = \"runes >= 1\"\nchat = \"refuse\"\n");
-    r.facts.runes = 5;
+    Rig r(std::string(kWrenRecord) + "[[stages]]\nid = \"sulk\"\nwhen = \"runes_held >= 1\"\nchat = \"refuse\"\n");
+    r.facts.runes_held = 5;
     r.remove(kKeeper);
     r.add(character(kWren, 4100, 2.0f));
     r.wait(3250);
@@ -129,8 +129,8 @@ TEST_CASE("the refusals at the talk key give their toasts, or none") {
     CHECK(r.toasted("(Wren will not speak with you)"));
   }
   SUBCASE("asleep") {
-    Rig r(std::string(kWrenRecord) + "[[stages]]\nid = \"night\"\nwhen = \"runes >= 1\"\nstate = \"asleep\"\n");
-    r.facts.runes = 5;
+    Rig r(std::string(kWrenRecord) + "[[stages]]\nid = \"night\"\nwhen = \"runes_held >= 1\"\nstate = \"asleep\"\n");
+    r.facts.runes_held = 5;
     r.remove(kKeeper);
     r.add(character(kWren, 4100, 2.0f));
     r.wait(3250);

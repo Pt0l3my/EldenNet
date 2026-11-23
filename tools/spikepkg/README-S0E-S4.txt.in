@@ -15,8 +15,8 @@ with clang-cl (Release). Never shared: a test build for you alone, labelled @LAB
 How long it takes
 -----------------
 
-About 40 minutes for all six runs: about 4 minutes each for A1, A2, A3, A4 and A0, about 10 for B, and a few to set
-up and to send the files. Each run stands alone: you can stop after any of them and send what you have.
+About 45 minutes for all seven runs: about 4 minutes each for A5, A1, A2, A3, A4 and A0, about 10 for B, and a few to
+set up and to send the files. Each run stands alone: you can stop after any of them and send what you have.
 
 
 What is in it
@@ -35,7 +35,7 @@ What is in it
                           test." and writes the run's report, graceui-spike.jsonl.
   grace-standin.dll       A stand-in for another overlay, of GraceUI's own, which counts the game's frames on their way
                           to the screen. It is never part of a release.
-  run-A1.cmd, run-A2.cmd, run-A3.cmd, run-A4.cmd, run-A0.cmd, run-B.cmd
+  run-A5.cmd, run-A1.cmd, run-A2.cmd, run-A3.cmd, run-A4.cmd, run-A0.cmd, run-B.cmd
                           One file for each run: it starts eldennet-launcher.exe from this folder with that run's
                           options, and names nothing outside this folder (open one in Notepad to read it).
   README-SPIKES.txt       This file.
@@ -67,6 +67,10 @@ Before you start
     copy of your own as well, copy the folder %APPDATA%\EldenRing somewhere first.
   - The game will run offline, without Easy Anti-Cheat. Use a save you are happy to play offline, and never take a save
     played with mods into online play.
+  - Close every other program that draws over games: frame-rate counters, recording, streaming and chat overlays.
+    Some keep running after their window closes: look for them by the clock (the tray's hidden icons too) and in Task
+    Manager's list of processes, and end them there. Steam's own overlay may stay. Each run's files say which other
+    overlays were in the game, so tell us if one was left on.
   - Set the game to windowed or borderless windowed mode first (in its graphics settings): a small panel of the
     launcher's own, beside the game, lists each run's steps, and a full-screen game covers it. It sits at the top
     right of the screen the game is on; drag it by its top line if it is in the way. It is a window of the launcher's,
@@ -82,15 +86,15 @@ Before you start
 The steps
 ---------
 
-Run them in this order: A1, A2, A3, A4, A0 and B. For each run, double-click its file in this folder (or open a command
-prompt here and type its name, run-A1.cmd for the first; in PowerShell, put .\ in front: .\run-A1.cmd). The console
-window opens and the game starts. The first time, the launcher asks where eldenring.exe is if it cannot find it through
-Steam, and shows its notices. Do the run's steps in the game, as the panel lists them below: after each step of yours,
-press Pause (anywhere, while the game has the keyboard), and the panel moves on to the next; the moment is kept with
-the run's report. The panel's button does the same, but a click takes the pointer out of the game, so use Pause where
-you can. A waiting step counts down by itself, and the last, quitting from the game's own menu, has no button. Once the
-game has ended, the console says "Run A1 has ended" (or B, and so on): press a key to close it, and go on to the next
-run, or stop there.
+Run them in this order: A5, A1, A2, A3, A4, A0 and B. For each run, double-click its file in this folder (or open a
+command prompt here and type its name, run-A1.cmd for the first; in PowerShell, put .\ in front: .\run-A1.cmd). The
+console window opens and the game starts. The first time, the launcher asks where eldenring.exe is if it cannot find it
+through Steam, and shows its notices. Do the run's steps in the game, as the panel lists them below: after each step of
+yours, press Pause (anywhere, while the game has the keyboard), and the panel moves on to the next; the moment is kept
+with the run's report. The panel's button does the same, but a click takes the pointer out of the game, so use Pause
+where you can. A waiting step counts down by itself, and the last, quitting from the game's own menu, has no button.
+Once the game has ended, the console says "Run A1 has ended" (or B, and so on): press a key to close it, and go on to
+the next run, or stop there.
 
 Runs A1 to A4: S0-E with EldenNet (about 4 minutes each)
 
@@ -111,6 +115,12 @@ In the game (the panel lists these steps; press Pause after each one of yours, a
   5. If the Steam overlay shows in this game (Shift+Tab), open it and close it again, and note whether GraceUI's notice
      is still drawn afterwards.
   6. Play for two minutes, then quit from the game's own menu.
+
+Run A5: S0-E with GraceUI and its observer alone (about 4 minutes; run-A5.cmd)
+
+GraceUI and its observer only, injected early: no stand-in and no EldenNet. The same steps as A0's below. This tells a
+fault of GraceUI's own hook from one in the chain the stand-in and other programs' overlays make with it. If the game
+crashes in this run, send its files at once: the others will most likely crash the same way.
 
 Run A0: S0-E with GraceUI alone (about 4 minutes; run-A0.cmd)
 
@@ -150,9 +160,9 @@ What to send back
   %APPDATA%\EldenNet\crashes\                  the newest file there, only if the game crashed
 
 (Type %APPDATA%\EldenNet into Explorer's address bar to open the folder.) The spikes folder holds one folder for each
-run, each with its graceui-spike.jsonl: s0e-1 to s0e-4 for A1 to A4, s0e_alone-1 for A0 and s4-1 for B when you ran
-them once each in order (each run takes the next free number), and the launcher's own short log of each. Tell us if you
-ran one twice or in another order.
+run, each with its graceui-spike.jsonl: s0e_alone-1 for A5, s0e-1 to s0e-4 for A1 to A4, s0e_alone-2 for A0 and s4-1 for
+B when you ran them once each in order (each run takes the next free number), and the launcher's own short log of each.
+Tell us if you ran one twice or in another order.
 
 With them, your answers to:
 
@@ -169,11 +179,12 @@ What it does
   - Starts the game offline without Easy Anti-Cheat, by writing the game's Steam app id into steam_appid.txt beside
     the game while it starts, and removing it again (eldennet-launcher.exe --cleanup removes it if a crash left it).
   - Before the game starts, makes the run's folder in %APPDATA%\EldenNet\spikes and tells the observer its name.
-  - Loads the run's DLLs into the game, in the order its file gives: GraceUI, its observer and the stand-in, and
-    EldenNet (not in run A0). In runs A3, A4 and B, EldenNet loads GraceUI from the game's folder itself.
+  - Loads the run's DLLs into the game, in the order its file gives: GraceUI, its observer and the stand-in (not in run
+    A5), and EldenNet (not in runs A0 and A5). In runs A3, A4 and B, EldenNet loads GraceUI from the game's folder
+    itself.
   - EldenNet reads the game's code and data as they are loaded, read-only and through guarded copies, to check that
-    your game is the build it knows, then stops before its one call into the game and shows its banner, "Spike run:
-    EldenNet makes no call into the game". It makes no call into the game for the rest of the run.
+    your game is the build it knows, then stops before its reader starts and shows its banner, "Spike run: EldenNet
+    makes no call into the game". It makes no call into the game at any time.
   - GraceUI puts itself between the game and Windows' own functions for drawing a frame and for reading the keyboard,
     the mouse and the pad, draws its notices, menu and panels over the game, and keeps input from the game while one
     of its panels holds it.

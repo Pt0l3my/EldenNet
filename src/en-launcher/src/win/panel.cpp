@@ -16,6 +16,11 @@ constexpr int kWidth = 430;   // at 96 dots an inch
 constexpr int kMargin = 12;
 constexpr int kGap = 6;
 constexpr int kHeader = 30;
+// The panel's top below GraceUI's notices at the game's top right (its D134: a 12 px margin, one-line cards of about
+// 38 px with a 6 px gap), so that two notices, GraceUI's and EldenNet's banner, stay readable (the owner, 2026-11-23:
+// the panel covered GraceUI's notice in run A5; WHY§517). At 96 dots an inch, from the work area's top.
+constexpr int kTop = 72;
+constexpr int kRight = 16;
 
 constexpr COLORREF kBack = RGB(24, 24, 28);
 constexpr COLORREF kNowBack = RGB(44, 56, 84);
@@ -141,8 +146,8 @@ bool TaskPanel::open(HWND beside) {
   if (monitor != nullptr && GetMonitorInfoW(monitor, &mi)) area = mi.rcWork;
   const int width = MulDiv(kWidth, dpi_, 96);
   hwnd_ = CreateWindowExW(WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kClass, L"EldenNet: the round's tasks",
-                          WS_POPUP | WS_BORDER, area.right - width - MulDiv(16, dpi_, 96),
-                          area.top + MulDiv(16, dpi_, 96), width, MulDiv(200, dpi_, 96), nullptr, nullptr,
+                          WS_POPUP | WS_BORDER, area.right - width - MulDiv(kRight, dpi_, 96),
+                          area.top + MulDiv(kTop, dpi_, 96), width, MulDiv(200, dpi_, 96), nullptr, nullptr,
                           GetModuleHandleW(nullptr), nullptr);
   if (hwnd_ == nullptr) return false;
   SetWindowLongPtrW(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));

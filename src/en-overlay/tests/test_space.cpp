@@ -665,12 +665,14 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   SpaceFacts bare = starting();
   bare.graceui = 0;
   bare.build_known = false;
-  for (const json& i : s.body("status", bare)["items"]) {
+  const json bare_status = s.body("status", bare);  // held: a range over a temporary's member would dangle
+  for (const json& i : bare_status["items"]) {
     CHECK(i["label"] != "GraceUI");
     CHECK(i["label"] != "Game build");
   }
   CHECK(s.body("system.status", bare)["rows"].empty());
-  for (const json& c : s.body("system.status", title())["checks"]) CHECK(c["label"] != "Recording");
+  const json title_system = s.body("system.status", title());
+  for (const json& c : title_system["checks"]) CHECK(c["label"] != "Recording");
   CHECK(s.body("errors", title())["checks"].empty());
   CHECK(s.body("system.status", world())["rows"].size() == en::proto::kGroupCount);
   // The Compatibility tab reads the same topic's `compatibility` member (GraceUI D185).
@@ -682,6 +684,44 @@ TEST_CASE("space: the words: no lamp while starting, the banner's own words, abs
   for (const char* state : kStates) {
     for (const char* topic : {"status", "errors", "system.status"}) CHECK(clean(s.body(topic, facts_of(state))));
   }
+}
+
+TEST_CASE("space: L3 and L4 show as speaking, in their own words, not as Observing (WHY§422, §442)") {
+  Space s;
+  AiFacts ai = ai_ready();
+  SpaceFacts f = world();
+  f.ai = &ai;
+  f.level = Level::Speaking;
+  json b = s.body("status", f);
+  CHECK(b["word"] == "Speaking");
+  CHECK(b["tone"] == "moss");
+  CHECK(b["reason"] == "EldenNet reads the game, and NPCs speak.");
+  CHECK(b["items"][0]["value"] == "Speaking");
+  CHECK(s.body("ai.status", f)["sentence"] == "Conversation is ready: NPCs answer when you speak to them.");
+  bool solo = false;
+  const json system = s.body("system.status", f);  // held: a range over a temporary's member would dangle
+  for (const json& i : system["items"]) solo = solo || i["label"] == "Offline and solo";
+  CHECK(solo);
+
+  f.level = Level::SpeakingInPart;
+  b = s.body("status", f);
+  CHECK(b["word"] == "Speaking, in part");
+  CHECK(b["tone"] == "ember");
+  CHECK(b["reason"] == "NPCs speak, but part of the game EldenNet reads has stopped: System › Status says which.");
+  CHECK(s.body("ai.status", f)["sentence"] == "Conversation is ready: NPCs answer when you speak to them.");
+
+  // Dormant over either speaking level, as over L2; the AI pages lead with the gate's cause, not with speech.
+  for (const Level l : {Level::SpeakingInPart, Level::Speaking}) {
+    SpaceFacts m = multiplayer();
+    m.ai = &ai;
+    m.level = l;
+    CHECK(s.body("status", m)["word"] == "Dormant");
+    CHECK(s.body("ai.status", m)["sentence"] == "Model calls wait while you play with others online.");
+  }
+  // L2 keeps its words.
+  f.level = Level::Observing;
+  CHECK(s.body("status", f)["word"] == "Observing");
+  CHECK(clean(s.body("status", f)));
 }
 
 // Every string of a body that holds `needle`, for the checks that a key, an address or a listed id is nowhere.
