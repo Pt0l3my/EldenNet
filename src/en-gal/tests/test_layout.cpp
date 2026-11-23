@@ -232,15 +232,15 @@ TEST_CASE("fields stay within their class, and what they name exists") {
                   "layout.toml: class.Holder.fields.when", "runs past the class's copy size"));
   CHECK(has_error(refusal(changed("copy_size = 0x100", "copy_size = 0x4001")), "layout.toml: class.Holder.copy_size",
                   "must be between 0 and 16384"));
-  CHECK(has_error(refusal(changed("deep   = { off = 0x1E508, ty = \"ptr\", far = true", "deep   = { off = 0x1E508, ty = \"ptr\"")),
+  CHECK(has_error(refusal(changed("ty = \"ptr\", far = true, group = \"world\"", "ty = \"ptr\", group = \"world\"")),
                   "layout.toml: class.Holder.fields.deep.off", "must be between 0 and 16383"));
   CHECK(has_error(refusal(changed("off = 0x1E508", "off = 0x100000")), "layout.toml: class.Holder.fields.deep.off",
                   "must be between 0 and 1048575"));
-  CHECK(has_error(refusal(changed("deep   = { off = 0x1E508, ty = \"ptr\", far = true", "deep   = { off = 0x1E508, ty = \"utf16[4]\", far = true")),
+  CHECK(has_error(refusal(changed("ty = \"ptr\", far = true", "ty = \"utf16[4]\", far = true")),
                   "layout.toml: class.Holder.fields.deep.far", "applies only to the whole numbers"));
   CHECK(has_error(refusal(changed("copy_size = 0x100", "copy_size = 0")), "layout.toml: class.Holder.copy_size",
                   "may be 0 only where every field is far"));
-  CHECK(has_error(refusal(changed("level = { off = 0x4, ty = \"u16\", group", "level = { off = 0x4, ty = \"u16\", far = 1, group")),
+  CHECK(has_error(refusal(changed("ty = \"u16\", group", "ty = \"u16\", far = 1, group")),
                   "layout.toml: class.Inner.fields.level.far", "must be true or false"));
   CHECK(has_error(refusal(changed("to = \"Inner\"", "to = \"Outer\"")), "layout.toml: class.Holder.fields.inner.to",
                   "names no class of the file"));

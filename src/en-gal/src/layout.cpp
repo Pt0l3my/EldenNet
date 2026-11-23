@@ -368,7 +368,8 @@ std::vector<FieldLayout> read_fields(const toml::table& t, const std::string& pa
                          field->type != FieldType::Array && field->type != FieldType::DlMap &&
                          field->size != 0 && field->size <= kMaxFarBytes;
       if (!small) {
-        errors.add(at + ".far", "applies only to the whole numbers, f32, bool8, bit, bits, ptr, handle, vec3f and dlvector");
+        errors.add(at + ".far",
+                   "applies only to the whole numbers, f32, bool8, bit, bits, ptr, handle, vec3f and dlvector");
         continue;
       }
       if (std::uint64_t{field->off} + field->size > kMaxFarOffset) {
@@ -408,12 +409,16 @@ void read_class(const toml::table& t, std::string name, const std::string& path,
   // that is copied by its size (not an element of a run), and a copy of nothing only where every field is far and
   // no class is checked (the check reads the object's first word).
   const bool any_far = std::any_of(out.fields.begin(), out.fields.end(), [](const FieldLayout& f) { return f.is_far; });
-  if (any_far && !out.copy_size) errors.add(path, "has far fields, which need a copy_size (0 where every field is far)");
+  const bool all_far = !out.fields.empty() &&
+                       std::all_of(out.fields.begin(), out.fields.end(), [](const FieldLayout& f) { return f.is_far; });
+  if (any_far && !out.copy_size) {
+    errors.add(path, "has far fields, which need a copy_size (0 where every field is far)");
+  }
   if (out.copy_size && *out.copy_size == 0) {
-    if (out.fields.empty() || !std::all_of(out.fields.begin(), out.fields.end(), [](const FieldLayout& f) { return f.is_far; })) {
-      errors.add(c.where("copy_size"), "may be 0 only where every field is far");
+    if (!all_far) errors.add(c.where("copy_size"), "may be 0 only where every field is far");
+    if (!out.rtti.empty()) {
+      errors.add(c.where("copy_size"), "must hold the object's first 8 bytes where the class has an rtti");
     }
-    if (!out.rtti.empty()) errors.add(c.where("copy_size"), "must hold the object's first 8 bytes where the class has an rtti");
   }
   std::uint32_t next = (out.copy_size.value_or(0) + 7u) & ~7u;
   for (FieldLayout& f : out.fields) {
