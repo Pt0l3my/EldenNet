@@ -382,7 +382,7 @@ class TreeRead {
   static constexpr std::uint32_t kRecord = 64;
   static constexpr std::size_t kFields = kRecord / 4;
   static constexpr std::uint32_t kBlock = 125;       // a block's bytes, by our notes' lead
-  static constexpr std::size_t kJoinsAFlip = 4;
+  static constexpr std::size_t kJoinsATarget = 24;  // a flip is joined to one record; a stretch to so many
   static constexpr std::size_t kMaxJoins = 48;
 
   // A flip to join the records with: seen around `mark`, `flip` bytes into the stretch that stood at `address` and

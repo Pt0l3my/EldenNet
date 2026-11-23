@@ -198,14 +198,14 @@ void set_flag(std::uint32_t id, bool on) {
   }
 }
 
-// --flag-set's flag: of the second group, in the holder's second block (byte 15 of it, bit 4).
+// --flag-set's flag: of the second group, in the holder's fourth block (byte 15 of it, bit 4).
 constexpr std::uint32_t kFlagLate = 7123;
 void set_late_flag() { set_flag(kFlagLate, true); }
 
 FG::MarkLedgerImp* make_flag_store() {
   WorldState& w = state();
   auto* marks = make<FG::MarkLedgerImp>();
-  auto* holder = static_cast<std::uint8_t*>(alloc_block(125 * 2));
+  auto* holder = static_cast<std::uint8_t*>(alloc_block(125 * 4));
   auto* own = static_cast<std::uint8_t*>(alloc_block(125));
   auto* head = make<FG::FlagNode>();
   auto* n0 = make<FG::FlagNode>();
@@ -214,14 +214,14 @@ FG::MarkLedgerImp* make_flag_store() {
   // SAFETY: the block's address kept as a number, as a mode-2 descriptor holds it.
   const std::uint64_t own_at = reinterpret_cast<std::uintptr_t>(own);
   *head = FG::FlagNode{n0, n7, n4321, 0, 0, 0};
-  *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 125};
+  *n7 = FG::FlagNode{n0, head, n4321, 7, 1, 3};  // mode 1: the block's index in the holder (the fourth block)
   *n0 = FG::FlagNode{head, n7, head, 0, 1, 0};
   *n4321 = FG::FlagNode{head, n7, head, 4321, 2, own_at};
   marks->map_head = head;
   marks->map_count = 3;
   marks->holder = holder;
   w.flag_blocks[0] = holder;
-  w.flag_blocks[1] = holder + 125;
+  w.flag_blocks[1] = holder + 125 * 3;
   w.flag_blocks[2] = own;
   for (const std::uint32_t id : kFlagsAlways) set_flag(id, true);
   return marks;

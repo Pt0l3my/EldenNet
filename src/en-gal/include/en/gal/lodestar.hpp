@@ -538,6 +538,8 @@ struct TreeJoin {
   TreeMatch match = TreeMatch::Start;
   std::uint32_t field = 0;         // the matching field's (or word's) offset in the record
   std::vector<std::uint32_t> values;  // the record's sixteen numbers; a word that looked like an address reads 0
+  bool reached = false;            // going down from the root by the key, as a reader does, arrived at this record
+  std::uint32_t depth = 0;         // after so many records (0: the way was not tried, or it ended elsewhere)
 };
 struct TreeFound {
   std::uint32_t rva = 0;           // the static the way to the root starts at
@@ -548,8 +550,11 @@ struct TreeFound {
   std::uint32_t off_shape = 0;     // addresses followed that held something else
   std::uint32_t unreadable = 0;
   std::uint32_t order = 0;         // 0: no field rises in either order; 1: first word left, third right; 2: the reverse
+  std::uint32_t key_field = 0;     // the key's offset in the record (the first field the tree is ordered by); 0: none
+  std::vector<std::uint32_t> divisor_at;  // offsets in the store's first 256 bytes that hold 1,000 (the round's read)
+  std::vector<std::uint32_t> block_at;    // and those that hold 125
   std::vector<TreeField> fields;   // the sixteen
-  std::vector<TreeJoin> joins;     // at most 4 a flip, 48 in all
+  std::vector<TreeJoin> joins;     // one a flip, at most 24 a stretch and 48 in all
 };
 
 // A static found by what its object holds (proposal 0005 §6.1's `invariant`): the slot of the data behind which one
