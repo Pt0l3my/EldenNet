@@ -2595,6 +2595,7 @@ PKG_RUNS = {
     "A4": ("s0e", "window", ["grace-standin.dll", "grace-spike.dll"]),
     "A0": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll", "grace-standin.dll"]),
     "B": ("s4", "suspended", ["grace-spike.dll"]),
+    "A5": ("s0e_alone", "suspended", ["GraceUI\\graceui.dll", "grace-spike.dll"]),
 }
 # README-SPIKES.txt's two PowerShell lines write this (Set-Content: one line each, CRLF): F11's view on.
 OWNER_SETTINGS = "schema = 2\r\ndebug = { panel = true }\r\n"
@@ -2638,6 +2639,7 @@ def check_pkg_cmd(run):
         need(text.endswith("\r\n") and "\n" not in text.replace("\r\n", ""), "run-%s.cmd: not CRLF lines" % run,
              failures)
         need('cd /d "%~dp0"' in lines, "run-%s.cmd: no cd to its own folder" % run, failures)
+        need("set GRACE_SPIKE_STATE_MS=200" in lines, "run-%s.cmd: no 200 ms state lines" % run, failures)
         need("eldennet-launcher.exe " + " ".join(pkg_options(run)) in lines,
              "run-%s.cmd: the launcher's line differs: %s" % (run, [l for l in lines if "launcher.exe" in l]), failures)
         need([l for l in lines if l.strip()][-1] == "pause", "run-%s.cmd: no pause at its end" % run, failures)
@@ -2736,6 +2738,7 @@ PKG_WHAT = {
     "A4": "S0-E, GraceUI loaded by EldenNet from the game's folder, late, the stand-in first",
     "A0": "S0-E's baseline: GraceUI, the observer and the stand-in alone, no eldennet.dll",
     "B": "S4: the observer alone loaded by the launcher, GraceUI by EldenNet",
+    "A5": "S0-E with GraceUI and the observer alone: no stand-in, no eldennet.dll",
 }
 for _run in PKG_RUNS:
     _extra = ["--press-f11-at", "960,1140"] if PKG_RUNS[_run][0] == "s0e" else []
