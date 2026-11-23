@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (ten read-only rounds run, the eleventh built; step L6's three subjects placed: the clock, the play time, the event flags)
+# Lodestar's status, 23 November 2026 (eleven read-only rounds run, the twelfth built; step L6's three subjects placed; the layout for a ready start begun with the game's state)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -27,7 +27,8 @@ first; this file adds only where Lodestar's own work stands.
 | The eighth read-only run, with the tester's panel (2026-11-22/23; the same record, "The eighth round in game"; roadmap S10.1.l) | package 0.1.0-lodestar.11; engine 3030114, the table at a6cdf26 | **Done, reviewed.** The panel worked on the owner's PC. `world_clock` in the table by the invariant recipe: 15 leads. Bits set in the flags' stretch around both confirmations. The reader at 9.98 readings a second |
 | The ninth read-only run (2026-11-23; the same record, "The ninth round in game") | package 0.1.0-lodestar.12; engine 620dcd7 | **Done, reviewed.** The tree beside the flags read whole (11,930 records): key, mode and block index placed; a block is 125 bytes at the holder plus index times 125; the flips at the owner's marks decode to round flag numbers. The lead's "offset" is an index. The panel's button change ran |
 | The tenth read-only run, and the reader's correction (2026-11-23; the same record, "The tenth round in game") | package 0.1.0-lodestar.13; engine 6d56207, the flags' fields at e864140 | **Done, reviewed.** The reader's way down the tree arrived at the record of every joined flip; the store keeps the divisor 28 bytes in; the flags' fields are in the layout as leads. L6's three subjects are placed |
-| The eleventh round's build: EldenNet's own reader on the flags | package 0.1.0-lodestar.14; engine 998d078 | **Built, not yet run by the owner.** `discover` through the build's layout (a partial pass), `ErBackend::flags_alone` on the round's thread, compared with the round's tree reader and sweep and with the flag set in every playthrough |
+| The eleventh read-only run: EldenNet's own reader on the flags (2026-11-23; the same record, "The eleventh round in game") | package 0.1.0-lodestar.14; engine 998d078 | **Done, reviewed.** `discover` through the build's layout works on the game (a partial pass, 19 ms, 12 items from the table, none refused); `ErBackend::flags_alone` read the flag set in every playthrough as set, 44 frames, no fault. The marked flags were not compared: the tree's walk was 47 records short when the owner quit |
+| The twelfth round's build: the game's state by what it holds at the title and in the world (roadmap S10.1.m) | package 0.1.0-lodestar.15; engine 620570e | **Built, not yet run by the owner.** The state search (the owner agreed to its reading, some 40 MiB a look, four looks), an eleven-task panel list with four marks, the tree's walk with the searches' whole share, the eleventh round's reader beside it |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -53,21 +54,32 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's eleventh read-only run** (package 0.1.0-lodestar.14, engine 998d078; built, not yet run):
-   EldenNet's own reader on the flags, alone (Engine's ruling, WHY§457). Step L6's three subjects are placed (the
-   record's "The tenth round in game"): the time of day, the play time and the event flags, all as leads. This round
-   runs en-gal's discovery through the build's layout as it stands (a partial pass, on a thread of our own) and the
-   backend's flags group alone (`ErBackend::flags_alone`) on the round's thread, and compares (the record's "What
-   was changed for the eleventh round"). When the files come back:
-   - `backend.discovered` and `backend.flags_group` must be true, `table_refused` 0 (the table's checks on the
-     game's own image, for the first time through `discover`), `ready` false (expected);
-   - `backend.known_set`: flag 100 reads set (our notes' "set in every playthrough": if it does not, the note is
-     wrong or the reader is, and the marks' flags tell which);
-   - `backend.flags`: each marked flag `agrees`; `reader_faults` 0, `tripped` false;
-   - then the start's use of the layout is Engine's (discovery through the table and the reader at the start,
-     spikes S0-A and S0-B, roadmap S10.1.b), shared as Engine says.
-   After that, for Lodestar: the fields of the other managers v1 reads, each its own rounds of L6's kind with the
-   tester's panel; the design document with a code for `wp`.
+1. **The owner's twelfth read-only run** (package 0.1.0-lodestar.15, engine 620570e; built, not yet run): the
+   first piece of the layout for a ready start, `game_state` (the record's "What was changed for the twelfth
+   round"). When the files come back:
+   - `state`: four passes; `title_clean` true; the hits. One slot hit, not already named, enters the draft table
+     as `game_state` by the invariant recipe (the round writes it); several hits want a second way to tell them
+     apart (the slot's references in the code, or a second session with another save slot);
+   - `backend.flags`: each marked flag `agrees` (the eleventh round did not get this far); `known_set` true again;
+     `reader_faults` 0, `tripped` false; the tree's walk through within about a minute of the world;
+   - the reader's rate while the state search and the walk hold the searches' share (it should stay near ten a
+     second: the searches only use what the trial leaves).
+   The start's use of the layout is Engine's (discovery through the table and the reader at the start, spikes S0-A
+   and S0-B, roadmap S10.1.b), shared as Engine says.
+   **The layout for a ready start (roadmap S10.1.m, Lodestar's; Engine's order, WHY§460; the list is WHY§459):**
+   `game_state` first, in a round of its own; then the pointers and lists by search and class (`main_player`, the
+   player set, the near list, parts, vitals, motion, `player_data`); then the moving numbers by invariant with panel
+   tasks (hp, pos, death_count, runes, `menus.screen_state`, the HUD's two, dead, on_screen; a task that costs the
+   owner something is optional and says its cost); then the constants as leads from our notes. A start may run with
+   the structural groups whole and the optional ones off. Two small ones are Lodestar's: a field type for a run of
+   bits in a word (the clock), and the play time as a field of `save_data`.
+   - **The plan for `game_state`** (the twelfth round, built as planned): our notes' lead is that its `save_slot` is -1 at
+     the title and the slot's number once a save is loaded. So: over the data's slots that point at live memory
+     (as the play time's search took them), the first 8 KiB of each object, four passes told by the panel's tasks:
+     at the title, in the world, at the title again (the owner quits to the title, not out of the game), in the
+     world again. A 32-bit field that reads -1, a small number, -1 and the same small number is the candidate; the
+     slot's references in the code are its witnesses; one such slot enters the draft table by the invariant recipe.
+
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
