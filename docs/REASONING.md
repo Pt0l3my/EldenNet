@@ -510,6 +510,8 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 485 | 2026-11-23 | The panel's confirmations go on after the Mark's hand-over | METHOD | #launcher #spikes #graceui |
 | 486 | 2026-11-23 | The probe DLL's p99 on the fake game under Wine sits near S0-B's 0.5 ms | FACT | #gal #spikes #wine |
 | 487 | 2026-11-23 | The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside | DECIDED | #spikes #tools |
+| 488 | 2026-11-23 | A field found by what it holds in the game's states is told from its look-alikes by a second save | METHOD | #lodestar #l6 |
+| 489 | 2026-11-23 | The pointers and lists are sought by class from the characters manager's own object | METHOD | #lodestar #gal |
 
 ## Entries
 
@@ -7586,3 +7588,27 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   `README-S0E-S4.txt.in`, still packed as README-SPIKES.txt in EldenNet-Spikes, and the S0 kind's template is
   `README-SPIKES.txt.in`. The S0 package needs no settings.toml: S0 sessions record by the spike, and S0-D's faults
   are the probe build's own (the trial, and the first optional group read where settings.toml names none).
+
+### 488. A field found by what it holds in the game's states is told from its look-alikes by a second save
+
+`2026-11-23` · METHOD · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§469, O105, S10.1.m
+
+- The thirteenth round's state search keeps both numbers a field reads in the world: a hit is -1, 0 to 15, -1, 0 to
+  15, and hits that are one field of one object seen through several slots are numbered alike. With two characters
+  loaded (the first of the list, then the usual one), the save's slot reads two numbers, and what reads one number is
+  something else; the round names `game_state` where one field in one slot alone read two numbers.
+- The owner agreed to load the first character once (O105's fourth note). Nothing enters `gal/` before Lodestar's
+  review of the files.
+
+### 489. The pointers and lists are sought by class from the characters manager's own object
+
+`2026-11-23` · METHOD · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§460, O105, S10.1.m
+
+- The character search (four looks, each after the state search's, with the searches' whole share) reads the manager's
+  object and what follows it (up to 256 KiB), the first 256 bytes behind each address in it (8,192 at most), up to
+  16 KiB of each run two neighbouring addresses bound (64 at most), 16 KiB of the main player's object and 4 KiB of the
+  save data's; 12,000 reads at most a look.
+- Each address is followed once and told by its target's table of methods. A list is two neighbouring addresses that
+  bound a run of equal elements each holding a character's address; the list by distance has a fraction beside the
+  address that never falls along the run. It writes offsets, sizes, counts and tables of methods only, never a value
+  of any object. The owner agreed to the reading (about 6 MiB a look at most), and to the save data's 4 KiB (O105).

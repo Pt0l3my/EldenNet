@@ -2047,6 +2047,20 @@ before, and each look takes about half a minute. This is more reading than you a
 the round do it?" The other answers offered were a smaller reading (4 KiB an object) and no. The owner's answer:
 "Yes, read it (Recommended)". The state search runs, four looks; the whole-memory scan stays off.
 
+*Note, 2026-11-23 (the thirteenth round; WHY§488, §489).* Three answers. (1) Put to the owner by Lodestar: "The
+thirteenth round looks for where the game keeps your character and the characters near you. For that it reads memory
+it has not read before: the game's character manager (up to 256 KiB), the lists it points to (up to 1 MiB), your own
+character's object (16 KiB), and the first 256 bytes of each object those point at. At most about 6 MiB a look, four
+looks (title, world, title, world); likely much less. It only reads, at the same careful pace, and writes only places,
+offsets and counts. May the round do it?" The other answers offered were a smaller reading (half) and "No, not yet".
+The owner's answer: "Yes, read it (Recommended)". (2) Put by Lodestar: "To confirm the save-slot place, the round would
+like you to load a different character once: the first in your Load Game list at the first load, then your usual
+character at the second load. Nothing is changed on the other character except that the game saves it where it stands;
+the round ends on your usual one, so Continue points at it again. Are you willing?" The owner's answer: "Yes, I will
+load the first one". (3) The build also reads the first 4 KiB of the save data's object, which question (1) did not
+name; Engine asked: "May the round keep it?" The owner's answer: "Yes, keep it (Recommended)". The whole-memory scan
+stays off.
+
 ## O106
 
 **Retire R1** · *2026-11-22 · Decided by the owner, as recommended*

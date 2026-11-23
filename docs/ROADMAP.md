@@ -1141,6 +1141,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The twelfth round reviewed the same day (WHY§469, §470): `game_state` has one candidate (static 64543992, 1,136
     bytes in; LIKELY, by the owner's word for the slot), not in the table. Next: the thirteenth round confirms it with a
     second character and begins the pointers and lists, after the owner's word on their reading.
+    The thirteenth round built the same day (engine merge of Lodestar's 63122b6; WHY§488, §489): `game_state` by two
+    saves, and the character search (main_player, the near list, the player set, the player's parts, player_data's
+    pointer), with the owner's agreement to its reading (O105's fourth note). Package 0.1.0-lodestar.17, awaiting the
+    owner's run.
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
