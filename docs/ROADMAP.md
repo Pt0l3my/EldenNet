@@ -1189,6 +1189,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     owner's run, after three README changes of Engine's. Next for Lodestar: the far fields (WHY§506), both sides.
     The far fields built the same day (engine 5024ee9, merged at a64486f; WHY§534): the characters manager's places
     are in the layout as leads. The fourteenth round is with the owner (package 0.1.0-lodestar.18).
+    The fourteenth round's run was spoilt the same day (WHY§536): GraceUI was loaded in a read round, so the marks were
+    the owner's Pause presses, and the game ended with a crash code at the quit. To be run again once the read round no
+    longer connects to GraceUI (WHY§537) and the parts watch takes the main player from characters.main_player
+    (WHY§538).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates

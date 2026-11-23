@@ -558,6 +558,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 533 | 2026-11-23 | A holder that returns after an Alt+Tab waits for GraceUI's next frames before it asks for input again | FACT | #graceui #input |
 | 534 | 2026-11-23 | Far fields are built as the ruling says: a copy of their own, into the object's buffer past the class's copy | METHOD | #lodestar #gal |
 | 535 | 2026-11-23 | A test's port belongs in the test's environment, never the player's settings | METHOD | #graceui #tests |
+| 536 | 2026-11-23 | A read round ran with GraceUI loaded: EldenNet took the Marks, and the owner's Pause presses became the round's marks | FACT | #lodestar #graceui |
+| 537 | 2026-11-23 | A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key | METHOD | #lodestar #engine |
+| 538 | 2026-11-23 | Objects of the player's class are several in a world: the main player is the object at characters.main_player | FACT | #lodestar #gal |
 
 ## Entries
 
@@ -7820,6 +7823,9 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The manager is not there at the title (its static empty until a save is loaded, and again after a quit), and its
   object is over 127 KiB: every one of these lies past the layout's 0x4000 (WHY§506).
 
+- Later (2026-11-23, WHY§538): the player's class is not the main player's alone: eight objects of it stood in the
+  manager's words in one look; the main player is the object at characters.main_player.
+
 ### 503. In the player's object: the parts holder at 0x190 and the character's sheet at 0x580
 
 `2026-11-23` · LIKELY · `#lodestar` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§489
@@ -8190,3 +8196,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   it, asking again up to five times if another program wins the gap; a release build reads nothing of it (GraceUI
   0.2.31). EldenNet's cases are to set it and read the port from GraceUI_Test_GetServer, and the editor's case to stop
   writing one (GraceUI's docs/eldennet-changes.md §64).
+
+### 536. A read round ran with GraceUI loaded: EldenNet took the Marks, and the owner's Pause presses became the round's marks
+
+`2026-11-23` · FACT · `#lodestar` `#graceui` · refs: docs/ops/probes/2026-11-22-l5.md ("The fourteenth round in game: spoilt by GraceUI's presence"), WHY§444, S10.1.m
+
+- Since the spike runs a GraceUI folder lay in the game's folder, so the fourteenth round's EldenNet connected to it
+  (0.2.24), took the ring of Marks, and the launcher released its Pause key: the owner's 18 presses were stamped as
+  Marks by EldenNet and the round took the first three as its moments, all inside the first world. Its searches looked
+  at the wrong moments; the panel's own confirmations stamped nothing. The game ended with 0xC0000005 in ntdll at the
+  quit, 590 s in; the seven read rounds without GraceUI before it ended clean (WHY§529, with Grace).
+
+### 537. A read round is free of GraceUI by construction, and the panel's confirmations reach the round whoever holds the Pause key
+
+`2026-11-23` · METHOD · `#lodestar` `#engine` · refs: WHY§536, WHY§444
+
+- Not by a folder happening to be absent: a read round's start skips the connection to GraceUI (boot.cpp, where the
+  probe's round is the read round and the run is not an observer's), so EldenNet never asks for the ring and GraceUI
+  is never loaded; the launcher's --read says so on the console when a GraceUI folder lies in the game's folder (by
+  Lodestar, Engine's agreement of 2026-11-23).
+
+### 538. Objects of the player's class are several in a world: the main player is the object at characters.main_player
+
+`2026-11-23` · FACT · `#lodestar` `#gal` · refs: WHY§536, WHY§502
+
+- In one look in the first world eight different objects of the player's class stood in the manager's words (17
+  words), most in a run of 16-byte elements 69,824 bytes in that held 538 characters' addresses. So "the object of the
+  player's class" names no one object; the parts watch is to take the main player from the layout's
+  characters.main_player. 0x1E508 held a player-class object with a third character too.
