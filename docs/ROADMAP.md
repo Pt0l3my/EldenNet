@@ -944,6 +944,11 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and eldennet.dll making no call into the game in these runs (WHY§241 to §243). EldenNet's side built the same
     day (engine 5c5b3bc; WHY§249 to §251). The owner's package sent on 2026-11-20: engine def31b4 with GraceUI 0.2.2
     at f5c16a2, runs A1 to A4, A0 and B checked on the fake game (WHY§255 to §257).
+    Repacked on 2026-11-23 at Grace's request, on the owner's go-ahead: 0.1.0-spikes.2, engine fd6e23f (the release DLL
+    with the first conversation) with GraceUI 0.2.22 at b488e3c. BUILD.md's checks passed: the sums, help and version
+    under Wine, the six package cases (A2 stalled once under the machine's load and passed three times alone), the 11
+    GraceUI cases, GraceUI's spike and spike-after scenarios, its report tool on each run (no row failed), the sweep.
+    Sent to the owner the same day (WHY§255's Later line).
 - h O89 to O91 folded into the designs: the derivation round (ARCH §6.2, §6.10), the spikes without GraceUI and the launcher's Mark (DESIGN §14, §16.1), the third-party rows (DESIGN §16.1) [done]
   - refs: O89, O90, O91, ARCH§6.2, ARCH§4.14, DESIGN§16.1
   - gives: folded on 2026-11-17 with the first in-game build's choices (WHY§159 to §204): ARCH

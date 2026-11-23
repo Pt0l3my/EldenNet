@@ -4664,6 +4664,9 @@ invariant 10, EldenNet ARCH (T3)
   is off by default.
 - (METHOD) A harness case whose program reads relative paths now names its start folder: Wine maps it to its drive,
   as cmd.exe's `cd /d "%~dp0"` does on the owner's PC.
+- *Later (2026-11-23):* repacked as 0.1.0-spikes.2 from engine fd6e23f with GraceUI 0.2.22 at b488e3c (Grace's
+  request); the same runs and the same rules. Package case A2 stalled once, under two agents' builds, after GraceUI's
+  observer was injected late (killed at 240 s), and passed three times alone; told to Grace (S10.1.g).
 
 ### 256. EldenNet's vendored graceui_test.h lagged GraceUI 0.2.1; the GraceUI case now reads the version it expects from graceui.toml
 
