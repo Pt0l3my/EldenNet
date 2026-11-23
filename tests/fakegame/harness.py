@@ -3614,6 +3614,10 @@ def check_read_state(result, first=6):
     at = draft.find("[item.game_state]")
     need(at >= 0 and 'found_by = ["invariant"]' in draft[at:at + 400] and "witnesses = [" in draft[at:at + 400],
          "the draft table's game_state: %s" % draft[at:at + 300], failures)
+    # A read round never connects to GraceUI and never asks for the Marks, whether GraceUI is installed or not.
+    failures += any_line(result, "ELDENNET", "connect", skipped=1, why="read_round")
+    need(not result.events("ELDENNET", "marks"), "EldenNet asked for the Marks: %s" % result.events("ELDENNET", "marks"),
+         failures)
     failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
     return failures + ready_no_call(result) + en_log_is_clean(result)
 
@@ -3705,6 +3709,45 @@ case("launcher-eldennet-read-chars", LBASE + ["--no-steam-check", "--game", "{ga
      what="the fourteenth round's second world: the character search's one look at the roster (the player's word, the "
           "near list, the player set, the holder of parts), and the parts watch through the tester's phases (the "
           "position told by its moving in the walk alone, the health by a hit and a heal)")
+
+
+def check_read_graceui(result):
+    """A read round with GraceUI installed in the game's folder (as after a spike run): the round does not connect
+    to it. EldenNet says it skipped the connection and never asks for the Marks; the launcher says GraceUI is not
+    used, keeps its Pause hotkey, and stamps the tasks' Marks itself; GraceUI is never loaded; and the round's
+    marks are the tasks' (the state search's four looks are through, none overrun)."""
+    failures = check_lines(("LAUNCHER", "preflight", {"graceui": "ok"}),
+                           ("LAUNCHER", "read", {"graceui": "installed", "used": 0}),
+                           ("ELDENNET", "connect", {"skipped": 1, "why": "read_round"}))(result)
+    need(not [e for e in result.events("ELDENNET", "connect") if "outcome" in e],
+         "EldenNet connected to GraceUI in a read round", failures)
+    need(not result.events("ELDENNET", "marks"), "EldenNet asked for the Marks: %s" % result.events("ELDENNET", "marks"),
+         failures)
+    need(not [e for e in result.events("LAUNCHER", "mark") if e.get("released") == "1" or e.get("source") == "eldennet"],
+         "the launcher gave up its Pause hotkey or the ring", failures)
+    need(not [l for l in result.lines if "graceui.dll" in l.lower() and "inject" in l.lower()],
+         "graceui.dll was loaded", failures)
+    need(any(l.startswith("EldenNet read: GraceUI is installed, but the read-only round does not load it")
+             for l in result.lines), "the console does not say that GraceUI is not used", failures)
+    failures += any_line(result, "LAUNCHER", "task", n=3, of=14, by="time", mark=1)
+    failures += any_line(result, "LAUNCHER", "task", n=7, of=14, by="time", mark=1)
+    failures += any_line(result, "ELDENNET", "read", stage="mark", n=3)
+    failures += want(result, "ELDENNET", "read", stage="state_done", title_clean=1, overrun=0)
+    failures += check_lines(("ELDENNET", "init", {"state": "ready"}), ("LAUNCHER", "end", {"kind": "clean"}))(result)
+    return failures + ready_no_call(result) + en_log_is_clean(result)
+
+
+case("launcher-eldennet-read-graceui", LBASE + ["--no-steam-check", "--game", "{game}", "--dll", "{eldennetdll}",
+                                                "--read", "--read-pace-s", "8"] +
+     game("--field-mirror", "--slot-by-state", "--first-slot", "6", "--title-frames", "720", "--retitle-at-s", "15",
+          "--retitle-for-s", "16", frames=3900),
+     program="{launcher}", needs=EN_PROBE_NEEDS + ("graceui",), toolchains=("clang-cl",), env=EN_ENV, timeout=240,
+     prepare=install_eldennet(None, probe=True, gal_change=read_state_gal,
+                              then=lambda paths: (with_saves(paths), install_graceui(paths))),
+     check=check_read_graceui,
+     what="a read round with GraceUI installed in the game's folder: EldenNet does not connect to it, the launcher "
+          "keeps the Pause key and stamps the tasks' Marks, and the round's looks follow the tasks (the fourteenth "
+          "round ran with GraceUI loaded and lost its marks)")
 
 
 # The read-only round as the owner runs it (README-READ.txt): `eldennet-launcher --read`, with no settings.toml and the

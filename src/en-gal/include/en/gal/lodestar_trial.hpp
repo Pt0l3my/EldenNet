@@ -525,6 +525,7 @@ class CharSearch {
     std::uint64_t image_size = 0;
     std::uint32_t manager_slot = 0;                 // the characters manager's static
     std::uint32_t save_slot = 0;                    // the save data's static; 0 for none
+    std::uint32_t main_player_word = 0;             // in the manager's object; 0 where it is not known
     std::vector<std::uint32_t> character_vtables;   // of the character's class and every class deriving from it
     std::vector<std::uint32_t> player_vtables;      // of the player's class and every class deriving from it
     const ByteSource* image = nullptr;              // the image as loaded: the slots are read from it
@@ -539,6 +540,10 @@ class CharSearch {
   void ask(std::uint32_t mark = 0) noexcept;
   // The save data's static, once the caller knows it: looks begun after this read its object too.
   void set_save_slot(std::uint32_t rva) noexcept;
+  // Where in the manager's object the main player's address stands, once the caller knows it (the build's layout):
+  // looks begun after this take the main player from there. Without it the first object of the player's class in
+  // the manager's words is taken, which is wrong where the world holds several (the fourteenth round met eight).
+  void set_main_player_word(std::uint32_t offset) noexcept;
   [[nodiscard]] std::uint32_t asked() const noexcept { return asked_.load(std::memory_order_acquire); }
   [[nodiscard]] std::uint32_t passes() const noexcept { return done_.load(std::memory_order_acquire); }
   [[nodiscard]] bool due() const noexcept { return done_.load(std::memory_order_relaxed) < asked(); }
@@ -556,6 +561,7 @@ class CharSearch {
   std::array<std::atomic<bool>, kPasses> overrun_{};
   std::array<std::atomic<std::uint32_t>, kPasses> mark_{};
   std::atomic<std::uint32_t> save_slot_{0};
+  std::atomic<std::uint32_t> main_player_word_{0};
 };
 
 // The pair search (lodestar.hpp's PairFound): two looks, asked for when the tester says the game is in the first
