@@ -578,6 +578,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 553 | 2026-11-23 | A read round that skips the connection keeps GraceUI out of the process, and the launcher's panel keeps Pause | FACT | #lodestar #graceui |
 | 554 | 2026-11-23 | The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean | FACT | #lodestar #crash |
 | 555 | 2026-11-23 | Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call | METHOD | #lodestar #tests |
+| 556 | 2026-11-23 | The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too | FACT | #crash #engine #graceui #lodestar |
 
 ## Entries
 
@@ -8263,6 +8264,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   faulting frames by module and offset, a page-heap run, and a heap guard on GraceUI's own allocations in its test
   build (asked of Grace for spikes.6 the same day).
 
+- Later (2026-11-23, WHY§556): the damage is not GraceUI's: the game alone, with nothing injected, ends the same way.
+
 ### 540. ABI 1.6 grows GraceUiEvent: EldenNet's poll is asked at the larger size, and nothing else changes
 
 `2026-11-23` · FACT · `#engine` `#graceui` · refs: GraceUI's D226, de8b596 (graceui.h), graceui.h's rules (D73), src/en-overlay/tests/fake_grace.cpp (poll), engine wip/s12-pin, merged at 4bfccf9
@@ -8374,6 +8377,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   --vanilla-offline), Lodestar placing what game+0x254e298 frees from the owner's executable, and spikes.6's heap
   guard.
 
+- Later (2026-11-23, WHY§556): a run with nothing injected ended the same way: the game's own.
+
 ### 551. The save's slot is confirmed in game where the executable's study put it
 
 `2026-11-23` · FACT · `#lodestar` `#l6` `#gal` · refs: docs/ops/probes/2026-11-22-l5.md ("The fifteenth round in game"), WHY§543, WHY§460
@@ -8417,3 +8422,13 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 
 - GlobalFlag 0xF0, in a throwaway copy of the prefix, validates the heap on every call and catches it. A deliberate
   overrun proves the check before a clean result is believed.
+
+### 556. The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too
+
+`2026-11-23` · FACT · `#crash` `#engine` `#graceui` `#lodestar` · refs: WHY§550, WHY§554, WHY§539
+
+- The owner's control runs (the launcher's --vanilla-offline: nothing injected, no EldenNet, no GraceUI): one of 35 s
+  ended clean, one of 138 s with a save loaded ended with 0xC0000374 at the quit, as every session has since the first
+  spike run. So the damaged block the game's own teardown frees (game+0x254e298) is not ours: neither EldenNet nor
+  GraceUI is needed for it. What changed on the PC or around the game that day is the owner's to look at if they wish;
+  EldenNet and GraceUI stop chasing it. The launcher's start-up notice of the last session's error shows it each time.
