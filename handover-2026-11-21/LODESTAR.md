@@ -57,17 +57,38 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's fifteenth read-only run, the fourteenth's rerun** (package 0.1.0-lodestar.19, engine 57f7136;
-   built, not yet run; the record's "What was changed for the fifteenth round"). The fourteenth was spoilt by
-   GraceUI's presence (the record says how); now a read round never connects to GraceUI, and the main player is
-   taken from the layout's `characters.main_player`. When the files come back:
-   - first: `connect skipped=1 why=read_round` in EldenNet's log, no `marks source=` line, the launcher's marks
-     stamped by the tasks (eight), and the launcher's end clean (no crash code at the quit);
-   - `pair`: `word_hits` 1 names `game_state` (the round writes it into its draft table); then `[class.game_state]`
-     with `save_slot` goes into the layout. Byte hits only: a third number is needed. None: the offline way;
-   - `chars`: one look, mark 3, the thirteenth round's places (main player's word 0x1E508, the near list 0x1F1E8
-     with `has_fraction`, the player set 0x10EF8, the holder 0x190);
-   - `parts`: the parts' tables of methods; `moves` (the position); `falls` with `has_max` (hp and max_hp).
+1. **The fifteenth round is reviewed (the record's "The fifteenth round in game"); the game's exit code is open.**
+   Package 0.1.0-lodestar.19 ran with GraceUI installed and not loaded; the marks were the tasks' own. Settled:
+   the save's slot is the 32-bit field 0xAC0 into the object behind the static 0x3D709A8 (the pair search hit it
+   in game, 6 then 2: the executable's lead confirmed); health is part 0 of the holder (0x190 of the player), field
+   0x138, its maximum 0x13C (leads for `vitals`); position candidates in parts 13 and 4. Not settled: the lists
+   (the search still takes element pairs for bounds), the falls' list (part 0 used it up).
+   **The game's exit code is settled, and not ours**: the game ended with 0xC0000374 at the quit without GraceUI
+   in the process, and the owner's control run with nothing injected (Engine's, WHY§556) ended the same way once
+   a save was loaded. It is the game's own on that PC since 2026-11-23; the fault is in the game's teardown of its
+   file system (the record has the reading of Engine's stack from the executable). The rounds go on; the README
+   says the code will show.
+   **The sixteenth round is built** (the record's "What was changed for the sixteenth round"): the same fourteen
+   tasks; the pair search's hit in an object of the class the leads' `[statics]` give for the game's state names
+   the slot (no number from the executable is given to the round); the layout's list is judged first; the falls
+   and the moves list the likeliest first, a move with the class of its range. Report schema 16. When its files
+   come back: `pair`: `leads` 1 and one hit with `lead` (64,424,360 + 2,752) and `[item.game_state]` in the draft
+   table, then `[class.game_state]` with `save_slot` at 0xAC0 goes into the layout and the item into the table;
+   `chars`: the first list `expected` at 0x1F1E8 with `has_fraction`; `parts`: the first fall part 0 + 0x138 with
+   its bound at 0x13C, the first moves `span` 3 (three in a row are the position).
+   Then: the vitals and the position as leads in the layout, and a backend entry that reads the world's group
+   alone, so that EldenNet's own reader reads the main player, the near list and the health in a round.
+   **Leads from the owner's executable (the record's "The offline study of the owner's executable")**: the game's
+   state's static is 0x3D709A8 (its class's table of methods 0x2A84210; made with the event flags' store, so not
+   there at the title), the save's slot the 32-bit number 0xAC0 into its object (compared with -1 and with the
+   count of slots in the code); the main player's word 0x1E508 is read by 412 instructions. All leads until the
+   fifteenth round shows them. Engine's word (2026-11-23): the executable chooses what each round checks, in
+   WHY§460's order; the game's state's class name is not taken from the executable into `leads.toml` (O111:
+   nothing of the executable is written down): a round is given the static as a number and reads the object's
+   class from the game's own type information in game, as the naming passes do, and the name enters `leads.toml`
+   from there (a small change to the round, Lodestar's, for the round after the fifteenth). The package
+   0.1.0-lodestar.19 went to the owner after Engine's read. The executable is in the scratch folder `exe/` (never run; to be deleted when the
+   work with it is done); the study's scripts are in the scratch folder `review/` (`exe_*.py`, `pe.py`).
    **Research inputs (O111, 2026-11-23)**: the owner's words, "nothing is off limit for our research, the only
    limit is what we ship with the mod publicly, and what we upload to repo." HANDOVER §3 now reads with O111: nothing
    of the game in files, reports or messages, but a file of the owner's own game given to a session to study is
