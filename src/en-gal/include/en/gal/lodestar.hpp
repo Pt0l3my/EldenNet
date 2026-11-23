@@ -615,6 +615,8 @@ struct CharList {
   bool has_player = false;       // the main player is one of them
   bool has_distance = false;     // a fraction in every element, never negative and never falling along the run
   std::uint32_t distance_at = 0;
+  bool has_fraction = false;     // a fraction in every element, never negative, not the same in all (in order or not)
+  std::uint32_t fraction_at = 0;
 };
 struct CharSet {
   std::uint32_t offset = 0;  // in the manager's object: an address of memory that holds the main player's address
@@ -646,7 +648,7 @@ struct CharLook {
   std::vector<CharSet> sets;          // at most 16
   std::uint32_t player_bytes = 0;     // read of the main player's object; 0: none
   std::uint32_t members_total = 0;
-  std::vector<CharMember> members;    // of the main player's object; at most 160
+  std::vector<CharMember> members;    // of the main player's object; at most 96
   std::uint32_t save_bytes = 0;       // read of the save data's object; 0: none
   std::uint32_t save_members_total = 0;
   std::vector<CharMember> save_members;  // at most 48
@@ -657,6 +659,71 @@ struct CharFound {
   std::uint32_t passes = 0;
   bool overrun = false;
   std::vector<CharLook> looks;  // one a look that is through
+};
+
+// The pair search (the fourteenth read-only round): a field by two numbers it must read. The owner's save file gave
+// the slots of the characters (one fact read offline), so the save's slot is sought as the field that reads the first
+// loaded character's slot in the first world and the second's in the second, over the data's slots in use in the
+// world, with no rule about the title and none about the object behind a slot staying the same.
+struct PairHit {
+  std::uint32_t rva = 0;     // the slot
+  std::uint32_t offset = 0;  // the field, from the object's start
+  std::uint32_t width = 4;   // 4: a 32-bit number read both; 1: one byte did (and the 32-bit number it lies in did not)
+  std::uint32_t sites = 0;   // instructions of the code that refer to the slot (the round's count)
+};
+struct PairFound {
+  std::uint32_t first = 0;   // the number sought in the first world
+  std::uint32_t second = 0;  // and in the second
+  std::uint32_t candidates = 0;
+  std::uint32_t asked = 0;
+  std::uint32_t passes = 0;
+  bool overrun = false;
+  std::vector<StateLook> looks;
+  std::uint32_t objects_first = 0;  // objects read at the first look
+  std::uint32_t objects_second = 0; // of those with a field that read the first number, objects read at the second
+  std::uint64_t words_first = 0;    // 32-bit fields that read the first number
+  std::uint64_t bytes_first = 0;    // bytes that did
+  std::uint32_t word_hits = 0;      // 32-bit fields that then read the second number
+  std::uint32_t byte_hits = 0;      // bytes that did, outside those fields
+  std::vector<PairHit> hits;        // the 32-bit ones first; at most 64
+};
+
+// The parts watch (the fourteenth round; WHY§460's third step: the moving numbers by invariant, with the tester's
+// tasks): the objects the holder of the main player's parts points at, read once a second, and each 32-bit field
+// counted for how it changed in each phase of the round (the tester stands, walks, stands, is hit, heals). What a
+// field held is never reported: only where it lies and how it behaved.
+struct PartFound {
+  std::uint32_t index = 0;   // which word of the holder
+  std::uint32_t vtable = 0;  // the part's table of methods; 0 for none
+  std::uint32_t bytes = 0;   // read of it a pass
+};
+struct PartMove {            // a field that changed while the tester walked and never while they stood
+  std::uint32_t part = 0;
+  std::uint32_t offset = 0;
+  bool fraction = false;     // it reads as a plain fraction
+  std::vector<std::uint32_t> changed;  // by phase: passes in which it differed from the pass before
+};
+struct PartFall {            // a number that fell when the tester was hit
+  std::uint32_t part = 0;
+  std::uint32_t offset = 0;
+  std::uint32_t fell = 0;    // passes of the hit's phase in which it fell
+  std::uint32_t rose = 0;    // passes of the heal's phase in which it rose
+  bool has_max = false;      // a number beside it never changed and is at least as large: its maximum
+  std::uint32_t max_at = 0;
+};
+struct PartsFound {
+  std::uint32_t player_word = 0;  // where in the manager the main player's address stands (the character search's)
+  std::uint32_t holder_at = 0;    // where in the player's object the holder's address stands
+  std::uint32_t passes = 0;
+  std::uint32_t absent = 0;       // passes at which there was no player or no holder
+  std::uint32_t restarts = 0;     // times the player's object or the holder was another than before
+  std::uint32_t phase = 0;        // the phase under way
+  std::vector<std::uint32_t> phase_passes;  // counted passes by phase (the first seconds of a phase are not counted)
+  std::vector<PartFound> parts;
+  std::uint32_t moves_total = 0;
+  std::vector<PartMove> moves;    // at most 64
+  std::uint32_t falls_total = 0;
+  std::vector<PartFall> falls;    // at most 32
 };
 
 // EldenNet's own reader on the flags (the eleventh read-only round; WHY§457): discovery through the build's layout
@@ -718,6 +785,8 @@ struct Found {
   std::optional<BackendFound> backend;
   std::optional<StateFound> state;
   std::optional<CharFound> chars;
+  std::optional<PairFound> pair;
+  std::optional<PartsFound> parts;
   std::vector<InvariantFound> invariants;
 };
 

@@ -2234,6 +2234,190 @@ TEST_CASE("in game: a look of the state search that the tester overran is told, 
   CHECK(text->find("\"looks\": [") != std::string::npos);
 }
 
+TEST_CASE("in game: the pair search finds the field that reads one number in the first world and another in the second") {
+  FakeWorld w;
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  const std::uint64_t state = w.mem.alloc(0x400), other = w.mem.alloc(0x400);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), state);
+  w.mem.put<std::uint64_t>(w.at("st_session"), other);
+  w.mem.put<std::uint64_t>(w.at("st_menus"), 0);  // nothing behind it
+  w.mem.put<std::uint32_t>(state + 0x14, 6);      // the slot: 6, then 2
+  w.mem.put<std::uint32_t>(state + 0x20, 0x0600); // a byte that reads 6 in a field that does not
+  w.mem.put<std::uint32_t>(other + 0x10, 6);      // 6, then 7: no hit
+  lodestar::PairSearch search({rva(w.at("st_hud")), rva(w.at("st_session")), rva(w.at("st_menus"))}, 6, 2,
+                              &w.sys->image());
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 0;
+  const auto look = [&] {
+    for (int steps = 0; steps < 200; ++steps) {
+      reader.begin_tick();
+      now += 100'000;
+      if (search.step(gt, reader, now)) return true;
+    }
+    return false;
+  };
+  CHECK_FALSE(search.due());
+  search.ask();
+  REQUIRE(look());
+  lodestar::PairFound found = search.found();
+  CHECK(found.passes == 1);
+  CHECK(found.objects_first == 2);
+  CHECK(found.words_first == 2);
+  CHECK(found.bytes_first == 3);  // the two fields' own low bytes, and the lone byte
+  CHECK(found.hits.empty());      // nothing is told before the second look
+  // The second world: another object behind the first slot (the game made it anew), and the numbers change.
+  const std::uint64_t again = w.mem.alloc(0x400);
+  w.mem.put<std::uint64_t>(w.at("st_hud"), again);
+  w.mem.put<std::uint32_t>(again + 0x14, 2);
+  w.mem.put<std::uint32_t>(again + 0x20, 0x0200);
+  w.mem.put<std::uint32_t>(other + 0x10, 7);
+  search.ask();
+  REQUIRE(look());
+  search.ask();  // a third is not taken
+  found = search.found();
+  CHECK(found.first == 6);
+  CHECK(found.second == 2);
+  CHECK(found.candidates == 3);
+  CHECK(found.asked == 2);
+  CHECK(found.passes == 2);
+  CHECK_FALSE(found.overrun);
+  CHECK(found.objects_second == 2);  // both that read 6 are read again; the empty slot never was
+  CHECK(found.word_hits == 1);
+  CHECK(found.byte_hits == 1);
+  REQUIRE(found.hits.size() == 2);
+  CHECK(found.hits[0].rva == rva(w.at("st_hud")));
+  CHECK(found.hits[0].offset == 0x14);
+  CHECK(found.hits[0].width == 4);
+  CHECK(found.hits[1].offset == 0x21);
+  CHECK(found.hits[1].width == 1);
+  lodestar::Found f = round_of(w).found;
+  f.pair = found;
+  const auto text = lodestar::write_report(f);
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"pair_hits\": [") != std::string::npos);
+}
+
+TEST_CASE("in game: the parts watch tells a position by its moving while the tester walks, and health by a hit and a heal") {
+  FakeWorld w;
+  w.world();
+  const auto rva = [&](std::uint64_t at) { return static_cast<std::uint32_t>(at - w.base); };
+  // The holder: three addresses. A classed part with three fractions (two of them move) and a timer; a plain part
+  // with a maximum and a number below it; and an address of nothing.
+  const std::uint64_t holder = w.mem.alloc(0x100), body = w.mem.alloc(0x100), vitals = w.mem.alloc(0x40);
+  w.set_vtable(body, "hud");
+  w.mem.put<std::uint64_t>(holder + 0x0, body);
+  w.mem.put<std::uint64_t>(holder + 0x8, vitals);
+  w.mem.put<std::uint64_t>(holder + 0x10, 0x7000'0000'0000ull);
+  w.mem.put<std::uint64_t>(w.player + 0x38, holder);
+  w.mem.put<float>(body + 0x20, 100.0f);
+  w.mem.put<float>(body + 0x24, 5.0f);
+  w.mem.put<float>(body + 0x28, 200.0f);
+  w.mem.put<std::int32_t>(vitals + 0x0, 1200);
+  w.mem.put<std::int32_t>(vitals + 0x4, 1100);
+  lodestar::PartsWatch::Options o;
+  o.base = w.base;
+  o.image_size = w.sys->image().size();
+  o.manager_slot = rva(w.at("st_characters"));
+  o.player_word = 0x10;
+  o.holder_at = 0x38;
+  o.image = &w.sys->image();
+  lodestar::PartsWatch watch(o);
+  GuardedReader reader(*w.sys);
+  const auto gt = en::proto::GameThread::issue();
+  std::uint64_t now = 10'000'000;
+  std::uint32_t timer = 0;
+  float x = 100.0f;
+  const auto pass = [&](bool walking) {
+    now += 1'000'000;
+    w.mem.put<std::uint32_t>(body + 0x40, ++timer);  // something that changes all the time
+    if (walking) {
+      x += 1.5f;
+      w.mem.put<float>(body + 0x20, x);
+      w.mem.put<float>(body + 0x28, 2.0f * x);
+    }
+    for (int steps = 0; steps < 200; ++steps) {
+      reader.begin_tick();
+      if (watch.step(gt, reader, now)) return;
+    }
+    FAIL("a pass did not end");
+  };
+  CHECK(watch.due(now));
+  for (int i = 0; i < 5; ++i) pass(false);  // standing
+  CHECK_FALSE(watch.due(now));              // the next pass is a second away
+  watch.mark(now);
+  for (int i = 0; i < 10; ++i) pass(true);  // walking
+  watch.mark(now);
+  pass(true);  // still coming to a stop: within the phase's first seconds, not counted
+  for (int i = 0; i < 7; ++i) pass(false);
+  watch.mark(now);  // the hit's phase
+  pass(false);
+  w.mem.put<std::int32_t>(vitals + 0x4, 900);
+  pass(false);
+  pass(false);
+  watch.mark(now);  // the heal's
+  w.mem.put<std::int32_t>(vitals + 0x4, 1100);
+  pass(false);
+  pass(false);
+  watch.mark(now);
+  pass(false);
+  const lodestar::PartsFound found = watch.found();
+  CHECK(found.player_word == 0x10);
+  CHECK(found.holder_at == 0x38);
+  CHECK(found.passes == 29);
+  CHECK(found.absent == 0);
+  CHECK(found.restarts == 0);
+  CHECK(found.phase == 5);
+  REQUIRE(found.phase_passes.size() == 6);
+  CHECK(found.phase_passes[0] == 5);
+  CHECK(found.phase_passes[1] == 7);  // ten, less the three within the phase's first four seconds
+  CHECK(found.phase_passes[2] == 5);
+  CHECK(found.phase_passes[3] == 3);  // the hit's and the heal's phases count from their start
+  CHECK(found.phase_passes[4] == 2);
+  REQUIRE(found.parts.size() == 2);   // the address of nothing is no part
+  CHECK(found.parts[0].index == 0);
+  CHECK(found.parts[0].vtable == rva(w.vtable("hud")));
+  CHECK(found.parts[0].bytes == 0x100);
+  CHECK(found.parts[1].index == 1);
+  CHECK(found.parts[1].vtable == 0);
+  CHECK(found.parts[1].bytes == 0x40);
+  CHECK(found.moves_total == 2);
+  REQUIRE(found.moves.size() == 2);   // the timer changed while standing too: no move; the middle fraction never moved
+  CHECK(found.moves[0].part == 0);
+  CHECK(found.moves[0].offset == 0x20);
+  CHECK(found.moves[0].fraction);
+  REQUIRE(found.moves[0].changed.size() == 6);
+  CHECK(found.moves[0].changed[0] == 0);
+  CHECK(found.moves[0].changed[1] == 7);
+  CHECK(found.moves[0].changed[2] == 0);
+  CHECK(found.moves[1].offset == 0x28);
+  CHECK(found.falls_total == 1);
+  REQUIRE(found.falls.size() == 1);
+  CHECK(found.falls[0].part == 1);
+  CHECK(found.falls[0].offset == 0x4);
+  CHECK(found.falls[0].fell == 1);
+  CHECK(found.falls[0].rose == 1);
+  CHECK(found.falls[0].has_max);
+  CHECK(found.falls[0].max_at == 0x0);
+  // No player (the title): a pass that reads nothing of the parts, counted as absent.
+  w.title();
+  pass(false);
+  CHECK(watch.found().absent == 1);
+  // The report carries where the numbers lie and how they behaved, and lints clean.
+  lodestar::Found f = round_of(w).found;
+  f.parts = found;
+  const auto text = lodestar::write_report(f);
+  if (!text.has_value()) MESSAGE(report::describe(text.error()));
+  REQUIRE(text.has_value());
+  const report::Vocabulary* known[] = {&lodestar::vocabulary()};
+  CHECK(report::lint(*text, known).has_value());
+  CHECK(text->find("\"moves\": [") != std::string::npos);
+  CHECK(text->find("\"has_max\": true") != std::string::npos);
+  CHECK(text->find("1100") == std::string::npos);  // what a number held is never written
+}
+
 TEST_CASE("in game: a pass takes over a manager the search named first, and an invariant's static enters the table") {
   FakeWorld w;
   Round r = round_of(w);
