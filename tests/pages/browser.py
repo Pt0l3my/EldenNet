@@ -6,6 +6,11 @@ Standard library only; it prints neither the cookie nor the ticket.
 
     view = Browser(port)            # GET / for the cookie, POST /api/ticket, GET /api/ws, hello, welcome
     view.sub("eldennet", "status")  # then view.next(...) for its frames
+
+A paired device at home (GraceUI's G9, D221 to D223), on the test build's listener at 127.0.0.2 alone:
+
+    cookie = pair(port, code)                                # POST /api/pair with the sheet's code: the device cookie
+    phone = Browser(port, address="127.0.0.2", cookie=cookie)
 """
 import base64
 import http.client
@@ -20,12 +25,30 @@ class BrowserError(Exception):
     pass
 
 
+def pair(port, code, name="Invented test tablet", address="127.0.0.2", timeout=5.0):
+    """Pairs a device with the code GraceUI's pairing sheet shows in game: its device cookie ("en_device=..."), or a
+    BrowserError. Only on the test build's home listener, never a real address."""
+    host = "%s:%d" % (address, port)
+    post = http.client.HTTPConnection(address, port, timeout=timeout)
+    post.request("POST", "/api/pair", body=json.dumps({"code": code, "name": name}), headers={
+        "Host": host, "Origin": "http://" + host, "Content-Type": "application/json", "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors"})
+    reply = post.getresponse()
+    reply.read()
+    post.close()
+    cookie = (reply.getheader("Set-Cookie") or "").split(";", 1)[0]
+    if reply.status != 200 or not cookie.startswith("en_device="):
+        raise BrowserError("the pairing gave no device cookie (status %d)" % reply.status)
+    return cookie
+
+
 class Browser:
-    def __init__(self, port, timeout=5.0):
+    def __init__(self, port, timeout=5.0, address="127.0.0.1", cookie=None):
         self.port = port
-        self.host = "127.0.0.1:%d" % port
+        self.address = address
+        self.host = "%s:%d" % (address, port)
         self.timeout = timeout
-        self.cookie = self._cookie()
+        self.cookie = cookie if cookie is not None else self._cookie()
         self.ticket = self._ticket()
         self.sock = None
         self.buffer = b""
@@ -37,7 +60,7 @@ class Browser:
     # ---- HTTP: the page's cookie and a ticket, as a browser fetches them.
 
     def _cookie(self):
-        page = http.client.HTTPConnection("127.0.0.1", self.port, timeout=self.timeout)
+        page = http.client.HTTPConnection(self.address, self.port, timeout=self.timeout)
         page.request("GET", "/", headers={"Host": self.host, "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate",
                                           "Sec-Fetch-Dest": "document"})
         reply = page.getresponse()
@@ -49,7 +72,7 @@ class Browser:
         return cookie
 
     def _ticket(self):
-        post = http.client.HTTPConnection("127.0.0.1", self.port, timeout=self.timeout)
+        post = http.client.HTTPConnection(self.address, self.port, timeout=self.timeout)
         post.request("POST", "/api/ticket", body="{}", headers={
             "Host": self.host, "Origin": "http://" + self.host, "Content-Type": "application/json",
             "Cookie": self.cookie, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors"})
@@ -63,7 +86,7 @@ class Browser:
     # ---- The WebSocket (RFC 6455): a client's frames are masked, a server's are not.
 
     def _join(self):
-        self.sock = socket.create_connection(("127.0.0.1", self.port), timeout=self.timeout)
+        self.sock = socket.create_connection((self.address, self.port), timeout=self.timeout)
         key = base64.b64encode(os.urandom(16)).decode("ascii")
         head = ("GET /api/ws HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive, Upgrade\r\nUpgrade: websocket\r\n"
                 "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: %s\r\nSec-Fetch-Site: same-origin\r\n"

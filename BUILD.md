@@ -177,6 +177,14 @@ cmake --build build-cl
   `holder=2`, EldenNet's), the line sent without the T's own character, the box's first submitted frame within NPC
   §5.1's 50 ms of the key, the request's stop sequences, the reply's first page on the frame in the lower third
   (`--grace-probe` on its ink) with its PageShown and its commit, the close's reason, and no chat text in the log.
+  `launcher-eldennet-graceui-editor` is the profile editor (S7.2.b) and the sensitive marks (S11.4.e): GraceUI loaded
+  first (`--also`) with Other devices on in its own `user\settings.json`, and the fake game's `--grace-lan` putting its
+  test build's home listener on 127.0.0.2 alone before EldenNet registers its pages. A browser of the tests' own reads
+  Characters › Named NPCs, checks and saves the pilot's notes (a layer of the player's own in the overrides folder), is
+  refused a stale save and a length out of range, and asks for a draft, which `fake_models.py` answers with a scripted
+  JSON draft on the dialogue slot the draft slot borrows; in game F5's menu types and saves notes in the editor, then
+  pairs a device from GraceUI's Browser view page, whose code the fake game's report names (`pairing=`); the tests'
+  browser pairs as that device on 127.0.0.2 (`browser.pair`) and is refused EldenNet's sensitive commands and settings.
 - **EldenNet's pages** (`src/en-overlay/pages/space.toml`, its JSON beside it and `src/space_data.cpp`, all written by
   `python3 -I tools/pages/build.py`) have three CTest checks of their own: `en_pages_build` (`--check`: the outputs are
   what the source builds), in every build with Python; `en_pages_lint`, GraceUI's own page lint, with
