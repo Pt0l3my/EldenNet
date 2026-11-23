@@ -155,7 +155,7 @@ class Overlay {
     bool lost = false;                // GraceUI answered not connected or inactive: nothing more is shown
     GraceUiStatus refused = GRACEUI_OK;  // a submit's or a panel call's answer other than ok, if any
     // The space's (D169).
-    std::uint32_t commands = 0;              // answered, each once
+    std::uint32_t commands = 0;              // taken, each answered once: at once, or later (answer_later)
     std::uint32_t published = 0;             // frames GraceUI took
     GraceUiStatus page_refused = GRACEUI_OK;  // a publish's or an answer's answer other than ok, if any
     // The surfaces': what the player did (the talk key, Tab, the box's events), for the core, in order.
@@ -171,6 +171,10 @@ class Overlay {
   // After the core took the step's events: the newest model drawn by the surfaces (chat.hpp), and the events that
   // raised (PageShown, Close). Nothing without the surfaces, or once GraceUI has gone.
   [[nodiscard]] std::vector<proto::UiEvent> show(const proto::UiModel& model, std::uint64_t now_ms);
+  // The answers the space has for commands it answers later (the profile editor's, characters.hpp), each handed to
+  // GraceUI with its reply handle, once: step does it every wake, and the DLL once it has made a request, so that an
+  // answer is not held until the next wake. Its count; nothing once GraceUI has gone.
+  std::uint32_t answer_later(Space& space);
   // The overlay's own code faulted (ffi_guard tripped): the box's input given back at once.
   void fault() noexcept;
 

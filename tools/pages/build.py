@@ -9,7 +9,7 @@ D160 and eldennet-changes §19 item 3).
 The source is src/en-overlay/pages/space.toml, in GraceUI's page format. Its outputs:
 
   - src/en-overlay/pages/pages.json: the protocol's `space_pages` (the space, its name, the protocol minor its
-    components need, its categories, pages, topics and commands);
+    components need, its categories, pages, topics, commands, slow commands and sensitive commands);
   - src/en-overlay/pages/settings.json: the protocol's `settings_description` (its schema number, the hash GraceUI's
     format gives it, the first 16 hex digits of the SHA-256 of its settings' canonical JSON, and every setting with
     `synonyms` and `locked` filled in);
@@ -33,13 +33,14 @@ PAGES_JSON = ROOT / "src" / "en-overlay" / "pages" / "pages.json"
 SETTINGS_JSON = ROOT / "src" / "en-overlay" / "pages" / "settings.json"
 SPACE_CPP = ROOT / "src" / "en-overlay" / "src" / "space_data.cpp"
 
-PROTOCOL_MINOR = 3  # a section's chip and live status are protocol 1.3's (GraceUI D202), on 1.2's row actions, row secrets,
-#                    a form and pickers (D192 to D196)
-SPACE_FIELDS = ("id", "name", "settings_schema", "commands")
-PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "tabs",
-               "sections")
+PROTOCOL_MINOR = 8  # sensitive commands and settings are protocol 1.8's (GraceUI D221), on 1.7's editor block (D217),
+#                    1.6's slow commands (D216), 1.5's topic families and master list (D215), 1.3's chip and live
+#                    status (D202) and 1.2's row actions, row secrets, a form and pickers (D192 to D196)
+SPACE_FIELDS = ("id", "name", "settings_schema", "commands", "slow_commands", "sensitive_commands")
+PAGE_FIELDS = ("id", "category", "name", "description", "help", "related", "increment", "tag", "actions", "master",
+               "tabs", "sections")
 SETTING_FIELDS = ("key", "type", "default", "min", "max", "step", "unit", "choices", "choices_from", "third", "label",
-                  "help", "synonyms", "home", "effect", "availability", "locked")
+                  "help", "synonyms", "home", "effect", "availability", "locked", "sensitive")
 DELIMITER = ")space\""
 
 
@@ -73,6 +74,9 @@ def documents(text):
         "topics": source.get("topic", []),
         "commands": space.get("commands", []),
     }
+    for optional in ("slow_commands", "sensitive_commands"):
+        if optional in space:
+            space_pages[optional] = space[optional]
     settings = []
     for entry in source.get("setting", []):
         only(f"setting {entry.get('key')}", entry, SETTING_FIELDS)

@@ -1,7 +1,7 @@
 {
   "space": "eldennet",
   "name": "EldenNet",
-  "minor": 3,
+  "minor": 8,
   "categories": [
     {
       "id": "home",
@@ -27,7 +27,9 @@
     {
       "id": "characters",
       "name": "Characters",
-      "pages": []
+      "pages": [
+        "characters.named"
+      ]
     },
     {
       "id": "map",
@@ -698,6 +700,74 @@
           ]
         }
       ]
+    },
+    {
+      "id": "characters.named",
+      "category": "characters",
+      "name": "Named NPCs",
+      "description": "Every named character EldenNet voices: who they appear to be, and your own notes on them.",
+      "help": {
+        "purpose": "See who each character appears to be at a first meeting, and add notes of your own on how they speak.",
+        "steps": [
+          "Choose a character in the list.",
+          "Read their general profile: what anyone would see on meeting them.",
+          "Under Your notes, write how they speak, what they like to talk about, their manner and their longest reply. Check shows any problem; Save keeps it in a file of your own.",
+          "Draft with AI turns rough notes into a draft beside your fields: take what you like, then save."
+        ]
+      },
+      "related": [
+        "ai.models",
+        "home"
+      ],
+      "increment": "0.2",
+      "master": {
+        "topic": "named.list",
+        "key": "id",
+        "detail": "named",
+        "label": "Named NPCs",
+        "empty": "No character EldenNet voices is loaded yet.",
+        "none": "Choose a character to see their profile."
+      },
+      "tabs": [
+        {
+          "id": "profile",
+          "name": "Profile",
+          "sections": [
+            {
+              "id": "general",
+              "title": "General profile",
+              "description": "What anyone would see on meeting them, in EldenNet's own words.",
+              "blocks": [
+                {
+                  "kind": "component",
+                  "component": "key_value_list",
+                  "topic": "named"
+                }
+              ]
+            },
+            {
+              "id": "yours",
+              "title": "Your notes",
+              "description": "Your own layer over EldenNet's profile, kept in a file of your own. Left unset, a field keeps EldenNet's.",
+              "blocks": [
+                {
+                  "kind": "editor",
+                  "topic": "profiles",
+                  "editor": {
+                    "save": "profile.save",
+                    "check": "profile.check",
+                    "reset": "profile.reset",
+                    "restore": "profile.restore",
+                    "draft": "profile.draft",
+                    "notes_label": "Your rough notes for a draft",
+                    "notes_max": 400
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "topics": [
@@ -793,6 +863,20 @@
     {
       "id": "space.state",
       "shape": "state"
+    },
+    {
+      "id": "named.list",
+      "shape": "state"
+    },
+    {
+      "id": "named",
+      "shape": "state",
+      "family": true
+    },
+    {
+      "id": "profiles",
+      "shape": "state",
+      "family": true
     }
   ],
   "commands": [
@@ -800,6 +884,19 @@
     "settings.reset",
     "selftest.run",
     "models.list",
+    "providers.add",
+    "providers.remove",
+    "providers.key",
+    "profile.check",
+    "profile.save",
+    "profile.reset",
+    "profile.restore",
+    "profile.draft"
+  ],
+  "slow_commands": [
+    "profile.draft"
+  ],
+  "sensitive_commands": [
     "providers.add",
     "providers.remove",
     "providers.key"
