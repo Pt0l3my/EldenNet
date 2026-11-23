@@ -33,6 +33,10 @@ struct Options {
   std::uint32_t boot_delay_ms = 0;     // before the window
   std::uint32_t statics_delay_ms = 0;  // between the window and the statics
   bool field_mirror = false;           // a second word of the data holds the FieldPlot's address (a copy of one address)
+  bool slot_by_state = false;          // the run warden's save slot reads -1 outside the world (as the game's does, by
+                                       // our notes) and 2 in it; without this it reads 2 always
+  std::uint32_t retitle_at_s = 0;      // seconds into the world at which the game goes back to its title, once; 0 never
+  std::uint32_t retitle_for_s = 10;    // and how long it stays there before it loads the world again
   std::uint32_t clock_rate = 60;       // game seconds a second of real time in the world (a game minute a second)
   bool day_book = false;               // the first decoy static holds a plain block that keeps the clock's packed word
                                        // twice (0x10 and 0x18 bytes in): a clock behind a static no lead names

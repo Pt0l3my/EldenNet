@@ -245,7 +245,7 @@ of any game is in it, and every name it looks for comes from a leads file.
   those the accessor's own sites reach too (`known`) and with the same class object (`agreeing`), and the statics
   that are new, each with its class object, count of sites and witnesses; `all_statics` is the accessor's own and
   then the variants' new ones, which the naming goes through. A variant never changes the accessor's own counts or
-  `complete`. `write_report` writes kind `lodestar`, schema 11, through the numbers-only writer: whole
+  `complete`. `write_report` writes kind `lodestar`, schema 12, through the numbers-only writer: whole
   numbers, booleans, fixed words and the leads' labels. Its vocabulary holds no key of the pattern type and no
   fraction, which a test pins, so a report cannot carry a byte, a pattern, text, a name or an instruction.
   **The in-game round (step L5; proposal 0005 §6.1's `instance_class`, O92)** adds, all read-only:
@@ -328,7 +328,13 @@ of any game is in it, and every name it looks for comes from a leads file.
   stepping), counts each of a record's sixteen 32-bit fields over all records, finds the key by the tree's own order
   (a left child's is smaller, a right child's greater), and joins a marked flip to the record that names its block
   by the block's start, index or address (`TreeFound`, `TreeJoin`); `settle` tells addresses from numbers that look
-  like them before anything is counted, and an address is never written.
+  like them before anything is counted, and an address is never written. `StateSearch` finds a static by what a
+  field of its object holds in two states of the game the tester moves it between: over the data's slots that point
+  at live memory, the first 0x2000 bytes of each object in four passes (asked for one by one, at the tester's
+  marks); a 32-bit field that reads -1, a number from 0 to 15, -1 and the same number again is a hit (`StateFound`).
+  The round names the one slot with such a field the game's state by the invariant recipe. `ErBackend::flags_alone`
+  and `DiscoveryOptions::partial` (backend.hpp, discovery.hpp) let one group of EldenNet's own reader be read before
+  the others' fields are placed.
   The round watches each named manager, the objects the event flags' store's first addresses lead to and the
   objects those lead to (and sweeps the stretches all of them start), each place the member search found a
   pointer to an unnamed lead's object at with the object that holds it (0x4000 bytes of both for the world's

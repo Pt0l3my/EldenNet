@@ -110,23 +110,30 @@ std::string timer_text(const TaskRow& row) {
 }
 
 std::vector<Task> read_tasks() {
+  // The twelfth read-only round: the game is taken through two of its states twice (the title, the world, the title,
+  // the world), and each change is marked, so that the round can tell what the game keeps differently in them. Then
+  // one thing the game remembers, marked, for the flags' reader (the eleventh round's walk ended too late for it).
   using K = TaskKind;
   return {
       {K::Round, "Wait at the title screen",
        "EldenNet is reading the game. Do not load your save yet: this row turns grey when it is time.", 0, false, ""},
-      {K::Do, "Load your save", "When you stand in the world, press Pause.", 0, false, "I am in the world"},
-      {K::Wait, "Walk about",
-       "Go near an NPC or an enemy, and open the map once. Leave items, doors and graces alone for now.", 180, false,
-       ""},
+      {K::Wait, "Stay at the title screen", "EldenNet takes its first look at the title. Do not load your save yet.",
+       60, false, ""},
+      {K::Do, "Load your save", "When you stand in the world, press Pause.", 0, true, "I am in the world"},
+      {K::Wait, "Walk about", "Anything will do. Stay in the world until the time is up.", 60, false, ""},
+      {K::Do, "Quit to the title screen",
+       "Use the game's own menu to quit to the title screen, not out of the game. When the title screen shows, "
+       "press Pause.",
+       0, true, "The title screen shows"},
+      {K::Wait, "Stay at the title screen", "Do not load your save until the time is up.", 45, false, ""},
+      {K::Do, "Load your save again", "The same save. When you stand in the world, press Pause.", 0, true,
+       "I am in the world again"},
+      {K::Wait, "Walk about", "Anything will do. Stay in the world until the time is up.", 60, false, ""},
       {K::Do, "Do one thing the game remembers",
        "Take an item from a body or a chest, open a door or a chest, discover a grace, or buy something a merchant "
        "has only a few of. Then press Pause at once.",
        0, true, "I have done it"},
-      {K::Wait, "Walk about", "Leave items, doors and graces alone until the time is up.", 90, false, ""},
-      {K::Do, "Do a second such thing",
-       "Another item, door, chest or purchase, then press Pause at once. If nothing is at hand, just press Pause.", 0,
-       true, "Done, or nothing at hand"},
-      {K::Wait, "Walk about", "Leave items, doors and graces alone until the time is up.", 90, false, ""},
+      {K::Wait, "Walk about", "Leave items, doors and graces alone until the time is up.", 60, false, ""},
       {K::End, "Quit the game", "The round is done: there is nothing more to press. Quit as you usually do.", 0, false,
        ""},
   };
