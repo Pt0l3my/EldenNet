@@ -68,6 +68,20 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
      spikes S0-A and S0-B, roadmap S10.1.b), shared as Engine says.
    After that, for Lodestar: the fields of the other managers v1 reads, each its own rounds of L6's kind with the
    tester's panel; the design document with a code for `wp`.
+   **The layout for a ready start (roadmap S10.1.m, Lodestar's; Engine's order, WHY§460; the list is WHY§459):**
+   `game_state` first, in a round of its own; then the pointers and lists by search and class (`main_player`, the
+   player set, the near list, parts, vitals, motion, `player_data`); then the moving numbers by invariant with panel
+   tasks (hp, pos, death_count, runes, `menus.screen_state`, the HUD's two, dead, on_screen; a task that costs the
+   owner something is optional and says its cost); then the constants as leads from our notes. A start may run with
+   the structural groups whole and the optional ones off. Two small ones are Lodestar's: a field type for a run of
+   bits in a word (the clock), and the play time as a field of `save_data`.
+   - **The plan for `game_state`** (the twelfth round, not built): our notes' lead is that its `save_slot` is -1 at
+     the title and the slot's number once a save is loaded. So: over the data's slots that point at live memory
+     (as the play time's search took them), the first 8 KiB of each object, four passes told by the panel's tasks:
+     at the title, in the world, at the title again (the owner quits to the title, not out of the game), in the
+     world again. A 32-bit field that reads -1, a small number, -1 and the same small number is the candidate; the
+     slot's references in the code are its witnesses; one such slot enters the draft table by the invariant recipe.
+
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
