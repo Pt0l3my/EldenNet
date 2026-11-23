@@ -66,6 +66,8 @@ inner  = { off = 0x40, ty = "ptr", to = "Inner", group = "world" }
 slots  = { off = 0x50, ty = "array", elem = "Slot", len = 3, stride = 0x10, group = "ui" }
 when   = { off = 0x80, ty = "u64", group = "boot" }
 hour   = { off = 0x88, ty = "bits", word = 8, shift = 34, width = 5, group = "place", range = [0, 23] }
+deep   = { off = 0x1E508, ty = "ptr", far = true, group = "world" }
+wide   = { off = 0x1F1E8, ty = "dlvector", far = true, group = "world" }
 
 [class.Inner]
 copy_size = 0x20
@@ -167,6 +169,21 @@ TEST_CASE("a layout reads for the build the gate matched, with every table") {
   CHECK(hour->shift == 34);
   CHECK(hour->width == 5);
   CHECK(hour->range == std::pair<std::int64_t, std::int64_t>{0, 23});
+  // Far fields: past the copy, each read by a copy of its own and kept past the copy in the reader's buffer.
+  const FieldLayout* deep = holder->field("deep");
+  const FieldLayout* wide = holder->field("wide");
+  REQUIRE(deep != nullptr);
+  REQUIRE(wide != nullptr);
+  CHECK(deep->is_far);
+  CHECK(deep->off == 0x1E508);
+  CHECK(wide->is_far);
+  CHECK(wide->size == 16);
+  CHECK_FALSE(hour->is_far);
+  CHECK(hour->at() == 0x88);
+  CHECK(std::min(deep->at(), wide->at()) == 0x100);  // the first far field's bytes follow the copy
+  CHECK(std::max(deep->at(), wide->at()) >= 0x108);
+  CHECK(holder->far_bytes == 24);
+  CHECK(holder->buffer_size() == 0x118);
   CHECK(holder->field("slots")->size == 0x30);
   CHECK(holder->field("when")->boot);
   CHECK_FALSE(holder->field("when")->group.has_value());
@@ -183,7 +200,7 @@ TEST_CASE("a layout reads for the build the gate matched, with every table") {
   CHECK(layout->fmg()->group_stride == 12);
   CHECK(layout->dlrf()->name_ptr_off == 8);
   CHECK(layout->selftest().npc_name_ids == std::vector<std::uint32_t>{101, 102});
-  CHECK(layout->max_copy_size() == 0x100);
+  CHECK(layout->max_copy_size() == 0x118);  // the largest copy and its far fields' bytes
   CHECK_FALSE(layout->has_leads());
 }
 
@@ -214,7 +231,17 @@ TEST_CASE("fields stay within their class, and what they name exists") {
   CHECK(has_error(refusal(changed("when   = { off = 0x80", "when   = { off = 0xFC")),
                   "layout.toml: class.Holder.fields.when", "runs past the class's copy size"));
   CHECK(has_error(refusal(changed("copy_size = 0x100", "copy_size = 0x4001")), "layout.toml: class.Holder.copy_size",
-                  "must be between 1 and 16384"));
+                  "must be between 0 and 16384"));
+  CHECK(has_error(refusal(changed("ty = \"ptr\", far = true, group = \"world\"", "ty = \"ptr\", group = \"world\"")),
+                  "layout.toml: class.Holder.fields.deep.off", "must be between 0 and 16383"));
+  CHECK(has_error(refusal(changed("off = 0x1E508", "off = 0x100000")), "layout.toml: class.Holder.fields.deep.off",
+                  "must be between 0 and 1048575"));
+  CHECK(has_error(refusal(changed("ty = \"ptr\", far = true", "ty = \"utf16[4]\", far = true")),
+                  "layout.toml: class.Holder.fields.deep.far", "applies only to the whole numbers"));
+  CHECK(has_error(refusal(changed("copy_size = 0x100", "copy_size = 0")), "layout.toml: class.Holder.copy_size",
+                  "may be 0 only where every field is far"));
+  CHECK(has_error(refusal(changed("ty = \"u16\", group", "ty = \"u16\", far = 1, group")),
+                  "layout.toml: class.Inner.fields.level.far", "must be true or false"));
   CHECK(has_error(refusal(changed("to = \"Inner\"", "to = \"Outer\"")), "layout.toml: class.Holder.fields.inner.to",
                   "names no class of the file"));
   CHECK(has_error(refusal(changed("elem = \"Slot\"", "elem = \"Slab\"")), "layout.toml: class.Holder.fields.slots.elem",

@@ -63,7 +63,7 @@ ErBackend::ErBackend(SysLayer& sys, const Discovery& discovery, const BackendOpt
       b_(discovery.bound()),
       opts_(options),
       reader_(sys, options.budget),
-      scratch_(std::make_unique<Scratch>(std::min(discovery.layout().max_copy_size(), kMaxCopyBytes),
+      scratch_(std::make_unique<Scratch>(discovery.layout().max_copy_size(),  // far fields' bytes included
                                          list_bytes(discovery.bound()))),
       watch_order_(proto::kMaxWatchFlags, 0) {
   for (std::size_t g = 0; g < proto::kGroupCount; ++g) {
@@ -141,10 +141,18 @@ std::shared_ptr<const std::vector<std::uint32_t>> ErBackend::take_retired() noex
 
 std::optional<ObjView> ErBackend::object(const GameThread& gt, Group g, Cls c, std::uint64_t address, std::size_t slot,
                                          bool* mismatch, bool hard) {
-  const std::uint32_t size = b_.size_of(c);
-  if (size == 0 || address == 0) return std::nullopt;
+  const ClassLayout* layout = b_.cls(c);
+  const std::uint32_t size = b_.size_of(c);  // the copy, then the far fields' own bytes
+  if (layout == nullptr || size == 0 || address == 0) return std::nullopt;
   const std::span<std::byte> dst = scratch_->slot(slot, size);
-  if (dst.size() < size || !reader_.copy_into(gt, g, address, dst, 8)) {
+  const std::uint32_t copy = size - layout->far_bytes;
+  bool read = dst.size() >= size && (copy == 0 || reader_.copy_into(gt, g, address, dst.first(copy), 8).has_value());
+  // A far field (WHY§506) lies past the copy, in a large object: it is read where it is, by a copy of its own.
+  for (const FieldLayout& f : layout->fields) {
+    if (!read || !f.is_far) continue;
+    read = reader_.copy_into(gt, g, address + f.off, dst.subspan(f.far_at, f.size), 1).has_value();
+  }
+  if (!read) {
     if (hard) fault(g);
     return std::nullopt;
   }

@@ -11,10 +11,10 @@ minutes, the way EldenNet v1 will read the game: from a thread of its own, about
 This is the fourteenth such round. The thirteenth found where the game keeps your character and the characters near
 you (your character's place in the character manager, the list of those nearby, and the object that holds your
 character's parts). It did not settle where the game keeps which save is loaded: the place we had in mind read 4 for
-the first character of your list, and your save file, which you sent us, shows that character is in slot 0. That
-one fact from your save file (your five characters are in slots 0, 1, 2, 5 and 6) is all we took from it, and it
-makes this round's search simple: it looks for the number that reads 6 when the last character of your list is
-loaded and 2 when your usual one is.
+the first character of your list, and your save file, which you sent us, shows that this is not that character's
+slot. That one fact from your save file, which slot each character is in, is all we took from it: the last
+character of your list is in slot 6, your usual one in slot 2. It makes this round's search simple: it looks for the
+number that reads 6 when the last character of your list is loaded and 2 when your usual one is.
 
 So this round asks three things of you, all of which you have agreed to.
 
@@ -22,14 +22,17 @@ First, two loads: the last character of your Load Game list, then your usual one
 character except that the game saves it where it stands; the round ends on your usual one, so Continue on the title
 screen is that one's again.
 
-Second, with your usual character: stand still for a minute and a half, walk for half a minute, stand still again.
+Second, with your usual character: stand still for a minute and a half (keyboard and mouse both left alone), walk
+for half a minute, stand still again.
 While you do, the round reads the parts of your character (about thirty small objects the game keeps for it: the
 first 4 KiB of each, about 130 KiB in all, once a second) and counts, for every number in them, when it changed. A
 number that changes only while you walk is part of your position.
 
-Third, one hit and one heal: let an enemy hit you once (or take a small fall), then drink a flask. A number that
-falls at the hit and rises at the heal is your health. This costs you a flask charge and a little risk; if you would
-rather not, press Pause at those two tasks without doing them, and the round says that it saw no hit.
+Third, one hit and one heal: let a weak enemy hit you once (or take a small fall), then drink a flask. A number
+that falls at the hit and rises at the heal is your health. This costs you a flask charge and a little risk; if you
+would rather not, press Pause at those two tasks without doing them, and the round says that it saw no hit. If your
+character dies at the hit, the run is not spoilt: press Pause, then at the heal press Pause again without healing;
+the round then says it saw no heal, and everything else still counts.
 
 Of your character's parts the round writes only where a number lies and how it behaved (stood still, moved, fell,
 rose), never the numbers themselves: not your health, not where you stand.
@@ -116,18 +119,21 @@ The steps
      6. Stay at the title screen, 20 s            do not load a save until the time is up
      7. Load your usual character                 Load Game: the character you test with; press Pause when you
                                                   stand in the world, then let go of the controls
-     8. Stand still, 1 minute 30                  hands off: do not move, turn or open a menu
+     8. Stand still, 1 minute 30                  hands off the keyboard, and do not touch the mouse: do not move,
+                                                  turn the camera or open a menu
      9. Walk about, 30 s                          keep walking, on foot: no riding, no fighting
-    10. Stand still again, 20 s                   hands off
-    11. Take one hit                              let an enemy hit you once, or take a small fall; press Pause when
-                                                  you have lost some health; do not heal yet
+    10. Stand still again, 20 s                   hands off the keyboard, and do not touch the mouse
+    11. Take one hit                              let a weak enemy hit you once, or take a small fall; press Pause
+                                                  when you have lost some health; do not heal yet
     12. Heal                                      drink a flask, or heal another way; press Pause when your health
                                                   is back up
     13. Stand still, 10 s
     14. Quit the game
 
-   For tasks 8 to 10, a safe and quiet spot is best: somewhere nothing attacks you while you stand. For task 11 any
-   one hit will do; it need not be near.
+   For tasks 8 to 10, a safe and quiet spot is best: somewhere nothing attacks you while you stand. While you
+   stand, leave the mouse alone too: turning the camera moves numbers as well. For task 11 any one hit will do; it
+   need not be near. If your character dies at the hit, press Pause, then at task 12 press Pause again without
+   healing: the round then says it saw no heal, and everything else still counts.
 
    The waiting tasks count down and end by themselves. A task of yours waits until you press Pause (anywhere, while
    the game has the keyboard) or click the panel's button, which says what it stands for. The last task has no
