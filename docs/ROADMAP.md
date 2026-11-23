@@ -1086,6 +1086,10 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     The reader's change made the same day (engine 6d56207; WHY§454): a value is an index. L6's sixth round built
     (package 0.1.0-lodestar.13): the reader's way down the tree tried against the bits the sweep sees, and the divisor
     looked for.
+    L6 done as far as its three subjects go (2026-11-23; WHY§455, §456): world_clock, save_data and the event flags'
+    fields are in the build's layout as leads (engine 9d8fb57), after ten read-only rounds. Next (WHY§457): a round
+    that runs EldenNet's own flags reader on T2 beside the round's tree reader; then the start's use of the layout
+    (S10.1.b).
 - l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
   - refs: WHY§398, WHY§396, WHY§444, WHY§445

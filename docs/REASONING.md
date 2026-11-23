@@ -477,6 +477,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 452 | 2026-11-23 | Our reader's lead was wrong in one thing: a record's value is a block's index, not a byte offset | FACT | #lodestar #flags |
 | 453 | 2026-11-23 | A join must follow the layout the counts show: the index, not the start | METHOD | #lodestar |
 | 454 | 2026-11-23 | en-gal's flag reader takes a mode-1 record's value as the block's index | DECIDED | #lodestar #flags |
+| 455 | 2026-11-23 | The flags' layout holds in a second session, and the reader's way down the tree arrives at every joined flip | FACT | #lodestar #l6 #flags |
+| 456 | 2026-11-23 | Step L6's three subjects are placed after ten read-only rounds, with no fault in some 80,000 readings | FACT | #lodestar #l6 |
+| 457 | 2026-11-23 | EldenNet's own flag reader runs first inside a read-only round, beside the round's tree reader, before the start uses it | DECIDED | #engine #lodestar #flags |
 
 ## Entries
 
@@ -7115,6 +7118,8 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
 - The clock and the play time were again found by their invariants. The reader: 7,157 readings at 9.92 a second, no
   fault. Ten managers were where they were, a ninth session. The panel's changed button ran, and all eight tasks were
   done.
+- *Later, 2026-11-23 (the tenth round, WHY§455):* the layout holds in a second session, and the fields are in the
+  build's layout as leads.
 
 ### 452. Our reader's lead was wrong in one thing: a record's value is a block's index, not a byte offset
 
@@ -7145,3 +7150,38 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   first, takes the key by the tree's order, goes down from the head's middle link by the key to each joined record, and
   writes whether that way arrives at the same record. It also reads the store's first 256 bytes once and writes only
   where 1,000 and 125 stand. Its other reading is the ninth round's.
+
+### 455. The flags' layout holds in a second session, and the reader's way down the tree arrives at every joined flip
+
+`2026-11-23` · FACT · `#lodestar` `#l6` `#flags` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§451, WHY§454
+
+- The tenth read-only round (package 0.1.0-lodestar.13, the owner's run, 8.1 minutes). The tree was read whole again:
+  11,930 records, the same fields. It is ordered by the key 32 bytes in, the first link the smaller side. For every
+  flip joined to a record (13 in the flags' stretch, 48 in all), the way from the head's middle link down by the key
+  arrived at that same record, after 5 to 16 records.
+- The store keeps 1,000 as a 32-bit number 28 bytes in (the divisor our reader checks) and 125 at 32 bytes in. The
+  flags read by number come from other blocks than the ninth round's, a second session.
+- The fields are in the build's layout as leads (engine e864140): `[class.event_flags]` (divisor 0x1C, map 0x38,
+  holder_base 0x28) and `[class.flag_node]` (left 0x0, parent 0x8, right 0x10, key 0x20, mode 0x28, value 0x30).
+- To mend: one join of the thirteen took the wrong record (index 1 met the number 1 in another field first), and the
+  report was at its limit a fourth time.
+
+### 456. Step L6's three subjects are placed after ten read-only rounds, with no fault in some 80,000 readings
+
+`2026-11-23` · FACT · `#lodestar` `#l6` · refs: docs/ops/probes/2026-11-22-l5.md, WHY§447, WHY§451, WHY§455, proposal 0005 §6.1
+
+- The time of day (`world_clock`) and the play time (`save_data`) by the invariant recipe, and the event flags by the
+  store's and the record's fields, all in the build's layout as leads. Ten managers have been where they were in ten
+  sessions. The reader on EldenNet's own thread has run at about 10 readings a second, with no fault in some 80,000
+  readings.
+
+### 457. EldenNet's own flag reader runs first inside a read-only round, beside the round's tree reader, before the start uses it
+
+`2026-11-23` · DECIDED · `#engine` `#lodestar` `#flags` · refs: WHY§456, S10.1.k, S10.1.b, ARCH§6.9
+
+- Lodestar asked whether EldenNet's own reader (`ErBackend`) should next read the flags through the build's layout at
+  the start, on feat/engine, or first in the probe build. Engine's ruling, as Lodestar recommended: in the probe
+  build first. A round runs ErBackend's flags group on T2 and compares it with the round's own tree reader, with the
+  owner's panel and the self-test flag. It touches nothing of boot.cpp.
+- So the real reader's first run stays inside a read-only round. The start's use of the layout (discovery through the
+  table, the reader at start: spikes S0-A and S0-B, S10.1.b) follows once that round agrees.
