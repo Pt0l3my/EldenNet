@@ -14,12 +14,12 @@ your list and 2 with your usual one, as your save file said it should. Your heal
 rose at your heal, with its maximum beside it. And the numbers that moved only while you walked, your position
 among them.
 
-The game ended with an error code when you quit, in that round as in nearly every session that day with a save
-loaded. The control runs you then made, with nothing of ours loaded and from Steam as you usually start it, ended
-the same way, so the code is the game's own on your PC, not EldenNet's and not GraceUI's. Two runs with your
-frame-rate or on-screen-display overlay tool fully exited (from the tray, not only its window) ended clean, so
-please exit it before this round too. If the code shows again, the launcher now keeps its record quietly and says
-nothing at its next start; an error while the game is still on screen is still explained.
+The game ended with an error code when you quit, in that round as in every session that afternoon and evening
+with a save loaded. The control runs you then made, with nothing of ours loaded and from Steam as you usually
+start it, ended the same way, so the code is the game's own on your PC, not EldenNet's and not GraceUI's. Your
+later runs ended clean, and we do not know what decides it. If it shows again at the end of this round, the
+launcher now keeps its record quietly and says nothing at its next start; an error while the game is still on
+screen is still explained.
 
 This round has the same tasks as the last and finishes what it left open:
 
@@ -101,8 +101,6 @@ Before you start
 ----------------
 
   - Close the game, and start Steam.
-  - Exit your frame-rate or on-screen-display overlay tool fully (from the tray, not only its window), if you
-    run one: see the top of this file.
   - Unzip this package into a folder of its own, anywhere but the game's folder.
   - The launcher backs up your saves before it starts the game (in %APPDATA%\EldenNet\save-backups), and the round
     does not run without that backup. If you want a copy of your own as well, copy the folder %APPDATA%\EldenRing
