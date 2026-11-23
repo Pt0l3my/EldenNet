@@ -188,7 +188,8 @@ cmake --build build-cl
 - Under Wine a program's exit status keeps only the low 8 bits of its Windows exit code (0xC0000005 arrives as 5).
 - The clang-cl build's harness has 125 tests with every optional part given (the prefix and 124 cases, 55 of them the
   launcher's, 27 of those eldennet.dll's and ten of these with GraceUI, above, and six the spikes' package's; counted
-  on 2026-11-22, after the first conversation's three cases came). Without GraceUI's parts 110
+  on 2026-11-22, after the first conversation's three cases came); 2026-11-23 added the ten S0 cases below and the S0
+  package's nine (`launcher-package-s0-*`, with `--set pkg`). Without GraceUI's parts 110
   tests run, in about 18 minutes (2026-11-22): 52 of about 2 to 8 s each, and the `gal-*` cases of part 4, 12 to 25 s each, which first write
   gal/ from `probe-exe --derive` on `fakegame.exe` (with the AOB statics' slots, as an in-game round finds them) and
   `tests/fakegame/gal-layout.toml.in` (its offsets checked against `--describe`), then run the fake game with
@@ -218,8 +219,22 @@ cmake --build build-cl
   `launcher-eldennet-spike-s0e-alone` loads only its `--also` DLL (`vehprobe.dll`, standing in for GraceUI's
   observer), with no eldennet.dll in the process and the variable set; and, with `EN_GRACEUI_DIR`,
   `launcher-eldennet-graceui-spike-s0e` adds the connect, the banner as GraceUI's notice and F11's view.
-  `launcher-vanilla`, `launcher-env` and `launcher-spike-s0c` check that a leftover `ELDENNET_SPIKE_DIR` in the
-  launcher's environment never reaches the game.
+  `launcher-vanilla` and `launcher-env` check that a leftover `ELDENNET_SPIKE_DIR` in the launcher's environment never
+  reaches the game, and `launcher-spike-s0c` that an S0 run's own folder replaces it. Since 2026-11-23 these runs
+  show the tester's panel with their steps (`observer_tasks.hpp`; paced with `--spike-pace-s 1`): each case checks
+  the task lines, the Marks the launcher stamps for the tester's tasks while it holds the ring, and the run's
+  `launcher-run.json` saying the panel was shown; `launcher-eldennet-graceui-spike-s0e` presses Pause once EldenNet's
+  own Mark holds the ring, and the Mark there confirms the panel's task.
+- The S0 spikes on the table-based start (DESIGN §16.1; roadmap S10.1.b): `launcher-eldennet-s0a`, `-s0b`, `-s0c`,
+  `-s0d` and `-s0d-crash` run the probe DLL with the fake game's gal/ given a build's table (`s0_table`: schema 2,
+  the fifteen statics under the catalogue's labels with the places in the code that load them, from `--describe`), so
+  that a start takes each id from the table and checks it and searches for none; each run's folder holds
+  eldennet.dll's report of it (linted), the launcher says in plain words what the start did, and `spike-report` reads
+  the spikes folder and the recordings folder whole. Each spike runs whole; the `-nostatic` five run again with the
+  table and the patterns lacking `game_state`, as the real game's layout lacks it today (WHY§459): the start ends at
+  the discovery banner, S0-A checks the table all the same, S0-C and S0-D report what they can, S0-B says it waits,
+  and nothing fails. (The task's p99 under Wine on a shared machine passes S0-B's 0.5 ms or not; the case allows
+  either.)
 - The release configuration (`-DCMAKE_BUILD_TYPE=Release`, ThinLTO) passes the same cases.
 
 ## The launcher and the core's slice
@@ -301,13 +316,36 @@ Its README has the start as built, the threads, the settings, the recorder and t
 
 ## The spike package (part 10)
 
-A spike package is a development build for the owner's PC, labelled `0.1.0-spikes.N` or `0.1.0-lodestar.N` and
-never shipped (docs/design/spikes/README.md has its files and the S0 runs). `tools/spikepkg/build.py` makes three
-kinds, below: `find`, `read` and `s0e-s4`. (R1's, the first, labelled `0.1.0-spike.N`, went with R1: retired
-2026-11-22, O106.)
+A spike package is a development build for the owner's PC, labelled `0.1.0-spikes.N`, `0.1.0-lodestar.N` or
+`0.1.0-s0.N` and never shipped (docs/design/spikes/README.md has its files and the S0 runs). `tools/spikepkg/build.py`
+makes four kinds, below: `s0`, `find`, `read` and `s0e-s4`. (R1's, the first, labelled `0.1.0-spike.N`, went with R1:
+retired 2026-11-22, O106.)
 
 `EN_VERSION_LABEL` (the top-level CMakeLists.txt): `-DEN_VERSION_LABEL=0.1.0-lodestar.N` labels the launcher's log
-line, `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`.
+line, `eldennet-engine version` and the DLL; any other value must look like `0.1.0` or `0.1.0-word.N`, the word a
+letter and then letters or digits (`s0`).
+
+EldenNet's own spikes S0-A to S0-D on the table-based start (DESIGN §16.1; roadmap S10.1.b) have the `s0` kind: the
+launcher, the probe build of the DLL (it accepts the build's table while every entry is a lead, and forces S0-D's
+faults), the engine (`spike-report`) and `vehprobe.dll` (our own stand-in for a crash reporter's vectored handler,
+O91), from a Release tree with `EN_PROBE=ON` and a `0.1.0-s0.N` label:
+
+```sh
+cmake -S . -B build-cl-rel -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/clang-cl-xwin.cmake -DEN_WITH_CURL=OFF \
+  -DCMAKE_BUILD_TYPE=Release -DEN_PROBE=ON -DEN_VERSION_LABEL=0.1.0-s0.1 -DPython3_EXECUTABLE=/usr/local/bin/python3
+cmake --build build-cl-rel
+python3 -I tools/spikepkg/build.py s0 --build build-cl-rel --out EldenNet-S0.zip --engine build/src/en-tools/eldennet-engine
+```
+
+The zip's one folder, `EldenNet-S0`, holds those four, gal/ (with `recipes.toml`, `ids.toml` and `builds.toml`, and
+no `patterns.toml`), one `.cmd` file for each run (`build.py`'s `S0_RUNS`: S0A-early, S0A-late, S0B, S0C-file,
+S0C-env, S0D, S0D-veh and S0D-crash, each the launcher with fixed options from the package's own folder, then
+`spike-report` over `%APPDATA%\EldenNet\spikes` and `recordings`, then a pause) and `README-SPIKES.txt`. Before it
+leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help` and `eldennet-engine.exe version` under Wine, the harness's
+`launcher-package-s0-*` with `--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`): each run's
+options exactly as its `.cmd` file holds them, started from the package's folder with two runs in place of twenty or
+five, on the fake game's table lacking `game_state` as the owner's does today, and S0-B once on the whole table; then
+the package's own engine runs the `.cmd` file's `spike-report` line over the case's %APPDATA%; and the sweep.
 
 `build.py` refuses a tree that is not clang-cl and Release with its kind's label and `EN_PROBE` setting, a DLL of the
 wrong build, and a text file holding a path of this PC; the zip is the same for the same inputs. Before a package
@@ -363,7 +401,9 @@ python3 -I tools/spikepkg/build.py s0e-s4 --build build-cl-rel --graceui <graceu
 build laid it out (each file checked against its `graceui.toml`), with `grace-spike.dll` and `grace-standin.dll` from
 its `bin`. The zip's one folder, `EldenNet-Spikes`, holds the launcher, the release DLL, gal/, those, one `.cmd` file
 for each run (`build.py`'s `RUNS`: A1 to A4, A0 and B, each the launcher with fixed options from the package's own
-folder, then a pause) and `README-SPIKES.txt`. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
+folder, then a pause) and `README-SPIKES.txt` (from `README-S0E-S4.txt.in`; the S0 kind's is `README-SPIKES.txt.in`).
+Since 2026-11-23 the launcher shows the tester's panel with each run's steps (`observer_tasks.hpp`), and the package
+cases pace it (`--spike-pace-s 2`) and check it. Before it leaves: `sha256sum -c SHA256SUMS`, the launcher's `--help`
 and `eldennet-engine.exe version` under Wine, the harness's `launcher-package-spikes-a1` to `-a4`, `-a0` and `-b` with
 `--set pkg=<the unzipped folder>` (and `engine`, `leads`, `gallayout`), each run's options exactly as its `.cmd` file
 holds them, started from the package's folder; GraceUI's own harness cases on the same GraceUI build; GraceUI's

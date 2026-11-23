@@ -250,11 +250,13 @@ struct Run {
   bool start_vanilla = false;  // E10's "Start without EldenNet" was chosen
 };
 
-// An observer's run (S0-E, S4): its folder, spikes\<word>-<n>, made before the game starts, for GraceUI's observer's
-// report (spikes.hpp). The log names the word and the number only.
+// A run with a folder of its own (an observer's, S0-E and S4; an S0 run's): spikes\<word>-<n>, made before the game
+// starts, for GraceUI's observer's report or eldennet.dll's (spikes.hpp, s0.hpp). The log names the word and the
+// number only.
 struct SpikeFolder {
   std::optional<fs::path> path;
   DWORD error = 0;
+  std::uint32_t n = 0;
 };
 SpikeFolder make_spike_folder(const Ctx& c) {
   std::vector<std::string> names;
@@ -269,12 +271,12 @@ SpikeFolder make_spike_folder(const Ctx& c) {
   const bool made = fs::create_directory(folder, ec) && !ec;
   say("spike_dir spike=%s n=%s made=%d", w::to_string(c.o.spike), name.substr(name.rfind('-') + 1).c_str(),
       made ? 1 : 0);
-  if (!made) return SpikeFolder{std::nullopt, ec ? static_cast<DWORD>(ec.value()) : DWORD{ERROR_ALREADY_EXISTS}};
-  return SpikeFolder{folder, 0};
+  if (!made) return SpikeFolder{std::nullopt, ec ? static_cast<DWORD>(ec.value()) : DWORD{ERROR_ALREADY_EXISTS}, 0};
+  return SpikeFolder{folder, 0, static_cast<std::uint32_t>(std::stoul(name.substr(name.rfind('-') + 1)))};
 }
 
-Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::string& build, bool inject_dll,
-             AppidMethod method, RemoveAfter remove_after) {
+Run run_once(const Ctx& c, std::uint32_t run, std::uint32_t runs, const fs::path& exe, const std::string& build,
+             bool inject_dll, AppidMethod method, RemoveAfter remove_after) {
   Run out;
   out.result.run = run;
   const std::string started_stamp = local_stamp();
@@ -282,7 +284,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   // eldennet.dll among the DLLs: every injecting start but s0e_alone, which loads the --also DLLs alone.
   const bool ours = inject_dll && c.o.spike != w::Spike::S0eAlone;
   GameEnvironment env;
-  if (inject_dll && w::observer_run(c.o.spike)) {
+  std::optional<fs::path> run_dir;  // a run with a folder of its own (spikes.hpp, s0.hpp)
+  if (inject_dll && run_folder(c.o.spike)) {
     const SpikeFolder folder = make_spike_folder(c);
     if (!folder.path) {
       out.result.outcome = RunOutcome::StartFailed;
@@ -290,6 +293,8 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
       return out;
     }
     env.spike_dir = folder.path->wstring();
+    run_dir = folder.path;
+    out.result.folder = folder.n;
   }
 
   // Starting without EAC (ARCH §4.5).
@@ -410,6 +415,13 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   if (c.o.spike == w::Spike::S0a || c.o.spike == w::Spike::S0dCrash) plan.run_timeout_s = c.o.run_timeout_s;
   plan.crash_when_ready = c.o.spike == w::Spike::S0dCrash;
   plan.count_connections = c.o.spike == w::Spike::S0c;
+  if (run_dir) {
+    plan.run_dir = run_dir;
+    plan.run = run;
+    plan.runs = runs;
+    plan.spike_pace_s = c.o.spike_pace_s;
+    if (s0_run(c.o.spike) && ours) plan.s0_report = *run_dir / widen(kSpikeReportFile);
+  }
   plan.remove_appid = remove_after;
   plan.appid = created;
   plan.appid_value = c.game.appid;
@@ -444,6 +456,13 @@ Run run_once(const Ctx& c, std::uint32_t run, const fs::path& exe, const std::st
   r.crash_filter = rec.crash.has_value();
   r.run_ms = mono_ms() - t0;
   r.connections_max = rec.connections_max;
+  r.panel = res.panel_shown;
+  if (res.s0) {
+    // eldennet.dll's report of an S0 run (s0.hpp): what its start waited for, and S0-A's rule for its table.
+    r.report = true;
+    r.waits = res.s0->waits;
+    r.table_ok = table_passed(*res.s0);
+  }
   return out;
 }
 
@@ -542,10 +561,10 @@ int do_start(Ctx& c) {
                                     : std::string(w::to_string(c.o.spike)) + "-" + local_stamp() + ".jsonl";
   std::vector<RunResult> results;
   for (std::uint32_t run = 1; run <= runs; ++run) {
-    Run r = run_once(c, run, *exe, g.build, inject_dll, method, remove_after);
+    Run r = run_once(c, run, runs, *exe, g.build, inject_dll, method, remove_after);
     if (r.start_vanilla && c.o.spike == w::Spike::None) {
       say("start_without_eldennet=1");
-      r = run_once(c, run, *exe, g.build, false, method, remove_after);
+      r = run_once(c, run, runs, *exe, g.build, false, method, remove_after);
     }
     say("run n=%u outcome=%s end=%s exit_code=0x%08X record=%d crash_filter=%d run_ms=%llu", run,
         to_string(r.result.outcome), to_string(r.result.end), r.result.exit_code, r.result.record_kept ? 1 : 0,
@@ -559,6 +578,7 @@ int do_start(Ctx& c) {
   const bool ok = passed(c.o.spike, t);
   append_line(c.p.spikes / widen(spike_log), to_json(t, c.o.spike).dump());
   say("tally spike=%s %s passed=%d", w::to_string(c.o.spike), tally_line(t).c_str(), ok ? 1 : 0);
+  if (s0_run(c.o.spike)) console_line(s0_end_text(c.o.spike, t, ok), s0_who(c.o.spike));
   return ok ? kExitDone : kExitSpikeFailed;
 }
 

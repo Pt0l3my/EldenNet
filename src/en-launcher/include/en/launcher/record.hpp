@@ -69,6 +69,7 @@ struct SessionRecord {
   std::uint64_t modules_age_ms = 0;   // how long before the end they were listed
   std::vector<std::uint64_t> marks;   // the Marks' mono ms
   std::uint32_t connections_max = 0;  // s0c: the game's non-loopback connections, the most at once (no addresses)
+  bool panel = false;                 // the tester's panel, a window on top of the game's, was shown in the session
   bool explained = false;             // shown at a later start
 };
 
@@ -104,16 +105,28 @@ struct RunResult {
   bool crash_filter = false;  // EldenNet's crash filter wrote its record
   std::uint64_t run_ms = 0;
   std::uint32_t connections_max = 0;
+  bool panel = false;  // the tester's panel was shown beside the game (a window on top of it: frame counts read so)
+  // An S0 run (s0.hpp): its folder's number (spikes\<word>-<n>; 0 for none), whether eldennet.dll's report of the run
+  // was read there, what the start waited for when it stopped short of its reading, and whether the build's table
+  // passed S0-A's rule (true where there was no report or no table).
+  std::uint32_t folder = 0;
+  bool report = false;
+  std::string waits = "none";
+  bool table_ok = true;
 };
 
 struct Tally {
   std::uint32_t runs = 0, ready = 0, banner = 0, inert = 0, exit = 0, game_ended = 0, timeout = 0, no_dll = 0,
                 start_failed = 0, inject_failed = 0, crashes = 0, records = 0, filter_records = 0;
+  // S0 runs: eldennet.dll's reports read, the runs whose start waited for something, and those whose table failed.
+  std::uint32_t reports = 0, waiting = 0, table_failed = 0;
 };
 [[nodiscard]] Tally tally(std::span<const RunResult> runs) noexcept;
 // DESIGN §16.1's rule for the launcher's part of each spike: s0a, every run reaching Ready or L1 (a banner, inert),
-// none crashing; s0d-crash, every forced crash recorded; s0b, s0c and s0d, the session not crashing; s0e, s0e_alone
-// and s4 likewise (their measurements are GraceUI's observer's report).
+// none crashing, and every run's table, where eldennet.dll's report holds one, passing its checks at the start and
+// again once the start stopped; s0d-crash, every forced crash recorded; s0b, s0c and s0d, the session not crashing;
+// s0e, s0e_alone and s4 likewise (their measurements are GraceUI's observer's report). A start that waits for
+// something (an incomplete layout) is never counted against a spike.
 [[nodiscard]] bool passed(proto::watch::Spike spike, const Tally& t) noexcept;
 [[nodiscard]] nlohmann::json to_json(const RunResult& r, proto::watch::Spike spike);
 [[nodiscard]] nlohmann::json to_json(const Tally& t, proto::watch::Spike spike);

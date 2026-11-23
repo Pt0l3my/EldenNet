@@ -19,6 +19,7 @@
 #include "en/launcher/config.hpp"
 #include "en/launcher/options.hpp"
 #include "en/launcher/record.hpp"
+#include "en/launcher/s0.hpp"
 #include "en/launcher/spikes.hpp"
 #include "en/launcher/tasks.hpp"
 #include "en/launcher/texts.hpp"
@@ -170,8 +171,15 @@ struct WatchPlan {
                          // before loading), and the tester's panel with the round's tasks
   std::uint32_t read_pace_s = 0;  // --read-pace-s: the tests' pace for the tasks (tasks.hpp); 0 none
   proto::watch::Spike spike = proto::watch::Spike::None;
+  // A run with a folder of its own (spikes.hpp): the folder, where the launcher says whether the panel was shown. An S0
+  // run (s0.hpp): eldennet.dll's report of it there, the S0 kind's tasks for this run of the launcher's runs; a run of
+  // GraceUI's observer: its tasks (observer_tasks.hpp); and the tests' pace for them (--spike-pace-s; 0 none).
+  std::optional<fs::path> run_dir;
+  std::optional<fs::path> s0_report;
+  std::uint32_t run = 1, runs = 1;
+  std::uint32_t spike_pace_s = 0;
   std::uint32_t run_timeout_s = 0;          // > 0: end the run once T1 stops, or at this limit
-  bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 is Ready
+  bool crash_when_ready = false;            // s0d-crash: ask for a crash once T1 has stopped (Ready, a banner, inert)
   bool count_connections = false;           // s0c
   std::optional<RemoveAfter> remove_appid;  // Window: remove our appid file once the window shows
   std::optional<AppidRecord> appid;
@@ -186,6 +194,8 @@ struct WatchResult {
   proto::watch::InitState last_init = proto::watch::InitState::None;
   std::uint64_t ms = 0;
   SessionRecord record;
+  std::optional<S0Facts> s0;  // an S0 run: eldennet.dll's report of it, as last written
+  bool panel_shown = false;   // the tester's panel was shown beside the game
 };
 
 // Watches the game until it ends (O71): the crash event, EldenNet's status, the Marks, the module lists.

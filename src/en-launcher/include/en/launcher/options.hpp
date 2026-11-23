@@ -36,6 +36,7 @@ struct Options {
   bool console = false;                     // --console: the dev console, its status lines and the Mark on Pause (O90)
   bool read = false;                        // --read: the read-only round in a probe build (Lodestar's L5); --console too
   std::uint32_t read_pace_s = 0;            // --read-pace-s S: the tests' pace for the round's tasks (tasks.hpp)
+  std::uint32_t spike_pace_s = 0;           // --spike-pace-s S: the tests' pace for an S0 run's tasks (s0.hpp)
   bool no_dialogs = false;                  // --no-dialogs: lines instead of dialogs; every question answered no
   bool yes = false;                         // --yes: with --no-dialogs, questions answered yes instead
   bool no_steam_check = false;              // --no-steam-check: the fake game needs no Steam

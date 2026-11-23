@@ -1,4 +1,5 @@
-// The runs of GraceUI's observer (S0-E, S4): the spike folder's name and the game's environment.
+// The runs with a folder of their own (GraceUI's observer's, S0-E and S4, and the S0 runs): the spike folder's name and
+// the game's environment.
 #include <doctest.h>
 
 #include <string>
@@ -32,10 +33,15 @@ TEST_CASE("the spike folder: the word and the run's number in the spikes folder,
   for (const std::string& name : {next_spike_folder(w::Spike::S0e, some), next_spike_folder(w::Spike::S4, none)}) {
     for (const char c : name) CHECK(((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_'));
   }
-  // Only an observer's run has one.
-  for (const w::Spike s : {w::Spike::None, w::Spike::S0a, w::Spike::S0b, w::Spike::S0c, w::Spike::S0d,
-                           w::Spike::S0dCrash}) {
-    CHECK(next_spike_folder(s, some).empty());
+  // An observer's run and, since 2026-11-23, an S0 run have one (s0.hpp); a start that is no spike's, none.
+  CHECK(next_spike_folder(w::Spike::None, some).empty());
+  CHECK(next_spike_folder(w::Spike::S0a, some) == "s0a-1");
+  // s0d and s0d-crash are words of their own: neither's folders count for the other.
+  const std::vector<std::string> s0d{"s0d-2", "s0d-crash-5", "s0d-crash-6"};
+  CHECK(next_spike_folder(w::Spike::S0d, s0d) == "s0d-3");
+  CHECK(next_spike_folder(w::Spike::S0dCrash, s0d) == "s0d-crash-7");
+  for (const w::Spike s : {w::Spike::S0b, w::Spike::S0c}) {
+    CHECK(next_spike_folder(s, s0d) == std::string(w::to_string(s)) + "-1");
   }
 }
 
