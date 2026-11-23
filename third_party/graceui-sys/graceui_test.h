@@ -332,6 +332,17 @@ GRACEUI_API uint32_t GraceUI_Test_MenuShows(const char* text);
  * 4 the hook targets read from a swap chain of GraceUI's own, 5 the input targets, 6 the install, 7 done. Readable from
  * any thread at any time, so that an init that stops says where (GraceUI's log drains on that same thread). */
 GRACEUI_API uint32_t GraceUI_Test_InitStep(void);
+/* How far GraceUI's first frames got (D230), each step reached once: 0 before any Present; 1 a Present through
+ * GraceUI's detour, 2 the game's swap chain bound, 3 the present queue found, 4 the atlas asked of GraceUI's thread,
+ * 5 the atlas baked, 6 the renderer's objects made on the game's device, 7 Dear ImGui's backends begun, 8 the atlas's
+ * upload submitted, 9 the atlas on the GPU, 10 GraceUI's first frame submitted, 11 the game's Present returned after
+ * it. Readable from any thread at any time, so that a game that falls in GraceUI's first frames says where. */
+GRACEUI_API uint32_t GraceUI_Test_FrameStep(void);
+/* The log lines written since GraceUI loaded (D230), and line `number` of them (0 the first) into `out`,
+ * NUL-terminated: its length, or 0 once the ring of 64 has overwritten it. A reader keeping the next number it wants
+ * misses no line still kept and repeats none. */
+GRACEUI_API uint64_t GraceUI_Test_LogCount(void);
+GRACEUI_API uint32_t GraceUI_Test_GetLogNumber(uint64_t number, char* out, uint32_t capacity);
 /* The anti-cheat module re-check's interval while the browser view's server runs (§7.2 item 1), in milliseconds; 0
  * keeps 60 s. With GraceUI_Test_SetAntiCheatNames after the first request, a test makes a re-check find a module. */
 GRACEUI_API void GraceUI_Test_SetAntiCheatRecheck(uint32_t ms);

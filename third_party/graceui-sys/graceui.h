@@ -49,10 +49,11 @@ extern "C" {
 
 /* The ABI major this header describes, and its minor: the number of the newest appends (0: the first table). */
 #define GRACEUI_ABI_MAJOR 1u
-#define GRACEUI_ABI1_MINOR 5u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
+#define GRACEUI_ABI1_MINOR 6u /* 1: a holder's events and set_caret (GraceUI 0.2.1, D176); 2: the display and scaled
                                  faces (GraceUI 0.2.2, D180); 3: pad chords (GraceUI 0.2.14, D204); 4: a hotkey's
                                  binding as the player set it (GraceUI 0.2.16, D210); 5: a wait handle for the mod's
-                                 events (GraceUI 0.2.17, D212) */
+                                 events (GraceUI 0.2.17, D212); 6: an uploaded file with its command (GraceUI 0.2.26,
+                                 D226) */
 
 /*
  * GraceUI's own version (GRACEUI_VERSION_PACK). Needs no start: callable from any thread, at any time after the DLL is
@@ -522,6 +523,13 @@ typedef struct GraceUiEvent {
   float content_scale;     /* scale / ui_scale_default: a mod's design size at 1080 lines and the default Menu size */
   float faces_scale;       /* the content scale the mod's GRACEUI_FACE_SCALED faces were baked at (0 if it has none) */
   uint32_t reserved3;
+  /* From ABI 1.6 (D226): a file command's file, uploaded in the browser view on this PC (§7.2 item 18). With
+   * GRACEUI_EVENT_COMMAND, GraceUI writes the file's bytes into the mod's buffer beside the frame; a buffer too small
+   * answers GRACEUI_FULL with both lengths set, and the event waits for the next poll. GraceUI keeps no copy once it is
+   * written. A mod whose event is smaller than this never gets a file command: GraceUI answers it not_now itself. */
+  uint8_t* file;           /* the mod's buffer for the file, or null */
+  uint64_t file_capacity;  /* its size in bytes: GRACEUI_UPLOAD_MAX always suffices */
+  uint64_t file_length;    /* the file's length, 0 when the command has none; with GRACEUI_FULL, the size needed */
 } GraceUiEvent;
 
 /* ---- A space (D75, D81, D169): the mod's pages, topics and commands, as the bridge protocol's frames (§6). The same
@@ -531,6 +539,7 @@ typedef struct GraceUiEvent {
 #define GRACEUI_VIEW_GAME 1u    /* the in-game menu shows the space */
 #define GRACEUI_VIEW_BROWSER 2u /* the browser view serves it: GraceUI's server runs while a space asks (§7.2 item 1) */
 #define GRACEUI_FRAME_FROM_PAGE_MAX 16384u /* a frame from a view: a sub, an unsub or a cmd, at most this many bytes */
+#define GRACEUI_UPLOAD_MAX 33554432u       /* an uploaded file, at most 32 MiB (ABI 1.6, D226) */
 #define GRACEUI_FRAME_TO_PAGE_MAX 262144u  /* a frame to a view: a state, rows or a result, at most this many bytes */
 #define GRACEUI_ANSWER_DEADLINE_MS 10000u  /* a command unanswered this long is answered internal by GraceUI */
 #define GRACEUI_SLOW_ANSWER_DEADLINE_MS 90000u  /* one the space's page data names in slow_commands (protocol 1.6,
