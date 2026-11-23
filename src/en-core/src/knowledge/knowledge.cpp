@@ -1070,7 +1070,6 @@ std::size_t Knowledge::active_stage(std::size_t persona, const FlagState& fs) co
 }
 
 Tri Knowledge::eval(std::string_view expr, const FlagState& fs, const WorldView& view) const {
-  (void)view;
   std::vector<ContentError> problems;
   Errors errors(problems);
   Knowledge copy = *this;
@@ -1088,6 +1087,7 @@ Tri Knowledge::eval(std::string_view expr, const FlagState& fs, const WorldView&
   if (!problems.empty()) return Tri::U;
   KnowledgeEval e{copy.programs_, copy.stage_when_, copy.stages_, copy.regions_, copy.catalogue_, fs,
                   std::vector<std::optional<Tri>>(copy.stages_.size())};
+  for (std::size_t x = 0; x < copy.stages_.size() && x < view.stages.size(); ++x) e.world[x] = view.stages[x];  // the view's
   return e.run(slot);
 }
 
