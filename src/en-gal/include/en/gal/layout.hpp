@@ -81,7 +81,7 @@ struct FieldLayout {
   [[nodiscard]] std::uint32_t at() const noexcept { return is_far ? far_at : off; }
 };
 
-inline constexpr std::uint32_t kMaxFarOffset = 0x100000;  // a far field's offset lies below this: 1 MiB into its object
+inline constexpr std::uint32_t kMaxFarOffset = 0x100000;  // a far field's offset lies below this (1 MiB)
 inline constexpr std::uint32_t kMaxFarBytes = 32;         // and its copy is no longer than this
 
 struct ClassLayout {
@@ -96,7 +96,9 @@ struct ClassLayout {
 
   [[nodiscard]] const FieldLayout* field(std::string_view name) const noexcept;
   // The reader's buffer for one object: the copy, then each far field's own bytes.
-  [[nodiscard]] std::uint32_t buffer_size() const noexcept { return copy_size.value_or(stride.value_or(0)) + far_bytes; }
+  [[nodiscard]] std::uint32_t buffer_size() const noexcept {
+    return copy_size.value_or(stride.value_or(0)) + far_bytes;
+  }
 };
 
 struct EnumTable {
