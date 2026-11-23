@@ -579,6 +579,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 554 | 2026-11-23 | The quit's crash code without GraceUI in the process: ten of ten sessions since the first spike run, the ten before clean | FACT | #lodestar #crash |
 | 555 | 2026-11-23 | Wine's heap warnings miss a write past a block's end; the registry's GlobalFlag validates the heap on every call | METHOD | #lodestar #tests |
 | 556 | 2026-11-23 | The quit's crash code comes with the game alone: a run with nothing injected ended with 0xC0000374 too | FACT | #crash #engine #graceui #lodestar |
+| 557 | 2026-11-23 | Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game | FACT | #crash #engine |
 
 ## Entries
 
@@ -8432,3 +8433,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   spike run. So the damaged block the game's own teardown frees (game+0x254e298) is not ours: neither EldenNet nor
   GraceUI is needed for it. What changed on the PC or around the game that day is the owner's to look at if they wish;
   EldenNet and GraceUI stop chasing it. The launcher's start-up notice of the last session's error shows it each time.
+
+### 557. Windows' own record: the game's heap fault at the quit predates EldenNet's first run in the game
+
+`2026-11-23` · FACT · `#crash` `#engine` · refs: WHY§556, WHY§550, WHY§209, O115
+
+- The owner's Application log (event 1000 for eldenring.exe; times, modules, codes and offsets only): the same heap
+  fault as today's quits (ntdll 0xC0000374 at 0x112fc5, or 0xC0000005 at 0x2730d) on 6, 11, 12 and 15 November, before
+  EldenNet's first run inside the game (R1, 17 November), and from 6 to 17 November a pair of faults in a module not
+  ours (0xC0000005, then 0xC0000409 four seconds later). Since the first spike run of 23 November the heap fault comes
+  at every quit instead of now and then. So it is the game's, or something else on the owner's PC; it comes after the
+  game's window has gone, when every test's results are already written, so the in-game tests stand.
