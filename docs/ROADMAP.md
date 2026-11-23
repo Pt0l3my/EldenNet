@@ -1521,6 +1521,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     and 6 with the call-out (S15.1.a); the mute state's sources (`speech.toml`, `types.toml`); a second Escape
     (S11.4.d, dropped on 2026-11-23, WHY§461). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
     holds its pages: the core's gate changed to match on 2026-11-23 (engine a7f8509).
+    The polish on 2026-11-23 (engine merge 5ec1555; WHY§493 to §495, §497): the second Esc's rule removed (G39 (c));
+    the refusal's toast names the holder by GraceUI's id, and not-now by its reason (words for the owner's review);
+    `features` and `range` reach the core from settings.toml and the pages.
 - b The prompt, the sanitizer and lint, pages, and commit on display
   - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
   - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
@@ -1532,6 +1535,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     alone so far (WHY§421). Left: the safety list's entries (h); a queued line that waits for a one-page reply's hold
     (WHY§432); a narrower "Name:" rule, judged once the eval counts its removals (WHY§410); each page written to the
     store with v0.3's log (S12.1.a).
+    The queued line goes once the stream ends with the last page up (2026-11-23, WHY§494).
 - c One pilot persona, in memory only, with the world view, what it knows and its road; news raised as O28 sets
   - refs: DESIGN§10.6, O10, O28, WHY§418, WHY§424
   - gives: on 2026-11-22 the test persona was built: invented, `test_only`, built into the core's content and bound to
@@ -1551,6 +1555,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Built offline on 2026-11-23 (WHY§471, §473, §476): block 5b by `known(P)` (NPC §3.6's `after_radahn` block word
     for word), the "you, now" line, and `features` and `range` with ARCH §11.5's bounds in the core, `features.chat`
     and `features.self_awareness` read. Left: the DLL's settings reader handing them to the core (with the polish).
+    The settings reader hands them to the core since 2026-11-23 (WHY§497); no page offers the keys yet.
 - e The eval tool and its CI stage, the fixture states and the pilot's truth tables
   - refs: DESIGN§14, WHY§424, WHY§425, WHY§426, WHY§431
   - gives: built offline on 2026-11-22 (WHY§364 (10)): `eldennet-engine eval` with `--llm mock` and `recorded`, four
@@ -1570,6 +1575,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
   - refs: ARCH§11.6, DESIGN§11.4, PAGES§4.6
   - gives: not built with the first conversation's content loading (2026-11-22), which reads the overrides folder's
     whole files alone.
+    Built on 2026-11-23 (WHY§499): `disable.toml` turns shipped personas off by id, checked strictly, warnings never
+    naming an id; cards and the other lists warn (none shipped in v0.2). Left: the Content packs page, which the
+    engine's pages do not have yet.
 - h The shipped safety list's fingerprints, made by the owner with `lexicon fingerprint` [waiting]
   - refs: O107, NPC§8.3, WHY§412
   - gives: `safety.toml` ships with its header and no entries (2026-11-22). The owner fingerprints the words on their
@@ -1637,6 +1645,8 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     Since the first conversation (2026-11-22, WHY§422, §442): the core's ladder has L3 and L4, which the pages still
     show as Observing, since en-overlay's pages have no speaking level yet. Words players read, left for the owner's
     review with the level the pages give them.
+    L3 and L4 are speaking levels on the pages since 2026-11-23 (WHY§496), their words for the owner's review. Left:
+    L2's words still say NPCs speak from a later version, which a v0.2 build makes untrue (fixtures and goldens).
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
