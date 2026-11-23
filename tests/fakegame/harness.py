@@ -1217,6 +1217,11 @@ def check_observer_panel(word, launcher_marks=True, by="time"):
             run = json.load(f)
         need(run.get("panel") is True and run.get("spike") == word and run.get("tasks") == count and
              run.get("tasks_done", 0) >= (mine if by == "time" else 1), "launcher-run.json: %s" % run, failures)
+        # The game's modules as last listed, by name alone (WHY§515): the game's own among them, nothing like a path.
+        mods = run.get("modules")
+        need(isinstance(mods, list) and any(m.lower() in ("fakegame.exe", "eldenring.exe") for m in mods) and
+             not any(("\\" in m or "/" in m or ":" in m) for m in mods),
+             "launcher-run.json's modules: %s" % (mods if not isinstance(mods, list) else mods[:6]), failures)
         log = spike_log(r, word)
         need(log and log[0].get("panel") is True, "the run's line says no panel: %s" % (log and log[0]), failures)
         return failures

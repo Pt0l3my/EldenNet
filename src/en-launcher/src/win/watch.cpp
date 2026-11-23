@@ -389,13 +389,15 @@ WatchResult watch_game(HANDLE process, DWORD pid, const WatchBlock& wb, const Wa
   r.record.panel = r.panel_shown;
   if (plan.run_dir) {
     // The run's folder says whether the panel was shown, a window always on top of the game's, so that the spike's
-    // frame counts are read knowing it; and how far the tasks went. Numbers and words only.
+    // frame counts are read knowing it; how far the tasks went; and the game's modules as last listed (names only, no
+    // path, as a crash record keeps them), so that another program's overlay in the chain is known (WHY§515).
     const nlohmann::json j{{"launcher_run", 1},
                            {"spike", w::to_string(plan.spike)},
                            {"panel", r.panel_shown},
                            {"tasks", tasks ? tasks->size() : 0},
                            {"tasks_done", tasks ? tasks->current() : 0},
-                           {"marks", r.record.marks.size()}};
+                           {"marks", r.record.marks.size()},
+                           {"modules", r.record.modules}};
     std::ofstream(*plan.run_dir / L"launcher-run.json", std::ios::binary | std::ios::trunc) << j.dump(1) << "\n";
   }
   if (s0) {
