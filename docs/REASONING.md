@@ -512,6 +512,9 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 487 | 2026-11-23 | The S0 package's README is README-SPIKES; the s0e-s4 kind's template moves aside | DECIDED | #spikes #tools |
 | 488 | 2026-11-23 | A field found by what it holds in the game's states is told from its look-alikes by a second save | METHOD | #lodestar #l6 |
 | 489 | 2026-11-23 | The pointers and lists are sought by class from the characters manager's own object | METHOD | #lodestar #gal |
+| 490 | 2026-11-23 | G9's pairing is built as decided, with three choices of GraceUI's own | FACT | #graceui #security |
+| 491 | 2026-11-23 | Limits shared between listeners need a share per listener; a limit shared between peers needs a cap per peer | METHOD | #graceui #security |
+| 492 | 2026-11-23 | A modal driven by the host must be open before the host's first look at it | FACT | #graceui |
 
 ## Entries
 
@@ -7612,3 +7615,31 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   bound a run of equal elements each holding a character's address; the list by distance has a fraction beside the
   address that never falls along the run. It writes offsets, sizes, counts and tables of methods only, never a value
   of any object. The owner agreed to the reading (about 6 MiB a look at most), and to the save data's 4 KiB (O105).
+
+### 490. G9's pairing is built as decided, with three choices of GraceUI's own
+
+`2026-11-23` · FACT · `#graceui` `#security` · refs: GraceUI:D221, GraceUI:D222, GraceUI:D225, G9, S11.2.al
+
+- The device names itself on its pairing page (a phone's keyboard is to hand; only the code is read in game).
+- The PC's network address is shown on the in-game sheet alone, never in a topic, since a topic reaches every browser,
+  a paired phone's too (PV3).
+- A refused command gets one answer from GraceUI before its space sees it (not_now, "Only on the PC the game runs on."),
+  so no space needs a device check of its own; a space marks its sensitive commands and settings (S11.4.e).
+- Accepted and recorded in D225, not built: a device's cookie is a bearer token over plain HTTP on the home network, so
+  a device that can read or redirect the phone's traffic could replay it until the player forgets the device; and the
+  listener takes the PC's first four private addresses, a VPN's or a virtual switch's among them (the sheet lists each).
+
+### 491. Limits shared between listeners need a share per listener; a limit shared between peers needs a cap per peer
+
+`2026-11-23` · METHOD · `#graceui` `#security` · refs: GraceUI:D225, WHY§264
+
+- A second review of the joins, given the code and not our conclusions, again found the wire layer sound and the gaps
+  at the edges: a shared limit (five tries a code) that one peer could spend for everyone, shared caps a device could
+  take from this PC, and a sensitive list that left out the hotkeys. All five fixed before release.
+
+### 492. A modal driven by the host must be open before the host's first look at it
+
+`2026-11-23` · FACT · `#graceui` · refs: GraceUI:D222, GraceUI:D223
+
+- The harness's scenario through the real menu caught what each side's unit tests passed: the menu's first refresh of
+  the pairing sheet ran before the sheet was shown, took it as closed and voided the code.

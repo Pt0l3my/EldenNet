@@ -1372,7 +1372,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     without its confirmation (register_pages now refuses one); the reserved space id and topic name; a third WebSocket
     superseding a view before its ticket was shown; settings publications not held to the registration (secrets masked
     to "set" or ""). Open: telling a space which view sent a command (GraceUI DESIGN §7.3), an ABI 1 addition before
-    the home network's pairing (WHY§264, §265). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
+    the home network's pairing (WHY§264, §265) (the view: done in GraceUI 0.2.25, D224; the pairing: S11.2.al). Built on 2026-11-20 (GraceUI feat/foundations 8d45b20): 185 harness
     checks on both toolchains, the anti-cheat flag and re-check scenarios among them; no change to the ABI.
 - r A mod space's state components drawn in game: key-value and check lists, stat tiles, a computed sentence (GraceUI 0.2.6) [done]
   - refs: GraceUI:D184, GraceUI:D171
@@ -1493,6 +1493,14 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     read through GraceUI_Test_InitStep in the test build and written by the spike observer as init_step;
     report.py names it when the host never hooked, and its movement row now says S10.1.m. No change of ABI or
     protocol (GraceUI's docs/eldennet-changes.md §59).
+- al Other devices at home: the switch, Pair a device in game, Forget, and what a paired device may not do (GraceUI 0.2.25, protocol 1.8) [done]
+  - refs: G9, GraceUI:D221, GraceUI:D222, GraceUI:D223, GraceUI:D224, GraceUI:D225, GraceUI:D66, GraceUI:D113, WHY§490, WHY§491, WHY§492
+  - gives: built on 2026-11-23 (GraceUI feat/foundations b1eb5bc to bc8fb8f) at the owner's go-ahead. A server suite of
+    9 cases on 127.0.0.2 and a pairing harness scenario through the real menu under Wine (13 checks; 245 in the full
+    harness, the MinGW build whole and the clang-cl build all but the menu's frame-cost p99, which passed alone); an
+    independent review found no way past the pairing page and five gaps, fixed before release (D225). The command's
+    view (§7.3, D224) closes S11.2.q's open item. EldenNet marks its sensitive commands (S11.4.e; GraceUI's
+    docs/eldennet-changes.md §60).
 
 ### S11.3 EldenNet v0.2
 
@@ -1670,6 +1678,12 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     closing; once the box has closed or the reply is out, they are the game's again, and a reply still pacing
     finishes (WHY§461). The core's unreachable rule is removed with the conversation's polish.
 
+- e EldenNet's sensitive commands and settings marked for paired devices (GraceUI 0.2.25's protocol 1.8)
+  - needs: S11.2.al
+  - refs: G9, GraceUI:D224, WHY§490
+  - gives: EldenNet's space marks `sensitive_commands = ["secrets.set", "secrets.clear", "providers.update"]` and
+    `sensitive = true` on any setting a paired device must never change, so GraceUI refuses them from a device before
+    any confirmation (GraceUI's docs/eldennet-changes.md §60). With the pages' work.
 ### S11.5 v0.2's exit checks
 
 - needs: S11.1, S11.3, S11.4
