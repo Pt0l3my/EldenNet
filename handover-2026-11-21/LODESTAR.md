@@ -85,9 +85,13 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    may say `far = true`; its `off` may then lie past `copy_size`, up to 0x100000 into its object, and it is read at
    the object's address plus `off` by a copy of its own size (at most 32 bytes: the whole numbers, f32, bool8, bit,
    bits, ptr, handle, vec3f, dlvector; never utf16[n], mat4f or array). A class whose fields are all far may have
-   `copy_size = 0`. Each far read counts against the tick's reads. To do: the schema and lint in en-gal's
-   layout.cpp, ErBackend's groups reading far fields, tests on the fake world with a manager of over 0x4000; then
-   the characters manager's four places enter the layout as leads.
+   `copy_size = 0`. Each far read counts against the tick's reads. Done on `feat/lodestar` at 5024ee9: the
+   schema and its checks in en-gal's layout.cpp (`FieldLayout::far`, `far_at`, `at()`; `ClassLayout::far_bytes`,
+   `buffer_size()`), `ErBackend::object` reading each far field by its own copy into the object's buffer past the
+   class's copy, tests on a test world whose roster is 0x12000 bytes with its fields 0x10000 in; and the
+   characters manager's places in the build's layout as leads (`main_player` 0x1E508, `by_distance` 0x1F1E8,
+   `player_set` 0x10EF8, all far; `near_entry` with `chr` at 0 and `distance` at 8, stride 0x10). ARCH §6.3's dated
+   note is Engine's.
    The start's use of the layout is Engine's (discovery through the table and the reader at the start, spikes S0-A
    and S0-B, roadmap S10.1.b), shared as Engine says.
    **The layout for a ready start (roadmap S10.1.m, Lodestar's; Engine's order, WHY§460; the list is WHY§459):**
