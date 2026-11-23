@@ -148,6 +148,38 @@ TEST_CASE("the shipped world: nine world stages, Tanith's track, the regions' sk
   CHECK(w.knowledge.catalogue().flags[*w.knowledge.catalogue().find("kale.howl_told")].id == 0);  // unresolved
 }
 
+TEST_CASE("the pilot loads with every strict check and lint clean: no error, no warning, blocks 2 and 4 within their caps") {
+  Core core;
+  CHECK(core.load_content(builtin_content(), Realm::Game).empty());
+  CHECK(core.content_warnings().empty());
+  const World w = shipped();
+  const auto speech = load_speech(w.pack);
+  REQUIRE(speech.has_value());
+  std::vector<ContentError> errors, warnings;
+  lint_identity_blocks(w.pack, *speech->prompt, errors, warnings);
+  lint_persona_wording(w.pack, speech->lint->lexicon(), errors, warnings);
+  CHECK(errors.empty());
+  CHECK(warnings.empty());
+  // The wording lints do bite: a banned word in his summary, a quoted line in his cadence, a subject that is a question.
+  std::vector<ContentFile> files = builtin_content();
+  for (ContentFile& f : files) {
+    if (f.path != "personas/kale.toml") continue;
+    f.text.replace(f.text.find("selling plain goods"), 19, "selling quest goods");
+    f.text.replace(f.text.find("then a dry aside."), 17, "then \xE2\x80\x9C" "a dry aside\xE2\x80\x9D.");  // typographic quotes
+    f.text.replace(f.text.find("the state of the roads further on"), 33, "how are the roads further on?");
+  }
+  auto pack = load_content(files);
+  REQUIRE(pack.has_value());
+  auto bad = load_speech(*pack);
+  REQUIRE_FALSE(bad.has_value());
+  std::vector<std::string> seen;
+  for (const ContentError& e : bad.error()) seen.push_back(describe(e));
+  CHECK(has_part(seen, "public.summary: holds a banned word (PL5)"));
+  CHECK(has_part(seen, "voice.cadence: a quoted sample line (PL5; NPC §3.3)"));
+  CHECK(has_part(seen, "subjects: must be a noun phrase (PL4)"));
+  CHECK_FALSE(has_part(seen, "quest goods"));
+}
+
 TEST_CASE("before a frame nothing holds: the pilot at his base stage, and block 5b his road alone") {
   const World w = shipped();
   const FlagState fs = w.knowledge.unread();

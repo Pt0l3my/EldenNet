@@ -6,7 +6,6 @@
 #include <array>
 #include <cmath>
 #include <map>
-#include <regex>
 #include <functional>
 #include <set>
 #include <tuple>
@@ -167,9 +166,22 @@ std::vector<Token> lex(std::string_view s) {
 // Where a predicate is used: what it may name (W1: a world stage's `when` uses outcome flags and world() alone).
 enum class Use : std::uint8_t { WorldStage, Step, PersonaStage, Tie };
 
+// An alias (MEM §6.1): ^[a-z][a-z0-9_]*(\.[a-z0-9_]+){1,3}$, checked by hand (no static object: ARCH §3.1).
 bool is_alias(std::string_view s) {
-  static const std::regex re("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+){1,3}$");
-  return std::regex_match(s.begin(), s.end(), re);
+  if (s.empty() || s.size() > 48 || !(s[0] >= 'a' && s[0] <= 'z')) return false;
+  std::size_t dots = 0;
+  bool after_dot = false;
+  for (const char c : s) {
+    if (c == '.') {
+      if (after_dot) return false;
+      ++dots;
+      after_dot = true;
+      continue;
+    }
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    after_dot = false;
+  }
+  return dots >= 1 && dots <= 3 && !after_dot;
 }
 
 }  // namespace
