@@ -28,7 +28,8 @@ first; this file adds only where Lodestar's own work stands.
 | The ninth read-only run (2026-11-23; the same record, "The ninth round in game") | package 0.1.0-lodestar.12; engine 620dcd7 | **Done, reviewed.** The tree beside the flags read whole (11,930 records): key, mode and block index placed; a block is 125 bytes at the holder plus index times 125; the flips at the owner's marks decode to round flag numbers. The lead's "offset" is an index. The panel's button change ran |
 | The tenth read-only run, and the reader's correction (2026-11-23; the same record, "The tenth round in game") | package 0.1.0-lodestar.13; engine 6d56207, the flags' fields at e864140 | **Done, reviewed.** The reader's way down the tree arrived at the record of every joined flip; the store keeps the divisor 28 bytes in; the flags' fields are in the layout as leads. L6's three subjects are placed |
 | The eleventh read-only run: EldenNet's own reader on the flags (2026-11-23; the same record, "The eleventh round in game") | package 0.1.0-lodestar.14; engine 998d078 | **Done, reviewed.** `discover` through the build's layout works on the game (a partial pass, 19 ms, 12 items from the table, none refused); `ErBackend::flags_alone` read the flag set in every playthrough as set, 44 frames, no fault. The marked flags were not compared: the tree's walk was 47 records short when the owner quit |
-| The twelfth round's build: the game's state by what it holds at the title and in the world (roadmap S10.1.m) | package 0.1.0-lodestar.15; engine 620570e | **Built, not yet run by the owner.** The state search (the owner agreed to its reading, some 40 MiB a look, four looks), an eleven-task panel list with four marks, the tree's walk with the searches' whole share, the eleventh round's reader beside it |
+| The twelfth round's build: the game's state by what it holds at the title and in the world (roadmap S10.1.m) | package 0.1.0-lodestar.16; engine 082127f (0.1.0-lodestar.15 at 620570e never went out: Engine's read of its README asked for each look's time and overrun to be told) | **Built, not yet run by the owner.** The state search (the owner agreed to its reading, some 40 MiB a look, four looks), an eleven-task panel list with four marks, the tree's walk with the searches' whole share, the eleventh round's reader beside it |
+| The layout's bit-run type, and the clock's and the play time's fields | engine a5efb98 | **Done.** `bits{word, shift, width}` in en-gal's layout (ARCH §6.3's dated note); `world_clock.hour`, `world_clock.minute` and `save_data.play_time` in the build's layout as leads |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -54,10 +55,11 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The owner's twelfth read-only run** (package 0.1.0-lodestar.15, engine 620570e; built, not yet run): the
+1. **The owner's twelfth read-only run** (package 0.1.0-lodestar.16, engine 082127f; built, not yet run): the
    first piece of the layout for a ready start, `game_state` (the record's "What was changed for the twelfth
    round"). When the files come back:
-   - `state`: four passes; `title_clean` true; the hits. One slot hit, not already named, enters the draft table
+   - `state`: four passes; `title_clean` true; `overrun` false and each of `looks` through, with its time (a look
+     that took most of a minute says the waits are too short); the hits. One slot hit, not already named, enters the draft table
      as `game_state` by the invariant recipe (the round writes it); several hits want a second way to tell them
      apart (the slot's references in the code, or a second session with another save slot);
    - `backend.flags`: each marked flag `agrees` (the eleventh round did not get this far); `known_set` true again;
@@ -71,8 +73,8 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
    player set, the near list, parts, vitals, motion, `player_data`); then the moving numbers by invariant with panel
    tasks (hp, pos, death_count, runes, `menus.screen_state`, the HUD's two, dead, on_screen; a task that costs the
    owner something is optional and says its cost); then the constants as leads from our notes. A start may run with
-   the structural groups whole and the optional ones off. Two small ones are Lodestar's: a field type for a run of
-   bits in a word (the clock), and the play time as a field of `save_data`.
+   the structural groups whole and the optional ones off. The two small ones are done (engine a5efb98): a field
+   type for a run of bits in a word (the clock), and the play time as a field of `save_data`.
    - **The plan for `game_state`** (the twelfth round, built as planned): our notes' lead is that its `save_slot` is -1 at
      the title and the slot's number once a save is loaded. So: over the data's slots that point at live memory
      (as the play time's search took them), the first 8 KiB of each object, four passes told by the panel's tasks:
