@@ -539,6 +539,7 @@ switch of model starts with it in view. It covers EldenNet, GraceUI and DataPile
 | 514 | 2026-11-23 | A count cap needs a byte cap when items vary that much, and every path to a command carries the same rule | METHOD | #graceui #security |
 | 515 | 2026-11-23 | A spike run's own record lists the game's modules by name | DECIDED | #launcher #spike |
 | 516 | 2026-11-23 | A step set as the code passes, read by an observer that writes at each change, places a fall without a debugger | METHOD | #graceui #spike |
+| 517 | 2026-11-23 | Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices | FACT | #spike #graceui #launcher |
 
 ## Entries
 
@@ -7953,3 +7954,14 @@ docs/ops/probes/2026-11-22-l3.md, S10.1.k
   faulting address. A step the code sets as it passes (D220 for the init, D230 for the first frames), read by an
   observer that writes at each change, places a fall within 50 ms; and Windows' own Application Error events (event
   1000), already on the player's PC, name the faulting module and offset for runs already done (asked of the owner).
+
+### 517. Run A5 reached the title without the stand-in; the tester's panel moves below GraceUI's notices
+
+`2026-11-23` · FACT · `#spike` `#graceui` `#launcher` · refs: WHY§509, WHY§511, S10.1.g
+
+- Package 0.1.0-spikes.4, run A5 (GraceUI and its observer alone, no stand-in, no EldenNet): the game reached the title
+  screen and stayed up, with GraceUI's notice drawn at the top right: the first run on the owner's PC past GraceUI's
+  first frames. Every earlier run there had the stand-in loaded and fell within seconds at address 0 (WHY§509), so the
+  stand-in's part in the chain is now the first suspect. The rest of the run and A1 are to confirm it.
+- The owner saw the launcher's task panel cover GraceUI's notice at the game's top right. The panel now opens 72 px
+  (at 96 dpi) below the work area's top, under two of GraceUI's one-line notices (engine b1f7900; Lodestar told).
