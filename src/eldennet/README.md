@@ -67,7 +67,11 @@ T1 then runs, each state logged and written to the watch block for the launcher'
     `spike_run` banner (GraceUI's notice when connected) and L1. What a stopped start keeps runs on: T6 (the core,
     the status block, the status lines), T10, T11, the connect and F11's view (`debug.panel`), the recorder (its
     header carries the word). Nothing waits for the task, which T6 and the view read only once it is set, and the
-    crash filter stays in. (`s0e_alone` loads no eldennet.dll at all.)
+    crash filter stays in. (`s0e_alone` loads no eldennet.dll at all.) If such a run stops sooner, at a stop of the
+    reading's own (an unknown build, discovery, the register, inert: the owner's package carries no reader data for
+    the real game), the log line and the init keep that reason while the banner shown is `spike_run`, the test run's
+    plain note ("EldenNet test run: it makes no call into the game", normal tone, not a warning); anti-cheat, the
+    session and a game that did not start show their own (boot.cpp's `show_banner`).
 12. **FirstReading**: at most 30 s for the reader to pass phase A and build its first snapshot
     (`first_reading state=running ms=…`); else Inert and its banner (`no_reading`, or the task's own reason).
 13. **Ready**: DataReady went to the core on C2; another module exporting `eldennet_instance_marker` is logged as a

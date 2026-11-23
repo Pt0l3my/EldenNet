@@ -495,7 +495,9 @@ void overlay_tick(Shell& s, const en::core::Core& core, const en::proto::WorldSn
     if (!link->banner_known || cs.banner != link->banner) {
       const std::string text =
           cs.banner ? en::core::banner_text(*cs.banner, build_word(s), core.banner_detail()) : std::string();
-      const GraceUiStatus st = o.banner(text, GRACEUI_TONE_WARNING);
+      // A test run's banner is a plain note; every other is a warning (boot.cpp's show_banner).
+      const bool test_run = cs.banner && *cs.banner == en::core::BannerReason::SpikeRun;
+      const GraceUiStatus st = o.banner(text, test_run ? GRACEUI_TONE_NORMAL : GRACEUI_TONE_WARNING);
       if (cs.banner || link->banner_known) {
         log(Line("notice").word("what", "banner").word("reason", cs.banner ? en::core::to_string(*cs.banner) : "none")
                 .num("status", st),
