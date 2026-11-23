@@ -1,4 +1,4 @@
-# Lodestar's status, 22 November 2026 (nine read-only rounds run; 15 leads in the build's table, the clock among them; the flags' layout found)
+# Lodestar's status, 22 November 2026 (nine read-only rounds run, the tenth built; 15 leads in the build's table; the flags' layout found)
 
 For the next sitting of the Lodestar session, or a new session that takes it over. Read [HANDOVER.md](HANDOVER.md)
 first; this file adds only where Lodestar's own work stands.
@@ -26,6 +26,7 @@ first; this file adds only where Lodestar's own work stands.
 | The seventh read-only run (2026-11-22; the same record, "The seventh round in game") | package 0.1.0-lodestar.10; engine b0a2fa7 | **Done, reviewed.** The time of day found (hour and minute packed into one word behind static 64422792; told by the owner's two passings of time). The flags' blocks and tree have candidates. The reader at 9.97 readings a second. The sweep's list missed what the owner did; the play time's invariant was refused by its margin rule |
 | The eighth read-only run, with the tester's panel (2026-11-22/23; the same record, "The eighth round in game"; roadmap S10.1.l) | package 0.1.0-lodestar.11; engine 3030114, the table at a6cdf26 | **Done, reviewed.** The panel worked on the owner's PC. `world_clock` in the table by the invariant recipe: 15 leads. Bits set in the flags' stretch around both confirmations. The reader at 9.98 readings a second |
 | The ninth read-only run (2026-11-23; the same record, "The ninth round in game") | package 0.1.0-lodestar.12; engine 620dcd7 | **Done, reviewed.** The tree beside the flags read whole (11,930 records): key, mode and block index placed; a block is 125 bytes at the holder plus index times 125; the flips at the owner's marks decode to round flag numbers. The lead's "offset" is an index. The panel's button change ran |
+| The tenth round's build, and the reader's correction | package 0.1.0-lodestar.13; engine 6d56207 | **Built, not yet run by the owner.** `ErBackend::flag_block` takes a record's value as a block index; the round joins by index, finds the key by the tree's order, tries the reader's way down the tree, and looks for the divisor |
 | Digests | — | Moved to L7 (WHY§311): v1 calls no function of the game |
 | The text for ARCH and DESIGN (proposal §15) | `docs/lodestar` | Written as dated notes and changed rows: ARCH §1.2, §3.2, §6.2, §6.3, §6.4, §6.10; DESIGN §2.1, §4.2, §16.1 |
 | The design document, with a code for `wp` | `docs/lodestar` | Not started |
@@ -51,18 +52,18 @@ stricter install. To rebuild the package: BUILD.md, "The spike package", the `fi
 
 ## What comes next, in order
 
-1. **The next round of step L6** (not built): the flags' reader, checked. The ninth round (the record's "The ninth
-   round in game") read the tree beside the flags whole: 11,930 records of 64 bytes; the key (the group) 32 bytes
-   in, the mode (always 1) 40 bytes in, the block's index 48 bytes in; a block is 125 bytes at the holder (the
-   stretch 40 bytes into the store) plus its index times 125; a flag is the group times 1,000 plus its place, the
-   first flag of a byte in its top bit. The flips at the owner's marks come out as round flag numbers. To do:
-   - en-gal's own reader (`ErBackend::flag_block`, readers.cpp) takes the record's value for bytes; it is an index
-     (times 125). Engine has been asked before it is changed, with the fake game's records;
-   - the join by index first; the order's check on the key whatever its padding looks like;
-   - a round that reads flags by number as the reader will (the head's parent, then down by the key) and compares
-     with the bits the sweep saw; that looks for the divisor (1,000) in the store's first bytes; then the flags'
-     fields into `gal/layouts/` as leads (`event_flags`: map 56, holder 40; the record: key 32, mode 40, value 48);
-   - the owner has not said what the things done at the marks were; with flag numbers it matters less.
+1. **The owner's tenth read-only run** (package 0.1.0-lodestar.13, engine 6d56207; built, not yet run): the
+   flags' reader, checked. The ninth round gave the flags' layout (the record's "The ninth round in game"); en-gal's
+   own reader now takes a record's value as a block index (Engine agreed, WHY§452). When the files come back:
+   - `tree.order` and `tree.key_field` (32 expected): which link is the smaller side;
+   - `tree.joins`: one a flip, by index, in the stretch 40 bytes into the store; `reached` must be true for every
+     one (the reader's way down from the root arrives at the same record), and the flag numbers come from the key
+     and the bit's place;
+   - `tree.divisor_at`: where the store keeps 1,000 (the reader checks it; if nowhere, the reader's check of the
+     divisor must go, with Engine's word);
+   - then the flags' fields into `gal/layouts/2.7.2.0-ww.toml` as leads (`event_flags`: divisor, map 56,
+     holder 40; the record: links 0, 8 and 16, key 32, mode 40, value 48), and L6's three subjects (the clock,
+     the play time, the flags) are placed.
 2. **R1's clean-up (O106)**: done on `feat/lodestar` (3e11238, and its leftovers as WHY§372 ruled in 532e751), commits of their own (the DLL's R1 mode, the
    launcher's `--probe`, R1's package and cases, and what only R1 used in en-gal), and the dated notes are in ARCH
    and DESIGN. What it left in place because something else may use it is listed in the message to Engine that goes
