@@ -7,14 +7,18 @@
 //                                    <dir>/s0b-slow.ensnap.jsonl (the same, 600 µs at p99 and one fault),
 //                                    <dir>/s0c.ensnap.jsonl (solo, a co-op visit that closes the gate, solo again
 //                                    until it opens again),
-//                                    <dir>/s0d.ensnap.jsonl (25 faults injected into camera, then its breaker trips)
+//                                    <dir>/s0d.ensnap.jsonl (25 faults injected into camera, then its breaker trips),
+//                                    and in <dir>/runs/ eldennet.dll's reports of S0 runs (en_shell's spikerun.hpp),
+//                                    each as spike.cpp writes it: <spike>-<case>.json (run_reports below)
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 
 #include "en/core/core.hpp"
 #include "en/shell/record.hpp"
+#include "en/shell/spikerun.hpp"
 
 namespace {
 
@@ -148,6 +152,82 @@ void fault_session(const std::string& path) {
   }
 }
 
+// eldennet.dll's reports of S0 runs, as spike.cpp fills them: a ready start with its table checked twice, one with an
+// id refused, one with an id that moved when checked again; S0-B's session read for 7,300 s (its process id joins it to
+// a recording named for it), and stopped at the discovery banner because the start's layout is not complete; S0-C's
+// the same; S0-D's ready with its trial and camera tripped, and stopped short with its trial alone.
+void write_run(const std::string& path, const en::shell::SpikeRun& r) {
+  std::ofstream(path, std::ios::binary) << en::shell::spike_run_text(r);
+}
+
+void run_reports(const std::string& dir) {
+  std::filesystem::create_directories(dir);
+  namespace w = proto::watch;
+  using en::shell::SpikeRun;
+  using en::shell::SpikeWaits;
+  const auto base = [](w::Spike spike, std::uint32_t pid) {
+    SpikeRun r;
+    r.spike = spike;
+    r.pid = pid;
+    r.probe_build = true;
+    r.game_version = {9, 8, 7, 0};
+    r.region = "ww";
+    r.en_version = {0, 1, 0};
+    r.writes = 1;
+    r.discovery = {true, true, true, 1, 15, 16, 0, 11};
+    r.table = {15, 0, true, 15, 0, 0, 60};
+    return r;
+  };
+  const auto ready = [&](w::Spike spike, std::uint32_t pid) {
+    SpikeRun r = base(spike, pid);
+    r.state = w::InitState::Ready;
+    r.start_ms = 9100;
+    r.reading.started = true;
+    return r;
+  };
+  const auto waits = [&](w::Spike spike, std::uint32_t pid) {
+    SpikeRun r = base(spike, pid);
+    r.state = w::InitState::Banner;
+    r.banner = en::core::BannerReason::DiscoveryFailed;
+    r.waits = SpikeWaits::Layout;
+    r.discovery = {true, false, true, 4, 13, 16, 0, 2};
+    r.table = {14, 0, true, 14, 0, 0, 56};
+    r.start_ms = 41000;
+    return r;
+  };
+  write_run(dir + "/s0a-ready.json", ready(w::Spike::S0a, 1001));
+  write_run(dir + "/s0a-waits.json", waits(w::Spike::S0a, 1002));
+  SpikeRun refused = ready(w::Spike::S0a, 1003);
+  refused.table.refused = 1;
+  refused.table.again_refused = 1;
+  write_run(dir + "/s0a-refused.json", refused);
+  SpikeRun changed = ready(w::Spike::S0a, 1004);
+  changed.table.changed = 1;
+  write_run(dir + "/s0a-changed.json", changed);
+  SpikeRun b = ready(w::Spike::S0b, 4242);
+  b.reading.ms = 7'300'000;
+  b.reading.snapshots = 73'000;
+  b.reading.torn = 2;
+  b.reading.held = 3;
+  b.reading.unconfirmed = 1;
+  b.reading.p99_us = 310;
+  b.session_ms = 7'310'000;
+  write_run(dir + "/s0b-ready.json", b);
+  write_run(dir + "/s0b-waits.json", waits(w::Spike::S0b, 4243));
+  write_run(dir + "/s0c-waits.json", waits(w::Spike::S0c, 4244));
+  SpikeRun d = ready(w::Spike::S0d, 4245);
+  d.trial = {true, 20, 20, 20, 20};
+  d.inject.group = proto::Group::Camera;
+  d.inject.every = 1;
+  d.inject.after_s = 2;
+  d.reading.injected_faults = 9;
+  d.reading.tripped = std::uint64_t{1} << static_cast<unsigned>(proto::Group::Camera);
+  write_run(dir + "/s0d-ready.json", d);
+  SpikeRun dw = waits(w::Spike::S0d, 4246);
+  dw.trial = {true, 20, 20, 20, 20};
+  write_run(dir + "/s0d-waits.json", dw);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -160,5 +240,6 @@ int main(int argc, char** argv) {
   solo_session(dir + "/s0b-slow.ensnap.jsonl", true);
   coop_session(dir + "/s0c.ensnap.jsonl");
   fault_session(dir + "/s0d.ensnap.jsonl");
+  run_reports(dir + "/runs");
   return 0;
 }
