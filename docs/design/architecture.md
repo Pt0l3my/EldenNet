@@ -138,6 +138,13 @@ preallocated arrays. The bounded queues of C8, C11 and C17 are our own too, a mu
 ring, with the overflow policies above; only T6, T9 and T10 use them, and the core only with `try_push`. Every producer
 of the core's inputs raises its one wake signal, the handle's notify callback among them.
 
+*Since 2026-11-22 (WHY§364 (8), WHY§399, WHY§439; built with the first conversation, S11.3):* since GraceUI's G15, T6
+alone calls GraceUI, so C6 and C7 do not cross to a present thread of EldenNet's. The core publishes its `UiModel` whole
+after each step, and en-overlay draws it on T6 in the same wake, submitting each panel's list to GraceUI at most every
+100 ms. The surfaces' `UiEvent`s (the talk key, Tab and the box's typing from `poll`, then the PageShown and Close that
+drawing raises) go to the core in that wake, a few rounds at most. T6 waits on its wake signal and GraceUI's wait handle
+together, with C16's 100 ms as the fallback.
+
 ### 1.4 Startup order
 
 ```mermaid
@@ -3005,6 +3012,14 @@ stage's link checks for `eldennet.dll`:
   thread at a time uses its context), so the runtime's thread-safe statics bring no SRW lock or condition variable
   import. The probe build adds its own heap and its walk (`HeapCreate`, `HeapLock`, `HeapWalk`, `HeapUnlock`; spike.6).
 
+*Since 2026-11-22 (WHY§364 (10), WHY§425, WHY§426, WHY§433, WHY§439; built with the first conversation, S11.3):* the
+`eval` stage's offline part is a CTest label run on demand: each scenario's `eval --llm mock`, and `--llm recorded`
+where it has a recording, is a test added with `CONFIGURATIONS eval` and the label `eval`, so a plain `ctest` leaves it
+out and `ctest -C eval -L eval` runs it; `en_tools_tests` runs every scenario through the eval's runner in every Linux
+test run. The `--preset cloud` run with a CI key, and the judged sets, wait for a key and DESIGN §14's judge check.
+The DLL's reviewed imports gained `SetEndOfFile` (the template library's unused file includes) and
+`WaitForMultipleObjects` (T6's wait on GraceUI's handle).
+
 ### 12.2 Test types
 
 | Type | Modules | Examples |
@@ -3022,6 +3037,12 @@ stage's link checks for `eldennet.dll`:
 | Backpressure | `en-core`, `en-augur` | §8.12 |
 | Eval | `eldennet-engine eval` | 50 turns per persona at 2–3 stages, plus test questions on what the model already knows of the game, 6 per persona and 4 per roster bio (O86; a persona's topics are its `stages.forbid`, a roster bio's the later truths its research note lists; NPC §12.1) and memory probes (criteria C9–C11), plus the world-awareness set (criterion C14, DESIGN §1.3). Every set runs from the increment its subject ships in and gates on DESIGN §16.3's schedule (O29), the judged rates once DESIGN §14's judge check has passed. A persona ships only with a passing report |
 | In game | Dev builds | S0-A–S0-E, smoke route, 30 h soak (C1), 20 forced fail-closed launches with the `probe` option's fault injection (unknown build, missing pattern, forced read faults) |
+
+*Since 2026-11-22 (WHY§409, WHY§424, WHY§428, WHY§431; built with the first conversation, S11.3):* built so far: the
+sanitizer's seeded property tests and `fuzz/sanitize`; the prompt goldens per fixture, beside their fixtures in
+`tests/fixtures/prompt/`; the eight fixture states and `ashen`, and the truth tables, gated until `known(P)`; every
+conversation transition and timer on a simulated clock; and the eval's scenarios on an invented test persona, mock and
+recorded, in place of the pilot's 50 turns until the pilot and a key exist.
 
 ### 12.3 `eldennet-engine` subcommands (`en-tools`)
 
@@ -3051,6 +3072,14 @@ far are marked; the others are added to it as they are built.
 | `roster-draft` | Offline: one call per NPC turns our own research note into a draft bio in the git-ignored `drafts.local/roster/`; reads no game text, export or vanilla line (DESIGN §7.8) | `--id`, `--batch`, `--providers` |
 | `roster-verify <recording>` | Match the roster's binding leads to a capture's sightings and write evidence records to `tests/roster/` (S1, S2; DESIGN §7.8) | `--batch` |
 | `flag-verify <recording>` | Align flag edges with S6 marks and write evidence records (MEM §6.3) | `--script tests/s6/<topic>.toml` |
+
+*Since 2026-11-22 (WHY§364 (10), WHY§412, WHY§425; built with the first conversation, S11.3):* built: `eval
+<scenario.toml> --llm mock|recorded [--report FILE]`, whose report is a local-only kind (`eval-local`, schema 1): it
+holds model text, so it has no default path, is written only where `--report` says, is ignored by git under
+`eval-reports/` and is never uploaded, and what `eval` prints is numbers only. `mockllm --script <mock.toml>
+[--requests N]` is a scripted model that prints a script's events in the form `--llm recorded` reads; the local SSE
+server above waits for a test of en-llm's live path. Also built: `render-prompt --fixture`, `golden` for the prompt
+goldens, and `lexicon fingerprint|check` for the lint's lists (O107).
 
 ### 12.4 Compatibility matrix (rows from v0.1, the full matrix at v0.6; DESIGN §16.3)
 

@@ -1301,6 +1301,9 @@ Every NPC with a profile converses (O45). Where this section says *persona*, rea
 ### 8.1 Starting
 
 - **Hotkey:** rebindable, always masked from the game. The default is chosen in S4 from keys the default ER layout leaves free (candidate `T`). *2026-11-21, O94:* the owner decided one key on the keyboard, `T` by default, which no published default layout binds (WHY§277); S4 checks it in game, and the pad's gesture never replaces it. On a pad, hold View + D-pad Up to open the Steam floating keyboard, if S4 passes (O11). In the default layout View opens the map and D-pad Up switches spells, so View is masked while D-pad Up is held and replayed as a tap if the chord is abandoned; S4 confirms the chord or picks another (NPC §5.6). The keyboard is opened through Steam's own `ISteamUtils::ShowFloatingGamepadTextInput` in the already-loaded `steam_api64.dll`, never through game code (R2). *2026-11-21:* the owner approved GraceUI's proposal 0005 for the pad gesture (D-pad Up held first, then View; O95).
+  *Since 2026-11-22 (WHY§364 (6), WHY§437; built with the first conversation, S11.4.c):* the chord is GraceUI's D204,
+  D-pad Up then View, registered on the talk hotkey behind `has_cap("pad-chords")`; the Steam floating keyboard stays
+  unbuilt in v0.2. Where this bullet and NPC §5.6 write "View + D-pad Up", the order is GraceUI's.
 - **Talk hint and header:** "[T] Speak — Kalé" plus a target marker whenever chat is possible. The box header reads "Speak to Kalé — heard by: Kalé" (P2 §5.1, P3 §5.1).
   *2026-11-21, O97:* the header names the conversation's partner, the target the order below chose, and that target is
   the rules' pick for each line the player sends. When a sent line is heard by two or more profiled NPCs that may answer
@@ -1414,6 +1417,9 @@ On a hard-lint hit in sentence 1, regenerate once with a one-line reminder, then
 - The whole page appears with a 120 ms fade, never typewritten. It holds for `clamp(1.2 s + 0.055 s × chars, 2.0 s, 6.5 s)`, plus 0.4 s after a "…". Tab skips (P3 §5.6).
 - It follows the game's subtitle option; with subtitles off, text goes to the chat history strip.
 - **Commit on display:** `NpcSaid` is created when its first page shows and grows page by page. Unshown text is never committed (#548). Each page's commit is sent to the store in the same step and is its own WAL transaction (R14), so a shown line survives a hard kill except in the few milliseconds before that transaction commits (C11).
+  *Since 2026-11-22 (WHY§364 (7); built with the first conversation, S11.3):* v0.2 has no store, so each page's commit
+  goes in the same step to the event log kept in memory behind the store's interface (the newest 4,096 events), and
+  nothing outlives the session. The WAL transaction per page comes with the store in v0.3.
 
 ### 8.6 Ending
 
@@ -2581,7 +2587,7 @@ plugins) and O73–O79 (in-game data, the devkit, EldenNet off game; proposal 00
 0003) put and withdrawn, and O84 (our own engine) decided, on 2026-11-15; O86 (spoilers by grounding alone) decided the
 same day; O46 (proposal 0004), O85, O87 and O88 on 2026-11-16, and O25 changed that day (the overlay, for
 C++), and O89–O91 (the plan for the first in-game build) the same day, and O92 (R1's naming route) on 2026-11-17, and O93 (EldenNet's text at GraceUI's larger default size) on 2026-11-20, and O94 (the talk key, one key) and O95 (the first pages' choices), O96 (System One for decisions) and O97 (decisions choose the addressee) on
-2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. O100 (EldenNet's own address library, built by the Lodestar session) the same day. O101 to O103 (Lodestar's proposal 0005) the same day, as recommended, and O104 (the fourth pages slice's readings). O105 (the fourth read-only round's wide search) on 2026-11-22, as recommended, and O106 (retire R1) and O107 (the lint's slurs kept hashed) the same day. None is Open.**
+2026-11-21, and O98 (a home-network model server) and O99 (the fifth pages slice's readings) the same day. O100 (EldenNet's own address library, built by the Lodestar session) the same day. O101 to O103 (Lodestar's proposal 0005) the same day, as recommended, and O104 (the fourth pages slice's readings). O105 (the fourth read-only round's wide search) on 2026-11-22, as recommended, and O106 (retire R1), O107 (the lint's slurs kept hashed) and O108 (a banner and the open chat box) the same day. None is Open.**
 Every decision is recorded in full in
 [docs/DECISIONS.md](../DECISIONS.md), the one record: the question as it was put, the options, what was decided, the
 owner's words and what each amends or supersedes. This section is its index; each O-number the design cites is a row
@@ -2699,3 +2705,4 @@ and a later decision amends an earlier one by a note, never by rewriting it.
 | [O105](../DECISIONS.md#o105) | May the fourth read-only round search all of the game's readable private memory once for a missing manager's object? | Yes, once, read-only, counts and places only | Decided 2026-11-22 |
 | [O106](../DECISIONS.md#o106) | Retire R1 (its package, the DLL's R1 probe mode, the launcher's `--probe`)? | Yes: remove what is confirmed obsolete, keep the records | Decided 2026-11-22 |
 | [O107](../DECISIONS.md#o107) | How is the lint's list of slurs kept in a public repository? | (a) hashed: fingerprints of normalised words only | Decided 2026-11-22 |
+| [O108](../DECISIONS.md#o108) | A game banner while the chat box is open: does the box stay open? | Yes: a banner stops the box opening, never closes it | Decided 2026-11-22 |

@@ -1553,6 +1553,11 @@ Since O45 every NPC with a profile converses. In this section *persona* reads *p
   - unsafe → "Not now: danger is near.";
   - nothing in range → no response.
 
+*Since 2026-11-22 (WHY§438, WHY§441, WHY§442; built with the first conversation, S11.3 and S11.4.c):* the box's first
+frame went to GraceUI 1 ms after the talk key on the fake game. Tab, the skip key, is masked from the game whenever it
+is bound, not only while a page shows, since GraceUI's hotkeys have no pause: S4 checks the game does not need it. A
+refused or not-now box toasts "Chat cannot take the keyboard just now.", which does not yet name the holder.
+
 ### 5.2 Target order with arming (DESIGN §8.1)
 
 0. **A persona whose line addressed to the Tarnished showed ≤ 10 s ago** → answer it (the conversation opens with `opened_by = Npc`, §5.9).
@@ -1619,6 +1624,14 @@ std::optional<Unsafe> safe_context(const WorldModel& w) {
 
 **Danger** is the first step at which `safe_context` fails while the box is open, or `PlayerDied`, or player HP dropping. The box **closes at once**. Input is released in the same step, and the draft is kept for 60 s (per target). The toast reads "The moment has passed." (P3 §5.2). Pages already being shown keep pacing, because `Engaged` interrupts `chat_input` but not conversation output (DESIGN §6.5). If danger lasts 10 s, the conversation ends with `danger`. Pressing the talk key after danger clears reopens the box on the same target with the draft.
 
+*Since 2026-11-22 (WHY§419, WHY§400; built with the first conversation, S11.3):* every failing clause closes the box at
+once, but only a threat (`Player`, `Boss`, `Combat`, `Hostiles`, or HP dropping) counts towards the 10 s. `Menu` holds
+the pages instead (§5.8's 30 s), and `NotActive` leaves the conversation to its idle timer; an unknown HUD state reads
+as hidden. The overlay answers the core's close with the draft, so it is kept whichever side closed.
+
+*Since 2026-11-22 (O108):* a banner fails the Menu clause for opening the box only. An open box stays open over a
+banner, its pages held, as §10.2's banner row says; danger still closes it at once.
+
 ### 5.5 Input capture and release
 
 - **On open** (same step): ask GraceUI for input with `request_input`, which answers at once: `granted`, `refused` naming the holder (the box stays shut, with a status toast), or `not_now` with the reason (GraceUI D77). GraceUI applies the rules below to every holder.
@@ -1634,6 +1647,11 @@ std::optional<Unsafe> safe_context(const WorldModel& w) {
 - **Gesture:** hold View + D-pad Up for 0.4 s. It opens the box and calls `ISteamUtils::ShowFloatingGamepadTextInput` (single line) positioned over the input field. The call goes through the flat API of the `steam_api64.dll` the game has already loaded, from the effect shell on T6; it is never a game-code call (DESIGN R2) and it does not block. Steam delivers the text as keystrokes. XInput is neutral while the box is open. B or the keyboard's dismiss closes the box like Esc. *2026-11-21:* approved by the owner as GraceUI's proposal 0005 (O95), which GraceUI builds.
 - **Chord masking:** while D-pad Up has been held for ≥ 150 ms, View is masked from the game until the chord resolves. If the chord completes, View is never delivered. If D-pad Up is released first, a masked View press is replayed as a short tap. The first D-pad Up press still reaches the game (one spell switch). S4 confirms the chord or picks another (§14 item 2).
 - **If S4 fails:** pad players have no typing path in v1. The intent list is v1.1 (O11).
+
+*Since 2026-11-22 (WHY§364 (6), WHY§437; built with the first conversation, S11.4.c):* the chord is GraceUI's D204, D-pad
+Up held first, then View, registered on the talk hotkey behind `has_cap("pad-chords")`, with GraceUI's masking and
+replay; the order above is GraceUI's. The Steam floating keyboard is not built in v0.2. The talk hotkey cannot say
+whether the key or the chord fired it, so the opening's swallowed character is armed either way, harmless after a chord.
 
 ### 5.7 Ending a conversation (DESIGN §8.6)
 
@@ -1658,6 +1676,11 @@ On end:
 3. advance the input epoch and set `barks_quiet_until = now + 3 s`.
 
 F10 is ignored while a conversation is open.
+
+*Since 2026-11-22 (WHY§437; built with the first conversation, S11.4.c):* the core ends at once on a second Esc, but
+the press cannot reach EldenNet yet: with the box closed nothing holds input, and GraceUI takes no hotkey on Escape
+(roadmap S11.4.d). A content load that changes the index or the records ends an open conversation with `fault` and no
+toast (WHY§423, §427).
 
 ### 5.8 Native-talk coexistence (DESIGN §8.7)
 
@@ -2111,6 +2134,14 @@ Barks and call-out replies run steps 0–6 and 8, then their own validation (§9
 | Archaic forms (*thee, thou, thy, thine, ye, hath, doth, dost, didst, shalt, wouldst, 'tis, 'twas*) in a non-archaic register | Log; C10 metric |
 | Third-person self-reference | Log |
 
+*Since 2026-11-22 (O107, WHY§412, WHY§413; built with the first conversation, S11.3.b):* the safety list is kept as
+fingerprints only: SHA-256 of `eldennet.safety.v1:` and a normalised word or phrase of at most three words, matched
+against the sanitised sentence's words and their runs of two and three after the same normalisation (case, accents,
+look-alike letters, separators, repeats). `lexicon/safety.toml` ships with no entries; the owner fills it with
+`eldennet-engine lexicon fingerprint`, which prints the fingerprints sorted and writes the words nowhere (roadmap
+S11.3.h). `banned.toml` leaves out the example words with an in-world sense (game, player, loot, cool), by §3.3's rule
+for such words.
+
 ### 8.4 Regeneration and deflection
 
 ```cpp
@@ -2185,6 +2216,12 @@ struct UiEvent {
 4. After a conversation ends, acks for its last reply are still accepted for 500 ms, because the player saw that text.
 5. Each page's commit is sent to the store in the same step and runs as its own WAL transaction as soon as the store receives it (R14, ARCH §1.5). A hard kill loses a shown page only in the few milliseconds before its transaction commits (C11). Only non-speech writes are coalesced, at most every 250 ms.
 6. The history strip, the memory job and the next prompt read only committed text.
+
+*Since 2026-11-22 (WHY§364 (3) and (7), WHY§399, WHY§436; built with the first conversation, S11.3):* the types are
+en-proto's `UiModel` and `UiEvent`, and a page carries its kind (only a Speech page is acknowledged and committed).
+`PageShown` names the first frame submitted to GraceUI, never transparent, its time on T6's clock (item 1). v0.2 has
+no store: item 5's commit goes in the same step to the event log kept in memory behind the store's interface, and the
+WAL transaction per page comes with the store in v0.3.
 
 ---
 
@@ -2629,6 +2666,10 @@ sequenceDiagram
   O->>C: BarkShown
 ```
 
+*Since 2026-11-22 (WHY§364 (5), WHY§399, WHY§420):* the call-out box waits for v0.6 with the rest of the call-out,
+though the roadmap had it beside the chat box in v0.2 (S11.4.c, now S15.1.a). The first conversation takes no target by
+§5.2's rule 6, and its UI model has no call-out verb or `OpenCallout` event until then.
+
 ### 9.8 NPC-to-NPC exchanges (O34, O39)
 
 NPCs can react to each other's lines, and greet each other to start a dialogue, limited only by pacing and allowances.
@@ -2777,6 +2818,14 @@ A persona's own-initiative line addressed to the Tarnished uses the lower third 
 
 The fonts are OFL (EB Garamond Regular and Italic, Noto Sans, Noto Sans Mono) and ship with their licences. Game fonts never ship (ER03 §7A). EldenNet registers its faces in GraceUI's one atlas before warm-up (`register_face`, GraceUI D80); the atlas holds Latin, Latin-1, Latin Extended-A and General Punctuation. Motion is fades only: 120 ms in, 300–400 ms out. There is no typewriter effect, no sliding and no bouncing.
 
+*Since 2026-11-22 (WHY§364 (2) and (3), WHY§434, WHY§435, WHY§436; built with the first conversation, S11.4.c):* the
+lower third, the speaker card, the chat box and the hint are GraceUI panels made for the display. Their text is quads
+of GraceUI's glyphs, taken from its glyph table and drawn on its shared atlas, from GraceUI's own EB Garamond and Noto
+Sans files registered as EldenNet's two scaled faces (30 and 18 px, the other sizes scaled down from them, until
+GraceUI allows more faces); EldenNet ships no font file. With no italic face the Tarnished's history lines are coloured
+only, and the box's 4 px radius is not drawn. The fades step at T6's pace, at most ten submits a second (120 ms in, a
+120 ms cross-fade, 350 ms out). The hint stands at (0.50 W, 0.68 H) until a render feed places the marker.
+
 ### 10.2 Visibility rules
 
 | State | Pages | Chat / call-out box | Labels, feed, hint, marker | Toasts | Banner, badge |
@@ -2789,6 +2838,12 @@ The fonts are OFL (EB Garamond Regular and Italic, Noto Sans, Noto Sans Mono) an
 | Boss fight | (no conversation can start) | Closed | Hidden (no barks) | **Queued** | Shown |
 | Dormant | Hidden | Closed | Hidden | Shown | "EldenNet paused (multiplayer)" |
 | L1 | — | — | — | — | "EldenNet inactive: …" |
+
+*Since 2026-11-22 (WHY§401, WHY§419, WHY§436; built with the first conversation, S11.3 and S11.4.c):* the core applies
+this table through its UI model, and the surfaces draw only what the model lists, fading out what it drops at T6's pace.
+A HUD not at Default, or not known, closes the box and holds the pages; the toasts follow §10.5's policy in the core
+and go to GraceUI as notices by id. A banner fails §5.4's `Menu` clause, so as built it closes the box as well, where
+the banner's row above keeps it open: the two are to be settled.
 
 ### 10.3 Label projection and jitter
 

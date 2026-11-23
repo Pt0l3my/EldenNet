@@ -1073,12 +1073,17 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     an accessor's static, told by the owner's two passings of time), candidates for the flags' blocks and tree, the
     reader at 9.97 a second. 1012 `world_clock` is that object (WHY§359's Later line). Next: the clock into the table by
     what its object holds; a flag the owner sets checked against the blocks, with the tester's marks (S10.1.l).
-- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [next]
+    L6's fourth round built the same day (engine 9ba4556, Lodestar's 3030114; WHY§444, §445): the tester's panel and
+    its marks for the sweep, the clock written by what its object holds, the play time judged by what it does.
+    Package 0.1.0-lodestar.11, for the owner's run.
+- l A tester's panel for the owner's rounds: each task in order, with a timer and a mark when done (the owner's request) [done]
   - needs: k
-  - refs: WHY§398, WHY§396
+  - refs: WHY§398, WHY§396, WHY§444, WHY§445
   - gives: asked by the owner on 2026-11-22, after the seventh read-only round. By Lodestar: in game through GraceUI if
     its overlay can show it there today, else a window of the launcher's own. The tester's marks also tell the round
-    when to look.
+    when to look. Built the same day with the eighth round (engine 3030114): the launcher's task panel, with --read,
+    the tasks in order, timers, Pause or a click to confirm; the confirmations are Marks in the watch block's ring
+    (WHY§444, §445). GraceUI's overlay is not cleared for the real game yet (S10.1.g, S11.1.a).
 ### S10.2 EldenNet v0.1
 
 - S10.2.a The launcher, the DLL load contract, and the offline and session gates
@@ -1157,7 +1162,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 
 - refs: DESIGN§16.1
 - S11.1.a Spike S4, input, and S0-E's input half, in game [waiting]
-  - refs: GraceUI:D175, O94
+  - refs: GraceUI:D175, O94, WHY§438
   - gives: GraceUI's side built on 2026-11-20 with S10.1.g's (run B: 60 s of typing in the observer's panel, a held
     key across the menu's open, a pad's close). Until R1 gets our task running, the movement row is the owner's word
     and GraceUI's counters (messages passed while held, DirectInput and XInput states masked); EldenNet's recording
@@ -1165,7 +1170,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     layout binds it, WHY§277), so S4 also presses T in game in the default layout and checks the game does nothing.
     Its second round's pad checks (the chord's 150 ms, 0.4 s and tap, that D-pad Up then View is free in the game, the
     late View opening the map, the Steam Deck) run on testers' machines: the owner tests with keyboard and mouse only
-    (2026-11-22; GraceUI's D205, WHY§350).
+    (2026-11-22; GraceUI's D205, WHY§350). Since the first conversation (2026-11-22, WHY§438), the skip hotkey, Tab by
+    default, is masked from the game whenever it is bound, since GraceUI's hotkeys have no pause: S4 also checks that
+    the game does not need Tab, and if it does, the skip takes another default.
 - b Spike S3, the talk observer, and the pilot persona's S6, in game [waiting]
 - c X1, voice in a bottle: candidate models against the prompt, offline, with its test questions
   - refs: NPC§12.2, ARCH§12.3
@@ -1417,15 +1424,61 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S11.3 EldenNet v0.2
 
 - S11.3.a The LLM client in the DLL (built in S8.1.a and g; config file only), the chat box, input capture and gating, the talk observer
-  - refs: DESIGN§8, DESIGN§11
+  - refs: DESIGN§8, DESIGN§11, WHY§364, WHY§399, WHY§400, WHY§404, WHY§418, WHY§419, WHY§420, WHY§421, WHY§442
+  - gives: built offline on 2026-11-22 (WHY§364; engine b045026 to b4451c8), on the fake game and a scripted model:
+    the core's chat requests sent through en-llm's handle in the DLL with their stop sequences, its cancels, and the
+    dialogue slot's health for L3 and L4; the conversation's states, timers, draft, queued line and endings; gating by
+    conversable and safe_context, target rules 3 to 5 and the talk observer failing closed, each clause tested alone
+    on a simulated clock (WHY§418 to §422). Waits for the game: real snapshots from Lodestar's reader (S10.1.k) for
+    the HUD, the pop-up, the talk camera, teams and distances, then S4 and S3 in game (S11.1.a, b). Left: a refused or
+    not-now toast that names the holder (WHY§442); target rules 1 and 2 (f), 0 with the own-initiative lines (S12.1.c)
+    and 6 with the call-out (S15.1.a); the mute state's sources (`speech.toml`, `types.toml`); a second Escape
+    (S11.4.d). By O108 (2026-11-22, the owner) a game banner stops the box opening but never closes an open one, which
+    holds its pages: the core's gate changes to match.
 - b The prompt, the sanitizer and lint, pages, and commit on display
-  - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5
+  - refs: DESIGN§8.3, DESIGN§8.4, DESIGN§8.5, WHY§402, WHY§403, WHY§409, WHY§412, WHY§414, WHY§415, WHY§427, WHY§432
+  - gives: built offline on 2026-11-22 (WHY§364): the prompt's blocks in en-prompt's syntax, rendered from the
+    persona's record within their caps and trim (WHY§403, §414, §428 to §430); the sanitizer (WHY§409 to §411); the
+    lint with `banned.toml` and the safety list kept as fingerprints (O107; WHY§412, §413), one regeneration and the
+    deflection ring; the pager's caps, lazy sealing and holds (WHY§415); commit on display into v0.2's event log, kept
+    in memory behind the store's interface (WHY§364 (7)); `render-prompt --fixture`, the prompt goldens and a fuzzer
+    for the sanitizer. Waits for the game: block 9's scene from Lodestar's reader (S10.1.k), which has the time of day
+    alone so far (WHY§421). Left: the safety list's entries (h); a queued line that waits for a one-page reply's hold
+    (WHY§432); a narrower "Name:" rule, judged once the eval counts its removals (WHY§410); each page written to the
+    store with v0.3's log (S12.1.a).
 - c One pilot persona, in memory only, with the world view, what it knows and its road; news raised as O28 sets
-  - refs: DESIGN§10.6, O10, O28
+  - refs: DESIGN§10.6, O10, O28, WHY§418, WHY§424
+  - gives: on 2026-11-22 the test persona was built: invented, `test_only`, built into the core's content and bound to
+    the fake game's invented character through the tests' overrides, in the tests' realm alone (WHY§418, §423). The
+    pilot persona and `known(P)` are not; the truth tables wait for `known(P)` (WHY§424).
 - d Positive grounding, the "you, now" line, and settings with the range and the feature switches
-  - refs: O36, DESIGN§11.4
+  - refs: O36, DESIGN§11.4, WHY§424
+  - gives: on 2026-11-22 the fixture states were built, the eight and `ashen`, as catalogue aliases, block offsets and
+    track steps with no flag id and no text (WHY§424). The pilot persona and `known(P)` are not (c); the "you, now"
+    line has its place in block 9's scene, which nothing fills yet (WHY§421), and the range and the feature switches
+    are not read yet.
 - e The eval tool and its CI stage, the fixture states and the pilot's truth tables
-  - refs: DESIGN§14
+  - refs: DESIGN§14, WHY§424, WHY§425, WHY§426, WHY§431
+  - gives: built offline on 2026-11-22 (WHY§364 (10)): `eldennet-engine eval` with `--llm mock` and `recorded`, four
+    scenarios on the test persona (first words, no answer, a regeneration then a deflection, the word cap cutting the
+    stream), its report a local-only kind, run by CTest on demand under the label `eval` (WHY§425, §426, §431);
+    `mockllm` as a scripted model; the fixture states and the truth tables, written and gated (WHY§424). Nothing of it
+    waits for the game. Left: the CI stage on content changes, and the live and judged sets, which wait for a key and
+    the judge's check; the pilot's truth tables with `known(P)` (c); mockllm's local SSE server, for en-llm's live path
+    (WHY§425); counting the sanitizer's "Name:" removals (WHY§410).
+- f Target rules 1 and 2: the talk key arming chat on the game's own talk, once spike S3 has checked the talk observer
+  - needs: S11.1.b
+  - refs: NPC§5.2, WHY§420
+  - gives: left out of the first conversation, which takes targets by rules 3 to 5 alone (2026-11-22).
+- g The overrides' `disable.toml`: shipped personas and cards turned off by id, shown on Content packs
+  - refs: ARCH§11.6, DESIGN§11.4, PAGES§4.6
+  - gives: not built with the first conversation's content loading (2026-11-22), which reads the overrides folder's
+    whole files alone.
+- h The shipped safety list's fingerprints, made by the owner with `lexicon fingerprint` [waiting]
+  - refs: O107, NPC§8.3, WHY§412
+  - gives: `safety.toml` ships with its header and no entries (2026-11-22). The owner fingerprints the words on their
+    own PC, and only the sorted fingerprints are committed; no word is written in the repository, its tests or its
+    reports (O107).
 
 ### S11.4 GraceUI 0.2
 
@@ -1485,12 +1538,15 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     subscriptions, asked the same day. The owner accepted the slice's eleven readings as written (O99), and both slices
     are in PAGES §4.5 and §4.6.2 and ARCH §11.1, §11.2 and §11.4 as dated notes. The fourth slice's readings were decided as built the
     same day (O104). GraceUI paced the subscriptions the same day (S11.2.z).
+    Since the first conversation (2026-11-22, WHY§422, §442): the core's ladder has L3 and L4, which the pages still
+    show as Observing, since en-overlay's pages have no speaking level yet. Words players read, left for the owner's
+    review with the level the pages give them.
 - b The browser dashboard, always on, on loopback only: EldenNet's space served whenever its gate and safety steps pass
   - needs: S11.2.i
   - refs: G4, GraceUI:DESIGN§7.2
   - gives: the server's security suite moved to S11.2.i on 2026-11-20 (the Grace session's plan).
 - c EldenNet's subtitles, chat box and call-out box as panels taking input through request_input, with the input-leak tests across holders
-  - refs: G17, GraceUI:DESIGN§10, GraceUI:D176
+  - refs: G17, GraceUI:DESIGN§10, GraceUI:D176, GraceUI:D139, WHY§364, WHY§434, WHY§435, WHY§436, WHY§437, WHY§439, WHY§441
   - gives: the server with two spaces and per-space routing moved to S11.2.i on 2026-11-20. The chat box needs typed
     characters, which ABI 1 does not yet give a mod's panel (WHY§241): GraceUI's input event comes first. Agreed on
     2026-11-20 as GraceUI's D176 (ABI 1.1, GraceUI 0.2.1, EldenNet's floor for v0.2): keys, characters, the pointer
@@ -1502,7 +1558,7 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     2131839): the chat box can take typing through ABI 1.1 (WHY§244 to §246). The pad chord built on 2026-11-22 in
     GraceUI 0.2.14 (GraceUI's D204, ABI 1.3, has_cap("pad-chords"); S11.2.aa): GRACEUI_PAD_CHORD(XINPUT_GAMEPAD_DPAD_UP,
     XINPUT_GAMEPAD_BACK) on the talk hotkey, one GRACEUI_EVENT_HOTKEY on completion; EldenNet's floor for the chord is
-    0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet. GraceUI 0.2.15 fixes a rare lost end of a
+    0.2.14 (GraceUI's docs/eldennet-changes.md §47). Not wired in EldenNet yet (wired on 2026-11-22, below). GraceUI 0.2.15 fixes a rare lost end of a
     holder (GraceUI's D207, WHY§360): the chat box hears every end from 0.2.15. By G37 (2026-11-22, WHY§362, S11.2.ac)
     EldenNet's three key settings become the defaults it registers, its Settings › Hotkeys a read-only list with a link
     to GraceUI › Hotkeys, and the call-out names the key from describe_hotkey (ABI 1.4). From GraceUI 0.2.16 the talk
@@ -1510,6 +1566,22 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
     GraceUI's glyph_table (Grace's answer of 2026-11-22, WHY§364). T6 waits on GraceUI's wait handle (ABI 1.5, floor
     0.2.17) for the chat box's opening within 50 ms (NPC §5.1): 1 to 5 ms from a hotkey's key to the wake in GraceUI's
     harness (WHY§373).
+    Built offline on 2026-11-22 (engine b4451c8; WHY§434 to §441), at GraceUI 0.2.20, floor 0.2.17: the lower third,
+    the speaker card, the chat box and the hint as GraceUI panels, their text in quads from GraceUI's glyph table on
+    GraceUI's own EB Garamond and Noto Sans, the fades stepped at T6's pace; input through request_input and the
+    holder's events (the caret, the swallowed character, Esc, every holder end, the model's close answered with the
+    draft); the talk and skip hotkeys, with the pad chord behind its cap; T6 on GraceUI's wait handle, 1 ms from the
+    talk key to the box's first frame on the fake game; no input leak across the menu, the F11 view and the box; a
+    typed line answered in the lower third and committed, end to end on the fake game. Waits for the game: S4 and
+    S0-E's input half (S11.1.a). Left: the chord and danger tested against GraceUI's real test build, as they are so
+    far against the stand-in only; rounded corners, and the Tarnished's lines in italic, which wait for more faces per
+    mod in GraceUI (D139 gives EldenNet eight) and an italic face; a second Escape (d); the pointer in the box. The
+    call-out box waits for v0.6 (WHY§364 (5); S15.1.a).
+- d A second Escape while a reply paces (NPC §5.7): a way for it to reach EldenNet once the box has closed, asked of GraceUI
+  - needs: c
+  - refs: NPC§5.7, WHY§437
+  - gives: the core's rule is built, but with the box closed nothing holds input and GraceUI takes no hotkey on Escape,
+    so the second press never reaches EldenNet (2026-11-22).
 
 ### S11.5 v0.2's exit checks
 
@@ -1531,7 +1603,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 - b What each persona has seen of the world, the since-line, and reaction cues
   - refs: MEM§12.13, O28
 - c The pacing core and the autonomous class; the pilot's own-initiative lines, once S3 and S6 allow them
-  - refs: DESIGN§9.4, DESIGN§8.9, O31
+  - refs: DESIGN§9.4, DESIGN§8.9, O31, NPC§5.2, WHY§420
+  - gives: with them target rule 0, the talk key answering a line a persona has just addressed to the Tarnished
+    (NPC §5.2), which the first conversation left out (2026-11-22).
 - d The 60-second news cooldown, subjects, persona instructions and the player's profile layers, by file
   - refs: O30, DESIGN§7.7
 - e One memory per witness, and the lived layer's update at quiet moments
@@ -1645,7 +1719,9 @@ development Mark in the launcher), and only S0-E's present-hook half waits on it
 ### S15.1 EldenNet v0.6
 
 - S15.1.a The first-run wizard, the call-out with repeat calls, and the pad gesture
-  - refs: O13, O11, O88, DESIGN§11.5
+  - refs: O13, O11, O88, DESIGN§11.5, NPC§9.7, WHY§364, WHY§420
+  - gives: since 2026-11-22 also the call-out box as a panel, which S11.4.c leaves to v0.6 (WHY§364 (5)), and target
+    rule 6 (NPC §5.2), which the first conversation left out.
 - b The compatibility matrix and the patch drill, with the JP build as the "new" one
   - refs: ARCH§12.4, O5
 - c The profile editor, the sightings list and the draft helper
